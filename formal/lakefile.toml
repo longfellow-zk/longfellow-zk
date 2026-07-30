@@ -110,3 +110,4 @@ srcDir = "."
 roots = ["polygero"]
 globs = ["polygero", "polygero.+"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
