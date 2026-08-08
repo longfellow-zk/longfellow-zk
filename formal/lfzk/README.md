@@ -59,7 +59,6 @@ with the deployed code. This library builds on the Ligero V1 analysis in `formal
 | Which premises are still external? | [Assumptions and deployment boundary](#assumptions-and-deployment-boundary) |
 | What does the privacy theorem prove? | [Zero knowledge](#zero-knowledge) |
 
-# Soundness
 
 ## The end-to-end statement
 
@@ -73,7 +72,6 @@ Pr[ both modeled verifiers accept
       and agree on the common value ]
   ≤ (1 + tA + N) / 2^115.
 ```
-
 - **T-security.** Writing `T = tA + N`, success is at most `(T + 1)/2^λ`, not a constant `2^-λ`
   for every attacker.
 - **The probability.** It is a finite count over a uniform Merkle tape and a uniform function on
