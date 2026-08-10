@@ -21,6 +21,7 @@ re-commit and grind.
 | Zero knowledge, 542-bit nonces | statistical, ≤ 2^-131 two-field, no query bound; the v7 MAC simulation receives the zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_stat542` |
 | Witness indistinguishability | ≤ 2^-127 per side and ≤ 2^-126 two-field at 2^115 queries; the v7 two-field claim requires equal zero patterns | `CompiledLongfellowZk.compiled_longfellow_wi`, `CompiledLongfellowZkV7Mac.twofield_wi_v7` |
 
+
 The hash side limits the combined soundness level. Names are under `Lfzk` unless qualified.
 Files named `CompiledZk*` are about **soundness of the zero-knowledge verifier**;
 `CompiledLongfellowZk*` contain the **privacy** results.
@@ -288,7 +289,6 @@ it: one that charges each agreement level by its own query pass rate, while stil
 the prover's ability to re-draw `α`. The signature side already reaches flat parity (127 bits)
 through the improvement below.
 
-The improvement transfers the *mask certificate* and proves the round-by-round bounds anew:
 
 1. `Ligero.V1.ligerov1_roundByRound_mask_profiled` accepts a certified `V1MaskRange`, including
    Hahn/Delsarte bounds below the Johnson threshold. The Johnson theorem remains as a
