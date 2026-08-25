@@ -1,12 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-<<<<<<< HEAD
 defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "polygero.APITest", "Lfzk"]
-=======
-# defaultTargets = ["ECDSA", "pk_circuit", "lfzk"]
-defaultTargets = ["lfzk"]
->>>>>>> 2798a58 (wip updates, fixes to model)
 
 [leanOptions]
 autoImplicit = false
