@@ -54,7 +54,7 @@ Each of these steps requires special measures.
 
 ## Step 1 — the bytes, and their hash
 
-`packedInput` and `deltaTrees` are the **artifact bytes**: the same LFC3 payload the deployed
+`packedInput` and `deltaTrees` are the **artifact bytes**: the same LFC2 payload the deployed
 verifier loads. The payload is one byte string, but it is committed by a **page-Merkle tree** over
 4096-byte pages rather than by a single hash. `pageSize` in `Core/CircuitCommitment.lean` matches
 `FORMAL_PAGE_SIZE` in `rust/core/proto/src/commitment.rs:33`, so the two implementations agree on
@@ -209,7 +209,7 @@ by `Bridge/Sha256/S2Connect`, `S2Flat`, `S2Assert` and `S2Bytes`: 42,168 referen
 | step | what it produces | where |
 |---|---|---|
 | 1. commit | `rootOfPacked packedInput = formalRoot` — the pages hash to the pinned root | `Gen/*/…Commitment*.lean`, `Core/CommitPacked.lean` |
-| 1. bytes | `packedInput`, `deltaTrees` — the artifact's LFC3 pages | `Gen/*/…Packed.lean`, `…DeltaTree*.lean` |
+| 1. bytes | `packedInput`, `deltaTrees` — the artifact's LFC2 pages | `Gen/*/…Packed.lean`, `…DeltaTree*.lean` |
 | 1. decode | `DecodedCircuit` — dimensions, constants, layer terms | `Core/Lfc3.lean` |
 | 1. extend | `RawCircuit` — decoded fields plus the sidecar's structural advice | `Core/Ingest.lean` |
 | 2. pin | `raw_from_bytes` : what the bytes decode to **is** the generated literal | `Gen/*/…Data.lean` |
@@ -238,7 +238,7 @@ The two mdoc rows run the *other* way round: step 4 first, steps 1–3 not yet. 
 censuses each circuit's assertion set from the Rust (`ASSERTIONS.txt`, `ASSERTIONS-SIG.txt`) and
 proves the meaning implication from it, so the layer is being built against a checkable list of
 families rather than against an ingested artifact. `MDoc.full_meaning` composes the two halves
-into `ValidPresentationFull`. Ingesting the mdoc artifacts is the join point, and the LFC3 parse
+into `ValidPresentationFull`. Ingesting the mdoc artifacts is the join point, and the LFC2 parse
 cost measured on one-block SHA-256 is the reason it has not been attempted.
 
 ### The GF(2^128) variant, and why it exists
@@ -489,7 +489,7 @@ cargo run --release -p core-proto --example lfc3_to_lean -- \
 
 **Measure before planning.** `mdoc_layer_probe` reports per-layer terms, deltas, segments and
 tokens, which is what decides ingestion cost — term count alone does not. The two v7 artifacts
-differ: `8d079211…` is one attribute (hash 7,757,579 terms, 968,323 LFC3 bytes, 237 pages) and
+differ: `8d079211…` is one attribute (hash 7,757,579 terms, 968,323 LFC2 bytes, 237 pages) and
 `5aebdaaa…` is four (9,063,890 terms, 1,173,100 bytes, 287 pages). The **signature circuit is the
 same in both** — 481,833 terms, 476,346 bytes, 117 pages — so its ingestion covers every variant.
 

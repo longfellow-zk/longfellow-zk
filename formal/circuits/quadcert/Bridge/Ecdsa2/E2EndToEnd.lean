@@ -30,7 +30,7 @@ open Quadcert Quadcert.Gen.Ecdsa2 Ecdsa2.Meaning ECDSA2
 
 variable {F : Type} [Field F] [CharP F p256]
 
-/-- The artifact's 13 packed LFC3 pages hash to the pinned root, phrased over the payload
+/-- The artifact's 13 packed LFC2 pages hash to the pinned root, phrased over the payload
     `Lfc2.decode` consumes rather than over a re-spelled leaf list.  Definitionally the
     generated `committed_root`; the page indices and the 820-byte final page come from
     `packedInput` itself. -/

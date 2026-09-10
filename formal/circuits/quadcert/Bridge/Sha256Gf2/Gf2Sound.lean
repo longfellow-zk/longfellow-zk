@@ -137,7 +137,7 @@ theorem assertions_zero (α : F) (inputs : Nat → F) (hacc : Accepts (circuit �
     (all_backed_of_rawWith raw (consts α) zeroConst (consts_zero α) azt azt_sub backed_check)
     (by rw [toQuad_layers_length]; show 0 < 12; norm_num) hacc
 
-/-- **The same, from the committed bytes.** Whatever the pinned LFC3 pages decode to, extended
+/-- **The same, from the committed bytes.** Whatever the pinned LFC2 pages decode to, extended
     by the sidecar's four advice fields, *is* `raw`. -/
 theorem assertions_zero_of_bytes (α : F) (c : Lfc2.DecodedCircuit)
     (hdec : Lfc2.decode Lfc2.gf2_128 packedInput deltaTrees = .ok c)

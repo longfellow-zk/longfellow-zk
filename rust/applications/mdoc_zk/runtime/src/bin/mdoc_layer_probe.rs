@@ -108,7 +108,7 @@ fn main() {
     let sig3 = wsig.to_bytes_lfc2(&seg_sig);
     let hash3 = whash.to_bytes_lfc2(&seg_hash);
     println!(
-        "\nLFC3 bytes: signature {} ({} pages), hash {} ({} pages)",
+        "\nLFC2 bytes: signature {} ({} pages), hash {} ({} pages)",
         sig3.len(),
         sig3.len().div_ceil(4096),
         hash3.len(),

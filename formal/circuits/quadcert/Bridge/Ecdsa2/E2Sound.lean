@@ -34,7 +34,7 @@ for exactly that reason, after an earlier `Ecdsa2Sound.lean` was deleted by its 
 The chain, with the module that closes each step:
 
 ```
-  packed LFC3 pages                      Ecdsa2Packed{k}
+  packed LFC2 pages                      Ecdsa2Packed{k}
     → page-hash leaves, Merkle root      Ecdsa2Commitment{k}, Ecdsa2Commitment
     → staged parse : CompressedCircuit   Ecdsa2Header, Ecdsa2CompressedLayer{l}, Ecdsa2Compressed
     → term expansion : DecodedCircuit    Ecdsa2Expansion{l}_{j}, Ecdsa2ExpandedLayer{l}, Ecdsa2Decoded
@@ -83,7 +83,7 @@ theorem assertions_zero (inputs : Nat → F) (hacc : Accepts (circuit F) inputs)
     (all_backed_of_rawWith raw (consts F) zeroConst consts_zeroConst azt azt_sub backed_check)
     (by rw [toQuad_layers_length]; show 0 < 11; norm_num) hacc
 
-/-- **The same, from the committed bytes.** Whatever the pinned LFC3 pages decode to, extended by
+/-- **The same, from the committed bytes.** Whatever the pinned LFC2 pages decode to, extended by
     the sidecar's four advice fields, *is* `raw` — so this is a statement about the artifact and
     not about a generated literal. -/
 theorem assertions_zero_of_bytes (c : Lfc2.DecodedCircuit)

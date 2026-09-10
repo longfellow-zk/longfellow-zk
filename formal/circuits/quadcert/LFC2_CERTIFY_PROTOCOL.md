@@ -1,4 +1,4 @@
-# Experimental formal circuit commitment (LFC3)
+# Formal circuit commitment over the LFC2 payload
 
 Status: implemented for experimentation. It is not yet selected by the mdoc
 prover or verifier.
@@ -6,16 +6,21 @@ prover or verifier.
 ## Decision
 
 The verifier pins one 32-byte SHA-256 page-Merkle root of the exact,
-uncompressed LFC3 circuit payload. It verifies that root before decoding and
-rejects trailing bytes. The old expanded `compute_id` is retained in the LFC3
+uncompressed LFC2 circuit payload. It verifies that root before decoding and
+rejects trailing bytes. The old expanded `compute_id` is retained in the LFC2
 trailer only for compatibility with the current Rust `Circuit` type; it is not
 the formal binding check.
 
-LFC3 is LFC2 plus a bounded second dictionary over each layer's segment-token
-stream. A token phrase contains at most 16 segment indices. A layer uses the
-phrase encoding only when its exact ULEB128 wire size is smaller than its flat
-token encoding. This captures the repeated SHA-256 bodies without a recursive
-grammar or a zstd decoder in the trusted formal path.
+The payload is the LFC2 encoding itself -- the same bytes the prover and
+verifier already read -- so nothing is re-serialized on the way to the root and
+an auditor checks the artifact they received.
+
+An earlier revision (LFC2) added a bounded phrase dictionary over each layer's
+segment-token stream. It was removed: after zstd it made the shipped artifact
+*larger* (366,200 against 350,799 bytes for the mdoc hash payload, since zstd
+already exploits the same repeated runs), no prover or verifier path ever used
+it, and it saved only 18% of the committed payload -- about 11 minutes of a
+~7.2-hour Lean build, against expansion work it cannot touch at all.
 
 ## Canonical payload
 
@@ -24,7 +29,7 @@ at most `0x0fffffff`. The reader rejects overlong representations. Field
 elements have the fixed canonical byte representation of the selected field.
 
 ```text
-"LFC3"
+"LFC2"
 field_id, noutput, 1, npublic_input, subfield_boundary, ninput, layer_count
 constant_count, constants[constant_count]
 
@@ -112,7 +117,7 @@ from the committed artifact.
 
 The checked-in Rung1 path demonstrates the full composition:
 
-- `Rung1ArtifactPacked0.lean` contains the 297 LFC3 bytes as one packed `Nat`;
+- `Rung1ArtifactPacked0.lean` contains the 297 LFC2 bytes as one packed `Nat`;
 - `Rung1ArtifactCommitment*.lean` proves their page leaf and root;
 - `Rung1Artifact.decode_ok` proves the verified decoder succeeds;
 - `Rung1Data.artifactRaw_eq_raw` proves the decoded `RawCircuit` equals the
@@ -139,12 +144,12 @@ The checked-in v7 four-attribute artifact
 `5aebdaaafe17296a3ef3ca6c80c6e7505e09291897c39700410a365fb278e460`
 was decoded and re-encoded without changing prover/verifier selection.
 
-| circuit | terms | LFC2 bytes | LFC3 bytes | LFC3/LFC2 | 4 KiB pages |
+| circuit | terms | LFC2 bytes | LFC2 bytes | LFC2/LFC2 | 4 KiB pages |
 |---|---:|---:|---:|---:|---:|
 | signature | 481,833 | 478,823 | 476,346 | 99.48% | 117 |
 | hash (40 SHA copies plus attribute work) | 9,063,890 | 1,419,484 | 1,173,100 | 82.64% | 287 |
 
-In an optimized local run, LFC3 writing / root computation / committed decode
+In an optimized local run, LFC2 writing / root computation / committed decode
 took 3.57 ms / 0.20 ms / 1.17 ms for the signature circuit and 19.24 ms /
 0.48 ms / 2.96 ms for the hash circuit. The new runtime check is therefore
 negligible compared with proof verification; the cost is in kernel evaluation
@@ -160,19 +165,19 @@ were also rejected empirically:
 - Fixed-width bit packing was 10.58% larger for the hash circuit and 11.92%
   larger for the signature circuit than frequency-sorted ULEB128.
 
-The other three v7 hash variants give the same result: LFC3 is 81.96%, 82.54%,
+The other three v7 hash variants give the same result: LFC2 is 81.96%, 82.54%,
 and 82.80% of LFC2 (237, 254, and 278 pages), and a 16-token phrase is smaller
 than 32 tokens in every case. The choice is therefore not specific to the
 largest artifact.
 
-zstd sizes are slightly worse for LFC3 (366,200 versus 350,799 bytes for the
+zstd sizes are slightly worse for LFC2 (366,200 versus 350,799 bytes for the
 hash payload), because zstd already exploits repeated token runs. That is not
 the relevant formal metric: hashing zstd bytes would require trusting or
-verifying the zstd decoder. The uncompressed canonical LFC3 payload is what the
+verifying the zstd decoder. The uncompressed canonical LFC2 payload is what the
 verified decoder consumes and what the root commits to.
 
 At the previously measured roughly 24 seconds of kernel CPU per 4 KiB page,
-the two LFC3 payloads require 404 independent page checks instead of 464 for
+the two LFC2 payloads require 404 independent page checks instead of 464 for
 LFC2, about 2.7 CPU-hours before the roughly 5% Merkle-node overhead. This is
 appropriate for parallel generated modules, but it is still expensive; a
 single serial Lean build is not the intended execution model.
@@ -188,7 +193,7 @@ The byte representation is no longer the limiting factor. A monolithic
 reduction that both parses and materialises a large flat `List RawTerm` is.
 The initial kernel-only measurements (no `native_decide`) were:
 
-| input | LFC3 bytes | expanded terms | decoder check |
+| input | LFC2 bytes | expanded terms | decoder check |
 |---|---:|---:|---:|
 | Rung1 | 297 | 17 | 0.43 s for the decode module |
 | first 10 SHA layers | 8,968 | 12,319 | 42.85 s |
@@ -214,7 +219,7 @@ seconds without inspecting term lists.
 
 Full generated experiments using 1,024-term chunks succeeded:
 
-| checked-in artifact | LFC3 bytes | terms | expansion chunks | header parse | slowest layer parse | final composition |
+| checked-in artifact | LFC2 bytes | terms | expansion chunks | header parse | slowest layer parse | final composition |
 |---|---:|---:|---:|---:|---:|---:|
 | SHA-256 / GF(2^128) | 28,328 | 79,093 | 104 | 1.03 s | 73.70 s | 0.24 s |
 | ECDSA2 / P-256 | 49,972 | 48,256 | 54 | 17.55 s | 61.22 s | 0.24 s |
