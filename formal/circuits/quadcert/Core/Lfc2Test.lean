@@ -7,7 +7,7 @@ namespace Quadcert.Lfc2.Test
 -- The phrase-dictionary fixture that used to live here tested `TokenEncoding.phrases`, which
 -- the format no longer has: every layer now carries a flat segment-index stream, which is LFC2's
 -- token encoding. The bounded-expansion property it checked is covered by the wire-index tests
--- below and by `Bridge/Rung1`, which decodes a real artifact.
+-- below and by `Bridge/Sha256Gf2`, which decodes a real artifact.
 
 -- Field id 4 encoded as the non-shortest ULEB sequence 0x84 0x00.
 example : decode gf2_128 { byteLength := 6, pages := [0x843243464c] }

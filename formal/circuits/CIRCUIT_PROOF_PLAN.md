@@ -6,12 +6,12 @@
 (`rust/circuits/*`). 
 
 ## ECDSA
-`Ecdsa2.Assembly.ecdsa2_sound_of_bytes` takes the committed LFC3 bytes and an accepting input
+`Ecdsa2.Assembly.ecdsa2_sound_of_bytes` takes the committed LFC2 bytes and an accepting input
 assignment to `StandardEcdsaVerify`. Its remaining hypotheses are the curve
 parameter equations, and the four group-order facts, which are not circuit facts. 
 
-The small `Rung1EndToEnd` example is complete: the Lean kernel checks packed artifact
-bytes through the LFC3 commitment and decoder, converts the decoded value to `RawCircuit`, and
+The small the smallest artifact example is complete: the Lean kernel checks packed artifact
+bytes through the LFC2 commitment and decoder, converts the decoded value to `RawCircuit`, and
 proves acceptance equivalent to a handwritten specification. 
 
 Generated bounded checkpoints
@@ -23,9 +23,9 @@ fixtures.
 
 | Proof component | Status | Evidence / limitation |
 |---|---|---|
-| Generic LFC3 packed commitment and decoder | Complete | `quadcert/Lfc3.lean`; kernel-checked page commitments, staged parsing, resumable expansion, opaque composition. |
-| Exact bytes-to-spec example | Complete | `quadcert/Rung1EndToEnd.lean`. |
-| **ECDSA2, current source: one-run artifact + sidecar** | **Complete** | `rust/circuits/ecdsa2/examples/ecdsa2_artifacts.rs`. Root `e553aae9832473af8e9845b1d7805e9e27a2f41e8c4ce7ca86dd9dc48c38cebf`, `ninput = 1042`, `npublic = 1`, 48,256 terms, 26,939 nodes, 1,048 assertions, 11 layers. The layout covers all 1,042 positions exactly; an independent `lfc3_to_lean` run on the emitted LFC2 reproduces the same root; the sidecar's and the artifact's constant tables are asserted byte-identical. |
+| Generic LFC2 packed commitment and decoder | Complete | `quadcert/Lfc2.lean`; kernel-checked page commitments, staged parsing, resumable expansion, opaque composition. |
+| Exact bytes-to-spec example | Complete | `quadcert/the smallest artifact. |
+| **ECDSA2, current source: one-run artifact + sidecar** | **Complete** | `rust/circuits/ecdsa2/examples/ecdsa2_artifacts.rs`. Root `e553aae9832473af8e9845b1d7805e9e27a2f41e8c4ce7ca86dd9dc48c38cebf`, `ninput = 1042`, `npublic = 1`, 48,256 terms, 26,939 nodes, 1,048 assertions, 11 layers. The layout covers all 1,042 positions exactly; an independent `lfc2_to_lean` run on the emitted LFC2 reproduces the same root; the sidecar's and the artifact's constant tables are asserted byte-identical. |
 | **ECDSA2: bytes to `RawCircuit`** | **Complete** | `Ecdsa2Data.raw_from_bytes`. |
 | **ECDSA2: `ValidScheduling`, all eight fields** | **Complete** | `Ecdsa2Sound.valid`, from `ok_check`, `inv_check`, `wireFn_lt`, and the grouping certificates `perm_all` / `hom_all` / `corr_check`. |
 | **ECDSA2: `Accepts` → named assertions zero** | **Complete** | `Ecdsa2Sound.assertions_zero`, and `assertions_zero_of_bytes` for the artifact form. Soundness needs only `Backed`; `CoversConstraints` is unproved and is what the converse would need. |
@@ -33,7 +33,7 @@ fixtures.
 | **Lookup tables exact at their nodes** | **Complete** | `ECDSA/Lagrange9.lean`, 190 theorems, 16.7 s. Includes the bit extractors and `isDigit_of_range`. |
 | **The 256-bit comparison gadget** | **Complete** | `ECDSA/BitLt.lean`, sorry-free. |
 | **ECDSA2: assertion polynomials → witness predicate** | **Complete** | `Ecdsa2.Assembly.ecdsa2_sound` and `ecdsa2_sound_of_bytes`, axiom-clean (`propext, Classical.choice, Quot.sound`). Bridges: `digits_ok`, `loop_ok`, `recon_ok`, `small_ok`, `cmp_ok`. |
-| Production verifier circuit pinning | Not implemented | The verifier does not yet select and enforce the formal LFC3 root. |
+| Production verifier circuit pinning | Not implemented | The verifier does not yet select and enforce the formal LFC2 root. |
 
 The historical fixtures referred to in earlier revisions of this document are superseded: the
 ECDSA2 numbers above are from current source with the current `npublic = 1` interface.
@@ -44,7 +44,7 @@ For each production circuit, the intended theorem chain is:
 
 ```text
 verifier-selected expected root
-  -> packed LFC3 pages and kernel-checked page commitments
+  -> packed LFC2 pages and kernel-checked page commitments
   -> staged decode : DecodedCircuit
   -> DecodedCircuit.toRaw using checked certificate advice
   -> ValidScheduling, including sum_local
@@ -62,11 +62,11 @@ Rust generators may emit data and proof scripts, but incorrect output must fail 
 ## 0. Trust base, stated precisely
 
 There are currently two paths. The old sidecar-only path receives generated literals and
-therefore trusts more of the Rust representation stack. The target LFC3 path, completed for
-Rung1 and validated through decoding on the larger fixtures, is:
+therefore trusts more of the Rust representation stack. The target LFC2 path, completed for
+the smallest artifact and validated through decoding on the larger fixtures, is:
 
 ```
-                         ┌─ LFC3 bytes ─► packed pages ─► root + verified decode ─┐
+                         ┌─ LFC2 bytes ─► packed pages ─► root + verified decode ─┐
 one in-memory Circuit<F> ┤                                                        ├─► RawCircuit
                          └─ sidecar ─► generated advice ─► refinement + checks ───┘
 ```
@@ -87,29 +87,29 @@ one in-memory Circuit<F> ┤                                                    
 
 Earlier sidecar-only revisions of this document claimed "the Rust compiler is fully untrusted"
 and "every byte of the sidecar is re-checked in Lean". **Both claims were wrong for that
-path.** LFC3 plus artifact/advice refinement is the mechanism intended to make the first claim
+path.** LFC2 plus artifact/advice refinement is the mechanism intended to make the first claim
 true at the final theorem boundary; the sidecar remains advice rather than authenticated input.
 
 **Closing the gap.** A verified decoder from artifact bytes as Lean data to `DecodedCircuit` is
-implemented in `quadcert/Lfc3.lean`. Rung1 also proves the refinement from that value to the
+implemented in `quadcert/Lfc2.lean`. the smallest artifact also proves the refinement from that value to the
 `RawCircuit` used by semantics; the equivalent generated refinement for large circuits remains
 on the critical path. A literal with one Lean element per byte remains out of reach; pages
 instead use one packed natural each, and no elaborator reads the artifact file.
 
-LFC3 adds one bounded
+LFC2 adds one bounded
 dictionary level for repeated segment-token runs, and the verifier-facing protocol pins the
-exact uncompressed LFC3 bytes with a domain-separated, 4096-byte-page SHA-256 Merkle root.
+exact uncompressed LFC2 bytes with a domain-separated, 4096-byte-page SHA-256 Merkle root.
 Generated Lean modules can store each page as one little-endian packed `Nat` and check its leaf
 hash by kernel reduction; no file-reading elaborator or `native_decide` is required. The mdoc
-four-attribute hash circuit falls from 1,419,484 LFC2 bytes to 1,173,100 LFC3 bytes (287 pages),
+four-attribute hash circuit falls from 1,419,484 LFC2 bytes to 1,173,100 LFC2 bytes (287 pages),
 and the other v7 variants show the same 17–18% reduction. See
-`quadcert/LFC3_PROTOCOL.md`, `quadcert/Sha256.lean`, and
+`quadcert/LFC2_PROTOCOL.md`, `quadcert/Sha256.lean`, and
 `quadcert/CircuitCommitment.lean`.
 
-For Rung1 this gap is now closed inside Lean: `Rung1Artifact.decode_ok`,
-`Rung1Data.artifactRaw_eq_raw`, `Rung1Base.constNat_from_artifact`, and
-`Rung1.accepts_artifact_iff_spec` form the byte-to-spec chain. The real verifier does not yet
-select this root. Large-artifact checkpoint generation is now implemented by `lfc3_to_lean`:
+For the smallest artifact this gap is now closed inside Lean: the smallest artifact,
+the smallest artifact, the smallest artifact, and
+the smallest artifact form the byte-to-spec chain. The real verifier does not yet
+select this root. Large-artifact checkpoint generation is now implemented by `lfc2_to_lean`:
 it stages header/layer/trailer parsing, proves fixed-size term-expansion chunks, and composes
 both through opaque generic theorems.
 
@@ -141,7 +141,7 @@ pub fn point_equality(&self, pt: &Pt3<Eltw<L>>, zinv: &Eltw<L>, px: &Pt2<Eltw<L>
 }
 ```
 
-This yields paths `rung1/point_equality/px_eq`, `…/py_eq`, `…/z_zinv`.
+This yields paths the smallest artifact/point_equality/px_eq`, `…/py_eq`, `…/z_zinv`.
 
 **(b) Input layout.** Wire allocation must record *what each input means*. `WireAllocator`
 carries no names, so this was added: allocate through `LayoutBuilder`, which is what advances
@@ -163,11 +163,11 @@ let zinv = layout.next(&iologic, &mut pos, "zinv");
 ### Step 2 — The normal compile chain produces the circuit
 
 `compile()` runs unchanged: `ir_to_quad` → `algsimp` → CSE → `copy` → `scheduler`. Its layered
-quad circuit is serialized in the canonical LFC3 verifier-facing representation. The prover
+quad circuit is serialized in the canonical LFC2 verifier-facing representation. The prover
 and verifier need not change while this proof work is developed, but the target protocol is
-that the verifier pins the LFC3 page root. **The compiler transformation is not trusted.**
+that the verifier pins the LFC2 page root. **The compiler transformation is not trusted.**
 
-The proof build must produce the LFC3 artifact and certificate sidecar from the same in-memory
+The proof build must produce the LFC2 artifact and certificate sidecar from the same in-memory
 `Circuit` in one invocation. Recompiling source separately for either output is not an adequate
 identity check: compiler or interface drift can produce superficially similar but different
 circuits. The build records the artifact root, public/input/output counts, layer sizes, and
@@ -189,11 +189,11 @@ layout remains a chosen semantic mapping and is a residual review item.
 
 ### Step 4 — Artifact data and certificate advice are emitted as Lean modules
 
-`lfc3_to_lean` and `cert::emit_lean` write bounded generated `.lean` modules:
+`lfc2_to_lean` and `cert::emit_lean` write bounded generated `.lean` modules:
 
 | module | contents |
 |---|---|
-| `<N>Packed{k}`, `<N>Commitment{k}` | packed LFC3 pages and page-hash checks |
+| `<N>Packed{k}`, `<N>Commitment{k}` | packed LFC2 pages and page-hash checks |
 | `<N>Header`, `<N>CompressedLayer{l}` | staged header and compressed-layer parser checkpoints |
 | `<N>Expansion{l}_{j}`, `<N>ExpandedLayer{l}` | resumable raw-term expansion chunks and per-layer composition |
 | `<N>ParseSteps`, `<N>ParseFinish`, `<N>ParseFinal`, `<N>Decode` | opaque parser/expansion composition and final decoder theorem |
@@ -206,12 +206,12 @@ layout remains a chosen semantic mapping and is a residual review item.
 | `<N>OkCheck`, `<N>InvCheck` | the composed checks |
 
 The structural certificate modules import `quadcert.Raw` only, and artifact modules import the
-small `Lfc3`/commitment stack; generated leaves **never import Mathlib**. `import Mathlib` costs
+small `Lfc2`/commitment stack; generated leaves **never import Mathlib**. `import Mathlib` costs
 a ~3.3 GB resident floor per module, which would make chunking pointless.
 
 ### Step 5 — Lean checks the artifact and then checks the advice against it
 
-For Rung1, the page-root theorem pins the packed bytes, the staged decoder determines the
+For the smallest artifact, the page-root theorem pins the packed bytes, the staged decoder determines the
 `DecodedCircuit`, and a refinement theorem constructs the `RawCircuit` used below. The larger
 fixture experiments currently stop at `DecodedCircuit`; adding the analogous generated
 artifact/advice refinement is Step 3 of the critical path. Independently,
@@ -314,7 +314,7 @@ proved by `simp only [...]` then `ring`. And `AffinePoint.IsOnCurve ⟨x,y⟩ pa
 | Rung | Circuit | Theorem |
 |---|---|---|
 | 0 | `EcCircuit::is_on_curve` | `Rung0.accepts_iff_isOnCurve` ⟺ `AffinePoint.IsOnCurve` |
-| 1 | `point_equality` + `is_on_curve` | `Rung1.accepts_iff_spec` ⟺ `ProjectiveEquiv` ∧ `IsOnCurve` |
+| 1 | `point_equality` + `is_on_curve` | the smallest artifact ⟺ `ProjectiveEquiv` ∧ `IsOnCurve` |
 
 Both 0 `sorry`, axioms `[propext, Classical.choice, Quot.sound]`. Rung 1 runs entirely on
 generated data and its statement reads in layout names emitted from the sidecar. It exercises
@@ -325,17 +325,17 @@ On independent full ECDSA2-size sidecar data — 48,256 terms, 26,939 nodes, 1,0
 `ok_check`, `inv_check`, `wireFn_lt`, `nodes_len` are all proved, and
 `validScheduling_of_checks` yields `ValidScheduling` for that generated raw circuit with
 `sum_local` the sole structural hypothesis. This does not yet identify it with either checked
-historical LFC3 fixture. **98 s, 3.0 GB**, and it parallelizes 11.6× (1136 s user / 98 s
+historical LFC2 fixture. **98 s, 3.0 GB**, and it parallelizes 11.6× (1136 s user / 98 s
 wall) because every module is now chunk-local.
 
 ### Bottlenecks, ranked
 
 1. ~~**Matched current artifacts and sidecars**~~ — **done for ECDSA2.**
-   `rust/circuits/ecdsa2/examples/ecdsa2_artifacts.rs` compiles once and writes the LFC3 bytes,
+   `rust/circuits/ecdsa2/examples/ecdsa2_artifacts.rs` compiles once and writes the LFC2 bytes,
    the sidecar, every Lean module and a manifest. Root
    `e553aae9832473af8e9845b1d7805e9e27a2f41e8c4ce7ca86dd9dc48c38cebf`, `ninput = 1042`,
    `npublic = 1`, 48,256 terms, 26,939 nodes, 1,048 assertions, 11 layers. The layout covers all
-   1,042 positions exactly, and an independent `lfc3_to_lean` run on the emitted LFC2 reproduces
+   1,042 positions exactly, and an independent `lfc2_to_lean` run on the emitted LFC2 reproduces
    the same root.
 2. ~~**`sum_local` emitter support**~~ — **done**; see Phase A.
 3. **ECDSA2 semantic bridge** — the remaining critical path; see Phase C.
@@ -373,8 +373,8 @@ predicate**, not by splitting numerals: Lean's elaborator folds `5 + (5 + (5 + 4
 Recorded because each cost real time to discover.
 
 - **In-Lean expanded `compute_id` recomputation: dropped.** It hashes every expanded term and
-  cannot be localised. Its replacement is kernel-reduced page SHA-256 over the compact LFC3
-  payload, followed by the verified Lean decoder. Rung1 exercises the complete path.
+  cannot be localised. Its replacement is kernel-reduced page SHA-256 over the compact LFC2
+  payload, followed by the verified Lean decoder. the smallest artifact exercises the complete path.
 - **`ArithmetizedCircuit.soundness` does not exist.** The obligations are
   `ArithmetizedCircuit.arith` (`lfzk/circuit.lean:946`) and `LayeredCircuit.layer_rel`
   (`lfzk/layers.lean:131`).
@@ -399,13 +399,13 @@ Recorded because each cost real time to discover.
   checked. Recorded at allocation by `LayoutBuilder`; reviewed once.
 - ~~**Constants correspondence**~~ — **now a theorem, not a trust item.** The dumper emits the
   constant table as canonical hex integers from the artifact's own encoding (`constNat`), and
-  `Rung1.constsOf_eq_generated` proves the table the proofs use *is* that one, under
+  the smallest artifact proves the table the proofs use *is* that one, under
   `CharP F p256` and the curve parameters. `Quadcert.cast_sub_eq_neg` supplies the step for
   the negated constants, which the artifact encodes as `p - n`; no 256-bit numeral computation
   is needed, only `n ≤ p`. This is where the P-256 choice enters, and it now enters as an
   explicit hypothesis rather than as prose in a comment.
-- **Verifier-selected root = formally proved root.** The LFC3 page commitment, decoder and
-  `RawCircuit` refinement discharge the Lean side for Rung1. This remains an operational trust
+- **Verifier-selected root = formally proved root.** The LFC2 page commitment, decoder and
+  `RawCircuit` refinement discharge the Lean side for the smallest artifact This remains an operational trust
   item until the production verifier selects the formal root. Large-circuit checkpoint
   generation is already implemented; current-source SHA/ECDSA roots still need to be produced
   and reviewed.
@@ -490,7 +490,7 @@ Isolating what is expensive:
 | the decoded delta values | 175 s | 9.5 GB |
 | full equality against the emitted literal | 173 s | 18.0 GB (abort) |
 
-So it is neither the byte walk nor the cursor: it is forcing the **values**. `Lfc3.Cursor` holds
+So it is neither the byte walk nor the cursor: it is forcing the **values**. `Lfc2.Cursor` holds
 the 4,096-byte page as one 32,768-bit `Nat` and `readByte` returns `cursor.page % 256`. The `/`
 results chain through the cursor and are shared; the `%` results are forced only when the deltas
 are compared to their literals, at which point the kernel materialises one multi-kilobyte bignum
@@ -502,7 +502,7 @@ one component at a time before refactoring.
 
 ### The fix, validated
 
-`quadcert/Lfc3Bytes.lean` supplies the page as a **byte list** advice, tied to the committed page
+`quadcert/Lfc2Bytes.lean` supplies the page as a **byte list** advice, tied to the committed page
 by `packBytes` — the same advice-plus-linear-check shape `deltasOk` uses for the delta tree.
 `readByteB` pops a `cons`: no arithmetic, nothing retained. On the same chunk, same bytes:
 
@@ -516,7 +516,7 @@ using the packed `Nat`, so **the root does not change** — `packBytes_append` i
 per-page check composes in a balanced tree rather than multiplying a 32,768-bit accumulator once
 per byte.
 
-To land it: drop `private` from `Lfc3.decodeDelta`, port `readDeltasChunk_compose` (mechanical —
+To land it: drop `private` from `Lfc2.decodeDelta`, port `readDeltasChunk_compose` (mechanical —
 the packed proof is a 40-line template and nothing in it depends on where a byte comes from),
 switch `Cursor` over, and regenerate the 14 cursor modules. Regression test: `raw_from_bytes`
 must still give root `e553aae9…`.
@@ -562,9 +562,9 @@ ECDSA-specific. Two new cases.
 
 ### Cursor: the `private` keywords are gone
 
-`Lfc3.readByte`, `readUlebLoop`, `readUleb` and `decodeDelta` are no longer `private`. That is
+`Lfc2.readByte`, `readUlebLoop`, `readUleb` and `decodeDelta` are no longer `private`. That is
 the whole Lean-side prerequisite for stating the refinement between the packed reader and
-`Lfc3Bytes.readByteB`; nothing else in `Lfc3` changed, so `Cursor`, `decode` and every generated
+`Lfc2Bytes.readByteB`; nothing else in `Lfc2` changed, so `Cursor`, `decode` and every generated
 module are untouched and the rebuild is semantically a no-op.
 
 Remaining to land: state `Refines c bc` (`packBytes bc.bytes = c.page`, lengths agree, later
@@ -613,7 +613,7 @@ lemmas.
 
 ## Byte lists: emitted, and the refinement that consumes them
 
-### The refinement chain (`quadcert/Lfc3Bytes.lean`, all `[propext, Quot.sound]`)
+### The refinement chain (`quadcert/Lfc2Bytes.lean`, all `[propext, Quot.sound]`)
 
 | lemma | content |
 |---|---|
@@ -639,7 +639,7 @@ obtain ⟨c', hslow, _⟩ := readDeltasChunk_refines 148 1024 hrefines fast
 `Cursor`, `decode`, `raw_from_bytes`, the Merkle root and all 873 existing modules are untouched;
 the 175 s / 9.5 GB `rfl` never runs.
 
-### `lfc3_to_lean` emits the byte lists
+### `lfc2_to_lean` emits the byte lists
 
 Per page: `pageBytes_i : List Nat`, `pageBytes_ok_i : packBytes pageBytes_i = packedPage_i`, and
 `pageBytes_range_i : bytesOk pageBytes_i = true` — both one `rfl`. Plus an index module
@@ -673,7 +673,7 @@ the kind of gap that only shows up when something tries to use it.
 
 ### The switch is landed, and the SHA blocker is gone
 
-`lfc3_to_lean` now emits, per layer, a byte cursor and a refinement witness beside every packed
+`lfc2_to_lean` now emits, per layer, a byte cursor and a refinement witness beside every packed
 cursor, and each `Deltas` module goes through the byte reader:
 
 ```lean
@@ -707,7 +707,7 @@ proved is unchanged — it is still about `readDeltasChunk` on `cursorAt packedI
 `readBoundedB`, `readIndexListChunkB`, `readSegmentsChunkB` and their refinements are proved
 (`readBounded_refines`, `readIndexListChunk_refines`, `readSegmentsChunk_refines`,
 `readSegmentsChunk_transfer`), and the generator emits segment chunks through the byte reader in
-the same shape as the delta chunks. This needed one more `private` dropped from `Lfc3`
+the same shape as the delta chunks. This needed one more `private` dropped from `Lfc2`
 (`readBounded`).
 
 Regenerated SHA-256 and built layer 5 as far as it goes:
@@ -735,7 +735,7 @@ emit `tokens_ok` through the transfer. `prefix_ok` and `segcount_ok` need nothin
 handful of bytes and already pass.
 
 The generated SHA modules are staged at `$SCRATCH/sha_lean2/` rather than committed, since
-`ShaCompressedLayer5` does not build and would break `lake build quadcert`. One `lfc3_to_lean`
+`ShaCompressedLayer5` does not build and would break `lake build quadcert`. One `lfc2_to_lean`
 invocation regenerates them.
 
 
@@ -747,9 +747,9 @@ both measured, and both of which I had predicted would not be needed.
 **1. The byte reader is proved for it.** `readPhrasesChunkB`, `readPhraseRootsChunkB`,
 `readCompressedTokensB` and their refinements (`readPhrasesChunk_refines`,
 `readPhraseRootsChunk_refines`, `readCompressedTokens_refines`,
-`readCompressedTokens_transfer`) are all `[propext, Quot.sound]`, and `lfc3_to_lean` emits
+`readCompressedTokens_transfer`) are all `[propext, Quot.sound]`, and `lfc2_to_lean` emits
 `tokens_ok` through the transfer with byte parse cursors and `hrefParse_i` witnesses. This
-required dropping `private` from five more `Lfc3` definitions.
+required dropping `private` from five more `Lfc2` definitions.
 
 **2. The counting loops were quadratic, independently of the cursor.**
 `countSegmentTermsLoop` etc. used `let index := tokens.size - (fuel + 1); tokens[index]?`, which
@@ -807,7 +807,7 @@ and would have shown all three at the start.
 
 ### Build state
 
-`Lfc3.lean` has changed (five `private` keywords dropped, three counting loops restructured), so
+`Lfc2.lean` has changed (five `private` keywords dropped, three counting loops restructured), so
 every generated `quadcert` module is stale. **Rebuild only with `formal/tools/leanseq quadcert
 20 .`** — a bare `lake build` on any downstream target rebuilds all 873 modules 16-wide and
 crashed the machine once already. The SHA modules are staged at `$SCRATCH/sha_lean3/`, not
@@ -845,7 +845,7 @@ Only comments and formatting are new. Two lessons:
 ## SHA-256 decodes
 
 **`Quadcert.Gen.Sha.decode_ok : decode p256 packedInput deltaTrees = .ok decoded`** is proved,
-`[propext, Quot.sound]`. The committed 203,104 LFC3 bytes of the one-block SHA-256 circuit —
+`[propext, Quot.sound]`. The committed 203,104 LFC2 bytes of the one-block SHA-256 circuit —
 118,114 terms over 6 layers, 50 pages — decode to the circuit inside the Lean kernel. All 342
 generated modules build; total 2,559 s (43 min) serialized, 889 MB of oleans.
 
@@ -882,7 +882,7 @@ wrapping sums need the bit algebra described above.
 
 `sha256_artifacts` emits the sidecar side under the name **`Sha256Blk`** (`name: "Sha256Blk"` in
 the driver), and `Sha256BlkData.lean` already contains `raw`, `advice`, `artifactRaw_eq_raw` and
-`raw_from_bytes` — the exact ECDSA2 shape. The earlier `lfc3_to_lean` run used `NAME=Sha`, so the
+`raw_from_bytes` — the exact ECDSA2 shape. The earlier `lfc2_to_lean` run used `NAME=Sha`, so the
 decode side landed in `Quadcert.Gen.Sha` while `raw_from_bytes` cites
 `Quadcert.Gen.Sha256Blk.decode_ok`. Regenerated with the right name; 341 decode modules plus 774
 sidecar modules, 1,115 in total, now building under `leanseq`.

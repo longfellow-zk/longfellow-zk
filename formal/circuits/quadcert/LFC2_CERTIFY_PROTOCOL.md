@@ -107,7 +107,7 @@ array elements, and no elaborator reads an external file. Page theorems are
 independent and can be built in parallel. The small root module imports their
 32-byte results and checks only the Merkle tree.
 
-`Lfc3.lean` now consumes those same packed naturals directly. It checks the
+`Lfc2.lean` now consumes those same packed naturals directly. It checks the
 magic, shortest ULEB28 encodings, field identity and canonical fixed-width
 field elements, all resource bounds and dictionary indices, the bounded
 phrase expansion, wrapping 32-bit deltas, and exact end of input. It produces
@@ -115,19 +115,19 @@ phrase expansion, wrapping 32-bit deltas, and exact end of input. It produces
 advice. Dimensions, constants and expanded layers can therefore come only
 from the committed artifact.
 
-The checked-in Rung1 path demonstrates the full composition:
+The checked-in the smallest artifact path demonstrates the full composition:
 
-- `Rung1ArtifactPacked0.lean` contains the 297 LFC2 bytes as one packed `Nat`;
-- `Rung1ArtifactCommitment*.lean` proves their page leaf and root;
-- `Rung1Artifact.decode_ok` proves the verified decoder succeeds;
-- `Rung1Data.artifactRaw_eq_raw` proves the decoded `RawCircuit` equals the
+- the smallest artifact0.lean` contains the 297 LFC2 bytes as one packed `Nat`;
+- `MdocSigCommitment*.lean` proves their page leaf and root;
+- the smallest artifact proves the verified decoder succeeds;
+- the smallest artifact proves the decoded `RawCircuit` equals the
   compact generated cache used by the existing structural proof; and
-- `Rung1.accepts_artifact_iff_spec` proves `Accepts` for the decoded circuit is
+- the smallest artifact proves `Accepts` for the decoded circuit is
   equivalent to the handwritten elliptic-curve specification, using constants
   decoded from the bytes.
 
-`rust/core/proto/examples/lfc3_to_lean.rs` emits the packed page, leaf and root
-modules. `rust/circuits/ec/examples/rung1_lfc2.rs` reproduces the Rung1 source
+`rust/core/proto/examples/lfc2_to_lean.rs` emits the packed page, leaf and root
+modules. `rust/circuits/ec/examples/the smallest artifact2.rs` reproduces the the smallest artifact source
 artifact.
 
 The Rust and Lean implementations share roots for the empty payload and
@@ -195,15 +195,15 @@ The initial kernel-only measurements (no `native_decide`) were:
 
 | input | LFC2 bytes | expanded terms | decoder check |
 |---|---:|---:|---:|
-| Rung1 | 297 | 17 | 0.43 s for the decode module |
+| the smallest artifact | 297 | 17 | 0.43 s for the decode module |
 | first 10 SHA layers | 8,968 | 12,319 | 42.85 s |
 | full SHA test circuit | 28,328 | 79,093 | did not finish in 137 s (`decide`) or 365 s (`rfl`) |
 
 This validates the direct path for moderate circuits around ten thousand
 terms and rejects a single whole-circuit reduction for larger inputs.
 
-That next scaling step is now implemented. `Lfc3.lean` exposes resumable term
-expansion and staged header/layer/trailer parsing. `lfc3_to_lean` emits:
+That next scaling step is now implemented. `Lfc2.lean` exposes resumable term
+expansion and staged header/layer/trailer parsing. `lfc2_to_lean` emits:
 
 - explicit parser cursors at every layer boundary;
 - one independently checked compact-layer cache per layer;

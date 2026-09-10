@@ -52,7 +52,7 @@ So the expansion modules are *not checked in*. Regenerating them is three minute
 ```bash
 cargo run --release -p mdoc-zk-runtime --bin mdoc_lfc2 -- OUT_DIR \
   8d079211715200ff06c5109639245502bfe94aa869908d31176aae4016182121
-cargo run --release -p core-proto --example lfc3_to_lean -- \
+cargo run --release -p core-proto --example lfc2_to_lean -- \
   gf2_128 OUT_DIR/mdoc_hash.lfc2 ../formal/circuits/quadcert MdocHash 8192
 ```
 
