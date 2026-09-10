@@ -2,7 +2,7 @@
 # `bytes → SHA-256`
 
 The four wrap-root families (184 references) and the composition: `S2Sound.assertions_zero_of_bytes`
-gives every asserted node from the committed LFC3 bytes, `S2Assert` and this file cash that in for
+gives every asserted node from the committed LFC2 bytes, `S2Assert` and this file cash that in for
 the nine hypotheses of `sha256_block_of_circuit`.
 -/
 
@@ -91,7 +91,7 @@ theorem hrW (inputs : Nat → F)
 
 /-- **The deployed SHA-256 circuit, from the committed bytes.**
 
-    Hypotheses: the artifact's LFC3 pages decode to `c`, and `inputs` satisfies the quad system.
+    Hypotheses: the artifact's LFC2 pages decode to `c`, and `inputs` satisfies the quad system.
     Conclusion: the eight outgoing chaining words are `SHA256.blockFrom` of the incoming ones and
     the message block, in `SHA/Spec.lean`'s vocabulary. -/
 theorem sha256_block_of_bytes (c : Lfc2.DecodedCircuit)

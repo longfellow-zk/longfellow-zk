@@ -270,7 +270,7 @@ fn convert<F: SerializableField>(
         term_chunk_size,
     )?;
 
-    fs::write(output.join(format!("{name}.lfc3")), &bytes)
+    fs::write(output.join(format!("{name}.lfc2")), &bytes)
         .map_err(|error| format!("write LFC2: {error}"))?;
     println!(
         "{}: LFC2={} committed={} pages={} root={} ninput={} npublic={} noutput={} constants={} layers={} terms={:?}",
@@ -338,12 +338,12 @@ fn emit_verified_decode_modules<F: SerializableField>(
     field: &F,
     field_id: FieldID,
     circuit: &Circuit<F>,
-    lfc3: &[u8],
+    lfc2: &[u8],
     output: &Path,
     name: &str,
     term_chunk_size: usize,
 ) -> Result<(), String> {
-    let layer_offsets = lfc2_layer_offsets(lfc3, field.serialized_size_bytes())?;
+    let layer_offsets = lfc2_layer_offsets(lfc2, field.serialized_size_bytes())?;
     if layer_offsets.len() != circuit.raw.layers.len() + 1 {
         return Err("LFC2 layer offset count disagrees with circuit".to_string());
     }
@@ -358,7 +358,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
                  theorem hrefParse_{index} : \
                  Refines parseCursor_{index} bparseCursor_{index} :=\n  \
                  cursorAt_refines packedInput inputBytes {offset} pagesRefine (by decide)\n",
-                lean_parse_cursor(lfc3, offset)
+                lean_parse_cursor(lfc2, offset)
             )
         })
         .collect::<String>();
@@ -414,7 +414,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
         } else {
             circuit.raw.layers[layer_index - 1].nw()
         };
-        let st = lfc2_layer_stages(lfc3, layer_offsets[layer_index], term_chunk_size)?;
+        let st = lfc2_layer_stages(lfc2, layer_offsets[layer_index], term_chunk_size)?;
 
         // Stage cursors for this layer.  Emitted once, imported by every stage module.
         let mut cursors = String::new();
@@ -423,7 +423,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
             cursors,
             "def {} : Cursor := {}",
             cur_name("prefix"),
-            lean_parse_cursor(lfc3, st.after_prefix)
+            lean_parse_cursor(lfc2, st.after_prefix)
         )
         .expect("write String");
         for (j, off) in st.delta_bounds.iter().enumerate() {
@@ -431,7 +431,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
                 cursors,
                 "def {} : Cursor := {}",
                 cur_name(&format!("d{j}")),
-                lean_parse_cursor(lfc3, *off)
+                lean_parse_cursor(lfc2, *off)
             )
             .expect("write String");
         }
@@ -439,7 +439,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
             cursors,
             "def {} : Cursor := {}",
             cur_name("segcount"),
-            lean_parse_cursor(lfc3, st.after_seg_count)
+            lean_parse_cursor(lfc2, st.after_seg_count)
         )
         .expect("write String");
         for (j, off) in st.segment_bounds.iter().enumerate() {
@@ -447,7 +447,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
                 cursors,
                 "def {} : Cursor := {}",
                 cur_name(&format!("s{j}")),
-                lean_parse_cursor(lfc3, *off)
+                lean_parse_cursor(lfc2, *off)
             )
             .expect("write String");
         }

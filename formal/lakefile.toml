@@ -144,7 +144,7 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "quadcert"
 srcDir = "circuits"
-globs = ["quadcert.Core.+", "quadcert.Gen.+", "quadcert.Bridge.Ecdsa2.+", "quadcert.Bridge.Rung1.+", "quadcert.Bridge.Sha256Gf2.+", "quadcert.Bridge.Mdoc.+"]
+globs = ["quadcert.Core.+", "quadcert.Gen.+", "quadcert.Bridge.Ecdsa2.+", "quadcert.Bridge.Sha256Gf2.+", "quadcert.Bridge.Mdoc.+"]
 # `-M 0` (no cap), because two generated modules need essentially the whole machine and a cap
 # fails *above* their working set -- the allocator wants GC headroom on top of it:
 #

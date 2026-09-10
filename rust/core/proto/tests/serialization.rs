@@ -78,52 +78,6 @@ fn test_circuit_serialization_lfc2_roundtrip() {
     assert_eq!(computed_id, circuit.id);
 }
 
-#[test]
-fn test_circuit_serialization_lfc3_committed_roundtrip() {
-    let f = P256Field::new();
-    let rf = P256Field::new();
-    let (circuit, _, _) = compile_compiler::compile(&f, |iologic| {
-        let boolean = Boolean::new(&iologic);
-        let a = iologic.input(1);
-        let b = iologic.input(2);
-        let ab = boolean.of_eltw(a);
-        let bb = boolean.of_eltw(b);
-        let x = boolean.xorb(&ab, &bb);
-        (boolean.assert_true("assert_x", &x), 1, 0)
-    });
-
-    let writer = CircuitWriter::new(&f, FieldID::P256);
-    let serialized = writer.to_bytes_lfc3(&circuit);
-    assert_eq!(&serialized[..4], b"LFC3");
-    let commitment = FormalCircuitCommitment::new(&serialized);
-
-    let reader = CircuitReader::new(&rf, FieldID::P256);
-    let decoded = reader
-        .from_bytes_lfc3_pinned(&serialized, &commitment.root)
-        .unwrap();
-    assert_eq!(decoded.id, circuit.id);
-    assert_eq!(decoded.raw.ninput, circuit.raw.ninput);
-    assert_eq!(decoded.raw.npublic_input, circuit.raw.npublic_input);
-    assert_eq!(decoded.raw.noutput, circuit.raw.noutput);
-    assert_eq!(decoded.raw.layers.len(), circuit.raw.layers.len());
-    assert_eq!(compile_eval::compute_id(&rf, &decoded.raw), circuit.id);
-
-    let mut tampered = serialized.clone();
-    let middle = tampered.len() / 2;
-    tampered[middle] ^= 1;
-    assert!(reader
-        .from_bytes_lfc3_pinned(&tampered, &commitment.root)
-        .unwrap_err()
-        .contains("commitment"));
-
-    let mut with_trailing = serialized.clone();
-    with_trailing.push(0);
-    let trailing_commitment = FormalCircuitCommitment::new(&with_trailing);
-    assert!(reader
-        .from_bytes_lfc3_pinned(&with_trailing, &trailing_commitment.root)
-        .unwrap_err()
-        .contains("Trailing bytes"));
-}
 
 #[test]
 fn test_circuit_serialization_lfc1_roundtrip() {

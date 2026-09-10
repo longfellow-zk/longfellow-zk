@@ -130,7 +130,7 @@ fn main() -> Result<(), String> {
                 Some(1) => ordered.sort_unstable_by_key(|&(g, h0, h1)| (h0, g, h1)),
                 _ => ordered.sort_unstable_by_key(|&(g, h0, h1)| (h1, h0, g)),
             }
-            // Delta stream in that order, exactly as LFC3 forms it.
+            // Delta stream in that order, exactly as LFC2 forms it.
             let mut deltas: Vec<(u32, u32, u32)> = Vec::with_capacity(ordered.len());
             let (mut pg, mut p0, mut p1) = (0u32, 0u32, 0u32);
             for &(g, h0, h1) in &ordered {

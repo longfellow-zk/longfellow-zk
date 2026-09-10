@@ -16,13 +16,13 @@
 //!
 //! Usage: `ecdsa2_artifacts OUT_DIR`
 //!
-//! Writes `ecdsa2.lfc2` (feed to `core-proto`'s `lfc3_to_lean`), `ecdsa2.sidecar`, the
+//! Writes `ecdsa2.lfc2` (feed to `core-proto`'s `lfc2_to_lean`), `ecdsa2.sidecar`, the
 //! `cert::emit_lean` modules under `OUT_DIR/lean`, and `manifest.txt`.
 //!
 //! One process, one in-memory circuit: the artifact and the certificate advice describe *the
 //! same* circuit.  Recompiling separately for each output is not an adequate identity check,
 //! because compiler or interface drift can yield superficially similar but different circuits.
-//! `manifest.txt` records the geometry and the LFC3 page root so a later `lfc3_to_lean` run can
+//! `manifest.txt` records the geometry and the LFC2 page root so a later `lfc2_to_lean` run can
 //! be cross-checked against this one.
 //!
 //! The layout names are chosen to match the fields of Lean's `EcdsaWitness`, so the final
@@ -115,8 +115,8 @@ fn main() {
 
     let writer = CircuitWriter::new(&field, FieldID::P256);
     let lfc2 = writer.to_bytes_lfc2(&segmented);
-    let lfc3 = writer.to_bytes_lfc3(&segmented);
-    let commitment = FormalCircuitCommitment::new(&lfc3);
+    let lfc2 = writer.to_bytes_lfc2(&segmented);
+    let commitment = FormalCircuitCommitment::new(&lfc2);
 
     // **Build the sidecar from `segmented`, not from `circuit`.** `segment_circuit` sorts the
     // constant table by frequency and renumbers every `k_index` (`segment.rs:198`), so the two
@@ -181,7 +181,7 @@ fn main() {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(1000),
-            // Layer terms normally come from the artifact modules `lfc3_to_lean` writes for the
+            // Layer terms normally come from the artifact modules `lfc2_to_lean` writes for the
             // same circuit.  Pass `--no-artifact` to emit a self-contained `raw` instead: the
             // structural checks and everything downstream of `ValidScheduling` do not need the
             // byte chain, so they can be built and measured independently of it.
@@ -207,9 +207,9 @@ fn main() {
          field = p256\n\
          curve = secp256r1\n\
          circuit_id = {}\n\
-         lfc3_root = {}\n\
-         lfc3_bytes = {}\n\
-         lfc3_pages = {}\n\
+         lfc2_root = {}\n\
+         lfc2_bytes = {}\n\
+         lfc2_pages = {}\n\
          lfc2_bytes = {}\n\
          ninput = {}\n\
          npublic_input = {}\n\
@@ -220,7 +220,7 @@ fn main() {
          layer_terms = {terms:?}\n",
         hex(&circuit.id),
         hex(&commitment.root),
-        lfc3.len(),
+        lfc2.len(),
         commitment.page_count,
         lfc2.len(),
         stats.ninput,

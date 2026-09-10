@@ -105,8 +105,8 @@ fn main() {
 
     let wsig = CircuitWriter::new(&p256, FieldID::P256);
     let whash = CircuitWriter::new(&gf2, FieldID::Gf2_128);
-    let sig3 = wsig.to_bytes_lfc3(&seg_sig);
-    let hash3 = whash.to_bytes_lfc3(&seg_hash);
+    let sig3 = wsig.to_bytes_lfc2(&seg_sig);
+    let hash3 = whash.to_bytes_lfc2(&seg_hash);
     println!(
         "\nLFC3 bytes: signature {} ({} pages), hash {} ({} pages)",
         sig3.len(),

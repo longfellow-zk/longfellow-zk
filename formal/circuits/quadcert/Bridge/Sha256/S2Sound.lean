@@ -35,7 +35,7 @@ by the same reasoning that named ECDSA2's `E2Sound`.
 The chain, with the module that closes each step:
 
 ```
-  packed LFC3 pages                      Sha256BlkPacked{k}
+  packed LFC2 pages                      Sha256BlkPacked{k}
     → page-hash leaves, Merkle root      Sha256BlkCommitment{k}, Sha256BlkCommitment
     → staged parse : CompressedCircuit   Sha256BlkHeader, Sha256BlkCompressedLayer{l}, …
     → term expansion : DecodedCircuit    Sha256BlkExpansion{l}_{j}, Sha256BlkExpandedLayer{l}, …
@@ -85,7 +85,7 @@ theorem assertions_zero (inputs : Nat → F) (hacc : Accepts (circuit F) inputs)
     (all_backed_of_rawWith raw (consts F) zeroConst consts_zeroConst azt azt_sub backed_check)
     (by rw [toQuad_layers_length]; show 0 < 6; norm_num) hacc
 
-/-- **The same, from the committed bytes.** Whatever the pinned LFC3 pages decode to, extended by
+/-- **The same, from the committed bytes.** Whatever the pinned LFC2 pages decode to, extended by
     the sidecar's four advice fields, *is* `raw` — so this is a statement about the artifact and
     not about a generated literal. -/
 theorem assertions_zero_of_bytes (c : Lfc2.DecodedCircuit)

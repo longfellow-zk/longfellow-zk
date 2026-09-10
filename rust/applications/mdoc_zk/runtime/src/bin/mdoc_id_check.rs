@@ -21,7 +21,7 @@
 //! would describe a circuit that step 1 never ingested, and the two halves of the certificate
 //! would be about different objects.
 //!
-//! `LFC3_PROTOCOL.md` already warns that the checked-in fixtures have drifted (`npublic_input` 0
+//! `LFC2_PROTOCOL.md` already warns that the checked-in fixtures have drifted (`npublic_input` 0
 //! versus 1; SHA-256 at 98,993 terms rather than 79,093), so this is not a hypothetical.
 //!
 //! ```text

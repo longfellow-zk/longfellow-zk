@@ -1131,7 +1131,7 @@ pub struct EmitOptions<'a> {
     /// limit, and chunks of 750–3000 keep peak resident memory at 300–600 MB
     /// regardless of total size. 2000 is a reasonable default.
     pub chunk: usize,
-    /// Base name of the `lfc3_to_lean` modules for the **same** circuit, e.g. `"Sha256Blk"`.
+    /// Base name of the `lfc2_to_lean` modules for the **same** circuit, e.g. `"Sha256Blk"`.
     ///
     /// When set, the layer terms are not re-emitted as a sidecar-owned copy: `raw.layers`
     /// points at the artifact's own `allTerms_{l}`, and `Data` gains `advice`, `artifactRaw`
@@ -1916,7 +1916,7 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
                  nodes := {nodes}\n  wireFn := wireFn\n  asserts := {asserts}\n  \
                  layout := [{layout}]\n\n\
                  /-- The same circuit assembled with every artifact-owned field decoded from \
-                 the committed LFC3 bytes. -/\n\
+                 the committed LFC2 bytes. -/\n\
                  noncomputable def artifactRaw : RawCircuit :=\n  \
                  Quadcert.Gen.{artifact}.decoded.toRaw advice\n\n\
                  /-- Kernel-checked. The layer terms are *shared* with the artifact rather \

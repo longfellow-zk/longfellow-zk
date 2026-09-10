@@ -1,0 +1,426 @@
+Wed Apr 15 01:59:12 AM UTC 2026
+2026-04-15T01:59:12+00:00
+Running algebra/fft_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.05, 0.11, 0.20
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+-----------------------------------------------------------------
+Benchmark                       Time             CPU   Iterations
+-----------------------------------------------------------------
+BM_FFT_Fp256_2/1024        233834 ns       233836 ns        17964
+BM_FFT_Fp256_2/4096       1155324 ns      1155332 ns         3637
+BM_FFT_Fp256_2/16384      5528985 ns      5529007 ns          760
+BM_FFT_Fp256_2/65536     25796845 ns     25796930 ns          163
+BM_FFT_Fp256_2/262144   116423112 ns    116423301 ns           36
+BM_FFT_Fp256_2/1048576  542479531 ns    542476391 ns            8
+BM_FFT_Fp256_2/4194304 2424359959 ns   2424341938 ns            2
+BM_FFT_Fp128/1024           25738 ns        25738 ns       163561
+BM_FFT_Fp128/4096          126424 ns       126424 ns        33232
+BM_FFT_Fp128/16384         608677 ns       608679 ns         6900
+BM_FFT_Fp128/65536        3023303 ns      3023299 ns         1389
+BM_FFT_Fp128/262144      13360711 ns     13360715 ns          314
+BM_FFT_Fp128/1048576     59197807 ns     59197884 ns           71
+BM_FFT_Fp128/4194304    276006793 ns    276005050 ns           15
+BM_FFT_F64_2/1024           26942 ns        26942 ns       155902
+BM_FFT_F64_2/4096          132656 ns       132657 ns        31662
+BM_FFT_F64_2/16384         638696 ns       638697 ns         6574
+BM_FFT_F64_2/65536        3143889 ns      3143898 ns         1336
+BM_FFT_F64_2/262144      13846105 ns     13846104 ns          303
+BM_FFT_F64_2/1048576     61395295 ns     61395466 ns           68
+BM_FFT_F64_2/4194304    286331431 ns    286331689 ns           15
+BM_FFT_F64/1024              9664 ns         9664 ns       434877
+BM_FFT_F64/4096             45456 ns        45456 ns        92371
+BM_FFT_F64/16384           234669 ns       234669 ns        17899
+BM_FFT_F64/65536          1188887 ns      1188892 ns         3534
+BM_FFT_F64/262144         5482751 ns      5482776 ns          766
+BM_FFT_F64/1048576       23589662 ns     23589733 ns          178
+BM_FFT_F64/4194304      105279494 ns    105278616 ns           40
+2026-04-15T02:01:59+00:00
+Running algebra/rfft_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.87, 0.49, 0.33
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+------------------------------------------------------------------
+Benchmark                        Time             CPU   Iterations
+------------------------------------------------------------------
+BM_RFFT_Fp256_2/1024         88580 ns        88579 ns        47457
+BM_RFFT_Fp256_2/4096        432800 ns       432800 ns         9710
+BM_RFFT_Fp256_2/16384      2032265 ns      2032261 ns         2061
+BM_RFFT_Fp256_2/65536      9511955 ns      9511932 ns          440
+BM_RFFT_Fp256_2/262144    43595034 ns     43594972 ns           96
+BM_RFFT_Fp256_2/1048576  222823392 ns    222816691 ns           19
+BM_RFFT_Fp256_2/4194304 1157559967 ns   1157538243 ns            4
+2026-04-15T02:02:43+00:00
+Running algebra/reed_solomon_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.86, 0.54, 0.36
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+--------------------------------------------------------------------------
+Benchmark                                Time             CPU   Iterations
+--------------------------------------------------------------------------
+BM_ReedSolomonFp128/1024            309465 ns       309465 ns        13631
+BM_ReedSolomonFp128/4096           1460255 ns      1460250 ns         2878
+BM_ReedSolomonFp128/16384          6902163 ns      6902138 ns          608
+BM_ReedSolomonFp128/65536         30449636 ns     30449384 ns          137
+BM_ReedSolomonFp128/262144       135285446 ns    135283995 ns           31
+BM_ReedSolomonFp128/1048576      658786157 ns    658770594 ns            6
+BM_ReedSolomonFp128/4194304     2953498498 ns   2953456170 ns            2
+BM_ReedSolomonFp64/1024             104007 ns       104007 ns        40411
+BM_ReedSolomonFp64/4096             537577 ns       537577 ns         7815
+BM_ReedSolomonFp64/16384           2727235 ns      2727222 ns         1540
+BM_ReedSolomonFp64/65536          12340084 ns     12340016 ns          340
+BM_ReedSolomonFp64/262144         53481532 ns     53480771 ns           78
+BM_ReedSolomonFp64/1048576       258048227 ns    258041061 ns           16
+BM_ReedSolomonFp64/4194304      1168389678 ns   1168369413 ns            4
+BM_ReedSolomonFp256/1024           1014014 ns      1014010 ns         4144
+BM_ReedSolomonFp256/4096           4670708 ns      4670707 ns          899
+BM_ReedSolomonFp256/16384         21326558 ns     21326505 ns          197
+BM_ReedSolomonFp256/65536         96977429 ns     96975599 ns           43
+BM_ReedSolomonFp256/262144       503348492 ns    503340483 ns            8
+BM_ReedSolomonFp256/1048576     2566667166 ns   2566604963 ns            2
+BM_ReedSolomonFp256/4194304     12374456875 ns   12374197147 ns            1
+BM_ReedSolomonFp256_crt/1024       1317055 ns      1317050 ns         3189
+BM_ReedSolomonFp256_crt/4096       5924483 ns      5924438 ns          709
+BM_ReedSolomonFp256_crt/16384     26941910 ns     26941909 ns          156
+BM_ReedSolomonFp256_crt/65536    118341596 ns    118339461 ns           35
+BM_ReedSolomonFp256_crt/262144   589506753 ns    589495372 ns            7
+BM_ReedSolomonFp256_crt/1048576 2600136437 ns   2600092077 ns            2
+BM_ReedSolomonFp256_crt/4194304 10904926948 ns   10904663718 ns            1
+BM_RS384_native/1024               2331778 ns      2331778 ns         1801
+BM_RS384_native/4096              10824324 ns     10824298 ns          388
+BM_RS384_native/16384             52359601 ns     52359543 ns           80
+BM_RS384_native/65536            232681297 ns    232678220 ns           18
+BM_RS384_native/262144          1077404816 ns   1077389971 ns            4
+BM_RS384_native/1048576         4754083730 ns   4753995642 ns            1
+BM_RS384_native/4194304         19519963615 ns   19519771877 ns            1
+BM_RS384_crt/1024                  2602751 ns      2602745 ns         1615
+BM_RS384_crt/4096                 11521652 ns     11521628 ns          365
+BM_RS384_crt/16384                51240706 ns     51240511 ns           82
+BM_RS384_crt/65536               227509537 ns    227505609 ns           18
+BM_RS384_crt/262144             1080136474 ns   1080113336 ns            4
+BM_RS384_crt/1048576            4626632124 ns   4626519908 ns            1
+BM_RS384_crt/4194304            19529182263 ns   19528761082 ns            1
+BM_RS521_native/1024               5062045 ns      5061988 ns          830
+BM_RS521_native/4096              23461680 ns     23461429 ns          179
+BM_RS521_native/16384            113397391 ns    113396084 ns           37
+BM_RS521_native/65536            503424687 ns    503412574 ns            8
+BM_RS521_native/262144          2297423378 ns   2297384806 ns            2
+BM_RS521_native/1048576         10076182514 ns   10075999446 ns            1
+BM_RS521_native/4194304         41220257849 ns   41219599028 ns            1
+BM_RS521_crt/1024                  3065804 ns      3065770 ns         1370
+BM_RS521_crt/4096                 13403726 ns     13403633 ns          313
+BM_RS521_crt/16384                58961573 ns     58960487 ns           71
+BM_RS521_crt/65536               259477317 ns    259470504 ns           16
+BM_RS521_crt/262144             1207875123 ns   1207857138 ns            3
+BM_RS521_crt/1048576            5136856392 ns   5136770101 ns            1
+BM_RS521_crt/4194304            21576004937 ns   21575632463 ns            1
+2026-04-15T02:12:20+00:00
+Running gf2k/lch14_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 1.01, 0.97, 0.69
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+-----------------------------------------------------------------------
+Benchmark                             Time             CPU   Iterations
+-----------------------------------------------------------------------
+BM_LCH14_FFT/10                   12797 ns        12797 ns       329493
+BM_LCH14_FFT/12                   60690 ns        60690 ns        69203
+BM_LCH14_FFT/14                  280776 ns       280776 ns        14959
+BM_LCH14_FFT/16                 1281156 ns      1281149 ns         3278
+BM_LCH14_FFT/18                 5751482 ns      5751459 ns          730
+BM_LCH14_FFT/20                25723177 ns     25722717 ns          163
+BM_LCH14_FFT/22               136898061 ns    136891936 ns           31
+BM_LCH14_IFFT/10                  12810 ns        12810 ns       327860
+BM_LCH14_IFFT/12                  60774 ns        60774 ns        69092
+BM_LCH14_IFFT/14                 280895 ns       280894 ns        14955
+BM_LCH14_IFFT/16                1282206 ns      1282197 ns         3279
+BM_LCH14_IFFT/18                5754098 ns      5754060 ns          730
+BM_LCH14_IFFT/20               25753337 ns     25752938 ns          163
+BM_LCH14_IFFT/22              138876759 ns    138873005 ns           30
+BM_LCH14_BidirectionalFFT/10      13188 ns        13188 ns       318449
+BM_LCH14_BidirectionalFFT/12      61544 ns        61543 ns        68250
+BM_LCH14_BidirectionalFFT/14     282929 ns       282928 ns        14839
+BM_LCH14_BidirectionalFFT/16    1283198 ns      1283185 ns         3272
+BM_LCH14_BidirectionalFFT/18    5757884 ns      5757855 ns          729
+BM_LCH14_BidirectionalFFT/20   25636940 ns     25636716 ns          164
+BM_LCH14_BidirectionalFFT/22  117078207 ns    117074299 ns           36
+2026-04-15T02:14:28+00:00
+Running gf2k/lch14_reed_solomon_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.92, 0.97, 0.73
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+-----------------------------------------------------------------------
+Benchmark                             Time             CPU   Iterations
+-----------------------------------------------------------------------
+BM_ReedSolomon_gf128/1024         52143 ns        52143 ns        81047
+BM_ReedSolomon_gf128/4096        246854 ns       246853 ns        17019
+BM_ReedSolomon_gf128/16384      1142547 ns      1142536 ns         3681
+BM_ReedSolomon_gf128/65536      5499773 ns      5499738 ns          764
+BM_ReedSolomon_gf128/262144    24291964 ns     24291799 ns          173
+BM_ReedSolomon_gf128/1048576  113815811 ns    113811895 ns           37
+2026-04-15T02:15:08+00:00
+Running circuits/ecdsa/verify_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.88, 0.96, 0.73
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+-------------------------------------------------------------------
+Benchmark                         Time             CPU   Iterations
+-------------------------------------------------------------------
+BM_ECDSASumcheckProver/1    7771764 ns      7771705 ns          543
+BM_ECDSASumcheckProver/2   15585404 ns     15585273 ns          269
+BM_ECDSASumcheckProver/3   21904326 ns     21904129 ns          192
+BM_ECDSACommit/1           18934794 ns     18934576 ns          222
+BM_ECDSACommit/2           22332372 ns     22332155 ns          188
+BM_ECDSACommit/3           26899764 ns     26899515 ns          156
+BM_ECDSAZKProver/1         29002764 ns     29002759 ns          145
+BM_ECDSAZKProver/2         40983731 ns     40983697 ns          102
+BM_ECDSAZKProver/3         52984896 ns     52984657 ns           79
+BM_ECDSAZKVerifier/1       18770750 ns     18770756 ns          224
+BM_ECDSAZKVerifier/2       25976255 ns     25976203 ns          161
+BM_ECDSAZKVerifier/3       31993837 ns     31993720 ns          131
+2026-04-15T02:16:30+00:00
+Running circuits/sha/flatsha256_circuit_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.89, 0.95, 0.75
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+------------------------------------------------------------------------------
+Benchmark                                    Time             CPU   Iterations
+------------------------------------------------------------------------------
+BM_ShaSumcheckProver_fp2_128/1         6129538 ns      6129466 ns          685
+BM_ShaSumcheckProver_fp2_128/2        12019275 ns     12019102 ns          349
+BM_ShaSumcheckProver_fp2_128/4        23835121 ns     23834674 ns          176
+BM_ShaSumcheckProver_fp2_128/8        47933329 ns     47931227 ns           88
+BM_ShaSumcheckProver_fp2_128/16       96113154 ns     96107704 ns           44
+BM_ShaSumcheckProver_fp2_128/32      192440728 ns    192438747 ns           22
+BM_ShaSumcheckProver_fp2_128/33      196921866 ns    196917891 ns           21
+BM_ShaSumcheckCopyProver_fp2_128/1     6157603 ns      6157579 ns          682
+BM_ShaSumcheckCopyProver_fp2_128/2     9070197 ns      9070128 ns          463
+BM_ShaSumcheckCopyProver_fp2_128/4    14480929 ns     14480919 ns          288
+BM_ShaSumcheckCopyProver_fp2_128/8    24778592 ns     24778323 ns          170
+BM_ShaSumcheckCopyProver_fp2_128/16   45550910 ns     45550881 ns           92
+BM_ShaSumcheckCopyProver_fp2_128/32   87185399 ns     87184542 ns           48
+BM_ShaSumcheckCopyProver_fp2_128/33   98746673 ns     98745829 ns           43
+BM_ShaZK_fp2_128/1                    12513755 ns     12513728 ns          336
+BM_ShaZK_fp2_128/2                    20248986 ns     20248896 ns          207
+BM_ShaZK_fp2_128/4                    35627603 ns     35627456 ns          118
+BM_ShaZK_fp2_128/8                    67351467 ns     67350996 ns           62
+BM_ShaZK_fp2_128/16                  130009365 ns    130007856 ns           32
+BM_ShaZK_fp2_128/32                  243127732 ns    243124144 ns           17
+BM_ShaZK_fp2_128/33                  249034175 ns    249031960 ns           17
+BM_ShaZK_Fp64_2/1                     28362173 ns     28362163 ns          148
+BM_ShaZK_Fp64_2/2                     46288337 ns     46288127 ns           91
+BM_ShaZK_Fp64_2/4                     82129037 ns     82128704 ns           51
+BM_ShaZK_Fp64_2/8                    154839199 ns    154838312 ns           27
+BM_ShaZK_Fp64_2/16                   290735236 ns    290731447 ns           14
+BM_ShaZK_Fp64_2/32                   572776105 ns    572768868 ns            7
+BM_ShaZK_quadbind_fp2_128/1            1427305 ns      1427301 ns         2944
+BM_ShaZK_quadbind_fp2_128/2            2809120 ns      2809119 ns         1495
+BM_ShaZK_quadbind_fp2_128/4            5610424 ns      5610410 ns          749
+BM_ShaZK_quadbind_fp2_128/8           11296863 ns     11296818 ns          371
+BM_ShaZK_quadbind_fp2_128/16          22940436 ns     22939967 ns          183
+BM_ShaZK_quadbind_fp2_128/32          45882066 ns     45880614 ns           92
+2026-04-15T02:21:27+00:00
+Running circuits/mdoc/mdoc_zk_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.98, 0.99, 0.83
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+----------------------------------------------------------
+Benchmark                Time             CPU   Iterations
+----------------------------------------------------------
+BM_MdocProver    526196578 ns    526194722 ns            8
+BM_MdocVerifier  252326667 ns    252325973 ns           17
+2026-04-15T02:22:24+00:00
+Running circuits/tests/anoncred/small_test
+Run on (32 X 5879.88 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+Load Average: 0.91, 0.98, 0.84
+***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
+[INFO][+ 1302.042 ms] Compiled circuit: mdocsmall
+[INFO][+    0.019 ms]  depth: 12 wires: 592555 in: 20171 out:4 use:494325 ovh:98230 t:1799704 cse:481591 notn:1361477
+[INFO][+   47.160 ms] Witness done
+[INFO][+    0.327 ms] Fill done
+[INFO][+    0.054 ms] ZK Commit start
+[INFO][+   89.312 ms] ZK Commitment done
+[INFO][+  182.469 ms] ZK sumcheck done
+[INFO][+    1.143 ms] ZK constraints done
+[INFO][+   15.309 ms] Prover Done: flag
+[INFO][+ 1175.460 ms] Compiled circuit: mdocsmall
+[INFO][+    0.018 ms]  depth: 12 wires: 592555 in: 20171 out:4 use:494325 ovh:98230 t:1799704 cse:481591 notn:1361477
+[INFO][+   29.824 ms] Witness done
+[INFO][+    0.329 ms] Fill done
+[INFO][+    0.049 ms] ZK Commit start
+[INFO][+   88.885 ms] ZK Commitment done
+[INFO][+  183.353 ms] ZK sumcheck done
+[INFO][+    1.156 ms] ZK constraints done
+[INFO][+   15.385 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.021 ms] ZK Commitment done
+[INFO][+  183.392 ms] ZK sumcheck done
+[INFO][+    1.149 ms] ZK constraints done
+[INFO][+   15.410 ms] Prover Done: flag
+[INFO][+    0.034 ms] ZK Commit start
+[INFO][+   89.060 ms] ZK Commitment done
+[INFO][+  183.561 ms] ZK sumcheck done
+[INFO][+    1.153 ms] ZK constraints done
+[INFO][+   15.385 ms] Prover Done: flag
+[INFO][+    0.031 ms] ZK Commit start
+[INFO][+   89.252 ms] ZK Commitment done
+[INFO][+  183.591 ms] ZK sumcheck done
+[INFO][+    1.177 ms] ZK constraints done
+[INFO][+   15.405 ms] Prover Done: flag
+[INFO][+    0.035 ms] ZK Commit start
+[INFO][+   89.280 ms] ZK Commitment done
+[INFO][+  183.453 ms] ZK sumcheck done
+[INFO][+    1.150 ms] ZK constraints done
+[INFO][+   15.417 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.315 ms] ZK Commitment done
+[INFO][+  183.408 ms] ZK sumcheck done
+[INFO][+    1.151 ms] ZK constraints done
+[INFO][+   15.410 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.261 ms] ZK Commitment done
+[INFO][+  183.646 ms] ZK sumcheck done
+[INFO][+    1.153 ms] ZK constraints done
+[INFO][+   15.394 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.429 ms] ZK Commitment done
+[INFO][+  183.697 ms] ZK sumcheck done
+[INFO][+    1.149 ms] ZK constraints done
+[INFO][+   15.411 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.292 ms] ZK Commitment done
+[INFO][+  183.652 ms] ZK sumcheck done
+[INFO][+    1.166 ms] ZK constraints done
+[INFO][+   15.415 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.264 ms] ZK Commitment done
+[INFO][+  183.696 ms] ZK sumcheck done
+[INFO][+    1.152 ms] ZK constraints done
+[INFO][+   15.417 ms] Prover Done: flag
+[INFO][+ 1163.331 ms] Compiled circuit: mdocsmall
+[INFO][+    0.020 ms]  depth: 12 wires: 592555 in: 20171 out:4 use:494325 ovh:98230 t:1799704 cse:481591 notn:1361477
+[INFO][+   30.201 ms] Witness done
+[INFO][+    0.331 ms] Fill done
+[INFO][+    0.050 ms] ZK Commit start
+[INFO][+   89.088 ms] ZK Commitment done
+[INFO][+  183.821 ms] ZK sumcheck done
+[INFO][+    1.148 ms] ZK constraints done
+[INFO][+   15.403 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.269 ms] ZK Commitment done
+[INFO][+  184.041 ms] ZK sumcheck done
+[INFO][+    1.154 ms] ZK constraints done
+[INFO][+   15.422 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.277 ms] ZK Commitment done
+[INFO][+  184.175 ms] ZK sumcheck done
+[INFO][+    1.154 ms] ZK constraints done
+[INFO][+   15.420 ms] Prover Done: flag
+[INFO][+    0.045 ms] ZK Commit start
+[INFO][+   89.236 ms] ZK Commitment done
+[INFO][+  183.976 ms] ZK sumcheck done
+[INFO][+    1.149 ms] ZK constraints done
+[INFO][+   15.417 ms] Prover Done: flag
+[INFO][+    0.031 ms] ZK Commit start
+[INFO][+   89.285 ms] ZK Commitment done
+[INFO][+  183.895 ms] ZK sumcheck done
+[INFO][+    1.161 ms] ZK constraints done
+[INFO][+   15.438 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.194 ms] ZK Commitment done
+[INFO][+  183.865 ms] ZK sumcheck done
+[INFO][+    1.148 ms] ZK constraints done
+[INFO][+   15.420 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.301 ms] ZK Commitment done
+[INFO][+  184.099 ms] ZK sumcheck done
+[INFO][+    1.154 ms] ZK constraints done
+[INFO][+   15.426 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.288 ms] ZK Commitment done
+[INFO][+  183.935 ms] ZK sumcheck done
+[INFO][+    1.150 ms] ZK constraints done
+[INFO][+   15.413 ms] Prover Done: flag
+[INFO][+    0.031 ms] ZK Commit start
+[INFO][+   89.301 ms] ZK Commitment done
+[INFO][+  183.987 ms] ZK sumcheck done
+[INFO][+    1.157 ms] ZK constraints done
+[INFO][+   15.430 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.306 ms] ZK Commitment done
+[INFO][+  184.146 ms] ZK sumcheck done
+[INFO][+    1.153 ms] ZK constraints done
+[INFO][+   15.428 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.395 ms] ZK Commitment done
+[INFO][+  184.147 ms] ZK sumcheck done
+[INFO][+    1.156 ms] ZK constraints done
+[INFO][+   15.450 ms] Prover Done: flag
+[INFO][+    0.034 ms] ZK Commit start
+[INFO][+   89.425 ms] ZK Commitment done
+[INFO][+  184.408 ms] ZK sumcheck done
+[INFO][+    1.158 ms] ZK constraints done
+[INFO][+   15.421 ms] Prover Done: flag
+[INFO][+    0.031 ms] ZK Commit start
+[INFO][+   89.422 ms] ZK Commitment done
+[INFO][+  184.209 ms] ZK sumcheck done
+[INFO][+    1.153 ms] ZK constraints done
+[INFO][+   15.446 ms] Prover Done: flag
+[INFO][+    0.032 ms] ZK Commit start
+[INFO][+   89.369 ms] ZK Commitment done
+[INFO][+  184.260 ms] ZK sumcheck done
+[INFO][+    1.154 ms] ZK constraints done
+[INFO][+   15.429 ms] Prover Done: flag
+[INFO][+    0.033 ms] ZK Commit start
+[INFO][+   89.349 ms] ZK Commitment done
+[INFO][+  184.236 ms] ZK sumcheck done
+[INFO][+    1.154 ms] ZK constraints done
+[INFO][+   15.430 ms] Prover Done: flag
+------------------------------------------------------
+Benchmark            Time             CPU   Iterations
+------------------------------------------------------
+BM_AnonCred  289996623 ns    289991234 ns           15

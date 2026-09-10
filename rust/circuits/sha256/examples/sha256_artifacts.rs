@@ -16,14 +16,14 @@
 //!
 //! Usage: `sha256_artifacts OUT_DIR`
 //!
-//! Writes `sha256.lfc2` (feed to `core-proto`'s `lfc3_to_lean`), `sha256.sidecar`, the
+//! Writes `sha256.lfc2` (feed to `core-proto`'s `lfc2_to_lean`), `sha256.sidecar`, the
 //! `cert::emit_lean` modules under `OUT_DIR/lean`, and `manifest.txt`.
 //!
 //! The point of doing all of this in one process is that the artifact and the certificate
 //! advice describe *the same in-memory circuit*.  Recompiling the source separately for each
 //! output is not an adequate identity check: compiler or interface drift can yield
 //! superficially similar but different circuits.  `manifest.txt` records the geometry and the
-//! LFC3 page root so a later `lfc3_to_lean` run can be cross-checked against this one.
+//! LFC2 page root so a later `lfc2_to_lean` run can be cross-checked against this one.
 
 use std::{fs, path::Path};
 
@@ -124,8 +124,8 @@ where
 
     let writer = CircuitWriter::new(field, field_id);
     let lfc2 = writer.to_bytes_lfc2(&segmented);
-    let lfc3 = writer.to_bytes_lfc3(&segmented);
-    let commitment = FormalCircuitCommitment::new(&lfc3);
+    let lfc2 = writer.to_bytes_lfc2(&segmented);
+    let commitment = FormalCircuitCommitment::new(&lfc2);
 
     // **Build the sidecar from `segmented`, not from `circuit`.** `segment_circuit` sorts the
     // constant table by frequency and renumbers every `k_index` (`segment.rs:198`), so the two
@@ -192,7 +192,7 @@ where
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2000),
-            // Layer terms normally come from the artifact modules `lfc3_to_lean` writes for
+            // Layer terms normally come from the artifact modules `lfc2_to_lean` writes for
             // the same circuit.  Pass `--no-artifact` to emit a self-contained `raw` instead:
             // the structural checks and everything downstream of `ValidScheduling` do not need
             // the byte chain, so they can be built and measured independently of it.
@@ -217,9 +217,9 @@ where
         "circuit = sha256_block\n\
          field = {field_name}\n\
          circuit_id = {}\n\
-         lfc3_root = {}\n\
-         lfc3_bytes = {}\n\
-         lfc3_pages = {}\n\
+         lfc2_root = {}\n\
+         lfc2_bytes = {}\n\
+         lfc2_pages = {}\n\
          lfc2_bytes = {}\n\
          ninput = {}\n\
          npublic_input = {}\n\
@@ -230,7 +230,7 @@ where
          layer_terms = {terms:?}\n",
         hex(&circuit.id),
         hex(&commitment.root),
-        lfc3.len(),
+        lfc2.len(),
         commitment.page_count,
         lfc2.len(),
         stats.ninput,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Extract the two shipped mdoc circuits as standalone LFC2 blobs, which is what
-//! `core-proto`'s `lfc3_to_lean` example ingests.
+//! `core-proto`'s `lfc2_to_lean` example ingests.
 //!
 //! The checked-in archive bundles both circuits, so nothing downstream can read one on its own;
 //! this splits them.  **The circuits are segmented first**, because `segment_circuit` sorts the
@@ -23,7 +23,7 @@
 //!
 //! ```text
 //! cargo run --release -p mdoc-zk-runtime --bin mdoc_lfc2 -- OUT_DIR [CIRCUIT_HASH]
-//! cargo run -p core-proto --example lfc3_to_lean -- \
+//! cargo run -p core-proto --example lfc2_to_lean -- \
 //!     gf2_128 OUT_DIR/mdoc_hash.lfc2 ../formal/circuits/quadcert MdocHash
 //! ```
 

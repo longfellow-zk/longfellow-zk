@@ -13,19 +13,19 @@ CBOR window checks, the three GF(2¹²⁸) MACs.
 
 Artifact `8d0792117152…` — v7, **one** disclosed attribute:
 
-| | layers | terms | LFC3 bytes | pages | Lean modules |
+| | layers | terms | committed bytes | pages | Lean modules |
 |---|---:|---:|---:|---:|---:|
-| this circuit | 17 | 7,757,579 | 968,323 | 237 | 8,497 |
+| this circuit | 17 | 7,757,579 | 1,181,452 | 289 | 8,497 |
 | `Gen/Sha256Blk`, the largest before it | 6 | 98,993 | 203,104 | 50 | 1,109 |
 
-`5aebdaaa…` is the four-attribute variant at 9,063,890 terms / 287 pages; those are the figures in
-`LFC3_PROTOCOL.md`. The signature circuit is identical across every variant.
+`5aebdaaa…` is the four-attribute variant at 9,063,890 terms; those are the figures in
+`LFC2_CERTIFY_PROTOCOL.md`. The signature circuit is identical across every variant.
 
 ## Why this is tractable at all
 
 Two things, both measured by `mdoc_layer_probe`:
 
-* **It compresses.** `sym/trm` is 0.01–0.2 on almost every layer. One-block SHA-256's LFC3 does
+* **It compresses.** `sym/trm` is 0.01–0.2 on almost every layer. One-block SHA-256's LFC2 does
   not compress at all, which made its parse modules ~10× denser than ECDSA2's at comparable size —
   and *that*, not size, is what made them unbuildable. The failure mode does not transfer.
 * **The lookup was the cost, and it is already fixed.** Expanding this circuit with `Array`'s

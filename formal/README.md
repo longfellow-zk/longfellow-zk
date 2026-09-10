@@ -28,7 +28,7 @@ theorem Sha256Blk.sha256_certified_bytes
 
 `packedInput` is the subject of both conjuncts, so the bytes that hash to `formalRoot` are
 syntactically the bytes `hdec` decodes — a reader does not have to check by other means that the
-literal named in the soundness half is the committed one. `Rung1.certified_bytes_accept_iff_spec`
+literal named in the soundness half is the committed one. `Sha256Gf2.certified_bytes_decode`
 has the same shape, with an `iff` in place of the implication.
 
 All three depend only on `propext`, `Classical.choice`, `Quot.sound`. There is no `sorry` and no
@@ -226,7 +226,6 @@ by `Bridge/Sha256/S2Connect`, `S2Flat`, `S2Assert` and `S2Bytes`: 42,168 referen
 |---|---|---:|---|
 | ECDSA2 (P-256 verification) | 𝔽ₚ₂₅₆ | 1,048 | **all four steps** — `ecdsa2_certified_bytes` |
 | SHA-256, one block | 𝔽ₚ₂₅₆ | 6,840 | **all four steps** — `sha256_certified_bytes` |
-| Rung1 (on-curve check) | 𝔽ₚ₂₅₆ | 297 bytes | **all four steps** — `certified_bytes_accept_iff_spec`, an `iff` |
 | SHA-256, one block | GF(2¹²⁸) | 6,840 | **steps 1–3** — `Sha256Gf2.certified_bytes_assertions_zero`; step 4 in progress |
 | mdoc_hash | GF(2¹²⁸) | 18,956 + booleanity | **step 4** — `MDoc.Gadget.meaning_of_circuit`; all three arithmetic gadgets proved *and* threaded through `meaning`, `assert_final_hash` closed (`MDoc.Mux.hsel_of_final_hash`), and the SHA hypothesis reduced to one `blockFrom` per block; steps 1–3 not started |
 | mdoc_signature | 𝔽ₚ₂₅₆ | 2,108 | **step 4** — `MDoc.sig_meaning`, on top of `soundness_of_v2`; its `chunk_eq` families threaded through `ChunkEq` too, so `MDoc.Gadget.full_meaning_of_circuit` composes both halves over the circuits' own gadgets; steps 1–3 not started |
@@ -433,7 +432,6 @@ circuits/
     Core/            (19)    Lfc3 decoder, quad semantics, cone templates, checkers, commitment
     Gen/             (2800)  generated per-artifact data and structural proofs
     Bridge/Ecdsa2/   (5)     ECDSA2 constants, soundness entry point, certificate
-    Bridge/Rung1/    (3)     the small worked example, bytes → geometry
     Bridge/Sha256/   (72)    the SHA-256 meaning bridge, over 𝔽ₚ₂₅₆
     Bridge/Sha256Gf2/(4)     the same circuit over GF(2¹²⁸): steps 1–3
   ECDSA/             (21)    curve arithmetic, ECDSA spec, abstract soundness

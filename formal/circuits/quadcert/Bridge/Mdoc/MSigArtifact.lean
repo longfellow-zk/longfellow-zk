@@ -27,7 +27,7 @@ Both halves are **segmented before writing**, because `segment_circuit` renumber
 
 ## The numbers
 
-21 layers, 481,833 terms, 1,634 constants, `ninput = 3739`, 476,346 LFC3 bytes in 117 pages. For
+21 layers, 481,833 terms, 1,634 constants, `ninput = 3739`, 478,823 committed bytes in 117 pages. For
 comparison the largest artifact previously ingested is `Sha256Blk` at 203,104 bytes in 50 pages,
 and `Sha256Gf2` at 28,327 in 7. The mdoc *hash* circuit is 16× larger again — see
 `MHashArtifact.lean` when it lands.
@@ -47,7 +47,7 @@ namespace MdocSig
 open Quadcert Quadcert.Gen.MdocSig
 
 /-- The 117 packed pages hash to the pinned root, phrased over the payload `Lfc2.decode`
-    consumes. Same shape as `Rung1.packedInput_root` and `Sha256Gf2.packedInput_root`. -/
+    consumes. Same shape as `Sha256Gf2.packedInput_root` and `Sha256Blk.packedInput_root`. -/
 theorem packedInput_root :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.MdocSig.packedInput
       = Quadcert.Gen.MdocSig.formalRoot :=

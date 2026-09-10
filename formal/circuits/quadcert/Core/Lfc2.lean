@@ -17,7 +17,7 @@
 import quadcert.Core.Raw
 
 /-!
-# Verified LFC3 ingestion from packed bytes
+# Verified LFC2 ingestion from packed bytes
 
 This is the byte-to-`RawCircuit` link for the formal circuit commitment.  It is deliberately
 Mathlib-free: generated modules provide one little-endian `Nat` per 4096-byte page, and this
@@ -218,7 +218,7 @@ structure CompressedLayer where
   termCount : Nat
   deriving Repr, DecidableEq
 
-/-- Artifact data whose layers retain the compact LFC3 dictionaries. -/
+/-- Artifact data whose layers retain the compact LFC2 dictionaries. -/
 structure CompressedCircuit where
   fieldId : Nat
   ninput : Nat
@@ -410,7 +410,7 @@ structure DecodedLayer where
   terms : List RawTerm
   deriving Repr, DecidableEq
 
-/-- All data obtained from the committed LFC3 artifact. -/
+/-- All data obtained from the committed LFC2 artifact. -/
 structure DecodedCircuit where
   fieldId : Nat
   ninput : Nat
@@ -1151,7 +1151,7 @@ def CompressedHeader.finish (header : CompressedHeader) (layers : List Compresse
         layers := layers
         legacyCircuitId := legacyCircuitId }
 
-/-- Parse an exact packed LFC3 payload while retaining its compact dictionaries.  This is the
+/-- Parse an exact packed LFC2 payload while retaining its compact dictionaries.  This is the
     entry point used by generated chunk certificates. -/
 def decodeCompressed (field : FieldEncoding) (input : PackedBytes) :
     Except Error CompressedCircuit := do
@@ -1173,7 +1173,7 @@ theorem decodeCompressed_eq_of_stages (field : FieldEncoding) (input : PackedByt
   rw [readCompressedLayersLoop_eq_of_steps hsteps []]
   simpa only [List.reverse_nil, List.nil_append, bind, Except.bind] using hfinish
 
-/-- Decode and fully expand an exact packed LFC3 payload. Success implies that no committed
+/-- Decode and fully expand an exact packed LFC2 payload. Success implies that no committed
     byte is ignored. Large generated proofs should use `decodeCompressed` and `expandChunk`
     rather than reducing this whole-circuit convenience function in one theorem. -/
 def decode (field : FieldEncoding) (input : PackedBytes)

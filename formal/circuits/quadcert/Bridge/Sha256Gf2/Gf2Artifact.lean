@@ -29,7 +29,7 @@ namespace Sha256Gf2
 open Quadcert Quadcert.Gen.Sha256Gf2
 
 /-- The seven packed pages hash to the pinned root, phrased over the payload `Lfc2.decode`
-    consumes. Same shape as `Rung1.packedInput_root` and `Sha256Blk.packedInput_root`. -/
+    consumes. Same shape as `MdocSig.packedInput_root` and `Sha256Blk.packedInput_root`. -/
 theorem packedInput_root :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.Sha256Gf2.packedInput
       = Quadcert.Gen.Sha256Gf2.formalRoot :=

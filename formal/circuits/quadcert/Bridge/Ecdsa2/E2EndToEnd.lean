@@ -18,7 +18,7 @@ decode to the circuit `hacc` is about.
 Recovering *these* bytes from the root needs SHA-256 collision resistance; the root is a
 computational commitment, not an unconditional proof of byte equality.  And the production
 verifier must pin `formalRoot` against its own binary, which is not a proposition Lean can
-state.  See `Bridge/Rung1/Rung1EndToEnd.lean` for the same composition at Rung1's scale.
+state.  See `Bridge/Sha256Gf2/Gf2Artifact.lean` for the same composition at a smaller scale.
 -/
 
 set_option maxRecDepth 4000000

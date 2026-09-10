@@ -1,5 +1,5 @@
 /-!
-# SHA-256 for the LFC3 page commitment
+# SHA-256 for the LFC2 page commitment
 
 Kernel-reducible SHA-256, used by `CircuitCommitment` to check a packed page's Merkle leaf hash
 without `native_decide`. `hashPacked` is the variant that takes a page as one packed `Nat`, so a
@@ -9,7 +9,7 @@ generated module can store a 4,096-byte page as a single literal and still check
 `rm circuits/quadcert/Sha*.lean` during SHA-256 *circuit* work — this file's name collided with
 the generated `Sha*` modules.** Every definition below was recovered by printing the surviving
 declarations, so the semantics are exactly what was there; only comments and formatting are new.
-The reconstruction is self-checking: `Ecdsa2Commitment*` and `Rung1ArtifactCommitment*` prove
+The reconstruction is self-checking: `Ecdsa2Commitment*` and `MdocSigCommitment*` prove
 page-leaf hashes by `decide` against this module, so any deviation fails to build.
 -/
 
