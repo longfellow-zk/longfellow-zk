@@ -33,10 +33,30 @@ where
     F: CompileField + core_algebra::SerializableField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
+    let (circuit, info, symbols, _schedule_info) = compile_with_cert(f, build);
+    (circuit, info, symbols)
+}
+
+/// Like `compile`, but additionally returns the scheduler byproducts
+/// (`ScheduleInfo`) needed to build the proof certificate sidecar
+/// (`crate::cert`).
+pub fn compile_with_cert<'a, F, Build>(
+    f: &'a F,
+    build: Build,
+) -> (
+    Circuit<F>,
+    CircuitGeometry,
+    crate::debug::CircuitDebugSymbols,
+    crate::scheduler::ScheduleInfo<F>,
+)
+where
+    F: CompileField + core_algebra::SerializableField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
+{
     let source_arena = crate::arena::CompilerArena::new();
     let source_tracker = AssertionScope::new();
 
-    let (circuit, info, symbols) = {
+    let (circuit, info, symbols, schedule_info) = {
         let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker);
         let (assertions, npublic_input, subfield_boundary) = build(source_logic);
         let arena1 = CompilerArena::new();
@@ -59,7 +79,7 @@ where
         // Safe Rust: drop arena2 immediately after Pass 3!
         drop(arena2);
 
-        let (circuit, info, symbols) = crate::scheduler::schedule(
+        let (circuit, info, symbols, schedule_info) = crate::scheduler::schedule(
             f,
             quad_circuit,
             &quad_asserts,
@@ -70,10 +90,10 @@ where
 
         assert!(info.ninput > 0);
         assert!(info.nterms > 0);
-        (circuit, info, symbols)
+        (circuit, info, symbols, schedule_info)
     };
 
-    (circuit, info, symbols)
+    (circuit, info, symbols, schedule_info)
 }
 
 pub fn dump_stats<F: CompileField + core_algebra::SerializableField>(

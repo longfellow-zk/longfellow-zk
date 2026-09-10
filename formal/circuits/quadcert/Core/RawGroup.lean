@@ -20,7 +20,7 @@ import quadcert.Core.Raw
 # Grouping certificates for `sum_local` (no Mathlib)
 
 Everything `Check.sum_local_of_raw` and `Check.backed_of_raw` consume, as decidable checks on
-raw data. Separate from `quadcert/Raw.lean` because `Lfc3.lean` imports that one, so an edit
+raw data. Separate from `quadcert/Raw.lean` because `Lfc2.lean` imports that one, so an edit
 there rebuilds every artifact and expansion module; this file is on nothing's critical path but
 the certificate modules that use it.
 -/

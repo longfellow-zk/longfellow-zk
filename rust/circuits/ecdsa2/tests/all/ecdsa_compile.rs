@@ -19,7 +19,7 @@ use compile_algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use compile_compiler::{compile, dump_stats};
+use compile_compiler::{compile, compile_with_cert, dump_stats};
 use compile_eval::FieldID;
 use compile_logic::K_FIRST_WIRE_POSITION;
 use core_algebra::{Nat, SerializableField};
@@ -148,6 +148,50 @@ fn test_compile_ecdsa() {
     let curve_r = runtime_algebra::secp256r1::Secp256r1::new(&fr);
     let fn_field = runtime_algebra::Q256Field::new();
     test_compile_ecdsa_generic::<4, _, _, _, _, _>(&curve_c, &fc, &curve_r, &fr, &fn_field);
+}
+
+/// Phase R0 scale check: the certificate sidecar builds, self-checks, parses,
+/// and re-pins the circuit id on the full ECDSA circuit.
+#[test]
+fn test_ecdsa_sidecar() {
+    let fc = P256Field::new();
+    let curve_c = Secp256r1::new(&fc);
+    let (circuit, stats, symbols, schedule_info) = compile_with_cert(&fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+
+        let ecdsa = EcdsaCircuit::new(&iologic, &curve_c);
+        let circuit_given = circuits_ecdsa2::allocate_given_wires(&iologic, &mut pos);
+        let circuit_derived = circuits_ecdsa2::allocate_derived_wires(&iologic, &mut pos);
+
+        (
+            ecdsa.assert_signature(&circuit_given, &circuit_derived),
+            1,
+            0,
+        )
+    });
+
+    let layout = [compile_compiler::cert::InputLayoutEntry {
+        position: 0,
+        name: "one",
+    }];
+    let bytes = compile_compiler::cert::build_sidecar(
+        &fc,
+        FieldID::P256,
+        &circuit,
+        &symbols,
+        &schedule_info,
+        &layout,
+    );
+    let parsed = compile_compiler::cert::parse_sidecar(&bytes).expect("ecdsa sidecar parses");
+
+    assert_eq!(parsed.id, circuit.id);
+    assert_eq!(parsed.ninput, stats.ninput);
+    assert_eq!(parsed.layers.len(), stats.nlayers);
+    assert_eq!(parsed.assertions.len(), stats.nassertions);
+
+    let rf = runtime_algebra::p256::P256Field::new();
+    let recomputed = parsed.recompute_id(&rf).expect("recompute_id");
+    assert_eq!(recomputed, circuit.id);
 }
 
 fn test_compile_ecdsa_signature_tampering_generic<

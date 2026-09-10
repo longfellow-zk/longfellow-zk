@@ -29,7 +29,7 @@ Two things, both measured by `mdoc_layer_probe`:
   not compress at all, which made its parse modules ~10× denser than ECDSA2's at comparable size —
   and *that*, not size, is what made them unbuildable. The failure mode does not transfer.
 * **The lookup was the cost, and it is already fixed.** Expanding this circuit with `Array`'s
-  `deltas[i]?` list walk is 42.2 CPU-hours; with `Core/Lfc3.lean`'s `PTree` it is 2.2 CPU-minutes.
+  `deltas[i]?` list walk is 42.2 CPU-hours; with `Core/Lfc2.lean`'s `PTree` it is 2.2 CPU-minutes.
   `CompressedLayer.deltaAt_eq` is what makes the tree admissible — it is untrusted advice, tied
   back to the decoded list by `checkSize` and `toList`. The tree's docstring names these layers as
   the case it was written for.
@@ -68,7 +68,7 @@ namespace MdocHash
 
 open Quadcert Quadcert.Gen.MdocHash
 
-/-- The 237 packed pages hash to the pinned root, phrased over the payload `Lfc3.decode`
+/-- The 237 packed pages hash to the pinned root, phrased over the payload `Lfc2.decode`
     consumes. -/
 theorem packedInput_root :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.MdocHash.packedInput

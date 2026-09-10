@@ -171,6 +171,31 @@ impl AssertionScope {
         find_rep(&mut self.state.borrow_mut().records, id)
     }
 
+    /// Returns the sorted, deduplicated scope paths of all assertions merged
+    /// (via `union`) with `id`. A single compiled assertion wire can satisfy
+    /// several source-level assertion names when CSE or deduplication merges
+    /// structurally identical assertions; this method enumerates all of them.
+    pub fn group_paths(&self, id: AssertionId) -> Vec<String> {
+        if id.is_nil() {
+            return Vec::new();
+        }
+        let mut state = self.state.borrow_mut();
+        let rep = find_rep(&mut state.records, id);
+        if rep.is_nil() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        if let Some(members) = state.members.get(&rep) {
+            for member_id in members {
+                let rec = &state.records[member_id.0 as usize];
+                out.push(state.tree.resolve_path(rec.scope).join("/"));
+            }
+        }
+        out.sort();
+        out.dedup();
+        out
+    }
+
     pub fn union(&self, id1: AssertionId, id2: AssertionId) {
         if id1.is_nil() || id2.is_nil() {
             return;

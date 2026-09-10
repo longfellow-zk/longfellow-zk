@@ -17,6 +17,8 @@ rustc-hash = "2.1.0"
 bumpalo = "3.16.0"
 
 [dev-dependencies]
+core-proto = { path = "../../core/proto" }
+core-algebra = { path = "../../core/algebra" }
 compile-eval = { path = "../eval" }
 runtime-algebra = { path = "../../runtime/algebra" }
 

@@ -7,7 +7,7 @@ set_option maxHeartbeats 0
 
 namespace Quadcert.Gen.Rung1Artifact
 
-open Quadcert.Lfc3
+open Quadcert.Lfc2
 
 def decoded : DecodedCircuit :=
   match decode p256 packedInput with

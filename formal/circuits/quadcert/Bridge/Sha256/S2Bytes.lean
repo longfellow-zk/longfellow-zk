@@ -94,8 +94,8 @@ theorem hrW (inputs : Nat → F)
     Hypotheses: the artifact's LFC3 pages decode to `c`, and `inputs` satisfies the quad system.
     Conclusion: the eight outgoing chaining words are `SHA256.blockFrom` of the incoming ones and
     the message block, in `SHA/Spec.lean`'s vocabulary. -/
-theorem sha256_block_of_bytes (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 packedInput deltaTrees = .ok c)
+theorem sha256_block_of_bytes (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 packedInput deltaTrees = .ok c)
     [CharP F p256w] (inputs : Nat → F) (hin0 : inputs 0 = 1)
     (hacc : Accepts ((c.toRaw advice).toQuad (consts F)) inputs) :
     (List.range 8).map (outWord inputs)

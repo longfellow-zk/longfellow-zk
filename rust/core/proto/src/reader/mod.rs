@@ -14,6 +14,7 @@
 
 pub mod lfc1;
 pub mod lfc2;
+pub mod lfc3;
 
 use super::{FieldID, SerializableField};
 use crate::circuit::{Circuit, RawCircuit};
@@ -67,6 +68,37 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         Ok((circuit, cursor))
     }
 
+    pub fn from_bytes_lfc3<'b>(
+        &self,
+        bytes: &'b [u8],
+        enforce_legacy_circuit_id: bool,
+    ) -> Result<(Circuit<F>, &'b [u8]), String> {
+        let mut cursor = bytes;
+        let circuit = self.from_stream_lfc3(&mut cursor, enforce_legacy_circuit_id)?;
+        Ok((circuit, cursor))
+    }
+
+    /// Verifies the exact formal payload before decoding it, and rejects any
+    /// trailing bytes.  This is the intended LFC3 verifier entry point; it
+    /// deliberately does not replay the expanded legacy circuit ID.
+    pub fn from_bytes_lfc3_pinned(
+        &self,
+        bytes: &[u8],
+        expected_root: &crate::circuit::DigestBytes,
+    ) -> Result<Circuit<F>, String> {
+        if !crate::commitment::verifies_formal_circuit_root(bytes, expected_root) {
+            return Err("Formal circuit commitment verification failed".to_string());
+        }
+        let (circuit, remaining) = self.from_bytes_lfc3(bytes, false)?;
+        if !remaining.is_empty() {
+            return Err(format!(
+                "Trailing bytes after committed LFC3 payload: {}",
+                remaining.len()
+            ));
+        }
+        Ok(circuit)
+    }
+
     pub fn from_stream<R: std::io::BufRead>(
         &self,
         stream: &mut R,
@@ -75,7 +107,10 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         let buf = stream
             .fill_buf()
             .map_err(|e| format!("Failed to read stream header: {e}"))?;
-        if buf.starts_with(b"LFC2") {
+        if buf.starts_with(b"LFC3") {
+            stream.consume(4);
+            lfc3::from_stream_lfc3_inner(self, stream, enforce_circuit_id)
+        } else if buf.starts_with(b"LFC2") {
             stream.consume(4);
             lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
         } else if !buf.is_empty() && buf[0] == 1 {
@@ -119,6 +154,23 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
             ));
         }
         lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
+    }
+
+    pub fn from_stream_lfc3<R: std::io::BufRead>(
+        &self,
+        stream: &mut R,
+        enforce_legacy_circuit_id: bool,
+    ) -> Result<Circuit<F>, String> {
+        let mut header = [0u8; 4];
+        stream
+            .read_exact(&mut header)
+            .map_err(|_| "Empty or incomplete stream buffer".to_string())?;
+        if &header != b"LFC3" {
+            return Err(format!(
+                "Unsupported LFC3 header: expected b\"LFC3\", got {header:?}"
+            ));
+        }
+        lfc3::from_stream_lfc3_inner(self, stream, enforce_legacy_circuit_id)
     }
 
     #[allow(dead_code)]

@@ -14,11 +14,13 @@
 
 mod test_support;
 
+mod assertion_census;
 mod cbor_decoder_compile;
 mod cbor_decoder_eval;
 mod eval;
 mod hash_compile;
 mod hash_eval;
+mod lean_golden;
 mod mdoc_hash_corruptors;
 mod mdoc_signature_corruptors;
 mod mso_attribute_compile;

@@ -14,6 +14,7 @@
 
 mod algsimp;
 mod assertion;
+mod cert;
 mod copy;
 mod cse;
 mod debug_symbols;

@@ -86,8 +86,8 @@ theorem assertions_zero (inputs : Nat → F) (hacc : Accepts (circuit F) inputs)
 /-- **The same, from the committed bytes.** Whatever the pinned LFC3 pages decode to, extended by
     the sidecar's four advice fields, *is* `raw` — so this is a statement about the artifact and
     not about a generated literal. -/
-theorem assertions_zero_of_bytes (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 packedInput deltaTrees = .ok c)
+theorem assertions_zero_of_bytes (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 packedInput deltaTrees = .ok c)
     (inputs : Nat → F) (hacc : Accepts ((c.toRaw advice).toQuad (consts F)) inputs) :
     ∀ r ∈ (c.toRaw advice).toRecs,
       interpDag ((c.toRaw advice).toDag (consts F)) inputs r.assertedNode = 0 := by

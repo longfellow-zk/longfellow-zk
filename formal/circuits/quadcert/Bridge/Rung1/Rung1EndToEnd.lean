@@ -37,7 +37,7 @@ open Quadcert Quadcert.Gen.Rung1
 
 variable {F : Type} [Field F]
 
-/-- The payload's commitment root, phrased over the `PackedBytes` value `Lfc3.decode` consumes
+/-- The payload's commitment root, phrased over the `PackedBytes` value `Lfc2.decode` consumes
     rather than over a re-spelled leaf list. Definitionally the generated `committed_root`. -/
 theorem packedInput_root :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.Rung1Artifact.packedInput
@@ -47,8 +47,8 @@ theorem packedInput_root :
 /-- `Accepts` for *whatever the committed bytes decode to*, rather than for the generated
     literal. The fallback branch of `Rung1Artifact.decoded` cannot satisfy `hdec`. -/
 theorem accepts_decoded_iff_spec [CharP F p256]
-    (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 Quadcert.Gen.Rung1Artifact.packedInput = .ok c)
+    (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 Quadcert.Gen.Rung1Artifact.packedInput = .ok c)
     (a b : F) (ha : a ≠ 0) (hb : b ≠ 0)
     (haCanonical : a = -3) (hbCanonical : b = (bNat : F))
     (inputs : Nat → F) (hone : inputs Layout.one = 1)
@@ -68,8 +68,8 @@ theorem accepts_decoded_iff_spec [CharP F p256]
 /-- **The Rung1 certificate.** The committed payload hashes to the pinned root, and any
     accepting witness for the circuit it decodes to satisfies the specification. -/
 theorem certified_bytes_accept_iff_spec [CharP F p256]
-    (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 Quadcert.Gen.Rung1Artifact.packedInput = .ok c)
+    (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 Quadcert.Gen.Rung1Artifact.packedInput = .ok c)
     (a b : F) (ha : a ≠ 0) (hb : b ≠ 0)
     (haCanonical : a = -3) (hbCanonical : b = (bNat : F))
     (inputs : Nat → F) (hone : inputs Layout.one = 1)

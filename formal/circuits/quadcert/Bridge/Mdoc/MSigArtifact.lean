@@ -46,7 +46,7 @@ namespace MdocSig
 
 open Quadcert Quadcert.Gen.MdocSig
 
-/-- The 117 packed pages hash to the pinned root, phrased over the payload `Lfc3.decode`
+/-- The 117 packed pages hash to the pinned root, phrased over the payload `Lfc2.decode`
     consumes. Same shape as `Rung1.packedInput_root` and `Sha256Gf2.packedInput_root`. -/
 theorem packedInput_root :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.MdocSig.packedInput
@@ -55,8 +55,8 @@ theorem packedInput_root :
 
 /-- **The committed bytes decode.** Quantified over the result rather than naming the generated
     literal, so the statement is about the bytes. -/
-theorem certified_bytes_decode (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 packedInput deltaTrees = .ok c) :
+theorem certified_bytes_decode (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 packedInput deltaTrees = .ok c) :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.MdocSig.packedInput
         = Quadcert.Gen.MdocSig.formalRoot
       ∧ c = Quadcert.Gen.MdocSig.decoded :=

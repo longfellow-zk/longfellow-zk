@@ -32,7 +32,7 @@ and input names.  `DecodedCircuit.toRaw` makes that boundary explicit.
 set_option autoImplicit false
 set_option relaxedAutoImplicit false
 
-namespace Quadcert.Lfc3
+namespace Quadcert.Lfc2
 
 def pageSize : Nat := 4096
 def word32Modulus : Nat := 0x100000000
@@ -45,7 +45,6 @@ def maxConstants : Nat := 5000000
 def maxLayers : Nat := 10000
 def maxLayerInputs : Nat := 5000000
 def maxLogWidth : Nat := 40
-def maxPhraseLength : Nat := 16
 
 /-- One packed natural per 4096-byte page, with the final page possibly shorter. -/
 structure PackedBytes where
@@ -92,8 +91,6 @@ inductive Error where
   | wireIndexOutOfRange
   | inputWidthMismatch
   | segmentIndexOutOfBounds
-  | phraseIndexOutOfBounds
-  | emptyPhrase
   | badTokenEncoding
   | excessiveExpansion
   | trailingBytes
@@ -134,7 +131,7 @@ def cursorAt (input : PackedBytes) (offset : Nat) : Cursor :=
 
 /-- Consume one byte without expanding the packed page.
 
-    **Not `private`.** `Lfc3Bytes` states a refinement between this and a byte-list reader, which
+    **Not `private`.** `Lfc2Bytes` states a refinement between this and a byte-list reader, which
     is what removes the SHA-256 decoder blocker (measured: 175 s / 9.5 GB against 4.5 s / 0.83 GB
     on one 1,024-delta chunk). Stating that relation requires naming this function. Nothing else
     changed: `Cursor`, `decode` and every generated module are untouched. -/
@@ -194,7 +191,7 @@ private def readMagic (cursor : Cursor) : Except Error Cursor := do
   let (b1, cursor) ← readByte cursor
   let (b2, cursor) ← readByte cursor
   let (b3, cursor) ← readByte cursor
-  if b0 = 76 && b1 = 70 && b2 = 67 && b3 = 51 then .ok cursor else .error .badMagic
+  if b0 = 76 && b1 = 70 && b2 = 67 && b3 = 50 then .ok cursor else .error .badMagic
 
 private def ceilLog2Loop : Nat → Nat → Nat → Nat → Nat
   | 0, _, _, _ => maxLogWidth + 1
@@ -210,19 +207,13 @@ structure Delta where
   kIndex : Nat
   deriving Repr, DecidableEq
 
-/-- The bounded, non-recursive token grammar stored by one LFC3 layer. -/
-inductive TokenEncoding where
-  | flat (tokens : Array Nat)
-  | phrases (dictionary : Array (Array Nat)) (roots : Array Nat)
-  deriving Repr, DecidableEq
-
 /-- A layer after byte parsing but before the potentially large term expansion. -/
 structure CompressedLayer where
   logw : Nat
   nw : Nat
   deltas : Array Delta
   segments : Array (Array Nat)
-  tokens : TokenEncoding
+  tokens : Array Nat
   tokenCount : Nat
   termCount : Nat
   deriving Repr, DecidableEq
@@ -399,13 +390,11 @@ The three streams here are consumed strictly left to right, so the cursor carrie
 walk from the head on every single term: on mdoc's largest layer that averages 56,010 cons
 cells per term and dominated the entire decode.  A residual steps in O(1).
 
-The dictionary lookups (`segments`, `deltas`, and `phrases`) are genuinely random and are not
+The dictionary lookups (`segments` and `deltas`) are genuinely random and are not
 addressed here. -/
 structure ExpansionCursor where
-  /-- Remaining flat tokens, or remaining phrase roots. -/
+  /-- Remaining tokens: the layer's segment-index stream. -/
   outer : List Nat := []
-  /-- Remaining symbols of the phrase currently being expanded. -/
-  inner : List Nat := []
   /-- Remaining delta indices of the segment currently being expanded. -/
   segment : List Nat := []
   g : Nat := 0
@@ -644,32 +633,7 @@ theorem readSegmentsChunk_compose (deltaCount : Nat) {a b : Nat}
                     rw [ih hrest]
                     rfl
 
-def readPhrasesChunk (segmentCount : Nat) :
-    Nat → Nat → Cursor → Except Error (List (Array Nat) × Nat × Cursor)
-  | 0, symbols, cursor => .ok ([], symbols, cursor)
-  | count + 1, symbols, cursor => do
-      let (length, cursor) ← readBounded maxPhraseLength cursor
-      if length = 0 then .error .emptyPhrase else
-      let symbols := symbols + length
-      if symbols > maxTermsPerLayer then .error .excessiveCount else
-      let (phrase, cursor) ←
-        readIndexListChunk segmentCount .segmentIndexOutOfBounds length cursor
-      let (phrases, symbols, cursor) ← readPhrasesChunk segmentCount count symbols cursor
-      .ok (Array.mk phrase :: phrases, symbols, cursor)
 
-def readPhraseRootsChunk (phrases : Array (Array Nat)) :
-    Nat → Nat → Cursor → Except Error (List Nat × Nat × Cursor)
-  | 0, expandedSymbols, cursor => .ok ([], expandedSymbols, cursor)
-  | count + 1, expandedSymbols, cursor => do
-      let (phraseIndex, cursor) ← readUleb cursor
-      match phrases[phraseIndex]? with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase =>
-          let expandedSymbols := expandedSymbols + phrase.size
-          if expandedSymbols > maxTermsPerLayer then .error .excessiveExpansion else
-          let (roots, expandedSymbols, cursor) ←
-            readPhraseRootsChunk phrases count expandedSymbols cursor
-          .ok (phraseIndex :: roots, expandedSymbols, cursor)
 
 /-- Segment lengths only.
 
@@ -708,54 +672,21 @@ def countSegmentTerms (lengths : Array Nat) (tokens : Array Nat)
     (initial : Nat := 0) : Except Error Nat :=
   countSegmentTermsLoop lengths tokens.toList initial
 
-def countPhraseTermsLoop (lengths : Array Nat) (phrases : Array (Array Nat)) :
-    List Nat → Nat → Except Error Nat
-  | [], total => .ok total
-  | phraseIndex :: rest, total =>
-      match phrases[phraseIndex]? with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase => do
-          let total ← countSegmentTerms lengths phrase total
-          countPhraseTermsLoop lengths phrases rest total
 
-def countPhraseTerms (lengths : Array Nat)
-    (phrases : Array (Array Nat)) (roots : Array Nat) : Except Error Nat :=
-  countPhraseTermsLoop lengths phrases roots.toList 0
 
-def countPhraseTokensLoop (phrases : Array (Array Nat)) :
-    List Nat → Nat → Except Error Nat
-  | [], total => .ok total
-  | phraseIndex :: rest, total =>
-      match phrases[phraseIndex]? with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase => countPhraseTokensLoop phrases rest (total + phrase.size)
 
 /-- The token stage needs only how many segments there are (for bounds) and how long each is
     (for the term count) -- never their contents.  Taking the dictionary itself made `bound` an
     unreduced term carrying every symbol, re-walked once per token: 25 GB on SHA-256's largest
     layer.  Both arguments here are supplied already reduced by the staged certificate. -/
 def readCompressedTokens (segmentCount : Nat) (lengths : Array Nat) (cursor : Cursor) :
-    Except Error (TokenEncoding × Nat × Nat × Cursor) := do
-  let (encoding, cursor) ← readUleb cursor
-  if encoding = 0 then
-    let (count, cursor) ← readBounded maxTermsPerLayer cursor
-    let (tokens, cursor) ←
-      readIndexListChunk segmentCount .segmentIndexOutOfBounds count cursor
-    let tokens := Array.mk tokens
-    let termCount ← countSegmentTerms lengths tokens
-    .ok (.flat tokens, tokens.size, termCount, cursor)
-  else if encoding = 1 then
-    let (phraseCount, cursor) ← readBounded maxTermsPerLayer cursor
-    let (phrases, _, cursor) ← readPhrasesChunk segmentCount phraseCount 0 cursor
-    let phrases := Array.mk phrases
-    let (rootCount, cursor) ← readBounded maxTermsPerLayer cursor
-    let (roots, _, cursor) ← readPhraseRootsChunk phrases rootCount 0 cursor
-    let roots := Array.mk roots
-    let tokenCount ← countPhraseTokensLoop phrases roots.toList 0
-    let termCount ← countPhraseTerms lengths phrases roots
-    .ok (.phrases phrases roots, tokenCount, termCount, cursor)
-  else
-    .error .badTokenEncoding
+    Except Error (Array Nat × Nat × Nat × Cursor) := do
+  let (count, cursor) ← readBounded maxTermsPerLayer cursor
+  let (tokens, cursor) ←
+    readIndexListChunk segmentCount .segmentIndexOutOfBounds count cursor
+  let tokens := Array.mk tokens
+  let termCount ← countSegmentTerms lengths tokens
+  .ok (tokens, tokens.size, termCount, cursor)
 
 /-! ### Staging the layer parser
 
@@ -799,7 +730,7 @@ theorem readCompressedLayer_eq_of_stages
     (constantCount totalTerms : Nat)
     {start c1 c2 c3 c4 stop : Cursor}
     {logw nw deltaCount segmentCount symbols tokenCount termCount : Nat}
-    {deltaList : List Delta} {segmentList : List (Array Nat)} {tokens : TokenEncoding}
+    {deltaList : List Delta} {segmentList : List (Array Nat)} {tokens : Array Nat}
     (hprefix : readLayerPrefix start = .ok (logw, nw, deltaCount, c1))
     (hdeltas : readDeltasChunk constantCount deltaCount c1 = .ok (deltaList, c2))
     (hsegcount : readSegmentCount c2 = .ok (segmentCount, c3))
@@ -902,46 +833,15 @@ private def applyTokenArray (deltas : Array Delta) (segments : Array (Array Nat)
     (tokens : Array Nat) (state : ExpandState) : Except Error ExpandState :=
   applyTokenArrayLoop deltas segments tokens tokens.size state
 
-private def applyPhraseRootsLoop (deltas : Array Delta) (segments : Array (Array Nat))
-    (phrases : Array (Array Nat)) (roots : Array Nat) :
-    Nat → ExpandState → Except Error ExpandState
-  | 0, state => .ok state
-  | fuel + 1, state =>
-      let index := roots.size - (fuel + 1)
-      match roots[index]? with
-      | none => .error .phraseIndexOutOfBounds
-      | some phraseIndex =>
-          match phrases[phraseIndex]? with
-          | none => .error .phraseIndexOutOfBounds
-          | some phrase => do
-              let state ← applyTokenArray deltas segments phrase state
-              applyPhraseRootsLoop deltas segments phrases roots fuel state
 
-private def applyPhraseRoots (deltas : Array Delta) (segments : Array (Array Nat))
-    (phrases : Array (Array Nat)) (roots : Array Nat)
-    (state : ExpandState) : Except Error ExpandState :=
-  applyPhraseRootsLoop deltas segments phrases roots roots.size state
 
 private def readExpandedTerms (deltas : Array Delta) (segments : Array (Array Nat))
     (cursor : Cursor) : Except Error (ExpandState × Cursor) := do
-  let (encoding, cursor) ← readUleb cursor
-  if encoding = 0 then
-    let (count, cursor) ← readBounded maxTermsPerLayer cursor
-    let (tokens, cursor) ←
-      readIndexListChunk segments.size .segmentIndexOutOfBounds count cursor
-    let state ← applyTokenArray deltas segments (Array.mk tokens) {}
-    .ok (state, cursor)
-  else if encoding = 1 then
-    let (phraseCount, cursor) ← readBounded maxTermsPerLayer cursor
-    let (phrases, _, cursor) ← readPhrasesChunk segments.size phraseCount 0 cursor
-    let phrases := Array.mk phrases
-    let (rootCount, cursor) ← readBounded maxTermsPerLayer cursor
-    let (roots, _, cursor) ← readPhraseRootsChunk phrases rootCount 0 cursor
-    let roots := Array.mk roots
-    let state ← applyPhraseRoots deltas segments phrases roots {}
-    .ok (state, cursor)
-  else
-    .error .badTokenEncoding
+  let (count, cursor) ← readBounded maxTermsPerLayer cursor
+  let (tokens, cursor) ←
+    readIndexListChunk segments.size .segmentIndexOutOfBounds count cursor
+  let state ← applyTokenArray deltas segments (Array.mk tokens) {}
+  .ok (state, cursor)
 
 
 /-- Does `tree` faithfully stand in for this layer's delta table?  `.leaf` means "no advice
@@ -1008,38 +908,20 @@ private def nextTermLoop (layer : CompressedLayer) (gBound : Nat) (tree : PTree 
               else
                 .error .wireIndexOutOfRange
       | [] =>
-          -- The current segment is spent; open the next one from the phrase, else the token
-          -- stream.  Each of these steps happens once per segment, not once per term.
-          match cursor.inner with
-          | segmentIndex :: restInner =>
-              match layer.segments[segmentIndex]? with
+          -- The current segment is spent; open the next one from the token stream.  This happens
+          -- once per segment, not once per term.
+          match cursor.outer with
+          | [] => .ok none
+          | token :: restOuter =>
+              match layer.segments[token]? with
               | none => .error .segmentIndexOutOfBounds
               | some segment =>
                   nextTermLoop layer gBound tree fuel
-                    { cursor with segment := segment.toList, inner := restInner }
-          | [] =>
-              match cursor.outer with
-              | [] => .ok none
-              | token :: restOuter =>
-                  match layer.tokens with
-                  | .flat _ =>
-                      match layer.segments[token]? with
-                      | none => .error .segmentIndexOutOfBounds
-                      | some segment =>
-                          nextTermLoop layer gBound tree fuel
-                            { cursor with segment := segment.toList, outer := restOuter }
-                  | .phrases phrases _ =>
-                      match phrases[token]? with
-                      | none => .error .phraseIndexOutOfBounds
-                      | some phrase =>
-                          nextTermLoop layer gBound tree fuel
-                            { cursor with inner := phrase.toList, outer := restOuter }
+                    { cursor with segment := segment.toList, outer := restOuter }
 
 /-- Where expansion starts: the whole token stream still to be read. -/
 def CompressedLayer.initialCursor (layer : CompressedLayer) : ExpansionCursor :=
-  { outer := match layer.tokens with
-             | .flat tokens => tokens.toList
-             | .phrases _ roots => roots.toList }
+  { outer := layer.tokens.toList }
 
 /-- Decode one term and return a checkpoint from which expansion can resume. -/
 def CompressedLayer.nextTerm (layer : CompressedLayer) (gBound : Nat) (tree : PTree Delta)
@@ -1308,4 +1190,4 @@ theorem decode_eq_of_compressed (field : FieldEncoding) (input : PackedBytes)
     decode field input trees = .ok decoded := by
   simp only [decode, hdecode, bind, Except.bind, hexpand]
 
-end Quadcert.Lfc3
+end Quadcert.Lfc2

@@ -33,3 +33,4 @@ testonly = [
 [dev-dependencies]
 compile-compiler = { path = "../../compile/compiler" }
 circuits-ecdsa2 = { path = "./", features = ["testonly"] }
+core-proto = { path = "../../core/proto" }

@@ -14,6 +14,7 @@
 
 pub mod lfc1;
 pub mod lfc2;
+pub mod lfc3;
 
 use super::{FieldID, SerializableField};
 use crate::circuit::Circuit;
@@ -41,6 +42,23 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
     #[must_use]
     pub fn to_bytes_lfc2(&self, sc_c: &Circuit<F>) -> Vec<u8> {
         lfc2::to_bytes_lfc2(self, sc_c)
+    }
+
+    /// Experimental canonical payload for the formal circuit commitment.
+    #[must_use]
+    pub fn to_bytes_lfc3(&self, sc_c: &Circuit<F>) -> Vec<u8> {
+        lfc3::to_bytes_lfc3(self, sc_c)
+    }
+
+    /// Serializes LFC3 and computes the root a verifier should pin.
+    #[must_use]
+    pub fn to_bytes_lfc3_pinned(
+        &self,
+        sc_c: &Circuit<F>,
+    ) -> (Vec<u8>, crate::commitment::FormalCircuitCommitment) {
+        let bytes = self.to_bytes_lfc3(sc_c);
+        let commitment = crate::commitment::FormalCircuitCommitment::new(&bytes);
+        (bytes, commitment)
     }
 
     pub(super) fn serialize_elt(&self, bytes: &mut Vec<u8>, v: &F::E) {

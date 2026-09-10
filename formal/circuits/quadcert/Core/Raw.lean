@@ -199,7 +199,7 @@ output wire. Both are stated on **raw** data, where terms are `Nat`-only and so 
 `Ingest.toLayer_perm` / `rawTerm_hom` transport them to the interpreted layer.
 
 The permutation witness itself, the per-node correspondence and the raw form of `Backed` live in
-`quadcert/RawGroup.lean`. That is a *separate module* on purpose: `Lfc3.lean` imports this one,
+`quadcert/RawGroup.lean`. That is a *separate module* on purpose: `Lfc2.lean` imports this one,
 so every artifact and expansion module transitively depends on it, and any edit here rebuilds
 all 362 generated modules. The grouping machinery is iterated on far more often than this file
 is, so it does not belong here. -/

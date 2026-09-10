@@ -6,7 +6,7 @@ import quadcert.Gen.Sha256Blk.Sha256BlkCommitment
 # SHA-256: committed bytes to `SHA/Spec.lean`
 
 `sha256_block_of_bytes` quantifies over the decode -- its hypothesis is
-`Lfc3.decode p256 packedInput deltaTrees = .ok c` -- but says nothing about the commitment, so
+`Lfc2.decode p256 packedInput deltaTrees = .ok c` -- but says nothing about the commitment, so
 on its own it does not tell a reviewer that `packedInput` is the deployed artifact rather than
 some list of numbers a generator wrote down.  `Sha256BlkCommitment.committed_root` supplies the
 missing half, and this file joins them.
@@ -29,7 +29,7 @@ namespace Sha256Blk
 open Quadcert Quadcert.Gen.Sha256Blk
 
 /-- The artifact's 50 packed LFC3 pages hash to the pinned root, phrased over the payload
-    `Lfc3.decode` consumes rather than over a re-spelled leaf list.  Definitionally the
+    `Lfc2.decode` consumes rather than over a re-spelled leaf list.  Definitionally the
     generated `committed_root`; the page indices and the 2,400-byte final page come from
     `packedInput` itself. -/
 theorem packedInput_root :
@@ -42,8 +42,8 @@ variable {F : Type} [Field F]
 /-- **The SHA-256 certificate.** The committed payload hashes to the pinned root, and any
     accepting witness for the circuit those same bytes decode to has its eight outgoing
     chaining words equal to `SHA256.blockFrom` of the incoming ones and the message block. -/
-theorem sha256_certified_bytes (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 packedInput deltaTrees = .ok c)
+theorem sha256_certified_bytes (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 packedInput deltaTrees = .ok c)
     [CharP F p256w] (inputs : Nat → F) (hin0 : inputs 0 = 1)
     (hacc : Accepts ((c.toRaw advice).toQuad (consts F)) inputs) :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.Sha256Blk.packedInput

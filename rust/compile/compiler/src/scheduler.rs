@@ -92,6 +92,39 @@ const INVALID_WIRE_ID: WireId = WireId {
     id_within_layer: usize::MAX,
 };
 
+/// A compiled assertion together with the coordinates of the wire whose value
+/// the assertion constrains to zero.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AssertionWire {
+    /// Index of the assertion node in the quad DAG (an `WExpr::Assert0` node
+    /// before materialization).
+    pub assert_node: u32,
+    /// Index of the quad DAG node whose value the assertion constrains to zero.
+    pub asserted_node: u32,
+    /// Wire carrying the asserted value: a materialized assertion wire for
+    /// mid-circuit assertions, or an output wire for last-layer assertions.
+    /// Coordinates match the corresponding `CircuitDebugSymbols` entry.
+    pub wire: crate::debug::WireRef,
+    /// Assertion identity tracked across the compiler passes.
+    pub id: AssertionId,
+}
+
+/// Scheduler byproducts needed to build the proof certificate sidecar
+/// (`cert.rs`, see `formal/circuits/CIRCUIT_PROOF_PLAN.md`). The sidecar is
+/// pure advice for the Lean checker; nothing in the runtime depends on it.
+pub struct ScheduleInfo<F: CompileField> {
+    /// Number of circuit layers (layer 0 is the output layer).
+    pub nlayers: usize,
+    /// Post-materialization quad DAG, indexed by node index.
+    pub nodes: Vec<WExpr<F>>,
+    /// Wire coordinates per DAG node index, where the node occupies a wire.
+    /// Input nodes sit at the pseudo-layer `nlayers` with the input position
+    /// as wire index. Last-layer `Assert0` nodes have no wire of their own.
+    pub node_wires: Vec<Option<crate::debug::WireRef>>,
+    /// Circuit assertions, one record per assertion, in compile order.
+    pub assertions: Vec<AssertionWire>,
+}
+
 // Materialize all in-circuit assertions into quad nodes. Assertions
 // in the last layer become outputs and are not instantiated.
 fn materialize_assertions<F: CompileField>(
@@ -354,34 +387,56 @@ fn validate_and_count_inputs<F: CompileField>(nodes: &[WExpr<F>]) -> usize {
 use compile_logic::scope::AssertionId;
 
 fn extract_debug_symbols<F: CompileField>(
+    f: &F,
     nodes: &[WExpr<F>],
     quad_asserts: &[(usize, AssertionId)],
     wire_ids: &[WireId],
     depth: &[usize],
     max_depth: usize,
     tracker: compile_logic::scope::AssertionScope,
-) -> crate::debug::CircuitDebugSymbols {
+) -> (crate::debug::CircuitDebugSymbols, Vec<AssertionWire>) {
     let mut sym_list = Vec::new();
+    let mut assertion_wires = Vec::new();
     for &(quad_idx, id) in quad_asserts {
-        if quad_idx < nodes.len() {
-            let target_idx = match nodes[quad_idx] {
-                WExpr::Assert0(w) => w,
-                _ => quad_idx,
-            };
-            if target_idx < wire_ids.len() {
-                let wid = wire_ids[target_idx].id_within_layer;
-                if wid != usize::MAX {
-                    let layer = max_depth
-                        .checked_sub(depth[target_idx])
-                        .expect("assertion target is deeper than the circuit");
-                    let wire = crate::debug::WireRef::new(layer, wid);
-                    sym_list.push(crate::debug::AssertionSymbol::new(wire, id));
-                }
+        assert!(quad_idx < nodes.len(), "assertion node index out of range");
+        // The node the assertion constrains to zero. Mid-circuit assertions
+        // are materialized as Sum([(0, w, w)]) before this runs; last-layer
+        // assertions remain Assert0(w).
+        let asserted_idx = match &nodes[quad_idx] {
+            WExpr::Assert0(w) => *w,
+            WExpr::Sum(terms) => {
+                assert_eq!(terms.len(), 1, "materialized assertion must have one term");
+                let (k, w0, w1) = &terms[0];
+                assert!(f.is_zero(k), "materialized assertion term must have k = 0");
+                assert_eq!(w0, w1, "materialized assertion term must square one wire");
+                *w0
             }
-        }
+            _ => panic!("assertion node is neither Assert0 nor a materialized sum"),
+        };
+        let target_idx = match &nodes[quad_idx] {
+            WExpr::Assert0(_) => asserted_idx,
+            _ => quad_idx,
+        };
+        assert!(target_idx < wire_ids.len(), "assertion target out of range");
+        let wid = wire_ids[target_idx].id_within_layer;
+        assert_ne!(wid, usize::MAX, "assertion target has no wire");
+        let layer = max_depth
+            .checked_sub(depth[target_idx])
+            .expect("assertion target is deeper than the circuit");
+        let wire = crate::debug::WireRef::new(layer, wid);
+        sym_list.push(crate::debug::AssertionSymbol::new(wire, id));
+        assertion_wires.push(AssertionWire {
+            assert_node: u32::try_from(quad_idx).expect("assertion node index fits in u32"),
+            asserted_node: u32::try_from(asserted_idx).expect("node index fits in u32"),
+            wire,
+            id,
+        });
     }
     sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    crate::debug::CircuitDebugSymbols::new(sym_list, tracker)
+    (
+        crate::debug::CircuitDebugSymbols::new(sym_list, tracker),
+        assertion_wires,
+    )
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
@@ -396,6 +451,7 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
     Circuit<F>,
     CircuitGeometry,
     crate::debug::CircuitDebugSymbols,
+    ScheduleInfo<F>,
 ) {
     let mut nodes = c.nodes;
     let nassertions = nodes
@@ -418,8 +474,15 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
-    let symbols =
-        extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
+    let (symbols, assertion_wires) = extract_debug_symbols(
+        f,
+        &nodes,
+        quad_asserts,
+        &wire_ids,
+        &depth,
+        max_depth,
+        tracker,
+    );
     assert_eq!(
         symbols.assertion_count(),
         nassertions,
@@ -428,6 +491,33 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let (terms_in_layer, nwires_in_layer) =
         collect_quads(&nodes, &nodes_by_depth, max_depth, &wire_ids);
+
+    // Wire coordinates per DAG node, for the certificate sidecar. Inputs sit
+    // at the pseudo-layer max_depth (== number of layers); a sum node at
+    // depth d becomes a wire of proto layer max_depth - d. Last-layer
+    // Assert0 nodes have no wire of their own.
+    let mut node_wires: Vec<Option<crate::debug::WireRef>> = vec![None; nodes.len()];
+    for (d, nodes_at_d) in nodes_by_depth.iter().enumerate().take(max_depth + 1) {
+        for &i in nodes_at_d {
+            match &nodes[i] {
+                WExpr::Unspecified => panic!("Unspecified in circuit"),
+                WExpr::Input {
+                    position_in_input_array,
+                } => {
+                    node_wires[i] = Some(crate::debug::WireRef::new(
+                        max_depth,
+                        *position_in_input_array,
+                    ));
+                }
+                WExpr::Sum(_) => {
+                    let wid = wire_ids[i].id_within_layer;
+                    assert_ne!(wid, usize::MAX, "sum node without wire id");
+                    node_wires[i] = Some(crate::debug::WireRef::new(max_depth - d, wid));
+                }
+                WExpr::Assert0(_) => {}
+            }
+        }
+    }
 
     let ninput = validate_and_count_inputs(&nodes);
     assert!(
@@ -493,6 +583,13 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
 
     let id = compute_id(f, &raw_circuit);
 
+    let schedule_info = ScheduleInfo {
+        nlayers: max_depth,
+        nodes,
+        node_wires,
+        assertions: assertion_wires,
+    };
+
     (
         Circuit {
             raw: raw_circuit,
@@ -500,6 +597,7 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
         },
         info,
         symbols,
+        schedule_info,
     )
 }
 

@@ -14,7 +14,7 @@
 # limitations under the License.
 -/
 
-import quadcert.Core.Lfc3
+import quadcert.Core.Lfc2
 
 /-!
 # Stating an expansion chunk so `rfl` can close it
@@ -42,7 +42,7 @@ Stating the chunk through `toOption` and converting keeps the theorem the compos
 wants while giving `rfl` the shape it can handle.
 -/
 
-namespace Quadcert.Lfc3
+namespace Quadcert.Lfc2
 
 /-- `toOption` determines the `Except`: `none` is the only image of an error. -/
 theorem eq_ok_of_toOption {ε α : Type} {e : Except ε α} {v : α}
@@ -51,4 +51,4 @@ theorem eq_ok_of_toOption {ε α : Type} {e : Except ε α} {v : α}
   | error _ => exact absurd h (by simp [Except.toOption])
   | ok a => simp only [Except.toOption, Option.some.injEq] at h; rw [h]
 
-end Quadcert.Lfc3
+end Quadcert.Lfc2

@@ -15,6 +15,7 @@
 pub mod archive;
 pub mod cache;
 pub mod circuit;
+pub mod commitment;
 pub mod layer;
 pub mod reader;
 pub mod uleb;

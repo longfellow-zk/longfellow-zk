@@ -6,7 +6,7 @@ import quadcert.Gen.Ecdsa2.Ecdsa2Commitment
 # ECDSA2: committed bytes to the ECDSA specification
 
 `ecdsa2_sound_of_bytes` quantifies over the decode -- its hypothesis is
-`Lfc3.decode p256 packedInput deltaTrees = .ok c` -- but says nothing about the commitment, so
+`Lfc2.decode p256 packedInput deltaTrees = .ok c` -- but says nothing about the commitment, so
 on its own it does not tell a reviewer that `packedInput` is the deployed artifact rather than
 some list of numbers a generator wrote down.  `Ecdsa2Commitment.committed_root` supplies the
 missing half, and this file joins them.
@@ -31,7 +31,7 @@ open Quadcert Quadcert.Gen.Ecdsa2 Ecdsa2.Meaning ECDSA2
 variable {F : Type} [Field F] [CharP F p256]
 
 /-- The artifact's 13 packed LFC3 pages hash to the pinned root, phrased over the payload
-    `Lfc3.decode` consumes rather than over a re-spelled leaf list.  Definitionally the
+    `Lfc2.decode` consumes rather than over a re-spelled leaf list.  Definitionally the
     generated `committed_root`; the page indices and the 820-byte final page come from
     `packedInput` itself. -/
 theorem packedInput_root :
@@ -43,8 +43,8 @@ theorem packedInput_root :
     accepting witness for the circuit those same bytes decode to yields a standard ECDSA
     verification for the public key, message hash and signature read off the input layout. -/
 theorem ecdsa2_certified_bytes
-    (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 Quadcert.Gen.Ecdsa2.packedInput
+    (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 Quadcert.Gen.Ecdsa2.packedInput
       Quadcert.Gen.Ecdsa2.deltaTrees = .ok c)
     (inputs : Nat → F) (hone : inputs 0 = 1)
     (params : CurveParameters F) [(params.toMathlib).IsElliptic]

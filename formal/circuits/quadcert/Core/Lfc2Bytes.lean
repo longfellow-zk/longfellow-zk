@@ -1,11 +1,11 @@
-import quadcert.Core.Lfc3
+import quadcert.Core.Lfc2
 
 /-!
 # Unpacking a committed page into bytes
 
 ## The problem this solves
 
-`Lfc3.Cursor` holds the current 4,096-byte page as one `Nat` — a 32,768-bit integer — and
+`Lfc2.Cursor` holds the current 4,096-byte page as one `Nat` — a 32,768-bit integer — and
 `readByte` advances with `page := page / 256`, returning `page % 256`. The division results chain
 through the cursor and are shared, but the **modulo results are forced only later**, when the
 decoded values are compared against the emitted literals. At that point the kernel has to
@@ -51,7 +51,7 @@ in a balanced tree: `O(n log n)` with small constants, the same treatment
 `readDeltasChunk_compose` gives the delta table.
 -/
 
-namespace Quadcert.Lfc3
+namespace Quadcert.Lfc2
 
 /-- Little-endian packing of a byte list into one natural, matching `PackedBytes`. -/
 def packBytes : List Nat → Nat
@@ -70,7 +70,7 @@ theorem packBytes_append (l r : List Nat) :
   induction l with
   | nil => simp [packBytes]
   | cons b bs ih =>
-      -- `Lfc3` does not import Mathlib, so this is core `Nat` lemmas only.
+      -- `Lfc2` does not import Mathlib, so this is core `Nat` lemmas only.
       simp only [List.cons_append, packBytes, ih, List.length_cons, Nat.pow_succ,
         Nat.mul_add, Nat.add_assoc]
       rw [Nat.mul_comm (256 ^ bs.length) 256, ← Nat.mul_assoc]
@@ -101,7 +101,7 @@ structure BCursor where
   remaining : Nat
   deriving Repr, DecidableEq
 
-/-- Consume one byte. Branch-for-branch the same as `Lfc3.readByte`; no arithmetic on the page. -/
+/-- Consume one byte. Branch-for-branch the same as `Lfc2.readByte`; no arithmetic on the page. -/
 def readByteB (cursor : BCursor) : Except Error (Nat × BCursor) :=
   if cursor.remaining = 0 then
     .error .unexpectedEnd
@@ -233,7 +233,7 @@ theorem readByte_refines {c : Cursor} {bc : BCursor} (h : Refines c bc)
       simp only [hpr]
       omega
 
-/-- ULEB128, over the byte cursor. Mirrors `Lfc3.readUlebLoop` clause for clause, including the
+/-- ULEB128, over the byte cursor. Mirrors `Lfc2.readUlebLoop` clause for clause, including the
     non-canonical rejection, so the refinement is an induction on fuel and nothing else. -/
 def readUlebLoopB : Nat → Nat → Nat → BCursor → Except Error (Nat × BCursor)
   | 0, _, _, _ => .error .ulebOverflow
@@ -281,7 +281,7 @@ theorem readUleb_refines {c : Cursor} {bc : BCursor} (h : Refines c bc)
 
 /-- `readDeltasChunk`, over the byte cursor. Same grammar, same bounds check; the only
     difference is where the bytes come from. Kept here so the win can be measured against the
-    packed reader on identical input before `Lfc3` is changed. -/
+    packed reader on identical input before `Lfc2` is changed. -/
 def readDeltasChunkB (constantCount : Nat) :
     Nat → BCursor → Except Error (List Delta × BCursor)
   | 0, cursor => .ok ([], cursor)
@@ -606,110 +606,6 @@ Two more cursor-consuming mirrors are needed (`readPhrasesChunk`, `readPhraseRoo
 term and token *counts* are computed by functions that never touch the cursor, so both sides call
 the same ones and nothing has to be mirrored there. -/
 
-def readPhrasesChunkB (segmentCount : Nat) :
-    Nat → Nat → BCursor → Except Error (List (Array Nat) × Nat × BCursor)
-  | 0, symbols, cursor => .ok ([], symbols, cursor)
-  | count + 1, symbols, cursor => do
-      let (length, cursor) ← readBoundedB maxPhraseLength cursor
-      if length = 0 then .error .emptyPhrase else
-      let symbols := symbols + length
-      if symbols > maxTermsPerLayer then .error .excessiveCount else
-      let (phrase, cursor) ←
-        readIndexListChunkB segmentCount .segmentIndexOutOfBounds length cursor
-      let (phrases, symbols, cursor) := ← readPhrasesChunkB segmentCount count symbols cursor
-      .ok (Array.mk phrase :: phrases, symbols, cursor)
-
-theorem readPhrasesChunk_refines (segmentCount : Nat) :
-    ∀ (n s : Nat) {c : Cursor} {bc : BCursor}, Refines c bc →
-    ∀ {l : List (Array Nat)} {s' : Nat} {bc' : BCursor},
-    readPhrasesChunkB segmentCount n s bc = .ok (l, s', bc') →
-    ∃ c', readPhrasesChunk segmentCount n s c = .ok (l, s', c') ∧ Refines c' bc'
-  | 0, s, c, bc, h, l, s', bc', hb => by
-      simp only [readPhrasesChunkB] at hb; cases hb; exact ⟨c, rfl, h⟩
-  | n + 1, s, c, bc, h, l, s', bc', hb => by
-      simp only [readPhrasesChunkB, bind, Except.bind] at hb
-      cases hlen : readBoundedB maxPhraseLength bc with
-      | error e => rw [hlen] at hb; contradiction
-      | ok pl =>
-          rcases pl with ⟨length, b1⟩
-          rw [hlen] at hb; simp only at hb
-          obtain ⟨c1, hcl, h1⟩ := readBounded_refines h hlen
-          simp only [readPhrasesChunk, bind, Except.bind, hcl]
-          by_cases hz : length = 0
-          · simp only [hz, if_true] at hb; contradiction
-          · simp only [hz, if_false] at hb ⊢
-            by_cases hbud : s + length > maxTermsPerLayer
-            · simp only [hbud, if_true] at hb; contradiction
-            · simp only [hbud, if_false] at hb ⊢
-              cases hph : readIndexListChunkB segmentCount .segmentIndexOutOfBounds length b1 with
-              | error e => rw [hph] at hb; contradiction
-              | ok pp =>
-                  rcases pp with ⟨phrase, b2⟩
-                  rw [hph] at hb; simp only at hb
-                  obtain ⟨c2, hcp, h2⟩ :=
-                    readIndexListChunk_refines segmentCount .segmentIndexOutOfBounds length h1 hph
-                  rw [hcp]; simp only
-                  cases hrest : readPhrasesChunkB segmentCount n (s + length) b2 with
-                  | error e => rw [hrest] at hb; contradiction
-                  | ok pr =>
-                      rcases pr with ⟨ps, s2, b3⟩
-                      rw [hrest] at hb; simp only at hb
-                      obtain ⟨c3, hcr, h3⟩ :=
-                        readPhrasesChunk_refines segmentCount n (s + length) h2 hrest
-                      rw [hcr]; simp only
-                      cases hb
-                      exact ⟨c3, rfl, h3⟩
-
-def readPhraseRootsChunkB (phrases : Array (Array Nat)) :
-    Nat → Nat → BCursor → Except Error (List Nat × Nat × BCursor)
-  | 0, expandedSymbols, cursor => .ok ([], expandedSymbols, cursor)
-  | count + 1, expandedSymbols, cursor => do
-      let (phraseIndex, cursor) ← readUlebB cursor
-      match phrases[phraseIndex]? with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase =>
-          let expandedSymbols := expandedSymbols + phrase.size
-          if expandedSymbols > maxTermsPerLayer then .error .excessiveExpansion else
-          let (roots, expandedSymbols, cursor) := ←
-            readPhraseRootsChunkB phrases count expandedSymbols cursor
-          .ok (phraseIndex :: roots, expandedSymbols, cursor)
-
-theorem readPhraseRootsChunk_refines (phrases : Array (Array Nat)) :
-    ∀ (n e : Nat) {c : Cursor} {bc : BCursor}, Refines c bc →
-    ∀ {l : List Nat} {e' : Nat} {bc' : BCursor},
-    readPhraseRootsChunkB phrases n e bc = .ok (l, e', bc') →
-    ∃ c', readPhraseRootsChunk phrases n e c = .ok (l, e', c') ∧ Refines c' bc'
-  | 0, e, c, bc, h, l, e', bc', hb => by
-      simp only [readPhraseRootsChunkB] at hb; cases hb; exact ⟨c, rfl, h⟩
-  | n + 1, e, c, bc, h, l, e', bc', hb => by
-      simp only [readPhraseRootsChunkB, bind, Except.bind] at hb
-      cases hu : readUlebB bc with
-      | error err => rw [hu] at hb; contradiction
-      | ok pu =>
-          rcases pu with ⟨idx, b1⟩
-          rw [hu] at hb; simp only at hb
-          obtain ⟨c1, hcu, h1⟩ := readUleb_refines h hu
-          simp only [readPhraseRootsChunk, bind, Except.bind, hcu]
-          cases hp : phrases[idx]? with
-          | none => rw [hp] at hb; simp only at hb; contradiction
-          | some phrase =>
-              -- `cases hp` already substituted in the goal; only `hb` still mentions the lookup
-              rw [hp] at hb
-              simp only at hb ⊢
-              by_cases hbud : e + phrase.size > maxTermsPerLayer
-              · simp only [hbud, if_true] at hb; contradiction
-              · simp only [hbud, if_false] at hb ⊢
-                cases hrest : readPhraseRootsChunkB phrases n (e + phrase.size) b1 with
-                | error err => rw [hrest] at hb; contradiction
-                | ok pr =>
-                    rcases pr with ⟨rs, e2, b2⟩
-                    rw [hrest] at hb; simp only at hb
-                    obtain ⟨c2, hcr, h2⟩ :=
-                      readPhraseRootsChunk_refines phrases n (e + phrase.size) h1 hrest
-                    rw [hcr]; simp only
-                    cases hb
-                    exact ⟨c2, rfl, h2⟩
-
 /-! ### Indexed counting
 
 Switching the cursor is not enough for the token stage. Measured on SHA-256's layer 5, with the
@@ -791,291 +687,106 @@ theorem countSegmentTermsT_eq (tree : PTree Nat) (lengths : Array Nat)
     countSegmentTermsT tree lengths tokens initial = countSegmentTerms lengths tokens initial :=
   countSegmentTermsLoopT_eq tree lengths h tokens.toList initial
 
-/-- The same for the phrase dictionary, which `countPhraseTerms` indexes once per root. -/
-def countPhraseTermsLoopT (ltree : PTree Nat) (lengths : Array Nat)
-    (ptree : PTree (Array Nat)) (phrases : Array (Array Nat)) :
-    List Nat → Nat → Except Error Nat
-  | [], total => .ok total
-  | phraseIndex :: rest, total =>
-      match treeAt ptree phrases phraseIndex with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase => do
-          let total ← countSegmentTermsT ltree lengths phrase total
-          countPhraseTermsLoopT ltree lengths ptree phrases rest total
 
-theorem countPhraseTermsLoopT_eq (ltree : PTree Nat) (lengths : Array Nat)
-    (ptree : PTree (Array Nat)) (phrases : Array (Array Nat))
-    (hl : treeOk ltree lengths = true) (hp : treeOk ptree phrases = true) :
-    ∀ (l : List Nat) (total : Nat),
-      countPhraseTermsLoopT ltree lengths ptree phrases l total
-        = countPhraseTermsLoop lengths phrases l total
-  | [], _ => rfl
-  | i :: rest, total => by
-      simp only [countPhraseTermsLoopT, countPhraseTermsLoop, treeAt_eq ptree phrases hp i]
-      cases phrases[i]? with
-      | none => rfl
-      | some phrase =>
-          simp only [bind, Except.bind, countSegmentTermsT_eq ltree lengths hl phrase total]
-          cases countSegmentTerms lengths phrase total with
-          | error e => rfl
-          | ok t => exact countPhraseTermsLoopT_eq ltree lengths ptree phrases hl hp rest t
-
-def countPhraseTermsT (ltree : PTree Nat) (lengths : Array Nat)
-    (ptree : PTree (Array Nat)) (phrases : Array (Array Nat)) (roots : Array Nat) :
-    Except Error Nat :=
-  countPhraseTermsLoopT ltree lengths ptree phrases roots.toList 0
-
-def countPhraseTokensLoopT (ptree : PTree (Array Nat)) (phrases : Array (Array Nat)) :
-    List Nat → Nat → Except Error Nat
-  | [], total => .ok total
-  | phraseIndex :: rest, total =>
-      match treeAt ptree phrases phraseIndex with
-      | none => .error .phraseIndexOutOfBounds
-      | some phrase => countPhraseTokensLoopT ptree phrases rest (total + phrase.size)
-
-theorem countPhraseTokensLoopT_eq (ptree : PTree (Array Nat)) (phrases : Array (Array Nat))
-    (hp : treeOk ptree phrases = true) :
-    ∀ (l : List Nat) (total : Nat),
-      countPhraseTokensLoopT ptree phrases l total = countPhraseTokensLoop phrases l total
-  | [], _ => rfl
-  | i :: rest, total => by
-      simp only [countPhraseTokensLoopT, countPhraseTokensLoop, treeAt_eq ptree phrases hp i]
-      cases phrases[i]? with
-      | none => rfl
-      | some phrase => exact countPhraseTokensLoopT_eq ptree phrases hp rest (total + phrase.size)
-
-/-- `readCompressedTokens`, over the byte cursor. `countSegmentTerms`, `countPhraseTokensLoop`
-    and `countPhraseTerms` are shared verbatim: they consume the decoded arrays, never the
-    cursor, so there is nothing in them to mirror. -/
+/-- `readCompressedTokens`, over the byte cursor. `countSegmentTerms` is shared verbatim: it
+    consumes the decoded array, never the cursor, so there is nothing in it to mirror. -/
 def readCompressedTokensB (segmentCount : Nat) (lengths : Array Nat) (cursor : BCursor) :
-    Except Error (TokenEncoding × Nat × Nat × BCursor) := do
-  let (encoding, cursor) ← readUlebB cursor
-  if encoding = 0 then
-    let (count, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (tokens, cursor) ←
-      readIndexListChunkB segmentCount .segmentIndexOutOfBounds count cursor
-    let tokens := Array.mk tokens
-    let termCount ← countSegmentTerms lengths tokens
-    .ok (.flat tokens, tokens.size, termCount, cursor)
-  else if encoding = 1 then
-    let (phraseCount, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (phrases, _, cursor) ← readPhrasesChunkB segmentCount phraseCount 0 cursor
-    let phrases := Array.mk phrases
-    let (rootCount, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (roots, _, cursor) ← readPhraseRootsChunkB phrases rootCount 0 cursor
-    let roots := Array.mk roots
-    let tokenCount ← countPhraseTokensLoop phrases roots.toList 0
-    let termCount ← countPhraseTerms lengths phrases roots
-    .ok (.phrases phrases roots, tokenCount, termCount, cursor)
-  else
-    .error .badTokenEncoding
+    Except Error (Array Nat × Nat × Nat × BCursor) := do
+  let (count, cursor) ← readBoundedB maxTermsPerLayer cursor
+  let (tokens, cursor) ←
+    readIndexListChunkB segmentCount .segmentIndexOutOfBounds count cursor
+  let tokens := Array.mk tokens
+  let termCount ← countSegmentTerms lengths tokens
+  .ok (tokens, tokens.size, termCount, cursor)
 
 theorem readCompressedTokens_refines {segmentCount : Nat} {lengths : Array Nat}
     {c : Cursor} {bc : BCursor} (h : Refines c bc)
-    {t : TokenEncoding} {tc tm : Nat} {bc' : BCursor}
+    {t : Array Nat} {tc tm : Nat} {bc' : BCursor}
     (hb : readCompressedTokensB segmentCount lengths bc = .ok (t, tc, tm, bc')) :
     ∃ c', readCompressedTokens segmentCount lengths c = .ok (t, tc, tm, c') ∧ Refines c' bc' := by
   simp only [readCompressedTokensB, bind, Except.bind] at hb
-  cases he : readUlebB bc with
-  | error e => rw [he] at hb; contradiction
-  | ok pe =>
-      rcases pe with ⟨encoding, b1⟩
-      rw [he] at hb; simp only at hb
-      obtain ⟨c1, hce, h1⟩ := readUleb_refines h he
-      simp only [readCompressedTokens, bind, Except.bind, hce]
-      by_cases h0 : encoding = 0
-      · -- flat token list
-        simp only [h0, if_true] at hb ⊢
-        cases hcnt : readBoundedB maxTermsPerLayer b1 with
-        | error e => rw [hcnt] at hb; contradiction
-        | ok pc =>
-            rcases pc with ⟨count, b2⟩
-            rw [hcnt] at hb; simp only at hb
-            obtain ⟨c2, hcc, h2⟩ := readBounded_refines h1 hcnt
-            rw [hcc]; simp only
-            cases htk : readIndexListChunkB segmentCount .segmentIndexOutOfBounds count b2 with
-            | error e => rw [htk] at hb; contradiction
-            | ok pt =>
-                rcases pt with ⟨tokens, b3⟩
-                rw [htk] at hb; simp only at hb
-                obtain ⟨c3, hct, h3⟩ :=
-                  readIndexListChunk_refines segmentCount .segmentIndexOutOfBounds count h2 htk
-                rw [hct]; simp only
-                cases hterm : countSegmentTerms lengths (Array.mk tokens) with
-                | error e => rw [hterm] at hb; contradiction
-                | ok n =>
-                    -- `cases` substitutes in the goal but not in `hb`
-                    rw [hterm] at hb
-                    simp only at hb ⊢
-                    cases hb
-                    exact ⟨c3, rfl, h3⟩
-      · by_cases h1' : encoding = 1
-        · -- phrase dictionary
-          simp only [h0, h1', if_false, if_true] at hb ⊢
-          cases hpc : readBoundedB maxTermsPerLayer b1 with
-          | error e => rw [hpc] at hb; contradiction
-          | ok pp =>
-              rcases pp with ⟨phraseCount, b2⟩
-              rw [hpc] at hb; simp only at hb
-              obtain ⟨c2, hcp, h2⟩ := readBounded_refines h1 hpc
-              rw [hcp]; simp only
-              cases hph : readPhrasesChunkB segmentCount phraseCount 0 b2 with
-              | error e => rw [hph] at hb; contradiction
-              | ok pf =>
-                  rcases pf with ⟨phrases, sy, b3⟩
-                  rw [hph] at hb; simp only at hb
-                  obtain ⟨c3, hcf, h3⟩ :=
-                    readPhrasesChunk_refines segmentCount phraseCount 0 h2 hph
-                  rw [hcf]; simp only
-                  cases hrc : readBoundedB maxTermsPerLayer b3 with
-                  | error e => rw [hrc] at hb; contradiction
-                  | ok pr =>
-                      rcases pr with ⟨rootCount, b4⟩
-                      rw [hrc] at hb; simp only at hb
-                      obtain ⟨c4, hcr, h4⟩ := readBounded_refines h3 hrc
-                      rw [hcr]; simp only
-                      cases hrt : readPhraseRootsChunkB (Array.mk phrases) rootCount 0 b4 with
-                      | error e => rw [hrt] at hb; contradiction
-                      | ok pt =>
-                          rcases pt with ⟨roots, ex, b5⟩
-                          rw [hrt] at hb; simp only at hb
-                          obtain ⟨c5, hct, h5⟩ :=
-                            readPhraseRootsChunk_refines (Array.mk phrases) rootCount 0 h4 hrt
-                          rw [hct]; simp only
-                          cases htok :
-                              countPhraseTokensLoop (Array.mk phrases)
-                                (Array.mk roots).toList 0 with
-                          | error e => rw [htok] at hb; contradiction
-                          | ok tn =>
-                              rw [htok] at hb
-                              simp only at hb ⊢
-                              cases hterm :
-                                  countPhraseTerms lengths (Array.mk phrases) (Array.mk roots) with
-                              | error e => rw [hterm] at hb; contradiction
-                              | ok mn =>
-                                  rw [hterm] at hb
-                                  simp only at hb ⊢
-                                  cases hb
-                                  exact ⟨c5, rfl, h5⟩
-        · simp only [h0, h1', if_false] at hb; contradiction
-
+  simp only [readCompressedTokens, bind, Except.bind]
+  cases hcnt : readBoundedB maxTermsPerLayer bc with
+  | error e => rw [hcnt] at hb; contradiction
+  | ok pc =>
+      rcases pc with ⟨count, b2⟩
+      rw [hcnt] at hb; simp only at hb
+      obtain ⟨c2, hcc, h2⟩ := readBounded_refines h hcnt
+      rw [hcc]; simp only
+      cases htk : readIndexListChunkB segmentCount .segmentIndexOutOfBounds count b2 with
+      | error e => rw [htk] at hb; contradiction
+      | ok pt =>
+          rcases pt with ⟨tokens, b3⟩
+          rw [htk] at hb; simp only at hb
+          obtain ⟨c3, hct, h3⟩ :=
+            readIndexListChunk_refines segmentCount .segmentIndexOutOfBounds count h2 htk
+          rw [hct]; simp only
+          cases hterm : countSegmentTerms lengths (Array.mk tokens) with
+          | error e => rw [hterm] at hb; contradiction
+          | ok n =>
+              rw [hterm] at hb
+              simp only at hb ⊢
+              cases hb
+              exact ⟨c3, rfl, h3⟩
 theorem readCompressedTokens_transfer (segmentCount : Nat) (lengths : Array Nat)
     {cstart cstop : Cursor} {bstart bstop : BCursor}
-    {t : TokenEncoding} {tc tm : Nat}
+    {t : Array Nat} {tc tm : Nat}
     (hstart : Refines cstart bstart) (hstop : Refines cstop bstop)
     (fast : readCompressedTokensB segmentCount lengths bstart = .ok (t, tc, tm, bstop)) :
     readCompressedTokens segmentCount lengths cstart = .ok (t, tc, tm, cstop) := by
   obtain ⟨c', hslow, href⟩ := readCompressedTokens_refines hstart fast
   rwa [Refines_unique href hstop] at hslow
 
-/-- The byte reader with the counting indexed. Both trees are **checked inline** rather than
-    taken as hypotheses: `lengths` is a parameter but `phrases` is produced by the read itself, so
-    there is nothing to state a hypothesis about until it exists. Each check is one linear pass. -/
+/-- The byte reader with the counting indexed. The tree is **checked inline** rather than taken
+    as a hypothesis, in one linear pass. -/
 def readCompressedTokensBT (segmentCount : Nat) (ltree : PTree Nat) (lengths : Array Nat)
-    (ptree : PTree (Array Nat)) (cursor : BCursor) :
-    Except Error (TokenEncoding × Nat × Nat × BCursor) := do
+    (cursor : BCursor) : Except Error (Array Nat × Nat × Nat × BCursor) := do
   if !treeOk ltree lengths then .error .badTokenEncoding else
-  let (encoding, cursor) ← readUlebB cursor
-  if encoding = 0 then
-    let (count, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (tokens, cursor) ←
-      readIndexListChunkB segmentCount .segmentIndexOutOfBounds count cursor
-    let tokens := Array.mk tokens
-    let termCount ← countSegmentTermsT ltree lengths tokens
-    .ok (.flat tokens, tokens.size, termCount, cursor)
-  else if encoding = 1 then
-    let (phraseCount, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (phrases, _, cursor) ← readPhrasesChunkB segmentCount phraseCount 0 cursor
-    let phrases := Array.mk phrases
-    if !treeOk ptree phrases then .error .badTokenEncoding else
-    let (rootCount, cursor) ← readBoundedB maxTermsPerLayer cursor
-    let (roots, _, cursor) ← readPhraseRootsChunkB phrases rootCount 0 cursor
-    let roots := Array.mk roots
-    let tokenCount ← countPhraseTokensLoopT ptree phrases roots.toList 0
-    let termCount ← countPhraseTermsT ltree lengths ptree phrases roots
-    .ok (.phrases phrases roots, tokenCount, termCount, cursor)
-  else
-    .error .badTokenEncoding
+  let (count, cursor) ← readBoundedB maxTermsPerLayer cursor
+  let (tokens, cursor) ←
+    readIndexListChunkB segmentCount .segmentIndexOutOfBounds count cursor
+  let tokens := Array.mk tokens
+  let termCount ← countSegmentTermsT ltree lengths tokens
+  .ok (tokens, tokens.size, termCount, cursor)
 
 theorem readCompressedTokensBT_eq {segmentCount : Nat} {ltree : PTree Nat} {lengths : Array Nat}
-    {ptree : PTree (Array Nat)} {bc : BCursor} {r : TokenEncoding × Nat × Nat × BCursor}
-    (h : readCompressedTokensBT segmentCount ltree lengths ptree bc = .ok r) :
+    {bc : BCursor} {r : Array Nat × Nat × Nat × BCursor}
+    (h : readCompressedTokensBT segmentCount ltree lengths bc = .ok r) :
     readCompressedTokensB segmentCount lengths bc = .ok r := by
   simp only [readCompressedTokensBT, bind, Except.bind] at h
   by_cases hlt : treeOk ltree lengths = true
   · simp only [hlt, Bool.not_true, if_false, Bool.false_eq_true] at h
     simp only [readCompressedTokensB, bind, Except.bind]
-    cases he : readUlebB bc with
-    | error e => rw [he] at h; contradiction
-    | ok pe =>
-        rcases pe with ⟨encoding, b1⟩
-        rw [he] at h
-        simp only at h ⊢
-        by_cases h0 : encoding = 0
-        · simp only [h0, if_true] at h ⊢
-          cases hc : readBoundedB maxTermsPerLayer b1 with
-          | error e => rw [hc] at h; contradiction
-          | ok pc =>
-              rcases pc with ⟨count, b2⟩
-              rw [hc] at h; simp only at h ⊢
-              cases ht : readIndexListChunkB segmentCount .segmentIndexOutOfBounds count b2 with
-              | error e => rw [ht] at h; contradiction
-              | ok pt =>
-                  rcases pt with ⟨tokens, b3⟩
-                  rw [ht] at h; simp only at h ⊢
-                  rwa [countSegmentTermsT_eq ltree lengths hlt] at h
-        · by_cases h1 : encoding = 1
-          · simp only [h0, h1, if_false, if_true] at h ⊢
-            cases hp : readBoundedB maxTermsPerLayer b1 with
-            | error e => rw [hp] at h; contradiction
-            | ok pp =>
-                rcases pp with ⟨phraseCount, b2⟩
-                rw [hp] at h; simp only at h ⊢
-                cases hf : readPhrasesChunkB segmentCount phraseCount 0 b2 with
-                | error e => rw [hf] at h; contradiction
-                | ok pf =>
-                    rcases pf with ⟨phrases, sy, b3⟩
-                    rw [hf] at h; simp only at h ⊢
-                    by_cases hpt : treeOk ptree (Array.mk phrases) = true
-                    · simp only [hpt, Bool.not_true, if_false, Bool.false_eq_true] at h
-                      cases hr : readBoundedB maxTermsPerLayer b3 with
-                      | error e => rw [hr] at h; contradiction
-                      | ok pr =>
-                          rcases pr with ⟨rootCount, b4⟩
-                          rw [hr] at h; simp only at h ⊢
-                          cases hro : readPhraseRootsChunkB (Array.mk phrases) rootCount 0 b4 with
-                          | error e => rw [hro] at h; contradiction
-                          | ok pro =>
-                              rcases pro with ⟨roots, ex, b5⟩
-                              rw [hro] at h; simp only at h ⊢
-                              rw [countPhraseTokensLoopT_eq ptree (Array.mk phrases) hpt] at h
-                              simp only [countPhraseTermsT] at h
-                              rwa [countPhraseTermsLoopT_eq ltree lengths ptree
-                                (Array.mk phrases) hlt hpt] at h
-                    · simp only [Bool.not_eq_true] at hpt
-                      simp only [hpt, Bool.not_false, if_true] at h
-                      contradiction
-          · simp only [h0, h1, if_false] at h; contradiction
+    cases hcnt : readBoundedB maxTermsPerLayer bc with
+    | error e => rw [hcnt] at h; contradiction
+    | ok pc =>
+        rcases pc with ⟨count, b2⟩
+        rw [hcnt] at h; simp only at h ⊢
+        cases htk : readIndexListChunkB segmentCount .segmentIndexOutOfBounds count b2 with
+        | error e => rw [htk] at h; contradiction
+        | ok pt =>
+            rcases pt with ⟨tokens, b3⟩
+            rw [htk] at h; simp only at h ⊢
+            rwa [countSegmentTermsT_eq ltree lengths hlt (Array.mk tokens) 0] at h
   · simp only [Bool.not_eq_true] at hlt
     simp only [hlt, Bool.not_false, if_true] at h
     contradiction
-
 /-- The whole chain in one step, for a generated certificate: prove the tree-indexed byte read by
     `rfl`, get the packed reader's statement. -/
 theorem readCompressedTokens_transferT (segmentCount : Nat) (ltree : PTree Nat)
-    (lengths : Array Nat) (ptree : PTree (Array Nat))
+    (lengths : Array Nat)
     {cstart cstop : Cursor} {bstart bstop : BCursor}
-    {t : TokenEncoding} {tc tm : Nat}
+    {t : Array Nat} {tc tm : Nat}
     (hstart : Refines cstart bstart) (hstop : Refines cstop bstop)
-    (fast : readCompressedTokensBT segmentCount ltree lengths ptree bstart
+    (fast : readCompressedTokensBT segmentCount ltree lengths bstart
               = .ok (t, tc, tm, bstop)) :
     readCompressedTokens segmentCount lengths cstart = .ok (t, tc, tm, cstop) :=
   readCompressedTokens_transfer segmentCount lengths hstart hstop
     (readCompressedTokensBT_eq fast)
 
-/-! `readDeltasChunk_compose` ports across unchanged in shape — the packed version in `Lfc3` is
+/-! `readDeltasChunk_compose` ports across unchanged in shape — the packed version in `Lfc2` is
 a 40-line `induction`/`cases` chain over the four ULEB reads and the bounds check, and nothing in
 it depends on how a byte is obtained. It is not repeated here because this module exists to
 measure the byte extraction, not to be the final home of the reader. -/
 
-end Quadcert.Lfc3
+end Quadcert.Lfc2

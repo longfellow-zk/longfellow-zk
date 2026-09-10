@@ -139,8 +139,8 @@ theorem assertions_zero (α : F) (inputs : Nat → F) (hacc : Accepts (circuit �
 
 /-- **The same, from the committed bytes.** Whatever the pinned LFC3 pages decode to, extended
     by the sidecar's four advice fields, *is* `raw`. -/
-theorem assertions_zero_of_bytes (α : F) (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.gf2_128 packedInput deltaTrees = .ok c)
+theorem assertions_zero_of_bytes (α : F) (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.gf2_128 packedInput deltaTrees = .ok c)
     (inputs : Nat → F) (hacc : Accepts ((c.toRaw advice).toQuad (consts α)) inputs) :
     ∀ r ∈ (c.toRaw advice).toRecs,
       interpDag ((c.toRaw advice).toDag (consts α)) inputs r.assertedNode = 0 := by
@@ -152,8 +152,8 @@ theorem assertions_zero_of_bytes (α : F) (c : Lfc3.DecodedCircuit)
     deployed reduction polynomial has a root. -/
 theorem certified_bytes_assertions_zero (α : F)
     (hroot : α ^ 128 = α ^ 7 + α ^ 2 + α + 1)
-    (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.gf2_128 packedInput deltaTrees = .ok c)
+    (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.gf2_128 packedInput deltaTrees = .ok c)
     (inputs : Nat → F) (hacc : Accepts ((c.toRaw advice).toQuad (consts α)) inputs) :
     QuadCert.CircuitCommitment.rootOfPacked Quadcert.Gen.Sha256Gf2.packedInput
         = Quadcert.Gen.Sha256Gf2.formalRoot

@@ -163,7 +163,9 @@ fn of_u64<L: Logic>(boolean: &Boolean<L>, n: usize, z: u64) -> Vec<Bitw<L>> {
 }
 
 fn assert_eq_bits<L: Logic>(boolean: &Boolean<L>, want: &[Bitw<L>], got: &[Bitw<L>])
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     assert_eq!(want.len(), got.len());
     for i in 0..want.len() {
         let w = boolean.as_eltw(&want[i]);
@@ -173,7 +175,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_add_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -189,7 +193,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_sub_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -205,7 +211,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_lt_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -222,7 +230,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_leq_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -243,7 +253,9 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 }
 
 fn test_eq_eval_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -280,7 +292,9 @@ fn test_exactly_one_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 }
 
 fn test_empty_vectors_relations_for_logic<L: Logic>(logic: &L)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 

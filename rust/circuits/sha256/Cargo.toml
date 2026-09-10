@@ -27,3 +27,4 @@ testonly = [
 [dev-dependencies]
 compile-compiler = { path = "../../compile/compiler" }
 circuits-sha256 = { path = "./", features = ["testonly"] }
+core-proto = { path = "../../core/proto" }

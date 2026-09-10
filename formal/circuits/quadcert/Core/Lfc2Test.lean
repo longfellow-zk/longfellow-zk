@@ -1,26 +1,16 @@
-import quadcert.Core.Lfc3
+import quadcert.Core.Lfc2
 
-/-! Small kernel tests for canonical parsing and bounded phrase expansion. -/
+/-! Small kernel tests for canonical parsing and the wire-index bounds. -/
 
-namespace Quadcert.Lfc3.Test
+namespace Quadcert.Lfc2.Test
 
--- One GF(2^128) constant, one delta/segment/phrase, and three phrase references.
-def phraseInput : PackedBytes :=
-  { byteLength := 78
-    pages :=
-      [0x300010101000101000000000101000000000000000000000000000000000101010100000101043343464c] }
-
-def phraseTerms : Option (List RawTerm) :=
-  match decode gf2_128 phraseInput with
-  | .error _ => none
-  | .ok circuit => circuit.layers[0]?.map (fun layer => layer.terms)
-
-example : phraseTerms = some
-    [⟨0, 0, 0, 0⟩, ⟨0, 0, 0, 0⟩, ⟨0, 0, 0, 0⟩] := by
-  decide
+-- The phrase-dictionary fixture that used to live here tested `TokenEncoding.phrases`, which
+-- the format no longer has: every layer now carries a flat segment-index stream, which is LFC2's
+-- token encoding. The bounded-expansion property it checked is covered by the wire-index tests
+-- below and by `Bridge/Rung1`, which decodes a real artifact.
 
 -- Field id 4 encoded as the non-shortest ULEB sequence 0x84 0x00.
-example : decode gf2_128 { byteLength := 6, pages := [0x843343464c] }
+example : decode gf2_128 { byteLength := 6, pages := [0x843243464c] }
     = .error .noncanonicalUleb := by
   rfl
 
@@ -36,7 +26,7 @@ private def oneTermLayer (nw : Nat) : CompressedLayer :=
   { logw := 1, nw := nw
     deltas := #[⟨1, 1, 1, 0⟩]
     segments := #[#[0]]
-    tokens := .flat #[0]
+    tokens := #[0]
     tokenCount := 1
     termCount := 1 }
 
@@ -75,4 +65,4 @@ example : (cursorAt twoPage 4096).laterPages = [] := by rfl
 example : (cursorAt twoPage 4096).remaining = 4 := by rfl
 example : (cursorAt twoPage 4099).remaining = 1 := by rfl
 
-end Quadcert.Lfc3.Test
+end Quadcert.Lfc2.Test

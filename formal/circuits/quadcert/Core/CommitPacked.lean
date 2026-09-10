@@ -1,5 +1,5 @@
 import quadcert.Core.CircuitCommitment
-import quadcert.Core.Lfc3
+import quadcert.Core.Lfc2
 
 /-!
 # The commitment root of a packed payload
@@ -7,7 +7,7 @@ import quadcert.Core.Lfc3
 `CircuitCommitment.commit` computes a root from a `List Byte`; the generated
 `{Artifact}Commitment` modules instead prove a root for an explicit list of
 `packedLeafHash` applications, one per page, because a 100 MB byte list cannot be hashed
-in the kernel.  Neither form mentions the `Lfc3.PackedBytes` value that `Lfc3.decode`
+in the kernel.  Neither form mentions the `Lfc2.PackedBytes` value that `Lfc2.decode`
 actually consumes.
 
 `rootOfPacked` closes that gap: it takes the payload itself and derives the page indices and
@@ -33,12 +33,12 @@ def pageLengthAt (byteLength pageIndex : Nat) : Nat :=
 
 /-- The Merkle leaves of a packed payload, read off the payload: one leaf per page, at that
     page's own index and its own length. -/
-def packedLeaves (input : Quadcert.Lfc3.PackedBytes) : List Digest :=
+def packedLeaves (input : Quadcert.Lfc2.PackedBytes) : List Digest :=
   (List.range input.pages.length).map fun i =>
     packedLeafHash input.byteLength i (pageLengthAt input.byteLength i) (input.pages.getD i 0)
 
 /-- The commitment root of a packed payload. -/
-def rootOfPacked (input : Quadcert.Lfc3.PackedBytes) : Digest :=
+def rootOfPacked (input : Quadcert.Lfc2.PackedBytes) : Digest :=
   rootFromLeaves input.byteLength (packedLeaves input)
 
 /-- The packed and byte-level definitions agree: `abc` packed little-endian into one page
