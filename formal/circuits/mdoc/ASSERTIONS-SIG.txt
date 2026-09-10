@@ -1,0 +1,31 @@
+mdoc_signature assertion census
+vector: mdoc_zk_testcases::vectors::TEST_DATA
+total assertions: 2108
+distinct families: 25
+
+    count  family
+      512  signature/ecdsa/range_check[]/valid_index
+      512  slice_wx
+      512  slice_wy
+      512  slice_wz
+       12  signature/ecdsa/is_on_curve
+        8  slice_x
+        8  slice_y
+        3  signature/assert_mac/msg0_eq[]/chunk_eq
+        3  signature/assert_mac/msg1_eq[]/chunk_eq
+        2  signature/ecdsa/ax_zero
+        2  signature/ecdsa/az_zero
+        2  signature/ecdsa/e_eq
+        2  signature/ecdsa/nms_lt_order
+        2  signature/ecdsa/nmsinv
+        2  signature/ecdsa/pkxinv
+        2  signature/ecdsa/rx_eq
+        2  signature/ecdsa/rx_lt_order
+        2  signature/ecdsa/rxinv
+        2  signature/ecdsa/yinv
+        1  signature/device_e_eq
+        1  signature/device_pkx_eq
+        1  signature/device_pky_eq
+        1  signature/issuer_e_eq
+        1  signature/issuer_pkx_eq
+        1  signature/issuer_pky_eq

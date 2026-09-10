@@ -1,0 +1,96 @@
+#!/bin/bash
+# Build one Lean library's modules ONE AT A TIME, in dependency order, with an RSS watchdog.
+#
+# Lake 5.0.0 has no -j, so `lake build <target>` will happily spawn one worker per core for the
+# target's dependency frontier.  On this 16-core box, with generated modules that individually
+# want many GB, that is what exhausted swap -- twice.  Building in dependency order means every
+# `lake build` call finds its imports already built and spawns exactly one worker.
+#
+# Per-process memory is capped separately by `moreLeanArgs = ["-M", ...]` in lakefile.toml,
+# which is the only channel lake honours: it resolves its own toolchain, so neither a PATH shim
+# nor LEAN_SYSROOT reaches the workers it spawns.  This script caps the process *count*.
+#
+# Usage: leanseq [LIB] [RSS_CEILING_GB] [FILTER_REGEX]
+#   LIB             Lean library name = subdirectory of circuits/ (default quadcert)
+#   RSS_CEILING_GB  watchdog kills a worker above this (default 20; total budget is 40 GB).
+#                   The Perm sorts genuinely need ~5.5 GB, so 12 was too tight.
+#   FILTER_REGEX    only build modules matching this (dependencies are still built first)
+#
+# Writes per-module wall time to /tmp/leanseq.times, which is the profile worth reading: the
+# cost is never uniform and the outlier is usually the module to restructure.
+#
+# The work list and the log are per-invocation ($$), because two concurrent runs sharing them
+# corrupts both: the loop reads its module list with `done < FILTERED`, so a second run
+# rewriting that file mid-loop feeds the first one a fragment of a module name.  That failed a
+# 1,037-module run at 321 with `unknown target quadcert.223`.  `leanseq.times` is still linked
+# to the fixed path at the end, so the profile stays where it has always been.
+set -u
+LIB=${1:-quadcert}
+CEIL_GB=${2:-20}
+FILTER=${3:-.}
+cd "$(dirname "$0")/.." || exit 1
+DIR=circuits/$LIB
+
+python3 - "$DIR" "$LIB" > /tmp/leanseq.order.$$ <<'PY'
+import os,sys,re
+d,lib=sys.argv[1],sys.argv[2]
+mods={}
+# walk subdirectories: quadcert is split into Core/ Bridge/ Gen/, and a module's name is its
+# path with separators as dots. `os.listdir` would silently see nothing after that split.
+for root,_,files in os.walk(d):
+    rel=os.path.relpath(root,d)
+    pre='' if rel=='.' else rel.replace(os.sep,'.')+'.'
+    for f in files:
+        if not f.endswith('.lean'): continue
+        m=pre+f[:-5]
+        deps=set()
+        for line in open(os.path.join(root,f),encoding='utf-8',errors='replace'):
+            g=re.match(r'\s*(?:public\s+)?import\s+'+re.escape(lib)+r'\.(\S+)',line)
+            if g: deps.add(g.group(1))
+        mods[m]=deps
+order=[]; seen=set(); temp=set()
+def visit(m):
+    if m in seen or m not in mods: return
+    if m in temp: return          # cycles cannot happen in Lean; be safe anyway
+    temp.add(m)
+    for x in sorted(mods[m]): visit(x)
+    temp.discard(m); seen.add(m); order.append(m)
+for m in sorted(mods): visit(m)
+print('\n'.join(order))
+PY
+
+grep -E "$FILTER" /tmp/leanseq.order.$$ > /tmp/leanseq.filtered.$$
+TOTAL=$(wc -l < /tmp/leanseq.filtered.$$ | tr -d ' ')
+echo "leanseq: $LIB, $TOTAL modules, one at a time, RSS ceiling ${CEIL_GB} GB"
+: > /tmp/leanseq.times.$$
+N=0
+while read -r M; do
+  N=$((N+1))
+  T0=$(date +%s)
+  PEAK=0
+  lake build "$LIB.$M" > /tmp/leanseq.last.$$ 2>&1 &
+  LAKE=$!
+  while kill -0 $LAKE 2>/dev/null; do
+    for P in $(pgrep -x lean); do
+      R=$(ps -o rss= -p "$P" 2>/dev/null | tr -d ' ')
+      if [ -n "$R" ]; then
+        [ "$R" -gt "$PEAK" ] && PEAK=$R
+        if [ "$R" -gt $((CEIL_GB * 1048576)) ]; then
+          echo "leanseq: WATCHDOG killed $M at $((R/1048576)) GB"; kill -9 "$P" 2>/dev/null
+        fi
+      fi
+    done
+    C=$(pgrep -x lean | wc -l | tr -d ' ')
+    if [ "$C" -gt 1 ]; then echo "leanseq: WARNING $C concurrent lean processes on $M"; fi
+    sleep 1
+  done
+  wait $LAKE; RC=$?
+  printf '%6ss %6sMB  %s\n' "$(( $(date +%s) - T0 ))" "$((PEAK/1024))" "$M" >> /tmp/leanseq.times.$$
+  if [ $RC -ne 0 ]; then
+    echo "leanseq: FAILED [$N/$TOTAL] $M"; tail -20 /tmp/leanseq.last.$$; exit 1
+  fi
+  echo "leanseq: [$N/$TOTAL] $M  $(( $(date +%s) - T0 ))s  $((PEAK/1024))MB"
+done < /tmp/leanseq.filtered.$$
+echo "leanseq: all $TOTAL modules built"
+cp /tmp/leanseq.times.$$ /tmp/leanseq.times
+sort -rn /tmp/leanseq.times.$$ | head -15

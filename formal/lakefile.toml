@@ -98,12 +98,42 @@ leanOptions = { autoImplicit = true, relaxedAutoImplicit = true }
 name = "ECDSA"
 srcDir = "circuits"
 globs = ["ECDSA.+"]
+# ECBridge is Mathlib-heavy and needs more than the 3500 used for generated modules.
+moreLeanArgs = ["-M", "8000"]
+
+[[lean_lib]]
+name = "SHA"
+srcDir = "circuits"
+globs = ["SHA.+"]
+moreLeanArgs = ["-M", "8000"]
+
+# GF(2^128) as `core/algebra/src/gf2_128.rs` represents it: the model the mdoc *hash* circuit
+# needs, since its `assert_wrapping_sum` is multiplicative rather than positional.  Deliberately
+# Mathlib-free, so it builds in seconds; the algebraic layer above it will not be.
+[[lean_lib]]
+name = "GF128"
+srcDir = "circuits"
+globs = ["GF128.+"]
+moreLeanArgs = ["-M", "12000"]
+# `GF128.Order` imports `ECDSA.Pratt` for the one prime `norm_num` cannot reach.
+
+# What the mDOC circuit as a whole is supposed to prove. `Nat`/`List Nat` only; imports SHA.
+[[lean_lib]]
+name = "mdoc"
+srcDir = "circuits"
+globs = ["mdoc.+"]
+moreLeanArgs = ["-M", "8000"]
 
 [[lean_lib]]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
 roots = ["PkCircuit", "PkCircuitPoly"]
+moreLeanArgs = ["-M", "3500"]
 
+# The structural certificate: bytes -> circuit -> every asserted node is zero.
+# `Bridge.Sha256` is deliberately NOT a root here -- see `sha256bridge` below. Modules of it that
+# the generated commitments need (`Bridge.Sha256.Sha256`, the page hasher) are still pulled in
+# transitively by import, so nothing breaks; they simply are not built for their own sake.
 [[lean_lib]]
 name = "RecursivePolygero"
 srcDir = "."
@@ -114,7 +144,36 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "quadcert"
 srcDir = "circuits"
-globs = ["quadcert.+"]
+globs = ["quadcert.Core.+", "quadcert.Gen.+", "quadcert.Bridge.Ecdsa2.+", "quadcert.Bridge.Rung1.+", "quadcert.Bridge.Sha256Gf2.+", "quadcert.Bridge.Mdoc.+"]
+# `-M 0` (no cap), because two generated modules need essentially the whole machine and a cap
+# fails *above* their working set -- the allocator wants GC headroom on top of it:
+#
+#   Gen/MdocHash/MdocHashCommitment.lean   28.3 GB peak   fails at -M 16000 and -M 26000
+#   Gen/MdocSig/MdocSigDecoded.lean        33.2 GB peak   fails at -M 34000 (i.e. above its peak)
+#
+# Both succeed uncapped.  The first folds 237 literal page digests into a Merkle root (~475 kernel
+# SHA-256 evaluations in one `decide +kernel`); the second `change`s against a 21-layer
+# `expandLayers` composition whose `decodedLayer_i` literals run to 158,231 terms.  Both are
+# monolithic-composition problems and the sustainable fix is to chunk them in `lfc3_to_lean`, the
+# way `LayerParseSteps` and `LayersExpand` already chunk their stages.
+#
+# With no cap, **`tools/leanseq`'s RSS ceiling is the only guard**, so build this library through
+# it and give it a ceiling above 34, e.g. `tools/leanseq quadcert 36 .`.  A bare
+# `lake build quadcert` was already the wrong thing; now it is unguarded as well.
+moreLeanArgs = ["-M", "0"]
+
+# The SHA-256 meaning bridge: the 6,840 assertions carried to `SHA/Spec.lean`, ending in
+# `Sha256Blk.sha256_block_of_circuit`. Opt-in, because it is about an hour of `decide +kernel`
+# on its own and nothing else in the tree depends on it.
+#
+#     lake build sha256bridge
+#
+# Not in `defaultTargets`, so `lake build` and `lake build quadcert` are unaffected.
+[[lean_lib]]
+name = "sha256bridge"
+srcDir = "circuits"
+globs = ["quadcert.Bridge.Sha256.+"]
+moreLeanArgs = ["-M", "16000"]
 
 [[lean_lib]]
 name = "lfzk"
