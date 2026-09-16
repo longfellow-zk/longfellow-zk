@@ -440,7 +440,7 @@ After several rounds of communication, the function being summed is
 replaced with a constant, and both output wire arrays are replaced with
 two new claim values.
 Concretely, the new claims will be `bind(V[j + 1], G'[0])` and `bind(V[j
-+ 1], G'[0])`, where `V[j + 1]` is the input wires of layer j, and
++ 1], G'[1])`, where `V[j + 1]` is the input wires of layer j, and
 `G'[0]` and `G'[1]` are a fresh set of verifier challenges, chosen at
 each round of the sumcheck protocol.
 These two claim values are encrypted with a one-time pad and sent to the
