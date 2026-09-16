@@ -242,7 +242,7 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.
 1)  The third IQD row is defined as 
         ZQ = RANDOM[DBLOCK]
-        ZQ[NREQ ... NREQ + WR - 1] = 0
+        ZQ[NREQ .. NREQ + WR] = 0
         extend(ZQ, DBLOCK, NCOL)
     by first selecting DBLOCK random field elements, and then setting the
     portion coresponding to the witness values to 0 and then applying extend.
