@@ -210,8 +210,8 @@ A row of the tableau consists of
 - `BLOCK < |F|` The block size must be smaller than the field size.
 - `BLOCK > NREQ` The block size must be larger than the number of columns requested.
 - `BLOCK = NREQ + WR`
-- `BLOCK >= 2 * (NREQ + WR) + (NREQ + WR) - 2`
-- `BLOCK >= 2 * (NREQ + WR) - 1`.
+- `NCOL >= 2 * (NREQ + WR) + (NREQ + WR) - 2`
+- `NCOL >= 2 * (NREQ + WR) - 1`, equivalently `NCOL >= DBLOCK`.
 - `WR >= NREQ` (and thus `WR >= NREQ`) to avoid wasting too much space.
 
 ## Ligero commitment
