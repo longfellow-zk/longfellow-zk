@@ -203,7 +203,7 @@ These two parameters are chosen to balance the size of the proof against the sou
 # Serializing objects
 This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:
 
-*  `write_size(n)`: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.
+*  `write_size(n)`: serializes an integer in [0, 2^{32} - 1] that represents the size of an array or an index into an array. The integer is serialized as 4 bytes in little endian order.
 *  `write_array(arr)`: A variable-sized array is represented as `type array[]` and serialized by first writing its length as a size element, and then serializing each element of the array in order.
 *  `write_fixed_array(arr)`: When the length of the array is explicitly known to be `n`, it is specified as `type array[n]` and in this case, the array length is not written first.
 
