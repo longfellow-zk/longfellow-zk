@@ -224,6 +224,36 @@ To prevent self-referential attacks (see [@krs]), the first prover message in Lo
     </front>
 </reference>
 
+## Transcripts for a Sequence of Proofs {#multi-proof-transcript}
+
+A single proof string MAY cover a sequence of $N$ proofs, each over its own circuit (the "multi-field optimization"). The sequence is serialized as described in the "Serializing a Sequence of proofs" section; this section specifies how the sub-proofs' transcripts relate. Each sub-proof's own serialization is unchanged from the single-proof case.
+
+The transcripts are *forked* from a common parent rather than threaded in sequence. A single parent transcript is initialized, every sub-proof's commitment is bound into it, and each sub-proof is then produced and verified against its own independent fork of the parent:
+
+1. Initialize a parent transcript `t` as for a single proof.
+2. For each $i$ in $0..N$, in index order, absorb the commitment `proofs[i].com` -- a 32-byte Merkle root -- into `t`.
+3. For each $i$ in $0..N$, let `t_i = fork(t, label(i))`, where `label(i)` is the 4-byte little-endian encoding of $i$. Run the procedure of the [Correlation-Intractability and Computational Depth](#correlation-intractability) section for sub-proof $i$ using `t_i` as its transcript, starting from step 2 of that procedure: the commitments were absorbed in step 2 above, and `t_i` is already initialized, so any `session_id` bound at initialization is inherited by every fork and is not re-absorbed. This binds sub-proof $i$'s own circuit identifier and statement into `t_i`.
+
+Every commitment **MUST** be absorbed into `t` in step 2 before `t` is forked in step 3, so that every sub-proof's challenges depend on all of the commitments.
+
+The number of sub-proofs is not absorbed into the transcript. It is bound implicitly: changing the sequence changes the set of commitments absorbed in step 2, and therefore the state that each fork copies. $N$ and the individual circuit identifiers are recovered from the serialization.
+
+### The `fork` operation
+
+`fork(t, label)` derives a fresh, independent transcript from the parent `t` and a domain-separating byte string `label`, without modifying `t`:
+
+* The state of the new transcript is a copy of the state of `t`, into which `label` has been absorbed as a byte array (`TAG_BSTR`, per the [Universal ZK TLV Codec](#encoding-tlv)).
+* The parent `t` is left unchanged.
+* Challenges squeezed from a fork are independent of those squeezed from any fork taken with a different `label`, and of any later use of `t`.
+
+For the Hash-and-Expand instantiation, copying the state is a copy of the incremental SHA-256 accumulator -- equivalently, of the absorbed string $\text{tr}$. The `Transcript` structure above derives `Clone` for exactly this purpose, so the operation is a `clone()` followed by `write_bytes(label)`.
+
+Duplicating transcript state is not expressible in terms of absorb and squeeze alone, so an instantiation **MUST** provide it.
+
+Because a transcript may cache a derived challenge stream (the `FsPrf` held by the `Transcript` structure above), copying the state may copy that cache. Absorbing `label` **MUST** invalidate it, exactly as any other absorbed message does: a fork that inherited a live keystream from `t` would reproduce the parent's challenges instead of its own. Absorbing `label` through the ordinary absorb path gives this for free -- in the `Transcript` structure above, `write_untyped` clears `pseudorandom_generator`.
+
+A mechanism outside this section **MAY** bind values shared across the sub-proofs by squeezing a challenge from the parent transcript `t`. Such a challenge **MUST** be squeezed after step 2 and before `t` is forked in step 3, so that every fork copies the same state of `t`.
+
 ## Challenge Extraction Methods {#decoding}
 
 In the CFRG Fiat-Shamir framework ([@I-D.irtf-cfrg-fiat-shamir#03]), challenge extraction is formalized as the decoding component of a *codec*. While the codec's `prover_message` procedure serializes and absorbs prover messages into the sponge state, its `verifier_challenge` procedure squeezes uniformly distributed pseudorandom bytes and decodes them into the verifier's target challenge domain.
