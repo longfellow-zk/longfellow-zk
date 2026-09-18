@@ -1,0 +1,33 @@
+# Code owners for longfellow-zk/longfellow-zk
+# Reviews from a listed owner are required when branch protection enables
+# "Require review from Code Owners". Later matching lines take precedence.
+#
+# Teams: @longfellow-zk/longfellow-maintainers (project maintainers)
+
+# Default: everything not matched below
+*                       @longfellow-zk/longfellow-maintainers
+
+# Repository governance, CI and dev environment
+/CODEOWNERS             @longfellow-zk/longfellow-maintainers
+/LICENSE                @longfellow-zk/longfellow-maintainers
+/README.md              @longfellow-zk/longfellow-maintainers
+/.github/               @longfellow-zk/longfellow-maintainers
+/.devcontainer/         @longfellow-zk/longfellow-maintainers
+
+# C++ library and build
+/lib/                   @longfellow-zk/longfellow-maintainers
+/Doxyfile               @longfellow-zk/longfellow-maintainers
+/android.sh             @longfellow-zk/longfellow-maintainers
+/ios.sh                 @longfellow-zk/longfellow-maintainers
+
+# Rust implementation
+/rust/                  @longfellow-zk/longfellow-maintainers
+
+# Lean formal verification
+/formal/                @longfellow-zk/longfellow-maintainers
+
+# Reference implementations
+/reference/             @longfellow-zk/longfellow-maintainers
+
+# Documentation site (Hugo/Docsy) and specs
+/docs/                  @longfellow-zk/longfellow-maintainers
