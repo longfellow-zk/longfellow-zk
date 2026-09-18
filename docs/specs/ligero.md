@@ -196,8 +196,8 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `NQ`: Number of quadratic constraints.
 - `NWROW`: Number of rows used to encode witnesses.
 - `NQT`: Number of row triples needed to encode the quadratic constraints.
-- `NQW`: `NWROW + NQT`, rows needed to encode witnesses and quadratic constraints.
-- `NROW`: Total number of rows in the witness matrix, `3 + NQW + 3*NQT`
+- `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints (each of the `NQT` triples occupies three rows).
+- `NROW`: Total number of rows in the witness matrix, `NQW + 3` (the three additional rows are the random rows ILDT, IDOT, and IQD).
 - `NCOL`: Total number of columns in the tableau matrix.
 
 A row of the tableau consists of
