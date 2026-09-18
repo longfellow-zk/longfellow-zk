@@ -3969,7 +3969,7 @@ pub fn symbolic_sumcheck_verifier_core&lt;F: Field + 'static&gt;(
 <p id="section-7-1">This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:<a href="#section-7-1" class="pilcrow">¶</a></p>
 <ul class="compact">
 <li class="compact" id="section-7-2.1">
-          <code>write_size(n)</code>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.<a href="#section-7-2.1" class="pilcrow">¶</a>
+          <code>write_size(n)</code>: serializes an integer in [0, 2^{32} - 1] that represents the size of an array or an index into an array. The integer is serialized as 4 bytes in little endian order.<a href="#section-7-2.1" class="pilcrow">¶</a>
 </li>
         <li class="compact" id="section-7-2.2">
           <code>write_array(arr)</code>: A variable-sized array is represented as <code>type array[]</code> and serialized by first writing its length as a size element, and then serializing each element of the array in order.<a href="#section-7-2.2" class="pilcrow">¶</a>
