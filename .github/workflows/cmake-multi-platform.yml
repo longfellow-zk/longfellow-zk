@@ -144,10 +144,10 @@ jobs:
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       env:
         BUILD_DIR: ${{ steps.strings.outputs.build-output-dir }}
-      run: cmake --build "${BUILD_DIR}" -j 16
+      run: cmake --build "${BUILD_DIR}" -j "$(nproc)"
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -j 16
+      run: ctest -j "$(nproc)"
