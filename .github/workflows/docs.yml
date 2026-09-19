@@ -10,7 +10,36 @@ on:
     - main
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Filter changed paths
+      id: filter
+      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      with:
+        filters: |
+          docs:
+            - 'docs/**'
+            # The Rust and Sage reference implementations have their own workflows
+            # and are not part of the Hugo site build.
+            - '!docs/specs/rust/**'
+            - '!docs/specs/sage/**'
+            - '.github/workflows/docs.yml'
+
   build-and-deploy:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -18,14 +47,14 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
     - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0         # Fetch all history for .GitInfo and .Lastmod
         submodules: recursive
         persist-credentials: false
 
     - name: Setup Hugo
-      uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1 
+      uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
       with:
         hugo-version: '0.164.0'
         extended: true
@@ -66,7 +95,7 @@ jobs:
 
     - name: Install Docsy dependencies
       working-directory: ./docs
-      run: npm ci        
+      run: npm ci
 
     - name: Build
       working-directory: ./docs
@@ -77,5 +106,5 @@ jobs:
       if: github.ref == 'refs/heads/main'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/public        
+        publish_dir: ./docs/public
 

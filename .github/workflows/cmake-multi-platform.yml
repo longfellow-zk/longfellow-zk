@@ -10,8 +10,33 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      lib: ${{ steps.filter.outputs.lib }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Filter changed paths
+      id: filter
+      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      with:
+        filters: |
+          lib:
+            - 'lib/**'
+            - '.github/workflows/cmake-multi-platform.yml'
+
   build:
     name: Build on ${{ matrix.os_name }}
+    needs: changes
+    if: needs.changes.outputs.lib == 'true'
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container_image }}
 
@@ -28,7 +53,7 @@ jobs:
             os_name: "Ubuntu 24.04 GCC"
             cpp_compiler: g++
             install_command: "sudo apt-get update -y && sudo apt-get install -y g++ cmake git libssl-dev libzstd-dev libgtest-dev libbenchmark-dev zlib1g-dev"
-          - os: arm-ubuntu-24.04-16core
+          - os: ubuntu-24.04-arm
             os_name: "Ubuntu-arm 24.04"
             cpp_compiler: clang++
             install_command: "sudo apt-get update -y && sudo apt-get install -y clang cmake git libssl-dev libzstd-dev libgtest-dev libbenchmark-dev zlib1g-dev"
@@ -62,11 +87,6 @@ jobs:
           - os_name: "Debian 12"
             os: ubuntu-24.04-16core
             container_image: "debian:12"
-            cpp_compiler: clang++
-            install_command: "apt-get update -y && apt-get install -y clang cmake git libssl-dev libzstd-dev libgtest-dev libbenchmark-dev zlib1g-dev"
-          - os_name: "Debian 11"
-            os: ubuntu-24.04-16core
-            container_image: "debian:11"
             cpp_compiler: clang++
             install_command: "apt-get update -y && apt-get install -y clang cmake git libssl-dev libzstd-dev libgtest-dev libbenchmark-dev zlib1g-dev"
 
@@ -124,10 +144,10 @@ jobs:
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       env:
         BUILD_DIR: ${{ steps.strings.outputs.build-output-dir }}
-      run: cmake --build "${BUILD_DIR}" -j 16
+      run: cmake --build "${BUILD_DIR}" -j "$(nproc)"
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -j 16
+      run: ctest -j "$(nproc)"
