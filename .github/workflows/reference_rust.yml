@@ -6,22 +6,44 @@ on:
       - main
       - rust
   pull_request:
-    paths:
-      - 'docs/specs/rust/**'
-      - '.github/workflows/reference_rust.yml'
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      spec: ${{ steps.filter.outputs.spec }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            spec:
+              - 'docs/specs/rust/**'
+              - '.github/workflows/reference_rust.yml'
+
   check-and-test:
     name: Check & Test Rust Reference Spec
+    needs: changes
+    if: needs.changes.outputs.spec == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-	with:
+        with:
           persist-credentials: false
 
       - name: Ensure Rust toolchain is up to date

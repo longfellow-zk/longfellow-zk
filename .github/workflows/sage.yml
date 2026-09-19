@@ -1,5 +1,4 @@
 name: Test Sage implementation
-permissions: {}
 
 on:
   push:
@@ -11,8 +10,33 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      sage: ${{ steps.filter.outputs.sage }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Filter changed paths
+      id: filter
+      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      with:
+        filters: |
+          sage:
+            - 'docs/specs/sage/**'
+            - '.github/workflows/sage.yml'
+
   sage:
     name: Test Sage
+    needs: changes
+    if: needs.changes.outputs.sage == 'true'
     runs-on: ubuntu-latest
     container:
       image: sagemath/sagemath:10.8@sha256:e2e4747b0e1ea8753a9cb5a399314a8b2c25fcefaf69ba85b22ee075829d09ea
