@@ -230,7 +230,7 @@ In the CFRG Fiat-Shamir framework ([@I-D.irtf-cfrg-fiat-shamir#03]), challenge e
 
 For Interactive Oracle Proofs, the codec defines four decoding procedures that translate the raw byte stream into structured verifier challenges:
 
-### 1. Bounded Natural Numbers (`generate_nat` / `nat`) {#decoding-bounded-uint}
+### Bounded Natural Numbers (`generate_nat` / `nat`) {#decoding-bounded-uint}
 
 Samples a uniformly distributed integer in $[0, m - 1]$ via minimal bitmask rejection sampling:
 
@@ -264,7 +264,7 @@ impl Transcript {
 }
 ```
 
-### 2. Combinations Without Replacement (`generate_nats_wo_replacement` / `choose`) {#decoding-sample-distinct}
+### Combinations Without Replacement (`generate_nats_wo_replacement` / `choose`) {#decoding-sample-distinct}
 
 Samples $k$ distinct natural numbers uniformly from $[0, n - 1]$ without replacement (used for Ligero column query indices) using an in-place Fisher-Yates shuffle:
 
@@ -288,7 +288,7 @@ impl Transcript {
 }
 ```
 
-### 3. Field Elements and Vectors (`generate_field` / `generate_challenge`) {#decoding-field}
+### Field Elements and Vectors (`generate_field` / `generate_challenge`) {#decoding-field}
 
 * Prime Fields (e.g. NIST P-256 scalar field $\mathbb{F}_p$): Samples 32 bytes from `bytes(32)` and rejects if the integer value $\ge p$.
 * Binary Extension Fields (e.g. $\text{GF}(2^{128})$): Samples 16 bytes directly from `bytes(16)` and interprets them as the polynomial coefficients in $\text{GF}(2)[X]/(X^{128} + X^7 + X^2 + X + 1)$. Subfield elements in $\text{GF}(2^{16})$ sample 2 bytes from `bytes(2)` and map to the subfield basis.

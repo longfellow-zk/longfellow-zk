@@ -16,10 +16,55 @@ This section specifies the construction and verification method for a Ligero com
     </front>
 </reference>
 
-## Merkle trees
+## Merkle trees {#merkle-trees}
 This section describes how to construct a Merkle tree from a sequence of `n` strings, and how to verify that a given string `x` was placed at leaf `i` in a Merkle tree. These methods do not assume that `n` is a power of two. This construction is parameterized by the cryptographic hash function SHA-256 [@RFC6234].  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, when the hash function is SHA-256, then the leaf is a 32-byte string.
 
-A tree that contains `n` leaves is represented by an array of `2 * n` message digests in which the input digests are written at indicies `n..(2*n - 1)`.  The tree is constructed by iteratively hashing the concatenation of the values at indicies `2*j` and `2*j+1`, starting at `j=n-1`, and continuing until `j=1`. The root is at index 1. In this specification, the prover and verifier will already know the value of `n` when they produce or verify a Merkle tree.
+A tree that contains `n` leaves is represented by an array of `2 * n` message digests in which the input digests are written at indicies `n..2*n`.  The tree is constructed by iteratively hashing the concatenation of the values at indicies `2*j` and `2*j+1`, starting at `j=n-1`, and continuing until `j=1`. The root is at index 1. In this specification, the prover and verifier will already know the value of `n` when they produce or verify a Merkle tree.
+
+### Blinding the leaves with nonces
+
+As per folklore, a Merkle commitment does not hash a leaf's data directly, but instead includes a fresh random nonce of 32 bytes for every leaf. The leaf digest is the hash of that nonce followed by the leaf's data.
+
+```rust
+pub fn commit_merkle_heap<R, F>(
+    num_leaves: usize,
+    update_leaf_hash_fn: F,
+    rng: &mut R,
+) -> (MerkleHeap, Vec<Vec<u8>>)
+where
+    R: Rng,
+    F: Fn(usize) -> Vec<u8>,
+{
+    let mut nonces = Vec::with_capacity(num_leaves);
+    for _ in 0..num_leaves {
+        nonces.push(rng.bytes(32));
+    }
+
+    let mut leaves_digests = Vec::with_capacity(num_leaves);
+    for i in 0..num_leaves {
+        let mut data = Vec::new();
+        data.extend_from_slice(&nonces[i]);
+        data.extend_from_slice(&update_leaf_hash_fn(i));
+        leaves_digests.push(sha256_bytes(&data));
+    }
+
+    let heap = MerkleHeap::new(&leaves_digests);
+    (heap, nonces)
+}
+```
+
+The nonces are retained by the prover.  One nonce is generated per
+leaf, but only the `NREQ` nonces belonging to the opened columns are
+revealed, and those are sent as part of the proof; the nonces of the
+unopened columns are never disclosed.  A verifier recomputes the
+digest of an opened leaf in the same order, nonce first, as shown in
+the `verify_merkle` function of the Ligero verification procedure
+below.  Because the nonces are secret and uniformly random, the
+unopened leaves are computationally hidden.
+
+The functions in the remainder of this section operate on the leaf
+digests produced above, and are therefore stated without reference to
+the nonces.
 
 ### Constructing a Merkle tree from `n` digests
 
@@ -196,8 +241,13 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `NQ`: Number of quadratic constraints.
 - `NWROW`: Number of rows used to encode witnesses.
 - `NQT`: Number of row triples needed to encode the quadratic constraints.
+<<<<<<< HEAD
 - `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints (each of the `NQT` triples occupies three rows).
 - `NROW`: Total number of rows in the witness matrix, `NQW + 3` (the three additional rows are the random rows ILDT, IDOT, and IQD).
+=======
+- `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints. Each triple of quadratic constraints occupies three rows (`Qx`, `Qy`, `Qz`).
+- `NROW`: Total number of rows in the tableau matrix, `3 + NQW` (the three additional rows are the random rows `ILDT`, `IDOT`, and `IQD`).
+>>>>>>> fa4dea9 (Fixing typos and inconsistencies, rust pseudo-code)
 - `NCOL`: Total number of columns in the tableau matrix.
 
 A row of the tableau consists of
@@ -207,22 +257,22 @@ A row of the tableau consists of
 
 ### Constraints on parameters
 
-- `BLOCK < |F|` The block size must be smaller than the field size.
+- `NCOL < |F|` The block size must be smaller than the field size.
+- `NCOL >= DBLOCK + NREQ`
 - `BLOCK > NREQ` The block size must be larger than the number of columns requested.
 - `BLOCK = NREQ + WR`
-- `BLOCK >= 2 * (NREQ + WR) + (NREQ + WR) - 2`
-- `BLOCK >= 2 * (NREQ + WR) - 1`.
-- `WR >= NREQ` (and thus `WR >= NREQ`) to avoid wasting too much space.
+- `WR >= NREQ`
+- `BLOCK = (NCOL + 1) / (2 + rate)`
 
 ## Ligero commitment
-The first step of the proof procedure requires the Prover to commit to a witness vector `W`.  The witness vector is assumed to be padded with zeros at the end so that its length is an even multiple of `WR`. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix `T[][]`.
+The first step of the proof procedure requires the Prover to commit to a witness vector `W` of length `NW`.  The length `NW` need not be a multiple of `WR`; the witness occupies `NWROW = ceil(NW / WR)` rows, and any unused entries of the last such row are set to zero by the commitment procedure itself. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix `T[][]`.
 
 This tableau matrix is constructed row-by-row by applying the extend procedure to arrays that are formed from random field elements and elements copied from the witness vector. Matrix T[][] has size NROW x NCOL and has the following structure:
 
     row ILDT = 0                         : RANDOM row for low-degree test
     row IDOT = 1                         : RANDOM row for linear test
     row IQD  = 2                         : RANDOM row for quadratic test
-    row i for IW = IQD + 1 <= i < IQ    : witness rows
+    row i for IW = IQD + 1 <= i < IQ     : witness rows
     row i for IQ <= i < NROW             : quadratic rows
 
 1)  The first ILDT row is defined as
@@ -233,13 +283,14 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
 1)  The second IDOT row is defined as
 
         Z = RANDOM[DBLOCK] such that
-            sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
+            sum_{NREQ <= i < NREQ + WR} Z_i = 0
         extend(Z, DBLOCK, NCOL)
 
     by first selecting DBLOCK random field elements such that the subarray
-    from index NREQ to NREQ + WR sums to 0 and then applying extend.
+    [NREQ .. NREQ + WR] sums to 0 and then applying extend.
     The first step can be performed by selecting DBLOCK-1 random
-    field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.
+    field elements, and then setting `Z[NREQ]` to be the additive inverse of the
+    sum of the elements with `NREQ < i < NREQ + WR`.
 1)  The third IQD row is defined as 
         ZQ = RANDOM[DBLOCK]
         ZQ[NREQ .. NREQ + WR] = 0
@@ -269,8 +320,12 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     constraints on the witness values that are verified by the proof.
 
 The second step of the procedure is to compute a Merkle tree on columns
-of the tableau matrix. Specifically, the i-th leaf of the tree is defined
-to be columns DBLOCK...NCOL of the i-th row of the tableau T.
+of the tableau matrix.  Only the columns `DBLOCK..NCOL` are committed,
+so the tree has `NCOL - DBLOCK` leaves.  Specifically, the `i`-th leaf
+of the tree is the entire column `DBLOCK + i` of the tableau `T`, that
+is, the `NROW` elements `T[0][DBLOCK + i], ..., T[NROW - 1][DBLOCK + i]`
+serialized in row order, prefixed by that column's nonce and hashed as
+described in the [Merkle trees Section](#merkle-trees).
 
 Input:
 
@@ -444,9 +499,9 @@ This section specifies how a Ligero proof for a given sequence of linear constra
 
 
 ### Low-degree test
-In the low-degree test, the verifier sends a challenge vector consisting of `nwqrow = NROW - 3` field elements, `u_ldt[0..nwqrow]`. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:
+In the low-degree test, the verifier sends a challenge vector consisting of `NQW` field elements, `u_ldt[0..NQW]`. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:
 
-    y_ldt = T[ILDT][0..BLOCK] + sum_{i = 0 ... nwqrow - 1} u_ldt[i] * T[IW + i][0..BLOCK]
+    y_ldt = T[ILDT][0..BLOCK] + sum_{0 <= i < NQW} u_ldt[i] * T[IW + i][0..BLOCK]
 
 and returns the `BLOCK` elements of `y_ldt`. Notice that the random blinding row `ILDT` (row 0) is included with implicit coefficient 1, while rows 1 (`IDOT`) and 2 (`IQD`) are excluded because their polynomial degree is `DBLOCK` ($2 \cdot \text{BLOCK} - 1$) rather than `BLOCK`. The verifier applies the `extend` method to this response, and verifies consistency with the opened columns of the tableau requested at the challenge indices.
 
@@ -479,10 +534,10 @@ impl<F: Field + 'static> LigeroProver<F> {
         ts.write_bytes(statement_hash);
 
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let u_ldt = gen_uldt(ts, nwqrow);
+        let u_ldt = gen_uldt(ts, nqw);
         let alphal = gen_alphal(ts, b.len());
         let alphaq = gen_alphaq(ts, nq);
         let u_quad = gen_uquad(ts, geom.num_quad_rows);
@@ -529,9 +584,9 @@ impl<F: Field + 'static> LigeroProver<F> {
 
     fn prove_compute_y_ldt(&self, commit: &LigeroCommitResult<F>, u_ldt: &[F]) -> Vec<F> {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let mut y_ldt = commit.tableau[geom.ldt_row_idx()][0..geom.block_len].to_vec();
-        for i in 0..nwqrow {
+        for i in 0..nqw {
             axpy(
                 &mut y_ldt,
                 &commit.tableau[geom.witness_row_start() + i][0..geom.block_len],
@@ -549,16 +604,16 @@ impl<F: Field + 'static> LigeroProver<F> {
         alphaq: &[Vec<F>],
     ) -> Vec<F> {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let mut a_full = vec![F::zero(); nwqrow * geom.witnesses_per_row];
+        let mut a_full = vec![F::zero(); nqw * geom.witnesses_per_row];
         for term in a {
             a_full[term.witness_idx] += term.coeff * alphal[term.constraint_idx];
         }
 
         let nqtriples_w = geom.num_quad_rows * geom.witnesses_per_row;
-        let ax_offset = (nwqrow - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
+        let ax_offset = (nqw - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
         let ay_offset = ax_offset + nqtriples_w;
         let az_offset = ay_offset + nqtriples_w;
 

@@ -10,22 +10,22 @@
 <meta content="
        This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input  x  and a circuit  C , there exists a witness  w , such that  C(x,w)  evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero   with a verifiable computation protocol based on sumcheck for proving that  C(x,w)=0 . 
     " name="description">
-<meta content="xml2rfc 3.30.2" name="generator">
+<meta content="xml2rfc 3.34.1" name="generator">
 <meta content="draft-google-cfrg-libzk-03" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.30.2
-    Python 3.13.7
-    ConfigArgParse 1.7.1
+  xml2rfc 3.34.1
+    Python 3.14.7
+    ConfigArgParse 1.7.7
     google-i18n-address 3.1.1
-    intervaltree 3.1.0
+    intervaltree 3.2.1
     Jinja2 3.1.6
-    lxml 6.0.1
-    platformdirs 4.4.0
-    pycountry 24.6.1
-    PyYAML 6.0.2
-    requests 2.32.5
-    setuptools 80.9.0
-    wcwidth 0.2.13
+    lxml 6.1.3
+    natsort 8.4.0
+    platformdirs 4.11.8
+    pycountry 26.2.16
+    PyYAML 6.0.3
+    requests 2.34.2
+    wcwidth 0.8.3
 -->
 <link href="libzk.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -43,9 +43,9 @@
 */
 
 /* fonts */
-@import url('https://fonts.googleapis.com/css?family=Noto+Sans'); /* Sans-serif */
-@import url('https://fonts.googleapis.com/css?family=Noto+Serif'); /* Serif (print) */
-@import url('https://fonts.googleapis.com/css?family=Roboto+Mono'); /* Monospace */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
 
 :root {
   --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
@@ -350,6 +350,10 @@ table p {
   /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
      be allowed within tables more generally, it would be far better to select on a class. */
   margin: 0;
+}
+sub,
+sup {
+ white-space: nowrap;
 }
 
 /* pilcrow */
@@ -1058,6 +1062,9 @@ aside > p {
   figcaption, table caption {
     page-break-before: avoid;
   }
+  table {
+    page-break-inside: avoid;
+  }
 }
 /* Font size adjustments for print */
 @media print {
@@ -1220,7 +1227,7 @@ li > p:last-of-type:only-child {
 </tr></thead>
 <tfoot><tr>
 <td class="left">Frigo &amp; shelat</td>
-<td class="center">Expires 7 March 2027</td>
+<td class="center">Expires 25 March 2027</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1233,12 +1240,12 @@ li > p:last-of-type:only-child {
 <dd class="internet-draft">draft-google-cfrg-libzk-03</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-09-03" class="published">3 September 2026</time>
+<time datetime="2026-09-21" class="published">21 September 2026</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2027-03-07">7 March 2027</time></dd>
+<dd class="expires"><time datetime="2027-03-25">25 March 2027</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1276,7 +1283,7 @@ li > p:last-of-type:only-child {
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 7 March 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 25 March 2027.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1353,13 +1360,13 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.3.2.4.1"><a href="#section-3.4" class="auto internal xref">3.4</a>.  <a href="#name-challenge-extraction-method" class="internal xref">Challenge Extraction Methods</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4.2.1">
-                    <p id="section-toc.1-1.3.2.4.2.1.1"><a href="#section-3.4.1" class="auto internal xref">3.4.1</a>.  <a href="#name-1-bounded-natural-numbers-g" class="internal xref">1. Bounded Natural Numbers (<code>generate_nat</code> / <code>nat</code>)</a></p>
+                    <p id="section-toc.1-1.3.2.4.2.1.1"><a href="#section-3.4.1" class="auto internal xref">3.4.1</a>.  <a href="#name-bounded-natural-numbers-gen" class="internal xref">Bounded Natural Numbers (<code>generate_nat</code> / <code>nat</code>)</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4.2.2">
-                    <p id="section-toc.1-1.3.2.4.2.2.1"><a href="#section-3.4.2" class="auto internal xref">3.4.2</a>.  <a href="#name-2-combinations-without-repl" class="internal xref">2. Combinations Without Replacement (<code>generate_nats_wo_replacement</code> / <code>choose</code>)</a></p>
+                    <p id="section-toc.1-1.3.2.4.2.2.1"><a href="#section-3.4.2" class="auto internal xref">3.4.2</a>.  <a href="#name-combinations-without-replac" class="internal xref">Combinations Without Replacement (<code>generate_nats_wo_replacement</code> / <code>choose</code>)</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.4.2.3">
-                    <p id="section-toc.1-1.3.2.4.2.3.1"><a href="#section-3.4.3" class="auto internal xref">3.4.3</a>.  <a href="#name-3-field-elements-and-vector" class="internal xref">3. Field Elements and Vectors (<code>generate_field</code> / <code>generate_challenge</code>)</a></p>
+                    <p id="section-toc.1-1.3.2.4.2.3.1"><a href="#section-3.4.3" class="auto internal xref">3.4.3</a>.  <a href="#name-field-elements-and-vectors-" class="internal xref">Field Elements and Vectors (<code>generate_field</code> / <code>generate_challenge</code>)</a></p>
 </li>
                 </ul>
 </li>
@@ -1372,13 +1379,16 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-merkle-trees" class="internal xref">Merkle trees</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.1">
-                    <p id="section-toc.1-1.4.2.1.2.1.1"><a href="#section-4.1.1" class="auto internal xref">4.1.1</a>.  <a href="#name-constructing-a-merkle-tree-" class="internal xref">Constructing a Merkle tree from <code>n</code> digests</a></p>
+                    <p id="section-toc.1-1.4.2.1.2.1.1"><a href="#section-4.1.1" class="auto internal xref">4.1.1</a>.  <a href="#name-blinding-the-leaves-with-no" class="internal xref">Blinding the leaves with nonces</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.2">
-                    <p id="section-toc.1-1.4.2.1.2.2.1"><a href="#section-4.1.2" class="auto internal xref">4.1.2</a>.  <a href="#name-constructing-a-proof-of-inc" class="internal xref">Constructing a proof of inclusion</a></p>
+                    <p id="section-toc.1-1.4.2.1.2.2.1"><a href="#section-4.1.2" class="auto internal xref">4.1.2</a>.  <a href="#name-constructing-a-merkle-tree-" class="internal xref">Constructing a Merkle tree from <code>n</code> digests</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.3">
-                    <p id="section-toc.1-1.4.2.1.2.3.1"><a href="#section-4.1.3" class="auto internal xref">4.1.3</a>.  <a href="#name-verifying-a-proof-of-inclus" class="internal xref">Verifying a proof of inclusion</a></p>
+                    <p id="section-toc.1-1.4.2.1.2.3.1"><a href="#section-4.1.3" class="auto internal xref">4.1.3</a>.  <a href="#name-constructing-a-proof-of-inc" class="internal xref">Constructing a proof of inclusion</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1.2.4">
+                    <p id="section-toc.1-1.4.2.1.2.4.1"><a href="#section-4.1.4" class="auto internal xref">4.1.4</a>.  <a href="#name-verifying-a-proof-of-inclus" class="internal xref">Verifying a proof of inclusion</a></p>
 </li>
                 </ul>
 </li>
@@ -1548,10 +1558,13 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.12.2.3.1"><a href="#appendix-B.3" class="auto internal xref">B.3</a>.  <a href="#name-test-vectors-for-explicit-c" class="internal xref">Test Vectors for Explicit Circuit, Sumcheck, and Ligero</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3.2.1">
-                    <p id="section-toc.1-1.12.2.3.2.1.1"><a href="#appendix-B.3.1" class="auto internal xref">B.3.1</a>.  <a href="#name-vector-1-s-gonal-circuit-ov" class="internal xref">Vector 1: <code>s</code>-gonal Circuit over P-256 (Field ID 2)</a></p>
+                    <p id="section-toc.1-1.12.2.3.2.1.1"><a href="#appendix-B.3.1" class="auto internal xref">B.3.1</a>.  <a href="#name-randomness-used-by-these-ve" class="internal xref">Randomness used by these vectors</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3.2.2">
-                    <p id="section-toc.1-1.12.2.3.2.2.1"><a href="#appendix-B.3.2" class="auto internal xref">B.3.2</a>.  <a href="#name-vector-2-quadratic-polynomi" class="internal xref">Vector 2: Quadratic Polynomial Circuit over GF(2^128) (Field ID 5)</a></p>
+                    <p id="section-toc.1-1.12.2.3.2.2.1"><a href="#appendix-B.3.2" class="auto internal xref">B.3.2</a>.  <a href="#name-vector-1-s-gonal-circuit-ov" class="internal xref">Vector 1: <code>s</code>-gonal Circuit over P-256 (Field ID 2)</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3.2.3">
+                    <p id="section-toc.1-1.12.2.3.2.3.1"><a href="#appendix-B.3.3" class="auto internal xref">B.3.3</a>.  <a href="#name-vector-2-quadratic-polynomi" class="internal xref">Vector 2: Quadratic Polynomial Circuit over GF(2^128) (Field ID 5)</a></p>
 </li>
                 </ul>
 </li>
@@ -1910,8 +1923,8 @@ impl Transcript {
 <p id="section-3.4-2">For Interactive Oracle Proofs, the codec defines four decoding procedures that translate the raw byte stream into structured verifier challenges:<a href="#section-3.4-2" class="pilcrow">¶</a></p>
 <div id="decoding-bounded-uint">
 <section id="section-3.4.1">
-          <h4 id="name-1-bounded-natural-numbers-g">
-<a href="#section-3.4.1" class="section-number selfRef">3.4.1. </a><a href="#name-1-bounded-natural-numbers-g" class="section-name selfRef">1. Bounded Natural Numbers (<code>generate_nat</code> / <code>nat</code>)</a>
+          <h4 id="name-bounded-natural-numbers-gen">
+<a href="#section-3.4.1" class="section-number selfRef">3.4.1. </a><a href="#name-bounded-natural-numbers-gen" class="section-name selfRef">Bounded Natural Numbers (<code>generate_nat</code> / <code>nat</code>)</a>
           </h4>
 <p id="section-3.4.1-1">Samples a uniformly distributed integer in <code>[0, m - 1]</code> via minimal bitmask rejection sampling:<a href="#section-3.4.1-1" class="pilcrow">¶</a></p>
 <div class="lang-rust sourcecode" id="section-3.4.1-2">
@@ -1948,8 +1961,8 @@ impl Transcript {
 </div>
 <div id="decoding-sample-distinct">
 <section id="section-3.4.2">
-          <h4 id="name-2-combinations-without-repl">
-<a href="#section-3.4.2" class="section-number selfRef">3.4.2. </a><a href="#name-2-combinations-without-repl" class="section-name selfRef">2. Combinations Without Replacement (<code>generate_nats_wo_replacement</code> / <code>choose</code>)</a>
+          <h4 id="name-combinations-without-replac">
+<a href="#section-3.4.2" class="section-number selfRef">3.4.2. </a><a href="#name-combinations-without-replac" class="section-name selfRef">Combinations Without Replacement (<code>generate_nats_wo_replacement</code> / <code>choose</code>)</a>
           </h4>
 <p id="section-3.4.2-1">Samples <code>k</code> distinct natural numbers uniformly from <code>[0, n - 1]</code> without replacement (used for Ligero column query indices) using an in-place Fisher-Yates shuffle:<a href="#section-3.4.2-1" class="pilcrow">¶</a></p>
 <div class="lang-rust sourcecode" id="section-3.4.2-2">
@@ -1976,8 +1989,8 @@ impl Transcript {
 </div>
 <div id="decoding-field">
 <section id="section-3.4.3">
-          <h4 id="name-3-field-elements-and-vector">
-<a href="#section-3.4.3" class="section-number selfRef">3.4.3. </a><a href="#name-3-field-elements-and-vector" class="section-name selfRef">3. Field Elements and Vectors (<code>generate_field</code> / <code>generate_challenge</code>)</a>
+          <h4 id="name-field-elements-and-vectors-">
+<a href="#section-3.4.3" class="section-number selfRef">3.4.3. </a><a href="#name-field-elements-and-vectors-" class="section-name selfRef">Field Elements and Vectors (<code>generate_field</code> / <code>generate_challenge</code>)</a>
           </h4>
 <ul class="compact">
 <li class="compact" id="section-3.4.3-1.1">Prime Fields (e.g. NIST P-256 scalar field <code>\mathbb{F}_p</code>): Samples 32 bytes from <code>bytes(32)</code> and rejects if the integer value <code>\ge p</code>.<a href="#section-3.4.3-1.1" class="pilcrow">¶</a>
@@ -2021,13 +2034,60 @@ impl Rng for Transcript {
 <a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-merkle-trees" class="section-name selfRef">Merkle trees</a>
         </h3>
 <p id="section-4.1-1">This section describes how to construct a Merkle tree from a sequence of <code>n</code> strings, and how to verify that a given string <code>x</code> was placed at leaf <code>i</code> in a Merkle tree. These methods do not assume that <code>n</code> is a power of two. This construction is parameterized by the cryptographic hash function SHA-256 <span>[<a href="#RFC6234" class="cite xref">RFC6234</a>]</span>.  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, when the hash function is SHA-256, then the leaf is a 32-byte string.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
-<p id="section-4.1-2">A tree that contains <code>n</code> leaves is represented by an array of <code>2 * n</code> message digests in which the input digests are written at indicies <code>n..(2*n - 1)</code>.  The tree is constructed by iteratively hashing the concatenation of the values at indicies <code>2*j</code> and <code>2*j+1</code>, starting at <code>j=n-1</code>, and continuing until <code>j=1</code>. The root is at index 1. In this specification, the prover and verifier will already know the value of <code>n</code> when they produce or verify a Merkle tree.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
-<div id="constructing-a-merkle-tree-from-n-digests">
+<p id="section-4.1-2">A tree that contains <code>n</code> leaves is represented by an array of <code>2 * n</code> message digests in which the input digests are written at indicies <code>n..2*n</code>.  The tree is constructed by iteratively hashing the concatenation of the values at indicies <code>2*j</code> and <code>2*j+1</code>, starting at <code>j=n-1</code>, and continuing until <code>j=1</code>. The root is at index 1. In this specification, the prover and verifier will already know the value of <code>n</code> when they produce or verify a Merkle tree.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<div id="blinding-the-leaves-with-nonces">
 <section id="section-4.1.1">
-          <h4 id="name-constructing-a-merkle-tree-">
-<a href="#section-4.1.1" class="section-number selfRef">4.1.1. </a><a href="#name-constructing-a-merkle-tree-" class="section-name selfRef">Constructing a Merkle tree from <code>n</code> digests</a>
+          <h4 id="name-blinding-the-leaves-with-no">
+<a href="#section-4.1.1" class="section-number selfRef">4.1.1. </a><a href="#name-blinding-the-leaves-with-no" class="section-name selfRef">Blinding the leaves with nonces</a>
           </h4>
-<div class="lang-rust sourcecode" id="section-4.1.1-1">
+<p id="section-4.1.1-1">As per folklore, a Merkle commitment does not hash a leaf's data directly, but instead includes a fresh random nonce of 32 bytes for every leaf. The leaf digest is the hash of that nonce followed by the leaf's data.<a href="#section-4.1.1-1" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-4.1.1-2">
+<pre>pub fn commit_merkle_heap&lt;R, F&gt;(
+    num_leaves: usize,
+    update_leaf_hash_fn: F,
+    rng: &amp;mut R,
+) -&gt; (MerkleHeap, Vec&lt;Vec&lt;u8&gt;&gt;)
+where
+    R: Rng,
+    F: Fn(usize) -&gt; Vec&lt;u8&gt;,
+{
+    let mut nonces = Vec::with_capacity(num_leaves);
+    for _ in 0..num_leaves {
+        nonces.push(rng.bytes(32));
+    }
+
+    let mut leaves_digests = Vec::with_capacity(num_leaves);
+    for i in 0..num_leaves {
+        let mut data = Vec::new();
+        data.extend_from_slice(&amp;nonces[i]);
+        data.extend_from_slice(&amp;update_leaf_hash_fn(i));
+        leaves_digests.push(sha256_bytes(&amp;data));
+    }
+
+    let heap = MerkleHeap::new(&amp;leaves_digests);
+    (heap, nonces)
+}
+</pre><a href="#section-4.1.1-2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.1.1-3">The nonces are retained by the prover.  One nonce is generated per
+leaf, but only the <code>NREQ</code> nonces belonging to the opened columns are
+revealed, and those are sent as part of the proof; the nonces of the
+unopened columns are never disclosed.  A verifier recomputes the
+digest of an opened leaf in the same order, nonce first, as shown in
+the <code>verify_merkle</code> function of the Ligero verification procedure
+below.  Because the nonces are secret and uniformly random, the
+unopened leaves are computationally hidden.<a href="#section-4.1.1-3" class="pilcrow">¶</a></p>
+<p id="section-4.1.1-4">The functions in the remainder of this section operate on the leaf
+digests produced above, and are therefore stated without reference to
+the nonces.<a href="#section-4.1.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="constructing-a-merkle-tree-from-n-digests">
+<section id="section-4.1.2">
+          <h4 id="name-constructing-a-merkle-tree-">
+<a href="#section-4.1.2" class="section-number selfRef">4.1.2. </a><a href="#name-constructing-a-merkle-tree-" class="section-name selfRef">Constructing a Merkle tree from <code>n</code> digests</a>
+          </h4>
+<div class="lang-rust sourcecode" id="section-4.1.2-1">
 <pre>pub fn sha256_bytes(data: &amp;[u8]) -&gt; Vec&lt;u8&gt; {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -2060,19 +2120,19 @@ impl MerkleHeap {
         }
     }
 }
-</pre><a href="#section-4.1.1-1" class="pilcrow">¶</a>
+</pre><a href="#section-4.1.2-1" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
 <div id="constructing-a-proof-of-inclusion">
-<section id="section-4.1.2">
+<section id="section-4.1.3">
           <h4 id="name-constructing-a-proof-of-inc">
-<a href="#section-4.1.2" class="section-number selfRef">4.1.2. </a><a href="#name-constructing-a-proof-of-inc" class="section-name selfRef">Constructing a proof of inclusion</a>
+<a href="#section-4.1.3" class="section-number selfRef">4.1.3. </a><a href="#name-constructing-a-proof-of-inc" class="section-name selfRef">Constructing a proof of inclusion</a>
           </h4>
-<p id="section-4.1.2-1">This section describes how to construct a Merkle proof that <code>k</code> input digests at indicies <code>i[0],...,i[k-1]</code> belong to the tree.  The simplest way to generate such a proof is to produce independent proofs for each of the <code>k</code> leaves. However, this turns out to be wasteful in that internal nodes may be included multiple times along different paths, and some nodes may not need to be included at all because they are implied by nodes that have already been included.<a href="#section-4.1.2-1" class="pilcrow">¶</a></p>
-<p id="section-4.1.2-2">To address these inefficiencies, this section explains how to produce a batch proof of inclusion for <code>k</code> leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.<a href="#section-4.1.2-2" class="pilcrow">¶</a></p>
-<p id="section-4.1.2-3">It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the <code>requested_leaves</code> array.<a href="#section-4.1.2-3" class="pilcrow">¶</a></p>
-<div class="lang-rust sourcecode" id="section-4.1.2-4">
+<p id="section-4.1.3-1">This section describes how to construct a Merkle proof that <code>k</code> input digests at indicies <code>i[0],...,i[k-1]</code> belong to the tree.  The simplest way to generate such a proof is to produce independent proofs for each of the <code>k</code> leaves. However, this turns out to be wasteful in that internal nodes may be included multiple times along different paths, and some nodes may not need to be included at all because they are implied by nodes that have already been included.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.1.3-2">To address these inefficiencies, this section explains how to produce a batch proof of inclusion for <code>k</code> leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.<a href="#section-4.1.3-2" class="pilcrow">¶</a></p>
+<p id="section-4.1.3-3">It is important in this formulation to treat the input digests as a sequence, i.e. with a given order. Both the prover and verifier of this batch proof must use the same order of the <code>requested_leaves</code> array.<a href="#section-4.1.3-3" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-4.1.3-4">
 <pre>pub fn open_merkle_heap(
     mh: &amp;MerkleHeap,
     leaf_indices: &amp;[usize],
@@ -2106,17 +2166,17 @@ impl MerkleHeap {
     }
     Ok(path)
 }
-</pre><a href="#section-4.1.2-4" class="pilcrow">¶</a>
+</pre><a href="#section-4.1.3-4" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
 <div id="verifying-a-proof-of-inclusion">
-<section id="section-4.1.3">
+<section id="section-4.1.4">
           <h4 id="name-verifying-a-proof-of-inclus">
-<a href="#section-4.1.3" class="section-number selfRef">4.1.3. </a><a href="#name-verifying-a-proof-of-inclus" class="section-name selfRef">Verifying a proof of inclusion</a>
+<a href="#section-4.1.4" class="section-number selfRef">4.1.4. </a><a href="#name-verifying-a-proof-of-inclus" class="section-name selfRef">Verifying a proof of inclusion</a>
           </h4>
-<p id="section-4.1.3-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests <code>s[0], ..., s[k-1]</code> at corresponding indices <code>i[0], ..., i[k-1]</code>."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indices[]</code> array does not contain duplicates.<a href="#section-4.1.3-1" class="pilcrow">¶</a></p>
-<div class="breakable lang-rust sourcecode" id="section-4.1.3-2">
+<p id="section-4.1.4-1">This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment <code>root</code> defines an <code>n</code>-leaf Merkle tree that contains <code>k</code> digests <code>s[0], ..., s[k-1]</code> at corresponding indices <code>i[0], ..., i[k-1]</code>."  The strategy of this verification procedure is to deduce which nodes are needed along the <code>k</code> verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the <code>root</code> digest. As an optimization, the <code>defined[]</code> array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of <code>k=0</code> digests is defined to fail. It is assumed that the <code>indices[]</code> array does not contain duplicates.<a href="#section-4.1.4-1" class="pilcrow">¶</a></p>
+<div class="breakable lang-rust sourcecode" id="section-4.1.4-2">
 <pre>pub fn verify_merkle_proof&lt;F&gt;(
     n: usize,
     root: &amp;[u8],
@@ -2191,7 +2251,7 @@ where
         Err("Merkle root was not computed")
     }
 }
-</pre><a href="#section-4.1.3-2" class="pilcrow">¶</a>
+</pre><a href="#section-4.1.4-2" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -2241,10 +2301,10 @@ where
             <code>NQT</code>: Number of row triples needed to encode the quadratic constraints.<a href="#section-4.2-2.12" class="pilcrow">¶</a>
 </li>
           <li class="compact" id="section-4.2-2.13">
-            <code>NQW</code>: <code>NWROW + NQT</code>, rows needed to encode witnesses and quadratic constraints.<a href="#section-4.2-2.13" class="pilcrow">¶</a>
+            <code>NQW</code>: <code>NWROW + 3 * NQT</code>, rows needed to encode witnesses and quadratic constraints. Each triple of quadratic constraints occupies three rows (<code>Qx</code>, <code>Qy</code>, <code>Qz</code>).<a href="#section-4.2-2.13" class="pilcrow">¶</a>
 </li>
           <li class="compact" id="section-4.2-2.14">
-            <code>NROW</code>: Total number of rows in the witness matrix, <code>3 + NQW + 3*NQT</code><a href="#section-4.2-2.14" class="pilcrow">¶</a>
+            <code>NROW</code>: Total number of rows in the tableau matrix, <code>3 + NQW</code> (the three additional rows are the random rows <code>ILDT</code>, <code>IDOT</code>, and <code>IQD</code>).<a href="#section-4.2-2.14" class="pilcrow">¶</a>
 </li>
           <li class="compact" id="section-4.2-2.15">
             <code>NCOL</code>: Total number of columns in the tableau matrix.<a href="#section-4.2-2.15" class="pilcrow">¶</a>
@@ -2260,22 +2320,22 @@ where
           </h4>
 <ul class="compact">
 <li class="compact" id="section-4.2.1-1.1">
-              <code>BLOCK &lt; |F|</code> The block size must be smaller than the field size.<a href="#section-4.2.1-1.1" class="pilcrow">¶</a>
+              <code>NCOL &lt; |F|</code> The block size must be smaller than the field size.<a href="#section-4.2.1-1.1" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="section-4.2.1-1.2">
-              <code>BLOCK &gt; NREQ</code> The block size must be larger than the number of columns requested.<a href="#section-4.2.1-1.2" class="pilcrow">¶</a>
+              <code>NCOL &gt;= DBLOCK + NREQ</code><a href="#section-4.2.1-1.2" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="section-4.2.1-1.3">
-              <code>BLOCK = NREQ + WR</code><a href="#section-4.2.1-1.3" class="pilcrow">¶</a>
+              <code>BLOCK &gt; NREQ</code> The block size must be larger than the number of columns requested.<a href="#section-4.2.1-1.3" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="section-4.2.1-1.4">
-              <code>BLOCK &gt;= 2 * (NREQ + WR) + (NREQ + WR) - 2</code><a href="#section-4.2.1-1.4" class="pilcrow">¶</a>
+              <code>BLOCK = NREQ + WR</code><a href="#section-4.2.1-1.4" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="section-4.2.1-1.5">
-              <code>BLOCK &gt;= 2 * (NREQ + WR) - 1</code>.<a href="#section-4.2.1-1.5" class="pilcrow">¶</a>
+              <code>WR &gt;= NREQ</code><a href="#section-4.2.1-1.5" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="section-4.2.1-1.6">
-              <code>WR &gt;= NREQ</code> (and thus <code>WR &gt;= NREQ</code>) to avoid wasting too much space.<a href="#section-4.2.1-1.6" class="pilcrow">¶</a>
+              <code>BLOCK = (NCOL + 1) / (2 + rate)</code><a href="#section-4.2.1-1.6" class="pilcrow">¶</a>
 </li>
           </ul>
 </section>
@@ -2287,13 +2347,13 @@ where
         <h3 id="name-ligero-commitment">
 <a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-ligero-commitment" class="section-name selfRef">Ligero commitment</a>
         </h3>
-<p id="section-4.3-1">The first step of the proof procedure requires the Prover to commit to a witness vector <code>W</code>.  The witness vector is assumed to be padded with zeros at the end so that its length is an even multiple of <code>WR</code>. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix <code>T[][]</code>.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.3-1">The first step of the proof procedure requires the Prover to commit to a witness vector <code>W</code> of length <code>NW</code>.  The length <code>NW</code> need not be a multiple of <code>WR</code>; the witness occupies <code>NWROW = ceil(NW / WR)</code> rows, and any unused entries of the last such row are set to zero by the commitment procedure itself. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix <code>T[][]</code>.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
 <p id="section-4.3-2">This tableau matrix is constructed row-by-row by applying the extend procedure to arrays that are formed from random field elements and elements copied from the witness vector. Matrix T[][] has size NROW x NCOL and has the following structure:<a href="#section-4.3-2" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-3">
 <pre>row ILDT = 0                         : RANDOM row for low-degree test
 row IDOT = 1                         : RANDOM row for linear test
 row IQD  = 2                         : RANDOM row for quadratic test
-row i for IW = IQD + 1 &lt;= i &lt; IQ    : witness rows
+row i for IW = IQD + 1 &lt;= i &lt; IQ     : witness rows
 row i for IQ &lt;= i &lt; NROW             : quadratic rows
 </pre><a href="#section-4.3-3" class="pilcrow">¶</a>
 </div>
@@ -2313,21 +2373,22 @@ row i for IQ &lt;= i &lt; NROW             : quadratic rows
             <p id="section-4.3-4.2.1">The second IDOT row is defined as<a href="#section-4.3-4.2.1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.3-4.2.2">
 <pre>Z = RANDOM[DBLOCK] such that
-    sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
+    sum_{NREQ &lt;= i &lt; NREQ + WR} Z_i = 0
 extend(Z, DBLOCK, NCOL)
 </pre><a href="#section-4.3-4.2.2" class="pilcrow">¶</a>
 </div>
 <p id="section-4.3-4.2.3">by first selecting DBLOCK random field elements such that the subarray
-from index NREQ to NREQ + WR sums to 0 and then applying extend.
+[NREQ .. NREQ + WR] sums to 0 and then applying extend.
 The first step can be performed by selecting DBLOCK-1 random
-field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.<a href="#section-4.3-4.2.3" class="pilcrow">¶</a></p>
+field elements, and then setting <code>Z[NREQ]</code> to be the additive inverse of the
+sum of the elements with <code>NREQ &lt; i &lt; NREQ + WR</code>.<a href="#section-4.3-4.2.3" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 <dt>3)</dt>
 <dd id="section-4.3-4.3">
             <p id="section-4.3-4.3.1">The third IQD row is defined as
     ZQ = RANDOM[DBLOCK]
-    ZQ[NREQ ... NREQ + WR - 1] = 0
+    ZQ[NREQ .. NREQ + WR] = 0
     extend(ZQ, DBLOCK, NCOL)
 by first selecting DBLOCK random field elements, and then setting the
 portion coresponding to the witness values to 0 and then applying extend.<a href="#section-4.3-4.3.1" class="pilcrow">¶</a></p>
@@ -2364,8 +2425,12 @@ constraints on the witness values that are verified by the proof.<a href="#secti
         <dd class="break"></dd>
 </dl>
 <p id="section-4.3-5">The second step of the procedure is to compute a Merkle tree on columns
-of the tableau matrix. Specifically, the i-th leaf of the tree is defined
-to be columns DBLOCK...NCOL of the i-th row of the tableau T.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
+of the tableau matrix.  Only the columns <code>DBLOCK..NCOL</code> are committed,
+so the tree has <code>NCOL - DBLOCK</code> leaves.  Specifically, the <code>i</code>-th leaf
+of the tree is the entire column <code>DBLOCK + i</code> of the tableau <code>T</code>, that
+is, the <code>NROW</code> elements <code>T[0][DBLOCK + i], ..., T[NROW - 1][DBLOCK + i]</code>
+serialized in row order, prefixed by that column's nonce and hashed as
+described in the <a href="#merkle-trees">Merkle trees Section</a>.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
 <p id="section-4.3-6">Input:<a href="#section-4.3-6" class="pilcrow">¶</a></p>
 <ul class="compact">
 <li class="compact" id="section-4.3-7.1">The witness vector <code>W</code>.<a href="#section-4.3-7.1" class="pilcrow">¶</a>
@@ -2549,9 +2614,9 @@ impl&lt;F: Field + 'static&gt; LigeroProver&lt;F&gt; {
           <h4 id="name-low-degree-test">
 <a href="#section-4.4.1" class="section-number selfRef">4.4.1. </a><a href="#name-low-degree-test" class="section-name selfRef">Low-degree test</a>
           </h4>
-<p id="section-4.4.1-1">In the low-degree test, the verifier sends a challenge vector consisting of <code>nwqrow = NROW - 3</code> field elements, <code>u_ldt[0..nwqrow]</code>. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:<a href="#section-4.4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.4.1-1">In the low-degree test, the verifier sends a challenge vector consisting of <code>NQW</code> field elements, <code>u_ldt[0..NQW]</code>. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:<a href="#section-4.4.1-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-4.4.1-2">
-<pre>y_ldt = T[ILDT][0..BLOCK] + sum_{i = 0 ... nwqrow - 1} u_ldt[i] * T[IW + i][0..BLOCK]
+<pre>y_ldt = T[ILDT][0..BLOCK] + sum_{0 &lt;= i &lt; NQW} u_ldt[i] * T[IW + i][0..BLOCK]
 </pre><a href="#section-4.4.1-2" class="pilcrow">¶</a>
 </div>
 <p id="section-4.4.1-3">and returns the <code>BLOCK</code> elements of <code>y_ldt</code>. Notice that the random blinding row <code>ILDT</code> (row 0) is included with implicit coefficient 1, while rows 1 (<code>IDOT</code>) and 2 (<code>IQD</code>) are excluded because their polynomial degree is <code>DBLOCK</code> (<code>2 \cdot \text{BLOCK} - 1</code>) rather than <code>BLOCK</code>. The verifier applies the <code>extend</code> method to this response, and verifies consistency with the opened columns of the tableau requested at the challenge indices.<a href="#section-4.4.1-3" class="pilcrow">¶</a></p>
@@ -2596,10 +2661,10 @@ impl&lt;F: Field + 'static&gt; LigeroProver&lt;F&gt; {
         ts.write_bytes(statement_hash);
 
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let u_ldt = gen_uldt(ts, nwqrow);
+        let u_ldt = gen_uldt(ts, nqw);
         let alphal = gen_alphal(ts, b.len());
         let alphaq = gen_alphaq(ts, nq);
         let u_quad = gen_uquad(ts, geom.num_quad_rows);
@@ -2646,9 +2711,9 @@ impl&lt;F: Field + 'static&gt; LigeroProver&lt;F&gt; {
 
     fn prove_compute_y_ldt(&amp;self, commit: &amp;LigeroCommitResult&lt;F&gt;, u_ldt: &amp;[F]) -&gt; Vec&lt;F&gt; {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let mut y_ldt = commit.tableau[geom.ldt_row_idx()][0..geom.block_len].to_vec();
-        for i in 0..nwqrow {
+        for i in 0..nqw {
             axpy(
                 &amp;mut y_ldt,
                 &amp;commit.tableau[geom.witness_row_start() + i][0..geom.block_len],
@@ -2666,16 +2731,16 @@ impl&lt;F: Field + 'static&gt; LigeroProver&lt;F&gt; {
         alphaq: &amp;[Vec&lt;F&gt;],
     ) -&gt; Vec&lt;F&gt; {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let mut a_full = vec![F::zero(); nwqrow * geom.witnesses_per_row];
+        let mut a_full = vec![F::zero(); nqw * geom.witnesses_per_row];
         for term in a {
             a_full[term.witness_idx] += term.coeff * alphal[term.constraint_idx];
         }
 
         let nqtriples_w = geom.num_quad_rows * geom.witnesses_per_row;
-        let ax_offset = (nwqrow - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
+        let ax_offset = (nqw - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
         let ay_offset = ax_offset + nqtriples_w;
         let az_offset = ay_offset + nqtriples_w;
 
@@ -3531,7 +3596,7 @@ After several rounds of communication, the function being summed is
 replaced with a constant, and both output wire arrays are replaced with
 two new claim values.
 Concretely, the new claims will be <code>bind(V[j + 1], G'[0])</code> and <code>bind(V[j
-+ 1], G'[0])</code>, where <code>V[j + 1]</code> is the input wires of layer j, and
++ 1], G'[1])</code>, where <code>V[j + 1]</code> is the input wires of layer j, and
 <code>G'[0]</code> and <code>G'[1]</code> are a fresh set of verifier challenges, chosen at
 each round of the sumcheck protocol.
 These two claim values are encrypted with a one-time pad and sent to the
@@ -3959,18 +4024,31 @@ pub fn symbolic_sumcheck_verifier_core&lt;F: Field + 'static&gt;(
       <h2 id="name-serializing-objects">
 <a href="#section-7" class="section-number selfRef">7. </a><a href="#name-serializing-objects" class="section-name selfRef">Serializing objects</a>
       </h2>
-<p id="section-7-1">This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:<a href="#section-7-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7-2.1">
-          <code>write_size(n)</code>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.<a href="#section-7-2.1" class="pilcrow">¶</a>
-</li>
-        <li class="compact" id="section-7-2.2">
-          <code>write_array(arr)</code>: A variable-sized array is represented as <code>type array[]</code> and serialized by first writing its length as a size element, and then serializing each element of the array in order.<a href="#section-7-2.2" class="pilcrow">¶</a>
-</li>
-        <li class="compact" id="section-7-2.3">
-          <code>write_fixed_array(arr)</code>: When the length of the array is explicitly known to be <code>n</code>, it is specified as <code>type array[n]</code> and in this case, the array length is not written first.<a href="#section-7-2.3" class="pilcrow">¶</a>
-</li>
-      </ul>
+<p id="section-7-1">This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  As in the preceding sections, the procedures are given as excerpts from the reference implementation.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-7-2">A size, meaning either the length of an array or an index into one, is serialized as exactly four bytes in little endian order:<a href="#section-7-2" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-7-3">
+<pre>/// Serializes a size as exactly 4 bytes.
+pub fn write_size_4bytes&lt;W: std::io::Write&gt;(writer: &amp;mut W, val: usize) -&gt; std::io::Result&lt;()&gt; {
+    writer.write_all(&amp;(val as u32).to_le_bytes())
+}
+
+/// Reads a size written by `write_size_4bytes`.
+pub fn read_size_4bytes&lt;R: Read&gt;(reader: &amp;mut R) -&gt; std::io::Result&lt;usize&gt; {
+    let mut buf = [0u8; 4];
+    reader.read_exact(&amp;mut buf)?;
+    let val = u32::from_le_bytes(buf);
+    Ok(val as usize)
+}
+</pre><a href="#section-7-3" class="pilcrow">¶</a>
+</div>
+<p id="section-7-4">Almost every array in a proof has a length that both parties compute
+from the circuit and from the agreed parameters, and such an array is
+serialized as its elements in order, with no length prefix.  The two
+exceptions are the runs of the opened columns and the Merkle path; both
+are preceded by a size, and both are described below.<a href="#section-7-4" class="pilcrow">¶</a></p>
+<p id="section-7-5">A digest is serialized as the <code>HASH_LEN</code> bytes produced by the hash
+function <code>H</code> of the chosen profile; for SHA-256, <code>HASH_LEN</code> is 32.  The
+Merkle column blinding nonces are also <code>HASH_LEN</code> bytes each.<a href="#section-7-5" class="pilcrow">¶</a></p>
 <div id="serializing-structs">
 <section id="section-7.1">
         <h3 id="name-serializing-structs">
@@ -3986,7 +4064,7 @@ pub fn symbolic_sumcheck_verifier_core&lt;F: Field + 'static&gt;(
         </h3>
 <p id="section-7.2-1">This section describes a method to serialize field elements, particularly when the field structure allows efficient encoding for elements of subfields.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
 <p id="section-7.2-2">Before a field element can be serialized, the context must specify the finite field. In most cases, the Circuit structure will specify the finite field, and all other aspects of the protocol will be defined by this field.<a href="#section-7.2-2" class="pilcrow">¶</a></p>
-<p id="section-7.2-3">A finite field or <code>FieldID</code> is specified using a variable-length encoding. Common finite fields have been assigned special 1-byte codes. An arbitrary prime-order finite field can be specified using the special <code>0xF_</code> byte followed by a variable number of bytes to specify the prime in little-endian order. For example, the 3 byte sequence <code>f11001</code> specifies F<sub>257</sub>. Similarly, a quadratic extension using the polynomial x^2 + 1 can be specified using the <code>0xE_</code> designators.<a href="#section-7.2-3" class="pilcrow">¶</a></p>
+<p id="section-7.2-3">A finite field or <code>FieldID</code> is specified using a variable-length encoding. Common finite fields have been assigned special 1-byte codes. An arbitrary prime-order finite field can be specified using the special <code>0xF_</code> byte followed by a variable number of bytes to specify the prime in little-endian order. For example, the 3 byte sequence <code>f10101</code> specifies F<sub>257</sub>. Similarly, a quadratic extension using the polynomial x^2 + 1 can be specified using the <code>0xE_</code> designators.<a href="#section-7.2-3" class="pilcrow">¶</a></p>
 <span id="name-finite-field-identifiers"></span><table class="center" id="table-1">
           <caption>
 <a href="#table-1" class="selfRef">Table 1</a>:
@@ -4060,11 +4138,17 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
 <a href="#section-7.2.1" class="section-number selfRef">7.2.1. </a><a href="#name-serializing-a-single-field-" class="section-name selfRef">Serializing a single field element</a>
           </h4>
 <p id="section-7.2.1-1">Unless specified otherwise, a field element, referred to as an <code>Elt</code>, is serialized to bytes in little-endian order. For example, a 256-bit element of the finite field F<sub>p256</sub> is serialized into 32-bytes starting with the least-significant byte.<a href="#section-7.2.1-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7.2.1-2.1">
-              <code>write_elt(e, F)</code>: produces a byte encoding of a field element e in field F.<a href="#section-7.2.1-2.1" class="pilcrow">¶</a>
-</li>
-          </ul>
+<p id="section-7.2.1-2">An element of field <code>F</code> is written as <code>F::to_bytes()</code>, which always
+produces <code>F::serialized_size()</code> bytes, and is read back as follows:<a href="#section-7.2.1-2" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-7.2.1-3">
+<pre>pub fn read_elt_field&lt;F: Field, R: Read&gt;(reader: &amp;mut R) -&gt; std::io::Result&lt;F&gt; {
+    let mut buf = vec![0u8; F::serialized_size()];
+    reader.read_exact(&amp;mut buf)?;
+    F::from_bytes(&amp;buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
+}
+</pre><a href="#section-7.2.1-3" class="pilcrow">¶</a>
+</div>
 </section>
 </div>
 <div id="serializing-an-element-of-a-subfield">
@@ -4073,11 +4157,21 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
 <a href="#section-7.2.2" class="section-number selfRef">7.2.2. </a><a href="#name-serializing-an-element-of-a" class="section-name selfRef">Serializing an element of a subfield</a>
           </h4>
 <p id="section-7.2.2-1">In some cases, when both Prover and Verifier can explicitly conclude that a field element belongs to a smaller subfield, then both parties can use a more efficient sub-field serialization method.   This optimization can be used when the larger field <code>F</code> is a field extension of a smaller field, and both parties can conclude that the serialized element belongs to the smaller subfield.<a href="#section-7.2.2-1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="section-7.2.2-2.1">
-              <code>write_subfield(Elt e, F2, F1)</code>: produce a byte encoding of a field element e that belongs to a subfield F2 of field F1.<a href="#section-7.2.2-2.1" class="pilcrow">¶</a>
-</li>
-          </ul>
+<p id="section-7.2.2-2">Such an element is written as <code>sf.to_subfield_bytes()</code>, which produces
+<code>sf.subfield_serialized_size()</code> bytes, and is read back as follows:<a href="#section-7.2.2-2" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-7.2.2-3">
+<pre>pub fn read_subfield_elt&lt;F: Field + 'static, R: Read&gt;(
+    reader: &amp;mut R,
+    sf: &amp;F::Subfield,
+) -&gt; std::io::Result&lt;F&gt; {
+    let size = sf.subfield_serialized_size();
+    let mut buf = vec![0u8; size];
+    reader.read_exact(&amp;mut buf)?;
+    sf.from_subfield_bytes(&amp;buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
+}
+</pre><a href="#section-7.2.2-3" class="pilcrow">¶</a>
+</div>
 </section>
 </div>
 </section>
@@ -4087,20 +4181,39 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
         <h3 id="name-serializing-a-sumcheck-tran">
 <a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-serializing-a-sumcheck-tran" class="section-name selfRef">Serializing a Sumcheck Transcript</a>
         </h3>
-<div class="alignLeft art-text artwork" id="section-7.3-1">
-<pre>struct {
-        PaddedTranscriptLayer layers[];  // NL layers
-} PaddedTranscript;
-
-struct {
-        Elt wires[];  // array of 2 * log_w Elts that store the
-                // evaluations of deg-2 polynomial at 0, 2
-        Elt wc0;
-        Elt wc1;
-} PaddedTranscriptLayer;
-</pre><a href="#section-7.3-1" class="pilcrow">¶</a>
+<p id="section-7.3-1">The padded sumcheck transcript is the array of <code>SumcheckLayerProof</code>
+values produced by <code>sumcheck_prove</code>, one per circuit layer, written in
+layer order:<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-7.3-2">
+<pre>pub fn write_sumcheck_proof&lt;F: Field, W: Write&gt;(
+    io: &amp;mut W,
+    sumcheck_proof: &amp;[SumcheckLayerProof&lt;F&gt;],
+) -&gt; std::io::Result&lt;()&gt; {
+    for ly in sumcheck_proof {
+        for r in 0..ly.hp[0].len() {
+            io.write_all(&amp;ly.hp[0][r].evals[0].to_bytes())?;
+            io.write_all(&amp;ly.hp[1][r].evals[0].to_bytes())?;
+            io.write_all(&amp;ly.hp[0][r].evals[1].to_bytes())?;
+            io.write_all(&amp;ly.hp[1][r].evals[1].to_bytes())?;
+        }
+        io.write_all(&amp;ly.claims[0].to_bytes())?;
+        io.write_all(&amp;ly.claims[1].to_bytes())?;
+    }
+    Ok(())
+}
+</pre><a href="#section-7.3-2" class="pilcrow">¶</a>
 </div>
-<p id="section-7.3-2">The padded transcript incorporates the optimization in which the eval at 1 is omitted and reconstructed from the expected value of the previous challenge.<a href="#section-7.3-2" class="pilcrow">¶</a></p>
+<p id="section-7.3-3">Thus each layer contributes <code>4 * log_w</code> field elements followed by the
+two padded claims, for a total of <code>4 * log_w + 2</code> elements.  Within a
+round, the four elements are the evaluations of the left and right
+polynomials at the two points <code>P0</code> and <code>P2</code>, in the order <code>l(P0)</code>,
+<code>r(P0)</code>, <code>l(P2)</code>, <code>r(P2)</code>.  The padded transcript incorporates the
+optimization in which the eval at 1 is omitted and reconstructed from
+the expected value of the previous challenge.<a href="#section-7.3-3" class="pilcrow">¶</a></p>
+<p id="section-7.3-4">Nothing in this structure is length-prefixed: the number of layers and
+the value of <code>log_w</code> for each layer are given by the circuit, which is
+why the corresponding reader, <code>read_sumcheck_proof</code>, takes the circuit
+as an argument.<a href="#section-7.3-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="serializing-a-ligero-proof">
@@ -4108,45 +4221,95 @@ struct {
         <h3 id="name-serializing-a-ligero-proof">
 <a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-serializing-a-ligero-proof" class="section-name selfRef">Serializing a Ligero Proof</a>
         </h3>
-<div class="alignLeft art-text artwork" id="section-7.4-1">
-<pre>def serialize_ligero_proof(C, ldt, dot, columns, mt_proof) {
-  write_array(ldt, C.BLOCK)
-  write_array(dot, C.BLOCK)
-  write_runs(columns, C.NREQ * C.NROW, C.subFieldID, C.FieldID)
-  write_merkle(mt_proof)
-}
-</pre><a href="#section-7.4-1" class="pilcrow">¶</a>
-</div>
-<p id="section-7.4-2">The concept of a <code>run</code> allows saving space when a long run of field elements belong to a subfield of the Finite field.  Runs consist of a 4-byte size element, and then size Elt elements that are either in the field or the subfield. Runs alternate, beginning with full field elements. In this way, rows that consist of subfield elements can save space.  The maximum run length is set to 2<sup>25</sup>.<a href="#section-7.4-2" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-7.4-3">
-<pre>def write_runs(columns, N, F2, F) {
-    bool subfield_run = false
-    FOR 0 &lt;= ci &lt; N DO
-      size_t runlen = 0
-      while (ci + runlen &lt; N &amp;&amp;
-             runlen &lt; kMaxRunLen &amp;&amp;
-             columns[ci + runlen].is_in_subfield(F2) == subfield_run
-             ) {
-        ++runlen;
-      }
-      write_size(runlen, buf);
-      for (size_t i = ci; i &lt; ci + runlen; ++i) {
-        if (subfield_run) {
-          write_subfield(columns[i], F2, F);
-        } else {
-          write_elt(columns[i], F);
-        }
-      }
-      ci += runlen;
-      subfield_run = !subfield_run;
-}
+<p id="section-7.4-1">A Ligero proof consists of the three response polynomials, the Merkle
+column blinding nonces, the opened columns, and the Merkle
+authentication path:<a href="#section-7.4-1" class="pilcrow">¶</a></p>
+<div class="breakable lang-rust sourcecode" id="section-7.4-2">
+<pre>pub fn write_ligero_proof&lt;F: Field + 'static, W: Write&gt;(
+    io: &amp;mut W,
+    cp: &amp;LigeroProof&lt;F&gt;,
+    sf: &amp;F::Subfield,
+) -&gt; std::io::Result&lt;()&gt; {
+    for val in &amp;cp.ldt_poly {
+        io.write_all(&amp;val.to_bytes())?;
+    }
+    for val in &amp;cp.linear_poly {
+        io.write_all(&amp;val.to_bytes())?;
+    }
+    for val in &amp;cp.quad_poly_low {
+        io.write_all(&amp;val.to_bytes())?;
+    }
+    for val in &amp;cp.quad_poly_high {
+        io.write_all(&amp;val.to_bytes())?;
+    }
+    for nonce in &amp;cp.column_nonces {
+        io.write_all(nonce)?;
+    }
 
-def write_merkle(mt_proof) {
-  FOR (digest in mt_proof) DO
-     write_fixed_array(digest, HASH_LEN)
+    let req = &amp;cp.queried_columns;
+    let mut subfield_run = false;
+    let mut i = 0;
+    let total_elts = req.len();
+    while i &lt; total_elts {
+        let mut runlen = 0;
+        while i + runlen &lt; total_elts {
+            if sf.contains_subfield(req[i + runlen]) == subfield_run {
+                runlen += 1;
+            } else {
+                break;
+            }
+        }
+        write_size_4bytes(io, runlen)?;
+        for j in i..(i + runlen) {
+            if subfield_run {
+                io.write_all(&amp;sf.to_subfield_bytes(req[j]))?;
+            } else {
+                io.write_all(&amp;req[j].to_bytes())?;
+            }
+        }
+        i += runlen;
+        subfield_run = !subfield_run;
+    }
+
+    write_size_4bytes(io, cp.merkle_paths.len())?;
+    for p in &amp;cp.merkle_paths {
+        io.write_all(p)?;
+    }
+    Ok(())
 }
-</pre><a href="#section-7.4-3" class="pilcrow">¶</a>
+</pre><a href="#section-7.4-2" class="pilcrow">¶</a>
 </div>
+<p id="section-7.4-3">The lengths of the four polynomial arrays are <code>BLOCK</code>, <code>DBLOCK</code>,
+<code>NREQ</code>, and <code>DBLOCK - BLOCK</code> respectively, and so none of them is
+length-prefixed.  The last two are the non-zero segments of the
+quadratic test polynomial; its middle <code>WR</code> elements are identically
+zero and are not sent.  The <code>column_nonces</code> array holds the <code>NREQ</code>
+Merkle column blinding nonces, one per opened column, each of
+<code>HASH_LEN</code> bytes.  The opened columns <code>queried_columns</code> are the
+<code>NREQ * NROW</code> field elements of the opened columns, in row-major order.<a href="#section-7.4-3" class="pilcrow">¶</a></p>
+<p id="section-7.4-4">The concept of a <code>run</code> allows saving space when a long run of field
+elements belong to a subfield of the Finite field.  Runs consist of a
+4-byte size element, and then that many Elt elements that are either in
+the field or the subfield. Runs alternate, beginning with full field
+elements. In this way, rows that consist of subfield elements can save
+space.  The maximum run length is set to 2<sup>25</sup>.<a href="#section-7.4-4" class="pilcrow">¶</a></p>
+<p id="section-7.4-5">Because the runs strictly alternate and the first run is a full-field
+run, the encoder has no way to signal that the opened columns <em>begin</em>
+with a subfield element other than by emitting a full-field run of
+length zero.  A zero-length run is therefore permitted, but only as the
+very first run of the sequence and only once; anywhere else it would be
+either redundant, since two adjacent runs of the same kind can always
+be merged, or an attempt to encode the same byte string in more than
+one way.  A reader <span class="bcp14">MUST</span> reject a zero-length run that is not the
+first run, and <span class="bcp14">MUST</span> reject a second consecutive zero-length run.
+Both cases occur in practice: the P-256 test vector in
+<a href="#test-vectors" class="auto internal xref">Appendix B</a> begins with a zero-length run because its first opened
+element lies in the subfield, whereas the GF(2<sup>128</sup>) vector begins
+directly with a full-field run of all <code>NREQ * NROW</code> elements.<a href="#section-7.4-5" class="pilcrow">¶</a></p>
+<p id="section-7.4-6">Finally, the Merkle authentication path is the one part of a proof
+whose length is not determined in advance, since it depends on which
+columns were opened; it is therefore preceded by a size.  Each element
+of the path is a digest of <code>HASH_LEN</code> bytes.<a href="#section-7.4-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="serializing-a-sequence-of-proofs">
@@ -4154,27 +4317,67 @@ def write_merkle(mt_proof) {
         <h3 id="name-serializing-a-sequence-of-p">
 <a href="#section-7.5" class="section-number selfRef">7.5. </a><a href="#name-serializing-a-sequence-of-p" class="section-name selfRef">Serializing a Sequence of proofs</a>
         </h3>
-<p id="section-7.5-1">For the multi-field optimization, the proof string consists of a sequence of two proofs. This is handled by using the circuit identifier to specify the sequence of proofs to parse.<a href="#section-7.5-1" class="pilcrow">¶</a></p>
+<p id="section-7.5-1">In general, a proof string carries a sequence of <code>N</code> proofs, for <code>N &gt;= 1</code>:<a href="#section-7.5-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-7.5-2">
 <pre>struct {
-   Public pub;  // Public arguments to all circuits
-   Proof proofs[]; // array of Proof
+   Public pub;        // Public arguments to all circuits
+   ZkProof proofs[N]; // one ZkProof per circuit, in the order
+                      // given by the circuit identifier
 } Proofs;
 </pre><a href="#section-7.5-2" class="pilcrow">¶</a>
 </div>
-<div class="alignLeft art-text artwork" id="section-7.5-3">
-<pre>struct {
-  uint8 oracle[32]; // nonce used to define the random oracle,
-  Digest com;       // commitment to the witness
-  PaddedTranscript sumcheck_transcript;
-  LigeroProof lp;
-} Proof;
+<p id="section-7.5-3">The proofs are concatenated with no separators and no count, because
+the circuit identifier names the ordered list of circuits that
+together make up the statement, and thus fixes both the number of proofs
+<code>N</code> and the circuit that each <code>proofs[i]</code> belongs to.  The ordered list of circuits makes a proof self-delimiting: it supplies the field,
+the number of layers, the value of <code>log_w</code> for each layer, and the
+Ligero geometry, which determine every length in the two preceding sections.<a href="#section-7.5-3" class="pilcrow">¶</a></p>
+<p id="section-7.5-4">A reader parses the proofs in order, using the <code>i</code>-th circuit to parse
+<code>proofs[i]</code>.  Because each circuit carries its own <code>FieldID</code>, successive
+proofs in one string are in general over different fields, and their
+field elements differ in width; a reader <span class="bcp14">MUST</span> establish the field
+context afresh at each proof boundary rather than assume a single
+element size for the whole string.  A reader <span class="bcp14">MUST</span> reject a proof
+string that ends before all <code>N</code> proofs have been parsed.  If <code>Proofs</code> constitutes the entire message, then a reader <span class="bcp14">MUST</span> reject any trailing bytes.<a href="#section-7.5-4" class="pilcrow">¶</a></p>
+<p id="section-7.5-5">The arguments in <code>pub</code> are the public inputs to all <code>N</code> circuits and
+are not repeated per proof.<a href="#section-7.5-5" class="pilcrow">¶</a></p>
+<p id="section-7.5-6">Proving one statement with several circuits normally also requires
+data that binds the proofs to each other, so that the verifier learns
+that the circuits were evaluated on consistent inputs.  Such linking
+data is specific to the application and is outside the scope of this
+document.<a href="#section-7.5-6" class="pilcrow">¶</a></p>
+<p id="section-7.5-7">A single proof is the commitment to the witness, followed by the padded
+sumcheck transcript, followed by the Ligero proof:<a href="#section-7.5-7" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="section-7.5-8">
+<pre>#[derive(Clone, Debug)]
+pub struct ZkProof&lt;F&gt; {
+    pub root: [u8; 32],
+    pub sumcheck_proof: Vec&lt;SumcheckLayerProof&lt;F&gt;&gt;,
+    pub ligero_proof: LigeroProof&lt;F&gt;,
+}
 
-struct {
+pub fn write_zk_proof&lt;F: Field + 'static, W: Write&gt;(
+    io: &amp;mut W,
+    proof: &amp;ZkProof&lt;F&gt;,
+    sf: &amp;F::Subfield,
+) -&gt; std::io::Result&lt;()&gt; {
+    io.write_all(&amp;proof.root)?;
+    write_sumcheck_proof(io, &amp;proof.sumcheck_proof)?;
+    write_ligero_proof(io, &amp;proof.ligero_proof, sf)?;
+    Ok(())
+}
+</pre><a href="#section-7.5-8" class="pilcrow">¶</a>
+</div>
+<p id="section-7.5-9">Here <code>root</code> is the root of the Merkle tree described in
+<a href="#ligero-zk-proof" class="auto internal xref">Section 4</a>, and is <code>HASH_LEN</code> bytes long.  The public arguments
+to the circuits are carried alongside the proofs rather than inside
+them:<a href="#section-7.5-9" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.5-10">
+<pre>struct {
   char* arguments[];   // array of strings representing
                        // public arguments to the circuit
 } Public;
-</pre><a href="#section-7.5-3" class="pilcrow">¶</a>
+</pre><a href="#section-7.5-10" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -4275,6 +4478,12 @@ and zero-knowledge properties of the joint scheme is in preparation.<a href="#se
         <h3 id="name-test-vectors-for-merkle-tre">
 <a href="#appendix-B.1" class="section-number selfRef">B.1. </a><a href="#name-test-vectors-for-merkle-tre" class="section-name selfRef">Test Vectors for Merkle Tree</a>
         </h3>
+<p id="appendix-B.1-1">These vectors exercise the tree construction and the batch inclusion
+proof only.  The leaves below are the leaf digests themselves, so no
+nonces are involved; the nonce-blinded leaf construction used by the
+Ligero commitment is exercised by the vectors in
+<a href="#test-vectors-for-explicit-circuit-sumcheck-and-ligero" class="auto internal xref">Appendix B.3</a>, which list
+their nonces explicitly.<a href="#appendix-B.1-1" class="pilcrow">¶</a></p>
 <div id="vector-1">
 <section id="appendix-B.1.1">
           <h4 id="name-vector-1">
@@ -4505,109 +4714,60 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 <a href="#appendix-B.3" class="section-number selfRef">B.3. </a><a href="#name-test-vectors-for-explicit-c" class="section-name selfRef">Test Vectors for Explicit Circuit, Sumcheck, and Ligero</a>
         </h3>
 <p id="appendix-B.3-1">The following test vectors verify the complete zero-knowledge proof system using explicitly constructed layered quadratic circuits without requiring external binary circuit files or formats.<a href="#appendix-B.3-1" class="pilcrow">¶</a></p>
-<div id="vector-1-s-gonal-circuit-over-p-256-field-id-2">
+<div id="randomness-used-by-these-vectors">
 <section id="appendix-B.3.1">
-          <h4 id="name-vector-1-s-gonal-circuit-ov">
-<a href="#appendix-B.3.1" class="section-number selfRef">B.3.1. </a><a href="#name-vector-1-s-gonal-circuit-ov" class="section-name selfRef">Vector 1: <code>s</code>-gonal Circuit over P-256 (Field ID 2)</a>
+          <h4 id="name-randomness-used-by-these-ve">
+<a href="#appendix-B.3.1" class="section-number selfRef">B.3.1. </a><a href="#name-randomness-used-by-these-ve" class="section-name selfRef">Randomness used by these vectors</a>
           </h4>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.1">
-              <strong>Description</strong>: Circuit <code>C(n, m, s) = 0 \iff (s - 2)m^2 - (s - 4)m - 2n = 0</code> verifying that <code>n</code> is the <code>m</code>-th <code>s</code>-gonal polygonal number over the NIST P-256 scalar field <code>\mathbb{F}_p</code>.<a href="#appendix-B.3.1-1.1" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.2">
-              <strong>Field</strong>: P-256 Scalar Field (Field ID 2, order <code>p = 115792089210356248762697446949407573530086143415290314195533631308867097853951</code>)<a href="#appendix-B.3.1-1.2" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.3">
-              <strong>Witness Inputs</strong>: <code>W = [w_0, w_1, w_2, w_3] = [1, 45, 5, 6]</code> with public input <code>w_0 = 1</code>, and private inputs <code>n = 45</code>, <code>m = 5</code>, <code>s = 6</code>.<a href="#appendix-B.3.1-1.3" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.4">
-              <p id="appendix-B.3.1-1.4.1"><strong>Explicit Circuit Definition</strong>:<a href="#appendix-B.3.1-1.4.1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.4.2.1">
-                  <strong>Inputs</strong>: <code>N_{\text{in}} = 4</code>, <code>N_{\text{pub}} = 1</code>.<a href="#appendix-B.3.1-1.4.2.1" class="pilcrow">¶</a>
-</li>
-                <li class="compact" id="appendix-B.3.1-1.4.2.2">
-                  <p id="appendix-B.3.1-1.4.2.2.1"><strong>Layer 1</strong> (Intermediate wires <code>U = [u_0, u_1, u_2, u_3, u_4]</code> from input <code>W</code>):<a href="#appendix-B.3.1-1.4.2.2.1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.4.2.2.2.1">
-                      <code>u_0 = 1 = w_0 \cdot w_0</code><a href="#appendix-B.3.1-1.4.2.2.2.1" class="pilcrow">¶</a>
-</li>
-                    <li class="compact" id="appendix-B.3.1-1.4.2.2.2.2">
-                      <code>u_1 = m^2 = w_2 \cdot w_2</code><a href="#appendix-B.3.1-1.4.2.2.2.2" class="pilcrow">¶</a>
-</li>
-                    <li class="compact" id="appendix-B.3.1-1.4.2.2.2.3">
-                      <code>u_2 = s - 2 = w_3 \cdot w_0 - 2 \cdot w_0 \cdot w_0</code><a href="#appendix-B.3.1-1.4.2.2.2.3" class="pilcrow">¶</a>
-</li>
-                    <li class="compact" id="appendix-B.3.1-1.4.2.2.2.4">
-                      <code>u_3 = (s - 4)m = w_3 \cdot w_2 - 4 \cdot w_0 \cdot w_2</code><a href="#appendix-B.3.1-1.4.2.2.2.4" class="pilcrow">¶</a>
-</li>
-                    <li class="compact" id="appendix-B.3.1-1.4.2.2.2.5">
-                      <code>u_4 = 2n = 2 \cdot w_0 \cdot w_1</code><a href="#appendix-B.3.1-1.4.2.2.2.5" class="pilcrow">¶</a>
-</li>
-                  </ul>
-</li>
-                <li class="compact" id="appendix-B.3.1-1.4.2.3">
-                  <p id="appendix-B.3.1-1.4.2.3.1"><strong>Layer 0</strong> (Output wire <code>y_0 = 0</code> from intermediate <code>U</code>):<a href="#appendix-B.3.1-1.4.2.3.1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.4.2.3.2.1">
-                      <code>y_0 = u_2 \cdot u_1 - u_3 \cdot u_0 - u_4 \cdot u_0 = (s-2)m^2 - (s-4)m - 2n = 0</code><a href="#appendix-B.3.1-1.4.2.3.2.1" class="pilcrow">¶</a>
-</li>
-                  </ul>
-</li>
-              </ul>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.5">
-              <p id="appendix-B.3.1-1.5.1"><strong>Proof System Parameters</strong>:<a href="#appendix-B.3.1-1.5.1" class="pilcrow">¶</a></p>
-<ul class="compact">
-<li class="compact" id="appendix-B.3.1-1.5.2.1">
-                  <code>RATE_INV</code>: 4 (<code>\rho = 1/4</code>)<a href="#appendix-B.3.1-1.5.2.1" class="pilcrow">¶</a>
-</li>
-                <li class="compact" id="appendix-B.3.1-1.5.2.2">
-                  <code>NREQ</code>: 6 (query count)<a href="#appendix-B.3.1-1.5.2.2" class="pilcrow">¶</a>
-</li>
-                <li class="compact" id="appendix-B.3.1-1.5.2.3">
-                  <code>NCOL</code>: 64 (encoded codeword length)<a href="#appendix-B.3.1-1.5.2.3" class="pilcrow">¶</a>
-</li>
-              </ul>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.6">
-              <strong>Commitment Root</strong>:
-<code>803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04</code><a href="#appendix-B.3.1-1.6" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.7">
-              <strong>Sumcheck Proof Size</strong>: 768 bytes<a href="#appendix-B.3.1-1.7" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.8">
-              <strong>Sumcheck Proof (hex)</strong>:
-<code>ed0282f97ed9c5be6ced2c1092a34579d9786d1de4dc5404c4d3435f84bbc1a0ea352432ab6ad5b2e46e1b126c18103748824fb252ac17406898c6c27d70fb3b87b96f0d4c7992b03e160e17b0c98efba101daca039575c793b6bedd4dd10541e2d6701be3e75c019a63fa1595741b3e25c7e111014a4dd792bb47e6aec01aa39da1d23e9ac2386889efe3a024a6622bede3f862a41d8267dadbfb491901a6e6845b0503dab880fc756684f4bf3e71acf1eacb596aa6bc9364eaa0e2c3093dfebde19129e45b77c16d27405766a2bd5db5203ab0c116a253127f666354b1cf97c71fa6fc3f90016fa778aea298eaf379f34b043b5da3bd161fec2530eddbfb0e247e4e615f4469abd04fa996ecf232e6fde51763eacb87dacc10b5b2aabf99790c745c33d07537d414be750e6c0dedc14b72b4e5e86be92a7aa87606ad2e8d01d1b1306672a1ab21cd6f676272baadfac7b2fb453daef8415e2f38128f833f6c7b8579a9a4c6f1cc6517bba16e904726ed462896a797dae48f817b81be630a95629f60d183eedd9a4c433ef2f0a4a4294ad5690f2c07b3385e3f2e73fb2abbe3e75148bc1051abd7ce21c46f42517911c2c790cc2101ee85fa50620b644f12b8fc0c9f8522fecaee7c284b7e7006c88df35d1c4f6bae0268751507872f47780c4bfe833a7a0b6f4f403d0d1b58bf891a48083a78ac5e473f7e012b388fe2f4433099d256c6b153cfc422d6f48f6229a7107ca4d5dda7d7ffc033ef3ba2269179089e4889f379d1f97f03b3f0b3206245781dd6841f820fd931ad42fd8a1f44077dbd42f7ea2d3c4d5ecc85e5688c2a5f67abe0a456390b85f9fc2d13a5ca864023e611c6b1ba75967bcbb2f2a8c142a7044e9c54b96a09981fe5b674815e9fd7d8a8d76169e11800edceb9928ec62feb70f0e3593fed2ab0d545f29b1d2ea20cfd8320f828609d5e45cf0dff488401e170d2945ed7559c49f5de2bc7f063f4d63d400922fd141c40d4a74abf045e1b7af4b50ea1fe5fb215cdd286e4ba0e9708bde5320999b8682f9ef6c05744395290815697ca993103f0c0a7704730a05212</code><a href="#appendix-B.3.1-1.8" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.9">
-              <strong>Ligero Proof Size</strong>: 4652 bytes<a href="#appendix-B.3.1-1.9" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.10">
-              <strong>Total ZK Proof Size</strong>: 5452 bytes<a href="#appendix-B.3.1-1.10" class="pilcrow">¶</a>
-</li>
-            <li class="compact" id="appendix-B.3.1-1.11">
-              <strong>Complete Proof Serialization (hex)</strong>:
-<code>803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04ed0282f97ed9c5be6ced2c1092a34579d9786d1de4dc5404c4d3435f84bbc1a0ea352432ab6ad5b2e46e1b126c18103748824fb252ac17406898c6c27d70fb3b87b96f0d4c7992b03e160e17b0c98efba101daca039575c793b6bedd4dd10541e2d6701be3e75c019a63fa1595741b3e25c7e111014a4dd792bb47e6aec01aa39da1d23e9ac2386889efe3a024a6622bede3f862a41d8267dadbfb491901a6e6845b0503dab880fc756684f4bf3e71acf1eacb596aa6bc9364eaa0e2c3093dfebde19129e45b77c16d27405766a2bd5db5203ab0c116a253127f666354b1cf97c71fa6fc3f90016fa778aea298eaf379f34b043b5da3bd161fec2530eddbfb0e247e4e615f4469abd04fa996ecf232e6fde51763eacb87dacc10b5b2aabf99790c745c33d07537d414be750e6c0dedc14b72b4e5e86be92a7aa87606ad2e8d01d1b1306672a1ab21cd6f676272baadfac7b2fb453daef8415e2f38128f833f6c7b8579a9a4c6f1cc6517bba16e904726ed462896a797dae48f817b81be630a95629f60d183eedd9a4c433ef2f0a4a4294ad5690f2c07b3385e3f2e73fb2abbe3e75148bc1051abd7ce21c46f42517911c2c790cc2101ee85fa50620b644f12b8fc0c9f8522fecaee7c284b7e7006c88df35d1c4f6bae0268751507872f47780c4bfe833a7a0b6f4f403d0d1b58bf891a48083a78ac5e473f7e012b388fe2f4433099d256c6b153cfc422d6f48f6229a7107ca4d5dda7d7ffc033ef3ba2269179089e4889f379d1f97f03b3f0b3206245781dd6841f820fd931ad42fd8a1f44077dbd42f7ea2d3c4d5ecc85e5688c2a5f67abe0a456390b85f9fc2d13a5ca864023e611c6b1ba75967bcbb2f2a8c142a7044e9c54b96a09981fe5b674815e9fd7d8a8d76169e11800edceb9928ec62feb70f0e3593fed2ab0d545f29b1d2ea20cfd8320f828609d5e45cf0dff488401e170d2945ed7559c49f5de2bc7f063f4d63d400922fd141c40d4a74abf045e1b7af4b50ea1fe5fb215cdd286e4ba0e9708bde5320999b8682f9ef6c05744395290815697ca993103f0c0a7704730a0521276b5b1ff2c0f08b364e0c90463874b7a76aead588a0578abd97995a7acc018faa3616f94202b67601ace16cfa22118b6d3c358a9602db7b4c41cf3cad18f0c45016e975539c3308d01c6398983c249a7d7ef16b56c075d2e5768ce4548dcc4e89a69487862c72b530ad0c86d0254b5324e20a9fbbe424505cf354e3e8ef74ecaca42ce218f8ebddeaf17a46e31016bff10c73496d511ca71d3ee15fdbb7a3904bfae54b1581beb69cc2b0c890fbb74baa431eec4cef4ad02df96f82bd5ac46c4e26c97007a5377b096adaf4679a39b6322eefeaf4d2a596964457f7e40d658af1a489d73d0f0d9aebd01703f10423f096f352b2eceba178e81e9917eaa5f1df0fc7b7dff769848968a09789ab02a54b6c1176e34a9a8f1da2cf19ae2c37d05a542407401e53e23a3c2f1c0427578f71933f335ef419a3804338629c5b05220ff077d527eeb62fa14e6410ddd2bfd704eabf68ae2eff1c3df789acd0b651dddfa7569c524daad94e3b0c16c5bfe9ae509c138e1c6164c18b17047b6aa08d4b490b227ebe71d884fd6b6c64b3aedf6a184e8f2364ce58365210b22f9be3527f219e97845a53f0d975f26e97125bb2125223f9a86202ac62ca3c4e650295d2eda824aaee83318308714b3c37ba11b7f4c92c1a53eb9279c473610e2ce9dacf55993f1cb794852fe80c1be4f203c82422826a72eb7ce93a806f709d998504f785cbfcce45c56c3ee3154074e99a3c2e53fea547119ea179ec7d0bfe784556b25d7d6e56fe095b33f2d05e5ac1b8c3fd581811c57648bbef03dad260649070a2446c8592f3e7693a2f1e9ee86473788840517e38d6bc99e2919b3994a6b6a35efb0b6a37225353d4663a61636cfcd81ae2164027586165b804d3ff9e818774b6dce75b32aa849cc964bdaef98457cf2abf90544087d3eaf9dff4897285934cfb6ce49298d4479739de6f80581c0398ba30cffed7b093c3bc2074b558059a7db87ade76ad0348c4ec12499b8d0d3e03a354d27eb901485cea2b58edf01e0859e694c704bb12f2d28227166b476d676f009e4e302fda4ca5ec0692dede769ae800be3e614f3f5ff2552fc2528c94b24fcf74f8b61e0ea76903dca73afb62b35b9fac7dc0bcaad0c17267683aac5e823cd6dbd796f3210dea30491d5bd2d8dd6daabda79213dc3956200cacee1dc8319a3de252f3fb8df6079cc2f4be51c873be5f6668103c9d8a4a5c505bcdd14174eeb1f3c82c156d2d3bc57f68501b9d5ba5af10372797b1a93d738c013c0625833861ffdfaf7a9b0e00f8a33a41f87d72100f75b4b70e8ded7b9a0f44f954915faf6bfc721b367698abcc6b33be195e2a99a326997af0568a9f0e5b65984ec416b715d9f2b2b9ad742eb051fd7c29d0f1c955050b5c38dd1c85c09b1e080ff0dc9c8f10de0d86d07ddbb98267f3c3bf27ae62bac922a62ecbe8c8e1a78b1c19ab25dbf95c52ac077a2610063ac19382d149a18e54ab3b7a843250a186d8540184df41bd5a6be7e3660ef28bba8bb9f4407dbd3b638a30e4a18c7f60404ec06872065179fc55a1195ced24ef2b3798a28acbfbc320ac4d8b1850e6bfb3d3a5730d29bd3f93d6530cccc5f669a058bf14590ce383f6093a386a01cfa72cc429a3d127939fbb73778a8ce92202c29ccdb61fedef35cb7d6cbc98d559f81afd81a472dc8cfbf47074731f18ee4b8871ec5c7508328ad16319c11de3dd35de85e9000a8c8dd77947a60221cc16b8278d4b03bf6858c252c1c19b7fbb432c39fe6db2f04bc7e7ffbda7afef966eaffc1a10e271f688c6f5fc95328f94196dff3a42b5e7c4960b5e457aa322afeaddf2dd4cc756e7379bf3266faf76c4153d4bfbef3fcd2fad88b1e7e7d78246cbfa96b7f9edbedf02d210dc247ed0fd14218243eb3c6cd0866cd2cd49f84a567c780b1d15ad44e5ecb916b0819bb8d57ac002a7b007a35c4fdd3fa48694131a637482f781666a3d69c5010d406ef8c46fd239545520a5363d67d61bad1750d37b087c1e3611a12d47e477f5fe986cae604828cae4bfbbc7415d64cd5e755848755a0d9d3120ad46eea8d860fa8593d45fef897767ce05ec5feac76d8f21910bc0ada856aeaa777629048ef63619b9a06c668a2414e46f859a2fdb1ba63e8718fa6ce4bf532b2fb0b8ff4efc9e35514c0ff4b62cb9730116947bef69325f3a4c1c6553b7bd161754f8008d8057ec47e747c61954419b634dec16eb6adfeafb1a0e9fafbb2a9c85fcf9bced400000000540000002b520d64d1a48758b4e6b56b93cda7b71767e41aa21bc5a402f968032a5d990b35d916cce85bc34911ea5f3413ae54313eb9ac0de227c1144dfc0835d6ac56fb37cda5179524c5390e72928bf48c4d7f2c6ead37d9cbf9b53f4219ed6ba49b8620a6a6ea318ea301b442a8be1c6198b0950ff8e748772dd208758a9b6d4ada5bb54472abd5aef2cf83f64227b8e8528f6883130523388ac249501c5678fce39ee6098cf92e675f98ca0fd7f16d83f18879a6a54196a2bf0cc8222d791e9870ab8444ab45f7abf52736bd00b8e1583f31faf872d474aab7503100adaa4eabed15dd194b4ce7576b58e33ca6c044b104545764d9af7b7708cb8a9d7d2eb82564c24b9ec487aca878ac6f243cf89dccff327fa5c61698a0f14f33ddfadccd7748482c72c5234b5a2663256ac36644692aaeab1038b87c40be582d28d495f9042be70a724e89c5462323ca1dca74273a6f2bd8f8b1f51c7da4f0f66732d4040d29c916ac01b6e1f7cd411a8783caf37f0b8fc60c330c6fe1377f956273ebd37c6aa2acb55ed76b7589c4e4ab006085057f301369f9b4407745ec25420dad03bc2c134efe1ad4dd9ef9f03a617f79c69a4d90e44c2ccf48ac1ea1f7450fe7b1603ec96e70400ec7ed1d645e13161a9c42a7aee7922a3910d9c7a4a2375849375f8c408d7ce8eedc7fd61082f91483d4ae597530423109fae058b90f43f63f397e1afe4ad76b9d73be712c9ce50c5feaa4ccff48f9053f130a04cee5121781f4ca524e9bc381bf627dcac1aabb1cb6781b4510874f60a8e1c188016e6b49f67827c9512b3f2b3d412b35b3e371e6f40014d975f54c54e0f404d6cb999196504009a891b0f2710df5054a387cdc5cb7bb147f154e1d33519782410234e6e1f001e511e3896b61ac9e75d111da33a0c3c91414f37ba8b169809e735453e9698f643af6f1b76feb3f50f8e65f42e8803d2f128e36928c021a8a8e8411a9f02d36efc09a1f71cee349a36dc6162254eb04210eb08cae8e955a5720891fd89f5b7bd61c0e0bf62471a70e8f8ca8addde0aba195388d60452fa98ec72d5aa4751a3a820db5e869cc80f2f9a62d18f7367d1c1ad339dfd5760dc9c11b244a52d7275349a721d80939f2143bed6891a68b950946453c7efb8c885974e6e2509b63aa59278e30b78659f736c5a6f84e9c0e5cfb04de3a06a35e3be04e7d9bf85ee025cf5b4ed1a5038ab30e6d304245c6d5573a3ead0da8de3375985a8c32ca06658532f827ca216d8d24c4ce16ae39361b877bf4cd0994394144bb8e52737ed70732eea60cf5aec5f474bed7baa5124ec1e454c818da069aee55b9e36b46807b460d5ee2684d650c3ebbe7d5425186e6a63ef2497b4e9028976991850310faab526bf6a3f0c9800c655aa5bff7cabc560f82d4e885c496d3111025215121adff4a55487783399b76d3a0e7376fede3865e3558f219d82fc60207d921549c858dfc8c08fddb61e51c776e9650ef8c757f9d52c64793e3b30c87e18bdf0de670ddfdfe3785026ea7acabc069bca44ee228d707a03d78d0ef64a1a5c9bf5a66d9a5fcc8168954fb699cd74f4568007e9d7d147ea2cabe9e85e00425f60dc895309529d6251a295d883cae2f92cc200a5bcd6616d8125517d95366ce99e151d51a3b43784537c55ca470dc003aa92f72a706d9558711fe3cce3603f40d90d041cf58b8f3b93d2079b55104ccf9694dcc2dc7b38cd7b3395db8a0b6e570c6f7fbad44d44111ef8cbc38c66a26571835f13d66eabd68de56a707508e850b1d8057d3bb0389833dd4b0060c0437a75418bcea0ad4d0907c22ebac99ea69f04015635ffd217672b5531e2d6484572c4093462c7464f9af152fabe10b8515a160750e246302e640d837778443985dabcab9a19e9ebfbabb1d511f8fbd1ce7d163c6bc85513a3954876f064d855de13479202a87c513db6f43efcf3fe734c740606c1aa43d5c42a3807a8c06e25c4952bbb951b4d58269d67016e301b8660cae3bf4ebe556cbc7ba99b0b020cb52faffffc9ba2f9cd6d88e91cabbed8f9c325785b9885113198b52bd28324c1f332b82accf2055642c4af0cae07c1bf46f9cafecd81d1aefe8e3b777f19ecdd3a6e921faae6e1d8e20764e12dc1d02917ae0dfeb1cdad107c1744b980c9405d8d3ff53869e77c1e299d419216ad68894fcee7e4328b3b347abd813f9a833f32cf932591570bebfe056b5b98ffb614e576192a4d4af8b740216d833d7334eb9eab0334c635f86c681d6c9c9327f179963b6982b1853eb50e7d57b760c190735ccd5835d669b10fb5ac684d3086abb77b5252aff7d2b7f808561a7a54af2573e605ecf373e1f3d5525b83dc45bf33a8cc79fd3114c1d4d94395f0e9611ae3021839f6f81c072ef6b6044e735c5f269a23686f9d566a26782c12bf5db4660330f123a54d70aa6e55d6293da388a73ecf15f6693cd86dd83525003b1cdd22bf5af0bb25ea5ded5c5bff67a06284c9236883eb6aa4b8ea0d94c588a777b54da4bade065be29ce4d1c1a91d24624562f20cd7e6b4ec25fc0699c2cc4c815b8c3bd973bb93d0811afd518e7db3c94ef99331a0eab493f88c47f14c47dde5b647628baa1743fffba43b69fa5a7004ed8b061d0bf599cd7a880d20485b51c51bd3de82f01123357546eddfdd002223cfb33f23e97b9df42a04379be4447b2a6c30eaa849e9179e334561b05c83d9a489cc5b4e4ee00c5668a89631c6cd1b5add22e5fdf680b4755841fb5e1e806b7cc6709d94e3d9fe184388f17f26a947d58a95881c73bf7ec078cb3c6c8bee6b48e898da3dade41a871977e54a1047038edb550b7eadd781888e15d7796940d0999c3104bdebbfbbe716c584f3bd31326de132ec74bcbd1294f9b6ab57eba429b36c242ef34d36bbaec8d42882869f26949568a7bbee76b77f54f40002eaa717071e002a8a29dd7fd6ebd7df3811e090ac3117df4e30e8868b26d4cf4c3437b1a53f14bf515798fe3a5001a7bfc0a8caeef488175e9d8836a28ba65461462c16ab66c0a8d8148f3b84c0a6a4cbafa900bc09c4f319f578644ff618d50496d2b2d1e63f8232b263308bb55afcb77232f210c1677d84df6d9309fc40e551b15458c635b5c3edbf88aceb4973d9fdbc2750b1fff5f96ac8c54dc83bdbdec3dc01d34e510509377e69eff08ad3d5b120c72e8a432e627982b11b6dec534a3423bb529c527637171825bc1990501ee480b23711803a4a3c48372fb266759c496ad4d6a56299f7b379a783d07aa30cc45b1f0094995a5aa0791f4b5309f43295fbb71a20e0bc4addb75589d8e577650b1109b969f8ffe6f26b957c263f38419bb67e4e651adba049a41fa861772f036c172ecf3d8742590996ee4951e608b384c1e6764c1618de6548d239a6325fbed9233f6e0da4e1775d718a1e5f744b2858f67c585a54c912e7ea58dfb58d1ed2ebb7149f6f1019e0ec86e64c3e70fba3f0b8462a5401655ecf7386e9f7040098995fd83be5336c1c9b063458f3a327bd5d5753e73a96fc2f86a2610f18e3fb5173109c65bb95bb2232785241f472597ba75969369ee893dfeaeee6307256db5a8fd3294cee178863db9c8dbe711aef2f709da7cc9be00aba6e43266acc4870b69b474f3639e5d04c3064ee652fc5ea5afee2d5f7d7e2d1a3a95868c9f2524934ba53673cd1e76ea8390f07b9d73bedf84a753b37d8c5d3e64652c9fe6bd238e5433eaac08ff61ea34c3cfcfb6882485766a2658338a60dac5d934899cad1a05688b8244e51b29ecfb1c0b000000ed0aea43f9d6715158ff3048e550629bada9ff6c99b48d9af59f83236ea427401c22d30673117dfd8c17e7caa1c432f72a661c5ecdac243925674d3b168d33b9f29bda3f42a9180c278f91064af6b79e4a2517217e457d488e88111c19eaf1aa239215789d94305bd5a975e397af5b5419443803bb8a7f63c9450c80a96bffcde555370e8c6bb3a0f2d2ffa3e41d00c6ee362d64fa8afa3ffeea6bd8a964cab8911b768452b297bb3bc7930eb61c5ad38dc7aa310c8368131733f4ce4bea67f4ad5b85bbedc01b9fc28afdee1d52d8204d6b3fb8323b3836a858fdc1cf9e7e7ad6fd1e4e8bf95277824ab90310ae2402c4665cf76a478a4726ab63e0ff55ef853e6ed3030d04b66028e7e2b56d12c0fc42aef74d0a19ca21bc77143b589e5bc8dffeb34ffa0084c67395ec2f3aea8e4c1c1f9644482f364e8471931422be6eb6562d371f966b11e9e0d2c850537f83992f43de669d091b472a5a242731a0156c</code><a href="#appendix-B.3.1-1.11" class="pilcrow">¶</a>
-</li>
-          </ul>
+<p id="appendix-B.3.1-1">A Ligero commitment consumes randomness for the three blinding rows,
+for the <code>NREQ</code> random elements that prefix every witness and quadratic
+row, and for the Merkle leaf nonces.  A proof is therefore reproducible
+only with respect to a fixed source of randomness.  Both vectors below
+draw from the following deterministic generator, seeded with <code>12345</code>,
+which is defined for test purposes only and <span class="bcp14">MUST NOT</span> be used to
+produce real proofs:<a href="#appendix-B.3.1-1" class="pilcrow">¶</a></p>
+<div class="lang-rust sourcecode" id="appendix-B.3.1-2">
+<pre>pub struct SimpleRng {
+    pub state: u64,
+}
+
+impl Rng for SimpleRng {
+    fn bytes(&amp;mut self, len: usize) -&gt; Vec&lt;u8&gt; {
+        let mut out = Vec::with_capacity(len);
+        let mut state = self.state;
+        for _ in 0..len {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            out.push(((state &gt;&gt; 32) &amp; 0xff) as u8);
+        }
+        self.state = state;
+        out
+    }
+}
+</pre><a href="#appendix-B.3.1-2" class="pilcrow">¶</a>
+</div>
+<p id="appendix-B.3.1-3">The <code>NREQ</code> Merkle nonces of the opened columns are reproduced below for
+each vector, so that an implementation can check its commitment
+independently of the generator above.  They also appear verbatim in the
+complete proof serialization, immediately after the four response
+polynomials and immediately before the run-length coded columns.<a href="#appendix-B.3.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="vector-2-quadratic-polynomial-circuit-over-gf-2-128-field-id-5">
+<div id="vector-1-s-gonal-circuit-over-p-256-field-id-2">
 <section id="appendix-B.3.2">
-          <h4 id="name-vector-2-quadratic-polynomi">
-<a href="#appendix-B.3.2" class="section-number selfRef">B.3.2. </a><a href="#name-vector-2-quadratic-polynomi" class="section-name selfRef">Vector 2: Quadratic Polynomial Circuit over GF(2^128) (Field ID 5)</a>
+          <h4 id="name-vector-1-s-gonal-circuit-ov">
+<a href="#appendix-B.3.2" class="section-number selfRef">B.3.2. </a><a href="#name-vector-1-s-gonal-circuit-ov" class="section-name selfRef">Vector 1: <code>s</code>-gonal Circuit over P-256 (Field ID 2)</a>
           </h4>
 <ul class="compact">
 <li class="compact" id="appendix-B.3.2-1.1">
-              <strong>Description</strong>: Circuit verifying <code>(s + 1)m^2 + (s + 1)m + n = 0</code> over the binary field <code>\text{GF}(2^{128})</code>.<a href="#appendix-B.3.2-1.1" class="pilcrow">¶</a>
+              <strong>Description</strong>: Circuit <code>C(n, m, s) = 0 \iff (s - 2)m^2 - (s - 4)m - 2n = 0</code> verifying that <code>n</code> is the <code>m</code>-th <code>s</code>-gonal polygonal number over the NIST P-256 scalar field <code>\mathbb{F}_p</code>.<a href="#appendix-B.3.2-1.1" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.2">
-              <strong>Field</strong>: <code>\text{GF}(2^{128})</code> (Field ID 5, polynomial representation modulo <code>x^{128} + x^7 + x^2 + x + 1</code>)<a href="#appendix-B.3.2-1.2" class="pilcrow">¶</a>
+              <strong>Field</strong>: P-256 Scalar Field (Field ID 2, order <code>p = 115792089210356248762697446949407573530086143415290314195533631308867097853951</code>)<a href="#appendix-B.3.2-1.2" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.3">
-              <strong>Witness Inputs</strong>: <code>W = [w_0, w_1, w_2, w_3] = [1, 84, 5, 6]</code> with public input <code>w_0 = 1</code>, and private inputs <code>n = 84</code>, <code>m = 5</code>, <code>s = 6</code>.<a href="#appendix-B.3.2-1.3" class="pilcrow">¶</a>
+              <strong>Witness Inputs</strong>: <code>W = [w_0, w_1, w_2, w_3] = [1, 45, 5, 6]</code> with public input <code>w_0 = 1</code>, and private inputs <code>n = 45</code>, <code>m = 5</code>, <code>s = 6</code>.<a href="#appendix-B.3.2-1.3" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.4">
               <p id="appendix-B.3.2-1.4.1"><strong>Explicit Circuit Definition</strong>:<a href="#appendix-B.3.2-1.4.1" class="pilcrow">¶</a></p>
@@ -4616,7 +4776,7 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
                   <strong>Inputs</strong>: <code>N_{\text{in}} = 4</code>, <code>N_{\text{pub}} = 1</code>.<a href="#appendix-B.3.2-1.4.2.1" class="pilcrow">¶</a>
 </li>
                 <li class="compact" id="appendix-B.3.2-1.4.2.2">
-                  <p id="appendix-B.3.2-1.4.2.2.1"><strong>Layer 1</strong> (Intermediate wires <code>U = [u_0, u_1, u_2, u_3, u_4]</code>):<a href="#appendix-B.3.2-1.4.2.2.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.3.2-1.4.2.2.1"><strong>Layer 1</strong> (Intermediate wires <code>U = [u_0, u_1, u_2, u_3, u_4]</code> from input <code>W</code>):<a href="#appendix-B.3.2-1.4.2.2.1" class="pilcrow">¶</a></p>
 <ul class="compact">
 <li class="compact" id="appendix-B.3.2-1.4.2.2.2.1">
                       <code>u_0 = 1 = w_0 \cdot w_0</code><a href="#appendix-B.3.2-1.4.2.2.2.1" class="pilcrow">¶</a>
@@ -4625,21 +4785,21 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
                       <code>u_1 = m^2 = w_2 \cdot w_2</code><a href="#appendix-B.3.2-1.4.2.2.2.2" class="pilcrow">¶</a>
 </li>
                     <li class="compact" id="appendix-B.3.2-1.4.2.2.2.3">
-                      <code>u_2 = s + 1 = w_3 \cdot w_0 + w_0 \cdot w_0</code><a href="#appendix-B.3.2-1.4.2.2.2.3" class="pilcrow">¶</a>
+                      <code>u_2 = s - 2 = w_3 \cdot w_0 - 2 \cdot w_0 \cdot w_0</code><a href="#appendix-B.3.2-1.4.2.2.2.3" class="pilcrow">¶</a>
 </li>
                     <li class="compact" id="appendix-B.3.2-1.4.2.2.2.4">
-                      <code>u_3 = (s + 1)m = w_3 \cdot w_2 + w_0 \cdot w_2</code><a href="#appendix-B.3.2-1.4.2.2.2.4" class="pilcrow">¶</a>
+                      <code>u_3 = (s - 4)m = w_3 \cdot w_2 - 4 \cdot w_0 \cdot w_2</code><a href="#appendix-B.3.2-1.4.2.2.2.4" class="pilcrow">¶</a>
 </li>
                     <li class="compact" id="appendix-B.3.2-1.4.2.2.2.5">
-                      <code>u_4 = n = w_0 \cdot w_1</code><a href="#appendix-B.3.2-1.4.2.2.2.5" class="pilcrow">¶</a>
+                      <code>u_4 = 2n = 2 \cdot w_0 \cdot w_1</code><a href="#appendix-B.3.2-1.4.2.2.2.5" class="pilcrow">¶</a>
 </li>
                   </ul>
 </li>
                 <li class="compact" id="appendix-B.3.2-1.4.2.3">
-                  <p id="appendix-B.3.2-1.4.2.3.1"><strong>Layer 0</strong> (Output wire <code>y_0 = 0</code>):<a href="#appendix-B.3.2-1.4.2.3.1" class="pilcrow">¶</a></p>
+                  <p id="appendix-B.3.2-1.4.2.3.1"><strong>Layer 0</strong> (Output wire <code>y_0 = 0</code> from intermediate <code>U</code>):<a href="#appendix-B.3.2-1.4.2.3.1" class="pilcrow">¶</a></p>
 <ul class="compact">
 <li class="compact" id="appendix-B.3.2-1.4.2.3.2.1">
-                      <code>y_0 = u_2 \cdot u_1 + u_3 \cdot u_0 + u_4 \cdot u_0 = (s+1)m^2 + (s+1)m + n = 0</code><a href="#appendix-B.3.2-1.4.2.3.2.1" class="pilcrow">¶</a>
+                      <code>y_0 = u_2 \cdot u_1 - u_3 \cdot u_0 - u_4 \cdot u_0 = (s-2)m^2 - (s-4)m - 2n = 0</code><a href="#appendix-B.3.2-1.4.2.3.2.1" class="pilcrow">¶</a>
 </li>
                   </ul>
 </li>
@@ -4657,28 +4817,183 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
                 <li class="compact" id="appendix-B.3.2-1.5.2.3">
                   <code>NCOL</code>: 64 (encoded codeword length)<a href="#appendix-B.3.2-1.5.2.3" class="pilcrow">¶</a>
 </li>
+                <li class="compact" id="appendix-B.3.2-1.5.2.4">Derived geometry: <code>BLOCK</code> = 10, <code>DBLOCK</code> = 19, <code>WR</code> = 4, <code>NW</code> = 29,
+<code>NQ</code> = 2, <code>NWROW</code> = 8, <code>NQT</code> = 1, <code>NROW</code> = 14<a href="#appendix-B.3.2-1.5.2.4" class="pilcrow">¶</a>
+</li>
               </ul>
 </li>
             <li class="compact" id="appendix-B.3.2-1.6">
-              <strong>Commitment Root</strong>:
-<code>30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc504</code><a href="#appendix-B.3.2-1.6" class="pilcrow">¶</a>
+              <strong>Statement hash</strong>: the 23-byte ASCII string <code>sgonal_test_vector_p256</code><a href="#appendix-B.3.2-1.6" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.7">
-              <strong>Sumcheck Proof Size</strong>: 384 bytes<a href="#appendix-B.3.2-1.7" class="pilcrow">¶</a>
+              <strong>RNG seed</strong>: 12345<a href="#appendix-B.3.2-1.7" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.8">
-              <strong>Sumcheck Proof (hex)</strong>:
-<code>6240c86a95637590efc064be3f0e9d28fc212291b18e5e3afed5099df504c6478aaa530725347ed936fb115880fe03f394808f716d78e8dd8dde5b5bd3f2f489a71c546509defd48dfb6650b3095fd6737451138f90326c07013cb02076ecab74c74af12fafa59cd8fdf6ae0315d1a5ee40de4c200b7d051bbfb98626e86ccdcc4f2995317ebb77628e811cb190156e6b9cf8cfb4fc62b478e49e262e6f4453f6e6c5298fc74b14cd2a9ef3ff9872f67452f9012a79e6517347af882d1e0bd70113cb1307823bf2e57b45515cfce5e8b0c33e9a941524ba5355f0c444d96138347da64051e89579e5ee002b8346d1b53c26c695f208d5f5b784f90e4ae33b7bbe9e0d29e9e2ad103933ab99a684b7611ed1a15977f59e2d60d05a2cf24212ff20c59ea4f435404b9fa889934fd8d550807142c664890f7d0a9ba27ea040d03ebfd4bf8ce06ff90509700bcde7042d213adb43c2fb1f46143226c273b09bd650bab9b3aec6cd5419edb1bcd616911c2b3898d07c5faf9fa121da18a01f5a1ea9b</code><a href="#appendix-B.3.2-1.8" class="pilcrow">¶</a>
+              <p id="appendix-B.3.2-1.8.1"><strong>Merkle nonces</strong> (one per opened column, in the order the columns
+were chosen):<a href="#appendix-B.3.2-1.8.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.2-1.8.2.1">
+                  <code>d406ef8c46fd239545520a5363d67d61bad1750d37b087c1e3611a12d47e477f</code><a href="#appendix-B.3.2-1.8.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.2-1.8.2.2">
+                  <code>5fe986cae604828cae4bfbbc7415d64cd5e755848755a0d9d3120ad46eea8d86</code><a href="#appendix-B.3.2-1.8.2.2" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.2-1.8.2.3">
+                  <code>0fa8593d45fef897767ce05ec5feac76d8f21910bc0ada856aeaa777629048ef</code><a href="#appendix-B.3.2-1.8.2.3" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.2-1.8.2.4">
+                  <code>63619b9a06c668a2414e46f859a2fdb1ba63e8718fa6ce4bf532b2fb0b8ff4ef</code><a href="#appendix-B.3.2-1.8.2.4" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.2-1.8.2.5">
+                  <code>c9e35514c0ff4b62cb9730116947bef69325f3a4c1c6553b7bd161754f8008d8</code><a href="#appendix-B.3.2-1.8.2.5" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.2-1.8.2.6">
+                  <code>057ec47e747c61954419b634dec16eb6adfeafb1a0e9fafbb2a9c85fcf9bced4</code><a href="#appendix-B.3.2-1.8.2.6" class="pilcrow">¶</a>
+</li>
+              </ul>
 </li>
             <li class="compact" id="appendix-B.3.2-1.9">
-              <strong>Ligero Proof Size</strong>: 2632 bytes<a href="#appendix-B.3.2-1.9" class="pilcrow">¶</a>
+              <strong>Commitment Root</strong>:
+<code>803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04</code><a href="#appendix-B.3.2-1.9" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.10">
-              <strong>Total ZK Proof Size</strong>: 3048 bytes<a href="#appendix-B.3.2-1.10" class="pilcrow">¶</a>
+              <strong>Sumcheck Proof Size</strong>: 768 bytes<a href="#appendix-B.3.2-1.10" class="pilcrow">¶</a>
 </li>
             <li class="compact" id="appendix-B.3.2-1.11">
+              <strong>Sumcheck Proof (hex)</strong>:
+<code>ed0282f97ed9c5be6ced2c1092a34579d9786d1de4dc5404c4d3435f84bbc1a0ea352432ab6ad5b2e46e1b126c18103748824fb252ac17406898c6c27d70fb3b87b96f0d4c7992b03e160e17b0c98efba101daca039575c793b6bedd4dd10541e2d6701be3e75c019a63fa1595741b3e25c7e111014a4dd792bb47e6aec01aa39da1d23e9ac2386889efe3a024a6622bede3f862a41d8267dadbfb491901a6e6845b0503dab880fc756684f4bf3e71acf1eacb596aa6bc9364eaa0e2c3093dfebde19129e45b77c16d27405766a2bd5db5203ab0c116a253127f666354b1cf97c71fa6fc3f90016fa778aea298eaf379f34b043b5da3bd161fec2530eddbfb0e247e4e615f4469abd04fa996ecf232e6fde51763eacb87dacc10b5b2aabf99790c745c33d07537d414be750e6c0dedc14b72b4e5e86be92a7aa87606ad2e8d01d1b1306672a1ab21cd6f676272baadfac7b2fb453daef8415e2f38128f833f6c7b8579a9a4c6f1cc6517bba16e904726ed462896a797dae48f817b81be630a95629f60d183eedd9a4c433ef2f0a4a4294ad5690f2c07b3385e3f2e73fb2abbe3e75148bc1051abd7ce21c46f42517911c2c790cc2101ee85fa50620b644f12b8fc0c9f8522fecaee7c284b7e7006c88df35d1c4f6bae0268751507872f47780c4bfe833a7a0b6f4f403d0d1b58bf891a48083a78ac5e473f7e012b388fe2f4433099d256c6b153cfc422d6f48f6229a7107ca4d5dda7d7ffc033ef3ba2269179089e4889f379d1f97f03b3f0b3206245781dd6841f820fd931ad42fd8a1f44077dbd42f7ea2d3c4d5ecc85e5688c2a5f67abe0a456390b85f9fc2d13a5ca864023e611c6b1ba75967bcbb2f2a8c142a7044e9c54b96a09981fe5b674815e9fd7d8a8d76169e11800edceb9928ec62feb70f0e3593fed2ab0d545f29b1d2ea20cfd8320f828609d5e45cf0dff488401e170d2945ed7559c49f5de2bc7f063f4d63d400922fd141c40d4a74abf045e1b7af4b50ea1fe5fb215cdd286e4ba0e9708bde5320999b8682f9ef6c05744395290815697ca993103f0c0a7704730a05212</code><a href="#appendix-B.3.2-1.11" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.2-1.12">
+              <strong>Ligero Proof Size</strong>: 4652 bytes<a href="#appendix-B.3.2-1.12" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.2-1.13">
+              <strong>Total ZK Proof Size</strong>: 5452 bytes<a href="#appendix-B.3.2-1.13" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.2-1.14">
               <strong>Complete Proof Serialization (hex)</strong>:
-<code>30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc5046240c86a95637590efc064be3f0e9d28fc212291b18e5e3afed5099df504c6478aaa530725347ed936fb115880fe03f394808f716d78e8dd8dde5b5bd3f2f489a71c546509defd48dfb6650b3095fd6737451138f90326c07013cb02076ecab74c74af12fafa59cd8fdf6ae0315d1a5ee40de4c200b7d051bbfb98626e86ccdcc4f2995317ebb77628e811cb190156e6b9cf8cfb4fc62b478e49e262e6f4453f6e6c5298fc74b14cd2a9ef3ff9872f67452f9012a79e6517347af882d1e0bd70113cb1307823bf2e57b45515cfce5e8b0c33e9a941524ba5355f0c444d96138347da64051e89579e5ee002b8346d1b53c26c695f208d5f5b784f90e4ae33b7bbe9e0d29e9e2ad103933ab99a684b7611ed1a15977f59e2d60d05a2cf24212ff20c59ea4f435404b9fa889934fd8d550807142c664890f7d0a9ba27ea040d03ebfd4bf8ce06ff90509700bcde7042d213adb43c2fb1f46143226c273b09bd650bab9b3aec6cd5419edb1bcd616911c2b3898d07c5faf9fa121da18a01f5a1ea9b3edfb458a51019d7ab9d3f0890c1c216c1e4e2b2c087cea41515e0dbe8ae74b8923bc6f7ec3396c391e422f440d9b9f85a2e47a8c43682f41bea847fac6ddaa246dab1978ee40772bb75fa4571a773bb3a7e1947eeec8d74b7c42a800a0de3c8463fcf42223b5204c34bb261d8708e96695648bbb4bd534dd3a852032a5a23c641e66955d62f95d2bf6acdc16e401aeb355b55f6c7df1fa5493e152633dd67b05451e156baed83c4b6b154e44779cd30d382b43cfb918db00d0f7e6ed000ede91460ec372a93c7263f54666cdf2d558e0a56f62914e46eaee62b19e1b5ba179bb96044de94a5964acc4ff7c175f25be4fed23d1096414f307104eaf47e9c756a54fbf66e974c607946b689560486601c6d351ce7925a6ffe3d960ace99b9b5fdbbb2ca9d8b56736af217f21ed813e517fe4f3c78fcafa0b47a01307fef9dc4d2c9fe979532e97d1452034d904db212ffea8c152cdab17bafd8037d519dabe985091844be5d630ebba0ba17765839c35543e40162c66ae7b73f9d018c463aaa6034545321a445e83fb706b03f4971bc2c28d529d36c5440c2942e9c22908e5a2f2347e19b793e15e0852686e29a2029977b3ba6c346ecf3bceca062b5130ac652925cbca1da5f99528742bfd37d32710296363d2d2dda271eafe8ffdab7f2c378fb56de4804e8dfb0887e504f5b3c0a1c040a91e4ed07a35a487be0f1c1221d2d3950c7db515c5e4c557d2508fc8d13c70efc9f99e667f8a0995b9d2b3f15a3b29493a370aa72bece76d5c1614ccac7f8a4427a0cbcf38d7b46249e13ff8a38de34baf543b88990809ff36271f33a9c62c4d79ddfb271ec6554430c7eff2ddb380a11f45d772d5f61d051f6c9a4bf188fad665105add63a91c89f9847ea498fd4d148fcb439d216593fd6cda35cdd541b70dc213c9ac9f172336743b5d9b9f0092358436be52d50ba60e7d7c9c4d75415527f4c04647f433b02b7955421a405ed7ef857289b65bef3539deca0df3f44c67bd0f86b02afddd2eaf2df6b9ba3649733946263e6da1ec940a9047547a6296f465821313eeb867d988aed265b82eb5387b402da5412750ec00175350a9579b1f458b668155ba582d31b5d71331f2d41978ee556b7e529dea3e0fbbde3d83fcb11871c478dd3ddb15fc27e628487950e1c320449d0bed51ad492d371d066d55c4db059a1c59c267094ae3087746b1e61c809ce332b7354d1e4b593f335d980dc1f0579e171a0bd092761a12006f3b5445400000084517983aa1a7acab37c5181b97ddb5d183e7a30b7e9884798a1ad1333c2c14c61fd3a7d917c0e4537af67339705ac87e322061e9a147d45067342f418a655334b4588edccadd095e883e9aaecffd81c02e951c856dc5ec383fb28cc228ccc269c71ba2bf849a9d61bae28f935d474eb5b163f1bee4bbe0dee075869b0335e5fe98780182348b1ba71767cc88958065a0403e65c7f95d6de372aced94abd8bbd885d0f6d38451210d7fddbb8523ad24204fbd51152f5ac27a948e9e3788f14e7179ad246b576448614fecb01c2d4dd83ee2f5adbaf7750e986c03086a13f5be9a5e12e9ff31e8450b0c7623113a70837c5310991f2344e058687333d18893813a17939ad8bac01008f045c5711e2bfff6b16d4ed928a078e4a55eb72c65500f6f4ef4d02b4363836cdf4e9c82b761e1824c54d7285c1a5f0b3996af3088c52df6b9e746c73043aa4262717e733d508761dcac98315686357b39624b9912a2bb18e692e87b31ad3f26bd3b3246a678f6b9be9272611c21b6fbb1962e1473c76089d9b039fd9b32adb3a614f9644edd80a7e7d9348c675feee9fdc7231c50bf481d4b74328bdee990dc0af51f0a9ce68a34340cbf6067d65a1bc5b64069e11b8b1a3bbc72f3c5d517befd88b288ca28f8a2adcb8308eda9e97fb4ab325b567524999b568c401c0d94ea358434d786b2349ad878b197df169e78bbbdb2008611c7b0ee75ac194c86517ff4e592debce41c3972344dfadc6af0a1c84c1aedd5b6b3c0ab3500a12677c73f8c6aaf7f9526ee5020bb01874d32ee0449c6dd835282a15dea4fabad0dcf06dea8e7b9e55c9a70686756f1f6db32f01b450968521e67614b361c51a3673fb5cf4b313d35b041599d95a54d17de65204a289c04b33a33f3d15a58a90b90fe9c0d05894f75c48000e8892866e516f605c58466c0652df4df4245cf61ecb43ce23ac6d64259d89a0c02a156957159feef112d1639851e0b1b2e97aa138b6b7657ade0eb2df303cba9e4a729e79061ccd89116c56f313a082edb0e311185b2820bec856acf95497f23b04be15e7059206f93db9a6837071bff558f8d7ec8ff91c089b7c3baabbf8a8770741d353cb0541383867b0a96dce09199b453bcfeddb8f633797bca30f720faf649c4a67a488ecf4388c5e7383cf508114629bf0d2bc0692bcb364748b6a728b2607125c74568624affa5174e400c0c17235340b2e9f56010abaf23e594942196c7ff4d4856d264f5bcb330ad31030347df134b7f40d68080358488029de0f12d707a15fa0737b04f1c9b3f1bf8227cf67201ce2b347f47eb14d1377666c472b1a5fd34dc22002183103944f1e277def38512a4c5dabd0b535d2bd02033df67499240c94b625212b1b57b26dd82a6b126a9f9d6b92cad7920fa68e4dc4f74ffe46f31c05f2c2b675f6050fd33c865c8a03724f9ff9789500b4ddf43ffe7eda857f7670288c27641fb9dc7c63c8a916920cc7c76f6eb3dc9b083444cfb1d77470290f3b671967030db402ffdb49fd38f424639cf0aaff985144f29040a3ad1359bddaae36dbba740ee4f0c97b194dc7d1742827db2f33965e30fa4f37c8217eaddfc34082526df5755b4338db89e4221b919409fad65d1abf4810ef67183ee40a916de209eead26fa5156116f9b72440eafde88be86e28a0a04e88fe29e4472b9ccd3a192ae00f6f52baee0540251869ec728cd03bb2201bcffcf5bc3d9c345d2b14b4f544363cacaf0c088c56cb8dc0dc8f126136e1b82c0b7577c8a22b1448c1f588c9f34a1fc5a76986f4b98a6c4f25a832f48feab33f45e0f48bc9e5a058a0d447d5e0d996b8930d0f8248a98542f6e74cc99630b559b7c4c1ccc08e0f1b1bc053347822ea65b7a62c87190fcace20c00000090481e0835d39fd8a96a8621f6b07090b791b96bc168be8b925875f9651cef09b13b3d19fa1108a15833209497ce19b540a98823b2b717a32336eab1c03722b620c9edc47b837e7e9dbcdeacf6e21e6b7c32bb3667017684860a0f3df8e24aeabb3ccd2f56fa81bf67f1cb75f09fa40b53d4f15f0392430a00430902b3d88062d100629620fa4365b48a8b1a70d7bfc59766bb8f66746774cf468ce1c10d2a494e4309fcf32119b14aaf3bb94b30d100410551a0de356601da0289d1573931745b3d015b150bdf91ed0fa201b77bf13f928b7da499f4b9d84ca44d988515ca586768192b8340d3438938f37cd9e78206164622646df66ee8e9da522c387dbd783dcead20c990b95f5ca3a75a2fded5094377f65585e0b39fd656856db6f3bbcd74ac6c094e80ac1e7b437b0a45249f7f795e969b2f85066970895e4bf70c168b2239ed30178e7cde0bb7b317d15f3e632e665cf53e883b8cd1301635d74c479c1cea5be7574af47527b3fc7fa49563b3a4d1a19eb593507625b8ba55cbd4ff01</code><a href="#appendix-B.3.2-1.11" class="pilcrow">¶</a>
+<code>803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04ed0282f97ed9c5be6ced2c1092a34579d9786d1de4dc5404c4d3435f84bbc1a0ea352432ab6ad5b2e46e1b126c18103748824fb252ac17406898c6c27d70fb3b87b96f0d4c7992b03e160e17b0c98efba101daca039575c793b6bedd4dd10541e2d6701be3e75c019a63fa1595741b3e25c7e111014a4dd792bb47e6aec01aa39da1d23e9ac2386889efe3a024a6622bede3f862a41d8267dadbfb491901a6e6845b0503dab880fc756684f4bf3e71acf1eacb596aa6bc9364eaa0e2c3093dfebde19129e45b77c16d27405766a2bd5db5203ab0c116a253127f666354b1cf97c71fa6fc3f90016fa778aea298eaf379f34b043b5da3bd161fec2530eddbfb0e247e4e615f4469abd04fa996ecf232e6fde51763eacb87dacc10b5b2aabf99790c745c33d07537d414be750e6c0dedc14b72b4e5e86be92a7aa87606ad2e8d01d1b1306672a1ab21cd6f676272baadfac7b2fb453daef8415e2f38128f833f6c7b8579a9a4c6f1cc6517bba16e904726ed462896a797dae48f817b81be630a95629f60d183eedd9a4c433ef2f0a4a4294ad5690f2c07b3385e3f2e73fb2abbe3e75148bc1051abd7ce21c46f42517911c2c790cc2101ee85fa50620b644f12b8fc0c9f8522fecaee7c284b7e7006c88df35d1c4f6bae0268751507872f47780c4bfe833a7a0b6f4f403d0d1b58bf891a48083a78ac5e473f7e012b388fe2f4433099d256c6b153cfc422d6f48f6229a7107ca4d5dda7d7ffc033ef3ba2269179089e4889f379d1f97f03b3f0b3206245781dd6841f820fd931ad42fd8a1f44077dbd42f7ea2d3c4d5ecc85e5688c2a5f67abe0a456390b85f9fc2d13a5ca864023e611c6b1ba75967bcbb2f2a8c142a7044e9c54b96a09981fe5b674815e9fd7d8a8d76169e11800edceb9928ec62feb70f0e3593fed2ab0d545f29b1d2ea20cfd8320f828609d5e45cf0dff488401e170d2945ed7559c49f5de2bc7f063f4d63d400922fd141c40d4a74abf045e1b7af4b50ea1fe5fb215cdd286e4ba0e9708bde5320999b8682f9ef6c05744395290815697ca993103f0c0a7704730a0521276b5b1ff2c0f08b364e0c90463874b7a76aead588a0578abd97995a7acc018faa3616f94202b67601ace16cfa22118b6d3c358a9602db7b4c41cf3cad18f0c45016e975539c3308d01c6398983c249a7d7ef16b56c075d2e5768ce4548dcc4e89a69487862c72b530ad0c86d0254b5324e20a9fbbe424505cf354e3e8ef74ecaca42ce218f8ebddeaf17a46e31016bff10c73496d511ca71d3ee15fdbb7a3904bfae54b1581beb69cc2b0c890fbb74baa431eec4cef4ad02df96f82bd5ac46c4e26c97007a5377b096adaf4679a39b6322eefeaf4d2a596964457f7e40d658af1a489d73d0f0d9aebd01703f10423f096f352b2eceba178e81e9917eaa5f1df0fc7b7dff769848968a09789ab02a54b6c1176e34a9a8f1da2cf19ae2c37d05a542407401e53e23a3c2f1c0427578f71933f335ef419a3804338629c5b05220ff077d527eeb62fa14e6410ddd2bfd704eabf68ae2eff1c3df789acd0b651dddfa7569c524daad94e3b0c16c5bfe9ae509c138e1c6164c18b17047b6aa08d4b490b227ebe71d884fd6b6c64b3aedf6a184e8f2364ce58365210b22f9be3527f219e97845a53f0d975f26e97125bb2125223f9a86202ac62ca3c4e650295d2eda824aaee83318308714b3c37ba11b7f4c92c1a53eb9279c473610e2ce9dacf55993f1cb794852fe80c1be4f203c82422826a72eb7ce93a806f709d998504f785cbfcce45c56c3ee3154074e99a3c2e53fea547119ea179ec7d0bfe784556b25d7d6e56fe095b33f2d05e5ac1b8c3fd581811c57648bbef03dad260649070a2446c8592f3e7693a2f1e9ee86473788840517e38d6bc99e2919b3994a6b6a35efb0b6a37225353d4663a61636cfcd81ae2164027586165b804d3ff9e818774b6dce75b32aa849cc964bdaef98457cf2abf90544087d3eaf9dff4897285934cfb6ce49298d4479739de6f80581c0398ba30cffed7b093c3bc2074b558059a7db87ade76ad0348c4ec12499b8d0d3e03a354d27eb901485cea2b58edf01e0859e694c704bb12f2d28227166b476d676f009e4e302fda4ca5ec0692dede769ae800be3e614f3f5ff2552fc2528c94b24fcf74f8b61e0ea76903dca73afb62b35b9fac7dc0bcaad0c17267683aac5e823cd6dbd796f3210dea30491d5bd2d8dd6daabda79213dc3956200cacee1dc8319a3de252f3fb8df6079cc2f4be51c873be5f6668103c9d8a4a5c505bcdd14174eeb1f3c82c156d2d3bc57f68501b9d5ba5af10372797b1a93d738c013c0625833861ffdfaf7a9b0e00f8a33a41f87d72100f75b4b70e8ded7b9a0f44f954915faf6bfc721b367698abcc6b33be195e2a99a326997af0568a9f0e5b65984ec416b715d9f2b2b9ad742eb051fd7c29d0f1c955050b5c38dd1c85c09b1e080ff0dc9c8f10de0d86d07ddbb98267f3c3bf27ae62bac922a62ecbe8c8e1a78b1c19ab25dbf95c52ac077a2610063ac19382d149a18e54ab3b7a843250a186d8540184df41bd5a6be7e3660ef28bba8bb9f4407dbd3b638a30e4a18c7f60404ec06872065179fc55a1195ced24ef2b3798a28acbfbc320ac4d8b1850e6bfb3d3a5730d29bd3f93d6530cccc5f669a058bf14590ce383f6093a386a01cfa72cc429a3d127939fbb73778a8ce92202c29ccdb61fedef35cb7d6cbc98d559f81afd81a472dc8cfbf47074731f18ee4b8871ec5c7508328ad16319c11de3dd35de85e9000a8c8dd77947a60221cc16b8278d4b03bf6858c252c1c19b7fbb432c39fe6db2f04bc7e7ffbda7afef966eaffc1a10e271f688c6f5fc95328f94196dff3a42b5e7c4960b5e457aa322afeaddf2dd4cc756e7379bf3266faf76c4153d4bfbef3fcd2fad88b1e7e7d78246cbfa96b7f9edbedf02d210dc247ed0fd14218243eb3c6cd0866cd2cd49f84a567c780b1d15ad44e5ecb916b0819bb8d57ac002a7b007a35c4fdd3fa48694131a637482f781666a3d69c5010d406ef8c46fd239545520a5363d67d61bad1750d37b087c1e3611a12d47e477f5fe986cae604828cae4bfbbc7415d64cd5e755848755a0d9d3120ad46eea8d860fa8593d45fef897767ce05ec5feac76d8f21910bc0ada856aeaa777629048ef63619b9a06c668a2414e46f859a2fdb1ba63e8718fa6ce4bf532b2fb0b8ff4efc9e35514c0ff4b62cb9730116947bef69325f3a4c1c6553b7bd161754f8008d8057ec47e747c61954419b634dec16eb6adfeafb1a0e9fafbb2a9c85fcf9bced400000000540000002b520d64d1a48758b4e6b56b93cda7b71767e41aa21bc5a402f968032a5d990b35d916cce85bc34911ea5f3413ae54313eb9ac0de227c1144dfc0835d6ac56fb37cda5179524c5390e72928bf48c4d7f2c6ead37d9cbf9b53f4219ed6ba49b8620a6a6ea318ea301b442a8be1c6198b0950ff8e748772dd208758a9b6d4ada5bb54472abd5aef2cf83f64227b8e8528f6883130523388ac249501c5678fce39ee6098cf92e675f98ca0fd7f16d83f18879a6a54196a2bf0cc8222d791e9870ab8444ab45f7abf52736bd00b8e1583f31faf872d474aab7503100adaa4eabed15dd194b4ce7576b58e33ca6c044b104545764d9af7b7708cb8a9d7d2eb82564c24b9ec487aca878ac6f243cf89dccff327fa5c61698a0f14f33ddfadccd7748482c72c5234b5a2663256ac36644692aaeab1038b87c40be582d28d495f9042be70a724e89c5462323ca1dca74273a6f2bd8f8b1f51c7da4f0f66732d4040d29c916ac01b6e1f7cd411a8783caf37f0b8fc60c330c6fe1377f956273ebd37c6aa2acb55ed76b7589c4e4ab006085057f301369f9b4407745ec25420dad03bc2c134efe1ad4dd9ef9f03a617f79c69a4d90e44c2ccf48ac1ea1f7450fe7b1603ec96e70400ec7ed1d645e13161a9c42a7aee7922a3910d9c7a4a2375849375f8c408d7ce8eedc7fd61082f91483d4ae597530423109fae058b90f43f63f397e1afe4ad76b9d73be712c9ce50c5feaa4ccff48f9053f130a04cee5121781f4ca524e9bc381bf627dcac1aabb1cb6781b4510874f60a8e1c188016e6b49f67827c9512b3f2b3d412b35b3e371e6f40014d975f54c54e0f404d6cb999196504009a891b0f2710df5054a387cdc5cb7bb147f154e1d33519782410234e6e1f001e511e3896b61ac9e75d111da33a0c3c91414f37ba8b169809e735453e9698f643af6f1b76feb3f50f8e65f42e8803d2f128e36928c021a8a8e8411a9f02d36efc09a1f71cee349a36dc6162254eb04210eb08cae8e955a5720891fd89f5b7bd61c0e0bf62471a70e8f8ca8addde0aba195388d60452fa98ec72d5aa4751a3a820db5e869cc80f2f9a62d18f7367d1c1ad339dfd5760dc9c11b244a52d7275349a721d80939f2143bed6891a68b950946453c7efb8c885974e6e2509b63aa59278e30b78659f736c5a6f84e9c0e5cfb04de3a06a35e3be04e7d9bf85ee025cf5b4ed1a5038ab30e6d304245c6d5573a3ead0da8de3375985a8c32ca06658532f827ca216d8d24c4ce16ae39361b877bf4cd0994394144bb8e52737ed70732eea60cf5aec5f474bed7baa5124ec1e454c818da069aee55b9e36b46807b460d5ee2684d650c3ebbe7d5425186e6a63ef2497b4e9028976991850310faab526bf6a3f0c9800c655aa5bff7cabc560f82d4e885c496d3111025215121adff4a55487783399b76d3a0e7376fede3865e3558f219d82fc60207d921549c858dfc8c08fddb61e51c776e9650ef8c757f9d52c64793e3b30c87e18bdf0de670ddfdfe3785026ea7acabc069bca44ee228d707a03d78d0ef64a1a5c9bf5a66d9a5fcc8168954fb699cd74f4568007e9d7d147ea2cabe9e85e00425f60dc895309529d6251a295d883cae2f92cc200a5bcd6616d8125517d95366ce99e151d51a3b43784537c55ca470dc003aa92f72a706d9558711fe3cce3603f40d90d041cf58b8f3b93d2079b55104ccf9694dcc2dc7b38cd7b3395db8a0b6e570c6f7fbad44d44111ef8cbc38c66a26571835f13d66eabd68de56a707508e850b1d8057d3bb0389833dd4b0060c0437a75418bcea0ad4d0907c22ebac99ea69f04015635ffd217672b5531e2d6484572c4093462c7464f9af152fabe10b8515a160750e246302e640d837778443985dabcab9a19e9ebfbabb1d511f8fbd1ce7d163c6bc85513a3954876f064d855de13479202a87c513db6f43efcf3fe734c740606c1aa43d5c42a3807a8c06e25c4952bbb951b4d58269d67016e301b8660cae3bf4ebe556cbc7ba99b0b020cb52faffffc9ba2f9cd6d88e91cabbed8f9c325785b9885113198b52bd28324c1f332b82accf2055642c4af0cae07c1bf46f9cafecd81d1aefe8e3b777f19ecdd3a6e921faae6e1d8e20764e12dc1d02917ae0dfeb1cdad107c1744b980c9405d8d3ff53869e77c1e299d419216ad68894fcee7e4328b3b347abd813f9a833f32cf932591570bebfe056b5b98ffb614e576192a4d4af8b740216d833d7334eb9eab0334c635f86c681d6c9c9327f179963b6982b1853eb50e7d57b760c190735ccd5835d669b10fb5ac684d3086abb77b5252aff7d2b7f808561a7a54af2573e605ecf373e1f3d5525b83dc45bf33a8cc79fd3114c1d4d94395f0e9611ae3021839f6f81c072ef6b6044e735c5f269a23686f9d566a26782c12bf5db4660330f123a54d70aa6e55d6293da388a73ecf15f6693cd86dd83525003b1cdd22bf5af0bb25ea5ded5c5bff67a06284c9236883eb6aa4b8ea0d94c588a777b54da4bade065be29ce4d1c1a91d24624562f20cd7e6b4ec25fc0699c2cc4c815b8c3bd973bb93d0811afd518e7db3c94ef99331a0eab493f88c47f14c47dde5b647628baa1743fffba43b69fa5a7004ed8b061d0bf599cd7a880d20485b51c51bd3de82f01123357546eddfdd002223cfb33f23e97b9df42a04379be4447b2a6c30eaa849e9179e334561b05c83d9a489cc5b4e4ee00c5668a89631c6cd1b5add22e5fdf680b4755841fb5e1e806b7cc6709d94e3d9fe184388f17f26a947d58a95881c73bf7ec078cb3c6c8bee6b48e898da3dade41a871977e54a1047038edb550b7eadd781888e15d7796940d0999c3104bdebbfbbe716c584f3bd31326de132ec74bcbd1294f9b6ab57eba429b36c242ef34d36bbaec8d42882869f26949568a7bbee76b77f54f40002eaa717071e002a8a29dd7fd6ebd7df3811e090ac3117df4e30e8868b26d4cf4c3437b1a53f14bf515798fe3a5001a7bfc0a8caeef488175e9d8836a28ba65461462c16ab66c0a8d8148f3b84c0a6a4cbafa900bc09c4f319f578644ff618d50496d2b2d1e63f8232b263308bb55afcb77232f210c1677d84df6d9309fc40e551b15458c635b5c3edbf88aceb4973d9fdbc2750b1fff5f96ac8c54dc83bdbdec3dc01d34e510509377e69eff08ad3d5b120c72e8a432e627982b11b6dec534a3423bb529c527637171825bc1990501ee480b23711803a4a3c48372fb266759c496ad4d6a56299f7b379a783d07aa30cc45b1f0094995a5aa0791f4b5309f43295fbb71a20e0bc4addb75589d8e577650b1109b969f8ffe6f26b957c263f38419bb67e4e651adba049a41fa861772f036c172ecf3d8742590996ee4951e608b384c1e6764c1618de6548d239a6325fbed9233f6e0da4e1775d718a1e5f744b2858f67c585a54c912e7ea58dfb58d1ed2ebb7149f6f1019e0ec86e64c3e70fba3f0b8462a5401655ecf7386e9f7040098995fd83be5336c1c9b063458f3a327bd5d5753e73a96fc2f86a2610f18e3fb5173109c65bb95bb2232785241f472597ba75969369ee893dfeaeee6307256db5a8fd3294cee178863db9c8dbe711aef2f709da7cc9be00aba6e43266acc4870b69b474f3639e5d04c3064ee652fc5ea5afee2d5f7d7e2d1a3a95868c9f2524934ba53673cd1e76ea8390f07b9d73bedf84a753b37d8c5d3e64652c9fe6bd238e5433eaac08ff61ea34c3cfcfb6882485766a2658338a60dac5d934899cad1a05688b8244e51b29ecfb1c0b000000ed0aea43f9d6715158ff3048e550629bada9ff6c99b48d9af59f83236ea427401c22d30673117dfd8c17e7caa1c432f72a661c5ecdac243925674d3b168d33b9f29bda3f42a9180c278f91064af6b79e4a2517217e457d488e88111c19eaf1aa239215789d94305bd5a975e397af5b5419443803bb8a7f63c9450c80a96bffcde555370e8c6bb3a0f2d2ffa3e41d00c6ee362d64fa8afa3ffeea6bd8a964cab8911b768452b297bb3bc7930eb61c5ad38dc7aa310c8368131733f4ce4bea67f4ad5b85bbedc01b9fc28afdee1d52d8204d6b3fb8323b3836a858fdc1cf9e7e7ad6fd1e4e8bf95277824ab90310ae2402c4665cf76a478a4726ab63e0ff55ef853e6ed3030d04b66028e7e2b56d12c0fc42aef74d0a19ca21bc77143b589e5bc8dffeb34ffa0084c67395ec2f3aea8e4c1c1f9644482f364e8471931422be6eb6562d371f966b11e9e0d2c850537f83992f43de669d091b472a5a242731a0156c</code><a href="#appendix-B.3.2-1.14" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+<div id="vector-2-quadratic-polynomial-circuit-over-gf-2-128-field-id-5">
+<section id="appendix-B.3.3">
+          <h4 id="name-vector-2-quadratic-polynomi">
+<a href="#appendix-B.3.3" class="section-number selfRef">B.3.3. </a><a href="#name-vector-2-quadratic-polynomi" class="section-name selfRef">Vector 2: Quadratic Polynomial Circuit over GF(2^128) (Field ID 5)</a>
+          </h4>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.1">
+              <strong>Description</strong>: Circuit verifying <code>(s + 1)m^2 + (s + 1)m + n = 0</code> over the binary field <code>\text{GF}(2^{128})</code>.<a href="#appendix-B.3.3-1.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.2">
+              <strong>Field</strong>: <code>\text{GF}(2^{128})</code> (Field ID 5, polynomial representation modulo <code>x^{128} + x^7 + x^2 + x + 1</code>)<a href="#appendix-B.3.3-1.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.3">
+              <strong>Witness Inputs</strong>: <code>W = [w_0, w_1, w_2, w_3] = [1, 84, 5, 6]</code> with public input <code>w_0 = 1</code>, and private inputs <code>n = 84</code>, <code>m = 5</code>, <code>s = 6</code>.<a href="#appendix-B.3.3-1.3" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.4">
+              <p id="appendix-B.3.3-1.4.1"><strong>Explicit Circuit Definition</strong>:<a href="#appendix-B.3.3-1.4.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.4.2.1">
+                  <strong>Inputs</strong>: <code>N_{\text{in}} = 4</code>, <code>N_{\text{pub}} = 1</code>.<a href="#appendix-B.3.3-1.4.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.4.2.2">
+                  <p id="appendix-B.3.3-1.4.2.2.1"><strong>Layer 1</strong> (Intermediate wires <code>U = [u_0, u_1, u_2, u_3, u_4]</code>):<a href="#appendix-B.3.3-1.4.2.2.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.4.2.2.2.1">
+                      <code>u_0 = 1 = w_0 \cdot w_0</code><a href="#appendix-B.3.3-1.4.2.2.2.1" class="pilcrow">¶</a>
+</li>
+                    <li class="compact" id="appendix-B.3.3-1.4.2.2.2.2">
+                      <code>u_1 = m^2 = w_2 \cdot w_2</code><a href="#appendix-B.3.3-1.4.2.2.2.2" class="pilcrow">¶</a>
+</li>
+                    <li class="compact" id="appendix-B.3.3-1.4.2.2.2.3">
+                      <code>u_2 = s + 1 = w_3 \cdot w_0 + w_0 \cdot w_0</code><a href="#appendix-B.3.3-1.4.2.2.2.3" class="pilcrow">¶</a>
+</li>
+                    <li class="compact" id="appendix-B.3.3-1.4.2.2.2.4">
+                      <code>u_3 = (s + 1)m = w_3 \cdot w_2 + w_0 \cdot w_2</code><a href="#appendix-B.3.3-1.4.2.2.2.4" class="pilcrow">¶</a>
+</li>
+                    <li class="compact" id="appendix-B.3.3-1.4.2.2.2.5">
+                      <code>u_4 = n = w_0 \cdot w_1</code><a href="#appendix-B.3.3-1.4.2.2.2.5" class="pilcrow">¶</a>
+</li>
+                  </ul>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.4.2.3">
+                  <p id="appendix-B.3.3-1.4.2.3.1"><strong>Layer 0</strong> (Output wire <code>y_0 = 0</code>):<a href="#appendix-B.3.3-1.4.2.3.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.4.2.3.2.1">
+                      <code>y_0 = u_2 \cdot u_1 + u_3 \cdot u_0 + u_4 \cdot u_0 = (s+1)m^2 + (s+1)m + n = 0</code><a href="#appendix-B.3.3-1.4.2.3.2.1" class="pilcrow">¶</a>
+</li>
+                  </ul>
+</li>
+              </ul>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.5">
+              <p id="appendix-B.3.3-1.5.1"><strong>Proof System Parameters</strong>:<a href="#appendix-B.3.3-1.5.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.5.2.1">
+                  <code>RATE_INV</code>: 4 (<code>\rho = 1/4</code>)<a href="#appendix-B.3.3-1.5.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.5.2.2">
+                  <code>NREQ</code>: 6 (query count)<a href="#appendix-B.3.3-1.5.2.2" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.5.2.3">
+                  <code>NCOL</code>: 64 (encoded codeword length)<a href="#appendix-B.3.3-1.5.2.3" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.5.2.4">Derived geometry: <code>BLOCK</code> = 10, <code>DBLOCK</code> = 19, <code>WR</code> = 4, <code>NW</code> = 29,
+<code>NQ</code> = 2, <code>NWROW</code> = 8, <code>NQT</code> = 1, <code>NROW</code> = 14<a href="#appendix-B.3.3-1.5.2.4" class="pilcrow">¶</a>
+</li>
+              </ul>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.6">
+              <strong>Statement hash</strong>: the 26-byte ASCII string <code>sgonal_test_vector_gf2_128</code><a href="#appendix-B.3.3-1.6" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.7">
+              <strong>RNG seed</strong>: 12345<a href="#appendix-B.3.3-1.7" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.8">
+              <p id="appendix-B.3.3-1.8.1"><strong>Merkle nonces</strong> (one per opened column, in the order the columns
+were chosen):<a href="#appendix-B.3.3-1.8.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-B.3.3-1.8.2.1">
+                  <code>7ef857289b65bef3539deca0df3f44c67bd0f86b02afddd2eaf2df6b9ba36497</code><a href="#appendix-B.3.3-1.8.2.1" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.8.2.2">
+                  <code>33946263e6da1ec940a9047547a6296f465821313eeb867d988aed265b82eb53</code><a href="#appendix-B.3.3-1.8.2.2" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.8.2.3">
+                  <code>87b402da5412750ec00175350a9579b1f458b668155ba582d31b5d71331f2d41</code><a href="#appendix-B.3.3-1.8.2.3" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.8.2.4">
+                  <code>978ee556b7e529dea3e0fbbde3d83fcb11871c478dd3ddb15fc27e628487950e</code><a href="#appendix-B.3.3-1.8.2.4" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.8.2.5">
+                  <code>1c320449d0bed51ad492d371d066d55c4db059a1c59c267094ae3087746b1e61</code><a href="#appendix-B.3.3-1.8.2.5" class="pilcrow">¶</a>
+</li>
+                <li class="compact" id="appendix-B.3.3-1.8.2.6">
+                  <code>c809ce332b7354d1e4b593f335d980dc1f0579e171a0bd092761a12006f3b544</code><a href="#appendix-B.3.3-1.8.2.6" class="pilcrow">¶</a>
+</li>
+              </ul>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.9">
+              <strong>Commitment Root</strong>:
+<code>30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc504</code><a href="#appendix-B.3.3-1.9" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.10">
+              <strong>Sumcheck Proof Size</strong>: 384 bytes<a href="#appendix-B.3.3-1.10" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.11">
+              <strong>Sumcheck Proof (hex)</strong>:
+<code>6240c86a95637590efc064be3f0e9d28fc212291b18e5e3afed5099df504c6478aaa530725347ed936fb115880fe03f394808f716d78e8dd8dde5b5bd3f2f489a71c546509defd48dfb6650b3095fd6737451138f90326c07013cb02076ecab74c74af12fafa59cd8fdf6ae0315d1a5ee40de4c200b7d051bbfb98626e86ccdcc4f2995317ebb77628e811cb190156e6b9cf8cfb4fc62b478e49e262e6f4453f6e6c5298fc74b14cd2a9ef3ff9872f67452f9012a79e6517347af882d1e0bd70113cb1307823bf2e57b45515cfce5e8b0c33e9a941524ba5355f0c444d96138347da64051e89579e5ee002b8346d1b53c26c695f208d5f5b784f90e4ae33b7bbe9e0d29e9e2ad103933ab99a684b7611ed1a15977f59e2d60d05a2cf24212ff20c59ea4f435404b9fa889934fd8d550807142c664890f7d0a9ba27ea040d03ebfd4bf8ce06ff90509700bcde7042d213adb43c2fb1f46143226c273b09bd650bab9b3aec6cd5419edb1bcd616911c2b3898d07c5faf9fa121da18a01f5a1ea9b</code><a href="#appendix-B.3.3-1.11" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.12">
+              <strong>Ligero Proof Size</strong>: 2632 bytes<a href="#appendix-B.3.3-1.12" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.13">
+              <strong>Total ZK Proof Size</strong>: 3048 bytes<a href="#appendix-B.3.3-1.13" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="appendix-B.3.3-1.14">
+              <strong>Complete Proof Serialization (hex)</strong>:
+<code>30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc5046240c86a95637590efc064be3f0e9d28fc212291b18e5e3afed5099df504c6478aaa530725347ed936fb115880fe03f394808f716d78e8dd8dde5b5bd3f2f489a71c546509defd48dfb6650b3095fd6737451138f90326c07013cb02076ecab74c74af12fafa59cd8fdf6ae0315d1a5ee40de4c200b7d051bbfb98626e86ccdcc4f2995317ebb77628e811cb190156e6b9cf8cfb4fc62b478e49e262e6f4453f6e6c5298fc74b14cd2a9ef3ff9872f67452f9012a79e6517347af882d1e0bd70113cb1307823bf2e57b45515cfce5e8b0c33e9a941524ba5355f0c444d96138347da64051e89579e5ee002b8346d1b53c26c695f208d5f5b784f90e4ae33b7bbe9e0d29e9e2ad103933ab99a684b7611ed1a15977f59e2d60d05a2cf24212ff20c59ea4f435404b9fa889934fd8d550807142c664890f7d0a9ba27ea040d03ebfd4bf8ce06ff90509700bcde7042d213adb43c2fb1f46143226c273b09bd650bab9b3aec6cd5419edb1bcd616911c2b3898d07c5faf9fa121da18a01f5a1ea9b3edfb458a51019d7ab9d3f0890c1c216c1e4e2b2c087cea41515e0dbe8ae74b8923bc6f7ec3396c391e422f440d9b9f85a2e47a8c43682f41bea847fac6ddaa246dab1978ee40772bb75fa4571a773bb3a7e1947eeec8d74b7c42a800a0de3c8463fcf42223b5204c34bb261d8708e96695648bbb4bd534dd3a852032a5a23c641e66955d62f95d2bf6acdc16e401aeb355b55f6c7df1fa5493e152633dd67b05451e156baed83c4b6b154e44779cd30d382b43cfb918db00d0f7e6ed000ede91460ec372a93c7263f54666cdf2d558e0a56f62914e46eaee62b19e1b5ba179bb96044de94a5964acc4ff7c175f25be4fed23d1096414f307104eaf47e9c756a54fbf66e974c607946b689560486601c6d351ce7925a6ffe3d960ace99b9b5fdbbb2ca9d8b56736af217f21ed813e517fe4f3c78fcafa0b47a01307fef9dc4d2c9fe979532e97d1452034d904db212ffea8c152cdab17bafd8037d519dabe985091844be5d630ebba0ba17765839c35543e40162c66ae7b73f9d018c463aaa6034545321a445e83fb706b03f4971bc2c28d529d36c5440c2942e9c22908e5a2f2347e19b793e15e0852686e29a2029977b3ba6c346ecf3bceca062b5130ac652925cbca1da5f99528742bfd37d32710296363d2d2dda271eafe8ffdab7f2c378fb56de4804e8dfb0887e504f5b3c0a1c040a91e4ed07a35a487be0f1c1221d2d3950c7db515c5e4c557d2508fc8d13c70efc9f99e667f8a0995b9d2b3f15a3b29493a370aa72bece76d5c1614ccac7f8a4427a0cbcf38d7b46249e13ff8a38de34baf543b88990809ff36271f33a9c62c4d79ddfb271ec6554430c7eff2ddb380a11f45d772d5f61d051f6c9a4bf188fad665105add63a91c89f9847ea498fd4d148fcb439d216593fd6cda35cdd541b70dc213c9ac9f172336743b5d9b9f0092358436be52d50ba60e7d7c9c4d75415527f4c04647f433b02b7955421a405ed7ef857289b65bef3539deca0df3f44c67bd0f86b02afddd2eaf2df6b9ba3649733946263e6da1ec940a9047547a6296f465821313eeb867d988aed265b82eb5387b402da5412750ec00175350a9579b1f458b668155ba582d31b5d71331f2d41978ee556b7e529dea3e0fbbde3d83fcb11871c478dd3ddb15fc27e628487950e1c320449d0bed51ad492d371d066d55c4db059a1c59c267094ae3087746b1e61c809ce332b7354d1e4b593f335d980dc1f0579e171a0bd092761a12006f3b5445400000084517983aa1a7acab37c5181b97ddb5d183e7a30b7e9884798a1ad1333c2c14c61fd3a7d917c0e4537af67339705ac87e322061e9a147d45067342f418a655334b4588edccadd095e883e9aaecffd81c02e951c856dc5ec383fb28cc228ccc269c71ba2bf849a9d61bae28f935d474eb5b163f1bee4bbe0dee075869b0335e5fe98780182348b1ba71767cc88958065a0403e65c7f95d6de372aced94abd8bbd885d0f6d38451210d7fddbb8523ad24204fbd51152f5ac27a948e9e3788f14e7179ad246b576448614fecb01c2d4dd83ee2f5adbaf7750e986c03086a13f5be9a5e12e9ff31e8450b0c7623113a70837c5310991f2344e058687333d18893813a17939ad8bac01008f045c5711e2bfff6b16d4ed928a078e4a55eb72c65500f6f4ef4d02b4363836cdf4e9c82b761e1824c54d7285c1a5f0b3996af3088c52df6b9e746c73043aa4262717e733d508761dcac98315686357b39624b9912a2bb18e692e87b31ad3f26bd3b3246a678f6b9be9272611c21b6fbb1962e1473c76089d9b039fd9b32adb3a614f9644edd80a7e7d9348c675feee9fdc7231c50bf481d4b74328bdee990dc0af51f0a9ce68a34340cbf6067d65a1bc5b64069e11b8b1a3bbc72f3c5d517befd88b288ca28f8a2adcb8308eda9e97fb4ab325b567524999b568c401c0d94ea358434d786b2349ad878b197df169e78bbbdb2008611c7b0ee75ac194c86517ff4e592debce41c3972344dfadc6af0a1c84c1aedd5b6b3c0ab3500a12677c73f8c6aaf7f9526ee5020bb01874d32ee0449c6dd835282a15dea4fabad0dcf06dea8e7b9e55c9a70686756f1f6db32f01b450968521e67614b361c51a3673fb5cf4b313d35b041599d95a54d17de65204a289c04b33a33f3d15a58a90b90fe9c0d05894f75c48000e8892866e516f605c58466c0652df4df4245cf61ecb43ce23ac6d64259d89a0c02a156957159feef112d1639851e0b1b2e97aa138b6b7657ade0eb2df303cba9e4a729e79061ccd89116c56f313a082edb0e311185b2820bec856acf95497f23b04be15e7059206f93db9a6837071bff558f8d7ec8ff91c089b7c3baabbf8a8770741d353cb0541383867b0a96dce09199b453bcfeddb8f633797bca30f720faf649c4a67a488ecf4388c5e7383cf508114629bf0d2bc0692bcb364748b6a728b2607125c74568624affa5174e400c0c17235340b2e9f56010abaf23e594942196c7ff4d4856d264f5bcb330ad31030347df134b7f40d68080358488029de0f12d707a15fa0737b04f1c9b3f1bf8227cf67201ce2b347f47eb14d1377666c472b1a5fd34dc22002183103944f1e277def38512a4c5dabd0b535d2bd02033df67499240c94b625212b1b57b26dd82a6b126a9f9d6b92cad7920fa68e4dc4f74ffe46f31c05f2c2b675f6050fd33c865c8a03724f9ff9789500b4ddf43ffe7eda857f7670288c27641fb9dc7c63c8a916920cc7c76f6eb3dc9b083444cfb1d77470290f3b671967030db402ffdb49fd38f424639cf0aaff985144f29040a3ad1359bddaae36dbba740ee4f0c97b194dc7d1742827db2f33965e30fa4f37c8217eaddfc34082526df5755b4338db89e4221b919409fad65d1abf4810ef67183ee40a916de209eead26fa5156116f9b72440eafde88be86e28a0a04e88fe29e4472b9ccd3a192ae00f6f52baee0540251869ec728cd03bb2201bcffcf5bc3d9c345d2b14b4f544363cacaf0c088c56cb8dc0dc8f126136e1b82c0b7577c8a22b1448c1f588c9f34a1fc5a76986f4b98a6c4f25a832f48feab33f45e0f48bc9e5a058a0d447d5e0d996b8930d0f8248a98542f6e74cc99630b559b7c4c1ccc08e0f1b1bc053347822ea65b7a62c87190fcace20c00000090481e0835d39fd8a96a8621f6b07090b791b96bc168be8b925875f9651cef09b13b3d19fa1108a15833209497ce19b540a98823b2b717a32336eab1c03722b620c9edc47b837e7e9dbcdeacf6e21e6b7c32bb3667017684860a0f3df8e24aeabb3ccd2f56fa81bf67f1cb75f09fa40b53d4f15f0392430a00430902b3d88062d100629620fa4365b48a8b1a70d7bfc59766bb8f66746774cf468ce1c10d2a494e4309fcf32119b14aaf3bb94b30d100410551a0de356601da0289d1573931745b3d015b150bdf91ed0fa201b77bf13f928b7da499f4b9d84ca44d988515ca586768192b8340d3438938f37cd9e78206164622646df66ee8e9da522c387dbd783dcead20c990b95f5ca3a75a2fded5094377f65585e0b39fd656856db6f3bbcd74ac6c094e80ac1e7b437b0a45249f7f795e969b2f85066970895e4bf70c168b2239ed30178e7cde0bb7b317d15f3e632e665cf53e883b8cd1301635d74c479c1cea5be7574af47527b3fc7fa49563b3a4d1a19eb593507625b8ba55cbd4ff01</code><a href="#appendix-B.3.3-1.14" class="pilcrow">¶</a>
 </li>
           </ul>
 </section>

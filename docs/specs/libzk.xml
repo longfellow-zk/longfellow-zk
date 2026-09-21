@@ -289,7 +289,7 @@ impl Transcript {
 <t>In the CFRG Fiat-Shamir framework (<xref target="I-D.irtf-cfrg-fiat-shamir"></xref>), challenge extraction is formalized as the decoding component of a <em>codec</em>. While the codec's <tt>prover_message</tt> procedure serializes and absorbs prover messages into the sponge state, its <tt>verifier_challenge</tt> procedure squeezes uniformly distributed pseudorandom bytes and decodes them into the verifier's target challenge domain.</t>
 <t>For Interactive Oracle Proofs, the codec defines four decoding procedures that translate the raw byte stream into structured verifier challenges:</t>
 
-<section anchor="decoding-bounded-uint"><name>1. Bounded Natural Numbers (<tt>generate_nat</tt> / <tt>nat</tt>)</name>
+<section anchor="decoding-bounded-uint"><name>Bounded Natural Numbers (<tt>generate_nat</tt> / <tt>nat</tt>)</name>
 <t>Samples a uniformly distributed integer in <tt>[0, m - 1]</tt> via minimal bitmask rejection sampling:</t>
 
 <sourcecode type="rust"><![CDATA[impl Transcript {
@@ -322,7 +322,7 @@ impl Transcript {
 ]]></sourcecode>
 </section>
 
-<section anchor="decoding-sample-distinct"><name>2. Combinations Without Replacement (<tt>generate_nats_wo_replacement</tt> / <tt>choose</tt>)</name>
+<section anchor="decoding-sample-distinct"><name>Combinations Without Replacement (<tt>generate_nats_wo_replacement</tt> / <tt>choose</tt>)</name>
 <t>Samples <tt>k</tt> distinct natural numbers uniformly from <tt>[0, n - 1]</tt> without replacement (used for Ligero column query indices) using an in-place Fisher-Yates shuffle:</t>
 
 <sourcecode type="rust"><![CDATA[impl Transcript {
@@ -345,7 +345,7 @@ impl Transcript {
 ]]></sourcecode>
 </section>
 
-<section anchor="decoding-field"><name>3. Field Elements and Vectors (<tt>generate_field</tt> / <tt>generate_challenge</tt>)</name>
+<section anchor="decoding-field"><name>Field Elements and Vectors (<tt>generate_field</tt> / <tt>generate_challenge</tt>)</name>
 
 <ul spacing="compact">
 <li>Prime Fields (e.g. NIST P-256 scalar field <tt>\mathbb{F}_p</tt>): Samples 32 bytes from <tt>bytes(32)</tt> and rejects if the integer value <tt>\ge p</tt>.</li>
@@ -377,7 +377,49 @@ impl Rng for Transcript {
 
 <section anchor="merkle-trees"><name>Merkle trees</name>
 <t>This section describes how to construct a Merkle tree from a sequence of <tt>n</tt> strings, and how to verify that a given string <tt>x</tt> was placed at leaf <tt>i</tt> in a Merkle tree. These methods do not assume that <tt>n</tt> is a power of two. This construction is parameterized by the cryptographic hash function SHA-256 <xref target="RFC6234"></xref>.  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, when the hash function is SHA-256, then the leaf is a 32-byte string.</t>
-<t>A tree that contains <tt>n</tt> leaves is represented by an array of <tt>2 * n</tt> message digests in which the input digests are written at indicies <tt>n..(2*n - 1)</tt>.  The tree is constructed by iteratively hashing the concatenation of the values at indicies <tt>2*j</tt> and <tt>2*j+1</tt>, starting at <tt>j=n-1</tt>, and continuing until <tt>j=1</tt>. The root is at index 1. In this specification, the prover and verifier will already know the value of <tt>n</tt> when they produce or verify a Merkle tree.</t>
+<t>A tree that contains <tt>n</tt> leaves is represented by an array of <tt>2 * n</tt> message digests in which the input digests are written at indicies <tt>n..2*n</tt>.  The tree is constructed by iteratively hashing the concatenation of the values at indicies <tt>2*j</tt> and <tt>2*j+1</tt>, starting at <tt>j=n-1</tt>, and continuing until <tt>j=1</tt>. The root is at index 1. In this specification, the prover and verifier will already know the value of <tt>n</tt> when they produce or verify a Merkle tree.</t>
+
+<section anchor="blinding-the-leaves-with-nonces"><name>Blinding the leaves with nonces</name>
+<t>As per folklore, a Merkle commitment does not hash a leaf's data directly, but instead includes a fresh random nonce of 32 bytes for every leaf. The leaf digest is the hash of that nonce followed by the leaf's data.</t>
+
+<sourcecode type="rust"><![CDATA[pub fn commit_merkle_heap<R, F>(
+    num_leaves: usize,
+    update_leaf_hash_fn: F,
+    rng: &mut R,
+) -> (MerkleHeap, Vec<Vec<u8>>)
+where
+    R: Rng,
+    F: Fn(usize) -> Vec<u8>,
+{
+    let mut nonces = Vec::with_capacity(num_leaves);
+    for _ in 0..num_leaves {
+        nonces.push(rng.bytes(32));
+    }
+
+    let mut leaves_digests = Vec::with_capacity(num_leaves);
+    for i in 0..num_leaves {
+        let mut data = Vec::new();
+        data.extend_from_slice(&nonces[i]);
+        data.extend_from_slice(&update_leaf_hash_fn(i));
+        leaves_digests.push(sha256_bytes(&data));
+    }
+
+    let heap = MerkleHeap::new(&leaves_digests);
+    (heap, nonces)
+}
+]]></sourcecode>
+<t>The nonces are retained by the prover.  One nonce is generated per
+leaf, but only the <tt>NREQ</tt> nonces belonging to the opened columns are
+revealed, and those are sent as part of the proof; the nonces of the
+unopened columns are never disclosed.  A verifier recomputes the
+digest of an opened leaf in the same order, nonce first, as shown in
+the <tt>verify_merkle</tt> function of the Ligero verification procedure
+below.  Because the nonces are secret and uniformly random, the
+unopened leaves are computationally hidden.</t>
+<t>The functions in the remainder of this section operate on the leaf
+digests produced above, and are therefore stated without reference to
+the nonces.</t>
+</section>
 
 <section anchor="constructing-a-merkle-tree-from-n-digests"><name>Constructing a Merkle tree from <tt>n</tt> digests</name>
 
@@ -554,8 +596,8 @@ where
 <li><tt>NQ</tt>: Number of quadratic constraints.</li>
 <li><tt>NWROW</tt>: Number of rows used to encode witnesses.</li>
 <li><tt>NQT</tt>: Number of row triples needed to encode the quadratic constraints.</li>
-<li><tt>NQW</tt>: <tt>NWROW + NQT</tt>, rows needed to encode witnesses and quadratic constraints.</li>
-<li><tt>NROW</tt>: Total number of rows in the witness matrix, <tt>3 + NQW + 3*NQT</tt></li>
+<li><tt>NQW</tt>: <tt>NWROW + 3 * NQT</tt>, rows needed to encode witnesses and quadratic constraints. Each triple of quadratic constraints occupies three rows (<tt>Qx</tt>, <tt>Qy</tt>, <tt>Qz</tt>).</li>
+<li><tt>NROW</tt>: Total number of rows in the tableau matrix, <tt>3 + NQW</tt> (the three additional rows are the random rows <tt>ILDT</tt>, <tt>IDOT</tt>, and <tt>IQD</tt>).</li>
 <li><tt>NCOL</tt>: Total number of columns in the tableau matrix.</li>
 </ul>
 <t>A row of the tableau consists of</t>
@@ -565,24 +607,24 @@ where
 <section anchor="constraints-on-parameters"><name>Constraints on parameters</name>
 
 <ul spacing="compact">
-<li><tt>BLOCK &lt; |F|</tt> The block size must be smaller than the field size.</li>
+<li><tt>NCOL &lt; |F|</tt> The block size must be smaller than the field size.</li>
+<li><tt>NCOL &gt;= DBLOCK + NREQ</tt></li>
 <li><tt>BLOCK &gt; NREQ</tt> The block size must be larger than the number of columns requested.</li>
 <li><tt>BLOCK = NREQ + WR</tt></li>
-<li><tt>BLOCK &gt;= 2 * (NREQ + WR) + (NREQ + WR) - 2</tt></li>
-<li><tt>BLOCK &gt;= 2 * (NREQ + WR) - 1</tt>.</li>
-<li><tt>WR &gt;= NREQ</tt> (and thus <tt>WR &gt;= NREQ</tt>) to avoid wasting too much space.</li>
+<li><tt>WR &gt;= NREQ</tt></li>
+<li><tt>BLOCK = (NCOL + 1) / (2 + rate)</tt></li>
 </ul>
 </section>
 </section>
 
 <section anchor="ligero-commitment"><name>Ligero commitment</name>
-<t>The first step of the proof procedure requires the Prover to commit to a witness vector <tt>W</tt>.  The witness vector is assumed to be padded with zeros at the end so that its length is an even multiple of <tt>WR</tt>. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix <tt>T[][]</tt>.</t>
+<t>The first step of the proof procedure requires the Prover to commit to a witness vector <tt>W</tt> of length <tt>NW</tt>.  The length <tt>NW</tt> need not be a multiple of <tt>WR</tt>; the witness occupies <tt>NWROW = ceil(NW / WR)</tt> rows, and any unused entries of the last such row are set to zero by the commitment procedure itself. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix <tt>T[][]</tt>.</t>
 <t>This tableau matrix is constructed row-by-row by applying the extend procedure to arrays that are formed from random field elements and elements copied from the witness vector. Matrix T[][] has size NROW x NCOL and has the following structure:</t>
 
 <artwork><![CDATA[row ILDT = 0                         : RANDOM row for low-degree test
 row IDOT = 1                         : RANDOM row for linear test
 row IQD  = 2                         : RANDOM row for quadratic test
-row i for IW = IQD + 1 <= i < IQ    : witness rows
+row i for IW = IQD + 1 <= i < IQ     : witness rows
 row i for IQ <= i < NROW             : quadratic rows
 ]]></artwork>
 
@@ -596,17 +638,18 @@ row i for IQ <= i < NROW             : quadratic rows
 <li><t>The second IDOT row is defined as</t>
 
 <artwork><![CDATA[Z = RANDOM[DBLOCK] such that
-    sum_{i = NREQ ... NREQ + WR - 1} Z_i = 0
+    sum_{NREQ <= i < NREQ + WR} Z_i = 0
 extend(Z, DBLOCK, NCOL)
 ]]></artwork>
 <t>by first selecting DBLOCK random field elements such that the subarray
-from index NREQ to NREQ + WR sums to 0 and then applying extend.
+[NREQ .. NREQ + WR] sums to 0 and then applying extend.
 The first step can be performed by selecting DBLOCK-1 random
-field elements, and then setting element of the specified range to be the additive inverse of the sum of elements from NREQ...NREQ + WR - 1.</t>
+field elements, and then setting <tt>Z[NREQ]</tt> to be the additive inverse of the
+sum of the elements with <tt>NREQ &lt; i &lt; NREQ + WR</tt>.</t>
 </li>
 <li><t>The third IQD row is defined as
     ZQ = RANDOM[DBLOCK]
-    ZQ[NREQ ... NREQ + WR - 1] = 0
+    ZQ[NREQ .. NREQ + WR] = 0
     extend(ZQ, DBLOCK, NCOL)
 by first selecting DBLOCK random field elements, and then setting the
 portion coresponding to the witness values to 0 and then applying extend.</t>
@@ -634,8 +677,12 @@ constraints on the witness values that are verified by the proof.</t>
 </li>
 </ol>
 <t>The second step of the procedure is to compute a Merkle tree on columns
-of the tableau matrix. Specifically, the i-th leaf of the tree is defined
-to be columns DBLOCK...NCOL of the i-th row of the tableau T.</t>
+of the tableau matrix.  Only the columns <tt>DBLOCK..NCOL</tt> are committed,
+so the tree has <tt>NCOL - DBLOCK</tt> leaves.  Specifically, the <tt>i</tt>-th leaf
+of the tree is the entire column <tt>DBLOCK + i</tt> of the tableau <tt>T</tt>, that
+is, the <tt>NROW</tt> elements <tt>T[0][DBLOCK + i], ..., T[NROW - 1][DBLOCK + i]</tt>
+serialized in row order, prefixed by that column's nonce and hashed as
+described in the <eref target="#merkle-trees">Merkle trees Section</eref>.</t>
 <t>Input:</t>
 
 <ul spacing="compact">
@@ -810,9 +857,9 @@ impl<F: Field + 'static> LigeroProver<F> {
 <t>This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector <tt>W</tt> is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.</t>
 
 <section anchor="low-degree-test"><name>Low-degree test</name>
-<t>In the low-degree test, the verifier sends a challenge vector consisting of <tt>nwqrow = NROW - 3</tt> field elements, <tt>u_ldt[0..nwqrow]</tt>. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:</t>
+<t>In the low-degree test, the verifier sends a challenge vector consisting of <tt>NQW</tt> field elements, <tt>u_ldt[0..NQW]</tt>. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:</t>
 
-<artwork><![CDATA[y_ldt = T[ILDT][0..BLOCK] + sum_{i = 0 ... nwqrow - 1} u_ldt[i] * T[IW + i][0..BLOCK]
+<artwork><![CDATA[y_ldt = T[ILDT][0..BLOCK] + sum_{0 <= i < NQW} u_ldt[i] * T[IW + i][0..BLOCK]
 ]]></artwork>
 <t>and returns the <tt>BLOCK</tt> elements of <tt>y_ldt</tt>. Notice that the random blinding row <tt>ILDT</tt> (row 0) is included with implicit coefficient 1, while rows 1 (<tt>IDOT</tt>) and 2 (<tt>IQD</tt>) are excluded because their polynomial degree is <tt>DBLOCK</tt> (<tt>2 \cdot \text{BLOCK} - 1</tt>) rather than <tt>BLOCK</tt>. The verifier applies the <tt>extend</tt> method to this response, and verifies consistency with the opened columns of the tableau requested at the challenge indices.</t>
 </section>
@@ -844,10 +891,10 @@ impl<F: Field + 'static> LigeroProver<F> {
         ts.write_bytes(statement_hash);
 
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let u_ldt = gen_uldt(ts, nwqrow);
+        let u_ldt = gen_uldt(ts, nqw);
         let alphal = gen_alphal(ts, b.len());
         let alphaq = gen_alphaq(ts, nq);
         let u_quad = gen_uquad(ts, geom.num_quad_rows);
@@ -894,9 +941,9 @@ impl<F: Field + 'static> LigeroProver<F> {
 
     fn prove_compute_y_ldt(&self, commit: &LigeroCommitResult<F>, u_ldt: &[F]) -> Vec<F> {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let mut y_ldt = commit.tableau[geom.ldt_row_idx()][0..geom.block_len].to_vec();
-        for i in 0..nwqrow {
+        for i in 0..nqw {
             axpy(
                 &mut y_ldt,
                 &commit.tableau[geom.witness_row_start() + i][0..geom.block_len],
@@ -914,16 +961,16 @@ impl<F: Field + 'static> LigeroProver<F> {
         alphaq: &[Vec<F>],
     ) -> Vec<F> {
         let geom = self.geometry;
-        let nwqrow = geom.total_rows - 3;
+        let nqw = geom.total_rows - 3;
         let nq = lqc.len();
 
-        let mut a_full = vec![F::zero(); nwqrow * geom.witnesses_per_row];
+        let mut a_full = vec![F::zero(); nqw * geom.witnesses_per_row];
         for term in a {
             a_full[term.witness_idx] += term.coeff * alphal[term.constraint_idx];
         }
 
         let nqtriples_w = geom.num_quad_rows * geom.witnesses_per_row;
-        let ax_offset = (nwqrow - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
+        let ax_offset = (nqw - 3 * geom.num_quad_rows) * geom.witnesses_per_row;
         let ay_offset = ax_offset + nqtriples_w;
         let az_offset = ay_offset + nqtriples_w;
 
@@ -1688,7 +1735,7 @@ After several rounds of communication, the function being summed is
 replaced with a constant, and both output wire arrays are replaced with
 two new claim values.
 Concretely, the new claims will be <tt>bind(V[j + 1], G'[0])</tt> and <tt>bind(V[j
-+ 1], G'[0])</tt>, where <tt>V[j + 1]</tt> is the input wires of layer j, and
++ 1], G'[1])</tt>, where <tt>V[j + 1]</tt> is the input wires of layer j, and
 <tt>G'[0]</tt> and <tt>G'[1]</tt> are a fresh set of verifier challenges, chosen at
 each round of the sumcheck protocol.
 These two claim values are encrypted with a one-time pad and sent to the
@@ -2105,13 +2152,30 @@ pub fn symbolic_sumcheck_verifier_core<F: Field + 'static>(
 </section>
 
 <section anchor="serializing-objects"><name>Serializing objects</name>
-<t>This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  First, the standard methods for serializing integers and arrays are used:</t>
+<t>This section explains how a proof consists of smaller, related objects, and how to serialize each such component.  As in the preceding sections, the procedures are given as excerpts from the reference implementation.</t>
+<t>A size, meaning either the length of an array or an index into one, is serialized as exactly four bytes in little endian order:</t>
 
-<ul spacing="compact">
-<li><tt>write_size(n)</tt>: serializes an integer in [0, 2^{24} - 1] that represents the size of an array or an index into an array. The integer is serialized in little endian order.</li>
-<li><tt>write_array(arr)</tt>: A variable-sized array is represented as <tt>type array[]</tt> and serialized by first writing its length as a size element, and then serializing each element of the array in order.</li>
-<li><tt>write_fixed_array(arr)</tt>: When the length of the array is explicitly known to be <tt>n</tt>, it is specified as <tt>type array[n]</tt> and in this case, the array length is not written first.</li>
-</ul>
+<sourcecode type="rust"><![CDATA[/// Serializes a size as exactly 4 bytes.
+pub fn write_size_4bytes<W: std::io::Write>(writer: &mut W, val: usize) -> std::io::Result<()> {
+    writer.write_all(&(val as u32).to_le_bytes())
+}
+
+/// Reads a size written by `write_size_4bytes`.
+pub fn read_size_4bytes<R: Read>(reader: &mut R) -> std::io::Result<usize> {
+    let mut buf = [0u8; 4];
+    reader.read_exact(&mut buf)?;
+    let val = u32::from_le_bytes(buf);
+    Ok(val as usize)
+}
+]]></sourcecode>
+<t>Almost every array in a proof has a length that both parties compute
+from the circuit and from the agreed parameters, and such an array is
+serialized as its elements in order, with no length prefix.  The two
+exceptions are the runs of the opened columns and the Merkle path; both
+are preceded by a size, and both are described below.</t>
+<t>A digest is serialized as the <tt>HASH_LEN</tt> bytes produced by the hash
+function <tt>H</tt> of the chosen profile; for SHA-256, <tt>HASH_LEN</tt> is 32.  The
+Merkle column blinding nonces are also <tt>HASH_LEN</tt> bytes each.</t>
 
 <section anchor="serializing-structs"><name>Serializing structs</name>
 <t>When a section includes just a struct definition, it is serialized in the natural way, starting from the top-most component and proceeding to the last one, each component is serialized in order.</t>
@@ -2120,7 +2184,7 @@ pub fn symbolic_sumcheck_verifier_core<F: Field + 'static>(
 <section anchor="serializing-field-elements"><name>Serializing Field elements</name>
 <t>This section describes a method to serialize field elements, particularly when the field structure allows efficient encoding for elements of subfields.</t>
 <t>Before a field element can be serialized, the context must specify the finite field. In most cases, the Circuit structure will specify the finite field, and all other aspects of the protocol will be defined by this field.</t>
-<t>A finite field or <tt>FieldID</tt> is specified using a variable-length encoding. Common finite fields have been assigned special 1-byte codes. An arbitrary prime-order finite field can be specified using the special <tt>0xF_</tt> byte followed by a variable number of bytes to specify the prime in little-endian order. For example, the 3 byte sequence <tt>f11001</tt> specifies F<sub>257</sub>. Similarly, a quadratic extension using the polynomial x^2 + 1 can be specified using the <tt>0xE_</tt> designators.</t>
+<t>A finite field or <tt>FieldID</tt> is specified using a variable-length encoding. Common finite fields have been assigned special 1-byte codes. An arbitrary prime-order finite field can be specified using the special <tt>0xF_</tt> byte followed by a variable number of bytes to specify the prime in little-endian order. For example, the 3 byte sequence <tt>f10101</tt> specifies F<sub>257</sub>. Similarly, a quadratic extension using the polynomial x^2 + 1 can be specified using the <tt>0xE_</tt> designators.</t>
 <table><name>Finite field identifiers.
 </name>
 <thead>
@@ -2197,94 +2261,219 @@ The p384 prime is equal to 39402006196394479212279040100143613805079739270465446
 
 <section anchor="serializing-a-single-field-element"><name>Serializing a single field element</name>
 <t>Unless specified otherwise, a field element, referred to as an <tt>Elt</tt>, is serialized to bytes in little-endian order. For example, a 256-bit element of the finite field F<sub>p256</sub> is serialized into 32-bytes starting with the least-significant byte.</t>
+<t>An element of field <tt>F</tt> is written as <tt>F::to_bytes()</tt>, which always
+produces <tt>F::serialized_size()</tt> bytes, and is read back as follows:</t>
 
-<ul spacing="compact">
-<li><tt>write_elt(e, F)</tt>: produces a byte encoding of a field element e in field F.</li>
-</ul>
+<sourcecode type="rust"><![CDATA[pub fn read_elt_field<F: Field, R: Read>(reader: &mut R) -> std::io::Result<F> {
+    let mut buf = vec![0u8; F::serialized_size()];
+    reader.read_exact(&mut buf)?;
+    F::from_bytes(&buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
+}
+]]></sourcecode>
 </section>
 
 <section anchor="serializing-an-element-of-a-subfield"><name>Serializing an element of a subfield</name>
 <t>In some cases, when both Prover and Verifier can explicitly conclude that a field element belongs to a smaller subfield, then both parties can use a more efficient sub-field serialization method.   This optimization can be used when the larger field <tt>F</tt> is a field extension of a smaller field, and both parties can conclude that the serialized element belongs to the smaller subfield.</t>
+<t>Such an element is written as <tt>sf.to_subfield_bytes()</tt>, which produces
+<tt>sf.subfield_serialized_size()</tt> bytes, and is read back as follows:</t>
 
-<ul spacing="compact">
-<li><tt>write_subfield(Elt e, F2, F1)</tt>: produce a byte encoding of a field element e that belongs to a subfield F2 of field F1.</li>
-</ul>
+<sourcecode type="rust"><![CDATA[pub fn read_subfield_elt<F: Field + 'static, R: Read>(
+    reader: &mut R,
+    sf: &F::Subfield,
+) -> std::io::Result<F> {
+    let size = sf.subfield_serialized_size();
+    let mut buf = vec![0u8; size];
+    reader.read_exact(&mut buf)?;
+    sf.from_subfield_bytes(&buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
+}
+]]></sourcecode>
 </section>
 </section>
 
 <section anchor="serializing-a-sumcheck-transcript"><name>Serializing a Sumcheck Transcript</name>
+<t>The padded sumcheck transcript is the array of <tt>SumcheckLayerProof</tt>
+values produced by <tt>sumcheck_prove</tt>, one per circuit layer, written in
+layer order:</t>
 
-<artwork><![CDATA[struct {
-	PaddedTranscriptLayer layers[];  // NL layers
-} PaddedTranscript;
-
-struct {
-	Elt wires[];  // array of 2 * log_w Elts that store the
-                // evaluations of deg-2 polynomial at 0, 2
-	Elt wc0;
-	Elt wc1;
-} PaddedTranscriptLayer;
-]]></artwork>
-<t>The padded transcript incorporates the optimization in which the eval at 1 is omitted and reconstructed from the expected value of the previous challenge.</t>
+<sourcecode type="rust"><![CDATA[pub fn write_sumcheck_proof<F: Field, W: Write>(
+    io: &mut W,
+    sumcheck_proof: &[SumcheckLayerProof<F>],
+) -> std::io::Result<()> {
+    for ly in sumcheck_proof {
+        for r in 0..ly.hp[0].len() {
+            io.write_all(&ly.hp[0][r].evals[0].to_bytes())?;
+            io.write_all(&ly.hp[1][r].evals[0].to_bytes())?;
+            io.write_all(&ly.hp[0][r].evals[1].to_bytes())?;
+            io.write_all(&ly.hp[1][r].evals[1].to_bytes())?;
+        }
+        io.write_all(&ly.claims[0].to_bytes())?;
+        io.write_all(&ly.claims[1].to_bytes())?;
+    }
+    Ok(())
+}
+]]></sourcecode>
+<t>Thus each layer contributes <tt>4 * log_w</tt> field elements followed by the
+two padded claims, for a total of <tt>4 * log_w + 2</tt> elements.  Within a
+round, the four elements are the evaluations of the left and right
+polynomials at the two points <tt>P0</tt> and <tt>P2</tt>, in the order <tt>l(P0)</tt>,
+<tt>r(P0)</tt>, <tt>l(P2)</tt>, <tt>r(P2)</tt>.  The padded transcript incorporates the
+optimization in which the eval at 1 is omitted and reconstructed from
+the expected value of the previous challenge.</t>
+<t>Nothing in this structure is length-prefixed: the number of layers and
+the value of <tt>log_w</tt> for each layer are given by the circuit, which is
+why the corresponding reader, <tt>read_sumcheck_proof</tt>, takes the circuit
+as an argument.</t>
 </section>
 
 <section anchor="serializing-a-ligero-proof"><name>Serializing a Ligero Proof</name>
+<t>A Ligero proof consists of the three response polynomials, the Merkle
+column blinding nonces, the opened columns, and the Merkle
+authentication path:</t>
 
-<artwork><![CDATA[def serialize_ligero_proof(C, ldt, dot, columns, mt_proof) {
-  write_array(ldt, C.BLOCK)
-  write_array(dot, C.BLOCK)
-  write_runs(columns, C.NREQ * C.NROW, C.subFieldID, C.FieldID)
-  write_merkle(mt_proof)
-}
-]]></artwork>
-<t>The concept of a <tt>run</tt> allows saving space when a long run of field elements belong to a subfield of the Finite field.  Runs consist of a 4-byte size element, and then size Elt elements that are either in the field or the subfield. Runs alternate, beginning with full field elements. In this way, rows that consist of subfield elements can save space.  The maximum run length is set to 2<sup>25</sup>.</t>
+<sourcecode type="rust"><![CDATA[pub fn write_ligero_proof<F: Field + 'static, W: Write>(
+    io: &mut W,
+    cp: &LigeroProof<F>,
+    sf: &F::Subfield,
+) -> std::io::Result<()> {
+    for val in &cp.ldt_poly {
+        io.write_all(&val.to_bytes())?;
+    }
+    for val in &cp.linear_poly {
+        io.write_all(&val.to_bytes())?;
+    }
+    for val in &cp.quad_poly_low {
+        io.write_all(&val.to_bytes())?;
+    }
+    for val in &cp.quad_poly_high {
+        io.write_all(&val.to_bytes())?;
+    }
+    for nonce in &cp.column_nonces {
+        io.write_all(nonce)?;
+    }
 
-<artwork><![CDATA[def write_runs(columns, N, F2, F) {
-    bool subfield_run = false
-    FOR 0 <= ci < N DO
-      size_t runlen = 0
-      while (ci + runlen < N &&
-             runlen < kMaxRunLen &&
-             columns[ci + runlen].is_in_subfield(F2) == subfield_run
-             ) {
-        ++runlen;
-      }
-      write_size(runlen, buf);
-      for (size_t i = ci; i < ci + runlen; ++i) {
-        if (subfield_run) {
-          write_subfield(columns[i], F2, F);
-        } else {
-          write_elt(columns[i], F);
+    let req = &cp.queried_columns;
+    let mut subfield_run = false;
+    let mut i = 0;
+    let total_elts = req.len();
+    while i < total_elts {
+        let mut runlen = 0;
+        while i + runlen < total_elts {
+            if sf.contains_subfield(req[i + runlen]) == subfield_run {
+                runlen += 1;
+            } else {
+                break;
+            }
         }
-      }
-      ci += runlen;
-      subfield_run = !subfield_run;
-}
+        write_size_4bytes(io, runlen)?;
+        for j in i..(i + runlen) {
+            if subfield_run {
+                io.write_all(&sf.to_subfield_bytes(req[j]))?;
+            } else {
+                io.write_all(&req[j].to_bytes())?;
+            }
+        }
+        i += runlen;
+        subfield_run = !subfield_run;
+    }
 
-def write_merkle(mt_proof) {
-  FOR (digest in mt_proof) DO
-     write_fixed_array(digest, HASH_LEN)
+    write_size_4bytes(io, cp.merkle_paths.len())?;
+    for p in &cp.merkle_paths {
+        io.write_all(p)?;
+    }
+    Ok(())
 }
-]]></artwork>
+]]></sourcecode>
+<t>The lengths of the four polynomial arrays are <tt>BLOCK</tt>, <tt>DBLOCK</tt>,
+<tt>NREQ</tt>, and <tt>DBLOCK - BLOCK</tt> respectively, and so none of them is
+length-prefixed.  The last two are the non-zero segments of the
+quadratic test polynomial; its middle <tt>WR</tt> elements are identically
+zero and are not sent.  The <tt>column_nonces</tt> array holds the <tt>NREQ</tt>
+Merkle column blinding nonces, one per opened column, each of
+<tt>HASH_LEN</tt> bytes.  The opened columns <tt>queried_columns</tt> are the
+<tt>NREQ * NROW</tt> field elements of the opened columns, in row-major order.</t>
+<t>The concept of a <tt>run</tt> allows saving space when a long run of field
+elements belong to a subfield of the Finite field.  Runs consist of a
+4-byte size element, and then that many Elt elements that are either in
+the field or the subfield. Runs alternate, beginning with full field
+elements. In this way, rows that consist of subfield elements can save
+space.  The maximum run length is set to 2<sup>25</sup>.</t>
+<t>Because the runs strictly alternate and the first run is a full-field
+run, the encoder has no way to signal that the opened columns <em>begin</em>
+with a subfield element other than by emitting a full-field run of
+length zero.  A zero-length run is therefore permitted, but only as the
+very first run of the sequence and only once; anywhere else it would be
+either redundant, since two adjacent runs of the same kind can always
+be merged, or an attempt to encode the same byte string in more than
+one way.  A reader <bcp14>MUST</bcp14> reject a zero-length run that is not the
+first run, and <bcp14>MUST</bcp14> reject a second consecutive zero-length run.
+Both cases occur in practice: the P-256 test vector in
+<xref target="test-vectors"></xref> begins with a zero-length run because its first opened
+element lies in the subfield, whereas the GF(2<sup>128</sup>) vector begins
+directly with a full-field run of all <tt>NREQ * NROW</tt> elements.</t>
+<t>Finally, the Merkle authentication path is the one part of a proof
+whose length is not determined in advance, since it depends on which
+columns were opened; it is therefore preceded by a size.  Each element
+of the path is a digest of <tt>HASH_LEN</tt> bytes.</t>
 </section>
 
 <section anchor="serializing-a-sequence-of-proofs"><name>Serializing a Sequence of proofs</name>
-<t>For the multi-field optimization, the proof string consists of a sequence of two proofs. This is handled by using the circuit identifier to specify the sequence of proofs to parse.</t>
+<t>In general, a proof string carries a sequence of <tt>N</tt> proofs, for <tt>N &gt;= 1</tt>:</t>
 
 <artwork><![CDATA[struct {
-   Public pub;  // Public arguments to all circuits
-   Proof proofs[]; // array of Proof
+   Public pub;        // Public arguments to all circuits
+   ZkProof proofs[N]; // one ZkProof per circuit, in the order
+                      // given by the circuit identifier
 } Proofs;
 ]]></artwork>
+<t>The proofs are concatenated with no separators and no count, because
+the circuit identifier names the ordered list of circuits that
+together make up the statement, and thus fixes both the number of proofs
+<tt>N</tt> and the circuit that each <tt>proofs[i]</tt> belongs to.  The ordered list of circuits makes a proof self-delimiting: it supplies the field,
+the number of layers, the value of <tt>log_w</tt> for each layer, and the
+Ligero geometry, which determine every length in the two preceding sections.</t>
+<t>A reader parses the proofs in order, using the <tt>i</tt>-th circuit to parse
+<tt>proofs[i]</tt>.  Because each circuit carries its own <tt>FieldID</tt>, successive
+proofs in one string are in general over different fields, and their
+field elements differ in width; a reader <bcp14>MUST</bcp14> establish the field
+context afresh at each proof boundary rather than assume a single
+element size for the whole string.  A reader <bcp14>MUST</bcp14> reject a proof
+string that ends before all <tt>N</tt> proofs have been parsed.  If <tt>Proofs</tt> constitutes the entire message, then a reader <bcp14>MUST</bcp14> reject any trailing bytes.</t>
+<t>The arguments in <tt>pub</tt> are the public inputs to all <tt>N</tt> circuits and
+are not repeated per proof.</t>
+<t>Proving one statement with several circuits normally also requires
+data that binds the proofs to each other, so that the verifier learns
+that the circuits were evaluated on consistent inputs.  Such linking
+data is specific to the application and is outside the scope of this
+document.</t>
+<t>A single proof is the commitment to the witness, followed by the padded
+sumcheck transcript, followed by the Ligero proof:</t>
+
+<sourcecode type="rust"><![CDATA[#[derive(Clone, Debug)]
+pub struct ZkProof<F> {
+    pub root: [u8; 32],
+    pub sumcheck_proof: Vec<SumcheckLayerProof<F>>,
+    pub ligero_proof: LigeroProof<F>,
+}
+
+pub fn write_zk_proof<F: Field + 'static, W: Write>(
+    io: &mut W,
+    proof: &ZkProof<F>,
+    sf: &F::Subfield,
+) -> std::io::Result<()> {
+    io.write_all(&proof.root)?;
+    write_sumcheck_proof(io, &proof.sumcheck_proof)?;
+    write_ligero_proof(io, &proof.ligero_proof, sf)?;
+    Ok(())
+}
+]]></sourcecode>
+<t>Here <tt>root</tt> is the root of the Merkle tree described in
+<xref target="ligero-zk-proof"></xref>, and is <tt>HASH_LEN</tt> bytes long.  The public arguments
+to the circuits are carried alongside the proofs rather than inside
+them:</t>
 
 <artwork><![CDATA[struct {
-  uint8 oracle[32]; // nonce used to define the random oracle,
-  Digest com;       // commitment to the witness
-  PaddedTranscript sumcheck_transcript;
-  LigeroProof lp;
-} Proof;
-
-struct {
   char* arguments[];   // array of strings representing
                        // public arguments to the circuit
 } Public;
@@ -2380,6 +2569,12 @@ and zero-knowledge properties of the joint scheme is in preparation.</t>
 <t>This section contains test vectors. Each test vector in specifies the configuration information and inputs. All values are encoded in hexadecimal strings.</t>
 
 <section anchor="test-vectors-for-merkle-tree"><name>Test Vectors for Merkle Tree</name>
+<t>These vectors exercise the tree construction and the batch inclusion
+proof only.  The leaves below are the leaf digests themselves, so no
+nonces are involved; the nonce-blinded leaf construction used by the
+Ligero commitment is exercised by the vectors in
+<xref target="test-vectors-for-explicit-circuit-sumcheck-and-ligero"></xref>, which list
+their nonces explicitly.</t>
 
 <section anchor="vector-1"><name>Vector 1</name>
 
@@ -2514,6 +2709,41 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 <section anchor="test-vectors-for-explicit-circuit-sumcheck-and-ligero"><name>Test Vectors for Explicit Circuit, Sumcheck, and Ligero</name>
 <t>The following test vectors verify the complete zero-knowledge proof system using explicitly constructed layered quadratic circuits without requiring external binary circuit files or formats.</t>
 
+<section anchor="randomness-used-by-these-vectors"><name>Randomness used by these vectors</name>
+<t>A Ligero commitment consumes randomness for the three blinding rows,
+for the <tt>NREQ</tt> random elements that prefix every witness and quadratic
+row, and for the Merkle leaf nonces.  A proof is therefore reproducible
+only with respect to a fixed source of randomness.  Both vectors below
+draw from the following deterministic generator, seeded with <tt>12345</tt>,
+which is defined for test purposes only and <bcp14>MUST NOT</bcp14> be used to
+produce real proofs:</t>
+
+<sourcecode type="rust"><![CDATA[pub struct SimpleRng {
+    pub state: u64,
+}
+
+impl Rng for SimpleRng {
+    fn bytes(&mut self, len: usize) -> Vec<u8> {
+        let mut out = Vec::with_capacity(len);
+        let mut state = self.state;
+        for _ in 0..len {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            out.push(((state >> 32) & 0xff) as u8);
+        }
+        self.state = state;
+        out
+    }
+}
+]]></sourcecode>
+<t>The <tt>NREQ</tt> Merkle nonces of the opened columns are reproduced below for
+each vector, so that an implementation can check its commitment
+independently of the generator above.  They also appear verbatim in the
+complete proof serialization, immediately after the four response
+polynomials and immediately before the run-length coded columns.</t>
+</section>
+
 <section anchor="vector-1-s-gonal-circuit-over-p-256-field-id-2"><name>Vector 1: <tt>s</tt>-gonal Circuit over P-256 (Field ID 2)</name>
 
 <ul spacing="compact">
@@ -2545,6 +2775,21 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 <li><tt>RATE_INV</tt>: 4 (<tt>\rho = 1/4</tt>)</li>
 <li><tt>NREQ</tt>: 6 (query count)</li>
 <li><tt>NCOL</tt>: 64 (encoded codeword length)</li>
+<li>Derived geometry: <tt>BLOCK</tt> = 10, <tt>DBLOCK</tt> = 19, <tt>WR</tt> = 4, <tt>NW</tt> = 29,
+<tt>NQ</tt> = 2, <tt>NWROW</tt> = 8, <tt>NQT</tt> = 1, <tt>NROW</tt> = 14</li>
+</ul></li>
+<li><strong>Statement hash</strong>: the 23-byte ASCII string <tt>sgonal_test_vector_p256</tt></li>
+<li><strong>RNG seed</strong>: 12345</li>
+<li><t><strong>Merkle nonces</strong> (one per opened column, in the order the columns
+were chosen):</t>
+
+<ul spacing="compact">
+<li><tt>d406ef8c46fd239545520a5363d67d61bad1750d37b087c1e3611a12d47e477f</tt></li>
+<li><tt>5fe986cae604828cae4bfbbc7415d64cd5e755848755a0d9d3120ad46eea8d86</tt></li>
+<li><tt>0fa8593d45fef897767ce05ec5feac76d8f21910bc0ada856aeaa777629048ef</tt></li>
+<li><tt>63619b9a06c668a2414e46f859a2fdb1ba63e8718fa6ce4bf532b2fb0b8ff4ef</tt></li>
+<li><tt>c9e35514c0ff4b62cb9730116947bef69325f3a4c1c6553b7bd161754f8008d8</tt></li>
+<li><tt>057ec47e747c61954419b634dec16eb6adfeafb1a0e9fafbb2a9c85fcf9bced4</tt></li>
 </ul></li>
 <li><strong>Commitment Root</strong>:
 <tt>803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04</tt></li>
@@ -2589,6 +2834,21 @@ e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db
 <li><tt>RATE_INV</tt>: 4 (<tt>\rho = 1/4</tt>)</li>
 <li><tt>NREQ</tt>: 6 (query count)</li>
 <li><tt>NCOL</tt>: 64 (encoded codeword length)</li>
+<li>Derived geometry: <tt>BLOCK</tt> = 10, <tt>DBLOCK</tt> = 19, <tt>WR</tt> = 4, <tt>NW</tt> = 29,
+<tt>NQ</tt> = 2, <tt>NWROW</tt> = 8, <tt>NQT</tt> = 1, <tt>NROW</tt> = 14</li>
+</ul></li>
+<li><strong>Statement hash</strong>: the 26-byte ASCII string <tt>sgonal_test_vector_gf2_128</tt></li>
+<li><strong>RNG seed</strong>: 12345</li>
+<li><t><strong>Merkle nonces</strong> (one per opened column, in the order the columns
+were chosen):</t>
+
+<ul spacing="compact">
+<li><tt>7ef857289b65bef3539deca0df3f44c67bd0f86b02afddd2eaf2df6b9ba36497</tt></li>
+<li><tt>33946263e6da1ec940a9047547a6296f465821313eeb867d988aed265b82eb53</tt></li>
+<li><tt>87b402da5412750ec00175350a9579b1f458b668155ba582d31b5d71331f2d41</tt></li>
+<li><tt>978ee556b7e529dea3e0fbbde3d83fcb11871c478dd3ddb15fc27e628487950e</tt></li>
+<li><tt>1c320449d0bed51ad492d371d066d55c4db059a1c59c267094ae3087746b1e61</tt></li>
+<li><tt>c809ce332b7354d1e4b593f335d980dc1f0579e171a0bd092761a12006f3b544</tt></li>
 </ul></li>
 <li><strong>Commitment Root</strong>:
 <tt>30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc504</tt></li>

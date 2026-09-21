@@ -1,8 +1,15 @@
-# Test Vectors
+# Test Vectors {#test-vectors}
 
 This section contains test vectors. Each test vector in specifies the configuration information and inputs. All values are encoded in hexadecimal strings.
 
 ## Test Vectors for Merkle Tree
+
+These vectors exercise the tree construction and the batch inclusion
+proof only.  The leaves below are the leaf digests themselves, so no
+nonces are involved; the nonce-blinded leaf construction used by the
+Ligero commitment is exercised by the vectors in
+(#test-vectors-for-explicit-circuit-sumcheck-and-ligero), which list
+their nonces explicitly.
 
 ### Vector 1
 
@@ -98,9 +105,46 @@ Let `p=1157920892373161954235709850086879078532699846656405640394575840079088346
   - `m=1000, k=20`: `[157, 668, 572, 138, 913, 994, 797, 249, 440, 723, 489, 241, 383, 108, 710, 341, 406, 585, 42, 692]`
   - `m=65535, k=20`: `[40745, 48408, 17108, 44500, 53993, 10008, 24910, 52200, 61265, 54989, 41237, 25958, 28697, 61187, 34729, 3525, 9005, 38627, 9724, 12169]`
 
-## Test Vectors for Explicit Circuit, Sumcheck, and Ligero
+## Test Vectors for Explicit Circuit, Sumcheck, and Ligero {#test-vectors-for-explicit-circuit-sumcheck-and-ligero}
 
 The following test vectors verify the complete zero-knowledge proof system using explicitly constructed layered quadratic circuits without requiring external binary circuit files or formats.
+
+### Randomness used by these vectors
+
+A Ligero commitment consumes randomness for the three blinding rows,
+for the `NREQ` random elements that prefix every witness and quadratic
+row, and for the Merkle leaf nonces.  A proof is therefore reproducible
+only with respect to a fixed source of randomness.  Both vectors below
+draw from the following deterministic generator, seeded with `12345`,
+which is defined for test purposes only and **MUST NOT** be used to
+produce real proofs:
+
+```rust
+pub struct SimpleRng {
+    pub state: u64,
+}
+
+impl Rng for SimpleRng {
+    fn bytes(&mut self, len: usize) -> Vec<u8> {
+        let mut out = Vec::with_capacity(len);
+        let mut state = self.state;
+        for _ in 0..len {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            out.push(((state >> 32) & 0xff) as u8);
+        }
+        self.state = state;
+        out
+    }
+}
+```
+
+The `NREQ` Merkle nonces of the opened columns are reproduced below for
+each vector, so that an implementation can check its commitment
+independently of the generator above.  They also appear verbatim in the
+complete proof serialization, immediately after the four response
+polynomials and immediately before the run-length coded columns.
 
 ### Vector 1: $s$-gonal Circuit over P-256 (Field ID 2)
 
@@ -121,6 +165,18 @@ The following test vectors verify the complete zero-knowledge proof system using
   - `RATE_INV`: 4 ($\rho = 1/4$)
   - `NREQ`: 6 (query count)
   - `NCOL`: 64 (encoded codeword length)
+  - Derived geometry: `BLOCK` = 10, `DBLOCK` = 19, `WR` = 4, `NW` = 29,
+    `NQ` = 2, `NWROW` = 8, `NQT` = 1, `NROW` = 14
+- **Statement hash**: the 23-byte ASCII string `sgonal_test_vector_p256`
+- **RNG seed**: 12345
+- **Merkle nonces** (one per opened column, in the order the columns
+  were chosen):
+  - `d406ef8c46fd239545520a5363d67d61bad1750d37b087c1e3611a12d47e477f`
+  - `5fe986cae604828cae4bfbbc7415d64cd5e755848755a0d9d3120ad46eea8d86`
+  - `0fa8593d45fef897767ce05ec5feac76d8f21910bc0ada856aeaa777629048ef`
+  - `63619b9a06c668a2414e46f859a2fdb1ba63e8718fa6ce4bf532b2fb0b8ff4ef`
+  - `c9e35514c0ff4b62cb9730116947bef69325f3a4c1c6553b7bd161754f8008d8`
+  - `057ec47e747c61954419b634dec16eb6adfeafb1a0e9fafbb2a9c85fcf9bced4`
 - **Commitment Root**:
   `803aba51698a4bc4dddaa74b1d9971b8ec7c49c4847a7ff18e41dd476edf9b04`
 - **Sumcheck Proof Size**: 768 bytes
@@ -150,6 +206,18 @@ The following test vectors verify the complete zero-knowledge proof system using
   - `RATE_INV`: 4 ($\rho = 1/4$)
   - `NREQ`: 6 (query count)
   - `NCOL`: 64 (encoded codeword length)
+  - Derived geometry: `BLOCK` = 10, `DBLOCK` = 19, `WR` = 4, `NW` = 29,
+    `NQ` = 2, `NWROW` = 8, `NQT` = 1, `NROW` = 14
+- **Statement hash**: the 26-byte ASCII string `sgonal_test_vector_gf2_128`
+- **RNG seed**: 12345
+- **Merkle nonces** (one per opened column, in the order the columns
+  were chosen):
+  - `7ef857289b65bef3539deca0df3f44c67bd0f86b02afddd2eaf2df6b9ba36497`
+  - `33946263e6da1ec940a9047547a6296f465821313eeb867d988aed265b82eb53`
+  - `87b402da5412750ec00175350a9579b1f458b668155ba582d31b5d71331f2d41`
+  - `978ee556b7e529dea3e0fbbde3d83fcb11871c478dd3ddb15fc27e628487950e`
+  - `1c320449d0bed51ad492d371d066d55c4db059a1c59c267094ae3087746b1e61`
+  - `c809ce332b7354d1e4b593f335d980dc1f0579e171a0bd092761a12006f3b544`
 - **Commitment Root**:
   `30dafd53c4f2441bb8457cd84fa69b3a822fbda58a46527d5cec8ce1903bc504`
 - **Sumcheck Proof Size**: 384 bytes
