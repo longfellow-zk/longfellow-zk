@@ -310,7 +310,7 @@ def write_merkle(mt_proof) {
 
 ## Serializing a Sequence of proofs
 
-For the multi-field optimization, the proof string consists of a sequence of two proofs. This is handled by using the circuit identifier to specify the sequence of proofs to parse.
+For the multi-field optimization, the proof string consists of a sequence of `N` proofs. This is handled by using the circuit identifier to specify the sequence of proofs to parse. The relationship between the sub-proofs' Fiat-Shamir transcripts is specified in the [Transcripts for a Sequence of Proofs](#multi-proof-transcript) section.
 
 ```
 struct {
