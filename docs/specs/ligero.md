@@ -1,4 +1,5 @@
 # Ligero ZK Proof {#ligero-zk-proof}
+
 This section specifies the construction and verification method for a Ligero commitment and zero-knowledge argument. The Ligero system as described by Ames, Hazay, Ishai, and Venkitasubramaniam [@ligero], consists of a commitment scheme, and a method for proving linear and quadratic constraints on the committed values in zero-knowledge. The latter interface is sufficient to prove arbitrary circuits, but in the Longfellow scheme, it suffices to describe how to use such constraints to directly verify an IP transcript.
 
 <reference anchor='ligero' target='https://eprint.iacr.org/2022/1608'>
@@ -17,6 +18,7 @@ This section specifies the construction and verification method for a Ligero com
 </reference>
 
 ## Merkle trees {#merkle-trees}
+
 This section describes how to construct a Merkle tree from a sequence of `n` strings, and how to verify that a given string `x` was placed at leaf `i` in a Merkle tree. These methods do not assume that `n` is a power of two. This construction is parameterized by the cryptographic hash function SHA-256 [@RFC6234].  In this application, a leaf in a tree is a message digest instead of an arbitrary string; for example, when the hash function is SHA-256, then the leaf is a 32-byte string.
 
 A tree that contains `n` leaves is represented by an array of `2 * n` message digests in which the input digests are written at indicies `n..2*n`.  The tree is constructed by iteratively hashing the concatenation of the values at indicies `2*j` and `2*j+1`, starting at `j=n-1`, and continuing until `j=1`. The root is at index 1. In this specification, the prover and verifier will already know the value of `n` when they produce or verify a Merkle tree.
@@ -104,6 +106,7 @@ impl MerkleHeap {
 ```
 
 ### Constructing a proof of inclusion
+
 This section describes how to construct a Merkle proof that `k` input digests at indicies `i[0],...,i[k-1]` belong to the tree.  The simplest way to generate such a proof is to produce independent proofs for each of the `k` leaves. However, this turns out to be wasteful in that internal nodes may be included multiple times along different paths, and some nodes may not need to be included at all because they are implied by nodes that have already been included.
 
 To address these inefficiencies, this section explains how to produce a batch proof of inclusion for `k` leaves. The main idea is to start from the requested set of leaves and build all of the implied internal nodes given the leaves. For example, if sibling leaves are included, then their parent is implied, and the parent need not be included in the compressed proof.  Then it suffices to revisit the same tree and include the necessary siblings along all of the Merkle paths.  It is assumed that the verifier already has the leaf digests that are at the indicies, and thus the proof only contains the necessary internal nodes of the Merkle tree that are used to verify the claim.
@@ -147,6 +150,7 @@ pub fn open_merkle_heap(
 ```
 
 ### Verifying a proof of inclusion
+
 This section describes how to verify a compressed Merkle proof. The claim to verify is that "the commitment `root` defines an `n`-leaf Merkle tree that contains `k` digests `s[0], ..., s[k-1]` at corresponding indices `i[0], ..., i[k-1]`."  The strategy of this verification procedure is to deduce which nodes are needed along the `k` verification paths from index to root, then read these values from the purported proof, and then recompute the Merkle tree and the consistency of the `root` digest. As an optimization, the `defined[]` array avoids recomputing internal portions of the Merkle tree that are not relevant to the verification. By convention, a proof for the degenerate case of `k=0` digests is defined to fail. It is assumed that the `indices[]` array does not contain duplicates.
 
 ```rust
@@ -226,7 +230,8 @@ where
 }
 ```
 
-## Common parameters
+## Common parameters {#ligero-parameters}
+
 The Prover and Verifier in Ligero must agree on the following parameters. These parameters can be agreed upon out of band.
 
 - `F`: The finite field over which the commit is produced.
@@ -241,13 +246,8 @@ The Prover and Verifier in Ligero must agree on the following parameters. These 
 - `NQ`: Number of quadratic constraints.
 - `NWROW`: Number of rows used to encode witnesses.
 - `NQT`: Number of row triples needed to encode the quadratic constraints.
-<<<<<<< HEAD
-- `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints (each of the `NQT` triples occupies three rows).
-- `NROW`: Total number of rows in the witness matrix, `NQW + 3` (the three additional rows are the random rows ILDT, IDOT, and IQD).
-=======
 - `NQW`: `NWROW + 3 * NQT`, rows needed to encode witnesses and quadratic constraints. Each triple of quadratic constraints occupies three rows (`Qx`, `Qy`, `Qz`).
 - `NROW`: Total number of rows in the tableau matrix, `3 + NQW` (the three additional rows are the random rows `ILDT`, `IDOT`, and `IQD`).
->>>>>>> fa4dea9 (Fixing typos and inconsistencies, rust pseudo-code)
 - `NCOL`: Total number of columns in the tableau matrix.
 
 A row of the tableau consists of
@@ -265,6 +265,7 @@ A row of the tableau consists of
 - `BLOCK = (NCOL + 1) / (2 + rate)`
 
 ## Ligero commitment
+
 The first step of the proof procedure requires the Prover to commit to a witness vector `W` of length `NW`.  The length `NW` need not be a multiple of `WR`; the witness occupies `NWROW = ceil(NW / WR)` rows, and any unused entries of the last such row are set to zero by the commitment procedure itself. The commitment is the root of a Merkle tree. The leaves of the Merkle tree are a sequence of columns of the tableau matrix `T[][]`.
 
 This tableau matrix is constructed row-by-row by applying the extend procedure to arrays that are formed from random field elements and elements copied from the witness vector. Matrix T[][] has size NROW x NCOL and has the following structure:
@@ -275,12 +276,12 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     row i for IW = IQD + 1 <= i < IQ     : witness rows
     row i for IQ <= i < NROW             : quadratic rows
 
-1)  The first ILDT row is defined as
+1) The first ILDT row is defined as
 
         extend(RANDOM[BLOCK], BLOCK, NCOL)
 
     by selecting BLOCK random field elements and applying extend.
-1)  The second IDOT row is defined as
+1) The second IDOT row is defined as
 
         Z = RANDOM[DBLOCK] such that
             sum_{NREQ <= i < NREQ + WR} Z_i = 0
@@ -291,25 +292,25 @@ This tableau matrix is constructed row-by-row by applying the extend procedure t
     The first step can be performed by selecting DBLOCK-1 random
     field elements, and then setting `Z[NREQ]` to be the additive inverse of the
     sum of the elements with `NREQ < i < NREQ + WR`.
-1)  The third IQD row is defined as 
+1) The third IQD row is defined as
         ZQ = RANDOM[DBLOCK]
         ZQ[NREQ .. NREQ + WR] = 0
         extend(ZQ, DBLOCK, NCOL)
     by first selecting DBLOCK random field elements, and then setting the
     portion coresponding to the witness values to 0 and then applying extend.
-        
-1)  The next rows from IW=3,...,IQ are *padded witness* rows that contain
+
+1) The next rows from IW=3,...,IQ are *padded witness* rows that contain
     random elements and portions of the witness vector.
     Specifically, row i is formed by applying `extend` to an array that
     consists of `NREQ` random elements and then `WR` elements from the vector `W`:
 
         extend([RANDOM[NREQ], W[(i-2) * WR .. (i-1) * WR]], BLOCK, NCOL)
-    
+
     When the finite field contains a subfield, and if all of the witness elements in a given row are elements from this subfield, then the randomness for that row can also be chosen from the subfield.
     Consequently, the `extend` method for that row produces polynomial evaluations that are elements of the subfield. When these elements are serialized, they will require less space.
     The simplest way to apply this optimization is for the commiting process to maintain an index `SF` such that witnesses at indices `0..SF` belong to the subfield, and the rest do not. This value `SF` can be conveyed to the verifier as part of the proof, or part of the circuit.
 
-1)  The final portion of the witness matrix consists of *padded quadratic* rows
+1) The final portion of the witness matrix consists of *padded quadratic* rows
     that consists of NREQ random elements and WR quadratic constraint elements:
 
         extend([RANDOM[NREQ], QX[WR]], BLOCK, NCOL)
@@ -495,8 +496,8 @@ impl<F: Field + 'static> LigeroProver<F> {
 ```
 
 ## Ligero Prove
-This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector `W` is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.
 
+This section specifies how a Ligero proof for a given sequence of linear constraints and quadratic constraints on the committed witness vector `W` is constructed. The proof consists of a low-degree test on the tableau, a linearity test, and a quadratic constraint test.
 
 ### Low-degree test
 In the low-degree test, the verifier sends a challenge vector consisting of `NQW` field elements, `u_ldt[0..NQW]`. This challenge is generated via the Fiat-Shamir transform. The prover computes the linear combination:
@@ -515,9 +516,11 @@ In this sense, the quadratic constraints are reduced to linear constraints, and 
 The prover computes the quadratic test polynomial `y_quad` across degree `DBLOCK`. The middle `WR` witness values of `y_quad` are identically zero by construction and are omitted from the proof. The proof contains only the non-zero segments: `quad_poly_low` of length `NREQ` (elements `0..NREQ`) and `quad_poly_high` of length `DBLOCK - BLOCK` (elements `BLOCK..DBLOCK`).
 
 ### Selection of challenge indicies
+
 The last step of the prove method is for the verifier to select a subset of `NREQ` unique indices (sampled without replacement) from the range `0..(NCOL - DBLOCK)` and request that the prover open these columns of tableau `T` (at column offsets `DBLOCK + idx`). These opened columns, along with their column blinding nonces and Merkle authentication paths, are then used to verify consistency with the polynomial responses sent by the prover.
 
 ### Ligero Prover procedure
+
 The `statement_hash` argument is application-dependent and commits to the circuit or statement being proven.
 
 ```rust
@@ -670,11 +673,13 @@ impl<F: Field + 'static> LigeroProver<F> {
 ```
 
 ## Ligero verification procedure
+
 This section specifies how to verify a Ligero proof with respect to a commitment root, statement hash, linear constraints $A \cdot W + b = 0$, and quadratic constraints $lqc[]$.
 
 The verification procedure checks:
-1. **Merkle Proof Consistency (`verify_merkle`)**: Verifies the authentication paths for the opened columns against the committed Merkle root.
-2. **Low-Degree Test (`verify_ldt`)**: Verifies that the linear combination of queried column entries equals the Reed-Solomon encoding of `ldt_poly` evaluated at the query column indices.
+
+1. Merkle Proof Consistency (`verify_merkle`): Verifies the authentication paths for the opened columns against the committed Merkle root.
+2. Low-Degree Test (`verify_ldt`): Verifies that the linear combination of queried column entries equals the Reed-Solomon encoding of `ldt_poly` evaluated at the query column indices.
 3. **Linear Constraint Test (`verify_dot`)**: Verifies that the inner product combination matches `linear_poly` evaluations at the query columns, and that $\sum \text{linear\_poly}[j] + \langle b, \alpha_l \rangle = 0$.
 4. **Quadratic Constraint Test (`verify_quad`)**: Verifies that $z[i] - x[i] \cdot y[i]$ across the quadratic triple rows matches `y_quad` (reconstructed from `quad_poly_low` and `quad_poly_high`) at the query column indices.
 

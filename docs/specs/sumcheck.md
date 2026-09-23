@@ -126,17 +126,17 @@ the recursion completely.
 
 ### Remark
 Let `m <= n`, `A = bindv(EQ_{m}, X)` and `B = bindv(EQ_{n}, X)`.  It
-is true that `A[i] = B[i]` for `i < m`.  However, it is also true that `A[i] =
-0` for `i >= m`, whereas `B[i]` is in general nonzero.  Thus, care
+is true that `A[i] = B[i]` for `i < m`.  However, it is also true that `A[i] = 0` for `i >= m`, whereas `B[i]` is in general nonzero.  Thus, care
 must be taken when computing a further binding `bindv(A, Y)`,
 which is in general not the same as `bindv(B, Y)`.  A second binding is
-not needed in this document,  but certain closed-form expressions for 
+not needed in this document,  but certain closed-form expressions for
 the binding found in the literature agree with these definitions only
 when `m` is a power of 2.
 
 ## Circuits
 
 ### Layered circuits
+
 A circuit consists of `NL` *layers*.  By convention, layer `j`
 computes wires `V[j]` given wires `V[j + 1]`, where each `V[j]` is an
 array of field elements.  A *wire* is an element `V[j][w]` for some `j`
@@ -148,6 +148,7 @@ and by convention, the check is considered successful if all output
 wires are 0, that is, if `V[0][w] = 0` for all `w`.
 
 ### Quad representation
+
 The computation of circuit is defined by a set of *quads* `Q[j]`, one
 per layer.  Given the output of layer `j + 1`, the output of of layer
 `j` is given by the following equation:
@@ -167,6 +168,7 @@ of bits needed to name a wire at layer `j`, but `LV[j]` may
 be larger than the minimum required value.
 
 ### In-circuit assertions
+
 In the libzk system, a theorem is represented by a circuit such that
 the theorem is true if and only if all outputs of the circuit are
 zero.  It happens in practice that many output wires are computed early
@@ -216,6 +218,7 @@ a representation of `QZ = Q + beta * Z` by replacing all `v = 0`
 with `v = beta`.
 
 ## Representation of polynomials
+
 In a generic sumcheck protocol, the prover sends to the verifier
 polynomials of a degree specified in advance.  In the present document,
 the polynomials are always of degree two, and are represented by their

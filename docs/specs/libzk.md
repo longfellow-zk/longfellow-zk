@@ -35,6 +35,7 @@ This document defines an algorithm for generating and verifying a succinct non-i
 {mainmatter}
 
 # Introduction
+
 A zero-knowledge (ZK) scheme allows a Prover who holds an arithmetic circuit `C` defined over a finite field `F` and two inputs `(x,w)` to convince a Verifier who holds only `(C,x)` that the Prover knows `w` such that `C(x,w) = 0` without revealing any extra information to the Verifier.
 
 The concept of a zero-knowledge scheme was introduced by Goldwasser, Micali, and Rackoff [@GMR], and has since been rigourously explored and optimized in the academic literature.
@@ -100,18 +101,18 @@ basis x^i^, and give an algorithm for evaluating a degree-(d-1) polynomial at al
 Specifically, this document implements GF(2^128^) as GF{2}[x] / (Q(x)) where
 ```
     Q(x) = x^{128} + x^{7} + x^{2} + x + 1
-```  
+```
 With this choice of Q(x), `x` is a generator of the multiplicative group of the field.
 Next, choose GF(2^16^) as the subfield of GF(2^128^) with `g=x^{(2^{128}-1) / (2^{16}-1)}` as its generator, and `beta_i=g^i^` for 0 <= i < 16 as the basis of the subfield.  For relevant problem sizes, this allows encoding elements in a commitment scheme with 16-bits instead of 128.
 
-Writing `j_i` for the `i`-th bit of the binary representation of `j`, that is, 
+Writing `j_i` for the `i`-th bit of the binary representation of `j`, that is,
 ```
     j = sum_{0 <= i < k} j_i 2^i     j_i \in {0,1}
 ``` 
 inject integer `j` into a field element `inj(j)` by interpreting the bits of `j`  as coordinates in terms of the basis:
 ```
     inj(j) = sum_{0 <= i < k} j_i beta_i
-``` 
+```
 
 In this setting, define the extend operator to interpret the array `f[0..n]` to consist of the evaluations of a polynomial `p(x)` of degree at most `n-1` at the `n` points `x \in { inj(i) : 0 <= i < n }` and to return the set `{ p(inj(i)) : 0 <= i < m}` which consist of the evaluations of the same polynomial `p(x)` at the injected points `0,...,m-1`.
 
@@ -187,10 +188,10 @@ A selection of all three defines a `Longfellow profile`. This document introduce
 uses (a) The longfellow sumcheck described below, (b) the Ligero commitment described above, (c) the Fiat-Shamir instantiation defined
 above and using SHA-256 as the function `H`.  
 
-In addition to the component profile, the following security parameters described in the [Ligero Zero-Knowledge Proof Section](#ligero-zk-proof) must also be selected:
+In addition to the component profile, the following security parameters described in the [Ligero Zero-Knowledge Proof Section](#ligero-parameters) must also be selected:
 
 - `NREQ`: The number of columns of the commitment matrix in the Ligero commitment scheme that the Verifier requests to be revealed by the Prover.
-- `rate`: The inverse rate of the error correcting code used by Ligero. 
+- `rate`: The inverse rate of the error correcting code used by Ligero.
 
 These two parameters are chosen to balance the size of the proof against the soundness of the protocol.  In principle, these parameters can differ based on the Field size. Based on the latest analysis, we support the following profiles which have been analyzed to provide at least 115 bits of security.
 
@@ -297,7 +298,6 @@ pub fn read_subfield_elt<F: Field + 'static, R: Read>(
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
 }
 ```
-
 
 ## Serializing a Sumcheck Transcript
 
