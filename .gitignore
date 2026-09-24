@@ -1,0 +1,6 @@
+clang-build-release
+docs/html
+docs/specs/rust/target
+rust/target
+formal/.lake
+formal/circuits/quadcert/Gen
