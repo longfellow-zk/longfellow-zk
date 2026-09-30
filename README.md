@@ -9,20 +9,20 @@ The Longfellow library enables the construction of  zero-knowledge protocols con
 
 * [Anonymous credentials from ECDSA](https://eprint.iacr.org/2024/2010)
 * [libzk: A C++ Library for Zero-Knowledge Proofs](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/)
-* [Project documentation](https://google.github.io/longfellow-zk/)
+* [Project documentation](https://longfellow-zk.github.io/longfellow-zk/)
 
 It is named after the bridge outside the Google Cambridge office.
 
-# Security Reviews
+# Security
 
-This project is currently undergoing two independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://google.github.io/longfellow-zk/docs/reviews/) page.
+This project has completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://google.github.io/longfellow-zk/docs/reviews/) page.
 
 # Specifications
 This repository contains [the working files](https://github.com/google/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.
 If you are interested in contributing, please create an Issue or a Pull Request. Our discussions occur under Issues.
 
 # Testing via devcontainer
-You can quickly test our library by using the associated devcontainer to create its environment. Simply click on `Code`-->`Codespaces`-->`Create codespace on master` above to get started.  This creates a docker container on a Github server that includes all of the dependencies and provides a web-based VScode interface to our current codebase.  You can compile and run our benchmarks in this environment, but some of them may be slower than our reported values due to the VM.
+You can test our library by using the associated devcontainer to create its environment. Simply click on `Code`-->`Codespaces`-->`Create codespace on master` above to get started.  This creates a docker container on a Github server that includes all of the dependencies and provides a web-based VScode interface to our current codebase.  You can compile and run our benchmarks in this environment, but some of them may be slower than our reported values due to the VM.
 
 # Instructions to build
 
