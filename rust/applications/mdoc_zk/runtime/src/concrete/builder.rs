@@ -221,10 +221,13 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
         self.push_value_plucked_legacy::<{ K_SIG_MAC_BIT_PLUCKER }, 128>(val);
     }
 
-    pub fn push_nat_elt<const W_NAT: usize, N: Nat<W_NAT>>(&mut self, val: &N) {
-        let mut bytes = val.to_bytes_le();
-        bytes.resize(32, 0);
-        let el = self.field.bytes_to_element(&bytes).unwrap();
+    /// Pushes `val` reduced modulo the field's modulus, as the C++ reference's
+    /// `to_montgomery` does. A SHA-256 digest is a 256-bit number and the P-256
+    /// base-field modulus is below 2^256, so about one digest in 2^32 is not a
+    /// canonical element: it must reduce, not abort the prover or the verifier.
+    pub fn push_nat_elt<N: Nat<4>>(&mut self, val: &N) {
+        let nat = <F as core_algebra::SupportsNatConversions<4>>::N::from_limbs(&val.to_limbs());
+        let el = self.field.reduce_nat(&nat);
         self.buffer.push(el);
     }
 }

@@ -100,3 +100,27 @@ pub fn push_legacy_input_sig<N: Nat<4>>(
 
     builder.into_inner()
 }
+
+#[cfg(test)]
+mod tests {
+    use core_algebra::{Nat, SupportsNatConversions, SupportsU64Conversions};
+    use runtime_algebra::{p256::P256Field, RuntimeNat};
+
+    use super::push_legacy_input_sig;
+
+    /// A device-authentication digest at or above the P-256 base-field modulus
+    /// (about one SHA-256 output in 2^32) reduces modulo p, as the C++
+    /// reference's `to_montgomery` does, instead of aborting.
+    #[test]
+    fn digest_above_the_modulus_reduces() {
+        let p256 = P256Field::new();
+        let e = RuntimeNat::<4>::from_limbs(&[u64::MAX; 4]);
+        let pk = p256.u64_to_element(7);
+        let inputs = push_legacy_input_sig(&p256, pk, pk, &e, &[0u128; 6], 0);
+        assert_eq!(inputs[3], p256.reduce_nat(&e));
+        // 2^256 - 1 - p = 2^224 - 2^192 - 2^96
+        let expected =
+            RuntimeNat::<4>::from_limbs(&[0, 0xffff_ffff_0000_0000, u64::MAX, 0xffff_fffe]);
+        assert_eq!(inputs[3], p256.reduce_nat(&expected));
+    }
+}

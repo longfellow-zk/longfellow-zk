@@ -146,8 +146,11 @@ pub fn run_mdoc_verifier_inner(
         },
     );
 
-    let av_buf = tp.bytes(16);
-    let av_val = u128::from_le_bytes(av_buf.try_into().unwrap());
+    let av_buf: [u8; 16] = tp
+        .bytes(16)
+        .try_into()
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let av_val = u128::from_le_bytes(av_buf);
 
     let pub_inputs_hash = push_input_hash(
         version,

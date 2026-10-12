@@ -69,9 +69,11 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         }
         let mut macs = [0u128; 6];
         for val in &mut macs {
-            let chunk = &remaining[..16];
-            *val = u128::from_le_bytes(chunk.try_into().unwrap());
-            remaining = &remaining[16..];
+            let (chunk, rest) = remaining
+                .split_first_chunk::<16>()
+                .ok_or_else(|| "Proof size too small for MACs".to_string())?;
+            *val = u128::from_le_bytes(*chunk);
+            remaining = rest;
         }
 
         let proof_hash = ZkProof::read(&mut remaining, &geom.geom_hash, f1, sf1)
