@@ -46,7 +46,7 @@ impl<F> MdocSigCompileField for F where F: Sized
 }
 
 /// Bundles all runtime derived value derivation and evaluation requirements for `MdocHash`.
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub trait MdocHashRuntimeField:
     Sized
     + runtime_algebra::field::RuntimeField<2>
@@ -56,7 +56,7 @@ pub trait MdocHashRuntimeField:
 {
 }
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 impl<F> MdocHashRuntimeField for F where F: Sized
         + runtime_algebra::field::RuntimeField<2>
         + core_algebra::SerializableField
@@ -66,7 +66,7 @@ impl<F> MdocHashRuntimeField for F where F: Sized
 }
 
 /// Bundles all runtime derived value derivation requirements for `MdocSignature` field arithmetic.
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub trait MdocSigRuntimeField:
     Sized
     + core_algebra::BareField
@@ -78,7 +78,7 @@ where <Self as core_algebra::SupportsNatConversions<4>>::N: core_algebra::Nat<4>
 {
 }
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 impl<F> MdocSigRuntimeField for F
 where
     F: Sized

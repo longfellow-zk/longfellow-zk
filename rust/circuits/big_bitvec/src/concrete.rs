@@ -15,7 +15,7 @@
 use core_algebra::Nat;
 use runtime_algebra::field::RuntimeField;
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub fn push_bitvec_nat<
     const W: usize,
     FR: RuntimeField<W> + core_algebra::SupportsNatConversions<W>,
