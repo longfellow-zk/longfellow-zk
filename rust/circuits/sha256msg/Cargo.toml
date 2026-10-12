@@ -2,6 +2,7 @@
 name = "circuits-sha256msg"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 
 [lints]
 workspace = true
@@ -19,7 +20,6 @@ circuits-analog-adder = { path = "../analog_adder" }
 runtime-algebra = { path = "../../runtime/algebra", optional = true }
 
 [features]
-testonly = [
 # The prover's witness derivation: what a production prover needs from the
 # circuit crates to evaluate a witness, without the test-only evaluators.
 witness = [
@@ -29,8 +29,9 @@ witness = [
     "circuits-bitvec/witness",
     "circuits-sha256/witness",
 ]
-    "dep:compile-eval",
+testonly = [
     "witness",
+    "dep:compile-eval",
     "dep:runtime-algebra",
     "compile-logic/testonly",
     "circuits-boolean/testonly",
