@@ -233,7 +233,7 @@ pub fn derived<
 }
 
 impl<FR: core_algebra::AlgebraicField> ConcreteDerived<FR> {
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_derived(&self, mut push: impl FnMut(FR::E)) {
         let push_ecdsa = |d: &circuits_ecdsa2::concrete::ConcreteDerived<FR>,
                           p: &mut dyn FnMut(FR::E)| {

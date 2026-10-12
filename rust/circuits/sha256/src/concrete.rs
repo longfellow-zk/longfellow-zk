@@ -153,7 +153,7 @@ impl ConcreteDerived {
             .chain(self.h1.iter().copied())
     }
 
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_derived<const W: usize, FR: runtime_algebra::field::RuntimeField<W>>(
         &self,
         fr: &FR,

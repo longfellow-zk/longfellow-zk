@@ -27,12 +27,28 @@ sha2 = { version = "0.10", features = ["asm"] }
 
 core-algebra = { path = "../../../core/algebra" }
 runtime-algebra = { path = "../../../runtime/algebra", optional = true }
-mdoc-zk-testcases = { path = "../testcases" }
+mdoc-zk-testcases = { path = "../testcases", optional = true }
 mdoc-zk-proto = { path = "../proto" }
 
 [features]
 testonly = [
+# The prover's witness derivation: what a production prover needs from the
+# circuit crates to evaluate a witness, without the test-only evaluators.
+witness = [
+    "dep:runtime-algebra",
+    "compile-logic/witness",
+    "circuits-boolean/witness",
+    "circuits-bitvec/witness",
+    "circuits-big-bitvec/witness",
+    "circuits-sha256/witness",
+    "circuits-sha256msg/witness",
+    "circuits-ecdsa2/witness",
+    "circuits-mac/witness",
+    "circuits-mac-gf128/witness",
+]
     "dep:compile-eval",
+    "witness",
+    "dep:mdoc-zk-testcases",
     "dep:runtime-algebra",
     "compile-logic/testonly",
     "circuits-boolean/testonly",
@@ -51,3 +67,4 @@ core-proto = { path = "../../../core/proto" }
 circuits-ec = { path = "../../../circuits/ec", features = ["testonly"] }
 mdoc-zk-circuits = { path = "./", features = ["testonly"] }
 zstd = "0.13"
+mdoc-zk-testcases = { path = "../testcases" }

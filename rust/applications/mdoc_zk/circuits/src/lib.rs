@@ -19,7 +19,9 @@ pub mod mso_attribute;
 pub mod signature;
 pub mod traits;
 
-pub use cbor::{cbor_encode::*, mdoc::*, test_utils::*};
+#[cfg(feature = "testonly")]
+pub use cbor::test_utils::*;
+pub use cbor::{cbor_encode::*, mdoc::*};
 pub use mdoc_zk_proto::*;
 pub use traits::*;
 

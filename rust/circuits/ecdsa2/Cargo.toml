@@ -21,7 +21,18 @@ runtime-algebra = { path = "../../runtime/algebra", optional = true }
 
 [features]
 testonly = [
+# The prover's witness derivation: what a production prover needs from the
+# circuit crates to evaluate a witness, without the test-only evaluators.
+witness = [
+    "dep:runtime-algebra",
+    "compile-logic/witness",
+    "circuits-boolean/witness",
+    "circuits-bitvec/witness",
+    "circuits-big-bitvec/witness",
+    "circuits-ec/witness",
+]
     "dep:compile-eval",
+    "witness",
     "dep:runtime-algebra",
     "compile-logic/testonly",
     "circuits-boolean/testonly",
