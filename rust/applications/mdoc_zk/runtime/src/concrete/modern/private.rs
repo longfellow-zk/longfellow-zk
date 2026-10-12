@@ -42,7 +42,7 @@ pub fn push_witness_hash<N: Nat<4>>(
         &circuits_sha256::constants::INITIAL,
         mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS,
     )
-    .unwrap();
+    .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let mso_sha_derived = circuits_sha256msg::concrete::derived(
         &mso_sha_in,
         mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS,
@@ -50,7 +50,10 @@ pub fn push_witness_hash<N: Nat<4>>(
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; mdoc_zk_circuits::hash::constants::K_MSO_PREIMAGE_LEN] =
-        signed_bytes.as_slice().try_into().unwrap();
+        signed_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
 
     for &b in &preimage_arr {
         builder.push_v8(b);
@@ -118,10 +121,14 @@ fn push_witness_attrs<N: Nat<4>>(
             &circuits_sha256::constants::INITIAL,
             2,
         )
-        .unwrap();
+        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         let attr_sha_derived = circuits_sha256msg::concrete::derived(&attr_sha_in, 2);
         let preimage_arr: [u8; mdoc_zk_circuits::mso_attribute::constants::K_ATTR_PREIMAGE_LEN] =
-            attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
+            attr_sha_in
+                .padded_preimage
+                .as_slice()
+                .try_into()
+                .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
 
         for &b in &preimage_arr {
             builder.push_v8(b);
