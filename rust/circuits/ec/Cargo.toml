@@ -2,6 +2,7 @@
 name = "circuits-ec"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 
 [lints]
 workspace = true
@@ -14,15 +15,15 @@ core-algebra = { path = "../../core/algebra" }
 runtime-algebra = { path = "../../runtime/algebra", optional = true }
 
 [features]
-testonly = [
 # The prover's witness derivation: what a production prover needs from the
 # circuit crates to evaluate a witness, without the test-only evaluators.
 witness = [
     "dep:runtime-algebra",
     "compile-logic/witness",
 ]
-    "dep:compile-eval",
+testonly = [
     "witness",
+    "dep:compile-eval",
     "dep:runtime-algebra",
     "compile-logic/testonly",
 ]
