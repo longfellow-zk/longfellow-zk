@@ -48,7 +48,8 @@ int circuit_id(uint8_t id[/*kSHA256DigestSize*/], const uint8_t* bcp,
   uint8_t cid[kSHA256DigestSize];
 
   size_t len = kCircuitSizeMax;
-  std::vector<uint8_t> bytes(len);
+  std::vector<uint8_t> bytes;  // sized by decompress from the frame header
+  (void)len;
   size_t full_size = decompress(bytes, bcp, bcsz);
 
   ReadBuffer rb_circuit(bytes.data(), full_size);

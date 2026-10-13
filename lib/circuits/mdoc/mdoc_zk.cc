@@ -435,7 +435,8 @@ MdocProverErrorCode run_mdoc_prover(
   std::unique_ptr<Circuit<f_128>> c_hash = nullptr;
   /* scope for the bytes array */ {
     size_t len = kCircuitSizeMax;
-    std::vector<uint8_t> bytes(len);
+    std::vector<uint8_t> bytes;  // sized by decompress from the frame header
+    (void)len;
     size_t full_size = decompress(bytes, bcp, bcsz);
 
     if (full_size == 0) {
@@ -597,7 +598,8 @@ MdocVerifierErrorCode run_mdoc_verifier(
 
   // Parse circuits from cached byte representation.
   size_t len = kCircuitSizeMax;
-  std::vector<uint8_t> bytes(len);
+  std::vector<uint8_t> bytes;  // sized by decompress from the frame header
+  (void)len;
   size_t full_size = decompress(bytes, bcp, bcsz);
 
   // For now, we are not using the ZKSpec version anywhere and assuming no

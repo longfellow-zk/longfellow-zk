@@ -21,6 +21,8 @@
 #include "util/log.h"
 #include "zstd.h"
 
+#include "circuits/mdoc/mdoc_zk.h"
+
 namespace proofs {
 
 // Decompress a circuit representation into a vector that has been reserved
@@ -28,6 +30,20 @@ namespace proofs {
 // the size of the uncompressed string.
 size_t decompress(std::vector<uint8_t>& bytes, const uint8_t* compressed,
                   size_t compressed_len) {
+  // Size the output buffer from the frame header rather than from the
+  // kCircuitSizeMax upper bound. Constructing a std::vector of that bound
+  // value-initialises 130 MB -- every page written, so every page resident --
+  // when the v6 circuit needs only 87.7 MB of it.
+  unsigned long long fcs = ZSTD_getFrameContentSize(compressed, compressed_len);
+  size_t want = kCircuitSizeMax;
+  if (fcs != ZSTD_CONTENTSIZE_ERROR && fcs != ZSTD_CONTENTSIZE_UNKNOWN &&
+      fcs <= (unsigned long long)kCircuitSizeMax) {
+    want = (size_t)fcs;
+  }
+  if (bytes.size() < want) {
+    bytes.resize(want);
+  }
+
   size_t res =
       ZSTD_decompress(bytes.data(), bytes.size(), compressed, compressed_len);
 
