@@ -1,7 +1,3 @@
-import Ligero.V1.EndToEnd
+import Ligero.V1.ScalarGapProfiled
 
-/-! # Ligero V1 masking: direct unchecked response masks -/
-
-namespace Ligero.V1
-
-end Ligero.V1
+/-! Scalar V1 IOP extraction. -/

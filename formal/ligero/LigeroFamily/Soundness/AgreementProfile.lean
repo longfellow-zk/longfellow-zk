@@ -339,8 +339,37 @@ def profiledLiftListSoundnessBound
   (failureNumerator : ℚ) / failureDenominator +
     profile.contribution q n e g queryCount
 
+/-- V2's step profile: every label is possible through the response-code
+uniqueness threshold, and at most one label per lift candidate is possible
+above it. -/
+def checkedAgreementProfile (q L n cutoff : ℕ) :
+    AgreementProfile n where
+  labelsAtLeast a := if n < a then 0 else if a ≤ cutoff then q else L
 
+theorem checkedAgreementProfile_antitone (q L n cutoff : ℕ) (hL : L ≤ q) :
+    Antitone (checkedAgreementProfile q L n cutoff).labelsAtLeast := by
+    intro a b hab
+    by_cases hbn : n < b
+    · simp [checkedAgreementProfile, hbn]
+    have han : ¬n < a := fun ha ↦ hbn (ha.trans_le hab)
+    simp only [checkedAgreementProfile, han, hbn, ↓reduceIte]
+    by_cases hac : a ≤ cutoff
+    · simp only [hac, ↓reduceIte]
+      split <;> omega
+    · have hbc : ¬b ≤ cutoff := fun h ↦ hac (hab.trans h)
+      simp [hac, hbc]
 
+theorem checkedAgreementProfile_tail (q L n cutoff a : ℕ)
+    (hq : 0 < q) (hL : L ≤ q) (ha : a ≤ n) :
+    (checkedAgreementProfile q L n cutoff).tail q a =
+      if a ≤ cutoff then 1 else (L : ℚ) / q := by
+  unfold AgreementProfile.tail checkedAgreementProfile
+  simp only [show ¬n < a by omega, ↓reduceIte]
+  split
+  · simp [show (q : ℚ) ≠ 0 by positivity]
+  · rw [min_eq_right]
+    apply (div_le_one (by positivity)).mpr
+    exact_mod_cast hL
 
 theorem sum_coverIncrement_if_le (n e g queryCount cutoff : ℕ) :
     ∑ a ∈ Finset.range (n + 1),
@@ -467,13 +496,145 @@ theorem contribution_le_four_ranges
       have h2 := coverRatio_mono n e g queryCount (min_le_right n last)
       gcongr
 
+/-- Exact checked-profile collapse.  This is the formal bridge from the
+profiled master back to V2's familiar step bound. -/
+theorem checkedAgreementProfile_contribution
+    (q L n e g queryCount cutoff : ℕ) (hq : 0 < q) (hL : L ≤ q) :
+    (checkedAgreementProfile q L n cutoff).contribution
+        q n e g queryCount =
+      ((L : ℚ) / q) * coverRatio n e g queryCount n +
+        (1 - (L : ℚ) / q) *
+          coverRatio n e g queryCount (min n cutoff) := by
+  unfold contribution
+  have hterm (a : ℕ) (ha : a ∈ Finset.range (n + 1)) :
+      coverIncrement n e g queryCount a *
+          (checkedAgreementProfile q L n cutoff).tail q a =
+        ((L : ℚ) / q) * coverIncrement n e g queryCount a +
+          (1 - (L : ℚ) / q) *
+            (if a ≤ cutoff then coverIncrement n e g queryCount a else 0) := by
+    rw [checkedAgreementProfile_tail q L n cutoff a hq hL (by
+      have := Finset.mem_range.mp ha
+      omega)]
+    split <;> ring
+  calc
+    (∑ a ∈ Finset.range (n + 1),
+      coverIncrement n e g queryCount a *
+        (checkedAgreementProfile q L n cutoff).tail q a) =
+        ∑ a ∈ Finset.range (n + 1),
+          (((L : ℚ) / q) * coverIncrement n e g queryCount a +
+            (1 - (L : ℚ) / q) *
+              (if a ≤ cutoff then coverIncrement n e g queryCount a else 0)) := by
+      apply Finset.sum_congr rfl
+      exact hterm
+    _ = ((L : ℚ) / q) *
+          (∑ a ∈ Finset.range (n + 1), coverIncrement n e g queryCount a) +
+        (1 - (L : ℚ) / q) *
+          (∑ a ∈ Finset.range (n + 1),
+            if a ≤ cutoff then coverIncrement n e g queryCount a else 0) := by
+      simp only [Finset.sum_add_distrib, Finset.mul_sum]
+    _ = _ := by
+      rw [sum_coverIncrement n e g queryCount n,
+        sum_coverIncrement_if_le n e g queryCount cutoff]
 
+theorem checkedAgreementProfile_contribution_le
+    (q L n e g queryCount cutoff : ℕ) (hq : 0 < q)
+    (hquery : queryCount ≤ n) :
+    (checkedAgreementProfile q L n cutoff).contribution
+        q n e g queryCount ≤
+      coverRatio n e g queryCount cutoff + (L : ℚ) / q := by
+  have hfull : coverRatio n e g queryCount n = 1 := by
+    unfold coverRatio hypergeometricRatio
+    rw [show min n (g + n) = n by omega,
+      show max (n - e - 1) n = n by omega]
+    exact div_self (by
+      exact_mod_cast Nat.ne_of_gt (Nat.choose_pos hquery))
+  have hcutoffNonnegative : 0 ≤ coverRatio n e g queryCount cutoff := by
+    unfold coverRatio hypergeometricRatio
+    positivity
+  by_cases hL : L ≤ q
+  · rw [checkedAgreementProfile_contribution q L n e g queryCount cutoff hq hL,
+      hfull]
+    have hcutoff : coverRatio n e g queryCount (min n cutoff) ≤
+        coverRatio n e g queryCount cutoff :=
+      coverRatio_mono n e g queryCount (min_le_right _ _)
+    have hnonnegative : 0 ≤ coverRatio n e g queryCount (min n cutoff) := by
+      unfold coverRatio hypergeometricRatio
+      positivity
+    have hratio : 0 ≤ (L : ℚ) / q := by positivity
+    have hratioOne : (L : ℚ) / q ≤ 1 := by
+      apply (div_le_one (by positivity)).mpr
+      exact_mod_cast hL
+    nlinarith
+  · have hcontribution :
+        (checkedAgreementProfile q L n cutoff).contribution
+            q n e g queryCount ≤ 1 := by
+      unfold contribution
+      calc
+        (∑ a ∈ Finset.range (n + 1),
+            coverIncrement n e g queryCount a *
+              (checkedAgreementProfile q L n cutoff).tail q a) ≤
+            ∑ a ∈ Finset.range (n + 1),
+              coverIncrement n e g queryCount a := by
+          apply Finset.sum_le_sum
+          intro a _
+          simpa using mul_le_of_le_one_right
+            (coverIncrement_nonnegative n e g queryCount a)
+            ((checkedAgreementProfile q L n cutoff).tail_le_one q a)
+        _ = coverRatio n e g queryCount n :=
+          sum_coverIncrement n e g queryCount n
+        _ = 1 := hfull
+    have hratio : 1 ≤ (L : ℚ) / q := by
+      apply (one_le_div (by positivity)).mpr
+      exact_mod_cast Nat.le_of_not_ge hL
+    linarith
 
+theorem checkedAgreementProfile_contribution_ge_coverRatio
+    (q L n e g queryCount cutoff : ℕ) (hq : 0 < q) (hL : L ≤ q)
+    (hquery : queryCount ≤ n) :
+    coverRatio n e g queryCount (min n cutoff) ≤
+      (checkedAgreementProfile q L n cutoff).contribution
+        q n e g queryCount := by
+  rw [checkedAgreementProfile_contribution q L n e g queryCount cutoff hq hL]
+  have hfull : coverRatio n e g queryCount n = 1 := by
+    unfold coverRatio hypergeometricRatio
+    rw [show min n (g + n) = n by omega,
+      show max (n - e - 1) n = n by omega]
+    exact div_self (by exact_mod_cast Nat.ne_of_gt (Nat.choose_pos hquery))
+  rw [hfull]
+  have hcoverNonnegative :
+      0 ≤ coverRatio n e g queryCount (min n cutoff) := by
+    unfold coverRatio hypergeometricRatio
+    positivity
+  have hcoverOne : coverRatio n e g queryCount (min n cutoff) ≤ 1 := by
+    unfold coverRatio hypergeometricRatio
+    apply (div_le_one (by
+      exact_mod_cast Nat.choose_pos hquery)).mpr
+    exact_mod_cast Nat.choose_le_choose queryCount (by omega :
+      max (n - e - 1) (min n (g + min n cutoff)) ≤ n)
+  have hratio : 0 ≤ (L : ℚ) / q := by positivity
+  nlinarith
+
+/-- The conventional additive presentation of the checked V2 corollary. -/
 def checkedLiftListSoundnessBound
     (q L n e g queryCount cutoff failureNumerator failureDenominator : ℕ) : ℚ :=
   (failureNumerator : ℚ) / failureDenominator +
     coverRatio n e g queryCount cutoff + (L : ℚ) / q
 
+theorem profiled_checked_le_checkedLiftListSoundnessBound
+    (q L n e g queryCount cutoff failureNumerator failureDenominator : ℕ)
+    (hq : 0 < q) (hquery : queryCount ≤ n) :
+    profiledLiftListSoundnessBound q n e g queryCount
+        failureNumerator failureDenominator
+        (checkedAgreementProfile q L n cutoff) ≤
+      checkedLiftListSoundnessBound q L n e g queryCount cutoff
+        failureNumerator failureDenominator := by
+  unfold profiledLiftListSoundnessBound checkedLiftListSoundnessBound
+  have hcontribution := checkedAgreementProfile_contribution_le
+    q L n e g queryCount cutoff hq hquery
+  linarith
+
+/-- At the V2 uniqueness cutoff, the checked corollary is no larger than the
+original maximum-cover expression. -/
 theorem checkedLiftListSoundnessBound_le_liftListSoundnessBound
     (q L n e g k queryCount failureNumerator failureDenominator : ℕ)
     (hk : 0 < k) :

@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "examples.Ligero.Longfellow.V7"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates"]
 
 [leanOptions]
 autoImplicit = false
@@ -26,11 +26,6 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 
 [[lean_lib]]
 name = "AffineAgreement"
-srcDir = "ligero"
-leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
-
-[[lean_lib]]
-name = "CorrelatedAgreement"
 srcDir = "ligero"
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 

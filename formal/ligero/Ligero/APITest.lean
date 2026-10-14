@@ -1,116 +1,84 @@
 import Ligero.API
-import AffineAgreement
-import CorrelatedAgreement
-import SelectedMCA
-import CodingTheory.ListDecoding
+import examples.Ligero.Longfellow.EnvelopeFSCertificates
 
-/-! Compile-time checks for the clean-break Ligero public surface. -/
+/-! Compile-time checks for the retained scalar IOP/FS extraction API. -/
 
--- Mask-independent architecture.
-#guard_msgs (drop info) in #check AffineAgreement.DecoderData
-#guard_msgs (drop info) in #check AffineAgreement.affineCodewordLine_of_common_agreement
-#guard_msgs (drop info) in #check CorrelatedAgreement.correlated_agreement
-#guard_msgs (drop info) in #check CorrelatedAgreement.correlated_agreement_of_decoderData
-#guard_msgs (drop info) in #check SelectedMCA.directionallyNonliftableParameters_card_le_direct
-#guard_msgs (drop info) in #check SelectedMCA.directionallyNonliftableParameters_card_lt_direct
-#guard_msgs (drop info) in #check SelectedMCA.directionallyNonliftableParameters_card_le_of_three_radius
-#guard_msgs (drop info) in #check CodingTheory.InterleavedJohnson.card_le_listBound
-#guard_msgs (drop info) in #check LigeroFamily.RefinedSelectedMCAParameterConditions
-#guard_msgs (drop info) in #check LigeroFamily.RefinedSelectedMCALineConditions
-#guard_msgs (drop info) in #check LigeroFamily.DirectMCAConditions
-#guard_msgs (drop info) in #check LigeroFamily.PuncturedGlobalizationConditions
-#guard_msgs (drop info) in #check LigeroFamily.JohnsonListConditions
-#guard_msgs (drop info) in #check LigeroFamily.MultiplicativeCode
-#guard_msgs (drop info) in #check LigeroFamily.MultiplicativeCode.MaskingBasis
-#guard_msgs (drop info) in #check LigeroFamily.MultiplicativeCode.query_le_length
-#guard_msgs (drop info) in #check LigeroFamily.MaskingRateCondition
-#guard_msgs (drop info) in #check LigeroFamily.CoreMessages
-#guard_msgs (drop info) in #check LigeroFamily.ConstraintSystem
-#guard_msgs (drop info) in #check LigeroFamily.Response
-#guard_msgs (drop info) in #check LigeroFamily.MaskScheme
-#guard_msgs (drop info) in #check LigeroFamily.SchemeOracle
-#guard_msgs (drop info) in #check LigeroFamily.schemeOracleEquivColumns
-#guard_msgs (drop info) in #check LigeroFamily.openSchemeOracle_congr
-#guard_msgs (drop info) in #check LigeroFamily.SchemeChallenge
-#guard_msgs (drop info) in #check LigeroFamily.SchemeVerifier.protocol
-#guard_msgs (drop info) in #check LigeroFamily.SchemeLiftCandidate
-#guard_msgs (drop info) in #check LigeroFamily.PolicyLiftListCertificate
-#guard_msgs (drop info) in #check LigeroFamily.SchemeGLiftWitness
-#guard_msgs (drop info) in #check LigeroFamily.PolicyArithmeticCertificate.doublyProfiledClassifier_nonempty
-#guard_msgs (drop info) in #check LigeroFamily.SchemeProtocolPolicy
-#guard_msgs (drop info) in #check LigeroFamily.SchemeExtractorPolicy
-#guard_msgs (drop info) in #check LigeroFamily.schemeExtractorPolicy
-#guard_msgs (drop info) in #check LigeroFamily.ReedSolomon.Domain
-#guard_msgs (drop info) in #check LigeroFamily.ReedSolomon.multiplicativeCode
-#guard_msgs (drop info) in #check LigeroFamily.ReedSolomon.baseCode_minimum_distance
-#guard_msgs (drop info) in #check Ligero.V1.EndToEndGuarantee
-#guard_msgs (drop info) in #check Ligero.V1.EndToEndGuarantee.perfectCompleteness
-#guard_msgs (drop info) in #check Ligero.V1.EndToEndGuarantee.soundness
-#guard_msgs (drop info) in #check Ligero.V1.EndToEndGuarantee.extraction
-#guard_msgs (drop info) in #check Ligero.V1.EndToEndGuarantee.zeroKnowledge
-#guard_msgs (drop info) in #check LigeroFamily.ConstraintSystem.residual_of_not_satisfies
-#guard_msgs (drop info) in #check LigeroFamily.SchemeLiftCandidate.residual_of_not_satisfies
-#guard_msgs (drop info) in #check LigeroFamily.NoDecodedSolution
-#guard_msgs (drop info) in #check LigeroFamily.NoDecodedSolution.of_not_language
-#guard_msgs (drop info) in #check LigeroFamily.liftListIndex
-#guard_msgs (drop info) in #check LigeroFamily.exists_liftListIndex
-#guard_msgs (drop info) in #check LigeroFamily.SchemeLiftCandidate.univ_card_le_listBound
-#guard_msgs (drop info) in #check Ligero.V1.candidate_of_acceptance
-#guard_msgs (drop info) in #check Ligero.V1.witness_extractor
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.DoomedAfter
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.escaping
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.query_density_le_of_doomedAfter
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.escaping_density_le
-#guard_msgs (drop info) in #check LigeroFamily.ThreeEventPartition
-#guard_msgs (drop info) in #check LigeroFamily.ThreeEventPartition.card_winSet
-#guard_msgs (drop info) in #check LigeroFamily.FlatEventLedger.win_card_le
-#guard_msgs (drop info) in #check LigeroFamily.FlatEventLedger.win_ratio_le
-#guard_msgs (drop info) in #check LigeroFamily.AgreementProfile.excessContribution
-#guard_msgs (drop info) in
-  #check LigeroFamily.AgreementProfile.excessContribution_le_contribution
-#guard_msgs (drop info) in
-  #check LigeroFamily.AgreementProfile.restricted_average_coverExcess_le_excessContribution
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.eventPartition
-#guard_msgs (drop info) in
-  #check LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.acceptingPairs_card_le_eventLedger
-#guard_msgs (drop info) in #check LigeroFamily.RigidThreeEventLedger.rom_compiler_card_le
-#guard_msgs (drop info) in #check LigeroFamily.RigidThreeEventLedger.rom_compiler_ratio_le
-#guard_msgs (drop info) in #check LigeroFamily.FirstOccurrenceEventLedger.ofFirstOccurrence
+-- Scalar, response-uniform IOP extraction and the false-statement corollary.
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.compatible_unique
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.extract_valid
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.Certificate.response_fraction_le_envelope
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.Certificate.envelope_mean
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.Certificate.false_statement
+#guard_msgs (drop info) in #check Ligero.V1.scalarGap_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V2.scalarGap_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V3.scalarGap_extraction_failure
+/-- info: 'Ligero.V1.scalarGap_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V1.scalarGap_extraction_failure
+/-- info: 'Ligero.V2.scalarGap_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V2.scalarGap_extraction_failure
+/-- info: 'Ligero.V3.scalarGap_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V3.scalarGap_extraction_failure
 
--- Published Ligero: direct unchecked response masks.
-#guard_msgs (drop info) in #check Ligero.V1.Mask
-#guard_msgs (drop info) in #check Ligero.V1.Scheme
-#guard_msgs (drop info) in #check Ligero.V1.Oracle
-#guard_msgs (drop info) in #check Ligero.V1.Challenge
-#guard_msgs (drop info) in #check Ligero.V1.Opening
-#guard_msgs (drop info) in #check Ligero.V1.V1ProverRandomness
-#guard_msgs (drop info) in #check Ligero.V1.V1Violation
-#guard_msgs (drop info) in #check Ligero.V1.V1JohnsonRange
-#guard_msgs (drop info) in #check Ligero.V1.v1_ligero_perfect_completeness
-#guard_msgs (drop info) in #check Ligero.V1.v1_ligero_soundness_refined
-#guard_msgs (drop info) in #check Ligero.V1.v1_ligero_soundness_of_eventPartition
-#guard_msgs (drop info) in #check Ligero.V1.ZeroKnowledge.v1_unbounded_perfect_response_adaptive_zero_knowledge
+#guard_msgs (drop info) in #check Ligero.V1.scalarGap_iop_extraction_failure
+/-- info: 'Ligero.V1.scalarGap_iop_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V1.scalarGap_iop_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V2.scalarGap_iop_extraction_failure
+/-- info: 'Ligero.V2.scalarGap_iop_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V2.scalarGap_iop_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V3.scalarGap_iop_extraction_failure
+/-- info: 'Ligero.V3.scalarGap_iop_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V3.scalarGap_iop_extraction_failure
 
--- New Ligero: four checked base-code mask kinds.
-#guard_msgs (drop info) in #print axioms LigeroFamily.ConstraintSystem.residual_of_not_satisfies
-#guard_msgs (drop info) in #print axioms LigeroFamily.NoDecodedSolution.of_not_language
-#guard_msgs (drop info) in #print axioms LigeroFamily.exists_liftListIndex
-#guard_msgs (drop info) in #print axioms LigeroFamily.SchemeLiftCandidate.univ_card_le_listBound
-#guard_msgs (drop info) in #print axioms Ligero.V1.witness_extractor
-#guard_msgs (drop info) in #print axioms LigeroFamily.ThreeEventPartition.card_winSet
-#guard_msgs (drop info) in #print axioms LigeroFamily.FlatEventLedger.win_ratio_le
-#guard_msgs (drop info) in
-  #print axioms LigeroFamily.AgreementProfile.restricted_average_coverExcess_le_excessContribution
-#guard_msgs (drop info) in
-  #print axioms LigeroFamily.AgreementProfile.excessContribution_le_contribution
-#guard_msgs (drop info) in
-  #print axioms LigeroFamily.PolicyDoublyProfiledSoundnessClassifier.acceptingPairs_card_le_eventLedger
-#guard_msgs (drop info) in #print axioms LigeroFamily.RigidThreeEventLedger.rom_compiler_card_le
-#guard_msgs (drop info) in
-  #print axioms LigeroFamily.FirstOccurrenceEventLedger.ofFirstOccurrence
-#guard_msgs (drop info) in #print axioms Ligero.V1.v1_ligero_soundness_refined
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.extract_agreement_errors
+
+-- Refined scalar extraction and the response-uniform envelope.
+#guard_msgs (drop info) in #check Ligero.V1.scalarGap_profiled_extraction_failure
+/-- info: 'Ligero.V1.scalarGap_profiled_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V1.scalarGap_profiled_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V2.scalarGap_profiled_extraction_failure
+/-- info: 'Ligero.V2.scalarGap_profiled_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V2.scalarGap_profiled_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V3.scalarGap_profiled_extraction_failure
+/-- info: 'Ligero.V3.scalarGap_profiled_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V3.scalarGap_profiled_extraction_failure
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.response_fraction_le_profiledUniformEnvelope
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies
+/-- info: 'LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound] -/
+#guard_msgs in #print axioms LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies
+
+#guard_msgs (drop info) in #check LigeroFamily.extractionFailureRate
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.CheckedArithmeticBudget
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.checked_gap_certificate
+#guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.checked_profiled_extraction_failure
+/-- info: 'LigeroFamily.ScalarGapExtraction.checked_profiled_extraction_failure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound] -/
+#guard_msgs in #print axioms LigeroFamily.ScalarGapExtraction.checked_profiled_extraction_failure
+
+#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.ResponseUniformBound
+#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.Experiment
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.compiledAccepts
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.extract
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.extraction_ratio_le
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.soundness_ratio_le
+/-- info: 'Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped
+#guard_msgs (drop info) in #check Bcs.FiniteProbability.density_product_gate_le
+#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic
+/-- info: 'LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic
+/-- info: 'LigeroFamily.EnvelopeFS.extraction_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.extraction_ratio_le
+/-- info: 'LigeroFamily.EnvelopeFS.soundness_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.soundness_ratio_le
+
+#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped
+/-- info: 'Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped
+
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_fs_extraction
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v2_fs_extraction
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash4_v3_fs_soundness

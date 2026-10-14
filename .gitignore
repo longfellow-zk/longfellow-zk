@@ -4,3 +4,6 @@ docs/specs/rust/target
 rust/target
 formal/.lake
 formal/circuits/quadcert/Gen
+
+# Personal agent instructions
+/AGENTS.md

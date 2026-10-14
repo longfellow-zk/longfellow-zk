@@ -1,5 +1,6 @@
 import SelectedMCA.DoubleAveraging
-import AffineAgreement.Rigidity
+import AffineAgreement.Secant
+import AffineAgreement.AffineSupport
 import AffineAgreement.Globalization
 
 /-!

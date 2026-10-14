@@ -6,9 +6,8 @@ import Mathlib.Data.Rat.Cast.Order
 /-!
 # Disjoint event ledgers
 
-This module is the protocol-neutral finite counting boundary shared by flat
-Ligero soundness and response-rigid Fiat--Shamir soundness.  It deliberately
-knows nothing about codes, transcripts, or random oracles.
+This module supplies the protocol-neutral finite counting boundary used by
+Ligero acceptance and extraction bounds.
 
 `ThreeEventPartition` records three named, pairwise-disjoint events whose union
 is exactly the winning event.  `FlatEventLedger` adds the fiber bounds needed

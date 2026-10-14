@@ -1,3 +1,6 @@
 import Bcs.Counting
-import Bcs.ResponseRigid
+import Bcs.FirstOccurrenceTrace
 import Bcs.TypedFiatShamir
+import Bcs.EnvelopeFiatShamir
+import Bcs.LinearEnvelopeFiatShamir
+import Bcs.FixedKeyEnvelopeFiatShamir

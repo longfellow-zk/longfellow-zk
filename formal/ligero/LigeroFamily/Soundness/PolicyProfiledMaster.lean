@@ -524,8 +524,8 @@ omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
     [DecidableEq CheckedMask] in
 /-- A family of classifiers indexed by arbitrary fixed auxiliary data gives
 the same accepting-pair density bound for every resulting response strategy.
-This is the exact interface consumed by response-rigid Case A after the rest
-of the random-oracle tape has been fixed. -/
+The bound remains uniform over the auxiliary data used to select the response
+strategy. -/
 theorem strategyUniform_acceptingPairs_density_le
     {Data : Type*}
     (respondBy : Data → Challenge → Response)
@@ -590,10 +590,122 @@ structure PolicyArithmeticCertificate
       policy.proximityResponse (respond challenge) 0 →
     (candidate.remainingBadColumns (policy.proximityWeights challenge 0)
       (policy.proximityResponse (respond challenge) 0)).card ≤ g →
+    (schemeProximityDisagreement oracle (policy.proximityWeights challenge 0)
+      (policy.proximityResponse (respond challenge) 0)).card ≤ e →
     Nonempty (PolicyAcceptingQueryCover policy oracle statement challenge
       (respond challenge) (min n (g + agreement challenge)))
 
 namespace PolicyLiftListCertificate
+
+omit [Fintype F] [Fintype Equations] [DecidableEq Equations]
+    [DecidableEq CheckedMask] [Nonempty Challenge] in
+/-- Assemble the checked agreement profile from candidate-local exceptional
+sets and query covers. This is shared by checked masks and direct products. -/
+theorem exceptionalArithmeticCertificate_nonempty
+    (certificate : PolicyLiftListCertificate policy oracle respond
+      e g radius L)
+    (cutoff profileDenominator : ℕ)
+    (special : SchemeLiftCandidate C oracle radius → Finset Challenge)
+    (hspecial : ∀ candidate,
+      profileDenominator * (special candidate).card ≤ Fintype.card Challenge)
+    (hcover : ∀ candidate challenge, challenge ∉ special candidate →
+      ∀ remaining : Finset (Fin n), remaining.card ≤ g →
+      (∀ query : QuerySet n r,
+        policy.accepts statement challenge (respond challenge) query
+          (openSchemeOracle oracle query) →
+        query.coordinates ∩ candidate.badColumns ⊆ remaining) →
+      Nonempty (PolicyAcceptingQueryCover policy oracle statement challenge
+        (respond challenge) (min n (g + cutoff)))) :
+    Nonempty (PolicyArithmeticCertificate policy oracle statement respond
+      certificate (checkedAgreementProfile profileDenominator L n cutoff)
+      profileDenominator) := by
+  classical
+  let arithmeticSpecial := certificate.candidates.biUnion special
+  have harithmeticDensity :
+      profileDenominator * arithmeticSpecial.card ≤
+        L * Fintype.card Challenge := by
+    calc
+      profileDenominator * arithmeticSpecial.card ≤
+          profileDenominator * ∑ candidate ∈ certificate.candidates,
+            (special candidate).card :=
+        Nat.mul_le_mul_left _ Finset.card_biUnion_le
+      _ = ∑ candidate ∈ certificate.candidates,
+          profileDenominator * (special candidate).card := by
+        simp_rw [Finset.mul_sum]
+      _ ≤ ∑ _candidate ∈ certificate.candidates,
+          Fintype.card Challenge :=
+        Finset.sum_le_sum fun candidate _ => hspecial candidate
+      _ = certificate.candidates.card * Fintype.card Challenge := by simp
+      _ ≤ L * Fintype.card Challenge :=
+        Nat.mul_le_mul_right _ certificate.list_card
+  let agreement := fun challenge =>
+    if challenge ∈ arithmeticSpecial then n else min n cutoff
+  have hagreementLe : ∀ challenge, agreement challenge ≤ n := by
+    intro challenge
+    simp only [agreement]
+    split <;> omega
+  have hagreementDensity : ∀ a ≤ n,
+      profileDenominator * (AgreementProfile.tailSet agreement a).card ≤
+        (checkedAgreementProfile profileDenominator L n cutoff).labelsAtLeast a *
+          Fintype.card Challenge := by
+    intro a ha
+    by_cases hacutoff : a ≤ cutoff
+    · have hcard := Finset.card_le_card
+        (Finset.subset_univ (AgreementProfile.tailSet agreement a))
+      simpa [checkedAgreementProfile, show ¬n < a by omega, hacutoff] using
+        Nat.mul_le_mul_left profileDenominator hcard
+    · have hsubset : AgreementProfile.tailSet agreement a ⊆
+          arithmeticSpecial := by
+        intro challenge hchallenge
+        have hagreement := (Finset.mem_filter.mp hchallenge).2
+        by_cases harithmetic : challenge ∈ arithmeticSpecial
+        · exact harithmetic
+        · simp [agreement, harithmetic] at hagreement
+          omega
+      calc
+        profileDenominator * (AgreementProfile.tailSet agreement a).card ≤
+            profileDenominator * arithmeticSpecial.card :=
+          Nat.mul_le_mul_left _ (Finset.card_le_card hsubset)
+        _ ≤ L * Fintype.card Challenge := harithmeticDensity
+        _ = (checkedAgreementProfile profileDenominator L n cutoff).labelsAtLeast a *
+              Fintype.card Challenge := by
+          simp [checkedAgreementProfile, show ¬n < a by omega, hacutoff]
+  refine ⟨{
+    agreement := agreement
+    agreement_le := hagreementLe
+    agreement_density := hagreementDensity
+    constraint_cover := ?_ }⟩
+  intro challenge candidate hcandidate _hresponse hremaining _hsmall
+  by_cases hcandidateSpecial : challenge ∈ special candidate
+  · have hglobal : challenge ∈ arithmeticSpecial :=
+      Finset.mem_biUnion.mpr ⟨candidate, hcandidate, hcandidateSpecial⟩
+    exact ⟨{
+      allowed := Finset.univ
+      allowed_card := by simp [agreement, hglobal]
+      covers := fun _ _ => Finset.subset_univ _ }⟩
+  · let remaining := candidate.remainingBadColumns
+      (policy.proximityWeights challenge 0)
+      (policy.proximityResponse (respond challenge) 0)
+    have hbad : ∀ query : QuerySet n r,
+        policy.accepts statement challenge (respond challenge) query
+          (openSchemeOracle oracle query) →
+        query.coordinates ∩ candidate.badColumns ⊆ remaining := by
+      intro query haccept
+      exact candidate.query_bad_subset_remaining
+        (policy.proximityWeights challenge 0)
+        (policy.proximityResponse (respond challenge) 0) query
+        (policy.accepts_proximity statement challenge (respond challenge)
+          query (openSchemeOracle oracle query) haccept 0)
+    obtain ⟨cover⟩ := hcover candidate challenge hcandidateSpecial remaining
+      hremaining hbad
+    exact ⟨{
+      allowed := cover.allowed
+      allowed_card := by
+        by_cases hglobal : challenge ∈ arithmeticSpecial
+        · simpa [agreement, hglobal] using Finset.card_le_univ cover.allowed
+        · simp only [agreement, hglobal, ↓reduceIte]
+          exact cover.allowed_card.trans (by omega)
+      covers := cover.covers }⟩
 
 end PolicyLiftListCertificate
 
@@ -660,7 +772,7 @@ theorem doublyProfiledClassifier_nonempty
             query₀ (openSchemeOracle oracle query₀) haccept₀ 0).1 hsmall
       right
       exact arithmetic.constraint_cover challenge candidate
-        hcandidate hresponse hremaining
+        hcandidate hresponse hremaining hsmall
     · left
       have hfar := policyProximity_far_cover statement challenge
         (respond challenge) query₀ haccept₀ (Nat.lt_of_not_ge hsmall)

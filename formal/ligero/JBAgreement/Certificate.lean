@@ -1,4 +1,4 @@
-import JBAgreement.SelectedLine
+import JBAgreement.InverseEtaCertificate
 
 /-!
 # Decidable certificates for the Johnson-regime line bound
@@ -19,24 +19,17 @@ namespace JBAgreement
 
 open Polynomial
 
-/-- `johnsonThreshold` at `η = 1 / 2 ^ etaBits`, over `ℚ`.  The shape is copied
-from `johnsonThreshold` term by term so the cast lemma below is a `ring`
-identity. -/
+/-- Compatibility specialization of the shared rational Johnson threshold at
+`η = 1 / 2 ^ etaBits`. -/
 def johnsonThresholdQ (k n e etaBits : ℕ) : ℚ :=
-  let η : ℚ := (2 ^ etaBits)⁻¹
-  let w := k - 1
-  3 * n / (4 * w * η) * ((e : ℚ) + 2) +
-    ((n - k : ℕ) : ℚ) * (4 * k * (3 * n / (4 * w * η) * (n / (w * η ^ 2)))
-      + 3 * n / (4 * w * η)) / ((n - e - k : ℕ) : ℚ)
-    + n / (w * η ^ 2) + 3 * (3 * n / (4 * w * η) * (n / (w * η ^ 2))) + 1
+  johnsonThresholdInverseQ k n e (2 ^ etaBits)
 
 /-- The rational mirror is exact: no slack is introduced by leaving `ℝ`. -/
 theorem johnsonThresholdQ_cast (k n e etaBits : ℕ) :
     ((johnsonThresholdQ k n e etaBits : ℚ) : ℝ)
       = johnsonThreshold k n e ((2 ^ etaBits : ℝ)⁻¹) := by
-  unfold johnsonThresholdQ johnsonThreshold
-  push_cast
-  ring
+  simpa only [johnsonThresholdQ, Nat.cast_pow, Nat.cast_ofNat] using
+    johnsonThresholdInverseQ_cast k n e (2 ^ etaBits)
 
 /-- **The cleared numeric hypotheses of the Johnson route.**  Each conjunct is
 one hypothesis of `lineFailureBound_of_johnson` with `η = 1 / 2 ^ etaBits` and
@@ -63,16 +56,13 @@ structure JohnsonConditions (n k e etaBits bound fieldSize : ℕ) : Prop where
 /-- Decidable mirror of `JohnsonConditions`, for certificates the kernel checks.
 Every conjunct is a `Nat` or `Rat` comparison, so `decide` evaluates it. -/
 def johnsonConditionsBool (n k e etaBits bound fieldSize : ℕ) : Bool :=
-  (2 ≤ k) && (4 ≤ 2 ^ etaBits) && (2 ^ etaBits ≤ n) &&
-    (4 * n ≤ (n - e) * 2 ^ etaBits) && (k + 1 ≤ n - e) &&
-    ((k - 1) * n * (2 ^ etaBits) ^ 2 ≤ ((n - e) * 2 ^ etaBits - 4 * n) ^ 2) &&
-    (9 * n ^ 2 * (2 ^ etaBits) ^ 2 < 8 * (k - 1) * fieldSize) &&
-    decide (johnsonThresholdQ k n e etaBits ≤ (bound : ℚ) + 1)
+  inverseEtaConditionsBool n k e (2 ^ etaBits) bound fieldSize
 
 theorem johnsonConditions_of_bool {n k e etaBits bound fieldSize : ℕ}
     (h : johnsonConditionsBool n k e etaBits bound fieldSize = true) :
     JohnsonConditions n k e etaBits bound fieldSize := by
-  simp only [johnsonConditionsBool, Bool.and_eq_true, decide_eq_true_eq] at h
+  simp only [johnsonConditionsBool, inverseEtaConditionsBool, Bool.and_eq_true,
+    decide_eq_true_eq] at h
   exact ⟨h.1.1.1.1.1.1.1, h.1.1.1.1.1.1.2, h.1.1.1.1.1.2, h.1.1.1.1.2,
     h.1.1.1.2, h.1.1.2, h.1.2, h.2⟩
 
@@ -160,13 +150,7 @@ theorem lineFailureBound_of_johnsonConditions
     (hcard : Fintype.card F = fieldSize)
     (h : JohnsonConditions n k e etaBits bound fieldSize) :
     SelectedMCA.LineFailureBound C e g bound := by
-  refine lineFailureBound_of_johnson P ((2 ^ etaBits : ℝ))⁻¹ h.hk
-    (JohnsonConditions.eta_pos etaBits) h.eta_le_quarter h.one_le_eta_mul
-    h.four_mul_le_sub h.johnson_real ?_ ?_
-  · rw [hcard]
-    exact h.field_real
-  · rw [← johnsonThresholdQ_cast]
-    have := h.hthreshold
-    exact_mod_cast this
+  exact lineFailureBound_of_inverseEtaConditions P hcard
+    ⟨h.hk, h.hquarter, h.hlength, h.hslack, h.hroom, h.hjohnson, h.hfield, h.hthreshold⟩
 
 end JBAgreement

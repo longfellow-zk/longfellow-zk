@@ -9,9 +9,8 @@ import Mathlib.Tactic.Ring
 /-!
 # Basic proximity and row-combination infrastructure
 
-This module contains only definitions and finite-dimensional counting facts.
-The protocol's proximity theorem is proved from triple-count correlated
-agreement in `CorrelatedAgreement.Applications.Interleaved`.
+This module supplies proximity definitions, row combinations, and the
+finite-dimensional counting facts used by selected-MCA extraction.
 -/
 
 namespace CodingTheory

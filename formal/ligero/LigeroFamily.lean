@@ -1,6 +1,5 @@
-import LigeroFamily.Protocol
+import LigeroFamily.Protocol.FiniteResponse
 import LigeroFamily.Soundness
-import LigeroFamily.ZeroKnowledge
 import LigeroFamily.Code.ReedSolomon
 
 /-!

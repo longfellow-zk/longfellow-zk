@@ -1,5 +1,5 @@
 import AffineAgreement.TripleCounting
-import AffineAgreement.Rigidity
+import AffineAgreement.Secant
 import AffineAgreement.AffineCodewordLine
 
 /-! Affine codeword lines determined by large triple intersections. -/

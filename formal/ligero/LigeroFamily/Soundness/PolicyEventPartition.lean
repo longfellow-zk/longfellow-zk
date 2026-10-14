@@ -374,8 +374,8 @@ theorem acceptanceRate_le_eventPartition
 omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
     [DecidableEq CheckedMask] in
 /-- Strategy-uniform form of the exact event-partition bound.  This is the
-response-rigid interface after the rest of the random-oracle tape has been
-fixed: the response may be an arbitrary function of the batching challenge,
+uniform interface for each fixed auxiliary datum: the response may be an
+arbitrary function of the batching challenge,
 but the shared query baseline is still paid only once. -/
 theorem strategyUniform_acceptingPairs_density_le_eventPartition
     {Data : Type*}

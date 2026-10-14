@@ -1,58 +1,41 @@
-# Formal Verification of Zero-Knowledge Circuits
+# Formal verification
 
-This directory contains the Lean 4 formalizations and mathematical proofs of
-soundness and completeness for the Elliptic Curve (EC) and ECDSA Zero-Knowledge
-(ZK) circuits, together with Ligero V1 soundness and certified Longfellow V7
-parameters. See [ligero/README.md](ligero/README.md) for the exact Ligero theorem,
-its numerical bounds, and its assumptions.
+**Ligero V1 is the shipped protocol. V2 and V3 are alternative protocols
+under development.**
 
-## Directory Structure
+The certified v7/v8 bounds are shown below, in bits. Let `L = log₂(Q+1)` for
+adversary query budget `Q`. The FS entries describe the FS term, capped below
+at zero; the total error is `bindingError + min(1, (Q+1)*2^(-s))` with `s`
+from the corresponding IOP column.
 
--   `circuits/ECDSA/`: Contains the core elliptic curve arithmetic (`EC.lean`,
-    `Curves.lean`, `Nat.lean`), the ECDSA signature verification spec
-    (`EcdsaSpec.lean`), circuit constraints (`EcdsaCircuit.lean`), algebraic
-    bridging lemmas (`Ecdsa.lean`), completeness (`EcdsaComplete.lean`), and
-    soundness (`EcdsaSound.lean`) formalizations and proofs.
--   `circuits/tests/ec/`: Contains the projective public key validation circuit
-    constraint logic (`PkCircuit.lean`) and its symbolic polynomial evaluation
-    model (`PkCircuitPoly.lean`).
--   `ligero/`: Ligero V1, coding and agreement results, and the V7 soundness
-    theorem in `examples/Ligero/Longfellow/V7.lean`.
--   `merkle/`, `bcs/`, and `sumcheck/`: Imported proof dependencies.
--   `lakefile.toml` / `lake-manifest.json` / `lean-toolchain`: Standard Lean
-    package configuration files.
+| Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
+|---|---:|---:|---:|---:|---:|---:|
+| v7 signature | 123 | 191 | 191 | 123−L | 191−L | 191−L |
+| v7 hashes | 122 | 125 | 125 | 122−L | 125−L | 125−L |
+| v8 signature | 122 | 191 | 191 | 122−L | 191−L | 191−L |
+| v8 hashes | 121 | 125 | 125 | 121−L | 125−L | 125−L |
 
-## How to Compile & Verify
+The Ligero development proves:
 
-### 1. Using Blaze (Bazel)
+- Reed–Solomon code distance, affine triple-counting and selected-MCA bounds,
+  and JB agreement with checked η³ threshold parameters.
+- Response-assisted scalar IOP extraction for Ligero V1, V2, and V3, together
+  with response-uniform envelopes and false-statement soundness.
+- Merkle prefix binding and typed Fiat–Shamir extraction with total error
+  `bindingError + min(1, (Q+1)*epsilon)`.
+- Exact IOP and Fiat–Shamir certificates for all v7/v8 signature and hash
+  component geometries, across all three Ligero variants.
 
-To compile and mathematically verify all formalizations and proofs in the
-package using Google's Blaze build system:
+See [ligero/README.md](ligero/README.md) for the major theorem names, their
+formal experiments, and the certified IOP/FS tables. This package also
+contains the EC/ECDSA circuit development and existing sumcheck modules.
 
-```bash
-# Compile all targets
-blaze build //privacy/proofs/zk/formal/...
+From this directory:
 
-# Run all tests
-blaze test //privacy/proofs/zk/formal:ecdsa_lean_test //privacy/proofs/zk/formal:pk_lean_test
-```
-
-This will invoke the Lean compiler hermetically, resolving and checking all
-proofs.
-
-### 2. Using Lake (Lean's Package Manager)
-
-To compile the project locally using Lake:
-
-```bash
-# Navigate to the formal/ package directory
-cd privacy/proofs/zk/formal/
-
-# Build the targets
+```sh
 lake build
+python3 ligero/examples/Ligero/scripts/audit_envelope_fs.py
 ```
 
-The Lake default targets check the ECDSA and public-key circuit proofs together
-with the imported proof libraries and the V7 soundness theorem. This package uses
-Lean 4.31.0 and a compatible Mathlib checkout at `../../mathlib4`, relative to
-`formal/`.
+The package uses Lean 4.31.0 and the compatible Mathlib checkout at
+`../../mathlib4`, relative to `formal/`.

@@ -3,7 +3,7 @@ import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Lean.Elab.Tactic.Omega
 
-/-! Internal distance-rigidity and sparse-affine-support lemmas. -/
+/-! Shared minimum-distance and sparse affine support lemmas. -/
 
 namespace AffineAgreement
 
@@ -13,7 +13,7 @@ variable {F : Type*} [Field F] [DecidableEq F]
 
 namespace Internal
 
-/-! ## Distance rigidity -/
+/-! ## Minimum-distance consequences -/
 
 theorem eq_zero_of_weight_lt_distance {n d : ℕ}
     {C : LinearCode F n}

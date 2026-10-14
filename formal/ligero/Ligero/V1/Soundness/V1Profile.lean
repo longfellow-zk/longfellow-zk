@@ -483,7 +483,7 @@ theorem v1ArithmeticCertificate_nonempty
     agreement_le := hagreementLe
     agreement_density := hagreementDensity
     constraint_cover := ?_ }⟩
-  intro challenge candidate hcandidate _hresponse hremaining
+  intro challenge candidate hcandidate _hresponse hremaining _hsmall
   let remaining := candidate.remainingBadColumns (challenge 0).proximity
     ((respond challenge).proximity 0)
   have hbad : ∀ query : QuerySet n r,

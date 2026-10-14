@@ -28,9 +28,8 @@ theorem baseRow_eq_of_codeword_eq
 
 /-- A response evaluation row is determined by its committed codeword once
 the committed block contains the `2k` positions required by
-`response_unique`.  This is the semantic canonicity fact used by the
-response-rigid Fiat--Shamir compiler: evaluation-form response rows do not
-provide multiple valid encodings of one response codeword. -/
+`response_unique`.  It gives uniqueness of an evaluation-form response row
+from its committed response codeword. -/
 theorem responseRow_eq_of_codeword_eq
     (C : MultiplicativeCode F r w n) (h2k : 2 * C.k ≤ n)
     {left right : EvaluationRow F r w n}

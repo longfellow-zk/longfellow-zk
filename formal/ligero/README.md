@@ -1,207 +1,137 @@
-# Ligero V1 soundness and Longfellow V7 parameters
+# Ligero V1/V2/V3 extraction and soundness
 
-This directory proves soundness of the formal **Ligero V1 verifier**, including
-its Fiat–Shamir transformation and Merkle openings in a finite random-oracle
-model. It also certifies the actual parameters of Longfellow's registered V7
-signature and hash circuit components, for one through four attributes.
+This development proves scalar Ligero IOP extraction, false-statement
+soundness, and Fiat–Shamir extraction with Merkle binding. It includes exact
+v7/v8 component certificates for all three variants.
 
-The resulting theorem bounds the probability that Merkle verification and the
-formal Ligero verifier both accept a false constraint system. The bound includes
-both Fiat–Shamir query orders, a proved Merkle binding error, and exact numerical
-certificates. The implementation correspondence and composition needed to extend
-this result to Longfellow's complete mdoc verifier remain separate proof obligations.
+**V1 is the shipped protocol. V2 and V3 are alternative protocols under
+development.**
 
-## Exact V7 result
+## Certified v7/v8 bounds
 
-The top-level theorem is
+The exact IOP error is at most `2^-s`, with the following integer exponents:
 
-```lean
-Ligero.Examples.Grid.Rigid.Longfellow.RegisteredCircuit.v7_soundness
+| Component | V1 | V2 | V3 |
+|---|---:|---:|---:|
+| v7 signature (all attribute counts) | 123 | 191 | 191 |
+| v7 hash (1–4 attributes) | 122 | 125 | 125 |
+| v8 signature (all attribute counts) | 122 | 191 | 191 |
+| v8 hash (1–4 attributes) | 121 | 125 | 125 |
+
+For comparison, let `L = log₂(Q+1)`. The FS columns below give bits for the
+FS term; the total error also includes `bindingError`. Each FS bit entry is
+capped below at zero.
+
+| Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
+|---|---:|---:|---:|---:|---:|---:|
+| v7 signature | 123 | 191 | 191 | 123−L | 191−L | 191−L |
+| v7 hashes | 122 | 125 | 125 | 122−L | 125−L | 125−L |
+| v8 signature | 122 | 191 | 191 | 122−L | 191−L | 191−L |
+| v8 hashes | 121 | 125 | 125 | 121−L | 125−L | 125−L |
+
+[OptimizedIOPCertificates](examples/Ligero/Longfellow/OptimizedIOPCertificates.lean)
+checks all geometry, field-order, clique/Johnson, and rational-budget premises.
+[EnvelopeFSCertificates](examples/Ligero/Longfellow/EnvelopeFSCertificates.lean)
+instantiates the local FS contract, extraction, and soundness for all 30
+component/variant records. The
+[IOP catalog](examples/Ligero/Longfellow/optimized-iop-certified-results.json)
+and [FS catalog](examples/Ligero/Longfellow/envelope-fs-certified-results.json)
+record their exact parameters and theorem names.
+
+Each signature geometry covers one through four attributes. Hash components
+have separate records for each attribute count. The signature field is the
+P-256 base field; the hash field has order `2^128`.
+
+The v8 instance dimensions are:
+
+| Component | openings r | payload w | block k | encoded length | tested n | witness rows | total rows |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Signature | 132 | 362 | 494 | 4445 | 3458 | 12 | 18 |
+| Hash, 1 attribute | 132 | 452 | 584 | 5255 | 4088 | 165 | 171 |
+| Hash, 2 attributes | 132 | 451 | 583 | 5246 | 4081 | 173 | 179 |
+| Hash, 3 attributes | 132 | 451 | 583 | 5246 | 4081 | 181 | 187 |
+| Hash, 4 attributes | 132 | 451 | 583 | 5246 | 4081 | 189 | 195 |
+
+All use `rateinv = 7`, `k = r+w`, and
+`n = encoded length - (2*k-1)`. The
+[parameter records](examples/Ligero/Longfellow/v8-extracted-parameters.json)
+retain the current Rust source provenance and generated circuit identifiers.
+
+## Major proved results
+
+| Result | Main theorem or interface | Source |
+|---|---|---|
+| Reed–Solomon minimum distance and the concrete multiplicative-code instance | `ReedSolomon.evaluation_code_minimum_distance`, `LongfellowIOP.certificateCodeFacts` | [Distance](ReedSolomon/Distance.lean), [IOPParameters](examples/Ligero/Longfellow/IOPParameters.lean) |
+| Selected-MCA proximity bounds from affine triple counting and punctured globalization | `SelectedMCA.directionallyNonliftableParameters_card_le_direct`, `closeCombinationChallengesOn_card_le_of_direction_far` | [DirectLineExtraction](SelectedMCA/DirectLineExtraction.lean), [Punctured](SelectedMCA/Punctured.lean) |
+| Reed–Solomon JB agreement with the η³ threshold, including checked inverse-η parameters | `JBAgreement.lineFailureBound_of_johnsonConditions`, `lineFailureBound_of_inverseEtaConditions` | [Certificate](JBAgreement/Certificate.lean), [InverseEtaCertificate](JBAgreement/InverseEtaCertificate.lean) |
+| Validity and agreement guarantees for the response-assisted extractor | `LigeroFamily.ScalarGapExtraction.extract_valid`, `extract_agreement_errors` | [ScalarGapExtraction](LigeroFamily/Soundness/ScalarGapExtraction.lean) |
+| Scalar IOP extraction for V1, V2, and V3 | `Ligero.V1/V2/V3.scalarGap_extraction_failure`, `scalarGap_iop_extraction_failure` | [V1](Ligero/V1/ScalarGapExtraction.lean), [V2](Ligero/V2/ScalarGapExtraction.lean), [V3](Ligero/V3/ScalarGapExtraction.lean) |
+| Refined IOP extraction with a single response-uniform envelope | `Ligero.V1/V2/V3.scalarGap_profiled_extraction_failure`, `ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies` | [V1](Ligero/V1/ScalarGapProfiled.lean), [V2](Ligero/V2/ScalarGapProfiled.lean), [V3](Ligero/V3/ScalarGapProfiled.lean), [Shared proof](LigeroFamily/Soundness/ScalarGapProfiled.lean) |
+| False-statement soundness from extractor validity | `ScalarGapExtraction.Certificate.false_statement`, `CertifiedResult.v1/v2/v3_interactive` | [ScalarGapExtraction](LigeroFamily/Soundness/ScalarGapExtraction.lean), [ProfiledExtraction](examples/Ligero/Longfellow/ProfiledExtraction.lean) |
+| Merkle prefix binding and consistency of accepted openings | `Merkle.MH.PrefixBindingGame.bad_ratio_le`, `PrefixBindingFamily.boundMessage_game_eq` | [PrefixBinding](../merkle/Merkle/PrefixBinding.lean) |
+| Typed Fiat–Shamir extraction with a linear query factor | `Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped` | [FixedKeyEnvelopeFiatShamir](../bcs/Bcs/FixedKeyEnvelopeFiatShamir.lean) |
+| Merkle-committed Ligero Fiat–Shamir extraction and false-statement soundness | `LigeroFamily.EnvelopeFS.extraction_ratio_le`, `soundness_ratio_le` | [EnvelopeCompiler](LigeroFamily/Soundness/EnvelopeCompiler.lean) |
+| Exact IOP and Fiat–Shamir instances for every v7/v8 signature/hash geometry and variant | `Optimized.v7*/v8*` extraction, interactive, uniform-envelope, and FS endpoints | [IOP certificates](examples/Ligero/Longfellow/OptimizedIOPCertificates.lean), [FS certificates](examples/Ligero/Longfellow/EnvelopeFSCertificates.lean) |
+
+Example theorem names in the table abbreviate the shared namespace
+`Ligero.Examples.Grid`. `CertifiedResult` is in
+`Ligero.Examples.Grid.LongfellowProfiledExtraction`; component endpoints are
+in its `Optimized` namespace.
+
+## Protocol variants and extraction
+
+V1 uses the original unchecked arithmetic masks. V2 uses four checked
+base-code mask rows. V3 checks quadratic rows directly in opened columns and
+retains the full witness layout. Scalar batching is used throughout.
+
+The extractor takes the committed oracle, statement, challenge, and response.
+A successful extraction returns a witness satisfying the original constraints.
+The IOP extraction-failure event is verifier acceptance together with the
+extractor returning `none`. Its bound holds for arbitrary statements and
+prover response strategies; false-statement soundness follows by validity.
+
+In the IOP experiment, the oracle is committed before the uniform batching
+challenge, and the response precedes the independent uniform fixed-size
+column query. The refined proof supplies one envelope fixed from the oracle
+and statement that bounds every response's query acceptance probability.
+Its challenge mean supplies the error coefficient used by the FS compiler.
+
+## Fiat–Shamir bound and experiment
+
+For IOP error coefficient `epsilon`, the compiled bound is
+
+```text
+bindingError + min(1, (Q+1)*epsilon)
 ```
 
-in [V7.lean](examples/Ligero/Longfellow/V7.lean). It applies to every component
-`circuit ∈ registeredCircuits`, where the checked catalog in
-[Parameters.lean](examples/Ligero/Longfellow/Parameters.lean) contains the eight
-V7 components: signature and hash, each for one through four attributes.
+`Q` is the adversary's random-oracle query budget. The proof obtains the
+`Q+1` factor from the fixed-key typed compiler and its defining-query
+completion. The response-uniform envelope supplies the coefficient directly.
 
-For a false formal constraint system, the theorem proves
+The formal experiment uses independent finite Merkle and typed FS tapes,
+a shared commitment prefix preceding the FS experiment, and a defining alpha
+key and typed adversary fixed independently of the Merkle tape. Merkle prefix
+binding supplies the opening-consistency event and its error term.
 
-\[
-\Pr[\mathsf{FalseAccept}_c]
-\;\le\;
-\frac{\binom{p}{2}+M(2p+1)}{2^{256}}
-\; +\; (N+2)\,2^{-b_c},
-\qquad
-b_c =
-\begin{cases}
-122 & \text{signature component},\\
-121 & \text{hash component}.
-\end{cases}
-\]
+## Organization and checking
 
-Here `N` is the depth/query bound of the typed Fiat–Shamir adversary tree,
-`M = merkleT > 0` is the Merkle oracle tape length, and
-`p = prefixFuel ≤ M` bounds the shared root-exposure phase. The complete Merkle
-run has `runFuel ≤ M`, as required by `PrefixBindingFamily`. The extra two
-Fiat–Shamir tape slots are part of the compiler's defining-answer/fallback
-accounting. The binomial term is represented in Lean by natural-number
-`p * (p - 1) / 2`.
+The common protocol and extraction proofs are in `LigeroFamily`. Variant
+bridges are in `Ligero/V1`, `Ligero/V2`, and `Ligero/V3`.
+[FiniteResponse](LigeroFamily/Protocol/FiniteResponse.lean) supplies finite
+response instances, while
+[FirstOccurrenceTrace](../bcs/Bcs/FirstOccurrenceTrace.lean) supplies query-slot
+bookkeeping. [Certificate](examples/Ligero/Certificate.lean) contains the shared
+example arithmetic. `Ligero.API` exposes the extraction surface, and
+`Ligero.APITest` checks it together with representative component endpoints.
 
-The probability is **exact uniform finite counting**, rather than an asymptotic
-or floating-point estimate. The sample space is the product of two independent
-tapes:
-
-```lean
-(Fin M → D) × (Fin (N + 2) → Bcs.TypedFiatShamir.Answer Alpha Subset)
-```
-
-The digest type satisfies `Fintype.card D = 2 ^ 256`; `Alpha` is the formal V1
-challenge type and `Subset` is the type of query sets of 132 coordinates.
-`Pr[E]` is the cardinality of the event divided by the cardinality of this
-sample space. Typed Fiat–Shamir answers are uniform products of challenges and
-query sets, with lazy random-oracle execution reusing answers to repeated queries.
-
-For each pair of tapes, `FalseAccept` is the conjunction of:
-
-1. The Merkle claim's coordinate set equals the defining Fiat–Shamir query set.
-2. `Merkle.MH.Accepts` accepts the claimed columns and their opening proofs under
-   the root exposed by the commitment phase.
-3. `SchemeVerifier.policy ... C Ligero.V1.scheme` accepts the adversary's response
-   to the defining challenge, using those opened columns.
-
-The theorem assumes `¬statement.Language`: there is no witness satisfying the
-formal linear and quadratic constraints. It bounds the full conjunction above,
-including the possibility of inconsistent Merkle openings. Both orders of the
-challenge and subset queries are accounted for by the compiler.
-
-**122 and 121 are coefficients before the query factor and Merkle term.**
-They are not a claim of 122- or 121-bit security for a complete deployed proof.
-The Fiat–Shamir term alone loses `log₂(N + 2)` bits relative to its coefficient;
-the total bound also includes the displayed Merkle error. No concrete adversary
-query budget is fixed by these certificates.
-
-## Parameters certified for V7
-
-Both components use 132 openings and inverse rate parameter 7. The signature
-field has the exact P-256 base-field order
-
-\[
-q_{\rm sig}=2^{256}-2^{224}+2^{192}+2^{96}-1,
-\]
-
-and the hash field has order `q_hash = 2^128`.
-
-| Component | Attributes | Encoded block `E` | Block `k` | Columns `n` | Witness width `w` | Base distance `d` | Coefficient |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| Signature | 1–4 | 4096 | 455 | 3187 | 323 | 2733 | `2^-122` |
-| Hash | 1 | 4151 | 461 | 3230 | 329 | 2770 | `2^-121` |
-| Hash | 2 | 4265 | 474 | 3318 | 342 | 2845 | `2^-121` |
-| Hash | 3 | 4307 | 478 | 3352 | 346 | 2875 | `2^-121` |
-| Hash | 4 | 4415 | 490 | 3436 | 358 | 2947 | `2^-121` |
-
-The layout uses `k = floor((E + 1) / 9)`, `n = E - (2k - 1)`, `w = k - 132`,
-and `d = n - k + 1`. The code rate is `k / n`, at most `1/7` for these layouts;
-`k / E` is a different ratio.
-
-[Certificates.lean](examples/Ligero/Longfellow/Certificates.lean) certifies all
-five distinct parameter sets. Its exact integer inequalities are connected by
-`Result.bound_of_integer_upper_bound` to the rational compiler coefficient
-`Result.workNormalizedBound`. `native_decide` checks the parameter conditions
-and inequalities; it does not leave them as assumptions.
-
-The registered-circuit theorem also discharges the catalog's row geometry,
-opening count, field order, and mask width. Its remaining code hypothesis is
-`HasMinimumDistanceAtLeast C.baseCode d`, for a formal `MultiplicativeCode` over a
-finite field of the specified order. Reed–Solomon distance results are available
-in the formal code library; correspondence with the C++ evaluation domains and
-field implementations is a separate obligation.
-
-The catalog records the circuit and bundle identifiers from Longfellow commit
-`d5e6be77336933d50bf7f25a954f8ec273eb51ce`.
-[inspect_parameters.py](examples/Ligero/Longfellow/inspect_parameters.py)
-extracts the layouts and verifies their canonical identifiers against the
-registered artifacts. The full metadata and selected analysis parameters are in
-[certified-results.json](examples/Ligero/Longfellow/certified-results.json).
-Artifact and layout checks establish the provenance of the numerical parameters;
-they do not establish semantic equivalence of the circuit or verifier code.
-
-## What the proof covers and what remains
-
-Within its stated model, this is a connected soundness theorem from the
-adversary's finite oracle execution to acceptance by the formal V1 verifier.
-The proof constructs the required V1 soundness classifiers, accounts for the
-response-agreement and arithmetic failure events, and invokes the Merkle
-extraction/binding reduction. No assumed numerical soundness bound or external
-binding-error estimate replaces those proofs.
-
-The following conditions describe its precise scope:
-
-- **Commitment and adversary model.** The theorem covers arbitrary bounded typed
-  Fiat–Shamir query trees under a fixed `alphaKey`. Merkle opening claims and later
-  runs can depend on the Fiat–Shamir tape, but every run in `PrefixBindingFamily`
-  shares one root-exposure phase and one root function, independent of that tape.
-  Merkle commitments may depend adaptively on the Merkle oracle. The result does
-  not yet instantiate a general adversary that grinds commitments using the
-  Fiat–Shamir oracle before choosing the exposed root or challenge key.
-- **Merkle encoding and execution.** Callers supply a `Codec`, valid
-  `RoleDecoders`, and a `PrefixBindingFamily`. These require the relevant decoding
-  laws, that the commitment phase's lazy slots prefix the complete run, and that
-  the opening verification queries occur in that run. The abstract binding
-  reduction is proved; these objects and laws have not been instantiated for
-  Longfellow's concrete serialization, parser, and Merkle execution.
-- **Random oracles and challenge generation.** The two tapes are independent and
-  exactly uniform. The `sha256` theorem suffix specializes the ideal digest
-  cardinality to 256 bits. It does not prove that concrete SHA-256 is a random
-  oracle or reduce Longfellow's SHA-256 transcript, AES-based expansion, and
-  field/subset sampling to the typed uniform-tape experiment. That correspondence
-  must also account for any sampling bias and dependence between components.
-- **Formal verifier and code.** The accepted response is checked by the Lean V1
-  policy. Equivalence to the C++ verifier, its parsing, field arithmetic,
-  transcript messages, and Reed–Solomon domains is not proved here. The formal
-  response code has dimension `2k`, whereas the implementation's response
-  polynomial has dimension `2k - 1`. The larger formal space is conservative
-  for this degree restriction; a formal implementation embedding is still needed.
-- **Protocol composition.** This result concerns a false Ligero constraint system.
-  A false mdoc assertion must first be reduced to such a system. Connecting
-  Sumcheck and circuit reduction to this theorem, and composing the signature
-  and hash components with their shared transcript and MAC checks, remains to
-  be proved. The eight catalog entries are eight individual component instances;
-  there is no proved whole-mdoc bound obtained by combining them here.
-- **Kind of guarantee.** The conclusion is false-statement acceptance soundness.
-  The proof uses Merkle message extraction internally. It does not state a
-  general Fiat–Shamir proof-of-knowledge theorem with an efficient witness
-  extractor for arbitrary adaptive adversaries.
-
-These obligations delimit how the theorem can be applied to the deployed
-system. They do not weaken the displayed finite-ROM bound for the formal
-experiment satisfying its hypotheses.
-
-## Proof entry points and checking
-
-- [V7.lean](examples/Ligero/Longfellow/V7.lean):
-  `RegisteredCircuit.v7_soundness`, with the explicit V7 coefficients.
-- [Parameters.lean](examples/Ligero/Longfellow/Parameters.lean): checked catalog,
-  `registered_matches`, and `RegisteredCircuit.end_to_end_soundness_sha256`.
-- [Soundness.lean](examples/Ligero/Longfellow/Soundness.lean):
-  `CertifiedResult.end_to_end_soundness` and its 256-bit digest specialization.
-- [FixedOpenings.lean](examples/Ligero/Longfellow/FixedOpenings.lean):
-  `Result.v1_prefixBinding_ratio_le_of_bound`, which connects the V1 classifier
-  and compiler to fixed opening counts without requiring opening-count minimality.
-- [RigidCompiler.lean](LigeroFamily/Soundness/RigidCompiler.lean):
-  `canonical_scheme_prefixBinding_profiled_ratio_le`, the underlying combined
-  verifier, Fiat–Shamir, and Merkle theorem.
-
-Run from `formal`:
+From `formal/`, build and audit with:
 
 ```sh
 lake build
+python3 ligero/examples/Ligero/scripts/audit_envelope_fs.py
 ```
 
-The default targets include the V7 theorem and its dependencies. To check that
-entry point alone, use `lake build examples.Ligero.Longfellow.V7`.
-
-The proofs contain no `sorry` or handwritten soundness axioms. As with other
-Lean developments, checking relies on Lean and the imported library; the
-numerical `native_decide` certificates additionally rely on Lean's native
-compiler/evaluation mechanism. Canonical circuit extraction is an external
-validation step, not a Lean proof of the artifact parser.
+The FS audit checks 19 general core theorems, 90 component FS endpoints, all
+30 catalog geometries, and the coefficient table. General core theorems use
+Lean's foundational axioms. Exact concrete certificates also use explicitly
+identified native arithmetic checks.
