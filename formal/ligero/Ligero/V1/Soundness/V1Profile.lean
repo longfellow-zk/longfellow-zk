@@ -209,7 +209,7 @@ theorem v1_constraint_cover
       covers := fun query haccept ↦ False.elim (hexecution ⟨query, haccept⟩) }
     exact ⟨emptyCover⟩
 
-/-- A fixed violated linear residual has the Johnson-bounded challenge tail.
+/-- A fixed violated linear residual has the list-bounded challenge tail.
 The direct mask is arbitrary; only the response offset is code constrained. -/
 theorem v1Agreement_linear_density
     (candidate : SchemeLiftCandidate C oracle radius)
@@ -218,13 +218,11 @@ theorem v1Agreement_linear_density
     (respond : SchemeChallenge F NoMask nw nq 1 Equations → Response F r w n 1)
     (a : ℕ) (hpositive : 0 < a) (h2k : 2 * C.k ≤ n) (ha : a ≤ n)
     (hclose : n - a < n - (2 * C.k - 1))
-    (hden : 0 < CodingTheory.InterleavedJohnson.denominator
-      n (n - (2 * C.k - 1)) (n - a)) :
+    (B : ℕ) (hB : UniformFamilyBound n a (2 * C.k - 1) B) :
     Fintype.card F *
         (AgreementProfile.tailSet
           (v1Agreement candidate violation respond) a).card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a *
-        Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations) := by
+      B * Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations) := by
   classical
   let label : EvaluationRow F r w n → F :=
     fun row ↦ -(∑ i : Fin w, row (witnessPosition i))
@@ -255,13 +253,11 @@ theorem v1Agreement_linear_density
       labels.card * Fintype.card (Equations → F) := by
     simpa [special] using finiteDotLabelPreimage_density
       (v1LinearResidual candidate statement) labels hnonzero
-  have hlabels : labels.card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a := by
-    simpa [labels, label] using responseLabelsAgreeingAtLeast_card_le C
-      (oracle.directMask 0 .linear) label a h2k ha hclose hden
+  have hlabels : labels.card ≤ B := by
+    simpa [labels, label] using responseLabelsAgreeingAtLeast_card_le_of_bound C
+      (oracle.directMask 0 .linear) label a B h2k ha hclose hB
   have hspecialBound : Fintype.card F * special.card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a *
-        Nat.card (Equations → F) := by
+      B * Nat.card (Equations → F) := by
     rw [Nat.card_eq_fintype_card]
     exact hspecial.trans (Nat.mul_le_mul_right _ hlabels)
   rw [← Nat.card_eq_fintype_card
@@ -269,10 +265,10 @@ theorem v1Agreement_linear_density
   exact (Nat.mul_le_mul_left _ (Finset.card_le_card hsubset)).trans
     (SchemeInternal.liftLinear_density
       (CheckedMask := NoMask) (nw := nw) (nq := nq)
-      (Fintype.card F) (uncheckedAgreementListBound n (2 * C.k - 1) a)
+      (Fintype.card F) B
       special hspecialBound)
 
-/-- Quadratic violated coordinates satisfy the identical Johnson tail bound. -/
+/-- Quadratic violated coordinates satisfy the identical list-bounded tail. -/
 theorem v1Agreement_quadratic_density
     (candidate : SchemeLiftCandidate C oracle radius)
     (violation : V1Violation candidate statement)
@@ -280,13 +276,11 @@ theorem v1Agreement_quadratic_density
     (respond : SchemeChallenge F NoMask nw nq 1 Equations → Response F r w n 1)
     (a : ℕ) (hpositive : 0 < a) (h2k : 2 * C.k ≤ n) (ha : a ≤ n)
     (hclose : n - a < n - (2 * C.k - 1))
-    (hden : 0 < CodingTheory.InterleavedJohnson.denominator
-      n (n - (2 * C.k - 1)) (n - a)) :
+    (B : ℕ) (hB : UniformFamilyBound n a (2 * C.k - 1) B) :
     Fintype.card F *
         (AgreementProfile.tailSet
           (v1Agreement candidate violation respond) a).card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a *
-        Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations) := by
+      B * Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations) := by
   classical
   let label : EvaluationRow F r w n → F :=
     fun row ↦ -row (witnessPosition i)
@@ -318,13 +312,11 @@ theorem v1Agreement_quadratic_density
       labels.card * Fintype.card (Fin nq → F) := by
     simpa [special, residual] using finiteDotLabelPreimage_density
       residual labels hnonzero
-  have hlabels : labels.card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a := by
-    simpa [labels, label] using responseLabelsAgreeingAtLeast_card_le C
-      (oracle.directMask 0 .quadratic) label a h2k ha hclose hden
+  have hlabels : labels.card ≤ B := by
+    simpa [labels, label] using responseLabelsAgreeingAtLeast_card_le_of_bound C
+      (oracle.directMask 0 .quadratic) label a B h2k ha hclose hB
   have hspecialBound : Fintype.card F * special.card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a *
-        Nat.card (Fin nq → F) := by
+      B * Nat.card (Fin nq → F) := by
     rw [Nat.card_eq_fintype_card]
     exact hspecial.trans (Nat.mul_le_mul_right _ hlabels)
   rw [← Nat.card_eq_fintype_card
@@ -332,7 +324,7 @@ theorem v1Agreement_quadratic_density
   exact (Nat.mul_le_mul_left _ (Finset.card_le_card hsubset)).trans
     (SchemeInternal.liftQuadratic_density
       (CheckedMask := NoMask) (Equations := Equations) (nw := nw)
-      (Fintype.card F) (uncheckedAgreementListBound n (2 * C.k - 1) a)
+      (Fintype.card F) B
       special hspecialBound)
 
 end SchemeLiftCandidate
@@ -371,11 +363,36 @@ def ofSquare
 
 end V1JohnsonRange
 
+/-- Certified unchecked-mask list sizes above `threshold`.  At each agreement
+level the bound is any proved uniform-family bound: the Johnson count above
+its threshold, or a Hahn/Delsarte certificate below it. -/
+structure V1MaskRange
+    (C : MultiplicativeCode F r w n) (threshold : ℕ) (bound : ℕ → ℕ) : Prop where
+  threshold_pos : 0 < threshold
+  response_injective : 2 * C.k ≤ n
+  close : ∀ a, threshold ≤ a → a ≤ n →
+    n - a < n - (2 * C.k - 1)
+  family : ∀ a, threshold ≤ a → a ≤ n →
+    UniformFamilyBound n a (2 * C.k - 1) (bound a)
+
+omit [Fintype F] [DecidableEq F] in
+/-- Every Johnson range is a mask range for the Johnson list bound. -/
+theorem V1JohnsonRange.toMaskRange
+    {C : MultiplicativeCode F r w n} {threshold : ℕ}
+    (johnson : V1JohnsonRange C threshold) :
+    V1MaskRange C threshold (uncheckedAgreementListBound n (2 * C.k - 1)) where
+  threshold_pos := johnson.threshold_pos
+  response_injective := johnson.response_injective
+  close := johnson.close
+  family a hta ha :=
+    uncheckedAgreementListBound_uniformFamilyBound n (2 * C.k - 1) a ha
+      (johnson.close a hta ha) (johnson.denominator_pos a hta ha)
+
 namespace PolicyLiftListCertificate
 
 variable {respond : SchemeChallenge F NoMask nw nq 1 Equations →
   Response F r w n 1}
-variable {e failureDenominator L threshold : ℕ}
+variable {e failureDenominator L threshold : ℕ} {bound : ℕ → ℕ}
 
 
 
@@ -384,10 +401,10 @@ theorem v1ArithmeticCertificate_nonempty
     (certificate : PolicyLiftListCertificate v1Policy oracle respond
       e g radius L)
     (hfalse : NoDecodedSolution C oracle radius statement)
-    (johnson : V1JohnsonRange C threshold) :
+    (mask : V1MaskRange C threshold bound) :
     Nonempty (PolicyArithmeticCertificate v1Policy oracle statement respond
       certificate
-      (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L threshold)
+      (maskAgreementProfile (Fintype.card F) n L threshold bound)
       (Fintype.card F)) := by
   classical
   let violation := fun candidate : SchemeLiftCandidate C oracle radius ↦
@@ -400,18 +417,18 @@ theorem v1ArithmeticCertificate_nonempty
       v1Agreement_le candidate (violation candidate) respond challenge
   have hagreementDensity : ∀ a ≤ n,
       Fintype.card F * (AgreementProfile.tailSet agreement a).card ≤
-        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L
-          threshold).labelsAtLeast a *
+        (maskAgreementProfile (Fintype.card F) n L threshold
+          bound).labelsAtLeast a *
             Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations) := by
     intro a ha
     by_cases hbelow : a < threshold
     · have hcard := Finset.card_le_card
         (Finset.subset_univ (AgreementProfile.tailSet agreement a))
       have hna : ¬n < a := by omega
-      simpa [uncheckedAgreementProfile, hna, hbelow] using
+      simpa [maskAgreementProfile, hna, hbelow] using
         Nat.mul_le_mul_left (Fintype.card F) hcard
     · have hthreshold : threshold ≤ a := Nat.le_of_not_gt hbelow
-      have hpositive : 0 < a := johnson.threshold_pos.trans_le hthreshold
+      have hpositive : 0 < a := mask.threshold_pos.trans_le hthreshold
       let candidateTail := fun candidate : SchemeLiftCandidate C oracle radius ↦
         AgreementProfile.tailSet
           (v1Agreement candidate (violation candidate) respond) a
@@ -425,22 +442,22 @@ theorem v1ArithmeticCertificate_nonempty
           Finset.mem_filter.mpr ⟨Finset.mem_univ _, hcandLe⟩⟩
       have hcandidate (candidate : SchemeLiftCandidate C oracle radius) :
           Fintype.card F * (candidateTail candidate).card ≤
-            uncheckedAgreementListBound n (2 * C.k - 1) a *
+            bound a *
               Fintype.card
                 (SchemeChallenge F NoMask nw nq 1 Equations) := by
         cases hkind : (violation candidate).kind with
         | linear =>
             exact v1Agreement_linear_density candidate
               (violation candidate) hkind respond a hpositive
-              johnson.response_injective ha
-              (johnson.close a hthreshold ha)
-              (johnson.denominator_pos a hthreshold ha)
+              mask.response_injective ha
+              (mask.close a hthreshold ha)
+              (bound a) (mask.family a hthreshold ha)
         | quadratic i =>
             exact v1Agreement_quadratic_density candidate
               (violation candidate) i hkind respond a hpositive
-              johnson.response_injective ha
-              (johnson.close a hthreshold ha)
-              (johnson.denominator_pos a hthreshold ha)
+              mask.response_injective ha
+              (mask.close a hthreshold ha)
+              (bound a) (mask.family a hthreshold ha)
       calc
         Fintype.card F * (AgreementProfile.tailSet agreement a).card ≤
             Fintype.card F *
@@ -454,30 +471,31 @@ theorem v1ArithmeticCertificate_nonempty
               Fintype.card F * (candidateTail candidate).card := by
           simp_rw [Finset.mul_sum]
         _ ≤ ∑ _candidate ∈ certificate.candidates,
-              uncheckedAgreementListBound n (2 * C.k - 1) a *
+              bound a *
                 Fintype.card
                   (SchemeChallenge F NoMask nw nq 1 Equations) :=
           Finset.sum_le_sum fun candidate _ ↦ hcandidate candidate
         _ = certificate.candidates.card *
-              uncheckedAgreementListBound n (2 * C.k - 1) a *
+              bound a *
                 Fintype.card
                   (SchemeChallenge F NoMask nw nq 1 Equations) := by
-          simp [mul_comm, mul_left_comm]
+          rw [Finset.sum_const, smul_eq_mul]
+          ring
         _ = certificate.candidates.card *
-              (uncheckedAgreementListBound n (2 * C.k - 1) a *
+              (bound a *
                 Fintype.card
                   (SchemeChallenge F NoMask nw nq 1 Equations)) := by
           rw [Nat.mul_assoc]
-        _ ≤ L * (uncheckedAgreementListBound n (2 * C.k - 1) a *
+        _ ≤ L * (bound a *
               Fintype.card
                 (SchemeChallenge F NoMask nw nq 1 Equations)) := by
           exact Nat.mul_le_mul_right _ certificate.list_card
-        _ = (uncheckedAgreementProfile (Fintype.card F) n
-              (2 * C.k - 1) L threshold).labelsAtLeast a *
+        _ = (maskAgreementProfile (Fintype.card F) n L
+              threshold bound).labelsAtLeast a *
                 Fintype.card
                   (SchemeChallenge F NoMask nw nq 1 Equations) := by
           have hna : ¬n < a := by omega
-          simp [uncheckedAgreementProfile, hna, hbelow, Nat.mul_assoc]
+          simp [maskAgreementProfile, hna, hbelow, Nat.mul_assoc]
   refine ⟨{
     agreement := agreement
     agreement_le := hagreementLe
@@ -512,13 +530,13 @@ end PolicyLiftListCertificate
 open PolicyLiftListCertificate
 
 /-- V1 soundness through the disjoint event partition.  The unchecked
-arithmetic profile has full mass below its Johnson threshold, so it pays the
+arithmetic profile has full mass below its list threshold, so it pays the
 shared baseline through `threshold - 1`; selected-MCA failures pay only their
 excess above that baseline. -/
 theorem v1_ligero_soundness_of_eventPartition
     {respond : SchemeChallenge F NoMask nw nq 1 Equations →
       Response F r w n 1}
-    {e failureDenominator L threshold : ℕ}
+    {e failureDenominator L threshold : ℕ} {bound : ℕ → ℕ}
     (certificate : PolicyLiftListCertificate v1Policy oracle respond
       e g radius L)
     (failureProfile : AgreementProfile n)
@@ -531,7 +549,7 @@ theorem v1_ligero_soundness_of_eventPartition
         failureProfile.labelsAtLeast a *
           Fintype.card (SchemeChallenge F NoMask nw nq 1 Equations))
     (hfalse : NoDecodedSolution C oracle radius statement)
-    (johnson : V1JohnsonRange C threshold)
+    (mask : V1MaskRange C threshold bound)
     (prover : IPCPProver
       (ConstraintSystem F nw nq w Equations)
       (Oracle F nw nq n 1)
@@ -544,20 +562,20 @@ theorem v1_ligero_soundness_of_eventPartition
     (SchemeVerifier.protocol C scheme).acceptanceRate prover statement ≤
       failureProfile.excessContribution failureDenominator n n 0 r
         (max (n - e - 1) (min n (g + (threshold - 1)))) +
-        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L
-          threshold).contribution (Fintype.card F) n e g r := by
+        (maskAgreementProfile (Fintype.card F) n L threshold
+          bound).contribution (Fintype.card F) n e g r := by
   obtain ⟨arithmetic⟩ :=
     PolicyLiftListCertificate.v1ArithmeticCertificate_nonempty certificate
-      hfalse johnson
+      hfalse mask
   let classifier := Classical.choice
     (arithmetic.doublyProfiledClassifier_nonempty certificate hfailureDensity)
   have hfloor : ∀ a ≤ min n (threshold - 1),
       Fintype.card F ≤
-        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L
-          threshold).labelsAtLeast a := by
+        (maskAgreementProfile (Fintype.card F) n L threshold
+          bound).labelsAtLeast a := by
     intro a ha
-    have hthreshold := johnson.threshold_pos
-    simp [uncheckedAgreementProfile, show ¬n < a by omega,
+    have hthreshold := mask.threshold_pos
+    simp [maskAgreementProfile, show ¬n < a by omega,
       show a < threshold by omega]
   calc
     (SchemeVerifier.protocol C scheme).acceptanceRate prover statement =
@@ -565,8 +583,8 @@ theorem v1_ligero_soundness_of_eventPartition
       classifier.protocol_acceptanceRate_eq prover horacle hrespond
     _ ≤ failureProfile.excessContribution failureDenominator n n 0 r
           (max (n - e - 1) (min n (g + min n (threshold - 1)))) +
-        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L
-          threshold).contribution (Fintype.card F) n e g r :=
+        (maskAgreementProfile (Fintype.card F) n L threshold
+          bound).contribution (Fintype.card F) n e g r :=
       classifier.acceptanceRate_le_eventPartition
         (min n (threshold - 1)) Fintype.card_pos hfailureDenominator
         C.query_le_length (min_le_left _ _) hfloor

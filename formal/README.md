@@ -10,15 +10,18 @@ from the corresponding IOP column.
 
 | Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
 |---|---:|---:|---:|---:|---:|---:|
-| v7 signature | 123 | 191 | 191 | 123−L | 191−L | 191−L |
-| v7 hashes | 122 | 125 | 125 | 122−L | 125−L | 125−L |
-| v8 signature | 122 | 191 | 191 | 122−L | 191−L | 191−L |
-| v8 hashes | 121 | 125 | 125 | 121−L | 125−L | 125−L |
+| v7 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
+| v7 hashes | 124 | 125 | 125 | 124−L | 125−L | 125−L |
+| v8 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
+| v8 hashes | 123 | 125 | 125 | 123−L | 125−L | 125−L |
 
 The Ligero development proves:
 
 - Reed–Solomon code distance, affine triple-counting and selected-MCA bounds,
   and JB agreement with checked η³ threshold parameters.
+- Delsarte's LP bound using Hahn kernels for uniform intersection families,
+  with Johnson as the degree-one case. It certifies the V1 unchecked-mask list
+  below the Johnson threshold.
 - Response-assisted scalar IOP extraction for Ligero V1, V2, and V3, together
   with response-uniform envelopes and false-statement soundness.
 - Merkle prefix binding and typed Fiat–Shamir extraction with total error

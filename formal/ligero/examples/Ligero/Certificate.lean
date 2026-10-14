@@ -1,4 +1,5 @@
 import JBAgreement.LigeroCode
+import CodingTheory.ListDecoding.HahnDelsarte
 import LigeroFamily.Soundness.PolicySelectedMCA
 import Ligero.V1.Soundness.V1Profile
 
@@ -26,6 +27,15 @@ structure Certificate where
   localM : ℕ := 0
 
   fieldOrder : ℕ := 0
+
+  /-- First unchecked-mask agreement level covered by Hahn/Delsarte
+  certificates; `0` keeps the Johnson threshold `v1Threshold`. -/
+  maskThreshold : ℕ := 0
+
+  /-- Integer Delsarte certificate `[f₀, f₁, …, f_K]` at agreement level
+  `maskStart`.  By size monotonicity it bounds every level up to the Johnson
+  threshold. -/
+  hahnMask : List ℕ := []
 
 abbrev V1Certificate := Certificate
 def Certificate.fieldSize (c : Certificate) : ℕ :=
@@ -122,7 +132,55 @@ theorem v1JohnsonRange (c : V1Certificate)
 
 end V1Certificate
 
+/-- First agreement level with a certified unchecked-mask list bound. -/
+def Certificate.maskStart (c : Certificate) : ℕ :=
+  if c.maskThreshold = 0 then c.v1Threshold else c.maskThreshold
+
+/-- Certified unchecked-mask list size at agreement `a`: the Johnson count at
+and above `v1Threshold`, the Hahn/Delsarte certificate at `maskStart` below it. -/
+def Certificate.maskBound (c : Certificate) (a : ℕ) : ℕ :=
+  if c.v1Threshold ≤ a then uncheckedAgreementListBound c.n (2 * c.k - 1) a
+  else CodingTheory.HahnDelsarte.certifiedBound c.n c.maskStart c.hahnMask
+
+/-- The Hahn range starts above the response-code agreement cap, and a
+nonempty Hahn range carries a valid Delsarte certificate at its first level.
+Vacuous for the default fields. -/
+def Certificate.maskValid (c : Certificate) : Bool :=
+  decide (c.maskStart ≤ c.v1Threshold) && decide (2 * c.k - 1 < c.maskStart) &&
+    (decide (c.v1Threshold ≤ c.maskStart) ||
+      CodingTheory.HahnDelsarte.certificateValid c.n c.maskStart (2 * c.k - 1) c.hahnMask)
+
 namespace V1Certificate
+
+/-- The checked Johnson range and the Hahn certificate (extended to larger
+agreement by size monotonicity) certify the unchecked-mask list on the whole
+range above `maskStart`. -/
+theorem v1MaskRange (c : V1Certificate)
+    (hkpos : 0 < c.k) (hresponse : 2 * c.k ≤ c.n) (hvalid : c.maskValid = true)
+    {F : Type*} [_root_.Field F] {openings w : ℕ}
+    (C : MultiplicativeCode F openings w c.n) (hk : C.k = c.k) :
+    Ligero.V1.V1MaskRange C c.maskStart c.maskBound := by
+  have johnson := c.v1JohnsonRange hkpos hresponse C hk
+  simp only [Certificate.maskValid, Bool.and_eq_true, Bool.or_eq_true,
+    decide_eq_true_eq] at hvalid
+  obtain ⟨⟨hle, hcap⟩, hhahn⟩ := hvalid
+  refine {
+    threshold_pos := by omega
+    response_injective := by rw [hk]; exact hresponse
+    close := ?_
+    family := ?_ }
+  · intro a hta ha
+    rw [hk]
+    omega
+  · intro a hta ha
+    by_cases hJ : c.v1Threshold ≤ a
+    · have h := johnson.toMaskRange.family a hJ ha
+      simpa [Certificate.maskBound, hJ, hk] using h
+    · have hcert : CodingTheory.HahnDelsarte.certificateValid c.n c.maskStart (2 * c.k - 1)
+          c.hahnMask = true := hhahn.resolve_left (by omega)
+      have h := (CodingTheory.HahnDelsarte.uniformFamilyBound_of_certificate hcert).of_le_size
+        hta hcap
+      simpa [Certificate.maskBound, hJ, hk] using h
 
 end V1Certificate
 

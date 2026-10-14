@@ -88,6 +88,13 @@ def main():
                 f"Incorrect circuit ID provenance: {row['name']}")
 
     core = [
+        "CodingTheory.HahnDelsarte.hahnKernel_gram_nonneg",
+        "CodingTheory.HahnDelsarte.card_le_of_delsarte",
+        "CodingTheory.HahnDelsarte.uniformFamilyBound_of_certificate",
+        "CodingTheory.UniformFamilyBound.of_le_size",
+        "CodingTheory.card_le_of_uniformFamilyBound",
+        "CodingTheory.InterleavedJohnson.uniformFamilyBound_of_denominator_pos",
+        "CodingTheory.InterleavedJohnson.card_le_listBound",
         "Bcs.EnvelopeFiatShamir.ResponseUniformBound.strategy_bound",
         "Bcs.EnvelopeFiatShamir.responseBeforeSubset_congr",
         "Bcs.EnvelopeFiatShamir.responseBeforeSubset_eq",
@@ -130,9 +137,10 @@ def main():
         checks.append(f"example : {record}.variant = .v{row['variant']} := rfl")
         checks.append(f"example : {cert}.targetBits = "
                       f"{row['linear_fs_coefficient_bits']} := rfl")
-        fields = ("n", "k", "d", "e", "g", "m", "openings", "targetBits", "fieldSize")
+        fields = ("n", "k", "d", "e", "g", "m", "openings", "targetBits", "fieldSize",
+                  "maskThreshold")
         values = [row[key] for key in ("n", "k", "d", "e", "g", "m", "openings",
-                                      "target_bits", "field_order")]
+                                      "target_bits", "field_order", "mask_threshold")]
         checks.append("example : ([" + ", ".join(f"{cert}.{key}" for key in fields) +
                       "] : List ℕ) = [" + ", ".join(map(str, values)) + "] := by native_decide")
         require(row["payload_width"] == row["k"] - row["openings"],

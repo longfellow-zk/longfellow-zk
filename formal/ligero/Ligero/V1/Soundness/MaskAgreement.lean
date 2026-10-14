@@ -154,17 +154,17 @@ theorem responseOffsetsAgreeingAtLeast_card_le_words
       Fintype.card_le_of_injective encodeTarget hinjectiveTarget
     _ = (responseWordsAgreeingAtLeast C target a).card := by simp
 
-/-- The Johnson/incidence bound needed by V1. The target is an
+/-- The list-size bound needed by V1. The target is an
 arbitrary committed word: it is intentionally not assumed to lie in the
-response code. -/
-theorem responseWordsAgreeingAtLeast_card_le
-    (C : MultiplicativeCode F r w n) (target : Word F n) (a : ℕ)
+response code.  Any proved uniform-family bound at agreement `a` applies:
+the Johnson count above its threshold, or a Hahn/Delsarte certificate
+(`CodingTheory.HahnDelsarte`) below it. -/
+theorem responseWordsAgreeingAtLeast_card_le_of_bound
+    (C : MultiplicativeCode F r w n) (target : Word F n) (a B : ℕ)
     (ha : a ≤ n)
     (hclose : n - a < n - (2 * C.k - 1))
-    (hden : 0 < CodingTheory.InterleavedJohnson.denominator
-      n (n - (2 * C.k - 1)) (n - a)) :
-    (responseWordsAgreeingAtLeast C target a).card ≤
-      uncheckedAgreementListBound n (2 * C.k - 1) a := by
+    (hbound : UniformFamilyBound n a (2 * C.k - 1) B) :
+    (responseWordsAgreeingAtLeast C target a).card ≤ B := by
   classical
   let selected := responseWordsAgreeingAtLeast C target a
   let embed : C.responseCode → Unit → Word F n := fun word _ ↦ word.1
@@ -193,13 +193,48 @@ theorem responseWordsAgreeingAtLeast_card_le
     rw [hmatrix, Finset.card_sdiff]
     simp only [Finset.inter_univ, Finset.card_univ, Fintype.card_fin]
     omega
-  have hjohnson :=
-    CodingTheory.InterleavedJohnson.card_le_listBound
+  have hbound' : UniformFamilyBound n (n - (n - a)) (n - (n - (2 * C.k - 1))) B := by
+    rw [show n - (n - a) = a by omega, show n - (n - (2 * C.k - 1)) = 2 * C.k - 1 by omega]
+    exact hbound
+  have hlist :=
+    CodingTheory.card_le_of_uniformFamilyBound
       C.responseCode (fun _ : Unit ↦ target) candidates
-      (responseCode_minimumDistance C) hcode hradius (Nat.sub_le _ _)
-      hclose hden
-  rw [hcard] at hjohnson
-  simpa [selected, uncheckedAgreementListBound] using hjohnson
+      (responseCode_minimumDistance C) hcode hradius hclose hbound'
+  rw [hcard] at hlist
+  simpa [selected] using hlist
+
+/-- The Johnson/incidence bound needed by V1. The target is an
+arbitrary committed word: it is intentionally not assumed to lie in the
+response code. -/
+theorem responseWordsAgreeingAtLeast_card_le
+    (C : MultiplicativeCode F r w n) (target : Word F n) (a : ℕ)
+    (ha : a ≤ n)
+    (hclose : n - a < n - (2 * C.k - 1))
+    (hden : 0 < CodingTheory.InterleavedJohnson.denominator
+      n (n - (2 * C.k - 1)) (n - a)) :
+    (responseWordsAgreeingAtLeast C target a).card ≤
+      uncheckedAgreementListBound n (2 * C.k - 1) a :=
+  responseWordsAgreeingAtLeast_card_le_of_bound C target a _ ha hclose
+    (uncheckedAgreementListBound_uniformFamilyBound n (2 * C.k - 1) a ha hclose hden)
+
+theorem responseOffsetsAgreeingAtLeast_card_le_of_bound
+    (C : MultiplicativeCode F r w n) (target : Word F n) (a B : ℕ)
+    (h2k : 2 * C.k ≤ n) (ha : a ≤ n)
+    (hclose : n - a < n - (2 * C.k - 1))
+    (hbound : UniformFamilyBound n a (2 * C.k - 1) B) :
+    (responseOffsetsAgreeingAtLeast C target a).card ≤ B :=
+  (responseOffsetsAgreeingAtLeast_card_le_words C target a h2k).trans
+    (responseWordsAgreeingAtLeast_card_le_of_bound C target a B ha hclose hbound)
+
+theorem responseLabelsAgreeingAtLeast_card_le_of_bound
+    (C : MultiplicativeCode F r w n) (target : Word F n)
+    (label : EvaluationRow F r w n → F) (a B : ℕ)
+    (h2k : 2 * C.k ≤ n) (ha : a ≤ n)
+    (hclose : n - a < n - (2 * C.k - 1))
+    (hbound : UniformFamilyBound n a (2 * C.k - 1) B) :
+    (responseLabelsAgreeingAtLeast C target label a).card ≤ B :=
+  (Finset.card_image_le.trans
+    (responseOffsetsAgreeingAtLeast_card_le_of_bound C target a B h2k ha hclose hbound))
 
 theorem responseOffsetsAgreeingAtLeast_card_le
     (C : MultiplicativeCode F r w n) (target : Word F n) (a : ℕ)

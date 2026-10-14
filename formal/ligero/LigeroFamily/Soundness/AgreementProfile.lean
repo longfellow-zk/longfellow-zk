@@ -692,6 +692,19 @@ theorem uncheckedAgreementListBound_eq (n lambda a : ℕ)
   congr 1
   exact Int.toNat_sub (a * a) (n * lambda)
 
+/-- The Johnson count in unchecked-mask agreement coordinates, as a
+uniform-family bound: `a`-subsets meeting pairwise in at most `lambda`
+points. -/
+theorem uncheckedAgreementListBound_uniformFamilyBound (n lambda a : ℕ)
+    (ha : a ≤ n) (hclose : n - a < n - lambda)
+    (hden : 0 < CodingTheory.InterleavedJohnson.denominator n (n - lambda) (n - a)) :
+    CodingTheory.UniformFamilyBound n a lambda
+      (uncheckedAgreementListBound n lambda a) := by
+  have h := CodingTheory.InterleavedJohnson.uniformFamilyBound_of_denominator_pos
+    (n := n) (d := n - lambda) (E := n - a) (Nat.sub_le _ _) hclose (Nat.sub_le _ _) hden
+  rw [show n - (n - a) = a by omega, show n - (n - lambda) = lambda by omega] at h
+  exact h
+
 /-- A polynomial certificate for a uniform unchecked Johnson-list bound. -/
 theorem uncheckedAgreementListBound_le (n lambda a bound : ℕ)
     (hlambda : lambda ≤ a) (ha : a ≤ n)
@@ -740,6 +753,20 @@ def uncheckedAgreementProfile
   labelsAtLeast a := if n < a then 0 else
     if a < johnsonThreshold then q else
       L * uncheckedAgreementListBound n lambda a
+
+/-- The unchecked profile with an arbitrary certified mask list-size function
+`bound` at and above `threshold`.  Johnson bounds give
+`uncheckedAgreementProfile`; Hahn/Delsarte certificates extend `bound` below
+the Johnson threshold. -/
+def maskAgreementProfile (q n L threshold : ℕ) (bound : ℕ → ℕ) :
+    AgreementProfile n where
+  labelsAtLeast a := if n < a then 0 else
+    if a < threshold then q else L * bound a
+
+theorem uncheckedAgreementProfile_eq_mask (q n lambda L johnsonThreshold : ℕ) :
+    uncheckedAgreementProfile q n lambda L johnsonThreshold =
+      maskAgreementProfile q n L johnsonThreshold
+        (uncheckedAgreementListBound n lambda) := rfl
 
 theorem uncheckedAgreementProfile_tail_le
     (q n lambda L johnsonThreshold a bound : ℕ)

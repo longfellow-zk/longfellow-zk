@@ -8,20 +8,21 @@ open scoped Classical
 set_option linter.unusedSectionVars false
 variable {F Equations : Type*} [Field F] [Fintype F] [DecidableEq F]
 variable [Fintype Equations] [DecidableEq Equations]
-variable {r w n nw nq e g d outerBound threshold : ℕ} {localBound : ℕ → ℕ}
+variable {r w n nw nq e g d outerBound threshold : ℕ} {localBound bound : ℕ → ℕ}
 variable (C : MultiplicativeCode F r w n) (oracle : Oracle F nw nq n 1)
 variable (statement : ConstraintSystem F nw nq w Equations)
 local notation "gapPolicy" => SchemeVerifier.policy (Equations := Equations)
   (nw := nw) (nq := nq) (repetitions := 1) C scheme
 
 /-- Arbitrary statements and every response strategy, including the original
-unchecked-mask profile. The extractor itself is unchanged. -/
+unchecked-mask profile with any certified mask list bound (Johnson or
+Hahn/Delsarte). The extractor itself is unchanged. -/
 theorem scalarGap_profiled_extraction_failure
     (hmin : HasMinimumDistanceAtLeast C.baseCode d)
     (conditions : IntegratedSelectedMCALineConditions C.baseCode
       (Fintype.card F) e g d outerBound localBound)
     (hrows : CoreRowsNonempty nw nq)
-    (johnson : V1JohnsonRange C threshold) (ht : threshold ≤ n)
+    (mask : V1MaskRange C threshold bound) (ht : threshold ≤ n)
     (respond : Challenge F nw nq 1 Equations → Response F r w n 1) :
     ((univ.filter fun pair : (Challenge F nw nq 1 Equations) × QuerySet n r =>
       (gapPolicy).accepts statement pair.1 (respond pair.1) pair.2 (openSchemeOracle oracle pair.2) ∧
@@ -32,8 +33,8 @@ theorem scalarGap_profiled_extraction_failure
         (Fintype.card F) n e g d outerBound localBound).excessContribution
           (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
           n n 0 r (max (n - e - 1) (min n (g + (threshold - 1)))) +
-      (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1)
-        (InterleavedJohnson.listBound n d (e + g)) threshold).contribution
+      (maskAgreementProfile (Fintype.card F) n
+        (InterleavedJohnson.listBound n d (e + g)) threshold bound).contribution
           (Fintype.card F) n e g r := by
   classical
   letI : Nonempty (SchemeTestedRow NoMask nw nq 1) := schemeTestedRowNonemptyOfCoreRows hrows
@@ -46,25 +47,25 @@ theorem scalarGap_profiled_extraction_failure
   refine ScalarGapExtraction.profiled_extraction_failure gapPolicy
     (fun candidate => candidate.decodedMessages)
     (schemeExtractorPolicy (Equations := Equations) (nw := nw) (nq := nq) C scheme)
-    hmin conditions (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1)
-      (InterleavedJohnson.listBound n d (e + g)) threshold) (threshold - 1) (by omega)
+    hmin conditions (maskAgreementProfile (Fintype.card F) n
+      (InterleavedJohnson.listBound n d (e + g)) threshold bound) (threshold - 1) (by omega)
     ?_ respond ?_
   · intro a ha
-    simp [uncheckedAgreementProfile, show ¬n < a by omega, show a < threshold by
-      have := johnson.threshold_pos; omega]
+    simp [maskAgreementProfile, show ¬n < a by omega, show a < threshold by
+      have := mask.threshold_pos; omega]
   · intro certificate
     refine ScalarGapExtraction.profiledArithmeticCertificate gapPolicy
       (fun candidate => candidate.decodedMessages) certificate hmin
       (by have := conditions.outer.punctured.punctured_three_radius; omega)
-      (threshold - 1) (uncheckedAgreementListBound n (2 * C.k - 1))
-      (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1)
-        (InterleavedJohnson.listBound n d (e + g)) threshold)
+      (threshold - 1) bound
+      (maskAgreementProfile (Fintype.card F) n
+        (InterleavedJohnson.listBound n d (e + g)) threshold bound)
       ?_ ?_ agreement ?_ ?_ ?_
     · intro a ha hbelow
-      simp [uncheckedAgreementProfile, show ¬n < a by omega, show a < threshold by
-        have := johnson.threshold_pos; omega]
+      simp [maskAgreementProfile, show ¬n < a by omega, show a < threshold by
+        have := mask.threshold_pos; omega]
     · intro a ha habove
-      simp [uncheckedAgreementProfile, show ¬n < a by omega, show ¬a < threshold by omega]
+      simp [maskAgreementProfile, show ¬n < a by omega, show ¬a < threshold by omega]
     · intro candidate challenge
       dsimp only [agreement]
       split
@@ -72,18 +73,18 @@ theorem scalarGap_profiled_extraction_failure
       · omega
     · intro candidate a ha habove
       have hta : threshold ≤ a := by omega
-      have hpositive : 0 < a := johnson.threshold_pos.trans_le hta
+      have hpositive : 0 < a := mask.threshold_pos.trans_le hta
       by_cases h : ¬statement.Satisfies candidate.decodedMessages
       · simp only [agreement, dif_pos h]
         cases hkind : (violation candidate h).kind with
         | linear =>
             exact v1Agreement_linear_density candidate (violation candidate h) hkind
-              respond a hpositive johnson.response_injective ha
-              (johnson.close a hta ha) (johnson.denominator_pos a hta ha)
+              respond a hpositive mask.response_injective ha
+              (mask.close a hta ha) (bound a) (mask.family a hta ha)
         | quadratic i =>
             exact v1Agreement_quadratic_density candidate (violation candidate h) i hkind
-              respond a hpositive johnson.response_injective ha
-              (johnson.close a hta ha) (johnson.denominator_pos a hta ha)
+              respond a hpositive mask.response_injective ha
+              (mask.close a hta ha) (bound a) (mask.family a hta ha)
       · have hempty : AgreementProfile.tailSet (agreement candidate) a = ∅ := by
           ext challenge
           simp only [AgreementProfile.tailSet, agreement, dif_neg h]
