@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build and audit every certified v7/v8 Ligero FS endpoint.
+"""Build and audit every certified v7/v8 Ligero IOP and FS endpoint.
 
 Run from any directory. Catalog geometry and coefficient exponents are checked
-against Lean records, and transitive dependencies are checked against a narrow
+against Lean records. Every endpoint is definitionally checked against its
+intended certificate; transitive dependencies are checked against a narrow
 allowlist of foundational axioms and the certificates' native arithmetic checks.
 """
 
@@ -88,6 +89,21 @@ def main():
                 f"Incorrect circuit ID provenance: {row['name']}")
 
     core = [
+        "LigeroFamily.ScalarGapExtraction.extract_valid",
+        "LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies",
+        "LigeroFamily.ScalarGapExtraction.response_fraction_le_profiledUniformEnvelope",
+        "Ligero.Examples.Grid.LongfellowProfiledExtraction.Result.compressedBound_eq",
+        "CodingTheory.UniformFamilyBound.min",
+        "CodingTheory.uniformFamilyBound_one_of_two_mul_gt",
+        "CodingTheory.uniformFamilyBound_two_of_three_mul_gt",
+        "LigeroFamily.SchemeLiftCandidate.univ_card_le_uniformFamilyBound",
+        "LigeroFamily.SchemeExtractorPolicy.exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine_of_card",
+        "LigeroFamily.ScalarGapExtraction.profiled_extraction_failure_of_card",
+        "LigeroFamily.ScalarGapExtraction.checked_profiled_extraction_failure_of_card",
+        "Ligero.V1.scalarGap_profiled_extraction_failure_of_card",
+        "Ligero.V2.scalarGap_profiled_extraction_failure_of_card",
+        "Ligero.V3.scalarGap_profiled_extraction_failure_of_card",
+        "Ligero.Examples.Grid.Certificate.listFamily",
         "CodingTheory.HahnDelsarte.hahnKernel_gram_nonneg",
         "CodingTheory.HahnDelsarte.card_le_of_delsarte",
         "CodingTheory.HahnDelsarte.uniformFamilyBound_of_certificate",
@@ -116,10 +132,16 @@ def main():
         "LigeroFamily.EnvelopeFS.soundness_ratio_le",
     ]
     endpoints = []
+    iop_endpoints = []
     numeric_owners = set()
     checks = [
         "import examples.Ligero.Longfellow.EnvelopeFSCertificates",
         "set_option maxHeartbeats 2000000",
+        "section EndpointAudit",
+        "variable {AlphaKey Salt Digest Encoding Output PrefixOut RunOut : Type*}",
+        "variable [DecidableEq AlphaKey] [Inhabited Salt] [Inhabited Digest]",
+        "variable [Fintype Digest] [DecidableEq Digest] [DecidableEq Encoding]",
+        "variable {N merkleT prefixFuel runFuel : ℕ}",
         "example (Q s : ℕ) : Bcs.EnvelopeFiatShamir.FixedKey.errorBound Q "
         "((1 : ℚ) / 2 ^ s) = min 1 ((Q + 1 : ℚ) / 2 ^ s) := "
         "Bcs.EnvelopeFiatShamir.FixedKey.errorBound_dyadic Q s",
@@ -134,13 +156,24 @@ def main():
                 f"Incorrect linear FS coefficient: {name}")
         record = OPTIMIZED + name
         cert = record + ".certificate"
+        certified = record + "_certified"
+        generic = "Ligero.Examples.Grid.LongfellowProfiledExtraction.CertifiedResult."
+        checks.append(f"example : {certified}.result = {record} := rfl")
+        for key, suffix in (("extractor_theorem", "extraction"),
+                            ("interactive_theorem", "interactive"),
+                            ("uniform_envelope_theorem", "uniform_envelope")):
+            endpoint = f"{record}_{suffix}"
+            require(row[key] == endpoint, f"Wrong IOP endpoint for {name}: {key}")
+            iop_endpoints.append(endpoint)
+            checks.append(f"example : @{endpoint} = "
+                          f"@{generic}v{row['variant']}_{suffix} {certified} rfl := rfl")
         checks.append(f"example : {record}.variant = .v{row['variant']} := rfl")
         checks.append(f"example : {cert}.targetBits = "
                       f"{row['linear_fs_coefficient_bits']} := rfl")
         fields = ("n", "k", "d", "e", "g", "m", "openings", "targetBits", "fieldSize",
-                  "maskThreshold")
+                  "maskThreshold", "listSize")
         values = [row[key] for key in ("n", "k", "d", "e", "g", "m", "openings",
-                                      "target_bits", "field_order", "mask_threshold")]
+                                      "target_bits", "field_order", "mask_threshold", "checked_list_size")]
         checks.append("example : ([" + ", ".join(f"{cert}.{key}" for key in fields) +
                       "] : List ℕ) = [" + ", ".join(map(str, values)) + "] := by native_decide")
         require(row["payload_width"] == row["k"] - row["openings"],
@@ -149,11 +182,23 @@ def main():
                             ("fs_extractor_theorem", "fs_extraction"),
                             ("fs_soundness_theorem", "fs_soundness")):
             require(row[key] == f"{record}_{suffix}", f"Wrong endpoint for {name}: {key}")
-            endpoints.append(row[key])
+            endpoint = row[key]
+            endpoints.append(endpoint)
+            theorem = generic + f"v{row['variant']}_{suffix}"
+            if suffix == "fs_localBound":
+                checks.append(f"example : @{endpoint} = "
+                              f"@{theorem} {certified} rfl := rfl")
+            else:
+                arguments = ("AlphaKey Salt Digest Encoding Output PrefixOut RunOut "
+                             "_ _ _ _ _ _ N merkleT prefixFuel runFuel")
+                checks.append(f"example : @{endpoint} {arguments} = "
+                              f"@{theorem} {arguments} {certified} rfl := rfl")
         numeric_owners.update(record + suffix for suffix in
                               ("_parameters", "_compressed_bound"))
 
+    checks.append("end EndpointAudit")
     readme = (FORMAL / "ligero/README.md").read_text()
+    formal_readme = (FORMAL / "README.md").read_text()
     display_groups = (
         ("v7 signature (all attribute counts)", ("v7Sig",)),
         ("v7 hash (1–4 attributes)", ("v7Hash1", "v7Hash2", "v7Hash3", "v7Hash4")),
@@ -161,7 +206,8 @@ def main():
         ("v8 hash (1–4 attributes)", ("v8Hash1", "v8Hash2", "v8Hash3", "v8Hash4")),
     )
     by_name = {row["name"]: row for row in rows}
-    for label, group in display_groups:
+    grid_labels = ("v7 signature", "v7 hashes", "v8 signature", "v8 hashes")
+    for grid_label, (label, group) in zip(grid_labels, display_groups):
         values = []
         for variant in (1, 2, 3):
             bits = {by_name[f"{name}_v{variant}"]["linear_fs_coefficient_bits"]
@@ -169,9 +215,18 @@ def main():
             require(len(bits) == 1, f"Display group has different bounds: {label}")
             values.append(str(bits.pop()))
         require(f"| {label} | {' | '.join(values)} |" in readme,
-                f"Incorrect FS coefficient table row: {label}")
+                f"Incorrect IOP table row: {label}")
+        grid_row = f"| {grid_label} | " + " | ".join(
+            values + [f"{bits}−L" for bits in values]) + " |"
+        for title, text in (("Ligero", readme), ("formal", formal_readme)):
+            require(grid_row in text, f"Incorrect {title} IOP/FS grid row: {grid_label}")
+    require(all(row["openings"] == 132 for row in rows),
+            "README's 132-opening grid does not match the certificates")
+    require("132 distinct column openings" in readme and
+            "132 distinct column openings" in formal_readme,
+            "README grids must state their opening count")
 
-    declarations = core + endpoints
+    declarations = core + iop_endpoints + endpoints
     checks.extend(f"#print axioms {name}" for name in declarations)
     print("Building verifier bridges, operational tests, and numerical certificates…", flush=True)
     run_lean_tool("build", "Bcs.EnvelopeFiatShamirTest", "Ligero.APITest",
@@ -194,8 +249,8 @@ def main():
             require(name not in core and separator and owner in numeric_owners,
                     f"Unexpected dependency: {name} uses {dependency}")
             native_dependencies.add(dependency)
-    print(f"Passed: {len(core)} core theorems, 90 FS endpoints,")
-    print("30 catalog geometries and their linear coefficient exponents.")
+    print(f"Passed: {len(core)} core theorems, 90 IOP and 90 FS endpoints,")
+    print("30 component/variant records, endpoint identities, and both README grids.")
     print(f"Core uses only foundational axioms; numerical endpoints use "
           f"{len(native_dependencies)} generated native arithmetic checks.")
     print("FS coefficient bits s: error <= bindingError + min(1, (Q+1)*2^(-s))")

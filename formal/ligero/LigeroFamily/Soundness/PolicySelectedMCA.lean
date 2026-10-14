@@ -626,6 +626,40 @@ theorem exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine
     (oracle := oracle) (respond := respond) hmin conditions a
 
 omit [Fintype Equations] [DecidableEq Equations] [DecidableEq Challenge] in
+/-- Threshold-free profiled extractor.  The exact agreement integral consumes
+the pointwise line-bound family without introducing a cutoff. -/
+theorem exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine_of_card
+    (extractor : SchemeExtractorPolicy policy Tail)
+    [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
+    {outerBound : ℕ} {localBound : ℕ → ℕ}
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (conditions : IntegratedSelectedMCALineConditions C.baseCode
+      (Fintype.card F) e g d outerBound localBound) {L : ℕ}
+    (hcard : (Finset.univ : Finset (SchemeLiftCandidate C oracle (e + g))).card ≤ L) :
+    ∃ certificate : PolicyLiftListCertificate policy oracle respond e g (e + g)
+        L,
+      ∀ a ≤ n,
+        (Fintype.card F * (Fintype.card F - (g + 1))) *
+            (AgreementProfile.restrictedTailSet certificate.failure
+              (fun challenge ↦
+                (schemeProximityAgreement oracle
+                  (policy.proximityWeights challenge 0)
+                  (policy.proximityResponse (respond challenge) 0)).card) a).card ≤
+          (SchemeSelectedMCA.endpointOptimizedProfile (Fintype.card F) g
+            (SchemeSelectedMCA.selectedMCAIntegratedFailureProfile n e g d
+              outerBound localBound)).labelsAtLeast a *
+            Fintype.card Challenge := by
+  obtain ⟨certificate, hdensity⟩ :=
+    exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine
+      extractor hmin conditions
+  let sharpened : PolicyLiftListCertificate policy oracle respond e g (e + g) L := {
+    candidates := certificate.candidates
+    failure := certificate.failure
+    list_card := (Finset.card_le_card (Finset.subset_univ _)).trans hcard
+    lift := certificate.lift }
+  exact ⟨sharpened, by simpa [sharpened] using hdensity⟩
+
+omit [Fintype Equations] [DecidableEq Equations] [DecidableEq Challenge] in
 /-- Threshold-free profiled extractor with a singleton oracle-fixed lift list.
 Unique decoding changes only the list cardinality; the full pointwise MCA tail
 is retained. -/

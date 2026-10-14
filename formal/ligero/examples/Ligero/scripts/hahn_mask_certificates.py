@@ -1,40 +1,34 @@
 #!/usr/bin/env python3
-"""Hahn/Delsarte certificates for the V1 unchecked-mask list (stdlib only).
+"""Exact Delsarte certificates for the V1 unchecked-mask list (stdlib only).
 
-For a V1 geometry `(n, k)` the unchecked masks give `a`-subsets of `Fin n`
-(agreement sets of response-code words with an arbitrary committed mask)
-whose pairwise intersections are at most `lam = 2k - 1`.  The Johnson count
-is finite only for `a >= T = isqrt(n * lam) + 1`.  This script finds, for
-every level `a` just below `T`, an integer Delsarte certificate in the exact
-format checked by `CodingTheory.HahnDelsarte.certificateValid`:
+The default generates one targeted higher-degree certificate per v7/v8
+geometry. Its cutoff is selected against the complete extraction budget,
+not by minimizing the list bound alone. The optional --frontier mode retains
+the degree-five exact rational simplex search.
 
-    coeffs = [f0, f1, ..., fK],  f0 > 0,  fk >= 0,
-    f0 + sum_k fk * H_k(t) <= 0   for every t <= lam with 2a <= n + t,
-    certified bound = floor((f0 + sum_k fk * H_k(a)) / f0).
+Candidate generation uses normalized Hahn polynomials to construct
+(t - lam) * h(t)^2. Coefficients are converted to the actual four-cell Gram
+kernels of CodingTheory.HahnDelsarte. The normalized-polynomial identity is
+only a search aid: certificateValid checks every realizable overlap against
+the proved Gram kernel, independently of the generator and its normalization.
+No optimizer or analytical endpoint inequality is trusted by Lean.
 
-`H_k` mirrors the Lean `hahnKernel` definition term by term.  The dual LP is
-solved by an exact rational simplex (Bland's rule) with column generation:
-unboundedness of a restricted primal implies unboundedness of the full
-primal. The search stops when it cannot produce a verified integer
-certificate; this does not establish a globally optimal cutoff. No
-third-party packages are used.
+Only the certificate at maskThreshold enters Lean. UniformFamilyBound.of_le_size
+extends it to larger agreement sets; Johnson is retained above its threshold.
+All coefficients, overlap checks, and floors use exact integer/rational arithmetic.
 
-Only the certificate at the frontier level `maskThreshold` enters Lean: by
-`UniformFamilyBound.of_le_size` it bounds every level up to the Johnson
-threshold. Per-level values can be used for further optimization.
-
-Usage (from `formal/`):
-    hahn_mask_certificates.py                        # all V1 geometries, summary
-    hahn_mask_certificates.py --lean-module PATH     # write the Lean data module
-    hahn_mask_certificates.py --check PATH           # re-verify a Lean data module
-    hahn_mask_certificates.py --json OUT             # all levels, for inspection
+Usage (from formal/):
+    hahn_mask_certificates.py --lean-module PATH   # reproduce targeted data
+    hahn_mask_certificates.py --check PATH         # independently recheck data
+    hahn_mask_certificates.py --frontier --json OUT # degree-five LP exploration
 """
 
 import argparse
 import json
 import re
 from fractions import Fraction
-from math import comb, floor, isqrt
+from math import comb, floor, gcd, isqrt, lcm, prod
+from functools import lru_cache
 from pathlib import Path
 
 # (name, n, k) of every distinct v7/v8 V1 geometry.
@@ -48,6 +42,14 @@ GEOMETRIES = (
     ("v8Hash1", 4088, 584),
     ("v8Hash2", 4081, 583),
 )
+
+# Cutoffs certified against the concrete extraction theorems. These minimize
+# degree among the tested cutoffs reaching 127 signature / 125 hash bits.
+TARGET_CUTOFFS = {
+    "v7Sig": 1665, "v7Hash1": 1681, "v7Hash2": 1728,
+    "v7Hash3": 1744, "v7Hash4": 1788, "v8Sig": 1808,
+    "v8Hash1": 2122, "v8Hash2": 2113,
+}
 
 DEGREE = 5        # Maximum Hahn degree searched; no global optimality claim.
 DIGITS = 19       # significant digits of the integer certificates
@@ -217,12 +219,161 @@ def verify_hahn_identity(n, w, degree=DEGREE, samples=(0, 1, 7)):
             assert hahn_kernel(n, w, k, t) == hw * hahn_omega(n, w, k, w - t), (n, w, k, t)
 
 
+# -------------------------------------------- targeted polynomial candidates
+Q = Fraction
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def falling(x, degree):
+    return prod(range(x - degree + 1, x + 1))
+
+
+def multiply(left, right):
+    result = [0] * (len(left) + len(right) - 1)
+    for i, x in enumerate(left):
+        for j, y in enumerate(right):
+            result[i + j] += x * y
+    return result
+
+
+def evaluate(poly, x):
+    value = 0
+    for coefficient in reversed(poly):
+        value = value * x + coefficient
+    return value
+
+
+@lru_cache(None)
+def multiplicity(n, degree):
+    return comb(n, degree) - (comb(n, degree - 1) if degree else 0)
+
+
+@lru_cache(16384)
+def recurrence(n, w, degree):
+    a = Q((w - degree) * (n - w - degree) * (n - degree + 1),
+          (n - 2 * degree) * (n - 2 * degree + 1))
+    c = (recurrence(n, w, degree - 1)[0] *
+         Q(multiplicity(n, degree - 1), multiplicity(n, degree))) if degree else Q(0)
+    return a, Q(w) - a - c, c
+
+
+def values_at(n, w, x, degree):
+    values = [Q(1)]
+    for j in range(degree):
+        a, b, c = recurrence(n, w, j)
+        require(a > 0, "Degenerate Hahn recurrence")
+        values.append(((x - b) * values[j] - (c * values[j - 1] if j else 0)) / a)
+    return values
+
+
+@lru_cache(512)
+def integer_basis(n, w, degree):
+    """Return integer P_j and integer R_j with Q_j=P_j/R_j.
+
+    Construct directly from the terminating hypergeometric formula, rather
+    than the recurrence used to generate the endpoint certificates.
+    """
+    require(0 <= degree <= min(w, n - w), "Invalid Hahn degree or weight")
+    result = []
+    for j in range(degree + 1):
+        polynomial, term = [0] * (j + 1), [1]
+        for i in range(j + 1):
+            coefficient = ((-1) ** i * comb(j, i) * falling(n + 1 - j, i) *
+                           falling(w - i, j - i) * falling(n - w - i, j - i))
+            for z, value in enumerate(term):
+                polynomial[z] += coefficient * value
+            term = multiply(term, [w - i, -1])
+        normalizer = falling(w, j) * falling(n - w, j)
+        divisor = gcd(normalizer, gcd(*polynomial))
+        result.append((tuple(v // divisor for v in polynomial), normalizer // divisor))
+    return result
+
+
+def expand_hahn(n, w, polynomial):
+    degree = len(polynomial) - 1
+    basis = integer_basis(n, w, degree)
+    residual, denominator = list(polynomial), 1
+    coefficients = [Q(0)] * (degree + 1)
+    for j in range(degree, -1, -1):
+        p, normalizer = basis[j]
+        leading, pivot = residual[j], p[j]
+        require(pivot > 0, "Invalid Hahn leading coefficient")
+        coefficients[j] = Q(leading * normalizer, denominator * pivot)
+        residual = [pivot * residual[i] - leading * p[i] for i in range(j)]
+        denominator *= pivot
+        if residual:
+            divisor = gcd(denominator, gcd(*residual))
+            residual = [v // divisor for v in residual]
+            denominator //= divisor
+    return coefficients
+
+
+def endpoint_factors(n, w, s, degree):
+    values = values_at(n, w, s, degree + 1)
+    total = sum(multiplicity(n, j) * values[j] for j in range(degree + 1))
+    require(total != 0, "Zero endpoint denominator")
+    c = values[-1] / total
+    require(c < 0, "Endpoint constant must be negative")
+    h = [Q(0)] * (degree + 1)
+    h[degree] = 1 / recurrence(n, w, degree)[0]
+    for j in range(degree, 0, -1):
+        _, b, _ = recurrence(n, w, j)
+        upper = recurrence(n, w, j + 1)[2] * h[j + 1] if j < degree else 0
+        h[j - 1] = (-c * multiplicity(n, j) - (b - s) * h[j] - upper) / recurrence(n, w, j - 1)[0]
+    require(all(v >= 0 for v in h), "Endpoint factor has a negative Hahn coefficient")
+    require((recurrence(n, w, 0)[1] - s) * h[0] +
+            (recurrence(n, w, 1)[2] * h[1] if degree else 0) == -c,
+            "Endpoint polynomial is not divisible by x-s")
+    bound = Q(comb(n, degree)) - total / values[-1]
+    require(bound == (w - s) * sum(h) / (-c) and bound > 0, "Invalid endpoint ratio")
+    return h, c, bound
+
+
+def targeted_certificate(n, w, lam):
+    """Construct a candidate, then check it against every actual Gram overlap."""
+    values = values_at(n, w, lam, min(64, w, n - w))
+    j = next(j for j in range(1, len(values)) if values[j] < 0)
+    h, _, ratio = endpoint_factors(n, w, lam, j - 1)
+    polynomial = [Q(0)] * j
+    for weight, (basis, normalizer) in zip(h, integer_basis(n, w, j - 1)):
+        for i, value in enumerate(basis):
+            polynomial[i] += weight * Q(value, normalizer)
+    scale = lcm(*(value.denominator for value in polynomial))
+    polynomial = [int(value * scale) for value in polynomial]
+    polynomial = multiply([-lam, 1], multiply(polynomial, polynomial))
+    normalized = expand_hahn(n, w, polynomial)
+    require(normalized[0] > 0 and all(value >= 0 for value in normalized),
+            "Candidate has negative normalized coefficients")
+    coefficients = [normalized[0]]
+    for degree, value in enumerate(normalized[1:], 1):
+        # The diagonal four-cell count simplifies to this sum of squares.
+        diagonal = sum(hahn_weight(n, w, degree, i) ** 2 *
+                       choose(w, i) * choose(n - w, degree - i)
+                       for i in range(degree + 1))
+        require(diagonal > 0, "Zero Gram diagonal")
+        coefficients.append(value / diagonal)
+    scale = lcm(*(value.denominator for value in coefficients))
+    coefficients = [int(value * scale) for value in coefficients]
+    divisor = gcd(*coefficients)
+    coefficients = [value // divisor for value in coefficients]
+    require(Q(evaluate(polynomial, w), normalized[0]) == ratio,
+            "Inconsistent candidate diagonal")
+    bound = check(n, w, lam, coefficients)
+    require(bound is not None and bound == floor(ratio),
+            "Candidate fails the independent Gram-kernel check")
+    return {"a": w, "coeffs": coefficients, "bound": bound}
+
 MODULE_HEADER = """/-! Integer Hahn/Delsarte certificates for the V1 unchecked-mask list.
 
 Generated by `ligero/examples/Ligero/scripts/hahn_mask_certificates.py
---lean-module` (stdlib only: exact rational simplex, exact verification).  For a
+--lean-module` (stdlib only: exact polynomial generation, exact Gram verification).
+For a
 V1 geometry `(n, k)` the certificate `[f₀, f₁, …, f_K]` is taken at the Delsarte
-cutoff `a = maskThreshold`, the lowest agreement level certified by the search.
+cutoff `a = maskThreshold`, selected against the complete extraction budget.
 It certifies that `a`-subsets of `Fin n` meeting
 pairwise in at most `2k - 1` points number at most
 `HahnDelsarte.certifiedBound n a coeffs`, and by `UniformFamilyBound.of_le_size`
@@ -236,8 +387,9 @@ namespace Ligero.Examples.Grid.LongfellowProfiledExtraction.HahnMask
 def lean_module(results):
     lines = [MODULE_HEADER]
     for result in results:
+        require(result["levels"], f"No certificate found for {result['name']}")
         top = result["levels"][0]
-        lines.append(f"/-- `n = {result['n']}`, `k = {result['k']}`: frontier "
+        lines.append(f"/-- `n = {result['n']}`, `k = {result['k']}`: cutoff "
                      f"{result['mask_threshold']} (Johnson threshold "
                      f"{result['johnson_threshold']}), bound {top['bound']}. -/")
         lines.append(f"def {result['name']} : List Nat :=\n  "
@@ -251,21 +403,22 @@ def check_module(path):
     text = Path(path).read_text()
     table = {name: (n, k) for name, n, k in GEOMETRIES}
     found = re.findall(
-        r"/-- `n = (\d+)`, `k = (\d+)`: frontier (\d+) "
+        r"/-- `n = (\d+)`, `k = (\d+)`: cutoff (\d+) "
         r"\(Johnson threshold (\d+)\), bound (\d+)\. -/\s*"
         r"def (\w+) : List Nat :=\s*\[([0-9,\s]+)\]", text)
-    assert len(found) == len(table) and {row[5] for row in found} == set(table), "missing or duplicate geometries"
+    require(len(found) == len(table) and {row[5] for row in found} == set(table),
+            "Missing or duplicate geometries")
     for stored_n, stored_k, weight, threshold, stored_bound, name, body in found:
         n, k = table[name]
         lam = 2 * k - 1
-        assert (int(stored_n), int(stored_k)) == (n, k), f"wrong geometry for {name}"
-        assert int(threshold) == isqrt(n * lam) + 1, f"wrong Johnson threshold for {name}"
+        require((int(stored_n), int(stored_k)) == (n, k), f"Wrong geometry for {name}")
+        require(int(threshold) == isqrt(n * lam) + 1, f"Wrong Johnson threshold for {name}")
         coeffs = [int(x) for x in body.replace("\n", " ").split(",")]
         a = int(weight)
-        assert lam < a < int(threshold), f"invalid mask cutoff for {name}"
+        require(lam < a < int(threshold), f"Invalid mask cutoff for {name}")
         bound = check(n, a, lam, coeffs)
-        assert bound is not None, f"invalid certificate for {name}"
-        assert bound == int(stored_bound), f"wrong stored bound for {name}"
+        require(bound is not None, f"Invalid certificate for {name}")
+        require(bound == int(stored_bound), f"Wrong stored bound for {name}")
         print(f"{name}: certificate at a={a} valid, bound {bound}", flush=True)
 
 
@@ -274,7 +427,9 @@ def main():
     parser.add_argument("--lean-module", help="write the Lean data module to this path")
     parser.add_argument("--check", help="re-verify the certificates of a Lean data module")
     parser.add_argument("--json", help="write all level certificates to this JSON file")
-    parser.add_argument("--only", nargs="*", help="restrict to these geometry names")
+    parser.add_argument("--frontier", action="store_true",
+                        help="run the degree-five LP frontier search instead")
+    parser.add_argument("--only", nargs="*", choices=[name for name, _, _ in GEOMETRIES], help="restrict to these geometry names")
     args = parser.parse_args()
     if args.check:
         check_module(args.check)
@@ -284,8 +439,14 @@ def main():
         if args.only and name not in args.only:
             continue
         lam = 2 * k - 1
-        verify_hahn_identity(n, isqrt(n * lam))
-        result = frontier(name, n, k)
+        if args.frontier:
+            verify_hahn_identity(n, isqrt(n * lam))
+            result = frontier(name, n, k)
+        else:
+            cert = targeted_certificate(n, TARGET_CUTOFFS[name], lam)
+            result = {"name": name, "n": n, "k": k, "lambda": lam,
+                      "johnson_threshold": isqrt(n * lam) + 1,
+                      "mask_threshold": cert["a"], "levels": [cert]}
         results.append(result)
         T, Tp = result["johnson_threshold"], result["mask_threshold"]
         first = result["levels"][0] if result["levels"] else None

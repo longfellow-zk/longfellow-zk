@@ -9,14 +9,15 @@ development.**
 
 ## Certified v7/v8 bounds
 
-The exact IOP error is at most `2^-s`, with the following integer exponents:
+At 132 distinct column openings, the IOP error is at most `2^-s`, with the
+following integer exponents:
 
 | Component | V1 | V2 | V3 |
 |---|---:|---:|---:|
-| v7 signature (all attribute counts) | 125 | 191 | 191 |
-| v7 hash (1–4 attributes) | 124 | 125 | 125 |
-| v8 signature (all attribute counts) | 125 | 191 | 191 |
-| v8 hash (1–4 attributes) | 123 | 125 | 125 |
+| v7 signature (all attribute counts) | 127 | 191 | 191 |
+| v7 hash (1–4 attributes) | 125 | 126 | 126 |
+| v8 signature (all attribute counts) | 127 | 191 | 191 |
+| v8 hash (1–4 attributes) | 125 | 126 | 126 |
 
 For comparison, let `L = log₂(Q+1)`. The FS columns below give bits for the
 FS term; the total error also includes `bindingError`. Each FS bit entry is
@@ -24,13 +25,17 @@ capped below at zero.
 
 | Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
 |---|---:|---:|---:|---:|---:|---:|
-| v7 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
-| v7 hashes | 124 | 125 | 125 | 124−L | 125−L | 125−L |
-| v8 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
-| v8 hashes | 123 | 125 | 125 | 123−L | 125−L | 125−L |
+| v7 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
+| v7 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
+| v8 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
+| v8 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
 
 The V1 entries use Hahn/Delsarte certificates for the unchecked-mask list
-below the Johnson threshold (previously 123/122/122/121).
+below the Johnson threshold. The degree 9–17 certificates improve the
+previous V1 bounds from 125/124/125/123 to 127/125/127/125 bits.
+The V2/V3 hash entries use the integer three-set packing bound to certify
+a shared decoded-witness list of at most two candidates, improving 125 to
+126 bits. The list bound applies to the complete proximity-tested matrix.
 
 [OptimizedIOPCertificates](examples/Ligero/Longfellow/OptimizedIOPCertificates.lean)
 checks all geometry, field-order, clique/Johnson, Hahn/Delsarte, and
@@ -69,6 +74,7 @@ retain the current Rust source provenance and generated circuit identifiers.
 | Selected-MCA proximity bounds from affine triple counting and punctured globalization | `SelectedMCA.directionallyNonliftableParameters_card_le_direct`, `closeCombinationChallengesOn_card_le_of_direction_far` | [DirectLineExtraction](SelectedMCA/DirectLineExtraction.lean), [Punctured](SelectedMCA/Punctured.lean) |
 | Reed–Solomon JB agreement with the η³ threshold, including checked inverse-η parameters | `JBAgreement.lineFailureBound_of_johnsonConditions`, `lineFailureBound_of_inverseEtaConditions` | [Certificate](JBAgreement/Certificate.lean), [InverseEtaCertificate](JBAgreement/InverseEtaCertificate.lean) |
 | Delsarte LP bound using Hahn kernels for uniform intersection families (Johnson is degree one), with decidable integer certificates | `CodingTheory.HahnDelsarte.card_le_of_delsarte`, `hahnKernel_gram_nonneg`, `uniformFamilyBound_of_certificate` | [HahnDelsarte](CodingTheory/ListDecoding/HahnDelsarte.lean), [UniformFamily](CodingTheory/ListDecoding/UniformFamily.lean) |
+| Integer one- and two-candidate packing bounds, and an independent packing interface for the shared decoded-witness list | `CodingTheory.uniformFamilyBound_one_of_two_mul_gt`, `uniformFamilyBound_two_of_three_mul_gt`, `SchemeLiftCandidate.univ_card_le_uniformFamilyBound` | [UniformFamily](CodingTheory/ListDecoding/UniformFamily.lean), [SchemeFixedLiftList](LigeroFamily/Soundness/SchemeFixedLiftList.lean) |
 | V1 unchecked-mask list bounded by any uniform-family bound (Johnson above, Hahn/Delsarte below the Johnson threshold) | `Ligero.V1.responseWordsAgreeingAtLeast_card_le_of_bound`, `Ligero.V1.V1MaskRange` | [MaskAgreement](Ligero/V1/Soundness/MaskAgreement.lean), [V1Profile](Ligero/V1/Soundness/V1Profile.lean), [HahnMaskCertificates](examples/Ligero/Longfellow/HahnMaskCertificates.lean) |
 | Validity and agreement guarantees for the response-assisted extractor | `LigeroFamily.ScalarGapExtraction.extract_valid`, `extract_agreement_errors` | [ScalarGapExtraction](LigeroFamily/Soundness/ScalarGapExtraction.lean) |
 | Scalar IOP extraction for V1, V2, and V3 | `Ligero.V1/V2/V3.scalarGap_extraction_failure`, `scalarGap_iop_extraction_failure` | [V1](Ligero/V1/ScalarGapExtraction.lean), [V2](Ligero/V2/ScalarGapExtraction.lean), [V3](Ligero/V3/ScalarGapExtraction.lean) |
@@ -95,10 +101,12 @@ threshold. Above it, the response-code words agreeing with an unchecked mask on
 at least `a` columns form `a`-subsets meeting pairwise in at most `2k-1`
 columns, so any uniform-family bound limits them. The Johnson count gives a
 finite bound only for `a² > n(2k-1)`. One Hahn/Delsarte certificate of degree
-at most five extends the bound 23–26 agreement levels further down. It sits at
-the lowest agreement level certified by the search, and by size monotonicity
-it covers every level up to the Johnson threshold. Each certificate is an
-integer nonnegative combination of Hahn kernels.
+9–17 extends the bound 38–68 agreement levels further down. Its cutoff is
+selected against the complete extraction budget. By size monotonicity it
+covers every level up to the Johnson threshold. Each certificate is an
+integer nonnegative combination of Hahn kernels, checked against every
+realizable overlap by the proved Gram-kernel interface. The polynomial
+construction used to generate candidates is not an assumption of the proof.
 
 The extractor takes the committed oracle, statement, challenge, and response.
 A successful extraction returns a witness satisfying the original constraints.
@@ -147,14 +155,16 @@ lake build
 python3 ligero/examples/Ligero/scripts/audit_envelope_fs.py
 ```
 
-To regenerate the V1 Hahn/Delsarte mask certificates (stdlib-only Python, with
-an exact rational simplex and exact verification), run:
+To regenerate the V1 Hahn/Delsarte mask certificates (stdlib-only Python,
+with exact polynomial generation and independent Gram-kernel checks), run:
 
 ```sh
-python3 ligero/examples/Ligero/scripts/hahn_mask_certificates.py --lean
+python3 ligero/examples/Ligero/scripts/hahn_mask_certificates.py \
+  --lean-module ligero/examples/Ligero/Longfellow/HahnMaskCertificates.lean
 ```
 
-The FS audit checks 19 general core theorems, 90 component FS endpoints, all
-30 catalog geometries, and the coefficient table. General core theorems use
+The audit checks 41 general core theorems, 90 IOP endpoints, 90 FS endpoints,
+and all 30 component/variant records. It verifies that each endpoint uses its
+intended certificate, and that both README grids match the checked exponents. General core theorems use
 Lean's foundational axioms. Exact concrete certificates also use explicitly
 identified native arithmetic checks.

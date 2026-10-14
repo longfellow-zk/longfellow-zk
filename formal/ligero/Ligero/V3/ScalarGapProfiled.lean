@@ -19,6 +19,32 @@ local notation "gapPolicy" => DirectVerifier.policy (Equations := Equations) (nw
 
 /-- The full interactive profile bounds extraction failure for arbitrary
 statements and every response strategy. No false-statement premise is used. -/
+theorem scalarGap_profiled_extraction_failure_of_card
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (conditions : IntegratedSelectedMCALineConditions C.baseCode
+      (Fintype.card F) e g d outerBound localBound) {L : ℕ}
+    (hcard : (univ : Finset (SchemeLiftCandidate C oracle (e + g))).card ≤ L)
+    (hk : 0 < C.k) (h2k : 2 * C.k ≤ n)
+    (respond : DirectChallenge F Equations nw nq 1 → DirectResponse F r w n 1) :
+    ((univ.filter fun pair : (DirectChallenge F Equations nw nq 1) × QuerySet n r =>
+      (gapPolicy).accepts statement pair.1 (respond pair.1) pair.2 (openSchemeOracle oracle pair.2) ∧
+      ScalarGapExtraction.extract (oracle := oracle) (e := e) (g := g) gapPolicy
+        (fun candidate => candidate.directMessages (layout := layout)) statement pair.1 (respond pair.1) = none).card : ℚ) /
+      Fintype.card ((DirectChallenge F Equations nw nq 1) × QuerySet n r) ≤
+      (SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
+        (Fintype.card F) n e g d outerBound localBound).excessContribution
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
+          n n 0 r (max (n - e - 1) (min n (g + (2 * C.k - 1)))) +
+      (checkedAgreementProfile (Fintype.card F)
+        L n
+        (2 * C.k - 1)).contribution (Fintype.card F) n e g r := by
+  letI : Nonempty (SchemeTestedRow LinearConstraintMask nw nq 1) := ⟨Sum.inr (0, LinearConstraintMask.zRCoefficient)⟩
+  exact ScalarGapExtraction.checked_profiled_extraction_failure_of_card gapPolicy (fun candidate => candidate.directMessages (layout := layout)) statement
+    (2 * C.k - 1) (fun candidate hns => scalarGap_arithmeticBudget C M layout oracle statement candidate hns hk)
+    (directExtractorPolicy (Equations := Equations) (nw := nw) (nq := nq) C M layout) hmin conditions hcard (by omega) respond
+
+/-- The full interactive profile bounds extraction failure for arbitrary
+statements and every response strategy. No false-statement premise is used. -/
 theorem scalarGap_profiled_extraction_failure
     (hmin : HasMinimumDistanceAtLeast C.baseCode d)
     (conditions : IntegratedSelectedMCALineConditions C.baseCode
@@ -37,9 +63,12 @@ theorem scalarGap_profiled_extraction_failure
       (checkedAgreementProfile (Fintype.card F)
         (InterleavedJohnson.listBound n d (e + g)) n
         (2 * C.k - 1)).contribution (Fintype.card F) n e g r := by
-  letI : Nonempty (SchemeTestedRow LinearConstraintMask nw nq 1) := ⟨Sum.inr (0, LinearConstraintMask.zRCoefficient)⟩
-  exact ScalarGapExtraction.checked_profiled_extraction_failure gapPolicy (fun candidate => candidate.directMessages (layout := layout)) statement
-    (2 * C.k - 1) (fun candidate hns => scalarGap_arithmeticBudget C M layout oracle statement candidate hns hk)
-    (directExtractorPolicy (Equations := Equations) (nw := nw) (nq := nq) C M layout) hmin conditions (by omega) respond
+  have hradius : e + g < d := by
+    have := conditions.outer.punctured.punctured_three_radius
+    omega
+  exact scalarGap_profiled_extraction_failure_of_card C M layout oracle statement hmin conditions
+    (SchemeLiftCandidate.univ_card_le_listBound C oracle hmin
+      ((Nat.le_of_lt hradius).trans hmin.distance_le_length) hradius
+      conditions.outer.johnson.list_denominator_positive) hk h2k respond
 
 end Ligero.V3

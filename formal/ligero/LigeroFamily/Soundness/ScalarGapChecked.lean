@@ -78,6 +78,38 @@ theorem checked_gap_certificate [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
       checkedSpecial_cover policy messages statement cutoff budget candidate hns challenge response hnot hc)
 
 /-- All checked variants share the complete agreement-dependent extraction proof. -/
+theorem checked_profiled_extraction_failure_of_card [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
+    {outerBound : ℕ} {localBound : ℕ → ℕ}
+    (extractor : SchemeExtractorPolicy policy Tail)
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (conditions : IntegratedSelectedMCALineConditions C.baseCode
+      (Fintype.card F) e g d outerBound localBound) {L : ℕ}
+    (hcard : (univ : Finset (SchemeLiftCandidate C oracle (e + g))).card ≤ L)
+    (hcutoff : cutoff ≤ n) (respond : Challenge → Response) :
+    ((univ.filter fun pair : Challenge × QuerySet n r =>
+      policy.accepts statement pair.1 (respond pair.1) pair.2 (openSchemeOracle oracle pair.2) ∧
+      extract policy messages statement pair.1 (respond pair.1) = none).card : ℚ) /
+      Fintype.card (Challenge × QuerySet n r) ≤
+      (SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
+        (Fintype.card F) n e g d outerBound localBound).excessContribution
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
+          n n 0 r (max (n - e - 1) (min n (g + cutoff))) +
+      (checkedAgreementProfile (Fintype.card F)
+        L n cutoff).contribution
+          (Fintype.card F) n e g r := by
+  refine profiled_extraction_failure_of_card policy messages extractor hmin conditions hcard
+    (checkedAgreementProfile (Fintype.card F) L n cutoff)
+    cutoff hcutoff ?_ respond ?_
+  · intro a ha; simp [checkedAgreementProfile, show ¬n < a by omega, ha]
+  · intro certificate
+    exact checkedProfiledArithmeticCertificate policy messages certificate hmin
+      (by have := conditions.outer.punctured.punctured_three_radius; omega) cutoff
+      (checkedSpecial policy messages statement cutoff budget)
+      (checkedSpecial_density policy messages statement cutoff budget)
+      (fun candidate hns challenge hnot hc =>
+        checkedSpecial_cover policy messages statement cutoff budget candidate hns challenge (respond challenge) hnot hc)
+
+/-- All checked variants share the complete agreement-dependent extraction proof. -/
 theorem checked_profiled_extraction_failure [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
     {outerBound : ℕ} {localBound : ℕ → ℕ}
     (extractor : SchemeExtractorPolicy policy Tail)
@@ -96,16 +128,13 @@ theorem checked_profiled_extraction_failure [Nonempty (SchemeTestedRow CheckedMa
       (checkedAgreementProfile (Fintype.card F)
         (InterleavedJohnson.listBound n d (e + g)) n cutoff).contribution
           (Fintype.card F) n e g r := by
-  refine profiled_extraction_failure policy messages extractor hmin conditions
-    (checkedAgreementProfile (Fintype.card F) (InterleavedJohnson.listBound n d (e + g)) n cutoff)
-    cutoff hcutoff ?_ respond ?_
-  · intro a ha; simp [checkedAgreementProfile, show ¬n < a by omega, ha]
-  · intro certificate
-    exact checkedProfiledArithmeticCertificate policy messages certificate hmin
-      (by have := conditions.outer.punctured.punctured_three_radius; omega) cutoff
-      (checkedSpecial policy messages statement cutoff budget)
-      (checkedSpecial_density policy messages statement cutoff budget)
-      (fun candidate hns challenge hnot hc =>
-        checkedSpecial_cover policy messages statement cutoff budget candidate hns challenge (respond challenge) hnot hc)
+  have hradius : e + g < d := by
+    have := conditions.outer.punctured.punctured_three_radius
+    omega
+  exact checked_profiled_extraction_failure_of_card policy messages statement cutoff budget
+    extractor hmin conditions
+    (SchemeLiftCandidate.univ_card_le_listBound C oracle hmin
+      ((Nat.le_of_lt hradius).trans hmin.distance_le_length) hradius
+      conditions.outer.johnson.list_denominator_positive) hcutoff respond
 
 end LigeroFamily.ScalarGapExtraction

@@ -159,6 +159,52 @@ theorem checkedProfiledArithmeticCertificate
 
 /-- The refined all-statement bound. Every proximity exception is weighted by
 its actual agreement; arithmetic pays the common query baseline once. -/
+theorem profiled_extraction_failure_of_card
+    [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
+    {statement : ConstraintSystem F nw nq q Equations}
+    {outerBound : ℕ} {localBound : ℕ → ℕ}
+    (extractor : SchemeExtractorPolicy policy Tail)
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (conditions : IntegratedSelectedMCALineConditions C.baseCode
+      (Fintype.card F) e g d outerBound localBound)
+    (hcard : (univ : Finset (SchemeLiftCandidate C oracle (e + g))).card ≤ L)
+    (arithmeticProfile : AgreementProfile n) (cutoff : ℕ)
+    (hcutoff : cutoff ≤ n)
+    (hfloor : ∀ a ≤ cutoff, Fintype.card F ≤ arithmeticProfile.labelsAtLeast a)
+    (respond : Challenge → Response)
+    (harithmetic : ∀ certificate : PolicyLiftListCertificate
+      (failingPolicy policy messages) oracle respond e g (e + g)
+      L,
+      Nonempty (PolicyArithmeticCertificate (failingPolicy policy messages)
+        oracle statement respond certificate arithmeticProfile (Fintype.card F))) :
+    ((univ.filter fun pair : Challenge × QuerySet n r =>
+      policy.accepts statement pair.1 (respond pair.1) pair.2
+        (openSchemeOracle oracle pair.2) ∧
+      extract policy messages statement pair.1 (respond pair.1) = none).card : ℚ) /
+        Fintype.card (Challenge × QuerySet n r) ≤
+      (SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
+        (Fintype.card F) n e g d outerBound localBound).excessContribution
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
+          n n 0 r (max (n - e - 1) (min n (g + cutoff))) +
+      arithmeticProfile.contribution (Fintype.card F) n e g r := by
+  obtain ⟨certificate, hdensity⟩ := (failingExtractor policy messages extractor).exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine_of_card
+      (oracle := oracle) (respond := respond) hmin conditions hcard
+  obtain ⟨arithmetic⟩ := harithmetic certificate
+  obtain ⟨classifier⟩ := arithmetic.doublyProfiledClassifier_nonempty certificate hdensity
+  let prover : IPCPProver (ConstraintSystem F nw nq q Equations)
+      (SchemeOracle F CheckedMask DirectMask nw nq n 1) Challenge Response :=
+    ⟨fun _ => oracle, fun _ _ => respond⟩
+  have hr := classifier.acceptanceRate_le_eventPartition cutoff Fintype.card_pos
+    (Nat.mul_pos Fintype.card_pos (Nat.sub_pos_of_lt conditions.outer.punctured.field_large))
+    C.query_le_length hcutoff hfloor
+  rw [← classifier.protocol_acceptanceRate_eq prover rfl (fun _ => rfl)] at hr
+  simpa [PublicCoinIPCP.acceptanceRate, finiteProtocolAcceptanceRate,
+    PublicCoinIPCP.accepts, PublicCoinIPCP.run, SchemeProtocolPolicy.protocol,
+    failingPolicy, prover, SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile,
+    SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator] using hr
+
+/-- The refined all-statement bound. Every proximity exception is weighted by
+its actual agreement; arithmetic pays the common query baseline once. -/
 theorem profiled_extraction_failure
     [Nonempty (SchemeTestedRow CheckedMask nw nq 1)]
     {statement : ConstraintSystem F nw nq q Equations}
@@ -186,21 +232,14 @@ theorem profiled_extraction_failure
           (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
           n n 0 r (max (n - e - 1) (min n (g + cutoff))) +
       arithmeticProfile.contribution (Fintype.card F) n e g r := by
-  obtain ⟨certificate, hdensity⟩ := (failingExtractor policy messages extractor).exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine
-      (oracle := oracle) (respond := respond) hmin conditions
-  obtain ⟨arithmetic⟩ := harithmetic certificate
-  obtain ⟨classifier⟩ := arithmetic.doublyProfiledClassifier_nonempty certificate hdensity
-  let prover : IPCPProver (ConstraintSystem F nw nq q Equations)
-      (SchemeOracle F CheckedMask DirectMask nw nq n 1) Challenge Response :=
-    ⟨fun _ => oracle, fun _ _ => respond⟩
-  have hr := classifier.acceptanceRate_le_eventPartition cutoff Fintype.card_pos
-    (Nat.mul_pos Fintype.card_pos (Nat.sub_pos_of_lt conditions.outer.punctured.field_large))
-    C.query_le_length hcutoff hfloor
-  rw [← classifier.protocol_acceptanceRate_eq prover rfl (fun _ => rfl)] at hr
-  simpa [PublicCoinIPCP.acceptanceRate, finiteProtocolAcceptanceRate,
-    PublicCoinIPCP.accepts, PublicCoinIPCP.run, SchemeProtocolPolicy.protocol,
-    failingPolicy, prover, SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile,
-    SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator] using hr
+  have hradius : e + g < d := by
+    have := conditions.outer.punctured.punctured_three_radius
+    omega
+  exact profiled_extraction_failure_of_card policy messages extractor hmin conditions
+    (SchemeLiftCandidate.univ_card_le_listBound C oracle hmin
+      ((Nat.le_of_lt hradius).trans hmin.distance_le_length) hradius
+      conditions.outer.johnson.list_denominator_positive)
+    arithmeticProfile cutoff hcutoff hfloor respond harithmetic
 
 section UniformEnvelope
 variable [Fintype Response] [Nonempty Response]

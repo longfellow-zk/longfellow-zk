@@ -154,8 +154,15 @@ theorem Result.v1_strategy
     have hmask := hvalid.1.1
     unfold Certificate.v1Threshold at hmask
     omega
-  have h := Ligero.V1.scalarGap_profiled_extraction_failure (s.code D hkn)
-    oracle statement hm hc hrows mask ht respond
+  have hradius : s.certificate.e + s.certificate.g < s.certificate.d := by
+    have := hc.outer.punctured.punctured_three_radius
+    omega
+  have hlist := SchemeLiftCandidate.univ_card_le_uniformFamilyBound
+    (s.code D hkn) oracle hm hradius
+    (s.certificate.listFamily hradius hm.distance_le_length
+      hc.outer.johnson.list_denominator_positive)
+  have h := Ligero.V1.scalarGap_profiled_extraction_failure_of_card (s.code D hkn)
+    oracle statement hm hc hlist hrows mask ht respond
   simpa [Result.bound, Result.failureProfile, Result.arithmeticProfile, Result.baseline,
     Result.cutoff, Certificate.optimizedFailureDenominator, Certificate.listSize, hv, hf, hk] using h
 
@@ -249,7 +256,14 @@ theorem Result.v2_strategy
   have hc := s.lineConditions hp hf hm P
   have hkpos : 0 < (s.code D hkn).k := by rw [hk]; exact hp.1
   have h2k : 2 * (s.code D hkn).k ≤ s.certificate.n := by rw [hk]; exact hp.2.2.2.1
-  have h := Ligero.V2.scalarGap_profiled_extraction_failure (s.code D hkn) M oracle statement hm hc hkpos h2k respond
+  have hradius : s.certificate.e + s.certificate.g < s.certificate.d := by
+    have := hc.outer.punctured.punctured_three_radius
+    omega
+  have hlist := SchemeLiftCandidate.univ_card_le_uniformFamilyBound
+    (s.code D hkn) oracle hm hradius
+    (s.certificate.listFamily hradius hm.distance_le_length
+      hc.outer.johnson.list_denominator_positive)
+  have h := Ligero.V2.scalarGap_profiled_extraction_failure_of_card (s.code D hkn) M oracle statement hm hc hlist hkpos h2k respond
   simpa [Result.bound, Result.failureProfile, Result.arithmeticProfile, Result.baseline,
     Result.cutoff, Certificate.optimizedFailureDenominator, Certificate.listSize, hv, hf, hk] using h
 
@@ -343,7 +357,14 @@ theorem Result.v3_strategy
   have hc := s.lineConditions hp hf hm P
   have hkpos : 0 < (s.code D hkn).k := by rw [hk]; exact hp.1
   have h2k : 2 * (s.code D hkn).k ≤ s.certificate.n := by rw [hk]; exact hp.2.2.2.1
-  have h := Ligero.V3.scalarGap_profiled_extraction_failure (s.code D hkn) M (ConstraintLayout.identity (F := F) w) oracle statement hm hc hkpos h2k respond
+  have hradius : s.certificate.e + s.certificate.g < s.certificate.d := by
+    have := hc.outer.punctured.punctured_three_radius
+    omega
+  have hlist := SchemeLiftCandidate.univ_card_le_uniformFamilyBound
+    (s.code D hkn) oracle hm hradius
+    (s.certificate.listFamily hradius hm.distance_le_length
+      hc.outer.johnson.list_denominator_positive)
+  have h := Ligero.V3.scalarGap_profiled_extraction_failure_of_card (s.code D hkn) M (ConstraintLayout.identity (F := F) w) oracle statement hm hc hlist hkpos h2k respond
   simpa [Result.bound, Result.failureProfile, Result.arithmeticProfile, Result.baseline,
     Result.cutoff, Certificate.optimizedFailureDenominator, Certificate.listSize, hv, hf, hk] using h
 
