@@ -30,6 +30,12 @@ See [ligero/README.md](ligero/README.md) for the major theorem names, their
 formal experiments, and the certified IOP/FS tables. This package also
 contains the EC/ECDSA circuit development and existing sumcheck modules.
 
+The [recursive Polygero development](polygero/README.md) proves witness
+extraction for the transmitted recursive public-coin verifier, with failure
+bound `1 − ∏ᵢ(1 − εᵢ)` from certified local errors. False-statement soundness
+is derived from extraction validity and the same failure bound. It reuses
+the Ligero code and tableau infrastructure.
+
 From this directory:
 
 ```sh

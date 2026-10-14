@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates", "polygero.APITest"]
 
 [leanOptions]
 autoImplicit = false
@@ -83,3 +83,10 @@ globs = ["ECDSA.+"]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
 roots = ["PkCircuit", "PkCircuitPoly"]
+
+[[lean_lib]]
+name = "RecursivePolygero"
+srcDir = "."
+roots = ["polygero"]
+globs = ["polygero", "polygero.+"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
