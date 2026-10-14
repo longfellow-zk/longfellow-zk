@@ -18,6 +18,10 @@ import ECDSA.EcdsaSpec
 
 open Classical
 
+private lemma num_ne {F : Type} [Field F] {a b c : F}
+    (hc : c ≠ 0) (h : a - b = c) : a ≠ b := by
+  intro he; exact hc (by rw [← h, he, sub_self])
+
 section ECDSA
 
 variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)]
@@ -30,7 +34,7 @@ variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)]
 
 /--
   Witness for the ECDSA verification circuit.
-  Each of these fields maps directly to the similarly named field in the 
+  Each of these fields maps directly to the similarly named field in the
   C++ `struct Witness` in `verify_circuit.h`. For convenience, they are described:
   - `rx`, `ry` map to `EltW rx, ry` (coordinates of the signature point R).
   - `pre` maps to `EltW pre[8]` (precomputed points GPK, GR, RPK, GRPK).
@@ -263,39 +267,186 @@ def ValidEcdsaWitness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F) (order :
   natR bi_nat < order ∧
   natS bi_nat < order
 
-lemma val3_cast_eq
-    (v : Nat) (h : v < 8) : val3 (v : F) = v := sorry
+/-- `val3` inverts the cast on `0..7`.  Needs exactly the ambient `NeZero` hypotheses: the
+    if-chain must distinguish each small numeral from every smaller one, and those differences
+    are `1..7`. -/
 
-lemma map_val3_cast_eq
-    (bi : List Nat) (h : ∀ v ∈ bi, v < 8) : (bi.map (fun (x : Nat) => (x : F))).map val3 = bi := sorry
+lemma val3_cast_eq (v : Nat) (h : v < 8) : val3 (v : F) = v := by
+  have h1 : (1 : F) ≠ 0 := one_ne_zero
+  have h2 : (2 : F) ≠ 0 := NeZero.ne _
+  have h3 : (3 : F) ≠ 0 := NeZero.ne _
+  have h4 : (4 : F) ≠ 0 := NeZero.ne _
+  have h5 : (5 : F) ≠ 0 := NeZero.ne _
+  have h6 : (6 : F) ≠ 0 := NeZero.ne _
+  have h7 : (7 : F) ≠ 0 := NeZero.ne _
+  have d10 : (1 : F) ≠ 0 := num_ne h1 (by norm_num)
+  have d20 : (2 : F) ≠ 0 := num_ne h2 (by norm_num)
+  have d21 : (2 : F) ≠ 1 := num_ne h1 (by norm_num)
+  have d30 : (3 : F) ≠ 0 := num_ne h3 (by norm_num)
+  have d31 : (3 : F) ≠ 1 := num_ne h2 (by norm_num)
+  have d32 : (3 : F) ≠ 2 := num_ne h1 (by norm_num)
+  have d40 : (4 : F) ≠ 0 := num_ne h4 (by norm_num)
+  have d41 : (4 : F) ≠ 1 := num_ne h3 (by norm_num)
+  have d42 : (4 : F) ≠ 2 := num_ne h2 (by norm_num)
+  have d43 : (4 : F) ≠ 3 := num_ne h1 (by norm_num)
+  have d50 : (5 : F) ≠ 0 := num_ne h5 (by norm_num)
+  have d51 : (5 : F) ≠ 1 := num_ne h4 (by norm_num)
+  have d52 : (5 : F) ≠ 2 := num_ne h3 (by norm_num)
+  have d53 : (5 : F) ≠ 3 := num_ne h2 (by norm_num)
+  have d54 : (5 : F) ≠ 4 := num_ne h1 (by norm_num)
+  have d60 : (6 : F) ≠ 0 := num_ne h6 (by norm_num)
+  have d61 : (6 : F) ≠ 1 := num_ne h5 (by norm_num)
+  have d62 : (6 : F) ≠ 2 := num_ne h4 (by norm_num)
+  have d63 : (6 : F) ≠ 3 := num_ne h3 (by norm_num)
+  have d64 : (6 : F) ≠ 4 := num_ne h2 (by norm_num)
+  have d65 : (6 : F) ≠ 5 := num_ne h1 (by norm_num)
+  have d70 : (7 : F) ≠ 0 := num_ne h7 (by norm_num)
+  have d71 : (7 : F) ≠ 1 := num_ne h6 (by norm_num)
+  have d72 : (7 : F) ≠ 2 := num_ne h5 (by norm_num)
+  have d73 : (7 : F) ≠ 3 := num_ne h4 (by norm_num)
+  have d74 : (7 : F) ≠ 4 := num_ne h3 (by norm_num)
+  have d75 : (7 : F) ≠ 5 := num_ne h2 (by norm_num)
+  have d76 : (7 : F) ≠ 6 := num_ne h1 (by norm_num)
+  interval_cases v <;>
+    simp only [val3, Nat.cast_zero, Nat.cast_one, Nat.cast_ofNat,
+      d10, d20, d21, d30, d31, d32, d40, d41, d42, d43, d50, d51, d52, d53, d54,
+      d60, d61, d62, d63, d64, d65, d70, d71, d72, d73, d74, d75, d76,
+      if_true, if_false] ;
 
-lemma muxPointF_cast_eq
-    (v : Nat) (h : v < 8) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) :
-    muxPointF (v : F) pk rx ry pre params = muxPoint v pk rx ry pre params := sorry
+omit [NeZero (2:F)] [NeZero (3:F)] [NeZero (4:F)] [NeZero (5:F)] [NeZero (6:F)] [NeZero (7:F)] in
+/-- `val3` always lands in `0..7`: every branch of the chain returns a literal below 8. -/
+lemma val3_bounds (v : F)
+    (_h : v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) : val3 v < 8 := by
+  unfold val3; split_ifs <;> norm_num
 
-lemma EcdsaLoopConstraintsF_cast_eq
-    (bi : List Nat) (h : ∀ v ∈ bi, v < 8) (acc : ProjectivePoint F) (is_first : Bool)
-    (wx wy wz : List F) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) :
-    EcdsaLoopConstraintsF acc is_first (bi.map (fun (x : Nat) => (x : F))) wx wy wz pk rx ry pre params ↔
-    EcdsaLoopConstraints acc is_first bi wx wy wz pk rx ry pre params := sorry
+omit [NeZero (2:F)] [NeZero (3:F)] [NeZero (4:F)] [NeZero (5:F)] [NeZero (6:F)] [NeZero (7:F)] in
+lemma map_val3_bounds (bi : List F)
+    (_h : ∀ v ∈ bi, v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
+    ∀ v ∈ bi.map val3, v < 8 := by
+  intro v hv
+  obtain ⟨w, hw, rfl⟩ := List.mem_map.mp hv
+  exact val3_bounds w (_h w hw)
 
-lemma ecdsaLoopResultF_cast_eq
-    (bi : List Nat) (h : ∀ v ∈ bi, v < 8) (acc : ProjectivePoint F) (is_first : Bool)
-    (wx wy wz : List F) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) :
-    ecdsaLoopResultF acc is_first (bi.map (fun (x : Nat) => (x : F))) wx wy wz pk rx ry pre params =
-    ecdsaLoopResult acc is_first bi wx wy wz pk rx ry pre params := sorry
-
-lemma cast_val3_eq
-    (bi : List F) (h : ∀ v ∈ bi, v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
-    (bi.map val3).map (fun (x : Nat) => (x : F)) = bi := sorry
-
-lemma val3_bounds (v : F) (h : v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
-    val3 v < 8 := sorry
-
-lemma map_val3_bounds (bi : List F) (h : ∀ v ∈ bi, v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
-    ∀ v ∈ bi.map val3, v < 8 := sorry
-
+omit [NeZero (2:F)] [NeZero (3:F)] [NeZero (4:F)] [NeZero (5:F)] [NeZero (6:F)] [NeZero (7:F)] in
 lemma map_cast_bounds (bi : List Nat) (h : ∀ v ∈ bi, v < 8) :
-    ∀ v ∈ bi.map (fun (x : Nat) => (x : F)), v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7 := sorry
+    ∀ v ∈ bi.map (fun (x : Nat) => (x : F)),
+      v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7 := by
+  intro v hv
+  obtain ⟨w, hw, rfl⟩ := List.mem_map.mp hv
+  have := h w hw
+  interval_cases w <;> norm_num
+
+lemma map_val3_cast_eq (bi : List Nat) (h : ∀ v ∈ bi, v < 8) :
+    (bi.map (fun (x : Nat) => (x : F))).map val3 = bi := by
+  rw [List.map_map]
+  refine (List.map_congr_left ?_).trans (List.map_id _)
+  intro v hv
+  exact val3_cast_eq v (h v hv)
+
+/-- The converse direction, one element at a time. -/
+
+private lemma val3_cast_inv (v : F)
+    (h : v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
+    ((val3 v : Nat) : F) = v := by
+  -- Recognise `v` as the cast of a small natural, then reuse `val3_cast_eq`.
+  have hex : ∃ k : Nat, k < 8 ∧ ((k : Nat) : F) = v := by
+    rcases h with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl
+    exacts [⟨0, by norm_num, by norm_num⟩, ⟨1, by norm_num, by norm_num⟩,
+            ⟨2, by norm_num, by norm_num⟩, ⟨3, by norm_num, by norm_num⟩,
+            ⟨4, by norm_num, by norm_num⟩, ⟨5, by norm_num, by norm_num⟩,
+            ⟨6, by norm_num, by norm_num⟩, ⟨7, by norm_num, by norm_num⟩]
+  obtain ⟨k, hk, rfl⟩ := hex
+  rw [val3_cast_eq k hk]
+
+lemma cast_val3_eq (bi : List F)
+    (h : ∀ v ∈ bi, v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :
+    (bi.map val3).map (fun (x : Nat) => (x : F)) = bi := by
+  rw [List.map_map]
+  refine (List.map_congr_left ?_).trans (List.map_id _)
+  intro v hv
+  exact val3_cast_inv v (h v hv)
+/-- The field-valued selector agrees with the `Nat`-indexed one on `0..7`.  Same shape as
+    `val3_cast_eq`: both are if-chains over the same eight cases, and the ambient `NeZero`
+    hypotheses are what let the `F`-side chain pick the matching branch. -/
+
+lemma muxPointF_cast_eq (v : Nat) (h : v < 8) (pk : AffinePoint F) (rx ry : F)
+    (pre : List F) (params : CurveParameters F) :
+    muxPointF (v : F) pk rx ry pre params = muxPoint v pk rx ry pre params := by
+  have h1 : (1 : F) ≠ 0 := one_ne_zero
+  have h2 : (2 : F) ≠ 0 := NeZero.ne _
+  have h3 : (3 : F) ≠ 0 := NeZero.ne _
+  have h4 : (4 : F) ≠ 0 := NeZero.ne _
+  have h5 : (5 : F) ≠ 0 := NeZero.ne _
+  have h6 : (6 : F) ≠ 0 := NeZero.ne _
+  have h7 : (7 : F) ≠ 0 := NeZero.ne _
+  have d10 : (1 : F) ≠ 0 := num_ne h1 (by norm_num)
+  have d20 : (2 : F) ≠ 0 := num_ne h2 (by norm_num)
+  have d21 : (2 : F) ≠ 1 := num_ne h1 (by norm_num)
+  have d30 : (3 : F) ≠ 0 := num_ne h3 (by norm_num)
+  have d31 : (3 : F) ≠ 1 := num_ne h2 (by norm_num)
+  have d32 : (3 : F) ≠ 2 := num_ne h1 (by norm_num)
+  have d40 : (4 : F) ≠ 0 := num_ne h4 (by norm_num)
+  have d41 : (4 : F) ≠ 1 := num_ne h3 (by norm_num)
+  have d42 : (4 : F) ≠ 2 := num_ne h2 (by norm_num)
+  have d43 : (4 : F) ≠ 3 := num_ne h1 (by norm_num)
+  have d50 : (5 : F) ≠ 0 := num_ne h5 (by norm_num)
+  have d51 : (5 : F) ≠ 1 := num_ne h4 (by norm_num)
+  have d52 : (5 : F) ≠ 2 := num_ne h3 (by norm_num)
+  have d53 : (5 : F) ≠ 3 := num_ne h2 (by norm_num)
+  have d54 : (5 : F) ≠ 4 := num_ne h1 (by norm_num)
+  have d60 : (6 : F) ≠ 0 := num_ne h6 (by norm_num)
+  have d61 : (6 : F) ≠ 1 := num_ne h5 (by norm_num)
+  have d62 : (6 : F) ≠ 2 := num_ne h4 (by norm_num)
+  have d63 : (6 : F) ≠ 3 := num_ne h3 (by norm_num)
+  have d64 : (6 : F) ≠ 4 := num_ne h2 (by norm_num)
+  have d65 : (6 : F) ≠ 5 := num_ne h1 (by norm_num)
+  have d70 : (7 : F) ≠ 0 := num_ne h7 (by norm_num)
+  have d71 : (7 : F) ≠ 1 := num_ne h6 (by norm_num)
+  have d72 : (7 : F) ≠ 2 := num_ne h5 (by norm_num)
+  have d73 : (7 : F) ≠ 3 := num_ne h4 (by norm_num)
+  have d74 : (7 : F) ≠ 4 := num_ne h3 (by norm_num)
+  have d75 : (7 : F) ≠ 5 := num_ne h2 (by norm_num)
+  have d76 : (7 : F) ≠ 6 := num_ne h1 (by norm_num)
+  interval_cases v <;>
+    simp only [muxPointF, muxPoint, Nat.cast_zero, Nat.cast_one, Nat.cast_ofNat,
+      d10, d20, d21, d30, d31, d32, d40, d41, d42, d43, d50, d51, d52, d53, d54, d60, d61, d62, d63, d64, d65, d70, d71, d72, d73, d74, d75, d76, if_true, if_false]
+
+lemma EcdsaLoopConstraintsF_cast_eq (bi : List Nat) (h : ∀ v ∈ bi, v < 8) (acc : ProjectivePoint F)
+    (is_first : Bool) (wx wy wz : List F) (pk : AffinePoint F) (rx ry : F)
+    (pre : List F) (params : CurveParameters F) :
+    EcdsaLoopConstraintsF acc is_first (bi.map (fun (x : Nat) => (x : F))) wx wy wz pk rx ry pre params ↔
+    EcdsaLoopConstraints acc is_first bi wx wy wz pk rx ry pre params := by
+  induction bi generalizing acc is_first wx wy wz with
+  | nil => simp [EcdsaLoopConstraintsF, EcdsaLoopConstraints]
+  | cons v vs ih =>
+    cases vs with
+    | nil =>
+      cases wx <;> cases wy <;> cases wz <;>
+        simp [EcdsaLoopConstraintsF, EcdsaLoopConstraints]
+    | cons v' vs' =>
+      cases wx <;> cases wy <;> cases wz <;>
+        simp only [List.map_cons, EcdsaLoopConstraintsF, EcdsaLoopConstraints,
+          muxPointF_cast_eq v (h v (by simp))] ;
+        try (refine and_congr_right fun _ => and_congr_right fun _ =>
+               and_congr_right fun _ => ?_
+             exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _)
+
+lemma ecdsaLoopResultF_cast_eq (bi : List Nat) (h : ∀ v ∈ bi, v < 8) (acc : ProjectivePoint F)
+    (is_first : Bool) (wx wy wz : List F) (pk : AffinePoint F) (rx ry : F)
+    (pre : List F) (params : CurveParameters F) :
+    ecdsaLoopResultF acc is_first (bi.map (fun (x : Nat) => (x : F))) wx wy wz pk rx ry pre params =
+    ecdsaLoopResult acc is_first bi wx wy wz pk rx ry pre params := by
+  induction bi generalizing acc is_first wx wy wz with
+  | nil => simp [ecdsaLoopResultF, ecdsaLoopResult]
+  | cons v vs ih =>
+    cases vs with
+    | nil =>
+      cases wx <;> cases wy <;> cases wz <;>
+        simp [ecdsaLoopResultF, ecdsaLoopResult,
+          muxPointF_cast_eq v (h v (by simp))]
+    | cons v' vs' =>
+      cases wx <;> cases wy <;> cases wz <;>
+        simp only [List.map_cons, ecdsaLoopResultF, ecdsaLoopResult] ;
+        try exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _
 
 end ECDSA

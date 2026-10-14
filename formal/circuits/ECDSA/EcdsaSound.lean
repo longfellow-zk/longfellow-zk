@@ -55,8 +55,7 @@ variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)]
 -/
 theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F) (order : Nat) (params : CurveParameters F)
     [h_ell : (params.toMathlib).IsElliptic]
-    [Fintype (params.toMathlib.toProjective.Point)]
-    [h_odd : Fact (Odd (Fintype.card (params.toMathlib.toProjective.Point)))]
+    [CurveHasNoPointsOfOrder2 params]
     [h_prime : Fact (Nat.Prime order)]
     (h : ValidEcdsaWitness w pk e order params)
     (h_G_on : ProjectivePoint.IsOnCurve ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params)

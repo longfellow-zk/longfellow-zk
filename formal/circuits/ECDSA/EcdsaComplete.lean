@@ -209,7 +209,7 @@ theorem ecdsa_circuit_completeness
     rx_inv := rx⁻¹
     s_inv := (reconstructS bi)⁻¹
     pk_inv := pk.X⁻¹
-    bi := List.map (fun x => (x : F)) bi
+    bi := bi.map (fun (x : Nat) => (x : F))
     int_x := int_x
     int_y := int_y
     int_z := int_z
@@ -259,13 +259,16 @@ theorem ecdsa_circuit_completeness
     rw [h_val_zero] at h_val_s
     omega
 
-  have h_w_bi : w.bi = List.map (fun x => (x : F)) bi := sorry
+  have h_w_bi : w.bi = bi.map (fun (x : Nat) => (x : F)) := rfl
 
-  have h_w_bi_len_coe : (List.map (fun x => (x : F)) bi).length = bi.length := sorry
+  have h_w_bi_len_coe : (bi.map (fun (x : Nat) => (x : F))).length = bi.length := by simp
 
-  have h_w_bi_bounds_proof : (∀ v ∈ List.map (fun x => (x : F)) bi, v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) := sorry
+  have h_w_bi_bounds_proof : (∀ v ∈ bi.map (fun (x : Nat) => (x : F)), v = 0 ∨ v = 1 ∨ v = 2 ∨ v = 3 ∨ v = 4 ∨ v = 5 ∨ v = 6 ∨ v = 7) :=
+    map_cast_bounds bi h_bi_bounds
 
-  have h_w_loop_proof : EcdsaLoopConstraintsF infinityPoint true (List.map (fun x => (x : F)) bi) w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params := sorry
+  have h_w_loop_proof : EcdsaLoopConstraintsF infinityPoint true (bi.map (fun (x : Nat) => (x : F))) w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params :=
+    (EcdsaLoopConstraintsF_cast_eq bi h_bi_bounds infinityPoint true
+      w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params).mpr h_loop
 
   refine ⟨(show w.bi.length = params.kBits by rw [h_w_bi, h_w_bi_len_coe]; exact h_bi_len),
           h_len_x, h_len_y, h_len_z, h_pre_len,
@@ -301,20 +304,24 @@ theorem ecdsa_circuit_completeness
     apply pure_loop_result_is_infinity bi pk rx ry pre params order h_bi_len h_bi_bounds h_pre h_GPK_Z h_GR_Z h_RPK_Z h_GRPK_Z e r s_nat he_eq hr_eq hs_eq h_std_copy h_G_order h_R_eq h_G_on h_PK_on h_R_on
 
   have h_loop_F_eq : ecdsaLoopResultF infinityPoint true w.bi w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params =
-                     ecdsaLoopResult infinityPoint true bi w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params := sorry
+                     ecdsaLoopResult infinityPoint true bi w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params := by
+    rw [h_w_bi]
+    exact ecdsaLoopResultF_cast_eq bi h_bi_bounds infinityPoint true
+      w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params
 
   have h_final_eq : ecdsaLoopResultF infinityPoint true w.bi w.int_x w.int_y w.int_z pk w.rx w.ry w.pre params =
                      ecdsaPureLoopResult bi pk rx ry pre params := by
     rw [h_loop_F_eq, h_pure_eq]
 
-  have h_bi_nat : (List.map (fun x => (x : F)) bi).map val3 = bi := sorry
+  have h_bi_nat : (bi.map (fun (x : Nat) => (x : F))).map val3 = bi :=
+    map_val3_cast_eq bi h_bi_bounds
 
   refine ⟨?_, ?_, ?_, ?_, h_on_pk, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · rw [h_final_eq]; exact h_inf.1
   · rw [h_final_eq]; exact h_inf.2
-  · change reconstructE ((List.map (fun x => (x : F)) bi).map val3) = e_f
+  · change reconstructE ((bi.map (fun (x : Nat) => (x : F))).map val3) = e_f
     rw [h_bi_nat, reconstructE_eq_natE, he_eq]
-  · change reconstructR ((List.map (fun x => (x : F)) bi).map val3) = rx
+  · change reconstructR ((bi.map (fun (x : Nat) => (x : F))).map val3) = rx
     rw [h_bi_nat, reconstructR_eq_natR, hr_eq, h_rx_eq_r]
   · -- IsOnCurve { X := rx, Y := ry } params
     have h_RZ_ne : R_point.Z ≠ 0 := by
@@ -329,16 +336,16 @@ theorem ecdsa_circuit_completeness
     apply mul_inv_cancel₀
     rw [h_rx_eq_r]
     exact h_r_ne_zero
-  · change reconstructS ((List.map (fun x => (x : F)) bi).map val3) * (reconstructS bi)⁻¹ = 1
+  · change reconstructS ((bi.map (fun (x : Nat) => (x : F))).map val3) * (reconstructS bi)⁻¹ = 1
     rw [h_bi_nat]
     apply mul_inv_cancel₀
     rw [reconstructS_eq_natS, hs_eq]
     exact h_snat_ne_zero
   · exact mul_inv_cancel₀ h_no_zero_pk
-  · change natR ((List.map (fun x => (x : F)) bi).map val3) < order
+  · change natR ((bi.map (fun (x : Nat) => (x : F))).map val3) < order
     rw [h_bi_nat, hr_eq]
     exact h_r_lt
-  · change natS ((List.map (fun x => (x : F)) bi).map val3) < order
+  · change natS ((bi.map (fun (x : Nat) => (x : F))).map val3) < order
     rw [h_bi_nat, hs_eq]
     dsimp [s_nat]
     omega

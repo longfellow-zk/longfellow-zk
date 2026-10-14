@@ -18,6 +18,9 @@ module
 
 public import Mathlib
 public import ECDSA.ECBridge
+public import ECDSA.Pratt
+public import ECDSA.P256NoRoot
+public import ECDSA.Secp256k1NoRoot
 
 open WeierstrassCurve.Projective
 
@@ -28,13 +31,13 @@ section CryptoCurves
 def secp256k1_p : Nat := 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
 /-- Fact that secp256k1_p is prime -/
-instance : Fact (Nat.Prime secp256k1_p) := ⟨by sorry⟩
+instance : Fact (Nat.Prime secp256k1_p) := ⟨ECDSA.prime_115792089237316195423570985008687907853269984665640564039457584007908834671663⟩
 
 /-- Field characteristic prime for P-256 -/
 def p256_p : Nat := 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
 
 /-- Fact that p256_p is prime -/
-instance : Fact (Nat.Prime p256_p) := ⟨by sorry⟩
+instance : Fact (Nat.Prime p256_p) := ⟨ECDSA.prime_115792089210356248762697446949407573530086143415290314195533631308867097853951⟩
 
 -- Base fields
 abbrev Fq_secp := ZMod secp256k1_p
@@ -87,10 +90,17 @@ lemma secp256k1_elliptic : (secp256k1_params.toMathlib).IsElliptic := by
 
 instance : (secp256k1_params.toMathlib).IsElliptic := secp256k1_elliptic
 
-instance : Fact (Odd (Fintype.card (secp256k1_params.toMathlib.toProjective.Point))) := ⟨by sorry⟩
-
-instance : CurveHasNoPointsOfOrder2 secp256k1_params :=
-  WeierstrassCurve.toProjective.Point.CurveHasNoPointsOfOrder2 secp256k1_params
+/-- Direct, from the certified fact that the cubic has no root in `F_p` — no point count. -/
+instance : CurveHasNoPointsOfOrder2 secp256k1_params where
+  no_roots x := by
+    have ha : ((ECDSA.sa : ℕ) : ZMod ECDSA.sp) = 0 := by norm_num [ECDSA.sa]
+    have hb : ((ECDSA.sb : ℕ) : ZMod ECDSA.sp) = (7 : ZMod ECDSA.sp) := by norm_cast
+    have h := ECDSA.secp256k1_cubic_no_root x
+    intro hc
+    simp only [secp256k1_params] at hc
+    refine h ?_
+    rw [ha, hb]
+    exact hc
 
 lemma p256_elliptic : (p256_params.toMathlib).IsElliptic := by
   rw [WeierstrassCurve.isElliptic_iff]
@@ -99,9 +109,22 @@ lemma p256_elliptic : (p256_params.toMathlib).IsElliptic := by
 
 instance : (p256_params.toMathlib).IsElliptic := p256_elliptic
 
-instance : Fact (Odd (Fintype.card (p256_params.toMathlib.toProjective.Point))) := ⟨by sorry⟩
-
-instance : CurveHasNoPointsOfOrder2 p256_params :=
-  WeierstrassCurve.toProjective.Point.CurveHasNoPointsOfOrder2 p256_params
+/-- Direct, from the certified fact that the cubic has no root in `F_p` — no point count. -/
+instance : CurveHasNoPointsOfOrder2 p256_params where
+  no_roots x := by
+    have ha : ((ECDSA.aa : ℕ) : ZMod ECDSA.pp) = -3 := by
+      have haa : (ECDSA.aa : ℕ) = ECDSA.pp - 3 := by norm_num [ECDSA.aa, ECDSA.pp]
+      rw [haa, Nat.cast_sub (by norm_num [ECDSA.pp]), ZMod.natCast_self]
+      push_cast
+      ring
+    have hb : ((ECDSA.bb : ℕ) : ZMod ECDSA.pp) =
+        (0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B : ZMod ECDSA.pp) := by
+      norm_cast
+    have h := ECDSA.p256_cubic_no_root x
+    intro hc
+    simp only [p256_params] at hc
+    refine h ?_
+    rw [ha, hb]
+    exact hc
 
 end CryptoCurves
