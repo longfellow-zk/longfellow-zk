@@ -34,28 +34,41 @@ private partial def proofDependencies (env : Environment) (todo : List Name)
           | none => []
         proofDependencies env (deps ++ rest) (seen.insert name)
 
--- Check every imported theorem, rather than only the public wrappers.
+-- Check every owned declaration, including private proofs and legacy namespaces.
 run_cmd do
   let env ← getEnv
   for (name, info) in env.constants.toList do
-    if !(name.toString.startsWith "RecursivePolygero." || name.toString.startsWith "Codes.") then
-      continue
+    let owner := match env.getModuleIdxFor? name with
+      | some idx => env.header.moduleNames[idx.toNat]!
+      | none => env.mainModule
+    unless owner == `polygero || owner.toString.startsWith "polygero." do continue
     if info.isAxiom then throwError "Unexpected imported axiom: {name}"
-    if info.isTheorem then
-      for ax in ← collectAxioms name do
-        unless ax == ``propext || ax == ``Classical.choice || ax == ``Quot.sound do
-          throwError "Unexpected axiom {ax} in {name}"
+    for ax in ← collectAxioms name do
+      unless ax == ``propext || ax == ``Classical.choice || ax == ``Quot.sound do
+        throwError "Unexpected axiom {ax} in {name}"
   let extracted := proofDependencies env
     [``RecursivePolygero.Protocol.ProfileProof.wire_extraction_failure]
   for required in #[
       ``RecursivePolygero.Protocol.ProfileProof.randomTargetProbability_le,
       ``RecursivePolygero.Protocol.ProfileProof.inducedFamily_frequency,
+      ``RecursivePolygero.ProfileAnalysis.localEnvelope_mean,
       ``RecursivePolygero.ProfileAnalysis.response_fraction_le_envelope,
+      ``RecursivePolygero.ProfileAnalysis.large_response,
+      ``RecursivePolygero.ProfileAnalysis.certify,
       ``RecursivePolygero.ProfileAnalysis.systemLabel,
+      ``RecursivePolygero.affine_rows_of_full_consistency,
+      ``RecursivePolygero.polynomialArithmeticMatches_card,
       ``RecursivePolygero.Local.ReducedSystems.badChallenges_card,
+      ``RecursivePolygero.Local.ReducedSystems.associated_intersection,
       ``RecursivePolygero.Local.Shift.rank_on_core_subset,
+      ``RecursivePolygero.DirectBinomial.normalized_excess_le,
+      ``RecursivePolygero.SystemException.random_target_envelope_mean,
       ``RecursivePolygero.PuncturedDecoder.complete,
       ``RecursivePolygero.Child.verify_iff,
+      ``RecursivePolygero.coefficientStatement_satisfies,
+      ``RecursivePolygero.Local.Polygero.verify_openOracle_iff,
+      ``RecursivePolygero.Protocol.expandWireStrategy,
+      ``RecursivePolygero.Instance.expandWireOracle,
       ``RecursivePolygero.scanRecoverAt,
       ``RecursivePolygero.executionVerify] do
     unless extracted.contains required do

@@ -121,13 +121,4 @@ theorem verify_openOracle_iff {t : ℕ} (D : ReedSolomon.Domain F r w n)
     mem_univ, true_and, Subtype.forall, response, primaryCode,
     openOracle, openTableau, Tableau.column]
 
-noncomputable def protocol (D : ReedSolomon.Domain F r w n) (hk : r+w ≤ n)
-    (layout : ConstraintLayout F q w) :
-    PublicCoinIPCP (ConstraintSystem F nw nq q Equations) (Oracle F nw nq n)
-      (Coin F Equations nw nq s) (LigeroPayload F (r+w) s) (QuerySet n r)
-      (Opening F nw nq n r) where
-  language := ConstraintSystem.Language
-  openOracle := openOracle
-  verify := verify D hk layout
-
 end RecursivePolygero.Local.Polygero
