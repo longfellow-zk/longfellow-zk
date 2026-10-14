@@ -1,0 +1,116 @@
+import polygero.Protocol.Instance
+import polygero.Algebra.Counting.Envelope
+import polygero.Algebra.Counting.DiscreteThreshold
+
+/-! Structural parameters and exact rational certificates for each invocation. -/
+namespace RecursivePolygero
+variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
+
+structure ProfileParameters (I : Instance F) where
+  positive_degree : 1 ≤ I.r+I.w
+  large_le : max (I.r+I.w+I.s+I.s+1) (2*(I.r+I.w)+I.s) ≤ I.n
+  query_pos : 1 ≤ I.t
+  overlap_lt : I.r+I.w+2*I.s-1 < I.n
+
+namespace ProfileParameters
+variable {I : Instance F}
+def coreSize (_ : ProfileParameters I) : ℕ := I.r+I.w+I.s+I.s+1
+def largeSize (p : ProfileParameters I) : ℕ := max p.coreSize (2*(I.r+I.w)+I.s)
+def overlapSize (_ : ProfileParameters I) : ℕ := I.r+I.w+2*I.s-1
+def columnFloor (p : ProfileParameters I) : ℚ := ((p.largeSize-1).choose I.t : ℚ)/I.n.choose I.t
+def overlapRatio (p : ProfileParameters I) : ℚ := (p.overlapSize.choose I.t : ℚ)/I.n.choose I.t
+noncomputable def rankError (p : ProfileParameters I) : ℚ :=
+  (I.n.choose p.coreSize : ℚ)/(Nat.card F : ℚ)^(I.s+1)
+omit [Fintype F] [DecidableEq F] in
+theorem columnFloor_nonneg (p : ProfileParameters I) : 0 ≤ p.columnFloor := by
+  unfold columnFloor
+  positivity
+
+private theorem choose_ratio_lt_one {a n t : ℕ} (ha : a < n)
+    (ht : 1 ≤ t) (htn : t ≤ n) : (a.choose t : ℚ)/n.choose t < 1 := by
+  have hm := Nat.choose_le_choose t (show a ≤ n-1 by omega)
+  have hp := Nat.choose_pos (show t-1 ≤ n-1 by omega)
+  have he : n.choose t = (n-1).choose (t-1)+(n-1).choose t := by
+    have h := Nat.choose_succ_succ' (n-1) (t-1)
+    simpa only [Nat.sub_add_cancel (show 1 ≤ n by omega),Nat.sub_add_cancel ht] using h
+  apply (div_lt_one (by exact_mod_cast Nat.choose_pos htn)).mpr
+  exact_mod_cast (show a.choose t < n.choose t by omega)
+
+omit [Fintype F] [DecidableEq F] in
+theorem columnFloor_lt_one (p : ProfileParameters I) : p.columnFloor < 1 := by
+  apply choose_ratio_lt_one _ p.query_pos I.query_le
+  have := p.large_le
+  have := p.positive_degree
+  unfold largeSize coreSize
+  omega
+
+omit [Fintype F] [DecidableEq F] in
+theorem overlapRatio_lt_one (p : ProfileParameters I) : p.overlapRatio < 1 :=
+  choose_ratio_lt_one p.overlap_lt p.query_pos I.query_le
+
+end ProfileParameters
+
+/-- The local cutoff is derived from the column bound and an integer incidence
+cutoff. It is not a recursive witness-score parameter. -/
+noncomputable def ProfileParameters.countingCutoff {I : Instance F}
+    (p : ProfileParameters I) (u : ℕ) : ℚ :=
+  max p.columnFloor (DiscreteThreshold.candidate (Nat.card F) u p.overlapRatio)
+
+/-- Exact integer-cutoff and local-error certificates for one invocation. -/
+structure ProfileCertificate (I : Instance F) extends ProfileParameters I where
+  cutoff : ℕ
+  cutoff_spec : DiscreteThreshold.IsLeastIndex (Nat.card F) toProfileParameters.overlapRatio cutoff
+  field_error_lt_one : toProfileParameters.rankError+1/(Nat.card F : ℚ) < 1
+
+namespace ProfileCertificate
+variable {I : Instance F}
+noncomputable def threshold (p : ProfileCertificate I) : ℚ := p.countingCutoff p.cutoff
+noncomputable def error (p : ProfileCertificate I) : ℚ :=
+  ProfileAnalysis.profile (Nat.card F) p.rankError p.threshold
+
+omit [Fintype F] [DecidableEq F] in
+theorem floor_le (p : ProfileCertificate I) : p.columnFloor ≤ p.threshold := le_max_left _ _
+
+omit [Fintype F] [DecidableEq F] in
+theorem threshold_nonneg (p : ProfileCertificate I) : 0 ≤ p.threshold :=
+  p.columnFloor_nonneg.trans p.floor_le
+
+omit [DecidableEq F] in
+private theorem field_card_ge_two : 2 ≤ Nat.card F := by
+  have h := Fintype.one_lt_card (α := F)
+  rw [Nat.card_eq_fintype_card]
+  omega
+
+omit [Fintype F] [DecidableEq F] in
+theorem cutoff_pos (p : ProfileCertificate I) : 1 ≤ p.cutoff := p.cutoff_spec.1
+
+omit [DecidableEq F] in
+theorem cutoff_le (p : ProfileCertificate I) : p.cutoff ≤ Nat.card F :=
+  (p.cutoff_spec.le_pred field_card_ge_two p.overlapRatio_lt_one.le).trans (Nat.sub_le _ _)
+
+omit [DecidableEq F] in
+theorem threshold_lt_one (p : ProfileCertificate I) : p.threshold < 1 :=
+  max_lt p.columnFloor_lt_one
+    (p.cutoff_spec.candidate_lt_one field_card_ge_two p.overlapRatio_lt_one)
+
+omit [DecidableEq F] in
+theorem error_lt_one (p : ProfileCertificate I) : p.error < 1 := by
+  have ht := p.threshold_lt_one
+  have hf := p.field_error_lt_one
+  unfold error ProfileAnalysis.profile
+  nlinarith
+
+omit [DecidableEq F] in
+theorem threshold_condition (p : ProfileCertificate I) :
+    DiscreteThreshold.Condition (Nat.card F) p.overlapRatio p.threshold :=
+  ⟨p.cutoff,p.cutoff_pos,p.cutoff_le,le_max_right _ _⟩
+
+omit [DecidableEq F] in
+theorem error_nonneg (p : ProfileCertificate I) : 0 ≤ p.error := by
+  have ht := p.threshold_nonneg
+  have ht1 := p.threshold_lt_one.le
+  unfold error ProfileAnalysis.profile ProfileParameters.rankError
+  positivity
+
+end ProfileCertificate
+end RecursivePolygero
