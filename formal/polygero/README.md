@@ -99,6 +99,7 @@ From `formal/`, run:
 lake build RecursivePolygero
 ```
 
-`polygero.APITest` checks the public API, the concrete proof
-dependencies, and the foundational axioms of every imported theorem. It is
-also part of the default `lake build`.
+`polygero.APITest` checks the public API, the concrete proof dependencies,
+and the foundational axioms of every declaration owned by the development,
+including private proofs and the legacy arithmetic helpers. It is also part
+of the default `lake build`.
