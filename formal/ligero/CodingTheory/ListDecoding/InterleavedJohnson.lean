@@ -1,4 +1,4 @@
-import CodingTheory.ListDecoding.InterleavedDistance
+import CodingTheory.ListDecoding.UniformFamily
 import Mathlib.Algebra.Order.Chebyshev
 import Mathlib.Tactic.Linarith
 
@@ -187,6 +187,30 @@ private theorem johnson_family_int {E d : ℕ}
 
 end Internal
 
+/-- The Johnson count as a uniform-family bound.  This is the degree-one
+case of the Hahn/Delsarte count (`CodingTheory.HahnDelsarte`), valid
+symbolically whenever the Johnson denominator is positive. -/
+theorem uniformFamilyBound_of_denominator_pos {n d E : ℕ}
+    (hE : E ≤ n) (hEd : E < d) (hd : d ≤ n)
+    (hden : 0 < denominator n d E) :
+    UniformFamilyBound n (n - E) (n - d) (listBound n d E) := by
+  intro family hcard hinter
+  have hfamilyJohnson := Internal.johnson_family_int family hE
+    (Nat.le_of_lt hEd) hd hcard hinter
+  have hfamilyJohnson' :
+      (family.card : ℤ) * denominator n d E ≤ ((n * (d - E) : ℕ) : ℤ) := by
+    simpa [denominator, Nat.cast_sub (Nat.le_of_lt hEd)] using hfamilyJohnson
+  have hdenCast : ((denominator n d E).toNat : ℤ) = denominator n d E :=
+    Int.toNat_of_nonneg (le_of_lt hden)
+  have hmul : family.card * (denominator n d E).toNat ≤ n * (d - E) := by
+    rw [← hdenCast] at hfamilyJohnson'
+    exact_mod_cast hfamilyJohnson'
+  have hdenNat : 0 < (denominator n d E).toNat := by
+    rw [← hdenCast] at hden
+    exact_mod_cast hden
+  apply (Nat.le_div_iff_mul_le hdenNat).2
+  simpa [listBound] using hmul
+
 variable {F Row : Type*} [Field F] [DecidableEq F] [Fintype Row]
 variable {n E d : ℕ}
 
@@ -201,98 +225,8 @@ theorem card_le_listBound
       (matrixErrorCoordinates received candidate).card ≤ E)
     (hE : E ≤ n) (hEd : E < d)
     (hden : 0 < denominator n d E) :
-    candidates.card ≤ listBound n d E := by
-  classical
-  have hd : d ≤ n := hmin.distance_le_length
-  let agreement : candidates → Finset (Fin n) := fun candidate ↦
-    Finset.univ \ matrixErrorCoordinates received candidate.1
-  have hagreementCard (candidate : candidates) :
-      n - E ≤ (agreement candidate).card := by
-    have herror := hclose candidate.1 candidate.2
-    have hsub := Nat.sub_le_sub_left herror n
-    have hagreementEq : (agreement candidate).card =
-        n - (matrixErrorCoordinates received candidate.1).card := by
-      simp [agreement, Finset.card_sdiff]
-    rw [hagreementEq]
-    exact hsub
-  choose selected hselected hselectedCard using fun candidate : candidates ↦
-    Finset.exists_subset_card_eq (hagreementCard candidate)
-  have hpair (first second : candidates) (hne : first ≠ second) :
-      (selected first ∩ selected second).card ≤ n - d := by
-    let difference := matrixErrorCoordinates first.1 second.1
-    have hsubset : selected first ∩ selected second ⊆
-        Finset.univ \ difference := by
-      intro j hj
-      have hjFirst := hselected first (Finset.mem_inter.mp hj).1
-      have hjSecond := hselected second (Finset.mem_inter.mp hj).2
-      have hjFirstAgreement := Finset.mem_sdiff.mp hjFirst
-      have hjSecondAgreement := Finset.mem_sdiff.mp hjSecond
-      apply Finset.mem_sdiff.mpr
-      refine ⟨Finset.mem_univ _, ?_⟩
-      intro hjDifference
-      obtain ⟨row, hrow⟩ := (Finset.mem_filter.mp hjDifference).2
-      have hfirst (row : Row) : received row j = first.1 row j := by
-        apply not_ne_iff.mp
-        intro hneRow
-        exact hjFirstAgreement.2
-          (Finset.mem_filter.mpr ⟨Finset.mem_univ _, row, hneRow⟩)
-      have hsecond (row : Row) : received row j = second.1 row j := by
-        apply not_ne_iff.mp
-        intro hneRow
-        exact hjSecondAgreement.2
-          (Finset.mem_filter.mpr ⟨Finset.mem_univ _, row, hneRow⟩)
-      exact hrow ((hfirst row).symm.trans (hsecond row))
-    have hdifference : d ≤ difference.card := by
-      apply matrixErrorCoordinates_card_ge_distance C hmin
-        (hcode first.1 first.2) (hcode second.1 second.2)
-      intro heq
-      exact hne (Subtype.ext heq)
-    calc
-      (selected first ∩ selected second).card ≤
-          (Finset.univ \ difference).card := Finset.card_le_card hsubset
-      _ = n - difference.card := by
-        simp [Finset.card_sdiff]
-      _ ≤ n - d := Nat.sub_le_sub_left hdifference n
-  have hselectedInjective : Function.Injective selected := by
-    intro first second heq
-    by_contra hne
-    have hbound := hpair first second hne
-    rw [heq, Finset.inter_self, hselectedCard second] at hbound
-    omega
-  let family : Finset (Finset (Fin n)) := Finset.univ.image selected
-  have hfamilyCard : family.card = candidates.card := by
-    change (Finset.univ.image selected).card = candidates.card
-    rw [Finset.card_image_of_injective _ hselectedInjective]
-    simp
-  have hfamilyMemberCard (A : Finset (Fin n)) (hA : A ∈ family) :
-      A.card = n - E := by
-    obtain ⟨candidate, _hcandidate, rfl⟩ := Finset.mem_image.mp hA
-    exact hselectedCard candidate
-  have hfamilyPair (A : Finset (Fin n)) (hA : A ∈ family)
-      (A' : Finset (Fin n)) (hA' : A' ∈ family) (hne : A ≠ A') :
-      (A ∩ A').card ≤ n - d := by
-    obtain ⟨first, _hfirst, rfl⟩ := Finset.mem_image.mp hA
-    obtain ⟨second, _hsecond, rfl⟩ := Finset.mem_image.mp hA'
-    exact hpair first second (fun heq ↦ hne (congrArg selected heq))
-  have hfamilyJohnson := Internal.johnson_family_int family hE
-    (Nat.le_of_lt hEd) hd hfamilyMemberCard hfamilyPair
-  rw [hfamilyCard] at hfamilyJohnson
-  have hfamilyJohnson' :
-      (candidates.card : ℤ) * denominator n d E ≤
-        ((n * (d - E) : ℕ) : ℤ) := by
-    simpa [denominator, Nat.cast_sub (Nat.le_of_lt hEd)] using
-      hfamilyJohnson
-  have hdenCast : ((denominator n d E).toNat : ℤ) =
-      denominator n d E :=
-    Int.toNat_of_nonneg (le_of_lt hden)
-  have hmul : candidates.card * (denominator n d E).toNat ≤
-      n * (d - E) := by
-    rw [← hdenCast] at hfamilyJohnson'
-    exact_mod_cast hfamilyJohnson'
-  have hdenNat : 0 < (denominator n d E).toNat := by
-    rw [← hdenCast] at hden
-    exact_mod_cast hden
-  apply (Nat.le_div_iff_mul_le hdenNat).2
-  simpa [listBound] using hmul
+    candidates.card ≤ listBound n d E :=
+  card_le_of_uniformFamilyBound C received candidates hmin hcode hclose hEd
+    (uniformFamilyBound_of_denominator_pos hE hEd hmin.distance_le_length hden)
 
 end CodingTheory.InterleavedJohnson

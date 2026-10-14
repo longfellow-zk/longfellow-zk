@@ -34,7 +34,8 @@
       "variant": 2,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v2_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v2_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v2_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v2_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -63,7 +64,8 @@
       "variant": 3,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v3_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v3_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v3_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v3_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -81,18 +83,19 @@
       "payload_width": 323,
       "field_order": 115792089210356248762697446949407573530086143415290314195533631308867097853951,
       "route": "triples",
-      "e": 1484,
+      "e": 1507,
       "g": 0,
-      "m": 123306,
+      "m": 304324,
       "eta_bits": 0,
-      "target_bits": 123,
+      "target_bits": 125,
       "source_circuit_id": "2845210af05740e6e3e054762f9e35ff5fc4fb23088716e369f7cf73eb61df2d",
       "name": "v7Sig_v1",
       "variant": 1,
       "adaptive_eta": false,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_uniform_envelope",
+      "mask_threshold": 1680
     },
     {
       "version": 7,
@@ -118,7 +121,8 @@
       "variant": 2,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v2_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v2_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v2_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v2_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -144,7 +148,8 @@
       "variant": 3,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v3_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v3_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v3_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v3_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -159,18 +164,19 @@
       "payload_width": 329,
       "field_order": 340282366920938463463374607431768211456,
       "route": "triples",
-      "e": 1503,
-      "g": 2,
-      "m": 40407,
+      "e": 1523,
+      "g": 5,
+      "m": 39970,
       "eta_bits": 0,
-      "target_bits": 122,
+      "target_bits": 124,
       "source_circuit_id": "58248d20ded3b19b0996e478dda6afacba794fa2b1f0802771430bc0dca7d106",
       "name": "v7Hash1_v1",
       "variant": 1,
       "adaptive_eta": false,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v1_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v1_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash1_v1_uniform_envelope",
+      "mask_threshold": 1702
     },
     {
       "version": 7,
@@ -196,7 +202,8 @@
       "variant": 2,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v2_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v2_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v2_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v2_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -222,7 +229,8 @@
       "variant": 3,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v3_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v3_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v3_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v3_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -237,18 +245,19 @@
       "payload_width": 342,
       "field_order": 340282366920938463463374607431768211456,
       "route": "triples",
-      "e": 1543,
-      "g": 2,
-      "m": 41139,
+      "e": 1563,
+      "g": 5,
+      "m": 39326,
       "eta_bits": 0,
-      "target_bits": 122,
+      "target_bits": 124,
       "source_circuit_id": "350806f428dafce638172976db598335c9a5399776a1bd08f177e569114b1b84",
       "name": "v7Hash2_v1",
       "variant": 1,
       "adaptive_eta": false,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v1_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v1_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash2_v1_uniform_envelope",
+      "mask_threshold": 1750
     },
     {
       "version": 7,
@@ -274,7 +283,8 @@
       "variant": 2,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v2_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v2_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v2_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v2_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -300,7 +310,8 @@
       "variant": 3,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v3_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v3_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v3_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v3_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -315,18 +326,19 @@
       "payload_width": 346,
       "field_order": 340282366920938463463374607431768211456,
       "route": "triples",
-      "e": 1560,
-      "g": 2,
-      "m": 41742,
+      "e": 1581,
+      "g": 5,
+      "m": 41511,
       "eta_bits": 0,
-      "target_bits": 122,
+      "target_bits": 124,
       "source_circuit_id": "766f3cb1be33d346f3a0142e617504e524b3126daa8ec9fd0b131183eeb27d4b",
       "name": "v7Hash3_v1",
       "variant": 1,
       "adaptive_eta": false,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v1_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v1_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash3_v1_uniform_envelope",
+      "mask_threshold": 1766
     },
     {
       "version": 7,
@@ -352,7 +364,8 @@
       "variant": 2,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v2_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v2_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v2_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v2_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -378,7 +391,8 @@
       "variant": 3,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v3_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v3_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v3_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v3_uniform_envelope",
+      "mask_threshold": 0
     },
     {
       "version": 7,
@@ -393,18 +407,19 @@
       "payload_width": 358,
       "field_order": 340282366920938463463374607431768211456,
       "route": "triples",
-      "e": 1599,
-      "g": 2,
-      "m": 42751,
+      "e": 1620,
+      "g": 5,
+      "m": 41472,
       "eta_bits": 0,
-      "target_bits": 122,
+      "target_bits": 124,
       "source_circuit_id": "695247ca8691d1ac9c5c05280ce4b7cabeb803f8a9b597f03dd0d93ac0b21cb9",
       "name": "v7Hash4_v1",
       "variant": 1,
       "adaptive_eta": false,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v1_interactive",
-      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v1_uniform_envelope"
+      "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Hash4_v1_uniform_envelope",
+      "mask_threshold": 1811
     },
     {
       "name": "v8Sig_v2",
@@ -450,7 +465,8 @@
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed",
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Sig_v3",
@@ -496,7 +512,8 @@
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed",
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Sig_v1",
@@ -517,12 +534,12 @@
       "source_circuit_id": "b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf",
       "variant": 1,
       "route": "triples",
-      "e": 1610,
+      "e": 1634,
       "g": 0,
-      "m": 134671,
+      "m": 317628,
       "eta_bits": 0,
       "adaptive_eta": false,
-      "target_bits": 122,
+      "target_bits": 125,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v1_interactive",
       "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v1_uniform_envelope",
@@ -542,7 +559,8 @@
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed",
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 1824
     },
     {
       "name": "v8Hash1_v2",
@@ -579,7 +597,8 @@
       "generated_combined_ids": [
         "5b4d3c532c7e43ace4ae9a6efa87e96fce0f8944c7604a62edd1e99c05c598ed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash1_v3",
@@ -616,7 +635,8 @@
       "generated_combined_ids": [
         "5b4d3c532c7e43ace4ae9a6efa87e96fce0f8944c7604a62edd1e99c05c598ed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash1_v1",
@@ -634,12 +654,12 @@
       "source_circuit_id": "fb41f4501b287330cb300ebc90956a662b93ae38ce4284f93791fcdb0e5c5180",
       "variant": 1,
       "route": "triples",
-      "e": 1901,
-      "g": 2,
-      "m": 50856,
+      "e": 1924,
+      "g": 5,
+      "m": 45973,
       "eta_bits": 0,
       "adaptive_eta": false,
-      "target_bits": 121,
+      "target_bits": 123,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash1_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash1_v1_interactive",
       "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash1_v1_uniform_envelope",
@@ -653,7 +673,8 @@
       "generated_combined_ids": [
         "5b4d3c532c7e43ace4ae9a6efa87e96fce0f8944c7604a62edd1e99c05c598ed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 2159
     },
     {
       "name": "v8Hash2_v2",
@@ -690,7 +711,8 @@
       "generated_combined_ids": [
         "caef32c8f45a7bf90185f5af8c38aef3f72da901ccd7c5c30b280b2167fa39aa"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash2_v3",
@@ -727,7 +749,8 @@
       "generated_combined_ids": [
         "caef32c8f45a7bf90185f5af8c38aef3f72da901ccd7c5c30b280b2167fa39aa"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash2_v1",
@@ -745,12 +768,12 @@
       "source_circuit_id": "34046ae480a351acb0fb017e20c94f792c8e51b157a0aeee80b6c775f78d8d27",
       "variant": 1,
       "route": "triples",
-      "e": 1898,
-      "g": 2,
-      "m": 51032,
+      "e": 1921,
+      "g": 5,
+      "m": 46385,
       "eta_bits": 0,
       "adaptive_eta": false,
-      "target_bits": 121,
+      "target_bits": 123,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash2_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash2_v1_interactive",
       "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash2_v1_uniform_envelope",
@@ -764,7 +787,8 @@
       "generated_combined_ids": [
         "caef32c8f45a7bf90185f5af8c38aef3f72da901ccd7c5c30b280b2167fa39aa"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 2155
     },
     {
       "name": "v8Hash3_v2",
@@ -801,7 +825,8 @@
       "generated_combined_ids": [
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash3_v3",
@@ -838,7 +863,8 @@
       "generated_combined_ids": [
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash3_v1",
@@ -856,12 +882,12 @@
       "source_circuit_id": "160fbb8849320cdded3990476cdfe60ac20eb1c8a4fe945a75e1e51a7223fb69",
       "variant": 1,
       "route": "triples",
-      "e": 1898,
-      "g": 2,
-      "m": 51032,
+      "e": 1921,
+      "g": 5,
+      "m": 46385,
       "eta_bits": 0,
       "adaptive_eta": false,
-      "target_bits": 121,
+      "target_bits": 123,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash3_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash3_v1_interactive",
       "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash3_v1_uniform_envelope",
@@ -875,7 +901,8 @@
       "generated_combined_ids": [
         "fd83f12ddeff5c4cb448b1419f9088cbccc97fa850bdebe75370e5350bd66aed"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 2155
     },
     {
       "name": "v8Hash4_v2",
@@ -912,7 +939,8 @@
       "generated_combined_ids": [
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash4_v3",
@@ -949,7 +977,8 @@
       "generated_combined_ids": [
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 0
     },
     {
       "name": "v8Hash4_v1",
@@ -967,12 +996,12 @@
       "source_circuit_id": "564a208050818042de61051dd34c6856b366534840ee9ca1522c9d3cc466c67c",
       "variant": 1,
       "route": "triples",
-      "e": 1898,
-      "g": 2,
-      "m": 51032,
+      "e": 1921,
+      "g": 5,
+      "m": 46385,
       "eta_bits": 0,
       "adaptive_eta": false,
-      "target_bits": 121,
+      "target_bits": 123,
       "extractor_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash4_v1_extraction",
       "interactive_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash4_v1_interactive",
       "uniform_envelope_theorem": "Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash4_v1_uniform_envelope",
@@ -986,9 +1015,10 @@
       "generated_combined_ids": [
         "4795e54771763b550d008d4d920819b4136b51bcc3b890c103aa8994a659e502"
       ],
-      "combined_ids_match_registry": false
+      "combined_ids_match_registry": false,
+      "mask_threshold": 2155
     }
   ],
-  "optimization": "Best-found scalar parameters, including independently checked inverse Johnson denominators at each agreement. The integer bit targets are unchanged from the preceding profiled certificates. Lean proves all bounds no worse and the V2/V3 rational bounds strictly smaller. No global optimality claim.",
+  "optimization": "Best-found scalar parameters, including independently checked inverse Johnson denominators at each agreement. V1 records certify the unchecked-mask list below the Johnson threshold, down to mask_threshold, with exact Hahn/Delsarte certificates (CodingTheory.HahnDelsarte; data in HahnMaskCertificates.lean, generated by scripts/hahn_mask_certificates.py), which raises the V1 targets; V2/V3 targets are unchanged. No global optimality claim.",
   "certificate_module": "examples.Ligero.Longfellow.OptimizedIOPCertificates"
 }

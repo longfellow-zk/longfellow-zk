@@ -36,12 +36,12 @@ def Result.failureProfile (s : Result) : AgreementProfile s.certificate.n :=
     c.lineBound s.localBound
 
 def Result.cutoff (s : Result) : ℕ :=
-  if s.variant = .v1 then s.certificate.v1Threshold - 1 else 2 * s.certificate.k - 1
+  if s.variant = .v1 then s.certificate.maskStart - 1 else 2 * s.certificate.k - 1
 
 def Result.arithmeticProfile (s : Result) : AgreementProfile s.certificate.n :=
   let c := s.certificate
   if s.variant = .v1 then
-    uncheckedAgreementProfile c.fieldSize c.n (2 * c.k - 1) c.listSize c.v1Threshold
+    maskAgreementProfile c.fieldSize c.n c.listSize c.maskStart c.maskBound
   else checkedAgreementProfile c.fieldSize c.listSize c.n (2 * c.k - 1)
 
 def Result.baseline (s : Result) : ℕ :=
@@ -64,7 +64,7 @@ theorem Result.compressedBound_eq (s : Result) : s.compressedBound = s.bound := 
 
 def Result.ParametersValid (s : Result) : Prop :=
   let c := s.certificate
-  0 < c.k ∧ c.k ≤ c.n ∧ c.d = c.n - c.k + 1 ∧ 2 * c.k ≤ c.n ∧
+  0 < c.k ∧ c.k ≤ c.n ∧ c.d = c.n - c.k + 1 ∧ 2 * c.k ≤ c.n ∧ (if s.variant = .v1 then c.maskValid = true else True) ∧
   (match s.route with
    | .triples => c.conditions
    | .johnson => if s.adaptiveEta then
@@ -79,7 +79,7 @@ theorem Result.lineConditions (s : Result) (hp : s.ParametersValid)
     (P : JBAgreement.RSPresentation s.certificate.n s.certificate.k C) :
     IntegratedSelectedMCALineConditions C (Fintype.card F) s.certificate.e s.certificate.g
       s.certificate.d s.certificate.lineBound s.localBound := by
-  rcases hp with ⟨_, _, _, _, hroute⟩
+  rcases hp with ⟨_, _, _, _, _, hroute⟩
   cases hr : s.route with
   | triples =>
       have hc : s.certificate.conditions := by simpa [hr] using hroute
@@ -140,15 +140,22 @@ theorem Result.v1_strategy
   have hc := s.lineConditions hp hf hm P
   have hkpos : 0 < (s.code D hkn).k := by rw [hk]; exact hp.1
   have h2k : 2 * (s.code D hkn).k ≤ s.certificate.n := by rw [hk]; exact hp.2.2.2.1
-  have johnson := V1Certificate.v1JohnsonRange s.certificate hp.1 hp.2.2.2.1 (s.code D hkn) hk
-  have ht : s.certificate.v1Threshold ≤ s.certificate.n := by
+  have hmaskValid : s.certificate.maskValid = true := by
+    simpa [hv] using hp.2.2.2.2.1
+  have mask := V1Certificate.v1MaskRange s.certificate hp.1 hp.2.2.2.1 hmaskValid
+    (s.code D hkn) hk
+  have ht : s.certificate.maskStart ≤ s.certificate.n := by
     have hn : 0 < s.certificate.n := hp.1.trans_le hp.2.1
     have hlt : 2 * s.certificate.k - 1 < s.certificate.n := by have := hp.1; have := hp.2.2.2.1; omega
     have hs : Nat.sqrt (s.certificate.n * (2 * s.certificate.k - 1)) < s.certificate.n := by
       rw [Nat.sqrt_lt]; nlinarith
-    unfold Certificate.v1Threshold; omega
+    have hvalid := hmaskValid
+    simp only [Certificate.maskValid, Bool.and_eq_true, decide_eq_true_eq] at hvalid
+    have hmask := hvalid.1.1
+    unfold Certificate.v1Threshold at hmask
+    omega
   have h := Ligero.V1.scalarGap_profiled_extraction_failure (s.code D hkn)
-    oracle statement hm hc hrows johnson ht respond
+    oracle statement hm hc hrows mask ht respond
   simpa [Result.bound, Result.failureProfile, Result.arithmeticProfile, Result.baseline,
     Result.cutoff, Certificate.optimizedFailureDenominator, Certificate.listSize, hv, hf, hk] using h
 

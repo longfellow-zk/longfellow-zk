@@ -2,4 +2,6 @@ import CodingTheory.AffineCounting
 import CodingTheory.Basic
 import CodingTheory.ListDecoding.InterleavedDistance
 import CodingTheory.ListDecoding.InterleavedJohnson
+import CodingTheory.ListDecoding.HahnDelsarte
+import CodingTheory.ListDecoding.UniformFamily
 import CodingTheory.Proximity
