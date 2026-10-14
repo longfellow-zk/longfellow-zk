@@ -42,15 +42,14 @@ theorem candidateRows_injective : Function.Injective
 
 omit [Fintype Equations] [DecidableEq Equations] [DecidableEq CheckedMask] in
 /-- The complete fixed list of radius-`radius` scheme candidates satisfies
-the interleaved Johnson cardinality bound. -/
-theorem univ_card_le_listBound
+any independent uniform-family packing bound. -/
+theorem univ_card_le_uniformFamilyBound
     (C : MultiplicativeCode F r w n)
     (oracle : SchemeOracle F CheckedMask DirectMask nw nq n 1)
     (hmin : HasMinimumDistanceAtLeast C.baseCode d)
-    (hradiusLength : radius ≤ n) (hradiusDistance : radius < d)
-    (hden : 0 < CodingTheory.InterleavedJohnson.denominator n d radius) :
-    (Finset.univ : Finset (SchemeLiftCandidate C oracle radius)).card ≤
-      CodingTheory.InterleavedJohnson.listBound n d radius := by
+    (hradiusDistance : radius < d) {L : ℕ}
+    (hfamily : UniformFamilyBound n (n - radius) (n - d) L) :
+    (Finset.univ : Finset (SchemeLiftCandidate C oracle radius)).card ≤ L := by
   let matrices : Finset
       (Option (SchemeTestedRow CheckedMask nw nq 1) → Word F n) :=
     Finset.univ.image fun candidate : SchemeLiftCandidate C oracle radius ↦
@@ -75,11 +74,26 @@ theorem univ_card_le_listBound
     obtain ⟨candidate, _hcandidate, rfl⟩ := Finset.mem_image.mp hmatrix
     exact candidate.close
   have hbound :=
-    CodingTheory.InterleavedJohnson.card_le_listBound
+    CodingTheory.card_le_of_uniformFamilyBound
       C.baseCode (schemeLiftCommittedRows oracle) matrices hmin hcode hclose
-        hradiusLength hradiusDistance hden
+        hradiusDistance hfamily
   rw [hmatricesCard] at hbound
   exact hbound
+
+omit [Fintype Equations] [DecidableEq Equations] [DecidableEq CheckedMask] in
+/-- The complete fixed list of radius-`radius` scheme candidates satisfies
+the interleaved Johnson cardinality bound. -/
+theorem univ_card_le_listBound
+    (C : MultiplicativeCode F r w n)
+    (oracle : SchemeOracle F CheckedMask DirectMask nw nq n 1)
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (hradiusLength : radius ≤ n) (hradiusDistance : radius < d)
+    (hden : 0 < CodingTheory.InterleavedJohnson.denominator n d radius) :
+    (Finset.univ : Finset (SchemeLiftCandidate C oracle radius)).card ≤
+      CodingTheory.InterleavedJohnson.listBound n d radius := by
+  exact univ_card_le_uniformFamilyBound C oracle hmin hradiusDistance
+    (InterleavedJohnson.uniformFamilyBound_of_denominator_pos hradiusLength
+      hradiusDistance hmin.distance_le_length hden)
 
 omit [Fintype Equations] [DecidableEq Equations] [DecidableEq CheckedMask] in
 /-- Inside half the minimum distance, the complete fixed interleaved lift

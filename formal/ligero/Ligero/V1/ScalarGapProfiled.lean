@@ -17,10 +17,11 @@ local notation "gapPolicy" => SchemeVerifier.policy (Equations := Equations)
 /-- Arbitrary statements and every response strategy, including the original
 unchecked-mask profile with any certified mask list bound (Johnson or
 Hahn/Delsarte). The extractor itself is unchanged. -/
-theorem scalarGap_profiled_extraction_failure
+theorem scalarGap_profiled_extraction_failure_of_card
     (hmin : HasMinimumDistanceAtLeast C.baseCode d)
     (conditions : IntegratedSelectedMCALineConditions C.baseCode
-      (Fintype.card F) e g d outerBound localBound)
+      (Fintype.card F) e g d outerBound localBound) {L : ℕ}
+    (hcard : (univ : Finset (SchemeLiftCandidate C oracle (e + g))).card ≤ L)
     (hrows : CoreRowsNonempty nw nq)
     (mask : V1MaskRange C threshold bound) (ht : threshold ≤ n)
     (respond : Challenge F nw nq 1 Equations → Response F r w n 1) :
@@ -34,7 +35,7 @@ theorem scalarGap_profiled_extraction_failure
           (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
           n n 0 r (max (n - e - 1) (min n (g + (threshold - 1)))) +
       (maskAgreementProfile (Fintype.card F) n
-        (InterleavedJohnson.listBound n d (e + g)) threshold bound).contribution
+        L threshold bound).contribution
           (Fintype.card F) n e g r := by
   classical
   letI : Nonempty (SchemeTestedRow NoMask nw nq 1) := schemeTestedRowNonemptyOfCoreRows hrows
@@ -44,11 +45,11 @@ theorem scalarGap_profiled_extraction_failure
   let agreement := fun (candidate : SchemeLiftCandidate C oracle (e + g)) challenge =>
     if h : ¬statement.Satisfies candidate.decodedMessages then
       v1Agreement candidate (violation candidate h) respond challenge else 0
-  refine ScalarGapExtraction.profiled_extraction_failure gapPolicy
+  refine ScalarGapExtraction.profiled_extraction_failure_of_card gapPolicy
     (fun candidate => candidate.decodedMessages)
     (schemeExtractorPolicy (Equations := Equations) (nw := nw) (nq := nq) C scheme)
-    hmin conditions (maskAgreementProfile (Fintype.card F) n
-      (InterleavedJohnson.listBound n d (e + g)) threshold bound) (threshold - 1) (by omega)
+    hmin conditions hcard (maskAgreementProfile (Fintype.card F) n
+      L threshold bound) (threshold - 1) (by omega)
     ?_ respond ?_
   · intro a ha
     simp [maskAgreementProfile, show ¬n < a by omega, show a < threshold by
@@ -59,7 +60,7 @@ theorem scalarGap_profiled_extraction_failure
       (by have := conditions.outer.punctured.punctured_three_radius; omega)
       (threshold - 1) bound
       (maskAgreementProfile (Fintype.card F) n
-        (InterleavedJohnson.listBound n d (e + g)) threshold bound)
+        L threshold bound)
       ?_ ?_ agreement ?_ ?_ ?_
     · intro a ha hbelow
       simp [maskAgreementProfile, show ¬n < a by omega, show a < threshold by
@@ -101,5 +102,35 @@ theorem scalarGap_profiled_extraction_failure
       have cover := v1_constraint_cover candidate (violation candidate h) respond challenge
         remaining hc.2 hbad
       simpa only [agreement, dif_pos h] using cover
+
+/-- Arbitrary statements and every response strategy, including the original
+unchecked-mask profile with any certified mask list bound (Johnson or
+Hahn/Delsarte). The extractor itself is unchanged. -/
+theorem scalarGap_profiled_extraction_failure
+    (hmin : HasMinimumDistanceAtLeast C.baseCode d)
+    (conditions : IntegratedSelectedMCALineConditions C.baseCode
+      (Fintype.card F) e g d outerBound localBound)
+    (hrows : CoreRowsNonempty nw nq)
+    (mask : V1MaskRange C threshold bound) (ht : threshold ≤ n)
+    (respond : Challenge F nw nq 1 Equations → Response F r w n 1) :
+    ((univ.filter fun pair : (Challenge F nw nq 1 Equations) × QuerySet n r =>
+      (gapPolicy).accepts statement pair.1 (respond pair.1) pair.2 (openSchemeOracle oracle pair.2) ∧
+      ScalarGapExtraction.extract (oracle := oracle) (e := e) (g := g) gapPolicy
+        (fun candidate => candidate.decodedMessages) statement pair.1 (respond pair.1) = none).card : ℚ) /
+      Fintype.card ((Challenge F nw nq 1 Equations) × QuerySet n r) ≤
+      (SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
+        (Fintype.card F) n e g d outerBound localBound).excessContribution
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g)
+          n n 0 r (max (n - e - 1) (min n (g + (threshold - 1)))) +
+      (maskAgreementProfile (Fintype.card F) n
+        (InterleavedJohnson.listBound n d (e + g)) threshold bound).contribution
+          (Fintype.card F) n e g r := by
+  have hradius : e + g < d := by
+    have := conditions.outer.punctured.punctured_three_radius
+    omega
+  exact scalarGap_profiled_extraction_failure_of_card C oracle statement hmin conditions
+    (SchemeLiftCandidate.univ_card_le_listBound C oracle hmin
+      ((Nat.le_of_lt hradius).trans hmin.distance_le_length) hradius
+      conditions.outer.johnson.list_denominator_positive) hrows mask ht respond
 
 end Ligero.V1

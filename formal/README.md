@@ -3,17 +3,18 @@
 **Ligero V1 is the shipped protocol. V2 and V3 are alternative protocols
 under development.**
 
-The certified v7/v8 bounds are shown below, in bits. Let `L = log₂(Q+1)` for
+The certified v7/v8 bounds for 132 distinct column openings are shown below,
+in bits. Let `L = log₂(Q+1)` for
 adversary query budget `Q`. The FS entries describe the FS term, capped below
 at zero; the total error is `bindingError + min(1, (Q+1)*2^(-s))` with `s`
 from the corresponding IOP column.
 
 | Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
 |---|---:|---:|---:|---:|---:|---:|
-| v7 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
-| v7 hashes | 124 | 125 | 125 | 124−L | 125−L | 125−L |
-| v8 signature | 125 | 191 | 191 | 125−L | 191−L | 191−L |
-| v8 hashes | 123 | 125 | 125 | 123−L | 125−L | 125−L |
+| v7 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
+| v7 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
+| v8 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
+| v8 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
 
 The Ligero development proves:
 

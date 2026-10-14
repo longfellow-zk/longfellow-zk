@@ -65,10 +65,10 @@ def v7Sig_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v7Sig_v3_c
 def v7Sig_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3187, k := 455, d := 2733, e := 1507, g := 0, m := 304324
+      { n := 3187, k := 455, d := 2733, e := 1522, g := 0, m := 8726582
         fieldBits := 256, fieldOrder := 115792089210356248762697446949407573530086143415290314195533631308867097853951
-        openings := 132, targetBits := 125
-        maskThreshold := 1680, hahnMask := HahnMask.v7Sig } }
+        openings := 132, targetBits := 127
+        maskThreshold := 1665, hahnMask := HahnMask.v7Sig } }
 
 theorem v7Sig_v1_parameters : v7Sig_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -96,9 +96,9 @@ def v7Sig_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v7Sig_v1_c
 def v7Hash1_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 3230, k := 461, d := 2770, e := 1673, g := 23, m := 10226156656
+      { n := 3230, k := 461, d := 2770, e := 1670, g := 23, m := 9433738746
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v7Hash1_v2_parameters : v7Hash1_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -147,10 +147,10 @@ def v7Hash1_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v7Hash1_
 def v7Hash1_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3230, k := 461, d := 2770, e := 1523, g := 5, m := 39970
+      { n := 3230, k := 461, d := 2770, e := 1543, g := 16, m := 1200474
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 124
-        maskThreshold := 1702, hahnMask := HahnMask.v7Hash1 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 1681, hahnMask := HahnMask.v7Hash1 } }
 
 theorem v7Hash1_v1_parameters : v7Hash1_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -178,9 +178,9 @@ def v7Hash1_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v7Hash1_
 def v7Hash2_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 3318, k := 474, d := 2845, e := 1718, g := 23, m := 10490644166
+      { n := 3318, k := 474, d := 2845, e := 1715, g := 23, m := 9678434277
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v7Hash2_v2_parameters : v7Hash2_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -229,10 +229,10 @@ def v7Hash2_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v7Hash2_
 def v7Hash2_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3318, k := 474, d := 2845, e := 1563, g := 5, m := 39326
+      { n := 3318, k := 474, d := 2845, e := 1584, g := 16, m := 420929
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 124
-        maskThreshold := 1750, hahnMask := HahnMask.v7Hash2 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 1728, hahnMask := HahnMask.v7Hash2 } }
 
 theorem v7Hash2_v1_parameters : v7Hash2_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -260,9 +260,9 @@ def v7Hash2_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v7Hash2_
 def v7Hash3_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 3352, k := 478, d := 2875, e := 1736, g := 24, m := 10615575551
+      { n := 3352, k := 478, d := 2875, e := 1733, g := 24, m := 9793967305
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v7Hash3_v2_parameters : v7Hash3_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -311,10 +311,10 @@ def v7Hash3_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v7Hash3_
 def v7Hash3_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3352, k := 478, d := 2875, e := 1581, g := 5, m := 41511
+      { n := 3352, k := 478, d := 2875, e := 1601, g := 16, m := 310355
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 124
-        maskThreshold := 1766, hahnMask := HahnMask.v7Hash3 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 1744, hahnMask := HahnMask.v7Hash3 } }
 
 theorem v7Hash3_v1_parameters : v7Hash3_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -342,9 +342,9 @@ def v7Hash3_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v7Hash3_
 def v7Hash4_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 3436, k := 490, d := 2947, e := 1780, g := 24, m := 10884588574
+      { n := 3436, k := 490, d := 2947, e := 1777, g := 24, m := 10042792941
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v7Hash4_v2_parameters : v7Hash4_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -393,10 +393,10 @@ def v7Hash4_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v7Hash4_
 def v7Hash4_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3436, k := 490, d := 2947, e := 1620, g := 5, m := 41472
+      { n := 3436, k := 490, d := 2947, e := 1642, g := 16, m := 4467784
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 124
-        maskThreshold := 1811, hahnMask := HahnMask.v7Hash4 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 1788, hahnMask := HahnMask.v7Hash4 } }
 
 theorem v7Hash4_v1_parameters : v7Hash4_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -475,10 +475,10 @@ def v8Sig_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v8Sig_v3_c
 def v8Sig_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 3458, k := 494, d := 2965, e := 1634, g := 0, m := 317628
+      { n := 3458, k := 494, d := 2965, e := 1651, g := 0, m := 10594014
         fieldBits := 256, fieldOrder := 115792089210356248762697446949407573530086143415290314195533631308867097853951
-        openings := 132, targetBits := 125
-        maskThreshold := 1824, hahnMask := HahnMask.v8Sig } }
+        openings := 132, targetBits := 127
+        maskThreshold := 1808, hahnMask := HahnMask.v8Sig } }
 
 theorem v8Sig_v1_parameters : v8Sig_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -506,9 +506,9 @@ def v8Sig_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v8Sig_v1_c
 def v8Hash1_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 4088, k := 584, d := 3505, e := 2116, g := 29, m := 12906933964
+      { n := 4088, k := 584, d := 3505, e := 2113, g := 29, m := 11913618043
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v8Hash1_v2_parameters : v8Hash1_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -557,10 +557,10 @@ def v8Hash1_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v8Hash1_
 def v8Hash1_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 4088, k := 584, d := 3505, e := 1924, g := 5, m := 45973
+      { n := 4088, k := 584, d := 3505, e := 1952, g := 16, m := 2437855
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 123
-        maskThreshold := 2159, hahnMask := HahnMask.v8Hash1 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 2122, hahnMask := HahnMask.v8Hash1 } }
 
 theorem v8Hash1_v1_parameters : v8Hash1_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -588,9 +588,9 @@ def v8Hash1_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v8Hash1_
 def v8Hash2_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 2113, g := 29, m := 12890715663
+      { n := 4081, k := 583, d := 3499, e := 2109, g := 29, m := 11890030538
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
 theorem v8Hash2_v2_parameters : v8Hash2_v2.ParametersValid := by
   unfold Result.ParametersValid
@@ -639,10 +639,10 @@ def v8Hash2_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v8Hash2_
 def v8Hash2_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 1921, g := 5, m := 46385
+      { n := 4081, k := 583, d := 3499, e := 1946, g := 24, m := 107858
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 123
-        maskThreshold := 2155, hahnMask := HahnMask.v8Hash2 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 2113, hahnMask := HahnMask.v8Hash2 } }
 
 theorem v8Hash2_v1_parameters : v8Hash2_v1.ParametersValid := by
   unfold Result.ParametersValid
@@ -670,20 +670,14 @@ def v8Hash2_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v8Hash2_
 def v8Hash3_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 2113, g := 29, m := 12890715663
+      { n := 4081, k := 583, d := 3499, e := 2109, g := 29, m := 11890030538
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
-theorem v8Hash3_v2_parameters : v8Hash3_v2.ParametersValid := by
-  unfold Result.ParametersValid
-  refine ⟨by native_decide, by native_decide, by native_decide, by native_decide, by trivial, ?_⟩
-  change v8Hash3_v2.certificate.inverseJohnsonConditions
-    (v8Hash3_v2.etaDenominators (v8Hash3_v2.certificate.n - v8Hash3_v2.certificate.e))
-    v8Hash3_v2.etaDenominators = true
-  native_decide
+theorem v8Hash3_v2_parameters : v8Hash3_v2.ParametersValid := v8Hash2_v2_parameters
 
 theorem v8Hash3_v2_compressed_bound :
-    v8Hash3_v2.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash3_v2.certificate.targetBits := by native_decide
+    v8Hash3_v2.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash3_v2.certificate.targetBits := v8Hash2_v2_compressed_bound
 
 theorem v8Hash3_v2_bound :
     v8Hash3_v2.bound ≤ (1 : ℚ) / 2 ^ v8Hash3_v2.certificate.targetBits := by
@@ -721,20 +715,15 @@ def v8Hash3_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v8Hash3_
 def v8Hash3_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 1921, g := 5, m := 46385
+      { n := 4081, k := 583, d := 3499, e := 1946, g := 24, m := 107858
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 123
-        maskThreshold := 2155, hahnMask := HahnMask.v8Hash2 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 2113, hahnMask := HahnMask.v8Hash2 } }
 
-theorem v8Hash3_v1_parameters : v8Hash3_v1.ParametersValid := by
-  unfold Result.ParametersValid
-  refine ⟨by native_decide, by native_decide, by native_decide, by native_decide, by native_decide, ?_⟩
-  exact v8Hash3_v1.certificate.conditions_of_checked
-    (by native_decide) (by native_decide) (by native_decide)
-    (by native_decide) (by native_decide)
+theorem v8Hash3_v1_parameters : v8Hash3_v1.ParametersValid := v8Hash2_v1_parameters
 
 theorem v8Hash3_v1_compressed_bound :
-    v8Hash3_v1.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash3_v1.certificate.targetBits := by native_decide
+    v8Hash3_v1.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash3_v1.certificate.targetBits := v8Hash2_v1_compressed_bound
 
 theorem v8Hash3_v1_bound :
     v8Hash3_v1.bound ≤ (1 : ℚ) / 2 ^ v8Hash3_v1.certificate.targetBits := by
@@ -752,20 +741,14 @@ def v8Hash3_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v8Hash3_
 def v8Hash4_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 2113, g := 29, m := 12890715663
+      { n := 4081, k := 583, d := 3499, e := 2109, g := 29, m := 11890030538
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 125 } }
+        openings := 132, targetBits := 126 } }
 
-theorem v8Hash4_v2_parameters : v8Hash4_v2.ParametersValid := by
-  unfold Result.ParametersValid
-  refine ⟨by native_decide, by native_decide, by native_decide, by native_decide, by trivial, ?_⟩
-  change v8Hash4_v2.certificate.inverseJohnsonConditions
-    (v8Hash4_v2.etaDenominators (v8Hash4_v2.certificate.n - v8Hash4_v2.certificate.e))
-    v8Hash4_v2.etaDenominators = true
-  native_decide
+theorem v8Hash4_v2_parameters : v8Hash4_v2.ParametersValid := v8Hash2_v2_parameters
 
 theorem v8Hash4_v2_compressed_bound :
-    v8Hash4_v2.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash4_v2.certificate.targetBits := by native_decide
+    v8Hash4_v2.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash4_v2.certificate.targetBits := v8Hash2_v2_compressed_bound
 
 theorem v8Hash4_v2_bound :
     v8Hash4_v2.bound ≤ (1 : ℚ) / 2 ^ v8Hash4_v2.certificate.targetBits := by
@@ -803,20 +786,15 @@ def v8Hash4_v3_uniform_envelope := @CertifiedResult.v3_uniform_envelope v8Hash4_
 def v8Hash4_v1 : Result :=
   { variant := .v1, route := .triples, etaBits := 0, adaptiveEta := false
     certificate :=
-      { n := 4081, k := 583, d := 3499, e := 1921, g := 5, m := 46385
+      { n := 4081, k := 583, d := 3499, e := 1946, g := 24, m := 107858
         fieldBits := 128, fieldOrder := 0
-        openings := 132, targetBits := 123
-        maskThreshold := 2155, hahnMask := HahnMask.v8Hash2 } }
+        openings := 132, targetBits := 125
+        maskThreshold := 2113, hahnMask := HahnMask.v8Hash2 } }
 
-theorem v8Hash4_v1_parameters : v8Hash4_v1.ParametersValid := by
-  unfold Result.ParametersValid
-  refine ⟨by native_decide, by native_decide, by native_decide, by native_decide, by native_decide, ?_⟩
-  exact v8Hash4_v1.certificate.conditions_of_checked
-    (by native_decide) (by native_decide) (by native_decide)
-    (by native_decide) (by native_decide)
+theorem v8Hash4_v1_parameters : v8Hash4_v1.ParametersValid := v8Hash2_v1_parameters
 
 theorem v8Hash4_v1_compressed_bound :
-    v8Hash4_v1.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash4_v1.certificate.targetBits := by native_decide
+    v8Hash4_v1.compressedBound ≤ (1 : ℚ) / 2 ^ v8Hash4_v1.certificate.targetBits := v8Hash2_v1_compressed_bound
 
 theorem v8Hash4_v1_bound :
     v8Hash4_v1.bound ≤ (1 : ℚ) / 2 ^ v8Hash4_v1.certificate.targetBits := by

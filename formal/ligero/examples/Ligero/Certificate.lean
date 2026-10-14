@@ -94,8 +94,29 @@ theorem Certificate.integratedLocalPointValid_of_bool (c : Certificate)
     unfold Certificate.IntegratedLocalPointValid
     infer_instance) hp
 
+/-- Oracle-fixed decoded-witness list, with integer packing refinements.
+The one- and two-candidate bounds compete with the Johnson second moment. -/
 def Certificate.listSize (c : Certificate) : ℕ :=
-  CodingTheory.InterleavedJohnson.listBound c.n c.d (c.e + c.g)
+  let johnson := CodingTheory.InterleavedJohnson.listBound c.n c.d (c.e + c.g)
+  if 2 * (c.e + c.g) < c.d then min johnson 1
+  else if c.n + 3 * (c.n - c.d) < 3 * (c.n - (c.e + c.g)) then min johnson 2
+  else johnson
+
+/-- Exact packing premise for the full interleaved candidate list. -/
+theorem Certificate.listFamily (c : Certificate)
+    (hEd : c.e + c.g < c.d) (hd : c.d ≤ c.n)
+    (hden : 0 < CodingTheory.InterleavedJohnson.denominator c.n c.d (c.e + c.g)) :
+    CodingTheory.UniformFamilyBound c.n (c.n - (c.e + c.g)) (c.n - c.d) c.listSize := by
+  have hjohnson := CodingTheory.InterleavedJohnson.uniformFamilyBound_of_denominator_pos
+    ((Nat.le_of_lt hEd).trans hd) hEd hd hden
+  unfold Certificate.listSize
+  split
+  · apply hjohnson.min
+    apply CodingTheory.uniformFamilyBound_one_of_two_mul_gt
+    omega
+  · split
+    · exact hjohnson.min (CodingTheory.uniformFamilyBound_two_of_three_mul_gt (by assumption))
+    · exact hjohnson
 
 def Certificate.v1Threshold (c : Certificate) : ℕ :=
   Nat.sqrt (c.n * (2 * c.k - 1)) + 1

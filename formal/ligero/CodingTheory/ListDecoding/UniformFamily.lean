@@ -31,6 +31,50 @@ theorem UniformFamilyBound.mono {n w lam L L' : ℕ}
     UniformFamilyBound n w lam L' :=
   fun family hcard hinter ↦ (h family hcard hinter).trans hL
 
+theorem UniformFamilyBound.min {n w lam L L' : ℕ}
+    (h : UniformFamilyBound n w lam L) (h' : UniformFamilyBound n w lam L') :
+    UniformFamilyBound n w lam (min L L') :=
+  fun family hcard hinter ↦ Nat.le_min.mpr
+    ⟨h family hcard hinter, h' family hcard hinter⟩
+
+/-- Two large agreement sets cannot coexist past the unique-list threshold. -/
+theorem uniformFamilyBound_one_of_two_mul_gt {n w lam : ℕ}
+    (h : n + lam < 2 * w) : UniformFamilyBound n w lam 1 := by
+  classical
+  intro family hcard hinter
+  rw [Finset.card_le_one_iff]
+  intro A B hA hB
+  by_contra hne
+  have hmeet := hinter A hA B hB hne
+  have hunion : (A ∪ B).card ≤ n := by
+    exact (Finset.card_le_card (Finset.subset_univ _)).trans_eq (by simp)
+  have heq := Finset.card_union_add_card_inter A B
+  rw [hcard A hA, hcard B hB] at heq
+  omega
+
+/-- Bonferroni's three-set inequality gives an integer list bound of two.
+It can improve the real-valued second-moment Johnson bound after flooring. -/
+theorem uniformFamilyBound_two_of_three_mul_gt {n w lam : ℕ}
+    (h : n + 3 * lam < 3 * w) : UniformFamilyBound n w lam 2 := by
+  classical
+  intro family hcard hinter
+  by_contra hlarge
+  obtain ⟨A, B, C, hA, hB, hC, hAB, hAC, hBC⟩ :=
+    Finset.two_lt_card_iff.mp (by omega : 2 < family.card)
+  have hABmeet := hinter A hA B hB hAB
+  have hACmeet := hinter A hA C hC hAC
+  have hBCmeet := hinter B hB C hC hBC
+  have hfirst := Finset.card_union_add_card_inter A B
+  have hsecond := Finset.card_union_add_card_inter (A ∪ B) C
+  have hsplit : ((A ∪ B) ∩ C).card ≤ (A ∩ C).card + (B ∩ C).card := by
+    rw [Finset.union_inter_distrib_right]
+    exact Finset.card_union_le _ _
+  have hunion : ((A ∪ B) ∪ C).card ≤ n := by
+    exact (Finset.card_le_card (Finset.subset_univ _)).trans_eq (by simp)
+  rw [hcard A hA, hcard B hB] at hfirst
+  rw [hcard C hC] at hsecond
+  omega
+
 /-- A bound for `w`-uniform families also bounds families of larger sets:
 shrinking every member to `w` points keeps distinct members distinct, because
 two members sharing a `w`-subset would meet in `w > lam` points. -/
