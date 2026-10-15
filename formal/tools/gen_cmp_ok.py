@@ -22,19 +22,22 @@ import sys
 
 ORDER = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 CHUNK0 = 198
-ERS0 = 6
+# Input positions are emitted as names from the generated `E2Layout.lean` rather than as
+# the numerals they resolve to, so the circuit's own `LayoutBuilder` table is what fixes
+# them and a reordered allocator changes one generated file instead of silently pointing
+# these theorems at the wrong wire.
 
 
 def main():
     outdir = sys.argv[1]
     imports = "\n".join(
-        ["import quadcert.Gen.E2.E2LtRx", "import quadcert.Gen.E2.E2LtNms", "import quadcert.Gen.E2.E2Recon"]
+        ["import quadcert.Gen.E2.E2Layout", "import quadcert.Gen.E2.E2LtRx", "import quadcert.Gen.E2.E2LtNms", "import quadcert.Gen.E2.E2Recon"]
         + [f"import quadcert.Gen.E2.E2BitB{k:02d}" for k in range(16)]
         + ["import ECDSA.CmpBridge"])
 
     order_bits = ", ".join("true" if (ORDER >> k) & 1 else "false" for k in range(256))
-    rx_bits = ", ".join(f"ECDSA2.digitBitB 2 (inputs {ERS0 + k})" for k in range(256))
-    nms_bits = ", ".join(f"ECDSA2.digitBitB 4 (inputs {ERS0 + k})" for k in range(256))
+    rx_bits = ", ".join(f"ECDSA2.digitBitB 2 (inputs (Layout.ers {k}))" for k in range(256))
+    nms_bits = ", ".join(f"ECDSA2.digitBitB 4 (inputs (Layout.ers {k}))" for k in range(256))
     digits = ", ".join(f"hd{k}" for k in range(256))
     bits = "\n".join(
         f"  obtain ⟨e{k}, r{k}, s{k}⟩ := bits_{k} inputs hone hd{k}" for k in range(256))

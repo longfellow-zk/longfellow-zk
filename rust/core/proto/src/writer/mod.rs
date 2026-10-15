@@ -43,12 +43,6 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
         lfc2::to_bytes_lfc2(self, sc_c)
     }
 
-    /// Experimental canonical payload for the formal circuit commitment.
-    #[must_use]
-
-    /// Serializes LFC2 and computes the root a verifier should pin.
-    #[must_use]
-
     pub(super) fn serialize_elt(&self, bytes: &mut Vec<u8>, v: &F::E) {
         let elt_bytes = self.f.to_bytes(v);
         bytes.extend_from_slice(&elt_bytes);

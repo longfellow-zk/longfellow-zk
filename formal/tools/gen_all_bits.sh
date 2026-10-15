@@ -6,8 +6,8 @@
 # is what guarantees the two families compose: a wire found any other way could be a different
 # node with the same value.
 set -u
-R=/Users/abhi/Projects/longfellow-zk/rust
-F=/Users/abhi/Projects/longfellow-zk/formal
+F=$(cd "$(dirname "$0")/.." && pwd)
+R=$(cd "$F/../rust" && pwd)
 S=${1:?usage: gen_all_bits.sh SCRATCH SIDECAR}
 SC=${2:?}
 mkdir -p "$S/bits"

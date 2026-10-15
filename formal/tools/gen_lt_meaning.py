@@ -21,8 +21,19 @@ Coefficients are integers, never residues: the value equation carries signed res
 goal multiplies rendered children, and `ring` cannot bridge the difference. `W` supplies it
 integrally, as in every other generator here, and is untrusted -- a wrong one fails `ring`.
 
-**Status.** Compiles at 8 and at 32 leaves (4 parts plus a combiner, so the citation path is
-exercised). At 256 the *parts* are fine; the **combiner** times out in `isDefEq`.
+**Status (2026-10-15): compiles at 256 leaves**, both `lt_rx_order` and `lt_nms_order`, as part
+of the full ECDSA2 bridge (all 146 modules of `Gen/E2`, `Bridge/Ecdsa2` and `Ecdsa2Meaning`).
+
+What fixed it was not term size but the *fold*. Parts used to be stated over
+`raw.toDag (Ecdsa2.consts F)`, so citing one inside the combiner -- after its `set dag` -- needed
+`rw [<- hdag]` across every leaf of every cited part, and that rewrite was where `isDefEq` timed
+out. Parts are now stated over an abstract `{dag}` with `hdag : dag = raw.toDag ...` as a
+hypothesis (`DAG_ARG`, on by default), so the citation is already in the combiner's variable and
+nothing is rewritten; `subst hdag` puts each part's own proof back in its old context. The
+table-ification proposed below was not needed.
+
+History, for whoever reads the rest of this docstring: it compiled at 8 and 32 leaves, and at 256
+the parts were fine but the combiner timed out in `isDefEq`.
 
 The reason is term size in the statement, not the proof. A part's statement mentions 16 wires,
 but the combiner's mentions all 256, each written out as
@@ -37,38 +48,46 @@ size then stays constant in the number of leaves. `bitOf` is a 256-case match, s
 that `bitOf inputs 5` reduces cheaply -- a large match is what blew `maxRecDepth` in
 `gen_addE_meaning.py`, and the same trap applies here.
 
-**The remaining gap, and three routes that do not close it.** `lt_of_foldStL` needs
-`(foldStL …).2 = 1`, and the assertion gives `interpDag <root> = 0`. The certificate reports its
-`lt` component over its own collapsed state atoms, so the two never meet. Measured 2026-08-12,
-on `rx_lt_order` (root node 14406, 38 atoms in the reported `lt`):
+**The gap is already closed at 256 -- and only at 256.** Measured 2026-10-14, by running the
+numeric collapse at each size and printing the top node's `l` component:
 
-* **A separate cone lemma over the certificate's atoms.** Expanding node 14406 while stopping at
-  those 38 wires reaches 474 interior nodes and then a stray leaf (node 331): the assertion node
-  has paths to the bits that bypass the collapsed state wires. Dead.
-* **The same, with the 256 bit wires added as atoms.** The expansion does not finish in ten
-  minutes -- this is the degree-256 blowup the tree structure exists to avoid. Dead.
-* **A deep-substitution fallback in `collapse`:** repeatedly replace the highest node id in
-  `target - (1 - w_i)` by its value equation, so the Lean side is `simp only [v…]` and no
-  ideal-membership coefficients are needed. Implemented and measured: 19 substitutions and
-  **65,568 terms** at the top node, and it fails at every internal node too (the smallest,
-  node 13889, leaves a 3-term residual after 4 substitutions). Substituting by id walks *down*
-  the tree instead of along the spine. Dead; reverted.
+    leaves    top `l0`                        == 1 - interpDag <root>?
+       8      1 - w13329                      no
+      32      1 - w13439                      no
+     256      1 - w14406                      YES   (`rx_lt_order`, root 14406)
+     256      1 - w10706                      YES   (`nms_lt_order`, root 10706)
 
-**The route that should work.** The debug run shows the `1 - w_node` candidate is found by the
-numeric collapse at *every* internal node -- only the proof strategy fails. So propagate the
-form rather than rediscovering it: have `build` record each node's `l` component as
-`inot(iv(node))` once the fingerprint matches, and prove the node obligation
-`w_i = 1 - (l_hi + e_hi * l_lo)` where `l_hi = 1 - w_{i_hi}` and `l_lo = 1 - w_{i_lo}` are
-already in that form. Each obligation is then over **four wires** and closes by one-level
-expansion of `w_i` plus the two children's identities. The top node then reads
-`(foldStL …).2 = 1 - interpDag <root>`, and the assertion finishes it.
+So `(foldStL ...).2 = 1 - interpDag <root>` falls out of the collapse with no new proof idea,
+and `interpDag <root> = 0` finishes it. The reason this looked like an open problem is that
+**truncation moves the top node**: at 8 or 32 leaves the tree's root is a different wire, so no
+run below full size can exercise the endpoint, and every validation run was at 8 or 32.
+
+The three routes recorded here as dead -- a cone lemma over the certificate's 38 atoms (reaches
+a stray leaf, node 331), the same plus the 256 bit wires (does not finish in ten minutes), and
+deep substitution in `collapse` (65,568 terms) -- were all attempts to *build* a connection that
+the collapse already produces. They stay listed because they are genuinely dead, not because
+they are still needed.
+
+**A claim that was in this docstring and is false.** It said the `1 - w_node` candidate "is found
+by the numeric collapse at every internal node". It is not. Measured per component at 256
+leaves: of 255 `l` collapses, 183 land on a wire, 6 need deep substitution, and **66 fuse**; of
+255 `e` collapses, 247 land on a wire and 8 fuse. Even at 8 leaves one `l` fuses. This does not
+matter -- a fused node is handled by the fused branch below, and only the *top* has to be
+wire-shaped for the assertion to attach -- but a strategy built on the stronger claim would fail
+at a quarter of the tree.
+
+One regularity worth keeping: `e` fuses exactly `log2(leaves)` times (3, 4, 5, 6, 7, 8 at 8 ...
+256), once per level, while `l` fusion grows with the tree at a steady ~26%.
 
 **Never set `maxHeartbeats 0` here.** A `linear_combination` with a wrong coefficient does not
 fail fast -- `ring1` grinds -- and with heartbeats unbounded it simply never returns. Every
 "scaling wall" measured below was really a diverging tactic with no way to report itself: RSS sat
 at the Mathlib baseline (4.1 GB) and never grew. A finite bound turns those into errors.
 
-**Measured scaling wall -- read this before extending it.** 8 leaves compiles in 4 s. 16 leaves
+**Measured scaling wall -- STALE, kept for the numbers only.** This predates the pre-split
+change in `segx` (`foldStL_append` applying syntactically, no `show ... from rfl`), and it
+contradicts the Status line above: it says 16 leaves does not finish, while 32 now compiles.
+Re-measure before trusting any of it. 8 leaves compiles in 4 s. 16 leaves
 does not finish in 9 minutes, and 256 leaves as one theorem aborts the interpreter at the
 `-M 12000` cap (`memory_exception`, 602 value equations plus 511 node lemmas in one context).
 Splitting into per-subtree theorems does *not* help: 16 leaves as three theorems is equally slow,
@@ -179,10 +198,26 @@ def isubst(a, j, e):
     return out
 
 
+# Whether the statement currently being emitted is a *part* (stated over an abstract `dag`,
+# with `hdag` as a hypothesis) or the top theorem (stated over `raw.toDag` directly).
+#
+# A part used to be stated over `raw.toDag (Ecdsa2.consts F)` and folded back to the combiner's
+# `set` variable with `rw [<- hdag]` at the citation.  That rewrite walks every leaf of every
+# cited part -- 8 parts x 32 leaves, plus the combiner's own 256 -- and the folding is the
+# measured hot path here (4 s when it lands, 7.4 GB and 87 minutes when it does not).  Stating
+# the part over an abstract `dag` instead means the citation is already in the combiner's
+# variable and nothing is rewritten.  Set `DAG_ARG=0` to go back.
+DAG_ARG = os.environ.get("DAG_ARG", "1") != "0"
+PART_STMT = [False]
+
+
 def wire(v, full=False):
     """`set` introduces `w{i}` inside the proof, but the *statement* is elaborated before it, so
     the theorem has to spell the wire out."""
-    return (f"interpDag (raw.toDag (Ecdsa2.consts F)) inputs {v}") if full else f"w{v}"
+    if not full:
+        return f"w{v}"
+    dag = "dag" if (DAG_ARG and PART_STMT[0]) else "(raw.toDag (Ecdsa2.consts F))"
+    return f"interpDag {dag} inputs {v}"
 
 
 def render(p, full=False):
@@ -419,8 +454,9 @@ def main():
         happens at all."""
         if hi - lo == 1:
             b = bits[lo]
-            nm = f"w{b}" if (not full and b in bound) else \
-                f"interpDag (raw.toDag (Ecdsa2.consts F)) inputs {b}"
+            # Goes through `wire` so a part's segment is stated over the abstract `dag` too;
+            # spelling `raw.toDag` here was what left 32 of them in each part statement.
+            nm = f"w{b}" if (not full and b in bound) else wire(b, True)
             return f"[ECDSA2.BitLt.base ({nm}) ({(ORDER >> lo) & 1} : F)]"
         mid = lo + (hi - lo) // 2
         return f"({segx(lo, mid, full)} ++ {segx(mid, hi, full)})"
@@ -445,6 +481,8 @@ def main():
             # otherwise nothing downstream matches it and elaboration thrashes (measured: 7.4 GB
             # and 87 minutes on a module that takes 4 s when the folding is right).
             steps.append(
+                f"@CITE@  have s{lo}_{hi} := {partname[(lo, hi)]} (F := F) inputs hone hdag"
+                if DAG_ARG else
                 f"@CITE@  have s{lo}_{hi} := {partname[(lo, hi)]} (F := F) inputs hone\n"
                 f"  rw [\u2190 hdag] at s{lo}_{hi}")
             for m in list(e) + list(l):
@@ -503,9 +541,15 @@ def main():
     def mk(lo, hi, tname, stop):
         """One self-contained theorem for the subtree `[lo, hi)`, citing `stop` subtrees.
 
+        A part is stated over an abstract `dag` so the combiner can cite it without rewriting;
+        the top theorem keeps `raw.toDag` because nothing cites it. `PART_STMT` has to be set
+        before any `wire(.., full=True)` runs, which is why it is set here rather than at the
+        emission site.
+
         Citations of part theorems are emitted *before* the `set` block. `set` only abstracts
         occurrences present at the time it runs, so a `have` introduced afterwards keeps the raw
         `interpDag` terms -- and `ring` then sees those and the `w` binders as unrelated atoms."""
+        PART_STMT[0] = DAG_ARG and tname != name
         steps, used = [], set()
         walk(lo, hi, [], used, stop)          # pass 1: which wires this theorem binds
         bound.clear()
@@ -620,10 +664,16 @@ def main():
                f"  try simp only [{', '.join('o' + str(i) for i in sorted(ones))}] at {vs_at}\n"
                + alias_rw
                + f"  push_cast at {vs_at}\n") if wires else ""
-        return f'''theorem {tname} (inputs : Nat \u2192 F) (hone : inputs 0 = 1) :
+        _part = PART_STMT[0]
+        _binders = ("\n    {dag : _} (hdag : dag = raw.toDag (Ecdsa2.consts F))"
+                    if _part else "")
+        # `subst` puts the part back in terms of `raw.toDag`, so everything below is unchanged;
+        # only the *statement* is abstract, which is all the citation needs.
+        _subst = "  subst hdag\n" if _part else ""
+        return f'''theorem {tname} (inputs : Nat \u2192 F) (hone : inputs 0 = 1){_binders} :
     ECDSA2.BitLt.foldStL {segx(lo, hi, True)}
       = ({render(e, True)}, {render(l, True)}) := by
-  set dag := raw.toDag (Ecdsa2.consts F) with hdag
+{_subst}  set dag := raw.toDag (Ecdsa2.consts F) with hdag
   have vs := Ecdsa2.valid (F := F) inputs
   have dag_len : dag.length = 26939 := by
     rw [hdag]; simp only [RawCircuit.toDag, List.length_map]; exact nodes_len

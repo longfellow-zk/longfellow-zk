@@ -30,7 +30,7 @@
 //! coefficient is present in the segmented circuit's constant table -- which is what lets the
 //! Lean certificate be stated over `constNat` rather than over unchecked literals.
 
-use compile_algebra::{field::CompileField, p256::P256Field};
+use compile_algebra::p256::P256Field;
 use core_algebra::AlgebraicField;
 
 fn main() {

@@ -1121,8 +1121,9 @@ impl ParsedSidecar {
 /// Options for [`emit_lean`].
 #[derive(Debug, Clone, Copy)]
 pub struct EmitOptions<'a> {
-    /// Base name of the generated modules, e.g. `"Rung1"`. Modules are emitted as
-    /// `quadcert.<name>Chunk0`, ..., `quadcert.<name>Data`.
+    /// Base name of the generated modules, e.g. `"Sha256Blk"`. Modules are emitted as
+    /// `Gen/<name>/<name>Base.lean`, `<name>Schemas`, `<name>NodeFn`, ..., `<name>Data`,
+    /// all in the `Quadcert.Gen.<name>` namespace.
     pub name: &'a str,
     /// Maximum list elements per chunk module. `0` emits a single module.
     ///
@@ -1653,6 +1654,16 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
             None => String::new(),
         };
         let terms = &layer_terms_expr[l];
+        // With an artifact, `terms` is the named `allTerms_{l}`, so its type is known. Without
+        // one it is an inline list of `⟨g, h0, h1, k⟩` anonymous constructors, and Lean cannot
+        // infer their type from a bare list literal in a theorem statement -- every element
+        // fails with "Invalid `⟨...⟩` notation: the expected type of this term could not be
+        // determined". Ascribe it in the no-artifact case only, leaving the artifact path
+        // byte-identical.
+        let terms_ty = match opts.artifact {
+            Some(_) => terms.to_string(),
+            None => format!("{terms} : List RawTerm"),
+        };
         let mut body = String::new();
         for (j, (lo, len, bn)) in blocks.iter().enumerate() {
             body.push_str(&format!(
@@ -1685,7 +1696,7 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
                  /-- Every term of layer {l} sits in a group below {gbound}. `perm_of_blocks`\n\
                  needs this: a term out of range would belong to no block, and the permutation\n\
                  would be false. -/\n\
-                 theorem gbnd_{l} : ({terms}).all (fun t => decide (t.g < {gbound})) = true := by\n\
+                 theorem gbnd_{l} : ({terms_ty}).all (fun t => decide (t.g < {gbound})) = true := by\n\
                  {unfold}  \
                  try simp only [List.all_append]\n  \
                  decide +kernel\n\n\
@@ -1693,7 +1704,7 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
                  /-- Layer {l}: {n} terms in {gbound} groups, {nblocks} blocks, `msort` fuel\n\
                  {fuel} per block. -/\n\
                  theorem perm_{l} :\n    \
-                 ({terms}).Perm ((List.range {gbound}).flatMap groupOf_{l}) := by\n  \
+                 ({terms_ty}).Perm ((List.range {gbound}).flatMap groupOf_{l}) := by\n  \
                  refine perm_of_blocks RawTerm.g groupOf_{l} ({terms}) {gbound} {bs}\n    \
                  (by decide) ?_ ?_\n  \
                  · intro t ht\n    \
@@ -1900,7 +1911,7 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
     let (artifact_import, artifact_block) = match opts.artifact {
         None => (String::new(), String::new()),
         Some(artifact) => {
-            // Same numbering as `FieldID` and `Quadcert.Lfc3`'s `FieldEncoding`s.
+            // Same numbering as `FieldID` and `Quadcert.Lfc2`'s `FieldEncoding`s.
             let field = match s.field_id {
                 1 => "p256",
                 4 => "gf2_128",
@@ -1912,7 +1923,7 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
                 "/-! ### Artifact refinement -/\n\n\
                  /-- The sidecar supplies structural advice, but no artifact dimensions, \
                  constants or terms. -/\n\
-                 noncomputable def advice : Lfc3.RawAdvice where\n  \
+                 noncomputable def advice : Lfc2.RawAdvice where\n  \
                  nodes := {nodes}\n  wireFn := wireFn\n  asserts := {asserts}\n  \
                  layout := [{layout}]\n\n\
                  /-- The same circuit assembled with every artifact-owned field decoded from \
@@ -1929,8 +1940,8 @@ pub fn emit_lean(s: &ParsedSidecar, opts: &EmitOptions<'_>) -> Vec<(String, Stri
                  bytes decode to, extended by the sidecar's four advice fields, *is* `raw`.  \
                  Without it a spec theorem mentioning only `raw` says nothing about the \
                  artifact, because `raw` is a generated literal. -/\n\
-                 theorem raw_from_bytes (c : Lfc3.DecodedCircuit)\n    \
-                 (h : Lfc3.decode Lfc3.{field} Quadcert.Gen.{artifact}.packedInput\n      \
+                 theorem raw_from_bytes (c : Lfc2.DecodedCircuit)\n    \
+                 (h : Lfc2.decode Lfc2.{field} Quadcert.Gen.{artifact}.packedInput\n      \
                  Quadcert.Gen.{artifact}.deltaTrees = .ok c) :\n    \
                  c.toRaw advice = raw := by\n  \
                  rw [Quadcert.Gen.{artifact}.decode_ok] at h\n  \

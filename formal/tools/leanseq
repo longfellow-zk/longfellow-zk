@@ -12,7 +12,7 @@
 #
 # Usage: leanseq [LIB] [RSS_CEILING_GB] [FILTER_REGEX]
 #   LIB             Lean library name = subdirectory of circuits/ (default quadcert)
-#   RSS_CEILING_GB  watchdog kills a worker above this (default 20; total budget is 40 GB).
+#   RSS_CEILING_GB  watchdog kills a worker above this (default 20; this machine has 61 GB).
 #                   The Perm sorts genuinely need ~5.5 GB, so 12 was too tight.
 #   FILTER_REGEX    only build modules matching this (dependencies are still built first)
 #
@@ -25,6 +25,24 @@
 # 1,037-module run at 321 with `unknown target quadcert.223`.  `leanseq.times` is still linked
 # to the fixed path at the end, so the profile stays where it has always been.
 set -u
+# The default 8 MB process stack is not enough for the largest generated modules.  The two
+# failure modes look different because they are on different threads:
+#
+#   Gen.MdocHash.MdocHashCompressedLayer16   C code generator, main thread -- writes .olean and
+#                                            .ilean in full, leaves a zero-byte .c, exit 134
+#   Gen.MdocHash.MdocHashDecoded             elaboration, worker thread -- no output at all
+#
+# Use a large *finite* limit, never `unlimited`.  glibc stops inheriting RLIMIT_STACK for new
+# threads once it is unlimited and falls back to a fixed default, so `ulimit -s unlimited` makes
+# worker threads *smaller* than leaving the limit alone.  Measured with pthread_attr_getstack:
+#
+#   ulimit -s 8192       ->  worker thread stack     8 MB   (distro default)
+#   ulimit -s unlimited  ->  worker thread stack     2 MB   (worse than doing nothing)
+#   ulimit -s 2097152    ->  worker thread stack  2048 MB
+#
+# Lean's `--tstack` sets the worker stacks directly and covers the second case, but it does not
+# reach the code generator, so on its own it fixes only half of this.
+ulimit -s 2097152 2>/dev/null || true
 LIB=${1:-quadcert}
 CEIL_GB=${2:-20}
 FILTER=${3:-.}
@@ -61,6 +79,13 @@ PY
 
 grep -E "$FILTER" /tmp/leanseq.order.$$ > /tmp/leanseq.filtered.$$
 TOTAL=$(wc -l < /tmp/leanseq.filtered.$$ | tr -d ' ')
+# A filter that matches nothing is a typo, not a finished build.  Without this the loop body
+# never runs and the script ends on "all 0 modules built", which reads like success -- the same
+# line a real build prints.
+if [ "$TOTAL" -eq 0 ]; then
+  echo "leanseq: filter '$FILTER' matched none of $(wc -l < /tmp/leanseq.order.$$ | tr -d ' ') modules in $DIR" >&2
+  exit 1
+fi
 echo "leanseq: $LIB, $TOTAL modules, one at a time, RSS ceiling ${CEIL_GB} GB"
 : > /tmp/leanseq.times.$$
 N=0
@@ -87,7 +112,14 @@ while read -r M; do
   wait $LAKE; RC=$?
   printf '%6ss %6sMB  %s\n' "$(( $(date +%s) - T0 ))" "$((PEAK/1024))" "$M" >> /tmp/leanseq.times.$$
   if [ $RC -ne 0 ]; then
-    echo "leanseq: FAILED [$N/$TOTAL] $M"; tail -20 /tmp/leanseq.last.$$; exit 1
+    echo "leanseq: FAILED [$N/$TOTAL] $M"
+    # Keep the log: a module with several failed `decide`s reports one error per declaration, and
+    # a tail shows only the last.  That hid whether `rndEdges6` failed alongside `rndEdges7` in
+    # S2EdgesRnd, which is the difference between global node drift and one bad family.
+    cp /tmp/leanseq.last.$$ /tmp/leanseq.fail.$M.log
+    grep -n 'error\|is false' /tmp/leanseq.last.$$ | head -40
+    echo "leanseq: full log in /tmp/leanseq.fail.$M.log"
+    exit 1
   fi
   echo "leanseq: [$N/$TOTAL] $M  $(( $(date +%s) - T0 ))s  $((PEAK/1024))MB"
 done < /tmp/leanseq.filtered.$$

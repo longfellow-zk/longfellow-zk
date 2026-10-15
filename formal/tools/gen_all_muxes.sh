@@ -7,8 +7,8 @@
 # them here could silently pick a different one and the two lemma families would not compose.
 # Reading them back is the only way the association is guaranteed to match.
 set -u
-R=/Users/abhi/Projects/longfellow-zk/rust
-F=/Users/abhi/Projects/longfellow-zk/formal
+F=$(cd "$(dirname "$0")/.." && pwd)
+R=$(cd "$F/../rust" && pwd)
 S=${1:?usage: gen_all_muxes.sh SCRATCH SIDECAR}
 SC=${2:?}
 mkdir -p "$S/muxes"

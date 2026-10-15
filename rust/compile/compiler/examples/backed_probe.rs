@@ -67,7 +67,7 @@ fn main() {
         // Why not? Report the shape of the term that *is* on that wire, if any.
         let reason = match wire {
             None => "node has no wire".to_string(),
-            Some((l, i)) if l != a.wire_layer + 1 => {
+            Some((l, _)) if l != a.wire_layer + 1 => {
                 format!("wire layer {l} != wireLayer+1 = {}", a.wire_layer + 1)
             }
             Some((_, i)) => {

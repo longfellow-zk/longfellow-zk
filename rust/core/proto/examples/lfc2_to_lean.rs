@@ -20,6 +20,10 @@
 //! Usage:
 //! `cargo run -p core-proto --example lfc2_to_lean -- FIELD INPUT OUTPUT_DIR NAME`
 //! where `FIELD` is `p256` or `gf2_128` and `NAME` is a valid Lean identifier.
+//!
+//! `TERM_CHUNK_SIZE` and `PARSE_CHUNK_SIZE` are separate knobs on purpose: raising the first
+//! trades module count against per-module size, but raising the second past a layer's segment
+//! count is not a tradeoff, it is a failure -- see `DEFAULT_PARSE_CHUNK_SIZE`.
 
 use std::{env, fmt::Write as _, fs, path::Path};
 
@@ -36,11 +40,19 @@ use core_proto::{
 
 const DEFAULT_TERM_CHUNK_SIZE: usize = 1024;
 
+/// Deltas and segments are chunked by this, *not* by `TERM_CHUNK_SIZE`, and it must stay below
+/// the layer segment counts in play.  A chunk that spans a whole layer collapses that layer's
+/// `readSegmentsChunk` proof back into the single per-layer `rfl` that chunking exists to avoid,
+/// and the kernel then overflows its stack rather than reporting anything useful.  The mdoc hash
+/// circuit's layer 16 has 1,705 segments and 3,371 deltas, so 8192 silently produces one chunk
+/// for each and aborts with SIGABRT after ~150 s.
+const DEFAULT_PARSE_CHUNK_SIZE: usize = 1024;
+
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
-    if !(5..=6).contains(&args.len()) {
+    if !(5..=7).contains(&args.len()) {
         return Err(format!(
-            "usage: {} FIELD INPUT OUTPUT_DIR NAME [TERM_CHUNK_SIZE]",
+            "usage: {} FIELD INPUT OUTPUT_DIR NAME [TERM_CHUNK_SIZE] [PARSE_CHUNK_SIZE]",
             args.first().map_or("lfc2_to_lean", String::as_str)
         ));
     }
@@ -52,6 +64,15 @@ fn main() -> Result<(), String> {
         .unwrap_or(DEFAULT_TERM_CHUNK_SIZE);
     if term_chunk_size == 0 {
         return Err("TERM_CHUNK_SIZE must be nonzero".to_string());
+    }
+    let parse_chunk_size = args
+        .get(6)
+        .map(|value| value.parse::<usize>())
+        .transpose()
+        .map_err(|error| format!("invalid PARSE_CHUNK_SIZE: {error}"))?
+        .unwrap_or(DEFAULT_PARSE_CHUNK_SIZE);
+    if parse_chunk_size == 0 {
+        return Err("PARSE_CHUNK_SIZE must be nonzero".to_string());
     }
     let input = fs::read(&args[2]).map_err(|error| format!("read {}: {error}", args[2]))?;
     let output = Path::new(&args[3]);
@@ -65,6 +86,7 @@ fn main() -> Result<(), String> {
             output,
             &args[4],
             term_chunk_size,
+            parse_chunk_size,
         ),
         "gf2_128" => convert(
             &Gf2_128Field::new(),
@@ -73,6 +95,7 @@ fn main() -> Result<(), String> {
             output,
             &args[4],
             term_chunk_size,
+            parse_chunk_size,
         ),
         field => Err(format!(
             "unsupported field {field:?}; expected p256 or gf2_128"
@@ -87,6 +110,7 @@ fn convert<F: SerializableField>(
     output: &Path,
     name: &str,
     term_chunk_size: usize,
+    parse_chunk_size: usize,
 ) -> Result<(), String> {
     let reader = CircuitReader::new(field, field_id);
     let (circuit, trailing) = reader.from_bytes_lfc2(lfc2, true)?;
@@ -268,6 +292,7 @@ fn convert<F: SerializableField>(
         output,
         name,
         term_chunk_size,
+        parse_chunk_size,
     )?;
 
     fs::write(output.join(format!("{name}.lfc2")), &bytes)
@@ -342,6 +367,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
     output: &Path,
     name: &str,
     term_chunk_size: usize,
+    parse_chunk_size: usize,
 ) -> Result<(), String> {
     let layer_offsets = lfc2_layer_offsets(lfc2, field.serialized_size_bytes())?;
     if layer_offsets.len() != circuit.raw.layers.len() + 1 {
@@ -414,7 +440,7 @@ fn emit_verified_decode_modules<F: SerializableField>(
         } else {
             circuit.raw.layers[layer_index - 1].nw()
         };
-        let st = lfc2_layer_stages(lfc2, layer_offsets[layer_index], term_chunk_size)?;
+        let st = lfc2_layer_stages(lfc2, layer_offsets[layer_index], parse_chunk_size)?;
 
         // Stage cursors for this layer.  Emitted once, imported by every stage module.
         let mut cursors = String::new();
@@ -492,8 +518,8 @@ fn emit_verified_decode_modules<F: SerializableField>(
         let deltas = layer.deltas();
         let ndchunks = st.delta_bounds.len() - 1;
         for j in 0..ndchunks {
-            let lo = j * term_chunk_size;
-            let hi = ((j + 1) * term_chunk_size).min(deltas.len());
+            let lo = j * parse_chunk_size;
+            let hi = ((j + 1) * parse_chunk_size).min(deltas.len());
             let items = deltas[lo..hi]
                 .iter()
                 .map(|d| format!("⟨{}, {}, {}, {}⟩", d.g, d.h[0], d.h[1], d.k_index))
@@ -545,7 +571,8 @@ fn emit_verified_decode_modules<F: SerializableField>(
             }
             writeln!(
                 dcompose,
-                "  simpa [allDeltas_{layer_index}, Nat.reduceAdd, List.append_assoc] using h_{}",
+                "  simpa (maxSteps := 4000000) [allDeltas_{layer_index}, Nat.reduceAdd, \
+                 List.append_assoc] using h_{}",
                 ndchunks - 1
             )
             .expect("write String");
@@ -595,14 +622,14 @@ fn emit_verified_decode_modules<F: SerializableField>(
         let nschunks = st.segment_bounds.len() - 1;
         let mut symbols_before = vec![0usize; nschunks + 1];
         for j in 0..nschunks {
-            let lo = j * term_chunk_size;
-            let hi = ((j + 1) * term_chunk_size).min(segments.len());
+            let lo = j * parse_chunk_size;
+            let hi = ((j + 1) * parse_chunk_size).min(segments.len());
             symbols_before[j + 1] =
                 symbols_before[j] + segments[lo..hi].iter().map(Vec::len).sum::<usize>();
         }
         for j in 0..nschunks {
-            let lo = j * term_chunk_size;
-            let hi = ((j + 1) * term_chunk_size).min(segments.len());
+            let lo = j * parse_chunk_size;
+            let hi = ((j + 1) * parse_chunk_size).min(segments.len());
             let items = segments[lo..hi]
                 .iter()
                 .map(|seg| format!("Array.mk [{}]", seg.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")))
@@ -656,7 +683,8 @@ fn emit_verified_decode_modules<F: SerializableField>(
             }
             writeln!(
                 scompose,
-                "  simpa [allSegments_{layer_index}, Nat.reduceAdd, List.append_assoc] using h_{}",
+                "  simpa (maxSteps := 4000000) [allSegments_{layer_index}, Nat.reduceAdd, \
+                 List.append_assoc] using h_{}",
                 nschunks - 1
             )
             .expect("write String");
@@ -832,7 +860,12 @@ fn emit_verified_decode_modules<F: SerializableField>(
             }
             writeln!(
                 composition,
-                "  simpa [allTerms_{layer_index}, start_{layer_index}_0, Nat.reduceAdd, List.append_assoc] using h_{}",
+            // `List.append_assoc` normalising an n-way `++` chain costs O(n^2) simp steps,
+            // and the default cap is 100,000: layer 15 of the mdoc hash circuit composes
+            // 64 chunks (64^2 = 4,096) and passes, layer 16 composes 315 (99,225) and fails
+            // with `maximum number of steps exceeded`.  The cap is not a cost when unused.
+                "  simpa (maxSteps := 4000000) [allTerms_{layer_index}, start_{layer_index}_0, \
+                 Nat.reduceAdd, List.append_assoc] using h_{}",
                 nchunks - 1,
             )
             .expect("write String");
@@ -1122,38 +1155,12 @@ fn lean_delta_tree(ds: &[(u32, u32, u32, u32)], lo: usize, hi: usize) -> String 
     )
 }
 
-fn lean_deltas<F: SerializableField>(layer: &Layer<F>) -> String {
-    format!(
-        "#[{}]",
-        layer
-            .deltas()
-            .iter()
-            .map(|delta| format!(
-                "⟨{}, {}, {}, {}⟩",
-                delta.g, delta.h[0], delta.h[1], delta.k_index
-            ))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
-}
-
 fn lean_nat_array(values: &[u32]) -> String {
     format!(
         "#[{}]",
         values
             .iter()
             .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
-}
-
-fn lean_nested_nat_array(values: &[Vec<u32>]) -> String {
-    format!(
-        "#[{}]",
-        values
-            .iter()
-            .map(|value| lean_nat_array(value))
             .collect::<Vec<_>>()
             .join(", ")
     )
@@ -1173,7 +1180,6 @@ fn lean_terms(terms: &[ExpandedTerm]) -> String {
             .join(", ")
     )
 }
-
 
 
 fn lean_checkpoint(layer_index: usize, roots: &[u32], cursor: &ExpansionCheckpoint) -> String {
@@ -1260,7 +1266,6 @@ struct LayerStages {
     after_seg_count: usize,
     segment_count: usize,
     segment_bounds: Vec<usize>,
-    after_tokens: usize,
 }
 
 fn lfc2_layer_stages(
@@ -1307,7 +1312,6 @@ fn lfc2_layer_stages(
         after_seg_count,
         segment_count,
         segment_bounds,
-        after_tokens: offset,
     })
 }
 

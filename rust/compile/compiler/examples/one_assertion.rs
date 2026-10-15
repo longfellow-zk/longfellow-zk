@@ -42,23 +42,6 @@ fn main() {
     // Cone in topological order: operands before parents.
     let mut order: Vec<usize> = Vec::new();
     let mut seen: BTreeSet<usize> = BTreeSet::new();
-    fn visit(
-        n: usize,
-        nodes: &[ParsedNode],
-        seen: &mut BTreeSet<usize>,
-        order: &mut Vec<usize>,
-    ) {
-        if !seen.insert(n) {
-            return;
-        }
-        if let ParsedNode::Sum { terms } = &nodes[n] {
-            for (_, w0, w1) in terms {
-                visit(*w0, nodes, seen, order);
-                visit(*w1, nodes, seen, order);
-            }
-        }
-        order.push(n);
-    }
     // Stop at CSE boundaries when asked: a node with more than one parent becomes an opaque
     // variable rather than being expanded.  This is what the template machinery already does,
     // and the reason it does it -- expanding a DAG into a tree duplicates every shared subterm.

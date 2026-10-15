@@ -113,8 +113,26 @@ fn main() {
     let segmented = compile_compiler::segment_circuit(&field, &circuit);
     assert_eq!(segmented.id, circuit.id, "segmentation changed the circuit id");
 
+
+    // The hand-written bridges are written against one particular circuit: they name node ids,
+    // and node numbering comes out of the compiler. Determinism makes regeneration reproducible
+    // but not drift-proof -- `S2TmplBool`'s worked instance broke when input 1 moved from node
+    // 14939 to 14925 between the bridge being written and a later compile, and it surfaced as an
+    // unprovable Lean side goal hundreds of modules downstream rather than here.
+    //
+    // `EXPECT_CIRCUIT_ID=<hex>` turns that into a generation-time failure. The value the bridges
+    // were written against is recorded in `formal/circuits/quadcert/CIRCUIT_PINS.txt`.
+    if let Ok(want) = std::env::var("EXPECT_CIRCUIT_ID") {
+        let got = hex(&circuit.id);
+        assert_eq!(
+            got,
+            want.trim(),
+            "circuit drift: this compile is {got}, but the bridges were written against {}. \
+             Either regenerate the hand-written node tables or update the pin.",
+            want.trim()
+        );
+    }
     let writer = CircuitWriter::new(&field, FieldID::P256);
-    let lfc2 = writer.to_bytes_lfc2(&segmented);
     let lfc2 = writer.to_bytes_lfc2(&segmented);
     let commitment = FormalCircuitCommitment::new(&lfc2);
 
@@ -210,7 +228,6 @@ fn main() {
          lfc2_root = {}\n\
          lfc2_bytes = {}\n\
          lfc2_pages = {}\n\
-         lfc2_bytes = {}\n\
          ninput = {}\n\
          npublic_input = {}\n\
          noutput = {}\n\
@@ -222,7 +239,6 @@ fn main() {
         hex(&commitment.root),
         lfc2.len(),
         commitment.page_count,
-        lfc2.len(),
         stats.ninput,
         stats.npublic_input,
         stats.noutput,
