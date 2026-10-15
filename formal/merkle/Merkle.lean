@@ -1,4 +1,6 @@
 import Merkle.CheckPass
+import Merkle.CommitCollision
+import Merkle.Hiding
 import Merkle.Collision
 import Merkle.Commit
 import Merkle.Extraction
@@ -10,3 +12,4 @@ import Merkle.PrefixBinding
 import Merkle.RandomOracle
 import Merkle.Trapdoor
 import Merkle.TreeCompose
+import Merkle.TwoOracle
