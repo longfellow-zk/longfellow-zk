@@ -21,7 +21,9 @@ use runtime_algebra::{
 };
 
 use crate::{
-    attribute::RequestedAttribute, concrete::builder::AssignmentBuilder, config::K_ATTR_LEN_BITS,
+    attribute::{AttributeOp, RequestedAttribute},
+    concrete::builder::AssignmentBuilder,
+    config::K_ATTR_LEN_BITS,
     error::MdocProverErrorCode,
 };
 
@@ -42,15 +44,17 @@ pub fn push_witness_hash<N: Nat<4>>(
         &circuits_sha256::constants::INITIAL,
         mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS,
     )
-    .unwrap();
+    .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let mso_sha_derived = circuits_sha256msg::concrete::derived(
         &mso_sha_in,
         mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS,
     );
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
-    let preimage_arr: [u8; mdoc_zk_circuits::hash::constants::K_MSO_PREIMAGE_LEN] =
-        signed_bytes.as_slice().try_into().unwrap();
+    let preimage_arr: [u8; mdoc_zk_circuits::hash::constants::K_MSO_PREIMAGE_LEN] = signed_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
 
     for &b in &preimage_arr {
         builder.push_v8(b);
@@ -87,7 +91,7 @@ pub fn push_witness_hash<N: Nat<4>>(
         16,
     );
 
-    // 6. attribute_witnesses
+    // 6. attribute_witnesses (and optional pnym_witnesses)
     push_witness_attrs(req_attrs, parsed, &mut builder)?;
 
     // 7. sha_witnesses (MSO preimage hashing)
@@ -106,28 +110,39 @@ fn push_witness_attrs<N: Nat<4>>(
     parsed: &ParsedMdoc<N>,
     builder: &mut AssignmentBuilder<Gf2_128Field>,
 ) -> Result<(), MdocProverErrorCode> {
-    for la in req_attrs {
+    use mdoc_zk_proto::mso_attribute::constants::{
+        max_attr_cbor_len, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_SHA_BLOCKS, K_PNYM_PREIMAGE_LEN,
+        K_PNYM_SEED_LEN, K_PNYM_SHA_BLOCKS,
+    };
+
+    let preimage_base_offset = mdoc_zk_circuits::hash::constants::K_COSE1_PREFIX_LEN + 7;
+    let max_attr_len = max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS);
+
+    for la in req_attrs.iter().filter(|a| a.op != AttributeOp::Pnym) {
         let pa = parsed
             .get_attribute(&la.id)
             .ok_or(MdocProverErrorCode::AttributeNotFound)?;
-        if pa.cbor_issuer_signed_item.len() >= 256 {
+        if pa.cbor_issuer_signed_item.len() > max_attr_len {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
         let attr_sha_in = circuits_sha256msg::concrete::given(
             &pa.cbor_issuer_signed_item,
             &circuits_sha256::constants::INITIAL,
-            2,
+            K_MAX_ATTR_SHA_BLOCKS,
         )
-        .unwrap();
-        let attr_sha_derived = circuits_sha256msg::concrete::derived(&attr_sha_in, 2);
-        let preimage_arr: [u8; mdoc_zk_circuits::mso_attribute::constants::K_ATTR_PREIMAGE_LEN] =
-            attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
+        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let attr_sha_derived =
+            circuits_sha256msg::concrete::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
+        let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] = attr_sha_in
+            .padded_preimage
+            .as_slice()
+            .try_into()
+            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
 
         for &b in &preimage_arr {
             builder.push_v8(b);
         }
         builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_LEN_BITS);
-        let preimage_base_offset = mdoc_zk_circuits::hash::constants::K_COSE1_PREFIX_LEN + 7;
         let mso_digest_offset_in_preimage = preimage_base_offset + pa.mso_digest_offset_in_preimage;
         builder.push_bits_len(mso_digest_offset_in_preimage as u64, 16);
         for &s in &pa.field_locator.slot_position {
@@ -144,6 +159,75 @@ fn push_witness_attrs<N: Nat<4>>(
         }
         builder.push_sha256msg_derived(&attr_sha_derived);
     }
+
+    for la in req_attrs.iter().filter(|a| a.op == AttributeOp::Pnym) {
+        let pa = parsed
+            .get_attribute(b"pnym_seed")
+            .ok_or(MdocProverErrorCode::PnymSeedMissing)?;
+        if pa.cbor_issuer_signed_item.len() > max_attr_len {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
+        let seed = mdoc_zk_circuits::cbor::pnym_seed_of(pa)
+            .map_err(|_| MdocProverErrorCode::PnymSeedMalformed)?;
+
+        let item_sha_in = circuits_sha256msg::concrete::given(
+            &pa.cbor_issuer_signed_item,
+            &circuits_sha256::constants::INITIAL,
+            K_MAX_ATTR_SHA_BLOCKS,
+        )
+        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let item_sha_derived =
+            circuits_sha256msg::concrete::derived(&item_sha_in, K_MAX_ATTR_SHA_BLOCKS);
+        let item_preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] = item_sha_in
+            .padded_preimage
+            .as_slice()
+            .try_into()
+            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+
+        let mut pnym_msg = Vec::with_capacity(K_PNYM_SEED_LEN + la.context.len());
+        pnym_msg.extend_from_slice(&seed);
+        pnym_msg.extend_from_slice(&la.context);
+        let pnym_sha_in = circuits_sha256msg::concrete::given(
+            &pnym_msg,
+            &circuits_sha256::constants::INITIAL,
+            K_PNYM_SHA_BLOCKS,
+        )
+        .map_err(|_| MdocProverErrorCode::PnymContextMissing)?;
+        let pnym_sha_derived =
+            circuits_sha256msg::concrete::derived(&pnym_sha_in, K_PNYM_SHA_BLOCKS);
+        let pnym_preimage_arr: [u8; K_PNYM_PREIMAGE_LEN] = pnym_sha_in
+            .padded_preimage
+            .as_slice()
+            .try_into()
+            .map_err(|_| MdocProverErrorCode::PnymContextMissing)?;
+
+        for &b in &item_preimage_arr {
+            builder.push_v8(b);
+        }
+        builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_LEN_BITS);
+        let mso_digest_offset_in_preimage = preimage_base_offset + pa.mso_digest_offset_in_preimage;
+        builder.push_bits_len(mso_digest_offset_in_preimage as u64, 16);
+        for &s in &pa.field_locator.slot_position {
+            builder.push_bits_len(s as u64, K_ATTR_LEN_BITS);
+        }
+        for &l in &pa.field_locator.length {
+            builder.push_bits_len(l as u64, K_ATTR_LEN_BITS);
+        }
+        let mut perm_val = pa.field_locator.permutation;
+        for _ in 0..4 {
+            let chunk = (perm_val & 3) as u64;
+            builder.push_bits_len(chunk, 2);
+            perm_val >>= 2;
+        }
+        for &b in &pnym_preimage_arr {
+            builder.push_v8(b);
+        }
+        builder.push_bits_len(pnym_sha_in.length_bytes, K_ATTR_LEN_BITS);
+        builder.push_bits_len(pnym_sha_in.nblocks as u64, 2);
+        builder.push_sha256msg_derived(&item_sha_derived);
+        builder.push_sha256msg_derived(&pnym_sha_derived);
+    }
+
     Ok(())
 }
 

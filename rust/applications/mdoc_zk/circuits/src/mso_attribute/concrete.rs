@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::constants::K_MAX_ATTR_SHA_BLOCKS;
+
 #[derive(Clone, Copy, Debug)]
 pub struct FieldLocator {
     pub slot_position: [usize; 4],
@@ -23,12 +25,14 @@ pub struct FieldLocator {
 pub struct DisclosedAttribute {
     pub expected_name: Vec<u8>,
     pub expected_cbor_value: Vec<u8>,
+    pub op: u8,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConcreteGiven {
     pub name: Vec<u8>,
     pub cbor_value: Vec<u8>,
+    pub op: u8,
     pub preimage: Vec<u8>,
     pub field_locator: FieldLocator,
     pub expected_digest: [u32; 8],
@@ -46,7 +50,7 @@ pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
             sha_derived: circuits_sha256msg::concrete::sha256_msg_derived(
                 &given.preimage,
                 &circuits_sha256::constants::INITIAL,
-                2,
+                K_MAX_ATTR_SHA_BLOCKS,
             ),
         },
     }

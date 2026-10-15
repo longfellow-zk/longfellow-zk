@@ -137,6 +137,21 @@ where
             fr,
         );
         push_bits(&mut inputs, attr.expected_cbor_value.len() as u128, 10, fr);
+        push_bits(&mut inputs, attr.op as u128, 2, fr);
+    }
+
+    if let Some(pnym) = &given.hash_input.pnym {
+        push_bytes(&mut inputs, &pnym.expected_name, EXPECTED_NAME_LEN, fr);
+        push_bits(&mut inputs, pnym.expected_name.len() as u128, 10, fr);
+        push_bytes(
+            &mut inputs,
+            &pnym.expected_cbor_value,
+            EXPECTED_VALUE_LEN,
+            fr,
+        );
+        push_bits(&mut inputs, pnym.expected_cbor_value.len() as u128, 10, fr);
+        push_bytes(&mut inputs, &pnym.context, 80, fr);
+        push_bits(&mut inputs, pnym.context.len() as u128, 7, fr);
     }
 
     push_bytes(&mut inputs, &given.hash_input.now, K_TIMESTAMP_LEN, fr);
@@ -209,6 +224,39 @@ where
                 fr,
             );
         }
+    }
+
+    if let Some(pnym_g) = &given.pnym_given {
+        push_bytes(
+            &mut inputs,
+            &pnym_g.padded_preimage,
+            K_ATTR_PREIMAGE_LEN,
+            fr,
+        );
+        push_bits(&mut inputs, pnym_g.unpadded_preimage_len as u128, 10, fr);
+        push_bits(
+            &mut inputs,
+            pnym_g.mso_digest_offset_in_preimage as u128,
+            16,
+            fr,
+        );
+        for value in pnym_g.field_locator.slot_position {
+            push_bits(&mut inputs, value as u128, 10, fr);
+        }
+        for value in pnym_g.field_locator.length {
+            push_bits(&mut inputs, value as u128, 10, fr);
+        }
+        for idx in 0..4 {
+            push_bits(
+                &mut inputs,
+                ((pnym_g.field_locator.permutation >> (2 * idx)) & 3) as u128,
+                2,
+                fr,
+            );
+        }
+        push_bytes(&mut inputs, &pnym_g.pnym_padded_preimage, 128, fr);
+        push_bits(&mut inputs, pnym_g.pnym_length_bytes as u128, 10, fr);
+        push_bits(&mut inputs, pnym_g.pnym_nblocks as u128, 2, fr);
     }
 
     for pair in given.mac_input.mac_ap {
@@ -323,9 +371,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     compile_compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea, 0x7e,
-        0x87, 0x3e, 0x06, 0x2b, 0x4d, 0x83, 0x25, 0x1e, 0x7b, 0x91, 0x4e, 0x36, 0xfc, 0x43, 0xbe,
-        0x97, 0x26,
+        211, 221, 41, 157, 77, 229, 98, 248, 113, 150, 234, 241, 36, 76, 90, 182, 239, 24, 92, 180,
+        159, 174, 175, 116, 111, 172, 168, 64, 190, 100, 12, 89,
     ];
     assert_eq!(
         circuit.id, expected_id,

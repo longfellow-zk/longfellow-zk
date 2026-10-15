@@ -19,13 +19,17 @@ use mdoc_zk_circuits::{
     hash::{
         circuit::{
             AttrDerived, AttrGiven, AttrPreimageBytes, Derived as HashDerived, Given as HashGiven,
-            MsoPreimageBytes,
+            MsoPreimageBytes, PnymDerived, PnymGiven,
         },
         constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_TIMESTAMP_LEN},
     },
     mso_attribute::{
-        constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
-        AttrSlice, DisclosedAttribute, FieldLocator,
+        constants::{
+            K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS,
+            K_PNYM_CONTEXT_BITS, K_PNYM_CONTEXT_MAX, K_PNYM_PREIMAGE_LEN, K_PNYM_SHA_BLOCKS,
+            K_PNYM_VALUE_LEN,
+        },
+        AttrSlice, ContextSlice, DisclosedAttribute, DisclosedPnym, FieldLocator,
     },
     MdocHashCompileField,
 };
@@ -41,6 +45,7 @@ pub fn allocate_disclosed_attribute<'b, FC: MdocHashCompileField, const PLUCKER_
 
     let (value, _) = allocator.allocate_plucked_v8_array::<64, PLUCKER_WIDTH>(plucker);
     let value_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
+    let op = allocator.allocate_bitvec::<{ K_OP_BITS }>();
 
     DisclosedAttribute {
         expected_name: AttrSlice {
@@ -50,6 +55,38 @@ pub fn allocate_disclosed_attribute<'b, FC: MdocHashCompileField, const PLUCKER_
         expected_cbor_value: AttrSlice {
             data: value,
             len: value_len,
+        },
+        op,
+    }
+}
+
+pub fn allocate_disclosed_pnym<'b, FC: MdocHashCompileField, const PLUCKER_WIDTH: usize>(
+    allocator: &mut WireAllocator<'_, 'b, FC>,
+    plucker: &BitPlucker<'_, CompilerLogic<'b, FC>, PLUCKER_WIDTH>,
+) -> DisclosedPnym<CompilerLogic<'b, FC>> {
+    let (name, _) = allocator.allocate_plucked_v8_array::<32, PLUCKER_WIDTH>(plucker);
+    let name_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
+
+    let (value, _) =
+        allocator.allocate_plucked_v8_array::<K_PNYM_VALUE_LEN, PLUCKER_WIDTH>(plucker);
+    let value_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
+
+    let (context, _) =
+        allocator.allocate_plucked_v8_array::<K_PNYM_CONTEXT_MAX, PLUCKER_WIDTH>(plucker);
+    let context_len = allocator.allocate_bitvec::<{ K_PNYM_CONTEXT_BITS }>();
+
+    DisclosedPnym {
+        expected_name: AttrSlice {
+            data: name,
+            len: name_len,
+        },
+        expected_cbor_value: AttrSlice {
+            data: value,
+            len: value_len,
+        },
+        context: ContextSlice {
+            data: context,
+            len: context_len,
         },
     }
 }
@@ -105,7 +142,7 @@ pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
         length: std::array::from_fn(|_| allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>()),
         permutation: std::array::from_fn(|_| allocator.allocate_bitvec::<2>()),
     };
-    let sha_derived = allocate_sha_derived(allocator, plucker_sha, 2);
+    let sha_derived = allocate_sha_derived(allocator, plucker_sha, K_MAX_ATTR_SHA_BLOCKS);
     let given = AttrGiven {
         preimage,
         mso_digest_offset_in_preimage,
@@ -115,9 +152,56 @@ pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
     (given, derived)
 }
 
+pub fn allocate_pnym_wires<'a, FC: MdocHashCompileField>(
+    allocator: &mut WireAllocator<'_, 'a, FC>,
+    plucker_v8: &BitPlucker<'_, CompilerLogic<'a, FC>, { K_HASH_V8_BIT_PLUCKER }>,
+    plucker_sha: &BitPlucker<'_, CompilerLogic<'a, FC>, { K_SHA_BIT_PLUCKER }>,
+) -> (
+    PnymGiven<CompilerLogic<'a, FC>>,
+    PnymDerived<CompilerLogic<'a, FC>>,
+) {
+    let (preimage_value, _) = allocator
+        .allocate_plucked_v8_array::<K_ATTR_PREIMAGE_LEN, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let preimage_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
+    let preimage = AttrPreimageBytes {
+        data: preimage_value,
+        len: preimage_len,
+    };
+    let mso_digest_offset_in_preimage = allocator.allocate_bitvec::<K_HASH_INDEX_BITS>();
+    let field_locator = FieldLocator {
+        slot_position: std::array::from_fn(|_| {
+            allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>()
+        }),
+        length: std::array::from_fn(|_| allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>()),
+        permutation: std::array::from_fn(|_| allocator.allocate_bitvec::<2>()),
+    };
+    let (pnym_preimage, _) = allocator
+        .allocate_plucked_v8_array::<K_PNYM_PREIMAGE_LEN, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let pnym_length_bytes = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
+    let pnym_nblocks = allocator.allocate_bitvec::<2>();
+
+    let item_sha_derived = allocate_sha_derived(allocator, plucker_sha, K_MAX_ATTR_SHA_BLOCKS);
+    let pnym_sha_derived = allocate_sha_derived(allocator, plucker_sha, K_PNYM_SHA_BLOCKS);
+
+    let given = PnymGiven {
+        preimage,
+        mso_digest_offset_in_preimage,
+        field_locator,
+        pnym_preimage,
+        pnym_length_bytes,
+        pnym_nblocks,
+    };
+    let derived = PnymDerived {
+        item_sha_derived,
+        pnym_sha_derived,
+    };
+    (given, derived)
+}
+
 pub fn allocate_hash<'b, FC>(
     allocator: &mut WireAllocator<'_, 'b, FC>,
     num_attrs: usize,
+    pnym: bool,
     plucker_v8: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_HASH_V8_BIT_PLUCKER }>,
     plucker_v256: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_HASH_V256_BIT_PLUCKER }>,
     plucker_sha: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_SHA_BIT_PLUCKER }>,
@@ -136,6 +220,7 @@ where
     let disclosed_attributes = (0..num_attrs)
         .map(|_| allocate_disclosed_attribute(allocator, plucker_v8))
         .collect();
+    let disclosed_pnym = pnym.then(|| allocate_disclosed_pnym(allocator, plucker_v8));
 
     let mac_e = [allocator.allocate_wire(), allocator.allocate_wire()];
     let mac_device_pkx = [allocator.allocate_wire(), allocator.allocate_wire()];
@@ -186,6 +271,13 @@ where
         attribute_derived.push(derived);
     }
 
+    let (pnym_given, pnym_derived) = if pnym {
+        let (pg, pd) = allocate_pnym_wires(allocator, plucker_v8, plucker_sha);
+        (Some(pg), Some(pd))
+    } else {
+        (None, None)
+    };
+
     let sha_derived = allocate_sha_derived(allocator, plucker_sha, K_MAX_SHA_BLOCKS);
 
     let subfield_boundary_val = allocator.pos;
@@ -194,6 +286,7 @@ where
 
     let given = mdoc_zk_circuits::hash::Given {
         disclosed_attributes,
+        disclosed_pnym,
         now,
         suppress_doc_type_check,
         expected_doc_type,
@@ -208,6 +301,7 @@ where
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
+        pnym_given,
         mac_e,
         mac_device_pkx,
         mac_device_pky,
@@ -217,6 +311,7 @@ where
 
     let derived = HashDerived {
         attribute_derived,
+        pnym_derived,
         sha_derived,
     };
 

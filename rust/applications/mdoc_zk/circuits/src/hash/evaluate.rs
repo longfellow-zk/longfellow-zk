@@ -19,7 +19,8 @@ use super::{
     circuit::{
         AttrDerived as WireAttrDerived, AttrGiven as WireAttrGiven,
         AttrPreimageBytes as WireAttrPreimageBytes, Derived as WireDerived, Given as WireGiven,
-        MsoPreimageBytes as WireMsoPreimageBytes,
+        MsoPreimageBytes as WireMsoPreimageBytes, PnymDerived as WirePnymDerived,
+        PnymGiven as WirePnymGiven,
     },
     concrete::{ConcreteDerived, ConcreteGiven},
     constants::K_HASH_INDEX_BITS,
@@ -29,7 +30,8 @@ use crate::mso_attribute::{
         AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
         FieldLocator as WireFieldLocator,
     },
-    constants::K_ATTR_INDEX_BITS,
+    constants::{K_ATTR_INDEX_BITS, K_OP_BITS, K_PNYM_CONTEXT_BITS},
+    pnym::{ContextSlice, DisclosedPnym as WireDisclosedPnym},
 };
 
 fn eval_mac_gf128<L: compile_logic::LogicIO>(bv: &BitvecLogic<L>, val: u128) -> L::Wire {
@@ -75,8 +77,33 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
                 }),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.expected_cbor_value.len() as u64),
             },
+            op: bv.of_u64::<K_OP_BITS>(u64::from(a.op)),
         })
         .collect();
+
+    let disclosed_pnym = given.hash_input.pnym.as_ref().map(|p| WireDisclosedPnym {
+        expected_name: MsoSlice {
+            data: std::array::from_fn(|i| {
+                let bit_val = get_byte(&p.expected_name, i);
+                bv.of_u64::<8>(u64::from(bit_val))
+            }),
+            len: bv.of_u64::<K_ATTR_INDEX_BITS>(p.expected_name.len() as u64),
+        },
+        expected_cbor_value: MsoSlice {
+            data: std::array::from_fn(|i| {
+                let bit_val = get_byte(&p.expected_cbor_value, i);
+                bv.of_u64::<8>(u64::from(bit_val))
+            }),
+            len: bv.of_u64::<K_ATTR_INDEX_BITS>(p.expected_cbor_value.len() as u64),
+        },
+        context: ContextSlice {
+            data: std::array::from_fn(|i| {
+                let bit_val = get_byte(&p.context, i);
+                bv.of_u64::<8>(u64::from(bit_val))
+            }),
+            len: bv.of_u64::<K_PNYM_CONTEXT_BITS>(p.context.len() as u64),
+        },
+    });
 
     let now = std::array::from_fn(|i| {
         let bit_val = get_byte(&given.hash_input.now, i);
@@ -163,6 +190,36 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
         });
     }
 
+    let pnym_given = given.pnym_given.as_ref().map(|pg| WirePnymGiven {
+        preimage: WireAttrPreimageBytes {
+            data: std::array::from_fn(|i| {
+                let bit_val = get_byte(&pg.padded_preimage, i);
+                bv.of_u64::<8>(u64::from(bit_val))
+            }),
+            len: bv.of_u64::<K_ATTR_INDEX_BITS>(pg.unpadded_preimage_len as u64),
+        },
+        mso_digest_offset_in_preimage: bv
+            .of_u64::<K_HASH_INDEX_BITS>(pg.mso_digest_offset_in_preimage as u64),
+        field_locator: WireFieldLocator {
+            slot_position: std::array::from_fn(|j| {
+                bv.of_u64::<K_ATTR_INDEX_BITS>(pg.field_locator.slot_position[j] as u64)
+            }),
+            length: std::array::from_fn(|j| {
+                bv.of_u64::<K_ATTR_INDEX_BITS>(pg.field_locator.length[j] as u64)
+            }),
+            permutation: std::array::from_fn(|j| {
+                let slot = (pg.field_locator.permutation >> (2 * j)) & 3;
+                bv.of_u64::<2>(slot as u64)
+            }),
+        },
+        pnym_preimage: std::array::from_fn(|i| {
+            let bit_val = get_byte(&pg.pnym_padded_preimage, i);
+            bv.of_u64::<8>(u64::from(bit_val))
+        }),
+        pnym_length_bytes: bv.of_u64::<K_ATTR_INDEX_BITS>(pg.pnym_length_bytes as u64),
+        pnym_nblocks: bv.of_u64::<2>(pg.pnym_nblocks as u64),
+    });
+
     let mac_e = [
         eval_mac_gf128(bv, given.mac_e[0]),
         eval_mac_gf128(bv, given.mac_e[1]),
@@ -189,6 +246,7 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
 
     WireGiven {
         disclosed_attributes,
+        disclosed_pnym,
         now,
         suppress_doc_type_check,
         expected_doc_type,
@@ -202,6 +260,7 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
+        pnym_given,
         mac_e,
         mac_device_pkx,
         mac_device_pky,
@@ -226,10 +285,16 @@ pub fn evaluate_derived<L: compile_logic::LogicIO>(
         attribute_derived.push(WireAttrDerived { sha_derived });
     }
 
+    let pnym_derived = derived.pnym_derived.as_ref().map(|pd| WirePnymDerived {
+        item_sha_derived: circuits_sha256msg::evaluate::evaluate_derived(&pd.item_sha_derived, bv),
+        pnym_sha_derived: circuits_sha256msg::evaluate::evaluate_derived(&pd.pnym_sha_derived, bv),
+    });
+
     let sha_derived = circuits_sha256msg::evaluate::evaluate_derived(&derived.sha_derived, bv);
 
     WireDerived {
         attribute_derived,
+        pnym_derived,
         sha_derived,
     }
 }

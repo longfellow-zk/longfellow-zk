@@ -24,6 +24,7 @@ pub struct MsoAttributeMockGiven {
     pub disclosed_name_len: u64,
     pub disclosed_value: Vec<u8>,
     pub disclosed_value_len: u64,
+    pub op: u64,
     pub preimage_len: u64,
 }
 
@@ -54,10 +55,7 @@ pub fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
     let value_bitflips = (0..1).flat_map(|byte_idx| {
         (0..8).map(move |bit_idx| MsoAttributeCorruptor {
             name: format!("disclosed_value[{byte_idx}].bit[{bit_idx}]"),
-            expected_path: format!(
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.{}/prefix_imp/prefix_imp.{bit_idx}/bit.{bit_idx}",
-                13 + byte_idx
-            ),
+            expected_path: "assert_attribute/assert_item_slot_key_value/value_rel_ok".into(),
             corrupt: Box::new(move |g| {
                 if byte_idx < g.disclosed_value.len() {
                     g.disclosed_value[byte_idx] ^= 1 << bit_idx;
@@ -215,9 +213,7 @@ pub fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         },
         MsoAttributeCorruptor {
             name: "bad_disclosed_value_data".into(),
-            expected_path:
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.13/prefix_imp/prefix_imp.0/bit.0"
-                    .into(),
+            expected_path: "assert_attribute/assert_item_slot_key_value/value_rel_ok".into(),
             corrupt: Box::new(|g| {
                 g.disclosed_value[0] = 0xf4; // False instead of True
             }),
@@ -229,6 +225,38 @@ pub fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
                     .into(),
             corrupt: Box::new(|g| {
                 g.disclosed_value_len = 2;
+            }),
+        },
+        MsoAttributeCorruptor {
+            name: "op_reserved".into(),
+            expected_path: "assert_attribute/assert_item_slot_key_value/op_valid".into(),
+            corrupt: Box::new(|g| {
+                g.op = 3;
+            }),
+        },
+        MsoAttributeCorruptor {
+            name: "cmp_type_mismatch".into(),
+            expected_path: "assert_attribute/assert_item_slot_key_value/cmp_type_ok".into(),
+            corrupt: Box::new(|g| {
+                g.op = 1; // Le on boolean 0xf5
+            }),
+        },
+        // Public buffer bounds: the runtime rejects these requests up front
+        // (`attr_encoding_fits`), these pin the in-circuit backstops.
+        MsoAttributeCorruptor {
+            name: "disclosed_value_len_over_64".into(),
+            expected_path: "assert_attribute/assert_item_slot_key_value/val_len_le_64".into(),
+            corrupt: Box::new(|g| {
+                g.disclosed_value_len = 65;
+            }),
+        },
+        MsoAttributeCorruptor {
+            name: "disclosed_name_len_over_32".into(),
+            expected_path:
+                "assert_attribute/assert_item_slot_key_value/cbor_len_eq/cbor_len_eq.0/chunk_eq"
+                    .into(),
+            corrupt: Box::new(|g| {
+                g.disclosed_name_len = 33;
             }),
         },
         MsoAttributeCorruptor {

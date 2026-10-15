@@ -23,7 +23,7 @@ pub(crate) mod utils;
 pub mod verifier;
 pub mod zk_spec;
 
-pub use attribute::RequestedAttribute;
+pub use attribute::{AttributeOp, RequestedAttribute};
 pub use concrete::{push_input_hash, push_input_sig, push_witness_hash, push_witness_sig};
 pub use error::{MdocProverErrorCode, MdocVerifierErrorCode};
 pub use mac::{generate_mac_ap, push_macs};
@@ -34,6 +34,10 @@ pub use mdoc_zk_proto::{config, *};
 pub use proto::*;
 pub use prover::*;
 pub use provider::*;
-pub use utils::{circuit_supports, parse_hex_nat, parse_pk_coordinate, req_attr, same_namespace};
+pub use utils::{
+    attr_encoding_fits, bind_pnym_response, circuit_supports, circuit_supports_comparison,
+    pad_request_attrs, parse_hex_nat, parse_pk_coordinate, req_attr, req_attr_ge, req_attr_le,
+    req_pnym, same_namespace,
+};
 pub use verifier::*;
 pub use zk_spec::*;

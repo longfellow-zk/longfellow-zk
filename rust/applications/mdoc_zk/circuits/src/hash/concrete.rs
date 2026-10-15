@@ -16,12 +16,28 @@ use compile_algebra::CompileNat;
 use core_algebra::Nat;
 
 use super::constants::K_MSO_PREIMAGE_LEN;
-use crate::mso_attribute::concrete::FieldLocator as MsoFieldLocator;
+use crate::mso_attribute::{
+    concrete::FieldLocator as MsoFieldLocator,
+    constants::{
+        K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_SHA_BLOCKS, K_PNYM_SEED_LEN, K_PNYM_SHA_BLOCKS,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct AttrInput {
     pub expected_name: Vec<u8>,
     pub expected_cbor_value: Vec<u8>,
+    pub op: u8,
+    pub cbor_issuer_signed_item: Vec<u8>,
+    pub mso_digest_offset_in_preimage: usize,
+    pub field_locator: MsoFieldLocator,
+}
+
+#[derive(Clone, Debug)]
+pub struct PnymInput {
+    pub expected_name: Vec<u8>,
+    pub expected_cbor_value: Vec<u8>,
+    pub context: Vec<u8>,
     pub cbor_issuer_signed_item: Vec<u8>,
     pub mso_digest_offset_in_preimage: usize,
     pub field_locator: MsoFieldLocator,
@@ -36,6 +52,7 @@ pub struct HashMac {
 #[derive(Clone, Debug)]
 pub struct HashInput<N = CompileNat<4>> {
     pub attrs: Vec<AttrInput>,
+    pub pnym: Option<PnymInput>,
     pub now: Vec<u8>,
     pub suppress_doc_type_check: bool,
     pub expected_doc_type: Vec<u8>,
@@ -61,6 +78,7 @@ pub type MsoPreimageBytes = HashBytes<K_MSO_PREIMAGE_LEN>;
 pub struct AttrGiven {
     pub expected_name: Vec<u8>,
     pub expected_cbor_value: Vec<u8>,
+    pub op: u8,
     pub padded_preimage: Vec<u8>,
     pub unpadded_preimage_len: usize,
     pub mso_digest_offset_in_preimage: usize,
@@ -70,6 +88,26 @@ pub struct AttrGiven {
 #[derive(Clone, Debug)]
 pub struct AttrDerived {
     pub sha_derived: circuits_sha256msg::concrete::ConcreteDerived,
+}
+
+#[derive(Clone, Debug)]
+pub struct PnymGiven {
+    pub expected_name: Vec<u8>,
+    pub expected_cbor_value: Vec<u8>,
+    pub context: Vec<u8>,
+    pub padded_preimage: Vec<u8>,
+    pub unpadded_preimage_len: usize,
+    pub mso_digest_offset_in_preimage: usize,
+    pub field_locator: MsoFieldLocator,
+    pub pnym_padded_preimage: Vec<u8>,
+    pub pnym_length_bytes: usize,
+    pub pnym_nblocks: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct PnymDerived {
+    pub item_sha_derived: circuits_sha256msg::concrete::ConcreteDerived,
+    pub pnym_sha_derived: circuits_sha256msg::concrete::ConcreteDerived,
 }
 
 #[derive(Clone, Debug)]
@@ -87,12 +125,14 @@ pub struct ConcreteGiven<N = CompileNat<4>> {
     pub dev_key_info_offset_in_preimage: u16,
     pub value_digests_offset_in_preimage: u16,
     pub attribute_given: Vec<AttrGiven>,
+    pub pnym_given: Option<PnymGiven>,
     pub mac_ap: [[u128; 2]; 3],
 }
 
 #[derive(Clone, Debug)]
 pub struct ConcreteDerived {
     pub attribute_derived: Vec<AttrDerived>,
+    pub pnym_derived: Option<PnymDerived>,
     pub sha_derived: circuits_sha256msg::concrete::ConcreteDerived,
 }
 
@@ -149,12 +189,13 @@ pub fn given<const W: usize, N: Nat<W>>(
         let attr_sha_wit = circuits_sha256msg::concrete::given(
             &a.cbor_issuer_signed_item,
             &circuits_sha256::constants::INITIAL,
-            2,
+            K_MAX_ATTR_SHA_BLOCKS,
         )
         .unwrap();
         attribute_given.push(AttrGiven {
             expected_name: a.expected_name.clone(),
             expected_cbor_value: a.expected_cbor_value.clone(),
+            op: a.op,
             padded_preimage: attr_sha_wit.padded_preimage,
             unpadded_preimage_len: a.cbor_issuer_signed_item.len(),
             mso_digest_offset_in_preimage: (preimage_base_offset
@@ -163,6 +204,59 @@ pub fn given<const W: usize, N: Nat<W>>(
             field_locator: a.field_locator,
         });
     }
+
+    let pnym_given = hash_input.pnym.as_ref().map(|p| {
+        let item_sha_wit = circuits_sha256msg::concrete::given(
+            &p.cbor_issuer_signed_item,
+            &circuits_sha256::constants::INITIAL,
+            K_MAX_ATTR_SHA_BLOCKS,
+        )
+        .unwrap();
+        // Locate the `elementValue` slot through the field locator and insist on exactly
+        // what the circuit will enforce: `6c "elementValue" 58 20 || seed`. A malformed
+        // fixture must fail here, loudly, rather than produce a witness with a zero seed
+        // that only fails deep inside the circuit.
+        let slot3_phys = (p.field_locator.permutation >> 6) & 3;
+        let slot3_off = p.field_locator.slot_position[slot3_phys];
+        let slot3_len = p.field_locator.length[slot3_phys];
+        let slot = p
+            .cbor_issuer_signed_item
+            .get(slot3_off..slot3_off + slot3_len)
+            .expect("pnym_seed elementValue slot lies outside the IssuerSignedItem");
+        let (key, value) = slot.split_at(K_ELEMENT_VALUE_PREFIX.len().min(slot.len()));
+        assert_eq!(
+            key, K_ELEMENT_VALUE_PREFIX,
+            "slot 3 is not the elementValue entry"
+        );
+        assert!(
+            value.len() == 2 + K_PNYM_SEED_LEN && value[..2] == [0x58, 0x20],
+            "pnym_seed elementValue must be a CBOR bstr(32) (`58 20 || seed`)"
+        );
+        let seed = &value[2..];
+        let mut pnym_msg = Vec::with_capacity(K_PNYM_SEED_LEN + p.context.len());
+        pnym_msg.extend_from_slice(seed);
+        pnym_msg.extend_from_slice(&p.context);
+        let pnym_sha_wit = circuits_sha256msg::concrete::given(
+            &pnym_msg,
+            &circuits_sha256::constants::INITIAL,
+            K_PNYM_SHA_BLOCKS,
+        )
+        .unwrap();
+        PnymGiven {
+            expected_name: p.expected_name.clone(),
+            expected_cbor_value: p.expected_cbor_value.clone(),
+            context: p.context.clone(),
+            padded_preimage: item_sha_wit.padded_preimage,
+            unpadded_preimage_len: p.cbor_issuer_signed_item.len(),
+            mso_digest_offset_in_preimage: (preimage_base_offset
+                + p.mso_digest_offset_in_preimage as u16)
+                as usize,
+            field_locator: p.field_locator,
+            pnym_padded_preimage: pnym_sha_wit.padded_preimage,
+            pnym_length_bytes: pnym_msg.len(),
+            pnym_nblocks: pnym_sha_wit.nblocks,
+        }
+    });
 
     let mut signed_bytes_arr = [0u8; K_MSO_PREIMAGE_LEN];
     let slen = std::cmp::min(signed_bytes.len(), K_MSO_PREIMAGE_LEN);
@@ -193,6 +287,7 @@ pub fn given<const W: usize, N: Nat<W>>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
+        pnym_given,
         mac_e,
         mac_device_pkx,
         mac_device_pky,
@@ -214,7 +309,7 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
             sha_derived: circuits_sha256msg::concrete::sha256_msg_derived(
                 &ag.padded_preimage,
                 &circuits_sha256::constants::INITIAL,
-                2,
+                K_MAX_ATTR_SHA_BLOCKS,
             ),
         };
         attribute_witnesses.push(AttrDerived {
@@ -222,8 +317,26 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
         });
     }
 
+    let pnym_derived = given.pnym_given.as_ref().map(|pg| PnymDerived {
+        item_sha_derived: circuits_sha256msg::concrete::ConcreteDerived {
+            sha_derived: circuits_sha256msg::concrete::sha256_msg_derived(
+                &pg.padded_preimage,
+                &circuits_sha256::constants::INITIAL,
+                K_MAX_ATTR_SHA_BLOCKS,
+            ),
+        },
+        pnym_sha_derived: circuits_sha256msg::concrete::ConcreteDerived {
+            sha_derived: circuits_sha256msg::concrete::sha256_msg_derived(
+                &pg.pnym_padded_preimage,
+                &circuits_sha256::constants::INITIAL,
+                K_PNYM_SHA_BLOCKS,
+            ),
+        },
+    });
+
     ConcreteDerived {
         attribute_derived: attribute_witnesses,
+        pnym_derived,
         sha_derived: cose_sha_derived,
     }
 }
@@ -245,6 +358,7 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
             AttrInput {
                 expected_name: crate::cbor::encode_cbor_string(&a.name),
                 expected_cbor_value: a.cbor_value.clone(),
+                op: 0,
                 cbor_issuer_signed_item: a.cbor_issuer_signed_item.clone(),
                 mso_digest_offset_in_preimage: a.mso_digest_offset_in_preimage,
                 field_locator: a.field_locator,
@@ -254,6 +368,43 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
 
     HashInput {
         attrs,
+        pnym: None,
+        now: now.as_bytes().to_vec(),
+        suppress_doc_type_check: false,
+        expected_doc_type: parsed.doc_type.as_bytes().to_vec(),
+        cbor_mso: parsed.cbor_mso.clone(),
+        issuer_sig_e: parsed.issuer_sig_digest.clone(),
+        device_pk: parsed.device_pk.clone(),
+        doc_type_offset: parsed.doc_type_offset_in_mso,
+        valid_from_offset: parsed.valid_from_offset_in_mso,
+        valid_until_offset: parsed.valid_until_offset_in_mso,
+        dev_key_info_offset: parsed.device_key_info_offset_in_mso,
+        value_digests_offset: parsed.value_digests_offset_in_mso,
+    }
+}
+
+pub fn pnym_hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
+    parsed: &crate::cbor::mdoc::ParsedMdoc<N>,
+    context: &[u8],
+    now: &str,
+) -> HashInput<N> {
+    let a = parsed
+        .get_attribute(b"pnym_seed")
+        .expect("pnym_seed attribute not found in ParsedMdoc");
+    let seed = crate::cbor::mdoc::pnym_seed_of(a).expect("pnym_seed must be bstr(32)");
+    let pnym_digest = crate::cbor::mdoc::compute_pseudonym(&seed, context);
+    let expected_cbor_value = crate::cbor::mdoc::encode_pnym_cbor_value(&pnym_digest);
+
+    HashInput {
+        attrs: Vec::new(),
+        pnym: Some(PnymInput {
+            expected_name: crate::cbor::encode_cbor_string(&a.name),
+            expected_cbor_value,
+            context: context.to_vec(),
+            cbor_issuer_signed_item: a.cbor_issuer_signed_item.clone(),
+            mso_digest_offset_in_preimage: a.mso_digest_offset_in_preimage,
+            field_locator: a.field_locator,
+        }),
         now: now.as_bytes().to_vec(),
         suppress_doc_type_check: false,
         expected_doc_type: parsed.doc_type.as_bytes().to_vec(),
@@ -277,6 +428,10 @@ impl ConcreteDerived {
     ) {
         for attr_wit in &self.attribute_derived {
             attr_wit.sha_derived.push_derived(fr, &mut push);
+        }
+        if let Some(ref pnym_wit) = self.pnym_derived {
+            pnym_wit.item_sha_derived.push_derived(fr, &mut push);
+            pnym_wit.pnym_sha_derived.push_derived(fr, &mut push);
         }
         self.sha_derived.push_derived(fr, &mut push);
     }

@@ -21,8 +21,12 @@ use runtime_random::{transcript::Transcript, RandomEngine};
 use runtime_zk::ZkVerifier;
 
 use crate::{
+    attribute::AttributeOp,
     push_input_hash, push_input_sig,
-    utils::{circuit_supports, parse_pk_coordinate, same_namespace},
+    utils::{
+        attr_encoding_fits, circuit_supports, circuit_supports_comparison, is_iso_datetime_utc,
+        pad_request_attrs, parse_pk_coordinate, same_namespace,
+    },
     MdocProof, MdocProofGeometry, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
 };
 
@@ -68,13 +72,75 @@ pub fn run_mdoc_verifier_inner(
     if !crate::is_supported_version(version) {
         return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
     }
+    if !is_iso_datetime_utc(now.as_bytes()) || doc_type.len() > 32 {
+        return Err(MdocVerifierErrorCode::InvalidInput);
+    }
     if !same_namespace(attrs) {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
+    if attrs.iter().any(|a| a.namespace_id.is_empty()) {
+        return Err(MdocVerifierErrorCode::InvalidRequest);
+    }
     if version >= 8 {
-        for a in attrs {
-            if !circuit_supports(&a.cbor_value) {
+        let num_pnym = attrs.iter().filter(|a| a.op == AttributeOp::Pnym).count();
+        let num_reg = attrs.len() - num_pnym;
+        if zk_spec.pnym {
+            if zk_spec.num_attributes != 0 {
+                return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
+            }
+            if attrs.is_empty() {
+                return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
+            }
+            if num_pnym != 1 || num_reg != 0 {
+                return Err(MdocVerifierErrorCode::InvalidRequest);
+            }
+            let a = &attrs[0];
+            if a.id != b"pnym_seed"
+                || a.context.is_empty()
+                || a.context.len() > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
+                || a.cbor_value.len() != mdoc_zk_proto::mso_attribute::constants::K_PNYM_VALUE_LEN
+                || a.cbor_value.get(..2) != Some(&[0x58, 0x20])
+            {
+                return Err(MdocVerifierErrorCode::InvalidRequest);
+            }
+            if !attr_encoding_fits(
+                &a.id,
+                &a.cbor_value,
+                mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+            ) {
                 return Err(MdocVerifierErrorCode::UnsupportedAttribute);
+            }
+        } else {
+            if num_pnym > 0 {
+                return Err(MdocVerifierErrorCode::InvalidRequest);
+            }
+            let valid_count = match zk_spec.num_attributes {
+                1 => num_reg == 1,
+                4 => (2..=4).contains(&num_reg),
+                n => num_reg == n && num_reg > 0,
+            };
+            if !valid_count {
+                return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
+            }
+            for a in attrs {
+                if !a.context.is_empty() || a.id.is_empty() {
+                    return Err(MdocVerifierErrorCode::InvalidRequest);
+                }
+                if !circuit_supports(&a.cbor_value) {
+                    return Err(MdocVerifierErrorCode::UnsupportedAttribute);
+                }
+                if matches!(a.op, AttributeOp::Le | AttributeOp::Ge)
+                    && !circuit_supports_comparison(&a.cbor_value)
+                {
+                    return Err(MdocVerifierErrorCode::UnsupportedComparison);
+                }
+                if !attr_encoding_fits(
+                    &a.id,
+                    &a.cbor_value,
+                    mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+                ) {
+                    return Err(MdocVerifierErrorCode::UnsupportedAttribute);
+                }
             }
         }
     } else {
@@ -86,9 +152,35 @@ pub fn run_mdoc_verifier_inner(
         // current circuits (version >= 8), doc_type and namespaces are supported by the
         // circuit directly as public inputs: in addition to checking the transcript
         // hash, the circuit asserts that the doc_type is the one stored in the document.
+        if zk_spec.pnym {
+            return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
+        }
+        if attrs.len() != zk_spec.num_attributes || zk_spec.num_attributes == 0 {
+            return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
+        }
+        for a in attrs {
+            if a.op == AttributeOp::Pnym || !a.context.is_empty() || a.id.is_empty() {
+                return Err(MdocVerifierErrorCode::InvalidRequest);
+            }
+            if a.op != AttributeOp::Eq {
+                return Err(MdocVerifierErrorCode::UnsupportedComparison);
+            }
+            if !attr_encoding_fits(
+                &a.id,
+                &a.cbor_value,
+                mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+            ) {
+                return Err(MdocVerifierErrorCode::UnsupportedAttribute);
+            }
+        }
     }
 
     let p256 = P256Field::new();
+    let pk_x_elt =
+        parse_pk_coordinate(pkx, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?;
+    let pk_y_elt =
+        parse_pk_coordinate(pky, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?;
+
     let p256_2 = runtime_algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -149,10 +241,16 @@ pub fn run_mdoc_verifier_inner(
     let av_buf = tp.bytes(16);
     let av_val = u128::from_le_bytes(av_buf.try_into().unwrap());
 
+    let circuit_attrs = if version >= 8 && !zk_spec.pnym {
+        pad_request_attrs(attrs, zk_spec.num_attributes)
+    } else {
+        attrs.to_vec()
+    };
+
     let pub_inputs_hash = push_input_hash(
         version,
         &gf2,
-        attrs,
+        &circuit_attrs,
         now.as_bytes(),
         &proof.macs,
         av_val,
@@ -175,11 +273,6 @@ pub fn run_mdoc_verifier_inner(
             },
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-
-    let pk_x_elt =
-        parse_pk_coordinate(pkx, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?;
-    let pk_y_elt =
-        parse_pk_coordinate(pky, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?;
 
     let digest = mdoc_zk_circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
     let e2_val = runtime_algebra::RuntimeNat::<4>::from_bytes_be(&digest);

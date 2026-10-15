@@ -21,7 +21,7 @@ use super::{
         FieldLocator as WireFieldLocator, Given as WireGiven,
     },
     concrete::{ConcreteDerived, ConcreteGiven},
-    constants::K_ATTR_INDEX_BITS,
+    constants::{K_ATTR_INDEX_BITS, K_OP_BITS},
 };
 
 pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> WireGiven<L> {
@@ -60,6 +60,7 @@ pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> W
             data: std::array::from_fn(|i| bv.of_u8(get_padded(&given.cbor_value, i))),
             len: bv.of_u64::<K_ATTR_INDEX_BITS>(given.cbor_value.len() as u64),
         },
+        op: bv.of_u64::<K_OP_BITS>(u64::from(given.op)),
     };
 
     let boolean = circuits_boolean::Boolean::new(bv.logic());

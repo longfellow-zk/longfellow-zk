@@ -19,6 +19,7 @@ pub struct ZkSpecStruct {
     pub system: &'static str,
     pub combined_hash: [u8; 32],
     pub num_attributes: usize,
+    pub pnym: bool,
     pub version: usize,
     pub ligero_hash: LigeroConfig,
     pub ligero_sig: LigeroConfig,
@@ -58,6 +59,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x16, 0x18, 0x21, 0x21,
         ],
         num_attributes: 1,
+        pnym: false,
         version: 7,
         ligero_hash: ligero_config(7, 132, 4151),
         ligero_sig: ligero_config(7, 132, 4096),
@@ -70,6 +72,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0xdb, 0xbc, 0xd5, 0xad,
         ],
         num_attributes: 2,
+        pnym: false,
         version: 7,
         ligero_hash: ligero_config(7, 132, 4265),
         ligero_sig: ligero_config(7, 132, 4096),
@@ -82,6 +85,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x7d, 0x6d, 0x25, 0x2f,
         ],
         num_attributes: 3,
+        pnym: false,
         version: 7,
         ligero_hash: ligero_config(7, 132, 4307),
         ligero_sig: ligero_config(7, 132, 4096),
@@ -94,6 +98,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0xb2, 0x78, 0xe4, 0x60,
         ],
         num_attributes: 4,
+        pnym: false,
         version: 7,
         ligero_hash: ligero_config(7, 132, 4415),
         ligero_sig: ligero_config(7, 132, 4096),
@@ -107,6 +112,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x71, 0x97, 0xc7, 0xc6,
         ],
         num_attributes: 1,
+        pnym: false,
         version: 6,
         ligero_hash: ligero_config(4, 128, 4096),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -119,6 +125,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x24, 0xa9, 0x76, 0x4e,
         ],
         num_attributes: 2,
+        pnym: false,
         version: 6,
         ligero_hash: ligero_config(4, 128, 4025),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -131,6 +138,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0xa7, 0x6c, 0x20, 0x10,
         ],
         num_attributes: 3,
+        pnym: false,
         version: 6,
         ligero_hash: ligero_config(4, 128, 4121),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -143,6 +151,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x82, 0x3c, 0x49, 0xd6,
         ],
         num_attributes: 4,
+        pnym: false,
         version: 6,
         ligero_hash: ligero_config(4, 128, 4283),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -156,6 +165,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x61, 0x2f, 0xea, 0x6f,
         ],
         num_attributes: 1,
+        pnym: false,
         version: 5,
         ligero_hash: ligero_config(4, 128, 4096),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -168,6 +178,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0xf7, 0x60, 0x5d, 0xdb,
         ],
         num_attributes: 2,
+        pnym: false,
         version: 5,
         ligero_hash: ligero_config(4, 128, 4025),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -180,6 +191,7 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0xd3, 0xc5, 0xe0, 0xa1,
         ],
         num_attributes: 3,
+        pnym: false,
         version: 5,
         ligero_hash: ligero_config(4, 128, 4121),
         ligero_sig: ligero_config(4, 128, 2945),
@@ -192,23 +204,25 @@ pub static ZK_SPECS: [ZkSpecStruct; 12] = [
             0x95, 0x86, 0x8b, 0x7a,
         ],
         num_attributes: 4,
+        pnym: false,
         version: 5,
         ligero_hash: ligero_config(4, 128, 4283),
         ligero_sig: ligero_config(4, 128, 2945),
     },
 ];
 
-pub const NUM_CURRENT_ZK_SPECS: usize = 4;
+pub const NUM_CURRENT_ZK_SPECS: usize = 3;
 
-pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
+pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 3] = [
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
         combined_hash: [
-            0x5a, 0x89, 0x38, 0x15, 0x96, 0x03, 0x87, 0x6e, 0xb5, 0x37, 0xa1, 0x17, 0xcf, 0xe9,
-            0xe2, 0xea, 0xec, 0x5a, 0x01, 0xa0, 0x42, 0xb3, 0x16, 0xa8, 0xe5, 0x7e, 0x52, 0xe4,
-            0xbb, 0x3c, 0x92, 0x91,
+            0x29, 0x6f, 0xde, 0x1f, 0x84, 0xa1, 0x85, 0xcb, 0x9a, 0x53, 0xcc, 0x6f, 0xa6, 0xde,
+            0xfc, 0xdf, 0xc7, 0x9f, 0xce, 0x98, 0x33, 0x03, 0xbe, 0x3d, 0x35, 0xed, 0x82, 0xe7,
+            0xd5, 0x39, 0xe3, 0xe7,
         ],
         num_attributes: 1,
+        pnym: false,
         version: CURRENT_VERSION,
         ligero_hash: ligero_config(7, 132, 5255),
         ligero_sig: ligero_config(7, 132, 4445),
@@ -216,37 +230,27 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
         combined_hash: [
-            0xea, 0x4c, 0x66, 0xad, 0xd1, 0x49, 0xcb, 0xc8, 0xfc, 0xbf, 0x35, 0x46, 0xbc, 0x3e,
-            0x7d, 0xa1, 0xc8, 0xdd, 0xf2, 0x8a, 0x33, 0x08, 0x81, 0x87, 0x1e, 0x28, 0xb3, 0xed,
-            0xbc, 0x97, 0x1c, 0xa4,
-        ],
-        num_attributes: 2,
-        version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5246),
-        ligero_sig: ligero_config(7, 132, 4445),
-    },
-    ZkSpecStruct {
-        system: "longfellow-libzk-v1",
-        combined_hash: [
-            0xe4, 0x3e, 0x74, 0x04, 0x63, 0x3c, 0x09, 0x66, 0x7f, 0x08, 0x9f, 0xbb, 0x54, 0x94,
-            0x8c, 0xbd, 0x5d, 0x11, 0x1e, 0xb4, 0xdc, 0x9d, 0x29, 0xb6, 0xe5, 0x78, 0xd2, 0xd8,
-            0xa2, 0xe3, 0x51, 0x71,
-        ],
-        num_attributes: 3,
-        version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5246),
-        ligero_sig: ligero_config(7, 132, 4445),
-    },
-    ZkSpecStruct {
-        system: "longfellow-libzk-v1",
-        combined_hash: [
-            0xc7, 0x3b, 0x63, 0x42, 0xe2, 0xee, 0x9b, 0x12, 0x33, 0x0d, 0xac, 0x3e, 0x71, 0x1f,
-            0x28, 0xad, 0x74, 0x11, 0x11, 0xf8, 0xd3, 0xfb, 0xee, 0x2a, 0x45, 0x0b, 0x5d, 0xeb,
-            0x6c, 0x72, 0x6c, 0xd6,
+            0xa9, 0x50, 0x54, 0xf4, 0x5c, 0x47, 0x52, 0x63, 0x63, 0x4e, 0x1b, 0xd7, 0x21, 0xab,
+            0x08, 0xc0, 0xb2, 0x6a, 0x80, 0xc0, 0xce, 0x7d, 0x2a, 0x0e, 0x68, 0x1c, 0x11, 0xfb,
+            0x76, 0x9f, 0xc8, 0xe6,
         ],
         num_attributes: 4,
+        pnym: false,
         version: CURRENT_VERSION,
         ligero_hash: ligero_config(7, 132, 5246),
+        ligero_sig: ligero_config(7, 132, 4445),
+    },
+    ZkSpecStruct {
+        system: "longfellow-libzk-v1",
+        combined_hash: [
+            0x5d, 0x7b, 0xa0, 0x12, 0x0c, 0x56, 0x79, 0x2f, 0xd6, 0xe4, 0x6b, 0x7a, 0xee, 0xc6,
+            0xf1, 0xcb, 0xc9, 0xdd, 0x25, 0x3c, 0x97, 0x29, 0x1d, 0x5d, 0x03, 0x0a, 0x30, 0xf8,
+            0x46, 0x84, 0x1a, 0x33,
+        ],
+        num_attributes: 0,
+        pnym: true,
+        version: CURRENT_VERSION,
+        ligero_hash: ligero_config(7, 132, 5264),
         ligero_sig: ligero_config(7, 132, 4445),
     },
 ];
@@ -281,4 +285,32 @@ pub fn is_supported_version(version: usize) -> bool {
 #[must_use]
 pub fn ligero_configs(zk_spec: &ZkSpecStruct) -> (LigeroConfig, LigeroConfig) {
     (zk_spec.ligero_hash, zk_spec.ligero_sig)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `CURRENT_ZK_SPECS` (runtime) and `CURRENT_CIRCUIT_KEYS` (compiler) describe the same
+    /// circuits, so they must agree as sets; nothing may rely on their order.
+    #[test]
+    fn current_specs_match_compiled_circuit_keys() {
+        let mut spec_keys: Vec<(usize, bool)> = CURRENT_ZK_SPECS
+            .iter()
+            .map(|s| (s.num_attributes, s.pnym))
+            .collect();
+        let mut circuit_keys = mdoc_zk_compile::CURRENT_CIRCUIT_KEYS.to_vec();
+        spec_keys.sort_unstable();
+        circuit_keys.sort_unstable();
+        assert_eq!(spec_keys, circuit_keys);
+        spec_keys.dedup();
+        assert_eq!(
+            spec_keys.len(),
+            NUM_CURRENT_ZK_SPECS,
+            "duplicate (num_attributes, pnym)"
+        );
+        assert!(CURRENT_ZK_SPECS
+            .iter()
+            .all(|s| s.version == CURRENT_VERSION));
+    }
 }

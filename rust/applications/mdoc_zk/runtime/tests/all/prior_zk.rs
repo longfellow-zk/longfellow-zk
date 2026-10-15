@@ -57,7 +57,8 @@ mod tests {
         let gf2 = runtime_algebra::gf2_128::Gf2_128Field::new();
 
         for (version, nattrs) in provider::all_prior_versions_and_attrs() {
-            let provided = provider::materialize(version, nattrs).expect("Failed to materialize");
+            let provided =
+                provider::materialize(version, nattrs, false).expect("Failed to materialize");
             let spec = &provided.spec;
             let compressed = &provided.compressed;
             let (c_sig, c_hash) = decompress_circuits(compressed, &p256, &gf2)
@@ -133,7 +134,7 @@ mod tests {
             for version in 5..CURRENT_VERSION {
                 for nattrs in 1..=4 {
                     s.spawn(move || {
-                        let provided = provider::materialize(version, nattrs).unwrap();
+                        let provided = provider::materialize(version, nattrs, false).unwrap();
                         let spec = &provided.spec;
                         let hash_hex = spec.combined_hash_hex();
                         let compressed = &provided.compressed;
@@ -198,7 +199,7 @@ mod tests {
             for (version, nattrs) in provider::all_prior_versions_and_attrs() {
                 let tx_thread = tx.clone();
                 s.spawn(move || {
-                    let provided = provider::materialize(version, nattrs)
+                    let provided = provider::materialize(version, nattrs, false)
                         .expect("Failed to materialize circuit");
                     let spec = &provided.spec;
                     let compressed = &provided.compressed;
@@ -283,5 +284,137 @@ mod tests {
         let total_count: usize = rx.iter().sum();
         println!("Successfully executed {total_count} prover/verifier combinations across all prior v5, v6, v7, and current v8 circuits!");
         assert!(total_count > 0);
+    }
+
+    #[test]
+    fn test_prior_rejects_v8_extensions() {
+        let test_data = &mdoc_zk_testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3;
+        let provided = provider::materialize(7, 1, false).expect("Failed to materialize v7_1");
+        let spec = &provided.spec;
+        let compressed = &provided.compressed;
+        let mut rng = runtime_random::DeterministicRng::new(42);
+
+        // 1. Le comparison on v7 must fail with UnsupportedComparison
+        let le_attr = [req_attr_le(
+            "org.iso.18013.5.1",
+            "birth_date",
+            *b"\xd9\x03\xec\x6a2000-01-01",
+        )];
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                compressed,
+                test_data.mdoc,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &le_attr,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::UnsupportedComparison)
+        );
+        assert_eq!(
+            run_mdoc_verifier_inner(
+                spec,
+                compressed,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &le_attr,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &[0u8; 100],
+            ),
+            Err(MdocVerifierErrorCode::UnsupportedComparison)
+        );
+
+        // 2. Pseudonym request on v7 must fail with InvalidRequest
+        let pnym_attr = [req_pnym("org.iso.18013.5.1", b"verifier-context")];
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                compressed,
+                test_data.mdoc,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &pnym_attr,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::InvalidRequest)
+        );
+        assert_eq!(
+            run_mdoc_verifier_inner(
+                spec,
+                compressed,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &pnym_attr,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &[0u8; 100],
+            ),
+            Err(MdocVerifierErrorCode::InvalidRequest)
+        );
+
+        // 3. Materializing pnym=true for v7 must fail with InvalidZkSpecVersion
+        assert_eq!(
+            provider::materialize(7, 0, true).unwrap_err(),
+            MdocProverErrorCode::InvalidZkSpecVersion
+        );
+    }
+
+    /// The host-side predicate check applies to every version: an `Eq` request whose value
+    /// differs from the signed one is a caller error, reported before any proving work.
+    #[test]
+    fn test_prior_eq_mismatch_fails_fast() {
+        let test_data = &mdoc_zk_testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3;
+        let provided = provider::materialize(7, 1, false).expect("Failed to materialize v7_1");
+        let mut rng = runtime_random::DeterministicRng::new(42);
+
+        let wrong_name = [req_attr(
+            "org.iso.18013.5.1",
+            "family_name",
+            [
+                0x6a, b'M', b'u', b's', b't', b'e', b'r', b'm', b'a', b'n', b'x',
+            ],
+        )];
+        assert_eq!(
+            run_mdoc_prover_inner(
+                &provided.spec,
+                &provided.compressed,
+                test_data.mdoc,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &wrong_name,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::PredicateNotSatisfied)
+        );
+
+        let missing = [req_attr("org.iso.18013.5.1", "no_such_attribute", [0xf5])];
+        assert_eq!(
+            run_mdoc_prover_inner(
+                &provided.spec,
+                &provided.compressed,
+                test_data.mdoc,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &missing,
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::AttributeNotFound)
+        );
     }
 }
