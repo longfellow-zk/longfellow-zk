@@ -40,10 +40,9 @@ zero, on the witness the member's committed columns hold at the placement).
   is the `alpha_in`-combination of the two points' `EQ` vectors), `begin_circuit` puts both points at
   the output point, `nlin`/`nt` fit, exactly balanced decoders (`hkinit`, …), `|F|`.
 * About the commitment: the placement `pl` (where the witness sits in the tableau), `|D|`, the
-  Merkle budget; for two fields the MAC data and the MAC rows `hrow₁`, `hrow₂` (each circuit
-  enforces the MAC on its bit-packed common value with the same private blind `keyB` on both
-  sides). Sharing the public tags and multiplier in Rust does not establish this shared-blind
-  premise; the separate-blind composition is an unresolved obligation described in the README.
+  Merkle budget; for the original two-field theorems in this file, the MAC rows `hrow₁`, `hrow₂`
+  use the same private blind `keyB` on both sides. The separate-private-witness theorems are in
+  `CompiledZkProfileSepMac`.
 * The random-oracle idealisation of SHA-256 on (context, role, message prefix) and transliteration
   debt R1, R2, R6 (README).
 -/

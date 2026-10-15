@@ -1,4 +1,4 @@
-baseURL: https://google.github.io/longfellow-zk/
+baseURL: https://longfellow-zk.github.io/longfellow-zk/
 title: Longfellow 
 
 # cSpell:ignore goldmark github hugo readingtime docsy subdir lastmod pygments linenos catmullrom norsk gu
@@ -102,10 +102,10 @@ params:
 
   # A link to latest version of the docs. Used in the "version-banner" partial to
   # point people to the main doc site.
-  url_latest_version: https://google.github.io/longfellow-zk/
+  url_latest_version: https://longfellow-zk.github.io/longfellow-zk/
 
   # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
-  github_repo: https://github.com/google/longfellow-zk
+  github_repo: https://github.com/longfellow-zk/longfellow-zk
   github_subdir: docs
   github_branch: main
 
@@ -163,7 +163,7 @@ params:
     # Developer relevant links. These will show up on right side of footer and in the community page if you have one.
     developer:
       - name: GitHub
-        url: https://github.com/google/longfellow-zk
+        url: https://github.com/longfellow-zk/longfellow-zk
         icon: fab fa-github
         desc: Development takes place here!
 

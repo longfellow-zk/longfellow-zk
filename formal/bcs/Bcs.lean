@@ -1,9 +1,6 @@
 import Bcs.Counting
 import Bcs.FirstOccurrenceTrace
 import Bcs.TypedFiatShamir
-import Bcs.EnvelopeFiatShamir
-import Bcs.LinearEnvelopeFiatShamir
-import Bcs.FixedKeyEnvelopeFiatShamir
 import Bcs.IdealCodec
 import Bcs.Compiled
 import Bcs.Transcript

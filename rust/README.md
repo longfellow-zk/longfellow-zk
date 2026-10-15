@@ -3,10 +3,8 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](../LICENSE)
 [![IETF Draft](https://img.shields.io/badge/IETF%20Draft-draft--google--cfrg--libzk-lightgrey)](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/)
 
-This directory contains the next-generation implementation of the
-Longfellow Zero-Knowledge (ZK) proof system.  It is still under
-development, but our (Google) goal is to switch to this implementation
-in production.
+This directory contains the Rust implementation of the Longfellow
+Zero-Knowledge (ZK) proof system. It remains under development.
 
 The major problem with the C++ implementation was the confusing
 organization of circuits.  We believe that this implementation is a
@@ -24,25 +22,24 @@ inputs, irrespective of whether they are necessary or not.  We have
 organized the code to maximize local auditability as opposed to
 circuit size.
 
-We have a new compiler that generates better circuits than the C++
-one.  Consequently, the circuits for the full mdoc-zk application
-decreased in size by about 10% despite performing more checks.
+In the original comparison with the C++ compiler, the full mdoc-zk
+circuits were about 10% smaller despite performing more checks.
 
 We have also rewritten the runtime portion (the prover and verifier)
-in Rust.  Performance is about the same as the old implementation, and
-even a bit faster.  We have paid specific attention to memory usage:
-the new prover produces a proof of the full mdoc-zk circuits in
-less than 100MB of memory.  The latest C++ prover was about 170MB,
-and the initial prover from 2025 took about 600MB.
+in Rust. In the measurements behind this rewrite, performance was
+comparable to the C++ implementation and the Rust prover used less than
+100MB to produce a proof for the full mdoc-zk circuits, versus about
+170MB for the then-current C++ prover and about 600MB for the initial
+2025 prover. These are historical measurements, not current guarantees.
 
-We have defined a new circuit format called LFC2 that is much more
-compact than the C++ format (retroactively named LFC1).  mdoc-zk
-LFC2 circuits consume about 1MB before zstd compression, versus
-about 100MB for LFC1.
+We have defined a circuit format called LFC2 that is more compact than
+the C++ format (retroactively named LFC1). In the original mdoc-zk
+comparison, LFC2 circuits occupied about 1MB before zstd compression,
+versus about 100MB for LFC1.
 
-Despite these improvements, the implementation is 100% backward
-compatible with the C++ one.  It can read LFC1 circuits and produce
-bit-by-bit equal proofs as the C++ prover.
+The implementation includes an LFC1 reader to support the C++ circuit
+format. Its intended compatibility includes bit-for-bit equal proofs
+for matching circuits and prover randomness.
 
 We are also switching to a new development model.  In the past, the
 source of truth was an internal Google repository, with periodic
@@ -51,17 +48,15 @@ will be github and Google will periodically import github as needed.
 This switch will make it easier for us to accept third-party
 contributions.
 
-We do not ship a C++ runtime for now, expecting the Rust
-implementation to be sufficient for all use cases.  Should this
-assumption not be accurate, please let us know and we'll work
-out a plan.
+The older C++ implementation remains in [`../lib`](../lib); this Rust
+workspace does not contain a separate C++ runtime for its new circuits.
 
 ---
 
 ## Building and Testing
 
 ### Requirements
-Rust toolchain (1.75 or newer recommended).
+A current stable Rust toolchain.
 
 ### Build the Workspace
 ```bash

@@ -4,8 +4,7 @@ This directory contains the authoritative reference implementation of
 the Longfellow Zero-Knowledge Proof System (prover and verifier),
 written in Rust. It formally specifies the proof wire format,
 Fiat-Shamir transcript derivation, and the exact verification
-algorithm.  In addition, it specifies a not yet deployed circuit
-representation (`LFC2` circuit files).
+algorithm. In addition, it specifies the `LFC2` circuit representation.
 
 The Longfellow zero-knowledge proof system implements the protocol
 introduced in [Anonymous Credentials from ECDSA](https://cic.iacr.org/p/3/1/7)

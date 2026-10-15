@@ -120,6 +120,36 @@ noncomputable def asgOf (pl : Encode.Placement ninp M qw nw nq nt) {h : row.Vali
     {O : Ligero.V1.Oracle F nw nq row.n 1} (ℓ : Lift h D hkrow O) : LigeroAssignment ninp M F :=
   Encode.decode pl ℓ.decodedMessages
 
+/-- The same decoded assignment at an arbitrary extraction radius. -/
+noncomputable def asgAt (pl : Encode.Placement ninp M qw nw nq nt) {h : row.Valid}
+    {D : ReedSolomon.Domain F row.openings qw row.n}
+    {hkrow : row.openings + qw = row.k}
+    {O : Ligero.V1.Oracle F nw nq row.n 1} (radius : ℕ)
+    (ℓ : SchemeLiftCandidate (row.code h D hkrow) O radius) :
+    LigeroAssignment ninp M F :=
+  Encode.decode pl ℓ.decodedMessages
+
+omit [Fintype F] in
+@[simp] theorem asgAt_widen (pl : Encode.Placement ninp M qw nw nq nt)
+    {h : row.Valid} {D : ReedSolomon.Domain F row.openings qw row.n}
+    {hkrow : row.openings + qw = row.k} {O : Ligero.V1.Oracle F nw nq row.n 1}
+    {small large : ℕ}
+    (ℓ : SchemeLiftCandidate (row.code h D hkrow) O small) (hr : small ≤ large) :
+    asgAt pl large (ℓ.widen hr) = asgAt pl small ℓ := by
+  simp [asgAt]
+
+omit [Fintype F] in
+/-- Failure of extraction at the larger radius implies failure at the existing
+round-by-round radius, using the same decoded assignments. -/
+theorem noSat_of_larger_radius (pl : Encode.Placement ninp M qw nw nq nt)
+    {h : row.Valid} {D : ReedSolomon.Domain F row.openings qw row.n}
+    {hkrow : row.openings + qw = row.k} {O : Ligero.V1.Oracle F nw nq row.n 1}
+    {small large : ℕ} (hr : small ≤ large) (sys : LigeroSystem ninp M F)
+    (hlarge : NoSat (asgAt pl large (h := h) (D := D) (hkrow := hkrow) (O := O)) sys) :
+    NoSat (asgAt pl small (h := h) (D := D) (hkrow := hkrow) (O := O)) sys := by
+  intro ℓ hsat
+  exact hlarge (ℓ.widen hr) (by simpa using hsat)
+
 /-- **The lift list has at most `listBound` members.** -/
 theorem lift_card_le (h : row.Valid) (D : ReedSolomon.Domain F row.openings qw row.n)
     (hkrow : row.openings + qw = row.k) (O : Ligero.V1.Oracle F nw nq row.n 1) :
@@ -144,6 +174,18 @@ theorem noDecoded_of_noSat (pl : Encode.Placement ninp M qw nw nq nt) (nlin : �
     (sys : LigeroSystem ninp M F) (hlin : sys.linear.length ≤ nlin) (hquad : sys.quad.length ≤ nt)
     (hns : NoSat (asgOf pl (h := h) (D := D) (hkrow := hkrow) (O := O)) sys) :
     NoDecodedSolution (row.code h D hkrow) O (row.e + row.g) (stmtOf pl nlin sys) :=
+  fun ℓ hsat => hns ℓ (Encode.sat_decode_encodeLig pl hlin hquad _ hsat)
+
+omit [Fintype F] in
+/-- The same circuit-to-encoded-statement implication at an arbitrary radius.
+This permits the flat extraction certificate to use its own larger lift list. -/
+theorem noDecoded_of_noSatAt (pl : Encode.Placement ninp M qw nw nq nt) (nlin radius : ℕ)
+    (h : row.Valid) (D : ReedSolomon.Domain F row.openings qw row.n)
+    (hkrow : row.openings + qw = row.k) (O : Ligero.V1.Oracle F nw nq row.n 1)
+    (sys : LigeroSystem ninp M F) (hlin : sys.linear.length ≤ nlin)
+    (hquad : sys.quad.length ≤ nt)
+    (hns : NoSat (asgAt pl radius (h := h) (D := D) (hkrow := hkrow) (O := O)) sys) :
+    NoDecodedSolution (row.code h D hkrow) O radius (stmtOf pl nlin sys) :=
   fun ℓ hsat => hns ℓ (Encode.sat_decode_encodeLig pl hlin hquad _ hsat)
 
 end Lift

@@ -15,14 +15,14 @@ It is named after the bridge outside the Google Cambridge office.
 
 # Security
 
-This project has completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://google.github.io/longfellow-zk/docs/reviews/) page.
+This project has completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://longfellow-zk.github.io/longfellow-zk/docs/reviews/) page.
 
 # Specifications
-This repository contains [the working files](https://github.com/google/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.
+This repository contains [the working files](https://github.com/longfellow-zk/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.
 If you are interested in contributing, please create an Issue or a Pull Request. Our discussions occur under Issues.
 
 # Testing via devcontainer
-You can test our library by using the associated devcontainer to create its environment. Simply click on `Code`-->`Codespaces`-->`Create codespace on master` above to get started.  This creates a docker container on a Github server that includes all of the dependencies and provides a web-based VScode interface to our current codebase.  You can compile and run our benchmarks in this environment, but some of them may be slower than our reported values due to the VM.
+You can test our library by using the associated devcontainer to create its environment. Select `Code` → `Codespaces` → `Create codespace on main` to get started. This creates a container on GitHub that includes the dependencies and provides a browser-based VS Code interface. You can compile and run our benchmarks there, though the VM may be slower than the reported measurements.
 
 # Instructions to build
 

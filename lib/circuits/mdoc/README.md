@@ -3,12 +3,14 @@ Procedure for updating a circuit to ensure backwards compatibility.
 ## If the inputs and witnesses are the same, but the gates have changed
 
 * Produce a new set of hashes and add them to zk_spec.
-* Checkin the files into circuits/circuits using circuitmaker.
+* Generate the files in `circuits/mdoc/circuits` using `circuit_maker`.
 ```
-$ blaze build -c opt privacy/proofs/zk/lib/circuits/mdoc:circuit_maker
-$ blaze-bin/privacy/proofs/zk/lib/circuits/mdoc/circuit_maker --output_dir
-privacy/proofs/zk/lib/circuits/mdoc/circuits/ --num_attributes 1
+$ cmake -S lib -B build
+$ cmake --build build --target circuit_maker
+$ build/circuits/mdoc/circuit_maker --output_dir lib/circuits/mdoc/circuits --num_attributes 1
 ```
+Run these commands from the repository root. The `circuit_maker` target is
+available when CMake finds Abseil.
 
 * Ensure that unit tests pass.
 

@@ -90,6 +90,20 @@ def decodedMessages (candidate : SchemeLiftCandidate C oracle radius) :
     CoreMessages F nw nq w :=
   fun block row ↦ witnessValues (candidate.decodedCore block row)
 
+/-- The same committed codeword tuple is a candidate at every larger decoding radius. -/
+def widen {small large : ℕ} (candidate : SchemeLiftCandidate C oracle small)
+    (h : small ≤ large) : SchemeLiftCandidate C oracle large where
+  offset := candidate.offset
+  row := candidate.row
+  offset_mem := candidate.offset_mem
+  row_mem := candidate.row_mem
+  close := candidate.close.trans h
+
+omit [Fintype F] [DecidableEq CheckedMask] in
+@[simp] theorem decodedMessages_widen {small large : ℕ}
+    (candidate : SchemeLiftCandidate C oracle small) (h : small ≤ large) :
+    (candidate.widen h).decodedMessages = candidate.decodedMessages := rfl
+
 def linearResidual (candidate : SchemeLiftCandidate C oracle radius)
     (statement : ConstraintSystem F nw nq w Equations)
     (equation : Equations) : F :=
@@ -327,6 +341,18 @@ def NoDecodedSolution (C : MultiplicativeCode F r w n)
     (statement : ConstraintSystem F nw nq w Equations) : Prop :=
   ∀ candidate : SchemeLiftCandidate C oracle radius,
     ¬statement.Satisfies candidate.decodedMessages
+
+omit [Fintype F] [Fintype Equations] [DecidableEq Equations] [DecidableEq CheckedMask] in
+/-- Falsity for a larger committed lift list implies falsity for every nested list. -/
+theorem NoDecodedSolution.of_larger_radius
+    {C : MultiplicativeCode F r w n}
+    {oracle : SchemeOracle F CheckedMask DirectMask nw nq n 1}
+    {statement : ConstraintSystem F nw nq w Equations}
+    {small large : ℕ} (h : small ≤ large)
+    (hlarge : NoDecodedSolution C oracle large statement) :
+    NoDecodedSolution C oracle small statement := by
+  intro candidate hsat
+  exact hlarge (candidate.widen h) (by simpa using hsat)
 
 omit [Fintype F] [Fintype Equations] [DecidableEq Equations] [DecidableEq CheckedMask] in
 /-- An unsatisfiable statement has no decodable solution either. -/

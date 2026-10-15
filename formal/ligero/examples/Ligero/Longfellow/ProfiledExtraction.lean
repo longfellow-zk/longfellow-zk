@@ -236,6 +236,97 @@ theorem Result.v1_uniform_envelope
   intro respond
   exact (Result.v1_strategy s hp hv hf hdim D hkn hrows statement oracle respond).trans hb
 
+/-- The same response-uniform envelope at the certificate's exact rational
+bound, before rounding it to a whole number of bits. -/
+theorem Result.v1_uniform_envelope_exact
+    (s : Result) (hp : s.ParametersValid) (hv : s.variant = .v1)
+    {F Equations : Type*} [Field F] [Fintype F] [DecidableEq F]
+    [Fintype Equations] [DecidableEq Equations] {w nw nq : ℕ}
+    (hf : Fintype.card F = s.certificate.fieldSize)
+    (hdim : s.certificate.openings + w = s.certificate.k)
+    (D : ReedSolomon.Domain F s.certificate.openings w s.certificate.n)
+    (hkn : s.certificate.openings + w ≤ s.certificate.n)
+    (hrows : CoreRowsNonempty nw nq)
+    (statement : ConstraintSystem F nw nq w Equations)
+    (oracle : SchemeOracle F NoMask Ligero.V1.Mask nw nq s.certificate.n 1) :
+    (∑ challenge : Ligero.V1.Challenge F nw nq 1 Equations,
+      ScalarGapExtraction.profiledUniformEnvelope (oracle := oracle)
+        (e := s.certificate.e) (g := s.certificate.g)
+        (SchemeVerifier.policy (Equations := Equations) (nw := nw) (nq := nq)
+          (repetitions := 1) (s.code D hkn) Ligero.V1.scheme)
+        (fun candidate => candidate.decodedMessages) statement challenge) /
+      Fintype.card (Ligero.V1.Challenge F nw nq 1 Equations) ≤ s.bound := by
+  letI : Nonempty (Response F s.certificate.openings w s.certificate.n 1) :=
+    ⟨⟨fun _ => 0, fun _ => 0, fun _ => 0⟩⟩
+  apply ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies
+    (SchemeVerifier.policy (Equations := Equations) (nw := nw) (nq := nq)
+      (repetitions := 1) (s.code D hkn) Ligero.V1.scheme)
+    (fun candidate => candidate.decodedMessages) statement s.bound
+  intro respond
+  exact Result.v1_strategy s hp hv hf hdim D hkn hrows statement oracle respond
+
+/-- The certified flat envelope also bounds raw acceptance when no member of the
+committed lift list solves the encoded statement.  In this case the extractor
+returns `none` for every challenge and response, so the failing-query envelope
+is exactly the acceptance envelope. -/
+theorem Result.v1_uniform_acceptance_of_noDecoded
+    (s : Result) (hp : s.ParametersValid) (hv : s.variant = .v1)
+    {F Equations : Type*} [Field F] [Fintype F] [DecidableEq F]
+    [Fintype Equations] [DecidableEq Equations] {w nw nq : ℕ}
+    (hf : Fintype.card F = s.certificate.fieldSize)
+    (hdim : s.certificate.openings + w = s.certificate.k)
+    (D : ReedSolomon.Domain F s.certificate.openings w s.certificate.n)
+    (hkn : s.certificate.openings + w ≤ s.certificate.n)
+    (hrows : CoreRowsNonempty nw nq)
+    (statement : ConstraintSystem F nw nq w Equations)
+    (oracle : SchemeOracle F NoMask Ligero.V1.Mask nw nq s.certificate.n 1)
+    (hb : s.bound ≤ (1 : ℚ) / 2 ^ s.certificate.targetBits)
+    (hnd : NoDecodedSolution (s.code D hkn) oracle
+      (s.certificate.e + s.certificate.g) statement) :
+    (∑ challenge : Ligero.V1.Challenge F nw nq 1 Equations,
+      (((Finset.univ : Finset (Response F s.certificate.openings w s.certificate.n 1)).sup
+        fun response => (Finset.univ.filter fun query : QuerySet s.certificate.n
+          s.certificate.openings =>
+          (SchemeVerifier.policy (Equations := Equations) (nw := nw) (nq := nq)
+            (repetitions := 1) (s.code D hkn) Ligero.V1.scheme).accepts
+            statement challenge response query (openSchemeOracle oracle query)).card : ℕ) : ℚ)
+        / s.certificate.n.choose s.certificate.openings) /
+      Fintype.card (Ligero.V1.Challenge F nw nq 1 Equations)
+      ≤ (1 : ℚ) / 2 ^ s.certificate.targetBits := by
+  letI : Nonempty (Response F s.certificate.openings w s.certificate.n 1) :=
+    ⟨⟨fun _ => 0, fun _ => 0, fun _ => 0⟩⟩
+  have hnone (challenge : Ligero.V1.Challenge F nw nq 1 Equations)
+      (response : Response F s.certificate.openings w s.certificate.n 1) :
+      ScalarGapExtraction.extract (oracle := oracle) (e := s.certificate.e)
+        (g := s.certificate.g)
+        (SchemeVerifier.policy (Equations := Equations) (nw := nw) (nq := nq)
+          (repetitions := 1) (s.code D hkn) Ligero.V1.scheme)
+        (fun candidate => candidate.decodedMessages) statement challenge response = none := by
+    exact ScalarGapExtraction.extract_none_of_no_valid _ _ _ challenge response hnd
+  have h := s.v1_uniform_envelope hp hv hf hdim D hkn hrows statement oracle hb
+  simpa only [ScalarGapExtraction.profiledUniformEnvelope,
+    ScalarGapExtraction.failingQueries, hnone, and_true] using h
+
+/-- The candidate-count certificate at the same radius as the flat envelope. -/
+theorem Result.v1_lift_card_le (s : Result) (hp : s.ParametersValid)
+    {F : Type*} [Field F] [Fintype F] [DecidableEq F] {w nw nq : ℕ}
+    (hf : Fintype.card F = s.certificate.fieldSize)
+    (hdim : s.certificate.openings + w = s.certificate.k)
+    (D : ReedSolomon.Domain F s.certificate.openings w s.certificate.n)
+    (hkn : s.certificate.openings + w ≤ s.certificate.n)
+    (oracle : SchemeOracle F NoMask Ligero.V1.Mask nw nq s.certificate.n 1) :
+    Fintype.card (SchemeLiftCandidate (s.code D hkn) oracle
+      (s.certificate.e + s.certificate.g)) ≤ s.certificate.listSize := by
+  obtain ⟨_, hm, ⟨P⟩⟩ := s.codeFacts hp hdim D hkn
+  have hc := s.lineConditions hp hf hm P
+  have hradius : s.certificate.e + s.certificate.g < s.certificate.d := by
+    have := hc.outer.punctured.punctured_three_radius
+    omega
+  exact SchemeLiftCandidate.univ_card_le_uniformFamilyBound
+    (s.code D hkn) oracle hm hradius
+    (s.certificate.listFamily hradius hm.distance_le_length
+      hc.outer.johnson.list_denominator_positive)
+
 theorem Result.v2_strategy
     (s : Result) (hp : s.ParametersValid) (hv : s.variant = .v2)
     {F Equations : Type*} [Field F] [Fintype F] [DecidableEq F]

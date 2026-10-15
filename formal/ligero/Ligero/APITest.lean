@@ -1,7 +1,7 @@
 import Ligero.API
-import examples.Ligero.Longfellow.EnvelopeFSCertificates
+import examples.Ligero.Longfellow.AdaptiveCountCertificates
 
-/-! Compile-time checks for the retained scalar IOP/FS extraction API. -/
+/-! Compile-time checks for the retained scalar IOP extraction API. -/
 
 -- Scalar, response-uniform IOP extraction and the false-statement corollary.
 #guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.compatible_unique
@@ -77,28 +77,6 @@ example : CodingTheory.HahnDelsarte.certifiedBound 6 2 [6, 1] = 3 := by decide +
  Quot.sound] -/
 #guard_msgs in #print axioms LigeroFamily.ScalarGapExtraction.checked_profiled_extraction_failure
 
-#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.ResponseUniformBound
-#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.Experiment
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.compiledAccepts
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.extract
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.extraction_ratio_le
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.soundness_ratio_le
-/-- info: 'Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in #print axioms Bcs.EnvelopeFiatShamir.extraction_ratio_le_capped
-#guard_msgs (drop info) in #check Bcs.FiniteProbability.density_product_gate_le
-#guard_msgs (drop info) in #check LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic
-/-- info: 'LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.Experiment.compiledBound_dyadic
-/-- info: 'LigeroFamily.EnvelopeFS.extraction_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.extraction_ratio_le
-/-- info: 'LigeroFamily.EnvelopeFS.soundness_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in #print axioms LigeroFamily.EnvelopeFS.soundness_ratio_le
-
-#guard_msgs (drop info) in #check Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped
-/-- info: 'Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs in #print axioms Bcs.EnvelopeFiatShamir.FixedKey.extraction_ratio_le_capped
-
-#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_fs_extraction
-#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v2_fs_extraction
-#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Hash4_v3_fs_soundness
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.CountCertificate
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v7Sig_v1_adaptiveCounts
+#guard_msgs (drop info) in #check Ligero.Examples.Grid.LongfellowProfiledExtraction.Optimized.v8Sig_v3_adaptiveCounts

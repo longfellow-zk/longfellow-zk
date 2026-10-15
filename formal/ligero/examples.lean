@@ -1,3 +1,3 @@
-import examples.Ligero.Longfellow.EnvelopeFSCertificates
+import examples.Ligero.Longfellow.OptimizedIOPCertificates
 
-/-! Certified Ligero IOP and Fiat--Shamir component instances. -/
+/-! Certified Ligero IOP component instances. -/

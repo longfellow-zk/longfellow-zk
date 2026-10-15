@@ -1,7 +1,8 @@
-# Longfellow ZK: knowledge soundness and zero knowledge, as deployed
+# Longfellow ZK: soundness and privacy for the modeled v7 protocol
 
-This directory contains Lean proofs of knowledge soundness and zero knowledge for the Longfellow scheme as `mdoc_zk`
-deploys it. The scheme runs two circuits on one Fiat–Shamir transcript:
+This directory contains conditional Lean proofs of knowledge soundness and zero knowledge for a
+model of Longfellow's v7 circuit and transcript layout. The model runs two circuits on one
+Fiat–Shamir transcript:
 
 - the registered **v7** SHA-256 hash circuit (1–4 attributes) over GF(2^128), proved first;
 - the ECDSA signature circuit over the P-256 base field, proved second.
@@ -13,16 +14,19 @@ re-commit and grind.
 
 | | result | where |
 |---|---|---|
-| **Combined soundness** (v7, 1–4 attributes) | **115-bit T-security**: `Pr[win] ≤ (1 + tA + N)·2^-115`, conditional on the premises in [Assumptions and deployment boundary](#assumptions-and-deployment-boundary). Each circuit keeps its own private MAC witness, as in Rust | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` (v7 MAC), `…_sepBlind` (v8 MAC) |
+| **Combined soundness** (modeled v7, 1–4 attributes) | **115-bit T-security**: `Pr[win] ≤ (1 + tA + N)·2^-115`, conditional on the premises in [Assumptions and deployment boundary](#assumptions-and-deployment-boundary). Each circuit keeps its own private MAC witness | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` (v7 MAC) |
 | Signature circuit alone | **127 bits** with the Hahn mask certificate (122 with the Johnson row) | `CompiledZkProfileRows.v7SigHahn_zk_circuit_tsec` |
 | Hash circuit alone | 115 bits | `CompiledZkProfileRows.v7Hash{1,2,3,4}_zk_circuit_tsec` |
-| **Zero knowledge**, deployed 256-bit nonces | ≤ 2^-128 per side, ≤ 2^-127 two-field, against 2^115 Merkle queries. With the v7 MAC the simulator also gets the message blocks' zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_q115` (v7 MAC), `CompiledLongfellowZkV7.v7_twofield_zk_q115` (additive MAC) |
-| Zero knowledge, 542-bit nonces | statistical, ≤ 2^-131 two-field, no query bound | `CompiledLongfellowZkStat.v7_twofield_zk_stat542` |
-| Witness indistinguishability | ≤ 2^-127 per side, ≤ 2^-126 two-field, at 2^115 queries | `CompiledLongfellowZk.compiled_longfellow_wi`, `CompiledLongfellowZkTwoField.twofield_wi` |
+| **Zero knowledge**, 256-bit nonces | ≤ 2^-128 per side, ≤ 2^-127 two-field, against 2^115 Merkle queries. For the v7 MAC the simulator receives the message blocks' zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_q115` (v7 MAC); `CompiledLongfellowZkV7.v7_twofield_zk_q115` (additive MAC) |
+| Zero knowledge, 542-bit nonces | statistical, ≤ 2^-131 two-field, no query bound; the v7 MAC simulation receives the zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_stat542` |
+| Witness indistinguishability | ≤ 2^-127 per side and ≤ 2^-126 two-field at 2^115 queries; the v7 two-field claim requires equal zero patterns | `CompiledLongfellowZk.compiled_longfellow_wi`, `CompiledLongfellowZkV7Mac.twofield_wi_v7` |
 
 The hash side limits the combined soundness level. Names are under `Lfzk` unless qualified.
 Files named `CompiledZk*` are about **soundness of the zero-knowledge verifier**;
 `CompiledLongfellowZk*` contain the **privacy** results.
+The separate `_sepBlind` theorems use the v8 MAC equation with the same v7 circuit profiles;
+they are not soundness theorems for the v8 circuits. Applying any of these theorems to deployed
+Rust requires the correspondence assumptions described below.
 
 ## Reproduce the checks
 
@@ -40,19 +44,18 @@ python3 lfzk/scripts/inspect_v7_circuit_profile.py  # regenerate v7-circuit-prof
 The Rust inspectors need Cargo dependencies and a writable Cargo cache. `soundness_report.py`
 recomputes the exponents below with exact fractions and rechecks the Hahn signature certificate.
 
-**What the audit establishes.** Every headline prints `[propext, Classical.choice, Quot.sound]`.
-Theorems stated at a numeric row may also depend on that row's own `native_decide` facts
+**What the audit establishes.** The headline proofs use Lean's standard axioms
+`[propext, Classical.choice, Quot.sound]`. Numeric row proofs also use `native_decide` facts
 (`<row>_valid`, `_slack_bound`, `_slack_coeff`, …). The scan finds no `sorry`, `admit` or `axiom`
 in `lfzk`, `bcs`, `merkle` or `sumcheck`. `native_decide` extends trust to Lean's native
 evaluator. The audit does not remove the theorems' premises, and it does not prove correspondence
-with the deployed code. `formal/ligero/` is not modified; this library builds on its Ligero V1
-analysis.
+with the deployed code. This library builds on the Ligero V1 analysis in `formal/ligero/`.
 
 ## Where to look
 
 | Question | Entry point |
 |---|---|
-| What is the combined soundness claim? | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec` in [CompiledZkProfileRows.lean](Lfzk/CompiledZkProfileRows.lean) |
+| What is the combined soundness claim? | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` in [CompiledZkProfileSepMac.lean](Lfzk/CompiledZkProfileSepMac.lean) |
 | Which premises are still external? | [Assumptions and deployment boundary](#assumptions-and-deployment-boundary) |
 | What does the privacy theorem prove? | [Zero knowledge](#zero-knowledge) |
 
@@ -267,17 +270,15 @@ together — the combination challenge `α`, then the column query — they boun
 that a prover with a fixed commitment is accepted without a valid witness. The bound averages
 over `α`: each `α` contributes its probability times the fraction of column queries the best
 response passes at that `α` (the "response-uniform envelope"). An average is the right quantity
-when `α` is drawn once. That is the setting of `formal/ligero`'s Fiat–Shamir theorem, where
-`α = H(root)` and the bound is `(Q+1)·ε`.
+when `α` is drawn once. The local count certificates in `formal/ligero`
+also give separate bounds for escape challenges and accepting column queries.
 
 **Why the current Longfellow compiler does not use it.** In Longfellow, `α` is a hash of the
 root *and the whole sumcheck transcript*. A cheating prover can obtain fresh `α` values by
 changing sumcheck messages without re-committing, then concentrate its column-query attempts
 on a favorable one. A flat average over `α` does not itself justify the compiler's **linear**
-query factor. The proved linear envelope compiler assumes a fixed defining `α` key; the
-generic two-slot compiler gives a quadratic query factor even in its fixed-key model. Neither
-theorem supplies the missing composition at Longfellow's transcript-dependent key. The current
-linear-query composition instead needs one bound per Ligero round, each charged once per hash query:
+query factor. The current linear-query composition instead needs one bound per
+Ligero round, each charged once per hash query:
 
 1. the probability that `α` escapes a *doom threshold* (`fail + arith`);
 2. for a doomed `α`, the fraction of column queries that pass (`cover`).
@@ -595,9 +596,13 @@ nonces.
 - **The other hybrids are unchanged:** programming the Ligero points, the explicit V1 response
   and the pad.
 
-## Statistical Witness indistinguishability
+## Witness indistinguishability
 
-It is well-known that statistical ZK cannot be achieved in the programmable random oracle model. Specifically, an unbounded adversary can query the oracle everywhere and detect programming. Thus, the best "statistical" notion that one can aim for when using the Fiat-Shamir heuristic is for statistical witness indistinguishability.
+At 256-bit nonces, the simulation bound above limits the number of Merkle-oracle
+queries. The separate 542-bit-nonce theorem gives statistical zero knowledge
+even when the distinguisher receives the entire oracle. Witness
+indistinguishability compares two real proofs and is available under the
+corresponding simulation hypotheses.
 
 `CompiledLongfellowZk.compiled_longfellow_wi` and `CompiledLongfellowZkTwoField.twofield_wi`
 compare honest proofs from two valid witnesses for the same statement; in the two-field form the
@@ -645,7 +650,7 @@ simulation, so it pays **twice** the simulation bound:
 | Registered artifacts | Rust inspectors check `WellFormedP`, `Isolated`, `DeadEnd` and the geometry on the registered files. Their identification with the Lean `QuadCircuit` data is outside Lean. |
 | Verifier correspondence | `CodeAgreesP`, the initial points, the message readers, the tableau placement and the sizes are premises. Equivalence to `zk_common.h` / the deployed verifier is not proved from source or machine code. |
 | Commitments | The modelled opening check and the V1 policy are composed formally. The byte encoding, leaf-as-column and root-as-context correspondences remain deployment obligations. |
-| Challenge sampling | Exact decoder balance is assumed for field elements, pairs, initial points, Ligero combinations and fixed-size query sets. No reduction from the deployed SHA-256/AES sampler, including any bias, is supplied. |
+| Challenge sampling | Each fresh transcript-oracle answer is an independent uniform ideal coin. Exact decoder balance is assumed for the joint initial tuples, field pairs and elements, Ligero combinations, fixed-size query sets, and the MAC challenge. [IdealSampler.lean](Lfzk/IdealSampler.lean) exhibits a common abstract coin alphabet and exactly balanced decoders. Correspondence to the deployed SHA-256/AES sampler is not proved. |
 | Hash model | A Merkle random oracle and an independent transcript oracle on context, role and message prefix. No challenge is re-absorbed. The running SHA-256 state and the AES expansion are idealised by this typed oracle. |
 | Two-field MAC | In the `_sepMac` / `_sepBlind` headlines, `hrow₁`, `hrow₂` say each circuit enforces its own MAC equation on its own private witness (v7: `(av + share)·msg`; v8: `av·msg + blind`) and the public tags, as Rust does. That each circuit asserts exactly this equation on its bit-packed common value is a circuit fact, assumed. `aP` is an optional public shift, `0` as deployed. |
 | Extractor | The failure event quantifies over a finite lift list, at most two candidates here. Efficient list decoding and a polynomial-time witness-selection algorithm are not established. |
@@ -664,26 +669,29 @@ handling, field operations or the verifier's control flow. The artifact inspecto
 checks, but they are not that proof, and more theorems inside the abstract model cannot close this
 gap.
 
-## Balanced challenge decoders
+## Ideal challenge sampler
 
-A decoder maps raw random coins to a field element, a tuple of elements, or a set of queried
-columns. "Balanced" means every decoded output occurs equally often, so it is uniform. Mapping a
-uniform byte modulo 10 is not balanced: 0–5 each have 26 preimages, 6–9 have 25. Tuples must be
-jointly uniform; uniform coordinates alone are not enough. Balance is what justifies charges like
-"a quadratic has at most two roots, so the chance of hitting one is at most `2/|F|`".
+The soundness theorem assumes each fresh transcript-oracle answer is an independent uniform
+element of an abstract finite coin alphabet `C`. The verifier's deterministic decoders must
+map this coin to uniform values at each role: a **joint** initial-point tuple, a field pair,
+an individual field element, a Ligero challenge, a fixed-size query set, or the MAC key.
+Uniformity of individual coordinates alone does not imply joint uniformity. In Lean the
+premise is an upper bound on every decoder fiber together with `k · |target| ≤ |C|`; for a
+nonempty target these inequalities force every fiber to have the same size. The independent
+random-oracle outputs supply freshness even when the prover adaptively chooses its transcript.
 
-- **The samplers.** Rust's [field sampler](../../rust/runtime/algebra/src/fp_generic.rs) rejects
-  out-of-range integers, and [column sampling](../../rust/runtime/random/src/lib.rs) uses
-  rejection sampling and a partial Fisher–Yates shuffle. These can be proved uniform when fed
-  independent uniform bytes.
-- **The expansion.** [Transcript](../../rust/runtime/random/src/transcript.rs) expands a SHA-256
-  digest with AES-256 on counter blocks. The raw challenge alphabet `C` cannot be identified with
-  a 256-bit digest without further proof. The hash side's initial decoder produces `logv+2 ≥ 5`
-  field elements, more than 256 uniform bits, so exact balance over that target cannot come from
-  a deterministic expansion of one uniform 256-bit value. `SoundnessAudit.no_256bit_init_decoder`
-  proves this for the smallest v7 hash output dimension. This is not a practical attack. It means
-  the expansion needs an explicit idealised-primitive analysis and its error term. The AES key is
-  a public transcript digest, so secret-key PRF security does not provide that analysis.
+This assumption is satisfiable as an abstract model. [IdealSampler.lean](Lfzk/IdealSampler.lean)
+uses the product of the two initial-tuple spaces, both sides' challenge and query spaces,
+both field-pair spaces, and the MAC field. Coordinate projections are exactly balanced for
+all eleven decoder roles at once, by the existing `ExactDecoder.self`, `.fst`, and `.snd`
+constructions. This proves consistency of the sampling premises, not existence of a complete
+deployed verifier or circuit satisfying every other premise.
+
+The abstract coin is not identified with one fixed 256-bit digest. The Rust transcript's
+SHA-256/AES expansion and rejection samplers are outside this ideal-sampler assumption;
+relating their output distribution to the ideal model remains a separate correspondence task.
+`SoundnessAudit.no_256bit_init_decoder` shows why a single 256-bit coin cannot be used as the
+joint initial tuple on the hash side.
 
 ## Two-field MAC constraints
 
@@ -705,9 +713,9 @@ small error to the zero-knowledge analysis". For soundness both formulas behave 
 `(a_v + a_p)·msg = a_v·msg + a_p·msg` is affine in `a_v`, with the offset `a_p·msg` fixed by the
 committed witness.
 
-The honest prover uses equal blinds or shares; a malicious prover need not. The current
-composition assumes they are equal, through its shared `keyB`, and argues that unequal messages
-force `a = 0`. That argument fails for separate blinds: `a = 1`,
+The honest prover uses equal blinds or shares; a malicious prover need not. The older
+shared-blind composition assumes they are equal, through its shared `keyB`, and argues that
+unequal messages force `a = 0`. That argument fails for separate blinds: `a = 1`,
 `(message_hash, blind_hash) = (0, 0)` and `(message_sig, blind_sig) = (1, −1)` give equal tags
 with unequal messages (`SoundnessAudit.separate_blinds_collision`).
 
@@ -719,7 +727,7 @@ which determines at most one `a`:
 - `Mac.shiftedMultiplier_collision_card_le_one` proves it for v7, where the offset
   `share·message` is fixed with the candidate witness.
 
-**This is now composed end to end** (`CompiledZkProfileSepMac.lean`, generic layers in
+**This is composed for the modeled verifier** (`CompiledZkProfileSepMac.lean`, generic layers in
 `MacSep`, `NizkZkDeployedHashSepMac`):
 
 - **Candidates are fixed before `a`.** Each side's candidate list is the lift list of its

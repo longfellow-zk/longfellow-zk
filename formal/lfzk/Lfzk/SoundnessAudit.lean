@@ -134,6 +134,22 @@ theorem hahn_twofield_linear_slack (i : Fin 4) :
         (1 : ℚ) / 2 ^ 138 := by
   fin_cases i <;> native_decide
 
+/-- Numerical target for a future terminal-pair compiler.  The hash-side
+Ligero term here is the certified flat V1 `2^-125` envelope, while the
+round-by-round field charge, the signature side, MAC, and Merkle charge stay
+as in the deployed two-field theorem.  This is an arithmetic certificate,
+not a bound on the compiled protocol: the terminal-pair compiler must still
+connect the flat envelope to its event. -/
+theorem flat125_twofield_constant_slack (i : Fin 4) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    (H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+      zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+      2 * ((fc * (1 + L) : ℕ) : ℚ) / 2 ^ 256 < (1 : ℚ) / 2 ^ 116 := by
+  fin_cases i <;> native_decide
+
 /-- The exact two-field FS right-hand side of
 `CompiledZkProfileSepMac.twofield_circuit_ratio_leT_sep`, specialized to the
 Hahn signature row, is below this three-term bound for every deployed v7 hash

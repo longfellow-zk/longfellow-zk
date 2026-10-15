@@ -1,13 +1,18 @@
 # Circuit files
 
-This directory contains all versions of the mdoc family of circuits.
+This directory contains the currently retained mdoc circuit artifacts. The
+hashes under “Removed” below are historical identifiers, not files in this
+directory.
 
 These can be produced by using the associated `circuit_maker` program.
 
+From the repository root, when CMake finds Abseil:
+
 ```
-$ blaze build -c opt privacy/proofs/zk/lib/circuits/mdoc/circuit_maker
-$ blaze-bin/privacy/proofs/zk/lib/circuits/mdoc/circuit_maker \
-  --output_dir privacy/proofs/zk/lib/circuits/mdoc/circuits/ \
+$ cmake -S lib -B build
+$ cmake --build build --target circuit_maker
+$ build/circuits/mdoc/circuit_maker \
+  --output_dir lib/circuits/mdoc/circuits \
   --num_attributes 4
 ```
 

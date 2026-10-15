@@ -37,6 +37,7 @@ import Lfzk.TwoFieldLongfellow
 import Lfzk.TwoFieldV1
 import Lfzk.TwoFieldV1Fields
 import Lfzk.TwoFieldV1Rows
+import Lfzk.IdealSampler
 import Lfzk.NizkGrindingTwoField
 import Lfzk.NizkAdaptiveTwoField
 import Lfzk.CompiledLongfellowTwoField

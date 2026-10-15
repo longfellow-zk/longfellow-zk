@@ -1,7 +1,7 @@
 # Bcs and Fiat–Shamir
 
 This directory formalizes the BCS compiler (Merkle-committed oracles plus Fiat–Shamir) and its soundness against a prover
-that may re-commit and grind. The main result is the theorem that the deployed Longfellow system uses for knowledge-soundness.
+that may re-commit and grind. The main result is used by the modeled Longfellow knowledge-soundness proof.
 
 ## Main result — `Bcs.TotalOracleCommit.Setup.ratio_le`
 
@@ -54,16 +54,19 @@ Ligero commitments of the two-field proof. It costs `2 · adaptiveNumerator / |D
 
 **Where it is used.**
 
-- `Lfzk.NizkZkDeployedHash` → `Lfzk.CompiledZkDeployedHash` → the end-to-end
-  `Lfzk.CompiledZkProfileRows.v7P256Sha*_zk_circuit_tsec`: `(1 + tA + N) · 2^-115` for any numbers
-  of Merkle and hash queries.
-- There the first term becomes the row's field and Ligero densities plus `N · zkCoefficient`.
-- The second stays the exact count. `Lfzk.TSec.tsec_of_uncapped` folds it into the T-security
-  bound: its `tA²` birthday part is at most `tA · 2^-115` for `tA ≤ 2^137`, and beyond that the
-  bound exceeds 1.
-  `Lfzk.CompiledZkProfileRows.v7P256Sha*_zk_circuit_ratio_le` (`2^-115 + N·2^-117`).
-- There the first term becomes the row's field and Ligero densities plus `N · zkCoefficient`.
-- The second becomes the Merkle term plus `tape · (L + N) / 2^256`.
+- `Lfzk.NizkZkDeployedHash` → `Lfzk.CompiledZkDeployedHash` → the modeled v7
+  `Lfzk.CompiledZkProfileRows.v7P256Sha*_zk_circuit_tsec` bound
+  `(1 + tA + N) · 2^-115` under its shared-blind premise. The separate-private-MAC headline
+  `v7P256Sha*_zk_circuit_tsec_sepMac` composes the same BCS result with a
+  fixed-candidate MAC collision bound.
+- The Fiat–Shamir term becomes the row's field and Ligero densities plus
+  `N · zkCoefficient`. The Merkle term keeps the exact query count.
+  `Lfzk.TSec.tsec_of_uncapped` folds both into T-security: its `tA²` birthday
+  part is at most `tA · 2^-115` for `tA ≤ 2^137`; beyond that the stated bound
+  already exceeds 1.
+- The earlier `v7P256Sha*_zk_circuit_ratio_le` theorem gives a different
+  bound of `2^-115 + N·2^-117` plus its Merkle term. It is not the
+  separate-private-MAC headline.
 
 **Modelling.**
 

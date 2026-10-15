@@ -8,7 +8,7 @@ On mac, you can use `brew install mmark xml2rfc idnits`.
 Running `make` produces the xml, text and html rendering.
 
 ## Updating the website
-The goal is to create a github workflow that recreates the html and copies it into the proper directory to be served from gh-pages.
+The [documentation workflow](../../.github/workflows/docs.yml) builds the spec and publishes the site from `main` when documentation changes.
 
 ## Issues
 We intend to use the built-in issues system to manage edits and updates to this specification.

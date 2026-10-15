@@ -421,6 +421,15 @@ def v7Hash4_v1_interactive := @CertifiedResult.v1_interactive v7Hash4_v1_certifi
 
 def v7Hash4_v1_uniform_envelope := @CertifiedResult.v1_uniform_envelope v7Hash4_v1_certified rfl
 
+/-- The larger-radius V1 flat certificates still give at most two committed lifts
+at each of the four deployed hash geometries. -/
+theorem v7Hash_v1_flat_listSize_two :
+    v7Hash1_v1.certificate.listSize ≤ 2 ∧
+    v7Hash2_v1.certificate.listSize ≤ 2 ∧
+    v7Hash3_v1.certificate.listSize ≤ 2 ∧
+    v7Hash4_v1.certificate.listSize ≤ 2 := by
+  native_decide
+
 def v8Sig_v2 : Result :=
   { variant := .v2, route := .johnson, etaBits := 0, adaptiveEta := true
     certificate :=

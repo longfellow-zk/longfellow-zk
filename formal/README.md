@@ -1,20 +1,21 @@
 # Formal verification
 
-**Ligero V1 is the shipped protocol. V2 and V3 are alternative protocols
-under development.**
+**The modeled v7 Longfellow verifier using Ligero V1 has 115-bit T-security.** For the
+signature and SHA circuits with one through four attributes on one
+Fiat–Shamir transcript, the certified soundness error is at most
+`(1 + tA + N) / 2^115`, where `tA` and `N` are the Merkle- and
+transcript-oracle query budgets. This is the conditional two-circuit theorem
+[`v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac`](lfzk/Lfzk/CompiledZkProfileSepMac.lean);
+its premises and deployment boundary are stated in the
+[Longfellow README](lfzk/README.md).
 
-The certified v7/v8 bounds for 132 distinct column openings are shown below,
-in bits. Let `L = log₂(Q+1)` for
-adversary query budget `Q`. The FS entries describe the FS term, capped below
-at zero; the total error is `bindingError + min(1, (Q+1)*2^(-s))` with `s`
-from the corresponding IOP column.
+The current hash-side core exceeds `2^-116` in every v7 profile, as certified
+by [`hash_core_exceeds_116`](lfzk/Lfzk/SoundnessAudit.lean); these rows cannot
+give a 116-bit combined bound by changing only the final composition.
 
-| Component | IOP V1 | IOP V2 | IOP V3 | FS V1 | FS V2 | FS V3 |
-|---|---:|---:|---:|---:|---:|---:|
-| v7 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
-| v7 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
-| v8 signature | 127 | 191 | 191 | 127−L | 191−L | 191−L |
-| v8 hashes | 125 | 126 | 126 | 125−L | 126−L | 126−L |
+Ligero V1 is the shipped component protocol. V2 and V3 are alternatives under
+development; their component-level analyses are documented separately in the
+[Ligero README](ligero/README.md).
 
 The Ligero development proves:
 
@@ -25,14 +26,14 @@ The Ligero development proves:
   below the Johnson threshold.
 - Response-assisted scalar IOP extraction for Ligero V1, V2, and V3, together
   with response-uniform envelopes and false-statement soundness.
-- Merkle prefix binding and typed Fiat–Shamir extraction with total error
-  `bindingError + min(1, (Q+1)*epsilon)`.
-- Exact IOP and Fiat–Shamir certificates for all v7/v8 signature and hash
-  component geometries, across all three Ligero variants.
+- Merkle prefix binding and typed Fiat–Shamir query bookkeeping.
+- Exact IOP certificates for v7/v8 signature and hash geometries across all
+  three variants, and local challenge/query count certificates for the hash
+  geometries and V1 signatures.
 
-See [ligero/README.md](ligero/README.md) for the major theorem names, their
-formal experiments, and the certified IOP/FS tables. This package also
-contains the EC/ECDSA circuit development and existing sumcheck modules.
+See the [Ligero README](ligero/README.md) for component theorem names and
+certificates. This package also contains the EC/ECDSA circuit development and
+sumcheck modules.
 
 The [recursive Polygero development](polygero/README.md) proves witness
 extraction for the transmitted recursive public-coin verifier, with failure
@@ -44,7 +45,6 @@ From this directory:
 
 ```sh
 lake build
-python3 ligero/examples/Ligero/scripts/audit_envelope_fs.py
 ```
 
 The package uses Lean 4.31.0 and the compatible Mathlib checkout at

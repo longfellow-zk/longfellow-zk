@@ -30,7 +30,7 @@ cd <root-of-the-repository>/reference/verifier-service/server
 $ go build 
 ```
 
-This creates a `server` binary in the directory. You can start it and give it the circuits folder from the main Longfellow ZK library
+This creates a `server` binary in the directory. You can start it and give it the circuits folder from the main Longfellow ZK library. The following log is an example from September 2025:
 
 ```
 $ ./server -circuit_dir ../../../lib/circuits/mdoc/circuits
@@ -86,20 +86,23 @@ There are a few command line flags:
 
 ## Running
 
-There must be a `circuits` directory that contains all of the circuits used by the system. This directory is part of the main Longfellow ZK repository, so the server should run out of the box.
+The server must be given a directory containing the circuit files. When run
+from this source directory, pass `-circuit_dir ../../../lib/circuits/mdoc/circuits`
+as above; the default `circuits` directory is populated by the container
+build, not by this source checkout.
 
 ## Testing the server
 
 We provide a sample input that you can use to test the service. With the service running in another window, you can use
 
 ```
-$ curl -X POST -H "Content-Type: application/json" --data-binary @reference/verifier-service/server/examples/post1.json  http://localhost:8888/zkverify
+$ curl -X POST -H "Content-Type: application/json" --data-binary @examples/post1.json http://localhost:8888/zkverify
 {"Status":true,"Claims":{"org.iso.18013.5.1":[{"ElementIdentifier":"age_over_18","ElementValue":"9Q=="}]}}
 ```
 
 The return json indicates that the proof was verified (`Status`) with respect to the `Claims`.  If the proof fails, then `Status` will be false, and the `Message` component will include a reason.
 
-You may also need a list of the valid circuits that the server can interpret when you form your web request. You can retrieve this list from the `/specs` endpoint.
+You may also need a list of the valid circuits that the server can interpret when you form your web request. Retrieve the current list from the `/specs` endpoint; the response below is an example from September 2025.
 
 ```
 $ curl localhost:8888/specs

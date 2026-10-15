@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates", "polygero.APITest", "Lfzk"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "polygero.APITest", "Lfzk"]
 
 [leanOptions]
 autoImplicit = false
@@ -53,6 +53,14 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "examples"
 srcDir = "ligero"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+# The improved v7/v8 Ligero local-count certificates are intentionally
+# separate from routine Longfellow builds. Build with `lake build LigeroLocalCounts`.
+[[lean_lib]]
+name = "LigeroLocalCounts"
+srcDir = "ligero"
+roots = ["LigeroLocalCounts"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
