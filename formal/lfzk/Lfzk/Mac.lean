@@ -10,8 +10,8 @@ one keyed function on `Fin nblk → Fmac` and the two facts about it that Theore
 
 ## The construction
 
-The paper writes `MAC_{a,b}(x) = ax + b` for a single value `x`.  The deployed construction is the
-multi-block form, and the shape of it is the whole design:
+The paper writes `MAC_{a,b}(x) = ax + b` for a single value `x`. This file models the
+multi-block additive-blind form used by the Rust v8 construction:
 
 ```
 tag j = a * msg j + b j          -- `rust/circuits/mac/src/concrete.rs:41`
@@ -24,9 +24,24 @@ tag j = a * msg j + b j          -- `rust/circuits/mac/src/concrete.rs:41`
 
 Sharing the multiplier is what makes the collision bound exact.  A polynomial hash
 `∑ x_j a^j + b` would pay a degree factor `nblk/|Fmac|`; here a collision in *any* block forces
-`a = 0` outright, so the bound is `1/|Fmac|` for **every** `nblk` — `2^-128` at the deployed
-parameters.  Giving each block its own blind is what makes the hiding step *perfect*: the tag is a
+`a = 0` outright **when both sides use the same blind**. With separate fixed blinds, a collision
+instead pins `a` to at most one value (`macTag_collision_card_le_one`). The bound for a fixed pair
+of messages and blinds is `1/|Fmac|` for **every** `nblk` — `2^-128` at the deployed field size.
+Giving each block its own blind is what makes the hiding step *perfect*: the tag is a
 translate of the blind (`macBlindEquiv`), so it is uniform and independent of the message.
+
+**Deployment boundary:** the Rust v8 circuits have separate private `mac_ap` witnesses. The honest
+prover uses equal blinds, but verifier acceptance does not establish their equality by itself.
+The existing `Lfzk.TwoField` composition assumes a shared blind and uses the zero-multiplier bad
+event. Instantiating it for Rust requires a different composition argument for fixed pre-challenge
+candidate lists and their possibly different blinds; the separate-blind lemma here does not yet
+discharge that obligation.
+
+The v7 compatibility path instead uses `(a + ap j) * msg j`, as do the C++ MAC circuits.
+For soundness this is affine in `a` with offset `ap j * msg j`, covered by
+`shiftedMultiplier_collision_card_le_one` for a fixed pair. Its hiding property differs:
+at a zero message block the tag is always zero, so `macBlindEquiv` does not establish perfect
+hiding for that path.
 
 Both halves are load-bearing and neither can be dropped:
 
@@ -40,7 +55,8 @@ Both halves are load-bearing and neither can be dropped:
 
 | | |
 |---|---|
-| `macTag_collision` | a collision at *any* block forces the multiplier to be `0` |
+| `macTag_collision` | with the same blind on both sides, a collision at *any* block forces the multiplier to be `0` |
+| `macTag_collision_card_le_one` | with separate fixed blinds and unequal fixed messages, at most one multiplier collides |
 | `macKeyBad_eq_singleton`, `macKeyBad_card` | exactly one verifier coin kills the multiplier — the bound is `1/\|Fmac\|` and it is **tight** |
 | `macKeyBad_split_card` | the count over `D × Fmac`, in `Sumcheck.pairs_card_le`'s idiom |
 | `macBlindEquiv` | the tag as a translate of the prover's blind: an `Equiv`, so hiding costs `0` |
@@ -100,14 +116,53 @@ theorem macTag_injective_of_ne_zero {a : Fmac} (ha : a ≠ 0) (b : Fin nblk → 
   by_contra hne
   exact ha (macTag_collision hne h)
 
+/-- With separate blinds, two fixed unequal messages can collide at only one multiplier.
+Unlike `macTag_collision`, that multiplier need not be zero. The messages and both blinds must
+be fixed independently of the sampled multiplier when using this lemma probabilistically. -/
+theorem macTag_collision_unique {b b' msg msg' : Fin nblk → Fmac}
+    (hne : msg ≠ msg') {a a' : Fmac}
+    (h : macTag a b msg = macTag a b' msg')
+    (h' : macTag a' b msg = macTag a' b' msg') : a = a' := by
+  obtain ⟨j, hj⟩ := Function.ne_iff.mp hne
+  have h1 : a * msg j + b j = a * msg' j + b' j := congrFun h j
+  have h2 : a' * msg j + b j = a' * msg' j + b' j := congrFun h' j
+  have hz : (a - a') * (msg j - msg' j) = 0 := by linear_combination h1 - h2
+  exact sub_eq_zero.mp ((mul_eq_zero.mp hz).resolve_right (sub_ne_zero.mpr hj))
+
+/-- The separate-blind collision probability is at most `1/|Fmac|` for each fixed pair.
+This is not yet a bound for adaptively selected members of two candidate lists. -/
+theorem macTag_collision_card_le_one [Fintype Fmac] [DecidableEq Fmac]
+    (b b' msg msg' : Fin nblk → Fmac) (hne : msg ≠ msg') :
+    (univ.filter fun a => macTag a b msg = macTag a b' msg').card ≤ 1 := by
+  apply card_le_one.mpr
+  intro a ha a' ha'
+  exact macTag_collision_unique hne (mem_filter.mp ha).2 (mem_filter.mp ha').2
+
+/-- The v7 formula has the same fixed-pair soundness bound: absorb each committed
+`ap j * msg j` into an affine offset. This does not equate its hiding property with v8's. -/
+theorem shiftedMultiplier_collision_card_le_one [Fintype Fmac] [DecidableEq Fmac]
+    (ap ap' msg msg' : Fin nblk → Fmac) (hne : msg ≠ msg') :
+    (univ.filter fun a : Fmac =>
+      (fun j => (a + ap j) * msg j) = (fun j => (a + ap' j) * msg' j)).card ≤ 1 := by
+  apply card_le_one.mpr
+  intro a ha a' ha'
+  obtain ⟨j, hj⟩ := Function.ne_iff.mp hne
+  have h1 : (a + ap j) * msg j = (a + ap' j) * msg' j :=
+    congrFun (mem_filter.mp ha).2 j
+  have h2 : (a' + ap j) * msg j = (a' + ap' j) * msg' j :=
+    congrFun (mem_filter.mp ha').2 j
+  have hz : (a - a') * (msg j - msg' j) = 0 := by linear_combination h1 - h2
+  exact sub_eq_zero.mp ((mul_eq_zero.mp hz).resolve_right (sub_ne_zero.mpr hj))
+
 /-! ### The bad set of verifier coins
 
 The key is jointly sampled: the prover commits `a_p` and the verifier then sends `a_v`, so the
 multiplier is `a_p + a_v`.  The bad event of `macTag_collision` is `a_p + a_v = 0`, and the whole
 probabilistic content of the two-field step is that this is one coin out of `|Fmac|`.
 
-Note what does **not** appear: the messages.  The bad event does not mention them, so no binding
-hypothesis on either side's extractor is needed anywhere — see `Lfzk.TwoField`. -/
+Under the shared-blind premise, the bad event does not mention the messages, so no binding
+hypothesis on either side's extractor is needed — see `Lfzk.TwoField`. This simplification does
+not apply to the Rust circuits' separate private blinds without an additional argument. -/
 
 /-- The verifier coins that kill the multiplier, at a fixed prover share. -/
 def MacKeyBad (ap av : Fmac) : Prop := ap + av = 0

@@ -36,6 +36,14 @@ construction.  So `keyA`, `keyB` and `tag` are parameters of `MacBound` rather t
 two sides over the same parameters share them *by typing*.  There is no `s₁.tag = s₂.tag` hypothesis
 to supply or to get wrong.
 
+This includes sharing the **private blind** `keyB`, not just the public multiplier and tags.
+Rust v8 supplies the same public tags and multiplier to both circuits, but each circuit has its own
+private blind witness (v7 instead has separate private multiplier shares). Equal honest-prover
+private values do not establish the shared-`keyB` premise for
+malicious proofs. Applying this theorem to those circuits remains an open obligation. A composition
+using `Mac.macTag_collision_card_le_one` instead must track the pre-challenge candidate lists,
+including the blinds, rather than use the message-independent zero-multiplier event below.
+
 ## No binding hypothesis on either extractor
 
 This is the one place the argument here is simpler than the paper's sketch, and it is worth stating

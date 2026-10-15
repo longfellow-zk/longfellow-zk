@@ -2,8 +2,11 @@
 
 This directory contains a formalized proof that validates the knowledge-soundness and zero-knowledge properties of the Longfellow scheme, as deployed using two finite fields with the v7 mdoc_hash and mdoc_sig circuits in which Ligero is used at rate 1/7 with 132 opened columns.
 
-The proof formalizes a version of round-by-round soundness together with the Fiat-Shamir transform, so the formalized security guarantees match our production environment.
+**The conditional combined v7 theorem gives 115-bit T-security in its oracle model.**
+The improved signature-side analysis proves **127-bit T-security** with the same
+protocol parameters. The hash side limits the combined guarantee.
 
+## Start here
 
 ```bash
 cd formal && lake build Lfzk                    # everything below
@@ -331,14 +334,366 @@ circuits. The `CompiledZk*` headlines replace them, and `CompiledZkProfileRows` 
 ## Files
 
 | group | files |
+=======
+| Question | Entry point |
 |---|---|
-| model | `Types`, `WPoly`, `Builder`, `Circuit`, `Rounds`, `Layers`, `LigeroRows`, `LigeroSystem`, `Encode`, `ZkLayers`, `ZkHiding`, `ZkSim` |
-| Ligero V1 RBR | `LigeroRbr`, `LigeroV1Rbr`, `LigeroV1Rows`, `LigeroV1RowsV7` |
-| clear-verifier chain (superseded, see above) | `Rbr*`, `Nizk*`, `CertifiedV1`, `CertifiedV7`, `CompiledLongfellow*`, `TwoField*`, `CompiledV7`, `*S` |
-| deployed hash inputs | `../bcs/Bcs/TotalOracle`, `TotalOracleCommit`, `NizkDeployedHash*` |
-| ZK-verifier chain | `ZkMultilinear`, `RbrZkLongfellow`, `RbrZkSplit`, `ZkLigeroV1`, `NizkZk`, `NizkZkTwoField`, `CompiledZk`, `CompiledZkTwoField`, `CompiledZkRows`, `CompiledZkTwoFieldRows` |
-| ZK-verifier chain, deployed hash inputs | `NizkZkDeployedHash`, `CompiledZkDeployedHash`, `CompiledZkDeployedHashRows` |
-| arithmetization | `ConcreteCircuit`, `ConcreteCircuitBridge`, `ZkArithInit`, `ZkArithBoundary`, `ZkArithProfile` (deployed width profile) |
-| end-to-end headlines | `CompiledZkProfileRows` |
-| zero knowledge | `LigeroZk/*`, `../merkle/Merkle/{Hiding,CommitCollision}`, `FromLigeroZKV1`, `ZkFiatShamir`, `ZkMerkle`, `ZkProgram`, `ZkLongfellow`, `CompiledLigeroZk`, `TwoFieldZk`, `ZkAdaptiveV1`, `CompiledLongfellowZk`, `ZkFrontendOfSetup`, `ZkTwoTape`, `CompiledLongfellowZkTwoField`, `CompiledLongfellowZkV7` |
-| scripts | `audit_axioms.py` (axiom footprint, no `sorry`); `inspect_v7_circuit_profile.{py,rs}` → `v7-circuit-profiles.json` (the deployed profiles, from the registered artifacts); `v7_rows.py` with `rbr_v1_rows.py` (`--check`: the Lean rows match those profiles); `inspect_v7_assertions.{py,rs}` (`WellFormedP`, `Isolated`, `DeadEnd` on the registered circuits) |
+| What is the combined soundness claim? | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec` in [CompiledZkProfileRows.lean](Lfzk/CompiledZkProfileRows.lean) |
+| What improved? | `CompiledZkProfileRows.v7SigHahn_zk_circuit_tsec` in [CompiledZkProfileHahn.lean](Lfzk/CompiledZkProfileHahn.lean): signature T-security improves from 122 to 127 bits |
+| What is the exact bound before rounding? | `row_zk_deployed_circuit_ratio_leT` and `CompiledZkDeployedHash.twofield_zk_deployed_ratio_leT` |
+| Which premises are still external? | [Assumptions and deployment boundary](#assumptions-and-deployment-boundary) below |
+| Why not use the 125/127-bit Ligero table directly? | [Improved Ligero rows and sumcheck](#improved-ligero-rows-and-sumcheck) below |
+| What does the privacy theorem prove? | [Witness indistinguishability](#witness-indistinguishability) below |
+
+Names in this README are under `Lfzk` unless otherwise qualified. Files named
+`CompiledZk*` analyze **soundness of the ZK verifier**; `CompiledLongfellowZk*`
+contain the **privacy** results.
+
+## The end-to-end statement
+
+One adaptive prover makes `tA` Merkle-oracle queries and `N` transcript-oracle
+queries. It may change commitments and grind. For each v7 pair (1–4 attributes),
+with the hash circuit proved first and the signature circuit second:
+
+```text
+Pr[ both modeled verifiers accept
+    ∧ the supplied MAC-key share is the oracle answer at the two roots
+    ∧ no hash-side and signature-side extracted witnesses satisfy their circuits
+      and agree on the common value ]
+  ≤ (1 + tA + N) / 2^115.
+```
+
+Here “extracted” means that a witness comes from the committed matrix's
+list-decoding candidates, `ZkLigeroV1.Lift`. `CircuitSide.toSide.Good` requires
+that witness to satisfy `QuadCircuit.Satisfied` at the public input. The MAC
+premises include a shared private blind; under that premise they force two good
+witnesses to agree unless the combined multiplier is zero, an event of
+probability `1/2^128`. There is no extra factor for the number of MAC blocks.
+The separately committed blinds in Rust need the different argument described
+under [Two-field MAC constraints](#two-field-mac-constraints).
+
+The probability is a finite count over a uniform Merkle tape and a uniform
+transcript-oracle function. `TM` only supplies enough tape for the execution;
+it does not cap the adversary's query budget. Writing `T = tA + N`, T-security
+means success is at most `(T + 1)/2^λ`, not a constant `2^-λ` for every attacker.
+
+| Component | Field | `n / k / openings` | Current end-to-end T-security |
+|---|---|---|---|
+| `v7Hash1..4` | GF(2^128) | 3230..3436 / 461..490 / 132 | 115 bits |
+| `v7SigHahn` | P-256 base field | 3187 / 455 / 132 | **127 bits** |
+| `v7P256Sha1..4` | both | above | **115 bits** |
+
+The original `v7Sig_zk_circuit_tsec` (122 bits) is retained. The stronger theorem
+uses a new analysis row, `CertifiedV1.v7SigHahn`, and a larger extraction radius;
+the verifier, field, circuit profile and opening count are unchanged.
+
+## Where the error comes from
+
+The uncapped two-field theorem in
+[CompiledZkDeployedHash.lean](Lfzk/CompiledZkDeployedHash.lean) proves:
+
+```text
+Pr[bad] ≤ A + N·κ + 2·adaptiveNumerator(fc, tA, L + N) / 2^256
+
+A = core_hash + core_sig + 1/2^128
+κ = max(κ_hash, κ_sig, 1/2^128)
+fc = 2·n_hash + 2·n_sig
+L = 1 + rounds_hash + rounds_sig   (all protocol slots, including Ligero)
+
+adaptiveNumerator(fc, tA, m)
+  = tA(tA−1)/2 + (fc + tA)(2·tA + 1) + (fc + tA)·m
+```
+
+For one field, omit the MAC term and the other side, use `fc = 2n`, and drop
+the factor 2 on the Merkle term. The quadratic term is the 256-bit hash's
+birthday contribution. The `N·κ` term accounts for transcript grinding.
+
+For a row with candidate bound `B`, field order `q`, `nl` layers, `s` sumcheck
+rounds and output dimension `logv`, the current accounting is:
+
+```text
+core = B·[nl·(logv+2) + 2s + 1]/q + fail + arith + cover
+κ    = max(B·(logv+2)/q, fail + arith, cover)
+```
+
+`fail + arith` bounds escaping Ligero combination challenges, and `cover`
+bounds accepting column queries at a doomed challenge. The candidate factor
+multiplies the field terms only. The separate Ligero row certificate
+`epsRbr = B·(fail + arith + cover)` is more conservative than this composition.
+
+Approximate exponents below mean `error ≈ 2^-exponent`. They are not additional
+integer security claims. [soundness_report.py](scripts/soundness_report.py)
+recomputes them with exact fractions before formatting.
+
+| Row | Field contribution | Ligero contribution | `core` | `κ` |
+|---|---:|---:|---:|---:|
+| `v7Hash1` | 116.750 | 116.601 | 115.673 | 117.081 |
+| `v7Hash2` | 116.720 | 116.548 | 115.632 | 117.087 |
+| `v7Hash3` | 116.711 | 116.587 | 115.648 | 117.130 |
+| `v7Hash4` | 116.692 | 116.557 | 115.623 | 117.129 |
+| original `v7Sig` | 244.661 | 123.012 | 123.012 | 123.012 |
+| **`v7SigHahn`** | 244.661 | **127.489** | **127.489** | **127.489** |
+
+The improved signature row can also be supplied to the generic two-field theorem
+through `CircuitSide.toSide`. It strictly reduces the constant term, while the
+hash row still determines `κ` and the integer target stays 115. For example,
+the one-attribute pair's core exponent improves from 115.664 to 115.673.
+The named `v7P256Sha*` corollaries retain their original rows.
+
+[TSec.lean](Lfzk/TSec.lean) proves a tighter conversion to T-security. Below
+`tA ≤ G = 2^λ`, it charges the Merkle numerator to separate constant, `N` and
+`tA` coefficients; above that cutoff `(1+N+tA)/2^λ ≥ 1`. Three exact slack
+checks certify 127 bits for `v7SigHahn`. Unlike the older conversion, this does
+not reserve half of the transcript-query coefficient or require `2λ+4 ≤ 256`.
+
+## Improved Ligero rows and sumcheck
+
+The [Ligero table](../ligero/README.md) certifies V1 IOP bounds of 125 bits
+(hash) and 127 bits (signature). Those bounds integrate a response-uniform
+envelope. Longfellow's current composition instead separates the two Ligero
+rounds using doom thresholds. A flat IOP error is not a valid replacement for
+either of those per-round budgets. 
+
+The improvement here transfers the *mask certificate*, then proves the required
+RBR bounds anew:
+
+1. `Ligero.V1.ligerov1_roundByRound_mask_profiled` accepts a certified
+   `V1MaskRange`, including Hahn/Delsarte bounds below the Johnson threshold.
+   The original Johnson theorem remains as a specialization.
+2. `LigeroV1Rows.Row.arithProfile` and the ZK composition now consume the row's
+   certified mask range. Existing rows keep their Johnson-only values.
+3. [LigeroV1RowsHahn.lean](Lfzk/LigeroV1RowsHahn.lean) uses the existing signature
+   Hahn certificate at agreement 1665, with both doom thresholds 1664, radius
+   parameters `e = 1522`, `g = 0`, and candidate bound 2. Its RBR certificate is
+   126 bits; its Ligero contribution without the outer candidate factor is
+   about `2^-127.489`.
+4. [CertifiedHahn.lean](Lfzk/CertifiedHahn.lean) and the new circuit headline
+   carry this through to the verifier's acceptance event and uncapped queries.
+
+For the hash fields, moving directly to the new flat certificates' mask cutoffs
+charges their large unchecked-mask lists at full weight in the challenge slot.
+That loses the envelope integration that made the flat bounds attractive.
+A stronger combined headline needs a proved composition of those envelopes with
+the transcript-dependent sumcheck system, or stronger RBR estimates.
+
+The generic sumcheck charge `2/q` is justified: a quadratic difference can have
+two distinct roots and a nonzero Boolean sum, including in characteristic two.
+[SoundnessAudit.quadratic_two_roots](Lfzk/SoundnessAudit.lean) formalizes the
+example `X(X−a)`, with `a ≠ 0,1`. Replacing `2/q` by `1/q` merely because the
+incoming claim is false would be unsound.
+
+There is some remaining accounting slack: only the initial layer needs
+`(logv+2)/q`, while later layer pairs need `2/q`. The current uniform pair
+budget charges the former to every layer. Separating them would save
+`B·(nl−1)·logv/q`, but would not raise these hash rows above 115 integer bits.
+Even removing the Ligero contribution entirely leaves the present
+list-weighted sumcheck charge above `2^-117`: improved Ligero alone can reach
+at most 116 integer bits with this accounting. `SoundnessAudit` checks these
+numeric limitations. **They are limits of this bound, not attacks or upper
+bounds on the protocol's actual security.**
+
+## Assumptions and deployment boundary
+
+The proof constructs the arithmetic transitions; it does not assume that a false
+witness makes the final output nonzero. Intermediate assert-zero gates can be
+dead ends. The claim chain tracks pending assertions and catches each at its
+own layer's fresh `beta`. This is essential for the registered circuits.
+
+The dependency chain is:
+
+```text
+QuadCircuit + WellFormedP + Isolated + DeadEnd
+  → ZkArithProfile.zkFieldDataP
+  → padded sumcheck / assertion chain
+  → Ligero V1 classifier on the system built by that transcript
+  → Merkle extraction + message-prefix Fiat–Shamir
+  → two-field MAC consistency
+  → exact probability bound → T-security
+```
+
+| Boundary | What is checked or assumed |
+|---|---|
+| Circuit arithmetic | `ConcreteCircuit*` and `ZkArithProfile` construct honest values and boundary lemmas, including variable layer widths. `Satisfied` checks outputs and assert-zero constraints. |
+| Registered artifacts | Rust inspectors check `WellFormedP`, `Isolated`, `DeadEnd` and geometry on the registered files. Their identification with the Lean `QuadCircuit` data is outside Lean. |
+| Verifier correspondence | `CodeAgreesP`, initial points, message readers, tableau placement and sizes are premises. Equivalence to `zk_common.h` / the deployed verifier is not proved from source or machine code. |
+| Commitments | The modeled opening check and V1 policy are composed formally. Byte encoding, leaf-as-column and root-as-context correspondence remain deployment obligations (the earlier R1/R2/R6 boundary). |
+| Challenge sampling | Exact decoder balance is assumed for field elements, pairs, initial points, Ligero combinations and uniform fixed-size query sets. No reduction from the actual SHA-256/PRF sampler, including any bias, is supplied. |
+| Hash model | Soundness uses a Merkle random oracle and an independent transcript oracle on context, role and message prefix. No previous challenge is re-absorbed. The running SHA-256 state and PRF expansion are idealized by this typed oracle. |
+| Two-field MAC | `hrow₁`, `hrow₂` use the same multiplier, **private blind** `keyB` and public tags. Rust shares the public tags and challenge but has separate private MAC witnesses (v8 additive blinds; v7 multiplier shares). The existing composition does not establish the required bridge. |
+| Extractor | The failure event quantifies over a finite lift list, at most two candidates here. Efficient list decoding and a polynomial-time witness-selection algorithm are not established. “Straight-line” refers to the query trace, not a proved runtime bound. |
+
+### Verifier correspondence
+
+The theorem proves a property of a Lean verifier. To apply it to Rust, one must
+prove that whenever Rust accepts, the modeled verifier accepts the corresponding
+statement and proof, with the same challenge distribution. Full equivalence is
+unnecessary for soundness: this one-way implication suffices. Such a proof would
+replace the current correspondence premises. A verified translation of the Rust
+verifier, or generating a verifier from a verified executable definition, are
+ways to build that connection. Importing the actual circuit artifacts with a
+proved checker would discharge the circuit-data portion; it would not by itself
+verify parsing, transcript handling, field operations or the verifier's control flow.
+The existing artifact inspectors are useful checks, but are not that proof.
+
+### Balanced challenge decoders
+
+A decoder maps raw random coins to a field element, a tuple of elements, or a
+set of queried columns. “Balanced” means each possible decoded output occurs
+equally often, hence is uniformly distributed. For example, mapping a uniform
+byte modulo 10 is not balanced: 0–5 each have 26 preimages, while 6–9 have 25.
+Tuples must be jointly uniform; uniform individual coordinates alone are insufficient.
+
+Rust's [field sampler](../../rust/runtime/algebra/src/fp_generic.rs) rejects
+out-of-range integers, and [column sampling](../../rust/runtime/random/src/lib.rs)
+uses rejection sampling and partial shuffling. These algorithms can be proved
+uniform when fed independent uniform bytes. Such proofs could replace the
+sampling assumptions. Alternatively, the soundness analysis could account for a
+proved sampling bias instead of requiring exact uniformity.
+
+There is a separate cryptographic boundary:
+[Transcript](../../rust/runtime/random/src/transcript.rs) expands a SHA-256
+digest using AES-256 on counter blocks. The raw challenge alphabet `C` must not
+be identified with a 256-bit digest
+without further proof. For example, the hash side's initial decoder produces
+`logv+2 ≥ 5` field elements, already more than 256 uniformly random bits.
+Exact balance over that target cannot be achieved by deterministic expansion of
+one uniform 256-bit value. The theorem idealizes the expanded challenge itself.
+`SoundnessAudit.no_256bit_init_decoder` proves this obstruction for the smallest
+v7 hash output dimension. This does not demonstrate a practical attack. It means
+the actual expansion needs an explicit computational or idealized-primitive
+analysis and any resulting error term. The AES key here is a public transcript
+digest; ordinary secret-key PRF security alone is not that analysis.
+
+### Two-field MAC constraints
+
+Rust already supplies the **same** `proof.macs` and challenge `av_val` as public
+inputs to both circuits in
+[verifier.rs](../../rust/applications/mdoc_zk/runtime/src/verifier.rs).
+Both circuits assert the MAC equations. In the v8 circuits, each block satisfies:
+
+```text
+tag = a * message_hash + blind_hash
+tag = a * message_sig  + blind_sig
+```
+
+These private blinds are the v8 circuits' `mac_ap` witnesses (distinct from the formal
+theorem's optional multiplier share `aP`, which can be zero). The honest prover uses
+equal blinds, but a malicious prover need not. The current Lean composition
+assumes they are equal through its shared `keyB` parameter. Its argument that
+unequal messages force `a = 0` depends on this stronger premise. For example,
+`a = 1`, `(message_hash, blind_hash) = (0, 0)` and
+`(message_sig, blind_sig) = (1, -1)` give equal tags with unequal messages.
+`SoundnessAudit.separate_blinds_collision` checks that example in Lean.
+
+The v7 compatibility path in
+[mac.rs](../../rust/applications/mdoc_zk/runtime/src/mac.rs) instead computes
+`tag = (a + private_share) * message`, matching
+[the C++ MAC circuit](../../lib/circuits/mac/mac_circuit.h). It has separate
+per-block private shares on each side. For soundness, expand this to
+`tag = a * message + offset`, where `offset = private_share * message` is fixed
+with the candidate witness. The same shared-offset assumption cannot be inferred
+just from the verifier sharing public tags and `a`.
+
+The intended argument for separate blinds uses **commitment before challenge**:
+for fixed unequal messages and fixed blinds, tag equality gives
+`a * (message_hash - message_sig) = blind_sig - blind_hash`, which determines at
+most one `a`. `Mac.macTag_collision_card_le_one` proves this, giving `2^-128`
+for each fixed pair. `Mac.shiftedMultiplier_collision_card_le_one` proves the
+corresponding v7 bound. Composing these facts requires proving that the commitments fix
+candidate lists, including the blinds, before `a` is sampled and accounting for
+selection from those lists. A union bound over lists of sizes `B_hash`, `B_sig`
+would charge at most `B_hash * B_sig / 2^128` at that step. This replacement has
+**not** been composed through the end-to-end theorem. The current combined
+headline remains conditional on the stronger MAC premises.
+
+### Older clear-verifier endpoints
+
+The older clear-verifier headlines (`CompiledLongfellowAdaptive*`, `CompiledV7*`,
+`NizkDeployedHash*` without `Zk`) use `RbrSplit.FieldData.harith`, a nonvanishing
+claim at a fixed initial point. `Arith.fieldData_harith_false` refutes that
+premise in general for honest satisfaction; dead-end assertions also prevent
+using it for these circuits. Those conditional theorems remain valid Lean
+statements, but are not the deployed-circuit soundness result. Use the
+`CompiledZkProfile*` endpoints.
+
+## Witness indistinguishability
+
+`CompiledLongfellowZk.compiled_longfellow_wi` and
+`CompiledLongfellowZkTwoField.twofield_wi` compare honest proofs from two valid
+witnesses for the same statement. In the two-field form the hidden common value
+may differ too. For each side:
+
+```text
+ε(n,r,f) = [4n² + (2n−1)(2n−2) + 2(n−r)f] / 2^256
+```
+
+Here nonces and digests are 256 bits, `r = 132`, and `f` bounds Merkle queries.
+The real-to-simulation distance is `ε` per side and `ε₁+ε₂` for two fields.
+WI compares two real distributions and therefore pays **twice** those bounds.
+
+| At `f = 2^115` | One side | Two fields |
+|---|---:|---:|
+| Real → simulation | ≤ `2^-128` | ≤ `2^-127` |
+| Witness indistinguishability | **≤ `2^-127`** | **≤ `2^-126`** |
+
+`CompiledLongfellowZkV7.v7_twofield_zk_q115` is the real-to-simulation result;
+its `2^-127` must not be quoted as the two-witness WI bound.
+
+The MAC hiding step models the additive-blind construction. The v7 formula
+`(a + private_share) * message` is always zero at a zero message block, so its
+tag distribution is not uniformly hiding there. Applying this privacy result
+to v7 needs a separate treatment of zero blocks; the formal v7 parameter
+instantiation alone does not supply that argument.
+
+The simulator uses a noncomputably chosen reference witness for Ligero's
+response (`referenceMessages`), so this does not establish efficient
+zero-knowledge simulation. The experiment has one session, fixes the statement
+before queries, and lets the distinguisher query after receiving the proof.
+It assumes an injective codec and an appropriate causal honest frontend.
+The distance is query-bounded; it is not an unconditional statistical hiding
+claim.
+
+The privacy model also separates the two trees into independent Merkle oracles
+(`ZkTwoTape`), whereas deployment uses SHA-256 without domain separation between
+those trees. This is an additional model-to-deployment gap, distinct from the
+soundness theorem's shared Merkle oracle. The privacy theorem is not a proof
+that this replacement preserves its bound.
+
+## Reproduce the checks
+
+From the repository root:
+
+```sh
+cd formal
+lake build Lfzk
+python3 lfzk/scripts/audit_axioms.py
+python3 lfzk/scripts/soundness_report.py
+python3 lfzk/scripts/v7_rows.py --check
+python3 lfzk/scripts/rbr_v1_rows.py --check
+python3 lfzk/scripts/inspect_v7_assertions.py
+```
+
+The separate `inspect_v7_circuit_profile.py` regenerates
+[scripts/v7-circuit-profiles.json](scripts/v7-circuit-profiles.json) from the
+registered artifacts. Rust inspectors need Cargo dependencies and a writable
+Cargo cache. The two legacy row scripts check the original Johnson rows;
+`soundness_report.py` additionally rechecks the Hahn signature certificate,
+its T-security arithmetic, and the privacy numerals.
+
+The axiom audit prints dependencies for the headlines, allowing Lean's
+`propext`, `Classical.choice`, `Quot.sound` and the numeric `native_decide`
+checks. It also scans `lfzk`, `bcs`, `merkle` and `sumcheck` for `sorry`, `admit`
+and explicit `axiom` declarations. `native_decide` extends trust to Lean's
+native evaluation mechanism; this audit does not eliminate the theorem
+premises listed above or prove a correspondence with deployment.
+
+## File map
+
+| Layer | Files |
+|---|---|
+| Circuit and constraint model | `ConcreteCircuit`, `ConcreteCircuitBridge`, `Builder`, `Encode`, `ZkLayers` |
+| Circuit-to-proof bridge | `ZkArithInit`, `ZkArithBoundary`, `ZkArithProfile` |
+| Padded sumcheck and pending assertions | `RbrZkLongfellow`, `RbrZkSplit`, `ZkMultilinear` |
+| Ligero RBR and rows | `LigeroRbr`, `LigeroV1Rbr`, `LigeroV1Rows*`, `ZkLigeroV1`, `CertifiedHahn` |
+| Fiat–Shamir and Merkle composition | `NizkZk*`, `CompiledZk*`, `../bcs/Bcs/TotalOracle*` |
+| End-to-end circuit headlines | `CompiledZkProfileRows`, `CompiledZkProfileHahn`, `TSec`, `SoundnessAudit` |
+| Privacy | `LigeroZk/*`, `ZkAdaptiveV1`, `CompiledLongfellowZk*`, `ZkFrontendOfSetup`, `ZkTwoTape` |

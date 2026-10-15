@@ -27,6 +27,28 @@ NATIVE = {"Lean.ofReduceBool"}
 
 # theorem -> native_decide allowed?
 HEADLINES = {
+    # Hahn/Delsarte masks composed through the deployed ZK verifier
+    "Ligero.V1.ligerov1_roundByRound_mask_profiled": False,
+    "Lfzk.LigeroV1Rows.Row.arithProfile_eq_johnson": False,
+    "Lfzk.LigeroV1Rows.v7SigHahn_valid": True,
+    "Lfzk.LigeroV1Rows.v7SigHahn_sharp": True,
+    "Lfzk.CertifiedV1.v7SigHahn_valid": True,
+    "Lfzk.CompiledZk.v7SigHahn_core_le": True,
+    "Lfzk.CompiledZk.v7SigHahn_coefficient_le": True,
+    "Lfzk.CompiledZk.v7SigHahn_core_sharp": True,
+    "Lfzk.CompiledZk.v7SigHahn_tsec_slack": True,
+    "Lfzk.TSec.adaptiveNumerator_le_linear": False,
+    "Lfzk.TSec.tsec_of_linear_slack": False,
+    "Lfzk.CompiledZkProfileRows.v7SigHahn_zk_circuit_tsec": True,
+    "Lfzk.SoundnessAudit.quadratic_two_roots": False,
+    "Lfzk.SoundnessAudit.no_256bit_init_decoder": False,
+    "Lfzk.SoundnessAudit.hash_core_exceeds_116": True,
+    "Lfzk.SoundnessAudit.hash_round_charge_exceeds_117": True,
+    "Lfzk.SoundnessAudit.signature_core_improves": True,
+    "Lfzk.SoundnessAudit.separate_blinds_collision": False,
+    "Lfzk.Mac.macTag_collision_unique": False,
+    "Lfzk.Mac.macTag_collision_card_le_one": False,
+    "Lfzk.Mac.shiftedMultiplier_collision_card_le_one": False,
     # Ligero V1, round by round
     "Ligero.V1.ligerov1_roundByRound_profiled": False,
     "Lfzk.LigeroV1Rows.Row.rbr_soundness": False,

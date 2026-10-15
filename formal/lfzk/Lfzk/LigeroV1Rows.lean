@@ -8,7 +8,7 @@ A `Row` is one of `formal/ligero`'s `Certificate` records — the geometry `(n, 
 the analysis parameters `(e, g, m)` and the field — together with the two doom thresholds the
 round-by-round statement needs.  `Row.Valid` is decidable, so a row is checked by `native_decide`
 exactly as `OptimizedIOPCertificates` checks its flat certificates, and `Row.rbr_soundness` is
-`Ligero.V1.ligerov1_roundByRound_profiled` at the row, with every hypothesis discharged from
+`Ligero.V1.ligerov1_roundByRound_mask_profiled` at the row, with every hypothesis discharged from
 `Row.Valid` the way `Result.v1_strategy` discharges the flat theorem's.
 
 The three numbers a row quotes are the two per-slot budgets of the Ligero layer and the lift-list
@@ -25,8 +25,9 @@ with `targetBits` the **round-by-round** target of this row (the `Certificate.ta
 reused for it; these certificates are not the flat ones, so no flat theorem reads it).
 
 Rows are produced by `lfzk/scripts/rbr_v1_rows.py`, which transcribes exactly the definitions used
-below; `--check` re-derives every committed row.  The search is an untrusted optimizer: nothing is
-a result until `Row.Valid` is checked here.
+by the Johnson-only rows below; `--check` re-derives those committed rows. `LigeroV1RowsHahn`
+additionally supplies a row with a Hahn/Delsarte mask certificate. The searches are untrusted
+optimizers: nothing is a result until `Row.Valid` is checked here.
 -/
 
 namespace Lfzk.LigeroV1Rows
@@ -79,9 +80,25 @@ def failureProfileAt (q : ℕ) : AgreementProfile row.n :=
   SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile q row.n row.e row.g row.d
     row.certificate.lineBound row.certificate.integratedLocalLineBound
 
-/-- The unchecked arithmetic profile of V1's direct response masks. -/
+/-- The unchecked arithmetic profile of V1's direct response masks, using the certificate's
+Johnson range and any certified Hahn/Delsarte extension below it. -/
 def arithProfile : AgreementProfile row.n :=
-  uncheckedAgreementProfile row.fieldSize row.n (2 * row.k - 1) row.listBound row.johnsonThreshold
+  maskAgreementProfile row.fieldSize row.n row.listBound row.certificate.maskStart
+    row.certificate.maskBound
+
+/-- Existing rows with no mask extension retain exactly their Johnson arithmetic profile. -/
+theorem arithProfile_eq_johnson (h : row.certificate.maskThreshold = 0) :
+    row.arithProfile = uncheckedAgreementProfile row.fieldSize row.n (2 * row.k - 1)
+      row.listBound row.johnsonThreshold := by
+  unfold arithProfile maskAgreementProfile uncheckedAgreementProfile
+  congr 1
+  funext a
+  simp only [Certificate.maskStart, h, ↓reduceIte, Certificate.maskBound]
+  by_cases hn : row.n < a
+  · simp [hn]
+  · by_cases ht : a < row.johnsonThreshold
+    · simp [hn, ht]
+    · simp [hn, ht, show row.certificate.v1Threshold ≤ a from Nat.le_of_not_gt ht]
 
 /-- The column count a doomed challenge's accepting queries must land in. -/
 def queryCover : ℕ :=
@@ -215,8 +232,8 @@ theorem rbr_soundness (h : row.Valid)
         (prover.commit statement) statement
         (fun challenge ↦ prover.respond statement (prover.commit statement) challenge)
         (row.failureProfileAt (Fintype.card F))
-        (uncheckedAgreementProfile (Fintype.card F) row.n (2 * (row.code h D hkrow).k - 1)
-          row.listBound row.johnsonThreshold)
+        (maskAgreementProfile (Fintype.card F) row.n row.listBound row.certificate.maskStart
+          row.certificate.maskBound)
         (Fintype.card F)
         (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) row.g)
         row.e row.g,
@@ -233,17 +250,17 @@ theorem rbr_soundness (h : row.Valid)
             row.failureThreshold row.arithmeticThreshold) := by
   obtain ⟨hk, hmin, ⟨P⟩⟩ := rsFacts h D hkrow
   have hcond := row.result.lineConditions (parametersValid h) hfield hmin P
-  have johnson := V1Certificate.v1JohnsonRange row.certificate (kpos h) (response_le h)
-    (row.code h D hkrow) hk
+  have mask := V1Certificate.v1MaskRange row.certificate (kpos h) (response_le h)
+    (maskValid h) (row.code h D hkrow) hk
   obtain ⟨classifier, hq, hesc, hmem⟩ :=
-    Ligero.V1.ligerov1_roundByRound_profiled hrows (row.code h D hkrow) statement prover
-      (NoDecodedSolution.of_not_language hfalse) hmin hcond (liftList_card_le h D hkrow _) johnson
+    Ligero.V1.ligerov1_roundByRound_mask_profiled hrows (row.code h D hkrow) statement prover
+      (NoDecodedSolution.of_not_language hfalse) hmin hcond (liftList_card_le h D hkrow _) mask
       row.failureThreshold row.arithmeticThreshold
       (failureThreshold_le h) (arithmeticThreshold_le h)
   refine ⟨classifier, fun challenge hdoom ↦ hq challenge hdoom, ?_, hmem⟩
   refine hesc.trans (le_of_eq ?_)
   -- Only the field size and the code's dimension are propositional; the rest is unfolding.
-  simp only [hfield, hk]
+  simp only [hfield]
   rfl
 
 end Row

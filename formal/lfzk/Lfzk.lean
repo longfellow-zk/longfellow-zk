@@ -112,6 +112,9 @@ import Lfzk.ZkArithBoundary
 import Lfzk.ZkArithProfile
 -- the end-to-end headlines: deployed verifier, deployed hash inputs, field half from the circuits
 import Lfzk.CompiledZkProfileRows
+-- Hahn/Delsarte mask bounds, a tighter T-security conversion, and audit checks
+import Lfzk.CompiledZkProfileHahn
+import Lfzk.SoundnessAudit
 
 /-!
 # Longfellow NIZK knowledge soundness

@@ -71,8 +71,8 @@ theorem Row.rbr_soundness_noDecoded {row : Row} (h : row.Valid)
         (prover.commit statement) statement
         (fun challenge ↦ prover.respond statement (prover.commit statement) challenge)
         (row.failureProfileAt (Fintype.card F))
-        (uncheckedAgreementProfile (Fintype.card F) row.n (2 * (row.code h D hkrow).k - 1)
-          row.listBound row.johnsonThreshold)
+        (maskAgreementProfile (Fintype.card F) row.n row.listBound row.certificate.maskStart
+          row.certificate.maskBound)
         (Fintype.card F)
         (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) row.g)
         row.e row.g,
@@ -89,16 +89,16 @@ theorem Row.rbr_soundness_noDecoded {row : Row} (h : row.Valid)
             row.failureThreshold row.arithmeticThreshold) := by
   obtain ⟨hk, hmin, ⟨P⟩⟩ := Row.rsFacts h D hkrow
   have hcond := row.result.lineConditions (Row.parametersValid h) hfield hmin P
-  have johnson := Ligero.Examples.Grid.V1Certificate.v1JohnsonRange row.certificate (Row.kpos h)
-    (Row.response_le h) (row.code h D hkrow) hk
+  have mask := Ligero.Examples.Grid.V1Certificate.v1MaskRange row.certificate (Row.kpos h)
+    (Row.response_le h) (Row.maskValid h) (row.code h D hkrow) hk
   obtain ⟨classifier, hq, hesc, hmem⟩ :=
-    Ligero.V1.ligerov1_roundByRound_profiled hrows (row.code h D hkrow) statement prover
-      hnd hmin hcond (Row.liftList_card_le h D hkrow _) johnson
+    Ligero.V1.ligerov1_roundByRound_mask_profiled hrows (row.code h D hkrow) statement prover
+      hnd hmin hcond (Row.liftList_card_le h D hkrow _) mask
       row.failureThreshold row.arithmeticThreshold
       (Row.failureThreshold_le h) (Row.arithmeticThreshold_le h)
   refine ⟨classifier, fun challenge hdoom ↦ hq challenge hdoom, ?_, hmem⟩
   refine hesc.trans (le_of_eq ?_)
-  simp only [hfield, hk]
+  simp only [hfield]
   rfl
 
 /-! ## 2. The lift list and its members' assignments -/

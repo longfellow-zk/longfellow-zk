@@ -33,8 +33,11 @@ Pr[ both deployed verifiers accept  ∧  no two good witnesses agree on the comm
 Per side, the `CompiledZkSide` data: the code, a placement, the analysis data (honest values and
 pending-assertion predicate, the boundary facts, the layer-0 count — `CompiledZk`'s docstring) with
 exactly balanced decoders; the MAC data
-and the MAC rows `hrow₁`, `hrow₂` (the arithmetization assumption `assert_mac`: a good witness of an
-accepting side satisfies the MAC at the hashed key and the proof's tag); `|D|`, `|Fmac|`, the Merkle
+and the MAC rows `hrow₁`, `hrow₂` (a good witness of an accepting side satisfies the MAC at the
+hashed multiplier, the same private `keyB`, and the proof's tag). The shared private blind is
+stronger than Rust's two separate private `mac_ap` witnesses (v8 blinds; v7 multiplier shares);
+see `Lfzk.TwoField` for the unresolved
+composition obligation. Other premises are `|D|`, `|Fmac|`, the Merkle
 budget.  The transliteration debt is `CompiledZk`'s.
 -/
 
