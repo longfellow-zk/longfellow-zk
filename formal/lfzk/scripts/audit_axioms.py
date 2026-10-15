@@ -76,6 +76,12 @@ HEADLINES = {
     "Lfzk.CompiledLongfellowZkV7.v7Hash4_compiled_zk": False,
     "Lfzk.CompiledLongfellowZkV7.twofield_zk_bits256": False,
     "Lfzk.CompiledLongfellowZkV7.v7_twofield_zk_q115": False,
+    "Lfzk.ZkMerkleStat.leaf_statClose": False,
+    "Lfzk.ZkMerkleStat.digests_statClose": False,
+    "Lfzk.ZkMerkleStat.view_statClose": False,
+    "Lfzk.CompiledLongfellowZkStat.compiled_longfellow_zk_stat": False,
+    "Lfzk.CompiledLongfellowZkStat.twofield_zk_stat": False,
+    "Lfzk.CompiledLongfellowZkStat.v7_twofield_zk_stat542": False,
     # Fiat–Shamir at deployed hash inputs (message prefixes, total random oracle)
     "Bcs.TotalOracle.card_coord_le_const": False,
     "Bcs.TotalOracle.CtxGrinding.ratio_le": False,

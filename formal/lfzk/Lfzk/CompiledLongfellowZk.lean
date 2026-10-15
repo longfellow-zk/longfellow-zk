@@ -69,7 +69,9 @@ witness-free — that is what the Ligero swap buys.
 * **Query-bounded, hence computational.**  Every predicate on the distinguisher's output is
   allowed (`StatClose`), but the distinguisher makes at most `f` Merkle-oracle queries and the
   bound grows with `f` (`2·d·f/|Salt|`: guessing an unopened leaf's 256-bit nonce).  It is a
-  statement about attackers bounded by their SHA-256 work, not a statistical one.
+  statement about attackers bounded by their SHA-256 work, not a statistical one.  With nonces long
+  enough (`|Digest| ≤ 4ε²|Salt|`), `Lfzk.CompiledLongfellowZkStat` proves the statistical version
+  against a distinguisher that receives the Merkle oracle in full.
 * **Programmable random oracles, independent.**  The Merkle hash is a lazily sampled random
   oracle (`Merkle.RandomOracle.lazyRun` on a uniform tape); the round challenges and the two
   Ligero challenges are read from two further, independent, uniformly random functions `Gr` and

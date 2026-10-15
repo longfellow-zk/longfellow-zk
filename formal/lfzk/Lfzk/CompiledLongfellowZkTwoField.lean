@@ -129,8 +129,7 @@ noncomputable def simProof {C : MultiplicativeCode F r w n}
     (ρ' : Tape C nw nq reps) (t : Tr) (c i : Coin) (Gr : RO) (nonce : Fin n → Salt)
     (vals : ℕ → D) : LProof F r w n nw nq reps Salt D Tr Coin :=
   ⟨vals 1, t, c,
-    v1Resp (stmt Gr κ t) (referenceMessages (stmt Gr κ t))
-      (coreShift 0 (referenceMessages (stmt Gr κ t)) (dec₂ i) ρ') (dec₁ c), i, dec₂ i,
+    simResp (stmt Gr κ t) (dec₂ i) (dec₁ c) ρ', i, dec₂ i,
     { nonce := fun j => nonce j.val, frontierValue := fun v => vals v.val },
     openSchemeOracle (v1Oracle 0 ρ') (dec₂ i)⟩
 
@@ -614,10 +613,9 @@ theorem twofield_zk (hinj₁ : P₁.Cod.Inj) (hinj₂ : P₂.Cod.Inj)
 **Two-field witness indistinguishability against query-bounded distinguishers.**  For two choices
 of witnesses and common value, both valid, the two honest two-field proofs are
 `2 · (ε₁ + ε₂)`-close, against every distinguisher that sees the proof and the challenge oracles and
-makes at most `f` Merkle-oracle queries.  The common values may differ: the simulation `simExp2`
-reads neither the witnesses nor the MAC'd value.  `twofield_zk` is best read as this corollary: its
-simulator is not efficient (see `CompiledLongfellowZk.compiled_longfellow_wi`), and the bound grows
-with `f`.
+makes at most `f` Merkle-oracle queries: both are `(ε₁ + ε₂)`-close to the same simulation
+(`twofield_zk`).  The common values may differ: the simulation `simExp2` reads neither the
+witnesses nor the MAC'd value.  The bound grows with `f`.
 -/
 theorem twofield_wi (hinj₁ : P₁.Cod.Inj) (hinj₂ : P₂.Cod.Inj)
     {wit₁' : Tag Fmac nblk → Wit₁} {wit₂' : Tag Fmac nblk → Wit₂} {msg' : Fin nblk → Fmac}

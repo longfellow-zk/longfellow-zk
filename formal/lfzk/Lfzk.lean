@@ -64,6 +64,7 @@ import Lfzk.LigeroZk.V1ResponseAdaptive
 import Lfzk.FromLigeroZKV1
 import Lfzk.ZkFiatShamir
 import Lfzk.ZkMerkle
+import Lfzk.ZkMerkleStat
 import Lfzk.ZkProgram
 import Lfzk.ZkLongfellow
 import Lfzk.CompiledLigeroZk
@@ -74,6 +75,7 @@ import Lfzk.ZkFrontendOfSetup
 import Lfzk.ZkTwoTape
 import Lfzk.CompiledLongfellowZkTwoField
 import Lfzk.CompiledLongfellowZkV7
+import Lfzk.CompiledLongfellowZkStat
 -- Fiat–Shamir with hash inputs as deployed: message prefixes only, challenges never re-absorbed
 import Lfzk.NizkDeployedHash
 import Lfzk.NizkDeployedHashAdaptive
