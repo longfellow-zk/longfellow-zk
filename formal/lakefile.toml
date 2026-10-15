@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates", "polygero.APITest"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "Sumcheck", "Bcs.EnvelopeFiatShamirTest", "examples.Ligero.Longfellow.EnvelopeFSCertificates", "polygero.APITest", "Lfzk"]
 
 [leanOptions]
 autoImplicit = false
@@ -73,6 +73,18 @@ srcDir = "bcs"
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
+
+# --- lfzk -------------------------------------------------------------------
+# Longfellow NIZK knowledge soundness: the round-by-round LayerStep, Fiat–Shamir as
+# deployed, Ligero V1 budgets built from the ligero/ analysis, the two-field MAC step.
+# Ported from the `proofs` repository's `lfzk`, which builds with Lean's default
+# implicit options; the package-level `autoImplicit = false` is therefore overridden
+# for this lib only.
+
+[[lean_lib]]
+name = "Lfzk"
+srcDir = "lfzk"
+leanOptions = { autoImplicit = true, relaxedAutoImplicit = true }
 
 [[lean_lib]]
 name = "ECDSA"
