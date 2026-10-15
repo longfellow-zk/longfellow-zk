@@ -4,8 +4,8 @@ import LigeroFamily.Protocol.Finite
 /-!
 # Polygero with an additive polynomial-response mask
 
-Two responses, v2 masked linear arithmetic, and individual product checks.
-The ordinary tableau contains the core rows and two degree-`<k` v2 arithmetic
+Two responses, masked linear arithmetic, and individual product checks.
+The ordinary tableau contains the core rows and two degree-`<k` checked arithmetic
 masks. One degree-`<k+s` proximity mask is added with coefficient one.
 There are no other blinding rows; random-padding mask values are unrestricted.
 -/

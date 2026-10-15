@@ -2,14 +2,11 @@ import polygero.Protocol.ResponseSemantics
 import Mathlib.LinearAlgebra.Lagrange
 
 /-!
-# Shared-column polynomial Ligero verifier
+# Shared-column polynomial relations
 
-This file is the protocol bookkeeping required by attribution--pinning.  A
-single local predicate contains all checks made at an opened column: the
-primary polynomial equation, the arithmetic-response equation, and any
-additional Ligero relation (for V3, the direct product equations).  Thus the
-two polynomial equations consumed by the algebraic theorem are evaluated on
-the very same support as the rest of the verifier.
+This file supplies the bounded response pair and generic bookkeeping for
+pointwise polynomial and direct-product relations on one common set of columns.
+The concrete paper verifier is defined in `Protocol/Verifier.lean`.
 -/
 
 namespace RecursivePolygero.Local
@@ -20,7 +17,7 @@ open Codes
 variable {F : Type*} [Field F] [DecidableEq F]
 variable {n m k s kappa A t : Nat}
 
-/-- The complete response hashed by the second Fiat--Shamir query. -/
+/-- The paper's bounded primary and arithmetic response polynomials. -/
 structure LigeroPayload (F : Type*) [Field F] (k s : Nat) where
   primary : DegreeLT F (k + s)
   arithmetic : DegreeLT F (2 * k)
@@ -47,8 +44,7 @@ namespace SharedColumnVerifier
 
 variable {C : RSCode F n (k + s)}
 
-/-- V3's challenge-free product checks, expressed directly in evaluation
-space. -/
+/-- The paper's direct product checks, expressed in evaluation space. -/
 def directProductExtra (left right output : Fin t → Fin m)
     (_z : Fin n) (values : Fin m → F) : Bool :=
   decide (∀ row, values (left row) * values (right row) = values (output row))
@@ -59,8 +55,7 @@ def directProductExtra (left right output : Fin t → Fin m)
       ∀ row, values (left row) * values (right row) = values (output row) := by
   simp [directProductExtra]
 
-/-- Construct the shared-column verifier for the V3/direct-product route from
-its arithmetic-response semantics and the three row embeddings. -/
+/-- Combine arithmetic-response semantics with the three product-row embeddings. -/
 def directProduct
     (semantics : ResponseSemantics C m k s (2 * k))
     (left right output : Fin t → Fin m) : SharedColumnVerifier C m k s where

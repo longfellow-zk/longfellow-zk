@@ -39,6 +39,21 @@ theorem localEnvelope_bounds (I : Instance F) (p : ProfileParameters I)
   exact_mod_cast Nat.choose_le_choose I.t (ReducedSystems.capacity_le_n
     (primaryCode I.domain I.primary_le) (oracleWords W.ordinary) W.proximityMask d.1)
 
+/-- A fixed maximal associated set for each reduced system. -/
+private noncomputable def capacitySet (I : Instance F) (W : I.layer.Oracle)
+    (d : systems I.domain I.primary_le W) : Finset (Fin I.n) :=
+  Classical.choose (ReducedSystems.capacity_witness
+    (primaryCode I.domain I.primary_le) (oracleWords W.ordinary) W.proximityMask d.1 d.2)
+
+private theorem capacitySet_spec (I : Instance F) (W : I.layer.Oracle)
+    (d : systems I.domain I.primary_le W) :
+    capacitySet I W d ∈ ReducedSystems.associatedSets (primaryCode I.domain I.primary_le)
+      (oracleWords W.ordinary) W.proximityMask d.1 ∧
+    (capacitySet I W d).card = ReducedSystems.capacity (primaryCode I.domain I.primary_le)
+      (oracleWords W.ordinary) W.proximityMask d.1 :=
+  Classical.choose_spec (ReducedSystems.capacity_witness
+    (primaryCode I.domain I.primary_le) (oracleWords W.ordinary) W.proximityMask d.1 d.2)
+
 /-- The direct overlap bound applies to actual capacity-maximizing sets.
 The witnesses are already in the fixed family; no coordinates are added. -/
 theorem systemCap_excess (I : Instance F) (p : ProfileParameters I) (W : I.layer.Oracle)
@@ -46,14 +61,12 @@ theorem systemCap_excess (I : Instance F) (p : ProfileParameters I) (W : I.layer
     (hcondition : DiscreteThreshold.Condition (Nat.card F) p.overlapRatio θ)
     (T : Finset (systems I.domain I.primary_le W)) (hTq : T.card ≤ Nat.card F) :
     ∑ d ∈ T, max 0 (systemCap I W d-θ) ≤ 1-θ := by
-  let witnesses := fun d : systems I.domain I.primary_le W => ReducedSystems.capacity_witness
-    (primaryCode I.domain I.primary_le) (oracleWords W.ordinary) W.proximityMask d.1 d.2
-  let E := fun d => Classical.choose (witnesses d)
+  let E := capacitySet I W
   have hspec (d : systems I.domain I.primary_le W) :
       E d ∈ ReducedSystems.associatedSets (primaryCode I.domain I.primary_le)
         (oracleWords W.ordinary) W.proximityMask d.1 ∧
       (E d).card = ReducedSystems.capacity (primaryCode I.domain I.primary_le)
-        (oracleWords W.ordinary) W.proximityMask d.1 := Classical.choose_spec (witnesses d)
+        (oracleWords W.ordinary) W.proximityMask d.1 := capacitySet_spec I W d
   have h := DirectBinomial.normalized_excess_le (univ : Finset (Fin I.n)) T E
     I.t p.overlapSize (Nat.card F) θ (by simpa using Nat.choose_pos I.query_le) hθ
     (fun _ _ => subset_univ _)
@@ -108,14 +121,16 @@ theorem rank_bad_mean (I : Instance F) (p : ProfileParameters I) (W : I.layer.Or
       rw [Nat.card_eq_fintype_card (α := Challenge F (rowCount I.nw I.nq) I.s)] at h
       exact_mod_cast h
 
-/-- The oracle, systems, and witness labels are fixed before the target randomness. -/
-theorem localEnvelope_mean {Z : Type*} [Fintype Z] [Nonempty Z]
+/-- The envelope argument depends on the counting method only through its
+capacity-excess inequality. -/
+private theorem localEnvelope_mean_of_capacityExcess {Z : Type*} [Fintype Z] [Nonempty Z]
     (I : Instance F) (p : ProfileParameters I)
     (σ : Z → I.layer.Statement) (W : I.layer.Oracle) (θ r : ℚ) (hθ : θ ≤ 1)
     (hr0 : 0 ≤ r) (hr1 : r ≤ 1) (hμ : p.rankError+1/(Nat.card F : ℚ) ≤ 1)
-    (hcondition : DiscreteThreshold.Condition (Nat.card F) p.overlapRatio θ)
     (D : Z → (tupleCounts I).Index → Prop)
-    (hD : ∀ g, mean (fun z => indicator (D z g)) ≤ r) :
+    (hD : ∀ g, mean (fun z => indicator (D z g)) ≤ r)
+    (hcap : ∀ (T : Finset (systems I.domain I.primary_le W)), T.card ≤ Nat.card F →
+      ∑ d ∈ T, max 0 (systemCap I W d-θ) ≤ 1-θ) :
     mean (fun z => mean (localEnvelope I p (σ z) W θ (D z))) ≤
       profile (Nat.card F) p.rankError θ+(1-profile (Nat.card F) p.rankError θ)*r := by
   exact SystemException.random_target_envelope_mean (systemCap I W)
@@ -133,6 +148,19 @@ theorem localEnvelope_mean {Z : Type*} [Fintype Z] [Nonempty Z]
           fun ⟨h,_⟩ => hfull h
         simpa only [indicator,if_neg (he _),mean_const] using hr0)
     (fun z => systemExceptions_mean I p (σ z) W)
+    hcap
+
+/-- The oracle, systems, and witness labels are fixed before the target randomness. -/
+theorem localEnvelope_mean {Z : Type*} [Fintype Z] [Nonempty Z]
+    (I : Instance F) (p : ProfileParameters I)
+    (σ : Z → I.layer.Statement) (W : I.layer.Oracle) (θ r : ℚ) (hθ : θ ≤ 1)
+    (hr0 : 0 ≤ r) (hr1 : r ≤ 1) (hμ : p.rankError+1/(Nat.card F : ℚ) ≤ 1)
+    (hcondition : DiscreteThreshold.Condition (Nat.card F) p.overlapRatio θ)
+    (D : Z → (tupleCounts I).Index → Prop)
+    (hD : ∀ g, mean (fun z => indicator (D z g)) ≤ r) :
+    mean (fun z => mean (localEnvelope I p (σ z) W θ (D z))) ≤
+      profile (Nat.card F) p.rankError θ+(1-profile (Nat.card F) p.rankError θ)*r := by
+  exact localEnvelope_mean_of_capacityExcess I p σ W θ r hθ hr0 hr1 hμ D hD
     (fun T hTq => systemCap_excess I p W θ hθ hcondition T hTq)
 
 theorem responseCount_le_columns (I : Instance F) (σ : I.layer.Statement) (W : I.layer.Oracle)
@@ -206,5 +234,43 @@ theorem family_response_mean (I : Instance F) (p : ProfileParameters I)
       response_fraction_le_envelope I p σ W θ hfloor hθ D coin payload hout
   · simpa only [hout,and_false,indicator,if_false,mean_const] using
       (localEnvelope_bounds I p σ W θ (p.columnFloor_nonneg.trans hfloor) hθ D coin).1
+
+/-- Reduced-system capacity excess bound discharged by a `HahnSystemCertificate`
+(supporting both Route A and Route B at cutoff `p.columnCutoff ≥ p.largeSize`). -/
+theorem systemCap_excess_of_hahn (I : Instance F) (p : HahnSystemCertificate I)
+    (W : I.layer.Oracle) (T : Finset (systems I.domain I.primary_le W))
+    (hTq : T.card ≤ Nat.card F) :
+    ∑ d ∈ T, max 0 (systemCap I W d - p.threshold) ≤ 1 - p.threshold := by
+  let E := capacitySet I W
+  have hspec (d : systems I.domain I.primary_le W) :
+      E d ∈ ReducedSystems.associatedSets (primaryCode I.domain I.primary_le)
+        (oracleWords W.ordinary) W.proximityMask d.1 ∧
+      (E d).card = ReducedSystems.capacity (primaryCode I.domain I.primary_le)
+        (oracleWords W.ordinary) W.proximityMask d.1 := capacitySet_spec I W d
+  have h := DirectBinomial.normalized_excess_le_of_activeFamilyBound T E
+    I.t p.overlapSize (Nat.card F) p.columnCutoff p.listBound p.threshold
+    (Nat.choose_pos I.query_le) p.threshold_lt_one.le p.overlap_lt_cutoff p.floor_le
+    (fun d _ e _ hne => by
+      simpa only [ProfileParameters.overlapSize] using (ReducedSystems.associated_intersection
+        (primaryCode I.domain I.primary_le) (oracleWords W.ordinary) W.proximityMask
+        p.positive_degree d.1 e.1 (E d) (E e) (hspec d).1 (hspec e).1
+          (fun he => hne (Subtype.ext he))))
+    p.active_bound p.excess_condition hTq
+  have hcard := fun d => (hspec d).2
+  simpa only [hcard, systemCap,
+    show Fintype.card I.layer.Query = I.n.choose I.t from QuerySet.fintype_card _ _] using h
+
+/-- Random-target local envelope mean bound discharged by a `HahnSystemCertificate`. -/
+theorem localEnvelope_mean_of_hahn {Z : Type*} [Fintype Z] [Nonempty Z]
+    (I : Instance F) (p : HahnSystemCertificate I)
+    (σ : Z → I.layer.Statement) (W : I.layer.Oracle) (r : ℚ)
+    (hr0 : 0 ≤ r) (hr1 : r ≤ 1)
+    (D : Z → (tupleCounts I).Index → Prop)
+    (hD : ∀ g, mean (fun z => indicator (D z g)) ≤ r) :
+    mean (fun z => mean (localEnvelope I p.toProfileParameters (σ z) W p.threshold (D z))) ≤
+      p.error + (1 - p.error) * r := by
+  exact localEnvelope_mean_of_capacityExcess I p.toProfileParameters σ W p.threshold r
+    p.threshold_lt_one.le hr0 hr1 p.field_error_lt_one.le D hD
+    (fun T hTq => systemCap_excess_of_hahn I p W T hTq)
 
 end RecursivePolygero.ProfileAnalysis
