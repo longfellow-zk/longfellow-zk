@@ -1,4 +1,7 @@
 import os as _os, sys as _sys
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 """Generate the final composition for the schedule instances."""
@@ -7,7 +10,8 @@ _sys.path.insert(0, _HERE)
 from sha_classify import nodes, consts, layout
 from sha_parse import P256
 insts = pickle.load(open(_os.path.join(_HERE, "insts.pkl"),"rb"))
-tbl   = pickle.load(open(_os.path.join(_HERE, "wordtbl.pkl"),"rb"))
+# `wordtbl.pkl` was loaded here and never read.  Its producer is not in the repo, so the
+# dead load was the only thing stopping this stage from running at all.
 ONE = {0, 238}
 def sg(c):
     v = consts[c]; return v - P256 if v > P256//2 else v
@@ -157,6 +161,6 @@ open Quadcert Quadcert.Gen.Sha256Blk
 variable {F : Type} [Field F]
 
 """
-    open("/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/CompT.lean","w").write(
+    open(_os.path.join(_SHAROOT, "circuits", "quadcert", "CompT.lean"),"w").write(
         hdr + compose(d) + chr(10) + compose2(d) + chr(10) + comp2.final(d) + "\nend Sha256Blk\n")
     print("emitted CompT.lean")

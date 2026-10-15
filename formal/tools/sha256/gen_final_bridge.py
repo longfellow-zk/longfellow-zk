@@ -4,11 +4,14 @@ Reads the artifact straight out of the generated Lean modules, so what it emits 
 against exactly the node table the proofs see.
 """
 import re, sys, os
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sha_parse import parse_nodes, parse_constNat, parse_layout, P256
 from sha_classify import asserts, kind, nodes, consts, layout
 
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256/S2Final.lean"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256", "S2Final.lean")
 
 def signed(c):
     v = consts[c]

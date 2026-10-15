@@ -1,6 +1,9 @@
 import os
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 LAST = 302
 def chain(i):
     inner = "ha" if i == 0 else "List.mem_append_right _ ha"

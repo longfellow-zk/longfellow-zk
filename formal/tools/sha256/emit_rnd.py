@@ -1,4 +1,7 @@
 import os as _os, sys as _sys
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 import re, sys, pickle, os
@@ -11,7 +14,7 @@ for (_r,_x,_y) in asserts:
         (k1,a1,b1),(k2,a2,b2) = _v
         if k1==0 and a1==0 and k2==2 and a2==b2==b1: bit2assert[b1] = _r
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = _os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 insts = pickle.load(open(_os.path.join(_HERE, "rinsts.pkl"),"rb"))
 ROT = {'S1': (6,11,25), 'S0': (2,13,22)}
 lst = lambda xs: "[" + ", ".join(xs) + "]"

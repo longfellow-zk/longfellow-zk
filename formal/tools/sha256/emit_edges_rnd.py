@@ -1,4 +1,7 @@
 import sys, pickle, os
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SP = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SP)
 from sha_classify import nodes
@@ -144,8 +147,13 @@ theorem allWrap7 [CharP F p256w] (inputs : Nat → F) (hin0 : inputs 0 = 1)
   by_cases h5 : e = 5
   · subst h5; exact wrap7at5 inputs hin0 (hz 5 (by norm_num))
   · have hk : skip5 (if e < 5 then e else e - 1) = e := by
-      simp only [skip5]; split <;> split <;> omega
-    have hlt : (if e < 5 then e else e - 1) < 63 := by split <;> omega
+      rcases Nat.lt_or_ge e 5 with h | h
+      · simp [skip5, h]
+      · have hne : ¬ (e - 1 < 5) := by omega
+        simp [skip5, Nat.not_lt.mpr h, hne]
+        omega
+    have hlt : (if e < 5 then e else e - 1) < 63 := by
+      by_cases h : e < 5 <;> simp only [h, if_true, if_false] <;> omega
     set k := if e < 5 then e else e - 1 with hkdef
     have htr := edges_transfer raw (cnstw F) inputs nodeFn nodefn_ok tnWrap7
       (fun k i => mapOf7 (skip5 k) i) 63 rndEdges7 mapOf7s_lt k hlt
@@ -167,5 +175,5 @@ theorem allWrap7 [CharP F p256w] (inputs : Nat → F) (hin0 : inputs 0 = 1)
 
 end Sha256Blk
 """
-open("/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256/S2EdgesRnd.lean","w").write(body)
+open(os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256", "S2EdgesRnd.lean"),"w").write(body)
 print("emitted S2EdgesRnd.lean")

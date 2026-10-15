@@ -25,6 +25,23 @@ Each stage depends on the `.pkl` the stage above writes.
 | `emit_edges_rnd.py` | — | `S2EdgesRnd.lean` (n=6, n=7 wrap edge lists) |
 | `emit_comp_rnd.py all` | — | `S2CRndA…P.lean` (`hrnd_a`, `hrnd_e`) |
 | `emit_assemble.py` | — | `S2Assemble.lean` |
+| `gen_asserttbl.py` | `asserttbl.pkl` | — |
+| `emit_flat.py` | — | `S2Flat.lean` |
+| `emit_assert.py` | — | `S2Assert.lean` |
+| `emit_bytes.py` | — | `S2Bytes.lean` |
+| `emit_connect.py` | — | `S2Connect.lean` |
+
+### Three things that were broken and are not any more
+
+* **Hardcoded paths.** Fifteen scripts carried `/Users/abhi/...` output paths from the machine
+  they were written on, so they wrote nothing reachable (or crashed) anywhere else. Each now
+  derives its root from `__file__`, the way `sha_parse.py` already did.
+* **`asserttbl.pkl` had no producer.** `emit_flat`/`emit_assert`/`emit_bytes` all read it and
+  nothing wrote it, so the committed copy was the only one and it went stale at the next
+  recompile — `emit_assert.py` died with `KeyError: 1104`, a booleanity assertion present in the
+  artifact but absent from the old table. `gen_asserttbl.py` rebuilds it from the artifact.
+* **`gen_comp.py` loaded `wordtbl.pkl` and never used it.** That pickle has no producer either,
+  so a dead load was all that stopped the `emit_comp.py` stage from running.
 
 `sha_parse.py` and `sha_classify.py` are the shared artifact reader and assertion classifier.
 `comp2.py` and `comp_rnd.py` hold the composition emitters for the schedule and round classes.

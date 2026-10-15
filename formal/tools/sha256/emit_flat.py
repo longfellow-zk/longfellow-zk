@@ -1,7 +1,10 @@
 import os, sys, pickle
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SP = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, SP)
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 T = pickle.load(open(os.path.join(SP, "asserttbl.pkl"), "rb"))
 flat = T["flat"]
 def bisect(vals, lo=0, hi=None, ind=0):

@@ -1,7 +1,10 @@
 import os, sys, pickle
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SP = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, SP)
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 T = pickle.load(open(os.path.join(SP, "asserttbl.pkl"), "rb")); idx = T["idx"]
 sched = pickle.load(open(os.path.join(SP, "insts.pkl"), "rb"))
 rnd   = pickle.load(open(os.path.join(SP, "rinsts.pkl"), "rb"))
@@ -22,7 +25,7 @@ A('''/-
 # `bytes → SHA-256`
 
 The four wrap-root families (184 references) and the composition: `S2Sound.assertions_zero_of_bytes`
-gives every asserted node from the committed LFC3 bytes, `S2Assert` and this file cash that in for
+gives every asserted node from the committed LFC2 bytes, `S2Assert` and this file cash that in for
 the nine hypotheses of `sha256_block_of_circuit`.
 -/
 
@@ -58,11 +61,11 @@ for nm, r, fn, n in fams:
 """)
 A('''/-- **The deployed SHA-256 circuit, from the committed bytes.**
 
-    Hypotheses: the artifact's LFC3 pages decode to `c`, and `inputs` satisfies the quad system.
+    Hypotheses: the artifact's LFC2 pages decode to `c`, and `inputs` satisfies the quad system.
     Conclusion: the eight outgoing chaining words are `SHA256.blockFrom` of the incoming ones and
     the message block, in `SHA/Spec.lean`'s vocabulary. -/
-theorem sha256_block_of_bytes (c : Lfc3.DecodedCircuit)
-    (hdec : Lfc3.decode Lfc3.p256 packedInput deltaTrees = .ok c)
+theorem sha256_block_of_bytes (c : Lfc2.DecodedCircuit)
+    (hdec : Lfc2.decode Lfc2.p256 packedInput deltaTrees = .ok c)
     [CharP F p256w] (inputs : Nat → F) (hin0 : inputs 0 = 1)
     (hacc : Accepts ((c.toRaw advice).toQuad (consts F)) inputs) :
     (List.range 8).map (outWord inputs)

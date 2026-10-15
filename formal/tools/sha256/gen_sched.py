@@ -1,4 +1,7 @@
 import os as _os, sys as _sys
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 """Emit the schedule bridge for one instance, to measure the regrouping `ring`."""
@@ -113,7 +116,7 @@ for n in mids:
 print(f"mids: {len(copies)} copies, {len(xors)} xors, merged={merged} ({len(nodes[merged][1])} terms)")
 
 # ---------------------------------------------------------------- emit
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256/S2Sched0.lean"
+OUT = _os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256", "S2Sched0.lean")
 def T(n): return ti[n]
 mid_terms = {n: [(k, T(a), T(b)) for k, a, b in nodes[n][1]] for n in mids}
 ts_terms  = [(k, T(a), T(b)) for k, a, b in nodes[z][1]]

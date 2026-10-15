@@ -1,4 +1,7 @@
 import os as _os, sys as _sys
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 """Emit the schedule bridge for all 48 `sha256/schedule/N` assertions."""
@@ -7,7 +10,7 @@ _sys.path.insert(0, _HERE)
 from sha_parse import P256
 from sha_classify import asserts, kind, nodes, consts, layout
 
-OUTDIR = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUTDIR = _os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 ONE = {0, 238}
 def sg(c):
     v = consts[c]; return v - P256 if v > P256//2 else v

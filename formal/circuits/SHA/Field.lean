@@ -6,21 +6,18 @@ import SHA.Spec
 # Field-side support for the generated SHA-256 meaning lemmas
 
 `meaning_gen` emits one lemma per `is_boolean` assertion — 6,656 of them for the one-block
-circuit — each of the shape
+circuit. No node id appears below: nothing here knows which node carries which bit, because node
+numbering comes out of the compiler and moves when the circuit is recompiled. The generated
+instances name nodes; this file must not.
 
-```
-theorem m14940 (inputs : Nat → F) (hone : inputs 0 = 1)
-    (h : interpDag (raw.toDag (Sha.consts F)) inputs 14940 = 0) :
-    inputs 1 = 0 ∨ inputs 1 = 1 := by
-  refine SHA256F.isBit_of_zero_raw (inputs 1) ?_
-  …cone chain…
-  linear_combination h
-```
+Two emission shapes reach `isBit_of_zero_raw`. The per-assertion one expands the cone and closes
+with `linear_combination`. The template one (`Bridge/Sha256/S2TmplBool.lean`) proves the algebra
+once in `tmpl_isBool` and discharges each instance by a `decide +kernel` cone match, which is
+what `EMIT_TMPL_BOOL` generates.
 
-The assertion polynomial is `x - x * x`. Factoring it and using that a field has no zero
-divisors is done **once**, here, rather than in every one of the 6,656 proofs — the same reason
-`ECDSA2.RangeCert.isDigit_of_zero_raw` exists for the digit range checks. Everything after the
-`refine` is then a `linear_combination`, which is what the generator already knows how to emit.
+Either way the assertion polynomial is `x - x * x`. Factoring it and using that a field has no
+zero divisors is done **once**, here, rather than in every one of the 6,656 proofs — the same
+reason `ECDSA2.RangeCert.isDigit_of_zero_raw` exists for the digit range checks.
 -/
 
 namespace SHA256F

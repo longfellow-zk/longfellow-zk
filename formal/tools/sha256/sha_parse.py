@@ -6,6 +6,21 @@ import re, glob, os, json
 NAME = os.environ.get("SHA_ARTIFACT", "Sha256Blk")
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GEN = os.path.join(_ROOT, "circuits", "quadcert", "Gen", NAME)
+
+if not os.path.isdir(GEN) or not glob.glob(os.path.join(GEN, f"{NAME}Nodes*.lean")):
+    raise SystemExit(
+        f"no artifact at {GEN}\n"
+        f"\n"
+        f"These generators read the circuit out of the generated Lean, so the Rust artifact\n"
+        f"stage has to run first.  For {NAME}:\n"
+        f"\n"
+        f"    cd rust\n"
+        f"    cargo run --release -p circuits-sha256 --example sha256_artifacts -- \\\n"
+        f"      /tmp/gf --field={'gf2_128' if NAME == 'Sha256Gf2' else 'p256'}\n"
+        f"    cargo run --release -p core-proto --example lfc2_to_lean -- \\\n"
+        f"      {'gf2_128' if NAME == 'Sha256Gf2' else 'p256'} /tmp/gf/sha256.lfc2 "
+        f"../formal/circuits/quadcert {NAME}\n"
+        f"    cp -r /tmp/gf/lean/Gen/{NAME} ../formal/circuits/quadcert/Gen/\n")
 P256 = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
 
 def parse_nodes():

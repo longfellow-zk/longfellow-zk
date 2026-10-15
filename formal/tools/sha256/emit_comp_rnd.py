@@ -1,10 +1,13 @@
 import sys, os, pickle, re
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SP = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, SP)
 from gen_rnd import (nodes, ONE, statename, wname, bitpos, xlegs, sg, lname)
 from emit_rnd import sigma_rows, maj_rows
 import comp_rnd
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 insts = pickle.load(open(os.path.join(SP, "rinsts.pkl"), "rb"))
 H = (nodes, ONE, statename, wname, bitpos, xlegs, sigma_rows, maj_rows)
 HDR = """import quadcert.Bridge.Sha256.S2Rnd{L}

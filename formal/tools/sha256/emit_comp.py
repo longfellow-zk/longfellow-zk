@@ -1,11 +1,14 @@
 import os as _os, sys as _sys
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 _HERE = _os.path.dirname(_os.path.abspath(__file__))
 import sys, os
 _sys.path.insert(0, _HERE)
 import gen_comp, comp2
 from gen_comp import insts, compose, detail, wordleaves, lname, bitpos
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = _os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 LET = "ABCDEFGH"
 HDR = """/-
 # Schedule steps {lo}-{hi}: the recurrence, over the deployed circuit

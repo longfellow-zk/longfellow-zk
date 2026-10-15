@@ -1,9 +1,12 @@
 import re, sys, os, pickle
+# Output root, derived from this file rather than hardcoded: these scripts were written
+# on a different machine and carried its absolute paths.
+_SHAROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SP = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, SP)
 import gen_final_bridge as G
 from sha_classify import nodes, layout
 NL = chr(10)
-OUT = "/Users/abhi/Projects/longfellow-zk/formal/circuits/quadcert/Bridge/Sha256"
+OUT = os.path.join(_SHAROOT, "circuits", "quadcert", "Bridge", "Sha256")
 insts = G.instances
 o = []; A = o.append
 A("""/-
