@@ -77,8 +77,8 @@ fn push_legacy_macs<N: Nat<4>>(
         .enumerate()
     {
         let bytes = nat_to_32bytes(nat);
-        let m0 = gf2.bytes_to_element(&bytes[..16]).unwrap();
-        let m1 = gf2.bytes_to_element(&bytes[16..]).unwrap();
+        let m0 = gf2.u128_to_element(u128::from_le_bytes(std::array::from_fn(|j| bytes[j])));
+        let m1 = gf2.u128_to_element(u128::from_le_bytes(std::array::from_fn(|j| bytes[16 + j])));
 
         let term0 = gf2.addf(&av_elt, &gf2.u128_to_element(mac_ap[i][0]));
         let term1 = gf2.addf(&av_elt, &gf2.u128_to_element(mac_ap[i][1]));

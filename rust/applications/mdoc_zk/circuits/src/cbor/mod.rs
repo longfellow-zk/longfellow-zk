@@ -20,4 +20,5 @@ pub mod parse;
 pub use cbor_encode::{
     append_bytes_len, append_text_len, encode_cbor_string, encode_cbor_string_into,
 };
+#[cfg(feature = "testonly")]
 pub mod test_utils;

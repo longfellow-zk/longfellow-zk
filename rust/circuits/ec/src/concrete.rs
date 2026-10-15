@@ -40,13 +40,13 @@ pub fn evaluate_pt3<
     (l.konst(&pt.0), l.konst(&pt.1), l.konst(&pt.2))
 }
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub fn push_pt2<E: Clone>(value: &(E, E), dest: &mut Vec<E>) {
     dest.push(value.0.clone());
     dest.push(value.1.clone());
 }
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub fn push_pt3<E: Clone>(value: &(E, E, E), dest: &mut Vec<E>) {
     dest.push(value.0.clone());
     dest.push(value.1.clone());

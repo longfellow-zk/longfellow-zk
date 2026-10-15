@@ -21,7 +21,7 @@ pub type V64<L> = Bitvec<L, 64>;
 pub type V256<L> = Bitvec<L, 256>;
 pub type V128<L> = Bitvec<L, 128>;
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub mod concrete;
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub use concrete::*;

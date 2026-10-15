@@ -15,7 +15,7 @@
 pub mod circuit;
 pub use circuit::BigBitvec;
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub mod concrete;
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub use concrete::*;
