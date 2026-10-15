@@ -93,7 +93,7 @@ theorem Row.rbr_soundness_noDecoded {row : Row} (h : row.Valid)
     (Row.response_le h) (row.code h D hkrow) hk
   obtain ⟨classifier, hq, hesc, hmem⟩ :=
     Ligero.V1.ligerov1_roundByRound_profiled hrows (row.code h D hkrow) statement prover
-      hnd hmin hcond johnson
+      hnd hmin hcond (Row.liftList_card_le h D hkrow _) johnson
       row.failureThreshold row.arithmeticThreshold
       (Row.failureThreshold_le h) (Row.arithmeticThreshold_le h)
   refine ⟨classifier, fun challenge hdoom ↦ hq challenge hdoom, ?_, hmem⟩
@@ -123,16 +123,8 @@ noncomputable def asgOf (pl : Encode.Placement ninp M qw nw nq nt) {h : row.Vali
 /-- **The lift list has at most `listBound` members.** -/
 theorem lift_card_le (h : row.Valid) (D : ReedSolomon.Domain F row.openings qw row.n)
     (hkrow : row.openings + qw = row.k) (O : Ligero.V1.Oracle F nw nq row.n 1) :
-    Fintype.card (Lift h D hkrow O) ≤ row.listBound := by
-  obtain ⟨-, hmin, -⟩ := Row.rsFacts h D hkrow
-  have h3 : 3 * row.certificate.g < row.certificate.d - row.certificate.e := Row.three_radius h
-  have hd : row.certificate.d = row.certificate.n - row.certificate.k + 1 := Row.distance_eq h
-  have hk : 0 < row.certificate.k := Row.kpos h
-  have hkn : row.certificate.k ≤ row.certificate.n := Row.k_le h
-  exact SchemeLiftCandidate.univ_card_le_listBound (row.code h D hkrow) O hmin
-    (show row.certificate.e + row.certificate.g ≤ row.certificate.n by omega)
-    (show row.certificate.e + row.certificate.g < row.certificate.d by omega)
-    (Row.denominator_pos h)
+    Fintype.card (Lift h D hkrow O) ≤ row.listBound :=
+  Row.liftList_card_le h D hkrow O
 
 /-- The Ligero statement a built system encodes to. -/
 noncomputable def stmtOf (pl : Encode.Placement ninp M qw nw nq nt) (nlin : ℕ)

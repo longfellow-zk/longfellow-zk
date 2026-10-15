@@ -13,7 +13,7 @@ The bound a row quotes, read off `Lfzk.LigeroV1Rows.Row`:
     fail   = (selectedMCAOptimizedIntegratedFailureProfile q n e g d (m-1) localLineBound)
                  .labelsAtLeast (ft+1) / (q * (q - (g+1)))
     arith  = (uncheckedAgreementProfile q n (2k-1) L T).labelsAtLeast (at+1) / q
-    eps    = L * (cover + fail + arith),      L = InterleavedJohnson.listBound n d (e+g)
+    eps    = L * (cover + fail + arith),      L = Certificate.listSize (Johnson, packing-capped)
 
 with `T = isqrt(n(2k-1)) + 1` the V1 Johnson threshold and `localLineBound a` the
 agreement-local clique threshold `Certificate.integratedLocalM a - 1`.
@@ -252,8 +252,14 @@ class Row:
 
     @property
     def list_bound(self) -> int:
-        """`Certificate.listSize = InterleavedJohnson.listBound n d (e + g)`."""
-        return jl_list_bound(self.n, self.d, self.e + self.g)
+        """`Certificate.listSize`: the Johnson bound `InterleavedJohnson.listBound n d (e + g)`,
+        capped at 1 inside unique decoding and at 2 under the three-codeword packing bound."""
+        j = jl_list_bound(self.n, self.d, self.e + self.g)
+        if 2 * (self.e + self.g) < self.d:
+            return min(j, 1)
+        if self.n + 3 * (self.n - self.d) < 3 * (self.n - (self.e + self.g)):
+            return min(j, 2)
+        return j
 
     @property
     def lam(self) -> int:
@@ -425,7 +431,8 @@ class Scanner:
                 m = self.m_of(g, at)
                 if m is None:
                     continue
-                L = jl_list_bound(self.n, self.d, self.e_of(g, at) + g)
+                L = Row(self.n, self.k, self.d, self.e_of(g, at), g, 0, self.field_bits, 0, 0, 0, 0,
+                        self.field_order).list_bound
                 if L == 0:
                     continue
                 rest = ((m - 1) / (self.q - g - 1)

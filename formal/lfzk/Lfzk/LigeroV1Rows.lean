@@ -64,7 +64,8 @@ abbrev openings : ℕ := row.certificate.openings
 abbrev targetBits : ℕ := row.certificate.targetBits
 abbrev fieldSize : ℕ := row.certificate.fieldSize
 abbrev fieldOrder : ℕ := row.certificate.fieldOrder
-/-- The lift-list bound, `InterleavedJohnson.listBound n d (e + g)`. -/
+/-- The lift-list bound `Certificate.listSize`: the Johnson count
+`InterleavedJohnson.listBound n d (e + g)`, capped by integer packing. -/
 abbrev listBound : ℕ := row.certificate.listSize
 /-- V1's Johnson threshold, `⌊√(n(2k−1))⌋ + 1`. -/
 abbrev johnsonThreshold : ℕ := row.certificate.v1Threshold
@@ -104,7 +105,7 @@ def epsRbr : ℚ := (row.listBound : ℚ) * (row.cover + row.fail + row.arith)
 
 /-- The row-side checks.  The first nine are `Result.ParametersValid`'s content on the triples
 route, in the decidable form `Certificate.conditions_of_checked` consumes; the rest are the
-threshold ranges and the target. -/
+threshold ranges, the target, and `Certificate.maskValid` (V1's mask-certificate check). -/
 def Valid : Prop :=
   0 < row.k ∧ row.k ≤ row.n ∧ row.d = row.n - row.k + 1 ∧ 2 * row.k ≤ row.n ∧
     SelectedMCA.DirectCliqueCondition row.n row.e row.g row.d row.m ∧
@@ -113,7 +114,7 @@ def Valid : Prop :=
     row.certificate.integratedLocalValidBool = true ∧
     row.failureThreshold + 1 ≤ row.n ∧ row.arithmeticThreshold + 1 ≤ row.n ∧
     row.openings ≤ row.n ∧
-    row.epsRbr ≤ (1 : ℚ) / 2 ^ row.targetBits
+    row.epsRbr ≤ (1 : ℚ) / 2 ^ row.targetBits ∧ row.certificate.maskValid = true
 
 instance : Decidable row.Valid := by unfold Valid; infer_instance
 
@@ -147,13 +148,15 @@ theorem arithmeticThreshold_le (h : row.Valid) : row.arithmeticThreshold + 1 ≤
   h.2.2.2.2.2.2.2.2.2.2.1
 theorem openings_le (h : row.Valid) : row.openings ≤ row.n := h.2.2.2.2.2.2.2.2.2.2.2.1
 theorem eps_le_target (h : row.Valid) : row.epsRbr ≤ (1 : ℚ) / 2 ^ row.targetBits :=
-  h.2.2.2.2.2.2.2.2.2.2.2.2
+  h.2.2.2.2.2.2.2.2.2.2.2.2.1
+theorem maskValid (h : row.Valid) : row.certificate.maskValid = true :=
+  h.2.2.2.2.2.2.2.2.2.2.2.2.2
 
 /-- A valid row's certificate meets `formal/ligero`'s own parameter validity on the triples
 route. -/
 theorem parametersValid (h : row.Valid) : row.result.ParametersValid := by
   simp only [Result.ParametersValid, Row.result]
-  exact ⟨kpos h, k_le h, distance_eq h, response_le h,
+  exact ⟨kpos h, k_le h, distance_eq h, response_le h, by simpa using maskValid h,
     row.certificate.conditions_of_checked (clique h) (three_radius h) (field_large h)
       (denominator_pos h) (localValid h)⟩
 
@@ -174,6 +177,19 @@ theorem rsFacts (h : row.Valid) {F : Type*} [Field F] [DecidableEq F] {w : ℕ}
     HasMinimumDistanceAtLeast (row.code h D hkrow).baseCode row.d ∧
     Nonempty (JBAgreement.RSPresentation row.n row.k (row.code h D hkrow).baseCode) :=
   certificateCodeFacts row.certificate (kpos h) (distance_eq h) hkrow D (codeFits h hkrow)
+
+/-- The committed oracle's lift list at radius `e + g` has at most `listBound` members
+(`Certificate.listFamily`: the Johnson count, refined by integer packing). -/
+theorem liftList_card_le (h : row.Valid) {F : Type*} [Field F] [Fintype F] [DecidableEq F]
+    {w nw nq : ℕ}
+    (D : ReedSolomon.Domain F row.openings w row.n) (hkrow : row.openings + w = row.k)
+    (oracle : Ligero.V1.Oracle F nw nq row.n 1) :
+    (Finset.univ : Finset (SchemeLiftCandidate (row.code h D hkrow) oracle
+      (row.e + row.g))).card ≤ row.listBound := by
+  obtain ⟨-, hmin, -⟩ := rsFacts h D hkrow
+  have hradius : row.e + row.g < row.d := by have := three_radius h; omega
+  exact SchemeLiftCandidate.univ_card_le_uniformFamilyBound _ oracle hmin hradius
+    (row.certificate.listFamily hradius hmin.distance_le_length (denominator_pos h))
 
 /-- **The round-by-round Ligero V1 facts at a certified row.**  For a false statement, there is a
 classifier of the V1 verifier (one repetition, at the row's code) such that a doomed challenge's
@@ -221,7 +237,7 @@ theorem rbr_soundness (h : row.Valid)
     (row.code h D hkrow) hk
   obtain ⟨classifier, hq, hesc, hmem⟩ :=
     Ligero.V1.ligerov1_roundByRound_profiled hrows (row.code h D hkrow) statement prover
-      (NoDecodedSolution.of_not_language hfalse) hmin hcond johnson
+      (NoDecodedSolution.of_not_language hfalse) hmin hcond (liftList_card_le h D hkrow _) johnson
       row.failureThreshold row.arithmeticThreshold
       (failureThreshold_le h) (arithmeticThreshold_le h)
   refine ⟨classifier, fun challenge hdoom ↦ hq challenge hdoom, ?_, hmem⟩

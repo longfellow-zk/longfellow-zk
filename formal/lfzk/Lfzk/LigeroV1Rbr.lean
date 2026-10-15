@@ -30,7 +30,8 @@ variable [Fintype Equations] [DecidableEq Equations]
 variable {r w n nw nq e g d outerBound threshold : ℕ} {localBound : ℕ → ℕ}
 
 /-- **V1 round-by-round soundness**, profiled, at a false statement (`NoDecodedSolution`: no
-member of the committed oracle's lift list at radius `e + g` satisfies the statement). -/
+member of the committed oracle's lift list at radius `e + g` satisfies the statement).  `L` is any
+bound on that lift list (`hcard`): the Johnson count, or a packing refinement of it. -/
 theorem ligerov1_roundByRound_profiled
     (hrows : CoreRowsNonempty nw nq)
     (C : MultiplicativeCode F r w n)
@@ -44,6 +45,8 @@ theorem ligerov1_roundByRound_profiled
     (hmin : HasMinimumDistanceAtLeast C.baseCode d)
     (conditions : IntegratedSelectedMCALineConditions C.baseCode
       (Fintype.card F) e g d outerBound localBound)
+    {L : ℕ} (hcard : (Finset.univ : Finset
+      (SchemeLiftCandidate C (prover.commit statement) (e + g))).card ≤ L)
     (johnson : V1JohnsonRange C threshold)
     (failureThreshold arithmeticThreshold : ℕ)
     (hfailureThreshold : failureThreshold + 1 ≤ n)
@@ -55,8 +58,7 @@ theorem ligerov1_roundByRound_profiled
         (fun challenge ↦ prover.respond statement (prover.commit statement) challenge)
         (SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
           (Fintype.card F) n e g d outerBound localBound)
-        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1)
-          (InterleavedJohnson.listBound n d (e + g)) threshold)
+        (uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L threshold)
         (Fintype.card F)
         (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator (Fintype.card F) g) e g,
       (∀ challenge, classifier.ProfiledDoomedAfter
@@ -73,9 +75,8 @@ theorem ligerov1_roundByRound_profiled
                 (failureThreshold + 1) : ℚ) /
               ((SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator
                 (Fintype.card F) g : ℕ) : ℚ) +
-            ((uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1)
-              (InterleavedJohnson.listBound n d (e + g)) threshold).labelsAtLeast
-                (arithmeticThreshold + 1) : ℚ) / Fintype.card F
+            ((uncheckedAgreementProfile (Fintype.card F) n (2 * C.k - 1) L
+              threshold).labelsAtLeast (arithmeticThreshold + 1) : ℚ) / Fintype.card F
       ∧ (∀ challenge, ¬ classifier.ProfiledDoomedAfter
             failureThreshold arithmeticThreshold challenge →
           challenge ∈ classifier.profiledEscaping
@@ -87,11 +88,11 @@ theorem ligerov1_roundByRound_profiled
   let extractor := schemeExtractorPolicy (Equations := Equations)
     (nw := nw) (nq := nq) C scheme
   obtain ⟨certificate, hdensity⟩ :=
-    extractor.exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine
-      (oracle := prover.commit statement) (respond := respond) hmin conditions
+    extractor.exists_profiledPolicyLiftList_of_endpointOptimizedIntegratedLine_of_card
+      (oracle := prover.commit statement) (respond := respond) hmin conditions hcard
   obtain ⟨arithmetic⟩ :=
     Ligero.V1.PolicyLiftListCertificate.v1ArithmeticCertificate_nonempty
-      certificate hfalse johnson
+      certificate hfalse johnson.toMaskRange
   obtain ⟨classifier⟩ :=
     arithmetic.doublyProfiledClassifier_nonempty
       (failureProfile := SchemeSelectedMCA.selectedMCAOptimizedIntegratedFailureProfile
