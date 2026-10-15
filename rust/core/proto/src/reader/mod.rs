@@ -30,11 +30,26 @@ pub(super) const MAX_LAYER_INPUTS: usize = 5_000_000;
 pub struct CircuitReader<'a, F> {
     pub(super) f: &'a F,
     pub(super) field_id: FieldID,
+    pub(super) max_total_terms: usize,
 }
 
 impl<'a, F: SerializableField> CircuitReader<'a, F> {
     pub fn new(f: &'a F, field_id: FieldID) -> Self {
-        Self { f, field_id }
+        Self {
+            f,
+            field_id,
+            max_total_terms: MAX_TOTAL_TERMS,
+        }
+    }
+
+    /// Override the total expanded term budget for this reader. The default is
+    /// 20 million. Raising this limit increases the work allowed for a circuit;
+    /// use a larger budget only for trusted inputs or with an appropriate
+    /// external resource limit. All other reader limits remain in effect.
+    #[must_use]
+    pub fn with_total_term_limit(mut self, max_total_terms: usize) -> Self {
+        self.max_total_terms = max_total_terms;
+        self
     }
 
     pub fn from_bytes<'b>(
@@ -166,4 +181,14 @@ pub(super) fn validate_raw_circuit<F: SerializableField>(
         return Err(format!("Excessive layers: {}", raw.layers.len()));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn default_total_term_limit_is_unchanged() {
+        let field = compile_algebra::p256::P256Field::new();
+        let reader = super::CircuitReader::new(&field, crate::FieldID::P256);
+        assert_eq!(reader.max_total_terms, 20_000_000);
+    }
 }

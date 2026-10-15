@@ -1,0 +1,9 @@
+
+running 1 test
+test hquad_preparation_sweep ... PREP dataset=mdoc_hash2 candidate=weighted-indirect-lazy-key ms=[134.863839, 129.705354, 138.55757, 134.52376600000002, 134.59219299999998] peak=0 retained_max=22407336
+PREP dataset=mdoc_sig candidate=weighted-indirect-lazy-key ms=[8.985403, 8.671774999999998, 8.479859, 8.415868, 8.353309] peak=0 retained_max=1210600
+PREP dataset=mldsa44 candidate=weighted-indirect-lazy-key ms=[191.52088000000003, 188.78671300000002, 178.75936499999997, 178.665898, 172.874628] peak=0 retained_max=11049088
+PREP dataset=mldsa65 candidate=weighted-indirect-lazy-key ms=[228.39554700000002, 229.33394199999998, 225.58952399999998, 229.987645, 229.38340599999998] peak=0 retained_max=13256032
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 5.13s

@@ -1,0 +1,24 @@
+{
+  "cells": 168,
+  "timing_samples": 840,
+  "fresh_memory_flows": 168,
+  "verified_flows": 1008,
+  "identical_period_one_pairs": 14,
+  "unchanged_geometry_vs_previous_encoding": 101,
+  "cells_exceeding_default_total_term_budget": 11,
+  "git_head": "fa578cc5bb055d72df379dc195393ea2f124788e",
+  "branch": "rust",
+  "note": "Experimental dirty worktree; HEAD alone does not identify benchmark code.",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "sha256": {
+    "circuits/experimental/src/mldsa/algebra.rs": "cb7f4e356b89a130a3f9ffa2dca55abf34c0e5b70773d2dd88dc0852e5ec6c17",
+    "circuits/experimental/src/mldsa/shake.rs": "aebec589f96ff5c7d557fb42e82608d353ee5bbd8f85c74dbd62e25708277695",
+    "circuits/experimental/tests/core_audit.rs": "aa382537b30002ad9f0e3af9cbe36096cc41c0c3d8baf11f4898bdae43dfb00f",
+    "circuits/experimental/tests/template_proofs.rs": "be31bf556b3ceedc7f78f4e66e34a81e1ec02af72391fe42bb5d29804a4d0b11",
+    "circuits/experimental/tests/layer_templates.rs": "1203d9b0163bc6602ad266b5b40ab7fca52d4b84b4275297540cab9686699ce2",
+    "target/release/deps/core_audit-17e41ed52dc7a8be": "fb03825e9aa1e0e9a26a4c92b586fcc95078546065afde61aa570d7377b624a1",
+    "target/release/deps/template_proofs-1eba8861353003c4": "d119e4acbc9424ef100c18d71cd996768dc5e34b6a249449cec540155dd96346",
+    "target/release/deps/layer_templates-ea9ecaff61fd5f69": "8e4c4ed5207aed2dee93c7b08f10477a153c50728a3ebca9413eb93204c71062",
+    "target/release/deps/experimental_tests-1db3c8eb8c415ef4": "7415c970eee5852afded11279787d0474cc8d200d59bd14877b5d455c82213df"
+  }
+}

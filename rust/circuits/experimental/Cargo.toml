@@ -8,8 +8,11 @@ workspace = true
 
 [dependencies]
 compile-algebra = { path = "../../compile/algebra" }
+circuits-arithmetic = { path = "../arithmetic" }
 circuits-boolean = { path = "../boolean" }
 circuits-bitvec = { path = "../bitvec" }
+circuits-bit-plucker = { path = "../bit_plucker" }
+circuits-lookup = { path = "../lookup" }
 circuits-ec = { path = "../ec" }
 compile-logic = { path = "../../compile/logic" }
 compile-eval = { path = "../../compile/eval", optional = true }
@@ -18,9 +21,16 @@ num-bigint = "0.4"
 core-algebra = { path = "../../core/algebra" }
 
 [features]
+# Legacy alias for the slicing experiment controls; round-0 slicing is now default.
+mldsa-first-round-slice = ["mldsa-slicing-experiment"]
+# Opt-in grid controls; defaults use period 4, special round 0, and no pluckers.
+mldsa-slicing-experiment = []
+# Test-binary allocation tracking; benchmark timing runs leave this disabled.
+bench-memory = []
+mldsa-runtime = ["dep:runtime-algebra", "circuits-bitvec/testonly"]
 testonly = [
     "dep:compile-eval",
-    "dep:runtime-algebra",
+    "mldsa-runtime",
     "compile-logic/testonly",
     "circuits-boolean/testonly",
     "circuits-bitvec/testonly",
@@ -28,8 +38,19 @@ testonly = [
 ]
 
 [dev-dependencies]
+mdoc-zk-compile = { path = "../../applications/mdoc_zk/compile" }
+mdoc-zk-circuits = { path = "../../applications/mdoc_zk/circuits" }
+mdoc-zk-runtime = { path = "../../applications/mdoc_zk/runtime" }
+mdoc-zk-testcases = { path = "../../applications/mdoc_zk/testcases" }
 compile-compiler = { path = "../../compile/compiler" }
 circuits-experimental = { path = "./", features = ["testonly"] }
+core-proto = { path = "../../core/proto" }
+runtime-ligero = { path = "../../runtime/ligero" }
+runtime-proto = { path = "../../runtime/proto" }
+runtime-random = { path = "../../runtime/random", features = ["testonly"] }
+runtime-zk = { path = "../../runtime/zk" }
+runtime-sumcheck = { path = "../../runtime/sumcheck" }
+zstd = "0.13"
 
 [package.metadata.cargo-udeps.ignore]
 dev-dependencies = ["circuits-experimental"]

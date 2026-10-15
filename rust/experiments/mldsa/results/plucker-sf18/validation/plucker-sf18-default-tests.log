@@ -1,0 +1,12 @@
+   Compiling circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `release` profile [optimized] target(s) in 6.77s
+     Running unittests src/lib.rs (target/release/deps/circuits_experimental-28cf7e5d20ac1e40)
+
+running 4 tests
+test mldsa::shake::slice_tests::every_sweep_schedule_has_one_first_cut_and_no_oversized_chunk ... ok
+test mldsa::shake::slice_tests::default_build_retains_unpacked_period_six ... ok
+test mldsa::shake::slice_tests::optional_first_cut_preserves_all_period_six_cuts ... ok
+test mldsa::shake::slice_tests::packed_lanes_are_complete_minimal_and_balanced ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

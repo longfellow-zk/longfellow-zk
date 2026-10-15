@@ -1,0 +1,32 @@
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+GEOMETRY CircuitGeometry { ninput: 4773, npublic_input: 1, noutput: 6, nwires: 167739, nterms: 259551, nlayers: 19, nassertions: 4796 }
+ANALYZE mdoc_signature id=[2b, 08, 70, bd, 6a, 14, 39, 85, be, 93, 79, 0f, 2c, aa, 6b, 66, 81, 3e, 6b, ff, 27, e8, 7a, d6, e9, 93, 0f, 62, 1b, a2, 74, e9]
+WIRE_LAYOUT old moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_old__global_abs_m12_b1_k0_r0 raw=273192 zstd3=134558 global_deltas=14192 layer_deltas=16361 segments=4379 entries=132368 tokens=8394 memory=929920 ms=43.3
+WIRE_LAYOUT reverse moved=167714 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_reverse__global_abs_m12_b1_k0_r0 raw=264536 zstd3=129368 global_deltas=13712 layer_deltas=15632 segments=4262 entries=128414 tokens=8412 memory=899704 ms=44.3
+WIRE_LAYOUT degree moved=167569 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_degree__global_abs_m12_b1_k0_r0 raw=476365 zstd3=243166 global_deltas=38712 layer_deltas=41742 segments=5228 entries=162226 tokens=8293 memory=1475420 ms=48.0
+WIRE_LAYOUT first moved=167684 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_first__global_abs_m12_b1_k0_r0 raw=366756 zstd3=203465 global_deltas=27627 layer_deltas=31782 segments=4445 entries=133001 tokens=8445 memory=1180976 ms=45.5
+WIRE_LAYOUT last moved=166910 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_last__global_abs_m12_b1_k0_r0 raw=399700 zstd3=240275 global_deltas=25986 layer_deltas=33935 segments=5149 entries=155722 tokens=8530 memory=1323544 ms=46.4
+WIRE_LAYOUT bip1_old moved=146449 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip1_old__global_abs_m12_b1_k0_r0 raw=282699 zstd3=141507 global_deltas=15764 layer_deltas=18102 segments=4337 entries=130341 tokens=8424 memory=948780 ms=43.4
+WIRE_LAYOUT bip0_old moved=164095 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip0_old__global_abs_m12_b1_k0_r0 raw=319214 zstd3=171644 global_deltas=20689 layer_deltas=23294 segments=4263 entries=129736 tokens=8359 memory=1027396 ms=43.7
+WIRE_LAYOUT whole_old moved=158697 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_whole_old__global_abs_m12_b1_k0_r0 raw=291552 zstd3=144220 global_deltas=16537 layer_deltas=18601 segments=4403 entries=132846 tokens=8411 memory=968316 ms=43.7
+WIRE_LAYOUT bip1_median moved=161278 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip1_median__global_abs_m12_b1_k0_r0 raw=260900 zstd3=121982 global_deltas=13579 layer_deltas=15472 segments=4229 entries=126817 tokens=8426 memory=890020 ms=42.4
+WIRE_LAYOUT bip0_median moved=166893 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip0_median__global_abs_m12_b1_k0_r0 raw=312682 zstd3=168643 global_deltas=19957 layer_deltas=22395 segments=4228 entries=128060 tokens=8383 memory=1005564 ms=54.4
+WIRE_LAYOUT whole_median moved=163125 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_whole_median__global_abs_m12_b1_k0_r0 raw=292566 zstd3=143739 global_deltas=16738 layer_deltas=18514 segments=4456 entries=134688 tokens=8404 memory=975536 ms=72.2
+WIRE_LAYOUT bip1_first moved=167698 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip1_first__global_abs_m12_b1_k0_r0 raw=348249 zstd3=193151 global_deltas=28059 layer_deltas=29995 segments=4166 entries=123727 tokens=8453 memory=1108624 ms=70.5
+WIRE_LAYOUT bip0_first moved=165107 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_bip0_first__global_abs_m12_b1_k0_r0 raw=356658 zstd3=208808 global_deltas=26690 layer_deltas=29527 segments=4421 entries=132735 tokens=8442 memory=1143244 ms=76.3
+WIRE_LAYOUT whole_first moved=167669 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_whole_first__global_abs_m12_b1_k0_r0 raw=341484 zstd3=191595 global_deltas=24692 layer_deltas=28644 segments=4226 entries=126974 tokens=8405 memory=1101244 ms=66.3
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 3.42s

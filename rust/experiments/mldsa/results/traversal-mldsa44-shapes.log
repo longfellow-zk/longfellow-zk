@@ -1,0 +1,58 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mldsa44 CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }
+ANALYZE mldsa44 id=[1c, 88, 27, 77, f2, 06, c0, cf, 03, 1a, 2a, 26, ed, e3, b1, 7d, e2, a5, b1, 73, 0e, c3, cf, 6d, 74, a5, cf, 62, bf, f1, 2e, 5f]
+SWEEP_CONFIG orders=12 extended=true final=false contexts=stencil,kind_stencil,kind_wiring,kind_arity coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP stencil_abs_lex0123_r0 raw=26062458 zstd3=10799220 zstd16=8100842 global_deltas=1993641 layer_deltas=2298741 segments=125334 entries=3973400 tokens=209278 memory=56518584 ms=4927.6
+SWEEP stencil_abs_lex0123_r5 raw=26125777 zstd3=10647044 zstd16=8072884 global_deltas=2018182 layer_deltas=2305660 segments=125177 entries=3969185 tokens=209246 memory=56608532 ms=4432.3
+SWEEP stencil_abs_lex0213_r0 raw=26059478 zstd3=10672359 zstd16=8076633 global_deltas=1993558 layer_deltas=2298700 segments=125348 entries=3975424 tokens=209213 memory=56526100 ms=5193.8
+SWEEP stencil_abs_lex0213_r5 raw=26240340 zstd3=10466332 zstd16=7892805 global_deltas=2007937 layer_deltas=2330218 segments=125177 entries=3969167 tokens=209246 memory=57001388 ms=5049.1
+SWEEP stencil_abs_lex1023_r0 raw=9452908 zstd3=3579549 zstd16=3152829 global_deltas=434105 layer_deltas=471335 segments=111852 entries=3497713 tokens=211565 memory=25062920 ms=2300.9
+SWEEP stencil_abs_lex1023_r5 raw=9220337 zstd3=3489862 zstd16=3072371 global_deltas=426693 layer_deltas=471129 segments=111798 entries=3497072 tokens=211506 memory=25055528 ms=2207.0
+SWEEP stencil_abs_lex1203_r0 raw=8316749 zstd3=3263020 zstd16=2900331 global_deltas=365668 layer_deltas=401269 segments=101821 entries=3166892 tokens=212092 memory=22379944 ms=2114.7
+SWEEP stencil_abs_lex1203_r5 raw=8087299 zstd3=3171107 zstd16=2820919 global_deltas=358643 layer_deltas=401385 segments=101824 entries=3166314 tokens=212022 memory=22379280 ms=2145.2
+SWEEP stencil_abs_lex2013_r0 raw=22787846 zstd3=9629221 zstd16=7018507 global_deltas=1711329 layer_deltas=2017677 segments=113141 entries=3562607 tokens=210060 memory=50088884 ms=4607.2
+SWEEP stencil_abs_lex2013_r5 raw=22787245 zstd3=9619103 zstd16=7008152 global_deltas=1694506 layer_deltas=2017925 segments=113034 entries=3556591 tokens=210109 memory=50066416 ms=4675.7
+SWEEP stencil_abs_lex2103_r0 raw=22788180 zstd3=9574583 zstd16=7016398 global_deltas=1711372 layer_deltas=2017720 segments=113141 entries=3562607 tokens=210060 memory=50089572 ms=4603.6
+SWEEP_DUP stencil_abs_lex2103_r5 identical_to=stencil_abs_lex2013_r5
+SWEEP kind_stencil_abs_lex0123_r0 raw=7263956 zstd3=2906155 zstd16=2542643 global_deltas=256730 layer_deltas=328806 segments=87130 entries=2703357 tokens=211927 memory=19013152 ms=1933.0
+SWEEP kind_stencil_abs_lex0123_r5 raw=7328233 zstd3=2934231 zstd16=2572873 global_deltas=258799 layer_deltas=330893 segments=87959 entries=2738840 tokens=211609 memory=19207100 ms=2116.6
+SWEEP kind_stencil_abs_lex0213_r0 raw=7263664 zstd3=2904533 zstd16=2543156 global_deltas=256732 layer_deltas=328811 segments=87130 entries=2703357 tokens=211927 memory=19013232 ms=2169.4
+SWEEP kind_stencil_abs_lex0213_r5 raw=7327864 zstd3=2933658 zstd16=2572867 global_deltas=258799 layer_deltas=330900 segments=87959 entries=2738840 tokens=211609 memory=19207212 ms=2124.7
+SWEEP kind_stencil_abs_lex1023_r0 raw=7264084 zstd3=2904389 zstd16=2542521 global_deltas=256745 layer_deltas=328814 segments=87130 entries=2703357 tokens=211927 memory=19013280 ms=2007.5
+SWEEP kind_stencil_abs_lex1023_r5 raw=7304687 zstd3=2910694 zstd16=2549176 global_deltas=257003 layer_deltas=329070 segments=87885 entries=2729264 tokens=211796 memory=19138600 ms=2078.8
+SWEEP kind_stencil_abs_lex1203_r0 raw=6768473 zstd3=2848950 zstd16=2502315 global_deltas=263543 layer_deltas=332140 segments=79708 entries=2468900 tokens=212038 memory=17950984 ms=2064.2
+SWEEP kind_stencil_abs_lex1203_r5 raw=6758353 zstd3=2846825 zstd16=2502983 global_deltas=263864 layer_deltas=332420 segments=79476 entries=2461738 tokens=211955 memory=17920916 ms=2046.7
+SWEEP kind_stencil_abs_lex2013_r0 raw=6768193 zstd3=2848655 zstd16=2502986 global_deltas=263550 layer_deltas=332146 segments=79708 entries=2468900 tokens=212038 memory=17951080 ms=1974.2
+SWEEP kind_stencil_abs_lex2013_r5 raw=6781725 zstd3=2871048 zstd16=2525770 global_deltas=265677 layer_deltas=334260 segments=79552 entries=2471346 tokens=211769 memory=17989868 ms=1955.5
+SWEEP_DUP kind_stencil_abs_lex2103_r0 identical_to=kind_stencil_abs_lex2013_r0
+SWEEP_DUP kind_stencil_abs_lex2103_r5 identical_to=kind_stencil_abs_lex2013_r5
+SWEEP kind_wiring_abs_lex0123_r0 raw=6531862 zstd3=2636936 zstd16=2313400 global_deltas=222858 layer_deltas=276838 segments=84015 entries=2601030 tokens=212025 memory=17697988 ms=1865.5
+SWEEP kind_wiring_abs_lex0123_r5 raw=6572519 zstd3=2647247 zstd16=2315352 global_deltas=220104 layer_deltas=274001 segments=85218 entries=2642971 tokens=211791 memory=17848296 ms=1883.7
+SWEEP kind_wiring_abs_lex0213_r0 raw=6531583 zstd3=2639054 zstd16=2314361 global_deltas=222859 layer_deltas=276843 segments=84015 entries=2601030 tokens=212025 memory=17698068 ms=1836.1
+SWEEP kind_wiring_abs_lex0213_r5 raw=6572242 zstd3=2648717 zstd16=2317126 global_deltas=220104 layer_deltas=274008 segments=85218 entries=2642971 tokens=211791 memory=17848408 ms=1984.9
+SWEEP kind_wiring_abs_lex1023_r0 raw=6416467 zstd3=2722035 zstd16=2410228 global_deltas=220963 layer_deltas=274935 segments=82333 entries=2547472 tokens=211997 memory=17412828 ms=1928.3
+SWEEP kind_wiring_abs_lex1023_r5 raw=6466099 zstd3=2713350 zstd16=2399424 global_deltas=218417 layer_deltas=272341 segments=83660 entries=2591777 tokens=211778 memory=17579516 ms=2034.8
+SWEEP kind_wiring_abs_lex1203_r0 raw=6053431 zstd3=2703065 zstd16=2395270 global_deltas=229558 layer_deltas=282278 segments=76330 entries=2365716 tokens=211828 memory=16658544 ms=1974.0
+SWEEP kind_wiring_abs_lex1203_r5 raw=6012756 zstd3=2678026 zstd16=2376318 global_deltas=228069 layer_deltas=282621 segments=75416 entries=2338016 tokens=211638 memory=16530536 ms=2049.7
+SWEEP kind_wiring_abs_lex2013_r0 raw=6053164 zstd3=2703850 zstd16=2395753 global_deltas=229565 layer_deltas=282284 segments=76330 entries=2365716 tokens=211828 memory=16658640 ms=1925.8
+SWEEP kind_wiring_abs_lex2013_r5 raw=6006428 zstd3=2686864 zstd16=2384196 global_deltas=228041 layer_deltas=282575 segments=75296 entries=2335716 tokens=211625 memory=16517668 ms=1886.7
+SWEEP_DUP kind_wiring_abs_lex2103_r0 identical_to=kind_wiring_abs_lex2013_r0
+SWEEP_DUP kind_wiring_abs_lex2103_r5 identical_to=kind_wiring_abs_lex2013_r5
+SWEEP kind_arity_abs_lex0123_r0 raw=2660806 zstd3=1121658 zstd16=1003648 global_deltas=71921 layer_deltas=184828 segments=28207 entries=861443 tokens=209359 memory=7917424 ms=1450.9
+SWEEP kind_arity_abs_lex0123_r5 raw=2691697 zstd3=1124025 zstd16=1009382 global_deltas=65652 layer_deltas=178789 segments=29563 entries=905634 tokens=209219 memory=8029548 ms=1508.6
+SWEEP kind_arity_abs_lex0213_r0 raw=2660406 zstd3=1120579 zstd16=1003947 global_deltas=71921 layer_deltas=184833 segments=28207 entries=861443 tokens=209359 memory=7917504 ms=1475.7
+SWEEP kind_arity_abs_lex0213_r5 raw=2691064 zstd3=1124033 zstd16=1011185 global_deltas=65651 layer_deltas=178796 segments=29561 entries=905586 tokens=209219 memory=8029420 ms=1523.8
+SWEEP kind_arity_abs_lex1023_r0 raw=2819537 zstd3=1303825 zstd16=1196712 global_deltas=135963 layer_deltas=212469 segments=26668 entries=813042 tokens=209273 memory=8128796 ms=1367.4
+SWEEP kind_arity_abs_lex1023_r5 raw=2863062 zstd3=1313658 zstd16=1203108 global_deltas=133203 layer_deltas=209405 segments=27995 entries=854811 tokens=209121 memory=8278088 ms=1441.4
+SWEEP kind_arity_abs_lex1203_r0 raw=2801037 zstd3=1244589 zstd16=1126875 global_deltas=140619 layer_deltas=215963 segments=25889 entries=798319 tokens=209144 memory=8106596 ms=1355.1
+SWEEP kind_arity_abs_lex1203_r5 raw=2758333 zstd3=1237474 zstd16=1125376 global_deltas=138965 layer_deltas=215933 segments=24978 entries=768027 tokens=209025 memory=7962608 ms=1357.3
+SWEEP kind_arity_abs_lex2013_r0 raw=2590353 zstd3=1171477 zstd16=1045170 global_deltas=76483 layer_deltas=188262 segments=26877 entries=829334 tokens=209200 memory=7811376 ms=1390.8
+SWEEP kind_arity_abs_lex2013_r5 raw=2538618 zstd3=1155677 zstd16=1033897 global_deltas=72053 layer_deltas=185957 segments=25993 entries=801541 tokens=209086 memory=7641652 ms=1433.1
+SWEEP kind_arity_abs_lex2103_r0 raw=2589363 zstd3=1172107 zstd16=1045291 global_deltas=76274 layer_deltas=188053 segments=26878 entries=829366 tokens=209200 memory=7808184 ms=1486.8
+SWEEP kind_arity_abs_lex2103_r5 raw=2580021 zstd3=1176529 zstd16=1049163 global_deltas=82960 layer_deltas=194134 segments=25994 entries=801573 tokens=209086 memory=7772636 ms=1403.0
+SWEEP_DONE unique_candidates=43 seconds=107.805
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 123.67s
+

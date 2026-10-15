@@ -1,0 +1,30 @@
+   Compiling mdoc-zk-circuits v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/circuits)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6.68s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 4773, npublic_input: 1, noutput: 6, nwires: 167739, nterms: 259551, nlayers: 19, nassertions: 4796 }
+ANALYZE mdoc_signature id=[2b, 08, 70, bd, 6a, 14, 39, 85, be, 93, 79, 0f, 2c, aa, 6b, 66, 81, 3e, 6b, ff, 27, e8, 7a, d6, e9, 93, 0f, 62, 1b, a2, 74, e9]
+LEX_CORRECTNESS lex_h1_h0_g: canonical_lfc1_exact=true global_deltas=49195 id=[32, 10, 2d, c6, 74, 3b, 32, 76, c2, ae, 93, e0, 6c, 25, 7e, d6, 4a, d8, 73, b1, 90, 43, 66, f4, 2a, c3, b9, e2, 30, 2e, 4b, b3]
+SIZE lex_h1_h0_g_lfc1: raw=3134392 zstd16=153823 zstd22=143620
+SIZE lex_h1_h0_g_lfc2_native: raw=777211 zstd16=257051 zstd22=204979
+LEX_SEGMENT lex_h1_h0_g: ms=19.976
+SIZE lex_h1_h0_g_lfc2_segmented: raw=616748 zstd16=280966 zstd22=223467
+MEMORY lex_h1_h0_g: deltas=59453 segments=6365 segment_entries=193987 tokens=8440 payload_and_segment_headers_bytes=1913716 excludes_capacity_slack_constants_and_allocator_overhead=true
+LEX_DECODE lex_h1_h0_g: zstd16_decode_and_id_median_ms=17.147 exact=true
+LEX_CORRECTNESS lex_h0_h1_g: canonical_lfc1_exact=true global_deltas=27427 id=[b3, c2, 6d, 5d, 18, 69, a0, 16, aa, c7, b8, 76, a9, c1, dd, f2, 8a, 8b, 15, 68, 8b, c1, 07, e3, f7, 3a, f2, f8, 56, 30, 9e, 36]
+SIZE lex_h0_h1_g_lfc1: raw=3134392 zstd16=117696 zstd22=116870
+SIZE lex_h0_h1_g_lfc2_native: raw=628522 zstd16=183200 zstd22=149761
+LEX_SEGMENT lex_h0_h1_g: ms=17.056
+SIZE lex_h0_h1_g_lfc2_segmented: raw=400389 zstd16=197079 zstd22=167387
+MEMORY lex_h0_h1_g: deltas=29228 segments=4620 segment_entries=142677 tokens=8323 payload_and_segment_headers_bytes=1182528 excludes_capacity_slack_constants_and_allocator_overhead=true
+LEX_DECODE lex_h0_h1_g: zstd16_decode_and_id_median_ms=10.634 exact=true
+test all::signature_compile::analyze_signature_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 3.93s

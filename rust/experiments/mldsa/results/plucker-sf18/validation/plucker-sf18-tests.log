@@ -1,0 +1,67 @@
+
+running 62 tests
+test all::mldsa_algebra::base_subfield_is_distinct_from_the_extension ... ok
+test all::mldsa_algebra::compact_fp24_encodings_are_exact_and_canonical ... ok
+test all::mldsa_algebra::compile_and_runtime_fields_agree ... ok
+test all::mldsa_algebra::inverses_and_serialization_are_canonical ... ok
+test all::mldsa_algebra::mldsa_field_and_crt_benchmark ... ignored, microbenchmark; run with --release --ignored --nocapture
+test all::mldsa_circuit::compiled_infinity_norm_rejects_boundary_for_both_parameter_sets ... ok
+test all::mldsa_circuit::compiled_ntt_accepts_the_native_transform ... ok
+test all::mldsa_circuit::compiled_use_hint_accepts_both_sign_branches ... ok
+test all::mldsa_circuit::compiled_use_hint_rejects_invalid_sign_for_both_parameter_sets ... ok
+test all::mldsa_crt::crt_interpolation_encodes_all_six_coefficients ... ok
+test all::mldsa_reference::native_verifier_accepts_cpp_44_and_65_examples ... ok
+test all::mldsa_reference::native_verifier_rejects_malformed_encodings ... ok
+test all::mldsa_reference::ntt_round_trip_and_negacyclic_product ... ok
+test all::mldsa_reference::packing_and_hint_primitives_cover_both_parameter_sets ... ok
+test all::mldsa_reference::parameter_sets_match_fips_sizes ... ok
+test all::mldsa_sample::compiled_sample_in_ball_accepts_native_witness ... ok
+test all::mldsa_sample::native_sample_in_ball_supports_44_and_65 ... ok
+test all::mldsa_shake::compiled_shake256_accepts_the_native_witness ... ok
+test all::mldsa_shake::native_shake256_matches_the_empty_string_vector ... ok
+test all::mldsa_shake::shake256_handles_absorb_and_squeeze_boundaries ... ok
+test all::mldsa_test_vectors::fixture_hex_accepts_both_cases ... ok
+test all::mldsa_test_vectors::fixture_hex_rejects_partial_bytes - should panic ... ok
+test all::mldsa_verifier::analyze_mldsa44_morton ... ignored, offline component traversal and encoding experiment
+test all::mldsa_verifier::analyze_traversal_sweep ... ignored, offline fixed-geometry traversal sweep for MLDSA and mdoc
+test all::mldsa_verifier::full_mldsa44_circuit_accepts_cpp_vector ... ignored, large end-to-end circuit
+test all::mldsa_verifier::full_mldsa65_circuit_accepts_cpp_vector ... ignored, large end-to-end circuit
+test all::mldsa_verifier::mldsa44_proof_benchmark ... ignored, multi-minute proof benchmark
+test all::mldsa_verifier::mldsa65_proof_benchmark ... ignored, multi-minute proof benchmark
+test all::mldsa_verifier::morton_analysis::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::shared_one_merges_only_when_included ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test all::mldsa_verifier::morton_analysis::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test all::mldsa_verifier::morton_analysis::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test all::mldsa_verifier::morton_analysis::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test all::mldsa_verifier::morton_analysis::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test all::mldsa_verifier::morton_analysis::morton_key::tests::numeric_encodings_roundtrip ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test all::mldsa_verifier::morton_analysis::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test all::mldsa_verifier::morton_analysis::tests::morton_translation_changes_order ... ok
+test all::mldsa_verifier::morton_analysis::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test all::mldsa_verifier::morton_analysis::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test all::mldsa_verifier::morton_analysis::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+test all::mldsa_verifier::validate_mdoc_traversal ... ignored, end-to-end mdoc proof using saved offline reordered circuits
+
+test result: ok. 54 passed; 0 failed; 8 ignored; 0 measured; 6 filtered out; finished in 6.60s
+

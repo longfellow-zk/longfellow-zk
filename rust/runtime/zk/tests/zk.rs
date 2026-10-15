@@ -226,6 +226,217 @@ fn test_zk_prover_verifier_end_to_end() {
 }
 
 #[test]
+fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
+    use core_algebra::SupportsU128Conversions;
+    use core_proto::{circuit::compute_id, writer::CircuitWriter, FieldID};
+    use runtime_zk::SumcheckOrder;
+
+    let f = Gf2_128Field::new();
+    let sf = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
+    let interpolation = Lch14InterpolatorFactory::new(&f, &sf);
+    let context = runtime_zk::common::ZkContext {
+        f: &f,
+        make_interpolator: &interpolation,
+    };
+    // A non-power-of-two width with nonzero inputs exercises several rounds of
+    // each hand and (0,3)/(2,2), whose Morton and lexicographic orders differ.
+    let inputs: Vec<_> = (1..=7).map(|v| f.u128_to_element(v)).collect();
+    let mut terms = Vec::new();
+    let mut sum = f.zero();
+    for h0 in 0..7 {
+        for h1 in h0..7 {
+            f.fma(&mut sum, &inputs[h0], &inputs[h1]);
+            terms.push(Term {
+                h0: h0 as u32,
+                h1: h1 as u32,
+                g: 0,
+                k: f.one(),
+            });
+        }
+    }
+    if !f.is_zero(&sum) {
+        terms.push(Term {
+            h0: 0,
+            h1: 0,
+            g: 0,
+            k: f.neg(&sum),
+        });
+    }
+    // Two outputs deliberately repeat input pairs. In output-major order these
+    // pairs are nonadjacent. Round-major requires the Morton layout below.
+    terms.extend(terms.clone().into_iter().map(|mut t| {
+        t.g = 1;
+        t
+    }));
+    for order in [SumcheckOrder::HandMajor, SumcheckOrder::RoundMajor] {
+        for layout in 0..5 {
+            if order == SumcheckOrder::RoundMajor && layout != 4 {
+                continue;
+            }
+            let mut raw = make_raw_circuit(&f, 7, 1, 2, 1, &[7], &[3], vec![terms.clone()]);
+            let mut ordered = raw.layers[0].terms(&raw.constants);
+            match layout {
+                0 => {}
+                1 => {
+                    ordered.sort_by_key(|t| (std::cmp::Reverse(t.g), std::cmp::Reverse(t.h1), t.h0))
+                }
+                2 => ordered.reverse(),
+                4 => ordered.sort_by_key(|t| {
+                    // Explicit legacy Morton traversal, with h0 as the low bit.
+                    let mut morton = 0u64;
+                    for bit in 0..32 {
+                        morton |= (((t.h0 >> bit) & 1) as u64) << (2 * bit);
+                        morton |= (((t.h1 >> bit) & 1) as u64) << (2 * bit + 1);
+                    }
+                    (morton, t.g)
+                }),
+                _ => {
+                    // Neither input nor output coordinates are globally monotone.
+                    let mid = ordered.len() / 3;
+                    ordered.rotate_left(mid);
+                    for chunk in ordered.chunks_mut(3) {
+                        chunk.reverse();
+                    }
+                }
+            }
+            let mut previous = [0u32; 3];
+            let deltas = ordered
+                .iter()
+                .map(|t| {
+                    let delta = TermDelta {
+                        g: t.g.wrapping_sub(previous[0]),
+                        h: [
+                            t.h0.wrapping_sub(previous[1]),
+                            t.h1.wrapping_sub(previous[2]),
+                        ],
+                        k_index: raw.constants.iter().position(|k| k == &t.k).unwrap() as u32,
+                    };
+                    previous = [t.g, t.h0, t.h1];
+                    delta
+                })
+                .collect();
+            raw.layers[0] = Layer::new_compressed(7, 3, vec![deltas], vec![0]);
+            let circuit = Circuit {
+                id: compute_id(&f, &raw),
+                raw,
+            };
+            let writer = CircuitWriter::new(&f, FieldID::Gf2_128);
+            let config = LigeroConfig {
+                rateinv: 4,
+                nreq: 16,
+                block_enc: 256,
+            };
+
+            // All-zero witnesses force W(r0) = 0, exercising hand 1 without division.
+            let zero_inputs = vec![f.zero(); inputs.len()];
+            for witness_inputs in [&inputs, &zero_inputs] {
+                let serializations = vec![
+                    writer.to_bytes_lfc1(&circuit),
+                    writer.to_bytes_lfc2(&circuit),
+                ];
+                let mut expected_proof = None;
+                for bytes in serializations {
+                    let (decoded, tail) = CircuitReader::new(&f, FieldID::Gf2_128)
+                        .from_bytes(&bytes, true)
+                        .unwrap();
+                    assert!(tail.is_empty());
+                    assert_eq!(decoded.id, circuit.id);
+                    assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
+                    let prover = ZkProver::new(decoded, config).with_sumcheck_order(order);
+                    let mut rng = SimpleRng { state: 42 };
+                    let mut prover_ts = Transcript::new(b"lexicographic-zk");
+                    let (commitment, geometry) = prover.commit(
+                        &witness_inputs[1..],
+                        &context,
+                        &mut prover_ts,
+                        &mut rng,
+                        &sf,
+                    );
+                    let proof = prover
+                        .prove(
+                            witness_inputs[..1].to_vec(),
+                            witness_inputs[1..].to_vec(),
+                            &commitment,
+                            &mut prover_ts,
+                            &context,
+                        )
+                        .unwrap();
+                    let proof_bytes = proof.write(&geometry, &f, &sf).unwrap();
+                    if let Some(expected) = &expected_proof {
+                        assert_eq!(&proof_bytes, expected);
+                    } else {
+                        expected_proof = Some(proof_bytes.clone());
+                    }
+                    // Proving must not change storage, segmentation, or ID.
+                    assert_eq!(prover.circuit.id, circuit.id);
+                    assert_eq!(
+                        prover.circuit.raw.layers[0].terms(&prover.circuit.raw.constants),
+                        ordered
+                    );
+                    let verifier =
+                        ZkVerifier::new(prover.circuit, config).with_sumcheck_order(order);
+                    let verifier_geometry = verifier.geometry(&context);
+                    assert_eq!(geometry, verifier_geometry);
+                    let mut remaining = proof_bytes.as_slice();
+                    let decoded_proof =
+                        ZkProof::read(&mut remaining, &verifier_geometry, &f, &sf).unwrap();
+                    assert!(remaining.is_empty());
+                    assert_eq!(proof, decoded_proof);
+                    let mut verifier_ts = Transcript::new(b"lexicographic-zk");
+                    verifier.recv_commitment(&decoded_proof, &mut verifier_ts, &context);
+                    verifier
+                        .verify(
+                            witness_inputs[..1].to_vec(),
+                            &decoded_proof,
+                            &mut verifier_ts,
+                            &context,
+                        )
+                        .unwrap();
+                    assert_eq!(prover_ts.bytes(64), verifier_ts.bytes(64));
+
+                    let wrong_order = match order {
+                        SumcheckOrder::HandMajor => SumcheckOrder::RoundMajor,
+                        SumcheckOrder::RoundMajor => SumcheckOrder::HandMajor,
+                    };
+                    let (same_circuit, _) = CircuitReader::new(&f, FieldID::Gf2_128)
+                        .from_bytes(&bytes, true)
+                        .unwrap();
+                    let wrong_verifier =
+                        ZkVerifier::new(same_circuit, config).with_sumcheck_order(wrong_order);
+                    assert_eq!(geometry, wrong_verifier.geometry(&context));
+                    let mut wrong_ts = Transcript::new(b"lexicographic-zk");
+                    wrong_verifier.recv_commitment(&decoded_proof, &mut wrong_ts, &context);
+                    assert!(wrong_verifier
+                        .verify(
+                            witness_inputs[..1].to_vec(),
+                            &decoded_proof,
+                            &mut wrong_ts,
+                            &context
+                        )
+                        .is_err());
+
+                    let mut tampered = decoded_proof;
+                    f.add(
+                        &mut tampered.sumcheck_proof.layers[0].hp[1][0].evaluations[0],
+                        &f.one(),
+                    );
+                    let mut bad_ts = Transcript::new(b"lexicographic-zk");
+                    verifier.recv_commitment(&tampered, &mut bad_ts, &context);
+                    assert!(verifier
+                        .verify(
+                            witness_inputs[..1].to_vec(),
+                            &tampered,
+                            &mut bad_ts,
+                            &context
+                        )
+                        .is_err());
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn test_zk_rfc_testvector1() {
     let f = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
@@ -294,7 +505,8 @@ fn test_zk_rfc_testvector1() {
         block_enc: 128,
     };
 
-    let prover_inst = ZkProver::new(circuit, config);
+    let prover_inst =
+        ZkProver::new(circuit, config).with_sumcheck_order(runtime_zk::SumcheckOrder::RoundMajor);
     let (commit_res, geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
@@ -559,7 +771,8 @@ fn test_zk_rfc_testvector1() {
     );
 
     // 6. Verifier verify
-    let verifier = ZkVerifier::new(prover_inst.circuit, config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config)
+        .with_sumcheck_order(runtime_zk::SumcheckOrder::RoundMajor);
     let mut ts_verifier = Transcript::new(b"test");
     verifier.recv_commitment(
         &zkp,
@@ -585,6 +798,15 @@ fn test_zk_rfc_testvector1() {
 
 #[test]
 fn test_zk_triple_zero_zero_zero() {
+    for order in [
+        runtime_zk::SumcheckOrder::HandMajor,
+        runtime_zk::SumcheckOrder::RoundMajor,
+    ] {
+        test_zk_triple_zero_zero_zero_with_order(order);
+    }
+}
+
+fn test_zk_triple_zero_zero_zero_with_order(order: runtime_zk::SumcheckOrder) {
     let f = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
@@ -614,7 +836,7 @@ fn test_zk_triple_zero_zero_zero() {
     };
 
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let prover_inst = ZkProver::new(circ, config);
+    let prover_inst = ZkProver::new(circ, config).with_sumcheck_order(order);
     let (commit_res, _geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
@@ -639,7 +861,7 @@ fn test_zk_triple_zero_zero_zero() {
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
-    let verifier = ZkVerifier::new(prover_inst.circuit, config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config).with_sumcheck_order(order);
     let mut ts_verifier = Transcript::new(b"test_zk_zero");
     verifier.recv_commitment(
         &zkp,
@@ -669,6 +891,15 @@ fn test_zk_triple_zero_zero_zero() {
 
 #[test]
 fn test_zk_intermediate_zero_logw() {
+    for order in [
+        runtime_zk::SumcheckOrder::HandMajor,
+        runtime_zk::SumcheckOrder::RoundMajor,
+    ] {
+        test_zk_intermediate_zero_logw_with_order(order);
+    }
+}
+
+fn test_zk_intermediate_zero_logw_with_order(order: runtime_zk::SumcheckOrder) {
     use core_algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
@@ -756,7 +987,7 @@ fn test_zk_intermediate_zero_logw() {
     };
 
     let sf = runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let prover_inst = ZkProver::new(circ, config);
+    let prover_inst = ZkProver::new(circ, config).with_sumcheck_order(order);
     let (commit_res, _geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
         &runtime_zk::common::ZkContext {
@@ -781,7 +1012,7 @@ fn test_zk_intermediate_zero_logw() {
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
-    let verifier = ZkVerifier::new(prover_inst.circuit, config);
+    let verifier = ZkVerifier::new(prover_inst.circuit, config).with_sumcheck_order(order);
     let mut ts_verifier = Transcript::new(b"test_zk_interm");
     verifier.recv_commitment(
         &zkp,
@@ -811,6 +1042,15 @@ fn test_zk_intermediate_zero_logw() {
 
 #[test]
 fn test_zk_zero_layers() {
+    for order in [
+        runtime_zk::SumcheckOrder::HandMajor,
+        runtime_zk::SumcheckOrder::RoundMajor,
+    ] {
+        test_zk_zero_layers_with_order(order);
+    }
+}
+
+fn test_zk_zero_layers_with_order(order: runtime_zk::SumcheckOrder) {
     let f = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
 
@@ -841,7 +1081,7 @@ fn test_zk_zero_layers() {
         };
         let mut ts_prover = Transcript::new(b"test_zk_zero_layers");
 
-        let prover_inst = ZkProver::new(circ, config);
+        let prover_inst = ZkProver::new(circ, config).with_sumcheck_order(order);
         let (commit_res, _geom) = prover_inst.commit(
             &w0[2..],
             &runtime_zk::common::ZkContext {
@@ -877,7 +1117,7 @@ fn test_zk_zero_layers() {
             );
             let zkp = prove_res.unwrap();
 
-            let verifier = ZkVerifier::new(prover_inst.circuit, config);
+            let verifier = ZkVerifier::new(prover_inst.circuit, config).with_sumcheck_order(order);
             let mut ts_verifier = Transcript::new(b"test_zk_zero_layers");
             verifier.recv_commitment(
                 &zkp,

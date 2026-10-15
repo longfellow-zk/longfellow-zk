@@ -1,0 +1,34 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mldsa65 CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }
+ANALYZE mldsa65 id=[a7, 73, 85, 49, 22, 3e, 48, 1d, 66, 51, e2, 28, 81, c9, 0b, c0, f6, 33, 1d, 6b, 7c, ab, b8, f6, 0a, fb, ff, 45, bb, 76, ca, a8]
+SWEEP_CONFIG orders=3 extended=true final=false contexts=kind_whole_one,whole_one_kind,kind_whole_nonzero,whole_nonzero_kind,kind_whole_one_nonzero,whole_one_nonzero_kind coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP kind_whole_one_abs_lex0213_r5 raw=2904171 zstd3=1155636 zstd16=1037997 global_deltas=69824 layer_deltas=177599 segments=32839 entries=992373 tokens=253772 memory=8614300 ms=1426.2
+SWEEP kind_whole_one_abs_lex2013_r0 raw=3013312 zstd3=1207321 zstd16=1075937 global_deltas=89911 layer_deltas=194482 segments=33247 entries=1012531 tokens=253644 memory=8974340 ms=1545.8
+SWEEP kind_whole_one_abs_m12_b1_k0_r0 raw=7241841 zstd3=4103326 zstd16=3745155 global_deltas=326509 layer_deltas=486312 segments=83982 entries=2626077 tokens=254185 memory=21317608 ms=2350.1
+SWEEP kind_whole_one_offset_m12_b1_k0_r0 raw=3119664 zstd3=1240814 zstd16=1120161 global_deltas=135733 layer_deltas=213732 segments=34527 entries=1052575 tokens=253677 memory=9473368 ms=1653.7
+SWEEP whole_one_kind_abs_lex0213_r5 raw=6531893 zstd3=2843911 zstd16=2480275 global_deltas=399554 layer_deltas=507253 segments=53752 entries=1670160 tokens=252774 memory=17097832 ms=2218.2
+SWEEP whole_one_kind_abs_lex2013_r0 raw=6570649 zstd3=2898626 zstd16=2538473 global_deltas=416878 layer_deltas=521446 segments=52878 entries=1650305 tokens=252921 memory=17225112 ms=2120.3
+SWEEP whole_one_kind_abs_m12_b1_k0_r0 raw=10745500 zstd3=5813278 zstd16=5224527 global_deltas=653389 layer_deltas=813148 segments=102699 entries=3234863 tokens=253402 memory=29428204 ms=2879.7
+SWEEP whole_one_kind_offset_m12_b1_k0_r0 raw=6673163 zstd3=2939516 zstd16=2561829 global_deltas=462749 layer_deltas=540705 segments=54157 entries=1690070 tokens=252935 memory=17723068 ms=2198.3
+SWEEP kind_whole_nonzero_abs_lex0213_r5 raw=2904312 zstd3=1156481 zstd16=1037370 global_deltas=69819 layer_deltas=177596 segments=32847 entries=992564 tokens=253751 memory=8615124 ms=1509.9
+SWEEP_DUP kind_whole_nonzero_abs_lex2013_r0 identical_to=kind_whole_one_abs_lex2013_r0
+SWEEP_DUP kind_whole_nonzero_abs_m12_b1_k0_r0 identical_to=kind_whole_one_abs_m12_b1_k0_r0
+SWEEP_DUP kind_whole_nonzero_offset_m12_b1_k0_r0 identical_to=kind_whole_one_offset_m12_b1_k0_r0
+SWEEP whole_nonzero_kind_abs_lex0213_r5 raw=6472514 zstd3=2819145 zstd16=2448462 global_deltas=399540 layer_deltas=507241 segments=51849 entries=1609258 tokens=252798 memory=16808456 ms=2107.8
+SWEEP whole_nonzero_kind_abs_lex2013_r0 raw=6498498 zstd3=2906972 zstd16=2496328 global_deltas=416951 layer_deltas=521435 segments=50797 entries=1583377 tokens=252890 memory=16907156 ms=2138.6
+SWEEP whole_nonzero_kind_abs_m12_b1_k0_r0 raw=10672846 zstd3=5810378 zstd16=5231099 global_deltas=653424 layer_deltas=813130 segments=100553 entries=3166323 tokens=253342 memory=29102012 ms=2696.8
+SWEEP whole_nonzero_kind_offset_m12_b1_k0_r0 raw=6600778 zstd3=2937295 zstd16=2536739 global_deltas=462786 layer_deltas=540689 segments=52020 entries=1622298 tokens=252891 memory=17400260 ms=2098.5
+SWEEP_DUP kind_whole_one_nonzero_abs_lex0213_r5 identical_to=kind_whole_nonzero_abs_lex0213_r5
+SWEEP_DUP kind_whole_one_nonzero_abs_lex2013_r0 identical_to=kind_whole_nonzero_abs_lex2013_r0
+SWEEP_DUP kind_whole_one_nonzero_abs_m12_b1_k0_r0 identical_to=kind_whole_nonzero_abs_m12_b1_k0_r0
+SWEEP_DUP kind_whole_one_nonzero_offset_m12_b1_k0_r0 identical_to=kind_whole_nonzero_offset_m12_b1_k0_r0
+SWEEP_DUP whole_one_nonzero_kind_abs_lex0213_r5 identical_to=whole_nonzero_kind_abs_lex0213_r5
+SWEEP_DUP whole_one_nonzero_kind_abs_lex2013_r0 identical_to=whole_nonzero_kind_abs_lex2013_r0
+SWEEP_DUP whole_one_nonzero_kind_abs_m12_b1_k0_r0 identical_to=whole_nonzero_kind_abs_m12_b1_k0_r0
+SWEEP_DUP whole_one_nonzero_kind_offset_m12_b1_k0_r0 identical_to=whole_nonzero_kind_offset_m12_b1_k0_r0
+SWEEP_DONE unique_candidates=13 seconds=39.195
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 58.24s
+

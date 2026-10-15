@@ -1,0 +1,12 @@
+WIRE_LAYOUT identity_one_swap_last moved=36 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_identity_one_swap_last__global_abs_m12_b1_k0_r0 raw=264762 zstd3=128679 global_deltas=13783 layer_deltas=15720 segments=4239 entries=128286 tokens=8380 memory=899920 ms=43.9
+SIZE wire_identity_one_swap_last__global_abs_m12_b1_k0_r0_lfc1: raw=3134392 zstd16=88005 zstd22=82909
+SIZE wire_identity_one_swap_last__global_abs_m12_b1_k0_r0_lfc2_native: raw=534345 zstd16=105383 zstd22=98368
+SIZE wire_identity_one_swap_last__global_abs_m12_b1_k0_r0_lfc2: raw=264762 zstd16=119339 zstd22=111650
+SWEEP_CHECK wire_identity_one_swap_last__global_abs_m12_b1_k0_r0 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=9.765
+WIRE_LAYOUT reverse moved=167714 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+SWEEP wire_reverse__global_abs_m12_b1_k0_r0 raw=264536 zstd3=129368 global_deltas=13712 layer_deltas=15632 segments=4262 entries=128414 tokens=8412 memory=899704 ms=43.7
+SIZE wire_reverse__global_abs_m12_b1_k0_r0_lfc1: raw=3134392 zstd16=89717 zstd22=85514
+SIZE wire_reverse__global_abs_m12_b1_k0_r0_lfc2_native: raw=486973 zstd16=106540 zstd22=99842
+SIZE wire_reverse__global_abs_m12_b1_k0_r0_lfc2: raw=264536 zstd16=120306 zstd22=112475
+SWEEP_CHECK wire_reverse__global_abs_m12_b1_k0_r0 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=9.794

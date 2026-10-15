@@ -1,0 +1,33 @@
+   Compiling circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6.12s
+     Running unittests src/lib.rs (target/debug/deps/circuits_experimental-d462dc731729433c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/experimental_tests.rs (target/debug/deps/experimental_tests-cf95e9ede4d28047)
+
+running 5 tests
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+
+thread 'all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected' (279) panicked at circuits/experimental/tests/all/../../../../compile/compiler/experiments/layer_wires.rs:53:5:
+All circuit input IDs must remain fixed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+WIRE_LAYOUT identity moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+WIRE_LAYOUT bary3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT median3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bip1_first moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bip0_fanin moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT whole_shape moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity_one_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity_one_swap_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT rotate2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bitrev3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT xor2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s

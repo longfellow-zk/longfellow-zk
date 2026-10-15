@@ -1,0 +1,89 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 4773, npublic_input: 1, noutput: 6, nwires: 167739, nterms: 259551, nlayers: 19, nassertions: 4796 }
+ANALYZE mdoc_signature id=[2b, 08, 70, bd, 6a, 14, 39, 85, be, 93, 79, 0f, 2c, aa, 6b, 66, 81, 3e, 6b, ff, 27, e8, 7a, d6, e9, 93, 0f, 62, 1b, a2, 74, e9]
+BIPARTITE_LAYER with_one depth=1 components=1 largest_outputs=19846 total_outputs=19846 largest_terms=42684 total_terms=42684 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=2 components=5709 largest_outputs=22285 total_outputs=30555 largest_terms=44327 total_terms=57205 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=3 components=6547 largest_outputs=23063 total_outputs=29613 largest_terms=43563 total_terms=50119 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=4 components=8109 largest_outputs=14255 total_outputs=22363 largest_terms=23131 total_terms=31239 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=5 components=5399 largest_outputs=13401 total_outputs=18811 largest_terms=19725 total_terms=25139 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=6 components=3019 largest_outputs=9799 total_outputs=13065 largest_terms=12457 total_terms=15731 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=7 components=2061 largest_outputs=5803 total_outputs=8103 largest_terms=8915 total_terms=11215 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=8 components=2987 largest_outputs=3725 total_outputs=6891 largest_terms=3753 total_terms=6919 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=9 components=1133 largest_outputs=3045 total_outputs=4453 largest_terms=3065 total_terms=4473 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=10 components=1033 largest_outputs=2329 total_outputs=3493 largest_terms=2341 total_terms=3505 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=11 components=691 largest_outputs=2231 total_outputs=2969 largest_terms=2239 total_terms=2977 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=12 components=557 largest_outputs=1861 total_outputs=2537 largest_terms=1873 total_terms=2549 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=13 components=499 largest_outputs=1423 total_outputs=1939 largest_terms=1489 total_terms=2005 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=14 components=289 largest_outputs=1063 total_outputs=1399 largest_terms=1231 total_terms=1567 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=15 components=169 largest_outputs=757 total_outputs=931 largest_terms=925 total_terms=1099 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=16 components=127 largest_outputs=319 total_outputs=451 largest_terms=499 total_terms=631 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=17 components=61 largest_outputs=121 total_outputs=223 largest_terms=205 total_terms=307 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=18 components=37 largest_outputs=49 total_outputs=91 largest_terms=97 total_terms=139 input_ones=1 output_ones=1
+BIPARTITE_LAYER with_one depth=19 components=1 largest_outputs=6 total_outputs=6 largest_terms=48 total_terms=48 input_ones=1 output_ones=0
+BIPARTITE_CORRECTNESS with_one_morton: canonical_lfc1_exact=true global_deltas=15473 id=[fe, 78, d5, 6a, 93, 8b, 96, 29, bb, 8a, ae, 4a, ad, 1e, 78, b9, 80, 01, ec, f3, aa, c1, 26, 53, 9c, 70, 08, a4, 7d, 24, f9, 21]
+SIZE with_one_morton_lfc1: raw=3134392 zstd16=90890 zstd22=86164
+BIPARTITE_SEGMENT with_one_morton: ms=15.603
+SIZE with_one_morton_lfc2_segmented: raw=273965 zstd16=127027 zstd22=117011
+MEMORY with_one_morton: deltas=17477 segments=4086 segment_entries=122691 tokens=8414 payload_and_segment_headers_bytes=902116 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE with_one_morton: zstd16_decode_and_id_median_ms=9.968 exact=true
+BIPARTITE_CORRECTNESS with_one_h1_h0_g: canonical_lfc1_exact=true global_deltas=42213 id=[87, 0d, e6, f2, b1, f9, d4, 9d, 02, b7, 3f, 78, 76, a0, 5f, eb, e6, be, 51, 6f, 26, 4e, 73, 5f, 1a, ac, 43, 1d, 6f, 46, b2, 2b]
+SIZE with_one_h1_h0_g_lfc1: raw=3134392 zstd16=137879 zstd22=133825
+BIPARTITE_SEGMENT with_one_h1_h0_g: ms=19.316
+SIZE with_one_h1_h0_g_lfc2_segmented: raw=518215 zstd16=241096 zstd22=188144
+MEMORY with_one_h1_h0_g: deltas=47551 segments=5755 segment_entries=173053 tokens=8503 payload_and_segment_headers_bytes=1625160 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE with_one_h1_h0_g: zstd16_decode_and_id_median_ms=11.567 exact=true
+BIPARTITE_CORRECTNESS with_one_h0_h1_g: canonical_lfc1_exact=true global_deltas=26517 id=[5a, bd, 5f, e1, b9, a6, d2, 09, c4, 91, 82, cb, 1a, ed, 44, 48, 9a, aa, a4, d8, 82, 1e, 0b, 65, 53, 3d, 89, 53, 48, a9, ce, fd]
+SIZE with_one_h0_h1_g_lfc1: raw=3134392 zstd16=115858 zstd22=113757
+BIPARTITE_SEGMENT with_one_h0_h1_g: ms=16.762
+SIZE with_one_h0_h1_g_lfc2_segmented: raw=382360 zstd16=187466 zstd22=158856
+MEMORY with_one_h0_h1_g: deltas=28296 segments=4392 segment_entries=135113 tokens=8331 payload_and_segment_headers_bytes=1131920 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE with_one_h0_h1_g: zstd16_decode_and_id_median_ms=10.608 exact=true
+BIPARTITE_LAYER without_one depth=1 components=1043 largest_outputs=9207 total_outputs=19846 largest_terms=20776 total_terms=42684 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=2 components=8485 largest_outputs=3924 total_outputs=30555 largest_terms=8424 total_terms=57205 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=3 components=13890 largest_outputs=2560 total_outputs=29613 largest_terms=7424 total_terms=50119 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=4 components=15700 largest_outputs=860 total_outputs=22363 largest_terms=2048 total_terms=31239 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=5 components=11836 largest_outputs=396 total_outputs=18811 largest_terms=780 total_terms=25139 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=6 components=9771 largest_outputs=35 total_outputs=13065 largest_terms=35 total_terms=15731 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=7 components=5699 largest_outputs=35 total_outputs=8103 largest_terms=35 total_terms=11215 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=8 components=5469 largest_outputs=53 total_outputs=6891 largest_terms=53 total_terms=6919 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=9 components=3287 largest_outputs=29 total_outputs=4453 largest_terms=29 total_terms=4473 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=10 components=2901 largest_outputs=19 total_outputs=3493 largest_terms=19 total_terms=3505 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=11 components=2165 largest_outputs=29 total_outputs=2969 largest_terms=29 total_terms=2977 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=12 components=1847 largest_outputs=19 total_outputs=2537 largest_terms=19 total_terms=2549 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=13 components=1591 largest_outputs=15 total_outputs=1939 largest_terms=15 total_terms=2005 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=14 components=973 largest_outputs=18 total_outputs=1399 largest_terms=30 total_terms=1567 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=15 components=661 largest_outputs=13 total_outputs=931 largest_terms=29 total_terms=1099 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=16 components=403 largest_outputs=8 total_outputs=451 largest_terms=31 total_terms=631 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=17 components=181 largest_outputs=8 total_outputs=223 largest_terms=15 total_terms=307 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=18 components=85 largest_outputs=2 total_outputs=91 largest_terms=9 total_terms=139 input_ones=1 output_ones=1
+BIPARTITE_LAYER without_one depth=19 components=6 largest_outputs=1 total_outputs=6 largest_terms=8 total_terms=48 input_ones=1 output_ones=0
+BIPARTITE_CORRECTNESS without_one_morton: canonical_lfc1_exact=true global_deltas=47443 id=[d2, cd, 45, c1, bb, 52, 55, 00, 70, cb, 6d, 47, e3, 79, 6c, f6, 05, 38, 83, 53, 4e, 0f, f3, fd, ca, e7, 7f, 99, 63, 9e, 47, ab]
+SIZE without_one_morton_lfc1: raw=3134392 zstd16=194262 zstd22=186192
+BIPARTITE_SEGMENT without_one_morton: ms=28.417
+SIZE without_one_morton_lfc2_segmented: raw=563747 zstd16=284520 zstd22=248107
+MEMORY without_one_morton: deltas=49293 segments=5731 segment_entries=176450 tokens=8424 payload_and_segment_headers_bytes=1665728 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE without_one_morton: zstd16_decode_and_id_median_ms=16.072 exact=true
+BIPARTITE_CORRECTNESS without_one_h1_h0_g: canonical_lfc1_exact=true global_deltas=59619 id=[94, cd, 71, db, 42, 3b, 7b, 6f, 4e, 66, 75, e5, d3, db, 89, d0, cc, fc, 87, c6, 12, 2c, 29, 3e, 81, 19, 07, 65, 84, 43, 7e, 57]
+SIZE without_one_h1_h0_g_lfc1: raw=3134392 zstd16=210711 zstd22=204342
+BIPARTITE_SEGMENT without_one_h1_h0_g: ms=20.112
+SIZE without_one_h1_h0_g_lfc2_segmented: raw=660588 zstd16=339005 zstd22=276050
+MEMORY without_one_h1_h0_g: deltas=63034 segments=6197 segment_entries=188085 tokens=8559 payload_and_segment_headers_bytes=1943848 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE without_one_h1_h0_g: zstd16_decode_and_id_median_ms=12.650 exact=true
+BIPARTITE_CORRECTNESS without_one_h0_h1_g: canonical_lfc1_exact=true global_deltas=55741 id=[33, 80, 30, 05, 9c, 01, 6f, 7a, 5f, 9f, 2e, e5, 5e, f8, e3, 11, 2d, 17, 32, 2e, 70, f2, 8b, 0d, 29, 13, 1d, e5, b5, 3c, 9d, 14]
+SIZE without_one_h0_h1_g_lfc1: raw=3134392 zstd16=216645 zstd22=205225
+BIPARTITE_SEGMENT without_one_h0_h1_g: ms=19.902
+SIZE without_one_h0_h1_g_lfc2_segmented: raw=659623 zstd16=336875 zstd22=282686
+MEMORY without_one_h0_h1_g: deltas=57384 segments=6308 segment_entries=197106 tokens=8347 payload_and_segment_headers_bytes=1891348 excludes_capacity_slack_constants_and_allocator_overhead=true
+BIPARTITE_DECODE without_one_h0_h1_g: zstd16_decode_and_id_median_ms=12.186 exact=true
+test all::signature_compile::analyze_signature_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 8.37s

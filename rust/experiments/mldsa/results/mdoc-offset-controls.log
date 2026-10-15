@@ -1,0 +1,90 @@
+    Blocking waiting for file lock on build directory
+   Compiling mdoc-zk-circuits v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/circuits)
+    Finished `test` profile [optimized + debuginfo] target(s) in 8.84s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 2 tests
+test all::hash_compile::analyze_hash_morton ... GEOMETRY CircuitGeometry { ninput: 284717, npublic_input: 1, noutput: 16, nwires: 2635391, nterms: 5038540, nlayers: 20, nassertions: 303413 }
+ANALYZE mdoc_hash id=[7f, ec, 95, 56, 51, 4f, 03, fb, 2f, 83, 3c, f2, e5, ea, 7e, 87, 3e, 06, 2b, 4d, 83, 25, 1e, 7b, 91, 4e, 36, fc, 43, be, 97, 26]
+GRAPH components=284873 largest=[1510698, 355768, 75210, 75210, 21474, 21474, 2632, 2632, 58, 58, 58, 58, 58, 58, 58, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4] constants=20 inputs=284717
+SEQUENCES absolute: terms=5038540 distinct_deltas=18449 chunks32=157445 unique_chunks32=12698 repeated_chunk_occurrences=149613 distinct_coordinate_triples=11694
+CORRESPONDENCE rank: repeated_whole_component_families=3
+PAIR rank: components=284718,286313 family=2 wires=21474 terms=40132 exact_local_DAG=true same_normalized_absolute_layers=0/20 differing_sequence_positions=19296 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_item_slot_key_only/assert_cbor_length/assert_checked_add/assert_wrapping_add/rest_assert/rest_assert.5/bit_carry") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_item_slot_key_only/assert_cbor_length/assert_checked_add/assert_wrapping_add/rest_assert/rest_assert.5/bit_carry")
+TRANSLATION_WITNESS rank: depth=10 dg=1110 dh=1121 first_interior_mismatch=8 local_a=[12, 10, 15, 0] local_b=[17, 8, 16, 0] left_a=[629, 1250, 1255, 0] left_b=[634, 1248, 1256, 0] right_a=[1739, 2371, 2376, 0] right_b=[1744, 2369, 2377, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=11/20 translated_interior_mismatch_layers=7 interior_sequence_mismatches=16001
+PAIR_LAYER depth=1 first_mismatch=530 left=[257, 257, 258, 0] right=[520, 0, 512, 0] output_bases=1,1596 shared_ports=1901 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=518 left=[262, 257, 263, 0] right=[516, 0, 517, 0] output_bases=1,1594 shared_ports=1 input_bases=Some(1),Some(1596)
+PAIR rank: components=386042,391322 family=2 wires=75210 terms=155785 exact_local_DAG=true same_normalized_absolute_layers=4/13 differing_sequence_positions=43268 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_message_hash/assert_intermediate_hashes/assert_intermediate_hashes.0/sha256/rounds/rounds.4/round_step/assert_wrapping_sum_gf2") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_message_hash/assert_intermediate_hashes/assert_intermediate_hashes.0/sha256/rounds/rounds.4/round_step/assert_wrapping_sum_gf2")
+TRANSLATION_WITNESS rank: depth=9 dg=1849 dh=934 first_interior_mismatch=97 local_a=[98, 198, 199, 0] local_b=[99, 197, 200, 0] left_a=[3579, 4074, 4075, 0] left_b=[3580, 4073, 4076, 0] right_a=[5428, 5008, 5009, 0] right_b=[5429, 5007, 5010, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=5/13 translated_interior_mismatch_layers=2 interior_sequence_mismatches=10287
+PAIR_LAYER depth=1 first_mismatch=74236 left=[6249, 2561, 2593, 12] right=[22188, 0, 8148, 12] output_bases=101325,106605 shared_ports=12801 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=0 left=[3101, 0, 6201, 0] right=[0, 1, 2, 0] output_bases=75125,78964 shared_ports=1 input_bases=Some(101325),Some(106605)
+PAIR rank: components=386046,391326 family=2 wires=2632 terms=4845 exact_local_DAG=true same_normalized_absolute_layers=3/8 differing_sequence_positions=608 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_message_hash/assert_nblocks/limit_lower") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_message_hash/assert_nblocks/limit_lower")
+TRANSLATION_WITNESS rank: depth=3 dg=22713 dh=3839 first_interior_mismatch=252 local_a=[254, 383, 416, 0] local_b=[255, 380, 419, 0] left_a=[125415, 78619, 78658, 0] left_b=[125416, 78616, 78663, 0] right_a=[148128, 82458, 82497, 0] right_b=[148129, 82455, 82502, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=7/8 translated_interior_mismatch_layers=4 interior_sequence_mismatches=426
+PAIR_LAYER depth=1 first_mismatch=1733 left=[46, 77, 78, 0] right=[658, 32, 1032, 0] output_bases=101329,106609 shared_ports=1035 input_bases=None,None
+PAIR_LAYER depth=3 first_mismatch=445 left=[254, 383, 416, 0] right=[255, 380, 419, 0] output_bases=123613,146326 shared_ports=1 input_bases=Some(75131),Some(78970)
+SEQUENCES rank_absolute_subsequence_normalized: terms=5038540 distinct_deltas=13996 chunks32=130650 unique_chunks32=9049 repeated_chunk_occurrences=125338 distinct_coordinate_triples=8074
+SEQUENCES rank_local_morton: terms=5038540 distinct_deltas=13669 chunks32=130650 unique_chunks32=8319 repeated_chunk_occurrences=126641 distinct_coordinate_triples=7726
+SEQUENCES offset_absolute_subsequence: terms=5038540 distinct_deltas=17508 chunks32=130650 unique_chunks32=10258 repeated_chunk_occurrences=124290 distinct_coordinate_triples=11171
+SEQUENCES offset_local_morton: terms=5038540 distinct_deltas=17747 chunks32=130650 unique_chunks32=10217 repeated_chunk_occurrences=124852 distinct_coordinate_triples=11388
+SEQUENCES offset_interior_absolute_subsequence: terms=1660202 distinct_deltas=11223 chunks32=42924 unique_chunks32=6738 repeated_chunk_occurrences=38070 distinct_coordinate_triples=6317
+SEQUENCES offset_interior_local_morton: terms=1660202 distinct_deltas=11134 chunks32=42924 unique_chunks32=6400 repeated_chunk_occurrences=38827 distinct_coordinate_triples=6218
+LAYOUT fragmented_components=111 fully_contiguous_component_terms=855254 output_mapping_runs=1173015 component_layer_blocks=569946
+SEQUENCES rank_absolute_subsequence_absolute_coords: terms=5038540 distinct_deltas=872262 chunks32=130650 unique_chunks32=10305 repeated_chunk_occurrences=124208 distinct_coordinate_triples=865931
+SEQUENCES rank_interior_absolute_subsequence: terms=1660202 distinct_deltas=10479 chunks32=42924 unique_chunks32=5913 repeated_chunk_occurrences=39030 distinct_coordinate_triples=5680
+SEQUENCES rank_interior_local_morton: terms=1660202 distinct_deltas=9758 chunks32=42924 unique_chunks32=4738 repeated_chunk_occurrences=40478 distinct_coordinate_triples=4941
+CORRESPONDENCE structural: repeated_whole_component_families=3
+PAIR structural: components=284718,286313 family=2 wires=21474 terms=40132 exact_local_DAG=true same_normalized_absolute_layers=0/20 differing_sequence_positions=19296 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_item_slot_key_only/assert_cbor_length/assert_checked_add/assert_wrapping_add/rest_assert/rest_assert.5/bit_carry") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_item_slot_key_only/assert_cbor_length/assert_checked_add/assert_wrapping_add/rest_assert/rest_assert.5/bit_carry")
+TRANSLATION_WITNESS structural: depth=10 dg=1110 dh=1121 first_interior_mismatch=8 local_a=[198, 161, 164, 0] local_b=[1108, 1098, 1099, 0] left_a=[629, 1250, 1255, 0] left_b=[634, 1248, 1256, 0] right_a=[1739, 2371, 2376, 0] right_b=[1744, 2369, 2377, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=11/20 translated_interior_mismatch_layers=7 interior_sequence_mismatches=16001
+PAIR_LAYER depth=1 first_mismatch=530 left=[259, 257, 258, 0] right=[518, 0, 512, 0] output_bases=1575,3170 shared_ports=1901 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=518 left=[269, 261, 1987, 0] right=[517, 0, 515, 0] output_bases=520,2113 shared_ports=1 input_bases=Some(1575),Some(3170)
+PAIR structural: components=386042,391322 family=2 wires=75210 terms=155785 exact_local_DAG=true same_normalized_absolute_layers=4/13 differing_sequence_positions=43268 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_message_hash/assert_intermediate_hashes/assert_intermediate_hashes.0/sha256/rounds/rounds.4/round_step/assert_wrapping_sum_gf2") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_message_hash/assert_intermediate_hashes/assert_intermediate_hashes.0/sha256/rounds/rounds.4/round_step/assert_wrapping_sum_gf2")
+TRANSLATION_WITNESS structural: depth=9 dg=1849 dh=934 first_interior_mismatch=97 local_a=[1736, 195, 196, 0] local_b=[1735, 194, 197, 0] left_a=[3579, 4074, 4075, 0] left_b=[3580, 4073, 4076, 0] right_a=[5428, 5008, 5009, 0] right_b=[5429, 5007, 5010, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=5/13 translated_interior_mismatch_layers=2 interior_sequence_mismatches=10287
+PAIR_LAYER depth=1 first_mismatch=74236 left=[35124, 2561, 2593, 12] right=[20198, 0, 8148, 12] output_bases=101325,106605 shared_ports=12801 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=0 left=[2, 0, 35148, 0] right=[6, 1, 2, 0] output_bases=91455,119759 shared_ports=1 input_bases=Some(101325),Some(106605)
+PAIR structural: components=386046,391326 family=2 wires=2632 terms=4845 exact_local_DAG=true same_normalized_absolute_layers=3/8 differing_sequence_positions=608 paths=Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_message_hash/assert_nblocks/limit_lower") / Some("assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.1/attribute_item/assert_attribute/assert_message_hash/assert_nblocks/limit_lower")
+TRANSLATION_WITNESS structural: depth=3 dg=22713 dh=3839 first_interior_mismatch=252 local_a=[109, 20, 440, 0] local_b=[484, 429, 438, 0] left_a=[125415, 78619, 78658, 0] left_b=[125416, 78616, 78663, 0] right_a=[148128, 82458, 82497, 0] right_b=[148129, 82455, 82502, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=7/8 translated_interior_mismatch_layers=4 interior_sequence_mismatches=426
+PAIR_LAYER depth=1 first_mismatch=1733 left=[37, 77, 78, 0] right=[663, 32, 1032, 0] output_bases=101329,106609 shared_ports=1035 input_bases=None,None
+PAIR_LAYER depth=3 first_mismatch=445 left=[109, 20, 440, 0] right=[484, 429, 438, 0] output_bases=125407,148120 shared_ports=1 input_bases=Some(78624),Some(82463)
+SEQUENCES structural_absolute_subsequence_normalized: terms=5038540 distinct_deltas=301809 chunks32=130650 unique_chunks32=29416 repeated_chunk_occurrences=105225 distinct_coordinate_triples=290940
+SEQUENCES structural_local_morton: terms=5038540 distinct_deltas=44937 chunks32=130650 unique_chunks32=8322 repeated_chunk_occurrences=125525 distinct_coordinate_triples=41068
+ok
+test all::signature_compile::analyze_signature_morton ... GEOMETRY CircuitGeometry { ninput: 4773, npublic_input: 1, noutput: 6, nwires: 167739, nterms: 259551, nlayers: 19, nassertions: 4796 }
+ANALYZE mdoc_signature id=[2b, 08, 70, bd, 6a, 14, 39, 85, be, 93, 79, 0f, 2c, aa, 6b, 66, 81, 3e, 6b, ff, 27, e8, 7a, d6, e9, 93, 0f, 62, 1b, a2, 74, e9]
+GRAPH components=2732 largest=[110554, 25779, 25779, 35, 35, 21, 21, 21, 21, 21, 21, 8, 5, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] constants=19 inputs=4773
+SEQUENCES absolute: terms=259551 distinct_deltas=14192 chunks32=8101 unique_chunks32=4489 repeated_chunk_occurrences=4041 distinct_coordinate_triples=12022
+CORRESPONDENCE rank: repeated_whole_component_families=1
+PAIR rank: components=5537,9161 family=2 wires=25779 terms=48315 exact_local_DAG=true same_normalized_absolute_layers=1/12 differing_sequence_positions=29772 paths=Some("signature/ecdsa/nms_lt_order") / Some("signature/ecdsa/nms_lt_order")
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=4/12 translated_interior_mismatch_layers=0 interior_sequence_mismatches=9992
+PAIR_LAYER depth=1 first_mismatch=2302 left=[3, 260, 260, 0] right=[1741, 0, 510, 0] output_bases=764,4388 shared_ports=1295 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=706 left=[3, 3, 4, 1] right=[257, 0, 227, 0] output_bases=647,4250 shared_ports=1 input_bases=Some(764),Some(4388)
+SEQUENCES rank_absolute_subsequence_normalized: terms=259551 distinct_deltas=12017 chunks32=7829 unique_chunks32=4219 repeated_chunk_occurrences=4032 distinct_coordinate_triples=10764
+SEQUENCES rank_local_morton: terms=259551 distinct_deltas=12040 chunks32=7829 unique_chunks32=4103 repeated_chunk_occurrences=4436 distinct_coordinate_triples=10830
+SEQUENCES offset_absolute_subsequence: terms=259551 distinct_deltas=12437 chunks32=7829 unique_chunks32=4255 repeated_chunk_occurrences=3989 distinct_coordinate_triples=11184
+SEQUENCES offset_local_morton: terms=259551 distinct_deltas=12598 chunks32=7829 unique_chunks32=4229 repeated_chunk_occurrences=4111 distinct_coordinate_triples=11355
+SEQUENCES offset_interior_absolute_subsequence: terms=119940 distinct_deltas=7925 chunks32=3644 unique_chunks32=2491 repeated_chunk_occurrences=1315 distinct_coordinate_triples=7463
+SEQUENCES offset_interior_local_morton: terms=119940 distinct_deltas=7934 chunks32=3644 unique_chunks32=2448 repeated_chunk_occurrences=1369 distinct_coordinate_triples=7473
+LAYOUT fragmented_components=14 fully_contiguous_component_terms=8110 output_mapping_runs=7154 component_layer_blocks=5500
+SEQUENCES rank_absolute_subsequence_absolute_coords: terms=259551 distinct_deltas=20589 chunks32=7829 unique_chunks32=4264 repeated_chunk_occurrences=3977 distinct_coordinate_triples=19331
+SEQUENCES rank_interior_absolute_subsequence: terms=119940 distinct_deltas=7825 chunks32=3644 unique_chunks32=2479 repeated_chunk_occurrences=1338 distinct_coordinate_triples=7351
+SEQUENCES rank_interior_local_morton: terms=119940 distinct_deltas=7598 chunks32=3644 unique_chunks32=2326 repeated_chunk_occurrences=1567 distinct_coordinate_triples=7148
+CORRESPONDENCE structural: repeated_whole_component_families=1
+PAIR structural: components=5537,9161 family=2 wires=25779 terms=48315 exact_local_DAG=true same_normalized_absolute_layers=1/12 differing_sequence_positions=29772 paths=Some("signature/ecdsa/nms_lt_order") / Some("signature/ecdsa/nms_lt_order")
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=4/12 translated_interior_mismatch_layers=0 interior_sequence_mismatches=9992
+PAIR_LAYER depth=1 first_mismatch=2302 left=[2323, 260, 260, 0] right=[1522, 0, 510, 0] output_bases=804,4423 shared_ports=1295 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=706 left=[1024, 530, 2324, 1] right=[1132, 0, 657, 0] output_bases=25157,27996 shared_ports=1 input_bases=Some(804),Some(4423)
+SEQUENCES structural_absolute_subsequence_normalized: terms=259551 distinct_deltas=53521 chunks32=7829 unique_chunks32=5572 repeated_chunk_occurrences=2837 distinct_coordinate_triples=48318
+SEQUENCES structural_local_morton: terms=259551 distinct_deltas=13423 chunks32=7829 unique_chunks32=3310 repeated_chunk_occurrences=5576 distinct_coordinate_triples=10570
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 20.49s

@@ -1,0 +1,412 @@
+{
+  "44": {
+    "runs": [
+      {
+        "trial": 1,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 669700,
+          "lfc1_zstd22": 616173,
+          "lfc2": 2670639,
+          "lfc2_zstd16": 997383,
+          "lfc2_zstd22": 959815
+        },
+        "proofBytes": 665736,
+        "commitMs": 247.515244,
+        "proveMs": 872.57465,
+        "proverTotalMs": 1120.089894,
+        "verifyMs": 669.515212,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699,
+        "id": "1c882777f206c0cf031a2a26ede3b17de2a5b1730ec3cf6d74a5cf62bff12e5f",
+        "layerDeltas": 178492,
+        "segments": 30026,
+        "rssKiB": 1806180
+      },
+      {
+        "trial": 2,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 669700,
+          "lfc1_zstd22": 616173,
+          "lfc2": 2670639,
+          "lfc2_zstd16": 997383,
+          "lfc2_zstd22": 959815
+        },
+        "proofBytes": 665736,
+        "commitMs": 248.953057,
+        "proveMs": 873.259846,
+        "proverTotalMs": 1122.212903,
+        "verifyMs": 673.153658,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699,
+        "id": "1c882777f206c0cf031a2a26ede3b17de2a5b1730ec3cf6d74a5cf62bff12e5f",
+        "layerDeltas": 178492,
+        "segments": 30026,
+        "rssKiB": 1806324
+      },
+      {
+        "trial": 3,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 669700,
+          "lfc1_zstd22": 616173,
+          "lfc2": 2670639,
+          "lfc2_zstd16": 997383,
+          "lfc2_zstd22": 959815
+        },
+        "proofBytes": 665736,
+        "commitMs": 247.212091,
+        "proveMs": 870.102729,
+        "proverTotalMs": 1117.31482,
+        "verifyMs": 672.281386,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699,
+        "id": "1c882777f206c0cf031a2a26ede3b17de2a5b1730ec3cf6d74a5cf62bff12e5f",
+        "layerDeltas": 178492,
+        "segments": 30026,
+        "rssKiB": 1806340
+      }
+    ],
+    "baselineRuns": [
+      {
+        "trial": 1,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 2987771,
+          "lfc1_zstd22": 2933070,
+          "lfc2": 7275471,
+          "lfc2_zstd16": 3857534,
+          "lfc2_zstd22": 3776435
+        },
+        "proofBytes": 665608,
+        "commitMs": 249.168244,
+        "proveMs": 1085.022273,
+        "proverTotalMs": 1334.190517,
+        "verifyMs": 700.306346,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699
+      },
+      {
+        "trial": 2,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 2987771,
+          "lfc1_zstd22": 2933070,
+          "lfc2": 7275471,
+          "lfc2_zstd16": 3857534,
+          "lfc2_zstd22": 3776435
+        },
+        "proofBytes": 665608,
+        "commitMs": 247.677697,
+        "proveMs": 1083.1168739999998,
+        "proverTotalMs": 1330.794571,
+        "verifyMs": 703.067924,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699
+      },
+      {
+        "trial": 3,
+        "geometry": {
+          "ninput": 128272,
+          "npublic_input": 5121,
+          "noutput": 2263,
+          "nwires": 3449557,
+          "nterms": 6580787,
+          "nlayers": 37,
+          "nassertions": 144961
+        },
+        "sizes": {
+          "lfc1": 78996522,
+          "lfc1_zstd16": 2987771,
+          "lfc1_zstd22": 2933070,
+          "lfc2": 7275471,
+          "lfc2_zstd16": 3857534,
+          "lfc2_zstd22": 3776435
+        },
+        "proofBytes": 665608,
+        "commitMs": 248.564506,
+        "proveMs": 1079.021474,
+        "proverTotalMs": 1327.5859799999998,
+        "verifyMs": 701.293577,
+        "witnesses": 125766,
+        "constraints": 37,
+        "blockEnc": 5699
+      }
+    ],
+    "median": {
+      "commitMs": 247.515244,
+      "proveMs": 872.57465,
+      "proverTotalMs": 1120.089894,
+      "verifyMs": 672.281386
+    },
+    "baselineMedian": {
+      "commitMs": 248.564506,
+      "proveMs": 1083.1168739999998,
+      "proverTotalMs": 1330.794571,
+      "verifyMs": 701.293577
+    },
+    "memory": {
+      "commit_peak_additional": 28389684,
+      "prove_peak_additional": 90284524,
+      "prover_total_peak_additional": 112464132,
+      "verify_peak_additional": 22056184,
+      "rssKiB": 1808988
+    }
+  },
+  "65": {
+    "runs": [
+      {
+        "trial": 1,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 861477,
+          "lfc1_zstd22": 640820,
+          "lfc2": 2896804,
+          "lfc2_zstd16": 1031363,
+          "lfc2_zstd22": 989616
+        },
+        "proofBytes": 719048,
+        "commitMs": 271.476386,
+        "proveMs": 993.077508,
+        "proverTotalMs": 1264.553894,
+        "verifyMs": 761.32816,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113,
+        "id": "a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8",
+        "layerDeltas": 176295,
+        "segments": 32879,
+        "rssKiB": 2559232
+      },
+      {
+        "trial": 2,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 861477,
+          "lfc1_zstd22": 640820,
+          "lfc2": 2896804,
+          "lfc2_zstd16": 1031363,
+          "lfc2_zstd22": 989616
+        },
+        "proofBytes": 719048,
+        "commitMs": 273.193153,
+        "proveMs": 982.959606,
+        "proverTotalMs": 1256.152759,
+        "verifyMs": 751.028028,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113,
+        "id": "a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8",
+        "layerDeltas": 176295,
+        "segments": 32879,
+        "rssKiB": 2559232
+      },
+      {
+        "trial": 3,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 861477,
+          "lfc1_zstd22": 640820,
+          "lfc2": 2896804,
+          "lfc2_zstd16": 1031363,
+          "lfc2_zstd22": 989616
+        },
+        "proofBytes": 719048,
+        "commitMs": 272.0305,
+        "proveMs": 977.802858,
+        "proverTotalMs": 1249.833358,
+        "verifyMs": 745.100697,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113,
+        "id": "a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8",
+        "layerDeltas": 176295,
+        "segments": 32879,
+        "rssKiB": 2559488
+      }
+    ],
+    "baselineRuns": [
+      {
+        "trial": 1,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 3060896,
+          "lfc1_zstd22": 2917836,
+          "lfc2": 7361859,
+          "lfc2_zstd16": 3877321,
+          "lfc2_zstd22": 3800283
+        },
+        "proofBytes": 718216,
+        "commitMs": 272.065297,
+        "proveMs": 1154.105269,
+        "proverTotalMs": 1426.1705659999998,
+        "verifyMs": 751.327955,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113
+      },
+      {
+        "trial": 2,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 3060896,
+          "lfc1_zstd22": 2917836,
+          "lfc2": 7361859,
+          "lfc2_zstd16": 3877321,
+          "lfc2_zstd22": 3800283
+        },
+        "proofBytes": 718216,
+        "commitMs": 273.643405,
+        "proveMs": 1140.0596970000001,
+        "proverTotalMs": 1413.7031020000002,
+        "verifyMs": 748.779972,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113
+      },
+      {
+        "trial": 3,
+        "geometry": {
+          "ninput": 156263,
+          "npublic_input": 9217,
+          "noutput": 2336,
+          "nwires": 3599744,
+          "nterms": 7953988,
+          "nlayers": 37,
+          "nassertions": 172323
+        },
+        "sizes": {
+          "lfc1": 95475126,
+          "lfc1_zstd16": 3060896,
+          "lfc1_zstd22": 2917836,
+          "lfc2": 7361859,
+          "lfc2_zstd16": 3877321,
+          "lfc2_zstd22": 3800283
+        },
+        "proofBytes": 718216,
+        "commitMs": 276.009378,
+        "proveMs": 1145.9657590000002,
+        "proverTotalMs": 1421.9751370000001,
+        "verifyMs": 754.345689,
+        "witnesses": 149677,
+        "constraints": 37,
+        "blockEnc": 6113
+      }
+    ],
+    "median": {
+      "commitMs": 272.0305,
+      "proveMs": 982.959606,
+      "proverTotalMs": 1256.152759,
+      "verifyMs": 751.028028
+    },
+    "baselineMedian": {
+      "commitMs": 273.643405,
+      "proveMs": 1145.9657590000002,
+      "proverTotalMs": 1421.9751370000001,
+      "verifyMs": 751.327955
+    },
+    "memory": {
+      "commit_peak_additional": 33332436,
+      "prove_peak_additional": 94810948,
+      "prover_total_peak_additional": 120797940,
+      "verify_peak_additional": 25316376,
+      "rssKiB": 2572272
+    }
+  }
+}

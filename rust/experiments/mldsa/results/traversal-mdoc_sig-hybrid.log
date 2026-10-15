@@ -1,0 +1,58 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mdoc_sig CircuitGeometry { ninput: 3941, npublic_input: 707, noutput: 6, nwires: 179677, nterms: 276481, nlayers: 21, nassertions: 3964 }
+ANALYZE mdoc_sig id=[d3, af, d8, 08, 31, 89, 53, 7d, e2, e8, 03, ed, 49, f8, 9c, 5b, 89, 6b, c0, 07, 96, 1b, 56, 0a, 1d, 6f, c8, eb, 67, ef, 9a, b4]
+SWEEP_CONFIG orders=12 extended=true final=false contexts=hybrid,hybrid_arity,hybrid_coeffclass,hybrid_coefficient coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP hybrid_abs_lex0123_r0 raw=220904 zstd3=78899 zstd16=64774 global_deltas=11297 layer_deltas=12953 segments=3317 entries=103481 tokens=8787 memory=735928 ms=66.2
+SWEEP hybrid_abs_lex0123_r5 raw=225576 zstd3=79528 zstd16=65222 global_deltas=11289 layer_deltas=12937 segments=3472 entries=108130 tokens=8815 memory=758100 ms=70.2
+SWEEP_DUP hybrid_abs_lex0213_r0 identical_to=hybrid_abs_lex0123_r0
+SWEEP_DUP hybrid_abs_lex0213_r5 identical_to=hybrid_abs_lex0123_r5
+SWEEP hybrid_abs_lex1023_r0 raw=189488 zstd3=68359 zstd16=58643 global_deltas=8745 layer_deltas=10028 segments=2852 entries=85915 tokens=8887 memory=608104 ms=61.5
+SWEEP hybrid_abs_lex1023_r5 raw=194091 zstd3=69232 zstd16=59368 global_deltas=8658 layer_deltas=9942 segments=3017 entries=90975 tokens=8879 memory=630896 ms=62.9
+SWEEP hybrid_abs_lex1203_r0 raw=189562 zstd3=68453 zstd16=58686 global_deltas=8753 layer_deltas=10037 segments=2850 entries=85918 tokens=8884 memory=608200 ms=72.5
+SWEEP hybrid_abs_lex1203_r5 raw=194165 zstd3=69315 zstd16=59356 global_deltas=8665 layer_deltas=9949 segments=3016 entries=91002 tokens=8878 memory=631088 ms=63.2
+SWEEP hybrid_abs_lex2013_r0 raw=220971 zstd3=78996 zstd16=64734 global_deltas=11305 layer_deltas=12961 segments=3316 entries=103484 tokens=8785 memory=736036 ms=67.0
+SWEEP hybrid_abs_lex2013_r5 raw=225676 zstd3=79702 zstd16=65215 global_deltas=11294 layer_deltas=12943 segments=3473 entries=108189 tokens=8815 memory=758456 ms=68.4
+SWEEP hybrid_abs_lex2103_r0 raw=220963 zstd3=78948 zstd16=64787 global_deltas=11304 layer_deltas=12960 segments=3316 entries=103484 tokens=8785 memory=736020 ms=68.2
+SWEEP hybrid_abs_lex2103_r5 raw=226571 zstd3=80464 zstd16=65838 global_deltas=11457 layer_deltas=13042 segments=3471 entries=108311 tokens=8797 memory=760408 ms=69.3
+SWEEP hybrid_arity_abs_lex0123_r0 raw=220929 zstd3=79008 zstd16=64852 global_deltas=11304 layer_deltas=12960 segments=3317 entries=103441 tokens=8788 memory=735884 ms=70.8
+SWEEP hybrid_arity_abs_lex0123_r5 raw=225600 zstd3=79659 zstd16=65369 global_deltas=11296 layer_deltas=12944 segments=3473 entries=108090 tokens=8817 memory=758084 ms=69.0
+SWEEP_DUP hybrid_arity_abs_lex0213_r0 identical_to=hybrid_arity_abs_lex0123_r0
+SWEEP_DUP hybrid_arity_abs_lex0213_r5 identical_to=hybrid_arity_abs_lex0123_r5
+SWEEP hybrid_arity_abs_lex1023_r0 raw=189521 zstd3=68467 zstd16=58831 global_deltas=8752 layer_deltas=10035 segments=2852 entries=85875 tokens=8888 memory=608060 ms=62.6
+SWEEP hybrid_arity_abs_lex1023_r5 raw=194116 zstd3=69328 zstd16=59544 global_deltas=8665 layer_deltas=9949 segments=3018 entries=90935 tokens=8881 memory=630880 ms=65.3
+SWEEP hybrid_arity_abs_lex1203_r0 raw=189598 zstd3=68477 zstd16=58716 global_deltas=8760 layer_deltas=10044 segments=2851 entries=85878 tokens=8886 memory=608184 ms=63.9
+SWEEP hybrid_arity_abs_lex1203_r5 raw=194188 zstd3=69349 zstd16=59524 global_deltas=8672 layer_deltas=9956 segments=3017 entries=90962 tokens=8880 memory=631072 ms=68.2
+SWEEP hybrid_arity_abs_lex2013_r0 raw=220999 zstd3=79034 zstd16=64849 global_deltas=11312 layer_deltas=12968 segments=3317 entries=103444 tokens=8787 memory=736020 ms=69.0
+SWEEP hybrid_arity_abs_lex2013_r5 raw=225700 zstd3=79759 zstd16=65315 global_deltas=11301 layer_deltas=12950 segments=3474 entries=108149 tokens=8817 memory=758440 ms=80.9
+SWEEP hybrid_arity_abs_lex2103_r0 raw=220991 zstd3=79025 zstd16=64961 global_deltas=11311 layer_deltas=12967 segments=3317 entries=103444 tokens=8787 memory=736004 ms=69.9
+SWEEP hybrid_arity_abs_lex2103_r5 raw=226607 zstd3=80588 zstd16=65975 global_deltas=11464 layer_deltas=13049 segments=3472 entries=108271 tokens=8799 memory=760392 ms=72.3
+SWEEP hybrid_coeffclass_abs_lex0123_r0 raw=178358 zstd3=63652 zstd16=54455 global_deltas=8905 layer_deltas=10500 segments=2678 entries=78380 tokens=8970 memory=581672 ms=61.2
+SWEEP hybrid_coeffclass_abs_lex0123_r5 raw=185501 zstd3=64504 zstd16=55368 global_deltas=8896 layer_deltas=10493 segments=2855 entries=84824 tokens=8933 memory=611436 ms=61.9
+SWEEP_DUP hybrid_coeffclass_abs_lex0213_r0 identical_to=hybrid_coeffclass_abs_lex0123_r0
+SWEEP_DUP hybrid_coeffclass_abs_lex0213_r5 identical_to=hybrid_coeffclass_abs_lex0123_r5
+SWEEP hybrid_coeffclass_abs_lex1023_r0 raw=183682 zstd3=66949 zstd16=57820 global_deltas=8685 layer_deltas=9962 segments=2734 entries=81003 tokens=8922 memory=584708 ms=62.3
+SWEEP hybrid_coeffclass_abs_lex1023_r5 raw=189549 zstd3=68326 zstd16=58794 global_deltas=8687 layer_deltas=9977 segments=2887 entries=86352 tokens=8907 memory=609956 ms=64.1
+SWEEP hybrid_coeffclass_abs_lex1203_r0 raw=183699 zstd3=66988 zstd16=57830 global_deltas=8687 layer_deltas=9965 segments=2732 entries=81006 tokens=8919 memory=584708 ms=62.5
+SWEEP hybrid_coeffclass_abs_lex1203_r5 raw=189591 zstd3=68407 zstd16=58784 global_deltas=8693 layer_deltas=9980 segments=2886 entries=86379 tokens=8906 memory=610084 ms=63.9
+SWEEP hybrid_coeffclass_abs_lex2013_r0 raw=178378 zstd3=63739 zstd16=54451 global_deltas=8905 layer_deltas=10502 segments=2677 entries=78383 tokens=8968 memory=581684 ms=61.7
+SWEEP hybrid_coeffclass_abs_lex2013_r5 raw=185546 zstd3=64548 zstd16=55320 global_deltas=8900 layer_deltas=10495 segments=2855 entries=84851 tokens=8933 memory=611576 ms=62.6
+SWEEP hybrid_coeffclass_abs_lex2103_r0 raw=178365 zstd3=63648 zstd16=54438 global_deltas=8903 layer_deltas=10500 segments=2677 entries=78383 tokens=8968 memory=581652 ms=61.7
+SWEEP hybrid_coeffclass_abs_lex2103_r5 raw=186275 zstd3=65244 zstd16=55899 global_deltas=9028 layer_deltas=10572 segments=2858 entries=84947 tokens=8933 memory=613264 ms=62.8
+SWEEP hybrid_coefficient_abs_lex0123_r0 raw=181100 zstd3=63666 zstd16=54350 global_deltas=8823 layer_deltas=10419 segments=2748 entries=81132 tokens=8971 memory=593068 ms=61.8
+SWEEP hybrid_coefficient_abs_lex0123_r5 raw=187939 zstd3=64665 zstd16=55156 global_deltas=8817 layer_deltas=10414 segments=2958 entries=87152 tokens=8952 memory=622032 ms=63.8
+SWEEP_DUP hybrid_coefficient_abs_lex0213_r0 identical_to=hybrid_coefficient_abs_lex0123_r0
+SWEEP_DUP hybrid_coefficient_abs_lex0213_r5 identical_to=hybrid_coefficient_abs_lex0123_r5
+SWEEP hybrid_coefficient_abs_lex1023_r0 raw=188078 zstd3=68171 zstd16=58666 global_deltas=8800 layer_deltas=10073 segments=2810 entries=83940 tokens=8908 memory=600000 ms=71.1
+SWEEP hybrid_coefficient_abs_lex1023_r5 raw=193715 zstd3=69440 zstd16=59615 global_deltas=8800 layer_deltas=10086 segments=2965 entries=89069 tokens=8895 memory=624392 ms=66.4
+SWEEP hybrid_coefficient_abs_lex1203_r0 raw=188095 zstd3=68177 zstd16=58714 global_deltas=8802 layer_deltas=10076 segments=2808 entries=83943 tokens=8905 memory=600000 ms=71.3
+SWEEP hybrid_coefficient_abs_lex1203_r5 raw=193757 zstd3=69460 zstd16=59641 global_deltas=8806 layer_deltas=10089 segments=2964 entries=89096 tokens=8894 memory=624520 ms=65.7
+SWEEP hybrid_coefficient_abs_lex2013_r0 raw=181114 zstd3=63737 zstd16=54395 global_deltas=8823 layer_deltas=10421 segments=2745 entries=81135 tokens=8967 memory=593024 ms=61.9
+SWEEP hybrid_coefficient_abs_lex2013_r5 raw=187984 zstd3=64744 zstd16=55143 global_deltas=8821 layer_deltas=10416 segments=2958 entries=87179 tokens=8952 memory=622172 ms=64.2
+SWEEP hybrid_coefficient_abs_lex2103_r0 raw=181101 zstd3=63647 zstd16=54326 global_deltas=8821 layer_deltas=10419 segments=2745 entries=81135 tokens=8967 memory=592992 ms=62.0
+SWEEP hybrid_coefficient_abs_lex2103_r5 raw=188602 zstd3=65450 zstd16=55889 global_deltas=8952 layer_deltas=10493 segments=2958 entries=87179 tokens=8952 memory=623404 ms=63.3
+SWEEP_DONE unique_candidates=40 seconds=2.887
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 3.33s
+

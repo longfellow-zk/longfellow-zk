@@ -1,0 +1,22 @@
+    Checking circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.13s
+    Checking circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.14s
+    Checking core-algebra v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/core/algebra)
+    Checking util v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/util)
+    Checking compile-algebra v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/compile/algebra)
+    Checking runtime-algebra v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/algebra)
+    Checking core-proto v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/core/proto)
+    Checking compile-logic v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/compile/logic)
+    Checking circuits-polynomial v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/polynomial)
+    Checking circuits-lookup v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/lookup)
+    Checking compile-proto v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/compile/proto)
+    Checking compile-eval v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/compile/eval)
+    Checking circuits-boolean v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/boolean)
+    Checking circuits-ec v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/ec)
+    Checking circuits-arithmetic v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/arithmetic)
+    Checking circuits-analog-decoder v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/analog_decoder)
+    Checking circuits-bitvec v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/bitvec)
+    Checking circuits-bit-plucker v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/bit_plucker)
+    Checking circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1.02s

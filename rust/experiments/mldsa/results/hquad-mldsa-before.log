@@ -1,0 +1,16 @@
+
+running 2 tests
+test all::mldsa_verifier::mldsa44_proof_benchmark ... circuit storage: id=1c882777f206c0cf031a2a26ede3b17de2a5b1730ec3cf6d74a5cf62bff12e5f, layer_deltas=178492, segments=30026
+sweep circuit: period=6, geometry=CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }, lfc1=78996522, lfc1_zstd16=669700, lfc1_zstd22=616173, lfc2=2670639, lfc2_zstd16=997383, lfc2_zstd22=959815
+proof setup: geometry=CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }, witnesses=125766, constraints=37, block_enc=5699
+sumcheck order: RoundMajor
+sweep proof: period=6, commit=255.003824ms, prove=1.513361698s, verify=677.452346ms, proof=665896 bytes, total=22.356138583s
+ok
+test all::mldsa_verifier::mldsa65_proof_benchmark ... circuit storage: id=a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8, layer_deltas=176295, segments=32879
+sweep circuit: period=6, geometry=CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }, lfc1=95475126, lfc1_zstd16=861477, lfc1_zstd22=640820, lfc2=2896804, lfc2_zstd16=1031363, lfc2_zstd22=989616
+proof setup: geometry=CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }, witnesses=149677, constraints=37, block_enc=6113
+sumcheck order: RoundMajor
+sweep proof: period=6, commit=272.703365ms, prove=1.729407475s, verify=750.139271ms, proof=718920 bytes, total=26.38935678s
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 48.79s

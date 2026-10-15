@@ -1,0 +1,103 @@
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=26884 templates=796 template_bytes=6298000 instances=279930 mappings=1551161 shared_port_entries=3464888 total=8156804
+LCT_SEG dataset=mldsa44 policy=lct1 raw=8156804 zstd16=742218 zstd22=729506 decode_to_lct1_ms=2.377 exact=true
+LCT_PARTS dataset=mldsa44 groups=796 template_records=1424111 map_words=1798140 templates_plain=6294059 maps_plain=1831095
+LCT_SEG dataset=mldsa44 policy=split_plain raw=8157735 zstd16=738110 zstd22=725014 decode_to_lct1_ms=11.070 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=256 templates_segmented=2391208 maps_segmented=435729
+LCT_SEG dataset=mldsa44 policy=templates_w256 raw=4254884 zstd16=1055766 zstd22=1018732 decode_to_lct1_ms=12.607 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w256 raw=6762369 zstd16=757021 zstd22=744606 decode_to_lct1_ms=11.847 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w256 raw=2859518 zstd16=1073263 zstd22=1036605 decode_to_lct1_ms=12.578 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=256 templates_segmented=4649067 maps_segmented=446775
+LCT_SEG dataset=mldsa44 policy=raw_templates_w256 raw=6512743 zstd16=762776 zstd22=746720 decode_to_lct1_ms=14.563 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w256 raw=6773415 zstd16=747356 zstd22=733535 decode_to_lct1_ms=11.124 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w256 raw=5128423 zstd16=770318 zstd22=753529 decode_to_lct1_ms=12.016 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=1024 templates_segmented=2734692 maps_segmented=852309
+LCT_SEG dataset=mldsa44 policy=templates_w1024 raw=4598368 zstd16=1040634 zstd22=1000840 decode_to_lct1_ms=11.752 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w1024 raw=7178949 zstd16=753531 zstd22=741052 decode_to_lct1_ms=12.016 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w1024 raw=3619582 zstd16=1055323 zstd22=1015863 decode_to_lct1_ms=13.970 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=1024 templates_segmented=5691713 maps_segmented=862216
+LCT_SEG dataset=mldsa44 policy=raw_templates_w1024 raw=7555389 zstd16=750454 zstd22=735956 decode_to_lct1_ms=12.960 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w1024 raw=7188856 zstd16=744003 zstd22=730116 decode_to_lct1_ms=10.754 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w1024 raw=6586510 zstd16=755375 zstd22=740119 decode_to_lct1_ms=14.291 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 20.91s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=27076 templates=812 template_bytes=7103365 instances=329909 mappings=1816302 shared_port_entries=5716620 total=9277493
+LCT_SEG dataset=mldsa65 policy=lct1 raw=9277493 zstd16=777232 zstd22=764666 decode_to_lct1_ms=1.951 exact=true
+LCT_PARTS dataset=mldsa65 groups=812 template_records=1607883 map_words=2108699 templates_plain=7099366 maps_plain=2146216
+LCT_SEG dataset=mldsa65 policy=split_plain raw=9278448 zstd16=772689 zstd22=760313 decode_to_lct1_ms=12.725 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=256 templates_segmented=2451738 maps_segmented=428193
+LCT_SEG dataset=mldsa65 policy=templates_w256 raw=4630820 zstd16=1067240 zstd22=1030528 decode_to_lct1_ms=12.667 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w256 raw=7560425 zstd16=791452 zstd22=779500 decode_to_lct1_ms=13.433 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w256 raw=2912797 zstd16=1085320 zstd22=1047891 decode_to_lct1_ms=14.115 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=256 templates_segmented=4803563 maps_segmented=443027
+LCT_SEG dataset=mldsa65 policy=raw_templates_w256 raw=6982645 zstd16=797979 zstd22=783491 decode_to_lct1_ms=16.949 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w256 raw=7575259 zstd16=781561 zstd22=768597 decode_to_lct1_ms=12.149 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w256 raw=5279456 zstd16=805313 zstd22=790276 decode_to_lct1_ms=13.096 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=1024 templates_segmented=3099038 maps_segmented=687565
+LCT_SEG dataset=mldsa65 policy=templates_w1024 raw=5278120 zstd16=1055977 zstd22=1015098 decode_to_lct1_ms=13.144 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w1024 raw=7819797 zstd16=786702 zstd22=775030 decode_to_lct1_ms=12.700 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w1024 raw=3819469 zstd16=1069583 zstd22=1028977 decode_to_lct1_ms=14.809 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=1024 templates_segmented=6876358 maps_segmented=701278
+LCT_SEG dataset=mldsa65 policy=raw_templates_w1024 raw=9055440 zstd16=784353 zstd22=773031 decode_to_lct1_ms=15.835 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w1024 raw=7833510 zstd16=777426 zstd22=764522 decode_to_lct1_ms=12.547 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w1024 raw=7610502 zstd16=788222 zstd22=776353 decode_to_lct1_ms=15.275 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 22.09s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=5176 templates=41 template_bytes=25790559 instances=39005 mappings=539570 shared_port_entries=117436 total=26374356
+LCT_SEG dataset=mdoc_hash2 policy=lct1 raw=26374356 zstd16=122137 zstd22=113375 decode_to_lct1_ms=6.120 exact=true
+LCT_PARTS dataset=mdoc_hash2 groups=41 template_records=6328838 map_words=577783 templates_plain=25790352 maps_plain=578579
+LCT_SEG dataset=mdoc_hash2 policy=split_plain raw=26374433 zstd16=121915 zstd22=113331 decode_to_lct1_ms=35.675 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=256 templates_segmented=1064681 maps_segmented=42188
+LCT_SEG dataset=mdoc_hash2 policy=templates_w256 raw=1648762 zstd16=175203 zstd22=162911 decode_to_lct1_ms=28.704 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w256 raw=25838042 zstd16=122705 zstd22=114136 decode_to_lct1_ms=37.763 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w256 raw=1112371 zstd16=175914 zstd22=163673 decode_to_lct1_ms=30.171 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=256 templates_segmented=2751263 maps_segmented=42764
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w256 raw=3335344 zstd16=135851 zstd22=127051 decode_to_lct1_ms=25.680 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w256 raw=25838618 zstd16=122277 zstd22=113679 decode_to_lct1_ms=37.920 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w256 raw=2799529 zstd16=136300 zstd22=127471 decode_to_lct1_ms=26.091 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=1024 templates_segmented=1766829 maps_segmented=121017
+LCT_SEG dataset=mdoc_hash2 policy=templates_w1024 raw=2350910 zstd16=167234 zstd22=154929 decode_to_lct1_ms=29.139 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w1024 raw=25916871 zstd16=122737 zstd22=114154 decode_to_lct1_ms=37.237 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w1024 raw=1893348 zstd16=168255 zstd22=155830 decode_to_lct1_ms=26.387 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=1024 templates_segmented=5034135 maps_segmented=120840
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w1024 raw=5618216 zstd16=128981 zstd22=120672 decode_to_lct1_ms=26.377 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w1024 raw=25916694 zstd16=122352 zstd22=113723 decode_to_lct1_ms=35.843 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w1024 raw=5160477 zstd16=129589 zstd22=121151 decode_to_lct1_ms=25.552 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 13.12s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=19954 templates=50 template_bytes=916066 instances=2176 mappings=18724 shared_port_entries=6912 total=956973
+LCT_SEG dataset=mdoc_sig policy=lct1 raw=956973 zstd16=91827 zstd22=88876 decode_to_lct1_ms=0.251 exact=true
+LCT_PARTS dataset=mdoc_sig groups=50 template_records=224797 map_words=20432 templates_plain=915825 maps_plain=20904
+LCT_SEG dataset=mdoc_sig policy=split_plain raw=957045 zstd16=91923 zstd22=88653 decode_to_lct1_ms=1.133 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=256 templates_segmented=309615 maps_segmented=11424
+LCT_SEG dataset=mdoc_sig policy=templates_w256 raw=350835 zstd16=118260 zstd22=114624 decode_to_lct1_ms=1.243 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w256 raw=947565 zstd16=92554 zstd22=89273 decode_to_lct1_ms=1.137 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w256 raw=341355 zstd16=118748 zstd22=115240 decode_to_lct1_ms=1.369 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=256 templates_segmented=727697 maps_segmented=11089
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w256 raw=768917 zstd16=95925 zstd22=92720 decode_to_lct1_ms=1.144 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w256 raw=947230 zstd16=92139 zstd22=88849 decode_to_lct1_ms=1.135 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w256 raw=759102 zstd16=96159 zstd22=92899 decode_to_lct1_ms=1.174 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=1024 templates_segmented=339929 maps_segmented=21301
+LCT_SEG dataset=mdoc_sig policy=templates_w1024 raw=381149 zstd16=115734 zstd22=112022 decode_to_lct1_ms=1.205 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w1024 raw=957442 zstd16=92487 zstd22=89181 decode_to_lct1_ms=1.267 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w1024 raw=381546 zstd16=116379 zstd22=112589 decode_to_lct1_ms=1.228 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=1024 templates_segmented=838685 maps_segmented=20966
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w1024 raw=879905 zstd16=93295 zstd22=90098 decode_to_lct1_ms=1.162 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w1024 raw=957107 zstd16=92062 zstd22=88777 decode_to_lct1_ms=1.264 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w1024 raw=879967 zstd16=93447 zstd22=90230 decode_to_lct1_ms=1.182 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 2.91s

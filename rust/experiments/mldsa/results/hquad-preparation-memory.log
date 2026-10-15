@@ -1,0 +1,73 @@
+
+running 1 test
+test hquad_preparation_sweep ... PREP dataset=mdoc_hash2 candidate=index-cycle ms=[319.427071] peak=59834112 retained_max=44875584
+PREP dataset=mdoc_hash2 candidate=index-gather ms=[174.71881899999997] peak=104709696 retained_max=44875584
+PREP dataset=mdoc_hash2 candidate=weighted-coordinates ms=[197.034386] peak=82241448 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=weighted-key ms=[160.033334] peak=82241448 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=weighted-key-stable ms=[147.599764] peak=89751168 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=raw-coordinates ms=[212.965144] peak=108460200 retained_max=65076120
+PREP dataset=mdoc_hash2 candidate=raw-key ms=[145.39102199999996] peak=108460200 retained_max=65076120
+PREP dataset=mdoc_hash2 candidate=raw-key-stable ms=[158.45689699999997] peak=108460200 retained_max=65076120
+PREP dataset=mdoc_hash2 candidate=raw-packed ms=[154.049413] peak=108460200 retained_max=65076120
+PREP dataset=mdoc_hash2 candidate=soa-quicksort ms=[338.91029199999997] peak=59834112 retained_max=44875584
+PREP dataset=mdoc_hash2 candidate=index-key-gather ms=[110.92983399999999] peak=119668224 retained_max=44875584
+PREP dataset=mdoc_hash2 candidate=raw-key-tight ms=[149.098574] peak=65791416 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=raw-key-stable-tight ms=[157.191009] peak=65791416 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=raw-key-grouped ms=[145.387403] peak=65791416 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=index-key-gather-tight ms=[115.47759100000002] peak=97199976 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=weighted-indirect ms=[126.758537] peak=82241448 retained_max=22407336
+PREP dataset=mdoc_hash2 candidate=raw-ranges ms=[140.821903] peak=74016432 retained_max=22407336
+PREP dataset=mdoc_sig candidate=index-cycle ms=[13.170471] peak=1540464 retained_max=1283720
+PREP dataset=mdoc_sig candidate=index-gather ms=[11.992749] peak=2824184 retained_max=1283720
+PREP dataset=mdoc_sig candidate=weighted-coordinates ms=[13.667848] peak=2450320 retained_max=1210600
+PREP dataset=mdoc_sig candidate=weighted-key ms=[9.718405] peak=2450320 retained_max=1210600
+PREP dataset=mdoc_sig candidate=weighted-key-stable ms=[9.731670000000001] peak=2567440 retained_max=1210600
+PREP dataset=mdoc_sig candidate=raw-coordinates ms=[11.486954] peak=2471448 retained_max=1765320
+PREP dataset=mdoc_sig candidate=raw-key ms=[8.435337] peak=2471448 retained_max=1765320
+PREP dataset=mdoc_sig candidate=raw-key-stable ms=[9.023185999999999] peak=2471448 retained_max=1765320
+PREP dataset=mdoc_sig candidate=raw-packed ms=[8.420767999999999] peak=2471448 retained_max=1765320
+PREP dataset=mdoc_sig candidate=soa-quicksort ms=[13.814024000000002] peak=1540464 retained_max=1283720
+PREP dataset=mdoc_sig candidate=index-key-gather ms=[8.204201] peak=3080928 retained_max=1283720
+PREP dataset=mdoc_sig candidate=raw-key-tight ms=[8.456453] peak=1916728 retained_max=1210600
+PREP dataset=mdoc_sig candidate=raw-key-stable-tight ms=[8.955899] peak=1916728 retained_max=1210600
+PREP dataset=mdoc_sig candidate=raw-key-grouped ms=[8.327557] peak=1916728 retained_max=1210600
+PREP dataset=mdoc_sig candidate=index-key-gather-tight ms=[8.038801999999999] peak=2946208 retained_max=1210600
+PREP dataset=mdoc_sig candidate=weighted-indirect ms=[8.071444] peak=2698264 retained_max=1210600
+PREP dataset=mdoc_sig candidate=raw-ranges ms=[8.175305999999999] peak=2059552 retained_max=1210600
+PREP dataset=mldsa44 candidate=index-cycle ms=[539.8954040000001] peak=85697640 retained_max=68558112
+PREP dataset=mldsa44 candidate=index-gather ms=[292.716563] peak=154255752 retained_max=68558112
+PREP dataset=mldsa44 candidate=weighted-coordinates ms=[294.935675] peak=79607200 retained_max=11049088
+PREP dataset=mldsa44 candidate=weighted-key ms=[208.22529999999998] peak=79607200 retained_max=11049088
+PREP dataset=mldsa44 candidate=weighted-key-stable ms=[247.600304] peak=102837184 retained_max=11049088
+PREP dataset=mldsa44 candidate=raw-coordinates ms=[314.277459] peak=108857712 retained_max=72571808
+PREP dataset=mldsa44 candidate=raw-key ms=[192.994566] peak=108857712 retained_max=72571808
+PREP dataset=mldsa44 candidate=raw-key-stable ms=[205.798715] peak=108857712 retained_max=72571808
+PREP dataset=mldsa44 candidate=raw-packed ms=[208.17803099999998] peak=108857712 retained_max=72571808
+PREP dataset=mldsa44 candidate=soa-quicksort ms=[396.444442] peak=85697640 retained_max=68558112
+PREP dataset=mldsa44 candidate=index-key-gather ms=[171.97177200000002] peak=171395280 retained_max=68558112
+PREP dataset=mldsa44 candidate=raw-key-tight ms=[195.887481] peak=47334992 retained_max=11049088
+PREP dataset=mldsa44 candidate=raw-key-stable-tight ms=[215.13561199999998] peak=54428864 retained_max=11049088
+PREP dataset=mldsa44 candidate=raw-key-grouped ms=[193.617022] peak=47334992 retained_max=11049088
+PREP dataset=mldsa44 candidate=index-key-gather-tight ms=[177.660529] peak=113886256 retained_max=11049088
+PREP dataset=mldsa44 candidate=weighted-indirect ms=[178.80458099999998] peak=96746728 retained_max=11049088
+PREP dataset=mldsa44 candidate=raw-ranges ms=[200.82196799999997] peak=63471096 retained_max=11049088
+PREP dataset=mldsa65 candidate=index-cycle ms=[732.295691] peak=134053640 retained_max=107242912
+PREP dataset=mldsa65 candidate=index-gather ms=[346.475958] peak=241296552 retained_max=107242912
+PREP dataset=mldsa65 candidate=weighted-coordinates ms=[353.95224699999994] peak=120498944 retained_max=13256032
+PREP dataset=mldsa65 candidate=weighted-key ms=[268.21068299999996] peak=120498944 retained_max=13256032
+PREP dataset=mldsa65 candidate=weighted-key-stable ms=[304.96344899999997] peak=160864384 retained_max=13256032
+PREP dataset=mldsa65 candidate=raw-coordinates ms=[359.809667] peak=167160192 retained_max=111440128
+PREP dataset=mldsa65 candidate=raw-key ms=[223.63908999999998] peak=167160192 retained_max=111440128
+PREP dataset=mldsa65 candidate=raw-key-stable ms=[266.08157200000005] peak=167160192 retained_max=111440128
+PREP dataset=mldsa65 candidate=raw-packed ms=[263.12928] peak=167160192 retained_max=111440128
+PREP dataset=mldsa65 candidate=soa-quicksort ms=[498.12754500000005] peak=134053640 retained_max=107242912
+PREP dataset=mldsa65 candidate=index-key-gather ms=[219.96391699999998] peak=268107280 retained_max=107242912
+PREP dataset=mldsa65 candidate=raw-key-tight ms=[227.456398] peak=68976096 retained_max=13256032
+PREP dataset=mldsa65 candidate=raw-key-stable-tight ms=[276.71128600000003] peak=83580096 retained_max=13256032
+PREP dataset=mldsa65 candidate=raw-key-grouped ms=[233.09524399999998] peak=68976096 retained_max=13256032
+PREP dataset=mldsa65 candidate=index-key-gather-tight ms=[227.93751300000002] peak=174120400 retained_max=13256032
+PREP dataset=mldsa65 candidate=weighted-indirect ms=[228.53004599999997] peak=147309672 retained_max=13256032
+PREP dataset=mldsa65 candidate=raw-ranges ms=[247.60417900000004] peak=94737520 retained_max=13256032
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 15.36s

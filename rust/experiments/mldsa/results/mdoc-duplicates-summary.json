@@ -1,0 +1,123 @@
+{
+  "description": "mdoc_zk_bench_current; v8, 2 disclosed attributes; release build; Criterion mean estimates, milliseconds; per-operation incremental heap peaks, bytes",
+  "rows": [
+    {
+      "variant": "baseline",
+      "trial": 1,
+      "proof_bytes": 343596,
+      "prover_peak": 95989466,
+      "verifier_peak": 40651756,
+      "prove_ms": 398.9391325,
+      "prove_ci_ms": [
+        398.658563,
+        399.2300587
+      ],
+      "verify_ms": 185.7430904,
+      "verify_ci_ms": [
+        185.5633061,
+        185.9787266
+      ]
+    },
+    {
+      "variant": "baseline",
+      "trial": 2,
+      "proof_bytes": 343596,
+      "prover_peak": 95989466,
+      "verifier_peak": 40651756,
+      "prove_ms": 400.9231589,
+      "prove_ci_ms": [
+        400.4375546,
+        401.4440531
+      ],
+      "verify_ms": 186.6254493,
+      "verify_ci_ms": [
+        185.8708477475,
+        187.685732735
+      ]
+    },
+    {
+      "variant": "baseline",
+      "trial": 3,
+      "proof_bytes": 343596,
+      "prover_peak": 95989466,
+      "verifier_peak": 40651756,
+      "prove_ms": 401.30546810000004,
+      "prove_ci_ms": [
+        400.72315430000003,
+        401.8884008
+      ],
+      "verify_ms": 186.21748730000002,
+      "verify_ci_ms": [
+        186.0061389,
+        186.4534068
+      ]
+    },
+    {
+      "variant": "reordered",
+      "trial": 1,
+      "proof_bytes": 344076,
+      "prover_peak": 113165686,
+      "verifier_peak": 69911672,
+      "prove_ms": 605.3610648,
+      "prove_ci_ms": [
+        604.4231049,
+        606.3345853
+      ],
+      "verify_ms": 384.19732089999997,
+      "verify_ci_ms": [
+        382.7246031,
+        385.69228139999996
+      ]
+    },
+    {
+      "variant": "reordered",
+      "trial": 2,
+      "proof_bytes": 344076,
+      "prover_peak": 113165686,
+      "verifier_peak": 69911672,
+      "prove_ms": 591.493446,
+      "prove_ci_ms": [
+        588.9567799,
+        594.0980655425
+      ],
+      "verify_ms": 376.0590513,
+      "verify_ci_ms": [
+        374.5789616,
+        377.8626239125
+      ]
+    },
+    {
+      "variant": "reordered",
+      "trial": 3,
+      "proof_bytes": 344076,
+      "prover_peak": 113165686,
+      "verifier_peak": 69911672,
+      "prove_ms": 598.7111698,
+      "prove_ci_ms": [
+        597.2958515,
+        600.2097791775
+      ],
+      "verify_ms": 380.4773145,
+      "verify_ci_ms": [
+        379.4291316,
+        381.6215643
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "variant": "baseline",
+      "prove_ms": 400.9231589,
+      "verify_ms": 186.21748730000002,
+      "prover_peak": 95989466,
+      "verifier_peak": 40651756
+    },
+    {
+      "variant": "reordered",
+      "prove_ms": 598.7111698,
+      "verify_ms": 380.4773145,
+      "prover_peak": 113165686,
+      "verifier_peak": 69911672
+    }
+  ]
+}

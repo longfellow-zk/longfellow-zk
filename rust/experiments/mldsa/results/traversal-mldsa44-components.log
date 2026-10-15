@@ -1,0 +1,55 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mldsa44 CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }
+ANALYZE mldsa44 id=[1c, 88, 27, 77, f2, 06, c0, cf, 03, 1a, 2a, 26, ed, e3, b1, 7d, e2, a5, b1, 73, 0e, c3, cf, 6d, 74, a5, cf, 62, bf, f1, 2e, 5f]
+SWEEP_CONFIG orders=8 extended=true final=false contexts=bip0,bip1,whole coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP bip0_abs_lex0123_r0 raw=27515587 zstd3=14314268 zstd16=10245004 global_deltas=2149319 layer_deltas=2635758 segments=129729 entries=4053275 tokens=209751 memory=62337728 ms=6087.9
+SWEEP bip0_abs_lex0213_r5 raw=26655142 zstd3=13619152 zstd16=10145455 global_deltas=2030616 layer_deltas=2543875 segments=129788 entries=4052979 tokens=209865 memory=60868288 ms=5820.6
+SWEEP bip0_abs_lex1203_r0 raw=18219605 zstd3=8071189 zstd16=6404019 global_deltas=1344883 layer_deltas=1556381 segments=118379 entries=3690003 tokens=209949 memory=43343000 ms=3982.3
+SWEEP bip0_abs_lex2103_r0 raw=21145849 zstd3=10512240 zstd16=8519657 global_deltas=1596461 layer_deltas=1881197 segments=127134 entries=3961805 tokens=210162 memory=49838236 ms=4589.0
+SWEEP bip0_abs_m012_b1_k0_r0 raw=19505551 zstd3=9605787 zstd16=7831266 global_deltas=1426975 layer_deltas=1670461 segments=130797 entries=4081738 tokens=210348 memory=47034848 ms=4487.3
+SWEEP bip0_abs_m12_b1_k0_r0 raw=19047532 zstd3=8911443 zstd16=7204250 global_deltas=1379906 layer_deltas=1609970 segments=126800 entries=3960487 tokens=209946 memory=45484452 ms=4187.5
+SWEEP bip0_abs_hilbert120 raw=21834919 zstd3=11319940 zstd16=9312838 global_deltas=1501169 layer_deltas=1748072 segments=158295 entries=4953566 tokens=210664 memory=52425152 ms=5018.6
+SWEEP bip0_abs_relative120 raw=18459149 zstd3=8084527 zstd16=6500601 global_deltas=1387811 layer_deltas=1559731 segments=118407 entries=3691497 tokens=209872 memory=43402940 ms=4425.9
+SWEEP bip0_offset_m012_b1_k0_r0 raw=19119516 zstd3=9137250 zstd16=7378147 global_deltas=1391606 layer_deltas=1629030 segments=127886 entries=3988495 tokens=210624 memory=45930220 ms=4538.6
+SWEEP bip0_offset_m12_b1_k0_r0 raw=18903880 zstd3=8801238 zstd16=7142481 global_deltas=1371629 layer_deltas=1599103 segments=125298 entries=3913163 tokens=209937 memory=45085200 ms=4504.2
+SWEEP bip0_offset_hilbert120 raw=20371702 zstd3=10290995 zstd16=8421948 global_deltas=1441897 layer_deltas=1656666 segments=142472 entries=4443408 tokens=210835 memory=48542956 ms=4983.9
+SWEEP bip0_rank_m012_b1_k0_r0 raw=21707319 zstd3=10888766 zstd16=8525052 global_deltas=1688796 layer_deltas=1957270 segments=124970 entries=3898101 tokens=209864 memory=50747460 ms=5095.3
+SWEEP bip0_rank_m12_b1_k0_r0 raw=19849117 zstd3=9538700 zstd16=7542677 global_deltas=1499214 layer_deltas=1736040 segments=123962 entries=3856879 tokens=210298 memory=47020436 ms=4602.6
+SWEEP bip0_rank_hilbert120 raw=18639394 zstd3=8321997 zstd16=6702259 global_deltas=1351414 layer_deltas=1566703 segments=127730 entries=3975941 tokens=210924 memory=44880228 ms=4267.4
+SWEEP bip0_rank_relative120 raw=24378457 zstd3=12427504 zstd16=9669156 global_deltas=1917204 layer_deltas=2221951 segments=128754 entries=4020642 tokens=209809 memory=55563116 ms=5177.3
+SWEEP bip1_abs_lex0123_r0 raw=25227208 zstd3=12842266 zstd16=9307073 global_deltas=1694826 layer_deltas=2513374 segments=121388 entries=3817951 tokens=209220 memory=59235980 ms=5339.1
+SWEEP bip1_abs_lex0213_r5 raw=24888007 zstd3=12572491 zstd16=9106573 global_deltas=1742973 layer_deltas=2479509 segments=121304 entries=3819368 tokens=208958 memory=58696744 ms=5296.7
+SWEEP bip1_abs_lex1203_r0 raw=3214349 zstd3=1437997 zstd16=1306462 global_deltas=167353 layer_deltas=248827 segments=28615 entries=883317 tokens=209170 memory=9037940 ms=1374.6
+SWEEP bip1_abs_lex2103_r0 raw=16357426 zstd3=8010707 zstd16=6498172 global_deltas=880025 layer_deltas=1500390 segments=112690 entries=3516181 tokens=210023 memory=41615616 ms=3785.8
+SWEEP bip1_abs_m012_b1_k0_r0 raw=7792909 zstd3=4811451 zstd16=4390216 global_deltas=366181 layer_deltas=519777 segments=99036 entries=3019417 tokens=213708 memory=23625796 ms=2203.0
+SWEEP bip1_abs_m12_b1_k0_r0 raw=6075155 zstd3=3405228 zstd16=3084796 global_deltas=278377 layer_deltas=416223 segments=67784 entries=2131646 tokens=209203 memory=17649780 ms=1772.4
+SWEEP bip1_abs_hilbert120 raw=7835277 zstd3=4777954 zstd16=4407196 global_deltas=377507 layer_deltas=556259 segments=86068 entries=2716692 tokens=209436 memory=22670288 ms=2240.5
+SWEEP bip1_abs_relative120 raw=16585403 zstd3=9780302 zstd16=8452932 global_deltas=1148813 layer_deltas=1218614 segments=92154 entries=2871438 tokens=211528 memory=34041384 ms=3552.2
+SWEEP bip1_offset_m012_b1_k0_r0 raw=7626760 zstd3=4651882 zstd16=4273328 global_deltas=356097 layer_deltas=507772 segments=97178 entries=2961454 tokens=213646 memory=23157024 ms=2143.2
+SWEEP bip1_offset_m12_b1_k0_r0 raw=5917751 zstd3=3293399 zstd16=2980000 global_deltas=270202 layer_deltas=405345 segments=65993 entries=2076001 tokens=209138 memory=17209908 ms=1708.5
+SWEEP bip1_offset_hilbert120 raw=6307990 zstd3=3775040 zstd16=3470082 global_deltas=317634 layer_deltas=464110 segments=68360 entries=2152207 tokens=209335 memory=18512568 ms=2031.2
+SWEEP bip1_rank_m012_b1_k0_r0 raw=7597854 zstd3=4673645 zstd16=4225385 global_deltas=352886 layer_deltas=502731 segments=97291 entries=2964930 tokens=213601 memory=23092804 ms=2392.8
+SWEEP bip1_rank_m12_b1_k0_r0 raw=5909574 zstd3=3284979 zstd16=2973457 global_deltas=269498 layer_deltas=405234 segments=66065 entries=2074378 tokens=209291 memory=17203980 ms=1974.2
+SWEEP bip1_rank_hilbert120 raw=6250490 zstd3=3770309 zstd16=3454179 global_deltas=314151 layer_deltas=461037 segments=67508 entries=2123921 tokens=209495 memory=18330448 ms=2187.2
+SWEEP bip1_rank_relative120 raw=17781215 zstd3=10602750 zstd16=9321765 global_deltas=1244458 layer_deltas=1311669 segments=95595 entries=2982724 tokens=211396 memory=36057464 ms=4053.8
+SWEEP whole_abs_lex0123_r0 raw=25993294 zstd3=13239466 zstd16=9484317 global_deltas=1776678 layer_deltas=2571118 segments=130571 entries=4077036 tokens=209758 memory=61418768 ms=5159.5
+SWEEP whole_abs_lex0213_r5 raw=25782584 zstd3=12919362 zstd16=9541258 global_deltas=1820310 layer_deltas=2558593 segments=130042 entries=4060726 tokens=209737 memory=61140348 ms=6065.2
+SWEEP whole_abs_lex1203_r0 raw=6146395 zstd3=2776311 zstd16=2425825 global_deltas=431250 layer_deltas=508042 segments=47579 entries=1485467 tokens=209623 memory=16050928 ms=2018.5
+SWEEP whole_abs_lex2103_r0 raw=17968050 zstd3=8796488 zstd16=7306850 global_deltas=1045650 layer_deltas=1650013 segments=122010 entries=3812613 tokens=210166 memory=45419564 ms=4160.4
+SWEEP whole_abs_m012_b1_k0_r0 raw=11758085 zstd3=6999032 zstd16=6439151 global_deltas=714459 layer_deltas=894782 segments=126369 entries=3900594 tokens=213012 memory=33803792 ms=2330.6
+SWEEP whole_abs_m12_b1_k0_r0 raw=10091371 zstd3=5625792 zstd16=5033502 global_deltas=605924 layer_deltas=767752 segments=98955 entries=3118317 tokens=209649 memory=27970816 ms=2613.3
+SWEEP whole_abs_hilbert120 raw=11827494 zstd3=7017144 zstd16=6355074 global_deltas=699818 layer_deltas=886091 segments=118042 entries=3718782 tokens=209958 memory=32725424 ms=3158.8
+SWEEP whole_abs_relative120 raw=7344712 zstd3=3439074 zstd16=2851391 global_deltas=532819 layer_deltas=616963 segments=52203 entries=1618088 tokens=209846 memory=18436016 ms=2266.9
+SWEEP whole_offset_m012_b1_k0_r0 raw=11080389 zstd3=6209332 zstd16=5665878 global_deltas=626814 layer_deltas=796566 segments=123071 entries=3802211 tokens=213363 memory=31761056 ms=2835.5
+SWEEP_DUP whole_offset_m12_b1_k0_r0 identical_to=whole_abs_m12_b1_k0_r0
+SWEEP whole_offset_hilbert120 raw=11827478 zstd3=7007994 zstd16=6349461 global_deltas=699816 layer_deltas=886089 segments=118042 entries=3718782 tokens=209958 memory=32725392 ms=3178.5
+SWEEP whole_rank_m012_b1_k0_r0 raw=8849571 zstd3=3774918 zstd16=3278036 global_deltas=578481 layer_deltas=642284 segments=93844 entries=2913035 tokens=210832 memory=25024268 ms=2528.1
+SWEEP whole_rank_m12_b1_k0_r0 raw=8451112 zstd3=3573155 zstd16=3154776 global_deltas=533227 layer_deltas=614216 segments=86553 entries=2695639 tokens=209978 memory=23527196 ms=2378.5
+SWEEP whole_rank_hilbert120 raw=8077443 zstd3=3416508 zstd16=2935607 global_deltas=503401 layer_deltas=584786 segments=81114 entries=2526362 tokens=210361 memory=22250204 ms=2515.1
+SWEEP whole_rank_relative120 raw=21754836 zstd3=10265185 zstd16=8329796 global_deltas=1755990 layer_deltas=1822634 segments=123352 entries=3889603 tokens=208401 memory=48514608 ms=4735.1
+SWEEP_DONE unique_candidates=44 seconds=166.959
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 54 filtered out; finished in 182.87s
+

@@ -1,0 +1,75 @@
+SWEEP wire_identity__global_abs_m12_b1_k0_r0 raw=598054 zstd3=187489 global_deltas=18449 layer_deltas=20814 segments=7994 entries=226425 tokens=159742 memory=2069548 ms=660.7
+SIZE wire_identity__global_abs_m12_b1_k0_r0_lfc1: raw=60467613 zstd16=133225 zstd22=117606
+SIZE wire_identity__global_abs_m12_b1_k0_r0_lfc2_native: raw=8282212 zstd16=145896 zstd22=132035
+SIZE wire_identity__global_abs_m12_b1_k0_r0_lfc2: raw=598054 zstd16=173602 zstd22=161848
+SWEEP_CHECK wire_identity__global_abs_m12_b1_k0_r0 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=122.549
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=1 deltas=2839 raw=210444 independent_zstd16=25253
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=2 deltas=983 raw=52176 independent_zstd16=10943
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=3 deltas=1293 raw=53343 independent_zstd16=15407
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=4 deltas=2269 raw=45387 independent_zstd16=15154
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=5 deltas=3557 raw=65776 independent_zstd16=23154
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=6 deltas=5392 raw=77685 independent_zstd16=39903
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=7 deltas=819 raw=31312 independent_zstd16=10666
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=8 deltas=1970 raw=28674 independent_zstd16=13412
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=9 deltas=763 raw=16319 independent_zstd16=7112
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=10 deltas=300 raw=5013 independent_zstd16=2197
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=11 deltas=144 raw=2410 independent_zstd16=964
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=12 deltas=96 raw=1181 independent_zstd16=601
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=13 deltas=111 raw=1164 independent_zstd16=591
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=14 deltas=80 raw=712 independent_zstd16=437
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=15 deltas=57 raw=458 independent_zstd16=301
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=16 deltas=49 raw=366 independent_zstd16=263
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=17 deltas=38 raw=269 independent_zstd16=192
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=18 deltas=18 raw=163 independent_zstd16=106
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=19 deltas=18 raw=152 independent_zstd16=104
+BIPARTITE_BODY wire_identity__global_abs_m12_b1_k0_r0 depth=20 deltas=18 raw=107 independent_zstd16=83
+SWEEP wire_identity_one_last__global_abs_m12_b1_k0_r0 raw=585207 zstd3=181113 global_deltas=17736 layer_deltas=19973 segments=7763 entries=220609 tokens=159730 memory=2027236 ms=664.5
+SIZE wire_identity_one_last__global_abs_m12_b1_k0_r0_lfc1: raw=60467613 zstd16=128756 zstd22=114116
+SIZE wire_identity_one_last__global_abs_m12_b1_k0_r0_lfc2_native: raw=8118327 zstd16=140835 zstd22=128183
+SIZE wire_identity_one_last__global_abs_m12_b1_k0_r0_lfc2: raw=585207 zstd16=167526 zstd22=157358
+SWEEP_CHECK wire_identity_one_last__global_abs_m12_b1_k0_r0 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=122.036
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=1 deltas=2838 raw=210374 independent_zstd16=25223
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=2 deltas=953 raw=46286 independent_zstd16=9756
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=3 deltas=1307 raw=49718 independent_zstd16=14529
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=4 deltas=2267 raw=44524 independent_zstd16=15100
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=5 deltas=3633 raw=67047 independent_zstd16=24315
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=6 deltas=4570 raw=71097 independent_zstd16=36503
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=7 deltas=791 raw=28867 independent_zstd16=9824
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=8 deltas=1981 raw=33154 independent_zstd16=13729
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=9 deltas=746 raw=17542 independent_zstd16=7202
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=10 deltas=302 raw=5111 independent_zstd16=2195
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=11 deltas=130 raw=2079 independent_zstd16=853
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=12 deltas=92 raw=1190 independent_zstd16=571
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=13 deltas=111 raw=1162 independent_zstd16=597
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=14 deltas=75 raw=687 independent_zstd16=399
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=15 deltas=59 raw=465 independent_zstd16=301
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=16 deltas=47 raw=356 independent_zstd16=247
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=17 deltas=25 raw=216 independent_zstd16=134
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=18 deltas=11 raw=134 independent_zstd16=79
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=19 deltas=18 raw=152 independent_zstd16=99
+BIPARTITE_BODY wire_identity_one_last__global_abs_m12_b1_k0_r0 depth=20 deltas=17 raw=103 independent_zstd16=77
+SWEEP wire_whole_fanin__global_abs_m12_b1_k0_r0 raw=6985572 zstd3=2373615 global_deltas=514636 layer_deltas=517062 segments=63137 entries=1995904 tokens=158560 memory=18406136 ms=945.5
+SIZE wire_whole_fanin__global_abs_m12_b1_k0_r0_lfc1: raw=60467613 zstd16=1109503 zstd22=781619
+SIZE wire_whole_fanin__global_abs_m12_b1_k0_r0_lfc2_native: raw=12907386 zstd16=1876376 zstd22=1577464
+SIZE wire_whole_fanin__global_abs_m12_b1_k0_r0_lfc2: raw=6985572 zstd16=1931256 zstd22=1693065
+SWEEP_CHECK wire_whole_fanin__global_abs_m12_b1_k0_r0 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=165.239
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=1 deltas=500206 raw=6669751 independent_zstd16=2090776
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=2 deltas=683 raw=34902 independent_zstd16=5804
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=3 deltas=5877 raw=70704 independent_zstd16=21735
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=4 deltas=607 raw=26212 independent_zstd16=6648
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=5 deltas=1042 raw=35001 independent_zstd16=11238
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=6 deltas=3824 raw=63385 independent_zstd16=29611
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=7 deltas=710 raw=20791 independent_zstd16=7832
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=8 deltas=2632 raw=35061 independent_zstd16=14687
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=9 deltas=627 raw=12859 independent_zstd16=4690
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=10 deltas=224 raw=4587 independent_zstd16=1774
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=11 deltas=132 raw=2426 independent_zstd16=942
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=12 deltas=103 raw=1523 independent_zstd16=685
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=13 deltas=91 raw=1091 independent_zstd16=521
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=14 deltas=75 raw=696 independent_zstd16=464
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=15 deltas=73 raw=524 independent_zstd16=377
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=16 deltas=53 raw=382 independent_zstd16=282
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=17 deltas=39 raw=272 independent_zstd16=189
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=18 deltas=20 raw=171 independent_zstd16=108
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=19 deltas=28 raw=192 independent_zstd16=135
+BIPARTITE_BODY wire_whole_fanin__global_abs_m12_b1_k0_r0 depth=20 deltas=16 raw=99 independent_zstd16=74

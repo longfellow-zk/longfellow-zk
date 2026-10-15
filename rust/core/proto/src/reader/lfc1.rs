@@ -148,11 +148,10 @@ pub(super) fn from_stream_lfc1_inner<R: std::io::BufRead, F: SerializableField>(
             ));
         }
         total_terms = total_terms.saturating_add(nterms);
-        if total_terms > super::MAX_TOTAL_TERMS {
+        if total_terms > reader.max_total_terms {
             return Err(format!(
                 "Total terms across layers {} exceeds MAX_TOTAL_TERMS {}",
-                total_terms,
-                super::MAX_TOTAL_TERMS
+                total_terms, reader.max_total_terms
             ));
         }
 

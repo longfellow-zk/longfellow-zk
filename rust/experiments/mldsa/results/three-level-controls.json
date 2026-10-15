@@ -1,0 +1,22 @@
+{
+  "mldsa44": {
+    "delta_table_identical": true,
+    "lower_dictionary_identical": true,
+    "expanded_references_identical": true
+  },
+  "mldsa65": {
+    "delta_table_identical": true,
+    "lower_dictionary_identical": true,
+    "expanded_references_identical": true
+  },
+  "mdoc_sig": {
+    "delta_table_identical": true,
+    "lower_dictionary_identical": true,
+    "expanded_references_identical": true
+  },
+  "mdoc_hash2": {
+    "delta_table_identical": true,
+    "lower_dictionary_identical": true,
+    "expanded_references_identical": true
+  }
+}

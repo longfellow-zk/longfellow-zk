@@ -1,0 +1,54 @@
+   Compiling mdoc-zk-circuits v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/circuits)
+    Finished `test` profile [optimized + debuginfo] target(s) in 5.65s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 4773, npublic_input: 1, noutput: 6, nwires: 167739, nterms: 259551, nlayers: 19, nassertions: 4796 }
+ANALYZE mdoc_signature id=[2b, 08, 70, bd, 6a, 14, 39, 85, be, 93, 79, 0f, 2c, aa, 6b, 66, 81, 3e, 6b, ff, 27, e8, 7a, d6, e9, 93, 0f, 62, 1b, a2, 74, e9]
+GRAPH components=2732 largest=[110554, 25779, 25779, 35, 35, 21, 21, 21, 21, 21, 21, 8, 5, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] constants=19 inputs=4773
+SEQUENCES absolute: terms=259551 distinct_deltas=14192 chunks32=8101 unique_chunks32=4489 repeated_chunk_occurrences=4041 distinct_coordinate_triples=12022
+SIZE canonical_lfc1: raw=3134392 zstd16=93955 zstd22=89077
+SIZE canonical_lfc2: raw=504284 zstd16=111631 zstd22=104942
+SIZE canonical_lfc2_resegment: raw=273192 zstd16=125279 zstd22=117854
+DECODE lfc1_ms=10.481
+DECODE lfc2_ms=10.355
+CORRESPONDENCE rank: repeated_whole_component_families=1
+PAIR rank: components=5537,9161 family=2 wires=25779 terms=48315 exact_local_DAG=true same_normalized_absolute_layers=1/12 differing_sequence_positions=29772 paths=Some("signature/ecdsa/nms_lt_order") / Some("signature/ecdsa/nms_lt_order")
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=4/12 translated_interior_mismatch_layers=0 interior_sequence_mismatches=9992
+PAIR_LAYER depth=1 first_mismatch=2302 left=[3, 260, 260, 0] right=[1741, 0, 510, 0] output_bases=764,4388 shared_ports=1295 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=706 left=[3, 3, 4, 1] right=[257, 0, 227, 0] output_bases=647,4250 shared_ports=1 input_bases=Some(764),Some(4388)
+SEQUENCES rank_absolute_subsequence_normalized: terms=259551 distinct_deltas=12017 chunks32=7829 unique_chunks32=4219 repeated_chunk_occurrences=4032 distinct_coordinate_triples=10764
+SEQUENCES rank_local_morton: terms=259551 distinct_deltas=12040 chunks32=7829 unique_chunks32=4103 repeated_chunk_occurrences=4436 distinct_coordinate_triples=10830
+SEQUENCES rank_absolute_subsequence_absolute_coords: terms=259551 distinct_deltas=20589 chunks32=7829 unique_chunks32=4264 repeated_chunk_occurrences=3977 distinct_coordinate_triples=19331
+SEQUENCES rank_interior_absolute_subsequence: terms=119940 distinct_deltas=7825 chunks32=3644 unique_chunks32=2479 repeated_chunk_occurrences=1338 distinct_coordinate_triples=7351
+SEQUENCES rank_interior_local_morton: terms=119940 distinct_deltas=7598 chunks32=3644 unique_chunks32=2326 repeated_chunk_occurrences=1567 distinct_coordinate_triples=7148
+ENCODING header=19658 templates=48 template_bytes=851158 instances=5500 mappings=60085 shared_port_entries=11068 total=941903
+SIZE rank_LCT0: raw=941903 zstd16=92701 zstd22=87031
+DECODE canonical_sort_ms=11.713
+ROUNDTRIP rank: exact_lfc1=true exact_id=true decode_zstd16_expand_sort_hash_ms=28.864
+ENCODING_GROUPED header=19658 templates=48 template_bytes=851310 instances=5500 mappings=35363 shared_port_entries=11068 total=911882
+SIZE rank_LCT1_grouped: raw=911882 zstd16=76174 zstd22=72606
+DECODE canonical_sort_ms=22.856
+ROUNDTRIP rank_grouped: exact_lfc1=true exact_id=true decode_zstd16_expand_sort_hash_ms=51.174
+SIZE local_traversal_absolute_coords_lfc1: raw=3134392 zstd16=97066 zstd22=89442
+SIZE local_traversal_absolute_coords_lfc2: raw=299757 zstd16=142764 zstd22=126504
+CORRESPONDENCE structural: repeated_whole_component_families=1
+PAIR structural: components=5537,9161 family=2 wires=25779 terms=48315 exact_local_DAG=true same_normalized_absolute_layers=1/12 differing_sequence_positions=29772 paths=Some("signature/ecdsa/nms_lt_order") / Some("signature/ecdsa/nms_lt_order")
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=4/12 translated_interior_mismatch_layers=0 interior_sequence_mismatches=9992
+PAIR_LAYER depth=1 first_mismatch=2302 left=[2323, 260, 260, 0] right=[1522, 0, 510, 0] output_bases=804,4423 shared_ports=1295 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=706 left=[1024, 530, 2324, 1] right=[1132, 0, 657, 0] output_bases=25157,27996 shared_ports=1 input_bases=Some(804),Some(4423)
+SEQUENCES structural_absolute_subsequence_normalized: terms=259551 distinct_deltas=53521 chunks32=7829 unique_chunks32=5572 repeated_chunk_occurrences=2837 distinct_coordinate_triples=48318
+SEQUENCES structural_local_morton: terms=259551 distinct_deltas=13423 chunks32=7829 unique_chunks32=3310 repeated_chunk_occurrences=5576 distinct_coordinate_triples=10570
+ENCODING header=19658 templates=48 template_bytes=850044 instances=5500 mappings=826569 shared_port_entries=11068 total=1707273
+SIZE structural_LCT0: raw=1707273 zstd16=189324 zstd22=179086
+DECODE canonical_sort_ms=14.573
+ROUNDTRIP structural: exact_lfc1=true exact_id=true decode_zstd16_expand_sort_hash_ms=32.925
+test all::signature_compile::analyze_signature_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 3.75s

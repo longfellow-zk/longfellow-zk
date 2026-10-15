@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod ecmul;
+pub mod mldsa;
 pub mod sha3;

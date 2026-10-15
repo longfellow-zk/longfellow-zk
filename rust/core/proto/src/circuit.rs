@@ -123,6 +123,85 @@ pub fn compute_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestByt
     digest
 }
 
+/// Compute a term-order-independent ID without changing the circuit or its ID.
+///
+/// Uses the same field, geometry, and term byte encoding as [`compute_id`], but
+/// sorts each layer lexicographically by `(g, h0, h1, coefficient_bytes)` first.
+/// Coefficients are compared by their serialized values, not table indices.
+/// Duplicate terms and assertion markers are preserved; wires, input hands,
+/// and layers are not renamed or reordered. This is not algebraic normalization.
+///
+/// Scratch space is 16 bytes per term in the largest layer, plus serialized
+/// constants and an 8 KiB hash buffer. No prover, reader, or writer uses this
+/// alternative ID automatically; [`compute_id`] remains the protocol ID.
+pub fn compute_canonical_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestBytes {
+    let mut hasher = Sha256::new();
+    if f.is_binary() {
+        hasher.update(2u64.to_le_bytes());
+        hasher.update(((f.serialized_size_bytes() * 8) as u64).to_le_bytes());
+    } else {
+        hasher.update(1u64.to_le_bytes());
+        hasher.update(f.serialized_mone());
+    }
+    for value in [
+        raw.noutput,
+        raw.logv,
+        1, // ncopies
+        0, // logc
+        raw.layers.len(),
+        raw.ninput,
+        raw.npublic_input,
+        raw.subfield_boundary,
+    ] {
+        update8(&mut hasher, value);
+    }
+
+    let const_bytes: Vec<Vec<u8>> = raw.constants.iter().map(|c| f.to_bytes(c)).collect();
+    let mut buf = [0u8; 8192];
+    for layer in &raw.layers {
+        for value in [layer.nw(), layer.logw(), layer.num_terms()] {
+            update8(&mut hasher, value);
+        }
+        // Sort compact integer records, not field elements or per-term byte vectors.
+        let mut terms: Vec<[u32; 4]> = Vec::with_capacity(layer.num_terms());
+        let mut previous = [0u32; 3];
+        layer.for_each_delta(|d| {
+            previous[0] = previous[0].wrapping_add(d.g);
+            previous[1] = previous[1].wrapping_add(d.h[0]);
+            previous[2] = previous[2].wrapping_add(d.h[1]);
+            terms.push([previous[0], previous[1], previous[2], d.k_index]);
+        });
+        terms.sort_unstable_by(|a, b| {
+            a[..3]
+                .cmp(&b[..3])
+                .then_with(|| const_bytes[a[3] as usize].cmp(&const_bytes[b[3] as usize]))
+        });
+
+        let mut buf_len = 0;
+        for [g, h0, h1, k] in terms {
+            let cb = &const_bytes[k as usize];
+            if buf_len + 24 + cb.len() > buf.len() {
+                hasher.update(&buf[..buf_len]);
+                buf_len = 0;
+            }
+            buf[buf_len..buf_len + 8].copy_from_slice(&u64::from(g).to_le_bytes());
+            buf[buf_len + 8..buf_len + 16].copy_from_slice(&u64::from(h0).to_le_bytes());
+            buf[buf_len + 16..buf_len + 24].copy_from_slice(&u64::from(h1).to_le_bytes());
+            buf_len += 24;
+            if cb.len() > buf.len() - buf_len {
+                hasher.update(&buf[..buf_len]);
+                buf_len = 0;
+                hasher.update(cb);
+            } else {
+                buf[buf_len..buf_len + cb.len()].copy_from_slice(cb);
+                buf_len += cb.len();
+            }
+        }
+        hasher.update(&buf[..buf_len]);
+    }
+    hasher.finalize().into()
+}
+
 impl<F: SerializableField> fmt::Debug for RawCircuit<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RawCircuit")

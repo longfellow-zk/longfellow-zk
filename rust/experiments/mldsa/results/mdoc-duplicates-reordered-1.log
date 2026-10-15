@@ -1,0 +1,55 @@
+[Compiler] Signature Circuit
+  Hash (ID): 0xb6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf
+  Geometry: nin=3941, npubin=707, nout=6, W=179677, T=276481, L=21, assertions=3964
+  Compile time: 437.138616ms
+  Ligero params: rateinv=7, nreq=132, block_enc=4445
+[Compiler] Hash Circuit (nattrs=2)
+  Hash (ID): 0x34046ae480a351acb0fb017e20c94f792c8e51b157a0aeee80b6c775f78d8d27
+  Geometry: nin=77785, npubin=1035, nout=16, W=3396148, T=6394835, L=20, assertions=96481
+  Compile time: 11.668521546s
+  Ligero params: rateinv=7, nreq=132, block_enc=5246
+BENCH_MODE kind_order=true comparison_sort_and_merge=true
+--------------------------------------------------
+Circuit Stats (Current Version Circuit):
+  Disclosed Attributes: 2
+  Circuit Sizes: zstd-16=183465 bytes, segmented (no zstd)=770782 bytes
+  Sig Circuit ID:  d3afd8083189537de2e803ed49f89c5b896bc007961b560a1d6fc8eb67ef9ab4
+  Hash Circuit ID: b72bcfaefa391e1cf8e9456a4170caa35a66582df2085c463575ff3ce98869f7
+  Overall Spec Hash: 4bba6d33dd704c8b54aa51206203ad4b7f6db7d2d3e5c4e4e0be8eea774e2198
+  Distinct deltas: sig=11030, hash=16238
+  Hash Circuit: inputs=77785, pub_inputs=1035, outputs=16, layers=20, wires=3396148, terms=6394835
+  Hash Ligero:  block=583, dblock=1165, block_enc=5246, nrow=179, mc_pathlen=13
+  Sig Circuit:  inputs=3941, pub_inputs=707, outputs=6, layers=21, wires=179677, terms=276481
+  Sig Ligero:   block=494, dblock=987, block_enc=4445, nrow=18, mc_pathlen=13
+Compressed circuits (concatenated) size: 183465 bytes
+--------------------------------------------------
+Baseline Circuit Memory Stats:
+  Proof Size: 344076 bytes
+  Prover Net Heap Memory: 360276 bytes
+  Prover Peak Heap Memory: 113165686 bytes
+  Verifier Net Heap Memory: 0 bytes
+  Verifier Peak Heap Memory: 69911672 bytes
+--------------------------------------------------
+Benchmarking integration_current/prove_mdoc_flow_current
+Benchmarking integration_current/prove_mdoc_flow_current: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 6.1s.
+Benchmarking integration_current/prove_mdoc_flow_current: Collecting 10 samples in estimated 6.1004 s (10 iterations)
+Benchmarking integration_current/prove_mdoc_flow_current: Analyzing
+integration_current/prove_mdoc_flow_current
+                        time:   [604.42 ms 605.36 ms 606.33 ms]
+Benchmarking integration_current/verify_mdoc_flow_current
+Benchmarking integration_current/verify_mdoc_flow_current: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 3.9s.
+Benchmarking integration_current/verify_mdoc_flow_current: Collecting 10 samples in estimated 3.8500 s (10 iterations)
+Benchmarking integration_current/verify_mdoc_flow_current: Analyzing
+integration_current/verify_mdoc_flow_current
+                        time:   [382.72 ms 384.20 ms 385.69 ms]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low mild
+  1 (10.00%) high mild
+
+Process OS Memory Stats (Peak/HWM):
+  VmPeak:	 2903212 kB
+  VmHWM:	 1823772 kB

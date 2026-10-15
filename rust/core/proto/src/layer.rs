@@ -352,8 +352,13 @@ pub fn canonical_term<F: SerializableField>(t: Term<F>) -> Term<F> {
     }
 }
 
+/// Context-free lexicographic `(h0, h1, g, coefficient)` comparison, useful for
+/// comparing term multisets. This is not a required storage or runtime order:
+/// the compiler uses a constant-aware type/output-major layout for compression.
+/// Circuit IDs hash the actual stored traversal, without sorting it here.
 pub fn compare_term<F: SerializableField>(f: &F, t: &Term<F>, s: &Term<F>) -> std::cmp::Ordering {
-    ::util::morton::cmp(t.h0 as usize, t.h1 as usize, s.h0 as usize, s.h1 as usize)
+    t.h0.cmp(&s.h0)
+        .then_with(|| t.h1.cmp(&s.h1))
         .then_with(|| t.g.cmp(&s.g))
         .then_with(|| f.to_bytes(&t.k).cmp(&f.to_bytes(&s.k)))
 }

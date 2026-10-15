@@ -1,0 +1,48 @@
+
+running 43 tests
+test boundary_segments_preserve_deltas_and_share_only_exact_runs ... ok
+test builder::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test builder::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test builder::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test builder::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test builder::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test builder::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test clustered_dictionaries_preserve_traversal_and_reference_widths ... ok
+test layer_template_order_sweep ... ignored, offline template-order LFC2 sweep
+test morton::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test morton::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test morton::bipartite::tests::shared_one_merges_only_when_included ... ok
+test morton::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test morton::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test morton::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test morton::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test morton::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test morton::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test morton::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test morton::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test morton::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test morton::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test morton::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test morton::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test morton::morton_key::tests::numeric_encodings_roundtrip ... ok
+test morton::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test morton::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test morton::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test morton::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test morton::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test morton::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test morton::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test morton::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test morton::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test morton::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test morton::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test morton::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test morton::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test morton::tests::morton_translation_changes_order ... ok
+test morton::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test morton::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test morton::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+test repeated_interiors_are_shared_without_changing_boundary_deltas ... ok
+
+test result: ok. 42 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

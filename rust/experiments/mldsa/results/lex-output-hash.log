@@ -1,0 +1,31 @@
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [optimized + debuginfo] target(s) in 5.02s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 284717, npublic_input: 1, noutput: 16, nwires: 2635391, nterms: 5038540, nlayers: 20, nassertions: 303413 }
+ANALYZE mdoc_hash id=[7f, ec, 95, 56, 51, 4f, 03, fb, 2f, 83, 3c, f2, e5, ea, 7e, 87, 3e, 06, 2b, 4d, 83, 25, 1e, 7b, 91, 4e, 36, fc, 43, be, 97, 26]
+LEX_CORRECTNESS lex_g_h0_h1: canonical_lfc1_exact=true global_deltas=2002328 id=[90, 72, b5, 65, 42, 5e, 0d, 84, f4, e8, b5, b4, 2d, 7e, c8, fa, 4a, f5, 71, 8e, 1f, 18, 8f, bc, 60, 90, a3, 5d, 3e, ff, 77, 6c]
+test all::hash_compile::analyze_hash_morton has been running for over 60 seconds
+SIZE lex_g_h0_h1_lfc1: raw=60467613 zstd16=2887441 zstd22=2439014
+SIZE lex_g_h0_h1_lfc2_native: raw=26853329 zstd16=7755666 zstd22=6503342
+LEX_SEGMENT lex_g_h0_h1: ms=445.496
+SIZE lex_g_h0_h1_lfc2_segmented: raw=22172410 zstd16=9402092 zstd22=7066773
+MEMORY lex_g_h0_h1: deltas=2037733 segments=114446 segment_entries=3652938 tokens=157975 payload_and_segment_headers_bytes=50594084 excludes_capacity_slack_constants_and_allocator_overhead=true
+LEX_DECODE lex_g_h0_h1: zstd16_decode_and_id_median_ms=260.333 exact=true
+LEX_CORRECTNESS lex_g_h1_h0: canonical_lfc1_exact=true global_deltas=2005633 id=[be, 50, 8f, c9, a8, 9e, f9, b8, 05, 38, 33, 61, 25, 1c, 6f, dc, 4f, 85, 98, 58, 23, 65, 1d, a6, 8a, 89, 9d, c8, 6b, 56, 0e, 29]
+SIZE lex_g_h1_h0_lfc1: raw=60467613 zstd16=2929335 zstd22=2459721
+SIZE lex_g_h1_h0_lfc2_native: raw=26857563 zstd16=7509450 zstd22=6379991
+LEX_SEGMENT lex_g_h1_h0: ms=434.805
+SIZE lex_g_h1_h0_lfc2_segmented: raw=22185275 zstd16=10096425 zstd22=7067765
+MEMORY lex_g_h1_h0: deltas=2040003 segments=114558 segment_entries=3656891 tokens=157952 payload_and_segment_headers_bytes=50648812 excludes_capacity_slack_constants_and_allocator_overhead=true
+LEX_DECODE lex_g_h1_h0: zstd16_decode_and_id_median_ms=260.651 exact=true
+test all::hash_compile::analyze_hash_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 198.35s

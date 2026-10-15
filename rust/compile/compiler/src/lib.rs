@@ -24,6 +24,7 @@ pub mod node;
 pub mod quad;
 mod scheduler;
 pub mod segment;
+mod term_order;
 pub mod top;
 
 pub use compile_proto::debug;

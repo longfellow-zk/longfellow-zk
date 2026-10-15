@@ -15,7 +15,9 @@
 use runtime_algebra::{ElementOf, InterpolatorFactory, Subfield, ZkField};
 use runtime_ligero::{param::LigeroQuadraticConstraint, LigeroProver};
 use runtime_random::{RandomEngine, Transcript};
-use runtime_sumcheck::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck};
+use runtime_sumcheck::{
+    prove_core_with_order as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck,
+};
 
 use crate::{common::ZkContext, ZkProof};
 
@@ -23,6 +25,7 @@ use crate::{common::ZkContext, ZkProof};
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
     pub circuit: core_proto::circuit::Circuit<F>,
     pub config: runtime_ligero::param::LigeroConfig,
+    sumcheck_order: runtime_sumcheck::SumcheckOrder,
 }
 
 pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
@@ -37,7 +40,20 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         circuit: core_proto::circuit::Circuit<F>,
         config: runtime_ligero::param::LigeroConfig,
     ) -> Self {
-        Self { circuit, config }
+        Self {
+            circuit,
+            config,
+            sumcheck_order: runtime_sumcheck::SumcheckOrder::default(),
+        }
+    }
+
+    /// Select the protocol challenge schedule. Round-major requires the circuit
+    /// to already be Morton-ordered; hand-major accepts any term traversal.
+    /// Both peers must choose the same order from their trusted protocol spec.
+    /// This changes neither the circuit ID nor proof geometry.
+    pub fn with_sumcheck_order(mut self, order: runtime_sumcheck::SumcheckOrder) -> Self {
+        self.sumcheck_order = order;
+        self
     }
     /// Computes ZK commitment of the witness and ZK pads.
     #[allow(clippy::too_many_arguments)]
@@ -158,11 +174,12 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             &self.circuit,
             &mut ts_sumcheck_prover,
             ctx.f,
+            self.sumcheck_order,
         );
 
         // The prover does not need the RHS constants vector `b` and can discard it,
         // since it is public and computed by the verifier during verification.
-        let (a, b) = crate::symbolic_sumcheck_verifier::symbolic_sumcheck_verifier_core(
+        let (a, b) = crate::symbolic_sumcheck_verifier::symbolic_sumcheck_verifier_core_with_order(
             n_witness,
             &public_inputs,
             &self.circuit,
@@ -170,6 +187,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             Some(&aux),
             tsp,
             ctx.f,
+            self.sumcheck_order,
         );
 
         let statement_hash = crate::common::DEFAULT_STATEMENT_HASH;

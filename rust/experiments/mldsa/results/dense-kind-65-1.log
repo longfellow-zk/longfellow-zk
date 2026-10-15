@@ -1,0 +1,9 @@
+
+running 1 test
+test all::mldsa_verifier::mldsa65_proof_benchmark ... circuit storage: id=a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8, layer_deltas=176295, segments=32879
+sweep circuit: period=6, geometry=CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }, lfc1=95475126, lfc1_zstd16=861477, lfc1_zstd22=640820, lfc2=2896804, lfc2_zstd16=1031363, lfc2_zstd22=989616
+proof setup: geometry=CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }, witnesses=149677, constraints=37, block_enc=6113
+sweep proof: period=6, commit=271.476386ms, prove=993.077508ms, verify=761.32816ms, proof=719048 bytes, total=24.058108819s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 24.08s

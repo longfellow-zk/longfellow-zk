@@ -1,0 +1,72 @@
+   Compiling circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3.95s
+     Running unittests src/lib.rs (target/debug/deps/circuits_experimental-d462dc731729433c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/experimental_tests.rs (target/debug/deps/experimental_tests-cf95e9ede4d28047)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }
+ANALYZE mldsa44_p6 id=[dd, c8, b8, da, 7a, e2, 87, 2d, e1, ac, 1c, 62, be, 7b, e8, 8b, 6d, 68, ba, 80, cf, f4, ab, f9, fb, 12, 34, 79, a5, e0, 3f, d1]
+GRAPH components=130729 largest=[271101, 87821, 87501, 87501, 87501, 87501, 87501, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85901, 85517, 79642, 13253, 60, 60, 60, 60, 60, 60] constants=37 inputs=128272
+SEQUENCES absolute: terms=6580787 distinct_deltas=174923 chunks32=205640 unique_chunks32=74793 repeated_chunk_occurrences=142309 distinct_coordinate_triples=150766
+CORRESPONDENCE rank: repeated_whole_component_families=4
+PAIR rank: components=212441,327440 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=57406 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.11/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.11/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS rank: depth=2 dg=99027 dh=114999 first_interior_mismatch=64 local_a=[64, 514, 706, 0] local_b=[192, 450, 1282, 0] left_a=[81265, 84682, 84874, 0] left_b=[81393, 84618, 85450, 0] right_a=[180292, 199681, 199873, 0] right_b=[180420, 199617, 200449, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56820
+PAIR_LAYER depth=1 first_mismatch=3447 left=[815, 504, 568, 0] right=[1281, 258, 897, 0] output_bases=84169,199168 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=137 left=[64, 514, 706, 0] right=[192, 450, 1282, 0] output_bases=81201,180228 shared_ports=1 input_bases=Some(84169),Some(199168)
+PAIR rank: components=216674,331673 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=57371 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.17/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.17/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS rank: depth=2 dg=99027 dh=114999 first_interior_mismatch=151 local_a=[193, 515, 1282, 0] local_b=[307, 473, 1328, 0] left_a=[84987, 88916, 89683, 0] left_b=[85101, 88874, 89729, 0] right_a=[184014, 203915, 204682, 0] right_b=[184128, 203873, 204728, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56731
+PAIR_LAYER depth=1 first_mismatch=3328 left=[1281, 258, 897, 0] right=[513, 321, 385, 0] output_bases=88402,203401 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=224 left=[193, 515, 1282, 0] right=[307, 473, 1328, 0] output_bases=84794,183821 shared_ports=1 input_bases=Some(88402),Some(203401)
+PAIR rank: components=220907,335906 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=59141 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.23/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.23/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS rank: depth=2 dg=99027 dh=114999 first_interior_mismatch=82 local_a=[192, 450, 1282, 0] local_b=[82, 550, 742, 0] left_a=[88579, 93084, 93916, 0] left_b=[88469, 93184, 93376, 0] right_a=[187606, 208083, 208915, 0] right_b=[187496, 208183, 208375, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56732
+PAIR_LAYER depth=1 first_mismatch=1751 left=[65, 1, 65, 0] right=[2566, 0, 1752, 6] output_bases=92635,207634 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=155 left=[192, 450, 1282, 0] right=[82, 550, 742, 0] output_bases=88387,187414 shared_ports=1 input_bases=Some(92635),Some(207634)
+PAIR rank: components=340139,356431 family=5 wires=87501 terms=120516 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=58036 paths=Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.5/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.5/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS rank: depth=2 dg=14692 dh=16292 first_interior_mismatch=256 local_a=[384, 322, 898, 0] local_b=[256, 641, 705, 0] left_a=[191391, 212188, 212764, 0] left_b=[191263, 212507, 212571, 0] right_a=[206083, 228480, 229056, 0] right_b=[205955, 228799, 228863, 0]
+PAIR_CAUSES rank: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=57076
+PAIR_LAYER depth=1 first_mismatch=3319 left=[119, 376, 1208, 1] right=[320, 65, 1409, 1] output_bases=211867,228159 shared_ports=4289 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=329 left=[384, 322, 898, 0] right=[256, 641, 705, 0] output_bases=191007,205699 shared_ports=1 input_bases=Some(211867),Some(228159)
+SEQUENCES rank_absolute_subsequence_normalized: terms=6580787 distinct_deltas=134362 chunks32=185027 unique_chunks32=65748 repeated_chunk_occurrences=127934 distinct_coordinate_triples=120223
+SEQUENCES rank_local_morton: terms=6580787 distinct_deltas=68619 chunks32=185027 unique_chunks32=19477 repeated_chunk_occurrences=175386 distinct_coordinate_triples=57451
+SEQUENCES offset_absolute_subsequence: terms=6580787 distinct_deltas=134364 chunks32=185027 unique_chunks32=65749 repeated_chunk_occurrences=127933 distinct_coordinate_triples=120225
+SEQUENCES offset_local_morton: terms=6580787 distinct_deltas=68527 chunks32=185027 unique_chunks32=19434 repeated_chunk_occurrences=175450 distinct_coordinate_triples=57357
+SEQUENCES offset_interior_absolute_subsequence: terms=2178869 distinct_deltas=130032 chunks32=62372 unique_chunks32=56845 repeated_chunk_occurrences=6861 distinct_coordinate_triples=117306
+SEQUENCES offset_interior_local_morton: terms=2178869 distinct_deltas=59590 chunks32=62372 unique_chunks32=8752 repeated_chunk_occurrences=55732 distinct_coordinate_triples=49906
+LAYOUT fragmented_components=0 fully_contiguous_component_terms=6580787 output_mapping_runs=279930 component_layer_blocks=279930
+SEQUENCES rank_absolute_subsequence_absolute_coords: terms=6580787 distinct_deltas=562628 chunks32=185027 unique_chunks32=71221 repeated_chunk_occurrences=121575 distinct_coordinate_triples=547025
+SEQUENCES rank_interior_absolute_subsequence: terms=2178869 distinct_deltas=130030 chunks32=62372 unique_chunks32=56844 repeated_chunk_occurrences=6862 distinct_coordinate_triples=117304
+SEQUENCES rank_interior_local_morton: terms=2178869 distinct_deltas=59592 chunks32=62372 unique_chunks32=8751 repeated_chunk_occurrences=55733 distinct_coordinate_triples=49910
+CORRESPONDENCE structural: repeated_whole_component_families=4
+PAIR structural: components=212441,327440 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=57406 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.11/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.11/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS structural: depth=2 dg=99027 dh=114999 first_interior_mismatch=64 local_a=[1737, 1930, 1994, 0] local_b=[394, 322, 1804, 0] left_a=[81265, 84682, 84874, 0] left_b=[81393, 84618, 85450, 0] right_a=[180292, 199681, 199873, 0] right_b=[180420, 199617, 200449, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56820
+PAIR_LAYER depth=1 first_mismatch=3447 left=[2048, 504, 568, 0] right=[1803, 258, 897, 0] output_bases=84169,199168 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=137 left=[1737, 1930, 1994, 0] right=[394, 322, 1804, 0] output_bases=83121,182148 shared_ports=1 input_bases=Some(84169),Some(199168)
+PAIR structural: components=216674,331673 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=57371 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.17/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.17/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS structural: depth=2 dg=99027 dh=114999 first_interior_mismatch=151 local_a=[458, 386, 1804, 0] local_b=[417, 345, 1850, 0] left_a=[84987, 88916, 89683, 0] left_b=[85101, 88874, 89729, 0] right_a=[184014, 203915, 204682, 0] right_b=[184128, 203873, 204728, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56731
+PAIR_LAYER depth=1 first_mismatch=3328 left=[1803, 258, 897, 0] right=[1929, 321, 385, 0] output_bases=88402,203401 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=224 left=[458, 386, 1804, 0] right=[417, 345, 1850, 0] output_bases=86714,185741 shared_ports=1 input_bases=Some(88402),Some(203401)
+PAIR structural: components=220907,335906 family=8 wires=85901 terms=117828 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=59141 paths=Some("mldsa_verify/sample_in_ball/shake256/keccak_f_1600_xor/keccak_f_1600_xor.23/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.23/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS structural: depth=2 dg=99027 dh=114999 first_interior_mismatch=82 local_a=[394, 322, 1804, 0] local_b=[1755, 1948, 2012, 0] left_a=[88579, 93084, 93916, 0] left_b=[88469, 93184, 93376, 0] right_a=[187606, 208083, 208915, 0] right_b=[187496, 208183, 208375, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=56732
+PAIR_LAYER depth=1 first_mismatch=1751 left=[1673, 1, 65, 0] right=[1606, 0, 1752, 6] output_bases=92635,207634 shared_ports=3201 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=155 left=[394, 322, 1804, 0] right=[1755, 1948, 2012, 0] output_bases=90307,189334 shared_ports=1 input_bases=Some(92635),Some(207634)
+PAIR structural: components=340139,356431 family=5 wires=87501 terms=120516 exact_local_DAG=true same_normalized_absolute_layers=1/37 differing_sequence_positions=58036 paths=Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.5/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane") / Some("mldsa_verify/shake256/keccak_f_1600_xor/keccak_f_1600_xor.5/assert_eq_xor_state/assert_eq_xor_state.0/xor_lane")
+TRANSLATION_WITNESS structural: depth=2 dg=14692 dh=16292 first_interior_mismatch=256 local_a=[524, 322, 1676, 0] local_b=[969, 641, 705, 0] left_a=[191391, 212188, 212764, 0] left_b=[191263, 212507, 212571, 0] right_a=[206083, 228480, 229056, 0] right_b=[205955, 228799, 228863, 0]
+PAIR_CAUSES structural: uniform_output_and_internal_input_translation_layers=36/37 translated_interior_mismatch_layers=35 interior_sequence_mismatches=57076
+PAIR_LAYER depth=1 first_mismatch=3319 left=[119, 376, 1208, 1] right=[320, 65, 1409, 1] output_bases=211867,228159 shared_ports=4289 input_bases=None,None
+PAIR_LAYER depth=2 first_mismatch=329 left=[524, 322, 1676, 0] right=[969, 641, 705, 0] output_bases=193247,207939 shared_ports=1 input_bases=Some(211867),Some(228159)
+SEQUENCES structural_absolute_subsequence_normalized: terms=6580787 distinct_deltas=186021 chunks32=185027 unique_chunks32=71194 repeated_chunk_occurrences=123165 distinct_coordinate_triples=170487
+SEQUENCES structural_local_morton: terms=6580787 distinct_deltas=54744 chunks32=185027 unique_chunks32=18589 repeated_chunk_occurrences=175511 distinct_coordinate_triples=49245
+test all::mldsa_verifier::analyze_mldsa44_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 22.07s

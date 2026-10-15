@@ -1,0 +1,64 @@
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=1 policy=kind_abs_lex0213_r5 raw=750981 zstd16=182988 zstd22=160605 bulk_zstd16=184005
+TRAVERSAL_PROOF attrs=1 policy=kind_abs_lex0213_r5 bytes=344740 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 12.08s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=2 policy=kind_abs_lex0213_r5 raw=770782 zstd16=183465 zstd22=162101 bulk_zstd16=185815
+TRAVERSAL_PROOF attrs=2 policy=kind_abs_lex0213_r5 bytes=343756 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 13.43s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=3 policy=kind_abs_lex0213_r5 raw=786703 zstd16=185108 zstd22=163163 bulk_zstd16=186710
+TRAVERSAL_PROOF attrs=3 policy=kind_abs_lex0213_r5 bytes=345996 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 14.19s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=4 policy=kind_abs_lex0213_r5 raw=803703 zstd16=186421 zstd22=163401 bulk_zstd16=187388
+TRAVERSAL_PROOF attrs=4 policy=kind_abs_lex0213_r5 bytes=351428 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 15.39s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=1 policy=kind_abs_lex0213_r1 raw=751492 zstd16=183277 zstd22=159736 bulk_zstd16=184559
+TRAVERSAL_PROOF attrs=1 policy=kind_abs_lex0213_r1 bytes=344228 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 12.49s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=2 policy=kind_abs_lex0213_r1 raw=770172 zstd16=185748 zstd22=161805 bulk_zstd16=186262
+TRAVERSAL_PROOF attrs=2 policy=kind_abs_lex0213_r1 bytes=345036 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 13.32s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=3 policy=kind_abs_lex0213_r1 raw=786071 zstd16=186874 zstd22=163045 bulk_zstd16=187762
+TRAVERSAL_PROOF attrs=3 policy=kind_abs_lex0213_r1 bytes=346028 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 13.74s
+
+
+running 1 test
+test all::mldsa_verifier::validate_mdoc_traversal ... TRAVERSAL_ARCHIVE attrs=4 policy=kind_abs_lex0213_r1 raw=803285 zstd16=187894 zstd22=163562 bulk_zstd16=188155
+TRAVERSAL_PROOF attrs=4 policy=kind_abs_lex0213_r1 bytes=349956 verified=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 14.28s
+

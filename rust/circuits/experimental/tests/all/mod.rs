@@ -14,6 +14,14 @@
 
 mod ecmul_compile;
 mod ecmul_eval;
+mod mldsa_algebra;
+mod mldsa_circuit;
+mod mldsa_crt;
+mod mldsa_reference;
+mod mldsa_sample;
+mod mldsa_shake;
+mod mldsa_test_vectors;
+mod mldsa_verifier;
 mod sha3_compile;
 mod sha3_eval;
 mod testvec;

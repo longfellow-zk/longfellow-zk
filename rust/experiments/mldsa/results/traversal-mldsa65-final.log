@@ -1,0 +1,94 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mldsa65 CircuitGeometry { ninput: 156263, npublic_input: 9217, noutput: 2336, nwires: 3599744, nterms: 7953988, nlayers: 37, nassertions: 172323 }
+ANALYZE mldsa65 id=[a7, 73, 85, 49, 22, 3e, 48, 1d, 66, 51, e2, 28, 81, c9, 0b, c0, f6, 33, 1d, 6b, 7c, ab, b8, f6, 0a, fb, ff, 45, bb, 76, ca, a8]
+SWEEP_CONFIG orders=2 extended=true final=true contexts=kind coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP kind_abs_lex0213_r1 raw=2890968 zstd3=1141928 zstd16=1026343 global_deltas=66930 layer_deltas=175035 segments=32863 entries=995626 tokens=252541 memory=8581940 ms=2126.2
+SIZE kind_abs_lex0213_r1_lfc1: raw=95475126 zstd16=871439 zstd22=646618
+SIZE kind_abs_lex0213_r1_lfc2_native: raw=14903929 zstd16=934440 zstd22=860042
+SIZE kind_abs_lex0213_r1_lfc2: raw=2890968 zstd16=1026343 zstd22=986669
+SWEEP_CHECK kind_abs_lex0213_r1 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=221.962
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=1 deltas=11182 raw=981814 independent_zstd16=209047
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=2 deltas=1281 raw=56345 independent_zstd16=12683
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=3 deltas=891 raw=30409 independent_zstd16=7210
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=4 deltas=1441 raw=37296 independent_zstd16=11071
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=5 deltas=4322 raw=77920 independent_zstd16=25149
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=6 deltas=6311 raw=87325 independent_zstd16=36213
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=7 deltas=5900 raw=63238 independent_zstd16=30464
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=8 deltas=2651 raw=30302 independent_zstd16=14120
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=9 deltas=2858 raw=34036 independent_zstd16=16645
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=10 deltas=1617 raw=19878 independent_zstd16=9771
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=11 deltas=4875 raw=79918 independent_zstd16=33150
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=12 deltas=7842 raw=88548 independent_zstd16=46060
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=13 deltas=5824 raw=50615 independent_zstd16=30524
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=14 deltas=3767 raw=35011 independent_zstd16=21409
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=15 deltas=3079 raw=28941 independent_zstd16=17000
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=16 deltas=1712 raw=19032 independent_zstd16=10278
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=17 deltas=4846 raw=80674 independent_zstd16=32996
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=18 deltas=7950 raw=88521 independent_zstd16=46467
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=19 deltas=5905 raw=54570 independent_zstd16=31229
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=20 deltas=3742 raw=34922 independent_zstd16=21221
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=21 deltas=3058 raw=28978 independent_zstd16=16889
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=22 deltas=1662 raw=18880 independent_zstd16=10113
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=23 deltas=4843 raw=74849 independent_zstd16=32188
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=24 deltas=7931 raw=88296 independent_zstd16=46286
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=25 deltas=5898 raw=51057 independent_zstd16=30569
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=26 deltas=3747 raw=34853 independent_zstd16=21489
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=27 deltas=3059 raw=28854 independent_zstd16=16855
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=28 deltas=1717 raw=18995 independent_zstd16=10322
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=29 deltas=4855 raw=74783 independent_zstd16=32213
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=30 deltas=7902 raw=85794 independent_zstd16=46233
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=31 deltas=5930 raw=51312 independent_zstd16=30852
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=32 deltas=3765 raw=35013 independent_zstd16=21465
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=33 deltas=3015 raw=28799 independent_zstd16=16736
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=34 deltas=4881 raw=44962 independent_zstd16=30549
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=35 deltas=11223 raw=105722 independent_zstd16=67770
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=36 deltas=10291 raw=87655 independent_zstd16=62779
+BIPARTITE_BODY kind_abs_lex0213_r1 depth=37 deltas=3262 raw=25922 independent_zstd16=20887
+SWEEP kind_abs_lex0213_r5 raw=2896804 zstd3=1151244 zstd16=1031363 global_deltas=68074 layer_deltas=176295 segments=32879 entries=996392 tokens=252539 memory=8605540 ms=2121.6
+SIZE kind_abs_lex0213_r5_lfc1: raw=95475126 zstd16=861477 zstd22=640820
+SIZE kind_abs_lex0213_r5_lfc2_native: raw=14919116 zstd16=939962 zstd22=860792
+SIZE kind_abs_lex0213_r5_lfc2: raw=2896804 zstd16=1031363 zstd22=989616
+SWEEP_CHECK kind_abs_lex0213_r5 exact_canonical_and_lfc2_roundtrip=true decode_with_id_ms=219.082
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=1 deltas=12393 raw=987653 independent_zstd16=216663
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=2 deltas=1263 raw=55923 independent_zstd16=12466
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=3 deltas=889 raw=30386 independent_zstd16=7085
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=4 deltas=1437 raw=37209 independent_zstd16=11045
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=5 deltas=4314 raw=77854 independent_zstd16=25236
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=6 deltas=6314 raw=87330 independent_zstd16=36185
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=7 deltas=5899 raw=63225 independent_zstd16=30552
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=8 deltas=2651 raw=30302 independent_zstd16=14120
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=9 deltas=2858 raw=34036 independent_zstd16=16645
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=10 deltas=1617 raw=19878 independent_zstd16=9771
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=11 deltas=4875 raw=79918 independent_zstd16=33150
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=12 deltas=7842 raw=88548 independent_zstd16=46060
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=13 deltas=5824 raw=50615 independent_zstd16=30524
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=14 deltas=3767 raw=35011 independent_zstd16=21409
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=15 deltas=3079 raw=28941 independent_zstd16=17000
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=16 deltas=1712 raw=19032 independent_zstd16=10278
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=17 deltas=4846 raw=80674 independent_zstd16=32996
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=18 deltas=7950 raw=88521 independent_zstd16=46467
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=19 deltas=5905 raw=54570 independent_zstd16=31229
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=20 deltas=3742 raw=34922 independent_zstd16=21221
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=21 deltas=3058 raw=28978 independent_zstd16=16889
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=22 deltas=1662 raw=18880 independent_zstd16=10113
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=23 deltas=4843 raw=74849 independent_zstd16=32188
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=24 deltas=7931 raw=88296 independent_zstd16=46286
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=25 deltas=5898 raw=51057 independent_zstd16=30569
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=26 deltas=3747 raw=34853 independent_zstd16=21489
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=27 deltas=3059 raw=28854 independent_zstd16=16855
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=28 deltas=1717 raw=18995 independent_zstd16=10322
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=29 deltas=4855 raw=74783 independent_zstd16=32213
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=30 deltas=7902 raw=85794 independent_zstd16=46233
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=31 deltas=5930 raw=51312 independent_zstd16=30852
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=32 deltas=3765 raw=35013 independent_zstd16=21465
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=33 deltas=3015 raw=28799 independent_zstd16=16736
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=34 deltas=4881 raw=45008 independent_zstd16=30560
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=35 deltas=11245 raw=105887 independent_zstd16=67747
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=36 deltas=10349 raw=88072 independent_zstd16=62988
+BIPARTITE_BODY kind_abs_lex0213_r5 depth=37 deltas=3261 raw=25897 independent_zstd16=20886
+SWEEP_DONE unique_candidates=2 seconds=26.108
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 48.57s
+

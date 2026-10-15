@@ -69,6 +69,7 @@ fn verify_layer<const W: usize, F: ZkField<W>>(
     lagrange_basis: &runtime_sumcheck::LagrangeBasis<3, W, F>,
     transcript: &mut Transcript,
     f: &F,
+    order: runtime_sumcheck::SumcheckOrder,
 ) {
     let (alpha, beta) = transcript.begin_layer(f);
 
@@ -81,15 +82,13 @@ fn verify_layer<const W: usize, F: ZkField<W>>(
     claim.axpy(&claims_state.claim[0], &f.one(), f);
     claim.axpy(&claims_state.claim[1], &alpha, f);
 
-    for round in 0..clr.logw() {
-        for (hand, lchal_slot) in lchal_hc.iter_mut().enumerate() {
-            let hp = &plr.hp[hand][round];
-            let round_pad = &pad.rounds[round].hp[hand];
-            let (next_claim, challenge_val) =
-                symbolic_sumcheck_round(claim, round_pad, hp, lagrange_basis, transcript, f);
-            claim = next_claim;
-            lchal_slot.push(challenge_val);
-        }
+    for (hand, round) in order.rounds(clr.logw()) {
+        let hp = &plr.hp[hand][round];
+        let round_pad = &pad.rounds[round].hp[hand];
+        let (next_claim, challenge_val) =
+            symbolic_sumcheck_round(claim, round_pad, hp, lagrange_basis, transcript, f);
+        claim = next_claim;
+        lchal_hc[hand].push(challenge_val);
     }
 
     let bound_quad = match aux {
@@ -184,6 +183,28 @@ fn input_constraint<const W: usize, F: ZkField<W>>(
 }
 
 pub fn symbolic_sumcheck_verifier_core<const W: usize, F: ZkField<W>>(
+    pad_index: usize,
+    pub_inputs: &[ElementOf<F>],
+    circuit: &Circuit<F>,
+    proof: &SumcheckProof<W, F>,
+    aux: Option<&SumcheckProofAux<W, F>>,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (Vec<LigeroLinearConstraint<W, F>>, Vec<ElementOf<F>>) {
+    symbolic_sumcheck_verifier_core_with_order(
+        pad_index,
+        pub_inputs,
+        circuit,
+        proof,
+        aux,
+        transcript,
+        f,
+        runtime_sumcheck::SumcheckOrder::default(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn symbolic_sumcheck_verifier_core_with_order<const W: usize, F: ZkField<W>>(
     mut pad_index: usize,
     pub_inputs: &[ElementOf<F>],
     circuit: &Circuit<F>,
@@ -191,6 +212,7 @@ pub fn symbolic_sumcheck_verifier_core<const W: usize, F: ZkField<W>>(
     aux: Option<&SumcheckProofAux<W, F>>,
     transcript: &mut Transcript,
     f: &F,
+    order: runtime_sumcheck::SumcheckOrder,
 ) -> (Vec<LigeroLinearConstraint<W, F>>, Vec<ElementOf<F>>) {
     let mut a = Vec::new();
     let mut b = Vec::new();
@@ -241,6 +263,7 @@ pub fn symbolic_sumcheck_verifier_core<const W: usize, F: ZkField<W>>(
             &lagrange_basis,
             transcript,
             f,
+            order,
         );
     }
 
@@ -272,22 +295,17 @@ fn bind_quad<const W: usize, F: ZkField<W>>(
     hc: &[Vec<ElementOf<F>>; 2],
     f: &F,
 ) -> ElementOf<F> {
-    let mut equad = runtime_sumcheck::hquad::HQuad::bind_g(
-        clr,
-        constants,
-        claims.logv,
-        claims.nv,
-        &claims.hc[0],
-        &claims.hc[1],
-        alpha,
-        beta,
-        f,
-    );
-
-    for (lc0, lc1) in hc[0].iter().zip(&hc[1]).take(clr.logw()) {
-        equad.bind_h(lc0, 0, f);
-        equad.bind_h(lc1, 1, f);
-    }
-
-    equad.scalar()
+    let g_binding = if claims.nv == 0 {
+        Vec::new()
+    } else {
+        runtime_sumcheck::eq::eq2(
+            claims.logv,
+            claims.nv,
+            &claims.hc[0],
+            &claims.hc[1],
+            alpha,
+            f,
+        )
+    };
+    runtime_sumcheck::evaluate_quad(clr, constants, &g_binding, hc, beta, f)
 }

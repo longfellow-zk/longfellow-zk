@@ -1,0 +1,8 @@
+
+running 4 tests
+test all::current_zk::test_all_current_zk ... ok
+test all::prior_zk::tests::test_all_circuits_all_test_cases ... ok
+test all::prior_zk::tests::test_all_circuits_prior_compatibility ... ok
+test all::prior_zk::tests::test_circuit_ids_match_zkspecs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.02s

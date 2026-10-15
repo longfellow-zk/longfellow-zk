@@ -15,7 +15,9 @@
 //! Serialization and deserialization structures for Sumcheck proofs.
 //!
 //! This module defines the binary representation of a Sumcheck proof, designed
-//! for compatibility with the C++ verifier.
+//! with the original C++ wire layout. Wire layout does not specify transcript
+//! round order: the experimental hand-major protocol retains this layout but
+//! is not proof-compatible with the legacy Morton-order C++ verifier.
 
 use core_algebra::{ElementOf, SerializableField};
 

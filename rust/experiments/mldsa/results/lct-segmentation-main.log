@@ -1,0 +1,263 @@
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=26884 templates=796 template_bytes=6298000 instances=279930 mappings=1551161 shared_port_entries=3464888 total=8156804
+LCT_SEG dataset=mldsa44 policy=lct1 raw=8156804 zstd16=742218 zstd22=729506 decode_to_lct1_ms=2.151 exact=true
+LCT_PARTS dataset=mldsa44 groups=796 template_records=1424111 map_words=1798140 templates_plain=6294059 maps_plain=1831095
+LCT_SEG dataset=mldsa44 policy=split_plain raw=8157735 zstd16=738110 zstd22=725014 decode_to_lct1_ms=12.100 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=1 templates_segmented=3366476 maps_segmented=1836306
+LCT_SEG dataset=mldsa44 policy=templates_w1 raw=5230152 zstd16=1319175 zstd22=1114593 decode_to_lct1_ms=17.631 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w1 raw=8162946 zstd16=757691 zstd22=746050 decode_to_lct1_ms=13.485 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w1 raw=5235363 zstd16=1328398 zstd22=1125072 decode_to_lct1_ms=21.068 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=1 templates_segmented=3276862 maps_segmented=1869835
+LCT_SEG dataset=mldsa44 policy=raw_templates_w1 raw=5140538 zstd16=1048272 zstd22=1005624 decode_to_lct1_ms=16.838 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w1 raw=8196475 zstd16=749572 zstd22=733928 decode_to_lct1_ms=15.862 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w1 raw=5179278 zstd16=1059136 zstd22=1014636 decode_to_lct1_ms=20.797 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=4 templates_segmented=2038923 maps_segmented=541070
+LCT_SEG dataset=mldsa44 policy=templates_w4 raw=3902599 zstd16=1226115 zstd22=1167337 decode_to_lct1_ms=13.202 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w4 raw=6867710 zstd16=764814 zstd22=748583 decode_to_lct1_ms=12.348 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w4 raw=2612574 zstd16=1251210 zstd22=1188881 decode_to_lct1_ms=17.401 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=4 templates_segmented=2543380 maps_segmented=664979
+LCT_SEG dataset=mldsa44 policy=raw_templates_w4 raw=4407056 zstd16=963111 zstd22=949206 decode_to_lct1_ms=13.755 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w4 raw=6991619 zstd16=752305 zstd22=737808 decode_to_lct1_ms=11.407 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w4 raw=3240940 zstd16=973476 zstd22=957891 decode_to_lct1_ms=15.323 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=8 templates_segmented=1873985 maps_segmented=325636
+LCT_SEG dataset=mldsa44 policy=templates_w8 raw=3737661 zstd16=1197209 zstd22=1152360 decode_to_lct1_ms=13.402 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w8 raw=6652276 zstd16=760982 zstd22=747639 decode_to_lct1_ms=11.575 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w8 raw=2232202 zstd16=1218719 zstd22=1173357 decode_to_lct1_ms=13.683 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=8 templates_segmented=2482865 maps_segmented=392270
+LCT_SEG dataset=mldsa44 policy=raw_templates_w8 raw=4346541 zstd16=917654 zstd22=901538 decode_to_lct1_ms=11.893 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w8 raw=6718910 zstd16=749696 zstd22=736480 decode_to_lct1_ms=10.984 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w8 raw=2907716 zstd16=926591 zstd22=910020 decode_to_lct1_ms=11.882 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=16 templates_segmented=1956907 maps_segmented=230805
+LCT_SEG dataset=mldsa44 policy=templates_w16 raw=3820583 zstd16=1157985 zstd22=1120126 decode_to_lct1_ms=13.249 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w16 raw=6557445 zstd16=761580 zstd22=748255 decode_to_lct1_ms=11.331 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w16 raw=2220293 zstd16=1180322 zstd22=1141575 decode_to_lct1_ms=12.840 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=16 templates_segmented=2961522 maps_segmented=251749
+LCT_SEG dataset=mldsa44 policy=raw_templates_w16 raw=4825198 zstd16=883751 zstd22=865782 decode_to_lct1_ms=12.904 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w16 raw=6578389 zstd16=749836 zstd22=736451 decode_to_lct1_ms=10.691 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w16 raw=3245852 zstd16=893567 zstd22=875240 decode_to_lct1_ms=11.758 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=32 templates_segmented=2038080 maps_segmented=185793
+LCT_SEG dataset=mldsa44 policy=templates_w32 raw=3901756 zstd16=1119902 zstd22=1082904 decode_to_lct1_ms=11.601 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w32 raw=6512433 zstd16=759039 zstd22=747146 decode_to_lct1_ms=11.020 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w32 raw=2256454 zstd16=1139724 zstd22=1103678 decode_to_lct1_ms=12.096 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=32 templates_segmented=3412454 maps_segmented=199007
+LCT_SEG dataset=mldsa44 policy=raw_templates_w32 raw=5276130 zstd16=840992 zstd22=821642 decode_to_lct1_ms=13.424 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w32 raw=6525647 zstd16=748362 zstd22=734497 decode_to_lct1_ms=10.372 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w32 raw=3644042 zstd16=849437 zstd22=829472 decode_to_lct1_ms=13.063 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=64 templates_segmented=2157954 maps_segmented=224236
+LCT_SEG dataset=mldsa44 policy=templates_w64 raw=4021630 zstd16=1090777 zstd22=1054346 decode_to_lct1_ms=12.373 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w64 raw=6550876 zstd16=758908 zstd22=746678 decode_to_lct1_ms=11.342 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w64 raw=2414771 zstd16=1111153 zstd22=1073779 decode_to_lct1_ms=12.257 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=64 templates_segmented=3859812 maps_segmented=241121
+LCT_SEG dataset=mldsa44 policy=raw_templates_w64 raw=5723488 zstd16=804245 zstd22=785577 decode_to_lct1_ms=13.930 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w64 raw=6567761 zstd16=748754 zstd22=735101 decode_to_lct1_ms=10.316 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w64 raw=4133514 zstd16=812120 zstd22=793152 decode_to_lct1_ms=13.266 exact=true
+LCT_POOLS dataset=mldsa44 kind= window=128 templates_segmented=2288173 maps_segmented=297758
+LCT_SEG dataset=mldsa44 policy=templates_w128 raw=4151849 zstd16=1070185 zstd22=1033052 decode_to_lct1_ms=12.468 exact=true
+LCT_SEG dataset=mldsa44 policy=maps_w128 raw=6624398 zstd16=758195 zstd22=745957 decode_to_lct1_ms=11.860 exact=true
+LCT_SEG dataset=mldsa44 policy=both_w128 raw=2618512 zstd16=1089188 zstd22=1052331 decode_to_lct1_ms=11.705 exact=true
+LCT_POOLS dataset=mldsa44 kind=raw_ window=128 templates_segmented=4278256 maps_segmented=310693
+LCT_SEG dataset=mldsa44 policy=raw_templates_w128 raw=6141932 zstd16=782415 zstd22=764532 decode_to_lct1_ms=12.475 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_maps_w128 raw=6637333 zstd16=748132 zstd22=734258 decode_to_lct1_ms=11.001 exact=true
+LCT_SEG dataset=mldsa44 policy=raw_both_w128 raw=4621530 zstd16=790546 zstd22=771782 decode_to_lct1_ms=12.892 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 42.81s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=27076 templates=812 template_bytes=7103365 instances=329909 mappings=1816302 shared_port_entries=5716620 total=9277493
+LCT_SEG dataset=mldsa65 policy=lct1 raw=9277493 zstd16=777232 zstd22=764666 decode_to_lct1_ms=1.962 exact=true
+LCT_PARTS dataset=mldsa65 groups=812 template_records=1607883 map_words=2108699 templates_plain=7099366 maps_plain=2146216
+LCT_SEG dataset=mldsa65 policy=split_plain raw=9278448 zstd16=772689 zstd22=760313 decode_to_lct1_ms=11.870 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=1 templates_segmented=3640182 maps_segmented=2147537
+LCT_SEG dataset=mldsa65 policy=templates_w1 raw=5819264 zstd16=1335646 zstd22=1148901 decode_to_lct1_ms=19.212 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w1 raw=9279769 zstd16=792630 zstd22=781661 decode_to_lct1_ms=14.917 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w1 raw=5820585 zstd16=1345173 zstd22=1159420 decode_to_lct1_ms=21.001 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=1 templates_segmented=3598563 maps_segmented=2190188
+LCT_SEG dataset=mldsa65 policy=raw_templates_w1 raw=5777645 zstd16=1062625 zstd22=1016682 decode_to_lct1_ms=19.637 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w1 raw=9322420 zstd16=783910 zstd22=769418 decode_to_lct1_ms=16.236 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w1 raw=5821617 zstd16=1073628 zstd22=1025610 decode_to_lct1_ms=24.376 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=4 templates_segmented=2135260 maps_segmented=622253
+LCT_SEG dataset=mldsa65 policy=templates_w4 raw=4314342 zstd16=1238363 zstd22=1178592 decode_to_lct1_ms=14.111 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w4 raw=7754485 zstd16=798847 zstd22=783937 decode_to_lct1_ms=13.765 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w4 raw=2790379 zstd16=1262474 zstd22=1200343 decode_to_lct1_ms=15.746 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=4 templates_segmented=2687817 maps_segmented=757056
+LCT_SEG dataset=mldsa65 policy=raw_templates_w4 raw=4866899 zstd16=984219 zstd22=968452 decode_to_lct1_ms=14.001 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w4 raw=7889288 zstd16=787062 zstd22=772964 decode_to_lct1_ms=13.687 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w4 raw=3477739 zstd16=994881 zstd22=977294 decode_to_lct1_ms=15.499 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=8 templates_segmented=1945127 maps_segmented=368332
+LCT_SEG dataset=mldsa65 policy=templates_w8 raw=4124209 zstd16=1212776 zstd22=1169612 decode_to_lct1_ms=16.843 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w8 raw=7500564 zstd16=794591 zstd22=783125 decode_to_lct1_ms=13.988 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w8 raw=2346325 zstd16=1233630 zstd22=1190788 decode_to_lct1_ms=14.208 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=8 templates_segmented=2593274 maps_segmented=454194
+LCT_SEG dataset=mldsa65 policy=raw_templates_w8 raw=4772356 zstd16=954955 zstd22=934358 decode_to_lct1_ms=14.091 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w8 raw=7586426 zstd16=784258 zstd22=771510 decode_to_lct1_ms=11.934 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w8 raw=3080334 zstd16=963724 zstd22=942776 decode_to_lct1_ms=16.184 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=16 templates_segmented=1988774 maps_segmented=249492
+LCT_SEG dataset=mldsa65 policy=templates_w16 raw=4167856 zstd16=1167287 zstd22=1129581 decode_to_lct1_ms=15.935 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w16 raw=7381724 zstd16=794460 zstd22=783025 decode_to_lct1_ms=12.827 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w16 raw=2271132 zstd16=1188561 zstd22=1151198 decode_to_lct1_ms=14.820 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=16 templates_segmented=2995675 maps_segmented=277091
+LCT_SEG dataset=mldsa65 policy=raw_templates_w16 raw=5174757 zstd16=924218 zstd22=902982 decode_to_lct1_ms=13.502 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w16 raw=7409323 zstd16=783673 zstd22=771402 decode_to_lct1_ms=12.123 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w16 raw=3305632 zstd16=933080 zstd22=911845 decode_to_lct1_ms=13.527 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=32 templates_segmented=2057039 maps_segmented=202559
+LCT_SEG dataset=mldsa65 policy=templates_w32 raw=4236121 zstd16=1130539 zstd22=1093315 decode_to_lct1_ms=13.564 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w32 raw=7334791 zstd16=793788 zstd22=782296 decode_to_lct1_ms=12.573 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w32 raw=2292464 zstd16=1150713 zstd22=1114306 decode_to_lct1_ms=14.204 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=32 templates_segmented=3421026 maps_segmented=222514
+LCT_SEG dataset=mldsa65 policy=raw_templates_w32 raw=5600108 zstd16=877812 zstd22=854676 decode_to_lct1_ms=14.750 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w32 raw=7354746 zstd16=783131 zstd22=770844 decode_to_lct1_ms=13.389 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w32 raw=3676406 zstd16=886547 zstd22=863425 decode_to_lct1_ms=13.818 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=64 templates_segmented=2203554 maps_segmented=215496
+LCT_SEG dataset=mldsa65 policy=templates_w64 raw=4382636 zstd16=1104136 zstd22=1065738 decode_to_lct1_ms=13.115 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w64 raw=7347728 zstd16=792779 zstd22=781470 decode_to_lct1_ms=13.980 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w64 raw=2451916 zstd16=1123644 zstd22=1085881 decode_to_lct1_ms=13.037 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=64 templates_segmented=3939512 maps_segmented=229472
+LCT_SEG dataset=mldsa65 policy=raw_templates_w64 raw=6118594 zstd16=842363 zstd22=819933 decode_to_lct1_ms=13.412 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w64 raw=7361704 zstd16=783027 zstd22=769821 decode_to_lct1_ms=13.136 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w64 raw=4201850 zstd16=850508 zstd22=827304 decode_to_lct1_ms=14.852 exact=true
+LCT_POOLS dataset=mldsa65 kind= window=128 templates_segmented=2337071 maps_segmented=287857
+LCT_SEG dataset=mldsa65 policy=templates_w128 raw=4516153 zstd16=1084167 zstd22=1047281 decode_to_lct1_ms=14.173 exact=true
+LCT_SEG dataset=mldsa65 policy=maps_w128 raw=7420089 zstd16=792091 zstd22=780477 decode_to_lct1_ms=13.324 exact=true
+LCT_SEG dataset=mldsa65 policy=both_w128 raw=2657794 zstd16=1103209 zstd22=1065800 decode_to_lct1_ms=12.844 exact=true
+LCT_POOLS dataset=mldsa65 kind=raw_ window=128 templates_segmented=4387380 maps_segmented=304732
+LCT_SEG dataset=mldsa65 policy=raw_templates_w128 raw=6566462 zstd16=819410 zstd22=799481 decode_to_lct1_ms=15.365 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_maps_w128 raw=7436964 zstd16=782026 zstd22=769070 decode_to_lct1_ms=11.962 exact=true
+LCT_SEG dataset=mldsa65 policy=raw_both_w128 raw=4724978 zstd16=826948 zstd22=806565 decode_to_lct1_ms=16.957 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 45.11s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=5176 templates=41 template_bytes=25790559 instances=39005 mappings=539570 shared_port_entries=117436 total=26374356
+LCT_SEG dataset=mdoc_hash2 policy=lct1 raw=26374356 zstd16=122137 zstd22=113375 decode_to_lct1_ms=5.474 exact=true
+LCT_PARTS dataset=mdoc_hash2 groups=41 template_records=6328838 map_words=577783 templates_plain=25790352 maps_plain=578579
+LCT_SEG dataset=mdoc_hash2 policy=split_plain raw=26374433 zstd16=121915 zstd22=113331 decode_to_lct1_ms=40.235 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=1 templates_segmented=8281667 maps_segmented=579613
+LCT_SEG dataset=mdoc_hash2 policy=templates_w1 raw=8865748 zstd16=204054 zstd22=187611 decode_to_lct1_ms=36.570 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w1 raw=26375467 zstd16=122734 zstd22=114193 decode_to_lct1_ms=39.100 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w1 raw=8866782 zstd16=204978 zstd22=187990 decode_to_lct1_ms=35.042 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=1 templates_segmented=10233532 maps_segmented=584546
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w1 raw=10817613 zstd16=155842 zstd22=144554 decode_to_lct1_ms=46.851 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w1 raw=26380400 zstd16=122333 zstd22=113786 decode_to_lct1_ms=36.955 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w1 raw=10823580 zstd16=156172 zstd22=144943 decode_to_lct1_ms=47.277 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=4 templates_segmented=2482907 maps_segmented=151041
+LCT_SEG dataset=mdoc_hash2 policy=templates_w4 raw=3066988 zstd16=232631 zstd22=213143 decode_to_lct1_ms=31.334 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w4 raw=25946895 zstd16=124126 zstd22=115565 decode_to_lct1_ms=37.779 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w4 raw=2639450 zstd16=234823 zstd22=215294 decode_to_lct1_ms=30.850 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=4 templates_segmented=3319049 maps_segmented=234279
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w4 raw=3903130 zstd16=178790 zstd22=171234 decode_to_lct1_ms=30.636 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w4 raw=26030133 zstd16=123784 zstd22=115142 decode_to_lct1_ms=38.971 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w4 raw=3558830 zstd16=180402 zstd22=172773 decode_to_lct1_ms=29.054 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=8 templates_segmented=1431996 maps_segmented=81389
+LCT_SEG dataset=mdoc_hash2 policy=templates_w8 raw=2016077 zstd16=220607 zstd22=205314 decode_to_lct1_ms=28.074 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w8 raw=25877243 zstd16=124244 zstd22=115599 decode_to_lct1_ms=35.136 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w8 raw=1518887 zstd16=222753 zstd22=207475 decode_to_lct1_ms=30.170 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=8 templates_segmented=2047852 maps_segmented=127212
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w8 raw=2631933 zstd16=172193 zstd22=164591 decode_to_lct1_ms=26.892 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w8 raw=25923066 zstd16=123668 zstd22=115051 decode_to_lct1_ms=36.930 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w8 raw=2180566 zstd16=173603 zstd22=165941 decode_to_lct1_ms=24.769 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=16 templates_segmented=954178 maps_segmented=45957
+LCT_SEG dataset=mdoc_hash2 policy=templates_w16 raw=1538259 zstd16=211278 zstd22=197743 decode_to_lct1_ms=28.735 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w16 raw=25841811 zstd16=123690 zstd22=115100 decode_to_lct1_ms=36.601 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w16 raw=1005637 zstd16=213026 zstd22=199479 decode_to_lct1_ms=30.020 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=16 templates_segmented=1509347 maps_segmented=68990
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w16 raw=2093428 zstd16=165493 zstd22=157867 decode_to_lct1_ms=24.702 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w16 raw=25864844 zstd16=123160 zstd22=114501 decode_to_lct1_ms=34.217 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w16 raw=1583839 zstd16=166505 zstd22=158812 decode_to_lct1_ms=24.800 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=32 templates_segmented=745561 maps_segmented=31835
+LCT_SEG dataset=mdoc_hash2 policy=templates_w32 raw=1329642 zstd16=195538 zstd22=182558 decode_to_lct1_ms=29.455 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w32 raw=25827689 zstd16=123401 zstd22=114846 decode_to_lct1_ms=34.465 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w32 raw=782898 zstd16=196989 zstd22=184129 decode_to_lct1_ms=29.529 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=32 templates_segmented=1364244 maps_segmented=43162
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w32 raw=1948325 zstd16=152588 zstd22=144707 decode_to_lct1_ms=22.404 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w32 raw=25839016 zstd16=122927 zstd22=114320 decode_to_lct1_ms=35.187 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w32 raw=1412908 zstd16=153512 zstd22=145541 decode_to_lct1_ms=26.815 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=64 templates_segmented=742123 maps_segmented=27642
+LCT_SEG dataset=mdoc_hash2 policy=templates_w64 raw=1326204 zstd16=186768 zstd22=174147 decode_to_lct1_ms=27.442 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w64 raw=25823496 zstd16=123083 zstd22=114493 decode_to_lct1_ms=35.481 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w64 raw=775267 zstd16=187967 zstd22=175315 decode_to_lct1_ms=29.058 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=64 templates_segmented=1566033 maps_segmented=32265
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w64 raw=2150114 zstd16=145044 zstd22=136442 decode_to_lct1_ms=24.977 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w64 raw=25828119 zstd16=122561 zstd22=113976 decode_to_lct1_ms=35.960 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w64 raw=1603800 zstd16=145666 zstd22=137074 decode_to_lct1_ms=24.289 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind= window=128 templates_segmented=838042 maps_segmented=29328
+LCT_SEG dataset=mdoc_hash2 policy=templates_w128 raw=1422123 zstd16=180673 zstd22=168273 decode_to_lct1_ms=29.692 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=maps_w128 raw=25825182 zstd16=122825 zstd22=114247 decode_to_lct1_ms=36.072 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=both_w128 raw=872872 zstd16=181583 zstd22=169149 decode_to_lct1_ms=29.859 exact=true
+LCT_POOLS dataset=mdoc_hash2 kind=raw_ window=128 templates_segmented=1975447 maps_segmented=31492
+LCT_SEG dataset=mdoc_hash2 policy=raw_templates_w128 raw=2559528 zstd16=139833 zstd22=131490 decode_to_lct1_ms=24.517 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_maps_w128 raw=25827346 zstd16=122339 zstd22=113748 decode_to_lct1_ms=35.855 exact=true
+LCT_SEG dataset=mdoc_hash2 policy=raw_both_w128 raw=2012441 zstd16=140417 zstd22=132028 decode_to_lct1_ms=23.790 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 23.71s
+
+
+running 1 test
+test lct1_segmentation_sweep ... ENCODING_GROUPED header=19954 templates=50 template_bytes=916066 instances=2176 mappings=18724 shared_port_entries=6912 total=956973
+LCT_SEG dataset=mdoc_sig policy=lct1 raw=956973 zstd16=91827 zstd22=88876 decode_to_lct1_ms=0.264 exact=true
+LCT_PARTS dataset=mdoc_sig groups=50 template_records=224797 map_words=20432 templates_plain=915825 maps_plain=20904
+LCT_SEG dataset=mdoc_sig policy=split_plain raw=957045 zstd16=91923 zstd22=88653 decode_to_lct1_ms=1.247 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=1 templates_segmented=401256 maps_segmented=22037
+LCT_SEG dataset=mdoc_sig policy=templates_w1 raw=442476 zstd16=149322 zstd22=144001 decode_to_lct1_ms=1.894 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w1 raw=958178 zstd16=92850 zstd22=89582 decode_to_lct1_ms=1.304 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w1 raw=443609 zstd16=149771 zstd22=144461 decode_to_lct1_ms=2.192 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=1 templates_segmented=524869 maps_segmented=21737
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w1 raw=566089 zstd16=118160 zstd22=112747 decode_to_lct1_ms=1.812 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w1 raw=957878 zstd16=92417 zstd22=89174 decode_to_lct1_ms=1.174 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w1 raw=566922 zstd16=118639 zstd22=113264 decode_to_lct1_ms=1.844 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=4 templates_segmented=255361 maps_segmented=8024
+LCT_SEG dataset=mdoc_sig policy=templates_w4 raw=296581 zstd16=160985 zstd22=154867 decode_to_lct1_ms=1.560 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w4 raw=944165 zstd16=93265 zstd22=90002 decode_to_lct1_ms=1.221 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w4 raw=283701 zstd16=162365 zstd22=156083 decode_to_lct1_ms=1.588 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=4 templates_segmented=335223 maps_segmented=9093
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w4 raw=376443 zstd16=135595 zstd22=131096 decode_to_lct1_ms=1.522 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w4 raw=945234 zstd16=92899 zstd22=89611 decode_to_lct1_ms=1.139 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w4 raw=364632 zstd16=136618 zstd22=131808 decode_to_lct1_ms=1.750 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=8 templates_segmented=237942 maps_segmented=5999
+LCT_SEG dataset=mdoc_sig policy=templates_w8 raw=279162 zstd16=149646 zstd22=144003 decode_to_lct1_ms=1.513 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w8 raw=942140 zstd16=93082 zstd22=89790 decode_to_lct1_ms=1.222 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w8 raw=264257 zstd16=150865 zstd22=145124 decode_to_lct1_ms=1.532 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=8 templates_segmented=369579 maps_segmented=6225
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w8 raw=410799 zstd16=126402 zstd22=122596 decode_to_lct1_ms=1.323 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w8 raw=942366 zstd16=92709 zstd22=89401 decode_to_lct1_ms=1.212 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w8 raw=396120 zstd16=126895 zstd22=122772 decode_to_lct1_ms=1.342 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=16 templates_segmented=239590 maps_segmented=5542
+LCT_SEG dataset=mdoc_sig policy=templates_w16 raw=280810 zstd16=138685 zstd22=134075 decode_to_lct1_ms=1.390 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w16 raw=941683 zstd16=92955 zstd22=89669 decode_to_lct1_ms=1.137 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w16 raw=265448 zstd16=139699 zstd22=135109 decode_to_lct1_ms=1.408 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=16 templates_segmented=433402 maps_segmented=5285
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w16 raw=474622 zstd16=116651 zstd22=112781 decode_to_lct1_ms=1.210 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w16 raw=941426 zstd16=92543 zstd22=89268 decode_to_lct1_ms=1.131 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w16 raw=459003 zstd16=117165 zstd22=113196 decode_to_lct1_ms=1.211 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=32 templates_segmented=250834 maps_segmented=5775
+LCT_SEG dataset=mdoc_sig policy=templates_w32 raw=292054 zstd16=130097 zstd22=125837 decode_to_lct1_ms=1.340 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w32 raw=941916 zstd16=92752 zstd22=89486 decode_to_lct1_ms=1.148 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w32 raw=276925 zstd16=130967 zstd22=126447 decode_to_lct1_ms=1.347 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=32 templates_segmented=504462 maps_segmented=5437
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w32 raw=545682 zstd16=108631 zstd22=104554 decode_to_lct1_ms=1.195 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w32 raw=941578 zstd16=92338 zstd22=89063 decode_to_lct1_ms=1.109 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w32 raw=530215 zstd16=108704 zstd22=104767 decode_to_lct1_ms=1.169 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=64 templates_segmented=268283 maps_segmented=6613
+LCT_SEG dataset=mdoc_sig policy=templates_w64 raw=309503 zstd16=124524 zstd22=120284 decode_to_lct1_ms=1.322 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w64 raw=942754 zstd16=92623 zstd22=89348 decode_to_lct1_ms=1.204 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w64 raw=295212 zstd16=125144 zstd22=121057 decode_to_lct1_ms=1.316 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=64 templates_segmented=578777 maps_segmented=6278
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w64 raw=619997 zstd16=102661 zstd22=98752 decode_to_lct1_ms=1.455 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w64 raw=942419 zstd16=92210 zstd22=88936 decode_to_lct1_ms=1.143 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w64 raw=605371 zstd16=103002 zstd22=99014 decode_to_lct1_ms=1.185 exact=true
+LCT_POOLS dataset=mdoc_sig kind= window=128 templates_segmented=290336 maps_segmented=7423
+LCT_SEG dataset=mdoc_sig policy=templates_w128 raw=331556 zstd16=121098 zstd22=117472 decode_to_lct1_ms=1.234 exact=true
+LCT_SEG dataset=mdoc_sig policy=maps_w128 raw=943564 zstd16=92513 zstd22=89257 decode_to_lct1_ms=1.181 exact=true
+LCT_SEG dataset=mdoc_sig policy=both_w128 raw=318075 zstd16=121762 zstd22=118085 decode_to_lct1_ms=1.263 exact=true
+LCT_POOLS dataset=mdoc_sig kind=raw_ window=128 templates_segmented=658921 maps_segmented=7088
+LCT_SEG dataset=mdoc_sig policy=raw_templates_w128 raw=700141 zstd16=98819 zstd22=95333 decode_to_lct1_ms=1.477 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_maps_w128 raw=943229 zstd16=92119 zstd22=88841 decode_to_lct1_ms=1.149 exact=true
+LCT_SEG dataset=mdoc_sig policy=raw_both_w128 raw=686325 zstd16=99094 zstd22=95572 decode_to_lct1_ms=1.739 exact=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 6.23s

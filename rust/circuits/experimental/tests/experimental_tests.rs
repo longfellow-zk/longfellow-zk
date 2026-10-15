@@ -13,3 +13,5 @@
 // limitations under the License.
 
 mod all;
+#[path = "support/memory.rs"]
+mod memory;

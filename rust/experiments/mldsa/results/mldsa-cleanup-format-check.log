@@ -1,0 +1,10 @@
+Warning: can't set `wrap_comments = true`, unstable features are only available in nightly channel.
+Warning: can't set `comment_width = 100`, unstable features are only available in nightly channel.
+Warning: can't set `where_single_line = true`, unstable features are only available in nightly channel.
+Warning: can't set `imports_granularity = Crate`, unstable features are only available in nightly channel.
+Warning: can't set `group_imports = StdExternalCrate`, unstable features are only available in nightly channel.
+Warning: can't set `wrap_comments = true`, unstable features are only available in nightly channel.
+Warning: can't set `comment_width = 100`, unstable features are only available in nightly channel.
+Warning: can't set `where_single_line = true`, unstable features are only available in nightly channel.
+Warning: can't set `imports_granularity = Crate`, unstable features are only available in nightly channel.
+Warning: can't set `group_imports = StdExternalCrate`, unstable features are only available in nightly channel.

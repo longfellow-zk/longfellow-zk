@@ -17,7 +17,6 @@ use runtime_algebra::{poly::InterpolationField, SupportsSampling};
 use runtime_random::Transcript;
 
 use crate::{
-    hquad::HQuad,
     poly::{Poly, QuadRoundPoly, QuadWirePoly},
     proof::{LayerProof, SumcheckProof, MAX_LOGW},
     transcript::TranscriptSumcheck,
@@ -48,6 +47,26 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
+    prove_with_order(
+        in_layers,
+        pad,
+        circuit,
+        transcript,
+        f,
+        crate::SumcheckOrder::default(),
+    )
+}
+
+/// Prove with an explicit challenge schedule. Round-major requires stored
+/// Morton traversal; hand-major accepts any stored term traversal.
+pub fn prove_with_order<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+    in_layers: Vec<Vec<ElementOf<F>>>,
+    pad: &SumcheckProof<W, F>,
+    circuit: &core_proto::circuit::Circuit<F>,
+    transcript: &mut Transcript,
+    f: &F,
+    order: crate::SumcheckOrder,
+) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "npublic_input ({}) exceeds ninput ({})",
@@ -64,15 +83,35 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     );
     let public_inputs = &inputs[..circuit.raw.npublic_input];
     transcript.write_sumcheck_statement(circuit, public_inputs, f);
-    prove_core(in_layers, pad, circuit, transcript, f)
+    prove_core_with_order(in_layers, pad, circuit, transcript, f, order)
 }
 
 pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+    in_layers: Vec<Vec<ElementOf<F>>>,
+    pad: &SumcheckProof<W, F>,
+    circuit: &core_proto::circuit::Circuit<F>,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
+    prove_core_with_order(
+        in_layers,
+        pad,
+        circuit,
+        transcript,
+        f,
+        crate::SumcheckOrder::default(),
+    )
+}
+
+/// Core prover after the caller has bound the circuit statement to the transcript.
+/// Round-major requires Morton-ordered circuit terms, as in [`prove_with_order`].
+pub fn prove_core_with_order<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     mut in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
     circuit: &core_proto::circuit::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
+    order: crate::SumcheckOrder,
 ) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
     // The wire array is conceptually infinite (padded with zeros), but we normalize
     // each layer's wire vector to contain at least one 0 to simplify the implementation
@@ -104,32 +143,38 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
         let clr = &layers_slice[i];
         let (alpha, beta) = transcript.begin_layer(f);
         let wires = std::mem::take(&mut in_layers_slice[i]);
-        let hquad = HQuad::bind_g(
+        let g_binding = if bindings.nv == 0 {
+            Vec::new()
+        } else {
+            crate::eq::eq2(
+                bindings.logv,
+                bindings.nv,
+                &bindings.challenges[0],
+                &bindings.challenges[1],
+                &alpha,
+                f,
+            )
+        };
+        let layer_kernel = match order {
+            crate::SumcheckOrder::HandMajor => layer,
+            crate::SumcheckOrder::RoundMajor => layer_round_major,
+        };
+        let (layer_proof, new_bindings, new_claims, quad_scalar) = layer_kernel(
             clr,
             &circuit.raw.constants,
-            bindings.logv,
-            bindings.nv,
-            &bindings.challenges[0],
-            &bindings.challenges[1],
-            &alpha,
-            &beta,
-            f,
-        );
-        let (layer_proof, new_bindings, new_claims, hquad_scalar) = layer(
-            clr.logw(),
-            clr.nw(),
             wires,
             &pad_layers_slice[i],
             transcript,
-            hquad,
+            &g_binding,
             &alpha,
+            &beta,
             claims,
             f,
         );
         bindings = new_bindings;
         claims = new_claims;
 
-        bound_quad.push(hquad_scalar);
+        bound_quad.push(quad_scalar);
         layers.push(layer_proof);
     }
 
@@ -138,13 +183,14 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
 
 #[allow(clippy::too_many_arguments)]
 fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
-    logw: usize,
-    nw: usize,
-    wires: Vec<ElementOf<F>>,
+    clr: &core_proto::Layer<F>,
+    constants: &[ElementOf<F>],
+    mut wires: Vec<ElementOf<F>>,
     pad: &LayerProof<W, F>,
     transcript: &mut Transcript,
-    mut hquad: HQuad<W, F>,
+    g_binding: &[ElementOf<F>],
     alpha: &ElementOf<F>,
+    beta: &ElementOf<F>,
     claims: [ElementOf<F>; 2],
     f: &F,
 ) -> (
@@ -153,55 +199,68 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     [ElementOf<F>; 2],
     ElementOf<F>,
 ) {
+    let logw = clr.logw();
+    let nw = clr.nw();
     assert!(crate::sane_logw(logw), "logw must be sane");
-    assert!(
-        wires.len() as u64 <= (1u64 << logw),
-        "size of wires {} exceeds 2^logw {}",
-        wires.len(),
-        1u64 << logw
-    );
+    let dense_width = nw.max(1);
+    assert!(dense_width as u64 <= (1u64 << logw));
+    assert!(wires.len() <= dense_width, "witness exceeds layer width");
+    wires.resize(dense_width, f.zero());
     let mut challenges = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
     let mut round_polys = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+    let mut next_claims = [f.zero(), f.zero()];
     let mut sum = claims[0].clone();
     f.fma(&mut sum, alpha, &claims[1]);
+    let one = f.one();
+    let mut weights = Vec::with_capacity(dense_width);
 
-    // Wrap the initial wire vector in an Rc to avoid cloning the massive input slice.
-    // At round 0, both right hand (w[0]) and left hand (w[1]) point to the same shared buffer.
-    let wires_rc = std::rc::Rc::new(wires);
-    let mut w = [wires_rc.clone(), wires_rc];
-    let mut qw = vec![f.zero(); w[0].len()];
+    for hand in crate::HAND_ORDER {
+        weights.clear();
+        weights.resize(dense_width, f.zero());
+        if hand == 0 {
+            // Q0(h0) = sum_{g,h1} G(g) k W(h1).
+            crate::quad::accumulate_hand(
+                clr,
+                constants,
+                g_binding,
+                beta,
+                &wires,
+                0,
+                &mut weights,
+                f,
+            );
+        } else {
+            // Q1(h1) = sum_{g,h0} G(g) k EQ(r0,h0).
+            // The equality table is needed only for this one circuit scan.
+            let h0_binding = crate::eq::eq1(logw, nw, &challenges[0], f);
+            crate::quad::accumulate_hand(
+                clr,
+                constants,
+                g_binding,
+                beta,
+                &h0_binding,
+                1,
+                &mut weights,
+                f,
+            );
+        }
 
-    for round in 0..logw {
-        for hand in 0..2 {
-            let other_hand = 1 - hand;
-            let wh_hand = &w[hand];
-            let wh_other_hand = &w[other_hand];
-
-            let wh_size = wh_hand.len();
-            runtime_algebra::blas::clear(&mut qw[..wh_size], f);
-
-            if hand == 0 {
-                for i in 0..hquad.hc.len() {
-                    let p0 = hquad.hc[i].h[0] as usize;
-                    let p1 = hquad.hc[i].h[1] as usize;
-                    let dst = &mut qw[p0];
-                    let witness_other_hand_val = &wh_other_hand[p1];
-                    f.fma(dst, &hquad.vc[i], witness_other_hand_val);
-                }
-            } else {
-                for i in 0..hquad.hc.len() {
-                    let p0 = hquad.hc[i].h[1] as usize;
-                    let p1 = hquad.hc[i].h[0] as usize;
-                    let dst = &mut qw[p0];
-                    let witness_other_hand_val = &wh_other_hand[p1];
-                    f.fma(dst, &hquad.vc[i], witness_other_hand_val);
-                }
-            }
-
-            let evaluations = quad_round_poly(wh_size, &qw[..wh_size], wh_hand, &sum, f);
-
+        // Preserve the original witness for phase 1. Only weights and working_wires
+        // are folded per round; neither terms nor an HQuad are visited here.
+        let mut working_wires = if hand == 0 {
+            wires.clone()
+        } else {
+            std::mem::take(&mut wires)
+        };
+        // Keep Q1 unscaled so its final scalar is the unmasked wiring polynomial
+        // needed by the symbolic verifier. Scale round evaluations by W(r0)
+        // instead of dividing the claim by W(r0), which may be zero.
+        let scale = if hand == 0 { &one } else { &next_claims[0] };
+        for round in 0..logw {
+            let evaluations =
+                quad_round_poly(weights.len(), &weights, &working_wires, &sum, scale, f);
             assert!(round < MAX_LOGW);
-            let round_challenge = sample_round_challenge(
+            let challenge = sample_round_challenge(
                 transcript,
                 &evaluations,
                 &pad.hp[hand][round],
@@ -209,58 +268,156 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
                 &mut challenges[hand],
                 f,
             );
-            sum = evaluations.eval_lagrange(&round_challenge, f);
-
-            // In-place vs out-of-place binding optimization:
-            // When w[hand] has strong count 1 (sole owner), get_mut returns Some(v) and we bind
-            // in-place, reusing the allocated buffer without heap allocations.
-            // In round 0 for hand=0, w[0] and w[1] share the Rc (strong count 2), so get_mut
-            // returns None. We bind out-of-place to allocate a new halved buffer for
-            // w[0], leaving w[1] as the sole owner of the original buffer. All
-            // subsequent halvings across both hands then happen in-place!
-            if let Some(v) = std::rc::Rc::get_mut(&mut w[hand]) {
-                crate::dense::bind(v, &round_challenge, f);
-            } else {
-                let bound_v = crate::dense::bind_out_of_place(&w[hand], &round_challenge, f);
-                w[hand] = std::rc::Rc::new(bound_v);
-            }
-            hquad.bind_h(&round_challenge, hand, f);
+            sum = evaluations.eval_lagrange(&challenge, f);
+            crate::dense::bind(&mut weights, &challenge, f);
+            crate::dense::bind(&mut working_wires, &challenge, f);
         }
+        next_claims[hand] = crate::dense::as_scalar::<W, F>(&working_wires);
     }
 
+    let quad_scalar = crate::dense::as_scalar::<W, F>(&weights);
+    finish_layer(
+        logw,
+        nw,
+        challenges,
+        round_polys,
+        next_claims,
+        quad_scalar,
+        sum,
+        pad,
+        transcript,
+        f,
+    )
+}
+
+/// Legacy interleaved protocol. The stored circuit must already have Morton
+/// traversal; binding g preserves that order and coalesces adjacent equal pairs.
+#[allow(clippy::too_many_arguments)]
+fn layer_round_major<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+    clr: &core_proto::Layer<F>,
+    constants: &[ElementOf<F>],
+    mut wires: Vec<ElementOf<F>>,
+    pad: &LayerProof<W, F>,
+    transcript: &mut Transcript,
+    g_binding: &[ElementOf<F>],
+    alpha: &ElementOf<F>,
+    beta: &ElementOf<F>,
+    claims: [ElementOf<F>; 2],
+    f: &F,
+) -> (
+    LayerProof<W, F>,
+    Bindings<W, F>,
+    [ElementOf<F>; 2],
+    ElementOf<F>,
+) {
+    use std::rc::Rc;
+    let logw = clr.logw();
+    let nw = clr.nw();
+    assert!(crate::sane_logw(logw), "logw must be sane");
+    let width = nw.max(1);
+    assert!(width as u64 <= (1u64 << logw));
+    assert!(wires.len() <= width, "witness exceeds layer width");
+    wires.resize(width, f.zero());
+    let mut hquad = crate::hquad::HQuad::from_g_binding(clr, constants, g_binding, beta, f);
+    let shared_wires = Rc::new(wires);
+    let mut w = [shared_wires.clone(), shared_wires];
+    let mut qw = vec![f.zero(); width];
+    let mut challenges = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+    let mut round_polys = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+    let mut sum = claims[0].clone();
+    f.fma(&mut sum, alpha, &claims[1]);
+    let one = f.one();
+    for (hand, round) in crate::SumcheckOrder::RoundMajor.rounds(logw) {
+        let n = w[hand].len();
+        qw[..n].fill(f.zero());
+        for (hc, vc) in hquad.hc.iter().zip(&hquad.vc) {
+            f.fma(
+                &mut qw[hc.h[hand] as usize],
+                vc,
+                &w[1 - hand][hc.h[1 - hand] as usize],
+            );
+        }
+        let evaluations = quad_round_poly(n, &qw[..n], &w[hand], &sum, &one, f);
+        let challenge = sample_round_challenge(
+            transcript,
+            &evaluations,
+            &pad.hp[hand][round],
+            &mut round_polys[hand],
+            &mut challenges[hand],
+            f,
+        );
+        sum = evaluations.eval_lagrange(&challenge, f);
+        if let Some(values) = Rc::get_mut(&mut w[hand]) {
+            crate::dense::bind(values, &challenge, f);
+        } else {
+            w[hand] = Rc::new(crate::dense::bind_out_of_place(&w[hand], &challenge, f));
+        }
+        hquad.bind_h(&challenge, hand, f);
+    }
     let next_claims = [
         crate::dense::as_scalar::<W, F>(&w[0]),
         crate::dense::as_scalar::<W, F>(&w[1]),
     ];
+    let quad_scalar = if hquad.hc.is_empty() {
+        f.zero()
+    } else {
+        hquad.scalar()
+    };
+    finish_layer(
+        logw,
+        nw,
+        challenges,
+        round_polys,
+        next_claims,
+        quad_scalar,
+        sum,
+        pad,
+        transcript,
+        f,
+    )
+}
 
-    let hquad_scalar = hquad.scalar();
-    let mut expected_sum = next_claims[0].clone();
-    f.mul(&mut expected_sum, &next_claims[1]);
-    f.mul(&mut expected_sum, &hquad_scalar);
+#[allow(clippy::too_many_arguments)]
+fn finish_layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+    logw: usize,
+    nw: usize,
+    challenges: [Vec<ElementOf<F>>; 2],
+    round_polys: [Vec<crate::proof::RoundPoly<W, F>>; 2],
+    next_claims: [ElementOf<F>; 2],
+    quad_scalar: ElementOf<F>,
+    sum: ElementOf<F>,
+    pad: &LayerProof<W, F>,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (
+    LayerProof<W, F>,
+    Bindings<W, F>,
+    [ElementOf<F>; 2],
+    ElementOf<F>,
+) {
+    let mut expected_sum = f.mulf(&next_claims[0], &next_claims[1]);
+    f.mul(&mut expected_sum, &quad_scalar);
     assert_eq!(
         sum, expected_sum,
         "reconstructed sum does not match expected"
     );
 
-    let mut proof_claims = [next_claims[0].clone(), next_claims[1].clone()];
+    let mut proof_claims = next_claims.clone();
     f.sub(&mut proof_claims[0], &pad.claims[0]);
     f.sub(&mut proof_claims[1], &pad.claims[1]);
     transcript.end_layer(&proof_claims, f);
-
-    let bindings = Bindings {
-        logv: logw,
-        nv: nw,
-        challenges,
-    };
-
     (
         LayerProof {
             hp: round_polys,
-            claims: proof_claims, // padded
+            claims: proof_claims,
         },
-        bindings,
+        Bindings {
+            logv: logw,
+            nv: nw,
+            challenges,
+        },
         next_claims,
-        hquad_scalar,
+        quad_scalar,
     )
 }
 
@@ -293,6 +450,7 @@ fn quad_round_poly<const W: usize, F: InterpolationField<W>>(
     qw: &[ElementOf<F>],
     witness_values: &[ElementOf<F>],
     sum: &ElementOf<F>,
+    scale: &ElementOf<F>,
     f: &F,
 ) -> Poly<3, W, F> {
     let num_pairs = num_variables / 2;
@@ -313,8 +471,8 @@ fn quad_round_poly<const W: usize, F: InterpolationField<W>>(
         f.mac(&mut accum_a2, &qw[last], &witness_values[last]);
     }
 
-    let a0 = f.accum_reduce(&accum_a0);
-    let a2 = f.accum_reduce(&accum_a2);
+    let a0 = f.mulf(&f.accum_reduce(&accum_a0), scale);
+    let a2 = f.mulf(&f.accum_reduce(&accum_a2), scale);
 
     // g(0) = a0
     // g(1) = sum - a0

@@ -1,0 +1,34 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mdoc_hash2 CircuitGeometry { ninput: 77785, npublic_input: 1035, noutput: 16, nwires: 3396148, nterms: 6394835, nlayers: 20, nassertions: 96481 }
+ANALYZE mdoc_hash2 id=[b7, 2b, cf, ae, fa, 39, 1e, 1c, f8, e9, 45, 6a, 41, 70, ca, a3, 5a, 66, 58, 2d, f2, 08, 5c, 46, 35, 75, ff, 3c, e9, 88, 69, f7]
+SWEEP_CONFIG orders=3 extended=true final=false contexts=kind_whole_one,whole_one_kind,kind_whole_nonzero,whole_nonzero_kind,kind_whole_one_nonzero,whole_one_nonzero_kind coordinate_names=0:g,1:h0,2:h1,3:coefficient_byte_rank
+SWEEP kind_whole_one_abs_lex0213_r5 raw=549488 zstd3=129031 zstd16=113722 global_deltas=16468 layer_deltas=18392 segments=5432 entries=162247 tokens=200425 memory=1875328 ms=886.7
+SWEEP kind_whole_one_abs_lex2013_r0 raw=579553 zstd3=167475 zstd16=156216 global_deltas=19200 layer_deltas=20871 segments=5587 entries=163656 tokens=200783 memory=1925780 ms=873.4
+SWEEP kind_whole_one_abs_m12_b1_k0_r0 raw=644694 zstd3=188537 zstd16=175623 global_deltas=18410 layer_deltas=21125 segments=7915 entries=228197 tokens=201084 memory=2245084 ms=924.7
+SWEEP kind_whole_one_offset_m12_b1_k0_r0 raw=634518 zstd3=188621 zstd16=175250 global_deltas=18653 layer_deltas=21509 segments=7587 entries=219530 tokens=201065 memory=2208612 ms=934.7
+SWEEP whole_one_kind_abs_lex0213_r5 raw=958601 zstd3=287803 zstd16=249594 global_deltas=67948 layer_deltas=69865 segments=6931 entries=211087 tokens=200387 memory=2930080 ms=947.7
+SWEEP whole_one_kind_abs_lex2013_r0 raw=996954 zstd3=332191 zstd16=289410 global_deltas=70727 layer_deltas=72397 segments=7171 entries=215708 tokens=200701 memory=2996092 ms=919.9
+SWEEP whole_one_kind_abs_m12_b1_k0_r0 raw=1058343 zstd3=358363 zstd16=321049 global_deltas=69955 layer_deltas=72651 segments=9473 entries=278632 tokens=201045 memory=3308476 ms=981.7
+SWEEP whole_one_kind_offset_m12_b1_k0_r0 raw=1051633 zstd3=350253 zstd16=312328 global_deltas=70198 layer_deltas=73035 segments=9175 entries=270904 tokens=201096 memory=3276760 ms=963.5
+SWEEP kind_whole_nonzero_abs_lex0213_r5 raw=549428 zstd3=128968 zstd16=113915 global_deltas=16445 layer_deltas=18394 segments=5425 entries=162124 tokens=200416 memory=1874664 ms=897.7
+SWEEP kind_whole_nonzero_abs_lex2013_r0 raw=579925 zstd3=167992 zstd16=155398 global_deltas=19206 layer_deltas=20876 segments=5586 entries=163774 tokens=200779 memory=1926292 ms=863.9
+SWEEP kind_whole_nonzero_abs_m12_b1_k0_r0 raw=645040 zstd3=188408 zstd16=175711 global_deltas=18416 layer_deltas=21130 segments=7916 entries=228316 tokens=201081 memory=2245652 ms=949.9
+SWEEP kind_whole_nonzero_offset_m12_b1_k0_r0 raw=634872 zstd3=188818 zstd16=175307 global_deltas=18660 layer_deltas=21514 segments=7588 entries=219651 tokens=201061 memory=2209184 ms=908.4
+SWEEP whole_nonzero_kind_abs_lex0213_r5 raw=958713 zstd3=289285 zstd16=243199 global_deltas=67780 layer_deltas=69720 segments=6951 entries=212077 tokens=200375 memory=2932152 ms=921.0
+SWEEP whole_nonzero_kind_abs_lex2013_r0 raw=995943 zstd3=330087 zstd16=289142 global_deltas=70581 layer_deltas=72250 segments=7125 entries=216233 tokens=200697 memory=2994720 ms=884.9
+SWEEP whole_nonzero_kind_abs_m12_b1_k0_r0 raw=1054262 zstd3=349833 zstd16=311465 global_deltas=69809 layer_deltas=72504 segments=9372 entries=276940 tokens=200986 memory=3296696 ms=955.9
+SWEEP whole_nonzero_kind_offset_m12_b1_k0_r0 raw=1045710 zstd3=351513 zstd16=319761 global_deltas=70052 layer_deltas=72888 segments=9087 entries=268317 tokens=201076 memory=3261868 ms=972.4
+SWEEP_DUP kind_whole_one_nonzero_abs_lex0213_r5 identical_to=kind_whole_nonzero_abs_lex0213_r5
+SWEEP_DUP kind_whole_one_nonzero_abs_lex2013_r0 identical_to=kind_whole_nonzero_abs_lex2013_r0
+SWEEP_DUP kind_whole_one_nonzero_abs_m12_b1_k0_r0 identical_to=kind_whole_nonzero_abs_m12_b1_k0_r0
+SWEEP_DUP kind_whole_one_nonzero_offset_m12_b1_k0_r0 identical_to=kind_whole_nonzero_offset_m12_b1_k0_r0
+SWEEP_DUP whole_one_nonzero_kind_abs_lex0213_r5 identical_to=whole_nonzero_kind_abs_lex0213_r5
+SWEEP_DUP whole_one_nonzero_kind_abs_lex2013_r0 identical_to=whole_nonzero_kind_abs_lex2013_r0
+SWEEP_DUP whole_one_nonzero_kind_abs_m12_b1_k0_r0 identical_to=whole_nonzero_kind_abs_m12_b1_k0_r0
+SWEEP_DUP whole_one_nonzero_kind_offset_m12_b1_k0_r0 identical_to=whole_nonzero_kind_offset_m12_b1_k0_r0
+SWEEP_DONE unique_candidates=16 seconds=22.078
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 38.43s
+

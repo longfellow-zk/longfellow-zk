@@ -1,0 +1,63 @@
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mdoc_hash2 terms=6394835 largest_layer=2711505 constants=316 layers=20
+CID_RESULT dataset=mdoc_hash2 method=current tracked=false ms=[144.929206, 140.522698, 139.95765600000001, 142.404383, 142.549344, 140.520644, 140.118306, 145.176078, 143.573138] baseline_heap=0 peak_additional_heap=0 rss_before_kib=4888 hwm_before_kib=5040 rss_after_kib=4912 hwm_after_kib=5040 id=b72bcfaefa391e1cf8e9456a4170caa35a66582df2085c463575ff3ce98869f7
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mdoc_hash2 terms=6394835 largest_layer=2711505 constants=316 layers=20
+CID_RESULT dataset=mdoc_hash2 method=canonical tracked=false ms=[311.764118, 309.66047299999997, 312.946277, 308.443016, 306.089645, 304.348183, 304.24915699999997, 310.694795, 309.95128500000004] baseline_heap=0 peak_additional_heap=0 rss_before_kib=4888 hwm_before_kib=5040 rss_after_kib=18856 hwm_after_kib=60220 id=7381ae81a8b11883334baf0fa48cfe7d35b3dc170182641e390de5e1a9002cb1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.92s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mdoc_sig terms=276481 largest_layer=44133 constants=620 layers=21
+CID_RESULT dataset=mdoc_sig method=current tracked=false ms=[8.365143, 8.370282999999999, 8.418434000000001, 8.367648, 8.338333, 8.330689000000001, 8.400881, 8.356988, 8.338424] baseline_heap=0 peak_additional_heap=0 rss_before_kib=3772 hwm_before_kib=3772 rss_after_kib=3824 hwm_after_kib=3824 id=d3afd8083189537de2e803ed49f89c5b896bc007961b560a1d6fc8eb67ef9ab4
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mdoc_sig terms=276481 largest_layer=44133 constants=620 layers=21
+CID_RESULT dataset=mdoc_sig method=canonical tracked=false ms=[14.030386, 13.835279, 13.593375, 13.541988, 14.322855, 13.63412, 13.561985, 13.599245, 13.576915] baseline_heap=0 peak_additional_heap=0 rss_before_kib=3772 hwm_before_kib=3772 rss_after_kib=4536 hwm_after_kib=4536 id=7b3d8ea0d52c064c5092892e253fc8e9c4f6400ac53463bd8a47e72b5afbd368
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mldsa44 terms=6580787 largest_layer=2267869 constants=1112 layers=37
+CID_RESULT dataset=mldsa44 method=current tracked=false ms=[174.083715, 172.771651, 172.809161, 173.076774, 172.67591199999998, 172.669428, 172.83515999999997, 172.597322, 173.25522800000002] baseline_heap=0 peak_additional_heap=0 rss_before_kib=11324 hwm_before_kib=13488 rss_after_kib=11392 hwm_after_kib=13488 id=1c882777f206c0cf031a2a26ede3b17de2a5b1730ec3cf6d74a5cf62bff12e5f
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mldsa44 terms=6580787 largest_layer=2267869 constants=1112 layers=37
+CID_RESULT dataset=mldsa44 method=canonical tracked=false ms=[314.416058, 309.531091, 308.877543, 313.549058, 310.82367700000003, 310.424466, 311.604734, 315.56884, 313.28303400000004] baseline_heap=0 peak_additional_heap=0 rss_before_kib=11324 hwm_before_kib=13232 rss_after_kib=16784 hwm_after_kib=51784 id=80618ed5aecc67331d4cb5e920a15dd5b67b70c9aa0c007b2c8110835fe00953
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.99s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mldsa65 terms=7953988 largest_layer=3482504 constants=1120 layers=37
+CID_RESULT dataset=mldsa65 method=current tracked=false ms=[209.299029, 208.545644, 208.878398, 209.72971700000002, 208.54199500000001, 209.79531, 210.347086, 210.68916900000002, 209.13680200000002] baseline_heap=0 peak_additional_heap=0 rss_before_kib=11928 hwm_before_kib=14256 rss_after_kib=12000 hwm_after_kib=14256 id=a7738549223e481d6651e22881c90bc0f6331d6b7cabb8f60afbff45bb76caa8
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+
+
+running 1 test
+test circuit_id_benchmark ... CID_CIRCUIT dataset=mldsa65 terms=7953988 largest_layer=3482504 constants=1120 layers=37
+CID_RESULT dataset=mldsa65 method=canonical tracked=false ms=[386.592875, 383.98834, 392.42827400000004, 381.425695, 385.653033, 388.650805, 387.250632, 391.12273600000003, 391.50371099999995] baseline_heap=0 peak_additional_heap=0 rss_before_kib=11928 hwm_before_kib=14512 rss_after_kib=18376 hwm_after_kib=72040 id=cb772fc9b09ddf0cb0a5ab5b9d80d3e8bfa0c07e1ad3a42ad6d85ebc6099a567
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.71s

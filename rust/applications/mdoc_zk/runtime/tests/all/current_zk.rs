@@ -981,6 +981,27 @@ fn run_current_circuit_hashes(test_circuits: &TestCircuits) {
             p.spec, *expected_spec,
             "Current spec mismatch for nattrs={nattrs}"
         );
+        assert_eq!(
+            p.archive.combined_id, expected_spec.combined_hash,
+            "Current archive ID mismatch for nattrs={nattrs}"
+        );
+        // Validate IDs against the actual serialized term streams, not just
+        // the archive header or copied registry entry.
+        let p256 = runtime_algebra::p256::P256Field::new();
+        let gf2 = runtime_algebra::gf2_128::Gf2_128Field::new();
+        let sig_entry = p.archive.get("sig").unwrap();
+        let hash_entry = p.archive.get("hash").unwrap();
+        let (sig, sig_tail) =
+            core_proto::reader::CircuitReader::new(&p256, core_proto::FieldID::P256)
+                .from_bytes(&sig_entry.payload, true)
+                .unwrap();
+        let (hash, hash_tail) =
+            core_proto::reader::CircuitReader::new(&gf2, core_proto::FieldID::Gf2_128)
+                .from_bytes(&hash_entry.payload, true)
+                .unwrap();
+        assert!(sig_tail.is_empty() && hash_tail.is_empty());
+        assert_eq!(sig.id, sig_entry.circuit_id);
+        assert_eq!(hash.id, hash_entry.circuit_id);
     }
 }
 

@@ -1,0 +1,51 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/mdoc_zk_circuits-7c97778f13217e49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/debug/deps/circuits_tests-dc4270de082b0b4b)
+
+running 10 tests
+
+thread 'all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected' (10) panicked at applications/mdoc_zk/circuits/tests/all/../../../../../compile/compiler/experiments/layer_wires.rs:53:5:
+All circuit input IDs must remain fixed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+WIRE_LAYOUT identity moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+WIRE_LAYOUT bary3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+WIRE_LAYOUT median3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bip1_first moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bary3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bip0_fanin moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT whole_shape moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity_one_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT median3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity_one_swap_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT rotate2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bitrev3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT xor2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bip1_first moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+
+thread 'all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected' (15) panicked at applications/mdoc_zk/circuits/tests/all/../../../../../compile/compiler/experiments/layer_wires.rs:53:5:
+All circuit input IDs must remain fixed
+WIRE_LAYOUT bip0_fanin moved=2 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT whole_shape moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+WIRE_LAYOUT identity_one_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT identity_one_swap_last moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT rotate2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT bitrev3 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+WIRE_LAYOUT xor2 moved=0 exact_inverse=true all_inputs_and_external_outputs_fixed=true global_morton=true
+test all::signature_compile::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test all::hash_compile::morton_analysis::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.00s

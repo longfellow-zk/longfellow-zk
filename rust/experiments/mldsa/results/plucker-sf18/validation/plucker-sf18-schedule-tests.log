@@ -1,0 +1,8 @@
+
+running 3 tests
+test mldsa::shake::slice_tests::every_sweep_schedule_has_one_first_cut_and_no_oversized_chunk ... ok
+test mldsa::shake::slice_tests::optional_first_cut_preserves_all_period_six_cuts ... ok
+test mldsa::shake::slice_tests::packed_lanes_are_complete_minimal_and_balanced ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

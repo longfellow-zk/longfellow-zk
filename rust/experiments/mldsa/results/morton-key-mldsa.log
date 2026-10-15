@@ -1,0 +1,27 @@
+   Compiling circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+    Finished `test` profile [optimized + debuginfo] target(s) in 4.62s
+     Running unittests src/lib.rs (target/debug/deps/circuits_experimental-d462dc731729433c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/experimental_tests.rs (target/debug/deps/experimental_tests-cf95e9ede4d28047)
+
+running 1 test
+GEOMETRY CircuitGeometry { ninput: 128272, npublic_input: 5121, noutput: 2263, nwires: 3449557, nterms: 6580787, nlayers: 37, nassertions: 144961 }
+ANALYZE mldsa44_p6 id=[dd, c8, b8, da, 7a, e2, 87, 2d, e1, ac, 1c, 62, be, 7b, e8, 8b, 6d, 68, ba, 80, cf, f4, ab, f9, fb, 12, 34, 79, a5, e0, 3f, d1]
+SIZE canonical_LFC1: raw=78996522 zstd16=1768703 zstd22=1606804
+KEY_DELTAS original_records=174923 morton_records=368451 original_coordinate_tuples=150766 morton_coordinate_tuples=330936 chunks32=205640 original_unique_chunks=74793 morton_unique_chunks=86111
+SIZE raw_coordinates_fixed12: raw=78996439 zstd16=1686497 zstd22=1577818
+KEY_ROUNDTRIP raw_coordinates_fixed12: exact_lfc1=true exact_id=true no_sort=true decode_zstd16_hash_median_ms=495.659
+test all::mldsa_verifier::analyze_mldsa44_morton has been running for over 60 seconds
+SIZE morton_key_fixed12: raw=78996439 zstd16=3127033 zstd22=2851148
+KEY_ROUNDTRIP morton_key_fixed12: exact_lfc1=true exact_id=true no_sort=true decode_zstd16_hash_median_ms=484.533
+SIZE raw_coordinates_uleb: raw=28889924 zstd16=1521036 zstd22=1430368
+KEY_ROUNDTRIP raw_coordinates_uleb: exact_lfc1=true exact_id=true no_sort=true decode_zstd16_hash_median_ms=383.103
+SIZE morton_key_uleb: raw=23502132 zstd16=2906599 zstd22=2685005
+KEY_ROUNDTRIP morton_key_uleb: exact_lfc1=true exact_id=true no_sort=true decode_zstd16_hash_median_ms=386.493
+test all::mldsa_verifier::analyze_mldsa44_morton ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 88.24s

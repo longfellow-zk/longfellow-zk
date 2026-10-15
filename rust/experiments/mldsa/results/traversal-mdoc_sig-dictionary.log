@@ -1,0 +1,50 @@
+
+running 1 test
+test all::mldsa_verifier::analyze_traversal_sweep ... GEOMETRY mdoc_sig CircuitGeometry { ninput: 3941, npublic_input: 707, noutput: 6, nwires: 179677, nterms: 276481, nlayers: 21, nassertions: 3964 }
+ANALYZE mdoc_sig id=[d3, af, d8, 08, 31, 89, 53, 7d, e2, e8, 03, ed, 49, f8, 9c, 5b, 89, 6b, c0, 07, 96, 1b, 56, 0a, 1d, 6f, c8, eb, 67, ef, 9a, b4]
+DICT deltas=frequency segments=frequency raw=222143 zstd16=63443 exact_stream_and_id=true
+DICT deltas=frequency segments=lex raw=223711 zstd16=71856 exact_stream_and_id=true
+DICT deltas=frequency segments=length_lex raw=223667 zstd16=71980 exact_stream_and_id=true
+DICT deltas=global_frequency segments=frequency raw=223886 zstd16=64624 exact_stream_and_id=true
+DICT deltas=global_frequency segments=lex raw=225405 zstd16=71976 exact_stream_and_id=true
+DICT deltas=global_frequency segments=length_lex raw=225343 zstd16=72161 exact_stream_and_id=true
+DICT deltas=lex012_z0 segments=frequency raw=290331 zstd16=74970 exact_stream_and_id=true
+DICT deltas=lex012_z0 segments=lex raw=291755 zstd16=82676 exact_stream_and_id=true
+DICT deltas=lex012_z0 segments=length_lex raw=291876 zstd16=82141 exact_stream_and_id=true
+DICT deltas=lex012_z1 segments=frequency raw=271950 zstd16=74939 exact_stream_and_id=true
+DICT deltas=lex012_z1 segments=lex raw=272854 zstd16=82978 exact_stream_and_id=true
+DICT deltas=lex012_z1 segments=length_lex raw=273024 zstd16=83257 exact_stream_and_id=true
+DICT deltas=lex021_z0 segments=frequency raw=293491 zstd16=75641 exact_stream_and_id=true
+DICT deltas=lex021_z0 segments=lex raw=295119 zstd16=83243 exact_stream_and_id=true
+DICT deltas=lex021_z0 segments=length_lex raw=295090 zstd16=82804 exact_stream_and_id=true
+DICT deltas=lex021_z1 segments=frequency raw=275804 zstd16=75357 exact_stream_and_id=true
+DICT deltas=lex021_z1 segments=lex raw=277437 zstd16=83244 exact_stream_and_id=true
+DICT deltas=lex021_z1 segments=length_lex raw=277385 zstd16=83576 exact_stream_and_id=true
+DICT deltas=lex102_z0 segments=frequency raw=278302 zstd16=75095 exact_stream_and_id=true
+DICT deltas=lex102_z0 segments=lex raw=279568 zstd16=82430 exact_stream_and_id=true
+DICT deltas=lex102_z0 segments=length_lex raw=279660 zstd16=82008 exact_stream_and_id=true
+DICT deltas=lex102_z1 segments=frequency raw=270636 zstd16=75931 exact_stream_and_id=true
+DICT deltas=lex102_z1 segments=lex raw=271732 zstd16=84578 exact_stream_and_id=true
+DICT deltas=lex102_z1 segments=length_lex raw=271728 zstd16=84008 exact_stream_and_id=true
+DICT deltas=lex120_z0 segments=frequency raw=272840 zstd16=74255 exact_stream_and_id=true
+DICT deltas=lex120_z0 segments=lex raw=274195 zstd16=81993 exact_stream_and_id=true
+DICT deltas=lex120_z0 segments=length_lex raw=274205 zstd16=81973 exact_stream_and_id=true
+DICT deltas=lex120_z1 segments=frequency raw=263929 zstd16=75732 exact_stream_and_id=true
+DICT deltas=lex120_z1 segments=lex raw=264744 zstd16=84011 exact_stream_and_id=true
+DICT deltas=lex120_z1 segments=length_lex raw=264713 zstd16=84060 exact_stream_and_id=true
+DICT deltas=lex201_z0 segments=frequency raw=274573 zstd16=75240 exact_stream_and_id=true
+DICT deltas=lex201_z0 segments=lex raw=276354 zstd16=82836 exact_stream_and_id=true
+DICT deltas=lex201_z0 segments=length_lex raw=276298 zstd16=83033 exact_stream_and_id=true
+DICT deltas=lex201_z1 segments=frequency raw=258786 zstd16=64136 exact_stream_and_id=true
+DICT deltas=lex201_z1 segments=lex raw=260697 zstd16=71254 exact_stream_and_id=true
+DICT deltas=lex201_z1 segments=length_lex raw=260831 zstd16=71391 exact_stream_and_id=true
+DICT deltas=lex210_z0 segments=frequency raw=271615 zstd16=74995 exact_stream_and_id=true
+DICT deltas=lex210_z0 segments=lex raw=273405 zstd16=82936 exact_stream_and_id=true
+DICT deltas=lex210_z0 segments=length_lex raw=273349 zstd16=83064 exact_stream_and_id=true
+DICT deltas=lex210_z1 segments=frequency raw=244435 zstd16=64705 exact_stream_and_id=true
+DICT deltas=lex210_z1 segments=lex raw=245992 zstd16=71954 exact_stream_and_id=true
+DICT deltas=lex210_z1 segments=length_lex raw=246096 zstd16=72126 exact_stream_and_id=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 2.33s
+

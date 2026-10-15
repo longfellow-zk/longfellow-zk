@@ -19,6 +19,38 @@ use compile_logic::LogicIO;
 use core_proto::{reader::CircuitReader, writer::CircuitWriter, FieldID};
 
 #[test]
+fn explicit_total_term_budget_applies_to_both_formats() {
+    let f = P256Field::new();
+    let (circuit, _, _) = compile_compiler::compile(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let a = boolean.of_eltw(logic.input(1));
+        let b = boolean.of_eltw(logic.input(2));
+        (boolean.assert_true("xor", &boolean.xorb(&a, &b)), 1, 0)
+    });
+    let terms: usize = circuit.raw.layers.iter().map(|l| l.num_terms()).sum();
+    assert!(terms > 0);
+    let writer = CircuitWriter::new(&f, FieldID::P256);
+    for bytes in [
+        writer.to_bytes_lfc1(&circuit),
+        writer.to_bytes_lfc2(&circuit),
+    ] {
+        assert!(CircuitReader::new(&f, FieldID::P256)
+            .from_bytes(&bytes, true)
+            .is_ok());
+        assert!(CircuitReader::new(&f, FieldID::P256)
+            .with_total_term_limit(terms)
+            .from_bytes(&bytes, true)
+            .is_ok());
+        let error = CircuitReader::new(&f, FieldID::P256)
+            .with_total_term_limit(terms - 1)
+            .from_bytes(&bytes, true)
+            .err()
+            .unwrap();
+        assert!(error.contains("MAX_TOTAL_TERMS"), "{error}");
+    }
+}
+
+#[test]
 fn test_circuit_serialization_lfc2_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();

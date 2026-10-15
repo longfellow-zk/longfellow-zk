@@ -457,10 +457,16 @@ pub(crate) fn schedule<F: CompileField + core_algebra::SerializableField>(
         )
         .collect();
 
+    // Preserve every wire ID. Constant propagation is only a layout aid: it
+    // recognizes the reserved One and its copies in each layer's own namespace.
+    let mut known_inputs = vec![None; ninput];
+    known_inputs[0] = Some(f.one());
     let c_layers: Vec<Layer<F>> = terms_in_layer
         .into_iter()
         .zip(layer_inputs)
-        .map(|(terms, nw)| {
+        .zip(&nwires_in_layer)
+        .map(|((mut terms, nw), &nv)| {
+            known_inputs = crate::term_order::order_layer(f, &mut terms, &known_inputs, nv);
             let logw = ceil_log2(nw);
             build_layer(f, &constant_to_idx, terms, nw, logw)
         })
@@ -527,13 +533,10 @@ fn collect_constants<F: CompileField>(
 fn build_layer<F: CompileField>(
     f: &F,
     constant_to_idx: &std::collections::HashMap<Vec<u8>, u32>,
-    layer_terms: Vec<Term<F>>,
+    layer_sorted: Vec<Term<F>>,
     layer_ninput: usize,
     logw: usize,
 ) -> Layer<F> {
-    let mut layer_sorted = layer_terms;
-    layer_sorted.sort_unstable_by(|a, b| compare_term(f, a, b));
-
     for idx in 1..layer_sorted.len() {
         assert!(
             compare_term(f, &layer_sorted[idx - 1], &layer_sorted[idx])
