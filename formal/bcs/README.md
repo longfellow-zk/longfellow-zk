@@ -61,6 +61,9 @@ Ligero commitments of the two-field proof. It costs `2 · adaptiveNumerator / |D
 - The second stays the exact count. `Lfzk.TSec.tsec_of_uncapped` folds it into the T-security
   bound: its `tA²` birthday part is at most `tA · 2^-115` for `tA ≤ 2^137`, and beyond that the
   bound exceeds 1.
+  `Lfzk.CompiledZkProfileRows.v7P256Sha*_zk_circuit_ratio_le` (`2^-115 + N·2^-117`).
+- There the first term becomes the row's field and Ligero densities plus `N · zkCoefficient`.
+- The second becomes the Merkle term plus `tape · (L + N) / 2^256`.
 
 **Modelling.**
 
