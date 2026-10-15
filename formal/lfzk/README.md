@@ -1,6 +1,6 @@
-# Longfellow ZK: knowledge soundness and witness indistinguishability
+# Longfellow ZK: knowledge soundness and zero knowledge
 
-This directory contains a formalized proof that validates the knowledge-soundness and witness-indistinguishability properties of the Longfellow scheme, as deployed using two finite fields with the v7 mdoc_hash and mdoc_sig circuits in which Ligero is used at rate 1/7 with 132 opened columns.
+This directory contains a formalized proof that validates the knowledge-soundness and zero-knowledge properties of the Longfellow scheme, as deployed using two finite fields with the v7 mdoc_hash and mdoc_sig circuits in which Ligero is used at rate 1/7 with 132 opened columns.
 
 The proof formalizes a version of round-by-round soundness together with the Fiat-Shamir transform, so the formalized security guarantees match our production environment.
 
@@ -99,32 +99,49 @@ witnesses within the list-decoding radius of the committed matrix. Per row
 - **The budgets are unchanged.** They are `2|F|` per layer pair, 2 per round and 1 per binding. The
   `G` slot costs `(logv+2)/|F|` by Schwartz–Zippel (`ZkMultilinear`).
 
-### Zero knowledge, as proved: witness indistinguishability against query-bounded distinguishers
+### Zero knowledge, as proved: an explicit simulator, against query-bounded distinguishers
 
-`Lfzk.CompiledLongfellowZk.compiled_longfellow_wi` and `…TwoField.twofield_wi`. For two witnesses
-valid for the same statement, the two honest proofs are `2ε`-close, against every distinguisher
-that sees the proof and both challenge oracles and makes `f` Merkle-oracle queries. In the two-field
-form the MAC'd common value may differ as well. The proof consists of:
+`Lfzk.CompiledLongfellowZk.compiled_longfellow_zk` and `…TwoField.twofield_zk`. For every valid
+witness, the real proof is `ε`-close to a simulation that reads no witness. This holds against
+every distinguisher that sees the proof and both challenge oracles in full and makes `f`
+Merkle-oracle queries. The proof consists of:
 
 - the salted Merkle commitment;
 - the padded sumcheck messages;
 - the Ligero V1 response and openings;
 - the MAC tags, for the two-field form.
 
-Here `ε = (4n² + 2·d·f)/2^256 + (2n−1)(2n−2)/2^256` per side, with `n` columns, `d` of them
-unopened. That is **≤ 2^-128 per side and ≤ 2^-127 for the two-field proof at `f = 2^115`**
-(`…ZkV7.v7_twofield_zk_q115`).
+The simulator (`simExp`, with Ligero's response from `ZkAdaptiveV1.simResp`):
+
+- commits to the all-zero tableau with fresh padding. The opened columns are uniform because
+  every row carries 132 random padding values;
+- samples the sumcheck messages uniformly. The pad makes them uniform for every round oracle, so
+  the round oracle is never programmed;
+- answers Ligero with the honest formulas on the zero tableau, plus one public correction on the
+  linear rows. The correction is the base-code row whose witness part carries the statement's
+  target and which vanishes on the query set (`linCorr`). It is unique (`linCorr_unique`), so it
+  is a function of public data;
+- programs the Ligero challenge oracle at its two points.
+
+`ZkAdaptiveV1.statClose_adaptive` shows this response is distributed exactly like the honest one,
+by a bijection of the prover's randomness. Here `ε = (4n² + 2·d·f)/2^256 + (2n−1)(2n−2)/2^256` per
+side, with `n` columns, `d` of them unopened. That is **≤ 2^-128 per side and ≤ 2^-127 for the
+two-field proof at `f = 2^115`** (`…ZkV7.v7_twofield_zk_q115`).
 
 What this is, and what it is not:
 
 - **Computational, not statistical.** The bound grows with the distinguisher's Merkle (SHA-256)
   queries. The `2·d·f/2^256` term is guessing an unopened leaf's 256-bit nonce, so a distinguisher
   that can afford about `2^256/d` hash evaluations is not covered.
-- **Witness indistinguishability, not zero knowledge.** The corollaries come from
-  `compiled_longfellow_zk` and `twofield_zk`, which compare the real proof to a simulation. For
-  Ligero's response, that simulation runs the honest prover on a reference witness chosen
-  noncomputably (`referenceMessages`). The simulator is therefore not efficient, and with an
-  inefficient simulator a zero-knowledge statement says no more than witness indistinguishability.
+- **Witness indistinguishability follows**: `compiled_longfellow_wi` and `twofield_wi` (`2ε`; in
+  the two-field form the MAC'd common value may differ too).
+- **"Explicit" is up to Lean's representation of the code.** `linCorr` is picked with
+  `Classical.choose`, exactly as the honest prover's own `C.encode` is; concretely both are
+  interpolations.
+- **Compiled setting only.** The simulator needs the query set before it answers, which
+  programming the Ligero oracle gives. The IPCP-level theorems (`CompiledLigeroZk`,
+  `FromLigeroZKV1`), where the query comes after the response, keep `formal/ligero`'s
+  reference-witness simulator.
 - **The model:** a programmable random oracle, a single session, and a statement fixed before the
   distinguisher queries. The Merkle hash and the transcript hash are independent oracles; deployed,
   all are SHA-256, with no domain separation between the two trees. The codec is injective

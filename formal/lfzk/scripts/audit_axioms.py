@@ -62,6 +62,8 @@ HEADLINES = {
     "Lfzk.FromLigeroZK.V1.isLigeroZeroKnowledge_v1": False,
     "Lfzk.CompiledLigeroZk.v1_compiled_zk_bits256_q115": False,
     "Lfzk.ZkAdaptiveV1.statClose_adaptive": False,
+    "Lfzk.ZkAdaptiveV1.toSim_response": False,
+    "Lfzk.ZkAdaptiveV1.linCorr_unique": False,
     "Lfzk.CompiledLongfellowZk.compiled_longfellow_zk": False,
     "Lfzk.CompiledLongfellowZk.compiled_longfellow_zk_bits256": False,
     "Lfzk.CompiledLongfellowZk.compiled_longfellow_zk_bits256_q115": False,

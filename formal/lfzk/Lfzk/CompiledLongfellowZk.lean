@@ -40,16 +40,15 @@ a Ligero challenge oracle `G₀` and two raw challenges `c`, `i`; it then
   `default` everywhere else;
 * reads the sumcheck challenges off the round oracle at its own transcript `t` (it never programs
   the round oracle: the pad makes `t` uniform whatever the challenges are);
-* builds the Ligero statement `s` from the transcript and answers with the honest V1 response of
-  `s`'s **reference witness** on `ρ'` with its core paddings shifted to that witness
-  (`Lfzk.ZkAdaptiveV1.simResp`);
+* builds the Ligero statement `s` from the transcript and answers with the honest V1 formulas on
+  the all-zero tableau of `ρ'`, plus a public correction on the linear rows: the base-code row
+  with witness part `s`'s target at the first slot, vanishing on `q` (`Lfzk.ZkAdaptiveV1.simResp`);
 * programs `G₀` at the two Ligero points so that they answer `c` and `i`.
 
-It never reads *the* witness, but for Ligero's response it runs the honest prover on a reference
-witness of the built statement, chosen noncomputably (`referenceMessages`).  So the simulator is not
-efficient, and the theorem is not zero knowledge in the usual sense (an unbounded simulator could
-always find a witness).  What it gives is **witness indistinguishability** against distinguishers
-bounded by their Merkle queries: `compiled_longfellow_wi`.
+It reads no witness, and it chooses nothing but public objects: the correction row is the unique
+one with those values (`w + r = k` prescribed positions), computable by interpolation.  So this is
+**zero knowledge with an explicit simulator**, which programs only the two Ligero points.  Witness
+indistinguishability follows (`compiled_longfellow_wi`).
 
 ## The four hybrids
 
@@ -71,8 +70,6 @@ witness-free — that is what the Ligero swap buys.
   allowed (`StatClose`), but the distinguisher makes at most `f` Merkle-oracle queries and the
   bound grows with `f` (`2·d·f/|Salt|`: guessing an unopened leaf's 256-bit nonce).  It is a
   statement about attackers bounded by their SHA-256 work, not a statistical one.
-* **Inefficient simulator, so read it as witness indistinguishability** (`compiled_longfellow_wi`):
-  the simulator uses a noncomputably chosen reference witness for Ligero's response.
 * **Programmable random oracles, independent.**  The Merkle hash is a lazily sampled random
   oracle (`Merkle.RandomOracle.lazyRun` on a uniform tape); the round challenges and the two
   Ligero challenges are read from two further, independent, uniformly random functions `Gr` and
@@ -336,15 +333,15 @@ theorem hybExp_congr (Cod : Codec Salt (Col F nw nq reps) D Enc) (dec₂ : Coin 
 
 /-! ### The simulator -/
 
-/-- The simulator's response at root `root`: the reference witness of the statement built from
-its own transmission `t`, on its tape with the core paddings shifted from the zero tableau. -/
+/-- The simulator's response at root `root`: `ZkAdaptiveV1.simResp` — the honest formulas on the
+all-zero tableau of its tape, plus the public linear correction — at the statement built from its
+own transmission `t`. -/
 noncomputable def simRespAt {C : MultiplicativeCode F r w n}
     (stmt : RO → Ctx → Tr → ConstraintSystem F nw nq w Equations) (ctx : D → Ctx)
     (dec₁ : Coin → Ligero.V1.Challenge F nw nq reps Equations) (dec₂ : Coin → QuerySet n r)
     (ρ' : Tape C nw nq reps) (t : Tr) (c i : Coin) (Gr : RO) (root : D) :
     LigeroFamily.Response F r w n reps :=
-  v1Resp (stmt Gr (ctx root) t) (referenceMessages (stmt Gr (ctx root) t))
-    (coreShift 0 (referenceMessages (stmt Gr (ctx root) t)) (dec₂ i) ρ') (dec₁ c)
+  simResp (stmt Gr (ctx root) t) (dec₂ i) (dec₁ c) ρ'
 
 /-- The simulated experiment at fixed coins. -/
 noncomputable def simCore {C : MultiplicativeCode F r w n}
@@ -547,7 +544,7 @@ theorem step_adaptive (hvalid : ∀ root, FE.Valid wit (ctx root)) {T f : ℕ}
     funext fun ρ => hybExp_congr Cod dec₂ ctx pts dist _ i _ _ _ _ _ c Gr G₀ hs rfl rfl
   have e2 : (fun ρ' => h3Core C Cod dec₁ dec₂ FE ctx pts wit dist ρ' b hs Gr G₀ c i)
       = fun ρ' : Tape C nw nq reps => Ψ (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i))
-          (simResp S (dec₁ c) ρ') :=
+          (adaptiveSimResp (dec₂ i) (dec₁ c) S ρ') :=
     funext fun ρ' => hybExp_congr Cod dec₂ ctx pts dist _ i _ _ _ _ _ c Gr G₀ hs rfl rfl
   rw [e1, e2]
   exact h
@@ -665,11 +662,8 @@ theorem compiled_longfellow_zk (hinjC : Cod.Inj) (hvalid : ∀ root, FE.Valid wi
 /--
 **Witness indistinguishability against query-bounded distinguishers.**  For two witnesses valid for
 the same statement, the two honest proofs are `2 · openingEps`-close, against every distinguisher
-that sees the proof and both challenge oracles and makes at most `f` Merkle-oracle queries.
-
-This is what `compiled_longfellow_zk` amounts to: its simulator answers Ligero's response with the
-honest prover run on a reference witness chosen noncomputably (`referenceMessages`), so it is not
-an efficient simulator, and the theorem is best read as this corollary.  The bound grows with `f`
+that sees the proof and both challenge oracles and makes at most `f` Merkle-oracle queries: both
+are `openingEps`-close to the same simulation (`compiled_longfellow_zk`).  The bound grows with `f`
 (`2·d·f/|Salt|`, guessing an unopened leaf's nonce), so the guarantee is computational in the
 number of Merkle-hash evaluations, not statistical.
 -/
