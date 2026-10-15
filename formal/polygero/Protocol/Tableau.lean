@@ -1,6 +1,6 @@
 import LigeroFamily.Protocol.DirectProduct
 
-/-! The physical ordinary tableau has only the core rows and the two v2
+/-! The physical ordinary tableau has only the core rows and the two checked
 arithmetic masks. There is no base proximity blind or multiplicative mask.
 Arithmetic masks have no singleton repetition index. Legacy honest openings
 are projected into this physical representation. -/

@@ -2,7 +2,10 @@ import LigeroFamily.Protocol.DirectProduct
 import LigeroFamily.Code.ReedSolomon
 import polygero.Protocol.SharedColumn
 
-/-! Reuse the Ligero polynomial rows and masked arithmetic response. -/
+/-! Compatibility row coordinates for reused masked-arithmetic lemmas.
+The physical tableau is defined separately in `Protocol/Tableau.lean`. Its
+`extendRows` adapter supplies the extra coordinate as zero, without another
+committed word or sampled challenge. -/
 
 namespace LigeroFamily.PolynomialDirect
 open Finset Polynomial
@@ -12,8 +15,8 @@ variable {F Equations : Type*} [Field F] [DecidableEq F]
 variable [Fintype Equations]
 variable {q r w n nw nq s : Nat}
 
-/-- Rows polynomial-batched by the proximity check: all V3 tested rows and
-the proximity blind. -/
+/-- Legacy arithmetic coordinates. The physical row adapter supplies the extra
+coordinate as zero; this is not the protocol challenge space. -/
 abbrev BatchedRow (nw nq : Nat) :=
   SchemeTestedRow LinearConstraintMask nw nq 1 ⊕ Unit
 
