@@ -97,8 +97,17 @@ Pr[ both modeled verifiers accept
 `v7SigHahn` is a new analysis row (`CertifiedV1.v7SigHahn`) with a larger extraction radius. The
 verifier, field, circuit profile and opening count are unchanged. The named `v7P256Sha*`
 corollaries keep the original signature row. Supplying `v7SigHahn` through `CircuitSide.toSide`
-lowers the constant term, from a core exponent of 115.664 to 115.673 for one attribute, but the
-hash row still sets `κ` and the integer level stays at 115.
+lowers the separate-MAC core from 115.663 to 115.672 bits for one attribute, but the
+hash row still sets `κ` and the integer level stays at 115. With separate private MAC
+witnesses, the full Hahn-paired constant, including the Merkle and transcript terms at
+zero adversary queries, is at most `(651/1000)·2^-115` for each profile
+(`SoundnessAudit.hahn_twofield_linear_slack`). The generic two-field theorem supplies
+the query-dependent terms. For `tA ≤ 2^115`, its exact right-hand side with
+the Hahn signature row is certified to be at most
+`(651/1000)·2^-115 + N·2^-117 + tA·2^-138`
+(`SoundnessAudit.hahn_twofield_linear_rhs`, for all four hash profiles). This is a
+numerical specialization of the generic extraction theorem; the named `v7P256Sha*`
+corollaries continue to use the Johnson signature row.
 
 ## The verifier and the claim chain
 
@@ -207,6 +216,12 @@ constant term `core` builds up like this. The other three hash rows differ by un
 | Ligero: combination challenge escapes doom (unchecked-mask arithmetic profile) | `arith` | `2^-120.08` | **116.60** (Ligero) |
 | `core = field + Ligero` | | `2^-115.67` | **115.67 → 115** |
 
+The `117.27` entry has the exact value `1694/(2^128 − 36)`: `1694 = m − 1` for the
+certified `v7Hash1` row. It is only the challenge-escape summand, before `arith`, `cover`,
+and all field checks. `SoundnessAudit.v7Hash1_challenge_escape_exact` and
+`v7Hash1_cost_chain` check that decomposition in Lean. Substituting this one exponent
+for the complete Ligero error would overstate the result.
+
 In words:
 
 - **The rounds cost about 10.1 bits.** That is `log₂(2·566)`, which leaves 117.9 bits.
@@ -255,11 +270,14 @@ response passes at that `α` (the "response-uniform envelope"). An average is th
 when `α` is drawn once. That is the setting of `formal/ligero`'s Fiat–Shamir theorem, where
 `α = H(root)` and the bound is `(Q+1)·ε`.
 
-**Why Longfellow cannot use it.** In Longfellow, `α` is a hash of the root *and the whole
-sumcheck transcript*. A cheating prover gets a fresh `α` for the price of one hash query, by
-changing any sumcheck message without re-committing, and keeps the best one. An average over
-`α` then says nothing about how often it finds a good `α`. The composition instead needs one
-bound per Ligero round, each charged once per hash query:
+**Why the current Longfellow compiler does not use it.** In Longfellow, `α` is a hash of the
+root *and the whole sumcheck transcript*. A cheating prover can obtain fresh `α` values by
+changing sumcheck messages without re-committing, then concentrate its column-query attempts
+on a favorable one. A flat average over `α` does not itself justify the compiler's **linear**
+query factor. The proved linear envelope compiler assumes a fixed defining `α` key; the
+generic two-slot compiler gives a quadratic query factor even in its fixed-key model. Neither
+theorem supplies the missing composition at Longfellow's transcript-dependent key. The current
+linear-query composition instead needs one bound per Ligero round, each charged once per hash query:
 
 1. the probability that `α` escapes a *doom threshold* (`fail + arith`);
 2. for a doomed `α`, the fraction of column queries that pass (`cover`).

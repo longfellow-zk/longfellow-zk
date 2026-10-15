@@ -88,11 +88,16 @@ def main():
     print("127-bit T-security: all three exact slack inequalities pass")
     print("\ntwo-field core bits (old signature -> Hahn signature):")
     for _, profile, hash_core, hash_coeff in data[1:]:
-        old = hash_core + data[0][2] + Q(1, 2**128)
-        new = hash_core + core + Q(1, 2**128)
-        assert new < old
-        assert max(hash_coeff, data[0][3], Q(1, 2**128)) == max(hash_coeff, coeff, Q(1, 2**128))
-        print(f'  {profile["attributes"]} attributes: {bits(old):.5f} -> {bits(new):.5f}; integer target remains 115')
+        shared_old = hash_core + data[0][2] + Q(1, 2**128)
+        shared_new = hash_core + core + Q(1, 2**128)
+        separate_old = hash_core + data[0][2] + Q(4, 2**128)
+        separate_new = hash_core + core + Q(4, 2**128)
+        assert shared_new < shared_old and separate_new < separate_old
+        assert max(hash_coeff, data[0][3], Q(4, 2**128)) == max(hash_coeff, coeff, Q(4, 2**128))
+        assert separate_new <= Q(651, 1000 * 2**115)
+        print(f'  {profile["attributes"]} attributes: shared MAC {bits(shared_old):.5f} -> '
+              f'{bits(shared_new):.5f}; separate MAC {bits(separate_old):.5f} -> '
+              f'{bits(separate_new):.5f}; integer target remains 115')
 
     errors = [Q(4*r.n**2 + (2*r.n-1)*(2*r.n-2) + 2*(r.n-r.openings)*2**115, 2**256) for r in rows]
     assert all(e <= Q(1, 2**128) for e in errors)
