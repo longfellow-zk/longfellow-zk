@@ -286,5 +286,5 @@ change. Invoke the binary directly to exclude Cargo/build memory from RSS.
   MLDSA-65 and current two-attribute mdoc. These explicitly run the otherwise
   ignored saved-circuit benchmarks.
 - No LTP reader, layer storage or runtime dispatch remains; `compute_id` itself
-  is unchanged. Previously added opt-in canonical-ID support is preserved.
+  is unchanged.
 - `git diff --check`: passed. Unrelated worktree changes were retained.
