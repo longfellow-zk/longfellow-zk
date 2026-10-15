@@ -115,6 +115,13 @@ import Lfzk.CompiledZkProfileRows
 -- Hahn/Delsarte mask bounds, a tighter T-security conversion, and audit checks
 import Lfzk.CompiledZkProfileHahn
 import Lfzk.SoundnessAudit
+-- the two-field MAC with separate private witnesses (v7 shifted multiplier, v8 additive blind),
+-- and the v7 MAC's zero-knowledge statement
+import Lfzk.MacSep
+import Lfzk.NizkZkDeployedHashSepMac
+import Lfzk.TwoFieldSepMacRows
+import Lfzk.CompiledZkProfileSepMac
+import Lfzk.CompiledLongfellowZkV7Mac
 
 /-!
 # Longfellow NIZK knowledge soundness
