@@ -90,9 +90,11 @@ noncomputable def optPoint (u : F) (pk : AffinePoint F) (rx ry : F) (pre : List 
 
 section Digits
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 private lemma num_ne' {a b c : F} (hc : c ≠ 0) (h : a - b = c) : a ≠ b := by
   intro he; exact hc (by rw [← h, he, sub_self])
 
+omit [NeZero (3 : F)] in
 /-- Differences between distinct lookup nodes are `2, 4, …, 14`. The even ones above `7` are not
     hypotheses: `2m ≠ 0` follows from `2 ≠ 0` and `m ≠ 0` in a field. -/
 private lemma node_diff_ne_zero :
@@ -109,6 +111,7 @@ private lemma node_diff_ne_zero :
   · rw [show (12 : F) = 2 * 6 by norm_num]; exact mul_ne_zero n2 n6
   · rw [show (14 : F) = 2 * 7 by norm_num]; exact mul_ne_zero n2 n7
 
+omit [NeZero (3 : F)] in
 /-- Every `if` condition either if-chain has to decide, as one bundle. -/
 private lemma node_ne :
     ((-6 : F) ≠ -8) ∧ ((-4 : F) ≠ -8) ∧ ((-4 : F) ≠ -6) ∧ ((-2 : F) ≠ -8) ∧ ((-2 : F) ≠ -6) ∧
@@ -174,9 +177,9 @@ theorem muxPointF_bitrev3 (u : F) (hu : IsDigit u) (pk : AffinePoint F) (rx ry :
   rcases hu with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;>
     simp only [bitrev3, optPoint, muxPointF, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
       a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28,
-      e10, e20, e21, e30, e31, e32, e40, e41, e42, e43,
-      e50, e51, e52, e53, e54, e60, e61, e62, e63, e64, e65, e70, e71, e72, e73, e74, e75, e76,
-      if_true, if_false, reduceIte]
+      e10, e21, e30, e31, e32, e41, e43,
+      e50, e51, e52, e53, e54, e61, e63, e65, e70, e71, e72, e73, e74, e75, e76,
+      if_true, if_false]
 
 /-! ### `optPoint` at the eight nodes
 
@@ -188,6 +191,7 @@ plus one `linear_combination`. -/
 section OptPointNodes
 variable (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F)
 
+omit [NeZero (3 : F)] in
 private lemma optPoint_all :
     optPoint (-8 : F) pk rx ry pre params = { X := 0, Y := 1, Z := 0 } ∧
     optPoint (-6 : F) pk rx ry pre params = { X := rx, Y := ry, Z := 1 } ∧
@@ -206,26 +210,34 @@ private lemma optPoint_all :
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
     simp only [optPoint, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16,
       a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, AffinePoint.toProjective,
-      eq_self_iff_true, if_true, if_false, ite_false, ite_true, reduceIte]
+      if_true, if_false]
 
+omit [NeZero (3 : F)] in
 theorem optPoint_n0 : optPoint (-8 : F) pk rx ry pre params = { X := 0, Y := 1, Z := 0 } :=
   (optPoint_all pk rx ry pre params).1
+omit [NeZero (3 : F)] in
 theorem optPoint_n1 : optPoint (-6 : F) pk rx ry pre params = { X := rx, Y := ry, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n2 : optPoint (-4 : F) pk rx ry pre params = { X := pk.X, Y := pk.Y, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n3 :
     optPoint (-2 : F) pk rx ry pre params = { X := pre.getD 4 0, Y := pre.getD 5 0, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n4 :
     optPoint (0 : F) pk rx ry pre params = { X := params.gx, Y := params.gy, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.2.2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n5 :
     optPoint (2 : F) pk rx ry pre params = { X := pre.getD 2 0, Y := pre.getD 3 0, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.2.2.2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n6 :
     optPoint (4 : F) pk rx ry pre params = { X := pre.getD 0 0, Y := pre.getD 1 0, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.2.2.2.2.1
+omit [NeZero (3 : F)] in
 theorem optPoint_n7 :
     optPoint (6 : F) pk rx ry pre params = { X := pre.getD 6 0, Y := pre.getD 7 0, Z := 1 } :=
   (optPoint_all pk rx ry pre params).2.2.2.2.2.2.2
@@ -234,37 +246,61 @@ theorem optPoint_n7 :
 treats `(⟨a, b, c⟩ : ProjectivePoint F).X` as an opaque atom rather than reducing it, so the
 projection has to be gone before then. Rewriting with these does that in one step. -/
 
+omit [NeZero (3 : F)] in
 theorem optPoint_n0_X : (optPoint (-8 : F) pk rx ry pre params).X = 0 := by rw [optPoint_n0]
+omit [NeZero (3 : F)] in
 theorem optPoint_n0_Y : (optPoint (-8 : F) pk rx ry pre params).Y = 1 := by rw [optPoint_n0]
+omit [NeZero (3 : F)] in
 theorem optPoint_n0_Z : (optPoint (-8 : F) pk rx ry pre params).Z = 0 := by rw [optPoint_n0]
+omit [NeZero (3 : F)] in
 theorem optPoint_n1_X : (optPoint (-6 : F) pk rx ry pre params).X = rx := by rw [optPoint_n1]
+omit [NeZero (3 : F)] in
 theorem optPoint_n1_Y : (optPoint (-6 : F) pk rx ry pre params).Y = ry := by rw [optPoint_n1]
+omit [NeZero (3 : F)] in
 theorem optPoint_n1_Z : (optPoint (-6 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n1]
+omit [NeZero (3 : F)] in
 theorem optPoint_n2_X : (optPoint (-4 : F) pk rx ry pre params).X = pk.X := by rw [optPoint_n2]
+omit [NeZero (3 : F)] in
 theorem optPoint_n2_Y : (optPoint (-4 : F) pk rx ry pre params).Y = pk.Y := by rw [optPoint_n2]
+omit [NeZero (3 : F)] in
 theorem optPoint_n2_Z : (optPoint (-4 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n2]
+omit [NeZero (3 : F)] in
 theorem optPoint_n3_X : (optPoint (-2 : F) pk rx ry pre params).X = pre.getD 4 0 := by
   rw [optPoint_n3]
+omit [NeZero (3 : F)] in
 theorem optPoint_n3_Y : (optPoint (-2 : F) pk rx ry pre params).Y = pre.getD 5 0 := by
   rw [optPoint_n3]
+omit [NeZero (3 : F)] in
 theorem optPoint_n3_Z : (optPoint (-2 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n3]
+omit [NeZero (3 : F)] in
 theorem optPoint_n4_X : (optPoint (0 : F) pk rx ry pre params).X = params.gx := by rw [optPoint_n4]
+omit [NeZero (3 : F)] in
 theorem optPoint_n4_Y : (optPoint (0 : F) pk rx ry pre params).Y = params.gy := by rw [optPoint_n4]
+omit [NeZero (3 : F)] in
 theorem optPoint_n4_Z : (optPoint (0 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n4]
+omit [NeZero (3 : F)] in
 theorem optPoint_n5_X : (optPoint (2 : F) pk rx ry pre params).X = pre.getD 2 0 := by
   rw [optPoint_n5]
+omit [NeZero (3 : F)] in
 theorem optPoint_n5_Y : (optPoint (2 : F) pk rx ry pre params).Y = pre.getD 3 0 := by
   rw [optPoint_n5]
+omit [NeZero (3 : F)] in
 theorem optPoint_n5_Z : (optPoint (2 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n5]
+omit [NeZero (3 : F)] in
 theorem optPoint_n6_X : (optPoint (4 : F) pk rx ry pre params).X = pre.getD 0 0 := by
   rw [optPoint_n6]
+omit [NeZero (3 : F)] in
 theorem optPoint_n6_Y : (optPoint (4 : F) pk rx ry pre params).Y = pre.getD 1 0 := by
   rw [optPoint_n6]
+omit [NeZero (3 : F)] in
 theorem optPoint_n6_Z : (optPoint (4 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n6]
+omit [NeZero (3 : F)] in
 theorem optPoint_n7_X : (optPoint (6 : F) pk rx ry pre params).X = pre.getD 6 0 := by
   rw [optPoint_n7]
+omit [NeZero (3 : F)] in
 theorem optPoint_n7_Y : (optPoint (6 : F) pk rx ry pre params).Y = pre.getD 7 0 := by
   rw [optPoint_n7]
+omit [NeZero (3 : F)] in
 theorem optPoint_n7_Z : (optPoint (6 : F) pk rx ry pre params).Z = 1 := by rw [optPoint_n7]
 
 end OptPointNodes
@@ -320,10 +356,10 @@ theorem loopConstraints_bitrev (us : List F) (h : ∀ u ∈ us, IsDigit u) (acc 
     | cons u' us' =>
       cases wx <;> cases wy <;> cases wz <;>
         simp only [List.map_cons, EcdsaLoopConstraintsF, LoopConstraintsOpt,
-          muxPointF_bitrev3 u (h u (by simp))] <;>
-        try (refine and_congr_right fun _ => and_congr_right fun _ =>
-               and_congr_right fun _ => ?_
-             exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _)
+          muxPointF_bitrev3 u (h u (by simp))]
+      try (refine and_congr_right fun _ => and_congr_right fun _ =>
+             and_congr_right fun _ => ?_
+           exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _)
 
 /-- The computed final accumulator likewise. -/
 theorem loopResult_bitrev (us : List F) (h : ∀ u ∈ us, IsDigit u) (acc : ProjectivePoint F)
@@ -340,8 +376,8 @@ theorem loopResult_bitrev (us : List F) (h : ∀ u ∈ us, IsDigit u) (acc : Pro
         simp [ecdsaLoopResultF, loopResultOpt, muxPointF_bitrev3 u (h u (by simp))]
     | cons u' us' =>
       cases wx <;> cases wy <;> cases wz <;>
-        simp only [List.map_cons, ecdsaLoopResultF, loopResultOpt] <;>
-        try exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _
+        simp only [List.map_cons, ecdsaLoopResultF, loopResultOpt]
+      try exact ih (fun x hx => h x (by simp [hx])) _ _ _ _ _
 
 
 /-! ## The round count
@@ -364,6 +400,7 @@ noncomputable def LoopFull :
     LoopFull { X := wx, Y := wy, Z := wz } false us wxs wys wzs pk rx ry pre params
   | _, _, _, _, _, _, _, _, _, _, _ => False
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 /-- **The round-count bridge.** Splitting off the last stored accumulator turns the circuit's
     256 round assertions into Lean's 255 intermediates plus the computed final value. This is
     where `ax_zero` / `az_zero` become `finalAcc.X = 0 ∧ finalAcc.Z = 0`. -/
@@ -412,6 +449,7 @@ theorem loopFull_split (us : List F) (wx wy wz : List F) (lx ly lz : F)
                 obtain ⟨hc, hr⟩ := ih (wx := xs) (wy := ys) (wz := zs) _ _ hrest
                 exact ⟨⟨hx, hy, hz, hc⟩, hr⟩
 
+omit [NeZero (3 : F)] in
 /-- The image of `bitrev3` is `muxPoint`'s index range `0 … 7`, which is what
     `ValidEcdsaWitness`'s digit condition asks for. Note this is a *different* set from
     `IsDigit`, which is the lookup-node range: the circuit's wire carries `2d - 8` and Lean's
@@ -423,8 +461,7 @@ theorem bitrev3_isIndex (u : F) (hu : IsDigit u) :
     a19, a20, a21, a22, a23, a24, a25, a26, a27, a28⟩ := node_ne (F := F)
   rcases hu with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;>
     simp only [bitrev3, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16,
-      a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, if_true, if_false,
-      reduceIte] <;> norm_num
+      a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27, a28, if_true, if_false] <;> norm_num
 
 /-! ## Bit order in the reconstructions
 
@@ -439,6 +476,7 @@ def bitsLE : List F -> F
   | [] => 0
   | b :: bs => b + 2 * bitsLE bs
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 /-- **The weighting bridge.** Horner folding over the reversed list is the circuit's
     least-significant-first sum. -/
 theorem foldl_horner_reverse (bs : List F) :
@@ -455,6 +493,7 @@ theorem foldl_horner_reverse (bs : List F) :
         ring
   simpa using key bs 0
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 /-- The same, for the digit-indexed reconstruction `reconstructExponent` uses. -/
 theorem reconstructExponent_reverse (bi : List Nat) (mux : Nat → F) :
     reconstructExponent bi.reverse mux = bitsLE (bi.map mux) := by

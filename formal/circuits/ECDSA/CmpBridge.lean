@@ -29,6 +29,7 @@ variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)]
 noncomputable def digitBitB (sel : Nat) (u : F) : Bool :=
   decide ((val3 (bitrev3 u) / sel) % 2 = 1)
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem digitBit_eq_enc (sel : Nat) (u : F) :
     digitBit sel u = BitLt.enc (digitBitB (F := F) sel u) := by
   simp only [digitBit, digitBitB, BitLt.enc, decide_eq_true_eq]
@@ -60,6 +61,7 @@ theorem natfold_reverse (l : List Nat) :
         ring
   simpa using key l 0
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 private theorem natrec (us : List F) (sel : Nat) (mux : Nat → Nat)
     (hf : ∀ u : F, mux (val3 (bitrev3 u)) = (if digitBitB (F := F) sel u then 1 else 0)) :
     natReconstruct ((us.map bitrev3).map val3) mux
@@ -75,6 +77,7 @@ private theorem natrec (us : List F) (sel : Nat) (mux : Nat → Nat)
   rw [natReconstruct, hfm, hmap, natfold_reverse, bval_eq_natLE, List.map_map]
   simp only [Function.comp_def, hf]
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem natE_bval (us : List F) :
     natE ((us.map bitrev3).map val3) = BitLt.bval (us.reverse.map (digitBitB (F := F) 1)) := by
   unfold natE
@@ -82,6 +85,7 @@ theorem natE_bval (us : List F) :
   simp only [muxE, digitBitB, decide_eq_true_eq, Nat.div_one]
   split <;> omega
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem natR_bval (us : List F) :
     natR ((us.map bitrev3).map val3) = BitLt.bval (us.reverse.map (digitBitB (F := F) 2)) := by
   unfold natR
@@ -89,6 +93,7 @@ theorem natR_bval (us : List F) :
   simp only [muxR, digitBitB, decide_eq_true_eq]
   split <;> omega
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem natS_bval (us : List F) :
     natS ((us.map bitrev3).map val3) = BitLt.bval (us.reverse.map (digitBitB (F := F) 4)) := by
   unfold natS

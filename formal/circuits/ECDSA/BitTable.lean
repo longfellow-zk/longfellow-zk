@@ -27,9 +27,11 @@ variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)]
 noncomputable def digitBit (sel : Nat) (u : F) : F :=
   if (val3 (bitrev3 u) / sel) % 2 = 1 then 1 else 0
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 private lemma bnum_ne' {a b c : F} (hc : c ≠ 0) (h : a - b = c) : a ≠ b := by
   intro he; exact hc (by rw [← h, he, sub_self])
 
+omit [NeZero (3 : F)] in
 private lemma bdiff_ne :
     ((2 : F) ≠ 0) ∧ ((4 : F) ≠ 0) ∧ ((6 : F) ≠ 0) ∧ ((8 : F) ≠ 0) ∧ ((10 : F) ≠ 0) ∧
       ((12 : F) ≠ 0) ∧ ((14 : F) ≠ 0) := by
@@ -125,8 +127,7 @@ private lemma bbitrev :
     (bitrev3 (6 : F) = 7) := by
   obtain ⟨a1_0, a2_0, a2_1, a3_0, a3_1, a3_2, a4_0, a4_1, a4_2, a4_3, a5_0, a5_1, a5_2, a5_3, a5_4, a6_0, a6_1, a6_2, a6_3, a6_4, a6_5, a7_0, a7_1, a7_2, a7_3, a7_4, a7_5, a7_6⟩ := bnodes_ne (F := F)
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
-    simp only [bitrev3, a1_0, a2_0, a2_1, a3_0, a3_1, a3_2, a4_0, a4_1, a4_2, a4_3, a5_0, a5_1, a5_2, a5_3, a5_4, a6_0, a6_1, a6_2, a6_3, a6_4, a6_5, a7_0, a7_1, a7_2, a7_3, a7_4, a7_5, a7_6, eq_self_iff_true, if_true, if_false,
-      ite_false, ite_true, reduceIte]
+    simp only [bitrev3, a1_0, a2_0, a2_1, a3_0, a3_1, a3_2, a4_0, a4_1, a4_2, a4_3, a5_0, a5_1, a5_2, a5_3, a5_4, a6_0, a6_1, a6_2, a6_3, a6_4, a6_5, a7_0, a7_1, a7_2, a7_3, a7_4, a7_5, a7_6, if_true, if_false]
 
 private lemma bval3 :
     (val3 (0 : F) = 0) ∧
@@ -139,8 +140,7 @@ private lemma bval3 :
     (val3 (7 : F) = 7) := by
   obtain ⟨b1_0, b2_0, b2_1, b3_0, b3_1, b3_2, b4_0, b4_1, b4_2, b4_3, b5_0, b5_1, b5_2, b5_3, b5_4, b6_0, b6_1, b6_2, b6_3, b6_4, b6_5, b7_0, b7_1, b7_2, b7_3, b7_4, b7_5, b7_6⟩ := bidx_ne (F := F)
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
-    simp only [val3, b1_0, b2_0, b2_1, b3_0, b3_1, b3_2, b4_0, b4_1, b4_2, b4_3, b5_0, b5_1, b5_2, b5_3, b5_4, b6_0, b6_1, b6_2, b6_3, b6_4, b6_5, b7_0, b7_1, b7_2, b7_3, b7_4, b7_5, b7_6, eq_self_iff_true, if_true, if_false,
-      ite_false, ite_true, reduceIte]
+    simp only [val3, b1_0, b2_0, b2_1, b3_0, b3_1, b3_2, b4_0, b4_1, b4_2, b4_3, b5_0, b5_1, b5_2, b5_3, b5_4, b6_0, b6_1, b6_2, b6_3, b6_4, b6_5, b7_0, b7_1, b7_2, b7_3, b7_4, b7_5, b7_6, if_true, if_false]
 
 /-! The 24 evaluations: `sel ∈ {1, 2, 4}` against node index `0 … 7`. The value is the
 digit's `e`, `r` or `s` bit -- exactly what the corresponding circuit table holds. -/
@@ -224,6 +224,7 @@ specification's `reconstructE` folds most-significant-digit-first over the *loop
 list. `reconstructExponent_reverse` reconciles the two weightings; these three specialise it to
 `digitBit`, so the assembly's only remaining job is to replace each `wₖ`. -/
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 private theorem recon (us : List F) (sel : Nat) (f : Nat → F)
     (hf : ∀ u : F, f (val3 (bitrev3 u)) = digitBit sel u) :
     reconstructExponent ((us.map bitrev3).map val3) f
@@ -233,17 +234,20 @@ private theorem recon (us : List F) (sel : Nat) (f : Nat → F)
   rw [hmap, reconstructExponent_reverse, List.map_map]
   simp only [Function.comp_def, hf]
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem reconstructE_digitBit (us : List F) :
     reconstructE ((us.map bitrev3).map val3) = bitsLE (us.reverse.map (digitBit 1)) := by
   unfold reconstructE
   refine recon us 1 _ fun u => ?_
   simp [digitBit]
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem reconstructR_digitBit (us : List F) :
     reconstructR ((us.map bitrev3).map val3) = bitsLE (us.reverse.map (digitBit 2)) := by
   unfold reconstructR
   exact recon us 2 _ fun _ => rfl
 
+omit [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)] [NeZero (5 : F)] [NeZero (6 : F)] [NeZero (7 : F)] in
 theorem reconstructS_digitBit (us : List F) :
     reconstructS ((us.map bitrev3).map val3) = bitsLE (us.reverse.map (digitBit 4)) := by
   unfold reconstructS

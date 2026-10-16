@@ -159,7 +159,7 @@ theorem bval_inj : ∀ (a b : List Bool), a.length = b.length → bval a = bval 
         cases a <;> cases b <;> simp_all <;> omega
       subst hpar
       have : bval as = bval bs := by
-        cases a <;> (try simp only [if_true, if_false] at hv) <;> omega
+        cases a <;> (try simp only [if_true] at hv) <;> omega
       exact congrArg _ (bval_inj as bs hl this)
 
 /-- **The fold computes the comparison.** Both components at once, since each needs the other. -/
@@ -216,7 +216,7 @@ theorem step_enc (lo hi : Bool × Bool) (hhi : hi.1 = true → hi.2 = false) :
   obtain ⟨l1, l2⟩ := lo
   obtain ⟨h1, h2⟩ := hi
   cases h1 <;> cases h2 <;> cases l1 <;> cases l2 <;>
-    simp_all [step, bstep, enc] <;> norm_num
+    simp_all [step, bstep, enc]
 
 /-- The exclusivity `step_enc` needs, for the states the fold actually produces: a segment cannot
     be both equal and less. -/
