@@ -182,6 +182,88 @@ theorem mixed_budget_sum (cardCand bpair bround bin blig bquery : ℕ) :
   rw [RbrLayerStep.layerStep_budget_sum]
   ring
 
+/-- Only the two Ligero slots follow the field prefix, so a mixed budget
+with zero terminal charges vanishes there. -/
+theorem mixedBudget_zero_of_tail (cardCand bpair bround bin : ℕ)
+    (rl : Rounds.Role nl w)
+    (htail : Rounds.Role.layerBase w nl + 1 ≤ rl.slot) :
+    mixedBudget cardCand bpair bround bin 0 0 rl = 0 := by
+  cases rl with
+  | layerPair ly =>
+      have h := Rounds.Role.layer_slot_lt (w := w) ly (k := 0) (by omega)
+      simp only [Rounds.Role.slot] at htail
+      omega
+  | sumcheck ly j =>
+      have h := Rounds.Role.layer_slot_lt (w := w) ly
+        (k := 1 + j.val) (by omega)
+      simp only [Rounds.Role.slot] at htail
+      omega
+  | inputBind =>
+      simp only [Rounds.Role.slot] at htail
+      omega
+  | ligeroChallenge => rfl
+  | ligeroQuery => rfl
+
+/-- The exact count of field-prefix escapes, before the challenge and query.
+The two terminal budgets are zero, so the prefix sum is the established
+field part of `mixed_budget_sum`. -/
+theorem mixed_budget_field_prefix_sum (cardCand bpair bround bin : ℕ) :
+    let u := Rounds.Role.layerBase w nl + 1
+    ∑ i : Fin u,
+      mixedBudget cardCand bpair bround bin 0 0
+        (Rounds.Role.indexEquiv.symm
+          (⟨i.val, by dsimp [Rounds.Role.length]; omega⟩ :
+            Fin (Rounds.Role.length nl w))) =
+      cardCand * (nl * bpair + (∑ i ∈ Finset.range nl, w i) * bround + bin) := by
+  let u := Rounds.Role.layerBase w nl + 1
+  let B : Fin (u + 2) → ℕ := fun i =>
+    mixedBudget cardCand bpair bround bin 0 0
+      (Rounds.Role.indexEquiv.symm
+        (⟨i.val, by dsimp [Rounds.Role.length, u]; omega⟩ :
+          Fin (Rounds.Role.length nl w)))
+  have hfull : (∑ i : Fin (u + 2), B i) =
+      cardCand * (nl * bpair + (∑ i ∈ Finset.range nl, w i) * bround + bin) := by
+    calc
+      _ = ∑ i : Fin (Rounds.Role.length nl w),
+          mixedBudget cardCand bpair bround bin 0 0
+            (Rounds.Role.indexEquiv.symm i) := by
+        apply Finset.sum_congr rfl
+        intro i _
+        change mixedBudget cardCand bpair bround bin 0 0
+          (Rounds.Role.indexEquiv.symm ⟨i.val, _⟩) =
+            mixedBudget cardCand bpair bround bin 0 0
+              (Rounds.Role.indexEquiv.symm i)
+        congr 1
+      _ = _ := by simpa only [zero_add, add_zero] using
+        mixed_budget_sum (nl := nl) (w := w) cardCand bpair bround bin 0 0
+  have htail : (∑ j : Fin 2, B (Fin.natAdd u j)) = 0 := by
+    apply Finset.sum_eq_zero
+    intro j _
+    have hindex :
+        (Rounds.Role.indexEquiv.symm
+          (⟨(Fin.natAdd u j).val,
+            by dsimp [Rounds.Role.length, u]; omega⟩ :
+              Fin (Rounds.Role.length nl w))).slot = (Fin.natAdd u j).val := by
+      have h := Rounds.Role.indexEquiv.apply_symm_apply
+        (⟨(Fin.natAdd u j).val,
+          by dsimp [Rounds.Role.length, u]; omega⟩ :
+            Fin (Rounds.Role.length nl w))
+      exact congrArg Fin.val h
+    apply mixedBudget_zero_of_tail
+    rw [hindex]
+    dsimp [Fin.natAdd, u]
+    omega
+  rw [Fin.sum_univ_add] at hfull
+  rw [htail, add_zero] at hfull
+  convert hfull using 1
+  apply Finset.sum_congr rfl
+  intro i _
+  change mixedBudget cardCand bpair bround bin 0 0
+    (Rounds.Role.indexEquiv.symm ⟨i.val, _⟩) =
+      mixedBudget cardCand bpair bround bin 0 0
+        (Rounds.Role.indexEquiv.symm ⟨(Fin.castAdd 2 i).val, _⟩)
+  congr 1
+
 /-- **LayerStep as a `Bcs.Rbr`, at the mixed budgets.**  Per-candidate budgets at the three field
 classes; doomed-prefix budgets at the two Ligero slots. -/
 noncomputable def layerStepRbrS [Fintype Cand] (steps : StepsS C S nl w)

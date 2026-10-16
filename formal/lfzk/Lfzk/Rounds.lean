@@ -422,6 +422,24 @@ theorem sum_role_const (b : Role nl w → ℕ) (bpair bround bin blig bquery : �
     simp [hround, Finset.sum_const, Finset.card_univ, mul_comm]
   rw [h1, h2, hin, hlig, hquery]
 
+/-- The same exact role count for rational budgets.  The two terminal
+potential charges need not be integer-valued. -/
+theorem sum_role_const_rat (b : Role nl w → ℚ)
+    (bpair bround bin blig bquery : ℚ)
+    (hpair : ∀ ly, b (layerPair ly) = bpair)
+    (hround : ∀ ly j, b (sumcheck ly j) = bround)
+    (hin : b inputBind = bin) (hlig : b ligeroChallenge = blig)
+    (hquery : b ligeroQuery = bquery) :
+    ∑ rl : Role nl w, b rl =
+      (nl : ℚ) * bpair +
+        (∑ ly : Fin nl, (w ly.val : ℚ)) * bround +
+        bin + blig + bquery := by
+  rw [sum_role b]
+  simp_rw [hpair, hround]
+  simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+    nsmul_eq_mul, hin, hlig, hquery]
+  rw [← Finset.sum_mul]
+
 /-- At the padded profile the closed form is the old one, `nl * nrnd * bround`. -/
 theorem sum_role_const_uniform {nrnd : ℕ} (b : Role nl (uniform nrnd) → ℕ)
     (bpair bround bin blig bquery : ℕ)

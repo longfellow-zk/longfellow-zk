@@ -1,17 +1,21 @@
 # Formal verification
 
-**The modeled v7 Longfellow verifier using Ligero V1 has 115-bit T-security.** For the
+**The modeled v7 Longfellow verifier using Ligero V1 has a separate 116-bit extraction and soundness theorem.** For the
 signature and SHA circuits with one through four attributes on one
 Fiat–Shamir transcript, the certified soundness error is at most
-`(1 + tA + N) / 2^115`, where `tA` and `N` are the Merkle- and
-transcript-oracle query budgets. This is the conditional two-circuit theorem
-[`v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac`](lfzk/Lfzk/CompiledZkProfileSepMac.lean);
+`(1 + tA + N) / 2^116`, for all Merkle- and transcript-oracle query budgets
+`tA` and `N`. The extraction theorems and their false-statement corollaries
+are checked together by [`Lfzk.FlatV7All`](lfzk/Lfzk/FlatV7All.lean).
+The earlier round-by-round two-circuit theorem
+[`v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac`](lfzk/Lfzk/CompiledZkProfileSepMac.lean)
+retains its 115-bit bound;
 its premises and deployment boundary are stated in the
 [Longfellow README](lfzk/README.md).
 
-The current hash-side core exceeds `2^-116` in every v7 profile, as certified
-by [`hash_core_exceeds_116`](lfzk/Lfzk/SoundnessAudit.lean); these rows cannot
-give a 116-bit combined bound by changing only the final composition.
+The older hash-side round-by-round core exceeds `2^-116` in every v7 profile,
+as certified by [`hash_core_exceeds_116`](lfzk/Lfzk/SoundnessAudit.lean).
+The new proof uses the flat Ligero extraction envelope for the zero-query
+constant and the graded extraction-first deployed compiler for positive query counts.
 
 Ligero V1 is the shipped component protocol. V2 and V3 are alternatives under
 development; their component-level analyses are documented separately in the
@@ -45,6 +49,10 @@ From this directory:
 
 ```sh
 lake build
+lake build Lfzk.GradedCircuitGrid
+lake build Lfzk.FlatV7All
+python3 lfzk/scripts/generate_flat_v7_variants.py --check
+python3 lfzk/scripts/audit_potential_axioms.py
 ```
 
 The package uses Lean 4.31.0 and the compatible Mathlib checkout at

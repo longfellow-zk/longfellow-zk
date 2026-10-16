@@ -176,6 +176,25 @@ theorem acceptsZkDH_iff_joint (K : Compiler Statement Oracle X Resp Q Opening Mc
     · rw [hs] at hacc
       exact ⟨sys, rfl, hacc⟩
 
+/-- The deployed zero-knowledge verifier as a pure predicate of the Merkle
+oracle, prover output, and merged challenge tape.  These are exactly the
+objects fixed or freshly sampled in the zero-query FS coupling. -/
+def AcceptsZkAtDHTape (K : Compiler Statement Oracle X Resp Q Opening Mc n)
+    (Vof : Out → (Fin L → C) → ZkCode C F X Q Msg Gpt M ninp logw logc)
+    (codec : Codec Salt Mc D Enc)
+    (rootOf : Out → D) (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim n Salt Mc D)
+    (stmtOf : LigeroSystem ninp M F → Statement)
+    (respOf : Msg → Resp)
+    (sl : (Fin L → C) → Fin (Rounds.Role.length nl w) → C)
+    (mo : Enc → D) (out : Out) (tape : Fin L → C) : Prop :=
+  ∃ sys, zkBuilt (nl := nl) (w := w) (Vof out tape)
+      (msgOf out) (sl tape) = some sys ∧
+    K.Accepts (codec.withOracle mo) (stmtOf sys) (rootOf out)
+      ((Vof out tape).decodeChal (sl tape ligIdx))
+      (respOf (msgOf out (Rounds.Role.layerBase w nl + 2)))
+      ((Vof out tape).decodeQuery (sl tape qryIdx)) (claimOf out)
+
 /-- **The deployed zero-knowledge verifier of one side, at its slice `sl` of the merged tape**, with
 the code read from the proof (`Vof`). -/
 def AcceptsZkAtDH (K : Compiler Statement Oracle X Resp Q Opening Mc n)
@@ -192,6 +211,50 @@ def AcceptsZkAtDH (K : Compiler Statement Oracle X Resp Q Opening Mc n)
       (respOf (msgOf (S.proof mt ro) (Rounds.Role.layerBase w nl + 2)))
       ((Vof (S.proof mt ro) (S.challenges mt ro)).decodeQuery (sl (S.challenges mt ro) qryIdx))
       (claimOf (S.proof mt ro))
+
+omit [DecidableEq Q] in
+theorem acceptsZkAtDH_iff_tape (K : Compiler Statement Oracle X Resp Q Opening Mc n)
+    (Vof : Out → (Fin L → C) → ZkCode C F X Q Msg Gpt M ninp logw logc)
+    (codec : Codec Salt Mc D Enc)
+    (S : TotalOracleCommit.Setup Enc D Pt C Out Key tA N L)
+    (check : Out → Tree Enc D Unit fc)
+    (rootOf : Out → D) (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim n Salt Mc D)
+    (stmtOf : LigeroSystem ninp M F → Statement)
+    (respOf : Msg → Resp)
+    (sl : (Fin L → C) → Fin (Rounds.Role.length nl w) → C)
+    (mt : Fin TM → D) (ro : Pt → C) :
+    AcceptsZkAtDH (nl := nl) (w := w) K Vof codec S check
+      rootOf msgOf claimOf stmtOf respOf sl mt ro ↔
+    AcceptsZkAtDHTape (nl := nl) (w := w) K Vof codec
+      rootOf msgOf claimOf stmtOf respOf sl
+      (S.merkleOracle check mt ro) (S.proof mt ro)
+      (S.challenges mt ro) := Iff.rfl
+
+omit [DecidableEq Q] in
+/-- A deployed side's acceptance includes the Merkle check at the key's root. -/
+theorem merkleAccepts_of_acceptsZkAtDH
+    (K : Compiler Statement Oracle X Resp Q Opening Mc n)
+    (Vof : Out → (Fin L → C) → ZkCode C F X Q Msg Gpt M ninp logw logc)
+    (codec : Codec Salt Mc D Enc) (S : TotalOracleCommit.Setup Enc D Pt C Out Key tA N L)
+    (check : Out → Tree Enc D Unit fc) (rootOf : Out → D)
+    (rootOfKey : Key → D)
+    (hroot : ∀ out, rootOfKey (S.keyOut out) = rootOf out)
+    (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim n Salt Mc D)
+    (stmtOf : LigeroSystem ninp M F → Statement) (respOf : Msg → Resp)
+    (sl : (Fin L → C) → Fin (Rounds.Role.length nl w) → C)
+    (mt : Fin TM → D) (ro : Pt → C)
+    (hacc : AcceptsZkAtDH (nl := nl) (w := w) K Vof codec S check
+      rootOf msgOf claimOf stmtOf respOf sl mt ro) :
+    S.MerkleAccepts codec check rootOfKey claimOf mt ro := by
+  rcases hacc with ⟨_, _, ⟨_, hmerkle, _⟩⟩
+  change MH.Accepts (codec.withOracle (S.merkleOracle check mt ro)) n
+    (rootOfKey (S.keyOut (S.proof mt ro)))
+    (claimOf (S.proof mt ro)).I (claimOf (S.proof mt ro)).a
+    (claimOf (S.proof mt ro)).pf
+  rw [hroot]
+  exact hmerkle
 
 omit [DecidableEq Q] in
 /-- **`AcceptsZkAtDH` is `guarded K`'s joint acceptance** at the side's maps. -/
@@ -498,6 +561,58 @@ def acceptsDH (S : TotalOracleCommit.Setup Enc D Pt C Out (D × D) tA N Lsch)
       (CertifiedV1.Row.hkrow hR) hr)
     (L.VofDH avOf pubOf) codec S check rootOf msgOf claimOf (stmtOf L.pl nlin) L.respOf sl mt ro
 
+/-- The same compiled-side verifier with its three sampled inputs made
+explicit.  In a zero-query execution, the Merkle oracle and output are
+fixed by the Merkle tape, while only the challenge tape is sampled. -/
+def acceptsTape (rootOf : Out → D) (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim R.params.row.n Salt
+      (Col F R.params.nw R.params.nq) D)
+    (avOf : Out → C) (pubOf : Out → X)
+    (sl : (Fin Lsch → C) →
+      Fin (Rounds.Role.length R.params.nl R.params.rounds) → C)
+    (mo : Enc → D) (out : Out) (tape : Fin Lsch → C) : Prop :=
+  AcceptsZkAtDHTape (nl := R.params.nl) (w := R.params.rounds)
+    (v1K (Equations := Fin nlin ⊕ (Fin nt × Encode.QSide))
+      (CertifiedV1.Row.rowValid hR) L.dom
+      (CertifiedV1.Row.hkrow hR) hr)
+    (L.VofDH avOf pubOf) codec rootOf msgOf claimOf
+    (stmtOf L.pl nlin) L.respOf sl mo out tape
+
+omit [DecidableEq C] [DecidableEq Msg] [Inhabited Msg] in
+theorem acceptsDH_iff_tape
+    (S : TotalOracleCommit.Setup Enc D Pt C Out (D × D) tA N Lsch)
+    (check : Out → Tree Enc D Unit fc)
+    (rootOf : Out → D) (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim R.params.row.n Salt
+      (Col F R.params.nw R.params.nq) D)
+    (avOf : Out → C) (pubOf : Out → X)
+    (sl : (Fin Lsch → C) →
+      Fin (Rounds.Role.length R.params.nl R.params.rounds) → C)
+    (mt : Fin TM → D) (ro : Pt → C) :
+    L.acceptsDH S check rootOf msgOf claimOf avOf pubOf sl mt ro ↔
+    L.acceptsTape rootOf msgOf claimOf avOf pubOf sl
+      (S.merkleOracle check mt ro) (S.proof mt ro)
+      (S.challenges mt ro) := Iff.rfl
+
+omit [DecidableEq C] [DecidableEq Msg] [Inhabited Msg] in
+/-- The side verifier's accepted opening supplies the Merkle premise used by
+the potential compiler. -/
+theorem acceptsDH_merkle (S : TotalOracleCommit.Setup Enc D Pt C Out (D × D) tA N Lsch)
+    (check : Out → Tree Enc D Unit fc) (rootOf : Out → D)
+    (hroot : ∀ out, rootOfKey (S.keyOut out) = rootOf out)
+    (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim R.params.row.n Salt (Col F R.params.nw R.params.nq) D)
+    (avOf : Out → C) (pubOf : Out → X)
+    (sl : (Fin Lsch → C) → Fin (Rounds.Role.length R.params.nl R.params.rounds) → C)
+    (mt : Fin TM → D) (ro : Pt → C)
+    (hacc : L.acceptsDH S check rootOf msgOf claimOf avOf pubOf sl mt ro) :
+    S.MerkleAccepts codec check rootOfKey claimOf mt ro := by
+  exact merkleAccepts_of_acceptsZkAtDH
+    (v1K (Equations := Fin nlin ⊕ (Fin nt × Encode.QSide))
+      (CertifiedV1.Row.rowValid hR) L.dom (CertifiedV1.Row.hkrow hR) hr)
+    (L.VofDH avOf pubOf) codec S check rootOf rootOfKey hroot
+    msgOf claimOf (stmtOf L.pl nlin) L.respOf sl mt ro hacc
+
 omit [DecidableEq C] [DecidableEq Msg] [Inhabited Msg] in
 /--
 **`hright`, proved for one deployed zero-knowledge side against a prefix-only prover**: from the
@@ -538,6 +653,33 @@ theorem hrightDH (S : TotalOracleCommit.Setup Enc D Pt C Out (D × D) tA N Lsch)
   rw [← hroot (S.proof mt ro)] at hv1
   exact mem_acceptingR_of_accepts (CertifiedV1.Row.rowValid hR) L.dom (CertifiedV1.Row.hkrow hR)
     hr dec _ _ _ _ _ _ _ _ e hext hagree hv1
+
+omit [DecidableEq C] [DecidableEq Msg] [Inhabited Msg] in
+/-- The compiled side's own acceptance predicate and a decoded opening
+imply acceptance of the extraction-first layer chain. -/
+theorem hrightDH_of_accepts (S : TotalOracleCommit.Setup Enc D Pt C Out (D × D) tA N Lsch)
+    (check : Out → Tree Enc D Unit fc)
+    (rootOf : Out → D) (hroot : ∀ out, rootOfKey (S.keyOut out) = rootOf out)
+    (msgOf : Out → ℕ → Msg)
+    (claimOf : Out → OpeningClaim R.params.row.n Salt (Col F R.params.nw R.params.nq) D)
+    (avOf : Out → C) (pubOf : Out → X)
+    (sl : (Fin Lsch → C) → Fin (Rounds.Role.length R.params.nl R.params.rounds) → C)
+    (mt : Fin TM → D) (ro : Pt → C)
+    (hacc : L.acceptsDH S check rootOf msgOf claimOf avOf pubOf sl mt ro)
+    (hexp : S.Explains dec rootOfKey claimOf mt ro) :
+    ZkLayerStepAccepts .accepted .start
+      (steps (nl := R.params.nl) (w := R.params.rounds)
+        (L.toZkSide.V (sideCtx S avOf pubOf mt ro))
+        (L.toZkSide.LD (sideCtx S avOf pubOf mt ro))
+        (msgOf (S.proof mt ro)))
+      (sl (S.challenges mt ro)) := by
+  apply L.hrightDH S check rootOf hroot msgOf claimOf avOf pubOf sl mt ro
+    (hexp := hexp)
+  exact (acceptsZkAtDH_iff_joint
+    (v1K (Equations := Fin nlin ⊕ (Fin nt × Encode.QSide))
+      (CertifiedV1.Row.rowValid hR) L.dom (CertifiedV1.Row.hkrow hR) hr)
+    (L.VofDH avOf pubOf) codec S check rootOf msgOf claimOf
+    (stmtOf L.pl nlin) L.respOf sl mt ro).mp hacc
 
 end Lfzk.CompiledZk.CompiledZkSide
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute the ZK-verifier error breakdown with exact fractions (stdlib only).
+"""Recompute the earlier round-by-round ZK error breakdown (stdlib only).
 
 Reads the committed RBR rows, circuit profiles and Hahn coefficients. Checks the new
 127-bit certificate, the hash bottleneck, and the WI factor of two. Lean remains the
@@ -60,6 +60,7 @@ def main():
     rows = rbr.parse_rows(LFZK / "Lfzk/LigeroV1RowsV7.lean")
     assert len(rows) == len(profiles) == 5
     data = []
+    print("Earlier round-by-round rows:")
     print("row          field bits   Ligero bits   core bits   coefficient bits")
     for row, profile in zip(rows, profiles):
         assert (row.n, row.k, row.openings) == (profile["ligero_n"], profile["ligero_k"], profile["nreq"])
@@ -86,7 +87,7 @@ def main():
     assert core > Q(1, 2**128)
     assert core < data[0][2]
     print("127-bit T-security: all three exact slack inequalities pass")
-    print("\ntwo-field core bits (old signature -> Hahn signature):")
+    print("\nEarlier round-by-round two-field core bits (old signature -> Hahn signature):")
     for _, profile, hash_core, hash_coeff in data[1:]:
         shared_old = hash_core + data[0][2] + Q(1, 2**128)
         shared_new = hash_core + core + Q(1, 2**128)
@@ -97,7 +98,7 @@ def main():
         assert separate_new <= Q(651, 1000 * 2**115)
         print(f'  {profile["attributes"]} attributes: shared MAC {bits(shared_old):.5f} -> '
               f'{bits(shared_new):.5f}; separate MAC {bits(separate_old):.5f} -> '
-              f'{bits(separate_new):.5f}; integer target remains 115')
+              f'{bits(separate_new):.5f}; round-by-round integer target remains 115')
 
     errors = [Q(4*r.n**2 + (2*r.n-1)*(2*r.n-2) + 2*(r.n-r.openings)*2**115, 2**256) for r in rows]
     assert all(e <= Q(1, 2**128) for e in errors)

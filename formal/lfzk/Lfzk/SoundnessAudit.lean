@@ -134,12 +134,27 @@ theorem hahn_twofield_linear_slack (i : Fin 4) :
         (1 : ℚ) / 2 ^ 138 := by
   fin_cases i <;> native_decide
 
-/-- Numerical target for a future terminal-pair compiler.  The hash-side
+/-- The coarser Merkle slope needed to cover every nontrivial 116-bit
+query budget.  At `tA ≥ 2^116` the target T-security bound is already at
+least one, so this is the full useful range. -/
+theorem flat125_twofield_uncapped_slack (i : Fin 4) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    let K := max (max (H.zkCoefficient logv) (v7SigHahn.zkCoefficient 8))
+      ((4 : ℚ) / 2 ^ 128)
+    K + 2 * ((fc + 2 ^ 116 : ℕ) : ℚ) / 2 ^ 256 ≤ (1 : ℚ) / 2 ^ 117 ∧
+    2 * ((3 * 2 ^ 116 + 2 * fc + 1 + L : ℕ) : ℚ) / 2 ^ 256 ≤
+      (1 : ℚ) / 2 ^ 116 := by
+  fin_cases i <;> native_decide
+
+/-- Numerical target for the separate flat terminal-pair compiler.  The hash-side
 Ligero term here is the certified flat V1 `2^-125` envelope, while the
 round-by-round field charge, the signature side, MAC, and Merkle charge stay
 as in the deployed two-field theorem.  This is an arithmetic certificate,
-not a bound on the compiled protocol: the terminal-pair compiler must still
-connect the flat envelope to its event. -/
+not by itself a bound on the compiled protocol; the deployed-event coupling
+is proved separately in `FlatV7Deployed` and its generated geometry adapters. -/
 theorem flat125_twofield_constant_slack (i : Fin 4) :
     let H := v7HashRow i
     let logv := v7HashLogv i
@@ -149,6 +164,52 @@ theorem flat125_twofield_constant_slack (i : Fin 4) :
       zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
       2 * ((fc * (1 + L) : ℕ) : ℚ) / 2 ^ 256 < (1 : ℚ) / 2 ^ 116 := by
   fin_cases i <;> native_decide
+
+/-- The flat hash terminal bound gives 116-bit zero-query T-security after
+charging the two Merkle explanations and every Merkle-tape query.  The
+positive-query branch is handled separately by
+`hahn_twofield_116_of_pos_queries`. -/
+theorem flat125_twofield_116_zero_query (i : Fin 4) (tA : ℕ)
+    (htA : tA ≤ 2 ^ 116) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    (H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+      zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+      2 * ((Bcs.AdaptiveCommit.adaptiveNumerator fc tA L : ℕ) : ℚ) /
+        2 ^ 256 ≤ (1 + tA : ℚ) / 2 ^ 116 := by
+  dsimp only
+  let H := v7HashRow i
+  let logv := v7HashLogv i
+  let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+  let L := len2 H v7SigHahn
+  have hbase := flat125_twofield_constant_slack i
+  dsimp only at hbase
+  have hnum := Lfzk.TSec.adaptiveNumerator_le_linear
+    (fc := fc) (L := L) (N := 0) (G := 2 ^ 116) htA
+  obtain ⟨_, htail⟩ := flat125_twofield_uncapped_slack i
+  calc
+    (H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+        2 * ((Bcs.AdaptiveCommit.adaptiveNumerator fc tA L : ℕ) : ℚ) /
+          2 ^ 256
+      ≤ (H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+        2 * (((fc * (1 + L) +
+          tA * (3 * 2 ^ 116 + 2 * fc + 1 + L) : ℕ) : ℚ)) / 2 ^ 256 := by
+          gcongr
+          simpa only [Nat.add_zero, Nat.zero_mul, Nat.zero_add] using hnum
+    _ = ((H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+        2 * ((fc * (1 + L) : ℕ) : ℚ) / 2 ^ 256) +
+        tA * (2 * ((3 * 2 ^ 116 + 2 * fc + 1 + L : ℕ) : ℚ) / 2 ^ 256) := by
+          push_cast
+          ring
+    _ ≤ (1 : ℚ) / 2 ^ 116 + tA * ((1 : ℚ) / 2 ^ 116) := by
+          exact add_le_add (le_of_lt hbase)
+            (mul_le_mul_of_nonneg_left htail (by positivity))
+    _ = (1 + tA : ℚ) / 2 ^ 116 := by ring
 
 /-- The exact two-field FS right-hand side of
 `CompiledZkProfileSepMac.twofield_circuit_ratio_leT_sep`, specialized to the
@@ -194,5 +255,114 @@ theorem hahn_twofield_linear_rhs (i : Fin 4) (N tA : ℕ) (htA : tA ≤ 2 ^ 115)
     _ ≤ (651 : ℚ) / (1000 * 2 ^ 115) +
           N * ((1 : ℚ) / 2 ^ 117) + tA * ((1 : ℚ) / 2 ^ 138) := by
             gcongr
+
+/-- Once the adversary makes at least one transcript-hash query, the existing
+adaptive bound already has 116-bit T-security. The separate flat terminal
+Ligero pair handles the zero-query constant. -/
+theorem hahn_twofield_116_of_pos_queries (i : Fin 4) (N tA : ℕ)
+    (hN : 0 < N) (htA : tA ≤ 2 ^ 115) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    let A := zkCoreAt H logv H.cardCand + zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+      (4 : ℚ) / 2 ^ 128
+    let K := max (max (H.zkCoefficient logv) (v7SigHahn.zkCoefficient 8))
+      ((4 : ℚ) / 2 ^ 128)
+    A + N * K +
+        2 * (Bcs.AdaptiveCommit.adaptiveNumerator fc tA (L + N) : ℚ) / 2 ^ 256 ≤
+          (1 + N + tA : ℚ) / 2 ^ 116 := by
+  have hbase := hahn_twofield_linear_rhs i N tA htA
+  dsimp only at hbase ⊢
+  apply le_trans hbase
+  have hNq : (1 : ℚ) ≤ N := by exact_mod_cast hN
+  have hconst : (651 : ℚ) / (1000 * 2 ^ 115) ≤
+      (3 : ℚ) / (2 * 2 ^ 116) := by norm_num
+  have htail : (1 : ℚ) / 2 ^ 138 ≤ (1 : ℚ) / 2 ^ 116 := by norm_num
+  calc
+    (651 : ℚ) / (1000 * 2 ^ 115) +
+        N * ((1 : ℚ) / 2 ^ 117) + tA * ((1 : ℚ) / 2 ^ 138)
+        ≤ (3 : ℚ) / (2 * 2 ^ 116) +
+            N * ((1 : ℚ) / 2 ^ 117) + tA * ((1 : ℚ) / 2 ^ 116) := by
+          gcongr
+    _ ≤ (1 + N + tA : ℚ) / 2 ^ 116 := by
+          norm_num
+          nlinarith [hNq]
+
+/-- The positive-query branch at every Merkle budget for which the
+116-bit T-security right-hand side can be below one. -/
+theorem hahn_twofield_116_of_pos_queries_extended (i : Fin 4) (N tA : ℕ)
+    (hN : 0 < N) (htA : tA ≤ 2 ^ 116) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    let A := zkCoreAt H logv H.cardCand + zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+      (4 : ℚ) / 2 ^ 128
+    let K := max (max (H.zkCoefficient logv) (v7SigHahn.zkCoefficient 8))
+      ((4 : ℚ) / 2 ^ 128)
+    A + N * K +
+        2 * (Bcs.AdaptiveCommit.adaptiveNumerator fc tA (L + N) : ℚ) / 2 ^ 256 ≤
+          (1 + N + tA : ℚ) / 2 ^ 116 := by
+  dsimp only
+  let H := v7HashRow i
+  let logv := v7HashLogv i
+  let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+  let L := len2 H v7SigHahn
+  let A := zkCoreAt H logv H.cardCand + zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+    (4 : ℚ) / 2 ^ 128
+  let K := max (max (H.zkCoefficient logv) (v7SigHahn.zkCoefficient 8))
+    ((4 : ℚ) / 2 ^ 128)
+  obtain ⟨hA, _, _⟩ := hahn_twofield_linear_slack i
+  obtain ⟨hK, hT⟩ := flat125_twofield_uncapped_slack i
+  have hnum := Lfzk.TSec.adaptiveNumerator_le_linear
+    (fc := fc) (L := L) (N := N) (G := 2 ^ 116) htA
+  have hNq : (1 : ℚ) ≤ N := by exact_mod_cast hN
+  calc
+    A + N * K + 2 * (Bcs.AdaptiveCommit.adaptiveNumerator fc tA (L + N) : ℚ) / 2 ^ 256
+        ≤ A + N * K +
+          2 * ((fc * (1 + L) + N * (fc + 2 ^ 116) +
+            tA * (3 * 2 ^ 116 + 2 * fc + 1 + L) : ℕ) : ℚ) / 2 ^ 256 := by
+              gcongr
+    _ = (A + 2 * ((fc * (1 + L) : ℕ) : ℚ) / 2 ^ 256) +
+          N * (K + 2 * ((fc + 2 ^ 116 : ℕ) : ℚ) / 2 ^ 256) +
+          tA * (2 * ((3 * 2 ^ 116 + 2 * fc + 1 + L : ℕ) : ℚ) / 2 ^ 256) := by
+            push_cast
+            ring
+    _ ≤ (651 : ℚ) / (1000 * 2 ^ 115) +
+          N * ((1 : ℚ) / 2 ^ 117) + tA * ((1 : ℚ) / 2 ^ 116) := by
+            gcongr
+    _ ≤ (1 + N + tA : ℚ) / 2 ^ 116 := by
+          norm_num
+          nlinarith [hNq]
+
+/-- The numerical envelope used by the deployed compiler: the flat
+extraction constant at zero transcript queries, and the existing graded
+bound once the adversary has made a transcript query.  This is an
+arithmetic interface for all four v7 hash geometries; the protocol event
+must be related to the corresponding branch separately. -/
+theorem v7_twofield_hybrid_116 (i : Fin 4) (N tA : ℕ)
+    (htA : tA ≤ 2 ^ 116) :
+    let H := v7HashRow i
+    let logv := v7HashLogv i
+    let fc := 2 * H.params.row.n + 2 * v7SigHahn.params.row.n
+    let L := len2 H v7SigHahn
+    let A := zkCoreAt H logv H.cardCand + zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+      (4 : ℚ) / 2 ^ 128
+    let K := max (max (H.zkCoefficient logv) (v7SigHahn.zkCoefficient 8))
+      ((4 : ℚ) / 2 ^ 128)
+    (if N = 0 then
+      (H.cardCand : ℚ) * zkFieldDensity H logv + (1 : ℚ) / 2 ^ 125 +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand + (4 : ℚ) / 2 ^ 128 +
+        2 * (Bcs.AdaptiveCommit.adaptiveNumerator fc tA L : ℚ) / 2 ^ 256
+     else
+      A + N * K +
+        2 * (Bcs.AdaptiveCommit.adaptiveNumerator fc tA (L + N) : ℚ) / 2 ^ 256)
+      ≤ (1 + N + tA : ℚ) / 2 ^ 116 := by
+  by_cases hN : N = 0
+  · subst N
+    simpa using flat125_twofield_116_zero_query i tA htA
+  · simpa [hN] using hahn_twofield_116_of_pos_queries_extended i N tA
+      (Nat.pos_of_ne_zero hN) htA
 
 end Lfzk.SoundnessAudit

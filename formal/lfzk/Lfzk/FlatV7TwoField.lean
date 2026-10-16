@@ -1,0 +1,436 @@
+import Lfzk.FlatV7Radius
+import Lfzk.RbrZkFlatTwoField
+import Lfzk.CertifiedHahn
+import Lfzk.ZeroQueryTwoField
+import Lfzk.RbrZkPotentialTwoField
+
+/-!
+# The optimized v7 hash side with a separate signature side
+
+This target combines the checked flat V1 hash envelope with the ordinary
+round-by-round signature core on one fixed interactive verifier tape.  The
+MAC key event and the deterministic accepted-path implications remain
+explicit so the result can be applied to the deployed verifier.
+-/
+
+set_option autoImplicit false
+set_option relaxedAutoImplicit false
+set_option maxRecDepth 10000
+
+namespace Lfzk.CompiledZk.FlatV7TwoField
+
+open Finset Merkle.MH Lfzk.CertifiedV1 Lfzk.CompiledZk Lfzk.CompiledZk.FlatV7Radius
+  Lfzk.NizkZk Lfzk.NizkZkTwoField Lfzk.RbrZkSplit Lfzk.RbrZkFlat
+  Ligero.Examples.Grid.LongfellowProfiledExtraction
+open Lfzk.CompiledLongfellow (Col)
+open scoped Classical
+open Merkle.RandomOracle Merkle.RandomOracle.TwoOracleTree
+  Lfzk.NizkDeployedHashTwoField
+open Lfzk.MacSep
+
+variable {C : Type} [Fintype C] [DecidableEq C] [Nonempty C]
+variable {D Enc X Salt : Type} [Inhabited D] [DecidableEq D]
+  [DecidableEq Enc] [Inhabited Salt]
+variable {F₁ Msg₁ : Type} [Field F₁] [Fintype F₁] [DecidableEq F₁]
+  [SumcheckInterp F₁]
+variable {M₁ nt₁ nlin₁ : ℕ}
+variable {codec : Codec Salt (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D Enc}
+  {dec : RoleDecoders codec} {rootOfKey : D × D → D}
+variable {F₂ X₂ Q₂ Msg₂ Witness₂ : Type} [Field F₂] [Fintype F₂]
+  [DecidableEq F₂] [SumcheckInterp F₂] [Fintype X₂] [DecidableEq X₂]
+  [Fintype Q₂] [DecidableEq Q₂]
+variable {M₂ ninp₂ logw₂ logc₂ : ℕ}
+
+/-- For hash1, the response-rigidity agreement threshold lies above the
+optimized flat mask cutoff, while the near-core canonical-proximity
+threshold lies above rigidity.  This is a geometry check, not a soundness
+bound. -/
+theorem v7Hash1_rigidity_threshold_gap :
+    let n := Optimized.v7Hash1_v1.certificate.n
+    let k := Optimized.v7Hash1_v1.certificate.k
+    let ell := v7Hash1.params.q
+    let e := Optimized.v7Hash1_v1.certificate.e
+    let b := Optimized.v7Hash1_v1.certificate.maskThreshold
+    b = 1681 ∧
+      2 * 1910 - n < max k (2 * k - 1 - ell) ∧
+      max k (2 * k - 1 - ell) ≤ 2 * 1911 - n ∧
+      e + k - 1 = 2003 := by
+  native_decide
+
+/-- Even the query probability immediately below the rigidity threshold
+is strictly between 102 and 103 bits at the deployed 132 openings. -/
+theorem v7Hash1_rigidity_query_band :
+    (1 : ℚ) / 2 ^ 103 <
+      (Nat.choose 1910 132 : ℚ) / Nat.choose 3230 132 ∧
+    (Nat.choose 1910 132 : ℚ) / Nat.choose 3230 132 <
+      (1 : ℚ) / 2 ^ 102 := by
+  native_decide
+
+/-- The hash1 flat 125-bit terminal envelope and the signature's ordinary
+core add in the extraction-first fixed-tape experiment. -/
+theorem v7Hash1_fixedTape_extraction_ratio_le
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (S : ZkSide v7SigHahn 8
+      (Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc)
+      C F₂ X₂ Q₂ Msg₂ Witness₂ M₂ ninp₂ logw₂ logc₂)
+    (hF₂ : Fintype.card F₂ = v7SigHahn.params.row.fieldSize)
+    (σ : C → Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc)
+    (ms₁ : C → ℕ → Msg₁) (ms₂ : C → ℕ → Msg₂)
+    {W : Type}
+    (Acc : C →
+      (Fin (Lfzk.Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) →
+      (Fin (Lfzk.Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) → Prop)
+    (extract : C →
+      (Fin (Lfzk.Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) →
+      (Fin (Lfzk.Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) → Option W)
+    (keyBad : C → Prop) (keyBound : ℚ)
+    (hkeyCount : ((univ.filter keyBad).card : ℚ) /
+      Fintype.card C ≤ keyBound)
+    (hacc₁ : ∀ key tape₁ tape₂, Acc key tape₁ tape₂ →
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7Hash1.params.nl) (w := v7Hash1.params.rounds)
+          ((v7Hash1_flatSide H).V (σ key))
+          ((v7Hash1_flatSide H).LD (σ key)) (ms₁ key)) tape₁)
+    (hacc₂ : ∀ key tape₁ tape₂, Acc key tape₁ tape₂ →
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7SigHahn.params.nl) (w := v7SigHahn.params.rounds)
+          (S.V (σ key)) (S.LD (σ key)) (ms₂ key)) tape₂)
+    (hkey : ∀ key tape₁ tape₂,
+      Acc key tape₁ tape₂ → extract key tape₁ tape₂ = none →
+      ¬ ZkFails (v7Hash1_flatSide H).Sat (σ key) →
+      ¬ ZkFails S.Sat (σ key) → keyBad key) :
+    ((univ.filter fun p : C ×
+        ((Fin (Lfzk.Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) ×
+         (Fin (Lfzk.Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C)) =>
+      Acc p.1 p.2.1 p.2.2 ∧ extract p.1 p.2.1 p.2.2 = none).card : ℚ) /
+      Fintype.card (C ×
+        ((Fin (Lfzk.Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) ×
+         (Fin (Lfzk.Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C))) ≤
+      keyBound +
+        ((v7Hash1.cardCand : ℚ) * zkFieldDensity v7Hash1 3 + (1 : ℚ) / 2 ^ 125) +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand := by
+  exact twoField_fixedTape_extraction_ratio_le (v7Hash1_flatSide H) S σ ms₁ ms₂
+    Acc extract keyBad keyBound
+    ((v7Hash1.cardCand : ℚ) * zkFieldDensity v7Hash1 3 + (1 : ℚ) / 2 ^ 125)
+    (zkCoreAt v7SigHahn 8 v7SigHahn.cardCand)
+    (by native_decide) (zkCoreAt_nonneg _ _ _) hkeyCount
+    (by intro key hf; simpa only [Fintype.card_fun, Fintype.card_fin,
+      Nat.cast_pow] using v7Hash1_flat_iop_extraction_le H (σ key) (ms₁ key) hf)
+    (by
+      intro key hf
+      exact Lfzk.RbrZkFlat.ZkSide.accepted_ratio_le_core
+        S hF₂ (σ key) (ms₂ key) hf)
+    hacc₁ hacc₂ hkey
+
+omit [DecidableEq C] [Nonempty C] in
+/-- A failure of the pair extractor at the flat hash radius is charged to
+the MAC key using the enlarged committed hash candidate list.  The row
+premise is deliberately about good witnesses of that enlarged side. -/
+theorem v7Hash1_flat_macKey_of_extract_none
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (S : ZkSide v7SigHahn 8
+      (Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc)
+      C F₂ X₂ Q₂ Msg₂ Witness₂ M₂ ninp₂ logw₂ logc₂)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcands₂ : ∀ σ a, S.Good σ a → a ∈ cands₂ σ.1)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (aP : ((D × D) × List (Enc × D)) → Fmac)
+    (decode : C → Fmac) (tag : Fin nblk → Fmac)
+    (σ : Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc) (c : C)
+    (hrow₁ : ∀ a, (v7Hash1_flatSide H).Good σ a →
+      mac₁ a (aP σ.1 + decode c) = tag)
+    (hrow₂ : ∀ a, S.Good σ a →
+      mac₂ a (aP σ.1 + decode c) = tag)
+    (hfail : Lfzk.NizkZkDeployedHash.twoFieldExtract
+      (v7Hash1_flatSide H) S common₁ common₂ σ = none)
+    (hgood₁ : ¬ ZkFails (v7Hash1_flatSide H).Sat σ)
+    (hgood₂ : ¬ ZkFails S.Sat σ) :
+    SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) σ.1)
+      (cands₂ σ.1) common₁ common₂ mac₁ mac₂
+      (aP σ.1 + decode c) := by
+  apply Lfzk.NizkZkDeployedHash.twoFieldMacKey_of_extract_none
+    (v7Hash1_flatSide H) S
+    (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+      Optimized.v7Hash1_v1.certificate.g)) cands₂
+    common₁ common₂ mac₁ mac₂ aP decode tag σ c
+  · intro a ha
+    exact H.good_mem_candsAt
+      (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g)
+      (by decide) (v7Hash1_flat_lift_card H) σ a ha
+  · exact hcands₂ σ
+  · exact hrow₁
+  · exact hrow₂
+  · exact hfail
+  · exact hgood₁
+  · exact hgood₂
+
+omit [DecidableEq C] in
+/-- The commitment-fixed enlarged hash list incurs the same two-by-two
+MAC key count as the deployed lists.  This count is independent of the
+chosen verifier tape and is suitable for the fixed-tape extraction bound. -/
+theorem v7Hash1_flat_macKey_card_le
+    [Nonempty X]
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk kmac : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcard₂ : ∀ κ, (cands₂ κ).card ≤ v7SigHahn.cardCand)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (hcoll : ∀ a₁ a₂, common₁ a₁ ≠ common₂ a₂ →
+      (univ.filter fun x => mac₁ a₁ x = mac₂ a₂ x).card ≤ 1)
+    (aP : (D × D) × List (Enc × D) → Fmac)
+    (decode : C → Fmac)
+    (hbal : ∀ x : Fmac,
+      (univ.filter fun c : C => decode c = x).card ≤ kmac)
+    (κ : (D × D) × List (Enc × D)) :
+    (univ.filter fun c : C => SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) κ)
+      (cands₂ κ) common₁ common₂ mac₁ mac₂
+      (aP κ + decode c)).card ≤
+      v7Hash1.cardCand * v7SigHahn.cardCand * kmac := by
+  have hc := sepMacBad_card_le
+    (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+      Optimized.v7Hash1_v1.certificate.g) κ)
+    (cands₂ κ) common₁ common₂ mac₁ mac₂ hcoll (aP κ) decode hbal
+  exact hc.trans (Nat.mul_le_mul_right kmac
+    (Nat.mul_le_mul (v7Hash1_flat_cands_card_le H κ) (hcard₂ κ)))
+
+omit [DecidableEq C] in
+/-- The same key count in the probability units used by the zero-query
+fixed-tape theorem. -/
+theorem v7Hash1_flat_macKey_ratio_le
+    [Nonempty X]
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk kmac : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcard₂ : ∀ κ, (cands₂ κ).card ≤ v7SigHahn.cardCand)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (hcoll : ∀ a₁ a₂, common₁ a₁ ≠ common₂ a₂ →
+      (univ.filter fun x => mac₁ a₁ x = mac₂ a₂ x).card ≤ 1)
+    (aP : (D × D) × List (Enc × D) → Fmac)
+    (decode : C → Fmac)
+    (hbal : ∀ x : Fmac,
+      (univ.filter fun c : C => decode c = x).card ≤ kmac)
+    (κ : (D × D) × List (Enc × D)) :
+    ((univ.filter fun c : C => SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) κ)
+      (cands₂ κ) common₁ common₂ mac₁ mac₂
+      (aP κ + decode c)).card : ℚ) / Fintype.card C ≤
+      (v7Hash1.cardCand * v7SigHahn.cardCand * kmac : ℕ) /
+        Fintype.card C := by
+  apply div_le_div_of_nonneg_right _ (by positivity)
+  exact_mod_cast v7Hash1_flat_macKey_card_le H cands₂ hcard₂
+    common₁ common₂ mac₁ mac₂ hcoll aP decode hbal κ
+
+/-- For the deployed 256-bit transcript field and a 128-bit MAC field,
+two candidates per side cost exactly four MAC-field inverses. -/
+theorem v7Hash1_flat_macKey_budget_exact :
+    ((v7Hash1.cardCand * v7SigHahn.cardCand * 2 ^ 128 : ℕ) : ℚ) /
+      2 ^ 256 = (4 : ℚ) / 2 ^ 128 := by
+  have h₁ : v7Hash1.cardCand = 2 := by decide
+  have h₂ : v7SigHahn.cardCand = 2 := by decide
+  norm_num [h₁, h₂]
+
+omit [DecidableEq C] in
+/-- A balanced 128-bit MAC decoding from the deployed 256-bit challenge
+field charges at most `4/2^128` at the fixed key answer. -/
+theorem v7Hash1_flat_macKey_ratio_le_deployed
+    [Nonempty X]
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcard₂ : ∀ κ, (cands₂ κ).card ≤ v7SigHahn.cardCand)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (hcoll : ∀ a₁ a₂, common₁ a₁ ≠ common₂ a₂ →
+      (univ.filter fun x => mac₁ a₁ x = mac₂ a₂ x).card ≤ 1)
+    (aP : (D × D) × List (Enc × D) → Fmac)
+    (decode : C → Fmac)
+    (hbal : ∀ x : Fmac,
+      (univ.filter fun c : C => decode c = x).card ≤ 2 ^ 128)
+    (hC : Fintype.card C = 2 ^ 256)
+    (κ : (D × D) × List (Enc × D)) :
+    ((univ.filter fun c : C => SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) κ)
+      (cands₂ κ) common₁ common₂ mac₁ mac₂
+      (aP κ + decode c)).card : ℚ) / Fintype.card C ≤
+      (4 : ℚ) / 2 ^ 128 := by
+  have h := v7Hash1_flat_macKey_ratio_le H cands₂ hcard₂
+    common₁ common₂ mac₁ mac₂ hcoll aP decode hbal κ
+  rw [hC] at h ⊢
+  calc
+    _ ≤ ((v7Hash1.cardCand * v7SigHahn.cardCand * 2 ^ 128 : ℕ) : ℚ) /
+        2 ^ 256 := h
+    _ = _ := v7Hash1_flat_macKey_budget_exact
+
+/-- The v7 hash1 flat certificate, the signature core, and the two Merkle
+explanation bounds compose at zero transcript-oracle queries.  The event
+cover explicitly identifies the deployed accepting transcript with the
+fixed-path pair extractor; it cannot silently reuse the old-radius MAC list. -/
+theorem v7Hash1_zeroQuery_FS_extraction_ratio_le
+    [Fintype D] [Fintype X]
+    [Fintype Msg₁] [Inhabited Msg₁]
+    [Fintype Msg₂] [Inhabited Msg₂]
+    {Out Salt₂ MHash₂ : Type} [Inhabited Salt₂] [Inhabited MHash₂]
+    {tA TM fc n₂ : ℕ}
+    {codec₂ : Codec Salt₂ MHash₂ D Enc}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec rootOfKey)
+    (S : ZkSide v7SigHahn 8
+      (Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc)
+      C F₂ X₂ Q₂ Msg₂ Witness₂ M₂ ninp₂ logw₂ logc₂)
+    (hF₂ : Fintype.card F₂ = v7SigHahn.params.row.fieldSize)
+    (body : TwoOracleTree Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds) C Out tA 0)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (dec₂ : RoleDecoders codec₂)
+    (check : Out → Tree Enc D Unit fc)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim n₂ Salt₂ MHash₂ D)
+    (hcheck₁ : ∀ (Hm : Enc → D) (out : Out),
+      ∀ qa ∈ ((checkPass codec v7Hash1.params.row.n
+          (claimOf₁ out).I (claimOf₁ out).a (claimOf₁ out).pf
+          (2 * v7Hash1.params.row.n) fun _ => default).run Hm).2,
+        qa ∈ ((check out).run Hm).2)
+    (hcheck₂ : ∀ (Hm : Enc → D) (out : Out),
+      ∀ qa ∈ ((checkPass codec₂ n₂
+          (claimOf₂ out).I (claimOf₂ out).a (claimOf₂ out).pf
+          (2 * n₂) fun _ => default).run Hm).2,
+        qa ∈ ((check out).run Hm).2)
+    (ht : tA ≤ TM) (hF : fc + tA ≤ TM) (hTM : 1 ≤ TM)
+    (dummy : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+      v7Hash1.params.rounds v7SigHahn.params.rounds → C)
+    (E : ((D × D) × List (Enc × D)) → (Enc → D) → Out →
+      (Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+        Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) → Prop)
+    {W : Type}
+    (σ : (Fin TM → D) → C → Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc)
+    (ms₁ : (Fin TM → D) → C → ℕ → Msg₁)
+    (ms₂ : (Fin TM → D) → C → ℕ → Msg₂)
+    (Acc : (Fin TM → D) → C →
+      (Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) →
+      (Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) → Prop)
+    (extract : (Fin TM → D) → C →
+      (Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) →
+      (Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) → Option W)
+    (keyBad : (Fin TM → D) → C → Prop)
+    (keyBound : ℚ)
+    (hkeyCount : ∀ mt, ((univ.filter (keyBad mt)).card : ℚ) /
+      Fintype.card C ≤ keyBound)
+    (hacc₁ : ∀ mt key tape₁ tape₂, Acc mt key tape₁ tape₂ →
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7Hash1.params.nl) (w := v7Hash1.params.rounds)
+          ((v7Hash1_flatSide H).V (σ mt key))
+          ((v7Hash1_flatSide H).LD (σ mt key)) (ms₁ mt key)) tape₁)
+    (hacc₂ : ∀ mt key tape₁ tape₂, Acc mt key tape₁ tape₂ →
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7SigHahn.params.nl) (w := v7SigHahn.params.rounds)
+          (S.V (σ mt key)) (S.LD (σ mt key)) (ms₂ mt key)) tape₂)
+    (hkey : ∀ mt key tape₁ tape₂,
+      Acc mt key tape₁ tape₂ → extract mt key tape₁ tape₂ = none →
+      ¬ ZkFails (v7Hash1_flatSide H).Sat (σ mt key) →
+      ¬ ZkFails S.Sat (σ mt key) → keyBad mt key)
+    (haccept₁ : ∀ (mt : Fin TM → D)
+      (ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C),
+      let Ssetup := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+      E (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+        (Ssetup.proof mt ro) (Ssetup.challenges mt ro) →
+      Ssetup.MerkleAccepts codec check Prod.fst claimOf₁ mt ro)
+    (haccept₂ : ∀ (mt : Fin TM → D)
+      (ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C),
+      let Ssetup := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+      E (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+        (Ssetup.proof mt ro) (Ssetup.challenges mt ro) →
+      Ssetup.MerkleAccepts codec₂ check Prod.snd claimOf₂ mt ro)
+    (hcover : ∀ (mt : Fin TM → D)
+      (ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C),
+      let Ssetup := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+      E (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+        (Ssetup.proof mt ro) (Ssetup.challenges mt ro) ∧
+      Ssetup.Explains dec Prod.fst claimOf₁ mt ro ∧
+      Ssetup.Explains dec₂ Prod.snd claimOf₂ mt ro →
+      let p := Bcs.threeBlockTapeEquiv C
+        (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds)
+        (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds)
+          (Ssetup.challenges mt ro)
+      Acc mt p.1 p.2.1 p.2.2 ∧
+        extract mt p.1 p.2.1 p.2.2 = none) :
+    let Ssetup := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+    ((univ.filter fun ω : (Fin TM → D) ×
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C) =>
+      E (Ssetup.context ω.1 ω.2) (Ssetup.merkleOracle check ω.1 ω.2)
+        (Ssetup.proof ω.1 ω.2) (Ssetup.challenges ω.1 ω.2)).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card
+          (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+            v7Hash1.params.rounds v7SigHahn.params.rounds)) ≤
+      keyBound +
+        ((v7Hash1.cardCand : ℚ) * zkFieldDensity v7Hash1 3 +
+          (1 : ℚ) / 2 ^ 125) +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+        2 * ((Bcs.AdaptiveCommit.adaptiveNumerator fc tA
+          (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+            Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) : ℚ) /
+          Fintype.card D) := by
+  let epsilon : ℚ := keyBound +
+    ((v7Hash1.cardCand : ℚ) * zkFieldDensity v7Hash1 3 +
+      (1 : ℚ) / 2 ^ 125) +
+    zkCoreAt v7SigHahn 8 v7SigHahn.cardCand
+  have hproduct (mt : Fin TM → D) :=
+    v7Hash1_fixedTape_extraction_ratio_le H S hF₂
+      (σ mt) (ms₁ mt) (ms₂ mt) (Acc mt) (extract mt)
+      (keyBad mt) keyBound (hkeyCount mt)
+      (hacc₁ mt) (hacc₂ mt) (hkey mt)
+  have h := setup2_zeroQuery_good_plus_merkle_ratio_le
+    body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ codec dec codec₂ dec₂
+    check claimOf₁ claimOf₂ hcheck₁ hcheck₂ (by omega) ht hF hTM
+    dummy E
+    (fun mt p => Acc mt p.1 p.2.1 p.2.2 ∧
+      extract mt p.1 p.2.1 p.2.2 = none)
+    epsilon haccept₁ haccept₂ hcover (by
+      intro mt
+      convert hproduct mt using 1
+      apply congrArg (fun s : Finset (C ×
+        ((Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) ×
+         (Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C))) =>
+        (s.card : ℚ) / Fintype.card (C ×
+          ((Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C) ×
+           (Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C))))
+      ext p
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and])
+  simpa only [epsilon] using h
+
+end Lfzk.CompiledZk.FlatV7TwoField

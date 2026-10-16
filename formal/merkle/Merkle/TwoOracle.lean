@@ -96,6 +96,33 @@ def fixLeft [DecidableEq QL] {TL : ℕ} (leftTape : Fin TL → DL) (leftDefault 
   | _, _, .queryRight q next, seen =>
       .query q fun y => fixLeft leftTape leftDefault (next y) seen
 
+/-- With no right-oracle queries, fixing the left tape fixes the prover's
+output. In particular, it cannot depend on the transcript random oracle. -/
+theorem fixLeft_zero_run_eq [DecidableEq QL]
+    {TL leftFuel : ℕ} (leftTape : Fin TL → DL) (leftDefault : DL)
+    (tree : TwoOracleTree QL DL QR DR A leftFuel 0) (seen : List QL)
+    (H H' : QR → DR) :
+    (fixLeft leftTape leftDefault tree seen).run H =
+      (fixLeft leftTape leftDefault tree seen).run H' := by
+  cases fixLeft leftTape leftDefault tree seen with
+  | done _ => rfl
+
+/-- A zero-query prover has the same output and right-oracle slot list for
+every right answer tape.  This is the lazy-tape form needed when comparing a
+Fiat--Shamir experiment with an interactive verifier after the Merkle tape
+has been fixed. -/
+theorem fixLeft_zero_lazyRun_eq [DecidableEq QL] [DecidableEq QR]
+    {TL TR TR' leftFuel : ℕ} (leftTape : Fin TL → DL) (leftDefault : DL)
+    (tree : TwoOracleTree QL DL QR DR A leftFuel 0) (seenLeft : List QL)
+    (rightTape : Fin TR → DR) (rightTape' : Fin TR' → DR)
+    (rightDefault rightDefault' : DR) (seenRight : List QR) :
+    lazyRun rightTape rightDefault
+        (fixLeft leftTape leftDefault tree seenLeft) seenRight =
+      lazyRun rightTape' rightDefault'
+        (fixLeft leftTape leftDefault tree seenLeft) seenRight := by
+  cases fixLeft leftTape leftDefault tree seenLeft with
+  | done _ => rfl
+
 @[simp] theorem fixLeft_liftRightAt [DecidableEq QL]
     {TL leftFuel rightFuel : ℕ} (leftTape : Fin TL → DL) (leftDefault : DL)
     (tree : Tree QR DR A rightFuel) (seen : List QL) :

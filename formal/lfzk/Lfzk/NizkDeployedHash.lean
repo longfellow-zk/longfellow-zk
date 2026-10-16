@@ -149,6 +149,23 @@ theorem anc_msgPoint {Out : Type} (ctx : Ctx) (msgOf : Out → ℕ → Msg) (out
   · exact msgFn_msgPoint ctx msgOf out hk (by omega)
   · rfl
 
+/-- At a deployed verifier point, the ancestor answers are exactly the
+preceding verifier answers on the same proof's message schedule. -/
+theorem chal_msgPoint_eq_prefix {C Out : Type} (ctx : Ctx)
+    (msgOf : Out → ℕ → Msg) (out : Out)
+    (ro : MPoint Ctx Msg nl w → C)
+    (k : Fin (Rounds.Role.length nl w)) :
+    (fun j : Fin k.val =>
+      mpoints.chal ro (msgPoint ctx msgOf out k.val)
+        ⟨j.val, by rw [slot_msgPoint ctx msgOf out k.isLt]; exact j.isLt⟩) =
+      Sumcheck.extract_prefix
+        (fun i : Fin (Rounds.Role.length nl w) =>
+          ro (msgPoint ctx msgOf out i.val)) k := by
+  funext j
+  change ro (mpoints.anc (msgPoint ctx msgOf out k.val) j.val) =
+    ro (msgPoint ctx msgOf out j.val)
+  rw [anc_msgPoint ctx msgOf out j.isLt k.isLt]
+
 end Points
 
 /-! ## 2. Any chain on the Longfellow schedule

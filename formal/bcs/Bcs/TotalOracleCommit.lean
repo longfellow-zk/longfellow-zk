@@ -385,6 +385,140 @@ def Explains {codec : Codec Salt M D Enc} (dec : RoleDecoders codec) (rootOf : K
     (claimOf : Out → OpeningClaim n Salt M D) (mt : Fin TM → D) (H : Pt → C) : Prop :=
   (S.atOracle H).Explains dec rootOf claimOf mt emptyTape
 
+/-- A failed Merkle explanation has the same adaptive count used by the
+full compiler, independently of the challenge-side soundness argument. -/
+theorem merkle_bad_ratio_le [Fintype Pt] [Fintype C] [Nonempty C] [Fintype D]
+    (codec : Codec Salt M D Enc) (dec : RoleDecoders codec)
+    (check : Out → Tree Enc D Unit fc) (rootOf : Key → D)
+    (claimOf : Out → OpeningClaim n Salt M D)
+    (hcheck : ∀ (H : Enc → D) (out : Out),
+      ∀ qa ∈ ((checkPass codec n (claimOf out).I (claimOf out).a
+          (claimOf out).pf (2 * n) fun _ => default).run H).2,
+        qa ∈ ((check out).run H).2)
+    (hL : 0 < L) (ht : tA ≤ TM) (hF : fc + tA ≤ TM) (hTM : 1 ≤ TM) :
+    ((univ.filter fun ω : (Fin TM → D) × (Pt → C) =>
+      S.MerkleAccepts codec check rootOf claimOf ω.1 ω.2 ∧
+        ¬ S.Explains dec rootOf claimOf ω.1 ω.2).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card Pt) ≤
+      (adaptiveNumerator fc tA (L + N) : ℚ) / Fintype.card D := by
+  classical
+  let A := adaptiveNumerator fc tA (L + N)
+  have hmk : (univ.filter fun ω : (Fin TM → D) × (Pt → C) =>
+        S.MerkleAccepts codec check rootOf claimOf ω.1 ω.2 ∧
+          ¬ S.Explains dec rootOf claimOf ω.1 ω.2).card
+      ≤ Fintype.card C ^ Fintype.card Pt * (A * Fintype.card D ^ (TM - 1)) := by
+    rw [card_filter_prod_snd]
+    calc
+      (∑ H : Pt → C, (univ.filter fun mt : Fin TM → D =>
+        S.MerkleAccepts codec check rootOf claimOf mt H ∧
+          ¬ S.Explains dec rootOf claimOf mt H).card)
+          ≤ ∑ _H : Pt → C, A * Fintype.card D ^ (TM - 1) :=
+        Finset.sum_le_sum fun H _ =>
+          (S.atOracle H).merkle_card_le codec dec check rootOf claimOf
+            hcheck hL ht hF emptyTape
+      _ = Fintype.card C ^ Fintype.card Pt *
+          (A * Fintype.card D ^ (TM - 1)) := by
+        rw [Finset.sum_const, Finset.card_univ, Fintype.card_fun, smul_eq_mul]
+  have hmkq :
+      ((univ.filter fun ω : (Fin TM → D) × (Pt → C) =>
+        S.MerkleAccepts codec check rootOf claimOf ω.1 ω.2 ∧
+          ¬ S.Explains dec rootOf claimOf ω.1 ω.2).card : ℚ) ≤
+        (Fintype.card C : ℚ) ^ Fintype.card Pt *
+          ((A : ℚ) * (Fintype.card D : ℚ) ^ (TM - 1)) := by
+    exact_mod_cast hmk
+  have hd : (0 : ℚ) < Fintype.card D := by exact_mod_cast Fintype.card_pos
+  have hc : (0 : ℚ) < Fintype.card C := by exact_mod_cast Fintype.card_pos
+  have hpowD : (Fintype.card D : ℚ) ^ TM =
+      (Fintype.card D : ℚ) ^ (TM - 1) * (Fintype.card D : ℚ) := by
+    rw [← pow_succ]
+    congr 1
+    omega
+  rw [div_le_iff₀ (mul_pos (pow_pos hd TM) (pow_pos hc _))]
+  calc
+    _ ≤ (Fintype.card C : ℚ) ^ Fintype.card Pt *
+        ((A : ℚ) * (Fintype.card D : ℚ) ^ (TM - 1)) := hmkq
+    _ = ((A : ℚ) / Fintype.card D) *
+        ((Fintype.card D : ℚ) ^ TM *
+          (Fintype.card C : ℚ) ^ Fintype.card Pt) := by
+      rw [hpowD]
+      field_simp
+
+/-- The two independent Merkle-opening explanations in the deployed
+two-field verifier cost two copies of the same adaptive Merkle term. -/
+theorem merkle_bad_ratio_le_two [Fintype Pt] [Fintype C] [Nonempty C]
+    [Fintype D]
+    {Salt₁ M₁ Salt₂ M₂ : Type}
+    [Inhabited Salt₁] [Inhabited M₁] [Inhabited Salt₂] [Inhabited M₂]
+    {n₁ n₂ : ℕ}
+    (codec₁ : Codec Salt₁ M₁ D Enc) (dec₁ : RoleDecoders codec₁)
+    (codec₂ : Codec Salt₂ M₂ D Enc) (dec₂ : RoleDecoders codec₂)
+    (check : Out → Tree Enc D Unit fc) (rootOf₁ rootOf₂ : Key → D)
+    (claimOf₁ : Out → OpeningClaim n₁ Salt₁ M₁ D)
+    (claimOf₂ : Out → OpeningClaim n₂ Salt₂ M₂ D)
+    (hcheck₁ : ∀ (H : Enc → D) (out : Out),
+      ∀ qa ∈ ((checkPass codec₁ n₁ (claimOf₁ out).I
+          (claimOf₁ out).a (claimOf₁ out).pf (2 * n₁)
+          fun _ => default).run H).2, qa ∈ ((check out).run H).2)
+    (hcheck₂ : ∀ (H : Enc → D) (out : Out),
+      ∀ qa ∈ ((checkPass codec₂ n₂ (claimOf₂ out).I
+          (claimOf₂ out).a (claimOf₂ out).pf (2 * n₂)
+          fun _ => default).run H).2, qa ∈ ((check out).run H).2)
+    (hL : 0 < L) (ht : tA ≤ TM) (hF : fc + tA ≤ TM) (hTM : 1 ≤ TM) :
+    ((univ.filter fun ω : (Fin TM → D) × (Pt → C) =>
+      (S.MerkleAccepts codec₁ check rootOf₁ claimOf₁ ω.1 ω.2 ∧
+        ¬ S.Explains dec₁ rootOf₁ claimOf₁ ω.1 ω.2) ∨
+      (S.MerkleAccepts codec₂ check rootOf₂ claimOf₂ ω.1 ω.2 ∧
+        ¬ S.Explains dec₂ rootOf₂ claimOf₂ ω.1 ω.2)).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card Pt) ≤
+      2 * ((adaptiveNumerator fc tA (L + N) : ℚ) / Fintype.card D) := by
+  classical
+  let E₁ : Finset ((Fin TM → D) × (Pt → C)) :=
+    univ.filter fun ω => S.MerkleAccepts codec₁ check rootOf₁ claimOf₁ ω.1 ω.2 ∧
+      ¬ S.Explains dec₁ rootOf₁ claimOf₁ ω.1 ω.2
+  let E₂ : Finset ((Fin TM → D) × (Pt → C)) :=
+    univ.filter fun ω => S.MerkleAccepts codec₂ check rootOf₂ claimOf₂ ω.1 ω.2 ∧
+      ¬ S.Explains dec₂ rootOf₂ claimOf₂ ω.1 ω.2
+  have hsub : (univ.filter fun ω : (Fin TM → D) × (Pt → C) =>
+        (S.MerkleAccepts codec₁ check rootOf₁ claimOf₁ ω.1 ω.2 ∧
+          ¬ S.Explains dec₁ rootOf₁ claimOf₁ ω.1 ω.2) ∨
+        (S.MerkleAccepts codec₂ check rootOf₂ claimOf₂ ω.1 ω.2 ∧
+          ¬ S.Explains dec₂ rootOf₂ claimOf₂ ω.1 ω.2)) ⊆ E₁ ∪ E₂ := by
+    intro ω hw
+    obtain ⟨_, hw⟩ := mem_filter.mp hw
+    rcases hw with h₁ | h₂
+    · exact mem_union_left _ (mem_filter.mpr ⟨mem_univ _, h₁⟩)
+    · exact mem_union_right _ (mem_filter.mpr ⟨mem_univ _, h₂⟩)
+  have hcard := (Finset.card_le_card hsub).trans (Finset.card_union_le E₁ E₂)
+  have hDpos : (0 : ℚ) < Fintype.card D := by
+    exact_mod_cast Fintype.card_pos
+  have hCpos : (0 : ℚ) < Fintype.card C := by
+    exact_mod_cast Fintype.card_pos
+  have hden : (0 : ℚ) <
+      (Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card Pt :=
+    mul_pos (pow_pos hDpos _) (pow_pos hCpos _)
+  have h₁ := S.merkle_bad_ratio_le codec₁ dec₁ check rootOf₁ claimOf₁
+    hcheck₁ hL ht hF hTM
+  have h₂ := S.merkle_bad_ratio_le codec₂ dec₂ check rootOf₂ claimOf₂
+    hcheck₂ hL ht hF hTM
+  calc
+    _ ≤ ((E₁.card : ℚ) + E₂.card) /
+        ((Fintype.card D : ℚ) ^ TM *
+          (Fintype.card C : ℚ) ^ Fintype.card Pt) :=
+      div_le_div_of_nonneg_right (by exact_mod_cast hcard) (le_of_lt hden)
+    _ = (E₁.card : ℚ) /
+          ((Fintype.card D : ℚ) ^ TM *
+            (Fintype.card C : ℚ) ^ Fintype.card Pt) +
+        (E₂.card : ℚ) /
+          ((Fintype.card D : ℚ) ^ TM *
+            (Fintype.card C : ℚ) ^ Fintype.card Pt) := by ring
+    _ ≤ 2 * ((adaptiveNumerator fc tA (L + N) : ℚ) /
+          Fintype.card D) := by
+      dsimp only [E₁, E₂] at h₁ h₂ ⊢
+      linarith
+
 /--
 **A re-committing prefix-only Fiat–Shamir prover, counted.**  Over the Merkle tape and the total
 oracle on prefix-only hash inputs, for any acceptance event `Acc` that includes the Merkle check and

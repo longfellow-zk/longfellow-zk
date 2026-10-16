@@ -1,0 +1,750 @@
+import Lfzk.FlatV7TwoField
+import Lfzk.CompiledZkDeployedHash
+
+/-!
+# The deployed v7 hash1/signature event on a virtual verifier tape
+
+This file gives the pure event consumed by the zero-query fixed-path
+coupling.  The event reads the Merkle oracle, proof, and three verifier
+answer blocks.  It uses the enlarged flat hash extractor while leaving both
+deployed side verifiers unchanged.
+-/
+
+set_option autoImplicit false
+set_option relaxedAutoImplicit false
+set_option maxRecDepth 10000
+set_option maxHeartbeats 1000000
+
+namespace Lfzk.CompiledZk.FlatV7Deployed
+
+open Finset Merkle.MH Lfzk.CompiledZk Lfzk.CertifiedV1
+  Lfzk.NizkZk Lfzk.NizkDeployedHashTwoField Lfzk.RbrZkSplit
+  Ligero.Examples.Grid.LongfellowProfiledExtraction
+open Lfzk.CompiledLongfellow (Col)
+open Lfzk.CompiledLongfellowAdaptive (slice1 slice2)
+open Lfzk.CompiledZk.FlatV7Radius (v7Hash1_flatSide)
+open scoped Classical
+
+variable {C D Enc X Out Salt₁ Salt₂ : Type}
+  [Fintype C] [DecidableEq C] [Nonempty C]
+  [Inhabited D] [DecidableEq D] [DecidableEq Enc]
+  [Inhabited Salt₁] [Inhabited Salt₂]
+variable {F₁ Msg₁ : Type} [Field F₁] [Fintype F₁] [DecidableEq F₁]
+  [SumcheckInterp F₁] [DecidableEq Msg₁] [Inhabited Msg₁]
+variable {M₁ nt₁ nlin₁ : ℕ}
+variable {codec₁ : Codec Salt₁ (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D Enc}
+  {dec₁ : RoleDecoders codec₁}
+variable {F₂ Msg₂ Witness₂ : Type} [Field F₂] [Fintype F₂]
+  [DecidableEq F₂] [SumcheckInterp F₂] [DecidableEq Msg₂]
+  [Inhabited Msg₂]
+variable {M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ : ℕ}
+variable {codec₂ : Codec Salt₂ (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D Enc}
+  {dec₂ : RoleDecoders codec₂}
+
+/-- The actual compiled verifiers as a pure event of the three objects
+supplied by a fixed-path FS experiment.  Its failure clause refers to the
+enlarged-radius hash witnesses. -/
+def v7Hash1_flatEvent
+    {Fmac : Type} {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D)
+    (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) : Prop :=
+  H.toSide.acceptsTape rootOf₁ msgOf₁ claimOf₁ avOf pubOf
+    (slice1 v7Hash1 v7SigHahn) mo out tape ∧
+  L₂.acceptsTape rootOf₂ msgOf₂ claimOf₂ avOf pubOf
+    (slice2 v7Hash1 v7SigHahn) mo out tape ∧
+  tape ⟨0, by omega⟩ = avOf out ∧
+  ¬ ∃ a₁ a₂,
+    (v7Hash1_flatSide H).Good (κ, avOf out, pubOf out) a₁ ∧
+    L₂.toZkSide.Good (κ, avOf out, pubOf out) a₂ ∧
+    common₁ a₁ = common₂ a₂
+
+/-- The corresponding deployed verifier event at its original hash
+extraction radius, used by the existing positive-query graded bound. -/
+def v7Hash1_oldEvent
+    {Fmac : Type} {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D)
+    (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) : Prop :=
+  H.toSide.acceptsTape rootOf₁ msgOf₁ claimOf₁ avOf pubOf
+    (slice1 v7Hash1 v7SigHahn) mo out tape ∧
+  L₂.acceptsTape rootOf₂ msgOf₂ claimOf₂ avOf pubOf
+    (slice2 v7Hash1 v7SigHahn) mo out tape ∧
+  tape ⟨0, by omega⟩ = avOf out ∧
+  ¬ ∃ a₁ a₂,
+    H.toSide.toZkSide.Good (κ, avOf out, pubOf out) a₁ ∧
+    L₂.toZkSide.Good (κ, avOf out, pubOf out) a₂ ∧
+    common₁ a₁ = common₂ a₂
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- The failure clause of the deployed event is exactly failure of the
+enlarged-radius pair extractor at the commitment context and public input. -/
+theorem v7Hash1_flatEvent_extract_none
+    {Fmac : Type} {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D) (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C)
+    (h : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂ κ mo out tape) :
+    Lfzk.NizkZkDeployedHash.twoFieldExtract
+      (v7Hash1_flatSide H) L₂.toZkSide common₁ common₂
+      (κ, avOf out, pubOf out) = none := by
+  exact (Lfzk.NizkZkDeployedHash.twoFieldExtract_none_iff
+    (v7Hash1_flatSide H) L₂.toZkSide common₁ common₂
+    (κ, avOf out, pubOf out)).2 h.2.2.2
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- The flat deployed event supplies the extractor-failure premise of the
+commitment-fixed MAC-key argument.  The row hypotheses are stated at good
+witnesses of the enlarged hash list and the signature side. -/
+theorem v7Hash1_flatEvent_macKey
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcands₂ : ∀ σ a, L₂.toZkSide.Good σ a → a ∈ cands₂ σ.1)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (aP : ((D × D) × List (Enc × D)) → Fmac)
+    (decode : C → Fmac) (tag : Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D) (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl
+      v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl
+        v7SigHahn.params.rounds) → C)
+    (hflat : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂ κ mo out tape)
+    (hrow₁ : ∀ a, (v7Hash1_flatSide H).Good
+      (κ, avOf out, pubOf out) a →
+      mac₁ a (aP κ + decode (avOf out)) = tag)
+    (hrow₂ : ∀ a, L₂.toZkSide.Good
+      (κ, avOf out, pubOf out) a →
+      mac₂ a (aP κ + decode (avOf out)) = tag)
+    (hgood₁ : ¬ ZkFails (v7Hash1_flatSide H).Sat
+      (κ, avOf out, pubOf out))
+    (hgood₂ : ¬ ZkFails L₂.toZkSide.Sat
+      (κ, avOf out, pubOf out)) :
+    Lfzk.MacSep.SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) κ)
+      (cands₂ κ) common₁ common₂ mac₁ mac₂
+      (aP κ + decode (avOf out)) := by
+  exact Lfzk.CompiledZk.FlatV7TwoField.v7Hash1_flat_macKey_of_extract_none
+    H L₂.toZkSide cands₂ hcands₂ common₁ common₂ mac₁ mac₂
+    aP decode tag (κ, avOf out, pubOf out) (avOf out)
+    hrow₁ hrow₂
+    (v7Hash1_flatEvent_extract_none H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+      κ mo out tape hflat)
+    hgood₁ hgood₂
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- A pair missing at the enlarged hash radius is also missing from the
+deployed old-radius extractor.  This allows the existing positive-query
+graded theorem to cover the same flat failure event. -/
+theorem v7Hash1_flatEvent_old_extract_none
+    {Fmac : Type} {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D) (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C)
+    (h : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂ κ mo out tape) :
+    Lfzk.NizkZkDeployedHash.twoFieldExtract
+      H.toSide.toZkSide L₂.toZkSide common₁ common₂
+      (κ, avOf out, pubOf out) = none := by
+  apply (Lfzk.NizkZkDeployedHash.twoFieldExtract_none_iff
+    H.toSide.toZkSide L₂.toZkSide common₁ common₂
+    (κ, avOf out, pubOf out)).2
+  intro ⟨a₁, a₂, hg₁, hg₂, heq⟩
+  exact h.2.2.2 ⟨a₁, a₂,
+    H.toZkSideAt_good_of_deployed
+      (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g)
+      (by decide) (FlatV7Radius.v7Hash1_flat_lift_card H)
+      (κ, avOf out, pubOf out) a₁ hg₁,
+    hg₂, heq⟩
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- At every pure verifier tape, the flat failure event is a subset of the
+ordinary deployed-radius failure event used by the positive-query compiler. -/
+theorem v7Hash1_flatEvent_old_cover
+    {Fmac : Type} {nblk : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (κ : (D × D) × List (Enc × D)) (mo : Enc → D) (out : Out)
+    (tape : Fin (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+      Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C)
+    (h : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂ κ mo out tape) :
+    H.toSide.acceptsTape rootOf₁ msgOf₁ claimOf₁ avOf pubOf
+      (slice1 v7Hash1 v7SigHahn) mo out tape ∧
+    L₂.acceptsTape rootOf₂ msgOf₂ claimOf₂ avOf pubOf
+      (slice2 v7Hash1 v7SigHahn) mo out tape ∧
+    tape ⟨0, by omega⟩ = avOf out ∧
+    ¬ ∃ a₁ a₂,
+      H.toSide.toZkSide.Good (κ, avOf out, pubOf out) a₁ ∧
+      L₂.toZkSide.Good (κ, avOf out, pubOf out) a₂ ∧
+      common₁ a₁ = common₂ a₂ := by
+  refine ⟨h.1, h.2.1, h.2.2.1, ?_⟩
+  exact (Lfzk.NizkZkDeployedHash.twoFieldExtract_none_iff
+    H.toSide.toZkSide L₂.toZkSide common₁ common₂
+    (κ, avOf out, pubOf out)).mp
+      (v7Hash1_flatEvent_old_extract_none H L₂
+        rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+        common₁ common₂ κ mo out tape h)
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- The flat extraction-failure probability is at most the old-radius
+failure probability on the same deployed FS experiment, for any number
+of transcript-oracle queries. -/
+theorem v7Hash1_flatEvent_ratio_le_old
+    [Fintype D] [Fintype X] [Fintype Msg₁] [Fintype Msg₂]
+    {Fmac : Type} {nblk tA N TM fc : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (Ssetup : Bcs.TotalOracleCommit.Setup Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds)
+      C Out (D × D) tA N
+      (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+        Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds))
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (check : Out → Merkle.RandomOracle.Tree Enc D Unit fc) :
+    ((univ.filter fun ω : (Fin TM → D) ×
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C) =>
+      v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (Ssetup.context ω.1 ω.2) (Ssetup.merkleOracle check ω.1 ω.2)
+        (Ssetup.proof ω.1 ω.2) (Ssetup.challenges ω.1 ω.2)).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card
+          (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+            v7Hash1.params.rounds v7SigHahn.params.rounds)) ≤
+    ((univ.filter fun ω : (Fin TM → D) ×
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C) =>
+      v7Hash1_oldEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (Ssetup.context ω.1 ω.2) (Ssetup.merkleOracle check ω.1 ω.2)
+        (Ssetup.proof ω.1 ω.2) (Ssetup.challenges ω.1 ω.2)).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card
+          (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+            v7Hash1.params.rounds v7SigHahn.params.rounds)) := by
+  apply div_le_div_of_nonneg_right _ (by positivity)
+  exact_mod_cast Finset.card_le_card (by
+    intro ω hω
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hω ⊢
+    exact v7Hash1_flatEvent_old_cover H L₂
+      rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+      common₁ common₂ _ _ _ _ hω)
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- Substituting the actual random oracles and prover output into the pure
+event is definitionally the deployed two-side acceptance and flat pair
+extraction-failure event. -/
+theorem v7Hash1_flatEvent_actual_iff
+    {Fmac : Type} {nblk tA N TM fc : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (Ssetup : Bcs.TotalOracleCommit.Setup Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds)
+      C Out (D × D) tA N
+      (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+        Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds))
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (check : Out → Merkle.RandomOracle.Tree Enc D Unit fc)
+    (mt : Fin TM → D)
+    (ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+      v7Hash1.params.rounds v7SigHahn.params.rounds → C) :
+    v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+      (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+      (Ssetup.proof mt ro) (Ssetup.challenges mt ro) ↔
+    H.toSide.acceptsDH Ssetup check rootOf₁ msgOf₁ claimOf₁ avOf pubOf
+      (slice1 v7Hash1 v7SigHahn) mt ro ∧
+    L₂.acceptsDH Ssetup check rootOf₂ msgOf₂ claimOf₂ avOf pubOf
+      (slice2 v7Hash1 v7SigHahn) mt ro ∧
+    Ssetup.challenges mt ro ⟨0, by omega⟩ = avOf (Ssetup.proof mt ro) ∧
+    ¬ ∃ a₁ a₂,
+      (v7Hash1_flatSide H).Good
+        (Ssetup.context mt ro, avOf (Ssetup.proof mt ro),
+          pubOf (Ssetup.proof mt ro)) a₁ ∧
+      L₂.toZkSide.Good
+        (Ssetup.context mt ro, avOf (Ssetup.proof mt ro),
+          pubOf (Ssetup.proof mt ro)) a₂ ∧
+      common₁ a₁ = common₂ a₂ := Iff.rfl
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- An explained deployed acceptance is covered by the two fixed-tape
+LayerStep events and failure of the enlarged-radius pair extractor. -/
+theorem v7Hash1_flatEvent_cover
+    {Fmac : Type} {nblk tA N TM fc : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (Ssetup : Bcs.TotalOracleCommit.Setup Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds)
+      C Out (D × D) tA N
+      (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+        Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds))
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (check : Out → Merkle.RandomOracle.Tree Enc D Unit fc)
+    (hroot₁ : ∀ out, Prod.fst (Ssetup.keyOut out) = rootOf₁ out)
+    (hroot₂ : ∀ out, Prod.snd (Ssetup.keyOut out) = rootOf₂ out)
+    (mt : Fin TM → D)
+    (ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+      v7Hash1.params.rounds v7SigHahn.params.rounds → C)
+    (h : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+      (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+      (Ssetup.proof mt ro) (Ssetup.challenges mt ro))
+    (hexp₁ : Ssetup.Explains dec₁ Prod.fst claimOf₁ mt ro)
+    (hexp₂ : Ssetup.Explains dec₂ Prod.snd claimOf₂ mt ro) :
+    ZkLayerStepAccepts .accepted .start
+      (steps (nl := v7Hash1.params.nl) (w := v7Hash1.params.rounds)
+        ((v7Hash1_flatSide H).V
+          (Ssetup.context mt ro, avOf (Ssetup.proof mt ro), pubOf (Ssetup.proof mt ro)))
+        ((v7Hash1_flatSide H).LD
+          (Ssetup.context mt ro, avOf (Ssetup.proof mt ro), pubOf (Ssetup.proof mt ro)))
+        (msgOf₁ (Ssetup.proof mt ro)))
+      (slice1 v7Hash1 v7SigHahn (Ssetup.challenges mt ro)) ∧
+    ZkLayerStepAccepts .accepted .start
+      (steps (nl := v7SigHahn.params.nl) (w := v7SigHahn.params.rounds)
+        (L₂.toZkSide.V
+          (Ssetup.context mt ro, avOf (Ssetup.proof mt ro), pubOf (Ssetup.proof mt ro)))
+        (L₂.toZkSide.LD
+          (Ssetup.context mt ro, avOf (Ssetup.proof mt ro), pubOf (Ssetup.proof mt ro)))
+        (msgOf₂ (Ssetup.proof mt ro)))
+      (slice2 v7Hash1 v7SigHahn (Ssetup.challenges mt ro)) ∧
+    Lfzk.NizkZkDeployedHash.twoFieldExtract
+      (v7Hash1_flatSide H) L₂.toZkSide common₁ common₂
+      (Ssetup.context mt ro, avOf (Ssetup.proof mt ro),
+        pubOf (Ssetup.proof mt ro)) = none := by
+  have ha := (v7Hash1_flatEvent_actual_iff H L₂ Ssetup
+    rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+    common₁ common₂ check mt ro).mp h
+  refine ⟨?_, ?_, ?_⟩
+  · exact H.toZkSideAt_acceptsDH
+      (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g)
+      (by decide) (FlatV7Radius.v7Hash1_flat_lift_card H)
+      Ssetup check rootOf₁ hroot₁ msgOf₁ claimOf₁ avOf pubOf
+      (slice1 v7Hash1 v7SigHahn) mt ro ha.1 hexp₁
+  · exact L₂.hrightDH_of_accepts Ssetup check rootOf₂ hroot₂
+      msgOf₂ claimOf₂ avOf pubOf (slice2 v7Hash1 v7SigHahn)
+      mt ro ha.2.1 hexp₂
+  · exact v7Hash1_flatEvent_extract_none H L₂
+      rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+      common₁ common₂ _ _ _ _ h
+
+omit [DecidableEq C] [Nonempty C] [DecidableEq Msg₁] [Inhabited Msg₁]
+  [DecidableEq Msg₂] [Inhabited Msg₂] in
+/-- With no transcript-oracle calls, the explained deployed event lies in
+the product event at the fixed Merkle context.  The prover output and
+commitment context are fixed before all three verifier answer blocks. -/
+theorem v7Hash1_flatEvent_fixed_cover
+    {Fmac : Type} {nblk tA TM fc : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (Ssetup : Bcs.TotalOracleCommit.Setup Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds)
+      C Out (D × D) tA 0
+      (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+        Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds))
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (check : Out → Merkle.RandomOracle.Tree Enc D Unit fc)
+    (hroot₁ : ∀ out, Prod.fst (Ssetup.keyOut out) = rootOf₁ out)
+    (hroot₂ : ∀ out, Prod.snd (Ssetup.keyOut out) = rootOf₂ out)
+    (mt : Fin TM → D)
+    (dummy ro : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+      v7Hash1.params.rounds v7SigHahn.params.rounds → C)
+    (h : v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+      (Ssetup.context mt ro) (Ssetup.merkleOracle check mt ro)
+      (Ssetup.proof mt ro) (Ssetup.challenges mt ro))
+    (hexp₁ : Ssetup.Explains dec₁ Prod.fst claimOf₁ mt ro)
+    (hexp₂ : Ssetup.Explains dec₂ Prod.snd claimOf₂ mt ro) :
+    let out := Ssetup.proof mt dummy
+    let σ := (Ssetup.context mt dummy, avOf out, pubOf out)
+    let p := Bcs.threeBlockTapeEquiv C
+      (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds)
+      (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds)
+      (Ssetup.challenges mt ro)
+    p.1 = avOf out ∧
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7Hash1.params.nl) (w := v7Hash1.params.rounds)
+          ((v7Hash1_flatSide H).V σ) ((v7Hash1_flatSide H).LD σ)
+          (msgOf₁ out)) p.2.1 ∧
+      ZkLayerStepAccepts .accepted .start
+        (steps (nl := v7SigHahn.params.nl) (w := v7SigHahn.params.rounds)
+          (L₂.toZkSide.V σ) (L₂.toZkSide.LD σ)
+          (msgOf₂ out)) p.2.2 ∧
+      Lfzk.NizkZkDeployedHash.twoFieldExtract
+        (v7Hash1_flatSide H) L₂.toZkSide common₁ common₂ σ = none := by
+  have hc := v7Hash1_flatEvent_cover H L₂ Ssetup
+    rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+    common₁ common₂ check hroot₁ hroot₂ mt ro h hexp₁ hexp₂
+  have hctx := Ssetup.zeroQuery_context_eq mt ro dummy
+  have hout := Ssetup.zeroQuery_proof_eq mt ro dummy
+  rw [hctx, hout] at hc
+  have hkey := h.2.2.1
+  rw [hout] at hkey
+  dsimp only
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · simpa only [Bcs.threeBlockTapeEquiv_key] using hkey
+  · convert hc.1 using 1
+    funext i
+    rfl
+  · convert hc.2.1 using 1
+    funext i
+    rfl
+  · exact hc.2.2
+
+section ConcreteZeroQuery
+
+open Lfzk.CompiledZk.FlatV7TwoField
+open Lfzk.MacSep
+open Lfzk.NizkAdaptiveTwoField (check2)
+open Lfzk.NizkAdaptive (lfCheck_trace)
+
+omit [DecidableEq Msg₁] [DecidableEq Msg₂] in
+/-- The actual zero-query v7 hash1/signature verifier, with the enlarged
+hash extractor and commitment-fixed MAC lists.  The row and collision
+premises are the circuit-level obligations; the fixed-path cover, key
+count, and two Merkle explanation charges are discharged here. -/
+theorem v7Hash1_zeroQuery_deployed_extraction_ratio_le
+    [Fintype D] [Fintype X] [Nonempty X]
+    [Fintype Msg₁] [Fintype Msg₂]
+    {Fmac : Type} [Field Fmac] [Fintype Fmac] [DecidableEq Fmac]
+    {nblk tA TM : ℕ}
+    (H : CircuitSide v7Hash1 v7Hash1_valid v7Hash1_openings_pos
+      3 C F₁ Msg₁ M₁ nt₁ nlin₁ X dec₁ Prod.fst)
+    (L₂ : CompiledZkSide v7SigHahn v7SigHahn_valid
+      v7SigHahn_openings_pos 8 C F₂ Msg₂ Witness₂
+      M₂ ninp₂ nt₂ nlin₂ logw₂ logc₂ X dec₂ Prod.snd)
+    (body : Merkle.RandomOracle.TwoOracleTree Enc D
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds) C Out tA 0)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (claimOf₁ : Out → OpeningClaim v7Hash1.params.row.n Salt₁
+      (Col F₁ v7Hash1.params.nw v7Hash1.params.nq) D)
+    (claimOf₂ : Out → OpeningClaim v7SigHahn.params.row.n Salt₂
+      (Col F₂ v7SigHahn.params.nw v7SigHahn.params.nq) D)
+    (common₁ : (Fin H.c.ninp → F₁) → Fin nblk → Fmac)
+    (common₂ : Witness₂ → Fin nblk → Fmac)
+    (mac₁ : (Fin H.c.ninp → F₁) → Fmac → Fin nblk → Fmac)
+    (mac₂ : Witness₂ → Fmac → Fin nblk → Fmac)
+    (aP : (D × D) × List (Enc × D) → Fmac)
+    (decode : C → Fmac)
+    (tagOf : Out → Fin nblk → Fmac)
+    (cands₂ : (D × D) × List (Enc × D) → Finset Witness₂)
+    (hcard₂ : ∀ κ, (cands₂ κ).card ≤ v7SigHahn.cardCand)
+    (hcands₂ : ∀ σ a, L₂.toZkSide.Good σ a → a ∈ cands₂ σ.1)
+    (hcoll : ∀ a₁ a₂, common₁ a₁ ≠ common₂ a₂ →
+      (univ.filter fun x => mac₁ a₁ x = mac₂ a₂ x).card ≤ 1)
+    (hbal : ∀ x : Fmac,
+      (univ.filter fun c : C => decode c = x).card ≤ 2 ^ 128)
+    (hC : Fintype.card C = 2 ^ 256)
+    (htape : 2 * v7SigHahn.params.row.n +
+      2 * v7Hash1.params.row.n + tA ≤ TM)
+    (hTM : 1 ≤ TM)
+    (dummy : Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+      v7Hash1.params.rounds v7SigHahn.params.rounds → C)
+    (hrow₁ : ∀ (mt : Fin TM → D) a,
+      let S := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+      let out := S.proof mt dummy
+      let σ := (S.context mt dummy, avOf out, pubOf out)
+      (v7Hash1_flatSide H).Good σ a →
+      mac₁ a (aP (S.context mt dummy) + decode (avOf out)) = tagOf out)
+    (hrow₂ : ∀ (mt : Fin TM → D) a,
+      let S := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+      let out := S.proof mt dummy
+      let σ := (S.context mt dummy, avOf out, pubOf out)
+      L₂.toZkSide.Good σ a →
+      mac₂ a (aP (S.context mt dummy) + decode (avOf out)) = tagOf out) :
+    let S := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+    let check := check2 codec₁ claimOf₁ codec₂ claimOf₂
+    ((univ.filter fun ω : (Fin TM → D) ×
+      (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+        v7Hash1.params.rounds v7SigHahn.params.rounds → C) =>
+      v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (S.context ω.1 ω.2) (S.merkleOracle check ω.1 ω.2)
+        (S.proof ω.1 ω.2) (S.challenges ω.1 ω.2)).card : ℚ) /
+      ((Fintype.card D : ℚ) ^ TM *
+        (Fintype.card C : ℚ) ^ Fintype.card
+          (Pt2 D C X Msg₁ Msg₂ v7Hash1.params.nl v7SigHahn.params.nl
+            v7Hash1.params.rounds v7SigHahn.params.rounds)) ≤
+      (4 : ℚ) / 2 ^ 128 +
+        ((v7Hash1.cardCand : ℚ) * zkFieldDensity v7Hash1 3 +
+          (1 : ℚ) / 2 ^ 125) +
+        zkCoreAt v7SigHahn 8 v7SigHahn.cardCand +
+        2 * ((Bcs.AdaptiveCommit.adaptiveNumerator
+          (2 * v7SigHahn.params.row.n + 2 * v7Hash1.params.row.n) tA
+          (1 + Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds +
+            Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) : ℚ) /
+          Fintype.card D) := by
+  let S := setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+  let check := check2 codec₁ claimOf₁ codec₂ claimOf₂
+  let out (mt : Fin TM → D) := S.proof mt dummy
+  let κ (mt : Fin TM → D) := S.context mt dummy
+  let σ (mt : Fin TM → D) (key : C) :
+      Lfzk.CompiledLongfellowAdaptive.Sig D C X Enc :=
+    (κ mt, key, pubOf (out mt))
+  let ms₁ (mt : Fin TM → D) (_ : C) := msgOf₁ (out mt)
+  let ms₂ (mt : Fin TM → D) (_ : C) := msgOf₂ (out mt)
+  let Acc (mt : Fin TM → D) (key : C)
+      (tape₁ : Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C)
+      (tape₂ : Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) :=
+    key = avOf (out mt) ∧
+    ZkLayerStepAccepts .accepted .start
+      (steps (nl := v7Hash1.params.nl) (w := v7Hash1.params.rounds)
+        ((v7Hash1_flatSide H).V (σ mt key))
+        ((v7Hash1_flatSide H).LD (σ mt key)) (ms₁ mt key)) tape₁ ∧
+    ZkLayerStepAccepts .accepted .start
+      (steps (nl := v7SigHahn.params.nl) (w := v7SigHahn.params.rounds)
+        (L₂.toZkSide.V (σ mt key))
+        (L₂.toZkSide.LD (σ mt key)) (ms₂ mt key)) tape₂
+  let extract (mt : Fin TM → D) (key : C)
+      (_ : Fin (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds) → C)
+      (_ : Fin (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds) → C) :=
+    Lfzk.NizkZkDeployedHash.twoFieldExtract
+      (v7Hash1_flatSide H) L₂.toZkSide common₁ common₂ (σ mt key)
+  let keyBad (mt : Fin TM → D) (key : C) :=
+    SepMacBad
+      (H.candsAt (Optimized.v7Hash1_v1.certificate.e +
+        Optimized.v7Hash1_v1.certificate.g) (κ mt))
+      (cands₂ (κ mt)) common₁ common₂ mac₁ mac₂
+      (aP (κ mt) + decode key)
+  have hcheck₁ : ∀ (Hm : Enc → D) (o : Out),
+      ∀ qa ∈ ((Merkle.MH.checkPass codec₁ v7Hash1.params.row.n
+          (claimOf₁ o).I (claimOf₁ o).a (claimOf₁ o).pf
+          (2 * v7Hash1.params.row.n) fun _ => default).run Hm).2,
+        qa ∈ ((check o).run Hm).2 := by
+    intro Hm o qa hqa
+    dsimp only [check]
+    rw [check2, Merkle.RandomOracle.Tree.run_bind]
+    exact List.mem_append_left _ (lfCheck_trace codec₁ claimOf₁ Hm o qa hqa)
+  have hcheck₂ : ∀ (Hm : Enc → D) (o : Out),
+      ∀ qa ∈ ((Merkle.MH.checkPass codec₂ v7SigHahn.params.row.n
+          (claimOf₂ o).I (claimOf₂ o).a (claimOf₂ o).pf
+          (2 * v7SigHahn.params.row.n) fun _ => default).run Hm).2,
+        qa ∈ ((check o).run Hm).2 := by
+    intro Hm o qa hqa
+    dsimp only [check]
+    rw [check2, Merkle.RandomOracle.Tree.run_bind]
+    exact List.mem_append_right _ (lfCheck_trace codec₂ claimOf₂ Hm o qa hqa)
+  have hkeyCount (mt : Fin TM → D) :
+      ((univ.filter (keyBad mt)).card : ℚ) / Fintype.card C ≤
+        (4 : ℚ) / 2 ^ 128 :=
+    v7Hash1_flat_macKey_ratio_le_deployed H cands₂ hcard₂
+      common₁ common₂ mac₁ mac₂ hcoll aP decode hbal hC (κ mt)
+  have hkey : ∀ mt key tape₁ tape₂,
+      Acc mt key tape₁ tape₂ → extract mt key tape₁ tape₂ = none →
+      ¬ ZkFails (v7Hash1_flatSide H).Sat (σ mt key) →
+      ¬ ZkFails L₂.toZkSide.Sat (σ mt key) → keyBad mt key := by
+    intro mt key tape₁ tape₂ ha hf hg₁ hg₂
+    rcases ha with ⟨heq, -, -⟩
+    subst key
+    exact v7Hash1_flat_macKey_of_extract_none H L₂.toZkSide
+      cands₂ hcands₂ common₁ common₂ mac₁ mac₂ aP decode
+      (tagOf (out mt)) (σ mt (avOf (out mt))) (avOf (out mt))
+      (hrow₁ mt) (hrow₂ mt) hf hg₁ hg₂
+  have hroot₁ : ∀ o, Prod.fst (S.keyOut o) = rootOf₁ o := fun _ => rfl
+  have hroot₂ : ∀ o, Prod.snd (S.keyOut o) = rootOf₂ o := fun _ => rfl
+  have haccept₁ : ∀ (mt : Fin TM → D) ro,
+      v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (S.context mt ro) (S.merkleOracle check mt ro)
+        (S.proof mt ro) (S.challenges mt ro) →
+      S.MerkleAccepts codec₁ check Prod.fst claimOf₁ mt ro := by
+    intro mt ro he
+    have ha := (v7Hash1_flatEvent_actual_iff H L₂ S
+      rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+      common₁ common₂ check mt ro).mp he
+    exact H.toSide.acceptsDH_merkle S check rootOf₁ hroot₁
+      msgOf₁ claimOf₁ avOf pubOf (slice1 v7Hash1 v7SigHahn)
+      mt ro ha.1
+  have haccept₂ : ∀ (mt : Fin TM → D) ro,
+      v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (S.context mt ro) (S.merkleOracle check mt ro)
+        (S.proof mt ro) (S.challenges mt ro) →
+      S.MerkleAccepts codec₂ check Prod.snd claimOf₂ mt ro := by
+    intro mt ro he
+    have ha := (v7Hash1_flatEvent_actual_iff H L₂ S
+      rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+      common₁ common₂ check mt ro).mp he
+    exact L₂.acceptsDH_merkle S check rootOf₂ hroot₂
+      msgOf₂ claimOf₂ avOf pubOf (slice2 v7Hash1 v7SigHahn)
+      mt ro ha.2.1
+  have hcover : ∀ (mt : Fin TM → D) ro,
+      v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+        msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂
+        (S.context mt ro) (S.merkleOracle check mt ro)
+        (S.proof mt ro) (S.challenges mt ro) ∧
+      S.Explains dec₁ Prod.fst claimOf₁ mt ro ∧
+      S.Explains dec₂ Prod.snd claimOf₂ mt ro →
+      let p := Bcs.threeBlockTapeEquiv C
+        (Rounds.Role.length v7Hash1.params.nl v7Hash1.params.rounds)
+        (Rounds.Role.length v7SigHahn.params.nl v7SigHahn.params.rounds)
+        (S.challenges mt ro)
+      Acc mt p.1 p.2.1 p.2.2 ∧
+        extract mt p.1 p.2.1 p.2.2 = none := by
+    intro mt ro ⟨he, hx₁, hx₂⟩
+    have hc := v7Hash1_flatEvent_fixed_cover H L₂ S
+      rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ claimOf₁ claimOf₂
+      common₁ common₂ check hroot₁ hroot₂ mt dummy ro he hx₁ hx₂
+    obtain ⟨hk, hs₁, hs₂, hf⟩ := hc
+    refine ⟨⟨hk, ?_, ?_⟩, ?_⟩
+    · rw [hk]
+      simpa only [σ, ms₁, κ, out] using hs₁
+    · rw [hk]
+      simpa only [σ, ms₂, κ, out] using hs₂
+    · simpa only [extract, σ, κ, out, hk] using hf
+  have hr := v7Hash1_zeroQuery_FS_extraction_ratio_le
+    H L₂.toZkSide L₂.hF body rootOf₁ rootOf₂ avOf pubOf
+    msgOf₁ msgOf₂ dec₂ check claimOf₁ claimOf₂
+    hcheck₁ hcheck₂ (by omega) (by simpa [check] using htape)
+    hTM dummy
+    (v7Hash1_flatEvent H L₂ rootOf₁ rootOf₂ avOf pubOf
+      msgOf₁ msgOf₂ claimOf₁ claimOf₂ common₁ common₂)
+    σ ms₁ ms₂ Acc extract keyBad ((4 : ℚ) / 2 ^ 128)
+    hkeyCount
+    (by intro mt key tape₁ tape₂ ha; exact ha.2.1)
+    (by intro mt key tape₁ tape₂ ha; exact ha.2.2)
+    hkey haccept₁ haccept₂ hcover
+  simpa only [S, check] using hr
+
+end ConcreteZeroQuery
+
+end Lfzk.CompiledZk.FlatV7Deployed

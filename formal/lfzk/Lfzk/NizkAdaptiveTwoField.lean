@@ -229,6 +229,15 @@ theorem sum_roleAt {nl : ℕ} {w : ℕ → ℕ} (f : Rounds.Role nl w → ℕ) :
   rw [← Fin.sum_univ_eq_sum_range (fun x => f (roleAt x))]
   exact Finset.sum_congr rfl fun i _ => by rw [roleAt_val]
 
+/-- Rational version for graded role budgets. -/
+theorem sum_roleAt_rat {nl : ℕ} {w : ℕ → ℕ}
+    (f : Rounds.Role nl w → ℚ) :
+    ∑ x ∈ range (Rounds.Role.length nl w), f (roleAt x)
+      = ∑ i : Fin (Rounds.Role.length nl w),
+          f (Rounds.Role.indexEquiv.symm i) := by
+  rw [← Fin.sum_univ_eq_sum_range (fun x => f (roleAt x))]
+  exact Finset.sum_congr rfl fun i _ => by rw [roleAt_val]
+
 /-! ## 3. Two sides, one prover, one hashed MAC key -/
 
 section Compose

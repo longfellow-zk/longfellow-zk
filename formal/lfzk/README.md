@@ -8,20 +8,55 @@ Fiat–Shamir transcript:
 - the ECDSA signature circuit over the P-256 base field, proved second.
 
 They are linked by a two-field MAC. Each circuit is a padded, layered sumcheck followed by Ligero V1
-at rate 1/7 with 132 opened columns. The soundness notion is round-by-round, composed with the
-Fiat–Shamir transform at the hash inputs the deployed transcript uses, against a prover that may
-re-commit and grind.
+at rate 1/7 with 132 opened columns. The strongest result is extraction-first and combines a flat
+zero-query bound with the graded positive-query Fiat–Shamir compiler. The earlier round-by-round
+result remains available. Both account for a prover that may re-commit and grind.
 
 | | result | where |
 |---|---|---|
-| **Combined soundness** (modeled v7, 1–4 attributes) | **115-bit T-security**: `Pr[win] ≤ (1 + tA + N)·2^-115`, conditional on the premises in [Assumptions and deployment boundary](#assumptions-and-deployment-boundary). Each circuit keeps its own private MAC witness | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` (v7 MAC) |
+| **Combined extraction and false-statement soundness** (modeled v7, 1–4 attributes) | **116-bit T-security**: `Pr[win] ≤ (1 + tA + N)·2^-116`, for all query budgets, conditional on the circuit and transcript premises below. Each circuit keeps its own private MAC witness | `FlatV7Headline.v7Hash1_deployed_fs_extraction_116_circuit` and `v7Hash1_deployed_fs_false_statement_116`, with `FlatV7Hash{2,3,4}Headline` analogues; build `Lfzk.FlatV7All` |
+| Earlier round-by-round combined bound | **115-bit T-security** under its stated premises | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` (v7 MAC) |
 | Signature circuit alone | **127 bits** with the Hahn mask certificate (122 with the Johnson row) | `CompiledZkProfileRows.v7SigHahn_zk_circuit_tsec` |
-| Hash circuit alone | 115 bits | `CompiledZkProfileRows.v7Hash{1,2,3,4}_zk_circuit_tsec` |
+| Hash circuit alone, earlier round-by-round result | 115 bits | `CompiledZkProfileRows.v7Hash{1,2,3,4}_zk_circuit_tsec` |
 | **Zero knowledge**, 256-bit nonces | ≤ 2^-128 per side, ≤ 2^-127 two-field, against 2^115 Merkle queries. For the v7 MAC the simulator receives the message blocks' zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_q115` (v7 MAC); `CompiledLongfellowZkV7.v7_twofield_zk_q115` (additive MAC) |
 | Zero knowledge, 542-bit nonces | statistical, ≤ 2^-131 two-field, no query bound; the v7 MAC simulation receives the zero pattern | `CompiledLongfellowZkV7Mac.v7mac_twofield_zk_stat542` |
 | Witness indistinguishability | ≤ 2^-127 per side and ≤ 2^-126 two-field at 2^115 queries; the v7 two-field claim requires equal zero patterns | `CompiledLongfellowZk.compiled_longfellow_wi`, `CompiledLongfellowZkV7Mac.twofield_wi_v7` |
 
 The hash side limits the combined soundness level. Names are under `Lfzk` unless qualified.
+For the transmitted four-slice Ligero V1 response, the interactive theorem
+`V1StrongV7Interactive.v7_v1_payload_iop_uniform_failure_le` bounds a prover that
+chooses its payload after a uniform combination challenge, before the uniform
+column query, by the exact coefficient
+`V1StrongV7Numeric.density`. At v7 hash1 this is approximately **125.511851
+bits**. The earlier IOP certificate for arbitrary evaluation-form responses
+gives approximately **125.158571 bits**; the response representations differ.
+The companion `v7_v1_payload_iop_failure_le` states the same coefficient for
+balanced raw challenge/query decoders. Under `NoDecodedSolution`,
+`v7_v1_payload_iop_uniform_acceptance_of_noDecoded_le` bounds ordinary
+interactive acceptance by the same coefficient.
+For standalone Ligero V1, `V1StrongV7TranscriptOutsideOutput.v7_v1_outside_output_extraction_failure_le`
+counts acceptance with the response-assisted extractor returning `none` at the verifier's
+prefix-only hash points. For each of the four v7 hash geometries and an `N`-query prover,
+its conditional probability bound is `(N+1)·density`, with the checked coefficient
+`density < 6/2^128` (`V1StrongV7TranscriptFinal.v7_v1_final_budget_lt_six`).
+`V1StrongV7Terminal.accepted_extracts_or_fails` proves that any accepted response outside
+this event extracts a satisfying lift. The premises include the ideal balanced challenge/query
+sampler. The statement and commitment oracle may depend on all hash answers outside the two
+terminal Ligero roles, including earlier field challenges that the transcript does not re-absorb.
+The optional `Lfzk.V1StrongV7Hash1HybridCircuitHeadline` target applies this direct
+terminal count to the v7 hash1 two-field FS extraction event. It derives the
+four-slice response-slot and decoder identities from the typed message constructor,
+instantiates both circuit sides and the merged Merkle checker, and proves
+extraction failure and false-statement soundness at `(1 + N + tA) / 2^116`
+for every query budget, under its stated circuit-MAC row and resource premises.
+This is an independent extraction-first route to the same 116-bit envelope and
+is separate from the routine build.
+The 116-bit circuit theorems use the certified flat Ligero extraction bound at zero transcript queries
+and `v7_circuit_potential_extraction_116_of_pos_queries` from the graded extraction-first
+compiler at positive query counts. The more general `v7Hash*_deployed_fs_extraction_116`
+theorems retain the earlier positive-query compiler because their signature side is a
+`CompiledZkSide`; the circuit headlines use a `CircuitSide` on both sides. The analysis radius enlarges
+the hash candidate list; it does not change the verifier or its commitments.
 Files named `CompiledZk*` are about **soundness of the zero-knowledge verifier**;
 `CompiledLongfellowZk*` contain the **privacy** results.
 The separate `_sepBlind` theorems use the v8 MAC equation with the same v7 circuit profiles;
@@ -32,9 +67,16 @@ Rust requires the correspondence assumptions described below.
 
 ```sh
 cd formal
-lake build Lfzk                                   # everything below
+lake build Lfzk                                   # ordinary Longfellow target
+lake build Lfzk.GradedCircuitGrid                 # separate v7/v8 graded extraction grid
+lake build Lfzk.FlatV7All                         # separate 116-bit extraction target
+lake build Lfzk.V1StrongV7TranscriptOutput         # separate V1 FS extraction bound
+lake build Lfzk.V1StrongV7TranscriptOutsideOutput  # V1 bound with prior field-answer context
+lake build Lfzk.V1StrongV7Hash1HybridCircuitHeadline # separate direct v7 hash1 circuit bound
+python3 lfzk/scripts/generate_flat_v7_variants.py --check
+python3 lfzk/scripts/audit_potential_axioms.py    # potential compiler, v7/v8 extraction, v7 headlines
 python3 lfzk/scripts/audit_axioms.py              # #print axioms on every headline; sorry/admit/axiom scan
-python3 lfzk/scripts/soundness_report.py          # exact error exponents, Hahn certificate, T-security, privacy numerals
+python3 lfzk/scripts/soundness_report.py          # earlier round-by-round exponents, Hahn certificate, privacy numerals
 python3 lfzk/scripts/v7_rows.py --check           # re-derive every v7 row numeral
 python3 lfzk/scripts/rbr_v1_rows.py --check       # the Johnson (and v8) Ligero rows
 python3 lfzk/scripts/inspect_v7_assertions.py     # WellFormedP / Isolated / DeadEnd on the registered v7 circuits
@@ -55,7 +97,8 @@ with the deployed code. This library builds on the Ligero V1 analysis in `formal
 
 | Question | Entry point |
 |---|---|
-| What is the combined soundness claim? | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` in [CompiledZkProfileSepMac.lean](Lfzk/CompiledZkProfileSepMac.lean) |
+| What is the strongest combined claim? | The extraction and false-statement theorems in [FlatV7Headline.lean](Lfzk/FlatV7Headline.lean), checked together with hash2–4 by `Lfzk.FlatV7All` |
+| What is the earlier round-by-round claim? | `CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec_sepMac` in [CompiledZkProfileSepMac.lean](Lfzk/CompiledZkProfileSepMac.lean) |
 | Which premises are still external? | [Assumptions and deployment boundary](#assumptions-and-deployment-boundary) |
 | What does the privacy theorem prove? | [Zero knowledge](#zero-knowledge) |
 
@@ -71,7 +114,7 @@ Pr[ both modeled verifiers accept
     ∧ the supplied MAC-key share is the oracle answer at the two roots
     ∧ no hash-side and signature-side extracted witnesses satisfy their circuits
       and agree on the common value ]
-  ≤ (1 + tA + N) / 2^115.
+  ≤ (1 + tA + N) / 2^116.
 ```
 
 - **T-security.** Writing `T = tA + N`, success is at most `(T + 1)/2^λ`, not a constant `2^-λ`
@@ -86,7 +129,7 @@ Pr[ both modeled verifiers accept
   **own** private MAC witness (`share_k`, `blind_k`), exactly as Rust does. The key point's answer
   is drawn after both commitments, so both candidate lists are fixed before it. Each pair of
   candidates with different messages has at most one bad multiplier, which charges
-  `B_hash·B_sig/2^128 = 4/2^128` at the key slot. The level stays at 115 bits; see
+  `B_hash·B_sig/2^128 = 4/2^128` at the key slot. It fits the 116-bit bound; see
   [Two-field MAC constraints](#two-field-mac-constraints). The original `v7P256Sha*_zk_circuit_tsec`
   remain; they assume a shared blind.
 
@@ -95,13 +138,14 @@ Pr[ both modeled verifiers accept
 | `v7Hash1..4` | GF(2^128) | 3230..3436 / 461..490 / 132 | 115 bits |
 | `v7Sig` (Johnson row) | P-256 base field | 3187 / 455 / 132 | 122 bits |
 | `v7SigHahn` | P-256 base field | 3187 / 455 / 132 | **127 bits** |
-| `v7P256Sha1..4` | both | above | **115 bits** |
+| v7 hash1–4 paired with `v7SigHahn` (flat/graded extraction) | both | above | **116 bits** |
+| `v7P256Sha1..4` (earlier round-by-round theorem) | both | above | 115 bits |
 
 `v7SigHahn` is a new analysis row (`CertifiedV1.v7SigHahn`) with a larger extraction radius. The
 verifier, field, circuit profile and opening count are unchanged. The named `v7P256Sha*`
 corollaries keep the original signature row. Supplying `v7SigHahn` through `CircuitSide.toSide`
 lowers the separate-MAC core from 115.663 to 115.672 bits for one attribute, but the
-hash row still sets `κ` and the integer level stays at 115. With separate private MAC
+hash row still sets `κ` and the **earlier round-by-round** integer level stays at 115. With separate private MAC
 witnesses, the full Hahn-paired constant, including the Merkle and transcript terms at
 zero adversary queries, is at most `(651/1000)·2^-115` for each profile
 (`SoundnessAudit.hahn_twofield_linear_slack`). The generic two-field theorem supplies
@@ -111,6 +155,16 @@ the Hahn signature row is certified to be at most
 (`SoundnessAudit.hahn_twofield_linear_rhs`, for all four hash profiles). This is a
 numerical specialization of the generic extraction theorem; the named `v7P256Sha*`
 corollaries continue to use the Johnson signature row.
+
+The separate 116-bit target replaces the hash-side zero-query Ligero charge by the
+certified flat `2^-125` terminal-pair envelope. For `N > 0`, it uses the
+six-step graded extraction-first compiler and proves that the enlarged-radius
+extraction-failure event is contained in its old-radius failure event. The exact arithmetic
+holds through `tA ≤ 2^116`; beyond that point the T-security right-hand side is
+at least one. Its false-statement corollaries count accepting transcripts whose
+public inputs admit no satisfying hash/signature witness pair with equal common
+values. Both results retain the separate-MAC row premises for every satisfying
+circuit assignment.
 
 ## The verifier and the claim chain
 
@@ -201,7 +255,7 @@ Exponents (`error ≈ 2^-exponent`; these are not additional integer claims):
 | `v7Sig` (Johnson) | 244.661 | 123.012 | 123.012 | 123.012 |
 | **`v7SigHahn`** | 244.661 | **127.489** | **127.489** | **127.489** |
 
-### Why the combined theorem stops at 115 bits
+### Why the earlier round-by-round theorem stops at 115 bits
 
 The hash side sets the two-field level. The signature side (`2^-123`, or `2^-127.5` with the Hahn
 row) and the MAC slot (`2^-128`) change the two-field core by less than 0.01 bit. For `v7Hash1`
@@ -234,16 +288,23 @@ In words:
   once per candidate. A smaller radius (`B = 1`) would make Ligero's query term far worse, about
   `2^-92` at 132 openings.
 - **The per-layer slots cost 0.1 bit,** which leaves 116.75.
-- **Ligero costs about 1.1 bits more.** Its round-by-round term (`2^-116.6`) is about as large as
-  the whole field term, and adding two nearly equal terms costs about one bit. That leaves 115.67.
+- **Ligero costs about 1.1 bits more in this accounting.** Its round-by-round term
+  (`2^-116.6`) is about as large as the whole field term, and adding two nearly equal
+  terms costs about one bit. That leaves 115.67.
 - **T-security rounds down.** It needs `core ≤ 2^-λ` (and `κ ≤ 2^-λ`; here `κ = 2^-117.08`), so
   `λ = 115`.
 
-What would move it:
+The later extraction-first theorem handles the zero-query constant with the flat
+terminal-pair bound and reaches 116 bits. Its positive-query branch uses the
+graded circuit potential; the older calculation remains useful for separating
+the field, Ligero, and MAC costs.
 
-- **116 bits** needs only a smaller Ligero term. With no Ligero term at all, `core` would be the
-  field term `2^-116.75`. Removing only `fail` already gives about `2^-116.25`. This is the target
-  of a graded, per-agreement-level Ligero analysis; see the next section.
+Limits of the older bound:
+
+- **116 bits** requires a smaller zero-query Ligero charge. With no Ligero term at all,
+  `core` would be the field term `2^-116.75`. Removing only `fail` gives about
+  `2^-116.25`. The separate flat/graded theorem supplies the required improvement
+  at zero transcript queries while the graded potential handles positive queries.
 - **117 bits or more** needs the field term below `2^-117`: fewer sumcheck rounds, a single
   candidate, or a larger field. Improving Ligero alone cannot get there
   (`SoundnessAudit.hash_round_charge_exceeds_117`: the list-weighted round charge alone exceeds
@@ -273,22 +334,23 @@ response passes at that `α` (the "response-uniform envelope"). An average is th
 when `α` is drawn once. The local count certificates in `formal/ligero`
 also give separate bounds for escape challenges and accepting column queries.
 
-**Why the current Longfellow compiler does not use it.** In Longfellow, `α` is a hash of the
+**Why the positive-query compiler does not use the flat bound directly.** In Longfellow, `α` is a hash of the
 root *and the whole sumcheck transcript*. A cheating prover can obtain fresh `α` values by
 changing sumcheck messages without re-committing, then concentrate its column-query attempts
 on a favorable one. A flat average over `α` does not itself justify the compiler's **linear**
-query factor. The current linear-query composition instead needs one bound per
+query factor. The earlier round-by-round composition instead needs one bound per
 Ligero round, each charged once per hash query:
 
 1. the probability that `α` escapes a *doom threshold* (`fail + arith`);
 2. for a doomed `α`, the fraction of column queries that pass (`cover`).
 
-**Why it costs bits.** The threshold is a single cut. An `α` above it is charged as a total
+**Why that compiler costs bits.** The threshold is a single cut. An `α` above it is charged as a total
 loss, even though the prover would still have to pass the column test at that `α`. That is the
-gap between `2^-116.6` and `2^-125` on the hash side. A *graded* analysis would recover most of
-it: one that charges each agreement level by its own query pass rate, while still accounting for
-the prover's ability to re-draw `α`. The signature side already reaches flat parity (127 bits)
-through the improvement below.
+gap between `2^-116.6` and `2^-125` on the hash side. The 116-bit theorem uses the
+flat envelope at zero transcript queries, where the commitment fixes a single
+challenge path, and the six-step graded potential at positive query counts. A response-
+counting analysis could sharpen the positive-query coefficient further. The
+signature side already reaches flat parity (127 bits) through the improvement below.
 
 The improvement transfers the *mask certificate* and proves the round-by-round bounds anew:
 
@@ -328,19 +390,21 @@ rate at its agreement level:
   `ft` (`queryCover = max(ft, n−e−1, g+at)`, all equal to 1765 at `v7Hash1`), so lowering `cover`
   raises `fail`.
 
-So more of the existing Ligero analysis cannot be dropped into the hash rows as they are. The hash
-Ligero term improves only through:
+These Hahn list bounds cannot simply replace the Johnson row's per-round list
+term. Further positive-query improvement would require:
 
-- a graded analysis that weights each agreement level by its pass rate, as the flat bound does,
-  while charging the prover's ability to re-draw the combination challenge; or
+- response-counting that charges distinct high-agreement final-query inputs
+  while preserving the prover's ability to re-draw the combination challenge; or
 - a stronger proximity-failure (MCA) bound in `formal/ligero`.
 
-Either can lift the combined level to 116 bits at most; see
-[Why the combined theorem stops at 115 bits](#why-the-combined-theorem-stops-at-115-bits).
+The separate zero-query coupling already lifts the combined integer level to
+116 bits. The field-round charge still prevents 117 bits with this accounting;
+see [the earlier cost breakdown](#why-the-earlier-round-by-round-theorem-stops-at-115-bits).
 
-There is some remaining accounting slack. Only the initial layer needs `(logv+2)/q`; later layer
-pairs need `2/q`, but the uniform pair budget charges the former to every layer. Separating them
-would save `B·(nl−1)·logv/q`, but would not raise the hash rows above 115 integer bits. Even
+There is some remaining accounting slack in the older round-by-round rows. Only the initial layer
+needs `(logv+2)/q`; later layer pairs need `2/q`, but the uniform pair budget charges the former to
+every layer. Separating them would save `B·(nl−1)·logv/q`, but would not raise those rows above
+115 integer bits. Even
 removing the Ligero contribution entirely leaves the list-weighted sumcheck charge above `2^-117`,
 so improved Ligero alone can reach at most 116 integer bits with this accounting
 (`SoundnessAudit.hash_core_exceeds_116`, `hash_round_charge_exceeds_117`). **These are limits of

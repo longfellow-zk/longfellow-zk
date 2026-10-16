@@ -138,11 +138,83 @@ theorem hash2_side2 (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf 
   rw [if_neg (by omega), if_neg (by omega),
     show 1 + Rounds.Role.length nl₁ w₁ + k₂ - 1 - Rounds.Role.length nl₁ w₁ = k₂ by omega]
 
+/-- A sum over the actual deployed verifier hash inputs consists of the
+key point followed by each side's own complete role sequence.  This exact
+identity is used when a graded side path pays a unit across several slots. -/
+theorem sum_hash2 {A : Type} [AddCommMonoid A]
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂)
+    (out : Out) (f : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂ → A) :
+    (∑ i : Fin (1 + Rounds.Role.length nl₁ w₁ + Rounds.Role.length nl₂ w₂),
+      f (hash2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out i.val)) =
+      f (Sum.inl (rootOf₁ out, rootOf₂ out)) +
+      (∑ i : Fin (Rounds.Role.length nl₁ w₁),
+        f (Sum.inr (Sum.inl
+          (msgPoint (ctxOf rootOf₁ rootOf₂ avOf pubOf out) msgOf₁ out i.val)))) +
+      (∑ i : Fin (Rounds.Role.length nl₂ w₂),
+        f (Sum.inr (Sum.inr
+          (msgPoint (ctxOf rootOf₁ rootOf₂ avOf pubOf out,
+            fun j : Fin (Rounds.Role.length nl₁ w₁) => msgOf₁ out j.val)
+              msgOf₂ out i.val)))) := by
+  classical
+  let g : ℕ → A := fun i => f (hash2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out i)
+  change (∑ i : Fin (1 + Rounds.Role.length nl₁ w₁ + Rounds.Role.length nl₂ w₂),
+    g i.val) = _
+  rw [Fin.sum_univ_eq_sum_range g,
+    Finset.sum_range_add, Finset.sum_range_add, Finset.sum_range_one]
+  have g0 : g 0 = f (Sum.inl (rootOf₁ out, rootOf₂ out)) := by
+    exact congrArg f (hash2_zero rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out)
+  rw [g0]
+  congr 1
+  · congr 1
+    rw [← Fin.sum_univ_eq_sum_range]
+    apply Finset.sum_congr rfl
+    intro i hi
+    exact congrArg f (hash2_side1 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out
+      i.isLt)
+  · rw [← Fin.sum_univ_eq_sum_range]
+    apply Finset.sum_congr rfl
+    intro i hi
+    exact congrArg f (hash2_side2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out i)
+
 /-- The round a point is drawn for, on the merged schedule. -/
 def slot2 : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂ → ℕ
   | Sum.inl _ => 0
   | Sum.inr (Sum.inl p) => 1 + p.role.slot
   | Sum.inr (Sum.inr p) => 1 + Rounds.Role.length nl₁ w₁ + p.role.slot
+
+/-- Each deployed verifier hash input records its exact round in its point
+type.  Consequently a transcript cannot count one oracle answer twice at
+two different verifier slots in a graded-potential sum. -/
+theorem slot2_hash2 (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂) (out : Out)
+    (i : Fin (1 + Rounds.Role.length nl₁ w₁ + Rounds.Role.length nl₂ w₂)) :
+    slot2 (nl₁ := nl₁) (nl₂ := nl₂) (w₁ := w₁) (w₂ := w₂)
+      (hash2 (nl₁ := nl₁) (nl₂ := nl₂) (w₁ := w₁) (w₂ := w₂)
+        rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out i.val) = i.val := by
+  unfold hash2
+  split_ifs with h0 h1
+  · simp [slot2, h0]
+  · change 1 + (roleAt (nl := nl₁) (w := w₁) (i.val - 1)).slot = i.val
+    rw [slot_roleAt (by omega)]
+    omega
+  · change 1 + Rounds.Role.length nl₁ w₁ +
+        (roleAt (nl := nl₂) (w := w₂)
+          (i.val - 1 - Rounds.Role.length nl₁ w₁)).slot = i.val
+    rw [slot_roleAt (by omega)]
+    omega
+
+/-- The actual two-field verifier's hash inputs are pairwise distinct. -/
+theorem hash2_injective (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂) (out : Out) :
+    Function.Injective (fun i : Fin (1 + Rounds.Role.length nl₁ w₁ +
+      Rounds.Role.length nl₂ w₂) =>
+        hash2 (nl₁ := nl₁) (nl₂ := nl₂) (w₁ := w₁) (w₂ := w₂)
+          rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out i.val) := by
+  intro i j hij
+  apply Fin.ext
+  have h := congrArg (slot2 (nl₁ := nl₁) (nl₂ := nl₂) (w₁ := w₁) (w₂ := w₂)) hij
+  simpa only [slot2_hash2] using h
 
 /-- A point's ancestors on the merged schedule: the key point, then the earlier rounds of the same
 prefix (for side 2, side 1's rounds come first). -/
@@ -202,6 +274,16 @@ theorem pget_side1 (dflt : C) (ro : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w�
   simp only [anc2]
   rw [if_neg (by omega), show 1 + j.val - 1 = j.val by omega]
 
+/-- The whole side-1 ancestor prefix, not merely one coordinate. -/
+theorem pget_side1_prefix (dflt : C)
+    (ro : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂ → C)
+    (p : MPoint (SideCtx D C X) Msg₁ nl₁ w₁) :
+    (fun j : Fin p.role.slot =>
+      pget dflt (pts2.chal ro (Sum.inr (Sum.inl p))) (1 + j.val)) =
+      mpoints.chal (fun q => ro (Sum.inr (Sum.inl q))) p := by
+  funext j
+  exact pget_side1 dflt ro p j
+
 /-- At a side-2 point, round `j` of side 2 is read at the ancestor `1 + L₁ + j`. -/
 theorem pget_side2 (dflt : C) (ro : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂ → C)
     (p : MPoint (SideCtx D C X × (Fin (Rounds.Role.length nl₁ w₁) → Msg₁)) Msg₂ nl₂ w₂)
@@ -220,6 +302,18 @@ theorem pget_side2 (dflt : C) (ro : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w�
   rw [if_neg (by omega), if_neg (by omega),
     show 1 + Rounds.Role.length nl₁ w₁ + j.val - 1 - Rounds.Role.length nl₁ w₁ = j.val by omega]
 
+/-- The whole side-2 ancestor prefix. -/
+theorem pget_side2_prefix (dflt : C)
+    (ro : Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂ → C)
+    (p : MPoint (SideCtx D C X ×
+      (Fin (Rounds.Role.length nl₁ w₁) → Msg₁)) Msg₂ nl₂ w₂) :
+    (fun j : Fin p.role.slot =>
+      pget dflt (pts2.chal ro (Sum.inr (Sum.inr p)))
+        (1 + Rounds.Role.length nl₁ w₁ + j.val)) =
+      mpoints.chal (fun q => ro (Sum.inr (Sum.inr q))) p := by
+  funext j
+  exact pget_side2 dflt ro p j
+
 /-- **The deployed two-field reading of a re-committing prover.** -/
 noncomputable def setup2 [Nonempty C] {Enc : Type} {tA N : ℕ}
     (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) C Out tA N)
@@ -233,6 +327,18 @@ noncomputable def setup2 [Nonempty C] {Enc : Type} {tA N : ℕ}
   key := key2
   keyOut out := (rootOf₁ out, rootOf₂ out)
   hkey := key2_hash2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
+
+/-- The concrete two-field setup satisfies the injective-schedule premise
+of the graded potential compiler. -/
+theorem setup2_hashInput_injective [Nonempty C] {Enc : Type} {tA N : ℕ}
+    (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) C Out tA N)
+    (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
+    (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂) :
+    ∀ out, Function.Injective (fun i : Fin (1 + Rounds.Role.length nl₁ w₁ +
+      Rounds.Role.length nl₂ w₂) =>
+        (setup2 body rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂).hashInput out i.val) := by
+  intro out
+  exact hash2_injective rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂ out
 
 end Transcript
 

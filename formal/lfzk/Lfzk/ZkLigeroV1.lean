@@ -1,6 +1,8 @@
 import Lfzk.RbrZkSplit
 import Lfzk.Encode
 import Lfzk.CompiledLongfellowAdaptive
+import Ligero.V1.PotentialExtraction
+import Lfzk.ZkPotentialBalance
 
 /-!
 # The zero-knowledge LayerStep's Ligero half, from Ligero V1 at `NoDecodedSolution`
@@ -100,6 +102,156 @@ theorem Row.rbr_soundness_noDecoded {row : Row} (h : row.Valid)
   refine hesc.trans (le_of_eq ?_)
   simp only [hfield]
   rfl
+
+/-- The same committed V1 oracle and lift list supply the full graded
+extraction-first challenge/query estimate for a built Longfellow system.
+The response strategy may depend on the combination challenge. -/
+theorem Row.potential_acceptance_noDecoded {row : Row} (h : row.Valid)
+    {F Equations : Type} [Field F] [Fintype F] [DecidableEq F]
+    [Fintype Equations] [DecidableEq Equations] {w nw nq : ℕ}
+    (hrows : CoreRowsNonempty nw nq)
+    (hfield : Fintype.card F = row.fieldSize)
+    (D : ReedSolomon.Domain F row.openings w row.n)
+    (hkrow : row.openings + w = row.k)
+    (oracle : Ligero.V1.Oracle F nw nq row.n 1)
+    (statement : ConstraintSystem F nw nq w Equations)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    (respond : Ligero.V1.Challenge F nw nq 1 Equations →
+      Response F row.openings w row.n 1)
+    (hnd : NoDecodedSolution (row.code h D hkrow) oracle (row.e + row.g)
+      statement) :
+    ((univ.filter fun p : Ligero.V1.Challenge F nw nq 1 Equations ×
+      QuerySet row.n row.openings =>
+      (SchemeVerifier.policy (Equations := Equations) (nw := nw) (nq := nq)
+        (repetitions := 1) (row.code h D hkrow) Ligero.V1.scheme).accepts
+        statement p.1 (respond p.1) p.2 (openSchemeOracle oracle p.2)).card : ℚ) /
+      (Fintype.card (Ligero.V1.Challenge F nw nq 1 Equations) *
+        Fintype.card (QuerySet row.n row.openings)) ≤
+      (∑ a ∈ range (row.n + 1), ψ.increment a *
+        PolicyDoublyProfiledSoundnessClassifier.gradedTail
+          (row.failureProfileAt (Fintype.card F))
+          (maskAgreementProfile (Fintype.card F) row.n row.listBound
+            row.certificate.maskStart row.certificate.maskBound)
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator
+            (Fintype.card F) row.g)
+          (Fintype.card F) row.e row.g a) +
+      ψ.queryCost (fun a => hypergeometricRatio a row.n row.openings) := by
+  obtain ⟨hk, hmin, ⟨P⟩⟩ := Row.rsFacts h D hkrow
+  have hcond := row.result.lineConditions (Row.parametersValid h) hfield hmin P
+  have mask := Ligero.Examples.Grid.V1Certificate.v1MaskRange row.certificate
+    (Row.kpos h) (Row.response_le h) (Row.maskValid h)
+    (row.code h D hkrow) hk
+  simpa only [Row.failureProfileAt] using
+    (Ligero.V1.scalarGap_profiled_potential_acceptance_of_noDecoded
+      (e := row.e) (g := row.g) (d := row.d)
+      (outerBound := row.certificate.lineBound)
+      (localBound := row.certificate.integratedLocalLineBound)
+      (L := row.listBound)
+      (C := row.code h D hkrow) oracle statement hmin hcond
+      (Row.liftList_card_le h D hkrow oracle) hrows mask ψ respond hnd)
+
+/-- Decode an actual hash answer to the V1 combination challenge.  The
+full agreement-tail expectation is transferred with the decoder's exact
+fiber-balance factor, without selecting a challenge/query threshold. -/
+theorem Row.potential_challenge_hash_charge_le {row : Row} (h : row.Valid)
+    {F Equations HashAnswer : Type} [Field F] [Fintype F] [DecidableEq F]
+    [Fintype Equations] [DecidableEq Equations] [Fintype HashAnswer]
+    {w nw nq : ℕ}
+    (hrows : CoreRowsNonempty nw nq)
+    (hfield : Fintype.card F = row.fieldSize)
+    (D : ReedSolomon.Domain F row.openings w row.n)
+    (hkrow : row.openings + w = row.k)
+    (oracle : Ligero.V1.Oracle F nw nq row.n 1)
+    (statement : ConstraintSystem F nw nq w Equations)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    (decode : HashAnswer → Ligero.V1.Challenge F nw nq 1 Equations)
+    (kchal : ℕ)
+    (hbalance : ∀ challenge,
+      (univ.filter fun c : HashAnswer => decode c = challenge).card ≤ kchal) :
+    let X := policyMaxResponseAgreement
+      (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+        (row.code h D hkrow) oracle) oracle statement
+    (∑ c : HashAnswer, ψ.value (X (decode c))) ≤
+      kchal * Fintype.card (Ligero.V1.Challenge F nw nq 1 Equations) *
+        (∑ a ∈ range (row.n + 1), ψ.increment a *
+          PolicyDoublyProfiledSoundnessClassifier.gradedTail
+            (row.failureProfileAt (Fintype.card F))
+            (maskAgreementProfile (Fintype.card F) row.n row.listBound
+              row.certificate.maskStart row.certificate.maskBound)
+            (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator
+              (Fintype.card F) row.g)
+            (Fintype.card F) row.e row.g a) := by
+  obtain ⟨hk, hmin, ⟨P⟩⟩ := Row.rsFacts h D hkrow
+  have hcond := row.result.lineConditions (Row.parametersValid h) hfield hmin P
+  have mask := Ligero.Examples.Grid.V1Certificate.v1MaskRange row.certificate
+    (Row.kpos h) (Row.response_le h) (Row.maskValid h)
+    (row.code h D hkrow) hk
+  let X := policyMaxResponseAgreement
+    (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+      (row.code h D hkrow) oracle) oracle statement
+  apply ZkPotentialBalance.decoded_mean_le decode (fun c => ψ.value (X c))
+  · intro c
+    exact ψ.nonneg _ (policyMaxResponseAgreement_le
+      (policy := Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+        (row.code h D hkrow) oracle)
+      (oracle := oracle) (statement := statement) c)
+  · exact hbalance
+  · simpa only [X, Row.failureProfileAt] using
+      (Ligero.V1.scalarGap_challenge_potential_le
+        (e := row.e) (g := row.g) (d := row.d)
+        (outerBound := row.certificate.lineBound)
+        (localBound := row.certificate.integratedLocalLineBound)
+        (L := row.listBound)
+        (C := row.code h D hkrow) oracle statement hmin hcond
+        (Row.liftList_card_le h D hkrow oracle) hrows mask ψ)
+
+/-- The residual query charge at a hash point, after a response has been
+chosen from the preceding challenge.  The weight is `1 - ψ(X)` on accepting
+queries and zero otherwise; the decoder balance is applied to that weight,
+not to an agreement cutoff. -/
+theorem Row.potential_query_hash_charge_le {row : Row} (h : row.Valid)
+    {F Equations HashAnswer : Type} [Field F] [Fintype F] [DecidableEq F]
+    [Fintype Equations] [DecidableEq Equations] [Fintype HashAnswer]
+    {w nw nq : ℕ}
+    (D : ReedSolomon.Domain F row.openings w row.n)
+    (hkrow : row.openings + w = row.k)
+    (oracle : Ligero.V1.Oracle F nw nq row.n 1)
+    (statement : ConstraintSystem F nw nq w Equations)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    (challenge : Ligero.V1.Challenge F nw nq 1 Equations)
+    (response : Response F row.openings w row.n 1)
+    (hnd : NoDecodedSolution (row.code h D hkrow) oracle
+      (row.e + row.g) statement)
+    (decode : HashAnswer → LigeroV1LayerStep.Qry row)
+    (kq : ℕ)
+    (hbalance : ∀ query,
+      (univ.filter fun c : HashAnswer => decode c = query).card ≤ kq) :
+    let X := policyMaxResponseAgreement
+      (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+        (row.code h D hkrow) oracle) oracle statement challenge
+    (∑ c : HashAnswer, if decode c ∈
+      acceptingR h D hkrow ⟨statement, oracle⟩ response challenge then
+        (1 - ψ.value X) else 0) ≤
+      kq * Fintype.card (LigeroV1LayerStep.Qry row) *
+        ψ.queryCost (fun a => hypergeometricRatio a row.n row.openings) := by
+  let X := policyMaxResponseAgreement
+    (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+      (row.code h D hkrow) oracle) oracle statement challenge
+  have hX : X ≤ row.n := policyMaxResponseAgreement_le
+    (policy := Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+      (row.code h D hkrow) oracle)
+    (oracle := oracle) (statement := statement) challenge
+  have hrem : 0 ≤ 1 - ψ.value X := sub_nonneg.mpr (ψ.le_one X hX)
+  letI : Nonempty (LigeroV1LayerStep.Qry row) :=
+    QuerySet.nonempty (Row.openings_le h)
+  apply ZkPotentialBalance.decoded_query_charge_le decode
+    (fun query => query ∈ acceptingR h D hkrow ⟨statement, oracle⟩ response challenge)
+    (1 - ψ.value X) hrem kq hbalance
+  simpa only [X, LigeroV1LayerStep.Qry, acceptingR, QuerySet.fintype_card,
+    Finset.mem_filter, Finset.mem_univ, true_and] using
+    (Ligero.V1.scalarGap_query_potential_le_of_noDecoded
+      (e := row.e) (g := row.g) (C := row.code h D hkrow)
+      oracle statement ψ challenge response hnd)
 
 /-! ## 2. The lift list and its members' assignments -/
 
@@ -262,6 +414,109 @@ noncomputable def accZ (h : row.Valid) (D : ReedSolomon.Domain F row.openings qw
     (_m : ℕ) (_pref : Fin _m → C) (msg : Msg) (sys : LigeroSystem ninp M F)
     (x : Chal F nw nq nlin nt) : Finset (LigeroV1LayerStep.Qry row) :=
   acceptingR h D hkrow ⟨stmtOf pl nlin sys, O⟩ (respOf msg) x
+
+/-- Full graded V1 extraction bound at the actual system produced by
+Longfellow's field rounds.  `NoSat` is the sumcheck boundary invariant; the
+encoded Ligero statement need not be assumed false independently. -/
+theorem potential_acceptance_built_noSat
+    (V : RbrZkLongfellow.ZkCode C F (Chal F nw nq nlin nt)
+      (LigeroV1LayerStep.Qry row) Msg Gpt M ninp logw logc)
+    (hnlin : V.nlin = nlin) (hnt : V.nt = nt)
+    (pl : Encode.Placement ninp M qw nw nq nt)
+    (h : row.Valid) (hrows : CoreRowsNonempty nw nq)
+    (hfield : Fintype.card F = row.fieldSize)
+    (D : ReedSolomon.Domain F row.openings qw row.n)
+    (hkrow : row.openings + qw = row.k)
+    (O : Ligero.V1.Oracle F nw nq row.n 1)
+    (sys : LigeroSystem ninp M F) (hf : Fits V sys)
+    (hn : NoSat (asgOf pl (h := h) (D := D) (hkrow := hkrow) (O := O)) sys)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    (respond : Chal F nw nq nlin nt → Response F row.openings qw row.n 1) :
+    ((univ.filter fun p : Chal F nw nq nlin nt × LigeroV1LayerStep.Qry row =>
+      p.2 ∈ acceptingR h D hkrow ⟨stmtOf pl nlin sys, O⟩
+        (respond p.1) p.1).card : ℚ) /
+      (Fintype.card (Chal F nw nq nlin nt) *
+        Fintype.card (LigeroV1LayerStep.Qry row)) ≤
+      (∑ a ∈ range (row.n + 1), ψ.increment a *
+        PolicyDoublyProfiledSoundnessClassifier.gradedTail
+          (row.failureProfileAt (Fintype.card F))
+          (maskAgreementProfile (Fintype.card F) row.n row.listBound
+            row.certificate.maskStart row.certificate.maskBound)
+          (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator
+            (Fintype.card F) row.g)
+          (Fintype.card F) row.e row.g a) +
+      ψ.queryCost (fun a => hypergeometricRatio a row.n row.openings) := by
+  have hnd := noDecoded_of_noSat pl nlin h D hkrow O sys
+    (hnlin ▸ hf.1) (hnt ▸ hf.2) hn
+  have h := Row.potential_acceptance_noDecoded h hrows hfield D hkrow O
+    (stmtOf pl nlin sys) ψ respond hnd
+  simpa only [Chal, LigeroV1LayerStep.Qry, acceptingR,
+    Finset.mem_filter, Finset.mem_univ, true_and] using h
+
+/-- The graded challenge hash charge at a built system.  Its oracle
+and system are fixed by the commitment context and the preceding field
+messages, and its answer is decoded to the V1 combination challenge. -/
+theorem potential_challenge_hash_charge_built
+    (pl : Encode.Placement ninp M qw nw nq nt)
+    (h : row.Valid) (hrows : CoreRowsNonempty nw nq)
+    (hfield : Fintype.card F = row.fieldSize)
+    (D : ReedSolomon.Domain F row.openings qw row.n)
+    (hkrow : row.openings + qw = row.k)
+    (O : Ligero.V1.Oracle F nw nq row.n 1)
+    (sys : LigeroSystem ninp M F)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    {HashAnswer : Type} [Fintype HashAnswer]
+    (decode : HashAnswer → Chal F nw nq nlin nt) (kchal : ℕ)
+    (hbalance : ∀ challenge,
+      (univ.filter fun c : HashAnswer => decode c = challenge).card ≤ kchal) :
+    let X := policyMaxResponseAgreement
+      (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+        (row.code h D hkrow) O) O (stmtOf pl nlin sys)
+    (∑ c : HashAnswer, ψ.value (X (decode c))) ≤
+      kchal * Fintype.card (Chal F nw nq nlin nt) *
+        (∑ a ∈ range (row.n + 1), ψ.increment a *
+          PolicyDoublyProfiledSoundnessClassifier.gradedTail
+            (row.failureProfileAt (Fintype.card F))
+            (maskAgreementProfile (Fintype.card F) row.n row.listBound
+              row.certificate.maskStart row.certificate.maskBound)
+            (SchemeSelectedMCA.selectedMCAOptimizedFailureDenominator
+              (Fintype.card F) row.g)
+            (Fintype.card F) row.e row.g a) := by
+  exact Row.potential_challenge_hash_charge_le h hrows hfield D hkrow O
+    (stmtOf pl nlin sys) ψ decode kchal hbalance
+
+/-- The residual query hash charge at the same built system and a fixed
+preceding combination challenge and response. -/
+theorem potential_query_hash_charge_built_noSat
+    (V : RbrZkLongfellow.ZkCode C F (Chal F nw nq nlin nt)
+      (LigeroV1LayerStep.Qry row) Msg Gpt M ninp logw logc)
+    (hnlin : V.nlin = nlin) (hnt : V.nt = nt)
+    (pl : Encode.Placement ninp M qw nw nq nt)
+    (h : row.Valid)
+    (D : ReedSolomon.Domain F row.openings qw row.n)
+    (hkrow : row.openings + qw = row.k)
+    (O : Ligero.V1.Oracle F nw nq row.n 1)
+    (sys : LigeroSystem ninp M F) (hf : Fits V sys)
+    (hn : NoSat (asgOf pl (h := h) (D := D) (hkrow := hkrow) (O := O)) sys)
+    (ψ : LigeroFamily.PotentialProfile.Curve row.n)
+    (challenge : Chal F nw nq nlin nt)
+    (response : Response F row.openings qw row.n 1)
+    {HashAnswer : Type} [Fintype HashAnswer]
+    (decode : HashAnswer → LigeroV1LayerStep.Qry row) (kq : ℕ)
+    (hbalance : ∀ query,
+      (univ.filter fun c : HashAnswer => decode c = query).card ≤ kq) :
+    let X := policyMaxResponseAgreement
+      (Ligero.V1.potentialFailedPolicy (e := row.e) (g := row.g)
+        (row.code h D hkrow) O) O (stmtOf pl nlin sys) challenge
+    (∑ c : HashAnswer, if decode c ∈
+      acceptingR h D hkrow ⟨stmtOf pl nlin sys, O⟩ response challenge then
+        (1 - ψ.value X) else 0) ≤
+      kq * Fintype.card (LigeroV1LayerStep.Qry row) *
+        ψ.queryCost (fun a => hypergeometricRatio a row.n row.openings) := by
+  have hnd := noDecoded_of_noSat pl nlin h D hkrow O sys
+    (hnlin ▸ hf.1) (hnt ▸ hf.2) hn
+  exact Row.potential_query_hash_charge_le h D hkrow O (stmtOf pl nlin sys)
+    ψ challenge response hnd decode kq hbalance
 
 /--
 **The zero-knowledge LayerStep's Ligero half, from Ligero V1.**

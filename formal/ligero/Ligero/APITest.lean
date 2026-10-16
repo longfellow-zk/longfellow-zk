@@ -61,6 +61,12 @@ example : CodingTheory.HahnDelsarte.certifiedBound 6 2 [6, 1] = 3 := by decide +
 #guard_msgs (drop info) in #check Ligero.V3.scalarGap_profiled_extraction_failure
 /-- info: 'Ligero.V3.scalarGap_profiled_extraction_failure' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Ligero.V3.scalarGap_profiled_extraction_failure
+#guard_msgs (drop info) in #check Ligero.V1.scalarGap_profiled_potential_extraction_failure_le
+/-- info: 'Ligero.V1.scalarGap_profiled_potential_extraction_failure_le' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound] -/
+#guard_msgs in #print axioms Ligero.V1.scalarGap_profiled_potential_extraction_failure_le
+#guard_msgs (drop info) in #check Ligero.V1.scalarGap_profiled_potential_acceptance_of_noDecoded
 #guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.response_fraction_le_profiledUniformEnvelope
 #guard_msgs (drop info) in #check LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies
 /-- info: 'LigeroFamily.ScalarGapExtraction.profiledUniformEnvelope_mean_of_strategies' depends on axioms: [propext,

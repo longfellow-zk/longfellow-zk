@@ -1,5 +1,6 @@
 import LigeroFamily.Soundness.PolicySelectedMCA
 import LigeroFamily.Soundness.PolicyProfiledMaster
+import LigeroFamily.Soundness.PotentialPairs
 
 /-!
 # Scalar, response-assisted IOP extraction
@@ -409,11 +410,10 @@ theorem extraction_failure [Nonempty Challenge]
         Fintype.card (Challenge × QuerySet n r) ≤
       hypergeometricRatio baseline n r + (1 - hypergeometricRatio baseline n r) * error := by
   classical
+  letI : Nonempty (QuerySet n r) := QuerySet.nonempty C.query_le_length
   let fiber := fun challenge => univ.filter fun query : QuerySet n r =>
     policy.accepts statement challenge (respond challenge) query (openSchemeOracle oracle query) ∧
       extract policy messages statement challenge (respond challenge) = none
-  have hc : (0 : ℚ) < Fintype.card Challenge := by exact_mod_cast Fintype.card_pos
-  have hN : (0 : ℚ) < n.choose r := by exact_mod_cast Nat.choose_pos C.query_le_length
   have hf : ∀ challenge, ((fiber challenge).card : ℚ) / n.choose r ≤ cert.envelope challenge := by
     intro challenge
     by_cases hext : extract policy messages statement challenge (respond challenge) = none
@@ -423,20 +423,16 @@ theorem extraction_failure [Nonempty Challenge]
       exact cert.response_fraction_le_envelope hbase challenge (respond challenge) hext
     · have heq : fiber challenge = ∅ := by ext query; simp [fiber, hext]
       simpa [heq] using cert.envelope_nonneg hbase challenge
-  have hsum := sum_le_sum (fun challenge (_ : challenge ∈ (univ : Finset Challenge)) => hf challenge)
-  have hcount := Internal.card_filter_product_eq_sum (First := Challenge) (Second := QuerySet n r)
-    (fun challenge query => policy.accepts statement challenge (respond challenge) query
-      (openSchemeOracle oracle query) ∧ extract policy messages statement challenge (respond challenge) = none)
-  rw [hcount, Fintype.card_prod, QuerySet.fintype_card, Nat.cast_mul, Nat.cast_sum]
-  have heq : (∑ challenge : Challenge, ((fiber challenge).card : ℚ)) /
-      ((Fintype.card Challenge : ℚ) * n.choose r) =
-      (∑ challenge : Challenge, ((fiber challenge).card : ℚ) / n.choose r) / Fintype.card Challenge := by
-    simp only [div_eq_mul_inv, ← sum_mul]
-    ring
-  change (∑ challenge : Challenge, ((fiber challenge).card : ℚ)) /
-    ((Fintype.card Challenge : ℚ) * n.choose r) ≤ _
-  rw [heq]
-  exact (div_le_div_of_nonneg_right hsum hc.le).trans (cert.envelope_mean hbase)
+  have hflat := PotentialProfile.pair_ratio_le_flat
+    (fun challenge query =>
+      policy.accepts statement challenge (respond challenge) query
+        (openSchemeOracle oracle query) ∧
+      extract policy messages statement challenge (respond challenge) = none)
+    cert.envelope (by
+      intro challenge
+      simpa only [QuerySet.fintype_card, fiber] using hf challenge)
+  simpa only [Fintype.card_prod, Nat.cast_mul] using
+    hflat.trans (cert.envelope_mean hbase)
 
 /-- The local extraction bound on the concrete public-coin IOP execution. -/
 theorem iop_extraction_failure [Nonempty Challenge]

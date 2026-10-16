@@ -353,6 +353,97 @@ theorem acceptingQueries_card_le
           (card_queriesWithin_le arithmetic.allowed arithmetic.allowed_card)
         exact hwithin.trans (Nat.choose_le_choose r (le_max_right _ _))
 
+/-! Agreement bands retain both pieces of information needed by a graded
+Fiat–Shamir count: the number of challenges in a band and the maximum number
+of queries accepted at any challenge in that band.  In particular, the tail
+bound is evaluated at the lower endpoint and the cover at the upper endpoint.
+The upper tail bound alone cannot be subtracted at adjacent endpoints to
+obtain a bound for an exact agreement value. -/
+
+noncomputable def failureBand
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) : Finset Challenge := by
+  classical
+  exact Finset.univ.filter fun challenge =>
+    challenge ∈ classifier.failure ∧ lo ≤ classifier.failureAgreement challenge ∧
+      classifier.failureAgreement challenge ≤ hi
+
+noncomputable def arithmeticBand
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) : Finset Challenge := by
+  classical
+  exact Finset.univ.filter fun challenge =>
+    challenge ∉ classifier.failure ∧ lo ≤ classifier.agreement challenge ∧
+      classifier.agreement challenge ≤ hi
+
+omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
+    [DecidableEq CheckedMask] [Nonempty Challenge] in
+theorem failureBand_card_le
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) (hlo : lo ≤ n) :
+    failureDenominator * (classifier.failureBand lo hi).card ≤
+      failureProfile.labelsAtLeast lo * Fintype.card Challenge := by
+  classical
+  have hsub : classifier.failureBand lo hi ⊆
+      AgreementProfile.restrictedTailSet classifier.failure
+        classifier.failureAgreement lo := by
+    intro challenge hmem
+    simp only [failureBand, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+    exact Finset.mem_filter.mpr ⟨hmem.1, hmem.2.1⟩
+  exact (Nat.mul_le_mul_left _ (Finset.card_le_card hsub)).trans
+    (classifier.failureAgreement_density lo hlo)
+
+omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
+    [DecidableEq CheckedMask] [Nonempty Challenge] in
+theorem arithmeticBand_card_le
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) (hlo : lo ≤ n) :
+    profileDenominator * (classifier.arithmeticBand lo hi).card ≤
+      arithmeticProfile.labelsAtLeast lo * Fintype.card Challenge := by
+  classical
+  have hsub : classifier.arithmeticBand lo hi ⊆
+      AgreementProfile.tailSet classifier.agreement lo := by
+    intro challenge hmem
+    simp only [arithmeticBand, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+    exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, hmem.2.1⟩
+  exact (Nat.mul_le_mul_left _ (Finset.card_le_card hsub)).trans
+    (classifier.agreement_density lo hlo)
+
+omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
+    [DecidableEq CheckedMask] [Nonempty Challenge] in
+theorem acceptingQueries_card_le_of_mem_failureBand
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) (challenge : Challenge)
+    (hmem : challenge ∈ classifier.failureBand lo hi) :
+    (classifier.acceptingQueries challenge).card ≤ hi.choose r := by
+  classical
+  simp only [failureBand, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+  have hcover := classifier.acceptingQueries_card_le challenge
+  simp only [hmem.1, ↓reduceIte] at hcover
+  exact hcover.trans (Nat.choose_le_choose r hmem.2.2)
+
+omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
+    [DecidableEq CheckedMask] [Nonempty Challenge] in
+theorem acceptingQueries_card_le_of_mem_arithmeticBand
+    (classifier : PolicyDoublyProfiledSoundnessClassifier policy oracle statement
+      respond failureProfile arithmeticProfile profileDenominator
+        failureDenominator e g) (lo hi : ℕ) (challenge : Challenge)
+    (hmem : challenge ∈ classifier.arithmeticBand lo hi) :
+    (classifier.acceptingQueries challenge).card ≤
+      (max (n - e - 1) (min n (g + hi))).choose r := by
+  classical
+  simp only [arithmeticBand, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+  have hcover := classifier.acceptingQueries_card_le challenge
+  simp only [hmem.1, ↓reduceIte] at hcover
+  exact hcover.trans (Nat.choose_le_choose r
+    (max_le_max_left (n - e - 1)
+      (min_le_min_left n (Nat.add_le_add_left hmem.2.2 g))))
+
 omit [Fintype F] [DecidableEq F] [Fintype Equations] [DecidableEq Equations]
     [DecidableEq CheckedMask] in
 theorem acceptanceRate_le

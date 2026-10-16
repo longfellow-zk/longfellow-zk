@@ -81,6 +81,7 @@ import Lfzk.CompiledLongfellowZkStat
 import Lfzk.NizkDeployedHash
 import Lfzk.NizkDeployedHashAdaptive
 import Lfzk.NizkDeployedHashTwoField
+import Lfzk.ZeroQueryTwoField
 import Lfzk.NizkDeployedHashV7
 -- the list factor charged at the field slots only (no list factor at the two Ligero slots)
 import Lfzk.RbrLayerStepS
@@ -93,12 +94,27 @@ import Lfzk.CompiledV7S
 import Lfzk.ZkMultilinear
 import Lfzk.RbrZkLongfellow
 import Lfzk.RbrZkSplit
+import Lfzk.RbrZkFlat
+import Lfzk.RbrZkFlatTape
+import Lfzk.RbrZkPotentialData
+import Lfzk.RbrZkPotentialPoint
+import Lfzk.RbrZkPotentialPath
+import Lfzk.RbrZkPotentialSide
+import Lfzk.RbrZkFlatSide
+import Lfzk.RbrZkFlatTwoField
+import Lfzk.RbrZkPotentialTwoField
+import Lfzk.RbrZkPotentialFS
+import Lfzk.ZkPotentialBalance
 import Lfzk.ZkLigeroV1
+import Lfzk.FlatV1NoSat
+import Lfzk.FlatV1Tape
 import Lfzk.NizkZk
 import Lfzk.CompiledZk
 import Lfzk.CompiledZkRows
 import Lfzk.NizkZkTwoField
 import Lfzk.CompiledZkTwoField
+import Lfzk.CompiledZkPotential
+import Lfzk.CompiledZkRadius
 import Lfzk.CompiledZkTwoFieldRows
 -- the deployed zero-knowledge verifier with Fiat–Shamir hash inputs as deployed (message prefixes)
 import Lfzk.NizkZkDeployedHash
@@ -122,6 +138,8 @@ import Lfzk.MacSep
 import Lfzk.NizkZkDeployedHashSepMac
 import Lfzk.TwoFieldSepMacRows
 import Lfzk.CompiledZkProfileSepMac
+import Lfzk.CompiledZkPotentialFS
+import Lfzk.CompiledZkPotentialCircuit
 import Lfzk.CompiledLongfellowZkV7Mac
 
 /-!
