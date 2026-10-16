@@ -19,11 +19,13 @@ pub use mdoc_zk_proto::hash::constants;
 #[cfg(feature = "testonly")]
 pub mod evaluate;
 
-pub use allocate::{allocate_derived, allocate_given};
-pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
+pub use allocate::{
+    allocate_derived, allocate_derived_with_pnym, allocate_given, allocate_given_with_pnym,
+};
+pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash, PnymDerived, PnymGiven};
 pub use concrete::{
-    compute_mac_tags, derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven,
-    HashInput, HashMac,
+    compute_mac_tags, derived, given, hash_input_of_parsed_mdoc, pnym_hash_input_of_parsed_mdoc,
+    AttrInput, ConcreteDerived, ConcreteGiven, HashInput, HashMac, PnymInput,
 };
 #[cfg(feature = "testonly")]
 pub use evaluate::{evaluate_derived, evaluate_given};

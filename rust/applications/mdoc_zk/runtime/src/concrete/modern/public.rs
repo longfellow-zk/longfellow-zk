@@ -19,14 +19,16 @@ use runtime_algebra::{
 };
 
 use crate::{
-    attribute::RequestedAttribute, concrete::builder::AssignmentBuilder, config::K_ATTR_LEN_BITS,
+    attribute::{AttributeOp, RequestedAttribute},
+    concrete::builder::AssignmentBuilder,
+    config::K_ATTR_LEN_BITS,
 };
 
 fn push_modern_input_attrs(
     builder: &mut AssignmentBuilder<'_, Gf2_128Field>,
     attrs: &[RequestedAttribute],
 ) {
-    for la in attrs {
+    for la in attrs.iter().filter(|a| a.op != AttributeOp::Pnym) {
         let cbor_id = mdoc_zk_circuits::cbor::encode_cbor_string(&la.id);
         for i in 0..32 {
             builder.push_v8(*cbor_id.get(i).unwrap_or(&0));
@@ -37,6 +39,25 @@ fn push_modern_input_attrs(
             builder.push_v8(*la.cbor_value.get(i).unwrap_or(&0));
         }
         builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_LEN_BITS);
+        builder.push_bits_len(la.op as u64, 2);
+    }
+
+    for la in attrs.iter().filter(|a| a.op == AttributeOp::Pnym) {
+        let cbor_id = mdoc_zk_circuits::cbor::encode_cbor_string(&la.id);
+        for i in 0..32 {
+            builder.push_v8(*cbor_id.get(i).unwrap_or(&0));
+        }
+        builder.push_bits_len(cbor_id.len() as u64, K_ATTR_LEN_BITS);
+
+        for i in 0..34 {
+            builder.push_v8(*la.cbor_value.get(i).unwrap_or(&0));
+        }
+        builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_LEN_BITS);
+
+        for i in 0..80 {
+            builder.push_v8(*la.context.get(i).unwrap_or(&0));
+        }
+        builder.push_bits_len(la.context.len() as u64, 7);
     }
 }
 

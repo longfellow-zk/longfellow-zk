@@ -72,6 +72,32 @@ impl<N> ParsedMdoc<N> {
     }
 }
 
+pub fn pnym_seed_of(attr: &ParsedAttr) -> Result<[u8; 32], MdocParseError> {
+    if attr.cbor_value.len() != 34 || attr.cbor_value.get(..2) != Some(&[0x58, 0x20]) {
+        return Err(MdocParseError::InvalidValue("pnym_seed must be bstr(32)"));
+    }
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&attr.cbor_value[2..34]);
+    Ok(seed)
+}
+
+#[must_use]
+pub fn compute_pseudonym(seed: &[u8; 32], context: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(seed);
+    hasher.update(context);
+    hasher.finalize().into()
+}
+
+#[must_use]
+pub fn encode_pnym_cbor_value(digest: &[u8; 32]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(34);
+    out.extend_from_slice(&[0x58, 0x20]);
+    out.extend_from_slice(digest);
+    out
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MdocParseError {
     Cbor {

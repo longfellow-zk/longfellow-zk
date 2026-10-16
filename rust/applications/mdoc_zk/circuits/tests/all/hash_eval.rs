@@ -450,3 +450,79 @@ fn test_check_doc_type_suppression() {
         mdoc3.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
     res_suppressed.unwrap();
 }
+
+#[test]
+fn test_eval_mdoc_hash_date_comparison() {
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(
+        &mdoc_zk_testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3,
+    );
+    let base_hash_input = hash_input_of_parsed_mdoc(&parsed, &[b"birth_date"], now);
+    let mac_input = HashMac {
+        mac_av: 0,
+        mac_ap: [[0, 0]; 3],
+    };
+
+    let make_full_date = |s: &[u8; 10]| -> Vec<u8> {
+        let mut v = vec![0xd9, 0x03, 0xec, 0x6a];
+        v.extend_from_slice(s);
+        v
+    };
+
+    // mdoc birth_date is 1971-09-01
+    for (op, date_str, should_pass) in [
+        (1u8, b"1971-09-01", true),
+        (1u8, b"1971-09-02", true),
+        (1u8, b"2007-09-01", true),
+        (1u8, b"1971-08-31", false),
+        (2u8, b"1971-09-01", true),
+        (2u8, b"1971-08-31", true),
+        (2u8, b"1971-09-02", false),
+    ] {
+        let mut hi = base_hash_input.clone();
+        hi.attrs[0].op = op;
+        hi.attrs[0].expected_cbor_value = make_full_date(date_str);
+
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let given_val = given::<4, _>(hi, mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::new(&l, 1);
+        let res = mdoc.assert_valid_presentation(&wg, &wd);
+        assert_eq!(res.is_ok(), should_pass);
+    }
+}
+
+#[test]
+fn test_eval_mdoc_hash_pnym() {
+    use mdoc_zk_circuits::hash::pnym_hash_input_of_parsed_mdoc;
+
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::PNYM_SEED_MDOC);
+
+    let context = b"relying-party.example/ctx";
+    let hi = pnym_hash_input_of_parsed_mdoc(&parsed, context, now);
+    let pnym_cbor = &hi.pnym.as_ref().unwrap().expected_cbor_value;
+    assert_eq!(pnym_cbor.len(), 34);
+    assert_eq!(&pnym_cbor[0..2], &[0x58, 0x20]);
+
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00u128,
+        mac_ap: [[0xabcdef, 0x123456]; 3],
+    };
+    let given_val = given::<4, _>(hi, mac_input);
+    let derived_val = derived::<4, _>(&given_val);
+
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg = evaluate_given(&l, &bv, &given_val);
+    let wd = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc = MdocHash::with_pnym(&l, 0, true);
+    mdoc.assert_valid_presentation_and_macs(&wg, &wd).unwrap();
+}
+

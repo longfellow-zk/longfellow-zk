@@ -52,6 +52,12 @@ pub enum MdocProverErrorCode {
     VersionNotSupported = 34,
     AttributeRandomMissing = 35,
     UnsupportedAttribute = 36,
+    UnsupportedComparison = 37,
+    PredicateNotSatisfied = 38,
+    PnymSeedMissing = 39,
+    PnymSeedMalformed = 40,
+    PnymContextMissing = 41,
+    InvalidRequest = 42,
 }
 
 // Return codes for the run_mdoc_verifier method.
@@ -69,4 +75,6 @@ pub enum MdocVerifierErrorCode {
     AttributeNumberMismatch = 9,
     InvalidZkSpecVersion = 10,
     UnsupportedAttribute = 11,
+    UnsupportedComparison = 12,
+    InvalidRequest = 13,
 }

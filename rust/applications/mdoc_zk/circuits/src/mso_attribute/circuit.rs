@@ -14,13 +14,15 @@
 
 use circuits_analog_adder::FieldWrappingSum;
 use circuits_bitvec::{Bitvec, BitvecLogic, V256, V8};
-use circuits_boolean::Boolean;
+use circuits_boolean::{Bitw, Boolean};
+use circuits_memcmp::Memcmp;
 use circuits_routing::Routing;
 use compile_logic::{Logic, LogicIO};
 
 use super::constants::{
-    K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX,
-    K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
+    K_ATTR_INDEX_BITS, K_ATTR_NBLOCKS_BITS, K_ATTR_PREIMAGE_LEN, K_DIGEST_ID,
+    K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN,
+    K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS, K_RANDOM_ID,
 };
 use crate::cbor_decoder::CborByteDecoder;
 
@@ -28,12 +30,13 @@ pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;
 
 pub type AttrSlice<L, const N: usize> = circuits_bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;
 
-/// Represents a disclosed attribute name, its value, and
+/// Represents a disclosed attribute name, its value, comparison operator, and
 /// their verified lengths.  These are concrete values, not indices in
 /// the credential.
 pub struct DisclosedAttribute<L: Logic> {
     pub expected_name: AttrSlice<L, 32>,
     pub expected_cbor_value: AttrSlice<L, 64>,
+    pub op: Bitvec<L, K_OP_BITS>,
 }
 
 impl<L: Logic> Clone for DisclosedAttribute<L> {
@@ -41,6 +44,7 @@ impl<L: Logic> Clone for DisclosedAttribute<L> {
         Self {
             expected_name: self.expected_name.clone(),
             expected_cbor_value: self.expected_cbor_value.clone(),
+            op: self.op.clone(),
         }
     }
 }
@@ -103,20 +107,23 @@ pub struct Given<L: compile_logic::Logic> {
 pub type Derived<L> = circuits_sha256msg::Derived<L>;
 
 pub struct AttributeVerifier<'a, L: Logic>
-where L::F: FieldWrappingSum
+where
+    L::F: FieldWrappingSum,
 {
-    logic: &'a L,
-    boolean: Boolean<'a, L>,
+    pub(crate) logic: &'a L,
+    pub(crate) boolean: Boolean<'a, L>,
     pub(crate) bv: BitvecLogic<'a, L>,
     cbor_decoder: CborByteDecoder<'a, L>,
-    routing: Routing<'a, L>,
-    pub(crate) shamsg: circuits_sha256msg::Sha256Msg<'a, L, 2>,
+    pub(crate) routing: Routing<'a, L>,
+    pub(crate) cmp_helper: Memcmp<'a, L>,
+    pub(crate) shamsg: circuits_sha256msg::Sha256Msg<'a, L, K_MAX_ATTR_SHA_BLOCKS>,
 }
 
 impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
 
 impl<'a, L: Logic> AttributeVerifier<'a, L>
-where L::F: FieldWrappingSum
+where
+    L::F: FieldWrappingSum,
 {
     pub fn new(logic: &'a L) -> Self {
         Self {
@@ -125,62 +132,226 @@ where L::F: FieldWrappingSum
             bv: BitvecLogic::new(logic),
             cbor_decoder: CborByteDecoder::new(logic),
             routing: Routing::new(logic),
+            cmp_helper: Memcmp::new(logic),
             shamsg: circuits_sha256msg::Sha256Msg::new(logic),
         }
     }
 
     pub fn assert_attribute(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
+        let [hdr, seg, perm, slot0, slot1, slot2, sha] = self.assert_item_common(
+            &given.attribute_preimage,
+            &given.field_locator,
+            &given.disclosed_attribute.expected_name,
+            &given.expected_digest,
+            derived,
+        );
+        let slot3 = self.assert_item_slot_value_relation(
+            &given.field_locator,
+            &given.attribute_preimage.data,
+            &given.disclosed_attribute.expected_cbor_value,
+            &given.disclosed_attribute.op,
+        );
         self.logic.assert_all(
             "assert_attribute",
-            &[
-                self.assert_preimage_header(&given.attribute_preimage),
-                self.assert_segments(&given.field_locator, &given.attribute_preimage.len),
-                self.assert_permutation(&given.field_locator.permutation),
-                self.assert_item_slot_key_only(
-                    0,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    &K_DIGEST_ID,
-                    true,
-                ),
-                self.assert_item_slot_key_only(
-                    1,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    &K_RANDOM_ID,
-                    false,
-                ),
-                self.assert_item_slot_key_value(
-                    2,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    K_ELEMENT_IDENTIFIER_PREFIX.len() + 1 + 32,
-                    &K_ELEMENT_IDENTIFIER_PREFIX,
-                    &given.disclosed_attribute.expected_name,
-                ),
-                self.assert_item_slot_key_value(
-                    3,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    K_ELEMENT_VALUE_PREFIX.len() + 1 + 64,
-                    &K_ELEMENT_VALUE_PREFIX,
-                    &given.disclosed_attribute.expected_cbor_value,
-                ),
-                self.assert_sha_digest(given, derived),
+            &[hdr, seg, perm, slot0, slot1, slot2, slot3, sha],
+        )
+    }
+
+    pub(crate) fn assert_item_common(
+        &self,
+        attribute_preimage: &AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
+        field_locator: &FieldLocator<L>,
+        expected_name: &AttrSlice<L, 32>,
+        expected_digest: &V256<L>,
+        derived: &Derived<L>,
+    ) -> [L::Assertions; 7] {
+        [
+            self.assert_preimage_header(attribute_preimage),
+            self.assert_segments(field_locator, &attribute_preimage.len),
+            self.assert_permutation(&field_locator.permutation),
+            self.assert_item_slot_key_only(
+                0,
+                field_locator,
+                &attribute_preimage.data,
+                &K_DIGEST_ID,
+                true,
+            ),
+            self.assert_item_slot_key_only(
+                1,
+                field_locator,
+                &attribute_preimage.data,
+                &K_RANDOM_ID,
+                false,
+            ),
+            self.assert_item_slot_key_value(
+                2,
+                field_locator,
+                &attribute_preimage.data,
+                K_ELEMENT_IDENTIFIER_PREFIX.len() + 1 + 32,
+                &K_ELEMENT_IDENTIFIER_PREFIX,
+                expected_name,
+            ),
+            self.assert_sha_digest_preimage(attribute_preimage, expected_digest, derived),
+        ]
+    }
+
+    pub(crate) fn element_value_window(
+        &self,
+        field_locator: &FieldLocator<L>,
+        attribute_preimage: &[V8<L>],
+        expected_val_len: &AttrIndex<L>,
+    ) -> ([V8<L>; 64], [L::Assertions; 4]) {
+        let slice = self.slot_offset_and_len(3, field_locator);
+        let got = self.routing.shift_bitvec(
+            3,
+            &slice.offset,
+            K_MAX_ATTR_CBOR_LEN,
+            attribute_preimage,
+            &self.bv.zero::<8>(),
+        );
+        let prefix_len = self
+            .bv
+            .of_u64::<K_ATTR_INDEX_BITS>(K_ELEMENT_VALUE_PREFIX.len() as u64);
+        let (expected_slice_len, overflow_assertion) =
+            self.bv.checked_add(&prefix_len, expected_val_len);
+        let key_prefix_assertion = self.assert_bytes_at(
+            K_ELEMENT_VALUE_PREFIX.len(),
+            &got[0..K_ELEMENT_VALUE_PREFIX.len()],
+            &K_ELEMENT_VALUE_PREFIX,
+        );
+        let len_eq_assertion = self.assert_len_eq(&slice.len, &expected_slice_len);
+        let max_val_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(64);
+        let len_le_max = self.bv.leq(expected_val_len, &max_val_len);
+        let len_bound_assertion = self.boolean.assert_true("val_len_le_64", &len_le_max);
+
+        let got_value: [V8<L>; 64] =
+            std::array::from_fn(|j| got[K_ELEMENT_VALUE_PREFIX.len() + j].clone());
+        (
+            got_value,
+            [
+                overflow_assertion,
+                key_prefix_assertion,
+                len_eq_assertion,
+                len_bound_assertion,
             ],
         )
     }
 
-    fn assert_sha_digest(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
+    fn assert_item_slot_value_relation(
+        &self,
+        field_locator: &FieldLocator<L>,
+        attribute_preimage: &[V8<L>],
+        expected: &AttrSlice<L, 64>,
+        op: &Bitvec<L, K_OP_BITS>,
+    ) -> L::Assertions {
+        let (
+            got_value,
+            [overflow_assertion, key_prefix_assertion, len_eq_assertion, len_bound_assertion],
+        ) = self.element_value_window(field_locator, attribute_preimage, &expected.len);
+
+        let zero_v8 = self.bv.zero::<8>();
+        let mut a: Vec<V8<L>> = Vec::with_capacity(64);
+        let mut b: Vec<V8<L>> = Vec::with_capacity(64);
+        for j in 0..64 {
+            let j_wire = self.bv.of_u64::<K_ATTR_INDEX_BITS>(j as u64);
+            let in_bounds = self.bv.lt(&j_wire, &expected.len);
+            a.push(self.bv.select(&in_bounds, &got_value[j], &zero_v8));
+            b.push(self.bv.select(&in_bounds, &expected.data[j], &zero_v8));
+        }
+
+        let bit0 = op.bit(0);
+        let bit1 = op.bit(1);
+        let is_op3 = self.boolean.andb(bit0, bit1);
+        let op_valid_assertion = self.boolean.assert_false("op_valid", &is_op3);
+
+        let is_cmp = self.boolean.orb(bit0, bit1);
+
+        let mut byte_eqs: Vec<Bitw<L>> = (0..64).map(|j| self.bv.eqb(&a[j], &b[j])).collect();
+        while byte_eqs.len() > 1 {
+            byte_eqs = byte_eqs
+                .chunks(2)
+                .map(|pair| {
+                    if pair.len() == 2 {
+                        self.boolean.tree_andb(&pair[0], &pair[1])
+                    } else {
+                        pair[0].clone()
+                    }
+                })
+                .collect();
+        }
+        let eq_all = byte_eqs.pop().unwrap();
+
+        let mut lhs: Vec<V8<L>> = Vec::with_capacity(22);
+        let mut rhs: Vec<V8<L>> = Vec::with_capacity(22);
+        for j in 0..22 {
+            lhs.push(self.bv.select(bit1, &b[j], &a[j]));
+            rhs.push(self.bv.select(bit1, &a[j], &b[j]));
+        }
+        let cmp_ok = self.cmp_helper.leq(&lhs, &rhs);
+
+        let fulldate_hdr: [u8; 4] = [0xd9, 0x03, 0xec, 0x6a];
+        let tdate_hdr: [u8; 2] = [0xc0, 0x74];
+
+        let mut is_fulldate = self
+            .bv
+            .eqb(&expected.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(14));
+        for (idx, &hdr_byte) in fulldate_hdr.iter().enumerate() {
+            let want_b = self.bv.of_u8(hdr_byte);
+            let a_eq = self.bv.eqb(&a[idx], &want_b);
+            let b_eq = self.bv.eqb(&b[idx], &want_b);
+            is_fulldate = self.boolean.andb(&is_fulldate, &a_eq);
+            is_fulldate = self.boolean.andb(&is_fulldate, &b_eq);
+        }
+
+        let mut is_tdate = self
+            .bv
+            .eqb(&expected.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(22));
+        for (idx, &hdr_byte) in tdate_hdr.iter().enumerate() {
+            let want_b = self.bv.of_u8(hdr_byte);
+            let a_eq = self.bv.eqb(&a[idx], &want_b);
+            let b_eq = self.bv.eqb(&b[idx], &want_b);
+            is_tdate = self.boolean.andb(&is_tdate, &a_eq);
+            is_tdate = self.boolean.andb(&is_tdate, &b_eq);
+        }
+
+        let hdr_ok = self.boolean.orb(&is_fulldate, &is_tdate);
+        let cmp_type_ok = self.boolean.impliesb(&is_cmp, &hdr_ok);
+        let cmp_type_assertion = self.boolean.assert_true("cmp_type_ok", &cmp_type_ok);
+
+        let rel_ok = self.boolean.muxb(&is_cmp, &cmp_ok, &eq_all);
+        let value_rel_assertion = self.boolean.assert_true("value_rel_ok", &rel_ok);
+
+        self.logic.assert_all(
+            "assert_item_slot_key_value",
+            &[
+                overflow_assertion,
+                key_prefix_assertion,
+                len_eq_assertion,
+                len_bound_assertion,
+                op_valid_assertion,
+                cmp_type_assertion,
+                value_rel_assertion,
+            ],
+        )
+    }
+
+    pub(crate) fn assert_sha_digest_preimage(
+        &self,
+        attribute_preimage: &AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
+        expected_digest: &V256<L>,
+        derived: &Derived<L>,
+    ) -> L::Assertions {
         let preimage_len_64 = self
             .bv
-            .zext::<{ K_ATTR_INDEX_BITS }, 64>(&given.attribute_preimage.len);
-        let two_wire = self.bv.of_u64::<2>(2);
+            .zext::<{ K_ATTR_INDEX_BITS }, 64>(&attribute_preimage.len);
+        let nblocks_wire = self
+            .bv
+            .of_u64::<K_ATTR_NBLOCKS_BITS>(K_MAX_ATTR_SHA_BLOCKS as u64);
         let shamsg_given = circuits_sha256msg::circuit::Given {
-            padded_preimage: given.attribute_preimage.data.to_vec(),
-            nblocks: two_wire,
+            padded_preimage: attribute_preimage.data.to_vec(),
+            nblocks: nblocks_wire,
             length_bytes: preimage_len_64,
-            expected_hash: given.expected_digest.clone(),
+            expected_hash: expected_digest.clone(),
         };
         self.shamsg.assert_message_hash(&shamsg_given, derived)
     }
@@ -217,7 +388,7 @@ where L::F: FieldWrappingSum
         )
     }
 
-    fn assert_bytes_at(&self, len: usize, buf: &[V8<L>], want: &[u8]) -> L::Assertions {
+    pub(crate) fn assert_bytes_at(&self, len: usize, buf: &[V8<L>], want: &[u8]) -> L::Assertions {
         self.logic.assert_mapi("assert_bytes_at", 0..len, |i| {
             self.bv
                 .assert_eq("bytes_at", &buf[i], &self.bv.of_u8(want[i]))

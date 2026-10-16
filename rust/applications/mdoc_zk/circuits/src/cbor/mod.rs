@@ -20,4 +20,5 @@ pub mod parse;
 pub use cbor_encode::{
     append_bytes_len, append_text_len, encode_cbor_string, encode_cbor_string_into,
 };
+pub use mdoc::{compute_pseudonym, encode_pnym_cbor_value, pnym_seed_of};
 pub mod test_utils;

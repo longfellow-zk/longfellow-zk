@@ -20,7 +20,10 @@ use runtime_algebra::{
 use runtime_random::{RandomEngine, Transcript};
 use runtime_zk::ZkProver;
 
-use crate::{attribute::RequestedAttribute, MdocProverErrorCode, ZkSpecStruct};
+use crate::{
+    attribute::{AttributeOp, RequestedAttribute},
+    MdocProverErrorCode, ZkSpecStruct,
+};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_mdoc_prover(
@@ -50,6 +53,33 @@ pub fn run_mdoc_prover(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn run_mdoc_prover_ext(
+    zk_spec: &ZkSpecStruct,
+    circuits_compressed: &[u8],
+    mdoc_bytes: &[u8],
+    pkx: &str,
+    pky: &str,
+    transcript: &[u8],
+    attrs: &[RequestedAttribute],
+    now: &str,
+    doc_type: &str,
+) -> Result<(Vec<u8>, Vec<RequestedAttribute>), MdocProverErrorCode> {
+    let mut rng = runtime_random::SecureRandomEngine::new();
+    run_mdoc_prover_inner_ext(
+        zk_spec,
+        circuits_compressed,
+        mdoc_bytes,
+        pkx,
+        pky,
+        transcript,
+        attrs,
+        now,
+        doc_type,
+        &mut rng,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     zk_spec: &ZkSpecStruct,
     circuits_compressed: &[u8],
@@ -62,18 +92,123 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     doc_type: &str,
     rng: &mut RNG,
 ) -> Result<Vec<u8>, MdocProverErrorCode> {
+    run_mdoc_prover_inner_ext(
+        zk_spec,
+        circuits_compressed,
+        mdoc_bytes,
+        pkx,
+        pky,
+        transcript,
+        attrs,
+        now,
+        doc_type,
+        rng,
+    )
+    .map(|(proof, _)| proof)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
+    zk_spec: &ZkSpecStruct,
+    circuits_compressed: &[u8],
+    mdoc_bytes: &[u8],
+    pkx: &str,
+    pky: &str,
+    transcript: &[u8],
+    attrs: &[RequestedAttribute],
+    now: &str,
+    doc_type: &str,
+    rng: &mut RNG,
+) -> Result<(Vec<u8>, Vec<RequestedAttribute>), MdocProverErrorCode> {
     let version = zk_spec.version;
     let (config_hash, config_sig) = crate::ligero_configs(zk_spec);
     if !crate::is_supported_version(version) {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
-    if !crate::same_namespace(attrs) {
+    if !crate::utils::is_iso_datetime_utc(now.as_bytes())
+        || doc_type.is_empty()
+        || doc_type.len() > 32
+    {
+        return Err(MdocProverErrorCode::InvalidInput);
+    }
+    if !crate::same_namespace(attrs) || attrs.iter().any(|a| a.namespace_id.is_empty()) {
         return Err(MdocProverErrorCode::NamespacesMissing);
     }
-    if version >= 8 {
+    let max_attr_len = mdoc_zk_proto::mso_attribute::constants::max_attr_cbor_len(
+        mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+    );
+    if version < 8 {
+        if zk_spec.pnym {
+            return Err(MdocProverErrorCode::InvalidZkSpecVersion);
+        }
+        if attrs.len() != zk_spec.num_attributes || zk_spec.num_attributes == 0 {
+            return Err(MdocProverErrorCode::InvalidRequest);
+        }
         for a in attrs {
-            if !crate::circuit_supports(&a.cbor_value) {
-                return Err(MdocProverErrorCode::UnsupportedAttribute);
+            if a.op == AttributeOp::Pnym || !a.context.is_empty() || a.id.is_empty() {
+                return Err(MdocProverErrorCode::InvalidRequest);
+            }
+            if a.op != AttributeOp::Eq {
+                return Err(MdocProverErrorCode::UnsupportedComparison);
+            }
+            if !crate::attr_encoding_fits(
+                &a.id,
+                &a.cbor_value,
+                mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+            ) {
+                return Err(MdocProverErrorCode::AttributeTooLong);
+            }
+        }
+    } else {
+        let num_pnym = attrs.iter().filter(|a| a.op == AttributeOp::Pnym).count();
+        let num_reg = attrs.len() - num_pnym;
+        if zk_spec.pnym {
+            if zk_spec.num_attributes != 0 {
+                return Err(MdocProverErrorCode::InvalidZkSpecVersion);
+            }
+            if num_pnym != 1 || num_reg != 0 {
+                return Err(MdocProverErrorCode::InvalidRequest);
+            }
+            let a = &attrs[0];
+            if a.id != b"pnym_seed" {
+                return Err(MdocProverErrorCode::InvalidRequest);
+            }
+            if a.context.is_empty()
+                || a.context.len() > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
+            {
+                return Err(MdocProverErrorCode::PnymContextMissing);
+            }
+        } else {
+            if num_pnym > 0 {
+                return Err(MdocProverErrorCode::InvalidRequest);
+            }
+            let valid_count = match zk_spec.num_attributes {
+                1 => num_reg == 1,
+                4 => (2..=4).contains(&num_reg),
+                n => num_reg == n && num_reg > 0,
+            };
+            if !valid_count {
+                return Err(MdocProverErrorCode::InvalidRequest);
+            }
+            for a in attrs {
+                if !a.context.is_empty() || a.id.is_empty() {
+                    return Err(MdocProverErrorCode::InvalidRequest);
+                }
+                if !crate::circuit_supports(&a.cbor_value) {
+                    return Err(MdocProverErrorCode::UnsupportedAttribute);
+                }
+                if matches!(a.op, AttributeOp::Le | AttributeOp::Ge)
+                    && !crate::circuit_supports_comparison(&a.cbor_value)
+                {
+                    return Err(MdocProverErrorCode::UnsupportedComparison);
+                }
+                if !crate::attr_encoding_fits(
+                    &a.id,
+                    &a.cbor_value,
+                    mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+                ) {
+                    return Err(MdocProverErrorCode::AttributeTooLong);
+                }
             }
         }
     }
@@ -109,13 +244,73 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             _ => MdocProverErrorCode::MsoDecodingFailure,
         })?;
 
-    for req_attr in attrs {
-        if parsed.get_attribute(&req_attr.id).is_none() {
-            return Err(MdocProverErrorCode::AttributeNotFound);
+    let mut resolved_attrs = attrs.to_vec();
+    for ra in &mut resolved_attrs {
+        // Evaluate every requested predicate on the host before doing any proving work: an
+        // unsatisfiable request is a caller error (`PredicateNotSatisfied`), not a proof
+        // failure. The circuit enforces the same relation on the issuer-signed bytes.
+        match ra.op {
+            AttributeOp::Pnym => {
+                let pa = parsed
+                    .get_attribute(b"pnym_seed")
+                    .ok_or(MdocProverErrorCode::PnymSeedMissing)?;
+                if pa.cbor_issuer_signed_item.len() > max_attr_len {
+                    return Err(MdocProverErrorCode::AttributeTooLong);
+                }
+                let seed = mdoc_zk_circuits::cbor::pnym_seed_of(pa)
+                    .map_err(|_| MdocProverErrorCode::PnymSeedMalformed)?;
+                let digest = mdoc_zk_circuits::cbor::compute_pseudonym(&seed, &ra.context);
+                let pnym_cbor = mdoc_zk_circuits::cbor::encode_pnym_cbor_value(&digest);
+                // A verifier may pre-fill the expected pseudonym ("prove you are X").
+                if !ra.cbor_value.is_empty() && ra.cbor_value != pnym_cbor {
+                    return Err(MdocProverErrorCode::PredicateNotSatisfied);
+                }
+                ra.cbor_value = pnym_cbor;
+            }
+            AttributeOp::Eq => {
+                let pa = parsed
+                    .get_attribute(&ra.id)
+                    .ok_or(MdocProverErrorCode::AttributeNotFound)?;
+                if pa.cbor_issuer_signed_item.len() > max_attr_len {
+                    return Err(MdocProverErrorCode::AttributeTooLong);
+                }
+                if pa.cbor_value != ra.cbor_value {
+                    return Err(MdocProverErrorCode::PredicateNotSatisfied);
+                }
+            }
+            AttributeOp::Le | AttributeOp::Ge => {
+                // Only reachable for version >= 8; request validation above rejects these
+                // operators for earlier versions.
+                let pa = parsed
+                    .get_attribute(&ra.id)
+                    .ok_or(MdocProverErrorCode::AttributeNotFound)?;
+                if pa.cbor_issuer_signed_item.len() > max_attr_len {
+                    return Err(MdocProverErrorCode::AttributeTooLong);
+                }
+                if !crate::circuit_supports_comparison(&pa.cbor_value)
+                    || pa.cbor_value.len() != ra.cbor_value.len()
+                {
+                    return Err(MdocProverErrorCode::UnsupportedComparison);
+                }
+                let satisfied = if ra.op == AttributeOp::Le {
+                    pa.cbor_value <= ra.cbor_value
+                } else {
+                    pa.cbor_value >= ra.cbor_value
+                };
+                if !satisfied {
+                    return Err(MdocProverErrorCode::PredicateNotSatisfied);
+                }
+            }
         }
     }
 
-    let witness_hash = crate::push_witness_hash(version, &gf2, attrs, &parsed, &mac_ap)?;
+    let circuit_attrs = if version >= 8 && !zk_spec.pnym {
+        crate::utils::pad_request_attrs(&resolved_attrs, zk_spec.num_attributes)
+    } else {
+        resolved_attrs.clone()
+    };
+
+    let witness_hash = crate::push_witness_hash(version, &gf2, &circuit_attrs, &parsed, &mac_ap)?;
     let witness_sig = crate::push_witness_sig(
         version, &p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap,
     )?;
@@ -159,7 +354,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let hash_pub_inputs = crate::push_input_hash(
         version,
         &gf2,
-        attrs,
+        &circuit_attrs,
         now.as_bytes(),
         &macs,
         av_val,
@@ -222,5 +417,5 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             eprintln!("proof.write failed: {e}");
             MdocProverErrorCode::GeneralFailure
         })?;
-    Ok(out)
+    Ok((out, resolved_attrs))
 }

@@ -14,10 +14,14 @@
 
 use circuits_bitvec::{BitvecLogic, V8};
 use compile_algebra::gf2_128::Gf2_128Field;
-use compile_logic::eval::EvalLogic;
+use compile_logic::{
+    eval::{EvalAssertions, EvalLogic},
+    tracker::AssertionTracker,
+};
 use mdoc_zk_circuits::mso_attribute::{
     circuit::{AttrSlice, AttributeVerifier, DisclosedAttribute, FieldLocator},
     constants::K_ATTR_INDEX_BITS,
+    pnym::{ConcreteDerived as PnymConcreteDerived, ConcreteGiven as PnymConcreteGiven},
 };
 use mso_attribute_corruptors::MsoAttributeMockGiven;
 
@@ -120,6 +124,7 @@ where
         disclosed_name_len: 12,
         disclosed_value: vec![0xf5],
         disclosed_value_len: 1,
+        op: 0,
         preimage_len: 100,
     };
 
@@ -157,6 +162,7 @@ where
             data: oa_v1,
             len: bv.of_u64::<K_ATTR_INDEX_BITS>(mock.disclosed_value_len),
         },
+        op: bv.of_u64::<2>(mock.op),
     };
 
     let field_locator = FieldLocator {
@@ -235,5 +241,462 @@ fn test_eval_mso_attribute_shared_corruptors() {
             c.name,
             c.expected_path
         );
+    }
+}
+
+fn build_item_mock(name_str: &[u8], cbor_value: &[u8], op: u64) -> MsoAttributeMockGiven {
+    let mut map_bytes = Vec::new();
+    map_bytes.push(0xa4); // map(4)
+    let pos0 = 4 + map_bytes.len() as u64;
+    map_bytes.extend_from_slice(b"\x68digestID\x00");
+    let len0 = 10;
+    let pos1 = 4 + map_bytes.len() as u64;
+    map_bytes.extend_from_slice(b"\x66random\x50");
+    map_bytes.extend_from_slice(&[0x42u8; 16]);
+    let len1 = 24;
+    let pos2 = 4 + map_bytes.len() as u64;
+    map_bytes.extend_from_slice(b"\x71elementIdentifier");
+    let mut cbor_name = vec![0x60 + name_str.len() as u8];
+    cbor_name.extend_from_slice(name_str);
+    map_bytes.extend_from_slice(&cbor_name);
+    let len2 = 18 + cbor_name.len() as u64;
+    let pos3 = 4 + map_bytes.len() as u64;
+    map_bytes.extend_from_slice(b"\x6celementValue");
+    map_bytes.extend_from_slice(cbor_value);
+    let len3 = 13 + cbor_value.len() as u64;
+
+    let mut raw_buf = vec![0xd8, 0x18, 0x58, map_bytes.len() as u8];
+    raw_buf.extend_from_slice(&map_bytes);
+    let preimage_len = raw_buf.len() as u64;
+
+    MsoAttributeMockGiven {
+        raw_buf,
+        slot_position: [pos0, pos1, pos2, pos3],
+        length: [len0, len1, len2, len3],
+        permutation: [0, 1, 2, 3],
+        disclosed_name: cbor_name.clone(),
+        disclosed_name_len: cbor_name.len() as u64,
+        disclosed_value: cbor_value.to_vec(),
+        disclosed_value_len: cbor_value.len() as u64,
+        op,
+        preimage_len,
+    }
+}
+
+#[test]
+fn test_attribute_date_comparison_full_date() {
+    let f = Gf2_128Field::new();
+    let make_full_date = |s: &[u8; 10]| -> Vec<u8> {
+        let mut v = vec![0xd9, 0x03, 0xec, 0x6a];
+        v.extend_from_slice(s);
+        v
+    };
+    let mdoc_date = make_full_date(b"1971-09-01");
+    let eq_date = make_full_date(b"1971-09-01");
+    let next_day = make_full_date(b"1971-09-02");
+    let prev_day = make_full_date(b"1971-08-31");
+
+    // Le (op = 1): mdoc <= disclosed
+    for (disclosed, should_pass) in [(&eq_date, true), (&next_day, true), (&prev_day, false)] {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
+            *g = build_item_mock(b"birth_date", &mdoc_date, 1);
+            g.disclosed_value = disclosed.clone();
+            g.disclosed_value_len = disclosed.len() as u64;
+        });
+        assert_eq!(res.is_ok(), should_pass);
+    }
+
+    // Ge (op = 2): mdoc >= disclosed
+    for (disclosed, should_pass) in [(&eq_date, true), (&prev_day, true), (&next_day, false)] {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
+            *g = build_item_mock(b"birth_date", &mdoc_date, 2);
+            g.disclosed_value = disclosed.clone();
+            g.disclosed_value_len = disclosed.len() as u64;
+        });
+        assert_eq!(res.is_ok(), should_pass);
+    }
+}
+
+#[test]
+fn test_attribute_date_comparison_tdate() {
+    let f = Gf2_128Field::new();
+    let make_tdate = |s: &[u8; 20]| -> Vec<u8> {
+        let mut v = vec![0xc0, 0x74];
+        v.extend_from_slice(s);
+        v
+    };
+    let mdoc_tdate = make_tdate(b"2023-11-15T12:00:00Z");
+    let eq_tdate = make_tdate(b"2023-11-15T12:00:00Z");
+    let next_sec = make_tdate(b"2023-11-15T12:00:01Z");
+    let prev_sec = make_tdate(b"2023-11-15T11:59:59Z");
+
+    // Le (op = 1)
+    for (disclosed, should_pass) in [(&eq_tdate, true), (&next_sec, true), (&prev_sec, false)] {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
+            *g = build_item_mock(b"issue_date", &mdoc_tdate, 1);
+            g.disclosed_value = disclosed.clone();
+            g.disclosed_value_len = disclosed.len() as u64;
+        });
+        assert_eq!(res.is_ok(), should_pass);
+    }
+
+    // Ge (op = 2)
+    for (disclosed, should_pass) in [(&eq_tdate, true), (&prev_sec, true), (&next_sec, false)] {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
+            *g = build_item_mock(b"issue_date", &mdoc_tdate, 2);
+            g.disclosed_value = disclosed.clone();
+            g.disclosed_value_len = disclosed.len() as u64;
+        });
+        assert_eq!(res.is_ok(), should_pass);
+    }
+}
+
+/// `Le`/`Ge` are only defined when the signed value *and* the threshold are both tagged
+/// `full-date`s or both tagged `tdate`s. Mixing the two types, or comparing a tagged date
+/// against an untagged text string of the same length (which would otherwise order the same
+/// way byte-wise), must trip `cmp_type_ok`.
+#[test]
+fn test_attribute_date_comparison_rejects_mixed_types() {
+    let f = Gf2_128Field::new();
+    let full_date = |s: &[u8; 10]| -> Vec<u8> {
+        let mut v = vec![0xd9, 0x03, 0xec, 0x6a];
+        v.extend_from_slice(s);
+        v
+    };
+    let tdate = |s: &[u8; 20]| -> Vec<u8> {
+        let mut v = vec![0xc0, 0x74];
+        v.extend_from_slice(s);
+        v
+    };
+    // 14 bytes like a full-date, but a plain `text(13)` without the tag(1004) wrapper.
+    let plain14 = {
+        let mut v = vec![0x6d];
+        v.extend_from_slice(b"1971-09-01xyz");
+        v
+    };
+
+    let cases: [(&str, Vec<u8>, Vec<u8>, u64); 5] = [
+        (
+            "full-date item vs tdate threshold (Le)",
+            full_date(b"1971-09-01"),
+            tdate(b"2000-01-01T00:00:00Z"),
+            1,
+        ),
+        (
+            "tdate item vs full-date threshold (Ge)",
+            tdate(b"2023-11-15T12:00:00Z"),
+            full_date(b"1971-09-01"),
+            2,
+        ),
+        (
+            "full-date item vs untagged 14-byte text threshold (Le)",
+            full_date(b"1971-09-01"),
+            plain14.clone(),
+            1,
+        ),
+        (
+            "untagged 14-byte text item vs full-date threshold (Le)",
+            plain14.clone(),
+            full_date(b"2000-01-01"),
+            1,
+        ),
+        (
+            "untagged 14-byte text item vs untagged threshold (Ge)",
+            plain14.clone(),
+            plain14.clone(),
+            2,
+        ),
+    ];
+    for (what, item_value, threshold, op) in &cases {
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let res = run_attribute_test_mock(&f, &tracker, |g| {
+            *g = build_item_mock(b"birth_date", item_value, *op);
+            g.disclosed_value = threshold.clone();
+            g.disclosed_value_len = threshold.len() as u64;
+        });
+        assert!(
+            res.is_err(),
+            "{what}: mixed-type comparison must be rejected"
+        );
+        assert!(
+            res.failed_paths()
+                .iter()
+                .any(|p| p == "assert_attribute/assert_item_slot_key_value/cmp_type_ok"),
+            "{what}: expected cmp_type_ok to fail, got {:?}",
+            res.failed_paths()
+        );
+    }
+
+    // Control: the untagged value is still fine under `Eq`, which has no type restriction.
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    run_attribute_test_mock(&f, &tracker, |g| {
+        *g = build_item_mock(b"birth_date", &plain14, 0);
+    })
+    .unwrap();
+}
+
+/// Builds the host-side pseudonym witness for `item_mock` (an `IssuerSignedItem` whose
+/// `elementValue` is `58 20 || signed_seed`) when the prover hashes `hashed_seed || context`.
+///
+/// Honest provers use `hashed_seed == signed_seed`; tests pass a different seed to show
+/// that the circuit ties the hashed seed to the signed one (`pnym_seed_copy`).
+fn build_pnym_given(
+    item_mock: &MsoAttributeMockGiven,
+    hashed_seed: &[u8; 32],
+    context: &[u8],
+) -> PnymConcreteGiven {
+    use mdoc_zk_circuits::cbor::{compute_pseudonym, encode_pnym_cbor_value};
+    use sha2::{Digest, Sha256};
+
+    let digest = compute_pseudonym(hashed_seed, context);
+    let cbor_pnym = encode_pnym_cbor_value(&digest);
+
+    let mut pnym_msg = Vec::with_capacity(hashed_seed.len() + context.len());
+    pnym_msg.extend_from_slice(hashed_seed);
+    pnym_msg.extend_from_slice(context);
+    let (pnym_nblocks, pnym_length_bytes, pnym_padded) =
+        circuits_sha256msg::concrete::pad_sha256_message(&pnym_msg, 2).unwrap();
+
+    let item_digest_bytes: [u8; 32] = Sha256::digest(&item_mock.raw_buf).into();
+    let expected_digest: [u32; 8] = std::array::from_fn(|i| {
+        let chunk: [u8; 4] = item_digest_bytes[4 * i..4 * i + 4].try_into().unwrap();
+        u32::from_be_bytes(chunk)
+    });
+
+    PnymConcreteGiven {
+        name: item_mock.disclosed_name.clone(),
+        cbor_value: cbor_pnym,
+        context: context.to_vec(),
+        preimage: item_mock.raw_buf.clone(),
+        field_locator: mdoc_zk_circuits::mso_attribute::concrete::FieldLocator {
+            slot_position: item_mock.slot_position.map(|p| p as usize),
+            length: item_mock.length.map(|l| l as usize),
+            // Identity permutation: logical slot i sits at physical position i.
+            permutation: (1 << 2) | (2 << 4) | (3 << 6),
+        },
+        expected_digest,
+        pnym_padded_preimage: pnym_padded,
+        pnym_length_bytes: pnym_length_bytes as usize,
+        pnym_nblocks,
+    }
+}
+
+fn run_pnym_mock<'a>(
+    f: &'a Gf2_128Field,
+    tracker: &'a AssertionTracker,
+    given: &PnymConcreteGiven,
+    derived: &PnymConcreteDerived,
+) -> EvalAssertions<'a> {
+    use mdoc_zk_circuits::mso_attribute::pnym::{
+        evaluate_derived, evaluate_given, PnymAttributeVerifier,
+    };
+    let l = EvalLogic::new_with_tracker(f, tracker);
+    let bv = BitvecLogic::new(&l);
+    let verifier = PnymAttributeVerifier::new(&l);
+    let wg = evaluate_given(given, &bv);
+    let wd = evaluate_derived(derived, &bv);
+    verifier.assert_pnym_attribute(&wg, &wd)
+}
+
+/// Asserts that `res` failed and that *every* failed assertion lies under `prefix`
+/// (ancestors of `prefix` are tolerated, since `assert_all` nodes may be reported too).
+fn assert_fails_only_under(res: &EvalAssertions<'_>, prefix: &str, what: &str) {
+    assert!(res.is_err(), "{what}: expected a failure under '{prefix}'");
+    let failed = res.failed_paths();
+    assert!(
+        !failed.is_empty()
+            && failed
+                .iter()
+                .all(|p| p.starts_with(prefix) || prefix.starts_with(p.as_str())),
+        "{what}: expected every failed path under '{prefix}', got {failed:?}"
+    );
+}
+
+fn pnym_seed_item_mock(seed: &[u8; 32]) -> MsoAttributeMockGiven {
+    let mut seed_cbor = vec![0x58, 0x20];
+    seed_cbor.extend_from_slice(seed);
+    // `op` is irrelevant for the pseudonym circuit (it has no operator wire).
+    build_item_mock(b"pnym_seed", &seed_cbor, 0)
+}
+
+#[test]
+fn test_pnym_attribute_verifier() {
+    use mdoc_zk_circuits::mso_attribute::pnym::derived as pnym_derived;
+
+    let f = Gf2_128Field::new();
+    let seed = [0x55u8; 32];
+    let item_mock = pnym_seed_item_mock(&seed);
+
+    for context_len in [1usize, 16, 80] {
+        let context: Vec<u8> = (0..context_len)
+            .map(|i| (i as u8).wrapping_add(1))
+            .collect();
+        let base_given = build_pnym_given(&item_mock, &seed, &context);
+        let base_derived = pnym_derived(&base_given);
+
+        // 1. Valid passes
+        {
+            let tracker = AssertionTracker::new();
+            run_pnym_mock(&f, &tracker, &base_given, &base_derived).unwrap();
+        }
+
+        // 2. Corrupt cbor_value (wrong output hash)
+        {
+            let mut corrupted = base_given.clone();
+            corrupted.cbor_value[5] ^= 1;
+            let tracker = AssertionTracker::new();
+            let res = run_pnym_mock(&f, &tracker, &corrupted, &base_derived);
+            assert!(res.is_err());
+            assert!(
+                res.failed_paths().iter().any(|p| p.starts_with(
+                    "assert_pnym_attribute/assert_pnym_value_and_hash/assert_message_hash/hash_eq"
+                )),
+                "unexpected failed paths: {:?}",
+                res.failed_paths()
+            );
+        }
+
+        // 3. Corrupt context byte
+        {
+            let mut corrupted = base_given.clone();
+            corrupted.context[0] ^= 1;
+            let tracker = AssertionTracker::new();
+            let res = run_pnym_mock(&f, &tracker, &corrupted, &base_derived);
+            assert!(res.is_err());
+            assert!(
+                res.failed_paths().iter().any(|p| p.starts_with(
+                    "assert_pnym_attribute/assert_pnym_value_and_hash/pnym_context_copy"
+                )),
+                "unexpected failed paths: {:?}",
+                res.failed_paths()
+            );
+        }
+
+        // 4. Corrupt context_len mismatch
+        {
+            let mut corrupted = base_given.clone();
+            corrupted.pnym_length_bytes += 1;
+            let tracker = AssertionTracker::new();
+            let res = run_pnym_mock(&f, &tracker, &corrupted, &base_derived);
+            assert!(res.is_err());
+            assert!(
+                res.failed_paths().iter().any(|p| p.starts_with(
+                    "assert_pnym_attribute/assert_pnym_value_and_hash/assert_checked_add"
+                )),
+                "unexpected failed paths: {:?}",
+                res.failed_paths()
+            );
+        }
+
+        // 5. Corrupt disclosed_name != "pnym_seed"
+        {
+            let mut corrupted = base_given.clone();
+            corrupted.name[1] ^= 1;
+            let tracker = AssertionTracker::new();
+            let res = run_pnym_mock(&f, &tracker, &corrupted, &base_derived);
+            assert!(res.is_err());
+            assert!(
+                res.failed_paths().iter().any(|p| p.starts_with(
+                    "assert_pnym_attribute/assert_item_slot_key_value/assert_prefix_equal"
+                )),
+                "unexpected failed paths: {:?}",
+                res.failed_paths()
+            );
+        }
+
+        // 6. Seed substitution, inconsistent: flip one byte of the hashed seed only.
+        {
+            let mut corrupted = base_given.clone();
+            corrupted.pnym_padded_preimage[0] ^= 1;
+            let tracker = AssertionTracker::new();
+            let res = run_pnym_mock(&f, &tracker, &corrupted, &base_derived);
+            assert!(res.is_err());
+            assert!(
+                res.failed_paths().iter().any(|p| p.starts_with(
+                    "assert_pnym_attribute/assert_pnym_value_and_hash/pnym_seed_copy"
+                )),
+                "unexpected failed paths: {:?}",
+                res.failed_paths()
+            );
+        }
+    }
+}
+
+/// The core soundness property of the scheme: a prover who hashes a seed of its own
+/// choosing — with a *fully consistent* SHA-256 witness and matching public pseudonym —
+/// is still rejected, and rejected precisely by the seed-copy constraint.
+#[test]
+fn test_pnym_rejects_substituted_seed_with_consistent_hash() {
+    use mdoc_zk_circuits::mso_attribute::pnym::derived as pnym_derived;
+
+    let f = Gf2_128Field::new();
+    let signed_seed = [0x55u8; 32];
+    let item_mock = pnym_seed_item_mock(&signed_seed);
+    let context = b"relying-party.example/ctx";
+
+    for other_seed in [[0x66u8; 32], [0x00u8; 32], {
+        let mut s = signed_seed;
+        s[31] ^= 0x80;
+        s
+    }] {
+        let given = build_pnym_given(&item_mock, &other_seed, context);
+        let derived = pnym_derived(&given);
+        let tracker = AssertionTracker::new();
+        let res = run_pnym_mock(&f, &tracker, &given, &derived);
+        assert_fails_only_under(
+            &res,
+            "assert_pnym_attribute/assert_pnym_value_and_hash/pnym_seed_copy",
+            "substituted seed",
+        );
+    }
+
+    // Control: the honest witness for the same item and context passes.
+    let given = build_pnym_given(&item_mock, &signed_seed, context);
+    let derived = pnym_derived(&given);
+    let tracker = AssertionTracker::new();
+    run_pnym_mock(&f, &tracker, &given, &derived).unwrap();
+}
+
+/// `1 <= context.len <= K_PNYM_CONTEXT_MAX` is enforced in-circuit on the public input, not
+/// only by the runtime. With an otherwise fully consistent witness the bounds check must be
+/// the *only* failing assertion.
+#[test]
+fn test_pnym_context_length_bounds() {
+    use mdoc_zk_circuits::mso_attribute::{
+        constants::K_PNYM_CONTEXT_MAX, pnym::derived as pnym_derived,
+    };
+
+    let f = Gf2_128Field::new();
+    let seed = [0x55u8; 32];
+    let item_mock = pnym_seed_item_mock(&seed);
+
+    for (context_len, should_pass) in [
+        (0usize, false),
+        (1, true),
+        (K_PNYM_CONTEXT_MAX, true),
+        (K_PNYM_CONTEXT_MAX + 1, false),
+    ] {
+        let context: Vec<u8> = (0..context_len).map(|i| 0xA0 ^ (i as u8)).collect();
+        let given = build_pnym_given(&item_mock, &seed, &context);
+        let derived = pnym_derived(&given);
+        let tracker = AssertionTracker::new();
+        let res = run_pnym_mock(&f, &tracker, &given, &derived);
+        if should_pass {
+            assert!(
+                res.is_ok(),
+                "context_len={context_len}: {:?}",
+                res.failed_paths()
+            );
+        } else {
+            assert_fails_only_under(
+                &res,
+                "assert_pnym_attribute/assert_pnym_value_and_hash/pnym_context_len_bounds",
+                &format!("context_len={context_len}"),
+            );
+        }
     }
 }

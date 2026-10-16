@@ -18,16 +18,35 @@ use compile_logic::LogicIO;
 
 use crate::{
     hash::{
-        circuit::{AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes},
+        circuit::{
+            AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
+            PnymDerived, PnymGiven,
+        },
         constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_LEN},
     },
-    mso_attribute::constants::K_ATTR_INDEX_BITS,
+    mso_attribute::{
+        constants::{
+            K_ATTR_INDEX_BITS, K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS, K_PNYM_CONTEXT_BITS,
+            K_PNYM_SHA_BLOCKS,
+        },
+        pnym::{ContextSlice, DisclosedPnym},
+    },
 };
 
 pub fn allocate_given<L: LogicIO>(
     logic: &L,
     bv: &BitvecLogic<L>,
     num_attrs: usize,
+    pos: &mut usize,
+) -> Given<L> {
+    allocate_given_with_pnym(logic, bv, num_attrs, false, pos)
+}
+
+pub fn allocate_given_with_pnym<L: LogicIO>(
+    logic: &L,
+    bv: &BitvecLogic<L>,
+    num_attrs: usize,
+    pnym: bool,
     pos: &mut usize,
 ) -> Given<L> {
     let bitvec_io = BitvecIO::new(bv);
@@ -43,8 +62,24 @@ pub fn allocate_given<L: LogicIO>(
                 data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
                 len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
             },
+            op: bitvec_io.next::<K_OP_BITS>(pos),
         })
         .collect();
+
+    let disclosed_pnym = pnym.then(|| DisclosedPnym {
+        expected_name: crate::mso_attribute::circuit::AttrSlice {
+            data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+            len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+        },
+        expected_cbor_value: crate::mso_attribute::circuit::AttrSlice {
+            data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+            len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+        },
+        context: ContextSlice {
+            data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+            len: bitvec_io.next::<K_PNYM_CONTEXT_BITS>(pos),
+        },
+    });
 
     let now: [circuits_bitvec::V8<L>; K_TIMESTAMP_LEN] =
         std::array::from_fn(|_| bitvec_io.next::<8>(pos));
@@ -89,10 +124,27 @@ pub fn allocate_given<L: LogicIO>(
         })
         .collect();
 
+    let pnym_given = pnym.then(|| PnymGiven {
+        preimage: AttrPreimageBytes {
+            data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+            len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+        },
+        mso_digest_offset_in_preimage: bitvec_io.next::<16>(pos),
+        field_locator: crate::mso_attribute::FieldLocator {
+            slot_position: std::array::from_fn(|_| bitvec_io.next::<K_ATTR_INDEX_BITS>(pos)),
+            length: std::array::from_fn(|_| bitvec_io.next::<K_ATTR_INDEX_BITS>(pos)),
+            permutation: std::array::from_fn(|_| bitvec_io.next::<2>(pos)),
+        },
+        pnym_preimage: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+        pnym_length_bytes: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+        pnym_nblocks: bitvec_io.next::<2>(pos),
+    });
+
     let mac_ap = std::array::from_fn(|_| [logic.next(pos), logic.next(pos)]);
 
     Given {
         disclosed_attributes,
+        disclosed_pnym,
         now,
         suppress_doc_type_check,
         expected_doc_type,
@@ -107,6 +159,7 @@ pub fn allocate_given<L: LogicIO>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
+        pnym_given,
         mac_e,
         mac_device_pkx,
         mac_device_pky,
@@ -120,16 +173,31 @@ pub fn allocate_derived<L: LogicIO, const MAX_MSO_BLOCKS: usize>(
     num_attrs: usize,
     pos: &mut usize,
 ) -> Derived<L> {
+    allocate_derived_with_pnym::<L, MAX_MSO_BLOCKS>(bv, num_attrs, false, pos)
+}
+
+pub fn allocate_derived_with_pnym<L: LogicIO, const MAX_MSO_BLOCKS: usize>(
+    bv: &BitvecLogic<L>,
+    num_attrs: usize,
+    pnym: bool,
+    pos: &mut usize,
+) -> Derived<L> {
     let attribute_derived = (0..num_attrs)
         .map(|_| AttrDerived {
-            sha_derived: circuits_sha256msg::allocate_derived::<_, 2>(bv, pos),
+            sha_derived: circuits_sha256msg::allocate_derived::<_, K_MAX_ATTR_SHA_BLOCKS>(bv, pos),
         })
         .collect();
+
+    let pnym_derived = pnym.then(|| PnymDerived {
+        item_sha_derived: circuits_sha256msg::allocate_derived::<_, K_MAX_ATTR_SHA_BLOCKS>(bv, pos),
+        pnym_sha_derived: circuits_sha256msg::allocate_derived::<_, K_PNYM_SHA_BLOCKS>(bv, pos),
+    });
 
     let sha_derived = circuits_sha256msg::allocate_derived::<_, MAX_MSO_BLOCKS>(bv, pos);
 
     Derived {
         attribute_derived,
+        pnym_derived,
         sha_derived,
     }
 }

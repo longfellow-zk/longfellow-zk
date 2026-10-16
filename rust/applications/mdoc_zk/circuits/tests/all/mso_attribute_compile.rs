@@ -114,6 +114,8 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
     }
     // disclosed_attribute.expected_cbor_value.len (10 bits)
     push_bits(&mut inputs, mock.disclosed_value_len, 10, fr);
+    // disclosed_attribute.op (2 bits)
+    push_bits(&mut inputs, mock.op, 2, fr);
 
     // expected_digest (256 bits)
     use sha2::{Digest, Sha256};
@@ -201,6 +203,7 @@ fn test_compile_mso_attribute_tampering() {
         disclosed_name_len: 12,
         disclosed_value: vec![0xf5],
         disclosed_value_len: 1,
+        op: 0,
         preimage_len: 100,
     };
 

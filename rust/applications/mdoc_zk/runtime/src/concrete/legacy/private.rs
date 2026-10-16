@@ -87,7 +87,7 @@ pub fn push_witness_hash<N: Nat<4>>(
         &circuits_sha256::constants::INITIAL,
         max_mso_blocks,
     )
-    .unwrap();
+    .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let mso_sha_witness = circuits_sha256msg::concrete::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
@@ -119,24 +119,29 @@ fn push_witness_attrs<N: Nat<4>>(
     parsed: &ParsedMdoc<N>,
     builder: &mut AssignmentBuilder<Gf2_128Field>,
 ) -> Result<(), MdocProverErrorCode> {
+    use mdoc_zk_proto::mso_attribute::constants::{max_attr_cbor_len, K_MAX_ATTR_SHA_BLOCKS};
+
+    let max_attr_len = max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS);
     for la in req_attrs {
         let pa = parsed
             .get_attribute(&la.id)
             .ok_or(MdocProverErrorCode::AttributeNotFound)?;
-        if pa.cbor_issuer_signed_item.len() >= 256 {
+        if pa.cbor_issuer_signed_item.len() > max_attr_len {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
 
         let attr_sha_in = circuits_sha256msg::concrete::given(
             &pa.cbor_issuer_signed_item,
             &circuits_sha256::constants::INITIAL,
-            2,
+            K_MAX_ATTR_SHA_BLOCKS,
         )
-        .unwrap();
-        let attr_sha_witness = circuits_sha256msg::concrete::derived(&attr_sha_in, 2);
+        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let attr_sha_witness =
+            circuits_sha256msg::concrete::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
         builder.push_raw_bytes(&attr_sha_in.padded_preimage);
-        push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[0]);
-        push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[1]);
+        for sha_block in &attr_sha_witness.sha_derived {
+            push_legacy_sha_witness(builder, sha_block);
+        }
 
         builder.push_bits_len(pa.mso_digest_offset_in_preimage as u64, 12);
 
