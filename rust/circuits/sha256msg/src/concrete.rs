@@ -132,7 +132,7 @@ pub fn derived(given: &ConcreteGiven, max_blocks: usize) -> ConcreteDerived {
 }
 
 impl ConcreteGiven {
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_elements<const W: usize, FR: runtime_algebra::field::RuntimeField<W>>(
         &self,
         fr: &FR,
@@ -170,7 +170,7 @@ impl ConcreteGiven {
 }
 
 impl ConcreteDerived {
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_derived<const W: usize, FR: runtime_algebra::field::RuntimeField<W>>(
         &self,
         fr: &FR,
@@ -181,7 +181,7 @@ impl ConcreteDerived {
         }
     }
 
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_elements<const W: usize, FR: runtime_algebra::field::RuntimeField<W>>(
         &self,
         fr: &FR,

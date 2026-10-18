@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub mod concrete;
 pub mod eval;
 pub mod logic;
 pub mod scope;
-#[cfg(feature = "testonly")]
+#[cfg(feature = "witness")]
 pub use concrete::*;
 
 pub use crate::{

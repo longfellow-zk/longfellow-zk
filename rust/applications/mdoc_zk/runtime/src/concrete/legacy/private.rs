@@ -87,7 +87,7 @@ pub fn push_witness_hash<N: Nat<4>>(
         &circuits_sha256::constants::INITIAL,
         max_mso_blocks,
     )
-    .unwrap();
+    .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let mso_sha_witness = circuits_sha256msg::concrete::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
@@ -132,7 +132,7 @@ fn push_witness_attrs<N: Nat<4>>(
             &circuits_sha256::constants::INITIAL,
             2,
         )
-        .unwrap();
+        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         let attr_sha_witness = circuits_sha256msg::concrete::derived(&attr_sha_in, 2);
         builder.push_raw_bytes(&attr_sha_in.padded_preimage);
         push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[0]);
@@ -216,7 +216,7 @@ fn push_legacy_verify_witness_3(
     builder.push_elt(&ecdsa_derived.slicing.g_pk_r.0);
     builder.push_elt(&ecdsa_derived.slicing.g_pk_r.1);
 
-    let s_elt = q256.words64_to_element(&s.to_limbs()).unwrap();
+    let s_elt = q256.reduce_nat(&runtime_algebra::RuntimeNat::<4>::from_limbs(&s.to_limbs()));
     let tms_elt = q256.neg(&s_elt);
     let nms = runtime_algebra::RuntimeNat::<4>::from_limbs(&q256.to_words64(&tms_elt));
 

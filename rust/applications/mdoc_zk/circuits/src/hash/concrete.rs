@@ -269,7 +269,7 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
 }
 
 impl ConcreteDerived {
-    #[cfg(feature = "testonly")]
+    #[cfg(feature = "witness")]
     pub fn push_derived<const W: usize, FR: runtime_algebra::field::RuntimeField<W>>(
         &self,
         fr: &FR,
