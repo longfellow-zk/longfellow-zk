@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-google-cfrg-libzk-03" submissionType="IETF" category="info" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true">
+<rfc version="3" ipr="trust200902" docName="draft-irtf-cfrg-libzk-00" submissionType="IRTF" category="info" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true">
 
 <front>
-<title>Longfellow ZK</title><seriesInfo value="draft-google-cfrg-libzk-03" stream="IETF" status="informational" name="Internet-Draft"></seriesInfo>
+<title>Longfellow ZK</title><seriesInfo value="draft-irtf-cfrg-libzk-00" stream="IRTF" status="informational" name="Internet-Draft"></seriesInfo>
 <author initials="M." surname="Frigo" fullname="Matteo Frigo"><organization>Google</organization><address><postal><street></street>
 </postal><email>matteof@google.com</email>
 </address></author><author initials="a." surname="shelat" fullname="abhi shelat"><organization>Google</organization><address><postal><street></street>
 </postal><email>shelat@google.com</email>
-</address></author><date/>
+</address></author><date year="2026" month="October" day="19"></date>
 <area>Internet</area>
-<workgroup>Network Working Group</workgroup>
+<workgroup>Crypto Forum Research Group</workgroup>
 
 <abstract>
 <t>This document defines an algorithm for generating and verifying a succinct non-interactive zero-knowledge argument that for a given input <tt>x</tt> and a circuit <tt>C</tt>, there exists a witness <tt>w</tt>, such that <tt>C(x,w)</tt> evaluates to 0. The technique here combines the MPC-in-the-head approach for constructing ZK arguments described in Ligero <xref target="ligero"></xref> with a verifiable computation protocol based on sumcheck for proving that <tt>C(x,w)=0</tt>.</t>

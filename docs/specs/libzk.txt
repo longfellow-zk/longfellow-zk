@@ -2,14 +2,14 @@
 
 
 
-Network Working Group                                           M. Frigo
+Crypto Forum Research Group                                     M. Frigo
 Internet-Draft                                                 a. shelat
 Intended status: Informational                                    Google
-Expires: 27 March 2027                                 23 September 2026
+Expires: 22 April 2027                                   19 October 2026
 
 
                              Longfellow ZK
-                       draft-google-cfrg-libzk-03
+                        draft-irtf-cfrg-libzk-00
 
 Abstract
 
@@ -36,139 +36,116 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 27 March 2027.
+   This Internet-Draft will expire on 22 April 2027.
 
 Copyright Notice
 
    Copyright (c) 2026 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
-
-
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 1]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
    This document is subject to BCP 78 and the IETF Trust's Legal
    Provisions Relating to IETF Documents (https://trustee.ietf.org/
    license-info) in effect on the date of publication of this document.
    Please review these documents carefully, as they describe your rights
-   and restrictions with respect to this document.  Code Components
-   extracted from this document must include Revised BSD License text as
-   described in Section 4.e of the Trust Legal Provisions and are
-   provided without warranty as described in the Revised BSD License.
+   and restrictions with respect to this document.
+
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 1]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
 
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   4
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
      1.1.  The Longfellow system . . . . . . . . . . . . . . . . . .   4
-   2.  Basic Operations and Notation . . . . . . . . . . . . . . . .   5
+   2.  Basic Operations and Notation . . . . . . . . . . . . . . . .   4
      2.1.  Array primitives  . . . . . . . . . . . . . . . . . . . .   5
      2.2.  Polynomial operations . . . . . . . . . . . . . . . . . .   5
-       2.2.1.  Extend method in Field F_p  . . . . . . . . . . . . .   6
+       2.2.1.  Extend method in Field F_p  . . . . . . . . . . . . .   5
        2.2.2.  Extend method in Field GF 2^k . . . . . . . . . . . .   6
    3.  Fiat-Shamir primitives  . . . . . . . . . . . . . . . . . . .   7
-     3.1.  The Hash-and-Expand Duplex Sponge Instantiation . . . . .   8
+     3.1.  The Hash-and-Expand Duplex Sponge Instantiation . . . . .   7
        3.1.1.  The FSPRF Keystream Generator . . . . . . . . . . . .   8
      3.2.  Universal ZK TLV Codec  . . . . . . . . . . . . . . . . .   9
-     3.3.  Correlation-Intractability and Computational Depth  . . .  12
+     3.3.  Correlation-Intractability and Computational Depth  . . .  11
      3.4.  Challenge Extraction Methods  . . . . . . . . . . . . . .  12
        3.4.1.  Bounded Natural Numbers (generate_nat / nat)  . . . .  12
        3.4.2.  Combinations Without Replacement
                (generate_nats_wo_replacement / choose) . . . . . . .  13
        3.4.3.  Field Elements and Vectors (generate_field /
-               generate_challenge) . . . . . . . . . . . . . . . . .  14
-   4.  Ligero ZK Proof . . . . . . . . . . . . . . . . . . . . . . .  15
-     4.1.  Merkle trees  . . . . . . . . . . . . . . . . . . . . . .  15
+               generate_challenge) . . . . . . . . . . . . . . . . .  13
+   4.  Ligero ZK Proof . . . . . . . . . . . . . . . . . . . . . . .  14
+     4.1.  Merkle trees  . . . . . . . . . . . . . . . . . . . . . .  14
        4.1.1.  Blinding the leaves with nonces . . . . . . . . . . .  15
-       4.1.2.  Constructing a Merkle tree from n digests . . . . . .  16
-       4.1.3.  Constructing a proof of inclusion . . . . . . . . . .  17
-       4.1.4.  Verifying a proof of inclusion  . . . . . . . . . . .  19
-     4.2.  Common parameters . . . . . . . . . . . . . . . . . . . .  20
-       4.2.1.  Constraints on parameters . . . . . . . . . . . . . .  21
-     4.3.  Ligero commitment . . . . . . . . . . . . . . . . . . . .  21
-     4.4.  Ligero Prove  . . . . . . . . . . . . . . . . . . . . . .  27
-       4.4.1.  Low-degree test . . . . . . . . . . . . . . . . . . .  27
-       4.4.2.  Linear and Quadratic constraints  . . . . . . . . . .  27
-       4.4.3.  Selection of challenge indicies . . . . . . . . . . .  28
-       4.4.4.  Ligero Prover procedure . . . . . . . . . . . . . . .  28
-     4.5.  Ligero verification procedure . . . . . . . . . . . . . .  31
-   5.  Overview of the Longfellow protocol . . . . . . . . . . . . .  36
-     5.1.  Parameters needed to define Longfellow  . . . . . . . . .  38
-   6.  Sumcheck  . . . . . . . . . . . . . . . . . . . . . . . . . .  38
-     6.1.  Special conventions for sumcheck arrays . . . . . . . . .  38
+       4.1.2.  Constructing a Merkle tree from n digests . . . . . .  15
+       4.1.3.  Constructing a proof of inclusion . . . . . . . . . .  16
+       4.1.4.  Verifying a proof of inclusion  . . . . . . . . . . .  18
+     4.2.  Common parameters . . . . . . . . . . . . . . . . . . . .  19
+       4.2.1.  Constraints on parameters . . . . . . . . . . . . . .  20
+     4.3.  Ligero commitment . . . . . . . . . . . . . . . . . . . .  20
+     4.4.  Ligero Prove  . . . . . . . . . . . . . . . . . . . . . .  26
+       4.4.1.  Low-degree test . . . . . . . . . . . . . . . . . . .  26
+       4.4.2.  Linear and Quadratic constraints  . . . . . . . . . .  26
+       4.4.3.  Selection of challenge indicies . . . . . . . . . . .  27
+       4.4.4.  Ligero Prover procedure . . . . . . . . . . . . . . .  27
+     4.5.  Ligero verification procedure . . . . . . . . . . . . . .  30
+   5.  Overview of the Longfellow protocol . . . . . . . . . . . . .  35
+     5.1.  Parameters needed to define Longfellow  . . . . . . . . .  37
+   6.  Sumcheck  . . . . . . . . . . . . . . . . . . . . . . . . . .  37
+     6.1.  Special conventions for sumcheck arrays . . . . . . . . .  37
+     6.2.  The EQ[] array  . . . . . . . . . . . . . . . . . . . . .  38
+       6.2.1.  Remark  . . . . . . . . . . . . . . . . . . . . . . .  41
+     6.3.  Circuits  . . . . . . . . . . . . . . . . . . . . . . . .  41
+       6.3.1.  Layered circuits  . . . . . . . . . . . . . . . . . .  41
+       6.3.2.  Quad representation . . . . . . . . . . . . . . . . .  41
+       6.3.3.  In-circuit assertions . . . . . . . . . . . . . . . .  42
+     6.4.  Representation of polynomials . . . . . . . . . . . . . .  43
+     6.5.  Transcript encryption and deferred verification . . . . .  43
+     6.6.  Transform circuit and wires into a padded proof . . . . .  46
 
 
 
-Frigo & shelat            Expires 27 March 2027                 [Page 2]
+Frigo & shelat            Expires 22 April 2027                 [Page 2]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
-     6.2.  The EQ[] array  . . . . . . . . . . . . . . . . . . . . .  39
-       6.2.1.  Remark  . . . . . . . . . . . . . . . . . . . . . . .  42
-     6.3.  Circuits  . . . . . . . . . . . . . . . . . . . . . . . .  42
-       6.3.1.  Layered circuits  . . . . . . . . . . . . . . . . . .  42
-       6.3.2.  Quad representation . . . . . . . . . . . . . . . . .  42
-       6.3.3.  In-circuit assertions . . . . . . . . . . . . . . . .  43
-     6.4.  Representation of polynomials . . . . . . . . . . . . . .  44
-     6.5.  Transcript encryption and deferred verification . . . . .  44
-     6.6.  Transform circuit and wires into a padded proof . . . . .  47
      6.7.  Generate constraints from the public inputs and the padded
-           proof . . . . . . . . . . . . . . . . . . . . . . . . . .  52
-   7.  Serializing objects . . . . . . . . . . . . . . . . . . . . .  57
-     7.1.  Serializing structs . . . . . . . . . . . . . . . . . . .  58
-     7.2.  Serializing Field elements  . . . . . . . . . . . . . . .  58
-       7.2.1.  Serializing a single field element  . . . . . . . . .  59
-       7.2.2.  Serializing an element of a subfield  . . . . . . . .  60
-     7.3.  Serializing a Sumcheck Transcript . . . . . . . . . . . .  60
-     7.4.  Serializing a Ligero Proof  . . . . . . . . . . . . . . .  61
-     7.5.  Serializing a Sequence of proofs  . . . . . . . . . . . .  63
-   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  65
-   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  65
-   10. References  . . . . . . . . . . . . . . . . . . . . . . . . .  65
-     10.1.  Normative References . . . . . . . . . . . . . . . . . .  65
-     10.2.  Informative References . . . . . . . . . . . . . . . . .  65
-   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  66
-   Appendix B.  Test Vectors . . . . . . . . . . . . . . . . . . . .  66
-     B.1.  Test Vectors for Merkle Tree  . . . . . . . . . . . . . .  66
-       B.1.1.  Vector 1  . . . . . . . . . . . . . . . . . . . . . .  67
-     B.2.  Test Vectors for Fiat-Shamir  . . . . . . . . . . . . . .  67
-       B.2.1.  Vector 1: WriteBytes  . . . . . . . . . . . . . . . .  67
-       B.2.2.  Vector 2: WriteFieldElement . . . . . . . . . . . . .  68
-       B.2.3.  Vector 3: WriteFieldElementArray  . . . . . . . . . .  68
-       B.2.4.  Vector 4: Nat . . . . . . . . . . . . . . . . . . . .  68
-       B.2.5.  Vector 5: Choice  . . . . . . . . . . . . . . . . . .  69
+           proof . . . . . . . . . . . . . . . . . . . . . . . . . .  51
+   7.  Serializing objects . . . . . . . . . . . . . . . . . . . . .  56
+     7.1.  Serializing structs . . . . . . . . . . . . . . . . . . .  57
+     7.2.  Serializing Field elements  . . . . . . . . . . . . . . .  57
+       7.2.1.  Serializing a single field element  . . . . . . . . .  58
+       7.2.2.  Serializing an element of a subfield  . . . . . . . .  59
+     7.3.  Serializing a Sumcheck Transcript . . . . . . . . . . . .  59
+     7.4.  Serializing a Ligero Proof  . . . . . . . . . . . . . . .  60
+     7.5.  Serializing a Sequence of proofs  . . . . . . . . . . . .  62
+   8.  Security Considerations . . . . . . . . . . . . . . . . . . .  64
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  64
+   10. References  . . . . . . . . . . . . . . . . . . . . . . . . .  64
+     10.1.  Normative References . . . . . . . . . . . . . . . . . .  64
+     10.2.  Informative References . . . . . . . . . . . . . . . . .  64
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  65
+   Appendix B.  Test Vectors . . . . . . . . . . . . . . . . . . . .  65
+     B.1.  Test Vectors for Merkle Tree  . . . . . . . . . . . . . .  65
+       B.1.1.  Vector 1  . . . . . . . . . . . . . . . . . . . . . .  66
+     B.2.  Test Vectors for Fiat-Shamir  . . . . . . . . . . . . . .  66
+       B.2.1.  Vector 1: WriteBytes  . . . . . . . . . . . . . . . .  66
+       B.2.2.  Vector 2: WriteFieldElement . . . . . . . . . . . . .  67
+       B.2.3.  Vector 3: WriteFieldElementArray  . . . . . . . . . .  67
+       B.2.4.  Vector 4: Nat . . . . . . . . . . . . . . . . . . . .  67
+       B.2.5.  Vector 5: Choice  . . . . . . . . . . . . . . . . . .  68
      B.3.  Test Vectors for Explicit Circuit, Sumcheck, and
-           Ligero  . . . . . . . . . . . . . . . . . . . . . . . . .  69
-       B.3.1.  Randomness used by these vectors  . . . . . . . . . .  69
-       B.3.2.  Vector 1: s-gonal Circuit over P-256 (Field ID 2) . .  70
+           Ligero  . . . . . . . . . . . . . . . . . . . . . . . . .  68
+       B.3.1.  Randomness used by these vectors  . . . . . . . . . .  68
+       B.3.2.  Vector 1: s-gonal Circuit over P-256 (Field ID 2) . .  69
        B.3.3.  Vector 2: Quadratic Polynomial Circuit over GF(2^128)
-               (Field ID 5)  . . . . . . . . . . . . . . . . . . . .  76
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  79
-
-
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 3]
-
-Internet-Draft                Longfellow ZK               September 2026
-
+               (Field ID 5)  . . . . . . . . . . . . . . . . . . . .  75
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  78
 
 1.  Introduction
 
@@ -185,6 +162,14 @@ Internet-Draft                Longfellow ZK               September 2026
    There are several models and efficiency goals that different ZK
    schemes aim to achieve, such as reducing prover time, reducing
    verifier time, or reducing proof size.  Some ZK schemes also impose
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 3]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
    other requirements to achieve their efficienc goals.  This document
    considers the scenario in which there are no common reference
    strings, or trusted parameter setups that are available to the
@@ -215,17 +200,6 @@ Internet-Draft                Longfellow ZK               September 2026
 
    A companion document specifies how the circuit C is specified.
 
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 4]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
 2.  Basic Operations and Notation
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
@@ -238,6 +212,19 @@ Internet-Draft                Longfellow ZK               September 2026
    with fresh outputs from a cryptographically strong pseudorandom
    generator, according to the requirements in [RFC4086], or
    pseudorandom function.
+
+
+
+
+
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 4]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
 
 2.1.  Array primitives
 
@@ -270,18 +257,6 @@ Internet-Draft                Longfellow ZK               September 2026
    This section describes operations on and associated with polynomials
    that are used in the main protocol.
 
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 5]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
 2.2.1.  Extend method in Field F_p
 
    The extend(f, n, m) method interprets the array f[0..n] as the
@@ -298,6 +273,14 @@ Internet-Draft                Longfellow ZK               September 2026
    a convolution to implement the extend operation, and in some cases,
    either the Number Theoretic Transform or Nussbaumer's algorithm can
    be used to efficiently compute a convolution.
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 5]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
 
 2.2.2.  Extend method in Field GF 2^k
 
@@ -331,13 +314,6 @@ Internet-Draft                Longfellow ZK               September 2026
    inject integer j into a field element inj(j) by interpreting the bits
    of j as coordinates in terms of the basis:
 
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 6]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
        inj(j) = sum_{0 <= i < k} j_i beta_i
 
    In this setting, define the extend operator to interpret the array
@@ -350,6 +326,17 @@ Internet-Draft                Longfellow ZK               September 2026
    This convention allows this operation to be completed efficiently
    using various forms of the additive FFT as described in [longfellow]
    [additivefft].
+
+
+
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 6]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
 
 3.  Fiat-Shamir primitives
 
@@ -387,13 +374,6 @@ Internet-Draft                Longfellow ZK               September 2026
    challenge extractions (such as combinations without replacement for
    column queries and subfield elements).
 
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 7]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
 3.1.  The Hash-and-Expand Duplex Sponge Instantiation
 
    The transcript is modeled as a stateful object maintaining an
@@ -406,6 +386,13 @@ Internet-Draft                Longfellow ZK               September 2026
        derives a 32-byte key \text{SEED} = H(\text{tr}) using SHA-256.
        This seed initializes a Fiat-Shamir Pseudorandom Function (FsPrf)
        running AES-256 in counter mode.
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 7]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
 
 3.1.1.  The FSPRF Keystream Generator
 
@@ -442,14 +429,6 @@ Internet-Draft                Longfellow ZK               September 2026
                cipher,
                block_counter: 0,
                read_pointer: 16, // Force refill on first read
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 8]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
                output_buffer: [0u8; 16],
            }
        }
@@ -463,6 +442,14 @@ Internet-Draft                Longfellow ZK               September 2026
            let mut block = GenericArray::from(inp);
            self.cipher.encrypt_block(&mut block);
            self.output_buffer.copy_from_slice(&block);
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 8]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
            self.block_counter += 1;
            self.read_pointer = 0;
        }
@@ -498,14 +485,6 @@ Internet-Draft                Longfellow ZK               September 2026
 
       0x01 || canonical_field_bytes
 
-
-
-
-Frigo & shelat            Expires 27 March 2027                 [Page 9]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
    *  Field Element Array (TAG_ARRAY = 0x02): Serialized as the 1-byte
       tag 0x02, followed by an 8-byte little-endian count prefix,
       followed by the concatenated canonical byte serializations of all
@@ -519,6 +498,14 @@ Internet-Draft                Longfellow ZK               September 2026
 
    #[derive(Clone)]
    pub struct Transcript {
+
+
+
+Frigo & shelat            Expires 22 April 2027                 [Page 9]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
        hash_accumulator: Sha256,
        pseudorandom_generator: Option<FsPrf>,
    }
@@ -554,14 +541,6 @@ Internet-Draft                Longfellow ZK               September 2026
            let x_u64 = x as u64;
            let mut len_bytes = [0u8; 8];
            for i in 0..8 {
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 10]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
                len_bytes[i] = ((x_u64 >> (8 * i)) & 0xff) as u8;
            }
            self.write_untyped(&len_bytes);
@@ -575,6 +554,14 @@ Internet-Draft                Longfellow ZK               September 2026
 
        pub fn write0(&mut self, n: usize) {
            self.tag(TAG_BSTR);
+
+
+
+Frigo & shelat            Expires 22 April 2027                [Page 10]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
            self.write_length(n);
            let data = vec![0x00; n];
            self.write_untyped(&data);
@@ -607,17 +594,6 @@ Internet-Draft                Longfellow ZK               September 2026
        }
    }
 
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 11]
-
-Internet-Draft                Longfellow ZK               September 2026
-
-
 3.3.  Correlation-Intractability and Computational Depth
 
    The security of the Fiat-Shamir transformation relies on correlation
@@ -634,6 +610,14 @@ Internet-Draft                Longfellow ZK               September 2026
        matrix commitment root).
    2.  Absorb the statement encoding: circuit identifier id, public
        inputs, and outputs.
+
+
+
+Frigo & shelat            Expires 22 April 2027                [Page 11]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
    3.  Absorb 0^{|C|} via write0(|C|) (a byte array of |C| zero bytes,
        where |C| is the gate count of the circuit).
 
@@ -654,25 +638,6 @@ Internet-Draft                Longfellow ZK               September 2026
 
    Samples a uniformly distributed integer in [0, m - 1] via minimal
    bitmask rejection sampling:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 12]
-
-Internet-Draft                Longfellow ZK               September 2026
-
 
    impl Transcript {
        pub fn nat(&mut self, n: usize) -> usize {
@@ -702,33 +667,19 @@ Internet-Draft                Longfellow ZK               September 2026
        }
    }
 
+
+
+Frigo & shelat            Expires 22 April 2027                [Page 12]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
 3.4.2.  Combinations Without Replacement (generate_nats_wo_replacement /
         choose)
 
    Samples k distinct natural numbers uniformly from [0, n - 1] without
    replacement (used for Ligero column query indices) using an in-place
    Fisher-Yates shuffle:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 13]
-
-Internet-Draft                Longfellow ZK               September 2026
-
 
    impl Transcript {
        pub fn choose(&mut self, n: usize, k: usize) -> Vec<usize> {
@@ -758,6 +709,27 @@ Internet-Draft                Longfellow ZK               September 2026
       X + 1).  Subfield elements in \text{GF}(2^{16}) sample 2 bytes
       from bytes(2) and map to the subfield basis.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                [Page 13]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
    impl Transcript {
        pub fn get_elt_field<F: Field + 'static>(&mut self) -> F {
            F::sample(self)
@@ -773,18 +745,6 @@ Internet-Draft                Longfellow ZK               September 2026
            self.get_random_bytes(len)
        }
    }
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 14]
-
-Internet-Draft                Longfellow ZK               September 2026
-
 
 4.  Ligero ZK Proof
 
@@ -816,31 +776,22 @@ Internet-Draft                Longfellow ZK               September 2026
    specification, the prover and verifier will already know the value of
    n when they produce or verify a Merkle tree.
 
+
+
+
+
+
+Frigo & shelat            Expires 22 April 2027                [Page 14]
+
+Internet-Draft                Longfellow ZK                 October 2026
+
+
 4.1.1.  Blinding the leaves with nonces
 
    As per folklore, a Merkle commitment does not hash a leaf's data
    directly, but instead includes a fresh random nonce of 32 bytes for
    every leaf.  The leaf digest is the hash of that nonce followed by
    the leaf's data.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 15]
-
-Internet-Draft                Longfellow ZK               September 2026
-
 
    pub fn commit_merkle_heap<R, F>(
        num_leaves: usize,
@@ -886,16 +837,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-
-
-
-
-
-
-
-Frigo & shelat            Expires 27 March 2027                [Page 16]
+Frigo & shelat            Expires 22 April 2027                [Page 15]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    pub fn sha256_bytes(data: &[u8]) -> Vec<u8> {
@@ -949,9 +893,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 17]
+Frigo & shelat            Expires 22 April 2027                [Page 16]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    included in the compressed proof.  Then it suffices to revisit the
@@ -1005,9 +949,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 18]
+Frigo & shelat            Expires 22 April 2027                [Page 17]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 4.1.4.  Verifying a proof of inclusion
@@ -1061,9 +1005,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 19]
+Frigo & shelat            Expires 22 April 2027                [Page 18]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            if is_on_path[i] {
@@ -1117,9 +1061,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 20]
+Frigo & shelat            Expires 22 April 2027                [Page 19]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    *  NREQ: The number of columns of the commitment matrix that the
@@ -1173,9 +1117,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 21]
+Frigo & shelat            Expires 22 April 2027                [Page 20]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    This tableau matrix is constructed row-by-row by applying the extend
@@ -1229,9 +1173,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 22]
+Frigo & shelat            Expires 22 April 2027                [Page 21]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
        simplest way to apply this optimization is for the commiting
@@ -1285,9 +1229,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 23]
+Frigo & shelat            Expires 22 April 2027                [Page 22]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            witness: &[F],
@@ -1341,9 +1285,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 24]
+Frigo & shelat            Expires 22 April 2027                [Page 23]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            let row = (0..self.geometry.block_len)
@@ -1397,9 +1341,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 25]
+Frigo & shelat            Expires 22 April 2027                [Page 24]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                if start < nw {
@@ -1453,9 +1397,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 26]
+Frigo & shelat            Expires 22 April 2027                [Page 25]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    }
@@ -1509,9 +1453,9 @@ y_ldt = T[ILDT][0..BLOCK] + sum_{0 <= i < NQW} u_ldt[i] * T[IW + i][0..BLOCK]
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 27]
+Frigo & shelat            Expires 22 April 2027                [Page 26]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    In this sense, the quadratic constraints are reduced to linear
@@ -1565,9 +1509,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 28]
+Frigo & shelat            Expires 22 April 2027                [Page 27]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            let y_ldt = self.prove_compute_y_ldt(commit, &u_ldt);
@@ -1621,9 +1565,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 29]
+Frigo & shelat            Expires 22 April 2027                [Page 28]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                    u_ldt[i],
@@ -1677,9 +1621,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 30]
+Frigo & shelat            Expires 22 April 2027                [Page 29]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            for i in 0..nwqrow {
@@ -1733,9 +1677,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 31]
+Frigo & shelat            Expires 22 April 2027                [Page 30]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    4.  *Quadratic Constraint Test (verify_quad)*: Verifies that z[i] -
@@ -1789,9 +1733,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 32]
+Frigo & shelat            Expires 22 April 2027                [Page 31]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            self.verify_merkle(&geom, root, proof, &idx)?;
@@ -1845,9 +1789,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 33]
+Frigo & shelat            Expires 22 April 2027                [Page 32]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            idx: &[usize],
@@ -1901,9 +1845,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 34]
+Frigo & shelat            Expires 22 April 2027                [Page 33]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                    let idx_lqc = j + i * geom.witnesses_per_row;
@@ -1957,9 +1901,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 35]
+Frigo & shelat            Expires 22 April 2027                [Page 34]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            u_quad: &[F],
@@ -2013,9 +1957,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 36]
+Frigo & shelat            Expires 22 April 2027                [Page 35]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    In this encrypted sumcheck variant, the verifier cannot check the
@@ -2069,9 +2013,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 37]
+Frigo & shelat            Expires 22 April 2027                [Page 36]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    5.  The verifier uses the proof from step 4 and the constraints from
@@ -2125,9 +2069,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 38]
+Frigo & shelat            Expires 22 April 2027                [Page 37]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    The sumcheck array A[i] is implicitly assumed to be defined for all
@@ -2181,9 +2125,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 39]
+Frigo & shelat            Expires 22 April 2027                [Page 38]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       V[i] = SUM_{j} EQ[i, j] V[j]
@@ -2237,9 +2181,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 40]
+Frigo & shelat            Expires 22 April 2027                [Page 39]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    /// Computes the multilinear extension of the equality polynomial EQ_{2^l}(x, r).
@@ -2293,9 +2237,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 41]
+Frigo & shelat            Expires 22 April 2027                [Page 40]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 6.2.1.  Remark
@@ -2349,9 +2293,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 42]
+Frigo & shelat            Expires 22 April 2027                [Page 41]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 6.3.3.  In-circuit assertions
@@ -2405,9 +2349,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 43]
+Frigo & shelat            Expires 22 April 2027                [Page 42]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 6.4.  Representation of polynomials
@@ -2461,9 +2405,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 44]
+Frigo & shelat            Expires 22 April 2027                [Page 43]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    circuit layers in order, starting with the output layer (layer 0).
@@ -2517,9 +2461,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 45]
+Frigo & shelat            Expires 22 April 2027                [Page 44]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                        [F::sample(rng), F::sample(rng)],
@@ -2573,9 +2517,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 46]
+Frigo & shelat            Expires 22 April 2027                [Page 45]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    impl<F: Field> CircuitPad<F> {
@@ -2629,9 +2573,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 47]
+Frigo & shelat            Expires 22 April 2027                [Page 46]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    If we reinterpret the wire indices l and r as binary numbers,
@@ -2685,9 +2629,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 48]
+Frigo & shelat            Expires 22 April 2027                [Page 47]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    pub struct SumcheckLayerProof<F> {
@@ -2741,9 +2685,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 49]
+Frigo & shelat            Expires 22 April 2027                [Page 48]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    /// Binds active wires to a challenge point:
@@ -2797,9 +2741,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 50]
+Frigo & shelat            Expires 22 April 2027                [Page 49]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                });
@@ -2853,9 +2797,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 51]
+Frigo & shelat            Expires 22 April 2027                [Page 50]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            global_challenges[0..initial_logv].to_vec(),
@@ -2909,9 +2853,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 52]
+Frigo & shelat            Expires 22 April 2027                [Page 51]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    The main difficulty in describing the algorithm is that it operates
@@ -2965,9 +2909,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 53]
+Frigo & shelat            Expires 22 April 2027                [Page 52]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
        let lag = lagrange_basis(challenge_val);
@@ -3021,9 +2965,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 54]
+Frigo & shelat            Expires 22 April 2027                [Page 53]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
        let prod_expr = (Var(pad.claims.c0) * plr.claims[1]
@@ -3077,9 +3021,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 55]
+Frigo & shelat            Expires 22 April 2027                [Page 54]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
        mle_expr -= got_expr;
@@ -3133,9 +3077,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 56]
+Frigo & shelat            Expires 22 April 2027                [Page 55]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            num_public_inputs,
@@ -3189,9 +3133,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 57]
+Frigo & shelat            Expires 22 April 2027                [Page 56]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 7.1.  Serializing structs
@@ -3245,9 +3189,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 58]
+Frigo & shelat            Expires 22 April 2027                [Page 57]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
                +==============================+===========+
@@ -3301,9 +3245,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 59]
+Frigo & shelat            Expires 22 April 2027                [Page 58]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    An element of field F is written as F::to_bytes(), which always
@@ -3357,9 +3301,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 60]
+Frigo & shelat            Expires 22 April 2027                [Page 59]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    pub fn write_sumcheck_proof<F: Field, W: Write>(
@@ -3413,9 +3357,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 61]
+Frigo & shelat            Expires 22 April 2027                [Page 60]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
            io.write_all(&val.to_bytes())?;
@@ -3469,9 +3413,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 62]
+Frigo & shelat            Expires 22 April 2027                [Page 61]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    The lengths of the four polynomial arrays are BLOCK, DBLOCK, NREQ,
@@ -3525,9 +3469,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 63]
+Frigo & shelat            Expires 22 April 2027                [Page 62]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    The proofs are concatenated with no separators and no count, because
@@ -3581,9 +3525,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 64]
+Frigo & shelat            Expires 22 April 2027                [Page 63]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    Here root is the root of the Merkle tree described in Section 4, and
@@ -3637,9 +3581,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 65]
+Frigo & shelat            Expires 22 April 2027                [Page 64]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    [I-D.irtf-cfrg-fiat-shamir]
@@ -3693,9 +3637,9 @@ B.1.  Test Vectors for Merkle Tree
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 66]
+Frigo & shelat            Expires 22 April 2027                [Page 65]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 B.1.1.  Vector 1
@@ -3749,9 +3693,9 @@ B.2.1.  Vector 1: WriteBytes
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 67]
+Frigo & shelat            Expires 22 April 2027                [Page 66]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
 B.2.2.  Vector 2: WriteFieldElement
@@ -3805,9 +3749,9 @@ B.2.4.  Vector 4: Nat
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 68]
+Frigo & shelat            Expires 22 April 2027                [Page 67]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       -  (a) write the 4-byte string "nats";
@@ -3861,9 +3805,9 @@ B.3.1.  Randomness used by these vectors
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 69]
+Frigo & shelat            Expires 22 April 2027                [Page 68]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    pub struct SimpleRng {
@@ -3917,9 +3861,9 @@ B.3.2.  Vector 1: s-gonal Circuit over P-256 (Field ID 2)
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 70]
+Frigo & shelat            Expires 22 April 2027                [Page 69]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
          o  y_0 = u_2 \cdot u_1 - u_3 \cdot u_0 - u_4 \cdot u_0 =
@@ -3973,9 +3917,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 71]
+Frigo & shelat            Expires 22 April 2027                [Page 70]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       ed0282f97ed9c5be6ced2c1092a34579d9786d1de4dc5404c4d3435f84bbc1a0
@@ -4029,9 +3973,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 72]
+Frigo & shelat            Expires 22 April 2027                [Page 71]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       3099d256c6b153cfc422d6f48f6229a7107ca4d5dda7d7ffc033ef3ba2269179
@@ -4085,9 +4029,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 73]
+Frigo & shelat            Expires 22 April 2027                [Page 72]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       c95328f94196dff3a42b5e7c4960b5e457aa322afeaddf2dd4cc756e7379bf32
@@ -4141,9 +4085,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 74]
+Frigo & shelat            Expires 22 April 2027                [Page 73]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       58b8f3b93d2079b55104ccf9694dcc2dc7b38cd7b3395db8a0b6e570c6f7fbad
@@ -4197,9 +4141,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 75]
+Frigo & shelat            Expires 22 April 2027                [Page 74]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       cdac243925674d3b168d33b9f29bda3f42a9180c278f91064af6b79e4a251721
@@ -4253,9 +4197,9 @@ B.3.3.  Vector 2: Quadratic Polynomial Circuit over GF(2^128) (Field ID
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 76]
+Frigo & shelat            Expires 22 April 2027                [Page 75]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
    *  *Merkle nonces* (one per opened column, in the order the columns
@@ -4276,7 +4220,7 @@ Internet-Draft                Longfellow ZK               September 2026
    *  *Sumcheck Proof (hex)*:
 
       (Artwork only available as TXT: see
-      https://www.ietf.org/archive/id/draft-google-cfrg-libzk-03.html)
+      https://www.ietf.org/archive/id/draft-irtf-cfrg-libzk-00.html)
 
    *  *Ligero Proof Size*: 2632 bytes
 
@@ -4309,9 +4253,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 77]
+Frigo & shelat            Expires 22 April 2027                [Page 76]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       bbb2ca9d8b56736af217f21ed813e517fe4f3c78fcafa0b47a01307fef9dc4d2
@@ -4365,9 +4309,9 @@ Internet-Draft                Longfellow ZK               September 2026
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 78]
+Frigo & shelat            Expires 22 April 2027                [Page 77]
 
-Internet-Draft                Longfellow ZK               September 2026
+Internet-Draft                Longfellow ZK                 October 2026
 
 
       bf8227cf67201ce2b347f47eb14d1377666c472b1a5fd34dc22002183103944f
@@ -4421,4 +4365,4 @@ Authors' Addresses
 
 
 
-Frigo & shelat            Expires 27 March 2027                [Page 79]
+Frigo & shelat            Expires 22 April 2027                [Page 78]

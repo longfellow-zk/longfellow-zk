@@ -1,15 +1,17 @@
 %%%
 Title = "Longfellow ZK"
-area = "Internet"
-workgroup = "Network Working Group"
+docName = "draft-irtf-cfrg-libzk-00"
+category = "info"
+workgroup = "Crypto Forum Research Group"
+submissionType="IRTF"
+
+date = 2026-10-19T00:00:00Z
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-google-cfrg-libzk-03"
-stream = "IETF"
+value = "draft-irtf-cfrg-libzk-00"
+stream = "IRTF"
 status = "informational"
-
-date = 2026-08-26T00:00:00Z
 
 [[author]]
 initials="M."
