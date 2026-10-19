@@ -1,8 +1,43 @@
 import polygero
+import Bcs.StoppedPotentialTest
+import polygero.Recursion.FSTransferTest
+import polygero.Recursion.FSGrindingTest
+import polygero.Recursion.FSRefinementTest
+import polygero.Local.RigidResponseIncidenceTest
+import polygero.Recursion.FSTerminalBlockTest
+import polygero.Benchmarks.FSBaselinePriceTest
+import polygero.Benchmarks.FSNonuniformSpectrumTest
+import polygero.Benchmarks.FSWholeBlock81Test
+import polygero.Local.DefectPackingTest
+import polygero.Recursion.FSDefectSpectrumTest
+import polygero.Benchmarks.FSDefect81Test
+import polygero.Benchmarks.FSCompletion81Test
+import polygero.Benchmarks.FSSoundnessAuditTest
+import polygero.Benchmarks.FSCompiledTest
 import Lean.Util.CollectAxioms
 import Lean.Util.FoldConsts
 
 /-! Public recursive extraction and soundness endpoints. -/
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.twoLevel_incidence_mean_le
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.twoLevel_fs_transfer
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.twoLevel_fs_transfer_of_fanout
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.failure_coverage
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.local_average
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_finite_message_bound
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_no_loss_of_root_load
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.parentPotential_local
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_no_loss_of_parent_charge
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_bound
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_loss_factor
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.certifiedFS
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.affine_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.affine_soundness
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.root_load_ge_wire_orbit
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.root_load_ge_mask_orbit
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_payload_unique
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.high_target_covered_or_proper
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.twoLevel_fullResponse_mean_le
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.large_response
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.response_fraction_le_envelope
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.localEnvelope_mean
@@ -30,6 +65,48 @@ import Lean.Util.FoldConsts
 #guard_msgs (drop info) in #check RecursivePolygero.Protocol.ProfileProof.toHahnProfileProof_wireExtract
 #guard_msgs (drop info) in #check RecursivePolygero.Protocol.ProfileProof.toHahnProfileProof_error
 #guard_msgs (drop info) in #check RecursivePolygero.Protocol.HahnProfileProof.wireExtract_independent
+
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.role_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_affine_bound
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.weightedExceptions_mean_le
+
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.fixed_rigidExceptionExcess_mean_le_two
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.child_block_oracle_sound_fixed
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.whole_block_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSNonuniformSpectrum.query_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSWholeBlock81.certifiedAffineFS
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSWholeBlock81.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.StoppedSpectrum.conditionalCapacity_repeatPrice_mean_le_defect_split
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefectSpectrum.query_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefect81.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefect81.certifiedSoundness_iop
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompletion81.certifiedSoundness_iop
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSBaselineAware81.certifiedSoundness_strongIOP
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIOPReference81.interactive_failure_le_strongIOP
+
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_union_capacity_le
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_query_union_mean_le
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assignedExceptionQuery_mean_le
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.childExceptionQuery_mean_le
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.queryExceptionEvent_local
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.activated_exception_consumption_iff
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.two_child_attempts_reuse
+
+#guard_msgs (drop info) in #check Bcs.StoppedPotential.stoppedValue_le
+#guard_msgs (drop info) in #check Bcs.StoppedPotential.average_repeatPrice_le
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.queryTargetExcess_mean_le
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.geometry_exists_failure_tree
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSGrindingObstruction.concrete_no_loss_violation
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSGrindingObstruction.concrete_no_loss_soundness_violation
+#guard_msgs (drop info) in #check CodingTheory.IntegerOccupancy.uniformFamilyBound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIntegerAffine.certifiedAffineFS
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIntegerAffine.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSRetunedAffine.fixedCertifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.StoppedSpectrum.spectrum_layers_le
+#guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.high_assigned_payload_unique_of_capacity
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.failure_capacity_cover
+#guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.query_stopped_oracle_sound_of_spectrum
 
 open Lean Elab Command
 
@@ -150,3 +227,70 @@ run_cmd do
   unless invariant.contains
       ``RecursivePolygero.Protocol.HahnProfileProof.runTranscript_independent do
     throwError "Hahn certificate independence does not reach the transcript extractor"
+  let responseTransfer := proofDependencies env
+    [``RecursivePolygero.FiatShamir.twoLevel_fullResponse_mean_le]
+  for required in #[
+      ``RecursivePolygero.ProfileAnalysis.assigned_payload_unique,
+      ``RecursivePolygero.ProfileAnalysis.assigned_arithmetic_canonical,
+      ``RecursivePolygero.ProfileAnalysis.full_response_excess_le,
+      ``RecursivePolygero.ProfileAnalysis.localIncidence_mean_of_hahn] do
+    unless responseTransfer.contains required do
+      throwError "Response transfer omits its concrete rigidity/incidence dependency: {required}"
+  let responseCoverage := proofDependencies env
+    [``RecursivePolygero.ProfileAnalysis.high_target_covered_or_proper]
+  unless responseCoverage.contains ``RecursivePolygero.ProfileAnalysis.large_response_assigned do
+    throwError "Response coverage omits the concrete Polygero assignment"
+  let parentCharge := proofDependencies env
+    [``RecursivePolygero.FiatShamir.TwoLevel.fs_no_loss_of_parent_charge]
+  for required in #[
+      ``RecursivePolygero.FiatShamir.TwoLevel.parentPotential_local,
+      ``RecursivePolygero.ProfileAnalysis.localEnvelope_mean_of_hahn,
+      ``Bcs.TotalOracle.Footprint.event_le_expected_budget,
+      ``Bcs.TotalOracle.Footprint.event_le_of_parent_charge,
+      ``Bcs.TotalOracle.Footprint.hits_off] do
+    unless parentCharge.contains required do
+      throwError "Parent charge omits its concrete envelope/freshness dependency: {required}"
+  let listCompiler := proofDependencies env
+    [``RecursivePolygero.FiatShamir.TwoLevel.fs_list_loss_factor]
+  for required in #[
+      ``RecursivePolygero.FiatShamir.TwoLevel.failure_list_cover,
+      ``RecursivePolygero.ProfileAnalysis.highSystems_card_le,
+      ``RecursivePolygero.DirectBinomial.active_card_le_of_uniformFamilyBound,
+      ``RecursivePolygero.Local.ReducedSystems.associated_intersection,
+      ``RecursivePolygero.ProfileAnalysis.large_response_assigned,
+      ``RecursivePolygero.ProfileAnalysis.systemExceptions_mean,
+      ``RecursivePolygero.ProfileAnalysis.rank_bad_mean,
+      ``RecursivePolygero.FiatShamir.induced_target_frequency_le,
+      ``Bcs.TotalOracle.Footprint.selected_singleton_event_le] do
+    unless listCompiler.contains required do
+      throwError "List compiler omits its concrete coverage/counting dependency: {required}"
+
+  let affineCompiler := proofDependencies env
+    [``RecursivePolygero.FiatShamir.TwoLevel.fs_list_affine_bound]
+  for required in #[
+      ``Bcs.AffineBlock.oracle_parallel_max,
+      ``RecursivePolygero.FiatShamir.TwoLevel.role_oracle_sound,
+      ``RecursivePolygero.FiatShamir.TwoLevel.failure_list_cover,
+      ``RecursivePolygero.FiatShamir.TwoLevel.queryRisk_mean_le,
+      ``RecursivePolygero.ProfileAnalysis.listBad_mean_le] do
+    unless affineCompiler.contains required do
+      throwError "Affine compiler omits concrete local bound/cover: {required}"
+
+run_cmd do
+  let deps := proofDependencies (← getEnv)
+    [``RecursivePolygero.FiatShamir.TwoLevel.childExceptionQuery_mean_le]
+  for name in #[
+      ``RecursivePolygero.Child.verify_iff,
+      ``RecursivePolygero.ProfileAnalysis.large_response_assigned,
+      ``RecursivePolygero.ProfileAnalysis.assign_associated,
+      ``RecursivePolygero.ProfileAnalysis.assigned_primary_unique,
+      ``RecursivePolygero.ProfileAnalysis.assigned_union_capacity_le,
+      ``RecursivePolygero.Local.PolynomialClosure.canonical_closures_eq,
+      ``RecursivePolygero.ProfileAnalysis.weightedExceptions_mean_le,
+      ``RecursivePolygero.ProfileAnalysis.highSystems_capacity_sum_le] do
+    unless deps.contains name do
+      throwError "Adaptive capacity coverage omits actual dependency {name}"
+
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.certified_bound
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.certified_comparisons
+#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.false_statement_bound

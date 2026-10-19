@@ -142,6 +142,9 @@ import Lfzk.CompiledZkPotentialFS
 import Lfzk.CompiledZkPotentialCircuit
 import Lfzk.CompiledLongfellowZkV7Mac
 
+import Lfzk.Fork.CircuitHeadline
+import Lfzk.PolygeroStructure
+
 /-!
 # Longfellow NIZK knowledge soundness
 

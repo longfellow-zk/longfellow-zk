@@ -27,3 +27,16 @@ import Bcs.PotentialChain
 import Bcs.PotentialTape
 import Bcs.TerminalPairTape
 import Bcs.FixedPathCommit
+import Bcs.FootprintCharging
+import Bcs.SingletonCharging
+import Bcs.AffineBlock
+import Bcs.AffineCharges
+import Bcs.AffinePotential
+import Bcs.AffineSingleton
+import Bcs.StoppedPotential
+import Bcs.StoppedCharges
+import Bcs.StoppedCompletion
+import Bcs.TerminalCharges
+import Bcs.TwoStageSearch
+import Bcs.FreshSearch
+import Bcs.GrindingBounds
