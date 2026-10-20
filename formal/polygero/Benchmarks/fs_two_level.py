@@ -89,7 +89,7 @@ def best_johnson(queries, replace_parent=False, replace_child=False):
 
 
 def main():
-    source = Path(__file__).with_name("HahnRateSixteenth.lean").read_text()
+    source = (Path(__file__).resolve().parent.parent / "Instances" / "HahnRateSixteenth.lean").read_text()
     certificates = {int(a): (int(cutoff), int(bound)) for a, cutoff, bound in
                     re.findall(r"\| \.c(\d+) => ⟨(\d+), (\d+), coeffs", source)}
     rows = [(int(t), int(cert)) for t, cert in

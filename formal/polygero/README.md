@@ -101,7 +101,7 @@ proves that changing packing certificates at any depth leaves wire extraction un
 Thus numerical certificate optimization changes the bound, while retaining
 the same extraction algorithm.
 
-The [nonrecursive rate-1/16 benchmark](Benchmarks/HahnRateSixteenth.md)
+The [nonrecursive rate-1/16 benchmark](Instances/HahnRateSixteenth.md)
 certifies the paper and Hahn bounds for every query count from 50 through 70,
 including their integer security-bit floors and terminal extraction/soundness
 specializations.
@@ -124,8 +124,7 @@ corollaries are in `Theorems/Soundness.lean`.
 
 Sources live directly under `formal/polygero/`; `formal/polygero.lean`
 is the public entry point. Imports use `polygero.*`, while declarations
-retain the `RecursivePolygero` namespace. The development has six layers,
-with separate import interfaces:
+retain the `RecursivePolygero` namespace. The development has the following import interfaces:
 
 | Interface | Contents |
 |---|---|
@@ -134,7 +133,10 @@ with separate import interfaces:
 | `polygero.Local` | Candidate witnesses, concrete decoder, and response-uniform local recovery bounds. |
 | `polygero.Reduction` | Child encoding and coefficient substitution, including `Child.verify_iff`. |
 | `polygero.Recursion` | Adaptive execution, transcript extraction, correctness, and random-target composition. |
-| `polygero` | Public extraction theorems and their soundness corollaries. |
+| `polygero.Recursion.FiatShamir` | Generic two-level FS analysis, capacity-C child charging, cached ROM, and both Merkle/BCS errors; no numerical instances. |
+| `polygero.Instances.FSJointChildCompiled81` | Checked 81/80-opening all-error FS bound. |
+| `polygero.Tests.*` | Dependency, import-isolation, and axiom audits. |
+| `polygero` | Public extraction theorems, soundness corollaries, and existing checked applications. |
 
 Algebra does not import any higher layer. Protocol definitions do not import
 local analysis or recursion. Local analysis and coefficient reduction depend
@@ -158,6 +160,8 @@ lake build RecursivePolygero
 
 `polygero.APITest` checks the public API, concrete proof dependencies, and
 foundational axioms of declarations imported by `polygero`, including private
-proofs and legacy arithmetic helpers. The separate numerical benchmark uses
+proofs and legacy arithmetic helpers. The FS parameter certificates now live in
+[Instances/](Instances/README.md); `Benchmarks/` contains only auxiliary Python
+checks. The separate nonrecursive numerical table uses
 `native_decide`, as documented in its benchmark notes. `polygero.APITest` is
 also part of the default `lake build`.

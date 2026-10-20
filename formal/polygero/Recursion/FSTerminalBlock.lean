@@ -353,7 +353,7 @@ theorem wholeChildBlockWeight_local_le (σ : I.layer.Statement) (price : ℚ)
 
 variable (p : HahnSystemCertificate I)
 
-private theorem child_target_of_failed_proof (σ : I.layer.Statement)
+theorem child_target_of_failed_proof (σ : I.layer.Statement)
     (W : I.layer.Oracle) (V : child.instance.layer.Oracle)
     (a : I.layer.Coin) (q : I.layer.Query) (b : child.instance.layer.Coin)
     (R : child.instance.layer.Payload) (t : child.instance.layer.Query)

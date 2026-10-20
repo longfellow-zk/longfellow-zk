@@ -1,19 +1,23 @@
 import polygero
+import polygero.Tests.FSGenericTest
 import Bcs.StoppedPotentialTest
-import polygero.Recursion.FSTransferTest
-import polygero.Recursion.FSGrindingTest
-import polygero.Recursion.FSRefinementTest
-import polygero.Local.RigidResponseIncidenceTest
-import polygero.Recursion.FSTerminalBlockTest
-import polygero.Benchmarks.FSBaselinePriceTest
-import polygero.Benchmarks.FSNonuniformSpectrumTest
-import polygero.Benchmarks.FSWholeBlock81Test
-import polygero.Local.DefectPackingTest
-import polygero.Recursion.FSDefectSpectrumTest
-import polygero.Benchmarks.FSDefect81Test
-import polygero.Benchmarks.FSCompletion81Test
-import polygero.Benchmarks.FSSoundnessAuditTest
-import polygero.Benchmarks.FSCompiledTest
+import polygero.Tests.FSTransferTest
+import polygero.Tests.FSGrindingTest
+import polygero.Tests.FSRefinementTest
+import polygero.Tests.RigidResponseIncidenceTest
+import polygero.Tests.FSTerminalBlockTest
+import polygero.Tests.FSBaselinePriceTest
+import polygero.Tests.FSNonuniformSpectrumTest
+import polygero.Tests.FSWholeBlock81Test
+import polygero.Tests.DefectPackingTest
+import polygero.Tests.FSDefectSpectrumTest
+import polygero.Tests.FSDefect81Test
+import polygero.Tests.FSCompletion81Test
+import polygero.Tests.FSSoundnessAuditTest
+import polygero.Tests.FSCompiledTest
+import polygero.Tests.FSCoreTest
+import polygero.Tests.FSShiftedTest
+import polygero.Tests.FSCachedJointTest
 import Lean.Util.CollectAxioms
 import Lean.Util.FoldConsts
 
@@ -29,10 +33,10 @@ import Lean.Util.FoldConsts
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_no_loss_of_parent_charge
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_bound
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.fs_list_loss_factor
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.certifiedFS
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSTwoLevel.certifiedFS
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSTwoLevel.certifiedSoundness
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.affine_sound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSTwoLevel.affine_soundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSTwoLevel.affine_soundness
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.root_load_ge_wire_orbit
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.root_load_ge_mask_orbit
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_payload_unique
@@ -74,16 +78,16 @@ import Lean.Util.FoldConsts
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.fixed_rigidExceptionExcess_mean_le_two
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.child_block_oracle_sound_fixed
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.whole_block_oracle_sound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSNonuniformSpectrum.query_oracle_sound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSWholeBlock81.certifiedAffineFS
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSWholeBlock81.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSNonuniformSpectrum.query_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSWholeBlock81.certifiedAffineFS
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSWholeBlock81.certifiedSoundness
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.StoppedSpectrum.conditionalCapacity_repeatPrice_mean_le_defect_split
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefectSpectrum.query_oracle_sound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefect81.certifiedSoundness
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSDefect81.certifiedSoundness_iop
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompletion81.certifiedSoundness_iop
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSBaselineAware81.certifiedSoundness_strongIOP
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIOPReference81.interactive_failure_le_strongIOP
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSDefectSpectrum.query_oracle_sound
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSDefect81.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSDefect81.certifiedSoundness_iop
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSCompletion81.certifiedSoundness_iop
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSBaselineAware81.certifiedSoundness_strongIOP
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSIOPReference81.interactive_failure_le_strongIOP
 
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_union_capacity_le
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.assigned_query_union_mean_le
@@ -97,12 +101,12 @@ import Lean.Util.FoldConsts
 #guard_msgs (drop info) in #check Bcs.StoppedPotential.average_repeatPrice_le
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.queryTargetExcess_mean_le
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.geometry_exists_failure_tree
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSGrindingObstruction.concrete_no_loss_violation
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSGrindingObstruction.concrete_no_loss_soundness_violation
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSGrindingObstruction.concrete_no_loss_violation
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSGrindingObstruction.concrete_no_loss_soundness_violation
 #guard_msgs (drop info) in #check CodingTheory.IntegerOccupancy.uniformFamilyBound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIntegerAffine.certifiedAffineFS
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSIntegerAffine.certifiedSoundness
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSRetunedAffine.fixedCertifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSIntegerAffine.certifiedAffineFS
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSIntegerAffine.certifiedSoundness
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSRetunedAffine.fixedCertifiedSoundness
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.StoppedSpectrum.spectrum_layers_le
 #guard_msgs (drop info) in #check RecursivePolygero.ProfileAnalysis.high_assigned_payload_unique_of_capacity
 #guard_msgs (drop info) in #check RecursivePolygero.FiatShamir.TwoLevel.failure_capacity_cover
@@ -291,6 +295,6 @@ run_cmd do
     unless deps.contains name do
       throwError "Adaptive capacity coverage omits actual dependency {name}"
 
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.certified_bound
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.certified_comparisons
-#guard_msgs (drop info) in #check RecursivePolygero.Benchmarks.FSCompiled81.false_statement_bound
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSCompiled81.certified_bound
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSCompiled81.certified_comparisons
+#guard_msgs (drop info) in #check RecursivePolygero.Instances.FSCompiled81.false_statement_bound

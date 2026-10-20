@@ -83,16 +83,18 @@ private theorem lowSystemQuery_mean_le (σ : I.layer.Statement) (W : I.layer.Ora
 /-- Local query price, uniform over every child commitment and every
 answer outside this query coordinate. High parent responses share the
 capacity of their assigned system; low child labels retain their list cost. -/
-theorem queryCapacityRisk_mean_le (hcp : cp.listBound < Nat.card F)
+theorem queryCapacityRisk_mean_le_of_exception_bound (hcp : cp.listBound < Nat.card F)
     (σ : I.layer.Statement) (W : I.layer.Oracle) (V : child.instance.layer.Oracle)
-    (a : I.layer.Coin) :
+    (a : I.layer.Coin) (bound : ℚ)
+    (hexc : mean (fun q => indicator (assignedExceptionQuery I p σ W a q)) ≤ bound) :
     mean (fun q => indicator (queryCapacityRisk child cp σ W V a q)) ≤
-      queryCapacity child p cp σ W a := by
+      (if a.2 ∈ ReducedSystems.badChallenges
+        (LigeroFamily.PolynomialDirect.primaryCode I.domain I.primary_le)
+        (oracleWords W.ordinary) W.proximityMask then 1 else cp.listBound*p.threshold+bound) := by
   by_cases hb : a.2 ∈ ReducedSystems.badChallenges
       (LigeroFamily.PolynomialDirect.primaryCode I.domain I.primary_le)
       (oracleWords W.ordinary) W.proximityMask
-  · unfold queryCapacity StoppedSpectrum.conditionalCapacity
-    rw [if_pos hb]
+  · rw [if_pos hb]
     calc
       _ ≤ mean (fun _ : I.layer.Query => (1 : ℚ)) := by
         apply mean_mono
@@ -141,10 +143,10 @@ theorem queryCapacityRisk_mean_le (hcp : cp.listBound < Nat.card F)
         ∑ d ∈ highSystems child.instance cp V,
           mean (fun q => indicator (lowSystemQuery child p cp σ W V a d q)) := by
       rw [mean_add, SystemException.mean_finset_sum]
-    _ ≤ weightedExceptions I p σ W a + ∑ _d ∈ highSystems child.instance cp V, p.threshold :=
-      add_le_add (assignedExceptionQuery_conditional_le I p σ W a)
+    _ ≤ bound + ∑ _d ∈ highSystems child.instance cp V, p.threshold :=
+      add_le_add hexc
         (sum_le_sum fun d _ => lowSystemQuery_mean_le child p cp σ W V a d)
-    _ ≤ weightedExceptions I p σ W a + cp.listBound * p.threshold := by
+    _ ≤ bound + cp.listBound * p.threshold := by
       have hcard : ((highSystems child.instance cp V).card : ℚ) ≤ cp.listBound := by
         exact Nat.cast_le.mpr (highSystems_card_le child.instance cp hcp V)
       have hlow : (∑ _d ∈ highSystems child.instance cp V, p.threshold) ≤
@@ -154,9 +156,17 @@ theorem queryCapacityRisk_mean_le (hcp : cp.listBound < Nat.card F)
             simp only [sum_const, nsmul_eq_mul]
           _ ≤ _ := mul_le_mul_of_nonneg_right hcard p.threshold_nonneg
       exact add_le_add le_rfl hlow
-    _ = queryCapacity child p cp σ W a := by
-      simp only [queryCapacity, StoppedSpectrum.conditionalCapacity, if_neg hb]
+    _ = _ := by
+      rw [if_neg hb]
       exact add_comm _ _
+
+theorem queryCapacityRisk_mean_le (hcp : cp.listBound < Nat.card F)
+    (σ : I.layer.Statement) (W : I.layer.Oracle) (V : child.instance.layer.Oracle)
+    (a : I.layer.Coin) :
+    mean (fun q => indicator (queryCapacityRisk child cp σ W V a q)) ≤
+      queryCapacity child p cp σ W a :=
+  queryCapacityRisk_mean_le_of_exception_bound child p cp hcp σ W V a
+    (weightedExceptions I p σ W a) (assignedExceptionQuery_conditional_le I p σ W a)
 
 noncomputable def queryCapacityEvent (σ : I.layer.Statement) :
     HashInput child → (HashInput child → Answer child) → Prop

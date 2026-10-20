@@ -3,7 +3,7 @@
 
 The Lean algebra, fresh search tree, ROM probability and protocol completion
 are in Local/GrindingAlgebra and Recursion/FSGrinding*. This report evaluates
-the same finite lower bound as Benchmarks/FSGrinding. All certification
+the same finite lower bound as Instances/FSGrinding. All certification
 comparisons use fractions; decimal display does not affect the conclusion.
 """
 from fractions import Fraction
