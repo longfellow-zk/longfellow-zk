@@ -183,7 +183,7 @@ theorem proverCharge_average_le {N : ℕ} (tree : Tree Q C Out N)
   unfold average proverCharge
   rw [← mul_div_assoc, div_le_div_iff_of_pos_right hn]
   apply (mul_le_mul_iff_left₀ hc).mp
-  convert h using 1 <;> first | ring | congr 1
+  convert h using 1 <;> first | ring_nf | congr 1
 
 /-- A block may use any nonnegative terminal completion whose expected
 cost has one intercept budget. This avoids paying every verifier slot. -/
