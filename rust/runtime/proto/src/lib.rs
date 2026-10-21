@@ -15,8 +15,10 @@
 pub mod ligero;
 pub mod merkle;
 pub mod sumcheck;
+pub mod sumcheck_ng;
 pub mod util;
 pub mod zk;
+pub mod zk_ng;
 
 pub use ligero::{LigeroCommitment, LigeroGeometry, LigeroProof};
 pub use merkle::{Digest, MerkleNonce, MerkleProof, DIGEST_LEN, NONCE_LEN};

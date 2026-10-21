@@ -14,45 +14,6 @@
 
 use runtime_algebra::RuntimeField;
 
-/// Dense multilinear equality weights EQ(point, i), for 0 <= i < n.
-/// Missing indices up to 2^logn are implicitly zero, including an empty domain.
-pub fn eq1<const W: usize, F: RuntimeField<W>>(
-    logn: usize,
-    n: usize,
-    point: &[F::E],
-    f: &F,
-) -> Vec<F::E> {
-    assert!(crate::sane_logw(logn) && point.len() >= logn);
-    assert!(n as u64 <= (1u64 << logn));
-    let mut weights = vec![f.zero(); n];
-    if n != 0 {
-        fill_single(&mut weights, &point[..logn], &f.one(), f);
-    }
-    weights
-}
-
-fn fill_single<const W: usize, F: RuntimeField<W>>(
-    weights: &mut [F::E],
-    point: &[F::E],
-    weight: &F::E,
-    f: &F,
-) {
-    if let Some((r, lower_bits)) = point.split_last() {
-        let stride = 1usize << lower_bits.len();
-        let high = f.mulf(weight, r);
-        let low = f.subf(weight, &high);
-        if stride < weights.len() {
-            let (left, right) = weights.split_at_mut(stride);
-            fill_single(left, lower_bits, &low, f);
-            fill_single(right, lower_bits, &high, f);
-        } else {
-            fill_single(weights, lower_bits, &low, f);
-        }
-    } else {
-        weights[0] = weight.clone();
-    }
-}
-
 /// EQ[i,j] is 2D sparse array EQ[i, j] = (i == j).
 /// This function contains a state-free version of EQ, which
 /// evaluates EQ[i, j] on the fly.

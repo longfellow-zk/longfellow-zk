@@ -42,8 +42,10 @@ members = [
     "runtime/proto",
     "runtime/merkle",
     "runtime/sumcheck",
+    "runtime/sumcheck-ng",
     "runtime/ligero",
     "runtime/zk",
+    "runtime/zk-ng",
 ]
 
 [workspace.lints.clippy]

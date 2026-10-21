@@ -7,6 +7,7 @@ edition = "2021"
 workspace = true
 
 [dependencies]
+runtime-zk-ng = { path = "../../../runtime/zk-ng" }
 core-proto = { path = "../../../core/proto" }
 core-algebra = { path = "../../../core/algebra" }
 runtime-proto = { path = "../../../runtime/proto" }

@@ -26,9 +26,9 @@ where
                 .collect()
         });
         let beta = f.sample(|n| transcript.bytes(n));
-        let dot = runtime_sumcheck::eq::eq1(logv, nv, &g, f);
-        let eq0 = runtime_sumcheck::eq::eq1(layer.logw(), layer.nw(), &h[0], f);
-        let eq1 = runtime_sumcheck::eq::eq1(layer.logw(), layer.nw(), &h[1], f);
+        let dot = runtime_sumcheck::eq::eq2(logv, nv, &g, &g, &f.zero(), f);
+        let eq0 = runtime_sumcheck::eq::eq2(layer.logw(), layer.nw(), &h[0], &h[0], &f.zero(), f);
+        let eq1 = runtime_sumcheck::eq::eq2(layer.logw(), layer.nw(), &h[1], &h[1], &f.zero(), f);
         let mut expected = f.zero();
         layer.for_each_term(&c.raw.constants, |t| {
             let k = if f.is_zero(&t.k) { &beta } else { &t.k };
@@ -38,14 +38,18 @@ where
             );
             f.add(&mut expected, &f.mulf(k, &weight));
         });
-        let mut quad = runtime_sumcheck::HQuad::<W, F>::from_g_binding(
+        let mut quad = runtime_sumcheck::HQuad::<W, F>::bind_g(
             layer,
             &c.raw.constants,
-            &dot,
+            logv,
+            nv,
+            &g,
+            &g,
+            &f.zero(),
             &beta,
             f,
         );
-        for (hand, bit) in runtime_sumcheck::SumcheckOrder::RoundMajor.rounds(layer.logw()) {
+        for (hand, bit) in (0..2 * layer.logw()).map(|i| (i % 2, i / 2)) {
             quad.bind_h(&h[hand][bit], hand, f);
         }
         assert_eq!(

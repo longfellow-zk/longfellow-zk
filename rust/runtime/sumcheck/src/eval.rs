@@ -56,7 +56,6 @@ pub fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
     f: &F,
 ) -> Result<Vec<F::E>, String> {
     let mut v = vec![f.zero(); nv];
-    let one = f.one();
 
     layer.try_for_each_term(constants, #[inline(always)] |term| {
         let g = term.g as usize;
@@ -75,11 +74,8 @@ pub fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
                 ));
             }
         } else {
-            let mut x = if term.k == one {
-                wl.clone()
-            } else {
-                f.mulf(&term.k, wl)
-            };
+            let mut x = term.k;
+            f.mul(&mut x, wl);
             f.mul(&mut x, wr);
             f.add(&mut v[g], &x);
         }

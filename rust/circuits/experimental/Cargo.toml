@@ -49,7 +49,9 @@ runtime-ligero = { path = "../../runtime/ligero" }
 runtime-proto = { path = "../../runtime/proto" }
 runtime-random = { path = "../../runtime/random", features = ["testonly"] }
 runtime-zk = { path = "../../runtime/zk" }
+runtime-zk-ng = { path = "../../runtime/zk-ng" }
 runtime-sumcheck = { path = "../../runtime/sumcheck" }
+runtime-sumcheck-ng = { path = "../../runtime/sumcheck-ng" }
 zstd = "0.13"
 
 [package.metadata.cargo-udeps.ignore]

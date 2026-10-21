@@ -33,17 +33,6 @@ const fn ligero_config(rateinv: usize, nreq: usize, block_enc: usize) -> LigeroC
 }
 
 impl ZkSpecStruct {
-    /// Historical mdoc protocols interleave hands. The current experimental v8
-    /// protocol completes each hand; circuit storage does not select this mode.
-    #[must_use]
-    pub fn sumcheck_order(&self) -> runtime_zk::SumcheckOrder {
-        if self.version < 8 {
-            runtime_zk::SumcheckOrder::RoundMajor
-        } else {
-            runtime_zk::SumcheckOrder::HandMajor
-        }
-    }
-
     #[must_use]
     pub fn combined_hash_hex(&self) -> String {
         let mut hex_str = String::with_capacity(64);
@@ -221,8 +210,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 1,
         version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5255),
-        ligero_sig: ligero_config(7, 132, 4445),
+        ligero_hash: ligero_config(7, 132, 5264),
+        ligero_sig: ligero_config(7, 132, 4310),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -233,8 +222,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 2,
         version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5246),
-        ligero_sig: ligero_config(7, 132, 4445),
+        ligero_hash: ligero_config(7, 132, 5264),
+        ligero_sig: ligero_config(7, 132, 4310),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -245,8 +234,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 3,
         version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5246),
-        ligero_sig: ligero_config(7, 132, 4445),
+        ligero_hash: ligero_config(7, 132, 5264),
+        ligero_sig: ligero_config(7, 132, 4310),
     },
     ZkSpecStruct {
         system: "longfellow-libzk-v1",
@@ -257,8 +246,8 @@ pub static CURRENT_ZK_SPECS: [ZkSpecStruct; 4] = [
         ],
         num_attributes: 4,
         version: CURRENT_VERSION,
-        ligero_hash: ligero_config(7, 132, 5246),
-        ligero_sig: ligero_config(7, 132, 4445),
+        ligero_hash: ligero_config(7, 132, 5264),
+        ligero_sig: ligero_config(7, 132, 4310),
     },
 ];
 

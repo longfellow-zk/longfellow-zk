@@ -1,0 +1,8 @@
+release; target-cpu=native; allocation tracking enabled; CPU 2; one flow; no warmup
+settings: {"V8_ARCHIVE": "/tmp/v8-two-attribute.archive", "V8_COMPONENTS": "flow", "V8_GEOMETRY": "native", "V8_LABEL": "ng-relations", "V8_REPEATS": "1", "V8_WARMUPS": "0"}
+
+running 1 test
+test v8_comparison ... V8_FLOW label=ng-relations geometry=native attrs=2 repeat=0 warmup=false memory=true prove_ms=284.473020 verify_ms=150.262915 proof_bytes=308900 prove_extra=92263666 verify_extra=50274304
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s

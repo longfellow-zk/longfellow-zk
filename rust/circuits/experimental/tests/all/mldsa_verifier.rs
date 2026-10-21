@@ -433,7 +433,7 @@ fn prove_and_verify<P: MlDsaParams>(example: &[Vec<u8>]) {
     use crate::memory::Measurement;
     use circuits_experimental::mldsa::{algebra::RuntimeFp24Subfield, crt::CrtReedSolomonFactory};
     use runtime_ligero::LigeroConfig;
-    use runtime_zk::{ZkProver, ZkVerifier};
+    use runtime_zk_ng::{ZkProver, ZkVerifier};
 
     let total_start = std::time::Instant::now();
     let instance = ConcreteInstance::<P>::new(&example[1], &example[4], &example[0], &example[2])
@@ -521,8 +521,9 @@ fn prove_and_verify<P: MlDsaParams>(example: &[Vec<u8>]) {
     instance.push_wires(&runtime_field, &mut inputs);
 
     let interpolation = CrtReedSolomonFactory;
+    eprintln!("sumcheck implementation: runtime-sumcheck-ng");
     let (num_witness, num_constraints) =
-        runtime_proto::witness_and_constraint_count(&runtime_circuit);
+        runtime_proto::zk_ng::witness_and_constraint_count(&runtime_circuit);
     let block_enc = runtime_ligero::optimize_geometry(
         num_witness,
         num_constraints,
@@ -541,16 +542,8 @@ fn prove_and_verify<P: MlDsaParams>(example: &[Vec<u8>]) {
         "proof setup: geometry={geometry:?}, witnesses={num_witness}, constraints={num_constraints}, block_enc={block_enc}"
     );
     let public_count = runtime_circuit.raw.npublic_input;
-    let order = match std::env::var("MLDSA_SUMCHECK_ORDER").as_deref() {
-        Err(std::env::VarError::NotPresent) | Ok("hand-major") => {
-            runtime_zk::SumcheckOrder::HandMajor
-        }
-        Ok("round-major") => runtime_zk::SumcheckOrder::RoundMajor,
-        value => panic!("invalid MLDSA_SUMCHECK_ORDER: {value:?}"),
-    };
-    eprintln!("sumcheck order: {order:?}");
-    let prover = ZkProver::<3, _>::new(runtime_circuit, config).with_sumcheck_order(order);
-    let context = runtime_zk::common::ZkContext {
+    let prover = ZkProver::<3, _>::new(runtime_circuit, config);
+    let context = runtime_zk_ng::common::ZkContext {
         f: &runtime_field,
         make_interpolator: &interpolation,
     };
@@ -586,13 +579,13 @@ fn prove_and_verify<P: MlDsaParams>(example: &[Vec<u8>]) {
         .write(&proof_geometry, &runtime_field, &subfield)
         .unwrap();
 
-    let verifier = ZkVerifier::new(prover.circuit, config).with_sumcheck_order(order);
+    let verifier = ZkVerifier::new(prover.circuit, config);
     // Exercise the stored proof as well as the stored LFC2 circuit. Serialization
     // and deserialization stay outside the cryptographic timing measurements.
     let verifier_geometry = verifier.geometry(&context);
     assert_eq!(proof_geometry, verifier_geometry);
     let mut proof_slice = proof_bytes.as_slice();
-    let decoded_proof = runtime_proto::ZkProof::read(
+    let decoded_proof = runtime_proto::zk_ng::ZkProof::read(
         &mut proof_slice,
         &verifier_geometry,
         &runtime_field,

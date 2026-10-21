@@ -78,25 +78,12 @@ impl std::error::Error for ZkVerificationError {}
 pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
     pub circuit: core_proto::circuit::Circuit<F>,
     pub config: LigeroConfig,
-    sumcheck_order: runtime_sumcheck::SumcheckOrder,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     /// Constructs a new `ZkVerifier` with the given Ligero configuration.
     pub fn new(circuit: core_proto::circuit::Circuit<F>, config: LigeroConfig) -> Self {
-        Self {
-            circuit,
-            config,
-            sumcheck_order: runtime_sumcheck::SumcheckOrder::default(),
-        }
-    }
-
-    /// Select the protocol challenge schedule independently of circuit storage.
-    /// Both peers must choose the same order from their trusted protocol spec.
-    /// This changes neither the circuit ID nor proof geometry.
-    pub fn with_sumcheck_order(mut self, order: runtime_sumcheck::SumcheckOrder) -> Self {
-        self.sumcheck_order = order;
-        self
+        Self { circuit, config }
     }
 
     pub fn geometry<IF: InterpolatorFactory<W, F>>(
@@ -208,7 +195,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         tv.write_sumcheck_statement(&self.circuit, &pub_inputs, ctx.f);
 
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
-        let (a, b) = crate::symbolic_sumcheck_verifier::symbolic_sumcheck_verifier_core_with_order(
+        let (a, b) = crate::symbolic_sumcheck_verifier::symbolic_sumcheck_verifier_core(
             n_witness,
             &pub_inputs,
             &self.circuit,
@@ -216,7 +203,6 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
             None,
             tv,
             ctx.f,
-            self.sumcheck_order,
         );
 
         let statement_hash = crate::common::DEFAULT_STATEMENT_HASH;

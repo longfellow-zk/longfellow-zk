@@ -1,0 +1,8 @@
+
+running 1 test
+test v8_comparison ... V8_COMPONENT label=new geometry=native attrs=2 component=hash repeat=0 warmup=false memory=true circuit=b72bcfaefa391e1cf8e9456a4170caa35a66582df2085c463575ff3ce98869f7 commit_ms=26.399552 prove_ms=166.164304 total_prover_ms=192.563856 verify_ms=89.235305 proof_bytes=133656 sumcheck_bytes=10240 block_enc=5264 nrow=177 commit_extra=17904064 prove_extra=71452204 prover_total_extra=86769228 verify_extra=47020208
+V8_COMPONENT label=new geometry=native attrs=2 component=sig repeat=0 warmup=false memory=true circuit=d3afd8083189537de2e803ed49f89c5b896bc007961b560a1d6fc8eb67ef9ab4 commit_ms=38.621419 prove_ms=32.749744 total_prover_ms=71.371163 verify_ms=46.685995 proof_bytes=176428 sumcheck_bytes=17984 block_enc=4310 nrow=17 commit_extra=4068608 prove_extra=6154008 prover_total_extra=8844504 verify_extra=3500664
+V8_FLOW label=new geometry=native attrs=2 repeat=0 warmup=false memory=true prove_ms=270.372554 verify_ms=136.314167 proof_bytes=308900 prove_extra=92291362 verify_extra=50309248
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s

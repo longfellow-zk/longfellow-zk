@@ -45,7 +45,7 @@ fn mldsa<P: circuits_experimental::mldsa::params::MlDsaParams>(source: &str, mar
         verifier::ConcreteInstance,
     };
     use runtime_algebra::Subfield;
-    use runtime_zk::{common::ZkContext, ZkProver, ZkVerifier};
+    use runtime_zk_ng::{common::ZkContext, ZkProver, ZkVerifier};
     println!(
         "GRID_CONFIG period={} first={} bits={}",
         circuits_experimental::mldsa::shake::slice_period(),
@@ -53,11 +53,6 @@ fn mldsa<P: circuits_experimental::mldsa::params::MlDsaParams>(source: &str, mar
         circuits_experimental::mldsa::shake::plucker_bits()
     );
     assert!((1..=6).contains(&circuits_experimental::mldsa::shake::slice_period()));
-    let order = match std::env::var("ORDER_SUMCHECK").as_deref().unwrap_or("hand") {
-        "hand" => runtime_sumcheck::SumcheckOrder::HandMajor,
-        "round" => runtime_sumcheck::SumcheckOrder::RoundMajor,
-        _ => panic!("ORDER_SUMCHECK must be hand or round"),
-    };
     let f = RuntimeFp24Ext6::new();
     let sf = RuntimeFp24Subfield;
     let example = vectors::first_cpp_example(source, marker);
@@ -80,7 +75,7 @@ fn mldsa<P: circuits_experimental::mldsa::params::MlDsaParams>(source: &str, mar
         assert_eq!(inputs.len(), c.raw.ninput);
         assert_eq!(c.raw.subfield_boundary, c.raw.ninput);
         let interpolation = CrtReedSolomonFactory;
-        let (nw, nc) = runtime_proto::witness_and_constraint_count(&c);
+        let (nw, nc) = runtime_proto::zk_ng::witness_and_constraint_count(&c);
         let block_enc = runtime_ligero::optimize_geometry(
             nw,
             nc,
@@ -96,7 +91,7 @@ fn mldsa<P: circuits_experimental::mldsa::params::MlDsaParams>(source: &str, mar
             block_enc,
         };
         let public = c.raw.npublic_input;
-        let prover = ZkProver::<3, _>::new(c, config).with_sumcheck_order(order);
+        let prover = ZkProver::<3, _>::new(c, config);
         let ctx = ZkContext {
             f: &f,
             make_interpolator: &interpolation,
@@ -132,9 +127,9 @@ fn mldsa<P: circuits_experimental::mldsa::params::MlDsaParams>(source: &str, mar
         }
         drop(commitment);
         drop(proof);
-        let verifier = ZkVerifier::new(prover.circuit, config).with_sumcheck_order(order);
+        let verifier = ZkVerifier::new(prover.circuit, config);
         let mut slice = bytes.as_slice();
-        let proof = runtime_proto::ZkProof::read(&mut slice, &geometry, &f, &sf).unwrap();
+        let proof = runtime_proto::zk_ng::ZkProof::read(&mut slice, &geometry, &f, &sf).unwrap();
         assert!(slice.is_empty());
         let mut transcript = Transcript::new(b"layer-template-benchmark");
         let verify_heap = memory::Measurement::start();

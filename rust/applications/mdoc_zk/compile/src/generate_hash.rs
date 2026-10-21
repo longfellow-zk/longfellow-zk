@@ -93,7 +93,7 @@ pub fn generate_hash_circuit(
     );
 
     let (num_witness, num_quadratic_constraints) =
-        runtime_proto::witness_and_constraint_count(&segmented);
+        runtime_proto::zk_ng::witness_and_constraint_count(&segmented);
     let gf2 = runtime_algebra::gf2_128::Gf2_128Field::new();
     let sf_hash =
         runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);

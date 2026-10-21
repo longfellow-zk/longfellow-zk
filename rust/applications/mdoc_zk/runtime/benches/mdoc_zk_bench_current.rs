@@ -175,7 +175,8 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
                 .map(core_proto::layer::Layer::num_terms)
                 .sum::<usize>(),
         );
-        let (count_w_hash, total_q_hash) = runtime_proto::witness_and_constraint_count(&c_hash);
+        let (count_w_hash, total_q_hash) =
+            runtime_proto::zk_ng::witness_and_constraint_count(&c_hash);
         let param_hash = runtime_ligero::param::LigeroParam::try_new(
             count_w_hash,
             total_q_hash,
@@ -212,7 +213,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
                 .map(core_proto::layer::Layer::num_terms)
                 .sum::<usize>(),
         );
-        let (count_w_sig, total_q_sig) = runtime_proto::witness_and_constraint_count(&c_sig);
+        let (count_w_sig, total_q_sig) = runtime_proto::zk_ng::witness_and_constraint_count(&c_sig);
         let param_sig = runtime_ligero::param::LigeroParam::try_new(
             count_w_sig,
             total_q_sig,

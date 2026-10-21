@@ -64,7 +64,7 @@ pub fn generate_sig_circuit(
 
     let segmented = compile_compiler::segment_circuit(p256_compile, &sig_circuit_comp);
     let (num_witness, num_quadratic_constraints) =
-        runtime_proto::witness_and_constraint_count(&segmented);
+        runtime_proto::zk_ng::witness_and_constraint_count(&segmented);
     let p256 = runtime_algebra::p256::P256Field::new();
     let p256_2 = runtime_algebra::fp2::Fp2Field::new(&p256);
     let make_interpolator = runtime_algebra::reed_solomon::FftInterpolatorFactory::new(

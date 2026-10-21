@@ -17,6 +17,7 @@ use runtime_random::Transcript;
 
 use crate::{
     dense,
+    hquad::HQuad,
     poly::QuadWirePoly,
     proof::{RoundPoly, SumcheckProof},
     transcript::TranscriptSumcheck,
@@ -51,27 +52,6 @@ pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
-    verify_with_order(
-        w_in,
-        pad,
-        circuit,
-        proof,
-        transcript,
-        f,
-        crate::SumcheckOrder::default(),
-    )
-}
-
-/// Non-ZK verification with the schedule agreed by the prover and verifier.
-pub fn verify_with_order<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
-    w_in: Vec<ElementOf<F>>,
-    pad: &SumcheckProof<W, F>,
-    circuit: &core_proto::circuit::Circuit<F>,
-    proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
-    f: &F,
-    order: crate::SumcheckOrder,
-) -> Result<(), String> {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "npublic_input ({}) exceeds ninput ({})",
@@ -88,37 +68,16 @@ pub fn verify_with_order<const W: usize, F: InterpolationField<W> + SupportsSamp
     // 1. Initialize the sumcheck transcript with the sumcheck statement.
     let public_inputs = &w_in[..circuit.raw.npublic_input];
     transcript.write_sumcheck_statement(circuit, public_inputs, f);
-    verify_core_with_order(w_in, pad, circuit, proof, transcript, f, order)
+    verify_core(w_in, pad, circuit, proof, transcript, f)
 }
 
 pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
-    w_in: Vec<ElementOf<F>>,
-    pad: &SumcheckProof<W, F>,
-    circuit: &core_proto::circuit::Circuit<F>,
-    proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
-    f: &F,
-) -> Result<(), String> {
-    verify_core_with_order(
-        w_in,
-        pad,
-        circuit,
-        proof,
-        transcript,
-        f,
-        crate::SumcheckOrder::default(),
-    )
-}
-
-/// Core verifier after the caller has bound the circuit statement to the transcript.
-pub fn verify_core_with_order<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     mut w_in: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
     circuit: &core_proto::circuit::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
-    order: crate::SumcheckOrder,
 ) -> Result<(), String> {
     if proof.layers.len() != circuit.raw.layers.len() {
         return Err(format!(
@@ -147,7 +106,7 @@ pub fn verify_core_with_order<const W: usize, F: InterpolationField<W> + Support
     };
 
     // 4. Verify all circuit layers sequentially, updating the claims bottom-up.
-    let claims = verify_layers(pad, circuit, proof, transcript, claims_init, f, order)?;
+    let claims = verify_layers(pad, circuit, proof, transcript, claims_init, f)?;
 
     let mut w1 = w_in.clone();
 
@@ -193,7 +152,6 @@ fn verify_layers<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>
     ts: &mut Transcript,
     claims_init: Claims<W, F>,
     f: &F,
-    order: crate::SumcheckOrder,
 ) -> Result<Claims<W, F>, String> {
     let mut claims = claims_init;
 
@@ -213,23 +171,25 @@ fn verify_layers<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>
         f.fma(&mut claim, &alpha, &claims.claim[1]);
 
         // Phase 2: Verify the quad/gate constraints sumcheck (quadratic round polynomials).
-        let lchal_hc = verify_layer_quad(clr.logw(), &mut claim, plr, &pad_layer.hp, ts, f, order)?;
+        let lchal_hc = verify_layer_quad(clr.logw(), &mut claim, plr, &pad_layer.hp, ts, f)?;
 
-        // Evaluate the wiring polynomial directly at the final challenges.
-        let g_binding = if claims.nv == 0 {
-            Vec::new()
-        } else {
-            crate::eq::eq2(
-                claims.logv,
-                claims.nv,
-                &claims.hc[0],
-                &claims.hc[1],
-                &alpha,
-                f,
-            )
-        };
-        let quad_value =
-            crate::evaluate_quad(clr, &circuit.raw.constants, &g_binding, &lchal_hc, &beta, f);
+        // Reconstruct and evaluate HQuad at the sampled challenges to check consistency.
+        let mut equad = HQuad::bind_g(
+            clr,
+            &circuit.raw.constants,
+            claims.logv,
+            claims.nv,
+            &claims.hc[0],
+            &claims.hc[1],
+            &alpha,
+            &beta,
+            f,
+        );
+
+        for (lc0, lc1) in lchal_hc[0].iter().zip(&lchal_hc[1]).take(clr.logw()) {
+            equad.bind_h(lc0, 0, f);
+            equad.bind_h(lc1, 1, f);
+        }
 
         // Feed final evaluations of this layer back to the transcript and reconstruct next claims.
         ts.end_layer(&plr.claims, f);
@@ -237,7 +197,7 @@ fn verify_layers<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>
         f.add(&mut next_claims[0], &pad_layer.claims[0]);
         f.add(&mut next_claims[1], &pad_layer.claims[1]);
 
-        let mut got = quad_value;
+        let mut got = equad.scalar();
         f.mul(&mut got, &next_claims[0]);
         f.mul(&mut got, &next_claims[1]);
 
@@ -263,7 +223,6 @@ fn verify_layer_quad<const W: usize, F: InterpolationField<W> + SupportsSampling
     pad_hp: &[Vec<RoundPoly<W, F>>; 2],
     ts: &mut Transcript,
     f: &F,
-    order: crate::SumcheckOrder,
 ) -> Result<[Vec<ElementOf<F>>; 2], String> {
     if !crate::sane_logw(logw) {
         return Err(format!("insane logw: {logw}"));
@@ -285,15 +244,17 @@ fn verify_layer_quad<const W: usize, F: InterpolationField<W> + SupportsSampling
         ));
     }
     let mut hc = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
-    for (hand, round) in order.rounds(logw) {
-        let tp_proof = &plr.hp[hand][round];
-        let tp_pad = &pad_hp[hand][round];
+    for (round, (pad0, pad1)) in pad_hp[0].iter().zip(&pad_hp[1]).enumerate().take(logw) {
+        for (hand, hc_vec) in hc.iter_mut().enumerate() {
+            let tp_proof = &plr.hp[hand][round];
+            let tp_pad = if hand == 0 { pad0 } else { pad1 };
 
-        let rnd = ts.round(tp_proof, f);
-        let tp = tp_proof.add(tp_pad, f).to_poly(claim, f);
+            let rnd = ts.round(tp_proof, f);
+            let tp = tp_proof.add(tp_pad, f).to_poly(claim, f);
 
-        *claim = tp.eval_lagrange(&rnd, f);
-        hc[hand].push(rnd);
+            *claim = tp.eval_lagrange(&rnd, f);
+            hc_vec.push(rnd);
+        }
     }
     Ok(hc)
 }

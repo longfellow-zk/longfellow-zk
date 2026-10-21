@@ -1,0 +1,13 @@
+test all::mldsa_verifier::mldsa44_proof_benchmark ... circuit storage: id=e6f2d6e8e472f0fdb1abcf777045fdad87c7eee2e8b625d2e0889cdf0983393b, layer_deltas=62796, segments=22855
+sweep circuit: period=4, geometry=CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }, lfc1=80319249, lfc1_zstd16=377176, lfc1_zstd22=352824, lfc2=1732148, lfc2_zstd16=507499, lfc2_zstd22=474374
+sumcheck protocol: SingleHand
+proof setup: geometry=CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }, witnesses=162463, constraints=24, block_enc=6125
+heap bytes: commit_peak_additional=36109644, prove_peak_additional=91531348, prover_total_peak_additional=119599348, verify_peak_additional=37684336
+sweep proof: period=4, commit=287.00853ms, prove=1.242632907s, verify=637.690717ms, proof=200900 bytes, total=21.207846374s
+test all::mldsa_verifier::mldsa65_proof_benchmark ... circuit storage: id=ecc1ac16609c00c674fe243ea2633d58c1b88af209193dc893a708d6156de9d1, layer_deltas=67007, segments=25264
+sweep circuit: period=4, geometry=CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }, lfc1=96795429, lfc1_zstd16=555596, lfc1_zstd22=372663, lfc2=1972270, lfc2_zstd16=542283, lfc2_zstd22=507012
+sumcheck protocol: SingleHand
+proof setup: geometry=CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }, witnesses=186358, constraints=24, block_enc=6143
+heap bytes: commit_peak_additional=41171700, prove_peak_additional=95901172, prover_total_peak_additional=127884772, verify_peak_additional=42009664
+sweep proof: period=4, commit=326.37051ms, prove=1.457728401s, verify=740.679295ms, proof=211292 bytes, total=25.637283796s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 67 filtered out; finished in 46.88s

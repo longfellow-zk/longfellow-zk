@@ -3,15 +3,21 @@
 ## Current integration
 
 The experimental circuits are now integrated on the `mldsa` branch with its shared
-type/output-major compiler ordering and dense hand-major sumcheck implementation.
+type/output-major compiler ordering and the
+[single-hand sumcheck protocol](../../runtime/sumcheck-ng/README.md).
+The single-hand runtime lives in the separate `runtime-sumcheck-ng` and
+`runtime-zk-ng` crates. The compiler is shared and produces NG circuits only.
 The selected default for both MLDSA-44 and MLDSA-65 is period 4, a special
 round-0 slice, and no bit pluckers (direct XOR-basis witnesses). Cuts follow
 zero-based rounds [0,3,7,11,15,19,23]. Default builds ignore experiment environment
 variables; compilation and native witness generation share this policy.
-With the grid's whole / shape_classes / reuse LFC2 ordering, compressed circuits
-are 367,947 / 377,432 bytes and proofs are 218,708 / 227,852 bytes. The ordering
-and mdoc code are unchanged by this default selection. Historical reports describe older worktrees, not
-the current runtime. Some opt-in Morton/template analysis helpers assume a
+The earlier grid's whole / shape_classes / reuse ordering produced compressed
+circuits of 367,947 / 377,432 bytes and hand-major proofs of 218,708 / 227,852
+bytes. Current stock-segmentation single-hand measurements are in
+[SINGLE_HAND_REPORT.md](SINGLE_HAND_REPORT.md). Protocol replacement preserves
+the compiler and slicing policy; experimental mdoc v8 also uses single-hand.
+Historical reports describe older worktrees, not the current runtime.
+Some opt-in Morton/template analysis helpers assume a
 Morton-ordered input circuit; they are not part of the default proof path.
 
 Timing benchmarks use `--features testonly`, without `bench-memory`. Separate

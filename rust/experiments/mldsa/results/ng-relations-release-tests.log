@@ -1,0 +1,1409 @@
+   Compiling runtime-proto v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/proto)
+   Compiling runtime-merkle v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/merkle)
+   Compiling runtime-sumcheck v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/sumcheck)
+   Compiling runtime-sumcheck-ng v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/sumcheck-ng)
+   Compiling runtime-ligero v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/ligero)
+   Compiling runtime-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/zk)
+   Compiling runtime-zk-ng v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/runtime/zk-ng)
+   Compiling mdoc-zk-compile v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/compile)
+   Compiling circuits-bitvec v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/bitvec)
+   Compiling mdoc-zk-runtime v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/runtime)
+   Compiling circuits-experimental v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/circuits/experimental)
+   Compiling mdoc-zk-verifier-only v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/verifier_only)
+   Compiling mdoc-zk-prover-only v0.1.0 (/home/athena/sandbox/longfellow-zk/rust/applications/mdoc_zk/prover_only)
+    Finished `release` profile [optimized] target(s) in 1m 04s
+     Running unittests src/lib.rs (target/release/deps/circuits_analog_adder-c58c1537a4d81f8c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/analog_adder.rs (target/release/deps/analog_adder-e3f2c54d7e4c432e)
+
+running 2 tests
+test test_analog_adder_evaluation ... ok
+test test_analog_adder_compilation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_analog_decoder-ae06b77f9d82900c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/analog_decoder.rs (target/release/deps/analog_decoder-9766a6ada9a0d54a)
+
+running 4 tests
+test test_compile_analog_decoder ... ok
+test test_compile_analog_decoder_binary ... ok
+test test_analog_decoder_exhaustive_field_1009 ... ok
+test test_analog_decoder_evaluation ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_arithmetic-bd9ac29893bbfc3b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/arithmetic.rs (target/release/deps/arithmetic-ed8911bc37aabd85)
+
+running 10 tests
+test test_as_eltw_no_overflow_binary ... ok
+test test_as_eltw_overflow_binary - should panic ... ok
+test test_as_eltw_overflow_prime - should panic ... ok
+test test_fold2_empty_a_nonempty_b_length_mismatch - should panic ... ok
+test test_muxb_length_mismatch - should panic ... ok
+test test_eqb_length_mismatch - should panic ... ok
+test test_as_eltw_no_overflow_prime ... ok
+test test_unchecked_add_length_mismatch - should panic ... ok
+test test_arithmetic_evaluation ... ok
+test test_compile_arithmetic ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_big_bitvec-1bb3a81bd1ced289)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_bignum-2c52d651d47bc9ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_bit_plucker-b9991a6891c71134)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/bit_plucker_tests.rs (target/release/deps/bit_plucker_tests-efae555187d88936)
+
+running 5 tests
+test all::eval::test_bit_plucker_eval_bin ... ok
+test all::eval::test_bit_plucker_eval_prime ... ok
+test all::eval::test_bit_plucker_invalid_points_prime ... ok
+test all::eval::test_bit_plucker_invalid_points_bin ... ok
+test all::compile::test_compile_bit_plucker ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_bitvec-e8e0c99431552c90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/bitvec_tests.rs (target/release/deps/bitvec_tests-dde1d56bfeea407a)
+
+running 9 tests
+test all::bitvec::test_assert_neq ... ok
+test all::bitvec::test_checked_add_sub ... ok
+test all::bitvec::test_is_zero ... ok
+test all::bitvec::test_compile_bitvec_is_zero ... ok
+test all::bitvec::test_compile_bitvec ... ok
+test all::bitvec::test_compile_bitvec_lt ... ok
+test all::bitvec::test_compile_bitvec_leq ... ok
+test all::bitvec::test_assert_add ... ok
+test all::bitvec::test_bitvec ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_boolean-1449ca51c9fbd24a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/boolean_tests.rs (target/release/deps/boolean_tests-d64e2253cea7ff74)
+
+running 8 tests
+test all::boolean::test_assertions ... ok
+test all::boolean::test_boolean ... ok
+test all::boolean::test_muxe ... ok
+test all::boolean::test_compile_boolean ... ok
+test all::boolean::test_one_hot_muxes ... ok
+test all::boolean::test_of_eltw ... ok
+test all::boolean::test_muxe_binary ... ok
+test all::boolean::test_precious ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_ec-19a7d2279bb6b458)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ec.rs (target/release/deps/ec-4f44ebeaac624444)
+
+running 4 tests
+test test_ec_circuit_evaluation ... ok
+test test_ec_runtime_arithmetic_robust ... ok
+test test_compile_ec ... ok
+test test_ec_runtime_arithmetic ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_ecdsa2-cb5edae1bca7b50e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ecdsa2_tests.rs (target/release/deps/ecdsa2_tests-417846eb10006959)
+
+running 5 tests
+test all::ecdsa_compile::test_compile_ecdsa ... ok
+test all::ecdsa_eval::test_ecdsa_secp256r1 ... ok
+test all::ecdsa_eval::test_sign_and_verify_ecdsa ... ok
+test all::ecdsa_compile::test_compile_ecdsa_signature_tampering ... ok
+test all::ecdsa_eval::test_ecdsa_signature_tampering ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.78s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_experimental-0b64222ad985ae3b)
+
+running 4 tests
+test mldsa::shake::slice_tests::every_sweep_schedule_has_one_first_cut_and_no_oversized_chunk ... ok
+test mldsa::shake::slice_tests::default_build_uses_unpacked_period_four_with_first_cut ... ok
+test mldsa::shake::slice_tests::optional_first_cut_preserves_all_period_six_cuts ... ok
+test mldsa::shake::slice_tests::packed_lanes_are_complete_minimal_and_balanced ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/core_audit.rs (target/release/deps/core_audit-f28bbc8469dfb292)
+
+running 34 tests
+test mldsa_core_bytes ... ignored, offline byte ownership and assertion-dependency audit
+test morton::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test morton::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test morton::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test morton::bipartite::tests::shared_one_merges_only_when_included ... ok
+test morton::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test morton::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test morton::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test morton::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test morton::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test morton::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test morton::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test morton::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test morton::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test morton::morton_key::tests::numeric_encodings_roundtrip ... ok
+test morton::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test morton::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test morton::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test morton::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test morton::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test morton::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test morton::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test morton::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test morton::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test morton::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test morton::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test morton::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test morton::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test morton::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test morton::tests::morton_translation_changes_order ... ok
+test morton::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test morton::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test morton::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test morton::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+
+test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/experimental_tests.rs (target/release/deps/experimental_tests-d8be788afec79f63)
+
+running 69 tests
+test all::mldsa_algebra::base_subfield_is_distinct_from_the_extension ... ok
+test all::mldsa_algebra::compile_and_runtime_fields_agree ... ok
+test all::mldsa_algebra::mldsa_field_and_crt_benchmark ... ignored, microbenchmark; run with --release --ignored --nocapture
+test all::mldsa_algebra::compact_fp24_encodings_are_exact_and_canonical ... ok
+test all::mldsa_algebra::inverses_and_serialization_are_canonical ... ok
+test all::mldsa_crt::crt_interpolation_encodes_all_six_coefficients ... ok
+test all::mldsa_reference::ntt_round_trip_and_negacyclic_product ... ok
+test all::mldsa_reference::packing_and_hint_primitives_cover_both_parameter_sets ... ok
+test all::mldsa_verifier::analyze_mldsa44_morton ... ignored, offline component traversal and encoding experiment
+test all::mldsa_verifier::analyze_traversal_sweep ... ignored, offline fixed-geometry traversal sweep for MLDSA and mdoc
+test all::mldsa_verifier::full_mldsa44_circuit_accepts_cpp_vector ... ignored, large end-to-end circuit
+test all::mldsa_verifier::full_mldsa65_circuit_accepts_cpp_vector ... ignored, large end-to-end circuit
+test all::mldsa_verifier::mldsa44_proof_benchmark ... ignored, multi-minute proof benchmark
+test all::mldsa_verifier::mldsa65_proof_benchmark ... ignored, multi-minute proof benchmark
+test all::mldsa_verifier::morton_analysis::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test all::mldsa_reference::native_verifier_accepts_cpp_44_and_65_examples ... ok
+test all::mldsa_shake::native_shake_accepts_zero_output_bytes ... ok
+test all::mldsa_shake::native_shake256_matches_the_empty_string_vector ... ok
+test all::mldsa_test_vectors::fixture_hex_accepts_both_cases ... ok
+test all::mldsa_sample::native_sample_in_ball_supports_44_and_65 ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test all::mldsa_reference::parameter_sets_match_fips_sizes ... ok
+test all::mldsa_shake::shake256_handles_absorb_and_squeeze_boundaries ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test all::mldsa_test_vectors::fixture_hex_rejects_partial_bytes - should panic ... ok
+test all::mldsa_verifier::morton_analysis::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::shared_one_merges_only_when_included ... ok
+test all::mldsa_verifier::morton_analysis::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test all::mldsa_reference::native_verifier_rejects_malformed_encodings ... ok
+test all::mldsa_verifier::morton_analysis::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test all::mldsa_circuit::compiled_use_hint_rejects_invalid_sign_for_both_parameter_sets ... ok
+test all::mldsa_verifier::morton_analysis::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test all::mldsa_verifier::morton_analysis::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test all::mldsa_verifier::morton_analysis::morton_key::tests::numeric_encodings_roundtrip ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test all::mldsa_circuit::compiled_use_hint_accepts_both_sign_branches ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test all::mldsa_verifier::morton_analysis::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test all::mldsa_verifier::morton_analysis::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test all::mldsa_verifier::morton_analysis::tests::morton_translation_changes_order ... ok
+test all::mldsa_verifier::morton_analysis::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test all::mldsa_verifier::validate_mdoc_traversal ... ignored, end-to-end mdoc proof using saved offline reordered circuits
+test all::mldsa_verifier::morton_analysis::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test all::mldsa_verifier::morton_analysis::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test all::mldsa_verifier::morton_analysis::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test all::mldsa_verifier::morton_analysis::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+test all::sha3_eval::test_eval_keccak_f_1600 ... ok
+test all::ecmul_compile::test_compile_ecmul ... ok
+test all::ecmul_eval::test_ecmul_eval ... ok
+test all::mldsa_circuit::compiled_infinity_norm_rejects_boundary_for_both_parameter_sets ... ok
+test all::mldsa_circuit::compiled_ntt_accepts_the_native_transform ... ok
+test all::mldsa_shake::compiled_shake256_accepts_the_native_witness ... ok
+test all::sha3_compile::test_compile_keccak_f_1600_sliced ... ok
+test all::sha3_compile::test_compile_keccak_f_1600_unrolled ... ok
+test all::mldsa_sample::compiled_sample_in_ball_accepts_native_witness ... ok
+test all::sha3_compile::test_compile_keccak_f_1600 ... ok
+
+test result: ok. 61 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 2.48s
+
+     Running tests/hquad_sort.rs (target/release/deps/hquad_sort-2189c369dc6a7a8f)
+
+running 2 tests
+test hquad_preparation_sweep ... ignored, offline HQuad preparation sweep
+test candidates::tests::keys_and_paired_sort ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/layer_templates.rs (target/release/deps/layer_templates-a4138856a4a9a1e2)
+
+running 43 tests
+test boundary_segments_preserve_deltas_and_share_only_exact_runs ... ok
+test builder::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test builder::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test builder::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test builder::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test layer_template_order_sweep ... ignored, offline template-order LFC2 sweep
+test builder::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test builder::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test morton::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test morton::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test morton::bipartite::tests::shared_one_merges_only_when_included ... ok
+test morton::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test clustered_dictionaries_preserve_traversal_and_reference_widths ... ok
+test morton::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test morton::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test morton::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test morton::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test morton::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test morton::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test morton::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test morton::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test morton::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test morton::morton_key::tests::numeric_encodings_roundtrip ... ok
+test morton::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test morton::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test morton::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test morton::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test morton::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test morton::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test morton::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test morton::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test morton::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test morton::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test morton::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test morton::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test morton::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test morton::tests::morton_translation_changes_order ... ok
+test morton::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test morton::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test morton::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test repeated_interiors_are_shared_without_changing_boundary_deltas ... ok
+test morton::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test morton::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+
+test result: ok. 42 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lct_segmentation.rs (target/release/deps/lct_segmentation-2e2287dba2e722d7)
+
+running 34 tests
+test lct1_segmentation_sweep ... ignored, offline LCT1 segmentation sweep on saved current circuits
+test morton::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test morton::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test morton::bipartite::tests::shared_one_merges_only_when_included ... ok
+test morton::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test morton::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test morton::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test morton::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test morton::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test morton::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test morton::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test morton::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test morton::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test morton::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test morton::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test morton::morton_key::tests::numeric_encodings_roundtrip ... ok
+test morton::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test morton::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test morton::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test morton::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test morton::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test morton::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test morton::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test morton::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test morton::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test morton::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test morton::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test morton::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test morton::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test morton::tests::morton_translation_changes_order ... ok
+test morton::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test morton::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test morton::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test morton::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+
+test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/morton_folds.rs (target/release/deps/morton_folds-a106a68b2a81e099)
+
+running 1 test
+test stored_morton_folds ... ignored, offline no-sort round-major compatibility check on saved circuits
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/relative_segments.rs (target/release/deps/relative_segments-eb1f30a7220680b8)
+
+running 6 tests
+test relative_segment_load_bench ... ignored, serial loader benchmark, no overlapping compilation or compression
+test relative_segment_sweep ... ignored, offline relative segment format sweep
+test relative::tests::modes_rechunking_negatives_duplicates_and_empty_roundtrip ... ok
+test relative::tests::shared_ports_and_coefficients_prevent_false_matches ... ok
+test relative::tests::translation_changes_only_entry_delta ... ok
+test relative::tests::truncated_and_invalid_payloads_rejected ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scheduling_sweep.rs (target/release/deps/scheduling_sweep-1546bf2ff8820209)
+
+running 50 tests
+test existing::boundary_segments_preserve_deltas_and_share_only_exact_runs ... ok
+test existing::builder::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test existing::builder::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test existing::builder::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test existing::builder::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test existing::layer_template_order_sweep ... ignored, offline template-order LFC2 sweep
+test existing::builder::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test existing::builder::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test existing::morton::bipartite::tests::a_nonzero_wire_id_copy_of_one_is_excluded ... ok
+test existing::morton::bipartite::tests::globally_distinct_ids_order_by_input_minimum ... ok
+test existing::morton::bipartite::tests::shared_one_merges_only_when_included ... ok
+test existing::morton::bipartite::tests::shared_ordinary_input_merges_even_when_one_is_excluded ... ok
+test existing::clustered_dictionaries_preserve_traversal_and_reference_widths ... ok
+test existing::morton::bipartite::tests::vertex_namespaces_are_distinct_and_minimum_uses_both_sides ... ok
+test existing::morton::layer_templates::tests::audit_trace_preserves_stream_and_separates_boundaries ... ok
+test existing::morton::layer_templates::tests::cores_share_deltas_and_preserve_exception_terms_and_duplicates ... ok
+test existing::morton::layer_templates::tests::fine_fragments_match_inside_different_enclosing_programs ... ok
+test existing::morton::layer_templates::tests::fine_matching_keeps_coefficients_and_duplicate_multiplicities ... ok
+test existing::morton::layer_templates::tests::multiple_translation_classes_can_be_shared_without_overlap ... ok
+test existing::morton::layer_templates::tests::shape_mismatches_are_not_dropped_or_shared ... ok
+test existing::morton::lex_order::tests::input_lexicographic_order_survives_translation ... ok
+test existing::morton::lex_order::tests::lexicographic_corners_fold_minor_coordinate_first ... ok
+test existing::morton::morton_key::tests::morton_key_roundtrip_and_comparator ... ok
+test existing::morton::morton_key::tests::numeric_encodings_roundtrip ... ok
+test existing::morton::order_sweep::layer_wires::tests::all_one_and_no_one_layers_remain_permutations ... ok
+test existing::morton::order_sweep::layer_wires::tests::constant_placement_is_a_dense_permutation ... ok
+test existing::morton::order_sweep::layer_wires::tests::swapping_one_moves_only_two_wires ... ok
+test existing::morton::order_sweep::layer_wires::tests::input_renumbering_is_rejected - should panic ... ok
+test existing::morton::order_sweep::tests::hilbert_small_grids_are_contiguous_paths ... ok
+test existing::morton::order_sweep::layer_wires::tests::legal_layouts_preserve_inputs_geometry_and_morton ... ok
+test existing::morton::order_sweep::tests::all_lexicographic_axis_permutations_are_present ... ok
+test existing::morton::order_sweep::tests::pair_interleave_matches_existing_morton ... ok
+test existing::morton::order_sweep::tests::local_ranks_are_independent_of_absolute_holes ... ok
+test existing::morton::template_wires::tests::inverse_preserves_terms_and_duplicates ... ok
+test existing::morton::tests::map_roundtrip_handles_permutations_and_shared_ports ... ok
+test existing::morton::tests::morton_translation_changes_order ... ok
+test existing::morton::tests::shared_inputs_and_copies_of_one_do_not_join_components ... ok
+test existing::morton::lct_segment::tests::pools_roundtrip_repetitions_tails_and_empty ... ok
+test existing::morton::tests::semantic_comparison_accepts_frequency_reindexed_constants ... ok
+test extract::tests::trie_shares_nested_prefixes_and_suffixes_exactly ... ok
+test existing::repeated_interiors_are_shared_without_changing_boundary_deltas ... ok
+test scheduling_segmentation_sweep ... ignored, offline complete layout and segmentation matrix
+test policies::tests::rolling_hash_matches_direct_windows ... ok
+test policies::tests::every_policy_preserves_empty_short_shifted_and_repeated_streams ... ok
+test existing::morton::template_wires::tests::duplicate_map_rejected - should panic ... ok
+test existing::morton::template_wires::tests::corresponding_components_get_translated_internal_maps ... ok
+test dictionary::tests::reorder_preserves_expansion_and_bucket_token_bytes ... ok
+test existing::morton::wire_order::tests::power_two_low_lanes_do_not_change_local_morton_comparison ... ok
+test pairs::tests::heap_repair_matches_slow_recount_reference ... ok
+test pairs::tests::pairs_preserve_and_are_deterministic ... ok
+
+test result: ok. 48 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/template_proofs.rs (target/release/deps/template_proofs-dde853db1901ef23)
+
+running 5 tests
+test mdoc_template_proof ... ignored, full current mdoc flow on supplied saved circuit pair
+test mldsa44_template_proof ... ignored, full saved-circuit MLDSA44 benchmark
+test mldsa65_template_proof ... ignored, full saved-circuit MLDSA65 benchmark
+test vectors::fixture_hex_accepts_both_cases ... ok
+test vectors::fixture_hex_rejects_partial_bytes - should panic ... ok
+
+test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/three_level_segments.rs (target/release/deps/three_level_segments-1a29b3f5bbff0b54)
+
+running 7 tests
+test three_level_archive ... ignored, actual archive of experimental three-level payloads
+test three_level_sweep ... ignored, offline three-level size experiment
+test policies::tests::every_policy_preserves_empty_short_shifted_and_repeated_streams ... ok
+test policies::tests::rolling_hash_matches_direct_windows ... ok
+test three_levels_preserve_boundaries_and_empty_layers ... ok
+test pairs::tests::heap_repair_matches_slow_recount_reference ... ok
+test pairs::tests::pairs_preserve_and_are_deterministic ... ok
+
+test result: ok. 5 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/v8_comparison.rs (target/release/deps/v8_comparison-39bbf2ca7518c79b)
+
+running 1 test
+test v8_comparison ... ignored, controlled v8 old/new performance comparison
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_gf2_128-f19b496b6c4a9d49)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gf2_128.rs (target/release/deps/gf2_128-065b16a8a7391200)
+
+running 3 tests
+test test_gf2_128_mul_basic ... ok
+test test_gf2_128_mul_random ... ok
+test test_compile_gf2_128_mul ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_lookup-7d43dd4f99da01b8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lookup.rs (target/release/deps/lookup-cad9d967d02cd237)
+
+running 2 tests
+test test_compile_lookup ... ok
+test test_lookup_evaluation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_mac-f26d2abc14b36b75)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mac_tests.rs (target/release/deps/mac_tests-8696a3be320abf0d)
+
+running 2 tests
+test all::mac_eval::test_mac_direct_eval ... ok
+test all::mac_compile::test_compile_mac ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.73s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_mac_gf128-a7096705446688ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mac_gf128.rs (target/release/deps/mac_gf128-a51697e9e52ddc4d)
+
+running 2 tests
+test test_direct_eval_mac_gf128 ... ok
+test test_compile_mac_gf128 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_memcmp-9dbfc85fe744c90e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/memcmp.rs (target/release/deps/memcmp-842e59b640882d05)
+
+running 1 test
+test test_memcmp_leq ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_polynomial-15876ed085fbd10c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/polynomial.rs (target/release/deps/polynomial-fc724325886227b6)
+
+running 2 tests
+test test_compile_polynomial ... ok
+test test_polynomial_evaluation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_routing-ab18f2ec70256627)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/routing.rs (target/release/deps/routing-416865a1984dd5cc)
+
+running 2 tests
+test test_compile_routing ... ok
+test test_routing_evaluation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.00s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_sha256-5f7394b3ab9e24b6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sha256_tests.rs (target/release/deps/sha256_tests-792a7c6d9a74413d)
+
+running 4 tests
+test all::sha256_eval::test_eval_sha256 ... ok
+test all::sha256_compile::test_compile_sha256 ... ok
+test all::sha256_eval::test_eval_sha256_tampering ... ok
+test all::sha256_compile::test_compile_sha256_tampering ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.75s
+
+     Running unittests src/lib.rs (target/release/deps/circuits_sha256msg-e1c7f87fdef7dc2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sha256msg_tests.rs (target/release/deps/sha256msg_tests-45d1b2ef0b2b2aca)
+
+running 8 tests
+test all::sha256msg_eval::test_eval_nblocks_ok ... ok
+test all::sha256msg_eval::test_eval_nblocks_failures ... ok
+test all::sha256msg_eval::test_exploit_nblocks_zero ... ok
+test all::sha256msg_eval::test_exploit_nblocks_too_large ... ok
+test all::sha256msg_eval::test_eval_sha256_msg ... ok
+test all::sha256msg_compile::test_compile_sha256msg ... ok
+test all::sha256msg_compile::test_compile_sha256msg_tampering ... ok
+test all::sha256msg_eval::test_eval_sha256msg_shared_corruptors ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.87s
+
+     Running unittests src/lib.rs (target/release/deps/compile_algebra-75264e3b8b338b25)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/algebra_tests.rs (target/release/deps/algebra_tests-8cfc43efa663cdb3)
+
+running 17 tests
+test all::fp::test_compile_nat_enforces_word_width ... ok
+test all::fp::test_field_constructor_rejects_invalid_representation ... ok
+test all::fp::test_field_constants ... ok
+test all::fp::test_compare_consistency ... ok
+test all::fp::test_integer_conversions_reject_noncanonical_values ... ok
+test all::fp::test_negation ... ok
+test all::gf2_128::test_addition_and_subtraction ... ok
+test all::gf2_128::test_constants_and_equality ... ok
+test all::fp::test_large_number_reduction ... ok
+test all::gf2_128::test_generators_and_basis ... ok
+test all::fp::test_to_from_bytes ... ok
+test all::fp::test_arithmetic ... ok
+test all::gf2_128::test_multiplication_and_inversion ... ok
+test all::gf2_128::test_serialization ... ok
+test all::gf2_128::test_powers_multiplication ... ok
+test all::fp::test_fp_basis ... ok
+test all::interpolation::test_interpolation ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/release/deps/compile_compiler-5ce84cf7c8c9d518)
+
+running 28 tests
+test compiler_tests::algsimp::test_algsimp_binary_x_plus_x ... ok
+test compiler_tests::algsimp::test_algsimp_prime_cancel ... ok
+test compiler_tests::algsimp::test_rewrite_algebraic_simplification ... ok
+test compiler_tests::assertion::test_rewrite_coalesces_algebraically_equal_assertions ... ok
+test compiler_tests::assertion::test_rewrite_algebraic_simplification ... ok
+test compiler_tests::cse::test_cse_assertions ... ok
+test compiler_tests::copy::test_rewrite_copy ... ok
+test compiler_tests::cse::test_cse ... ok
+test compiler_tests::debug_symbols::test_attached_assertion_keeps_its_path ... ok
+test compiler_tests::debug_symbols::test_compiled_circuit_debug_symbols ... ok
+test compiler_tests::depth::test_direct_input_assertion_has_one_layer ... ok
+test compiler_tests::ir_to_quad::test_ir_to_quad_one ... ok
+test compiler_tests::ir_to_quad::test_ir_to_quad_coalesces_assertions_on_the_same_wire ... ok
+test compiler_tests::debug_symbols::test_debug_symbols_record_assertion_layers ... ok
+test compiler_tests::logic_impl::test_compiler_assertion_path_and_simplification ... ok
+test compiler_tests::logic_impl::test_assertion_paths_do_not_expand_through_shared_groups ... ok
+test compiler_tests::logic_impl::test_duplicate_assertion_paths_keep_first_path ... ok
+test compiler_tests::logic_impl::test_compiler_logic_terms ... ok
+test compiler_tests::logic_impl::test_precious_sum_behavior ... ok
+test compiler_tests::metadata::test_rejects_no_public_inputs - should panic ... ok
+test compiler_tests::metadata::test_rejects_subfield_boundary_past_inputs - should panic ... ok
+test compiler_tests::metadata::test_rejects_too_many_public_inputs - should panic ... ok
+test compiler_tests::quad::test_quad_circuits_instantiation ... ok
+test term_order::tests::propagates_one_copies_and_constant_expressions_but_not_assertion_markers ... ok
+test term_order::tests::shape_then_output_order_preserves_every_term_and_is_deterministic ... ok
+test compiler_tests::precious_alias::test_precious_alias_cancels_in_binary_field ... ok
+test compiler_tests::precious_alias::test_precious_alias_in_prime_field ... ok
+test compiler_tests::segment::test_circuit_compression_and_recompression ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/compile_eval-ca00e0c9f443ccc5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/compile_logic-ab9212b0ba26a870)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/eval.rs (target/release/deps/eval-fe33a5da8baebb7b)
+
+running 11 tests
+test test_eval_assert0_panic ... ok
+test test_eval_assert_mapi ... ok
+test test_eval_assertion_dag_paths ... ok
+test test_eval_attached_assertion_keeps_exact_scoped_path ... ok
+test test_eval_assertion_status_tracking ... ok
+test test_eval_context_owns_tracker ... ok
+test test_eval_logic ... ok
+test test_eval_distinct_assertions_with_the_same_path_remain_distinct ... ok
+test test_eval_shared_attached_assertion_is_reported_once ... ok
+test test_eval_union_reports_failure_from_any_alias ... ok
+test test_eval_with_assertions_propagation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/compile_proto-1baa1f170309f478)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/core_algebra-3a723aab81923a01)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/algebra_tests.rs (target/release/deps/algebra_tests-63f080188ceeea80)
+
+running 3 tests
+test all::ec::test_mock_field_properties ... ok
+test all::ec::test_ec_properties ... ok
+test all::gf2_128::test_cantor_basis_properties ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/core_proto-e2a154c9d84c144a)
+
+running 1 test
+test reader::tests::default_total_term_limit_is_unchanged ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/archive_test.rs (target/release/deps/archive_test-fbd028de751d0879)
+
+running 5 tests
+test test_circuit_archive_lfa1_circuit_version_assertion - should panic ... ok
+test test_circuit_archive_lfa1_information_loss_assertion - should panic ... ok
+test test_circuit_archive_lfa2_roundtrip ... ok
+test test_circuit_archive_legacy_concatenated_stream ... ok
+test test_circuit_archive_lfa1_roundtrip ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/serialization.rs (target/release/deps/serialization-296de3992d852887)
+
+running 5 tests
+test test_circuit_serialization_lfc2_roundtrip ... ok
+test test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2 ... ok
+test test_circuit_serialization_compatibility ... ok
+test test_circuit_serialization_lfc1_roundtrip ... ok
+test explicit_total_term_budget_applies_to_both_formats ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/term_order.rs (target/release/deps/term_order-430de7552b06dea5)
+
+running 1 test
+test lexicographic_order_is_translation_invariant_and_groups_input_pairs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_artifacts-644d6ca3c19167b7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_circuits-2fdaa158bff0cdaf)
+
+running 16 tests
+test cbor::cbor_encode::tests::byte_string_length_boundaries ... ok
+test cbor::cbor_encode::tests::string_length_above_u32 ... ok
+test cbor::cbor_encode::tests::text_string_length_boundaries ... ok
+test cbor::mdoc::tests::duplicate_schema_key_is_rejected ... ok
+test cbor::mdoc::tests::malformed_mdoc_returns_an_error ... ok
+test cbor::mdoc::tests::malformed_signature_returns_an_error ... ok
+test cbor::mdoc::tests::nested_decoy_key_does_not_satisfy_schema ... ok
+test cbor::mdoc::tests::rejects_mso_that_exceeds_sha_capacity ... ok
+test cbor::mdoc::tests::trailing_cbor_data_is_rejected ... ok
+test cbor::mdoc::tests::validates_fixed_mso_layout ... ok
+test cbor::mdoc::tests::wrong_schema_container_type_is_rejected ... ok
+test cbor::parse::tests::parses_extended_simple_values ... ok
+test cbor::parse::tests::parses_positive_and_negative_integers_semantically ... ok
+test cbor::parse::tests::preserves_floating_point_bits ... ok
+test cbor::parse::tests::rejects_trailing_data_without_parsing_it ... ok
+test cbor::mdoc::tests::transcript_hash_uses_u32_lengths ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/circuits_tests.rs (target/release/deps/circuits_tests-c80aa4b378f0839f)
+
+running 25 tests
+test all::hash_compile::test_paranoid_hash_input_subsets_and_permutations ... ok
+test all::cbor_decoder_compile::test_compile_cbor_decoder ... ok
+test all::cbor_decoder_eval::test_cbor_decoder_exhaustive ... ok
+test all::mso_attribute_eval::test_prefix_equal_boundary_bug ... ok
+test all::mso_attribute_eval::test_prefix_equal_vlen_boundary_bug ... ok
+test all::mso_attribute_eval::test_attribute_success ... ok
+test all::signature_eval::test_signature_circuit_independent_eval ... ok
+test all::mso_attribute_compile::test_serialize_attribute_size ... ok
+test all::hash_eval::test_eval_mdoc_hash ... ok
+test all::signature_compile::test_serialize_and_verify_mdoc_signature_circuit ... ok
+test all::hash_eval::test_eval_mdoc_hash_independent ... ok
+test all::signature_compile::test_mdoc_zk_circuits_signature ... ok
+test all::hash_eval::test_namespace_mixup_exploit ... ok
+test all::hash_eval::test_eval_mdoc_hash_with_mac ... ok
+test all::signature_compile::test_compile_mdoc_signature_corruptors ... ok
+test all::mso_attribute_compile::test_compile_mso_attribute_tampering ... ok
+test all::hash_eval::test_check_doc_type_suppression ... ok
+test all::mso_attribute_eval::test_eval_mso_attribute_shared_corruptors ... ok
+test all::signature_eval::test_eval_mdoc_signature_shared_corruptors ... ok
+test all::hash_eval::test_eval_mdoc_hash_shared_corruptors ... ok
+test all::hash_compile::test_mdoc_zk_circuits_hash ... ok
+test all::hash_compile::test_serialize_and_verify_mdoc_hash_circuit ... ok
+test all::hash_compile::test_compile_mdoc_hash_corruptors ... ok
+test all::hash_eval::test_all_mdoc_cases ... ok
+test all::eval::test_all_two_circuit_setups ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.73s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_compile-7ca1423d04da732b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_proto-c26a503995c4e082)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/release/deps/prover_only-5def0ee79ee4ec5d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_runtime-f6938b4decd24066)
+
+running 1 test
+test utils::tests::circuit_supports_rejects_malformed_trailing_data ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/convert_circuits.rs (target/release/deps/convert_circuits-d179401828d7f26f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/runtime_tests.rs (target/release/deps/runtime_tests-65a054db3774037f)
+
+running 4 tests
+test all::prior_zk::tests::test_circuit_ids_match_zkspecs ... ok
+test all::prior_zk::tests::test_all_circuits_prior_compatibility ... ok
+test all::prior_zk::tests::test_all_circuits_all_test_cases ... ok
+test all::current_zk::test_all_current_zk ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.05s
+
+     Running unittests src/lib.rs (target/release/deps/mdoc_zk_testcases-1b55ae608e257fc7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/release/deps/verifier_only-351d95545185938a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_algebra-35c4c7a0b96919cf)
+
+running 4 tests
+test limb::tests::test_conditional_move ... ok
+test limb::tests::test_maybe_minus_m_all_cases ... ok
+test limb::tests::test_shr_1 ... ok
+test utility::tests::batch_inverse_rejects_invalid_bounds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/algebra_tests.rs (target/release/deps/algebra_tests-9ade4ce4cbd2f9e6)
+
+running 59 tests
+test all::blas::test_blas_subroutines ... ok
+test all::fft::test_fft_impulse ... ok
+test all::fft::test_fft_rejects_invalid_orders ... ok
+test all::fft::test_fft_inverse ... ok
+test all::fp2::test_fp2_algebraic_properties ... ok
+test all::fp_generic::test_invert_zero_panics - should panic ... ok
+test all::fft::test_fft_impulse_addition ... ok
+test all::fp_generic::test_all_generics ... ok
+test all::fp_generic::test_rejects_invalid_montgomery_modulus - should panic ... ok
+test all::fft::test_fft_shift ... ok
+test all::fft::test_fft_linearity ... ok
+test all::fp_generic::test_rejects_undersized_accumulator - should panic ... ok
+test all::fp_generic::test_sampling_rejects_wrong_byte_count - should panic ... ok
+test all::fp_generic::test_reduce_nat ... ok
+test all::gf2_128::test_newton_denominators_and_interpolation ... ok
+test all::gf2_128::test_invert_zero_panics - should panic ... ok
+test all::gf2_128::test_gf2_128_optimized_vs_unoptimized ... ok
+test all::cantor_basis::test_compute_cantor_basis ... ok
+test all::gf2_128::test_serialization ... ok
+test all::gf2_128::test_precomputed_agrees_with_algebra ... ok
+test all::gf2_128::test_sampling_rejects_wrong_byte_count - should panic ... ok
+test all::fp_generic::test_accum_reduce_scaling_bug ... ok
+test all::lch14::test_bidirectional_fft_rejects_invalid_bounds ... ok
+test all::fft::test_fft_step_linearity ... ok
+test all::lch14::test_lch14_interpolator_rejects_invalid_dimensions ... ok
+test all::lch14::test_fft_ifft_roundtrip ... ok
+test all::fp_generic::test_rejects_mismatched_limb_count - should panic ... ok
+test all::lch14::test_bidirectional_fft ... ok
+test all::lch14::test_twiddle ... ok
+test all::middle_product::test_middle_product_rejects_invalid_dimensions ... ok
+test all::middle_product::test_fft_middle_product ... ok
+test all::middle_product::test_fft_ext_middle_product ... ok
+test all::lch14::test_lch14_interpolator_rejects_wrong_buffer_length ... ok
+test all::p256::test_runtime_double_vs_affine ... ok
+test all::p256::test_serialization ... ok
+test all::lch14::test_w_recursion ... ok
+test all::p256::test_p256_reduce_nat ... ok
+test all::q256::test_serialization ... ok
+test all::p256::test_precomputed_agrees_with_algebra ... ok
+test all::rfft::test_rfft_rejects_non_power_of_two_length ... ok
+test all::reed_solomon::test_reed_solomon_rejects_wrong_buffer_length ... ok
+test all::reed_solomon::test_reed_solomon_slow ... ok
+test all::subfield::test_binary_subfield_requires_byte_aligned_dimension - should panic ... ok
+test all::subfield::test_gf2_16_basis_v1_properties ... ok
+test all::lch14::test_w_hat ... ok
+test all::subfield::test_subfield_gf2_128 ... ok
+test all::subfield::test_subfield_sampling_rejects_wrong_byte_count - should panic ... ok
+test all::poly::test_zero_length_polynomial_rejects_evaluation ... ok
+test all::p256::test_p256_optimized_vs_unoptimized ... ok
+test all::p256::test_specific_double ... ok
+test all::q256::test_q256_basic_ops ... ok
+test all::p256::test_specific_mul ... ok
+test all::reed_solomon::test_fft_interpolator_can_encode_middle_product ... ok
+test all::subfield::test_subfield_closed_under_multiplication ... ok
+test all::rfft::test_rfft_vs_fft ... ok
+test all::lch14::test_lch14_interpolation ... ok
+test all::lch14::test_w_additivity ... ok
+test all::subfield::test_runtime_subfield_gf2_16 ... ok
+test all::p256::test_p256_random_mul_robust ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_ligero-6864c90ec37ee054)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ligero.rs (target/release/deps/ligero-f80037cb5c839eaf)
+
+running 4 tests
+test test_debug_try_new ... ok
+test test_cpp_roundtrip_gf2_128 ... ok
+test test_ligero_gf2_128 ... ok
+test test_ligero_p256 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_merkle-5dd320de55e4f83a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/merkle.rs (target/release/deps/merkle-19adc44114d78256)
+
+running 7 tests
+test test_merkle_commitment_tampering ... ok
+test test_merkle_commitment ... ok
+test test_merkle_heap_invalid_proofs ... ok
+test test_merkle_cpp_compatibility ... ok
+test test_merkle_heap_simple ... ok
+test test_merkle_commitment_cpp_compatibility ... ok
+test test_merkle_heap_large_and_random ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_proto-ecaad19224006369)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/proto.rs (target/release/deps/proto-3f54fbce7b0d40c2)
+
+running 12 tests
+test test_ligero_proof_read_allows_zero_length_merkle_path ... ok
+test test_ligero_proof_read_write ... ok
+test test_ligero_proof_rejects_noncanonical_rle_encodings ... ok
+test test_merkle_proof_read_write ... ok
+test test_sumcheck_proof_read_write ... ok
+test test_ligero_proof_rle_roundtrip_with_gf2_128 ... ok
+test test_util_read_write_elt_field ... ok
+test test_util_read_write_size_4bytes ... ok
+test test_util_read_write_subfield_elt ... ok
+test test_util_zero_field_element ... ok
+test test_zk_proof_read_write ... ok
+test test_util_rejects_noncanonical_subfield_elt ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/proto_ng.rs (target/release/deps/proto_ng-d0dd5654e0c8bc37)
+
+running 1 test
+test single_hand_geometry_codec_and_malformed_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_random-00824141dd1ac0a3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/transcript.rs (target/release/deps/transcript-16630f1c6b32f323)
+
+running 3 tests
+test test_transcript_clone_preserves_prng_state ... ok
+test test_transcript_gf2_128_subfield_sampling ... ok
+test test_transcript_cpp_compatibility ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_sumcheck-70d7ffa17b23ea0f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sumcheck_tests.rs (target/release/deps/sumcheck_tests-21493c15a0682d52)
+
+running 9 tests
+test all::dense::test_as_scalar ... ok
+test all::dense::test_normalize ... ok
+test all::dense::test_as_scalar_panic - should panic ... ok
+test all::poly::test_fixed_cubic_polynomial ... ok
+test all::poly::test_poly_evaluation_p256 ... ok
+test all::poly::test_poly_evaluation_gf2_128 ... ok
+test all::sumcheck::test_sumcheck_prover_verifier_end_to_end ... ok
+test all::sumcheck::test_sumcheck_prover_verifier_with_nonzero_pad ... ok
+test all::sumcheck::test_sumcheck_multi_layer ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_sumcheck_ng-dba049266b8cf22a)
+
+running 2 tests
+test wiring::tests::functional_transition_and_independent_assertions_prime ... ok
+test wiring::tests::functional_transition_and_independent_assertions_binary ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sumcheck_tests.rs (target/release/deps/sumcheck_tests-7e2e859c20fb0f30)
+
+running 14 tests
+test all::dense::binding_matches_equality_weights_binary ... ok
+test all::dense::binding_matches_equality_weights_prime ... ok
+test all::dense::test_as_scalar ... ok
+test all::poly::round_coefficients_match_interpolation_binary ... ok
+test all::dense::test_as_scalar_panic - should panic ... ok
+test all::poly::round_coefficients_match_interpolation_prime ... ok
+test all::poly::test_poly_evaluation_gf2_128 ... ok
+test all::poly::test_fixed_cubic_polynomial ... ok
+test all::poly::test_poly_evaluation_p256 ... ok
+test all::sumcheck::single_hand_rejects_a_false_internal_assertion ... ok
+test all::sumcheck::test_sumcheck_prover_verifier_end_to_end ... ok
+test all::sumcheck::test_sumcheck_multi_layer ... ok
+test all::sumcheck::test_sumcheck_prover_verifier_with_nonzero_pad ... ok
+test all::sumcheck::test_sumcheck_core_single_hand_permutations ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_zk-2717a5f9efc7a290)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/zk.rs (target/release/deps/zk-cd680aad813ccce4)
+
+running 5 tests
+test test_zk_intermediate_zero_logw ... ok
+test test_zk_prover_verifier_end_to_end ... ok
+test test_zk_triple_zero_zero_zero ... ok
+test test_zk_rfc_testvector1 ... ok
+test test_zk_zero_layers ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/runtime_zk_ng-2c542acb26a230d7)
+
+running 5 tests
+test constraint_compiler::tests::rejects_mismatched_verifier_data_and_pad_layout ... ok
+test constraint_compiler::tests::relations_and_compiled_constraints_match_numerical_binary ... ok
+test constraint_compiler::tests::zero_weights_preserve_constant_constraint ... ok
+test constraint_compiler::tests::relations_and_compiled_constraints_match_numerical_prime ... ok
+test prover::tests::zk_prover_matches_numerical_prover_and_symbolic_verifier ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/zk.rs (target/release/deps/zk-8a69bbc65f07d75f)
+
+running 5 tests
+test test_zk_prover_verifier_end_to_end ... ok
+test test_zk_triple_zero_zero_zero ... ok
+test test_zk_intermediate_zero_logw ... ok
+test test_zk_zero_layers ... ok
+test test_zk_supported_layouts_multibit_roundtrip_and_tampering ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/release/deps/util-417cdcf59fe5e850)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/util_tests.rs (target/release/deps/util_tests-c24c383145e54fe3)
+
+running 4 tests
+test all::morton::test_even_uneven_roundtrip ... ok
+test all::util::test_ceil_log2 ... ok
+test all::util::test_ceil_log2_zero_panic - should panic ... ok
+test all::morton::test_morton_cmp ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+   Doc-tests circuits_analog_adder
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_analog_decoder
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_arithmetic
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_big_bitvec
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_bignum
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_bit_plucker
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_bitvec
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_boolean
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_ec
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_ecdsa2
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_experimental
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_gf2_128
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_lookup
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_mac
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_mac_gf128
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_memcmp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_polynomial
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_routing
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_sha256
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests circuits_sha256msg
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compile_algebra
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compile_compiler
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compile_eval
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compile_logic
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests compile_proto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests core_algebra
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests core_proto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_artifacts
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_circuits
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_compile
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_proto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_runtime
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mdoc_zk_testcases
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_algebra
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_ligero
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_merkle
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_proto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_random
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_sumcheck
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_sumcheck_ng
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_zk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests runtime_zk_ng
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests util
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
