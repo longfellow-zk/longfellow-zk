@@ -102,7 +102,7 @@ globs = ["ECDSA.+"]
 [[lean_lib]]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
-roots = ["PkCircuit", "PkCircuitPoly"]
+roots = ["PkCircuit", "PkCircuitPoly", "ProjectiveOrder"]
 
 [[lean_lib]]
 name = "RecursivePolygero"
