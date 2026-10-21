@@ -25,15 +25,85 @@ pub struct ProvidedCircuit {
     pub compressed: Vec<u8>,
 }
 
+pub fn select_current_spec(
+    num_regular: usize,
+    pnym: bool,
+) -> Result<&'static ZkSpecStruct, MdocProverErrorCode> {
+    if pnym {
+        let target_num = match num_regular {
+            1 => 1,
+            2..=4 => 4,
+            _ => return Err(MdocProverErrorCode::InvalidRequest),
+        };
+        CURRENT_ZK_SPECS
+            .iter()
+            .find(|s| s.num_attributes == target_num && s.pnym)
+            .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)
+    } else {
+        let target_num = match num_regular {
+            1 => 1,
+            2 => 2,
+            3..=4 => 4,
+            _ => return Err(MdocProverErrorCode::InvalidZkSpecVersion),
+        };
+        CURRENT_ZK_SPECS
+            .iter()
+            .find(|s| s.num_attributes == target_num && !s.pnym)
+            .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)
+    }
+}
+
+pub fn select_current_spec_for_request(
+    req_attrs: &[crate::RequestedAttribute],
+) -> Result<&'static ZkSpecStruct, MdocProverErrorCode> {
+    use mdoc_zk_circuits::mso_attribute::constants::{
+        K_LARGE_ATTR_SHA_BLOCKS, K_MAX_ATTR_SHA_BLOCKS,
+    };
+    if req_attrs.is_empty() {
+        return Err(MdocProverErrorCode::InvalidRequest);
+    }
+    let pnym_count = req_attrs
+        .iter()
+        .filter(|a| a.op == crate::AttributeOp::Pnym)
+        .count();
+    if pnym_count > 1 {
+        return Err(MdocProverErrorCode::InvalidRequest);
+    }
+    let has_pnym = pnym_count == 1;
+    let regular: Vec<&crate::RequestedAttribute> = req_attrs
+        .iter()
+        .filter(|a| a.op != crate::AttributeOp::Pnym)
+        .collect();
+    let has_large = regular
+        .iter()
+        .any(|a| !crate::utils::attr_encoding_fits(&a.id, &a.cbor_value, K_MAX_ATTR_SHA_BLOCKS));
+    if has_large {
+        if has_pnym || regular.len() > 2 {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
+        if regular.iter().any(|a| {
+            !crate::utils::attr_encoding_fits(&a.id, &a.cbor_value, K_LARGE_ATTR_SHA_BLOCKS)
+        }) {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
+        return select_current_spec(2, false);
+    }
+    select_current_spec(regular.len(), has_pnym)
+}
+
 pub fn materialize(
     version: usize,
     num_attributes: usize,
+    pnym: bool,
 ) -> Result<ProvidedCircuit, MdocProverErrorCode> {
     match version.cmp(&CURRENT_VERSION) {
         std::cmp::Ordering::Less => {
+            if pnym {
+                return Err(MdocProverErrorCode::InvalidZkSpecVersion);
+            }
             let spec = ZK_SPECS
                 .iter()
-                .find(|s| s.version == version && s.num_attributes == num_attributes)
+                .find(|s| s.version == version && s.num_attributes == num_attributes && !s.pnym)
                 .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)?;
             let hash_hex = spec.combined_hash_hex();
             let compressed = mdoc_zk_artifacts::load_circuit_lfa2(&hash_hex);
@@ -51,10 +121,7 @@ pub fn materialize(
             })
         }
         std::cmp::Ordering::Equal => {
-            let spec = CURRENT_ZK_SPECS
-                .iter()
-                .find(|s| s.num_attributes == num_attributes)
-                .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)?;
+            let spec = select_current_spec(num_attributes, pnym)?;
 
             let hash_profile = mdoc_zk_compile::LigeroProfile {
                 rateinv: spec.ligero_hash.rateinv,
@@ -64,9 +131,13 @@ pub fn materialize(
                 rateinv: spec.ligero_sig.rateinv,
                 nreq: spec.ligero_sig.nreq,
             };
-            let (lfa_bytes, config_sig, config_hash) =
-                mdoc_zk_compile::generate_circuits(num_attributes, hash_profile, sig_profile)
-                    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+            let (lfa_bytes, config_sig, config_hash) = mdoc_zk_compile::generate_circuits(
+                spec.num_attributes,
+                spec.pnym,
+                hash_profile,
+                sig_profile,
+            )
+            .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
             if config_hash != spec.ligero_hash || config_sig != spec.ligero_sig {
                 return Err(MdocProverErrorCode::GeneralFailure);
             }

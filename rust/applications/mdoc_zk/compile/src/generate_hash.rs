@@ -26,6 +26,7 @@ use crate::{allocate_hash::allocate_hash, allocator::WireAllocator};
 pub fn mdoc_zk_circuits_hash<FC>(
     fc: &FC,
     num_attrs: usize,
+    pnym: bool,
 ) -> (
     Circuit<FC>,
     core_proto::circuit::CircuitGeometry,
@@ -50,12 +51,13 @@ where
         let (given, derived, pub_inputs_count, subfield_boundary_val) = allocate_hash(
             &mut allocator,
             num_attrs,
+            pnym,
             &plucker_v8,
             &plucker_v256,
             &plucker_sha,
         );
 
-        let mdoc = MdocHash::new(&iologic, num_attrs);
+        let mdoc = MdocHash::with_pnym(&iologic, num_attrs, pnym);
         let assertion = mdoc.assert_valid_presentation_and_macs(&given, &derived);
         (assertion, pub_inputs_count, subfield_boundary_val)
     })
@@ -64,12 +66,13 @@ where
 pub fn generate_hash_circuit(
     f128_compile: &Gf2_128Field,
     num_attrs: usize,
+    pnym: bool,
     profile: crate::LigeroProfile,
 ) -> Result<(Circuit<Gf2_128Field>, runtime_ligero::param::LigeroConfig), String> {
     use std::fmt::Write;
 
     let start = std::time::Instant::now();
-    let (hash_circuit_comp, stats, _symbols) = mdoc_zk_circuits_hash(f128_compile, num_attrs);
+    let (hash_circuit_comp, stats, _symbols) = mdoc_zk_circuits_hash(f128_compile, num_attrs, pnym);
 
     let duration = start.elapsed();
 
@@ -79,7 +82,7 @@ pub fn generate_hash_circuit(
         let _ = write!(&mut hex_id, "{b:02x}");
     }
 
-    println!("[Compiler] Hash Circuit (nattrs={num_attrs})");
+    println!("[Compiler] Hash Circuit (nattrs={num_attrs}, pnym={pnym})");
     println!("  Hash (ID): 0x{hex_id}");
     println!(
         "  Geometry: nin={}, npubin={}, nout={}, W={}, T={}, L={}, assertions={}",

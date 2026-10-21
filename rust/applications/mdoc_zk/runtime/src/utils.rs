@@ -15,7 +15,7 @@
 use core_algebra::{Nat, SerializableField};
 use runtime_algebra::p256::P256Field;
 
-use crate::attribute::RequestedAttribute;
+use crate::attribute::{AttributeOp, RequestedAttribute};
 
 pub fn req_attr(
     namespace: impl AsRef<[u8]>,
@@ -26,7 +26,66 @@ pub fn req_attr(
         namespace_id: namespace.as_ref().to_vec(),
         id: id.as_ref().to_vec(),
         cbor_value: cbor_val.as_ref().to_vec(),
+        op: AttributeOp::Eq,
+        context: Vec::new(),
     }
+}
+
+pub fn req_attr_le(
+    namespace: impl AsRef<[u8]>,
+    id: impl AsRef<[u8]>,
+    cbor_val: impl AsRef<[u8]>,
+) -> RequestedAttribute {
+    RequestedAttribute {
+        namespace_id: namespace.as_ref().to_vec(),
+        id: id.as_ref().to_vec(),
+        cbor_value: cbor_val.as_ref().to_vec(),
+        op: AttributeOp::Le,
+        context: Vec::new(),
+    }
+}
+
+pub fn req_attr_ge(
+    namespace: impl AsRef<[u8]>,
+    id: impl AsRef<[u8]>,
+    cbor_val: impl AsRef<[u8]>,
+) -> RequestedAttribute {
+    RequestedAttribute {
+        namespace_id: namespace.as_ref().to_vec(),
+        id: id.as_ref().to_vec(),
+        cbor_value: cbor_val.as_ref().to_vec(),
+        op: AttributeOp::Ge,
+        context: Vec::new(),
+    }
+}
+
+pub fn req_pnym(namespace: impl AsRef<[u8]>, context: impl AsRef<[u8]>) -> RequestedAttribute {
+    RequestedAttribute {
+        namespace_id: namespace.as_ref().to_vec(),
+        id: b"pnym_seed".to_vec(),
+        cbor_value: Vec::new(),
+        op: AttributeOp::Pnym,
+        context: context.as_ref().to_vec(),
+    }
+}
+
+#[must_use]
+pub fn pad_request_attrs(
+    attrs: &[RequestedAttribute],
+    target_len: usize,
+) -> Vec<RequestedAttribute> {
+    let reg_count = attrs.iter().filter(|a| a.op != AttributeOp::Pnym).count();
+    if reg_count == 0 || reg_count >= target_len {
+        return attrs.to_vec();
+    }
+    let Some(last_reg) = attrs.iter().rfind(|a| a.op != AttributeOp::Pnym).cloned() else {
+        return attrs.to_vec();
+    };
+    let mut out = attrs.to_vec();
+    for _ in reg_count..target_len {
+        out.push(last_reg.clone());
+    }
+    out
 }
 
 #[must_use]
@@ -41,8 +100,8 @@ pub fn same_namespace(attrs: &[RequestedAttribute]) -> bool {
 fn hex_decode_to_32_bytes_be(s: &str) -> Result<[u8; 32], String> {
     let mut bytes = [0u8; 32];
     let hex_len = s.len();
-    if hex_len > 64 {
-        return Err("Hex string too long".to_string());
+    if hex_len == 0 || hex_len > 64 {
+        return Err("Invalid hex string length".to_string());
     }
 
     let mut s_padded = s.to_string();
@@ -83,6 +142,86 @@ pub fn parse_pk_coordinate(
 }
 
 #[must_use]
+pub fn is_iso_date_prefix(bytes: &[u8]) -> bool {
+    bytes.len() >= 10
+        && bytes[0..4].iter().all(u8::is_ascii_digit)
+        && bytes[4] == b'-'
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[7] == b'-'
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
+}
+
+#[must_use]
+pub fn is_iso_datetime_utc(bytes: &[u8]) -> bool {
+    is_iso_date_prefix(bytes)
+        && bytes.len() == mdoc_zk_proto::hash::constants::K_TIMESTAMP_LEN
+        && bytes[10] == b'T'
+        && bytes[11..13].iter().all(u8::is_ascii_digit)
+        && bytes[13] == b':'
+        && bytes[14..16].iter().all(u8::is_ascii_digit)
+        && bytes[16] == b':'
+        && bytes[17..19].iter().all(u8::is_ascii_digit)
+        && bytes[19] == b'Z'
+}
+
+/// Checks whether an attribute with identifier `id` and CBOR-encoded value
+/// `cbor_value` can fit inside the circuit's disclosed attribute buffers
+/// (`cbor_id.len() <= 32`, `cbor_value.len() <= max_attr_val_len(num_attr_sha_blocks)`) and within an
+/// `IssuerSignedItemBytes` hashed by `num_attr_sha_blocks` SHA-256 blocks
+/// (`min_attr_item_cbor_len <= max_attr_cbor_len(num_attr_sha_blocks)`).
+#[must_use]
+pub fn attr_encoding_fits(id: &[u8], cbor_value: &[u8], num_attr_sha_blocks: usize) -> bool {
+    let max_val_len =
+        mdoc_zk_proto::mso_attribute::constants::max_attr_val_len(num_attr_sha_blocks);
+    if id.is_empty() || cbor_value.is_empty() || cbor_value.len() > max_val_len {
+        return false;
+    }
+    let cbor_id_len = if id.len() < 24 {
+        1 + id.len()
+    } else {
+        2 + id.len()
+    };
+    if cbor_id_len > 32 {
+        return false;
+    }
+    mdoc_zk_proto::mso_attribute::constants::min_attr_item_cbor_len(cbor_id_len, cbor_value.len())
+        <= mdoc_zk_proto::mso_attribute::constants::max_attr_cbor_len(num_attr_sha_blocks)
+}
+
+/// Binds a prover-returned attribute response slice against the verifier's own
+/// requested attributes.
+///
+/// For `AttributeOp::Pnym` entries, copies only the prover-computed 34-byte CBOR
+/// pseudonym (`0x58 0x20 || H(pnym_seed || context)`) into a copy of the
+/// verifier's `request`, keeping all verifier-chosen fields (`namespace_id`,
+/// `id`, `op`, `context`) and all non-`Pnym` attributes strictly from `request`.
+pub fn bind_pnym_response(
+    request: &[RequestedAttribute],
+    response: &[RequestedAttribute],
+) -> Result<Vec<RequestedAttribute>, crate::error::MdocVerifierErrorCode> {
+    if request.len() != response.len() {
+        return Err(crate::error::MdocVerifierErrorCode::AttributeNumberMismatch);
+    }
+    let mut bound = request.to_vec();
+    for (req, resp) in bound.iter_mut().zip(response.iter()) {
+        if req.namespace_id != resp.namespace_id || req.id != resp.id || req.op != resp.op {
+            return Err(crate::error::MdocVerifierErrorCode::InvalidRequest);
+        }
+        if req.op == AttributeOp::Pnym {
+            if resp.cbor_value.len() != mdoc_zk_proto::mso_attribute::constants::K_PNYM_VALUE_LEN
+                || resp.cbor_value.get(..2) != Some(&[0x58, 0x20])
+            {
+                return Err(crate::error::MdocVerifierErrorCode::InvalidRequest);
+            }
+            req.cbor_value = resp.cbor_value.clone();
+        } else if req.cbor_value != resp.cbor_value || !resp.context.is_empty() {
+            return Err(crate::error::MdocVerifierErrorCode::InvalidRequest);
+        }
+    }
+    Ok(bound)
+}
+
+#[must_use]
 pub fn circuit_supports(data: &[u8]) -> bool {
     let mut parser = mdoc_zk_circuits::cbor::parse::CborParser::new(data);
     let Ok(el) = parser.parse_exact() else {
@@ -115,6 +254,20 @@ pub fn circuit_supports(data: &[u8]) -> bool {
             _ => false,
         },
         _ => false,
+    }
+}
+
+#[must_use]
+pub fn circuit_supports_comparison(data: &[u8]) -> bool {
+    if !circuit_supports(data) {
+        return false;
+    }
+    if data.len() == 14 && data.starts_with(&[0xd9, 0x03, 0xec, 0x6a]) {
+        is_iso_date_prefix(&data[4..14])
+    } else if data.len() == 22 && data.starts_with(&[0xc0, 0x74]) {
+        is_iso_datetime_utc(&data[2..22])
+    } else {
+        false
     }
 }
 

@@ -19,10 +19,10 @@ use compile_logic::{eval::EvalLogic, Logic};
 use core_algebra::Nat;
 use mdoc_zk_circuits::{
     hash::{
-        derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc, HashMac,
-        MdocHash,
+        circuit::DisclosedAttribute, derived, evaluate_derived, evaluate_given, given,
+        hash_input_of_parsed_mdoc, HashMac, MdocHash,
     },
-    mso_attribute::{constants::K_ATTR_INDEX_BITS, DisclosedAttribute},
+    mso_attribute::constants::K_ATTR_INDEX_BITS,
     parse_test_data,
 };
 
@@ -150,7 +150,7 @@ fn apply_negative_test_modifications<'a, FC: CompileField>(
             }
             if key_bytes.starts_with(&target_cbor_key) {
                 da.expected_cbor_value.data[0] = bitvec_logic.of_u8(0xf4);
-                for j in 1..64 {
+                for j in 1..da.expected_cbor_value.data.len() {
                     da.expected_cbor_value.data[j] = bitvec_logic.of_u8(0);
                 }
                 da.expected_cbor_value.len = bitvec_logic.of_u64::<K_ATTR_INDEX_BITS>(1);
@@ -172,7 +172,7 @@ fn apply_negative_test_modifications<'a, FC: CompileField>(
                 for (dst, &src) in da.expected_cbor_value.data.iter_mut().zip(val.iter()) {
                     *dst = bitvec_logic.of_u8(src);
                 }
-                for i in val.len()..64 {
+                for i in val.len()..da.expected_cbor_value.data.len() {
                     da.expected_cbor_value.data[i] = bitvec_logic.of_u8(0);
                 }
                 da.expected_cbor_value.len =
@@ -195,7 +195,7 @@ fn apply_negative_test_modifications<'a, FC: CompileField>(
                 for (dst, &src) in da.expected_cbor_value.data.iter_mut().zip(val.iter()) {
                     *dst = bitvec_logic.of_u8(src);
                 }
-                for i in val.len()..64 {
+                for i in val.len()..da.expected_cbor_value.data.len() {
                     da.expected_cbor_value.data[i] = bitvec_logic.of_u8(0);
                 }
                 da.expected_cbor_value.len =
@@ -218,7 +218,7 @@ fn apply_negative_test_modifications<'a, FC: CompileField>(
                 for (dst, &src) in da.expected_cbor_value.data.iter_mut().zip(val.iter()) {
                     *dst = bitvec_logic.of_u8(src);
                 }
-                for i in val.len()..64 {
+                for i in val.len()..da.expected_cbor_value.data.len() {
                     da.expected_cbor_value.data[i] = bitvec_logic.of_u8(0);
                 }
                 da.expected_cbor_value.len =
@@ -450,3 +450,347 @@ fn test_check_doc_type_suppression() {
         mdoc3.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
     res_suppressed.unwrap();
 }
+
+#[test]
+fn test_eval_mdoc_hash_date_comparison() {
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(
+        &mdoc_zk_testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3,
+    );
+    let base_hash_input = hash_input_of_parsed_mdoc(&parsed, &[b"birth_date"], now);
+    let mac_input = HashMac {
+        mac_av: 0,
+        mac_ap: [[0, 0]; 3],
+    };
+
+    let make_full_date = |s: &[u8; 10]| -> Vec<u8> {
+        let mut v = vec![0xd9, 0x03, 0xec, 0x6a];
+        v.extend_from_slice(s);
+        v
+    };
+
+    // mdoc birth_date is 1971-09-01
+    for (op, date_str, should_pass) in [
+        (1u8, b"1971-09-01", true),
+        (1u8, b"1971-09-02", true),
+        (1u8, b"2007-09-01", true),
+        (1u8, b"1971-08-31", false),
+        (2u8, b"1971-09-01", true),
+        (2u8, b"1971-08-31", true),
+        (2u8, b"1971-09-02", false),
+    ] {
+        let mut hi = base_hash_input.clone();
+        hi.attrs[0].op = op;
+        hi.attrs[0].expected_cbor_value = make_full_date(date_str);
+
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let given_val = given::<4, _>(hi, mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::new(&l, 1);
+        let res = mdoc.assert_valid_presentation(&wg, &wd);
+        assert_eq!(res.is_ok(), should_pass);
+    }
+}
+
+#[test]
+fn test_eval_mdoc_hash_pnym() {
+    use mdoc_zk_circuits::hash::pnym_hash_input_of_parsed_mdoc;
+
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::PNYM_SEED_MDOC);
+
+    let context = b"relying-party.example/ctx";
+    let hi = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"age_over_18"], context, now);
+    let pnym_cbor = &hi.pnym.as_ref().unwrap().expected_cbor_value;
+    assert_eq!(pnym_cbor.len(), 34);
+    assert_eq!(&pnym_cbor[0..2], &[0x58, 0x20]);
+
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00u128,
+        mac_ap: [[0xabcdef, 0x123456]; 3],
+    };
+    let given_val = given::<4, _>(hi, mac_input);
+    let derived_val = derived::<4, _>(&given_val);
+
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg = evaluate_given(&l, &bv, &given_val);
+    let wd = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc = MdocHash::with_pnym(&l, 1, true);
+    mdoc.assert_valid_presentation_and_macs(&wg, &wd).unwrap();
+}
+
+#[test]
+fn test_eval_mdoc_hash_1attr_pnym_ops() {
+    use mdoc_zk_circuits::hash::pnym_hash_input_of_parsed_mdoc;
+
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::PNYM_SEED_MDOC);
+    let context = b"verifier.example.org/relying-party-session-2026";
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00u128,
+        mac_ap: [[0xabcdef, 0x123456]; 3],
+    };
+
+    // 1. Positive Le comparison (birth_date <= 2000-01-01) + pseudonym in (1, true)
+    let mut hi_le = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"birth_date"], context, now);
+    hi_le.attrs[0].op = 1; // Le
+    hi_le.attrs[0].expected_cbor_value = b"\xd9\x03\xec\x6a2000-01-01".to_vec();
+    {
+        let given_val = given::<4, _>(hi_le.clone(), mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::with_pnym(&l, 1, true);
+        mdoc.assert_valid_presentation_and_macs(&wg, &wd).unwrap();
+    }
+
+    // 2. Positive Ge comparison (birth_date >= 1970-01-01) + pseudonym in (1, true)
+    let mut hi_ge = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"birth_date"], context, now);
+    hi_ge.attrs[0].op = 2; // Ge
+    hi_ge.attrs[0].expected_cbor_value = b"\xd9\x03\xec\x6a1970-01-01".to_vec();
+    {
+        let given_val = given::<4, _>(hi_ge, mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::with_pnym(&l, 1, true);
+        mdoc.assert_valid_presentation_and_macs(&wg, &wd).unwrap();
+    }
+
+    // 3. Negative: regular attribute fails Eq (age_over_18 claimed false) while pseudonym is valid
+    let mut hi_bad_attr = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"age_over_18"], context, now);
+    hi_bad_attr.attrs[0].expected_cbor_value = vec![0xf4];
+    {
+        let given_val = given::<4, _>(hi_bad_attr, mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::with_pnym(&l, 1, true);
+        let res = mdoc.assert_valid_presentation_and_macs(&wg, &wd);
+        assert!(res.is_err());
+        res.assert_any_failed_at(
+            "assert_valid_presentation_and_macs/assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_item_slot_key_value/value_rel_ok",
+        );
+    }
+
+    // 4. Negative: regular attribute passes, but pseudonym value is tampered
+    let mut hi_bad_pnym = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"age_over_18"], context, now);
+    hi_bad_pnym.pnym.as_mut().unwrap().expected_cbor_value[2] ^= 0x80;
+    {
+        let given_val = given::<4, _>(hi_bad_pnym, mac_input.clone());
+        let derived_val = derived::<4, _>(&given_val);
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::with_pnym(&l, 1, true);
+        let res = mdoc.assert_valid_presentation_and_macs(&wg, &wd);
+        assert!(res.is_err());
+    }
+
+    // 5. Negative: regular attribute passes, but public pseudonym context is tampered
+    let hi_ok = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"age_over_18"], context, now);
+    {
+        let mut given_val = given::<4, _>(hi_ok, mac_input);
+        let derived_val = derived::<4, _>(&given_val);
+        given_val.hash_input.pnym.as_mut().unwrap().context[0] ^= 0x01;
+        let tracker = compile_logic::tracker::AssertionTracker::new();
+        let l = EvalLogic::new_with_tracker(&f, &tracker);
+        let bv = BitvecLogic::new(&l);
+        let wg = evaluate_given(&l, &bv, &given_val);
+        let wd = evaluate_derived(&l, &bv, &derived_val);
+        let mdoc = MdocHash::with_pnym(&l, 1, true);
+        let res = mdoc.assert_valid_presentation_and_macs(&wg, &wd);
+        assert!(res.is_err());
+        res.assert_any_failed_at(
+            "assert_valid_presentation_and_macs/assert_valid_presentation/assert_pnym/assert_pnym_attribute/assert_pnym_value_and_hash/pnym_context_copy/pnym_context_copy.0/ctx_byte_imp",
+        );
+    }
+}
+
+#[test]
+fn test_eval_mdoc_hash_4attr_pnym() {
+    use mdoc_zk_circuits::hash::pnym_hash_input_of_parsed_mdoc;
+
+    let f = Gf2_128Field::new();
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::PNYM_SEED_MDOC);
+    let context = b"relying-party.example/4attr-pnym";
+    let hi = pnym_hash_input_of_parsed_mdoc(
+        &parsed,
+        &[b"age_over_18", b"birth_date", b"age_over_18", b"birth_date"],
+        context,
+        now,
+    );
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00u128,
+        mac_ap: [[0xabcdef, 0x123456]; 3],
+    };
+    let given_val = given::<4, _>(hi, mac_input);
+    let derived_val = derived::<4, _>(&given_val);
+
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg = evaluate_given(&l, &bv, &given_val);
+    let wd = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc = MdocHash::with_pnym(&l, 4, true);
+    mdoc.assert_valid_presentation_and_macs(&wg, &wd).unwrap();
+}
+
+#[test]
+fn test_eval_mdoc_hash_2_large_190b_and_20b() {
+    use mdoc_zk_circuits::cbor::mdoc::parse_mdoc;
+    use sha2::{Digest, Sha256};
+
+    let f = Gf2_128Field::new();
+    let base_case = &mdoc_zk_testcases::vectors::PNYM_SEED_MDOC;
+    let base = base_case.mdoc;
+
+    // 1. 190-byte IssuerSignedItemBytes (4 SHA-256 blocks: 190 + 9 = 199 > 192 bytes):
+    //    70-byte fixed CBOR framing + 11-byte cbor_id (b"\x6alarge_190b") + 109-byte cbor_value = 190 bytes.
+    let mut val_109b = vec![0x58, 0x6b]; // bstr(107) -> 109 CBOR bytes
+    val_109b.extend((0..107u8).map(|i| i.wrapping_mul(5).wrapping_add(3)));
+
+    // 2. 20-byte attribute value (bstr(19) -> 20 CBOR bytes):
+    let mut val_20b = vec![0x53]; // bstr(19) -> 20 CBOR bytes
+    val_20b.extend((0..19u8).map(|i| i.wrapping_add(0x30)));
+    assert_eq!(val_20b.len(), 20);
+
+    let encode_item = |digest_id: u8, rand_byte: u8, attr_id: &[u8], cbor_val: &[u8]| -> Vec<u8> {
+        let mut map = vec![0xa4];
+        map.extend_from_slice(b"\x68digestID");
+        map.push(digest_id);
+        map.extend_from_slice(b"\x66random\x50");
+        map.extend_from_slice(&[rand_byte; 16]);
+        map.extend_from_slice(b"\x71elementIdentifier");
+        map.push(0x60 + u8::try_from(attr_id.len()).unwrap());
+        map.extend_from_slice(attr_id);
+        map.extend_from_slice(b"\x6celementValue");
+        map.extend_from_slice(cbor_val);
+        let mut item = vec![0xd8, 0x18, 0x58, u8::try_from(map.len()).unwrap()];
+        item.extend_from_slice(&map);
+        item
+    };
+
+    let item_190b = encode_item(0, 0x42, b"large_190b", &val_109b);
+    let item_20b = encode_item(1, 0x44, b"small_20b_", &val_20b);
+    assert_eq!(item_190b.len(), 190);
+    assert_eq!(item_20b.len(), 101);
+
+    let ns_prefix = b"\x71org.iso.18013.5.1\x83";
+    let items_start = base
+        .windows(ns_prefix.len())
+        .position(|w| w == ns_prefix)
+        .unwrap()
+        + ns_prefix.len();
+    let issuer_auth_pos = base
+        .windows(b"\x6aissuerAuth".len())
+        .position(|w| w == b"\x6aissuerAuth")
+        .unwrap();
+    let item2 = &base[issuer_auth_pos - 95..issuer_auth_pos];
+
+    let mut mdoc = base.to_vec();
+    let mso_marker = [0x59, 0x01, 0xe8, 0xd8, 0x18, 0x59, 0x01, 0xe3];
+    let mso_bstr_pos = mdoc
+        .windows(mso_marker.len())
+        .position(|w| w == mso_marker)
+        .unwrap();
+    let mso_wrapped_start = mso_bstr_pos + 3;
+    let mso_wrapped_end = mso_wrapped_start + 0x01e8;
+
+    let d0: [u8; 32] = Sha256::digest(&item_190b).into();
+    let d1: [u8; 32] = Sha256::digest(&item_20b).into();
+    let mso_slice = &mut mdoc[mso_wrapped_start..mso_wrapped_end];
+    let d0_pos = mso_slice
+        .windows(3)
+        .position(|w| w == [0x00, 0x58, 0x20])
+        .unwrap()
+        + 3;
+    mso_slice[d0_pos..d0_pos + 32].copy_from_slice(&d0);
+    let d1_pos = mso_slice
+        .windows(3)
+        .position(|w| w == [0x01, 0x58, 0x20])
+        .unwrap()
+        + 3;
+    mso_slice[d1_pos..d1_pos + 32].copy_from_slice(&d1);
+
+    let mut new_items = Vec::new();
+    new_items.extend_from_slice(&item_190b);
+    new_items.extend_from_slice(&item_20b);
+    new_items.extend_from_slice(item2);
+    mdoc.splice(items_start..issuer_auth_pos, new_items);
+
+    let parsed: mdoc_zk_circuits::cbor::mdoc::ParsedMdoc<CompileNat<4>> =
+        parse_mdoc(&mdoc, base_case.transcript, base_case.doc_type).unwrap();
+    let hi = hash_input_of_parsed_mdoc(
+        &parsed,
+        &[b"large_190b", b"small_20b_"],
+        base_case.now,
+    );
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00u128,
+        mac_ap: [[0xabcdef, 0x123456]; 3],
+    };
+
+    // Positive: 2-attribute large circuit (2, false) passes with 190B item + 20B value
+    let given_val = given::<4, _>(hi.clone(), mac_input.clone());
+    assert_eq!(given_val.attribute_given[0].unpadded_preimage_len, 190);
+    assert_eq!(given_val.attribute_given[1].unpadded_preimage_len, 101);
+    let derived_val = derived::<4, _>(&given_val);
+
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg = evaluate_given(&l, &bv, &given_val);
+    let wd = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc_hash = MdocHash::new(&l, 2);
+    mdoc_hash
+        .assert_valid_presentation_and_macs(&wg, &wd)
+        .unwrap();
+
+    // Negative 1: Tamper with byte 100 (> 64) of the 190-byte attribute's disclosed value
+    let mut hi_bad_190b = hi.clone();
+    hi_bad_190b.attrs[0].expected_cbor_value[100] ^= 0x01;
+    let given_bad_190b = given::<4, _>(hi_bad_190b, mac_input.clone());
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg_bad_190b = evaluate_given(&l, &bv, &given_bad_190b);
+    let wd_bad_190b = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc_hash = MdocHash::new(&l, 2);
+    let res_bad_190b = mdoc_hash.assert_valid_presentation_and_macs(&wg_bad_190b, &wd_bad_190b);
+    assert!(res_bad_190b.is_err());
+
+    // Negative 2: Tamper with the 20-byte attribute's disclosed value
+    let mut hi_bad_20b = hi;
+    hi_bad_20b.attrs[1].expected_cbor_value[19] ^= 0x01;
+    let given_bad_20b = given::<4, _>(hi_bad_20b, mac_input);
+    let tracker = compile_logic::tracker::AssertionTracker::new();
+    let l = EvalLogic::new_with_tracker(&f, &tracker);
+    let bv = BitvecLogic::new(&l);
+    let wg_bad_20b = evaluate_given(&l, &bv, &given_bad_20b);
+    let wd_bad_20b = evaluate_derived(&l, &bv, &derived_val);
+    let mdoc_hash = MdocHash::new(&l, 2);
+    let res_bad_20b = mdoc_hash.assert_valid_presentation_and_macs(&wg_bad_20b, &wd_bad_20b);
+    assert!(res_bad_20b.is_err());
+}
+

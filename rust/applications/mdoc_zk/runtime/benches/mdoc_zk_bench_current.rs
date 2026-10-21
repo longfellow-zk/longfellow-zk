@@ -22,8 +22,7 @@ use core_algebra::Nat;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use mdoc_zk_circuits::parse_test_data;
 use mdoc_zk_runtime::{
-    decompress_circuits, req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner,
-    RequestedAttribute,
+    decompress_circuits, req_attr, run_mdoc_verifier_inner, RequestedAttribute,
 };
 use runtime_algebra::{
     fp2::Fp2Field,
@@ -95,34 +94,7 @@ fn hex_id(id: &[u8; 32]) -> String {
 }
 
 fn bench_mdoc_zk_flow(c: &mut Criterion) {
-    let (issuer_pk, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
-    let req_attrs: Vec<RequestedAttribute> = parsed
-        .attrs
-        .iter()
-        .take(2)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
-
-    let mdoc_bytes = mdoc_zk_testcases::vectors::TEST_DATA.mdoc;
-    let transcript = mdoc_zk_testcases::vectors::TEST_DATA.transcript;
-    let doc_type = "org.iso.18013.5.1.mDL";
-
-    let pubkey_x_string = format!(
-        "0x{}",
-        num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
-    );
-    let pubkey_y_formatted = format!(
-        "0x{}",
-        num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
-    );
-
-    let provided =
-        mdoc_zk_runtime::provider::materialize(mdoc_zk_runtime::CURRENT_VERSION, req_attrs.len())
-            .unwrap();
-    let spec = &provided.spec;
-    let circuits = &provided.compressed;
-    let (config_hash, config_sig) = mdoc_zk_runtime::ligero_configs(spec);
+    use mdoc_zk_runtime::{req_pnym, run_mdoc_prover_inner_ext};
 
     let gf2_runtime = runtime_algebra::gf2_128::Gf2_128RuntimeField::new();
     let p256_runtime = runtime_algebra::p256::P256Field::new();
@@ -135,12 +107,140 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     let make_interpolator_sig =
         FftInterpolatorFactory::new(&p256_runtime, &p256_2, omega, omega_order);
 
-    {
+    let (issuer_pk, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::TEST_DATA);
+    let all_req_attrs: Vec<RequestedAttribute> = parsed
+        .attrs
+        .iter()
+        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
+        .collect();
+    let pubkey_x_string = format!(
+        "0x{}",
+        num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
+    );
+    let pubkey_y_formatted = format!(
+        "0x{}",
+        num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
+    );
+
+    let pnym_data = &mdoc_zk_testcases::vectors::PNYM_SEED_MDOC;
+    let pnym_req = vec![
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_pnym(
+            "org.iso.18013.5.1",
+            b"verifier.example.org/relying-party-session-2026",
+        ),
+    ];
+    let pnym_4_req = vec![
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_attr(
+            "org.iso.18013.5.1",
+            "birth_date",
+            *b"\xd9\x03\xec\x6a1971-09-01",
+        ),
+        req_pnym(
+            "org.iso.18013.5.1",
+            b"verifier.example.org/relying-party-session-2026",
+        ),
+    ];
+
+    struct BenchCase<'a> {
+        label: &'static str,
+        num_attrs: usize,
+        pnym: bool,
+        mdoc_bytes: &'a [u8],
+        pkx: &'a str,
+        pky: &'a str,
+        transcript: &'a [u8],
+        req_attrs: Vec<RequestedAttribute>,
+        now: &'a str,
+        doc_type: &'a str,
+    }
+
+    let cases = [
+        BenchCase {
+            label: "v8_1attr",
+            num_attrs: 1,
+            pnym: false,
+            mdoc_bytes: mdoc_zk_testcases::vectors::TEST_DATA.mdoc,
+            pkx: &pubkey_x_string,
+            pky: &pubkey_y_formatted,
+            transcript: mdoc_zk_testcases::vectors::TEST_DATA.transcript,
+            req_attrs: vec![all_req_attrs[0].clone()],
+            now,
+            doc_type: "org.iso.18013.5.1.mDL",
+        },
+        BenchCase {
+            label: "v8_2attr",
+            num_attrs: 2,
+            pnym: false,
+            mdoc_bytes: mdoc_zk_testcases::vectors::TEST_DATA.mdoc,
+            pkx: &pubkey_x_string,
+            pky: &pubkey_y_formatted,
+            transcript: mdoc_zk_testcases::vectors::TEST_DATA.transcript,
+            req_attrs: all_req_attrs.iter().take(2).cloned().collect(),
+            now,
+            doc_type: "org.iso.18013.5.1.mDL",
+        },
+        BenchCase {
+            label: "v8_4attr",
+            num_attrs: 4,
+            pnym: false,
+            mdoc_bytes: mdoc_zk_testcases::vectors::TEST_DATA.mdoc,
+            pkx: &pubkey_x_string,
+            pky: &pubkey_y_formatted,
+            transcript: mdoc_zk_testcases::vectors::TEST_DATA.transcript,
+            req_attrs: all_req_attrs.iter().take(2).cloned().collect(),
+            now,
+            doc_type: "org.iso.18013.5.1.mDL",
+        },
+        BenchCase {
+            label: "v8_1attr_pnym",
+            num_attrs: 1,
+            pnym: true,
+            mdoc_bytes: pnym_data.mdoc,
+            pkx: pnym_data.pkx,
+            pky: pnym_data.pky,
+            transcript: pnym_data.transcript,
+            req_attrs: pnym_req,
+            now: pnym_data.now,
+            doc_type: pnym_data.doc_type,
+        },
+        BenchCase {
+            label: "v8_4attr_pnym",
+            num_attrs: 4,
+            pnym: true,
+            mdoc_bytes: pnym_data.mdoc,
+            pkx: pnym_data.pkx,
+            pky: pnym_data.pky,
+            transcript: pnym_data.transcript,
+            req_attrs: pnym_4_req,
+            now: pnym_data.now,
+            doc_type: pnym_data.doc_type,
+        },
+    ];
+
+    let mut group = c.benchmark_group("integration_current");
+    group.sample_size(10);
+
+    for case in &cases {
+        let provided = mdoc_zk_runtime::provider::materialize(
+            mdoc_zk_runtime::CURRENT_VERSION,
+            case.num_attrs,
+            case.pnym,
+        )
+        .unwrap();
+        let spec = &provided.spec;
+        let circuits = &provided.compressed;
+        let (config_hash, config_sig) = mdoc_zk_runtime::ligero_configs(spec);
+
         let (c_sig, c_hash) = decompress_circuits(circuits, &p256_runtime, &gf2_runtime).unwrap();
 
-        println!("--------------------------------------------------");
-        println!("Circuit Stats (Current Version Circuit):");
-        println!("  Disclosed Attributes: {}", req_attrs.len());
+        println!("==================================================");
+        println!(
+            "Circuit Stats [{}] (version={}, num_attributes={}, pnym={}):",
+            case.label, spec.version, spec.num_attributes, spec.pnym
+        );
         let mut decompressed = Vec::new();
         zstd::stream::copy_decode(std::io::Cursor::new(circuits), &mut decompressed)
             .expect("decompress");
@@ -150,14 +250,15 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
             circuits.len(),
             decompressed.len()
         );
-        println!("  Sig Circuit ID:  {}", hex_id(&c_sig.id));
-        println!("  Hash Circuit ID: {}", hex_id(&c_hash.id));
         println!("  Overall Spec Hash: {}", spec.combined_hash_hex());
+        println!("  Sig Circuit ID:    {}", hex_id(&c_sig.id));
+        println!("  Hash Circuit ID:   {}", hex_id(&c_hash.id));
 
         println!(
-            "  Hash Circuit: inputs={}, pub_inputs={}, outputs={}, layers={}, wires={}, terms={}",
+            "  Hash Circuit: inputs={}, pub_inputs={}, subfield_boundary={}, outputs={}, layers={}, wires={}, terms={}",
             c_hash.raw.ninput,
             c_hash.raw.npublic_input,
+            c_hash.raw.subfield_boundary,
             c_hash.raw.noutput,
             c_hash.raw.layers.len(),
             c_hash
@@ -184,7 +285,9 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         )
         .unwrap();
         println!(
-            "  Hash Ligero:  block={}, dblock={}, block_enc={}, nrow={}, mc_pathlen={}",
+            "  Hash Ligero:  witnesses={}, quads={}, block={}, dblock={}, block_enc={}, nrow={}, mc_pathlen={}",
+            count_w_hash,
+            total_q_hash,
             param_hash.block,
             param_hash.dblock,
             param_hash.block_enc,
@@ -192,9 +295,10 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
             param_hash.geom.mc_pathlen
         );
         println!(
-            "  Sig Circuit:  inputs={}, pub_inputs={}, outputs={}, layers={}, wires={}, terms={}",
+            "  Sig Circuit:  inputs={}, pub_inputs={}, subfield_boundary={}, outputs={}, layers={}, wires={}, terms={}",
             c_sig.raw.ninput,
             c_sig.raw.npublic_input,
+            c_sig.raw.subfield_boundary,
             c_sig.raw.noutput,
             c_sig.raw.layers.len(),
             c_sig
@@ -221,122 +325,97 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         )
         .unwrap();
         println!(
-            "  Sig Ligero:   block={}, dblock={}, block_enc={}, nrow={}, mc_pathlen={}",
+            "  Sig Ligero:   witnesses={}, quads={}, block={}, dblock={}, block_enc={}, nrow={}, mc_pathlen={}",
+            count_w_sig,
+            total_q_sig,
             param_sig.block,
             param_sig.dblock,
             param_sig.block_enc,
             param_sig.geom.nrow,
             param_sig.geom.mc_pathlen
         );
-    }
-    println!(
-        "Compressed circuits (concatenated) size: {} bytes",
-        circuits.len()
-    );
 
-    // Dry-run prover once to get proof size and heap memory stats
-    let baseline = get_current_allocated();
-    reset_peak();
+        // Dry-run prover once to get proof size and heap memory stats
+        let baseline = get_current_allocated();
+        reset_peak();
 
-    let mut dry_rng = runtime_random::DeterministicRng::new(42);
-    let dry_zkproof = run_mdoc_prover_inner(
-        spec,
-        circuits,
-        mdoc_bytes,
-        &pubkey_x_string,
-        &pubkey_y_formatted,
-        transcript,
-        &req_attrs,
-        now,
-        doc_type,
-        &mut dry_rng,
-    )
-    .unwrap();
+        let mut dry_rng = runtime_random::DeterministicRng::new(42);
+        let (dry_zkproof, resolved_attrs) = run_mdoc_prover_inner_ext(
+            spec,
+            circuits,
+            case.mdoc_bytes,
+            case.pkx,
+            case.pky,
+            case.transcript,
+            &case.req_attrs,
+            case.now,
+            case.doc_type,
+            &mut dry_rng,
+        )
+        .unwrap();
 
-    let mut baseline_heap = 0;
-    let mut baseline_peak_heap = 0;
+        let baseline_heap = get_current_allocated().saturating_sub(baseline);
+        let baseline_peak_heap = get_peak_allocated().saturating_sub(baseline);
 
-    let heap = get_current_allocated();
-    if heap > baseline {
-        baseline_heap = heap - baseline;
-    }
+        let baseline_ver = get_current_allocated();
+        reset_peak();
+        run_mdoc_verifier_inner(
+            spec,
+            circuits,
+            case.pkx,
+            case.pky,
+            case.transcript,
+            &resolved_attrs,
+            case.now,
+            case.doc_type,
+            &dry_zkproof,
+        )
+        .unwrap();
+        let baseline_heap_ver = get_current_allocated().saturating_sub(baseline_ver);
+        let baseline_peak_heap_ver = get_peak_allocated().saturating_sub(baseline_ver);
 
-    let peak = get_peak_allocated();
-    if peak > baseline {
-        baseline_peak_heap = peak - baseline;
-    }
+        println!("  Proof Size: {} bytes", dry_zkproof.len());
+        println!("  Prover Net Heap Memory:    {baseline_heap} bytes");
+        println!("  Prover Peak Heap Memory:   {baseline_peak_heap} bytes");
+        println!("  Verifier Net Heap Memory:  {baseline_heap_ver} bytes");
+        println!("  Verifier Peak Heap Memory: {baseline_peak_heap_ver} bytes");
 
-    let baseline_ver = get_current_allocated();
-    reset_peak();
-    run_mdoc_verifier_inner(
-        spec,
-        circuits,
-        &pubkey_x_string,
-        &pubkey_y_formatted,
-        transcript,
-        &req_attrs,
-        now,
-        doc_type,
-        &dry_zkproof,
-    )
-    .unwrap();
-    let mut baseline_heap_ver = 0;
-    let mut baseline_peak_heap_ver = 0;
-    let heap_ver = get_current_allocated();
-    if heap_ver > baseline_ver {
-        baseline_heap_ver = heap_ver - baseline_ver;
-    }
-    let peak_ver = get_peak_allocated();
-    if peak_ver > baseline_ver {
-        baseline_peak_heap_ver = peak_ver - baseline_ver;
-    }
-
-    println!("--------------------------------------------------");
-    println!("Baseline Circuit Memory Stats:");
-    println!("  Proof Size: {} bytes", dry_zkproof.len());
-    println!("  Prover Net Heap Memory: {baseline_heap} bytes");
-    println!("  Prover Peak Heap Memory: {baseline_peak_heap} bytes");
-    println!("  Verifier Net Heap Memory: {baseline_heap_ver} bytes");
-    println!("  Verifier Peak Heap Memory: {baseline_peak_heap_ver} bytes");
-    println!("--------------------------------------------------");
-
-    let mut group = c.benchmark_group("integration_current");
-    group.sample_size(10);
-    group.bench_function("prove_mdoc_flow_current", |b| {
-        b.iter(|| {
-            let mut rng = runtime_random::DeterministicRng::new(42);
-            let zkproof = run_mdoc_prover_inner(
-                black_box(spec),
-                black_box(circuits),
-                black_box(mdoc_bytes),
-                black_box(&pubkey_x_string),
-                black_box(&pubkey_y_formatted),
-                black_box(transcript),
-                black_box(&req_attrs),
-                black_box(now),
-                black_box(doc_type),
-                &mut rng,
-            )
-            .unwrap();
-            black_box(zkproof);
+        group.bench_function(format!("prove_{}", case.label), |b| {
+            b.iter(|| {
+                let mut rng = runtime_random::DeterministicRng::new(42);
+                let (zkproof, _) = run_mdoc_prover_inner_ext(
+                    black_box(spec),
+                    black_box(circuits),
+                    black_box(case.mdoc_bytes),
+                    black_box(case.pkx),
+                    black_box(case.pky),
+                    black_box(case.transcript),
+                    black_box(&case.req_attrs),
+                    black_box(case.now),
+                    black_box(case.doc_type),
+                    &mut rng,
+                )
+                .unwrap();
+                black_box(zkproof);
+            });
         });
-    });
-    group.bench_function("verify_mdoc_flow_current", |b| {
-        b.iter(|| {
-            let verify_res = run_mdoc_verifier_inner(
-                black_box(spec),
-                black_box(circuits),
-                black_box(&pubkey_x_string),
-                black_box(&pubkey_y_formatted),
-                black_box(transcript),
-                black_box(&req_attrs),
-                black_box(now),
-                black_box(doc_type),
-                black_box(&dry_zkproof),
-            );
-            assert!(verify_res.is_ok());
+        group.bench_function(format!("verify_{}", case.label), |b| {
+            b.iter(|| {
+                let verify_res = run_mdoc_verifier_inner(
+                    black_box(spec),
+                    black_box(circuits),
+                    black_box(case.pkx),
+                    black_box(case.pky),
+                    black_box(case.transcript),
+                    black_box(&resolved_attrs),
+                    black_box(case.now),
+                    black_box(case.doc_type),
+                    black_box(&dry_zkproof),
+                );
+                assert!(verify_res.is_ok());
+            });
         });
-    });
+    }
     group.finish();
     print_memory_stats();
 }

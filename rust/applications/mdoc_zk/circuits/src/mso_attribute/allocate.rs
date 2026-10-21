@@ -17,7 +17,7 @@ use compile_logic::LogicIO;
 
 use crate::mso_attribute::{
     circuit::{AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given},
-    constants::K_ATTR_INDEX_BITS,
+    constants::{K_ATTR_INDEX_BITS, K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS},
 };
 
 pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given<L> {
@@ -42,6 +42,7 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
             data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
             len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
         },
+        op: bitvec_io.next::<K_OP_BITS>(pos),
     };
 
     let expected_digest = bitvec_io.next::<256>(pos);
@@ -55,5 +56,5 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
 }
 
 pub fn allocate_derived<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Derived<L> {
-    circuits_sha256msg::allocate_derived::<_, 2>(bv, pos)
+    circuits_sha256msg::allocate_derived::<_, K_MAX_ATTR_SHA_BLOCKS>(bv, pos)
 }

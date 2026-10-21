@@ -117,7 +117,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
 
-    let provided = mdoc_zk_runtime::provider::materialize(7, req_attrs.len()).unwrap();
+    let provided = mdoc_zk_runtime::provider::materialize(7, req_attrs.len(), false).unwrap();
     let spec = &provided.spec;
     let hash_hex = spec.combined_hash_hex();
     let circuits_v1 = mdoc_zk_artifacts::load_circuit_v1(&hash_hex);

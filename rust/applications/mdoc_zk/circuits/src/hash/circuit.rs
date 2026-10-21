@@ -25,7 +25,16 @@ use super::constants::{
     K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
 };
 use crate::{
-    mso_attribute::{circuit::AttributeVerifier, constants::K_ATTR_PREIMAGE_LEN},
+    hash::constants::K_TIMESTAMP_LEN,
+    mso_attribute::{
+        circuit::{AttrIndex, AttributeVerifier},
+        constants::{
+            K_ATTR_PREIMAGE_LEN, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN,
+            K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN, K_OP_BITS, K_PNYM_PREIMAGE_LEN,
+            attr_sha_blocks_for_circuit,
+        },
+        pnym::{DisclosedPnym, PnymAttributeVerifier},
+    },
     traits::MdocHashCompileField,
 };
 
@@ -37,8 +46,40 @@ pub struct HashBytes<L: Logic, const N: usize> {
     pub len: HashIndex<L>,
 }
 
-pub type AttrPreimageBytes<L> = crate::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
+pub struct AttrVarSlice<L: Logic> {
+    pub data: Vec<V8<L>>,
+    pub len: AttrIndex<L>,
+}
+
+impl<L: Logic> Clone for AttrVarSlice<L> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            len: self.len.clone(),
+        }
+    }
+}
+
+pub type AttrPreimageBytes<L> = AttrVarSlice<L>;
+pub type PnymAttrPreimageBytes<L> =
+    crate::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
 pub type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
+
+pub struct DisclosedAttribute<L: Logic> {
+    pub expected_name: crate::mso_attribute::circuit::AttrSlice<L, 32>,
+    pub expected_cbor_value: AttrVarSlice<L>,
+    pub op: Bitvec<L, K_OP_BITS>,
+}
+
+impl<L: Logic> Clone for DisclosedAttribute<L> {
+    fn clone(&self) -> Self {
+        Self {
+            expected_name: self.expected_name.clone(),
+            expected_cbor_value: self.expected_cbor_value.clone(),
+            op: self.op.clone(),
+        }
+    }
+}
 
 pub struct AttrGiven<L: Logic> {
     pub preimage: AttrPreimageBytes<L>,
@@ -46,14 +87,24 @@ pub struct AttrGiven<L: Logic> {
     pub field_locator: crate::mso_attribute::FieldLocator<L>,
 }
 
-use crate::{hash::constants::K_TIMESTAMP_LEN, mso_attribute::circuit::DisclosedAttribute};
-
 pub struct AttrDerived<L: Logic> {
     pub sha_derived: circuits_sha256msg::Derived<L>,
 }
 
+pub struct PnymGiven<L: Logic> {
+    pub preimage: PnymAttrPreimageBytes<L>,
+    pub mso_digest_offset_in_preimage: HashIndex<L>,
+    pub field_locator: crate::mso_attribute::FieldLocator<L>,
+    pub pnym_preimage: [V8<L>; K_PNYM_PREIMAGE_LEN],
+    pub pnym_length_bytes: AttrIndex<L>,
+    pub pnym_nblocks: Bitvec<L, 2>,
+}
+
+pub type PnymDerived<L> = crate::mso_attribute::pnym::Derived<L>;
+
 pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
+    pub disclosed_pnym: Option<DisclosedPnym<L>>,
     pub now: [V8<L>; K_TIMESTAMP_LEN],
     pub suppress_doc_type_check: circuits_boolean::Bitw<L>,
     pub expected_doc_type: crate::mso_attribute::circuit::AttrSlice<L, 32>,
@@ -67,6 +118,7 @@ pub struct Given<L: LogicIO> {
     pub dev_key_info_offset_in_preimage: HashIndex<L>,
     pub value_digests_offset_in_preimage: HashIndex<L>,
     pub attribute_given: Vec<AttrGiven<L>>,
+    pub pnym_given: Option<PnymGiven<L>>,
     pub mac_e: [L::Wire; 2],
     pub mac_device_pkx: [L::Wire; 2],
     pub mac_device_pky: [L::Wire; 2],
@@ -76,6 +128,7 @@ pub struct Given<L: LogicIO> {
 
 pub struct Derived<L: LogicIO> {
     pub attribute_derived: Vec<AttrDerived<L>>,
+    pub pnym_derived: Option<PnymDerived<L>>,
     pub sha_derived: circuits_sha256msg::Derived<L>,
 }
 
@@ -89,13 +142,22 @@ where L::F: MdocHashCompileField
     pub(crate) boolean: Boolean<'a, L>,
     pub(crate) bv: BitvecLogic<'a, L>,
     pub(crate) cmp_helper: Memcmp<'a, L>,
-    pub(crate) attribute_verifier: AttributeVerifier<'a, L>,
+    pub(crate) attribute_verifier:
+        AttributeVerifier<'a, L, K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN>,
+    pub(crate) large_attribute_verifier:
+        AttributeVerifier<'a, L, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN>,
+    pub(crate) num_attr_sha_blocks: usize,
+    pub(crate) pnym_verifier: Option<PnymAttributeVerifier<'a, L>>,
 }
 
 impl<'a, L: LogicIO> MdocHash<'a, L>
 where L::F: MdocHashCompileField
 {
-    pub fn new(logic: &'a L, _num_attrs: usize) -> Self {
+    pub fn new(logic: &'a L, num_attrs: usize) -> Self {
+        Self::with_pnym(logic, num_attrs, false)
+    }
+
+    pub fn with_pnym(logic: &'a L, num_attrs: usize, pnym: bool) -> Self {
         Self {
             logic,
             mac_circuit: circuits_mac_gf128::circuit::MAC::new(logic),
@@ -105,6 +167,9 @@ where L::F: MdocHashCompileField
             bv: BitvecLogic::new(logic),
             cmp_helper: Memcmp::new(logic),
             attribute_verifier: AttributeVerifier::new(logic),
+            large_attribute_verifier: AttributeVerifier::with_size(logic),
+            num_attr_sha_blocks: attr_sha_blocks_for_circuit(num_attrs, pnym),
+            pnym_verifier: pnym.then(|| PnymAttributeVerifier::new(logic)),
         }
     }
 
@@ -120,17 +185,20 @@ where L::F: MdocHashCompileField
         );
         let preimage = given.preimage.value.to_vec();
 
-        self.logic.assert_all(
-            "assert_valid_presentation",
-            &[
-                self.assert_mso_sha256_hash(given, derived, &preimage),
-                self.assert_mso_doc_type(given, &preimage),
-                self.assert_mso_validity(given, &preimage),
-                self.assert_mso_device_key(given, &preimage),
-                self.assert_mso_value_digests(given, &preimage),
-                self.assert_attributes(given, derived, &preimage),
-            ],
-        )
+        let mut assertions = vec![
+            self.assert_mso_sha256_hash(given, derived, &preimage),
+            self.assert_mso_doc_type(given, &preimage),
+            self.assert_mso_validity(given, &preimage),
+            self.assert_mso_device_key(given, &preimage),
+            self.assert_mso_value_digests(given, &preimage),
+            self.assert_attributes(given, derived, &preimage),
+        ];
+        if let Some(ref pnym_verifier) = self.pnym_verifier {
+            assertions.push(self.assert_pnym(pnym_verifier, given, derived, &preimage));
+        }
+
+        self.logic
+            .assert_all("assert_valid_presentation", &assertions)
     }
 
     fn assert_mso_sha256_hash(
@@ -410,15 +478,33 @@ where L::F: MdocHashCompileField
                     &K_TAG32,
                 );
 
-                let verifier_given = crate::mso_attribute::circuit::Given {
-                    attribute_preimage: attr_given.preimage.clone(),
-                    field_locator: attr_given.field_locator.clone(),
-                    disclosed_attribute: given.disclosed_attributes[i].clone(),
-                    expected_digest,
-                };
-                let attribute_verifier_assertions = self
-                    .attribute_verifier
-                    .assert_attribute(&verifier_given, &attr_der.sha_derived);
+                let da = &given.disclosed_attributes[i];
+                let attribute_verifier_assertions =
+                    if self.num_attr_sha_blocks == K_LARGE_ATTR_SHA_BLOCKS {
+                        self.large_attribute_verifier.assert_attribute_slices(
+                            &attr_given.preimage.data,
+                            &attr_given.preimage.len,
+                            &attr_given.field_locator,
+                            &da.expected_name,
+                            &da.expected_cbor_value.data,
+                            &da.expected_cbor_value.len,
+                            &da.op,
+                            &expected_digest,
+                            &attr_der.sha_derived,
+                        )
+                    } else {
+                        self.attribute_verifier.assert_attribute_slices(
+                            &attr_given.preimage.data,
+                            &attr_given.preimage.len,
+                            &attr_given.field_locator,
+                            &da.expected_name,
+                            &da.expected_cbor_value.data,
+                            &da.expected_cbor_value.len,
+                            &da.op,
+                            &expected_digest,
+                            &attr_der.sha_derived,
+                        )
+                    };
 
                 self.logic.assert_all(
                     "attribute_item",
@@ -429,6 +515,65 @@ where L::F: MdocHashCompileField
                     ],
                 )
             },
+        )
+    }
+
+    fn assert_pnym(
+        &self,
+        pnym_verifier: &PnymAttributeVerifier<'a, L>,
+        given: &Given<L>,
+        derived: &Derived<L>,
+        preimage: &[V8<L>],
+    ) -> L::Assertions {
+        let zz = self.bv.zero::<8>();
+        let disclosed_pnym = given
+            .disclosed_pnym
+            .as_ref()
+            .expect("disclosed_pnym must be present when pnym_verifier is enabled");
+        let pnym_given = given
+            .pnym_given
+            .as_ref()
+            .expect("pnym_given must be present when pnym_verifier is enabled");
+        let pnym_der = derived
+            .pnym_derived
+            .as_ref()
+            .expect("pnym_derived must be present when pnym_verifier is enabled");
+
+        let (mso_digest_shifted, shift_assertions) = self.shift_preimage(
+            &pnym_given.mso_digest_offset_in_preimage,
+            &given.preimage.len,
+            3,
+            K_TAG32.len() + 32,
+            preimage,
+            &zz,
+        );
+
+        let expected_digest = self.bv.from_fn::<256, _>(|j| {
+            let byte_idx = K_TAG32.len() + (255 - j) / 8;
+            let bit_idx = j % 8;
+            mso_digest_shifted[byte_idx].as_array()[bit_idx].clone()
+        });
+
+        let tag32_header_assertion = self.assert_bytes_at(
+            K_TAG32.len(),
+            &mso_digest_shifted[0..K_TAG32.len()],
+            &K_TAG32,
+        );
+
+        let verifier_given = crate::mso_attribute::pnym::Given {
+            attribute_preimage: pnym_given.preimage.clone(),
+            field_locator: pnym_given.field_locator.clone(),
+            disclosed_pnym: disclosed_pnym.clone(),
+            expected_digest,
+            pnym_preimage: pnym_given.pnym_preimage.clone(),
+            pnym_length_bytes: pnym_given.pnym_length_bytes.clone(),
+            pnym_nblocks: pnym_given.pnym_nblocks.clone(),
+        };
+        let pnym_assertions = pnym_verifier.assert_pnym_attribute(&verifier_given, pnym_der);
+
+        self.logic.assert_all(
+            "assert_pnym",
+            &[shift_assertions, tag32_header_assertion, pnym_assertions],
         )
     }
 

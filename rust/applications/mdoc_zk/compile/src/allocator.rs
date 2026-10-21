@@ -73,6 +73,25 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         (arr, plucked)
     }
 
+    pub fn allocate_plucked_v8_vec<const PLUCKER_WIDTH: usize>(
+        &mut self,
+        len: usize,
+        plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
+    ) -> (
+        Vec<V8<CompilerLogic<'a, FC>>>,
+        Vec<Eltw<CompilerLogic<'a, FC>>>,
+    ) {
+        let mut plucked = Vec::with_capacity(len * 8 / PLUCKER_WIDTH);
+        let vec = (0..len)
+            .map(|_| {
+                let (v, p) = self.allocate_plucked_v8::<PLUCKER_WIDTH>(plucker);
+                plucked.extend(p);
+                v
+            })
+            .collect();
+        (vec, plucked)
+    }
+
     pub fn allocate_plucked_v32<const PLUCKER_WIDTH: usize>(
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
