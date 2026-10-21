@@ -118,3 +118,41 @@ fn test_fixed_cubic_polynomial() {
     let val5 = p.eval_lagrange(&x5, &f);
     assert_eq!(val5, f.u64_to_element(207));
 }
+
+// The same coefficient triple drives numerical reduction and symbolic constraints.
+fn check_round_coefficients<const W: usize, F: InterpolationField<W>>(
+    f: &F,
+    element: impl Fn(u64) -> F::E,
+) {
+    use runtime_sumcheck::{QuadRoundPoly, RoundCoefficients};
+    let polynomial = Poly::<3, W, F> {
+        evaluations: [element(3), element(9), element(14)],
+    };
+    let claim = f.addf(&polynomial.evaluations[0], &polynomial.evaluations[1]);
+    let basis = LagrangeBasis::new(f);
+    for point in [
+        f.poly_evaluation_point(0),
+        f.poly_evaluation_point(1),
+        f.poly_evaluation_point(2),
+        element(7),
+    ] {
+        let coefficients = RoundCoefficients::new(&basis, &point, f);
+        assert_eq!(
+            coefficients.evaluate(&polynomial.to_wire(), &claim, f),
+            polynomial.eval_lagrange(&point, f)
+        );
+    }
+}
+
+#[test]
+fn round_coefficients_match_interpolation_prime() {
+    let f = P256Field::new();
+    check_round_coefficients(&f, |x| f.u64_to_element(x));
+}
+
+#[test]
+fn round_coefficients_match_interpolation_binary() {
+    use core_algebra::SupportsU128Conversions;
+    let f = Gf2_128RuntimeField::new();
+    check_round_coefficients(&f, |x| f.u128_to_element(x as u128));
+}

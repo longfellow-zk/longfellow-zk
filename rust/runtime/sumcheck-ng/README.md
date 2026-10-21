@@ -11,9 +11,9 @@ Both use the shared field, circuit, and randomness crates.
 | Responsibility | Legacy | NG |
 |---|---|---|
 | Numerical prover | `sumcheck/src/prover.rs` | `sumcheck-ng/src/prover.rs` |
-| Local verifier data | — | `sumcheck-ng/src/verifier_data.rs` |
-| Pure symbolic verifier | — | `sumcheck-ng/src/symbolic.rs` |
-| Ligero constraint compiler | — | `zk-ng/src/constraint_compiler.rs` |
+| Local verifier data | `sumcheck/src/verifier_data.rs` | `sumcheck-ng/src/verifier_data.rs` |
+| Pure symbolic verifier | `sumcheck/src/symbolic.rs` | `sumcheck-ng/src/symbolic.rs` |
+| Ligero constraint compiler | `zk/src/constraint_compiler.rs` | `zk-ng/src/constraint_compiler.rs` |
 | Numerical verifier and independent data derivation | `sumcheck/src/verifier.rs` | `sumcheck-ng/src/verifier.rs` |
 | Wiring contraction | `sumcheck/src/hquad.rs` | `sumcheck-ng/src/wiring.rs` |
 | Equality weights | `sumcheck/src/eq.rs` | `sumcheck-ng/src/eq.rs` |
@@ -100,17 +100,21 @@ The restoration baseline is local `main`, commit
 `bf9eef3` (Merge pull request #213). The available `origin/main` points to
 `d9d8d6a`; it was not substituted for local `main`.
 
-All production files under `runtime/sumcheck/src` and `runtime/zk/src`, their
-manifests, and the original sumcheck/ZK codec files are byte-for-byte identical
-to that local-main baseline. `runtime-proto/src/lib.rs` adds only the two NG
-module declarations. Its existing tests are restored; NG codec tests live in
-`tests/proto_ng.rs`.
+At split checkpoint `cf513f3`, production files under `runtime/sumcheck/src`
+and `runtime/zk/src`, their manifests, and original codecs were restored from
+that baseline. Legacy has since received the same verifier-data / pure symbolic
+verifier / constraint-compiler partition as NG, as explicitly requested. These
+source changes preserve legacy ZK proof bytes and transcript state; the bare
+numerical helpers now also consume ZK's final input-combination challenge.
+See the [legacy README](../sumcheck/README.md). NG arithmetic and flow remain
+separate. `runtime-proto/src/lib.rs` adds only the two NG module declarations;
+NG codec tests live in `tests/proto_ng.rs`.
 
 Two legacy test files differ from main: sumcheck's compiler-generated fixtures
 and ZK's raw-circuit fixtures explicitly construct Morton traversal. The shared
 compiler now emits NG traversal only. Restoring the main tests unchanged exposed
 a failing legacy multi-layer test because it consumed that new traversal.
-The production legacy prover was kept unchanged.
+At the split checkpoint, the production legacy prover was kept unchanged.
 
 The compiler is not forked or restored. Its existing type/output-major ordering
 and shared `core-proto::compare_term` changes remain on this branch. Existing

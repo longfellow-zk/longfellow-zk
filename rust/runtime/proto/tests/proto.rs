@@ -528,3 +528,23 @@ fn test_zk_proof_read_write() {
     assert!(r_slice.is_empty());
     assert_eq!(decoded, zk_proof);
 }
+
+#[test]
+fn legacy_pad_layout_retains_round_major_order() {
+    let geometry = SumcheckProofGeometry {
+        logw_layers: vec![1, 0, 2],
+    };
+    let pads = geometry.pad_layout(3);
+    assert_eq!(geometry.serialized_elements().unwrap(), 18);
+    assert_eq!(pads.size, 21);
+    assert_eq!(pads.layers[0].rounds, vec![[[3, 4], [5, 6]]]);
+    assert!(pads.layers[1].rounds.is_empty());
+    assert_eq!(
+        pads.layers[2].rounds,
+        vec![[[13, 14], [15, 16]], [[17, 18], [19, 20]]]
+    );
+    assert_eq!(
+        geometry.claim_indices(3).collect::<Vec<_>>(),
+        vec![[7, 8, 9], [10, 11, 12], [21, 22, 23]]
+    );
+}

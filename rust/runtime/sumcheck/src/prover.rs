@@ -14,13 +14,15 @@
 
 use core_algebra::ElementOf;
 use runtime_algebra::{poly::InterpolationField, SupportsSampling};
-use runtime_random::Transcript;
+use runtime_random::{RandomEngine, Transcript};
 
 use crate::{
     hquad::HQuad,
     poly::{Poly, QuadRoundPoly, QuadWirePoly},
     proof::{LayerProof, SumcheckProof, MAX_LOGW},
     transcript::TranscriptSumcheck,
+    verifier_data::{LayerVerifierData, RoundCoefficients, VerifierData},
+    LagrangeBasis,
 };
 
 struct Bindings<const W: usize, F: InterpolationField<W>> {
@@ -29,25 +31,13 @@ struct Bindings<const W: usize, F: InterpolationField<W>> {
     challenges: [Vec<ElementOf<F>>; 2],
 }
 
-pub struct SumcheckProofAux<const W: usize, F: InterpolationField<W>> {
-    pub bound_quad: Vec<ElementOf<F>>,
-}
-
-impl<const W: usize, F: InterpolationField<W>> SumcheckProofAux<W, F> {
-    pub fn new(num_layers: usize, f: &F) -> Self {
-        Self {
-            bound_quad: vec![f.zero(); num_layers],
-        }
-    }
-}
-
 pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
     circuit: &core_proto::circuit::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
+) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "npublic_input ({}) exceeds ninput ({})",
@@ -73,7 +63,9 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
     circuit: &core_proto::circuit::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, SumcheckProofAux<W, F>) {
+) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
+    pad.validate(&crate::proof::SumcheckProofGeometry::from_circuit(circuit))
+        .expect("pad shape mismatch");
     // The wire array is conceptually infinite (padded with zeros), but we normalize
     // each layer's wire vector to contain at least one 0 to simplify the implementation
     // and avoid handling the empty vec case in downstream binding functions.
@@ -98,7 +90,7 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
 
     let mut claims = [f.zero(), f.zero()];
     let mut layers = Vec::with_capacity(num_layers);
-    let mut bound_quad = Vec::with_capacity(num_layers);
+    let mut verifier_layers = Vec::with_capacity(num_layers);
 
     for i in 0..num_layers {
         let clr = &layers_slice[i];
@@ -115,7 +107,7 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
             &beta,
             f,
         );
-        let (layer_proof, new_bindings, new_claims, hquad_scalar) = layer(
+        let (layer_proof, new_bindings, new_claims, layer_data) = layer(
             clr.logw(),
             clr.nw(),
             wires,
@@ -129,11 +121,28 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
         bindings = new_bindings;
         claims = new_claims;
 
-        bound_quad.push(hquad_scalar);
+        verifier_layers.push(layer_data);
         layers.push(layer_proof);
     }
 
-    (SumcheckProof { layers }, SumcheckProofAux { bound_quad })
+    // This is the legacy ZK verifier's final input-combination challenge.
+    let input_alpha = transcript.elt_field(f);
+    let input_weights = crate::eq::eq2(
+        bindings.logv,
+        circuit.raw.ninput,
+        &bindings.challenges[0],
+        &bindings.challenges[1],
+        &input_alpha,
+        f,
+    );
+    (
+        SumcheckProof { layers },
+        VerifierData {
+            layers: verifier_layers,
+            input_alpha,
+            input_weights,
+        },
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -151,7 +160,7 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     LayerProof<W, F>,
     Bindings<W, F>,
     [ElementOf<F>; 2],
-    ElementOf<F>,
+    LayerVerifierData<ElementOf<F>>,
 ) {
     assert!(crate::sane_logw(logw), "logw must be sane");
     assert!(
@@ -162,6 +171,8 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     );
     let mut challenges = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
     let mut round_polys = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+    let mut round_coefficients = [Vec::with_capacity(logw), Vec::with_capacity(logw)];
+    let basis = LagrangeBasis::new(f);
     let mut sum = claims[0].clone();
     f.fma(&mut sum, alpha, &claims[1]);
 
@@ -201,15 +212,14 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
             let evaluations = quad_round_poly(wh_size, &qw[..wh_size], wh_hand, &sum, f);
 
             assert!(round < MAX_LOGW);
-            let round_challenge = sample_round_challenge(
-                transcript,
-                &evaluations,
-                &pad.hp[hand][round],
-                &mut round_polys[hand],
-                &mut challenges[hand],
-                f,
-            );
-            sum = evaluations.eval_lagrange(&round_challenge, f);
+            let round_values = evaluations.to_wire();
+            let message = round_values.sub(&pad.hp[hand][round], f);
+            let round_challenge = transcript.round(&message, f);
+            let coefficients = RoundCoefficients::new(&basis, &round_challenge, f);
+            sum = coefficients.evaluate(&round_values, &sum, f);
+            round_coefficients[hand].push(coefficients);
+            round_polys[hand].push(message);
+            challenges[hand].push(round_challenge.clone());
 
             // In-place vs out-of-place binding optimization:
             // When w[hand] has strong count 1 (sole owner), get_mut returns Some(v) and we bind
@@ -260,26 +270,12 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
         },
         bindings,
         next_claims,
-        hquad_scalar,
+        LayerVerifierData {
+            rounds: round_coefficients,
+            alpha: alpha.clone(),
+            bound_quad: hquad_scalar,
+        },
     )
-}
-
-/// Absorbs the unpadded round polynomial into the transcript after applying ZK padding,
-/// samples the round challenge, and records the padded polynomial and challenge.
-#[inline]
-fn sample_round_challenge<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
-    transcript: &mut Transcript,
-    unpadded_poly: &Poly<3, W, F>,
-    pad_poly: &crate::proof::RoundPoly<W, F>,
-    round_polys: &mut Vec<crate::proof::RoundPoly<W, F>>,
-    challenges: &mut Vec<ElementOf<F>>,
-    f: &F,
-) -> ElementOf<F> {
-    let poly_padded = unpadded_poly.to_wire().sub(pad_poly, f);
-    let round_challenge = transcript.round(&poly_padded, f);
-    round_polys.push(poly_padded);
-    challenges.push(round_challenge.clone());
-    round_challenge
 }
 
 /// Evaluates the quad round polynomial of degree 2 (represented

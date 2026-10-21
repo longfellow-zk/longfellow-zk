@@ -213,3 +213,91 @@ pub struct SumcheckProofGeometry {
     /// The logarithm of the input width (number of variables) for each layer.
     pub logw_layers: Vec<usize>,
 }
+
+#[derive(Clone, Debug)]
+pub struct LayerPadLayout {
+    pub rounds: Vec<[[usize; 2]; 2]>,
+    pub claims: [usize; 3],
+}
+#[derive(Clone, Debug)]
+pub struct CircuitPadLayout {
+    pub layers: Vec<LayerPadLayout>,
+    pub size: usize,
+}
+
+/// Four pads per round, two endpoint pads, and their committed product.
+pub const fn pad_count(logw: usize) -> usize {
+    4 * logw + 3
+}
+fn invalid(message: &str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
+}
+impl SumcheckProofGeometry {
+    pub fn from_circuit<F: SerializableField>(circuit: &core_proto::circuit::Circuit<F>) -> Self {
+        Self {
+            logw_layers: circuit
+                .raw
+                .layers
+                .iter()
+                .map(core_proto::Layer::logw)
+                .collect(),
+        }
+    }
+    /// Four evaluations per round and two endpoint claims are transmitted.
+    pub fn serialized_elements(&self) -> std::io::Result<usize> {
+        self.logw_layers.iter().try_fold(0usize, |total, &logw| {
+            if !sane_logw(logw) {
+                return Err(invalid("sumcheck logw exceeds MAX_LOGW"));
+            }
+            total
+                .checked_add(4 * logw + 2)
+                .ok_or_else(|| invalid("sumcheck size overflow"))
+        })
+    }
+    /// Endpoint pad positions, without allocating per-round layouts.
+    pub fn claim_indices(&self, base: usize) -> impl Iterator<Item = [usize; 3]> + '_ {
+        self.logw_layers.iter().scan(base, |next, &logw| {
+            assert!(sane_logw(logw));
+            let claims = *next + pad_count(logw) - 3;
+            *next = claims + 3;
+            Some([claims, claims + 1, claims + 2])
+        })
+    }
+    pub fn pad_layout(&self, base: usize) -> CircuitPadLayout {
+        let layers: Vec<_> = self
+            .logw_layers
+            .iter()
+            .zip(self.claim_indices(base))
+            .map(|(&logw, claims)| {
+                let start = claims[0] - 4 * logw;
+                let rounds = (0..logw)
+                    .map(|round| {
+                        [
+                            [start + 4 * round, start + 4 * round + 1],
+                            [start + 4 * round + 2, start + 4 * round + 3],
+                        ]
+                    })
+                    .collect();
+                LayerPadLayout { rounds, claims }
+            })
+            .collect();
+        let size = layers.last().map_or(0, |layer| layer.claims[2] + 1 - base);
+        CircuitPadLayout { layers, size }
+    }
+}
+
+impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
+    pub fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
+        if self.layers.len() != geometry.logw_layers.len()
+            || !self
+                .layers
+                .iter()
+                .zip(&geometry.logw_layers)
+                .all(|(layer, &logw)| layer.hp[0].len() == logw && layer.hp[1].len() == logw)
+        {
+            return Err(invalid("sumcheck shape mismatch"));
+        }
+        geometry.serialized_elements()?;
+        Ok(())
+    }
+}

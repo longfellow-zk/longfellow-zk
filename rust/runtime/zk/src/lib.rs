@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub(crate) mod circuit_pad;
 pub mod common;
-pub(crate) mod expression;
+pub mod constraint_compiler;
 pub mod prover;
-pub mod symbolic_sumcheck_verifier;
 pub mod verifier;
 
 pub use prover::ZkProver;

@@ -1,7 +1,8 @@
 # ZK NG
 
 `runtime-zk-ng` uses only `runtime-sumcheck-ng`. `runtime-zk` remains the
-legacy entry point restored from local main. Both export `ZkProver`,
+legacy two-hand entry point, with the same separation of symbolic verification
+and constraint compilation. Both export `ZkProver`,
 `ZkVerifier`, and `common::ZkContext`; select the crate at the import boundary.
 The NG proof types and codec are in `runtime-proto::zk_ng`.
 

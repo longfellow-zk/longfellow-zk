@@ -36,6 +36,7 @@ pub enum ZkVerificationError {
         expected: usize,
         actual: usize,
     },
+    InvalidSumcheck(String),
     LigeroVerification(String),
 }
 
@@ -67,6 +68,7 @@ impl fmt::Display for ZkVerificationError {
                     expected, actual
                 )
             }
+            Self::InvalidSumcheck(err) => write!(f, "Invalid sumcheck: {err}"),
             Self::LigeroVerification(err) => write!(f, "Ligero commitment proof error: {}", err),
         }
     }
@@ -86,37 +88,21 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         Self { circuit, config }
     }
 
+    fn ligero_param<IF: InterpolatorFactory<W, F>>(
+        &self,
+        ctx: &ZkContext<'_, W, F, IF>,
+    ) -> LigeroParam {
+        let (nw, nq) = runtime_proto::zk::witness_and_constraint_count(&self.circuit);
+        LigeroParam::new(nw, nq, self.config, ctx.make_interpolator)
+    }
+
     pub fn geometry<IF: InterpolatorFactory<W, F>>(
         &self,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> runtime_proto::ZkProofGeometry {
-        assert!(
-            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
-            "npublic_input ({}) exceeds ninput ({})",
-            self.circuit.raw.npublic_input,
-            self.circuit.raw.ninput
-        );
-
-        let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
-        let pad_sz = crate::circuit_pad::CircuitPad::pad_size::<W, F>(&self.circuit);
-        let ligero_param = LigeroParam::new(
-            n_witness + pad_sz,
-            self.circuit.raw.layers.len(),
-            self.config,
-            ctx.make_interpolator,
-        );
-        let sc_geom = runtime_proto::sumcheck::SumcheckProofGeometry {
-            logw_layers: self
-                .circuit
-                .raw
-                .layers
-                .iter()
-                .map(core_proto::Layer::logw)
-                .collect(),
-        };
         runtime_proto::ZkProofGeometry {
-            sc_geom,
-            com_geom: ligero_param.geom,
+            sc_geom: runtime_proto::sumcheck::SumcheckProofGeometry::from_circuit(&self.circuit),
+            com_geom: self.ligero_param(ctx).geom,
         }
     }
 
@@ -127,21 +113,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         tv: &mut Transcript,
         ctx: &ZkContext<'_, W, F, IF>,
     ) {
-        assert!(
-            self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
-            "npublic_input ({}) exceeds ninput ({})",
-            self.circuit.raw.npublic_input,
-            self.circuit.raw.ninput
-        );
-
-        let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
-        let pad_sz = crate::circuit_pad::CircuitPad::pad_size::<W, F>(&self.circuit);
-        let ligero_param = LigeroParam::new(
-            n_witness + pad_sz,
-            self.circuit.raw.layers.len(),
-            self.config,
-            ctx.make_interpolator,
-        );
+        let ligero_param = self.ligero_param(ctx);
         let mut lv = runtime_ligero::LigeroVerifier::new(tv, &ligero_param);
         lv.receive_commitment(&zkp.com);
     }
@@ -189,32 +161,22 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
             }
         }
 
-        // Initialize Fiat-Shamir transcript with the sumcheck statement here, rather than
-        // relying on sumcheck_verifier (since ZkVerifier calls symbolic_sumcheck_verifier_core
-        // directly instead of standard sumcheck verification).
         tv.write_sumcheck_statement(&self.circuit, &pub_inputs, ctx.f);
-
+        let data =
+            runtime_sumcheck::derive_verifier_data(&self.circuit, &zkp.sumcheck_proof, tv, ctx.f)
+                .map_err(ZkVerificationError::InvalidSumcheck)?;
+        let relations = runtime_sumcheck::symbolic::verify(&zkp.sumcheck_proof, data, ctx.f)
+            .map_err(ZkVerificationError::InvalidSumcheck)?;
         let n_witness = self.circuit.raw.ninput - self.circuit.raw.npublic_input;
-        let (a, b) = crate::symbolic_sumcheck_verifier::symbolic_sumcheck_verifier_core(
-            n_witness,
-            &pub_inputs,
-            &self.circuit,
-            &zkp.sumcheck_proof,
-            None,
-            tv,
-            ctx.f,
-        );
+        let geometry = runtime_proto::sumcheck::SumcheckProofGeometry::from_circuit(&self.circuit);
+        let pads = geometry.pad_layout(n_witness);
+        let (a, b) = crate::constraint_compiler::compile(&relations, &pads, &pub_inputs, ctx.f)
+            .map_err(ZkVerificationError::InvalidSumcheck)?;
 
         let statement_hash = crate::common::DEFAULT_STATEMENT_HASH;
 
-        let pad_sz = crate::circuit_pad::CircuitPad::pad_size::<W, F>(&self.circuit);
-        let ligero_param = LigeroParam::new(
-            n_witness + pad_sz,
-            self.circuit.raw.layers.len(),
-            self.config,
-            ctx.make_interpolator,
-        );
-        let lqc = crate::common::setup_lqc(n_witness, &self.circuit);
+        let ligero_param = self.ligero_param(ctx);
+        let lqc = crate::constraint_compiler::product_constraints(n_witness, &geometry);
 
         let mut lv = runtime_ligero::LigeroVerifier::new(tv, &ligero_param);
         lv.verify(

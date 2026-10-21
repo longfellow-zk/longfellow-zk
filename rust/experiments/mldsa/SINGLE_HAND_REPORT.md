@@ -9,7 +9,10 @@ for the implementation boundaries and transition equations.
 
 Single-hand now lives in `runtime-sumcheck-ng` and `runtime-zk-ng`, with codecs
 in `runtime-proto::sumcheck_ng` and `runtime-proto::zk_ng`. The legacy sumcheck/ZK
-production sources and codec files are restored from local main (`bf9eef3`).
+production sources and codec files were restored from local main (`bf9eef3`) at
+checkpoint `cf513f3`. Legacy has since received the same pure symbolic verifier
+and sparse constraint-compiler partition; see its [README](../../runtime/sumcheck/README.md).
+The legacy ZK proof format and transcript state are preserved.
 The compiler stays shared and produces NG circuits only. The NG implementation
 has no strategy selectors or observer callbacks.
 The [NG README](../../runtime/sumcheck-ng/README.md) records exact restoration

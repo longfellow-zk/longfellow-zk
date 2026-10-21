@@ -25,7 +25,7 @@ use runtime_algebra::{
 use runtime_random::{RandomEngine, Transcript};
 use runtime_sumcheck::{
     eval::eval_circuit, prover::prove, verifier::verify, LayerProof, Poly, QuadRoundPoly,
-    SumcheckProof,
+    SumcheckProof, TranscriptSumcheck,
 };
 
 // The production compiler emits NG traversal. Legacy fixtures require Morton order.
@@ -229,7 +229,12 @@ fn test_sumcheck_multi_layer() {
     let in_layers = eval_circuit(w0.clone(), &circ, &f).unwrap();
     let mut transcript_prover = Transcript::new(b"test_multi_layer");
     let pad = zero_proof(&circ, &f);
-    let (proof, _) = prove(in_layers, &pad, &circ, &mut transcript_prover, &f);
+    let (proof, data) = prove(in_layers, &pad, &circ, &mut transcript_prover, &f);
+    let mut independent = Transcript::new(b"test_multi_layer");
+    independent.write_sumcheck_statement(&circ, &w0[..circ.raw.npublic_input], &f);
+    let derived =
+        runtime_sumcheck::derive_verifier_data(&circ, &proof, &mut independent, &f).unwrap();
+    assert_eq!(data, derived);
 
     let mut transcript_verifier = Transcript::new(b"test_multi_layer");
     let verify_result = verify(
@@ -246,4 +251,7 @@ fn test_sumcheck_multi_layer() {
         "Verification failed: {:?}",
         verify_result.err()
     );
+    let state = transcript_prover.bytes(64);
+    assert_eq!(state, independent.bytes(64));
+    assert_eq!(state, transcript_verifier.bytes(64));
 }

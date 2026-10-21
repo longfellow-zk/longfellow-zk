@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core_algebra::SerializableField;
-use core_proto::circuit::Circuit;
-use runtime_algebra::{field::RuntimeField, InterpolatorFactory, ZkField};
+use runtime_algebra::{InterpolatorFactory, ZkField};
 use runtime_proto::Digest;
 
 /// Bundles the field implementation and the interpolator factory.
@@ -29,23 +27,3 @@ pub const DEFAULT_STATEMENT_HASH: Digest = Digest {
         0, 0, 0, 0, 0, 0,
     ],
 };
-
-#[must_use]
-pub fn setup_lqc<const W: usize, F: RuntimeField<W> + SerializableField>(
-    start_pad: usize,
-    c: &Circuit<F>,
-) -> Vec<runtime_ligero::param::LigeroQuadraticConstraint> {
-    let mut lqc = Vec::with_capacity(c.raw.layers.len());
-    let mut pi = start_pad;
-    for i in 0..c.raw.layers.len() {
-        let logw = c.raw.layers[i].logw();
-        pi += 4 * logw;
-        lqc.push(runtime_ligero::param::LigeroQuadraticConstraint {
-            x: pi,
-            y: pi + 1,
-            z: pi + 2,
-        });
-        pi += 3;
-    }
-    lqc
-}
