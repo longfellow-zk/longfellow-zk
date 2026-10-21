@@ -74,7 +74,13 @@ pub type CircuitKey = (usize, bool);
 
 /// The circuits that make up `CURRENT_VERSION`. The runtime's `CURRENT_ZK_SPECS` must list
 /// exactly these `(num_attributes, pnym)` pairs (checked by a unit test in `zk_spec.rs`).
-pub const CURRENT_CIRCUIT_KEYS: [CircuitKey; 3] = [(1, false), (4, false), (0, true)];
+pub const CURRENT_CIRCUIT_KEYS: [CircuitKey; 5] = [
+    (1, false),
+    (2, false),
+    (4, false),
+    (1, true),
+    (4, true),
+];
 
 /// Result of [`compile_circuits`]: `(lfa2 archive bytes, sig Ligero config, hash Ligero config)`.
 pub type CompiledCircuit = (

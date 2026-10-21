@@ -82,33 +82,27 @@ pub fn run_mdoc_verifier_inner(
         return Err(MdocVerifierErrorCode::InvalidRequest);
     }
     if version >= 8 {
+        let num_attr_sha_blocks =
+            mdoc_zk_proto::mso_attribute::constants::attr_sha_blocks_for_circuit(
+                zk_spec.num_attributes,
+                zk_spec.pnym,
+            );
         let num_pnym = attrs.iter().filter(|a| a.op == AttributeOp::Pnym).count();
         let num_reg = attrs.len() - num_pnym;
         if zk_spec.pnym {
-            if zk_spec.num_attributes != 0 {
+            if !matches!(zk_spec.num_attributes, 1 | 4) {
                 return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
             }
             if attrs.is_empty() {
                 return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
             }
-            if num_pnym != 1 || num_reg != 0 {
+            let valid_reg = match zk_spec.num_attributes {
+                1 => num_reg == 1,
+                4 => (2..=4).contains(&num_reg),
+                _ => false,
+            };
+            if num_pnym != 1 || !valid_reg {
                 return Err(MdocVerifierErrorCode::InvalidRequest);
-            }
-            let a = &attrs[0];
-            if a.id != b"pnym_seed"
-                || a.context.is_empty()
-                || a.context.len() > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
-                || a.cbor_value.len() != mdoc_zk_proto::mso_attribute::constants::K_PNYM_VALUE_LEN
-                || a.cbor_value.get(..2) != Some(&[0x58, 0x20])
-            {
-                return Err(MdocVerifierErrorCode::InvalidRequest);
-            }
-            if !attr_encoding_fits(
-                &a.id,
-                &a.cbor_value,
-                mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
-            ) {
-                return Err(MdocVerifierErrorCode::UnsupportedAttribute);
             }
         } else {
             if num_pnym > 0 {
@@ -116,13 +110,34 @@ pub fn run_mdoc_verifier_inner(
             }
             let valid_count = match zk_spec.num_attributes {
                 1 => num_reg == 1,
+                2 => (1..=2).contains(&num_reg),
                 4 => (2..=4).contains(&num_reg),
                 n => num_reg == n && num_reg > 0,
             };
             if !valid_count {
                 return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
             }
-            for a in attrs {
+        }
+        for a in attrs {
+            if a.op == AttributeOp::Pnym {
+                if a.id != b"pnym_seed"
+                    || a.context.is_empty()
+                    || a.context.len()
+                        > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
+                    || a.cbor_value.len()
+                        != mdoc_zk_proto::mso_attribute::constants::K_PNYM_VALUE_LEN
+                    || a.cbor_value.get(..2) != Some(&[0x58, 0x20])
+                {
+                    return Err(MdocVerifierErrorCode::InvalidRequest);
+                }
+                if !attr_encoding_fits(
+                    &a.id,
+                    &a.cbor_value,
+                    mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
+                ) {
+                    return Err(MdocVerifierErrorCode::UnsupportedAttribute);
+                }
+            } else {
                 if !a.context.is_empty() || a.id.is_empty() {
                     return Err(MdocVerifierErrorCode::InvalidRequest);
                 }
@@ -134,11 +149,7 @@ pub fn run_mdoc_verifier_inner(
                 {
                     return Err(MdocVerifierErrorCode::UnsupportedComparison);
                 }
-                if !attr_encoding_fits(
-                    &a.id,
-                    &a.cbor_value,
-                    mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
-                ) {
+                if !attr_encoding_fits(&a.id, &a.cbor_value, num_attr_sha_blocks) {
                     return Err(MdocVerifierErrorCode::UnsupportedAttribute);
                 }
             }
@@ -241,7 +252,7 @@ pub fn run_mdoc_verifier_inner(
     let av_buf = tp.bytes(16);
     let av_val = u128::from_le_bytes(av_buf.try_into().unwrap());
 
-    let circuit_attrs = if version >= 8 && !zk_spec.pnym {
+    let circuit_attrs = if version >= 8 {
         pad_request_attrs(attrs, zk_spec.num_attributes)
     } else {
         attrs.to_vec()

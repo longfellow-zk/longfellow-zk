@@ -30,17 +30,20 @@ pub fn select_current_spec(
     pnym: bool,
 ) -> Result<&'static ZkSpecStruct, MdocProverErrorCode> {
     if pnym {
-        if num_regular != 0 {
-            return Err(MdocProverErrorCode::InvalidRequest);
-        }
+        let target_num = match num_regular {
+            1 => 1,
+            2..=4 => 4,
+            _ => return Err(MdocProverErrorCode::InvalidRequest),
+        };
         CURRENT_ZK_SPECS
             .iter()
-            .find(|s| s.num_attributes == 0 && s.pnym)
+            .find(|s| s.num_attributes == target_num && s.pnym)
             .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)
     } else {
         let target_num = match num_regular {
             1 => 1,
-            2..=4 => 4,
+            2 => 2,
+            3..=4 => 4,
             _ => return Err(MdocProverErrorCode::InvalidZkSpecVersion),
         };
         CURRENT_ZK_SPECS
@@ -48,6 +51,44 @@ pub fn select_current_spec(
             .find(|s| s.num_attributes == target_num && !s.pnym)
             .ok_or(MdocProverErrorCode::InvalidZkSpecVersion)
     }
+}
+
+pub fn select_current_spec_for_request(
+    req_attrs: &[crate::RequestedAttribute],
+) -> Result<&'static ZkSpecStruct, MdocProverErrorCode> {
+    use mdoc_zk_circuits::mso_attribute::constants::{
+        K_LARGE_ATTR_SHA_BLOCKS, K_MAX_ATTR_SHA_BLOCKS,
+    };
+    if req_attrs.is_empty() {
+        return Err(MdocProverErrorCode::InvalidRequest);
+    }
+    let pnym_count = req_attrs
+        .iter()
+        .filter(|a| a.op == crate::AttributeOp::Pnym)
+        .count();
+    if pnym_count > 1 {
+        return Err(MdocProverErrorCode::InvalidRequest);
+    }
+    let has_pnym = pnym_count == 1;
+    let regular: Vec<&crate::RequestedAttribute> = req_attrs
+        .iter()
+        .filter(|a| a.op != crate::AttributeOp::Pnym)
+        .collect();
+    let has_large = regular
+        .iter()
+        .any(|a| !crate::utils::attr_encoding_fits(&a.id, &a.cbor_value, K_MAX_ATTR_SHA_BLOCKS));
+    if has_large {
+        if has_pnym || regular.len() > 2 {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
+        if regular.iter().any(|a| {
+            !crate::utils::attr_encoding_fits(&a.id, &a.cbor_value, K_LARGE_ATTR_SHA_BLOCKS)
+        }) {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
+        return select_current_spec(2, false);
+    }
+    select_current_spec(regular.len(), has_pnym)
 }
 
 pub fn materialize(

@@ -20,6 +20,7 @@ use crate::mso_attribute::{
     concrete::FieldLocator as MsoFieldLocator,
     constants::{
         K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_SHA_BLOCKS, K_PNYM_SEED_LEN, K_PNYM_SHA_BLOCKS,
+        attr_sha_blocks_for_circuit,
     },
 };
 
@@ -183,13 +184,15 @@ pub fn given<const W: usize, N: Nat<W>>(
     let nblocks = cose_sha_wit.nblocks;
 
     let preimage_base_offset = (super::constants::K_COSE1_PREFIX_LEN + 7) as u16;
+    let num_attr_sha_blocks =
+        attr_sha_blocks_for_circuit(hash_input.attrs.len(), hash_input.pnym.is_some());
 
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
     for a in &hash_input.attrs {
         let attr_sha_wit = circuits_sha256msg::concrete::given(
             &a.cbor_issuer_signed_item,
             &circuits_sha256::constants::INITIAL,
-            K_MAX_ATTR_SHA_BLOCKS,
+            num_attr_sha_blocks,
         )
         .unwrap();
         attribute_given.push(AttrGiven {
@@ -302,6 +305,8 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
             super::constants::K_MAX_SHA_BLOCKS,
         ),
     };
+    let num_attr_sha_blocks =
+        attr_sha_blocks_for_circuit(given.attribute_given.len(), given.pnym_given.is_some());
 
     let mut attribute_witnesses = Vec::with_capacity(given.attribute_given.len());
     for ag in &given.attribute_given {
@@ -309,7 +314,7 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
             sha_derived: circuits_sha256msg::concrete::sha256_msg_derived(
                 &ag.padded_preimage,
                 &circuits_sha256::constants::INITIAL,
-                K_MAX_ATTR_SHA_BLOCKS,
+                num_attr_sha_blocks,
             ),
         };
         attribute_witnesses.push(AttrDerived {
@@ -385,38 +390,26 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
 
 pub fn pnym_hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
     parsed: &crate::cbor::mdoc::ParsedMdoc<N>,
+    req_attr_ids: &[&[u8]],
     context: &[u8],
     now: &str,
 ) -> HashInput<N> {
+    let mut hi = hash_input_of_parsed_mdoc(parsed, req_attr_ids, now);
     let a = parsed
         .get_attribute(b"pnym_seed")
         .expect("pnym_seed attribute not found in ParsedMdoc");
     let seed = crate::cbor::mdoc::pnym_seed_of(a).expect("pnym_seed must be bstr(32)");
     let pnym_digest = crate::cbor::mdoc::compute_pseudonym(&seed, context);
     let expected_cbor_value = crate::cbor::mdoc::encode_pnym_cbor_value(&pnym_digest);
-
-    HashInput {
-        attrs: Vec::new(),
-        pnym: Some(PnymInput {
-            expected_name: crate::cbor::encode_cbor_string(&a.name),
-            expected_cbor_value,
-            context: context.to_vec(),
-            cbor_issuer_signed_item: a.cbor_issuer_signed_item.clone(),
-            mso_digest_offset_in_preimage: a.mso_digest_offset_in_preimage,
-            field_locator: a.field_locator,
-        }),
-        now: now.as_bytes().to_vec(),
-        suppress_doc_type_check: false,
-        expected_doc_type: parsed.doc_type.as_bytes().to_vec(),
-        cbor_mso: parsed.cbor_mso.clone(),
-        issuer_sig_e: parsed.issuer_sig_digest.clone(),
-        device_pk: parsed.device_pk.clone(),
-        doc_type_offset: parsed.doc_type_offset_in_mso,
-        valid_from_offset: parsed.valid_from_offset_in_mso,
-        valid_until_offset: parsed.valid_until_offset_in_mso,
-        dev_key_info_offset: parsed.device_key_info_offset_in_mso,
-        value_digests_offset: parsed.value_digests_offset_in_mso,
-    }
+    hi.pnym = Some(PnymInput {
+        expected_name: crate::cbor::encode_cbor_string(&a.name),
+        expected_cbor_value,
+        context: context.to_vec(),
+        cbor_issuer_signed_item: a.cbor_issuer_signed_item.clone(),
+        mso_digest_offset_in_preimage: a.mso_digest_offset_in_preimage,
+        field_locator: a.field_locator,
+    });
+    hi
 }
 
 impl ConcreteDerived {

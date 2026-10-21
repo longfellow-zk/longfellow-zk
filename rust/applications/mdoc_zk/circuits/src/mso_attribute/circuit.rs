@@ -21,8 +21,8 @@ use compile_logic::{Logic, LogicIO};
 
 use super::constants::{
     K_ATTR_INDEX_BITS, K_ATTR_NBLOCKS_BITS, K_ATTR_PREIMAGE_LEN, K_DIGEST_ID,
-    K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN,
-    K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS, K_RANDOM_ID,
+    K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_LARGE_ATTR_NBLOCKS_BITS,
+    K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN, K_OP_BITS, K_RANDOM_ID, max_attr_cbor_len,
 };
 use crate::cbor_decoder::CborByteDecoder;
 
@@ -35,7 +35,7 @@ pub type AttrSlice<L, const N: usize> = circuits_bitvec::Slice<L, V8<L>, N, K_AT
 /// the credential.
 pub struct DisclosedAttribute<L: Logic> {
     pub expected_name: AttrSlice<L, 32>,
-    pub expected_cbor_value: AttrSlice<L, 64>,
+    pub expected_cbor_value: AttrSlice<L, K_MAX_ATTR_VAL_LEN>,
     pub op: Bitvec<L, K_OP_BITS>,
 }
 
@@ -106,8 +106,12 @@ pub struct Given<L: compile_logic::Logic> {
 
 pub type Derived<L> = circuits_sha256msg::Derived<L>;
 
-pub struct AttributeVerifier<'a, L: Logic>
-where
+pub struct AttributeVerifier<
+    'a,
+    L: Logic,
+    const ATTR_SHA_BLOCKS: usize = K_MAX_ATTR_SHA_BLOCKS,
+    const MAX_VAL_LEN: usize = K_MAX_ATTR_VAL_LEN,
+> where
     L::F: FieldWrappingSum,
 {
     pub(crate) logic: &'a L,
@@ -116,16 +120,47 @@ where
     cbor_decoder: CborByteDecoder<'a, L>,
     pub(crate) routing: Routing<'a, L>,
     pub(crate) cmp_helper: Memcmp<'a, L>,
-    pub(crate) shamsg: circuits_sha256msg::Sha256Msg<'a, L, K_MAX_ATTR_SHA_BLOCKS>,
+    pub(crate) shamsg: circuits_sha256msg::Sha256Msg<'a, L, ATTR_SHA_BLOCKS>,
 }
 
-impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
+impl<L: LogicIO, const ATTR_SHA_BLOCKS: usize, const MAX_VAL_LEN: usize>
+    AttributeVerifier<'_, L, ATTR_SHA_BLOCKS, MAX_VAL_LEN>
+where
+    L::F: FieldWrappingSum,
+{
+}
 
-impl<'a, L: Logic> AttributeVerifier<'a, L>
+impl<'a, L: Logic> AttributeVerifier<'a, L, K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN>
 where
     L::F: FieldWrappingSum,
 {
     pub fn new(logic: &'a L) -> Self {
+        Self::with_size(logic)
+    }
+
+    pub fn assert_attribute(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
+        self.assert_attribute_slices(
+            &given.attribute_preimage.data,
+            &given.attribute_preimage.len,
+            &given.field_locator,
+            &given.disclosed_attribute.expected_name,
+            &given.disclosed_attribute.expected_cbor_value.data,
+            &given.disclosed_attribute.expected_cbor_value.len,
+            &given.disclosed_attribute.op,
+            &given.expected_digest,
+            derived,
+        )
+    }
+}
+
+impl<'a, L: Logic, const ATTR_SHA_BLOCKS: usize, const MAX_VAL_LEN: usize>
+    AttributeVerifier<'a, L, ATTR_SHA_BLOCKS, MAX_VAL_LEN>
+where
+    L::F: FieldWrappingSum,
+{
+    const MAX_CBOR_LEN: usize = max_attr_cbor_len(ATTR_SHA_BLOCKS);
+
+    pub fn with_size(logic: &'a L) -> Self {
         Self {
             logic,
             boolean: Boolean::new(logic),
@@ -137,19 +172,33 @@ where
         }
     }
 
-    pub fn assert_attribute(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
-        let [hdr, seg, perm, slot0, slot1, slot2, sha] = self.assert_item_common(
-            &given.attribute_preimage,
-            &given.field_locator,
-            &given.disclosed_attribute.expected_name,
-            &given.expected_digest,
+    #[allow(clippy::too_many_arguments)]
+    pub fn assert_attribute_slices(
+        &self,
+        attribute_preimage_data: &[V8<L>],
+        attribute_preimage_len: &AttrIndex<L>,
+        field_locator: &FieldLocator<L>,
+        expected_name: &AttrSlice<L, 32>,
+        expected_cbor_value_data: &[V8<L>],
+        expected_cbor_value_len: &AttrIndex<L>,
+        op: &Bitvec<L, K_OP_BITS>,
+        expected_digest: &V256<L>,
+        derived: &Derived<L>,
+    ) -> L::Assertions {
+        let [hdr, seg, perm, slot0, slot1, slot2, sha] = self.assert_item_common_slices(
+            attribute_preimage_data,
+            attribute_preimage_len,
+            field_locator,
+            expected_name,
+            expected_digest,
             derived,
         );
         let slot3 = self.assert_item_slot_value_relation(
-            &given.field_locator,
-            &given.attribute_preimage.data,
-            &given.disclosed_attribute.expected_cbor_value,
-            &given.disclosed_attribute.op,
+            field_locator,
+            attribute_preimage_data,
+            expected_cbor_value_data,
+            expected_cbor_value_len,
+            op,
         );
         self.logic.assert_all(
             "assert_attribute",
@@ -157,41 +206,65 @@ where
         )
     }
 
-    pub(crate) fn assert_item_common(
+    pub(crate) fn assert_item_common<const PREIMAGE_LEN: usize>(
         &self,
-        attribute_preimage: &AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
+        attribute_preimage: &AttrSlice<L, PREIMAGE_LEN>,
+        field_locator: &FieldLocator<L>,
+        expected_name: &AttrSlice<L, 32>,
+        expected_digest: &V256<L>,
+        derived: &Derived<L>,
+    ) -> [L::Assertions; 7] {
+        self.assert_item_common_slices(
+            &attribute_preimage.data,
+            &attribute_preimage.len,
+            field_locator,
+            expected_name,
+            expected_digest,
+            derived,
+        )
+    }
+
+    fn assert_item_common_slices(
+        &self,
+        attribute_preimage_data: &[V8<L>],
+        attribute_preimage_len: &AttrIndex<L>,
         field_locator: &FieldLocator<L>,
         expected_name: &AttrSlice<L, 32>,
         expected_digest: &V256<L>,
         derived: &Derived<L>,
     ) -> [L::Assertions; 7] {
         [
-            self.assert_preimage_header(attribute_preimage),
-            self.assert_segments(field_locator, &attribute_preimage.len),
+            self.assert_preimage_header(attribute_preimage_data, attribute_preimage_len),
+            self.assert_segments(field_locator, attribute_preimage_len),
             self.assert_permutation(&field_locator.permutation),
             self.assert_item_slot_key_only(
                 0,
                 field_locator,
-                &attribute_preimage.data,
+                attribute_preimage_data,
                 &K_DIGEST_ID,
                 true,
             ),
             self.assert_item_slot_key_only(
                 1,
                 field_locator,
-                &attribute_preimage.data,
+                attribute_preimage_data,
                 &K_RANDOM_ID,
                 false,
             ),
             self.assert_item_slot_key_value(
                 2,
                 field_locator,
-                &attribute_preimage.data,
+                attribute_preimage_data,
                 K_ELEMENT_IDENTIFIER_PREFIX.len() + 1 + 32,
                 &K_ELEMENT_IDENTIFIER_PREFIX,
                 expected_name,
             ),
-            self.assert_sha_digest_preimage(attribute_preimage, expected_digest, derived),
+            self.assert_sha_digest_preimage(
+                attribute_preimage_data,
+                attribute_preimage_len,
+                expected_digest,
+                derived,
+            ),
         ]
     }
 
@@ -200,12 +273,12 @@ where
         field_locator: &FieldLocator<L>,
         attribute_preimage: &[V8<L>],
         expected_val_len: &AttrIndex<L>,
-    ) -> ([V8<L>; 64], [L::Assertions; 4]) {
+    ) -> ([V8<L>; MAX_VAL_LEN], [L::Assertions; 4]) {
         let slice = self.slot_offset_and_len(3, field_locator);
         let got = self.routing.shift_bitvec(
             3,
             &slice.offset,
-            K_MAX_ATTR_CBOR_LEN,
+            Self::MAX_CBOR_LEN,
             attribute_preimage,
             &self.bv.zero::<8>(),
         );
@@ -220,11 +293,11 @@ where
             &K_ELEMENT_VALUE_PREFIX,
         );
         let len_eq_assertion = self.assert_len_eq(&slice.len, &expected_slice_len);
-        let max_val_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(64);
+        let max_val_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(MAX_VAL_LEN as u64);
         let len_le_max = self.bv.leq(expected_val_len, &max_val_len);
         let len_bound_assertion = self.boolean.assert_true("val_len_le_64", &len_le_max);
 
-        let got_value: [V8<L>; 64] =
+        let got_value: [V8<L>; MAX_VAL_LEN] =
             std::array::from_fn(|j| got[K_ELEMENT_VALUE_PREFIX.len() + j].clone());
         (
             got_value,
@@ -241,22 +314,23 @@ where
         &self,
         field_locator: &FieldLocator<L>,
         attribute_preimage: &[V8<L>],
-        expected: &AttrSlice<L, 64>,
+        expected_data: &[V8<L>],
+        expected_len: &AttrIndex<L>,
         op: &Bitvec<L, K_OP_BITS>,
     ) -> L::Assertions {
         let (
             got_value,
             [overflow_assertion, key_prefix_assertion, len_eq_assertion, len_bound_assertion],
-        ) = self.element_value_window(field_locator, attribute_preimage, &expected.len);
+        ) = self.element_value_window(field_locator, attribute_preimage, expected_len);
 
         let zero_v8 = self.bv.zero::<8>();
-        let mut a: Vec<V8<L>> = Vec::with_capacity(64);
-        let mut b: Vec<V8<L>> = Vec::with_capacity(64);
-        for j in 0..64 {
+        let mut a: Vec<V8<L>> = Vec::with_capacity(MAX_VAL_LEN);
+        let mut b: Vec<V8<L>> = Vec::with_capacity(MAX_VAL_LEN);
+        for j in 0..MAX_VAL_LEN {
             let j_wire = self.bv.of_u64::<K_ATTR_INDEX_BITS>(j as u64);
-            let in_bounds = self.bv.lt(&j_wire, &expected.len);
+            let in_bounds = self.bv.lt(&j_wire, expected_len);
             a.push(self.bv.select(&in_bounds, &got_value[j], &zero_v8));
-            b.push(self.bv.select(&in_bounds, &expected.data[j], &zero_v8));
+            b.push(self.bv.select(&in_bounds, &expected_data[j], &zero_v8));
         }
 
         let bit0 = op.bit(0);
@@ -266,7 +340,9 @@ where
 
         let is_cmp = self.boolean.orb(bit0, bit1);
 
-        let mut byte_eqs: Vec<Bitw<L>> = (0..64).map(|j| self.bv.eqb(&a[j], &b[j])).collect();
+        let mut byte_eqs: Vec<Bitw<L>> = (0..MAX_VAL_LEN)
+            .map(|j| self.bv.eqb(&a[j], &b[j]))
+            .collect();
         while byte_eqs.len() > 1 {
             byte_eqs = byte_eqs
                 .chunks(2)
@@ -294,7 +370,7 @@ where
 
         let mut is_fulldate = self
             .bv
-            .eqb(&expected.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(14));
+            .eqb(expected_len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(14));
         for (idx, &hdr_byte) in fulldate_hdr.iter().enumerate() {
             let want_b = self.bv.of_u8(hdr_byte);
             let a_eq = self.bv.eqb(&a[idx], &want_b);
@@ -305,7 +381,7 @@ where
 
         let mut is_tdate = self
             .bv
-            .eqb(&expected.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(22));
+            .eqb(expected_len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(22));
         for (idx, &hdr_byte) in tdate_hdr.iter().enumerate() {
             let want_b = self.bv.of_u8(hdr_byte);
             let a_eq = self.bv.eqb(&a[idx], &want_b);
@@ -337,35 +413,57 @@ where
 
     pub(crate) fn assert_sha_digest_preimage(
         &self,
-        attribute_preimage: &AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
+        attribute_preimage_data: &[V8<L>],
+        attribute_preimage_len: &AttrIndex<L>,
         expected_digest: &V256<L>,
         derived: &Derived<L>,
     ) -> L::Assertions {
         let preimage_len_64 = self
             .bv
-            .zext::<{ K_ATTR_INDEX_BITS }, 64>(&attribute_preimage.len);
-        let nblocks_wire = self
-            .bv
-            .of_u64::<K_ATTR_NBLOCKS_BITS>(K_MAX_ATTR_SHA_BLOCKS as u64);
-        let shamsg_given = circuits_sha256msg::circuit::Given {
-            padded_preimage: attribute_preimage.data.to_vec(),
-            nblocks: nblocks_wire,
-            length_bytes: preimage_len_64,
-            expected_hash: expected_digest.clone(),
-        };
-        self.shamsg.assert_message_hash(&shamsg_given, derived)
+            .zext::<{ K_ATTR_INDEX_BITS }, 64>(attribute_preimage_len);
+        if ATTR_SHA_BLOCKS <= K_MAX_ATTR_SHA_BLOCKS {
+            let nblocks_wire = self
+                .bv
+                .of_u64::<K_ATTR_NBLOCKS_BITS>(ATTR_SHA_BLOCKS as u64);
+            let shamsg_given = circuits_sha256msg::circuit::Given {
+                padded_preimage: attribute_preimage_data.to_vec(),
+                nblocks: nblocks_wire,
+                length_bytes: preimage_len_64,
+                expected_hash: expected_digest.clone(),
+            };
+            self.shamsg.assert_message_hash(&shamsg_given, derived)
+        } else {
+            // For `ATTR_SHA_BLOCKS == 4` (`IssuerSignedItemBytes` lengths up to 247 bytes),
+            // the message may span 2, 3, or 4 SHA-256 blocks (`nblocks = (len + 9).div_ceil(64)`).
+            // Since `(len + 9).div_ceil(64) == (len + 72) >> 6` for `0 <= len <= 247`
+            // (`72 <= len + 72 <= 319 < 512`), bits `6..9` of `len + 72` give the exact 3-bit
+            // `nblocks` value, which `Sha256Msg::assert_nblocks` additionally constrains.
+            let seventy_two = self.bv.of_u64::<K_ATTR_INDEX_BITS>(72);
+            let len_plus_72 = self.bv.wrapping_add(attribute_preimage_len, &seventy_two);
+            let nblocks_wire = self
+                .bv
+                .from_fn::<K_LARGE_ATTR_NBLOCKS_BITS, _>(|i| len_plus_72.bit(6 + i).clone());
+            let shamsg_given = circuits_sha256msg::circuit::Given {
+                padded_preimage: attribute_preimage_data.to_vec(),
+                nblocks: nblocks_wire,
+                length_bytes: preimage_len_64,
+                expected_hash: expected_digest.clone(),
+            };
+            self.shamsg.assert_message_hash(&shamsg_given, derived)
+        }
     }
 
     fn assert_preimage_header(
         &self,
-        attribute_preimage: &AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
+        attribute_preimage_data: &[V8<L>],
+        attribute_preimage_len: &AttrIndex<L>,
     ) -> L::Assertions {
         // Verify the cbor prefix for IssuerSignedItem.
-        // attribute_preimage.data[0..3] is [0xD8, 0x18, 0x58] (Tag 24, and
-        // Byte String header). attribute_preimage.data[3] contains the
+        // attribute_preimage_data[0..3] is [0xD8, 0x18, 0x58] (Tag 24, and
+        // Byte String header). attribute_preimage_data[3] contains the
         // payload length, which varies and is privately constrained
-        // to be equal to `attribute_preimage.len` (checked below by the sum of
-        // map item sizes). attribute_preimage.data[4] is [0xA4] (the
+        // to be equal to `attribute_preimage_len` (checked below by the sum of
+        // map item sizes). attribute_preimage_data[4] is [0xA4] (the
         // map size of 4).
         let cbor_tag = [0xD8, 0x18, 0x58];
         let cbor_array = [0xA4];
@@ -374,16 +472,16 @@ where
         // expected payload length
         let preimage_len_16 = self
             .bv
-            .zext::<8, K_ATTR_INDEX_BITS>(&attribute_preimage.data[3]);
+            .zext::<8, K_ATTR_INDEX_BITS>(&attribute_preimage_data[3]);
         let four = self.bv.of_u64::<K_ATTR_INDEX_BITS>(4);
 
         self.logic.assert_all(
             "assert_preimage_header",
             &[
-                self.assert_bytes_at(3, &attribute_preimage.data[0..3], &cbor_tag),
-                self.assert_bytes_at(1, &attribute_preimage.data[4..5], &cbor_array),
+                self.assert_bytes_at(3, &attribute_preimage_data[0..3], &cbor_tag),
+                self.assert_bytes_at(1, &attribute_preimage_data[4..5], &cbor_array),
                 self.bv
-                    .assert_checked_add(&attribute_preimage.len, &preimage_len_16, &four),
+                    .assert_checked_add(attribute_preimage_len, &preimage_len_16, &four),
             ],
         )
     }
@@ -478,7 +576,7 @@ where
         let got = self.routing.shift_bitvec(
             3,
             &slice.offset,
-            K_MAX_ATTR_CBOR_LEN,
+            Self::MAX_CBOR_LEN,
             attribute_preimage,
             &self.bv.zero::<8>(),
         );
@@ -516,7 +614,7 @@ where
         let got = self.routing.shift_bitvec(
             3,
             &slice.offset,
-            K_MAX_ATTR_CBOR_LEN,
+            Self::MAX_CBOR_LEN,
             attribute_preimage,
             &zz,
         );

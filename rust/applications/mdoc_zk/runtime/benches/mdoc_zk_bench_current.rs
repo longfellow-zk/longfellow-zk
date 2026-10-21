@@ -124,10 +124,25 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     );
 
     let pnym_data = &mdoc_zk_testcases::vectors::PNYM_SEED_MDOC;
-    let pnym_req = vec![req_pnym(
-        "org.iso.18013.5.1",
-        b"verifier.example.org/relying-party-session-2026",
-    )];
+    let pnym_req = vec![
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_pnym(
+            "org.iso.18013.5.1",
+            b"verifier.example.org/relying-party-session-2026",
+        ),
+    ];
+    let pnym_4_req = vec![
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_attr(
+            "org.iso.18013.5.1",
+            "birth_date",
+            *b"\xd9\x03\xec\x6a1971-09-01",
+        ),
+        req_pnym(
+            "org.iso.18013.5.1",
+            b"verifier.example.org/relying-party-session-2026",
+        ),
+    ];
 
     struct BenchCase<'a> {
         label: &'static str,
@@ -156,6 +171,18 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
             doc_type: "org.iso.18013.5.1.mDL",
         },
         BenchCase {
+            label: "v8_2attr",
+            num_attrs: 2,
+            pnym: false,
+            mdoc_bytes: mdoc_zk_testcases::vectors::TEST_DATA.mdoc,
+            pkx: &pubkey_x_string,
+            pky: &pubkey_y_formatted,
+            transcript: mdoc_zk_testcases::vectors::TEST_DATA.transcript,
+            req_attrs: all_req_attrs.iter().take(2).cloned().collect(),
+            now,
+            doc_type: "org.iso.18013.5.1.mDL",
+        },
+        BenchCase {
             label: "v8_4attr",
             num_attrs: 4,
             pnym: false,
@@ -168,14 +195,26 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
             doc_type: "org.iso.18013.5.1.mDL",
         },
         BenchCase {
-            label: "v8_0attr_pnym",
-            num_attrs: 0,
+            label: "v8_1attr_pnym",
+            num_attrs: 1,
             pnym: true,
             mdoc_bytes: pnym_data.mdoc,
             pkx: pnym_data.pkx,
             pky: pnym_data.pky,
             transcript: pnym_data.transcript,
             req_attrs: pnym_req,
+            now: pnym_data.now,
+            doc_type: pnym_data.doc_type,
+        },
+        BenchCase {
+            label: "v8_4attr_pnym",
+            num_attrs: 4,
+            pnym: true,
+            mdoc_bytes: pnym_data.mdoc,
+            pkx: pnym_data.pkx,
+            pky: pnym_data.pky,
+            transcript: pnym_data.transcript,
+            req_attrs: pnym_4_req,
             now: pnym_data.now,
             doc_type: pnym_data.doc_type,
         },

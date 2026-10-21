@@ -700,3 +700,126 @@ fn test_pnym_context_length_bounds() {
         }
     }
 }
+
+fn run_large_attribute_test_mock<'a>(
+    f: &'a Gf2_128Field,
+    tracker: &'a AssertionTracker,
+    mock: &MsoAttributeMockGiven,
+) -> EvalAssertions<'a> {
+    use mdoc_zk_circuits::mso_attribute::constants::{
+        K_LARGE_ATTR_PREIMAGE_LEN, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN,
+    };
+    use sha2::{Digest, Sha256};
+
+    let l = EvalLogic::new_with_tracker(f, tracker);
+    let bv = BitvecLogic::new(&l);
+
+    let (nblocks, length_bytes, padded_preimage) =
+        circuits_sha256msg::concrete::pad_sha256_message(&mock.raw_buf, K_LARGE_ATTR_SHA_BLOCKS)
+            .unwrap();
+    assert_eq!(padded_preimage.len(), K_LARGE_ATTR_PREIMAGE_LEN);
+    let attribute_preimage: Vec<_> = padded_preimage.iter().map(|&b| bv.of_u8(b)).collect();
+    let preimage_len = bv.of_u64::<K_ATTR_INDEX_BITS>(mock.preimage_len);
+
+    let zero_v8 = bv.of_u8(0);
+    let mut oa_attr = [(); 32].map(|_| zero_v8.clone());
+    for (slot, &b) in oa_attr.iter_mut().zip(mock.disclosed_name.iter().take(32)) {
+        *slot = bv.of_u8(b);
+    }
+    let expected_name = AttrSlice {
+        data: oa_attr,
+        len: bv.of_u64::<K_ATTR_INDEX_BITS>(mock.disclosed_name_len),
+    };
+
+    let mut oa_v1 = vec![zero_v8; K_LARGE_ATTR_VAL_LEN];
+    for (slot, &b) in oa_v1
+        .iter_mut()
+        .zip(mock.disclosed_value.iter().take(K_LARGE_ATTR_VAL_LEN))
+    {
+        *slot = bv.of_u8(b);
+    }
+    let expected_cbor_value_len = bv.of_u64::<K_ATTR_INDEX_BITS>(mock.disclosed_value_len);
+    let op = bv.of_u64::<2>(mock.op);
+
+    let field_locator = FieldLocator {
+        slot_position: std::array::from_fn(|i| {
+            bv.of_u64::<K_ATTR_INDEX_BITS>(mock.slot_position[i])
+        }),
+        length: std::array::from_fn(|i| bv.of_u64::<K_ATTR_INDEX_BITS>(mock.length[i])),
+        permutation: std::array::from_fn(|i| bv.of_u64::<2>(mock.permutation[i])),
+    };
+
+    let digest_bytes = Sha256::digest(&mock.raw_buf);
+    let expected_digest = bv.from_fn::<256, _>(|idx| {
+        let byte_idx = 31 - (idx / 8);
+        let bit_idx = idx % 8;
+        let byte = digest_bytes[byte_idx];
+        let bit_val = ((byte >> bit_idx) & 1) == 1;
+        circuits_boolean::Boolean::new(&l).konst(bit_val)
+    });
+
+    let concrete_given = circuits_sha256msg::concrete::ConcreteGiven {
+        padded_preimage,
+        nblocks,
+        length_bytes,
+        expected_hash: [0; 8],
+    };
+    let concrete_derived =
+        circuits_sha256msg::concrete::derived(&concrete_given, K_LARGE_ATTR_SHA_BLOCKS);
+    let sha_derived = circuits_sha256msg::evaluate::evaluate_derived(&concrete_derived, &bv);
+
+    let verifier =
+        AttributeVerifier::<_, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN>::with_size(&l);
+    verifier.assert_attribute_slices(
+        &attribute_preimage,
+        &preimage_len,
+        &field_locator,
+        &expected_name,
+        &oa_v1,
+        &expected_cbor_value_len,
+        &op,
+        &expected_digest,
+        &sha_derived,
+    )
+}
+
+#[test]
+fn test_large_attribute_verifier_190b_and_20b() {
+    let f = Gf2_128Field::new();
+
+    // 1. 190-byte IssuerSignedItemBytes (4 SHA-256 blocks: 190 + 9 = 199 bytes > 192 bytes):
+    //    70-byte fixed CBOR framing + 11-byte cbor_id (b"\x6alarge_190b") + 109-byte cbor_value = 190 bytes.
+    let mut val_109b = vec![0x58, 0x6b]; // bstr(107) -> 109 CBOR bytes
+    val_109b.extend((0..107u8).map(|i| i.wrapping_mul(5).wrapping_add(3)));
+    let mock_190b = build_item_mock(b"large_190b", &val_109b, 0);
+    assert_eq!(mock_190b.raw_buf.len(), 190);
+    assert_eq!(mock_190b.preimage_len, 190);
+
+    let tracker = AssertionTracker::new();
+    run_large_attribute_test_mock(&f, &tracker, &mock_190b).unwrap();
+
+    // Tampering with byte 100 (> 64) of the 190-byte item's value must fail
+    let mut bad_190b = mock_190b.clone();
+    bad_190b.disclosed_value[100] ^= 0x01;
+    let tracker = AssertionTracker::new();
+    let res_bad_190b = run_large_attribute_test_mock(&f, &tracker, &bad_190b);
+    assert!(res_bad_190b.is_err());
+
+    // 2. 20-byte attribute value (bstr(19) -> 20 CBOR bytes, 101-byte IssuerSignedItemBytes = 2 SHA-256 blocks)
+    //    verified through the 4-block large AttributeVerifier:
+    let mut val_20b = vec![0x53]; // bstr(19) -> 20 CBOR bytes
+    val_20b.extend((0..19u8).map(|i| i.wrapping_add(0x20)));
+    assert_eq!(val_20b.len(), 20);
+    let mock_20b = build_item_mock(b"small_20b_", &val_20b, 0);
+    assert_eq!(mock_20b.disclosed_value.len(), 20);
+
+    let tracker = AssertionTracker::new();
+    run_large_attribute_test_mock(&f, &tracker, &mock_20b).unwrap();
+
+    // Tampering with the 20-byte attribute value must fail
+    let mut bad_20b = mock_20b.clone();
+    bad_20b.disclosed_value[19] ^= 0x01;
+    let tracker = AssertionTracker::new();
+    let res_bad_20b = run_large_attribute_test_mock(&f, &tracker, &bad_20b);
+    assert!(res_bad_20b.is_err());
+}

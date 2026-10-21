@@ -134,7 +134,17 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
     if !crate::same_namespace(attrs) || attrs.iter().any(|a| a.namespace_id.is_empty()) {
         return Err(MdocProverErrorCode::NamespacesMissing);
     }
-    let max_attr_len = mdoc_zk_proto::mso_attribute::constants::max_attr_cbor_len(
+    let num_attr_sha_blocks = if version >= 8 {
+        mdoc_zk_proto::mso_attribute::constants::attr_sha_blocks_for_circuit(
+            zk_spec.num_attributes,
+            zk_spec.pnym,
+        )
+    } else {
+        mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS
+    };
+    let max_attr_len =
+        mdoc_zk_proto::mso_attribute::constants::max_attr_cbor_len(num_attr_sha_blocks);
+    let max_pnym_attr_len = mdoc_zk_proto::mso_attribute::constants::max_attr_cbor_len(
         mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
     );
     if version < 8 {
@@ -163,20 +173,13 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
         let num_pnym = attrs.iter().filter(|a| a.op == AttributeOp::Pnym).count();
         let num_reg = attrs.len() - num_pnym;
         if zk_spec.pnym {
-            if zk_spec.num_attributes != 0 {
-                return Err(MdocProverErrorCode::InvalidZkSpecVersion);
-            }
-            if num_pnym != 1 || num_reg != 0 {
+            let valid_reg = match zk_spec.num_attributes {
+                1 => num_reg == 1,
+                4 => (2..=4).contains(&num_reg),
+                _ => return Err(MdocProverErrorCode::InvalidZkSpecVersion),
+            };
+            if num_pnym != 1 || !valid_reg {
                 return Err(MdocProverErrorCode::InvalidRequest);
-            }
-            let a = &attrs[0];
-            if a.id != b"pnym_seed" {
-                return Err(MdocProverErrorCode::InvalidRequest);
-            }
-            if a.context.is_empty()
-                || a.context.len() > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
-            {
-                return Err(MdocProverErrorCode::PnymContextMissing);
             }
         } else {
             if num_pnym > 0 {
@@ -184,13 +187,26 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
             }
             let valid_count = match zk_spec.num_attributes {
                 1 => num_reg == 1,
+                2 => (1..=2).contains(&num_reg),
                 4 => (2..=4).contains(&num_reg),
                 n => num_reg == n && num_reg > 0,
             };
             if !valid_count {
                 return Err(MdocProverErrorCode::InvalidRequest);
             }
-            for a in attrs {
+        }
+        for a in attrs {
+            if a.op == AttributeOp::Pnym {
+                if a.id != b"pnym_seed" {
+                    return Err(MdocProverErrorCode::InvalidRequest);
+                }
+                if a.context.is_empty()
+                    || a.context.len()
+                        > mdoc_zk_proto::mso_attribute::constants::K_PNYM_CONTEXT_MAX
+                {
+                    return Err(MdocProverErrorCode::PnymContextMissing);
+                }
+            } else {
                 if !a.context.is_empty() || a.id.is_empty() {
                     return Err(MdocProverErrorCode::InvalidRequest);
                 }
@@ -202,11 +218,7 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
                 {
                     return Err(MdocProverErrorCode::UnsupportedComparison);
                 }
-                if !crate::attr_encoding_fits(
-                    &a.id,
-                    &a.cbor_value,
-                    mdoc_zk_proto::mso_attribute::constants::K_MAX_ATTR_SHA_BLOCKS,
-                ) {
+                if !crate::attr_encoding_fits(&a.id, &a.cbor_value, num_attr_sha_blocks) {
                     return Err(MdocProverErrorCode::AttributeTooLong);
                 }
             }
@@ -254,7 +266,7 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
                 let pa = parsed
                     .get_attribute(b"pnym_seed")
                     .ok_or(MdocProverErrorCode::PnymSeedMissing)?;
-                if pa.cbor_issuer_signed_item.len() > max_attr_len {
+                if pa.cbor_issuer_signed_item.len() > max_pnym_attr_len {
                     return Err(MdocProverErrorCode::AttributeTooLong);
                 }
                 let seed = mdoc_zk_circuits::cbor::pnym_seed_of(pa)
@@ -304,7 +316,7 @@ pub fn run_mdoc_prover_inner_ext<RNG: RandomEngine>(
         }
     }
 
-    let circuit_attrs = if version >= 8 && !zk_spec.pnym {
+    let circuit_attrs = if version >= 8 {
         crate::utils::pad_request_attrs(&resolved_attrs, zk_spec.num_attributes)
     } else {
         resolved_attrs.clone()

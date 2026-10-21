@@ -19,15 +19,16 @@ use compile_logic::LogicIO;
 use crate::{
     hash::{
         circuit::{
-            AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
-            PnymDerived, PnymGiven,
+            AttrDerived, AttrGiven, AttrPreimageBytes, AttrVarSlice, Derived, DisclosedAttribute,
+            Given, MsoPreimageBytes, PnymAttrPreimageBytes, PnymDerived, PnymGiven,
         },
         constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_LEN},
     },
     mso_attribute::{
         constants::{
-            K_ATTR_INDEX_BITS, K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS, K_PNYM_CONTEXT_BITS,
-            K_PNYM_SHA_BLOCKS,
+            K_ATTR_INDEX_BITS, K_LARGE_ATTR_SHA_BLOCKS, K_MAX_ATTR_SHA_BLOCKS, K_OP_BITS,
+            K_PNYM_CONTEXT_BITS, K_PNYM_SHA_BLOCKS, attr_preimage_len, attr_sha_blocks_for_circuit,
+            max_attr_val_len,
         },
         pnym::{ContextSlice, DisclosedPnym},
     },
@@ -51,15 +52,18 @@ pub fn allocate_given_with_pnym<L: LogicIO>(
 ) -> Given<L> {
     let bitvec_io = BitvecIO::new(bv);
     let boolean_io = BooleanIO::new(logic);
+    let num_attr_sha_blocks = attr_sha_blocks_for_circuit(num_attrs, pnym);
+    let val_len = max_attr_val_len(num_attr_sha_blocks);
+    let preimage_len = attr_preimage_len(num_attr_sha_blocks);
 
     let disclosed_attributes = (0..num_attrs)
-        .map(|_| crate::mso_attribute::circuit::DisclosedAttribute {
+        .map(|_| DisclosedAttribute {
             expected_name: crate::mso_attribute::circuit::AttrSlice {
                 data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
                 len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
             },
-            expected_cbor_value: crate::mso_attribute::circuit::AttrSlice {
-                data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+            expected_cbor_value: AttrVarSlice {
+                data: (0..val_len).map(|_| bitvec_io.next::<8>(pos)).collect(),
                 len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
             },
             op: bitvec_io.next::<K_OP_BITS>(pos),
@@ -112,7 +116,9 @@ pub fn allocate_given_with_pnym<L: LogicIO>(
     let attribute_given = (0..num_attrs)
         .map(|_| AttrGiven {
             preimage: AttrPreimageBytes {
-                data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+                data: (0..preimage_len)
+                    .map(|_| bitvec_io.next::<8>(pos))
+                    .collect(),
                 len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
             },
             mso_digest_offset_in_preimage: bitvec_io.next::<16>(pos),
@@ -125,7 +131,7 @@ pub fn allocate_given_with_pnym<L: LogicIO>(
         .collect();
 
     let pnym_given = pnym.then(|| PnymGiven {
-        preimage: AttrPreimageBytes {
+        preimage: PnymAttrPreimageBytes {
             data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
             len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
         },
@@ -182,9 +188,14 @@ pub fn allocate_derived_with_pnym<L: LogicIO, const MAX_MSO_BLOCKS: usize>(
     pnym: bool,
     pos: &mut usize,
 ) -> Derived<L> {
+    let num_attr_sha_blocks = attr_sha_blocks_for_circuit(num_attrs, pnym);
     let attribute_derived = (0..num_attrs)
         .map(|_| AttrDerived {
-            sha_derived: circuits_sha256msg::allocate_derived::<_, K_MAX_ATTR_SHA_BLOCKS>(bv, pos),
+            sha_derived: if num_attr_sha_blocks == K_LARGE_ATTR_SHA_BLOCKS {
+                circuits_sha256msg::allocate_derived::<_, K_LARGE_ATTR_SHA_BLOCKS>(bv, pos)
+            } else {
+                circuits_sha256msg::allocate_derived::<_, K_MAX_ATTR_SHA_BLOCKS>(bv, pos)
+            },
         })
         .collect();
 

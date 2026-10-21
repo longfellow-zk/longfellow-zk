@@ -27,8 +27,12 @@ use super::constants::{
 use crate::{
     hash::constants::K_TIMESTAMP_LEN,
     mso_attribute::{
-        circuit::{AttrIndex, AttributeVerifier, DisclosedAttribute},
-        constants::{K_ATTR_PREIMAGE_LEN, K_PNYM_PREIMAGE_LEN},
+        circuit::{AttrIndex, AttributeVerifier},
+        constants::{
+            K_ATTR_PREIMAGE_LEN, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN,
+            K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN, K_OP_BITS, K_PNYM_PREIMAGE_LEN,
+            attr_sha_blocks_for_circuit,
+        },
         pnym::{DisclosedPnym, PnymAttributeVerifier},
     },
     traits::MdocHashCompileField,
@@ -42,8 +46,40 @@ pub struct HashBytes<L: Logic, const N: usize> {
     pub len: HashIndex<L>,
 }
 
-pub type AttrPreimageBytes<L> = crate::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
+pub struct AttrVarSlice<L: Logic> {
+    pub data: Vec<V8<L>>,
+    pub len: AttrIndex<L>,
+}
+
+impl<L: Logic> Clone for AttrVarSlice<L> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            len: self.len.clone(),
+        }
+    }
+}
+
+pub type AttrPreimageBytes<L> = AttrVarSlice<L>;
+pub type PnymAttrPreimageBytes<L> =
+    crate::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
 pub type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
+
+pub struct DisclosedAttribute<L: Logic> {
+    pub expected_name: crate::mso_attribute::circuit::AttrSlice<L, 32>,
+    pub expected_cbor_value: AttrVarSlice<L>,
+    pub op: Bitvec<L, K_OP_BITS>,
+}
+
+impl<L: Logic> Clone for DisclosedAttribute<L> {
+    fn clone(&self) -> Self {
+        Self {
+            expected_name: self.expected_name.clone(),
+            expected_cbor_value: self.expected_cbor_value.clone(),
+            op: self.op.clone(),
+        }
+    }
+}
 
 pub struct AttrGiven<L: Logic> {
     pub preimage: AttrPreimageBytes<L>,
@@ -56,7 +92,7 @@ pub struct AttrDerived<L: Logic> {
 }
 
 pub struct PnymGiven<L: Logic> {
-    pub preimage: AttrPreimageBytes<L>,
+    pub preimage: PnymAttrPreimageBytes<L>,
     pub mso_digest_offset_in_preimage: HashIndex<L>,
     pub field_locator: crate::mso_attribute::FieldLocator<L>,
     pub pnym_preimage: [V8<L>; K_PNYM_PREIMAGE_LEN],
@@ -106,7 +142,11 @@ where L::F: MdocHashCompileField
     pub(crate) boolean: Boolean<'a, L>,
     pub(crate) bv: BitvecLogic<'a, L>,
     pub(crate) cmp_helper: Memcmp<'a, L>,
-    pub(crate) attribute_verifier: AttributeVerifier<'a, L>,
+    pub(crate) attribute_verifier:
+        AttributeVerifier<'a, L, K_MAX_ATTR_SHA_BLOCKS, K_MAX_ATTR_VAL_LEN>,
+    pub(crate) large_attribute_verifier:
+        AttributeVerifier<'a, L, K_LARGE_ATTR_SHA_BLOCKS, K_LARGE_ATTR_VAL_LEN>,
+    pub(crate) num_attr_sha_blocks: usize,
     pub(crate) pnym_verifier: Option<PnymAttributeVerifier<'a, L>>,
 }
 
@@ -117,7 +157,7 @@ where L::F: MdocHashCompileField
         Self::with_pnym(logic, num_attrs, false)
     }
 
-    pub fn with_pnym(logic: &'a L, _num_attrs: usize, pnym: bool) -> Self {
+    pub fn with_pnym(logic: &'a L, num_attrs: usize, pnym: bool) -> Self {
         Self {
             logic,
             mac_circuit: circuits_mac_gf128::circuit::MAC::new(logic),
@@ -127,6 +167,8 @@ where L::F: MdocHashCompileField
             bv: BitvecLogic::new(logic),
             cmp_helper: Memcmp::new(logic),
             attribute_verifier: AttributeVerifier::new(logic),
+            large_attribute_verifier: AttributeVerifier::with_size(logic),
+            num_attr_sha_blocks: attr_sha_blocks_for_circuit(num_attrs, pnym),
             pnym_verifier: pnym.then(|| PnymAttributeVerifier::new(logic)),
         }
     }
@@ -436,15 +478,33 @@ where L::F: MdocHashCompileField
                     &K_TAG32,
                 );
 
-                let verifier_given = crate::mso_attribute::circuit::Given {
-                    attribute_preimage: attr_given.preimage.clone(),
-                    field_locator: attr_given.field_locator.clone(),
-                    disclosed_attribute: given.disclosed_attributes[i].clone(),
-                    expected_digest,
-                };
-                let attribute_verifier_assertions = self
-                    .attribute_verifier
-                    .assert_attribute(&verifier_given, &attr_der.sha_derived);
+                let da = &given.disclosed_attributes[i];
+                let attribute_verifier_assertions =
+                    if self.num_attr_sha_blocks == K_LARGE_ATTR_SHA_BLOCKS {
+                        self.large_attribute_verifier.assert_attribute_slices(
+                            &attr_given.preimage.data,
+                            &attr_given.preimage.len,
+                            &attr_given.field_locator,
+                            &da.expected_name,
+                            &da.expected_cbor_value.data,
+                            &da.expected_cbor_value.len,
+                            &da.op,
+                            &expected_digest,
+                            &attr_der.sha_derived,
+                        )
+                    } else {
+                        self.attribute_verifier.assert_attribute_slices(
+                            &attr_given.preimage.data,
+                            &attr_given.preimage.len,
+                            &attr_given.field_locator,
+                            &da.expected_name,
+                            &da.expected_cbor_value.data,
+                            &da.expected_cbor_value.len,
+                            &da.op,
+                            &expected_digest,
+                            &attr_der.sha_derived,
+                        )
+                    };
 
                 self.logic.assert_all(
                     "attribute_item",

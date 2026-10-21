@@ -111,12 +111,19 @@ fn push_witness_attrs<N: Nat<4>>(
     builder: &mut AssignmentBuilder<Gf2_128Field>,
 ) -> Result<(), MdocProverErrorCode> {
     use mdoc_zk_proto::mso_attribute::constants::{
-        max_attr_cbor_len, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_SHA_BLOCKS, K_PNYM_PREIMAGE_LEN,
-        K_PNYM_SEED_LEN, K_PNYM_SHA_BLOCKS,
+        K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_SHA_BLOCKS, K_PNYM_PREIMAGE_LEN, K_PNYM_SEED_LEN,
+        K_PNYM_SHA_BLOCKS, attr_preimage_len, attr_sha_blocks_for_circuit, max_attr_cbor_len,
     };
 
     let preimage_base_offset = mdoc_zk_circuits::hash::constants::K_COSE1_PREFIX_LEN + 7;
-    let max_attr_len = max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS);
+    let num_reg = req_attrs
+        .iter()
+        .filter(|a| a.op != AttributeOp::Pnym)
+        .count();
+    let has_pnym = req_attrs.iter().any(|a| a.op == AttributeOp::Pnym);
+    let num_attr_sha_blocks = attr_sha_blocks_for_circuit(num_reg, has_pnym);
+    let max_attr_len = max_attr_cbor_len(num_attr_sha_blocks);
+    let expected_preimage_len = attr_preimage_len(num_attr_sha_blocks);
 
     for la in req_attrs.iter().filter(|a| a.op != AttributeOp::Pnym) {
         let pa = parsed
@@ -128,18 +135,16 @@ fn push_witness_attrs<N: Nat<4>>(
         let attr_sha_in = circuits_sha256msg::concrete::given(
             &pa.cbor_issuer_signed_item,
             &circuits_sha256::constants::INITIAL,
-            K_MAX_ATTR_SHA_BLOCKS,
+            num_attr_sha_blocks,
         )
         .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         let attr_sha_derived =
-            circuits_sha256msg::concrete::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
-        let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] = attr_sha_in
-            .padded_preimage
-            .as_slice()
-            .try_into()
-            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+            circuits_sha256msg::concrete::derived(&attr_sha_in, num_attr_sha_blocks);
+        if attr_sha_in.padded_preimage.len() != expected_preimage_len {
+            return Err(MdocProverErrorCode::AttributeTooLong);
+        }
 
-        for &b in &preimage_arr {
+        for &b in &attr_sha_in.padded_preimage {
             builder.push_v8(b);
         }
         builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_LEN_BITS);
@@ -160,11 +165,12 @@ fn push_witness_attrs<N: Nat<4>>(
         builder.push_sha256msg_derived(&attr_sha_derived);
     }
 
+    let max_pnym_attr_len = max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS);
     for la in req_attrs.iter().filter(|a| a.op == AttributeOp::Pnym) {
         let pa = parsed
             .get_attribute(b"pnym_seed")
             .ok_or(MdocProverErrorCode::PnymSeedMissing)?;
-        if pa.cbor_issuer_signed_item.len() > max_attr_len {
+        if pa.cbor_issuer_signed_item.len() > max_pnym_attr_len {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
         let seed = mdoc_zk_circuits::cbor::pnym_seed_of(pa)

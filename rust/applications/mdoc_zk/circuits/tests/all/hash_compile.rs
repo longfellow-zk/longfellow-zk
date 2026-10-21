@@ -120,10 +120,17 @@ where
 {
     use mdoc_zk_circuits::{
         hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_LEN},
-        mso_attribute::constants::K_ATTR_PREIMAGE_LEN,
+        mso_attribute::constants::{
+            K_ATTR_PREIMAGE_LEN, attr_preimage_len, attr_sha_blocks_for_circuit, max_attr_val_len,
+        },
     };
     const EXPECTED_NAME_LEN: usize = 32;
-    const EXPECTED_VALUE_LEN: usize = 64;
+    let num_attr_sha_blocks = attr_sha_blocks_for_circuit(
+        given.hash_input.attrs.len(),
+        given.hash_input.pnym.is_some(),
+    );
+    let expected_value_len = max_attr_val_len(num_attr_sha_blocks);
+    let attr_preimage_bytes_len = attr_preimage_len(num_attr_sha_blocks);
 
     let mut inputs = compile_eval::initial_inputs(fr);
 
@@ -133,7 +140,7 @@ where
         push_bytes(
             &mut inputs,
             &attr.expected_cbor_value,
-            EXPECTED_VALUE_LEN,
+            expected_value_len,
             fr,
         );
         push_bits(&mut inputs, attr.expected_cbor_value.len() as u128, 10, fr);
@@ -146,7 +153,7 @@ where
         push_bytes(
             &mut inputs,
             &pnym.expected_cbor_value,
-            EXPECTED_VALUE_LEN,
+            mdoc_zk_circuits::mso_attribute::constants::K_PNYM_VALUE_LEN,
             fr,
         );
         push_bits(&mut inputs, pnym.expected_cbor_value.len() as u128, 10, fr);
@@ -202,7 +209,7 @@ where
     }
 
     for attr in &given.attribute_given {
-        push_bytes(&mut inputs, &attr.padded_preimage, K_ATTR_PREIMAGE_LEN, fr);
+        push_bytes(&mut inputs, &attr.padded_preimage, attr_preimage_bytes_len, fr);
         push_bits(&mut inputs, attr.unpadded_preimage_len as u128, 10, fr);
         push_bits(
             &mut inputs,
@@ -371,8 +378,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     compile_compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        211, 221, 41, 157, 77, 229, 98, 248, 113, 150, 234, 241, 36, 76, 90, 182, 239, 24, 92, 180,
-        159, 174, 175, 116, 111, 172, 168, 64, 190, 100, 12, 89,
+        24, 22, 23, 8, 157, 192, 98, 83, 182, 208, 2, 240, 133, 161, 119, 93, 15, 80, 76, 239,
+        245, 45, 186, 120, 103, 22, 84, 223, 211, 113, 135, 82,
     ];
     assert_eq!(
         circuit.id, expected_id,
@@ -452,4 +459,88 @@ fn test_paranoid_hash_input_subsets_and_permutations() {
         total_tested, 65,
         "Should test exactly 65 subsets and permutations"
     );
+}
+
+#[test]
+fn test_compile_mdoc_hash_1attr_pnym() {
+    use mdoc_zk_circuits::hash::pnym_hash_input_of_parsed_mdoc;
+
+    let fc = Gf2_128Field::new();
+    let fr = runtime_algebra::gf2_128::Gf2_128Field::new();
+
+    let (circuit, _, symbols) = compile_compiler::compile(&fc, |iologic| {
+        let mut pos = compile_logic::K_FIRST_WIRE_POSITION;
+        let mdoc = MdocHash::with_pnym(&iologic, 1, true);
+        let bv = circuits_bitvec::BitvecLogic::new(&iologic);
+        let given_wires =
+            mdoc_zk_circuits::hash::allocate_given_with_pnym(&iologic, &bv, 1, true, &mut pos);
+        let derived_wires = mdoc_zk_circuits::hash::allocate_derived_with_pnym::<
+            _,
+            { mdoc_zk_circuits::hash::constants::K_MAX_SHA_BLOCKS },
+        >(&bv, 1, true, &mut pos);
+
+        (
+            mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
+
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&mdoc_zk_testcases::vectors::PNYM_SEED_MDOC);
+    let context = b"relying-party.example/compiled-1attr-pnym";
+    let hi = pnym_hash_input_of_parsed_mdoc(&parsed, &[b"age_over_18"], context, now);
+    let mac_input = HashMac {
+        mac_av: 0x112233445566778899aabbccddeeff00,
+        mac_ap: [[
+            0xabcdef0123456789abcdef0123456789,
+            0xfedcba9876543210fedcba9876543210,
+        ]; 3],
+    };
+    let base_given = given::<4, _>(hi, mac_input);
+    let base_derived = derived::<4, _>(&base_given);
+
+    compile_eval::eval_circuit_fc(
+        &fc,
+        &fr,
+        &circuit,
+        &symbols,
+        &make_hash_inputs(&base_given, &base_derived, &fr),
+        compile_eval::FieldID::Gf2_128,
+    )
+    .unwrap()
+    .assert_all_passed();
+
+    // Corrupting the 1 regular attribute in (1, true) must fail compiled evaluation
+    let mut bad_attr_given = base_given.clone();
+    bad_attr_given.hash_input.attrs[0].expected_cbor_value = vec![0xf4];
+    let res_bad_attr = compile_eval::eval_circuit_fc(
+        &fc,
+        &fr,
+        &circuit,
+        &symbols,
+        &make_hash_inputs(&bad_attr_given, &base_derived, &fr),
+        compile_eval::FieldID::Gf2_128,
+    )
+    .unwrap();
+    assert!(res_bad_attr.is_err());
+
+    // Corrupting the pseudonym in (1, true) must fail compiled evaluation
+    let mut bad_pnym_given = base_given;
+    bad_pnym_given
+        .hash_input
+        .pnym
+        .as_mut()
+        .unwrap()
+        .expected_cbor_value[10] ^= 0x01;
+    let res_bad_pnym = compile_eval::eval_circuit_fc(
+        &fc,
+        &fr,
+        &circuit,
+        &symbols,
+        &make_hash_inputs(&bad_pnym_given, &base_derived, &fr),
+        compile_eval::FieldID::Gf2_128,
+    )
+    .unwrap();
+    assert!(res_bad_pnym.is_err());
 }

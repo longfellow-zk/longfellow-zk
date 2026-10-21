@@ -74,16 +74,16 @@ pub fn pad_request_attrs(
     attrs: &[RequestedAttribute],
     target_len: usize,
 ) -> Vec<RequestedAttribute> {
-    if attrs.is_empty()
-        || attrs.len() >= target_len
-        || attrs.iter().any(|a| a.op == AttributeOp::Pnym)
-    {
+    let reg_count = attrs.iter().filter(|a| a.op != AttributeOp::Pnym).count();
+    if reg_count == 0 || reg_count >= target_len {
         return attrs.to_vec();
     }
+    let Some(last_reg) = attrs.iter().rfind(|a| a.op != AttributeOp::Pnym).cloned() else {
+        return attrs.to_vec();
+    };
     let mut out = attrs.to_vec();
-    let last = attrs.last().unwrap().clone();
-    while out.len() < target_len {
-        out.push(last.clone());
+    for _ in reg_count..target_len {
+        out.push(last_reg.clone());
     }
     out
 }
@@ -166,12 +166,14 @@ pub fn is_iso_datetime_utc(bytes: &[u8]) -> bool {
 
 /// Checks whether an attribute with identifier `id` and CBOR-encoded value
 /// `cbor_value` can fit inside the circuit's disclosed attribute buffers
-/// (`cbor_id.len() <= 32`, `cbor_value.len() <= 64`) and within an
+/// (`cbor_id.len() <= 32`, `cbor_value.len() <= max_attr_val_len(num_attr_sha_blocks)`) and within an
 /// `IssuerSignedItemBytes` hashed by `num_attr_sha_blocks` SHA-256 blocks
 /// (`min_attr_item_cbor_len <= max_attr_cbor_len(num_attr_sha_blocks)`).
 #[must_use]
 pub fn attr_encoding_fits(id: &[u8], cbor_value: &[u8], num_attr_sha_blocks: usize) -> bool {
-    if id.is_empty() || cbor_value.is_empty() || cbor_value.len() > 64 {
+    let max_val_len =
+        mdoc_zk_proto::mso_attribute::constants::max_attr_val_len(num_attr_sha_blocks);
+    if id.is_empty() || cbor_value.is_empty() || cbor_value.len() > max_val_len {
         return false;
     }
     let cbor_id_len = if id.len() < 24 {

@@ -160,7 +160,7 @@ fixes the production wire layout.
 | [`allocator.rs`](compile/src/allocator.rs) | `WireAllocator`: allocates wires and *bit-plucked* packed inputs (several bits per field element, unpacked in-circuit by `circuits-bit-plucker`). |
 | [`allocate_hash.rs`](compile/src/allocate_hash.rs) / [`allocate_sig.rs`](compile/src/allocate_sig.rs) | **The authoritative input layout** of each circuit: order of public inputs, position of the public/private boundary (`pub_inputs_count`) and of the subfield boundary. `runtime/src/concrete/modern/*` must push values in exactly this order. |
 | [`generate_hash.rs`](compile/src/generate_hash.rs) / [`generate_sig.rs`](compile/src/generate_sig.rs) | Run `compile_compiler::compile`, segment the circuit, print geometry, and call `runtime_ligero::optimize_geometry` to pick `block_enc` for the requested `LigeroProfile { rateinv, nreq }`. |
-| [`lib.rs`](compile/src/lib.rs) | `compile_circuits(num_attrs, pnym, hash_profile, sig_profile)` → one LFA2 archive with a `"sig"` and a `"hash"` entry, tagged with `CURRENT_VERSION`; `compile_all_circuits` compiles the 3 v8 circuits `[(1, false), (4, false), (0, true)]` in parallel. |
+| [`lib.rs`](compile/src/lib.rs) | `compile_circuits(num_attrs, pnym, hash_profile, sig_profile)` → one LFA2 archive with a `"sig"` and a `"hash"` entry, tagged with `CURRENT_VERSION`; `compile_all_circuits` compiles the 5 v8 circuits `[(1, false), (2, false), (4, false), (1, true), (4, true)]` in parallel. |
 
 ### `runtime/` — prover and verifier
 
@@ -170,13 +170,14 @@ runtime/src/
 ├── zk_spec.rs       ZkSpecStruct + ZK_SPECS (v5/v6/v7, pinned) + CURRENT_ZK_SPECS (v8):
 │                    combined_hash ↔ (version, num_attributes, pnym, Ligero configs)
 ├── provider.rs      materialize(version, nattrs, pnym) → ProvidedCircuit;
-│                    select_current_spec(num_regular, pnym) → &'static ZkSpecStruct
+│                    select_current_spec(num_regular, pnym) → &'static ZkSpecStruct;
+│                    select_current_spec_for_request(req_attrs) → &'static ZkSpecStruct
 │                    (v < CURRENT: load from artifacts/;  v == CURRENT: compile on the fly
 │                     and check the Ligero configs match the spec)
 ├── prover.rs        run_mdoc_prover[_inner][_ext]: parse mdoc → resolve pnyms / check predicates
-│                    → pad 2..=3 attrs to 4 → build witnesses → commit both circuits
+│                    → pad 1..spec.num_attributes attrs → build witnesses → commit both circuits
 │                    → draw `av` → compute MACs → prove both → serialize
-├── verifier.rs      run_mdoc_verifier[_inner]: validate request → pad 2..=3 attrs to 4
+├── verifier.rs      run_mdoc_verifier[_inner]: validate request → pad 1..spec.num_attributes attrs
 │                    → rebuild public inputs → verify both proofs
 ├── proto.rs         MdocProof / MdocProofGeometry wire format
 │                    (6 × u128 MAC tags ‖ hash proof ‖ signature proof);
@@ -199,29 +200,58 @@ and `mac::push_macs` dispatch on `version >= 8` to `modern` or `legacy`.
 
 ---
 
-## v8 Extensions: Comparisons & Pseudonyms
+## v8 Extensions: Comparisons, Large Attributes & Pseudonyms
 
-Version 8 (`CURRENT_VERSION = 8`) defines 3 circuit pairs in [`CURRENT_ZK_SPECS`](runtime/src/zk_spec.rs).
+Version 8 (`CURRENT_VERSION = 8`) defines 5 circuit pairs in [`CURRENT_ZK_SPECS`](runtime/src/zk_spec.rs).
 Each pair bundles the shared P-256 `MdocSignature` circuit with a $\mathrm{GF}(2^{128})$
 `MdocHash` circuit and is identified by `combined_hash = SHA-256(sig_circuit_id ‖ hash_circuit_id)`:
 
-| Circuit `(num_attributes, pnym)` | Combined Circuit ID (`combined_hash`) | Hash Circuit ID ($\mathrm{GF}(2^{128})$) | Sig Circuit ID ($\mathbb{F}_{p_{256}}$) | What It Does |
-|---|---|---|---|---|
-| `(1, false)` | `296fde1f84a185cb9a53cc6fa6defcdfc79fce983303be3d35ed82e7d539e3e7` | `e02f28f1ff71ddafcb9b5a874fff56a588d8897482c343ff2f81dcb8fdb0540a` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO hash, docType, validity timestamps, device key, namespace `valueDigests`, and **1 disclosed attribute** with `Eq`, `Le`, or `Ge` |
-| `(4, false)` | `a95054f45c475263634e1bd721ab08c0b26a80c0ce7d2a0e681c11fb769fc8e6` | `21c7a0c9e35c0bed6b023e46c0ae92559989151d893480a72f40561803f3e421` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO and **2, 3, or 4 disclosed attributes** with `Eq`, `Le`, or `Ge` (2- and 3-attribute requests are deterministically padded to 4 slots via `pad_request_attrs`) |
-| `(0, true)` | `5d7ba0120c56792fd6e46b7aeec6f1cbc9dd253c97291d5d030a30f846841a33` | `1b9e7ed9ea2033dbc108b93d31e60c229da93b8cb949a0cbfa7dd631b8190e41` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO and **1 relying-party pseudonym** `H = SHA-256(pnym_seed ‖ context)` derived from an issuer-signed 32-byte `pnym_seed` attribute and a public `context` (1..=80 bytes) |
+| Circuit `(num_attributes, pnym)` | Attr SHA‑256 Blocks (Max Item / Value) | Combined Circuit ID (`combined_hash`) | Hash Circuit ID ($\mathrm{GF}(2^{128})$) | Sig Circuit ID ($\mathbb{F}_{p_{256}}$) | What It Does |
+|---|---:|---|---|---|---|
+| `(1, false)` | 2 (`119 B` / `64 B`) | `296fde1f84a185cb9a53cc6fa6defcdfc79fce983303be3d35ed82e7d539e3e7` | `e02f28f1ff71ddafcb9b5a874fff56a588d8897482c343ff2f81dcb8fdb0540a` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO hash, docType, validity timestamps, device key, namespace `valueDigests`, and **1 disclosed attribute** (up to 2 SHA‑256 blocks) with `Eq`, `Le`, or `Ge` |
+| `(2, false)` (`2-big, false`) | 4 (`247 B` / `192 B`) | `f8a8b24c25e485c25b7b8c81c810012b29fbfcf4c8b44d73440823090de8ddea` | `605f377689efaa4a02c0ff9d5120b93081e21c2e88f5bc8bab565cf308886585` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO and **1 or 2 disclosed attributes** (supporting **large attributes up to 4 SHA‑256 blocks**; 1-attribute large requests are padded to 2 slots via `pad_request_attrs`) with `Eq`, `Le`, or `Ge` |
+| `(4, false)` | 2 (`119 B` / `64 B`) | `a95054f45c475263634e1bd721ab08c0b26a80c0ce7d2a0e681c11fb769fc8e6` | `21c7a0c9e35c0bed6b023e46c0ae92559989151d893480a72f40561803f3e421` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO and **2..=4 disclosed attributes** (up to 2 SHA‑256 blocks each) with `Eq`, `Le`, or `Ge` (2- and 3-attribute requests are padded to 4 slots via `pad_request_attrs`) |
+| `(1, true)` | 2 (`119 B` / `64 B`) | `7a8b329a557f2266db6212318f849b097f95a1b1ce96b44087fd9569148d44c1` | `8189c5962523eebc903460145f40674374ec1ac1bd7b643ecec4e778a3fb4cd2` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO, **1 disclosed attribute** (up to 2 SHA‑256 blocks) with `Eq`, `Le`, or `Ge`, and **1 relying-party pseudonym** `H = SHA-256(pnym_seed ‖ context)` derived from an issuer-signed 32-byte `pnym_seed` attribute and a public `context` (1..=80 bytes) |
+| `(4, true)` | 2 (`119 B` / `64 B`) | `4624de193e127a1be6cf131fdfa027aef75c1d1c1c95c5c818e164a6821da4b9` | `82215166fb48a84704e97207402b2466a413b365db48159f632b8fb224a25590` | `b6c47c2d13f1b7e9c8d412fbcbbf3041cf2b01808b5a8af750f7c44d3fc65daf` | Verifies MSO, **2..=4 disclosed attributes** (up to 2 SHA‑256 blocks each, padded to 4 slots via `pad_request_attrs`) with `Eq`, `Le`, or `Ge`, and **1 relying-party pseudonym** `H = SHA-256(pnym_seed ‖ context)` |
 
 
-### Circuit Size (Depth & Quads) and Prover/Verifier Speed
+### Circuit Size (Depth & Quads) and Prover/Verifier Benchmarks (All 5 v8 Variants)
 
-| Component / Circuit | Field | Depth (`L` layers) | Quad Terms (`T`) | Wires (`W`) | Inputs (`nin` / `npubin`) | Ligero Witnesses / Quads | `block_enc` (`nrow`) | Archive (`.lfa2` zstd-16) | Proof Size | Prover Time (release) | Verifier Time (release) |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `MdocSignature` *(shared by all v8)* | $\mathbb{F}_{p_{256}}$ | 21 | 276,481 | 179,677 | 3,941 / 707 | 4,337 / 21 | 4,445 (18) | *(bundled)* | *(bundled)* | *(bundled)* | *(bundled)* |
-| `v8_1attr` (`(1, false)` Hash + Sig) | $\mathrm{GF}(2^{128})$ | 22 | 6,037,372 | 3,206,291 | 73,813 / 633 | 74,470 / 22 | 5,255 (171) | 308,092 B | 344,324 B | ~215.9 ms | ~114.0 ms |
-| `v8_4attr` (`(4, false)` Hash + Sig) | $\mathrm{GF}(2^{128})$ | 22 | 7,142,545 | 3,796,418 | 85,741 / 1,851 | 85,232 / 22 | 5,246 (195) | 363,530 B | 352,068 B | ~239.5 ms | ~124.6 ms |
-| `v8_0attr_pnym` (`(0, true)` Hash + Sig) | $\mathrm{GF}(2^{128})$ | 20 | 6,293,784 | 3,340,760 | 77,486 / 838 | 77,900 / 20 | 5,264 (178) | 316,348 B | 344,388 B | ~220.6 ms | ~115.9 ms |
+| Component / Circuit | Field | Depth (`L` layers) | Quad Terms (`T`) | Wires (`W`) | Assertions | Inputs (`nin` / `npubin`) | Ligero Witnesses / Quads | `block` / `dblock` | `block_enc` (`nrow`) | Archive (`.lfa2` zstd-16) | Uncompressed Segmented | Proof Size | Prover Peak Heap | Verifier Peak Heap | Prover Time (release) | Verifier Time (release) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `MdocSignature` *(shared by all v8)* | $\mathbb{F}_{p_{256}}$ | 21 | 276,481 | 179,677 | 3,964 | 3,941 / 707 | 4,337 / 21 | 494 / 987 | 4,445 (18) | *(bundled)* | *(bundled)* | *(bundled)* | *(bundled)* | *(bundled)* | *(bundled)* | *(bundled)* |
+| `v8_1attr` (`(1, false)`) | $\mathrm{GF}(2^{128})$ | 22 | 6,037,372 | 3,206,291 | 90,138 | 73,813 / 633 | 74,470 / 22 | 584 / 1,167 | 5,255 (171) | 308,092 B | 915,207 B | 344,324 B | 90.89 MB (90,892,864 B) | 38.26 MB (38,262,453 B) | ~233.1 ms | ~125.0 ms |
+| `v8_2attr` (`(2, false)` `2-big`) | $\mathrm{GF}(2^{128})$ | 22 | 7,030,761 | 3,732,680 | 104,987 | 85,725 / 2,063 | 84,984 / 22 | 585 / 1,169 | 5,264 (194) | 363,390 B | 1,118,660 B | 350,844 B | 104.77 MB (104,765,064 B) | 44.34 MB (44,336,529 B) | ~256.8 ms | ~135.8 ms |
+| `v8_4attr` (`(4, false)`) | $\mathrm{GF}(2^{128})$ | 22 | 7,142,545 | 3,796,418 | 105,537 | 85,741 / 1,851 | 85,232 / 22 | 583 / 1,165 | 5,246 (195) | 363,530 B | 1,120,599 B | 352,068 B | 106.31 MB (106,306,440 B) | 45.53 MB (45,529,425 B) | ~258.2 ms | ~136.5 ms |
+| `v8_1attr_pnym` (`(1, true)`) | $\mathrm{GF}(2^{128})$ | 22 | 6,662,183 | 3,537,477 | 99,825 | 81,462 / 1,244 | 81,524 / 22 | 585 / 1,169 | 5,264 (186) | 347,732 B | 1,029,924 B | 347,428 B | 99.84 MB (99,837,084 B) | 42.33 MB (42,325,080 B) | ~247.2 ms | ~131.4 ms |
+| `v8_4attr_pnym` (`(4, true)`) | $\mathrm{GF}(2^{128})$ | 22 | 7,767,356 | 4,127,604 | 115,224 | 93,390 / 2,462 | 92,286 / 22 | 585 / 1,169 | 5,264 (210) | 391,672 B | 1,192,395 B | 356,636 B | 115.15 MB (115,146,956 B) | 49.42 MB (49,423,023 B) | ~272.7 ms | ~152.3 ms |
 
 *(Timings measured via `cargo bench -p mdoc-zk-runtime --bench mdoc_zk_bench_current` on Apple Silicon in release mode; Ligero profile: `rateinv = 7`, `nreq = 132`, Merkle path length `13`.)*
+
+#### Comparison: Pseudonym Variants `(0, true)` vs. `(1, true)` vs. `(4, true)`
+
+Augmenting the pseudonym circuit from `(0, true)` (`v8_0attr_pnym`) to `(1, true)` (`v8_1attr_pnym`) adds one full `AttributeVerifier` slot (`Eq`/`Le`/`Ge` + 2-block `IssuerSignedItemBytes` SHA-256 + MSO `valueDigests` match), increasing Ligero tableau rows from `178` to `186` (`+8` rows), and `(4, true)` (`v8_4attr_pnym`) scales to 4 regular attribute slots plus 1 pseudonym slot (`nrow = 210`, `+24` rows over `(1, true)` and `+15` rows over `(4, false)`), all while keeping `block_enc = 5,264` unchanged:
+
+| Metric (`MdocHash` + Bundled Proof) | `v8_0attr_pnym` (`(0, true)`) | `v8_1attr_pnym` (`(1, true)`) | `v8_4attr_pnym` (`(4, true)`) | Delta (`(1, true)` vs. `(0, true)`) | Delta (`(4, true)` vs. `(4, false)`) |
+|---|---:|---:|---:|---:|---:|
+| Combined Circuit ID | `5d7ba012…1a33` | `7a8b329a…44c1` | `4624de19…a4b9` | — | — |
+| Hash Circuit ID | `1b9e7ed9…0e41` | `8189c596…4cd2` | `82215166…5590` | — | — |
+| Depth (`L` layers) | 20 | 22 | 22 | **+2 (+10.0%)** | **0 (0.00%)** |
+| Quad Terms (`T`) | 6,293,784 | 6,662,183 | 7,767,356 | **+368,399 (+5.85%)** | **+624,811 (+8.75%)** |
+| Wires (`W`) | 3,340,760 | 3,537,477 | 4,127,604 | **+196,717 (+5.89%)** | **+331,186 (+8.72%)** |
+| Assertions | 94,692 | 99,825 | 115,224 | **+5,133 (+5.42%)** | **+9,687 (+9.18%)** |
+| Inputs (`nin` / `npubin`) | 77,486 / 838 | 81,462 / 1,244 | 93,390 / 2,462 | **+3,976 (+5.13%) / +406 (+48.45%)** | **+7,649 (+8.92%) / +611 (+33.01%)** |
+| Circuit Outputs (`nout`) | 8 | 1 | 4 | **-7** | **0** |
+| Ligero Witnesses / Quads | 77,900 / 20 | 81,524 / 22 | 92,286 / 22 | **+3,624 (+4.65%) / +2** | **+7,054 (+8.28%) / 0** |
+| Ligero `block` / `dblock` | 585 / 1,169 | 585 / 1,169 | 585 / 1,169 | **0 (0.00%)** | **+2 / +4** |
+| Ligero `block_enc` (`nrow`) | 5,264 (178) | 5,264 (186) | 5,264 (210) | **0 / +8 rows (+4.49%)** | **+18 / +15 rows (+7.69%)** |
+| Archive (`.lfa2` zstd-16) | 316,348 B | 347,732 B | 391,672 B | **+31,384 B (+9.92%)** | **+28,142 B (+7.74%)** |
+| Uncompressed Segmented | 940,009 B | 1,029,924 B | 1,192,395 B | **+89,915 B (+9.57%)** | **+71,796 B (+6.41%)** |
+| Proof Size | 344,388 B | 347,428 B | 356,636 B | **+3,040 B (+0.88%)** | **+4,568 B (+1.30%)** |
+| Prover Peak Heap | 94.60 MB (94,596,120 B) | 99.84 MB (99,837,084 B) | 115.15 MB (115,146,956 B) | **+5.24 MB (+5.54%)** | **+8.84 MB (+8.32%)** |
+| Verifier Peak Heap | 39.79 MB (39,788,951 B) | 42.33 MB (42,325,080 B) | 49.42 MB (49,423,023 B) | **+2.54 MB (+6.37%)** | **+3.89 MB (+8.55%)** |
+| Prover Time (release) | 242.63 ms | 247.17 ms | 272.70 ms | **+4.54 ms (+1.87%)** | **+14.48 ms (+5.61%)** |
+| Verifier Time (release) | 126.94 ms | 131.37 ms | 152.32 ms | **+4.43 ms (+3.49%)** | **+15.83 ms (+11.60%)** |
 
 #### Comparison: v8 with `Le`/`Ge` vs. Standard v8 (`Eq`-only)
 
@@ -263,27 +293,32 @@ Regular attribute slots carry a 2-bit public operator `AttributeOp`:
 * Calling `run_mdoc_prover_ext` (or `run_mdoc_prover_inner_ext`) locates `pnym_seed` (`bstr(32)`, 34 CBOR bytes `0x58 0x20 || seed`) in the MSO, computes `H = SHA-256(seed || context)` in 2 SHA-256 blocks, populates `cbor_value = 0x58 0x20 || H` in the returned `Vec<RequestedAttribute>`, and proves in zero knowledge that `H` was derived from the issuer-signed `pnym_seed` and the public `context`.
 * On the verifier side, use `bind_pnym_response(&verifier_request, &prover_response)?` to copy only the prover's 34-byte pseudonym `cbor_value` into the verifier's own `RequestedAttribute` slice (preserving the verifier's `namespace_id`, `id`, `op`, and `context`) before calling `run_mdoc_verifier`.
 
-### Attribute Encoding Limits & 16-Byte `random` Nonce Requirement
+### Attribute Encoding Limits, Large Attributes (`(2, false)`), & 16-Byte `random` Nonce
 Each disclosed attribute's `IssuerSignedItemBytes` (`d8 18 58 <len> a4 ...`) is
-hashed in `K_MAX_ATTR_SHA_BLOCKS` SHA-256 blocks (`2` blocks in current circuits).
-Because SHA-256 appends a `0x80` byte and an 8-byte bit-length trailer (`9`
-bytes), the maximum unpadded `IssuerSignedItemBytes` length is parameterized by
-the block count:
-```text
-max_attr_cbor_len(num_attr_sha_blocks) = num_attr_sha_blocks * 64 - 9   // 119 bytes for 2 blocks
-```
-With a **16-byte `random` nonce** (`K_ATTR_RANDOM_NONCE_LEN = 16`, the minimum
-per ISO 18013-5 §9.1.2.5), the fixed CBOR map framing of `IssuerSignedItemBytes`
-(`d8 18 58 <len> a4` + `"digestID"` + `"random"` + `"elementIdentifier"` +
-`"elementValue"`) occupies at least `K_MIN_ATTR_ITEM_OVERHEAD = 70` bytes plus
-`cbor_id.len() + cbor_value.len()`. Consequently:
-* **Only a 16-byte `random` nonce is supported** for 32-byte attributes such as
-  `pnym_seed` under the 2-block (`119`-byte) attribute hash circuit (`70 + 10 + 34 = 114`
-  bytes with a 1-byte `digestID`; up to `116` bytes with a 2-byte `uint16` `digestID`).
-  A 32-byte `random` nonce would require `131`–`133` bytes (`3` SHA-256 blocks)
-  and is rejected by the prover with `MdocProverErrorCode::AttributeTooLong`.
-* Both the prover and the verifier validate `attr_encoding_fits(id, cbor_value, K_MAX_ATTR_SHA_BLOCKS)`,
-  which ensures `min_attr_item_cbor_len(cbor_id.len(), cbor_value.len()) <= max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS)`.
+hashed in `attr_sha_blocks_for_circuit(num_attributes, pnym)` SHA-256 blocks:
+* **`K_MAX_ATTR_SHA_BLOCKS = 2` blocks** for `(1, false)`, `(4, false)`, `(1, true)`, and `(4, true)`:
+  `max_attr_cbor_len(2) = 119` bytes, `attr_preimage_len(2) = 128` bytes, and
+  `max_attr_val_len(2) = K_MAX_ATTR_VAL_LEN = 64` bytes.
+* **`K_LARGE_ATTR_SHA_BLOCKS = 4` blocks** for `(2, false)` (`2-big, false`):
+  `max_attr_cbor_len(4) = K_LARGE_ATTR_CBOR_LEN = 247` bytes,
+  `attr_preimage_len(4) = K_LARGE_ATTR_PREIMAGE_LEN = 256` bytes, and
+  `max_attr_val_len(4) = K_LARGE_ATTR_VAL_LEN = 192` bytes.
+* `provider::select_current_spec_for_request(req_attrs)` automatically routes
+  1-attribute requests whose encoding exceeds 2 SHA-256 blocks (`> 119` bytes
+  minimum `IssuerSignedItemBytes` or `> 64` bytes `cbor_value`, up to 4 SHA-256
+  blocks) to the `(2, false)` circuit, which pads the single attribute to 2
+  slots via `pad_request_attrs`.
+* With a **16-byte `random` nonce** (`K_ATTR_RANDOM_NONCE_LEN = 16`, the minimum
+  per ISO 18013-5 §9.1.2.5), the fixed CBOR map framing of `IssuerSignedItemBytes`
+  (`d8 18 58 <len> a4` + `"digestID"` + `"random"` + `"elementIdentifier"` +
+  `"elementValue"`) occupies at least `K_MIN_ATTR_ITEM_OVERHEAD = 70` bytes plus
+  `cbor_id.len() + cbor_value.len()`. Under the 2-block circuits (`(1, false)`,
+  `(4, false)`, `(1, true)`, `(4, true)`), 32-byte attributes such as `pnym_seed` require a
+  16-byte `random` nonce (`114`–`116` bytes total), whereas the 4-block `(2, false)`
+  circuit accommodates both larger `random` nonces and attribute values up to
+  `192` bytes.
+* Both the prover and the verifier validate
+  `attr_encoding_fits(id, cbor_value, attr_sha_blocks_for_circuit(spec.num_attributes, spec.pnym))`.
 
 
 ### `prover_only/` and `verifier_only/`
@@ -292,12 +327,11 @@ Two tiny `main.rs` files that call `run_mdoc_prover_inner` /
 `run_mdoc_verifier_inner` with `black_box`'d dummy inputs. They exist so that
 the linked footprint of *just* the prover or *just* the verifier can be
 measured in isolation; they are not CLIs.
-
-**Why the number is meaningful.** `black_box` stops the optimizer from
+`black_box` stops the optimizer from
 constant-folding the dummy arguments and deleting the call, so each binary
 contains every function reachable from its one entry point. The workspace
 release profile (`lto = true`, `codegen-units = 1`, `panic = "abort"`) lets
-the linker drop everything that is *not* reachable — in particular neither
+the linker drop everything that is *not* reachable. In particular neither
 binary calls `provider::materialize`, so the circuit compiler
 (`mdoc-zk-compile`, `compile-compiler`) is not part of these numbers.
 
@@ -347,7 +381,7 @@ flags in `.cargo/config.toml`, and every circuit change.
 | Version | Status | Where circuits come from | Notes |
 |---|---|---|---|
 | 5, 6, 7 | frozen | `artifacts/circuits/` via `provider::materialize` | Witness/public-input layout in `runtime/src/concrete/legacy/`; docType/namespace are checked outside the circuit; only `AttributeOp::Eq` is supported |
-| 8 (`CURRENT_VERSION`) | development | compiled on demand by `mdoc-zk-compile` | Layout in `runtime/src/concrete/modern/`; 3 circuits (`1` attr, `4` attrs, `0` attrs + `1` pnym); docType checked in-circuit; supports `Eq`, `Le`, `Ge`, and `Pnym` |
+| 8 (`CURRENT_VERSION`) | development | compiled on demand by `mdoc-zk-compile` | Layout in `runtime/src/concrete/modern/`; 5 circuits (`(1, false)`, `(2, false)` 4‑blk large, `(4, false)`, `(1, true)`, `(4, true)`); docType checked in-circuit; supports `Eq`, `Le`, `Ge`, and `Pnym` |
 
 Each `(version, num_attributes, pnym)` tuple has a `ZkSpecStruct` in
 [`zk_spec.rs`](runtime/src/zk_spec.rs) giving its `combined_hash` and the

@@ -18,19 +18,21 @@ use core_algebra::Nat;
 use super::{
     circuit::{
         AttrDerived as WireAttrDerived, AttrGiven as WireAttrGiven,
-        AttrPreimageBytes as WireAttrPreimageBytes, Derived as WireDerived, Given as WireGiven,
-        MsoPreimageBytes as WireMsoPreimageBytes, PnymDerived as WirePnymDerived,
+        AttrPreimageBytes as WireAttrPreimageBytes, AttrVarSlice as WireAttrVarSlice,
+        Derived as WireDerived, DisclosedAttribute as WireDisclosedAttribute, Given as WireGiven,
+        MsoPreimageBytes as WireMsoPreimageBytes,
+        PnymAttrPreimageBytes as WirePnymAttrPreimageBytes, PnymDerived as WirePnymDerived,
         PnymGiven as WirePnymGiven,
     },
     concrete::{ConcreteDerived, ConcreteGiven},
     constants::K_HASH_INDEX_BITS,
 };
 use crate::mso_attribute::{
-    circuit::{
-        AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
-        FieldLocator as WireFieldLocator,
+    circuit::{AttrSlice as MsoSlice, FieldLocator as WireFieldLocator},
+    constants::{
+        K_ATTR_INDEX_BITS, K_OP_BITS, K_PNYM_CONTEXT_BITS, attr_preimage_len,
+        attr_sha_blocks_for_circuit, max_attr_val_len,
     },
-    constants::{K_ATTR_INDEX_BITS, K_OP_BITS, K_PNYM_CONTEXT_BITS},
     pnym::{ContextSlice, DisclosedPnym as WireDisclosedPnym},
 };
 
@@ -49,6 +51,12 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
     given: &ConcreteGiven,
 ) -> WireGiven<L> {
     let boolean = circuits_boolean::Boolean::new(logic);
+    let num_attr_sha_blocks = attr_sha_blocks_for_circuit(
+        given.hash_input.attrs.len(),
+        given.hash_input.pnym.is_some(),
+    );
+    let val_len = max_attr_val_len(num_attr_sha_blocks);
+    let preimage_len = attr_preimage_len(num_attr_sha_blocks);
 
     let get_byte = |bytes: &[u8], idx: usize| {
         if idx < bytes.len() {
@@ -70,11 +78,13 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
                 }),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.expected_name.len() as u64),
             },
-            expected_cbor_value: MsoSlice {
-                data: std::array::from_fn(|i| {
-                    let bit_val = get_byte(&a.expected_cbor_value, i);
-                    bv.of_u64::<8>(u64::from(bit_val))
-                }),
+            expected_cbor_value: WireAttrVarSlice {
+                data: (0..val_len)
+                    .map(|i| {
+                        let bit_val = get_byte(&a.expected_cbor_value, i);
+                        bv.of_u64::<8>(u64::from(bit_val))
+                    })
+                    .collect(),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.expected_cbor_value.len() as u64),
             },
             op: bv.of_u64::<K_OP_BITS>(u64::from(a.op)),
@@ -167,10 +177,12 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
     for a in &given.attribute_given {
         attribute_given.push(WireAttrGiven {
             preimage: WireAttrPreimageBytes {
-                data: std::array::from_fn(|i| {
-                    let bit_val = get_byte(&a.padded_preimage, i);
-                    bv.of_u64::<8>(u64::from(bit_val))
-                }),
+                data: (0..preimage_len)
+                    .map(|i| {
+                        let bit_val = get_byte(&a.padded_preimage, i);
+                        bv.of_u64::<8>(u64::from(bit_val))
+                    })
+                    .collect(),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.unpadded_preimage_len as u64),
             },
             mso_digest_offset_in_preimage: bv
@@ -191,7 +203,7 @@ pub fn evaluate_given<L: compile_logic::LogicIO>(
     }
 
     let pnym_given = given.pnym_given.as_ref().map(|pg| WirePnymGiven {
-        preimage: WireAttrPreimageBytes {
+        preimage: WirePnymAttrPreimageBytes {
             data: std::array::from_fn(|i| {
                 let bit_val = get_byte(&pg.padded_preimage, i);
                 bv.of_u64::<8>(u64::from(bit_val))

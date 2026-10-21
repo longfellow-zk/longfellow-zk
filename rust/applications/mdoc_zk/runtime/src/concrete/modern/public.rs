@@ -28,6 +28,12 @@ fn push_modern_input_attrs(
     builder: &mut AssignmentBuilder<'_, Gf2_128Field>,
     attrs: &[RequestedAttribute],
 ) {
+    let num_reg = attrs.iter().filter(|a| a.op != AttributeOp::Pnym).count();
+    let has_pnym = attrs.iter().any(|a| a.op == AttributeOp::Pnym);
+    let val_len = mdoc_zk_proto::mso_attribute::constants::max_attr_val_len(
+        mdoc_zk_proto::mso_attribute::constants::attr_sha_blocks_for_circuit(num_reg, has_pnym),
+    );
+
     for la in attrs.iter().filter(|a| a.op != AttributeOp::Pnym) {
         let cbor_id = mdoc_zk_circuits::cbor::encode_cbor_string(&la.id);
         for i in 0..32 {
@@ -35,7 +41,7 @@ fn push_modern_input_attrs(
         }
         builder.push_bits_len(cbor_id.len() as u64, K_ATTR_LEN_BITS);
 
-        for i in 0..64 {
+        for i in 0..val_len {
             builder.push_v8(*la.cbor_value.get(i).unwrap_or(&0));
         }
         builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_LEN_BITS);

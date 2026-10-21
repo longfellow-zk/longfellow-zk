@@ -92,14 +92,19 @@ impl TestCircuits {
     fn get(&self, nattrs: usize) -> Option<&provider::ProvidedCircuit> {
         let key = match nattrs {
             1 => (1, false),
-            2..=4 => (4, false),
+            2 => (2, false),
+            3..=4 => (4, false),
             _ => return None,
         };
         self.circuits.get(&key)
     }
 
     fn get_pnym(&self) -> Option<&provider::ProvidedCircuit> {
-        self.circuits.get(&(0, true))
+        self.circuits.get(&(1, true))
+    }
+
+    fn get_pnym_4(&self) -> Option<&provider::ProvidedCircuit> {
+        self.circuits.get(&(4, true))
     }
 }
 
@@ -1018,15 +1023,26 @@ fn run_current_circuit_hashes(test_circuits: &TestCircuits) {
         test_circuits.get(1).expect("circuit missing").spec,
         mdoc_zk_runtime::CURRENT_ZK_SPECS[0]
     );
-    for nattrs in 2..=4 {
+    assert_eq!(
+        test_circuits.get(2).expect("circuit missing").spec,
+        mdoc_zk_runtime::CURRENT_ZK_SPECS[1]
+    );
+    for nattrs in 3..=4 {
         assert_eq!(
             test_circuits.get(nattrs).expect("circuit missing").spec,
-            mdoc_zk_runtime::CURRENT_ZK_SPECS[1]
+            mdoc_zk_runtime::CURRENT_ZK_SPECS[2]
         );
     }
     assert_eq!(
         test_circuits.get_pnym().expect("pnym circuit missing").spec,
-        mdoc_zk_runtime::CURRENT_ZK_SPECS[2]
+        mdoc_zk_runtime::CURRENT_ZK_SPECS[3]
+    );
+    assert_eq!(
+        test_circuits
+            .get_pnym_4()
+            .expect("4-attr pnym circuit missing")
+            .spec,
+        mdoc_zk_runtime::CURRENT_ZK_SPECS[4]
     );
 }
 
@@ -1229,8 +1245,17 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
     let seed = [0x42u8; 32];
 
     let provided_pnym = test_circuits.get_pnym().unwrap();
+    let provided_pnym_4 = test_circuits.get_pnym_4().unwrap();
     let context = b"verifier.example.org/relying-party-session-2026";
-    let pnym_req = [req_pnym("org.iso.18013.5.1", context)];
+    let pnym_req = [
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_pnym("org.iso.18013.5.1", context),
+    ];
+    assert_eq!(
+        provider::select_current_spec_for_request(&pnym_req).map(|s| (s.num_attributes, s.pnym)),
+        Ok((1, true)),
+        "1 attribute + pseudonym should select (1, true)"
+    );
 
     let mut rng = runtime_random::DeterministicRng::new(99);
     let (proof_pnym, resolved_attrs) = run_mdoc_prover_inner_ext(
@@ -1249,8 +1274,9 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
 
     let expected_digest = mdoc_zk_circuits::cbor::compute_pseudonym(&seed, context);
     let expected_cbor = mdoc_zk_circuits::cbor::encode_pnym_cbor_value(&expected_digest);
-    assert_eq!(resolved_attrs.len(), 1);
-    assert_eq!(resolved_attrs[0].cbor_value, expected_cbor);
+    assert_eq!(resolved_attrs.len(), 2);
+    assert_eq!(resolved_attrs[0].cbor_value, [0xf5]);
+    assert_eq!(resolved_attrs[1].cbor_value, expected_cbor);
 
     // Bind prover response against verifier's own request using bind_pnym_response
     let bound_attrs = mdoc_zk_runtime::bind_pnym_response(&pnym_req, &resolved_attrs)
@@ -1271,9 +1297,89 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
     )
     .expect("Pseudonym verification should succeed");
 
+    // Positive 2: Date comparison (birth_date <= 2000-01-01) + pseudonym
+    let pnym_le_req = [
+        req_attr_le(
+            "org.iso.18013.5.1",
+            "birth_date",
+            *b"\xd9\x03\xec\x6a2000-01-01",
+        ),
+        req_pnym("org.iso.18013.5.1", context),
+    ];
+    let (proof_pnym_le, resolved_le) = run_mdoc_prover_inner_ext(
+        &provided_pnym.spec,
+        &provided_pnym.compressed,
+        test_data.mdoc,
+        test_data.pkx,
+        test_data.pky,
+        transcript,
+        &pnym_le_req,
+        now,
+        doc_type,
+        &mut rng,
+    )
+    .expect("Pseudonym + Le prover should succeed");
+    let bound_le = mdoc_zk_runtime::bind_pnym_response(&pnym_le_req, &resolved_le)
+        .expect("bind_pnym_response should succeed for Le + Pnym");
+    run_mdoc_verifier_inner(
+        &provided_pnym.spec,
+        &provided_pnym.compressed,
+        test_data.pkx,
+        test_data.pky,
+        transcript,
+        &bound_le,
+        now,
+        doc_type,
+        &proof_pnym_le,
+    )
+    .expect("Pseudonym + Le verification should succeed");
+
+    // Positive 3: Multiple attributes + pseudonym on the (4, true) circuit
+    let pnym_4_req = [
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_attr_le(
+            "org.iso.18013.5.1",
+            "birth_date",
+            *b"\xd9\x03\xec\x6a2000-01-01",
+        ),
+        req_pnym("org.iso.18013.5.1", context),
+    ];
+    assert_eq!(
+        provider::select_current_spec_for_request(&pnym_4_req).map(|s| (s.num_attributes, s.pnym)),
+        Ok((4, true)),
+        "2 attributes + pseudonym should select (4, true)"
+    );
+    let (proof_pnym_4, resolved_4) = run_mdoc_prover_inner_ext(
+        &provided_pnym_4.spec,
+        &provided_pnym_4.compressed,
+        test_data.mdoc,
+        test_data.pkx,
+        test_data.pky,
+        transcript,
+        &pnym_4_req,
+        now,
+        doc_type,
+        &mut rng,
+    )
+    .expect("4-attribute + pseudonym prover should succeed");
+    let bound_4 = mdoc_zk_runtime::bind_pnym_response(&pnym_4_req, &resolved_4)
+        .expect("bind_pnym_response should succeed for 4-attr + Pnym");
+    run_mdoc_verifier_inner(
+        &provided_pnym_4.spec,
+        &provided_pnym_4.compressed,
+        test_data.pkx,
+        test_data.pky,
+        transcript,
+        &bound_4,
+        now,
+        doc_type,
+        &proof_pnym_4,
+    )
+    .expect("4-attribute + pseudonym verification should succeed");
+
     // Negative 1: Tampered pseudonym value -> GeneralFailure
     let mut bad_val_attrs = resolved_attrs.clone();
-    bad_val_attrs[0].cbor_value[10] ^= 0x01;
+    bad_val_attrs[1].cbor_value[10] ^= 0x01;
     assert_eq!(
         run_mdoc_verifier_inner(
             &provided_pnym.spec,
@@ -1291,7 +1397,7 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
 
     // Negative 2: Tampered context -> GeneralFailure
     let mut bad_ctx_attrs = resolved_attrs.clone();
-    bad_ctx_attrs[0].context = b"different-verifier-context".to_vec();
+    bad_ctx_attrs[1].context = b"different-verifier-context".to_vec();
     assert_eq!(
         run_mdoc_verifier_inner(
             &provided_pnym.spec,
@@ -1310,10 +1416,13 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
     // response mutated it.
     let rebound = mdoc_zk_runtime::bind_pnym_response(&pnym_req, &bad_ctx_attrs)
         .expect("bind_pnym_response keeps verifier's context");
-    assert_eq!(rebound[0].context, context);
+    assert_eq!(rebound[1].context, context);
 
     // Negative 3: Missing context -> PnymContextMissing on prover, InvalidRequest on verifier
-    let empty_ctx_req = [req_pnym("org.iso.18013.5.1", b"")];
+    let empty_ctx_req = [
+        req_attr("org.iso.18013.5.1", "age_over_18", [0xf5]),
+        req_pnym("org.iso.18013.5.1", b""),
+    ];
     assert_eq!(
         run_mdoc_prover_inner_ext(
             &provided_pnym.spec,
@@ -1330,7 +1439,7 @@ fn run_current_pnym_tests(test_circuits: &TestCircuits) {
         Err(mdoc_zk_runtime::MdocProverErrorCode::PnymContextMissing)
     );
     let mut empty_ctx_ver = resolved_attrs.clone();
-    empty_ctx_ver[0].context.clear();
+    empty_ctx_ver[1].context.clear();
     assert_eq!(
         run_mdoc_verifier_inner(
             &provided_pnym.spec,
@@ -1571,6 +1680,420 @@ fn run_verifier_and_prover_input_vetting_tests(test_circuits: &TestCircuits) {
     );
 }
 
+fn encode_tag24_issuer_signed_item(
+    digest_id: u8,
+    random_16: &[u8; 16],
+    attr_id: &[u8],
+    cbor_value: &[u8],
+) -> Vec<u8> {
+    assert!(attr_id.len() < 24);
+    let mut map = Vec::new();
+    map.push(0xa4);
+    map.extend_from_slice(b"\x68digestID");
+    map.push(digest_id);
+    map.extend_from_slice(b"\x66random\x50");
+    map.extend_from_slice(random_16);
+    map.extend_from_slice(b"\x71elementIdentifier");
+    map.push(0x60 + u8::try_from(attr_id.len()).unwrap());
+    map.extend_from_slice(attr_id);
+    map.extend_from_slice(b"\x6celementValue");
+    map.extend_from_slice(cbor_value);
+
+    assert!((24..256).contains(&map.len()));
+    let mut item = vec![0xd8, 0x18, 0x58, u8::try_from(map.len()).unwrap()];
+    item.extend_from_slice(&map);
+    item
+}
+
+fn build_custom_two_attr_mdoc(
+    id0: &[u8],
+    val0: &[u8],
+    id1: &[u8],
+    val1: &[u8],
+) -> Vec<u8> {
+    use num_bigint::BigUint;
+    use sha2::{Digest, Sha256};
+
+    let base = mdoc_zk_testcases::vectors::PNYM_SEED_MDOC.mdoc;
+    let item0 = encode_tag24_issuer_signed_item(0, &[0x42u8; 16], id0, val0);
+    let item1 = encode_tag24_issuer_signed_item(1, &[0x44u8; 16], id1, val1);
+
+    let ns_prefix = b"\x71org.iso.18013.5.1\x83";
+    let items_start = base
+        .windows(ns_prefix.len())
+        .position(|w| w == ns_prefix)
+        .unwrap()
+        + ns_prefix.len();
+    let issuer_auth_pos = base
+        .windows(b"\x6aissuerAuth".len())
+        .position(|w| w == b"\x6aissuerAuth")
+        .unwrap();
+    // Keep the 3rd item (birth_date, 95 bytes) from PNYM_SEED_MDOC
+    let item2 = &base[issuer_auth_pos - 95..issuer_auth_pos];
+
+    let mut mdoc = base.to_vec();
+
+    // Update digest 0 and digest 1 inside valueDigests in the MSO
+    let mso_marker = [0x59, 0x01, 0xe8, 0xd8, 0x18, 0x59, 0x01, 0xe3];
+    let mso_bstr_pos = mdoc
+        .windows(mso_marker.len())
+        .position(|w| w == mso_marker)
+        .unwrap();
+    let mso_wrapped_start = mso_bstr_pos + 3;
+    let mso_wrapped_end = mso_wrapped_start + 0x01e8;
+
+    let d0: [u8; 32] = Sha256::digest(&item0).into();
+    let d1: [u8; 32] = Sha256::digest(&item1).into();
+
+    let mso_slice = &mut mdoc[mso_wrapped_start..mso_wrapped_end];
+    let d0_pos = mso_slice
+        .windows(3)
+        .position(|w| w == [0x00, 0x58, 0x20])
+        .unwrap()
+        + 3;
+    mso_slice[d0_pos..d0_pos + 32].copy_from_slice(&d0);
+    let d1_pos = mso_slice
+        .windows(3)
+        .position(|w| w == [0x01, 0x58, 0x20])
+        .unwrap()
+        + 3;
+    mso_slice[d1_pos..d1_pos + 32].copy_from_slice(&d1);
+
+    // Recompute COSE_Sign1 digest over the updated MSO
+    let mut cose_sig_struct = Vec::new();
+    cose_sig_struct.extend_from_slice(
+        &mdoc_zk_circuits::cbor::constants::K_COSE_SIGN1_SIGNING_HEADER,
+    );
+    cose_sig_struct.extend_from_slice(&[0x59, 0x01, 0xe8]);
+    cose_sig_struct.extend_from_slice(&mdoc[mso_wrapped_start..mso_wrapped_end]);
+    let e_bytes: [u8; 32] = Sha256::digest(&cose_sig_struct).into();
+
+    // Sign with P-256 private key d = 2 (matching PNYM_SEED_MDOC.pkx/pky = 2*G) and nonce k = 1 (R = G)
+    let n = BigUint::parse_bytes(
+        b"ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+        16,
+    )
+    .unwrap();
+    let r = BigUint::parse_bytes(
+        b"6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+        16,
+    )
+    .unwrap();
+    let e = BigUint::from_bytes_be(&e_bytes);
+    let s = (&e + (&r * 2u32)) % &n;
+
+    let r_bytes = r.to_bytes_be();
+    let s_bytes = s.to_bytes_be();
+    assert_eq!(r_bytes.len(), 32);
+    assert_eq!(s_bytes.len(), 32);
+
+    let dev_signed_pos = mdoc
+        .windows(b"\x6cdeviceSigned".len())
+        .position(|w| w == b"\x6cdeviceSigned")
+        .unwrap();
+    let sig_start = dev_signed_pos - 64;
+    mdoc[sig_start..sig_start + 32].copy_from_slice(&r_bytes);
+    mdoc[sig_start + 32..sig_start + 64].copy_from_slice(&s_bytes);
+
+    // Splice updated IssuerSignedItemBytes into nameSpaces
+    let mut new_items = Vec::new();
+    new_items.extend_from_slice(&item0);
+    new_items.extend_from_slice(&item1);
+    new_items.extend_from_slice(item2);
+    mdoc.splice(items_start..issuer_auth_pos, new_items);
+    mdoc
+}
+
+fn build_large_attr_mdoc(val_3block: &[u8], val_4block: &[u8]) -> Vec<u8> {
+    let item0 =
+        encode_tag24_issuer_signed_item(0, &[0x42u8; 16], b"large_3block", val_3block);
+    let item1 =
+        encode_tag24_issuer_signed_item(1, &[0x44u8; 16], b"large_4block", val_4block);
+    // Item 0 is 3 SHA-256 blocks (120..=183 bytes); Item 1 is 4 SHA-256 blocks (184..=247 bytes).
+    assert!(
+        (120..=183).contains(&item0.len()),
+        "unexpected 3-block item len: {}",
+        item0.len()
+    );
+    assert!(
+        (184..=247).contains(&item1.len()),
+        "unexpected 4-block item len: {}",
+        item1.len()
+    );
+    build_custom_two_attr_mdoc(b"large_3block", val_3block, b"large_4block", val_4block)
+}
+
+fn run_current_large_attribute_tests(test_circuits: &TestCircuits) {
+    let base_data = &mdoc_zk_testcases::vectors::PNYM_SEED_MDOC;
+    let doc_type = base_data.doc_type;
+    let now = base_data.now;
+    let transcript = base_data.transcript;
+    let pkx = base_data.pkx;
+    let pky = base_data.pky;
+
+    // 3-block attribute: cbor_value = bstr(90) (92 bytes > 64), IssuerSignedItemBytes = 175 bytes
+    let mut val_3block = vec![0x58, 0x5a];
+    val_3block.extend((0..90u8).map(|i| i.wrapping_mul(3).wrapping_add(1)));
+
+    // 4-block attribute: cbor_value = bstr(162) (164 bytes > 128), IssuerSignedItemBytes = 247 bytes
+    // (exact maximum 4-block capacity K_LARGE_ATTR_CBOR_LEN = 247)
+    let mut val_4block = vec![0x58, 0xa2];
+    val_4block.extend((0..162u8).map(|i| i.wrapping_mul(7).wrapping_add(5)));
+
+    let large_mdoc = build_large_attr_mdoc(&val_3block, &val_4block);
+
+    let req_3block = req_attr("org.iso.18013.5.1", "large_3block", &val_3block);
+    let req_4block = req_attr("org.iso.18013.5.1", "large_4block", &val_4block);
+    let req_small = req_attr(
+        "org.iso.18013.5.1",
+        "birth_date",
+        *b"\xd9\x03\xec\x6a1971-09-01",
+    );
+
+    // 1. Check select_current_spec_for_request routing for small vs large attributes
+    assert_eq!(
+        provider::select_current_spec_for_request(std::slice::from_ref(&req_small))
+            .map(|s| (s.num_attributes, s.pnym)),
+        Ok((1, false)),
+        "1 small attribute should select (1, false)"
+    );
+    assert_eq!(
+        provider::select_current_spec_for_request(std::slice::from_ref(&req_3block))
+            .map(|s| (s.num_attributes, s.pnym)),
+        Ok((2, false)),
+        "1 large 3-block attribute should upgrade to (2, false)"
+    );
+    assert_eq!(
+        provider::select_current_spec_for_request(std::slice::from_ref(&req_4block))
+            .map(|s| (s.num_attributes, s.pnym)),
+        Ok((2, false)),
+        "1 large 4-block attribute should upgrade to (2, false)"
+    );
+    let two_large = [req_3block.clone(), req_4block.clone()];
+    assert_eq!(
+        provider::select_current_spec_for_request(&two_large).map(|s| (s.num_attributes, s.pnym)),
+        Ok((2, false)),
+        "2 large attributes should select (2, false)"
+    );
+    let three_with_large = [req_3block.clone(), req_4block.clone(), req_small.clone()];
+    assert_eq!(
+        provider::select_current_spec_for_request(&three_with_large),
+        Err(mdoc_zk_runtime::MdocProverErrorCode::AttributeTooLong),
+        "3 attributes containing a large attribute must be rejected"
+    );
+
+    // 2. Prove and verify 2 large attributes (3-block + 4-block) using the (2, false) circuit
+    let provided_2 = test_circuits.get(2).unwrap();
+    let mut rng = runtime_random::DeterministicRng::new(123);
+    let proof_2large = run_mdoc_prover_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        &large_mdoc,
+        pkx,
+        pky,
+        transcript,
+        &two_large,
+        now,
+        doc_type,
+        &mut rng,
+    )
+    .expect("2-attribute large prover should succeed for 3-block + 4-block attributes");
+
+    run_mdoc_verifier_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        pkx,
+        pky,
+        transcript,
+        &two_large,
+        now,
+        doc_type,
+        &proof_2large,
+    )
+    .expect("2-attribute large verifier should succeed for 3-block + 4-block attributes");
+
+    // 2b. Prove and verify a 190-byte attribute (IssuerSignedItemBytes = 190B, 109B cbor_value, 4 SHA-256 blocks)
+    //     and a 20-byte attribute (20B cbor_value, 2 SHA-256 blocks) together on the (2, false) circuit
+    let mut val_109b = vec![0x58, 0x6b]; // bstr(107) -> 109 CBOR bytes
+    val_109b.extend((0..107u8).map(|i| i.wrapping_mul(5).wrapping_add(3)));
+    let item_190b =
+        encode_tag24_issuer_signed_item(0, &[0x42u8; 16], b"large_190b", &val_109b);
+    assert_eq!(item_190b.len(), 190);
+
+    let mut val_20b = vec![0x53]; // bstr(19) -> 20 CBOR bytes
+    val_20b.extend((0..19u8).map(|i| i.wrapping_add(0x20)));
+    assert_eq!(val_20b.len(), 20);
+
+    let mdoc_190b_20b =
+        build_custom_two_attr_mdoc(b"large_190b", &val_109b, b"small_20b_", &val_20b);
+    let req_190b_20b = [
+        req_attr("org.iso.18013.5.1", "large_190b", &val_109b),
+        req_attr("org.iso.18013.5.1", "small_20b_", &val_20b),
+    ];
+    assert_eq!(
+        provider::select_current_spec_for_request(&req_190b_20b)
+            .map(|s| (s.num_attributes, s.pnym)),
+        Ok((2, false)),
+        "190B attribute + 20B attribute should select (2, false)"
+    );
+    let proof_190b_20b = run_mdoc_prover_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        &mdoc_190b_20b,
+        pkx,
+        pky,
+        transcript,
+        &req_190b_20b,
+        now,
+        doc_type,
+        &mut rng,
+    )
+    .expect("2-attribute large prover should succeed for 190B + 20B attributes");
+
+    run_mdoc_verifier_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        pkx,
+        pky,
+        transcript,
+        &req_190b_20b,
+        now,
+        doc_type,
+        &proof_190b_20b,
+    )
+    .expect("2-attribute large verifier should succeed for 190B + 20B attributes");
+
+    // 3. Prove and verify a single 4-block attribute using the (2, false) circuit (duplicate-padded to 2)
+    let one_large = [req_4block.clone()];
+    let proof_1large = run_mdoc_prover_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        &large_mdoc,
+        pkx,
+        pky,
+        transcript,
+        &one_large,
+        now,
+        doc_type,
+        &mut rng,
+    )
+    .expect("1 large attribute padded to 2 in (2, false) circuit should succeed");
+
+    run_mdoc_verifier_inner(
+        &provided_2.spec,
+        &provided_2.compressed,
+        pkx,
+        pky,
+        transcript,
+        &one_large,
+        now,
+        doc_type,
+        &proof_1large,
+    )
+    .expect("verifier should accept 1 large attribute on (2, false) circuit");
+
+    // 4. Negative: tampering with a byte deep inside the 4-block value (offset 150 > 64) must fail
+    let mut tampered_two_large = two_large.clone();
+    tampered_two_large[1].cbor_value[150] ^= 0x01;
+    assert_eq!(
+        run_mdoc_verifier_inner(
+            &provided_2.spec,
+            &provided_2.compressed,
+            pkx,
+            pky,
+            transcript,
+            &tampered_two_large,
+            now,
+            doc_type,
+            &proof_2large,
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::GeneralFailure),
+        "Verifier must reject tampering at byte 150 of a large attribute value"
+    );
+
+    // 5. Negative: 2-block circuits ((1, false) and (4, false)) must reject large attributes
+    let provided_1 = test_circuits.get(1).unwrap();
+    let provided_4 = test_circuits.get(4).unwrap();
+    assert_eq!(
+        run_mdoc_prover_inner(
+            &provided_1.spec,
+            &provided_1.compressed,
+            &large_mdoc,
+            pkx,
+            pky,
+            transcript,
+            &one_large,
+            now,
+            doc_type,
+            &mut rng,
+        ),
+        Err(mdoc_zk_runtime::MdocProverErrorCode::AttributeTooLong)
+    );
+    assert_eq!(
+        run_mdoc_verifier_inner(
+            &provided_1.spec,
+            &provided_1.compressed,
+            pkx,
+            pky,
+            transcript,
+            &one_large,
+            now,
+            doc_type,
+            &proof_1large,
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::UnsupportedAttribute)
+    );
+    assert_eq!(
+        run_mdoc_prover_inner(
+            &provided_4.spec,
+            &provided_4.compressed,
+            &large_mdoc,
+            pkx,
+            pky,
+            transcript,
+            &two_large,
+            now,
+            doc_type,
+            &mut rng,
+        ),
+        Err(mdoc_zk_runtime::MdocProverErrorCode::AttributeTooLong)
+    );
+
+    // 6. Negative: attribute exceeding 4 SHA-256 blocks (> 247 bytes minimum encoding) must be rejected by (2, false)
+    let mut val_5block = vec![0x58, 0xb0];
+    val_5block.extend_from_slice(&[0x99u8; 176]);
+    let req_5block = [req_attr("org.iso.18013.5.1", "large_4block", &val_5block)];
+    assert_eq!(
+        run_mdoc_prover_inner(
+            &provided_2.spec,
+            &provided_2.compressed,
+            &large_mdoc,
+            pkx,
+            pky,
+            transcript,
+            &req_5block,
+            now,
+            doc_type,
+            &mut rng,
+        ),
+        Err(mdoc_zk_runtime::MdocProverErrorCode::AttributeTooLong)
+    );
+    assert_eq!(
+        run_mdoc_verifier_inner(
+            &provided_2.spec,
+            &provided_2.compressed,
+            pkx,
+            pky,
+            transcript,
+            &req_5block,
+            now,
+            doc_type,
+            &proof_1large,
+        ),
+        Err(mdoc_zk_runtime::MdocVerifierErrorCode::UnsupportedAttribute)
+    );
+}
+
 #[test]
 fn test_all_current_zk() {
     let test_circuits = TestCircuits::compile_all();
@@ -1587,4 +2110,5 @@ fn test_all_current_zk() {
     run_current_date_comparison_tests(&test_circuits);
     run_current_pnym_tests(&test_circuits);
     run_verifier_and_prover_input_vetting_tests(&test_circuits);
+    run_current_large_attribute_tests(&test_circuits);
 }

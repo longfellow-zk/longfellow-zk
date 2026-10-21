@@ -27,10 +27,27 @@ pub const K_ELEMENT_VALUE_PREFIX: [u8; 13] = [
 
 pub const K_SHA256_BLOCK_SIZE: usize = 64;
 pub const K_SHA256_PADDING_LEN: usize = 9;
-/// The maximum number of SHA-256 blocks for an attribute `IssuerSignedItem`.
+/// The maximum number of SHA-256 blocks for an attribute `IssuerSignedItem` in standard circuits.
 /// Note: With 2 blocks (119 bytes max), attributes only support a 16-byte `random`
 /// nonce in `IssuerSignedItem` when the attribute value is up to 32 bytes (e.g. `pnym_seed`).
 pub const K_MAX_ATTR_SHA_BLOCKS: usize = 2;
+
+/// The maximum number of SHA-256 blocks for a large attribute `IssuerSignedItem` (used by the
+/// 2-attribute `(2, false)` circuit). Supports `IssuerSignedItemBytes` up to 247 bytes and
+/// disclosed CBOR attribute values up to 192 bytes.
+pub const K_LARGE_ATTR_SHA_BLOCKS: usize = 4;
+
+/// Returns the number of SHA-256 blocks per attribute slot for a given `(num_attributes, pnym)`
+/// circuit configuration. The 2-attribute non-pseudonym circuit (`(2, false)`) uses
+/// `K_LARGE_ATTR_SHA_BLOCKS` (4 blocks); all other circuits use `K_MAX_ATTR_SHA_BLOCKS` (2 blocks).
+#[must_use]
+pub const fn attr_sha_blocks_for_circuit(num_attributes: usize, pnym: bool) -> usize {
+    if num_attributes == 2 && !pnym {
+        K_LARGE_ATTR_SHA_BLOCKS
+    } else {
+        K_MAX_ATTR_SHA_BLOCKS
+    }
+}
 
 /// Minimum size (in bytes) of the `random` nonce in an `IssuerSignedItem` per ISO 18013-5.
 /// Only 16-byte `random` nonces are guaranteed to fit within `K_MAX_ATTR_SHA_BLOCKS = 2`
@@ -48,6 +65,14 @@ pub const fn max_attr_cbor_len(num_attr_sha_blocks: usize) -> usize {
 #[must_use]
 pub const fn attr_preimage_len(num_attr_sha_blocks: usize) -> usize {
     num_attr_sha_blocks * K_SHA256_BLOCK_SIZE
+}
+
+/// Returns the maximum disclosed CBOR attribute value buffer length (in bytes) for
+/// `num_attr_sha_blocks` (`(num_attr_sha_blocks - 1) * 64`: 64 bytes for 2 blocks,
+/// 192 bytes for 4 blocks).
+#[must_use]
+pub const fn max_attr_val_len(num_attr_sha_blocks: usize) -> usize {
+    (num_attr_sha_blocks - 1) * K_SHA256_BLOCK_SIZE
 }
 
 /// Minimum CBOR overhead (in bytes) of an `IssuerSignedItemBytes` structure before the
@@ -72,29 +97,43 @@ pub const fn min_attr_item_cbor_len(cbor_id_len: usize, cbor_val_len: usize) -> 
 }
 
 /// The maximum size of the `IssuerSignedItem` CBOR structure that fits in the
-/// maximum number of blocks (`K_MAX_ATTR_SHA_BLOCKS`).
+/// standard 2-block attribute circuit (`K_MAX_ATTR_SHA_BLOCKS`).
 pub const K_MAX_ATTR_CBOR_LEN: usize = max_attr_cbor_len(K_MAX_ATTR_SHA_BLOCKS); // 119
 pub const K_ATTR_PREIMAGE_LEN: usize = attr_preimage_len(K_MAX_ATTR_SHA_BLOCKS); // 128
+pub const K_MAX_ATTR_VAL_LEN: usize = max_attr_val_len(K_MAX_ATTR_SHA_BLOCKS); // 64
+
+/// The maximum size of the `IssuerSignedItem` CBOR structure and buffers that fit in the
+/// 4-block large attribute circuit (`K_LARGE_ATTR_SHA_BLOCKS`).
+pub const K_LARGE_ATTR_CBOR_LEN: usize = max_attr_cbor_len(K_LARGE_ATTR_SHA_BLOCKS); // 247
+pub const K_LARGE_ATTR_PREIMAGE_LEN: usize = attr_preimage_len(K_LARGE_ATTR_SHA_BLOCKS); // 256
+pub const K_LARGE_ATTR_VAL_LEN: usize = max_attr_val_len(K_LARGE_ATTR_SHA_BLOCKS); // 192
 
 /// Width (in bits) of the in-circuit `nblocks` wire of the attribute SHA-256 message
-/// (`AttributeVerifier::assert_sha_digest_preimage`). It must be wide enough to hold
-/// `K_MAX_ATTR_SHA_BLOCKS`.
+/// (`AttributeVerifier::assert_sha_digest_preimage`) for 2-block and 4-block attributes.
 pub const K_ATTR_NBLOCKS_BITS: usize = 2;
+pub const K_LARGE_ATTR_NBLOCKS_BITS: usize = 3;
 
-// Compile-time guards for a future circuit version that raises `K_MAX_ATTR_SHA_BLOCKS`
-// to support larger attributes: every place that silently assumes the current
-// geometry must be revisited when one of these fires.
+// Compile-time guards for `K_MAX_ATTR_SHA_BLOCKS` and `K_LARGE_ATTR_SHA_BLOCKS`:
+// every place that silently assumes the current geometry must be revisited when one of these fires.
 const _: () = assert!(
     K_MAX_ATTR_SHA_BLOCKS < (1 << K_ATTR_NBLOCKS_BITS),
     "K_MAX_ATTR_SHA_BLOCKS must fit in the K_ATTR_NBLOCKS_BITS-wide nblocks wire"
 );
 const _: () = assert!(
-    K_ATTR_PREIMAGE_LEN < (1 << K_ATTR_INDEX_BITS),
+    K_LARGE_ATTR_SHA_BLOCKS < (1 << K_LARGE_ATTR_NBLOCKS_BITS),
+    "K_LARGE_ATTR_SHA_BLOCKS must fit in the K_LARGE_ATTR_NBLOCKS_BITS-wide nblocks wire"
+);
+const _: () = assert!(
+    K_LARGE_ATTR_PREIMAGE_LEN < (1 << K_ATTR_INDEX_BITS),
     "attribute preimage offsets/lengths must be addressable by K_ATTR_INDEX_BITS"
 );
 const _: () = assert!(
-    K_MAX_ATTR_CBOR_LEN - 4 <= 0xff,
+    K_LARGE_ATTR_CBOR_LEN - 4 <= 0xff,
     "AttributeVerifier::assert_preimage_header assumes a 1-byte bstr length (`58 <len>`)"
+);
+const _: () = assert!(
+    K_ELEMENT_VALUE_PREFIX.len() + K_LARGE_ATTR_VAL_LEN <= K_LARGE_ATTR_CBOR_LEN,
+    "element_value_window must fit within the maximum CBOR preimage length"
 );
 const _: () = assert!(
     min_attr_item_cbor_len(1 + 9, 2 + 32) <= K_MAX_ATTR_CBOR_LEN,
