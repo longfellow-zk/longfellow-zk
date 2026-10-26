@@ -103,3 +103,24 @@ of commitment geometry, and the combined-proof marker is `LFV2`.
 
 See [Sumcheck V2](../sumcheck-v2/README.md) for protocol algebra, compiler
 selection, shared-suite coverage, and validation commands.
+
+The `experimental` feature also exposes `zk_v2::packed`. Its GF128-specific
+`PackedCircuit` owns the circuit/domain contract; `PackedCommitment` owns
+the private bits, caller auxiliaries and masks from commitment through proving.
+The physical vector is packed words, caller auxiliaries, 127 ring masks,
+checksum, then ordinary GKR pads and their products. Its subfield boundary is
+zero. Public bits are substituted into the affine right-hand side.
+
+Caller bit-linear equations are bound before GKR and independently combined
+after GKR. Ring switching runs next, and only then is the Polygero source
+statement identifier sampled. The specialized `PackedZkProof` uses `LFB2`
+and adds the 127 masked ring components before Polygero. Direct-field APIs
+and LFV2 encoding remain available.
+
+The flat trace adapter needs 128 committed cells and no inner sumcheck or
+tower construction. Its entire response precedes the independent batching
+challenges, and it emits one native backend equation.
+
+This path is a Rust prototype; its security composition is outside the v8
+Lean theorem. See [ring switching](../ring-switch/README.md) for its algebra,
+ownership contract and deferred proof obligations.

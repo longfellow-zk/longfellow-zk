@@ -1,0 +1,8 @@
+Longfellow v2 / NEXT v8; parameters checked in the ideal-binding one-level FS model.
+Offline circuit preparation: 0.996 ms
+  Selected hash profile: PolygeroConfig { k: 512, s: 18, n: 3584, t: 87 }
+  Selected signature profile: PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }
+Longfellow v2 (circuit v8) end to end: prover=267.852 ms, verifier=133.650 ms, proof=213204 bytes
+  SHA/hash circuit: 93320 bytes (Polygero=83044, sumcheck=10240, version+commitment=36)
+  Signature circuit: 119788 bytes; shared MACs: 96 bytes
+  Proof SHA256: f0d8fdfa6c8220eaaec7f79dabbc9aba2d012063711d61330867db88ec7c988f

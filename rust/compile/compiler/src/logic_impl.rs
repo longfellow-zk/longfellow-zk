@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{scope::AssertionScope, Logic, LogicIO};
-
-use crate::compile::compiler::{
-    algsimp::AlgebraicRewriter,
-    arena::CompilerArena,
-    cse::Cse,
-    ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
+use crate::compile::{
+    algebra::field::CompileField,
+    compiler::{
+        algsimp::AlgebraicRewriter,
+        arena::CompilerArena,
+        cse::Cse,
+        ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
+    },
+    logic::{scope::AssertionScope, Logic, LogicIO},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -44,9 +45,28 @@ pub struct CompilerLogic<
     f: &'a F,
     tracker: &'a AssertionScope,
     next: NEXT,
+    boolean_arithmetic: bool,
+    #[cfg(feature = "experimental")]
+    witness: std::cell::RefCell<super::boolean_witness::WitnessBuilder>,
 }
 
 impl<'a, F: CompileField> CompilerLogic<'a, F> {
+    #[cfg(feature = "experimental")]
+    pub fn with_boolean_arithmetic(mut self) -> Self {
+        assert!(self.f.is_zero(&self.f.addf(&self.f.one(), &self.f.one())));
+        self.boolean_arithmetic = true;
+        self
+    }
+
+    #[cfg(feature = "experimental")]
+    pub fn begin_boolean_witness(&self, base: usize) {
+        assert!(self.boolean_arithmetic);
+        self.witness.borrow_mut().base = Some(base);
+    }
+    #[cfg(feature = "experimental")]
+    pub fn take_boolean_witness(&self) -> crate::core::bits::recipe::BitRecipe {
+        std::mem::take(&mut *self.witness.borrow_mut()).recipe
+    }
     pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F, tracker: &'a AssertionScope) -> Self {
         let cse = Cse::new(arena);
         let next = AlgebraicRewriter::new(f, cse);
@@ -55,6 +75,9 @@ impl<'a, F: CompileField> CompilerLogic<'a, F> {
             f,
             tracker,
             next,
+            boolean_arithmetic: false,
+            #[cfg(feature = "experimental")]
+            witness: std::cell::RefCell::new(Default::default()),
         }
     }
 }
@@ -66,6 +89,29 @@ where NEXT: RewriteT<'a, F>
     type Wire = ExprNode<'a, F>;
     type Assertions = CompilerAssertions<'a, F>;
 
+    #[cfg(feature = "experimental")]
+    fn uses_witness_bits(&self) -> bool {
+        self.witness.borrow().base.is_some()
+    }
+    #[cfg(feature = "experimental")]
+    fn witness_bits(&self, computed: &[Self::Wire]) -> Option<Vec<Self::Wire>> {
+        let mut builder = self.witness.borrow_mut();
+        let base = builder.base?;
+        Some(
+            computed
+                .iter()
+                .map(|&expr| {
+                    let node = builder.export(expr, self.f);
+                    let wire = self.next.input(base + builder.recipe.outputs.len());
+                    builder.alias(wire, node);
+                    wire
+                })
+                .collect(),
+        )
+    }
+    fn boolean_arithmetic(&self) -> bool {
+        self.boolean_arithmetic
+    }
     fn field(&self) -> &Self::F {
         self.f
     }

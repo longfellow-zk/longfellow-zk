@@ -46,6 +46,8 @@ use crate::core::proto::sane_logw;
 use crate::runtime::proto::sumcheck_v2 as proof;
 
 cfg_prover! {
+    #[cfg(feature = "experimental")]
+    pub mod boolean;
     mod dense;
     mod eval;
     mod prover;

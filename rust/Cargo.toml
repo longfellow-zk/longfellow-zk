@@ -26,6 +26,8 @@ limb32 = ["force-32bit-limbs"]
 force-generic-arch = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
+# Opt-in phase diagnostics for benchmarks; keep disabled for ordinary timing.
+bench-profile = []
 # Opt-in arithmetic and circuits under development; never enabled by default.
 experimental = []
 # Offline audits and specification generation; never a proof-role dependency.
@@ -118,6 +120,12 @@ name = "fp24_benchmark"
 path = "runtime/algebra/benches/fp24_benchmark.rs"
 harness = false
 required-features = ["experimental"]
+
+[[bench]]
+name = "mdoc_zk_bench_v9"
+path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs"
+harness = false
+required-features = ["prover", "verifier", "compiler", "mdoc", "testonly", "experimental"]
 
 [[bench]]
 name = "mldsa_bench_v2"

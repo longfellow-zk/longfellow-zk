@@ -339,6 +339,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("bench_support", "benches/support"),
         ("tools::zk_tool", "tools/zk_tool"),
         ("core::algebra", "core/algebra/src"),
+        ("core::bits", "core/bits/src"),
         ("core::proto", "core/proto/src"),
         ("runtime::algebra", "runtime/algebra/src"),
         ("runtime::proto", "runtime/proto/src"),
@@ -349,6 +350,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::zk_v2", "runtime/zk-v2/src"),
         ("runtime::ligero", "runtime/ligero/src"),
         ("runtime::polygero", "runtime/polygero/src"),
+        ("runtime::ring_switch", "runtime/ring-switch/src"),
         ("runtime::zk_v1", "runtime/zk-v1/src"),
         ("compile::algebra", "compile/algebra/src"),
         ("compile::proto", "compile/proto/src"),
@@ -476,12 +478,57 @@ fn test_sumcheck_protocol_dependencies() {
     }
 }
 
+/// Ring switching is a standalone reduction with backend-neutral claims.
+#[test]
+fn test_ring_switch_protocol_dependencies() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/ring-switch/src");
+    let mut files = Vec::new();
+    collect_rs_files(&root, &mut files);
+    for file in files {
+        let code = production_code(&fs::read_to_string(&file).unwrap());
+        for dep in extract_crate_deps(&code) {
+            assert!(
+                matches!(
+                    dep.as_str(),
+                    "core::algebra"
+                        | "core::bits"
+                        | "runtime::algebra"
+                        | "runtime::proto"
+                        | "runtime::random"
+                        | "runtime::ring_switch"
+                ),
+                "ring-switch dependency in {}: {dep}",
+                file.display()
+            );
+        }
+        for word in code.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_') {
+            assert!(
+                !matches!(
+                    word,
+                    "OnceLock"
+                        | "sumcheck_v1"
+                        | "sumcheck_v2"
+                        | "polygero"
+                        | "ligero"
+                        | "zk_v1"
+                        | "zk_v2"
+                        | "mdoc"
+                        | "compile"
+                ),
+                "ring-switch boundary in {}: {word}",
+                file.display()
+            );
+        }
+    }
+}
+
 /// Allow only sumcheck's own code and the common algebra, circuit/proof data,
 /// randomness, and utilities. Identifier checks also catch relative imports,
 /// aliases and higher-level proof types hidden beneath the shared proto module.
 fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<String> {
     for dependency in extract_crate_deps(production) {
         if dependency != module
+            && !(module == "runtime::sumcheck_v2" && dependency == "core::bits")
             && !matches!(
                 dependency.as_str(),
                 "core::algebra"
@@ -809,6 +856,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v2_circuits.rs",
         "v2_inputs.rs",
         "v2_attributes.rs",
+        "packed_v9.rs",
         "specs.rs",
         "v1_provider.rs",
         "v2_provider.rs",
@@ -846,7 +894,7 @@ fn test_tooling_and_system_source_boundaries() {
         let directory = root.join(format!("applications/mdoc_zk/runtime/src/{version}"));
         let mut actual = Vec::new();
         collect_rs_files(&directory, &mut actual);
-        let expected_system_files: BTreeSet<_> = [
+        let mut expected_system_files: BTreeSet<_> = [
             "mod.rs",
             "zk_spec.rs",
             "provider.rs",
@@ -866,6 +914,12 @@ fn test_tooling_and_system_source_boundaries() {
         .map(|f| directory.join(f))
         .into_iter()
         .collect();
+        if version == "v2" {
+            expected_system_files.extend(
+                ["mod", "provider", "claims", "proto", "prover", "verifier"]
+                    .map(|name| directory.join(format!("packed_v9/{name}.rs"))),
+            );
+        }
         assert_eq!(
             actual.into_iter().collect::<BTreeSet<_>>(),
             expected_system_files
@@ -981,6 +1035,7 @@ fn test_development_provider_boundaries() {
         "src/lib.rs",
         "src/next_v2.rs",
         "src/cache_v2.rs",
+        "src/packed_v9.rs",
         "tests/provider.rs",
     ]
     .map(|name| directory.join(name))
@@ -1029,6 +1084,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "lib.rs",
                 "monomial.rs",
                 "dense.rs",
+                "boolean.rs",
                 "quad.rs",
                 "eval.rs",
                 "prover.rs",
@@ -1046,6 +1102,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "all/poly.rs",
                 "all/sumcheck_v2.rs",
                 "all/wiring.rs",
+                "boolean.rs",
             ][..],
         ),
     ] {
@@ -1128,6 +1185,9 @@ fn test_zk_v2_source_layout_and_test_privacy() {
         "lib.rs",
         "context.rs",
         "constraint_compiler.rs",
+        "packed.rs",
+        "packed_prover.rs",
+        "packed_verifier.rs",
         "transcript.rs",
         "prover.rs",
         "verifier.rs",

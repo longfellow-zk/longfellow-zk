@@ -128,8 +128,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             polygero,
             commitment,
         } = committed;
+        #[cfg(feature = "bench-profile")]
+        let mut profile =
+            crate::util::profile::Timer::new(format!("zk{W}.prover.gkr_and_constraints"));
         let (sumcheck_proof, a, b, statement) =
             self.prove_sumcheck(public_inputs, private_inputs, pads, transcript, ctx.f)?;
+        #[cfg(feature = "bench-profile")]
+        profile.next(format!("zk{W}.prover.backend_and_cleanup"));
         let com_proof = polygero
             .prove(&b, transcript, &a, &statement, ctx.domain, ctx.f)
             .map_err(|e| e.to_string())?;

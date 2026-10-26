@@ -142,13 +142,12 @@ where
         .map(|_| allocate_disclosed_attribute(allocator, plucker_v8))
         .collect();
 
-    let mac_e = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_device_pkx = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_device_pky = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_av = allocator.allocate_wire();
+    let mac_e = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
+    let mac_device_pkx = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
+    let mac_device_pky = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
+    let mac_av = allocator.allocate_mac_wire();
 
-    let boolean_io = crate::circuits::boolean::BooleanIO::new(allocator.iologic);
-    let suppress_doc_type_check = boolean_io.next(&mut allocator.pos);
+    let suppress_doc_type_check = allocator.allocate_bitvec::<1>().bit(0).clone();
     let (expected_doc_type_bytes, _) =
         allocator.allocate_plucked_v8_array::<32, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
     let expected_doc_type_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
@@ -195,7 +194,8 @@ where
 
     let subfield_boundary_val = allocator.pos;
 
-    let mac_ap = std::array::from_fn(|_| [allocator.allocate_wire(), allocator.allocate_wire()]);
+    let mac_ap =
+        std::array::from_fn(|_| [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()]);
 
     let given = crate::mdoc::circuits::hash::Given {
         disclosed_attributes,

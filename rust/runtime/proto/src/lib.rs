@@ -19,7 +19,10 @@
 
 pub mod ligero;
 pub mod merkle;
+#[cfg(feature = "experimental")]
+pub mod packed_zk;
 pub mod polygero;
+pub mod ring_switch;
 pub mod sumcheck_v1;
 pub mod sumcheck_v2;
 pub mod util;

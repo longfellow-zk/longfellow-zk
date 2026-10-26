@@ -13,6 +13,11 @@
 // limitations under the License.
 
 pub mod morton;
+#[cfg(all(
+    feature = "bench-profile",
+    any(test, feature = "prover", feature = "verifier")
+))]
+pub mod profile;
 
 /// Computes the ceiling of the base-2 logarithm: ceil(log2(n)).
 /// Panics if n == 0.

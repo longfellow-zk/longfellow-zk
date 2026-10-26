@@ -1,0 +1,42 @@
+Packed-v9 implementation audit, 2026-10-26
+
+Scope: the uncommitted packed-v9 path, flat trace adapter, dense binary
+transpose optimization, Boolean numerical/compiler variants, codecs,
+metadata, and changes to shared v8 compiler/prover code.
+
+Corrections and cleanup:
+- Reject overflow of public_bits + private_bits in the authenticated input
+  manifest, including the case where recipe outputs made the semantic-only
+  input count appear valid. The codec regression test covers this case.
+- Extract a witness recipe together with clearing its builder state.
+- Name omitted MAC fields explicitly and remove unused MAC arguments from
+  the packed public-input builder.
+- Reuse the same public bits for recipe evaluation and the hash statement.
+- Remove newly introduced Clippy warnings and fix stale documentation and
+  the benchmark command's shell line continuation.
+
+Validation:
+- cargo test --lib --features experimental -- --test-threads=4:
+  611 passed, 0 failed, 0 ignored. Includes all three v9 compiler variants
+  with two and four attributes, and Boolean-window proof equality.
+- All-target check with testonly,experimental,bench-profile,bench-memory.
+- Separate prover, verifier, compiler, data-only, and default library builds.
+- All-target Clippy with testonly,experimental,bench-profile completes;
+  remaining warnings are in existing code outside the new implementation.
+- Release v8/v9 benchmark targets build. Existing proofs still verify.
+- Nightly rustfmt and git diff whitespace checks pass.
+
+Compatibility after the cleanup (DeterministicRng(42), two attributes):
+v8: 213204 bytes; SHA256
+f0d8fdfa6c8220eaaec7f79dabbc9aba2d012063711d61330867db88ec7c988f
+v9: 185268 bytes; SHA256
+a8a8563229d5674c6b76d89849075e3ae92cc739738055a59f6659d0a15b3df2
+Both match the earlier proofs. The v9 comparison also checks byte equality.
+
+GKR remains one-hand. The adapter retains its polynomial basis, 127 response
+fields, 128 mask/checksum cells, and one native linear equation.
+
+Security scope: this is implementation review and testing, not a formal
+proof of the new composition. Joint zero knowledge, composed Fiat-Shamir
+soundness, and the packed-v9 Lean formalization remain open. The existing
+v8 theorem does not cover packed v9. Formal sources were not changed.

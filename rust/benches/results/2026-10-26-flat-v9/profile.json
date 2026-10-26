@@ -1,0 +1,182 @@
+{
+  "samples": 3,
+  "feature": "bench-profile",
+  "total": {
+    "prover_ms": 247.1341,
+    "verifier_ms": 120.767044
+  },
+  "groups": [
+    {
+      "phase": "Hash GKR and statement",
+      "prover_ms": 120.315658,
+      "verifier_ms": 61.926777
+    },
+    {
+      "phase": "Ring switching",
+      "prover_ms": 46.487561,
+      "verifier_ms": 4.503636
+    },
+    {
+      "phase": "Signature GKR and constraints",
+      "prover_ms": 33.653984,
+      "verifier_ms": 9.919963
+    },
+    {
+      "phase": "Polygero backends",
+      "prover_ms": 10.965744,
+      "verifier_ms": 33.288839
+    },
+    {
+      "phase": "Commitments",
+      "prover_ms": 22.906237,
+      "verifier_ms": 0
+    },
+    {
+      "phase": "Setup, claim combination, I/O and cleanup",
+      "prover_ms": 12.66143599999998,
+      "verifier_ms": 12.246606
+    }
+  ],
+  "phases": {
+    "app.prover.setup_and_witness": [
+      3.614279,
+      3.363758,
+      3.565096
+    ],
+    "app.prover.hash_commit": [
+      2.376226,
+      2.352101,
+      2.371918
+    ],
+    "app.prover.signature_commit": [
+      20.786913,
+      20.552283,
+      20.534319
+    ],
+    "app.prover.public_statement": [
+      3.025904,
+      2.627567,
+      2.763583
+    ],
+    "hash.prover.gkr_and_statement": [
+      124.698526,
+      120.315658,
+      120.05517
+    ],
+    "hash.prover.claim_combination": [
+      5.184874,
+      5.446815,
+      5.223997
+    ],
+    "hash.prover.ring_switch": [
+      46.948487,
+      46.400789,
+      46.487561
+    ],
+    "hash.prover.constraints": [
+      0.04808,
+      0.011431,
+      0.013295
+    ],
+    "hash.prover.backend_and_cleanup": [
+      0.673863,
+      0.643987,
+      0.648135
+    ],
+    "app.prover.hash_proof": [
+      177.633811,
+      172.871821,
+      172.475798
+    ],
+    "zk4.prover.gkr_and_constraints": [
+      33.360353,
+      33.874848,
+      33.653984
+    ],
+    "zk4.prover.backend_and_cleanup": [
+      10.291881,
+      10.332998,
+      10.257517
+    ],
+    "app.prover.signature_proof": [
+      43.681088,
+      44.237953,
+      43.933091
+    ],
+    "app.prover.encoding_and_cleanup": [
+      1.204048,
+      1.084384,
+      0.837551
+    ],
+    "app.verifier.setup": [
+      2.135585,
+      2.225083,
+      2.199916
+    ],
+    "app.verifier.proof_decoding": [
+      0.206998,
+      0.208751,
+      0.207148
+    ],
+    "app.verifier.public_statement": [
+      2.371948,
+      3.019182,
+      3.99337
+    ],
+    "hash.verifier.gkr_and_statement": [
+      61.926777,
+      60.812658,
+      62.679098
+    ],
+    "hash.verifier.claim_combination": [
+      5.253452,
+      5.252019,
+      5.424413
+    ],
+    "hash.verifier.ring_switch": [
+      4.504648,
+      4.499108,
+      4.503636
+    ],
+    "hash.verifier.constraints": [
+      0.013806,
+      0.0159,
+      0.016651
+    ],
+    "hash.verifier.backend_and_cleanup": [
+      1.616983,
+      1.625398,
+      1.613756
+    ],
+    "app.verifier.hash_proof": [
+      73.350842,
+      72.248003,
+      74.287177
+    ],
+    "app.verifier.signature_inputs": [
+      0.012123,
+      0.012063,
+      0.012633
+    ],
+    "zk4.verifier.gkr_and_constraints": [
+      9.957664,
+      9.835405,
+      9.919963
+    ],
+    "zk4.verifier.backend_and_cleanup": [
+      31.515324,
+      31.747869,
+      31.675083
+    ],
+    "app.verifier.signature_proof": [
+      41.495479,
+      41.622147,
+      41.616887
+    ],
+    "app.verifier.cleanup": [
+      0.95484,
+      1.402009,
+      0.777669
+    ]
+  }
+}

@@ -15,6 +15,8 @@
 pub mod algsimp;
 mod arena;
 pub mod assertion;
+#[cfg(feature = "experimental")]
+mod boolean_witness;
 pub mod copy;
 pub mod cse;
 pub mod ir;

@@ -102,6 +102,7 @@ the [checked component certificates](../formal/parameters/polygero/PolygeroRustH
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
 Fiat–Shamir model. This component bound excludes the Merkle binding reduction
 and the rest of the Longfellow v2 composition.
+The experimental packed-v9 composition is outside these theorems.
 
 The following measurements cover a complete mdoc presentation disclosing
 two attributes, including both the hash and signature proofs.
@@ -213,9 +214,8 @@ The runtime providers load registered frozen circuits without invoking
 a compiler. Unknown specifications and missing artifacts are errors.
 
 `mdoc::development_provider` handles development use. It delegates frozen
-requests to the runtime providers and compiles only an explicit NEXT
-request. The result contains the circuit archive and its matching v2
-specification.
+requests to the runtime providers and compiles explicit development requests.
+The result contains the circuit archive and its matching specification.
 
 NEXT currently denotes circuit version 8. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
@@ -223,10 +223,50 @@ and its selected parameters.
 
 Freezing a circuit requires publishing its archive, complete specification,
 and compatibility fixtures. Frozen artifacts and parameters remain
-unchanged. Further circuit development requires advancing NEXT.
+unchanged. Development of a subsequent version uses an explicit versioned request.
 
 Circuit archives are trusted inputs. The v2 loader supports optional
 circuit-ID recomputation through `enforce_circuit_id`.
+
+### Experimental packed v9
+
+With `experimental`, `CircuitRequest::PackedV9 { num_attributes }` compiles
+a separate v9 bundle. NEXT remains v8. The paired API is
+`mdoc::v2::packed_v9`; its specification and cache are separate types/formats.
+
+V9's hash circuit takes logical bits and commits polynomial-basis GF128 packed
+words. Its canonical `hash-input` manifest is the third archive entry and
+participates in the combined identity. Bundle creation/cache loading verifies
+circuit payload IDs; runtime invocations use the same trusted-archive premise
+as v8 and check the manifest and declared identities. Six polynomial-basis
+MAC equations are combined after hash GKR and reduced with the final input claim by
+[standalone flat trace ring switching](runtime/ring-switch/README.md). It uses
+127 masked response fields and 128 committed mask/checksum cells, with no
+tower construction or inner sumcheck. The hash proof
+uses `LFB2`; the signature proof retains `LFV2`.
+
+`compile_packed_v9_variant(count, variant)` exposes the measured alternatives:
+0 is compact analog arithmetic, 1 is Boolean carry-save arithmetic, and 2
+uses additional Boolean partial-sum witnesses with local carry checks.
+Each variant gets its own manifest, circuit identity and parameters.
+`run_mdoc_prover_inner_with_window` selects the reference prover (`None`)
+or Boolean windows 1–4; fixed randomness produces identical proof bytes
+within a compiler variant. No variant is selected automatically.
+
+This is a Rust prototype. The existing v8 security bound does not cover the
+new ring-switch composition. Joint zero knowledge, composed Fiat–Shamir
+soundness, and Lean formalization remain open gates before production use.
+
+The v9 benchmark emits interleaved raw CSV samples and reports medians.
+Use a single pinned CPU, keep allocation tracking off for timing, and run
+heap measurements separately:
+
+```sh
+MDOC_V9_SAMPLES=3 MDOC_V9_ATTRIBUTES=2 MDOC_V9_CACHE=/tmp/mdoc-v9-flat \
+  taskset -c 2 cargo bench --bench mdoc_zk_bench_v9 --features testonly,experimental
+# MDOC_V9_QUICK=1 selects only the compact reference case.
+# Repeat with MDOC_V9_ATTRIBUTES=4; add bench-memory only for separate heap runs.
+```
 
 ## Cargo features
 
@@ -244,6 +284,7 @@ compiler. The default features are `verifier`, `prover`, `compiler`, and
 | `testonly` | Test fixtures and deterministic randomness; also enables both proof roles and the compiler |
 | `tooling` | Offline Rust tools, including compiler and experimental-arithmetic dependencies |
 | `bench-memory` | Benchmark allocation tracking |
+| `bench-profile` | Opt-in execution-phase diagnostics; disable for ordinary timing comparisons |
 
 V2 itself does not require `experimental`. Neither `experimental` nor
 `tooling` is enabled by default. The `tooling` feature does not enable

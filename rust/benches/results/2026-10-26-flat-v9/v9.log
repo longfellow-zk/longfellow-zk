@@ -1,0 +1,2 @@
+Experimental flat-trace v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=249.555 ms verifier=121.203 ms

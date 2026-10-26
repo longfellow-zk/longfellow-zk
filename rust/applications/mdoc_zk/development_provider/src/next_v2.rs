@@ -110,7 +110,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
 
 /// Translate the v2 pad layout into public witness coordinates for selection.
 /// NEXT uses rate 1/7; the chosen dimensions become part of its saved spec.
-fn select_parameters<
+pub(super) fn select_parameters<
     const W: usize,
     F: RuntimeField<W> + SerializableField,
     D: RangeInterpolatorFactory<W, F>,

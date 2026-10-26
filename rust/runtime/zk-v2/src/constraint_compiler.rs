@@ -51,6 +51,18 @@ pub(super) fn compile<const W: usize, F: RuntimeField<W>>(
     f: &F,
 ) -> Result<(Vec<PolygeroLinearTerm<ElementOf<F>>>, Vec<ElementOf<F>>), String> {
     validate(constraints, pads, public_inputs.len())?;
+    let (mut a, mut b) = compile_layers(constraints, pads, f)?;
+    append_input_constraint(&mut a, &mut b, constraints, pads, public_inputs, f)?;
+    Ok((a, b))
+}
+
+/// Compile GKR layer equations without allocating a direct-field input row.
+pub(super) fn compile_layers<const W: usize, F: RuntimeField<W>>(
+    constraints: &Constraints<F::E>,
+    pads: &CircuitPadLayout,
+    f: &F,
+) -> Result<(Vec<PolygeroLinearTerm<F::E>>, Vec<F::E>), String> {
+    validate(constraints, pads, 0)?;
     let (mut a, mut b) = (Vec::new(), Vec::with_capacity(constraints.layers.len() + 1));
     for c in 0..constraints.layers.len() {
         let constraint = &constraints.layers[c];
@@ -63,7 +75,6 @@ pub(super) fn compile<const W: usize, F: RuntimeField<W>>(
         });
         b.push(constraint.constant.clone());
     }
-    append_input_constraint(&mut a, &mut b, constraints, pads, public_inputs, f)?;
     Ok((a, b))
 }
 
@@ -123,7 +134,7 @@ fn append_pad_terms<E: Clone>(
 
 /// Resolve a logical pad while checking every layer/round/slot index. Claim
 /// expressions can reference p_A and p_B; their product slot is emitted separately.
-fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
+pub(super) fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
     match pad {
         Pad::Round { layer, round, slot } => pads
             .layers

@@ -1,0 +1,4 @@
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,252.349068,120.624020,185268,0,0
+2,0,0,1,249.554771,121.203235,185268,0,0
+2,0,0,2,248.604349,121.545908,185268,0,0

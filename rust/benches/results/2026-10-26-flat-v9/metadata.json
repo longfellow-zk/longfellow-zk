@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-26",
+  "base_revision": "a485b11b646fc8a77f05a082825ce6cdc2e7fd52",
+  "working_tree": "modified",
+  "cpu": "AMD Ryzen 9 9950X",
+  "affinity_cpu": 2,
+  "boost": false,
+  "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": {
+    "optimization": 3,
+    "lto": true,
+    "codegen_units": 1,
+    "target_cpu": "native"
+  },
+  "samples": 3,
+  "allocation_tracking": false,
+  "attributes": 2,
+  "fixture": "mdoc::testcases::vectors::TEST_DATA",
+  "rng_seed": 42,
+  "variant": "compact analog",
+  "kernel": "reference",
+  "protocol": {
+    "packing": "GF128 polynomial basis",
+    "basis_id": 2,
+    "adapter": "flat hidden-affine-target trace",
+    "response_fields": 127,
+    "response_bytes": 2032,
+    "committed_mask_cells": 128,
+    "added_roots": 0,
+    "added_product_constraints": 0
+  },
+  "v9": {
+    "prover_ms": 249.554771,
+    "verifier_ms": 121.203235,
+    "proof_bytes": 185268
+  },
+  "v8": {
+    "prover_ms": 267.969,
+    "verifier_ms": 129.833,
+    "proof_bytes": 213204
+  },
+  "v8_proof_sha256": "f0d8fdfa6c8220eaaec7f79dabbc9aba2d012063711d61330867db88ec7c988f",
+  "circuits": {
+    "hash": {
+      "v8": {
+        "layers": 20,
+        "wires": 3473933,
+        "terms": 6394835,
+        "max_width": 885226,
+        "public_inputs": 1035,
+        "private_field_inputs": 76750,
+        "committed_cells": 77410,
+        "products": 20
+      },
+      "v9": {
+        "layers": 20,
+        "wires": 2350677,
+        "terms": 4183645,
+        "max_width": 826718,
+        "public_bits": 2004,
+        "private_bits": 282700,
+        "packed_inputs": 2209,
+        "committed_cells": 2945,
+        "caller_auxiliaries": 6,
+        "ring_cells": 128,
+        "gkr_pad_cells": 602,
+        "products": 20
+      }
+    },
+    "signature": {
+      "same_id": true,
+      "layers": 21,
+      "wires": 183618,
+      "terms": 276481
+    }
+  }
+}

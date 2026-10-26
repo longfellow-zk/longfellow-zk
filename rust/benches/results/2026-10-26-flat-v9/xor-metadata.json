@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-26",
+  "base_revision": "a485b11b646fc8a77f05a082825ce6cdc2e7fd52",
+  "working_tree": "modified",
+  "cpu": "AMD Ryzen 9 9950X",
+  "affinity_cpu": 2,
+  "boost": false,
+  "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": {
+    "optimization": 3,
+    "lto": true,
+    "codegen_units": 1,
+    "target_cpu": "native"
+  },
+  "attributes": 2,
+  "variant": "compact analog",
+  "kernel": "reference",
+  "rng_seed": 42,
+  "samples": 3,
+  "allocation_tracking": false,
+  "algorithm": "dense binary coefficient transpose; sparse polynomial dual numerator; 128 compressed fields; Horner evaluation at Frobenius conjugates",
+  "protocol_change": false,
+  "one_hand_gkr": true,
+  "original": {
+    "prover_ms": 249.554771,
+    "verifier_ms": 121.203235,
+    "proof_bytes": 185268
+  },
+  "optimized": {
+    "prover_ms": 209.352386,
+    "verifier_ms": 122.445738,
+    "proof_bytes": 185268
+  },
+  "proof_compatibility": {
+    "byte_equal": true,
+    "sha256": "a8a8563229d5674c6b76d89849075e3ae92cc739738055a59f6659d0a15b3df2",
+    "old_and_new_verifiers_accept": true
+  },
+  "ring_switch_medians": {
+    "original_prover_ms": 46.487561,
+    "optimized_prover_ms": 8.022003,
+    "original_verifier_ms": 4.503636,
+    "optimized_verifier_ms": 4.791208
+  },
+  "phases": {
+    "app.prover.setup_and_witness": [
+      3.538791,
+      3.368383,
+      3.459723
+    ],
+    "app.prover.hash_commit": [
+      2.36951,
+      2.354833,
+      2.349964
+    ],
+    "app.prover.signature_commit": [
+      20.536786,
+      20.553717,
+      20.232114
+    ],
+    "app.prover.public_statement": [
+      3.183777,
+      2.811308,
+      2.255907
+    ],
+    "hash.prover.gkr_and_statement": [
+      131.775592,
+      126.783076,
+      126.822751
+    ],
+    "hash.prover.claim_combination": [
+      5.169498,
+      5.270317,
+      5.553306
+    ],
+    "hash.prover.ring_switch": [
+      8.022003,
+      8.171293,
+      8.018015
+    ],
+    "hash.prover.constraints": [
+      0.016811,
+      0.015349,
+      0.014698
+    ],
+    "hash.prover.backend_and_cleanup": [
+      0.653775,
+      0.643546,
+      0.646391
+    ],
+    "app.prover.hash_proof": [
+      145.683075,
+      140.923596,
+      141.097721
+    ],
+    "zk4.prover.gkr_and_constraints": [
+      33.42657,
+      33.53318,
+      33.828113
+    ],
+    "zk4.prover.backend_and_cleanup": [
+      10.287979,
+      10.27232,
+      10.274303
+    ],
+    "app.prover.signature_proof": [
+      43.727524,
+      43.819726,
+      44.124437
+    ],
+    "app.prover.encoding_and_cleanup": [
+      1.127483,
+      1.034449,
+      1.041903
+    ],
+    "app.verifier.setup": [
+      2.155981,
+      2.201155,
+      2.189473
+    ],
+    "app.verifier.proof_decoding": [
+      0.204463,
+      0.205685,
+      0.210234
+    ],
+    "app.verifier.public_statement": [
+      2.282598,
+      2.61438,
+      3.822914
+    ],
+    "hash.verifier.gkr_and_statement": [
+      62.206903,
+      60.969795,
+      61.636675
+    ],
+    "hash.verifier.claim_combination": [
+      5.203251,
+      5.148437,
+      5.797774
+    ],
+    "hash.verifier.ring_switch": [
+      4.805315,
+      4.791208,
+      4.790879
+    ],
+    "hash.verifier.constraints": [
+      0.016661,
+      0.01076,
+      0.013334
+    ],
+    "hash.verifier.backend_and_cleanup": [
+      1.616399,
+      1.620277,
+      1.607853
+    ],
+    "app.verifier.hash_proof": [
+      73.884998,
+      72.577647,
+      73.904925
+    ],
+    "app.verifier.signature_inputs": [
+      0.014697,
+      0.012023,
+      0.011943
+    ],
+    "zk4.verifier.gkr_and_constraints": [
+      9.804212,
+      9.670853,
+      9.727258
+    ],
+    "zk4.verifier.backend_and_cleanup": [
+      31.655722,
+      31.660861,
+      31.668766
+    ],
+    "app.verifier.signature_proof": [
+      41.477096,
+      41.343116,
+      41.414689
+    ],
+    "app.verifier.cleanup": [
+      0.679363,
+      1.179521,
+      0.970519
+    ]
+  }
+}

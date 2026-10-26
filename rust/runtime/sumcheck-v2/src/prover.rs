@@ -82,6 +82,81 @@ pub(crate) fn prove_core<const W: usize, F: SerializableField + SupportsSampling
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
+    prove_core_with_kernel(w_layers, pads, circuit, transcript, f, &GenericKernel)
+}
+
+/// Numerical kernels vary independently of the masked transcript protocol.
+pub(super) trait ProverKernel<const W: usize, F: SerializableField + SupportsSampling<W>> {
+    #[allow(clippy::too_many_arguments)]
+    fn bind_r(
+        &self,
+        index: usize,
+        layer: &crate::core::proto::Layer<F>,
+        constants: &[F::E],
+        a: &[F::E],
+        assertions: &[F::E],
+        w: &[F::E],
+        f: &F,
+    ) -> Vec<F::E>;
+    #[allow(clippy::too_many_arguments)]
+    fn dot_product(
+        &self,
+        index: usize,
+        w: Vec<F::E>,
+        q: Vec<F::E>,
+        pads: &LayerProof<W, F>,
+        claim: F::E,
+        t: &mut Transcript,
+        f: &F,
+    ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E);
+}
+struct GenericKernel;
+impl<const W: usize, F: SerializableField + SupportsSampling<W>> ProverKernel<W, F>
+    for GenericKernel
+{
+    fn bind_r(
+        &self,
+        _: usize,
+        layer: &crate::core::proto::Layer<F>,
+        constants: &[F::E],
+        a: &[F::E],
+        assertions: &[F::E],
+        w: &[F::E],
+        f: &F,
+    ) -> Vec<F::E> {
+        bind_r(layer, constants, a, assertions, w, f)
+    }
+    fn dot_product(
+        &self,
+        _: usize,
+        w: Vec<F::E>,
+        q: Vec<F::E>,
+        pads: &LayerProof<W, F>,
+        claim: F::E,
+        t: &mut Transcript,
+        f: &F,
+    ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
+        prove_dot_product(w, q, pads, claim, t, f)
+    }
+}
+pub(super) fn prove_core_with_kernel<
+    const W: usize,
+    F: SerializableField + SupportsSampling<W>,
+    K: ProverKernel<W, F>,
+    I,
+>(
+    witnesses: I,
+    pads: &SumcheckProof<W, F>,
+    circuit: &crate::core::proto::circuit::Circuit<F>,
+    transcript: &mut Transcript,
+    f: &F,
+    kernel: &K,
+) -> (SumcheckProof<W, F>, Constraints<F::E>)
+where
+    I: IntoIterator<Item = Vec<F::E>>,
+    I::IntoIter: ExactSizeIterator,
+{
+    let w_layers = witnesses.into_iter();
     pads.validate(&SumcheckProofGeometry::from_circuit(circuit))
         .expect("pad shape mismatch");
     assert_eq!(w_layers.len(), circuit.raw.layers.len());
@@ -91,6 +166,7 @@ pub(crate) fn prove_core<const W: usize, F: SerializableField + SupportsSampling
     let mut layer_challenges = Vec::with_capacity(w_layers.len());
     for (layer_index, w) in w_layers.into_iter().enumerate() {
         let (proof, challenges, a_next, claim_next) = layer(
+            kernel,
             layer_index,
             w,
             &pads.layers[layer_index],
@@ -119,7 +195,8 @@ pub(crate) fn prove_core<const W: usize, F: SerializableField + SupportsSampling
 /// a_next and claim_next = sum_r a_next[r]*W[r].
 /// Assertion coefficients are sampled once and reused in both tensor bindings.
 #[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
+fn layer<const W: usize, F: SerializableField + SupportsSampling<W>, K: ProverKernel<W, F>>(
+    kernel: &K,
     layer_index: usize,
     w: Vec<F::E>,
     pads: &LayerProof<W, F>,
@@ -135,8 +212,9 @@ fn layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
     assert_eq!(w.len(), circuit_layer.nw(), "layer witness width mismatch");
 
     let assertions = assertion_weights(circuit_layer, constants, layer_index, transcript, f);
-    let q_l = bind_r(circuit_layer, constants, a, &assertions, &w, f);
-    let (proof, challenges, claim_next) = prove_dot_product(w, q_l, pads, claim, transcript, f);
+    let q_l = kernel.bind_r(layer_index, circuit_layer, constants, a, &assertions, &w, f);
+    let (proof, challenges, claim_next) =
+        kernel.dot_product(layer_index, w, q_l, pads, claim, transcript, f);
 
     // A + alpha*B = sum_r (m_l[r] + alpha*q_r[r])*W[r].
     let a_next = weights_next(
@@ -156,7 +234,7 @@ fn layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
 /// The final scalars A = W(u), B = q_l(u) must multiply to the last round claim.
 /// Return this layer's masked messages, sampled challenges, and the unmasked
 /// combined claim A + alpha*B for the next layer.
-fn prove_dot_product<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn prove_dot_product<const W: usize, F: SerializableField + SupportsSampling<W>>(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
     pads: &LayerProof<W, F>,
@@ -173,8 +251,21 @@ fn prove_dot_product<const W: usize, F: SerializableField + SupportsSampling<W>>
         rounds.push(m);
         point_l.push(z);
     }
+    finish_dot_product(&w, &q_l, pads, claim, rounds, point_l, transcript, f)
+}
+#[allow(clippy::too_many_arguments)]
+pub(super) fn finish_dot_product<const W: usize, F: SerializableField + SupportsSampling<W>>(
+    w: &[F::E],
+    q_l: &[F::E],
+    pads: &LayerProof<W, F>,
+    mut claim: F::E,
+    rounds: Vec<RoundPoly<W, F>>,
+    point_l: Vec<F::E>,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
-    let claims = [as_scalar::<W, F>(&w), as_scalar::<W, F>(&q_l)];
+    let claims = [as_scalar::<W, F>(w), as_scalar::<W, F>(q_l)];
     assert_eq!(
         claim,
         f.mulf(&claims[0], &claims[1]),
@@ -218,6 +309,19 @@ fn round<const W: usize, F: SerializableField + SupportsSampling<W>>(
     f: &F,
 ) -> (RoundPoly<W, F>, F::E, F::E) {
     let p = quad_round_poly(q_l, w, &claim, f);
+    let (m, z, claim_next) = mask_round(p, pads, claim, transcript, f);
+    bind(w, &z, f);
+    bind(q_l, &z, f);
+    (m, z, claim_next)
+}
+/// Shared masking, challenge sampling and claim update for every numerical kernel.
+pub(super) fn mask_round<const W: usize, F: SerializableField + SupportsSampling<W>>(
+    p: RoundPoly<W, F>,
+    pads: &RoundPoly<W, F>,
+    claim: F::E,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (RoundPoly<W, F>, F::E, F::E) {
     let mut m = p.clone();
     // The transcript receives m[j] = c_j - s_j for j = 0,1; p retains the
     // unmasked coefficients used to compute the next claim.
@@ -238,10 +342,6 @@ fn round<const W: usize, F: SerializableField + SupportsSampling<W>>(
     f.fma(&mut claim_next, &one_minus_z2, c0);
     f.fma(&mut claim_next, &z, c1);
 
-    // w'[i] = w[2i] + z*w[2i+1], q_l'[i] = q_l[2i] + z*q_l[2i+1].
-    // Their inner product is sum_i q_l'[i]*w'[i] = p(z) = claim'.
-    bind(w, &z, f);
-    bind(q_l, &z, f);
     (m, z, claim_next)
 }
 

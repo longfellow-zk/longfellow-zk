@@ -1,0 +1,30 @@
+Tensor-factorization diagnostic, 2026-10-26
+
+Fixture: same two-attribute compact v9 bundle as the benchmark.
+Prover randomness: DeterministicRng(42).
+Field: the runtime GF(2^128), polynomial x^128+x^7+x^2+x+1.
+Public inputs: 2004 bits.
+Private inputs: 282700 bits, 2209 packed rows, 128 columns.
+Matrix entry R[i,j]: coefficient of private bit 128*i+j.
+
+GKR terminal coefficients before combining the six MAC equations:
+  rank: 128
+  all pivots found in the first 128 rows
+GKR terminal coefficients after combining the six MAC equations:
+  rank: 128
+  all pivots found in the first 128 rows
+
+Method: exact Gaussian elimination over the runtime GF128 implementation.
+Each pivot is normalized by field inversion; subsequent rows are reduced
+by field multiply/XOR. No floating point or probabilistic rank estimation.
+Only public transcript-derived coefficients were inspected.
+
+The maximum possible rank is 128. Any exact decomposition
+R[i,j] = sum_(h=0..k-1) C[h,i]*D[h,j] therefore requires k >= 128
+for this transcript. This rules out a small exact tensor decomposition of
+these current terminal coefficients; it is not a lower bound for other
+algorithms or for a changed GKR protocol.
+
+The diagnostic proof passed normal verification. Temporary coefficient
+dump instrumentation was removed after the measurement. No protocol or
+production runtime behavior was changed by this diagnostic.

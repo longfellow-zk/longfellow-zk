@@ -66,16 +66,16 @@ fn push_input_attrs(
     }
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_input_hash(
-    gf2: &Gf2_128Field,
+fn build_input_hash<'a>(
+    mut builder: AssignmentBuilder<'a, Gf2_128Field>,
     attrs: &[RequestedAttribute],
     now_bytes: &[u8],
     macs: &[u128; 6],
     av: u128,
     suppress_doc_type_check: bool,
     expected_doc_type: &[u8],
-) -> Vec<Gf2_128> {
-    let mut builder = AssignmentBuilder::new(gf2);
+) -> AssignmentBuilder<'a, Gf2_128Field> {
+    let gf2 = builder.field;
     builder.push_elt(&gf2.one());
     for i in 0..K_TIMESTAMP_LEN {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
@@ -84,9 +84,9 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     push_input_attrs(&mut builder, attrs);
 
     for &m in macs {
-        builder.push_u128(m);
+        builder.push_mac_field(m);
     }
-    builder.push_u128(av);
+    builder.push_mac_field(av);
 
     let suppress_val = if suppress_doc_type_check {
         gf2.one()
@@ -99,7 +99,47 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     }
     builder.push_bits_len(expected_doc_type.len() as u64, K_ATTR_LEN_BITS);
 
-    builder.into_inner()
+    builder
+}
+
+pub(in crate::mdoc::runtime::v2) fn push_input_hash(
+    gf2: &Gf2_128Field,
+    attrs: &[RequestedAttribute],
+    now_bytes: &[u8],
+    macs: &[u128; 6],
+    av: u128,
+    suppress_doc_type_check: bool,
+    expected_doc_type: &[u8],
+) -> Vec<Gf2_128> {
+    build_input_hash(
+        AssignmentBuilder::new(gf2),
+        attrs,
+        now_bytes,
+        macs,
+        av,
+        suppress_doc_type_check,
+        expected_doc_type,
+    )
+    .into_inner()
+}
+#[cfg(feature = "experimental")]
+pub(in crate::mdoc::runtime::v2) fn push_input_hash_packed(
+    gf2: &Gf2_128Field,
+    attrs: &[RequestedAttribute],
+    now_bytes: &[u8],
+    suppress_doc_type_check: bool,
+    expected_doc_type: &[u8],
+) -> crate::core::bits::PackedBits {
+    build_input_hash(
+        AssignmentBuilder::new_packed(gf2),
+        attrs,
+        now_bytes,
+        &[0; 6],
+        0,
+        suppress_doc_type_check,
+        expected_doc_type,
+    )
+    .into_bits()
 }
 
 pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(

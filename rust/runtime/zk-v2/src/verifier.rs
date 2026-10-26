@@ -90,8 +90,13 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(), ZkVerificationError> {
         self.validate(public_inputs, proof)?;
+        #[cfg(feature = "bench-profile")]
+        let mut profile =
+            crate::util::profile::Timer::new(format!("zk{W}.verifier.gkr_and_constraints"));
         let (a, b, statement) =
             self.compile_constraints(public_inputs, proof, transcript, ctx.f)?;
+        #[cfg(feature = "bench-profile")]
+        profile.next(format!("zk{W}.verifier.backend_and_cleanup"));
         self.polygero
             .verify(
                 &b,

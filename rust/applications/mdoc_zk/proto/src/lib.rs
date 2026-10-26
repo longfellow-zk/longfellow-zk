@@ -15,5 +15,7 @@
 pub mod config;
 pub mod hash;
 pub mod mso_attribute;
+#[cfg(feature = "experimental")]
+pub mod packed;
 
 pub use config::*;

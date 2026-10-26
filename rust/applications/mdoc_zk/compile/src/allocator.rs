@@ -20,7 +20,7 @@ use crate::{
     compile::{
         algebra::field::CompileField,
         compiler::CompilerLogic,
-        logic::{Eltw, LogicIO},
+        logic::{Eltw, Logic, LogicIO},
     },
 };
 
@@ -28,6 +28,7 @@ pub struct WireAllocator<'l, 'a, FC: CompileField> {
     pub iologic: &'l CompilerLogic<'a, FC>,
     pub bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
     pub pos: usize,
+    packed: bool,
 }
 
 impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
@@ -40,23 +41,61 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
             iologic,
             bitvec_io,
             pos,
+            packed: false,
         }
     }
 
+    #[cfg(feature = "experimental")]
+    pub(super) fn new_packed(
+        iologic: &'l CompilerLogic<'a, FC>,
+        bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
+        pos: usize,
+    ) -> Self {
+        Self {
+            iologic,
+            bitvec_io,
+            pos,
+            packed: true,
+        }
+    }
     pub fn allocate_wire(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
         self.iologic.next(&mut self.pos)
+    }
+    /// V9's six pads and seven public MAC fields live outside the hash circuit.
+    pub(super) fn allocate_mac_wire(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
+        if self.packed {
+            self.iologic.zero()
+        } else {
+            self.allocate_wire()
+        }
     }
 
     pub fn allocate_bitvec<const N: usize>(
         &mut self,
     ) -> crate::circuits::bitvec::Bitvec<CompilerLogic<'a, FC>, N> {
-        self.bitvec_io.next::<N>(&mut self.pos)
+        if self.packed {
+            let boolean = crate::circuits::boolean::Boolean::new(self.iologic);
+            crate::circuits::bitvec::Bitvec::new(
+                (0..N)
+                    .map(|_| {
+                        // This allocator is used only with the authenticated v9 bit-input contract.
+                        let x = self.iologic.next(&mut self.pos);
+                        boolean.of_eltw_with_assertion(x, self.iologic.ok())
+                    })
+                    .collect(),
+            )
+        } else {
+            self.bitvec_io.next::<N>(&mut self.pos)
+        }
     }
 
     pub fn allocate_plucked_v8<const PLUCKER_WIDTH: usize>(
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
     ) -> (V8<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
+        if self.packed {
+            return (self.allocate_bitvec(), Vec::new());
+        }
         let n_packed = 8 / PLUCKER_WIDTH;
         let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
         let unpacked = plucker.unpack::<8>(&packed);
@@ -83,6 +122,9 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
     ) -> (V32<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
+        if self.packed {
+            return (self.allocate_bitvec(), Vec::new());
+        }
         let n_packed = 32 / PLUCKER_WIDTH;
         let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
         let unpacked = plucker.unpack::<32>(&packed);
@@ -96,6 +138,9 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         V128<CompilerLogic<'a, FC>>,
         Vec<Eltw<CompilerLogic<'a, FC>>>,
     ) {
+        if self.packed {
+            return (self.allocate_bitvec(), Vec::new());
+        }
         let n_packed = 128 / PLUCKER_WIDTH;
         let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
         let unpacked = plucker.unpack::<128>(&packed);
@@ -109,6 +154,9 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         V256<CompilerLogic<'a, FC>>,
         Vec<Eltw<CompilerLogic<'a, FC>>>,
     ) {
+        if self.packed {
+            return (self.allocate_bitvec(), Vec::new());
+        }
         let n_packed = 256 / PLUCKER_WIDTH;
         let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
         let unpacked = plucker.unpack::<256>(&packed);

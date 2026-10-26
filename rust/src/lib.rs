@@ -93,6 +93,8 @@ pub(crate) mod util;
 pub mod core {
     #[path = "algebra/src/lib.rs"]
     pub mod algebra;
+    #[path = "bits/src/lib.rs"]
+    pub mod bits;
     #[path = "proto/src/lib.rs"]
     pub mod proto;
 }
@@ -111,6 +113,8 @@ pub mod runtime {
     pub mod proto;
     #[path = "random/src/lib.rs"]
     pub mod random;
+    #[path = "ring-switch/src/lib.rs"]
+    pub mod ring_switch;
     #[path = "sumcheck-v1/src/lib.rs"]
     pub mod sumcheck_v1;
     #[path = "sumcheck-v2/src/lib.rs"]

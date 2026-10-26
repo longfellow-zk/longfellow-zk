@@ -61,7 +61,7 @@ pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableFiel
 /// Evaluate V[g] = sum_{l,r} QUAD[g,l,r]*W[l]*W[r] for ordinary quads.
 /// Here w holds W and the returned vector holds V. A zero term coefficient is
 /// an assertion marker: require W[l]*W[r] = 0 instead of accumulating an output.
-fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
     w: &[F::E],
     layer: &Layer<F>,
     constants: &[F::E],

@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::compile::algebra::field::{CompileBinaryField, CompileField, SupportsU64Conversions};
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::Boolean,
+    },
+    compile::{
+        algebra::field::{CompileBinaryField, CompileField, SupportsU64Conversions},
+        logic::Logic,
+    },
+};
 
 pub struct AnalogAdder<'a, L: Logic> {
     logic: &'a L,
@@ -40,9 +46,117 @@ impl<'a, L: Logic<F = F>, F: CompileField> AnalogAdder<'a, L> {
     where
         F: FieldWrappingSum,
     {
+        if self.logic.boolean_arithmetic() {
+            return self.assert_boolean_sum(expected, terms);
+        }
         self.logic
             .field()
             .assert_wrapping_sum(self, expected, terms)
+    }
+}
+
+impl<'a, L: Logic> AnalogAdder<'a, L> {
+    fn assert_boolean_sum<const N: usize>(
+        &self,
+        expected: &Bitvec<L, N>,
+        terms: &[&[Bitvec<L, N>]],
+    ) -> L::Assertions {
+        let mut work = terms
+            .iter()
+            .flat_map(|g| g.iter().cloned())
+            .collect::<Vec<_>>();
+        assert!(!work.is_empty());
+        #[cfg(feature = "experimental")]
+        if work.len() > 2 && self.logic.uses_witness_bits() {
+            let arith = crate::circuits::arithmetic::Arithmetic::new(self.logic);
+            let mut acc = work[0].clone();
+            let mut checks = Vec::new();
+            // Witness-assisted mode reuses the existing local carry relation.
+            let probe = arith.wrapping_add(acc.as_array(), work[1].as_array());
+            let computed = probe
+                .iter()
+                .map(|b| self.boolean.as_eltw(b))
+                .collect::<Vec<_>>();
+            if let Some(first_wires) = self.logic.witness_bits(&computed) {
+                let first_claimed = Bitvec::new(
+                    first_wires
+                        .into_iter()
+                        .map(|w| self.boolean.of_eltw_with_assertion(w, self.logic.ok()))
+                        .collect(),
+                );
+                checks.push(arith.assert_wrapping_add(
+                    first_claimed.as_array(),
+                    acc.as_array(),
+                    work[1].as_array(),
+                ));
+                acc = first_claimed;
+                for term in &work[2..work.len() - 1] {
+                    let sum = arith.wrapping_add(acc.as_array(), term.as_array());
+                    let values = sum
+                        .iter()
+                        .map(|b| self.boolean.as_eltw(b))
+                        .collect::<Vec<_>>();
+                    let wires = self
+                        .logic
+                        .witness_bits(&values)
+                        .expect("active Boolean witness policy");
+                    let claimed = Bitvec::new(
+                        wires
+                            .into_iter()
+                            .map(|w| self.boolean.of_eltw_with_assertion(w, self.logic.ok()))
+                            .collect(),
+                    );
+                    checks.push(arith.assert_wrapping_add(
+                        claimed.as_array(),
+                        acc.as_array(),
+                        term.as_array(),
+                    ));
+                    acc = claimed;
+                }
+                checks.push(arith.assert_wrapping_add(
+                    expected.as_array(),
+                    acc.as_array(),
+                    work.last().unwrap().as_array(),
+                ));
+                return self.logic.assert_all("Boolean_partial_sums", &checks);
+            }
+        }
+        // Carry-save compression keeps each stage Boolean and reduces the term count.
+        while work.len() > 2 {
+            let mut next = Vec::new();
+            for chunk in work.chunks(3) {
+                if chunk.len() != 3 {
+                    next.extend_from_slice(chunk);
+                    continue;
+                }
+                let sum = self.bv.xor3(&chunk[0], &chunk[1], &chunk[2]);
+                let carry = self.bv.maj(&chunk[0], &chunk[1], &chunk[2]);
+                next.push(Bitvec::new(
+                    sum.iter().map(|b| self.boolean.precious(b)).collect(),
+                ));
+                next.push(Bitvec::new(
+                    (0..N)
+                        .map(|i| {
+                            if i == 0 {
+                                self.boolean.falseb()
+                            } else {
+                                self.boolean.precious(carry.bit(i - 1))
+                            }
+                        })
+                        .collect(),
+                ));
+            }
+            work = next;
+        }
+        if work.len() == 1 {
+            self.bv.assert_eq("boolean_sum", expected, &work[0])
+        } else {
+            crate::circuits::arithmetic::Arithmetic::new(self.logic).assert_wrapping_add(
+                expected.as_array(),
+                work[0].as_array(),
+                work[1].as_array(),
+            )
+        }
     }
 }
 

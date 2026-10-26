@@ -27,6 +27,11 @@
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
 mod context;
+#[cfg(all(
+    feature = "experimental",
+    any(test, feature = "prover", feature = "verifier")
+))]
+pub mod packed;
 pub use context::ZkContext;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraint_compiler;

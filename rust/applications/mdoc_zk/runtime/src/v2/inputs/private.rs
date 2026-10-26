@@ -37,14 +37,12 @@ use crate::{
     },
 };
 
-pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
-    gf2: &Gf2_128Field,
+fn build_witness_hash<'a, N: Nat<4>>(
+    mut builder: AssignmentBuilder<'a, Gf2_128Field>,
     req_attrs: &[RequestedAttribute],
     parsed: &ParsedMdoc<N>,
     mac_ap: &[[u128; 2]; 3],
-) -> Result<Vec<Gf2_128>, MdocProverErrorCode> {
-    let mut builder = AssignmentBuilder::new(gf2);
-
+) -> Result<AssignmentBuilder<'a, Gf2_128Field>, MdocProverErrorCode> {
     // 1. issuer_sig_digest (plucked V256)
     builder.push_nat256(&parsed.issuer_sig_digest);
 
@@ -103,11 +101,35 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     builder.push_sha256msg_derived(&mso_sha_derived);
 
     for pair in mac_ap {
-        builder.push_u128(pair[0]);
-        builder.push_u128(pair[1]);
+        builder.push_mac_field(pair[0]);
+        builder.push_mac_field(pair[1]);
     }
 
-    Ok(builder.into_inner())
+    Ok(builder)
+}
+
+pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
+    gf2: &Gf2_128Field,
+    req_attrs: &[RequestedAttribute],
+    parsed: &ParsedMdoc<N>,
+    mac_ap: &[[u128; 2]; 3],
+) -> Result<Vec<Gf2_128>, MdocProverErrorCode> {
+    Ok(build_witness_hash(AssignmentBuilder::new(gf2), req_attrs, parsed, mac_ap)?.into_inner())
+}
+#[cfg(feature = "experimental")]
+pub(in crate::mdoc::runtime::v2) fn push_witness_hash_packed<N: Nat<4>>(
+    gf2: &Gf2_128Field,
+    req_attrs: &[RequestedAttribute],
+    parsed: &ParsedMdoc<N>,
+    mac_ap: &[[u128; 2]; 3],
+) -> Result<crate::core::bits::PackedBits, MdocProverErrorCode> {
+    Ok(build_witness_hash(
+        AssignmentBuilder::new_packed(gf2),
+        req_attrs,
+        parsed,
+        mac_ap,
+    )?
+    .into_bits())
 }
 
 fn push_witness_attrs<N: Nat<4>>(

@@ -27,6 +27,10 @@ verification commands. These results do not constitute source-level
 verification of the Rust or C++ implementation; full V2 joint-view zero
 knowledge remains open.
 
+The experimental [Rust packed-v9 path](rust/README.md#experimental-packed-v9)
+adds standalone ring switching and Boolean prover/compiler variants. It keeps
+NEXT at v8. The bounds above do not cover this new composition.
+
 # Specifications
 This repository contains [the working files](https://github.com/longfellow-zk/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.
 If you are interested in contributing, please create an Issue or a Pull Request. Our discussions occur under Issues.

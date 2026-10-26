@@ -26,3 +26,8 @@ cfg_prover! {
 #[cfg(test)]
 #[path = "../../../tests/v2_inputs.rs"]
 mod tests;
+
+#[cfg(all(feature = "experimental", any(test, feature = "prover")))]
+pub(super) use private::push_witness_hash_packed;
+#[cfg(feature = "experimental")]
+pub(super) use public::push_input_hash_packed;

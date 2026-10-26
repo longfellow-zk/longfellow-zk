@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{Eltw, Logic};
-use crate::util::array::{init, map, map2, map3, tree_fold, tree_fold2};
+use crate::{
+    circuits::boolean::{Bitw, Boolean},
+    compile::{
+        algebra::field::CompileField,
+        logic::{Eltw, Logic},
+    },
+    util::array::{init, map, map2, map3, tree_fold, tree_fold2},
+};
 
 type PrefixOp<'a, L> = dyn Fn(&(Bitw<L>, Bitw<L>), &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) + 'a;
 
@@ -51,6 +55,11 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         assert_eq!(a.len(), b.len(), "assert_eq: slice lengths must match");
 
         let n = a.len();
+        if self.logic.boolean_arithmetic() {
+            return self.logic.assert_mapi(name, 0..n, |i| {
+                self.boolean.assert_eq("bit_eq", &a[i], &b[i])
+            });
+        }
         if n == 0 {
             return self.logic.ok();
         }

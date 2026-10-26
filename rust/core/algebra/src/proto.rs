@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Raw GF128 polynomial-coordinate packing, distinct from tensor packing.
+pub const GF2_128_POLYNOMIAL_PACKING_ID: u8 = 2;
+
 pub const POLY_EVALUATION_POINTS: [u128; 6] = [
     0x0000_0000_0000_0000_0000_0000_0000_0000,
     0x0000_0000_0000_0000_0000_0000_0000_0001,

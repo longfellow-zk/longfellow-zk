@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::core::algebra::ElementOf;
+use crate::{compile::algebra::field::CompileField, core::algebra::ElementOf};
 
 pub const K_FIRST_WIRE_POSITION: usize = 1;
 
@@ -23,6 +22,18 @@ pub trait Logic {
     type Assertions: Clone;
 
     fn field(&self) -> &Self::F;
+    /// Explicit compiler policy; ordinary callers retain compact field arithmetic.
+    fn boolean_arithmetic(&self) -> bool {
+        false
+    }
+    #[cfg(feature = "experimental")]
+    fn uses_witness_bits(&self) -> bool {
+        false
+    }
+    #[cfg(feature = "experimental")]
+    fn witness_bits(&self, _computed: &[Self::Wire]) -> Option<Vec<Self::Wire>> {
+        None
+    }
 
     fn zero(&self) -> Self::Wire;
     fn one(&self) -> Self::Wire;
