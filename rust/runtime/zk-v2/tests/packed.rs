@@ -136,9 +136,9 @@ fn end_to_end_packed_commitment_and_adversarial_changes() {
         verifier.verify(inputs, claims, p, &mut v, &ctx)
     };
     verify(&decoded, &public, &extra).unwrap();
-    for level in 0..crate::runtime::ring_switch::RING_MESSAGES {
+    for level in 0..crate::runtime::dual_packing::DUAL_PACKING_MESSAGES {
         let mut bad = decoded.clone();
-        bad.ring_proof.messages[level].xor_in_place(&f.one());
+        bad.dual_packing_proof.messages[level].xor_in_place(&f.one());
         assert!(verify(&bad, &public, &extra).is_err());
     }
     let mut bad = decoded.clone();

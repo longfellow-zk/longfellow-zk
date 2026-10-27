@@ -350,7 +350,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::zk_v2", "runtime/zk-v2/src"),
         ("runtime::ligero", "runtime/ligero/src"),
         ("runtime::polygero", "runtime/polygero/src"),
-        ("runtime::ring_switch", "runtime/ring-switch/src"),
+        ("runtime::dual_packing", "runtime/dual-packing/src"),
         ("runtime::zk_v1", "runtime/zk-v1/src"),
         ("compile::algebra", "compile/algebra/src"),
         ("compile::proto", "compile/proto/src"),
@@ -478,10 +478,10 @@ fn test_sumcheck_protocol_dependencies() {
     }
 }
 
-/// Ring switching is a standalone reduction with backend-neutral claims.
+/// Dual packing is a standalone reduction with backend-neutral claims.
 #[test]
-fn test_ring_switch_protocol_dependencies() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/ring-switch/src");
+fn test_dual_packing_protocol_dependencies() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/dual-packing/src");
     let mut files = Vec::new();
     collect_rs_files(&root, &mut files);
     for file in files {
@@ -495,9 +495,9 @@ fn test_ring_switch_protocol_dependencies() {
                         | "runtime::algebra"
                         | "runtime::proto"
                         | "runtime::random"
-                        | "runtime::ring_switch"
+                        | "runtime::dual_packing"
                 ),
-                "ring-switch dependency in {}: {dep}",
+                "dual-packing dependency in {}: {dep}",
                 file.display()
             );
         }
@@ -515,7 +515,7 @@ fn test_ring_switch_protocol_dependencies() {
                         | "mdoc"
                         | "compile"
                 ),
-                "ring-switch boundary in {}: {word}",
+                "dual-packing boundary in {}: {word}",
                 file.display()
             );
         }

@@ -36,7 +36,7 @@
     "sha256": "a8a8563229d5674c6b76d89849075e3ae92cc739738055a59f6659d0a15b3df2",
     "old_and_new_verifiers_accept": true
   },
-  "ring_switch_medians": {
+  "dual_packing_medians": {
     "original_prover_ms": 46.487561,
     "optimized_prover_ms": 8.022003,
     "original_verifier_ms": 4.503636,
@@ -73,7 +73,7 @@
       5.270317,
       5.553306
     ],
-    "hash.prover.ring_switch": [
+    "hash.prover.dual_packing": [
       8.022003,
       8.171293,
       8.018015
@@ -138,7 +138,7 @@
       5.148437,
       5.797774
     ],
-    "hash.verifier.ring_switch": [
+    "hash.verifier.dual_packing": [
       4.805315,
       4.791208,
       4.790879

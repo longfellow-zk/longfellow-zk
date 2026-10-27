@@ -26,8 +26,8 @@ use crate::runtime::algebra::{
     gf2_128::{Gf2_128 as E, Gf2_128Field as F},
     AlgebraicField,
 };
-pub use crate::runtime::proto::ring_switch::{
-    RingSwitch128Proof, PACKING_BASIS_ID, RING_MASK_CELLS, RING_MESSAGES,
+pub use crate::runtime::proto::dual_packing::{
+    DualPacking128Proof, DUAL_PACKING_MASK_CELLS, DUAL_PACKING_MESSAGES, PACKING_BASIS_ID,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -41,7 +41,7 @@ impl AffineClaim {
         for &(i, k) in &self.terms {
             let x = auxiliary
                 .get(i)
-                .ok_or("ring auxiliary index out of range")?;
+                .ok_or("dual packing auxiliary index out of range")?;
             f.add(&mut value, &f.mulf(&k, x));
         }
         Ok(value)
@@ -62,12 +62,12 @@ impl BitLinearClaim {
             .iter()
             .any(|&(i, _)| i >= self.auxiliary_count)
         {
-            return Err("ring auxiliary index out of range".into());
+            return Err("dual packing auxiliary index out of range".into());
         }
         self.weights
             .len()
             .checked_add(127)
-            .ok_or("ring bit count overflow")?;
+            .ok_or("dual packing bit count overflow")?;
         Ok(())
     }
 }
@@ -77,7 +77,7 @@ pub struct PackedLinearClaim {
     pub weights: Vec<E>,
     pub rhs: AffineClaim,
     pub offset: E,
-    pub mask_weights: [E; RING_MESSAGES],
+    pub mask_weights: [E; DUAL_PACKING_MESSAGES],
     pub checksum_weight: E,
 }
 impl PackedLinearClaim {
@@ -85,11 +85,11 @@ impl PackedLinearClaim {
         &self,
         packed: &[E],
         auxiliary: &[E],
-        cells: &[E; RING_MASK_CELLS],
+        cells: &[E; DUAL_PACKING_MASK_CELLS],
         f: &F,
     ) -> Result<E, String> {
         if packed.len() != self.weights.len() {
-            return Err("ring packed word count mismatch".into());
+            return Err("dual packing packed word count mismatch".into());
         }
         let mut value = self.rhs.evaluate(auxiliary, f)?;
         f.add(&mut value, &self.offset);
@@ -101,13 +101,13 @@ impl PackedLinearClaim {
         }
         f.add(
             &mut value,
-            &f.mulf(&self.checksum_weight, &cells[RING_MESSAGES]),
+            &f.mulf(&self.checksum_weight, &cells[DUAL_PACKING_MESSAGES]),
         );
         Ok(value)
     }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-fn inverse_twists(beta: E, f: &F) -> [E; RING_MESSAGES] {
+fn inverse_twists(beta: E, f: &F) -> [E; DUAL_PACKING_MESSAGES] {
     let mut powers = [beta; 128];
     for t in 1..128 {
         powers[t] = f.mulf(&powers[t - 1], &powers[t - 1]);
@@ -118,9 +118,9 @@ fn inverse_twists(beta: E, f: &F) -> [E; RING_MESSAGES] {
 fn reconstruct(
     basis: &field::PolynomialBasis128,
     claim: &BitLinearClaim,
-    proof: &RingSwitch128Proof,
+    proof: &DualPacking128Proof,
     beta: E,
-    gamma: &[E; RING_MESSAGES],
+    gamma: &[E; DUAL_PACKING_MESSAGES],
     f: &F,
 ) -> PackedLinearClaim {
     // Psi(z)=z+sum_{s=1}^{127} gamma_s*z^(2^-s) is binary linear.
@@ -165,5 +165,5 @@ fn reconstruct(
 cfg_prover! { pub mod prover; }
 cfg_verifier! { pub mod verifier; }
 #[cfg(test)]
-#[path = "../tests/ring_switch.rs"]
+#[path = "../tests/dual_packing.rs"]
 mod tests;

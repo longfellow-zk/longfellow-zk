@@ -28,7 +28,7 @@ verification of the Rust or C++ implementation; full V2 joint-view zero
 knowledge remains open.
 
 The experimental [Rust packed-v9 path](rust/README.md#experimental-packed-v9)
-adds standalone ring switching and Boolean prover/compiler variants. It keeps
+adds standalone dual packing and Boolean prover/compiler variants. It keeps
 NEXT at v8. The bounds above do not cover this new composition.
 
 # Specifications

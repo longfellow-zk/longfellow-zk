@@ -16,15 +16,15 @@ use super::*;
 use crate::{
     core::bits::PackedBits,
     runtime::{
-        algebra::Subfield, polygero::PolygeroProver, proto::polygero::PolygeroCommitment,
-        ring_switch::prover::RingMaskValues, sumcheck_v2::SumcheckProof,
+        algebra::Subfield, dual_packing::prover::DualPackingMaskValues, polygero::PolygeroProver,
+        proto::polygero::PolygeroCommitment, sumcheck_v2::SumcheckProof,
     },
 };
 /// Owns the private bits used by both commitment and numerical GKR.
 pub struct PackedCommitment {
     bits: PackedBits,
     caller: Vec<E>,
-    masks: RingMaskValues,
+    masks: DualPackingMaskValues,
     pads: SumcheckProof<2, F>,
     polygero: PolygeroProver<2, F>,
     commitment: PolygeroCommitment,
@@ -45,9 +45,9 @@ impl PackedCircuit {
             return Err("packed witness shape mismatch".into());
         }
         let (geometry, param) = self.prepare(ctx)?;
-        let masks = RingMaskValues::sample(rng, ctx.f);
+        let masks = DualPackingMaskValues::sample(rng, ctx.f);
         let (pads, flat) = sumcheck_v2::sample_pads(&geometry.sc_geom, rng, ctx.f);
-        let mut witness = crate::runtime::ring_switch::field::pack(&bits);
+        let mut witness = crate::runtime::dual_packing::field::pack(&bits);
         witness.extend_from_slice(&caller);
         witness.extend(masks.cells());
         witness.extend(flat);
@@ -102,8 +102,8 @@ impl PackedCircuit {
         let pads = geometry.pad_layout(self.layout.gkr_start);
         let claim = self.claim(&constraints, public, extra, &pads, t, ctx.f)?;
         #[cfg(feature = "bench-profile")]
-        profile.next("hash.prover.ring_switch");
-        let (ring_proof, reduced) = crate::runtime::ring_switch::prover::reduce(
+        profile.next("hash.prover.dual_packing");
+        let (dual_packing_proof, reduced) = crate::runtime::dual_packing::prover::reduce(
             &self.basis,
             &claim,
             &state.bits,
@@ -124,7 +124,7 @@ impl PackedCircuit {
             .map_err(|e| e.to_string())?;
         Ok(PackedZkProof {
             sumcheck_proof,
-            ring_proof,
+            dual_packing_proof,
             com: state.commitment,
             com_proof,
         })

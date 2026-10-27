@@ -1,6 +1,6 @@
-# Flat trace ring switching (Rust prototype)
+# Flat trace dual packing (Rust prototype)
 
-`runtime::ring_switch` reduces arbitrary bit-linear claims to one native
+`runtime::dual_packing` reduces arbitrary bit-linear claims to one native
 GF128 linear relation. It uses the existing polynomial basis, with no tower
 construction and no inner sumcheck. It imports neither sumcheck nor Polygero.
 The caller must authenticate the returned relation against its original
@@ -75,6 +75,11 @@ This computation preserves the messages and transcript exactly. It uses
 fixed memory access patterns for witness data and no lookup tables.
 Public trace-dual basis state is explicitly owned by the caller.
 
+The transcript domain is `longfellow/dual-packing128/flat-trace/v1`.
+The naming update changes challenges and experimental v9 proof bytes.
+Earlier benchmark fingerprints describe their recorded transcript domain;
+the algebra, message layout and commitment geometry are unchanged.
+
 The tensor optimization in §4 of *Sumcheck bit packing* applies when the
 source weights have a small decomposition `R_i,j = sum_h C_h,i * D_h,j`.
 For one term, another possible compression is
@@ -102,6 +107,6 @@ v8's `LFV2` encoding and NEXT selection are unchanged.
 
 ```sh
 cd rust
-cargo test --release --lib --features experimental ring_switch
+cargo test --release --lib --features experimental dual_packing
 cargo test --release --lib --features experimental packed
 ```

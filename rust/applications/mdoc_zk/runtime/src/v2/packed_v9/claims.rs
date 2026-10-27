@@ -20,7 +20,7 @@ use crate::{
             gf2_128::{Gf2_128 as E, Gf2_128Field as F},
             AlgebraicField,
         },
-        ring_switch::AffineClaim,
+        dual_packing::AffineClaim,
         zk_v2::packed::AuxiliaryBitClaim,
     },
 };

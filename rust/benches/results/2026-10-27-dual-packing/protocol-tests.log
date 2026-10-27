@@ -1,0 +1,17 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 28.82s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-7a6cdf7d5a5426e5)
+
+running 10 tests
+test runtime::dual_packing::tests::entire_response_precedes_independent_batching_challenges ... ok
+test module_dag_tests::test_dual_packing_protocol_dependencies ... ok
+test runtime::dual_packing::tests::malformed_shapes_reject_without_changing_transcript ... ok
+test runtime::dual_packing::tests::incorrect_checksum_has_exact_randomized_error ... ok
+test runtime::dual_packing::tests::transposed_dual_coordinates_match_trace_pairing ... ok
+test runtime::dual_packing::tests::transposed_reconstruction_matches_dense_public_coefficients ... ok
+test runtime::dual_packing::tests::compressed_components_match_direct_linear_forms_and_original_bit_claim ... ok
+test runtime::dual_packing::tests::masked_reduction_and_verifier_transcript_agree ... ok
+test runtime::dual_packing::tests::polynomial_coordinates_and_trace_dual_basis ... ok
+test runtime::dual_packing::tests::changed_messages_context_auxiliaries_and_claims_fail ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 601 filtered out; finished in 0.05s

@@ -18,17 +18,17 @@ use std::io::{Error, ErrorKind, Result};
 
 use crate::runtime::algebra::gf2_128::Gf2_128;
 
-pub const RING_MESSAGES: usize = 127;
-pub const RING_MASK_CELLS: usize = 128;
-pub const RING_PROOF_BYTES: usize = 16 * RING_MESSAGES;
+pub const DUAL_PACKING_MESSAGES: usize = 127;
+pub const DUAL_PACKING_MASK_CELLS: usize = 128;
+pub const DUAL_PACKING_PROOF_BYTES: usize = 16 * DUAL_PACKING_MESSAGES;
 pub const PACKING_BASIS_ID: u32 = crate::core::algebra::proto::GF2_128_POLYNOMIAL_PACKING_ID as u32;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RingSwitch128Proof {
-    pub messages: [Gf2_128; RING_MESSAGES],
+pub struct DualPacking128Proof {
+    pub messages: [Gf2_128; DUAL_PACKING_MESSAGES],
 }
 
-impl RingSwitch128Proof {
+impl DualPacking128Proof {
     pub fn write_to_buf(&self, out: &mut Vec<u8>) {
         for value in &self.messages {
             out.extend_from_slice(&value.to_u128().to_le_bytes());
@@ -36,13 +36,13 @@ impl RingSwitch128Proof {
     }
 
     pub fn read(input: &mut &[u8]) -> Result<Self> {
-        if input.len() < RING_PROOF_BYTES {
+        if input.len() < DUAL_PACKING_PROOF_BYTES {
             return Err(Error::new(
                 ErrorKind::UnexpectedEof,
-                "127 flat ring messages required",
+                "127 flat dual packing messages required",
             ));
         }
-        let mut messages = [Gf2_128::default(); RING_MESSAGES];
+        let mut messages = [Gf2_128::default(); DUAL_PACKING_MESSAGES];
         for message in &mut messages {
             *message = Gf2_128::from(u128::from_le_bytes(input[..16].try_into().unwrap()));
             *input = &input[16..];
@@ -51,10 +51,10 @@ impl RingSwitch128Proof {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() != RING_PROOF_BYTES {
+        if bytes.len() != DUAL_PACKING_PROOF_BYTES {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                "ring proof length mismatch",
+                "dual packing proof length mismatch",
             ));
         }
         Self::read(&mut &bytes[..])

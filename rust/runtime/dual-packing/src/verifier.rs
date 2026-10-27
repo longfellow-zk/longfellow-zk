@@ -13,12 +13,12 @@
 // limitations under the License.
 
 //! Reconstruct one native linear equation after the entire flat response is bound.
-use super::{field::PolynomialBasis128, BitLinearClaim, PackedLinearClaim, RingSwitch128Proof};
+use super::{field::PolynomialBasis128, BitLinearClaim, DualPacking128Proof, PackedLinearClaim};
 use crate::runtime::{algebra::gf2_128::Gf2_128Field, random::Transcript};
 pub fn reduce(
     basis: &PolynomialBasis128,
     claim: &BitLinearClaim,
-    proof: &RingSwitch128Proof,
+    proof: &DualPacking128Proof,
     context: &[u8],
     ts: &mut Transcript,
     f: &Gf2_128Field,

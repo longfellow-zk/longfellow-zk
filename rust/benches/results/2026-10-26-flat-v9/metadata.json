@@ -62,7 +62,7 @@
         "packed_inputs": 2209,
         "committed_cells": 2945,
         "caller_auxiliaries": 6,
-        "ring_cells": 128,
+        "dual_packing_cells": 128,
         "gkr_pad_cells": 602,
         "products": 20
       }

@@ -1,12 +1,17 @@
 # Flat-trace v9 benchmark, 2026-10-26
 
+The dual packing naming update changes the experimental transcript domain.
+Timings and proof fingerprints below describe these historical runs. Phase
+names have been updated consistently; current proof checks are recorded in
+[the naming validation](../2026-10-27-dual-packing/README.md).
+
 Two attributes; compact analog compiler and reference numerical kernel.
 Three pinned-CPU samples, with allocation tracking disabled.
 
 The later dense-transpose optimization retains one-hand GKR and produces
 exactly the same proof bytes. Its three-sample medians are **209.352 ms
 prover**, **122.446 ms verifier**, **185,268 B**. The separately profiled
-ring-switch phase falls from **46.488 ms to 8.022 ms** on the prover;
+dual-packing phase falls from **46.488 ms to 8.022 ms** on the prover;
 the verifier phase is 4.791 ms (previously 4.504 ms). The main improvement
 is in prover computation. The isolated response computation falls from
 about 42.1 ms to 1.63 ms on the same public coefficients and random bits.
@@ -77,7 +82,7 @@ The run with median total prover and verifier time had:
 | Phase | Prover | Verifier |
 |---|---:|---:|
 | Hash GKR and statement | 120.3 ms | 60.8 ms |
-| Ring switching | 46.4 ms | 4.5 ms |
+| Dual packing | 46.4 ms | 4.5 ms |
 | Signature GKR and constraints | 33.9 ms | 9.8 ms |
 | Polygero backends | 11.0 ms | 33.4 ms |
 | Commitments | 22.9 ms | — |
@@ -91,5 +96,5 @@ in the ordinary timing measurements above.
 The [factoring diagnostic](factoring.txt) finds rank 128 in the actual
 terminal GKR coefficient matrix, with and without the MAC equations. The
 paper's small-tensor optimization does not apply directly. The dense binary
-transpose described in the [adapter documentation](../../../runtime/ring-switch/README.md)
+transpose described in the [adapter documentation](../../../runtime/dual-packing/README.md)
 accelerates these full-rank coefficients while retaining one-hand GKR.

@@ -12,7 +12,7 @@
       "verifier_ms": 61.926777
     },
     {
-      "phase": "Ring switching",
+      "phase": "Dual packing",
       "prover_ms": 46.487561,
       "verifier_ms": 4.503636
     },
@@ -68,7 +68,7 @@
       5.446815,
       5.223997
     ],
-    "hash.prover.ring_switch": [
+    "hash.prover.dual_packing": [
       46.948487,
       46.400789,
       46.487561
@@ -133,7 +133,7 @@
       5.252019,
       5.424413
     ],
-    "hash.verifier.ring_switch": [
+    "hash.verifier.dual_packing": [
       4.504648,
       4.499108,
       4.503636

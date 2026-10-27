@@ -15,7 +15,8 @@
 //! One masked response; no inner sumcheck and no tower-field operations.
 use super::{
     field::{self, PolynomialBasis128},
-    BitLinearClaim, PackedLinearClaim, RingSwitch128Proof, RING_MASK_CELLS, RING_MESSAGES,
+    BitLinearClaim, DualPacking128Proof, PackedLinearClaim, DUAL_PACKING_MASK_CELLS,
+    DUAL_PACKING_MESSAGES,
 };
 use crate::{
     core::bits::PackedBits,
@@ -28,11 +29,11 @@ use crate::{
     },
 };
 
-pub struct RingMaskValues {
-    random: [E; RING_MESSAGES],
+pub struct DualPackingMaskValues {
+    random: [E; DUAL_PACKING_MESSAGES],
     checksum: E,
 }
-impl RingMaskValues {
+impl DualPackingMaskValues {
     pub fn sample(rng: &mut impl RandomEngine, f: &F) -> Self {
         let random = std::array::from_fn(|_| E::from(rng.u128()));
         let mut checksum = f.zero();
@@ -41,9 +42,9 @@ impl RingMaskValues {
         }
         Self { random, checksum }
     }
-    pub fn cells(&self) -> [E; RING_MASK_CELLS] {
+    pub fn cells(&self) -> [E; DUAL_PACKING_MASK_CELLS] {
         std::array::from_fn(|i| {
-            if i < RING_MESSAGES {
+            if i < DUAL_PACKING_MESSAGES {
                 self.random[i]
             } else {
                 self.checksum
@@ -60,9 +61,9 @@ pub(super) fn components(
     weights: &[E],
     bits: &PackedBits,
     f: &F,
-) -> [E; RING_MESSAGES] {
+) -> [E; DUAL_PACKING_MESSAGES] {
     if weights.is_empty() {
-        return [f.zero(); RING_MESSAGES];
+        return [f.zero(); DUAL_PACKING_MESSAGES];
     }
     let mut accum = std::array::from_fn::<_, 128, _>(|_| f.zero_accum());
     for (i, row) in weights.chunks(128).enumerate() {
@@ -74,7 +75,7 @@ pub(super) fn components(
     }
     // All dual basis elements share the denominator P'(x)=x^6+1.
     let z = accum.map(|a| f.mulf(&basis.dual(127), &f.accum_reduce(&a)));
-    let mut values = [f.zero(); RING_MESSAGES];
+    let mut values = [f.zero(); DUAL_PACKING_MESSAGES];
     let mut point = E::from(2); // beta_h=x^h, so evaluate Z(T) at x^(2^-s).
     for t in 1..128 {
         point = f.mulf(&point, &point);
@@ -90,19 +91,19 @@ pub fn reduce(
     basis: &PolynomialBasis128,
     claim: &BitLinearClaim,
     bits: &PackedBits,
-    masks: RingMaskValues,
+    masks: DualPackingMaskValues,
     context: &[u8],
     ts: &mut Transcript,
     f: &F,
-) -> Result<(RingSwitch128Proof, PackedLinearClaim), String> {
+) -> Result<(DualPacking128Proof, PackedLinearClaim), String> {
     claim.validate()?;
     if bits.len() != claim.weights.len() {
-        return Err("ring logical bit count mismatch".into());
+        return Err("dual packing logical bit count mismatch".into());
     }
     let beta = super::transcript::begin(claim, context, ts, f);
     let values = components(basis, &claim.weights, bits, f);
     let alpha = super::inverse_twists(beta, f);
-    let proof = RingSwitch128Proof {
+    let proof = DualPacking128Proof {
         messages: std::array::from_fn(|i| f.addf(&values[i], &f.mulf(&alpha[i], &masks.random[i]))),
     };
     let gamma = super::transcript::batch(&proof, ts, f);

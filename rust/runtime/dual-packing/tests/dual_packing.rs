@@ -17,8 +17,9 @@ use super::{
     field::{
         dual_coordinate_numerators, frobenius, pack, select_bit, trace, unpack, PolynomialBasis128,
     },
-    prover::{self, RingMaskValues},
-    verifier, AffineClaim, BitLinearClaim, RingSwitch128Proof, RING_MASK_CELLS, RING_MESSAGES,
+    prover::{self, DualPackingMaskValues},
+    verifier, AffineClaim, BitLinearClaim, DualPacking128Proof, DUAL_PACKING_MASK_CELLS,
+    DUAL_PACKING_MESSAGES,
 };
 use crate::{
     core::{algebra::AlgebraicField, bits::PackedBits},
@@ -120,7 +121,7 @@ fn transposed_reconstruction_matches_dense_public_coefficients() {
     let mut rng = DeterministicRng::new(815);
     let gamma = std::array::from_fn(|_| Gf2_128::from(rng.u128()));
     let beta = Gf2_128::from(rng.u128());
-    let proof = RingSwitch128Proof {
+    let proof = DualPacking128Proof {
         messages: std::array::from_fn(|_| Gf2_128::from(rng.u128())),
     };
     for n in [0, 1, 127, 128, 129, 257, 513] {
@@ -154,11 +155,11 @@ fn entire_response_precedes_independent_batching_challenges() {
     let mut b = a.clone();
     let beta = super::transcript::begin(&claim, b"", &mut a, &f);
     assert_eq!(beta, super::transcript::begin(&claim, b"", &mut b, &f));
-    let proof = RingSwitch128Proof {
-        messages: [f.zero(); RING_MESSAGES],
+    let proof = DualPacking128Proof {
+        messages: [f.zero(); DUAL_PACKING_MESSAGES],
     };
     let mut bad = proof.clone();
-    bad.messages[RING_MESSAGES - 1] = f.one();
+    bad.messages[DUAL_PACKING_MESSAGES - 1] = f.one();
     let ga = super::transcript::batch(&proof, &mut a, &f);
     let gb = super::transcript::batch(&bad, &mut b, &f);
     assert_ne!(ga[0], gb[0]);
@@ -174,8 +175,8 @@ fn case(
     BitLinearClaim,
     PackedBits,
     Vec<Gf2_128>,
-    RingMaskValues,
-    [Gf2_128; RING_MASK_CELLS],
+    DualPackingMaskValues,
+    [Gf2_128; DUAL_PACKING_MASK_CELLS],
 ) {
     let f = Gf2_128Field::new();
     let mut rng = DeterministicRng::new(seed);
@@ -195,7 +196,7 @@ fn case(
         auxiliary_count: 3,
         rhs: AffineClaim { constant, terms },
     };
-    let masks = RingMaskValues::sample(&mut rng, &f);
+    let masks = DualPackingMaskValues::sample(&mut rng, &f);
     let cells = masks.cells();
     (claim, bits, auxiliary, masks, cells)
 }
@@ -205,7 +206,7 @@ fn masked_reduction_and_verifier_transcript_agree() {
     let f = Gf2_128Field::new();
     for n in [0, 1, 2, 7, 8, 127, 128, 129, 255, 257, 513] {
         let (claim, bits, auxiliary, masks, cells) = case(n, 100 + n as u64);
-        let mut pt = Transcript::new(b"standalone ring test");
+        let mut pt = Transcript::new(b"standalone dual packing test");
         let mut vt = pt.clone();
         let (proof, output) = prover::reduce(
             &PolynomialBasis128::new(&f),
@@ -237,7 +238,7 @@ fn masked_reduction_and_verifier_transcript_agree() {
         let mut bytes = Vec::new();
         proof.write_to_buf(&mut bytes);
         assert_eq!(bytes.len(), 2032);
-        assert_eq!(RingSwitch128Proof::from_bytes(&bytes).unwrap(), proof);
+        assert_eq!(DualPacking128Proof::from_bytes(&bytes).unwrap(), proof);
     }
 }
 
@@ -248,7 +249,7 @@ fn incorrect_checksum_has_exact_randomized_error() {
     let delta = Gf2_128::from(123);
     let checksum_error = Gf2_128::from(456);
     f.add(&mut claim.rhs.constant, &delta);
-    f.add(&mut cells[RING_MESSAGES], &checksum_error);
+    f.add(&mut cells[DUAL_PACKING_MESSAGES], &checksum_error);
     let (_, output) = prover::reduce(
         &PolynomialBasis128::new(&f),
         &claim,
@@ -285,7 +286,7 @@ fn changed_messages_context_auxiliaries_and_claims_fail() {
         &f,
     )
     .unwrap();
-    for j in 0..RING_MESSAGES {
+    for j in 0..DUAL_PACKING_MESSAGES {
         let mut bad = proof.clone();
         f.add(&mut bad.messages[j], &f.one());
         let out = verifier::reduce(
@@ -350,7 +351,7 @@ fn changed_messages_context_auxiliaries_and_claims_fail() {
 #[test]
 fn malformed_shapes_reject_without_changing_transcript() {
     for len in [0, 112, 2031, 2033, 2048] {
-        assert!(RingSwitch128Proof::from_bytes(&vec![0; len]).is_err());
+        assert!(DualPacking128Proof::from_bytes(&vec![0; len]).is_err());
     }
     let f = Gf2_128Field::new();
     let (mut claim, bits, _, masks, _) = case(7, 9);

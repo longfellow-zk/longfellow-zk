@@ -240,7 +240,7 @@ participates in the combined identity. Bundle creation/cache loading verifies
 circuit payload IDs; runtime invocations use the same trusted-archive premise
 as v8 and check the manifest and declared identities. Six polynomial-basis
 MAC equations are combined after hash GKR and reduced with the final input claim by
-[standalone flat trace ring switching](runtime/ring-switch/README.md). It uses
+[standalone flat trace dual packing](runtime/dual-packing/README.md). It uses
 127 masked response fields and 128 committed mask/checksum cells, with no
 tower construction or inner sumcheck. The hash proof
 uses `LFB2`; the signature proof retains `LFV2`.
@@ -254,7 +254,7 @@ or Boolean windows 1–4; fixed randomness produces identical proof bytes
 within a compiler variant. No variant is selected automatically.
 
 This is a Rust prototype. The existing v8 security bound does not cover the
-new ring-switch composition. Joint zero knowledge, composed Fiat–Shamir
+new dual-packing composition. Joint zero knowledge, composed Fiat–Shamir
 soundness, and Lean formalization remain open gates before production use.
 
 The v9 benchmark emits interleaved raw CSV samples and reports medians.

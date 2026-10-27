@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Fix the entire incoming affine claim before beta; fix all messages before gamma.
-use super::{BitLinearClaim, RingSwitch128Proof, PACKING_BASIS_ID, RING_MESSAGES};
+use super::{BitLinearClaim, DualPacking128Proof, DUAL_PACKING_MESSAGES, PACKING_BASIS_ID};
 use crate::runtime::{
     algebra::{
         gf2_128::{Gf2_128 as E, Gf2_128Field as F},
@@ -22,7 +22,7 @@ use crate::runtime::{
     random::{RandomEngine, Transcript},
 };
 pub(super) fn begin(claim: &BitLinearClaim, context: &[u8], ts: &mut Transcript, f: &F) -> E {
-    ts.write_bytes(b"longfellow/ring-switch128/flat-trace/v1");
+    ts.write_bytes(b"longfellow/dual-packing128/flat-trace/v1");
     ts.write_bytes(context);
     ts.write_bytes(&PACKING_BASIS_ID.to_le_bytes());
     ts.write_elt_field_slice(&claim.weights, f);
@@ -41,7 +41,11 @@ pub(super) fn begin(claim: &BitLinearClaim, context: &[u8], ts: &mut Transcript,
         }
     }
 }
-pub(super) fn batch(proof: &RingSwitch128Proof, ts: &mut Transcript, f: &F) -> [E; RING_MESSAGES] {
+pub(super) fn batch(
+    proof: &DualPacking128Proof,
+    ts: &mut Transcript,
+    f: &F,
+) -> [E; DUAL_PACKING_MESSAGES] {
     ts.write_bytes(b"flat128/entire-response");
     ts.write_elt_field_slice(&proof.messages, f);
     ts.write_bytes(b"flat128/independent-gamma");

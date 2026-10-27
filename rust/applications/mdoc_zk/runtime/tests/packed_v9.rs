@@ -127,7 +127,7 @@ fn manifest_codec_and_polynomial_mac_basis() {
                 gf2_128::{Gf2_128 as E, Gf2_128Field as F},
                 AlgebraicField,
             },
-            ring_switch::field::pack,
+            dual_packing::field::pack,
         },
     };
     let manifest = HashInputManifest {
@@ -187,7 +187,7 @@ fn manifest_codec_and_polynomial_mac_basis() {
     for claim in claims {
         let mut lhs = f.zero();
         for (i, k) in claim.weights.iter().enumerate() {
-            lhs.xor_in_place(&crate::runtime::ring_switch::field::select_bit(
+            lhs.xor_in_place(&crate::runtime::dual_packing::field::select_bit(
                 *k,
                 bits.get(i),
             ));

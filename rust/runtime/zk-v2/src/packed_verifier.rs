@@ -74,11 +74,11 @@ impl PackedVerifier {
             .protocol
             .claim(&constraints, public, extra, &pads, t, ctx.f)?;
         #[cfg(feature = "bench-profile")]
-        profile.next("hash.verifier.ring_switch");
-        let reduced = crate::runtime::ring_switch::verifier::reduce(
+        profile.next("hash.verifier.dual_packing");
+        let reduced = crate::runtime::dual_packing::verifier::reduce(
             &self.protocol.basis,
             &claim,
-            &proof.ring_proof,
+            &proof.dual_packing_proof,
             &self.protocol.contract,
             t,
             ctx.f,
