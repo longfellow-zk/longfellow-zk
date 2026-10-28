@@ -109,7 +109,7 @@ fn test_poly_evaluation_p256() {
 #[test]
 fn test_poly_evaluation_gf2_128() {
     let f = Gf2_128RuntimeField::new();
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     test_poly_evaluation_generic(&f, sf.embed(5), sf.embed(10), sf.embed(20), sf.embed(15));

@@ -65,7 +65,7 @@ impl<'a> LigeroVerifier<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn verify<
         const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling<W>,
+        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling,
         IF: RangeInterpolatorFactory<W, F>,
     >(
         &mut self,

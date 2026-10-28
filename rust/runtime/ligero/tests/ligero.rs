@@ -15,8 +15,8 @@ use std::cell::Cell;
 // limitations under the License.
 use crate::runtime::algebra::{
     gf2_128::Gf2_128RuntimeField, range_interpolation::BinaryInterpolatorFactory,
-    subfield::BinarySubfield, ElementOf, InterpolationPlan, RangeInterpolatorFactory, RuntimeField,
-    Subfield, SupportsSampling,
+    subfield_v1::BinarySubfield, ElementOf, InterpolationPlan, RangeInterpolatorFactory,
+    RuntimeField, SubfieldV1, SupportsSampling,
 };
 use crate::{
     core::algebra::SerializableField,
@@ -109,9 +109,9 @@ impl<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>
 #[allow(clippy::too_many_arguments)]
 fn ligero_test<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
-    SF: Subfield<E = ElementOf<F>>,
+    SF: SubfieldV1<E = ElementOf<F>>,
 >(
     make_interpolator: &IF,
     f: &F,
@@ -272,9 +272,9 @@ fn ligero_test<
 
 fn test_ligero_verifier_failures_generic<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
-    SF: Subfield<E = ElementOf<F>>,
+    SF: SubfieldV1<E = ElementOf<F>>,
 >(
     make_interpolator: &IF,
     f: &F,
@@ -555,7 +555,7 @@ fn test_rejects_insufficient_blinding_capacity() {
 #[test]
 fn test_ligero_gf2_128() {
     let f = Gf2_128RuntimeField::new();
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator = BinaryInterpolatorFactory::new(&f, &sf);
@@ -844,7 +844,7 @@ fn test_cpp_roundtrip_gf2_128() {
         &make_interpolator,
     );
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     // 1. Deserialize C++ proof using Rust's reader

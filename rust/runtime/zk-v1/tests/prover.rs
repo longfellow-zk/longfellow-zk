@@ -23,7 +23,7 @@ use crate::{
     },
     runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     },
 };
 

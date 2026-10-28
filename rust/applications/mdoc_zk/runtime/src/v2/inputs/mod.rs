@@ -28,6 +28,6 @@ cfg_prover! {
 mod tests;
 
 #[cfg(all(feature = "experimental", any(test, feature = "prover")))]
-pub(super) use private::push_witness_hash_packed;
+pub(super) use private::push_witness_hash_boolean;
 #[cfg(feature = "experimental")]
-pub(super) use public::push_input_hash_packed;
+pub(super) use public::push_input_hash_boolean;

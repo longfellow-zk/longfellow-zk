@@ -25,7 +25,7 @@ use std::ops::Range;
 
 use super::{batch_inverse, InterpolationPlan, RangeInterpolatorFactory, Ranges};
 use crate::runtime::algebra::{
-    blas, field::RuntimeBinaryField, gf2_128::Gf2_128, lch14::Lch14, subfield::BinarySubfield,
+    blas, field::RuntimeBinaryField, gf2_128::Gf2_128, lch14::Lch14, subfield_v1::BinarySubfield,
 };
 
 /// Additive point-table interpolation over a fixed binary basis.

@@ -27,7 +27,7 @@ use crate::mdoc::{
     },
 };
 
-const MAGIC: &[u8; 9] = b"MDOCNEXT1";
+const MAGIC: &[u8; 9] = b"MDOCNEXT3";
 
 /// Save a trusted NEXT bundle for reuse by development tools and benchmarks.
 pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(), String> {

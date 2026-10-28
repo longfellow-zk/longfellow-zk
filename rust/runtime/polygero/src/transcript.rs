@@ -29,7 +29,7 @@ use super::{PolygeroCommitment, PolygeroGeometry, PolygeroParam, PolygeroProduct
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::SupportsSampling,
+        algebra::{RuntimeField, SupportsSampling},
         proto::Digest,
         random::{RandomEngine, Transcript},
     },
@@ -56,7 +56,10 @@ pub(super) struct Challenges<E> {
 /// Bind the source statement, then sample challenges for its compiled equations.
 /// The caller supplies the same digest to both roles and guarantees that A and b
 /// implement that statement. Term ordering and explicit zeros are not hashed.
-pub(super) fn challenges<const W: usize, F: SupportsSampling<W> + SerializableField>(
+pub(super) fn challenges<
+    const W: usize,
+    F: RuntimeField<W> + SupportsSampling + SerializableField,
+>(
     ts: &mut Transcript,
     param: &PolygeroParam,
     nconstraints: usize,
@@ -105,7 +108,7 @@ pub(super) fn context_digest(
     products: &[PolygeroProductConstraint],
 ) -> Digest {
     let mut hash = Sha256::new();
-    hash.update(b"polygero/root/context/fstar-last/v10");
+    hash.update(b"polygero/root/context/ambient/fstar-last/v11");
     hash.update((geom.k as u64).to_le_bytes());
     hash.update((domain_id.len() as u64).to_le_bytes());
     hash.update(domain_id);

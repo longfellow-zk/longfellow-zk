@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{Subfield, SupportsSampling};
+use crate::runtime::algebra::{SubfieldV1, SupportsSampling};
 
 pub mod transcript;
 pub use transcript::Transcript;
@@ -23,21 +23,17 @@ pub trait RandomEngine {
     fn bytes(&mut self, len: usize) -> Vec<u8>;
 
     /// Generates a random field element.
-    fn elt_field<const W: usize, F: SupportsSampling<W>>(&mut self, f: &F) -> F::E {
+    fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
         f.sample(|len| self.bytes(len))
     }
 
     /// Generates a random subfield element.
-    fn elt_subfield<SF: Subfield>(&mut self, sf: &SF) -> SF::E {
+    fn elt_subfield<SF: SubfieldV1>(&mut self, sf: &SF) -> SF::E {
         sf.sample(|len| self.bytes(len))
     }
 
     /// Generates a slice of field elements with random values.
-    fn elt_field_slice<const W: usize, F: SupportsSampling<W>>(
-        &mut self,
-        len: usize,
-        f: &F,
-    ) -> Vec<F::E> {
+    fn elt_field_slice<F: SupportsSampling>(&mut self, len: usize, f: &F) -> Vec<F::E> {
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(self.elt_field(f));
@@ -46,7 +42,7 @@ pub trait RandomEngine {
     }
 
     /// Generates a slice of subfield elements with random values.
-    fn elt_subfield_slice<SF: Subfield>(&mut self, len: usize, sf: &SF) -> Vec<SF::E> {
+    fn elt_subfield_slice<SF: SubfieldV1>(&mut self, len: usize, sf: &SF) -> Vec<SF::E> {
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(self.elt_subfield(sf));

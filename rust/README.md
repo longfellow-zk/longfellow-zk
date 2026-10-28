@@ -238,12 +238,10 @@ V9's hash circuit takes logical bits and commits polynomial-basis GF128 packed
 words. Its canonical `hash-input` manifest is the third archive entry and
 participates in the combined identity. Bundle creation/cache loading verifies
 circuit payload IDs; runtime invocations use the same trusted-archive premise
-as v8 and check the manifest and declared identities. Six polynomial-basis
-MAC equations are combined after hash GKR and reduced with the final input claim by
-[standalone flat trace dual packing](runtime/dual-packing/README.md). It uses
-127 masked response fields and 128 committed mask/checksum cells, with no
-tower construction or inner sumcheck. The hash proof
-uses `LFB2`; the signature proof retains `LFV2`.
+as v8 and check the manifest and declared identities. The hash circuit reconstructs its six private MAC masks and seven public MAC
+values from ordinary bit inputs and checks the MAC equations internally. Both
+circuits use ordinary zk-v2 and the shared `LFV4` proof envelope; the commitment
+wrapper handles packing transparently.
 
 `compile_packed_v9_variant(count, variant)` exposes the measured alternatives:
 0 is compact analog arithmetic, 1 is Boolean carry-save arithmetic, and 2
@@ -262,7 +260,7 @@ Use a single pinned CPU, keep allocation tracking off for timing, and run
 heap measurements separately:
 
 ```sh
-MDOC_V9_SAMPLES=3 MDOC_V9_ATTRIBUTES=2 MDOC_V9_CACHE=/tmp/mdoc-v9-flat \
+MDOC_V9_SAMPLES=3 MDOC_V9_ATTRIBUTES=2 MDOC_V9_CACHE=/tmp/mdoc-v9-trace-zero \
   taskset -c 2 cargo bench --bench mdoc_zk_bench_v9 --features testonly,experimental
 # MDOC_V9_QUICK=1 selects only the compact reference case.
 # Repeat with MDOC_V9_ATTRIBUTES=4; add bench-memory only for separate heap runs.
@@ -340,10 +338,15 @@ MDOC_BENCH_ATTRIBUTES=2 \
 # V2 with NEXT v8 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 
-# Experimental ML-DSA-44 and ML-DSA-65, three runs per circuit.
+# Experimental packed ML-DSA-44 and ML-DSA-65, three runs per circuit.
 MLDSA_BENCH_REPEATS=3 \
   cargo bench --bench mldsa_bench_v2 --features testonly,experimental
 ```
+
+The MLDSA v2 benchmark packs six private prime-field inputs into each sextic
+field word before Polygero commitment, using the existing circuit and witness
+generator. Both applications use ordinary zk-v2. See the
+[integration benchmark comparison](benches/results/2026-10-28-integrated-packing/README.md).
 
 The NEXT benchmark can save a specification/archive bundle using
 `MDOC_BENCH_SAVE_ARCHIVE`, or load one using `MDOC_BENCH_ARCHIVE`.

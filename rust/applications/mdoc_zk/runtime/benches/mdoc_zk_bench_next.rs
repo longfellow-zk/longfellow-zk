@@ -154,13 +154,14 @@ fn report_profiles(
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            subfield::BinarySubfield,
             SupportsFFT,
         },
         zk_v2::ZkContext,
     };
     let binary = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = longfellow_zk::runtime::algebra::subfield_v1::BinarySubfield::new(
+        &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
+    );
     let binary_domain = BinaryInterpolatorFactory::new(&binary, &subfield);
     let prime = P256Field::new();
     let extension = Fp2Field::new(&prime);
@@ -183,7 +184,8 @@ fn report_profiles(
     eprintln!("  Selected hash profile: {hash_config:?}");
     eprintln!("  Selected signature profile: {signature_config:?}");
     let hash_verifier =
-        longfellow_zk::runtime::zk_v2::ZkVerifier::new(hash, hash_config, &hash_context).unwrap();
+        longfellow_zk::runtime::zk_v2::ZkVerifier::new_full_field(hash, hash_config, &hash_context)
+            .unwrap();
     let signature_verifier = longfellow_zk::runtime::zk_v2::ZkVerifier::new(
         signature,
         signature_config,
@@ -198,38 +200,22 @@ fn report_profiles(
 
 /// Measure actual serialized component proofs, excluding the six shared MACs.
 fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry) {
-    use longfellow_zk::runtime::algebra::{
-        gf2_128::Gf2_128Field,
-        p256::{P256Field, P256Subfield},
-        subfield::BinarySubfield,
-    };
+    use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
     let prime = P256Field::new();
-    let signature_subfield = P256Subfield::new(&prime);
-    let (remaining, proof) = runtime::proto::MdocProof::read(
-        bytes,
-        geometry,
-        &binary,
-        &subfield,
-        &prime,
-        &signature_subfield,
-    )
-    .unwrap();
+    let (remaining, proof) =
+        runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
     assert!(remaining.is_empty());
     let hash = proof
         .proof_hash
-        .write(&geometry.geom_hash, &binary, &subfield)
+        .write(&geometry.geom_hash, &binary)
         .unwrap();
-    let signature = proof
-        .proof_sig
-        .write(&geometry.geom_sig, &prime, &signature_subfield)
-        .unwrap();
+    let signature = proof.proof_sig.write(&geometry.geom_sig, &prime).unwrap();
     let hash_polygero = proof
         .proof_hash
         .com_proof
-        .write(&geometry.geom_hash.com_geom, &binary, &subfield)
+        .write(&geometry.geom_hash.com_geom, &binary)
         .unwrap();
     let hash_sumcheck = proof
         .proof_hash

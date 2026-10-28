@@ -1,0 +1,21 @@
+Polygero prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: ddaafc812ba7cfa393cf31c7c3922135ca3f5295c87fff705aea3badb135b5cc
+  Run 1/3
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732148 bytes
+  End to end: prover=910.862 ms, verifier=598.057 ms, proof=178338 bytes
+  Offline circuit preparation: 11404.900 ms
+  Prover subtimings: circuit_load=2.791, witness=0.595, commit=53.432, prove=853.623, serialize=0.065 ms
+  Verifier subtimings: circuit_load=2.813, public_inputs=0.092, deserialize=0.351, verify=594.461 ms
+  Run 2/3
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732148 bytes
+  End to end: prover=908.978 ms, verifier=598.121 ms, proof=178338 bytes
+  Offline circuit preparation: 11404.900 ms
+  Prover subtimings: circuit_load=2.822, witness=0.649, commit=50.761, prove=854.343, serialize=0.064 ms
+  Verifier subtimings: circuit_load=2.816, public_inputs=0.087, deserialize=0.347, verify=594.525 ms
+  Run 3/3
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732148 bytes
+  End to end: prover=908.315 ms, verifier=597.597 ms, proof=178338 bytes
+  Offline circuit preparation: 11404.900 ms
+  Prover subtimings: circuit_load=2.789, witness=0.657, commit=50.963, prove=853.502, serialize=0.064 ms
+  Verifier subtimings: circuit_load=2.799, public_inputs=0.086, deserialize=0.347, verify=594.011 ms

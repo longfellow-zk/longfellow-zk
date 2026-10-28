@@ -26,7 +26,8 @@ mod q256;
 mod quadratic_extension_fft_interpolation;
 mod range_interpolation;
 mod rfft;
-mod subfield;
+mod sampling;
+mod subfield_v1;
 
 #[cfg(feature = "experimental")]
 mod crt_interpolation;

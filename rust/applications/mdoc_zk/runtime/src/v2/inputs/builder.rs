@@ -29,7 +29,7 @@ pub(super) struct AssignmentBuilder<
     pub(super) field: &'a F,
     buffer: Vec<F::E>,
     #[cfg(feature = "experimental")]
-    bits: Option<crate::core::bits::PackedBits>,
+    boolean: bool,
 }
 
 impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>
@@ -40,31 +40,25 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
             field,
             buffer: Vec::new(),
             #[cfg(feature = "experimental")]
-            bits: None,
+            boolean: false,
         }
     }
 
     #[cfg(feature = "experimental")]
-    pub(super) fn new_packed(field: &'a F) -> Self {
+    pub(super) fn new_boolean(field: &'a F) -> Self {
         Self {
             field,
             buffer: Vec::new(),
-            bits: Some(crate::core::bits::PackedBits::default()),
+            boolean: true,
         }
-    }
-    #[cfg(feature = "experimental")]
-    pub(super) fn into_bits(self) -> crate::core::bits::PackedBits {
-        self.bits.expect("packed assignment")
     }
     pub(super) fn push_elt(&mut self, elt: &F::E) {
         #[cfg(feature = "experimental")]
-        if let Some(bits) = &mut self.bits {
+        if self.boolean {
             assert!(
                 *elt == self.field.zero() || *elt == self.field.one(),
-                "non-bit input in packed assignment"
+                "nonboolean circuit input"
             );
-            bits.push(*elt == self.field.one());
-            return;
         }
         self.buffer.push(elt.clone());
     }
@@ -75,11 +69,6 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
 
     #[inline(always)]
     fn push_bit(&mut self, bit: bool) {
-        #[cfg(feature = "experimental")]
-        if let Some(bits) = &mut self.bits {
-            bits.push(bit);
-            return;
-        }
         self.buffer.push(if bit {
             self.field.one()
         } else {
@@ -129,7 +118,7 @@ impl<
             cur_val >>= 1;
         }
         #[cfg(feature = "experimental")]
-        if self.bits.is_some() {
+        if self.boolean {
             for bit in bits {
                 self.push_bit(bit);
             }
@@ -145,10 +134,13 @@ impl<F: MdocHashRuntimeField> AssignmentBuilder<'_, F> {
         self.push_value_plucked::<{ K_HASH_V8_BIT_PLUCKER }, 8>(u128::from(byte));
     }
 
-    /// Direct-field MAC inputs are caller auxiliaries in the packed protocol.
+    /// Supply the MAC field value in the circuit's selected input representation.
     pub(super) fn push_mac_field(&mut self, val: u128) {
         #[cfg(feature = "experimental")]
-        if self.bits.is_some() {
+        if self.boolean {
+            for i in 0..128 {
+                self.push_bit((val >> i) & 1 != 0);
+            }
             return;
         }
         self.buffer.push(self.field.u128_to_element(val));
@@ -213,7 +205,7 @@ cfg_prover! {
             }
 
             #[cfg(feature = "experimental")]
-            if self.bits.is_some() {
+            if self.boolean {
                 for bit in bits {
                     self.push_bit(bit);
                 }

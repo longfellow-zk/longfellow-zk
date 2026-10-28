@@ -32,15 +32,14 @@ use longfellow_zk::{
         algebra::{AlgebraicField, SupportsU64Conversions},
         proto::{circuit::Circuit, FieldID},
     },
-    runtime,
     runtime::{
         algebra::{
-            fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, RuntimeFp24Subfield},
+            fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
             range_interpolation::CrtInterpolatorFactory,
         },
         proto::{polygero::PolygeroConfig, zk_v2::commitment_layout},
         random::{DeterministicRng, Transcript},
-        zk_v2::{ZkContext, ZkProver, ZkVerifier},
+        zk_v2::{ZkContext, ZkProof, ZkProver, ZkVerifier},
     },
 };
 // These helpers are test/benchmark machinery, not production compiler APIs.
@@ -81,15 +80,11 @@ fn read_circuit(bytes: &[u8], field: &RuntimeFp24Ext6) -> BenchResult<Circuit<Ru
 fn config(circuit: &Circuit<RuntimeFp24Ext6>) -> BenchResult<PolygeroConfig> {
     // Match the Ligero benchmark's ordinary code rate; target 128-bit per-query FS soundness using
     // Hahn openings against the same nominal algebraic budget instead of copying its count.
-    let (_, nw, products) = commitment_layout(circuit);
-    let subfield_boundary = circuit
-        .raw
-        .subfield_boundary
-        .saturating_sub(circuit.raw.npublic_input);
+    let (_, nw, products) = commitment_layout(circuit, &RuntimeFp24Ext6::new());
+    circuit.validate_v2()?;
     compile::polygero::tune_mldsa_128(
         nw,
         &products,
-        subfield_boundary,
         // Keep ordinary rows and arithmetic/remainder interpolation at a
         // 2048-point convolution FFT, then minimize certified proof bytes.
         // Range interpolation no longer pads a response by k+s extra points.
@@ -118,7 +113,8 @@ fn prove<P: MlDsaParams>(
     instance.push_wires(&field, &mut inputs);
     assert_eq!(inputs.len(), circuit.raw.ninput);
     let witness = witness_start.elapsed();
-    let prover = ZkProver::<3, _>::new(circuit, selected_config);
+    let private = inputs.split_off(public_count);
+    let prover = ZkProver::new(circuit, selected_config);
     let zk_context = ZkContext {
         f: &field,
         domain: &CrtInterpolatorFactory,
@@ -126,25 +122,18 @@ fn prove<P: MlDsaParams>(
     let mut rng = DeterministicRng::new(42);
     let mut transcript = Transcript::new(b"mldsa-rust-benchmark");
     let commit_start = Instant::now();
-    let (commitment, geometry) = prover.commit(
-        &inputs[public_count..],
-        &zk_context,
-        &mut transcript,
-        &mut rng,
-        &RuntimeFp24Subfield,
-    )?;
+    let (commitment, geometry) = prover.commit(private, &zk_context, &mut transcript, &mut rng)?;
     let commit = commit_start.elapsed();
     let prove_start = Instant::now();
     let proof = prover.prove(
         &inputs[..public_count],
-        inputs[public_count..].to_vec(),
         commitment,
         &mut transcript,
         &zk_context,
     )?;
     let prove = prove_start.elapsed();
     let serialize_start = Instant::now();
-    let proof_bytes = proof.write(&geometry, &field, &RuntimeFp24Subfield)?;
+    let proof_bytes = proof.write(&geometry, &field)?;
     let serialize = serialize_start.elapsed();
     // Only proof bytes and timing data leave this function. All prover state is
     // dropped before the caller stops the complete online prover timer.
@@ -204,15 +193,10 @@ fn verify<P: MlDsaParams>(
         domain: &CrtInterpolatorFactory,
     };
     let deserialize_start = Instant::now();
-    let mut verifier = ZkVerifier::<3, _>::new(circuit, selected_config, &zk_context)?;
+    let mut verifier = ZkVerifier::new(circuit, selected_config, &zk_context)?;
     let geometry = verifier.geometry();
     let mut remaining = proof_bytes;
-    let proof = runtime::proto::zk_v2::ZkProof::read(
-        &mut remaining,
-        &geometry,
-        &field,
-        &RuntimeFp24Subfield,
-    )?;
+    let proof = ZkProof::read(&mut remaining, &geometry, &field)?;
     if !remaining.is_empty() {
         return Err("trailing proof bytes".into());
     }
@@ -333,7 +317,7 @@ fn main() {
         ["44", "65", "all", "--bench"].contains(&parameter.as_str()),
         "choose 44, 65, or all"
     );
-    eprintln!("Polygero prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: {}", cfg!(feature = "bench-memory"));
+    eprintln!("V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: {}", cfg!(feature = "bench-memory"));
     if parameter != "65" {
         run::<MlDsa44>(
             include_str!("../../../../lib/circuits/tests/pq/ml_dsa/ml_dsa_44_examples.cc"),

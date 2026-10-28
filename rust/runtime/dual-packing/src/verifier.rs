@@ -1,18 +1,5 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Reconstruct one native linear equation after the entire flat response is bound.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Paper's native verifier: public trace checks, followed by two linear equations.
 use super::{field::PolynomialBasis128, BitLinearClaim, DualPacking128Proof, PackedLinearClaim};
 use crate::runtime::{algebra::gf2_128::Gf2_128Field, random::Transcript};
 pub fn reduce(
@@ -22,9 +9,11 @@ pub fn reduce(
     context: &[u8],
     ts: &mut Transcript,
     f: &Gf2_128Field,
-) -> Result<PackedLinearClaim, String> {
+) -> Result<[PackedLinearClaim; 2], String> {
     claim.validate()?;
-    let beta = super::transcript::begin(claim, context, ts, f);
-    let gamma = super::transcript::batch(proof, ts, f);
-    Ok(super::reconstruct(basis, claim, proof, beta, &gamma, f))
+    super::validate_traces(basis, &proof.u)?;
+    super::transcript::begin(claim, context, ts, f);
+    let delta = super::transcript::challenge(&proof.u, ts, f);
+    super::transcript::finish(proof.a, ts, f);
+    Ok(super::reconstruct(basis, claim, proof, &delta, f))
 }

@@ -125,7 +125,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
@@ -149,7 +149,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
 
     let context_hash = ZkContext {
         f: &gf2,
@@ -160,14 +159,14 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         domain: &make_interpolator_sig,
     };
 
-    let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
+    let prover_hash = ZkProver::<2, _>::new_full_field(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash
-        .commit(&witness_hash, &context_hash, &mut tp, rng, &sf_hash)
+        .commit(witness_hash, &context_hash, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig
-        .commit(&witness_sig, &context_sig, &mut tp, rng, &sf_sig)
+        .commit(witness_sig, &context_sig, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let av_val = tp.u128();
@@ -191,23 +190,11 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
 
     let proof_hash = prover_hash
-        .prove(
-            &hash_pub_inputs,
-            witness_hash,
-            commit_hash,
-            &mut tp,
-            &context_hash,
-        )
+        .prove(&hash_pub_inputs, commit_hash, &mut tp, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let proof_sig = prover_sig
-        .prove(
-            &sig_pub_inputs,
-            witness_sig,
-            commit_sig,
-            &mut tp,
-            &context_sig,
-        )
+        .prove(&sig_pub_inputs, commit_sig, &mut tp, &context_sig)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let geom = MdocProofGeometry {
@@ -220,6 +207,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         proof_sig,
     };
     proof
-        .write(&geom, &gf2, &sf_hash, &p256, &sf_sig)
+        .write(&geom, &gf2, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)
 }

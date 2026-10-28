@@ -33,12 +33,8 @@ impl PackedV9Spec {
         (self.polygero_hash.config(), self.polygero_sig.config())
     }
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod claims;
-pub mod provider;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use claims::mac_claims;
 pub mod proto;
+pub mod provider;
 #[cfg(test)]
 #[path = "../../../tests/packed_v9.rs"]
 mod tests;

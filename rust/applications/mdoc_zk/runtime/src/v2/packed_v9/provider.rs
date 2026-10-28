@@ -112,17 +112,7 @@ fn load_inner(
     {
         return Err("v9 circuit/domain mismatch".into());
     }
-    if manifest.compiler_variant > 0 {
-        use crate::core::algebra::AlgebraicField;
-        for layer in &hash.raw.layers {
-            let mut unit = true;
-            layer.for_each_term(&hash.raw.constants, |term| {
-                unit &= term.k == f.zero() || term.k == f.one();
-            });
-            if !unit {
-                return Err("non-Boolean v9 circuit coefficient".into());
-            }
-        }
-    }
+    sig.validate_v2()?;
+    hash.validate_v2()?;
     Ok((sig, hash))
 }

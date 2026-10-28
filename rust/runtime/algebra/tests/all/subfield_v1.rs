@@ -14,7 +14,7 @@
 
 use crate::{
     core::algebra::{AlgebraicField, SupportsU128Conversions},
-    runtime::algebra::{gf2_128::Gf2_128RuntimeField, subfield::BinarySubfield, Subfield},
+    runtime::algebra::{gf2_128::Gf2_128RuntimeField, subfield_v1::BinarySubfield, SubfieldV1},
 };
 
 struct SimpleRng(u64);
@@ -94,7 +94,7 @@ fn test_runtime_subfield_gf2_16() {
 
 #[test]
 fn test_subfield_gf2_128() {
-    use crate::runtime::algebra::subfield::BinarySubfield;
+    use crate::runtime::algebra::subfield_v1::BinarySubfield;
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     let f = Gf2_128RuntimeField::new();
@@ -199,6 +199,6 @@ fn test_subfield_closed_under_multiplication() {
         let a = sf.embed(a_val);
         let b = sf.embed(b_val);
         let prod = f.mulf(&a, &b);
-        assert!(sf.contains(&prod), "Subfield product not in subfield!");
+        assert!(sf.contains(&prod), "SubfieldV1 product not in subfield!");
     }
 }

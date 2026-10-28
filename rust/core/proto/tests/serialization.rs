@@ -210,3 +210,27 @@ fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
         .from_bytes(&writer.to_bytes_lfc2(&circuit), false)
         .unwrap();
 }
+
+#[test]
+fn both_circuit_codecs_preserve_legacy_subfield_boundary() {
+    let f = P256Field::new();
+    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let x = boolean.of_eltw(logic.input(1));
+        (boolean.assert_true("bit", &x), 1, 2)
+    });
+    assert_eq!(circuit.raw.subfield_boundary, 2);
+    let writer = CircuitWriter::new(&f, FieldID::P256);
+    for bytes in [
+        writer.to_bytes_lfc1(&circuit),
+        writer.to_bytes_lfc2(&circuit),
+    ] {
+        let (decoded, tail) = CircuitReader::new(&f, FieldID::P256)
+            .from_bytes(&bytes, true)
+            .unwrap();
+        assert!(tail.is_empty());
+        assert_eq!(decoded.id, circuit.id);
+        assert_eq!(decoded.raw.subfield_boundary, 2);
+        assert!(decoded.validate_v2().is_err());
+    }
+}

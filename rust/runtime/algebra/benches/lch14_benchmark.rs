@@ -23,7 +23,7 @@ fn bench_lch14(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_millis(500));
     group.sample_size(10);
 
-    let subfield = longfellow_zk::runtime::algebra::subfield::BinarySubfield::new(
+    let subfield = longfellow_zk::runtime::algebra::subfield_v1::BinarySubfield::new(
         &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let fft = Lch14::new(&gf2, &subfield);

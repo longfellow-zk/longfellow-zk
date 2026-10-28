@@ -131,6 +131,10 @@ impl Transcript {
     /// Serializes a field element and updates the hasher.
     fn write_untyped_elt<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
         let len = f.serialized_size_bytes();
+        if len > 128 {
+            self.write_untyped(&f.to_bytes(e));
+            return;
+        }
         let mut buf = [0u8; 128];
         f.to_bytes_into(e, &mut buf[..len]);
         self.write_untyped(&buf[..len]);

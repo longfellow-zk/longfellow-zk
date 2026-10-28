@@ -14,8 +14,8 @@
 
 //! Lower symbolic sumcheck constraints into Polygero's sparse A*w+b=0 format.
 //!
-//! The committed vector starts with private circuit inputs, followed by each
-//! layer's round pads and final-claim pads p_A,p_B,p_A*p_B. Symbolic sumcheck
+//! The committed vector starts with packed private inputs and packing masks,
+//! followed by each layer's round pads and final-claim pads p_A,p_B,p_A*p_B. Symbolic sumcheck
 //! expressions instead name pads by (layer, round, slot), independently of this
 //! physical layout. Compilation replaces each logical pad with its committed
 //! coordinate and substitutes the known public-input prefix.
@@ -30,31 +30,17 @@
 //! the coefficient -1 restores the product term left implicit by sumcheck.
 //! The final input constraint subtracts the weighted circuit inputs from the
 //! last claim. Public input terms become constants in b; private input terms
-//! become coefficients in A. Every emitted equation has the form sum_w A[c,w]*w+b[c]=0.
+//! become a logical claim handed to dual packing. Every emitted backend equation
+//! has the form sum_w A[c,w]*w+b[c]=0.
 //!
 //! Both roles run this transformation after sumcheck. Product constraints and
 //! committed positions are fixed separately when preparing the circuit layout.
 use crate::runtime::{
-    algebra::{blas, ElementOf, RuntimeField},
+    algebra::RuntimeField,
     polygero::PolygeroLinearTerm,
     proto::sumcheck_v2::CircuitPadLayout,
     sumcheck_v2::symbolic::{Constraints, Pad, PadExpression},
 };
-
-/// Emit one equation per circuit layer and one final input equation, in that order.
-/// Preserve all terms, including zero coefficients; repeated terms remain additive.
-/// Equations and their constants remain even when every variable coefficient vanishes.
-pub(super) fn compile<const W: usize, F: RuntimeField<W>>(
-    constraints: &Constraints<ElementOf<F>>,
-    pads: &CircuitPadLayout,
-    public_inputs: &[ElementOf<F>],
-    f: &F,
-) -> Result<(Vec<PolygeroLinearTerm<ElementOf<F>>>, Vec<ElementOf<F>>), String> {
-    validate(constraints, pads, public_inputs.len())?;
-    let (mut a, mut b) = compile_layers(constraints, pads, f)?;
-    append_input_constraint(&mut a, &mut b, constraints, pads, public_inputs, f)?;
-    Ok((a, b))
-}
 
 /// Compile GKR layer equations without allocating a direct-field input row.
 pub(super) fn compile_layers<const W: usize, F: RuntimeField<W>>(
@@ -76,42 +62,6 @@ pub(super) fn compile_layers<const W: usize, F: RuntimeField<W>>(
         b.push(constraint.constant.clone());
     }
     Ok((a, b))
-}
-
-/// Emit the final input equation, with N public inputs and weights a_i:
-///
-/// ```text
-/// sum_{(p,k) in claim.terms} k*w[coordinate(p)]
-///   + sum_{j=0}^{nprivate-1} (-a_{N+j})*w[j]
-///   + (claim.constant - sum_{i=0}^{N-1} a_i*public[i]) = 0.
-/// ```
-/// Pad coefficients already have their constraint signs and pass through unchanged.
-fn append_input_constraint<const W: usize, F: RuntimeField<W>>(
-    a: &mut Vec<PolygeroLinearTerm<F::E>>,
-    b: &mut Vec<F::E>,
-    constraints: &Constraints<F::E>,
-    pads: &CircuitPadLayout,
-    public_inputs: &[F::E],
-    f: &F,
-) -> Result<(), String> {
-    let claim = &constraints.input_claim;
-    let weights = &constraints.input_weights;
-    let npublic = public_inputs.len();
-    let c = b.len();
-    // The input sum is subtracted from the claim, so its known public part
-    // contributes -sum_i a_i*public[i] to the constant b[c].
-    let public_sum = blas::dot(&weights[..npublic], public_inputs, f);
-    b.push(f.subf(&claim.constant, &public_sum));
-    for w in 0..weights.len() - npublic {
-        let weight = &weights[npublic + w];
-        a.push(PolygeroLinearTerm {
-            c,
-            w,
-            // Subtract the private part of that same sum, once.
-            k: f.neg(weight),
-        });
-    }
-    append_pad_terms(a, c, claim, pads)
 }
 
 /// Bind logical pads to committed slots, preserving every coefficient.
@@ -169,3 +119,38 @@ fn validate<E>(
 #[cfg(test)]
 #[path = "../tests/constraint_compiler.rs"]
 mod tests;
+
+/// Consume symbolic constraints, moving their only dense input-weight vector.
+pub(super) fn compile<const W: usize, F: RuntimeField<W>>(
+    mut constraints: Constraints<F::E>,
+    pads: &CircuitPadLayout,
+    public: &[F::E],
+    layout: &crate::runtime::proto::zk_v2::PackingLayout,
+    f: &F,
+) -> Result<super::commitment::CommitmentStatement<F::E>, String> {
+    use crate::runtime::dual_packing::generic::{Affine, SourceClaim};
+    if constraints.input_weights.len() != public.len() + layout.private_inputs {
+        return Err("input claim shape".into());
+    }
+    let (a, b) = compile_layers(&constraints, pads, f)?;
+    let constant = f.subf(
+        &constraints.input_claim.constant,
+        &crate::runtime::algebra::blas::dot(&constraints.input_weights[..public.len()], public, f),
+    );
+    let terms = constraints
+        .input_claim
+        .terms
+        .into_iter()
+        .map(|(p, k)| pad_coordinate(p, pads).map(|w| (w - layout.suffix_start, k)))
+        .collect::<Result<Vec<_>, _>>()?;
+    constraints.input_weights.drain(..public.len());
+    Ok(super::commitment::CommitmentStatement {
+        claim: SourceClaim {
+            weights: constraints.input_weights,
+            rhs: Affine { constant, terms },
+            auxiliary_count: layout.pad_cells,
+        },
+        a,
+        b,
+    })
+}

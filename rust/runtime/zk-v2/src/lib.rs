@@ -14,11 +14,13 @@
 
 //! Longfellow v2 composes projective sumcheck with nonrecursive Polygero.
 //!
-//! Commit the private circuit inputs, sumcheck pads, and final-claim pad products.
+//! Pack and commit private circuit inputs, packing masks, sumcheck pads and
+//! final-claim pad products.
 //! Then run sumcheck on the same transcript with the public inputs bound. Its
-//! symbolic constraints describe the checks on those hidden values. Sample a
-//! domain-separated statement identifier from the completed transcript, then
-//! compile those constraints and pass the identifier to Polygero. The runtime
+//! symbolic constraints describe the checks on those hidden values. Run the
+//! packing reduction and authenticate both native equations. Sample a
+//! domain-separated statement identifier after the packing response, then pass
+//! the compiled constraints and identifier to Polygero. The runtime
 //! constraint compiler substitutes public inputs and maps pads to committed
 //! positions, producing sparse A and b for Polygero's A*w+b=0 check.
 //!
@@ -26,13 +28,11 @@
 //! from the messages. Both use the same constraint compiler and codec layout.
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod commitment;
 mod context;
-#[cfg(all(
-    feature = "experimental",
-    any(test, feature = "prover", feature = "verifier")
-))]
-pub mod packed;
 pub use context::ZkContext;
+
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraint_compiler;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -45,6 +45,9 @@ cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}
 #[path = "../tests/zk.rs"]
 mod tests;
 
+#[cfg(all(test, feature = "experimental"))]
+#[path = "../tests/packing.rs"]
+mod packing_tests;
 #[cfg(test)]
 #[path = "../tests/layouts.rs"]
 mod tests_layouts;

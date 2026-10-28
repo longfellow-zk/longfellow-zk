@@ -1,0 +1,65 @@
+Gnuplot not found, using plotters backend
+Allocation tracking: false
+Requested attributes: 4
+--------------------------------------------------
+Circuit Stats (v7 Official Circuit):
+  Circuit Sizes: zstd-16=308538 bytes, segmented (no zstd)=104158196 bytes
+  Sig Circuit ID:  2845210af05740e6e3e054762f9e35ff5fc4fb23088716e369f7cf73eb61df2d
+  Hash Circuit ID: 350806f428dafce638172976db598335c9a5399776a1bd08f177e569114b1b84
+  Overall Spec Hash: 6a5810683e62b6d7766ebd0d7ca72518a2b8325418142adcadb10d51dbbcd5ad
+  Hash Circuit: inputs=90022, pub_inputs=1736, outputs=10, layers=17, wires=3552857, terms=8193016
+  Hash Ligero:  block=474, dblock=947, block_enc=4265, nrow=268, mc_pathlen=13
+  Sig Circuit:  inputs=3739, pub_inputs=900, outputs=234, layers=21, wires=220137, terms=481833
+  Sig Ligero:   block=455, dblock=909, block_enc=4096, nrow=19, mc_pathlen=13
+Compressed circuits (concatenated) size: 308538 bytes
+--------------------------------------------------
+Baseline Circuit Memory Stats (Longfellow v1, circuit v7, LFA1 archive):
+  Proof Size: 360428 bytes
+  Heap tracking disabled; enable bench-memory for a separate memory run.
+--------------------------------------------------
+--------------------------------------------------
+Baseline Circuit Memory Stats (Longfellow v1, circuit v7, LFA2 archive):
+  Proof Size: 360428 bytes
+  Heap tracking disabled; enable bench-memory for a separate memory run.
+--------------------------------------------------
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa1
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa1: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 5.3s.
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa1: Collecting 10 samples in estimated 5.2543 s (10 iterations)
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa1: Analyzing
+longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa1
+                        time:   [523.56 ms 526.08 ms 528.22 ms]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low severe
+  1 (10.00%) low mild
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa1
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa1: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 2.5s.
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa1: Collecting 10 samples in estimated 2.5045 s (10 iterations)
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa1: Analyzing
+longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa1
+                        time:   [247.37 ms 249.24 ms 250.94 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low mild
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa2
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa2: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 4.7s.
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa2: Collecting 10 samples in estimated 4.7134 s (10 iterations)
+Benchmarking longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa2: Analyzing
+longfellow_v1_circuit_v7/4_attributes/prove_longfellow_v1_circuit_v7_lfa2
+                        time:   [470.27 ms 471.69 ms 473.13 ms]
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa2
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa2: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 100.0ms. You may wish to increase target time to 2.0s.
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa2: Collecting 10 samples in estimated 2.0249 s (10 iterations)
+Benchmarking longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa2: Analyzing
+longfellow_v1_circuit_v7/4_attributes/verify_longfellow_v1_circuit_v7_lfa2
+                        time:   [197.46 ms 198.03 ms 198.56 ms]
+
+Process OS Memory Stats (Peak/HWM):
+  VmPeak:	  194044 kB
+  VmHWM:	  157056 kB

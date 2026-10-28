@@ -201,3 +201,62 @@ impl<
         }
     }
 }
+
+impl<
+        const W: usize,
+        F: SupportsQuadraticExtension<W> + crate::runtime::algebra::packing::FiniteField,
+    > crate::runtime::algebra::packing::FiniteField for Fp2Field<'_, W, F>
+{
+    fn order_le(&self) -> Vec<u8> {
+        let q = self.base.order_le();
+        let mut product = vec![0u8; 2 * q.len() + 1];
+        for (i, &a) in q.iter().enumerate() {
+            let mut carry = 0u32;
+            for (j, &b) in q.iter().enumerate() {
+                carry += u32::from(product[i + j]) + u32::from(a) * u32::from(b);
+                product[i + j] = carry as u8;
+                carry >>= 8;
+            }
+            let mut j = i + q.len();
+            while carry != 0 {
+                carry += u32::from(product[j]);
+                product[j] = carry as u8;
+                carry >>= 8;
+                j += 1;
+            }
+        }
+        while product.last() == Some(&0) {
+            product.pop();
+        }
+        product
+    }
+    fn field_id(&self) -> Vec<u8> {
+        let mut id = b"quadratic/i^2+1/v1/".to_vec();
+        id.extend_from_slice(&self.base.field_id());
+        id
+    }
+}
+impl<
+        'a,
+        const W: usize,
+        F: SupportsQuadraticExtension<W> + crate::runtime::algebra::packing::FiniteField,
+    > crate::runtime::algebra::packing::PackingField for Fp2Field<'a, W, F>
+{
+    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+    fn packing_extension(&self) -> Self::Packing {
+        crate::runtime::algebra::packing::IdentityExtension::new(Self::new(self.base))
+    }
+}
+
+impl<
+        const W: usize,
+        F: SupportsQuadraticExtension<W> + crate::runtime::algebra::SupportsSampling,
+    > crate::runtime::algebra::SupportsSampling for Fp2Field<'_, W, F>
+{
+    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
+        Fp2Element {
+            re: self.base.sample(&mut rng),
+            im: self.base.sample(&mut rng),
+        }
+    }
+}

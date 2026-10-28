@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[96..100], b"LFV2");
+    assert_eq!(&zkproof[96..100], b"LFV4");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -1028,7 +1028,7 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         range_interpolation::{
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
         SupportsFFT,
     };
     let f = Gf2_128Field::new();
@@ -1056,27 +1056,25 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
 
 fn expected_parameters<
     const W: usize,
-    F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SerializableField,
+    F: crate::runtime::algebra::RuntimeField<W>
+        + crate::core::algebra::SerializableField
+        + crate::runtime::algebra::PackingField,
     D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
-    SF: crate::runtime::algebra::Subfield<E = F::E>,
+    SF: crate::runtime::algebra::SubfieldV1<E = F::E>,
 >(
     circuit: &crate::core::proto::circuit::Circuit<F>,
     domain: &D,
     f: &F,
-    sf: &SF,
+    _sf: &SF,
 ) -> crate::runtime::proto::polygero::PolygeroConfig {
-    use crate::runtime::proto::zk_v2::commitment_layout;
-    let (_, nw, products) = commitment_layout(circuit);
+    let (layout, _, products) =
+        crate::runtime::proto::zk_v2::packing_layout_with_degree(circuit, 1).unwrap();
+    let nw = layout.witness_count;
     crate::compile::polygero::tune_large_field_at_rate(
         7,
         nw,
         &products,
-        circuit
-            .raw
-            .subfield_boundary
-            .saturating_sub(circuit.raw.npublic_input),
         f.serialized_size_bytes(),
-        sf.serialized_size_bytes(),
         |config| config.can_interpolate(domain),
     )
     .unwrap()

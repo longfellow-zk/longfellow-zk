@@ -50,7 +50,7 @@ where
     let (legacy, legacy_geometry, _) = compile(fc, build);
     let (v2, v2_geometry, _) = compile_v2(fc, build);
     assert_eq!(legacy_geometry, v2_geometry);
-    assert_eq!(legacy.raw.subfield_boundary, v2.raw.subfield_boundary);
+    assert_eq!(v2.raw.subfield_boundary, 0);
     assert_eq!(legacy.raw.constants, v2.raw.constants);
     assert_ne!(legacy.id, v2.id, "fixture must distinguish the traversals");
 
@@ -88,10 +88,12 @@ where
                 let sum = fr.addf(&product, &fr.mulf(&x[(i + 2) % 8], &x[(i + 2) % 8]));
                 inputs.push(fr.mulf(&fr.addf(&sum, &fr.one()), &x[(i + 3) % 8]));
             }
-            // The order-independent V2 evaluator also evaluates legacy layout.
-            crate::runtime::sumcheck_v2::eval_circuit(inputs.clone(), &runtime, fr).unwrap();
+            assert_eq!(runtime.raw.subfield_boundary,circuit.raw.subfield_boundary);
             if circuit.id == legacy.id {
+                assert!(runtime.validate_v2().is_err());
                 crate::runtime::sumcheck_v1::eval_circuit(inputs.clone(), &runtime, fr).unwrap();
+            } else {
+                crate::runtime::sumcheck_v2::eval_circuit(inputs.clone(), &runtime, fr).unwrap();
             }
             for i in 9..17 {
                 let mut bad = inputs.clone();

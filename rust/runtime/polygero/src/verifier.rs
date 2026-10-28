@@ -92,7 +92,7 @@ impl PolygeroVerifier {
     #[allow(clippy::too_many_arguments)]
     pub fn verify<
         const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
         D: EvaluationDomain<W, F>,
     >(
         &self,

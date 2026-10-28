@@ -1,0 +1,19 @@
+Gnuplot not found, using plotters backend
+Benchmarking dense_bind_p256_2e18
+Benchmarking dense_bind_p256_2e18: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.6s, enable flat sampling, or reduce sample count to 50.
+Benchmarking dense_bind_p256_2e18: Collecting 100 samples in estimated 8.5522 s (5050 iterations)
+Benchmarking dense_bind_p256_2e18: Analyzing
+dense_bind_p256_2e18    time:   [1.4970 ms 1.4988 ms 1.5006 ms]
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking dense_bind_gf2_128_2e18
+Benchmarking dense_bind_gf2_128_2e18: Warming up for 3.0000 s
+Benchmarking dense_bind_gf2_128_2e18: Collecting 100 samples in estimated 6.5338 s (15k iterations)
+Benchmarking dense_bind_gf2_128_2e18: Analyzing
+dense_bind_gf2_128_2e18 time:   [366.53 µs 366.85 µs 367.17 µs]
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild

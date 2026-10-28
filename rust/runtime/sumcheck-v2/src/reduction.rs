@@ -37,7 +37,7 @@
 use crate::{
     core::{algebra::SerializableField, proto::circuit::Circuit},
     runtime::{
-        algebra::{ElementOf, SupportsSampling},
+        algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::Transcript,
         sumcheck_v2::{
             proof::{LayerProof, SumcheckProof, SumcheckProofGeometry},
@@ -51,12 +51,13 @@ use crate::{
 /// Reconstruct each circuit layer's challenges and input weights, then build
 /// the symbolic constraints. The caller must have absorbed the public statement.
 /// Validate message counts before advancing the transcript.
-pub(crate) fn derive_constraints<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(crate) fn derive_constraints<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<Constraints<ElementOf<F>>, String> {
+    circuit.validate_v2()?;
     proof
         .validate(&SumcheckProofGeometry::from_circuit(circuit))
         .map_err(|e| e.to_string())?;
@@ -84,7 +85,7 @@ pub(crate) fn derive_constraints<const W: usize, F: SerializableField + Supports
 /// The round challenges form point_l = u. Binding QUAD at u expresses B as
 /// sum_r q_r[r]*W[r], while A = sum_r m_l[r]*W[r]. Their combined claim therefore
 /// uses a_next[r] = m_l[r] + alpha*q_r[r]. All these weights are public.
-fn layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
+fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     layer_index: usize,
     proof: &LayerProof<W, F>,
     circuit: &Circuit<F>,

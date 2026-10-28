@@ -117,19 +117,19 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     Ok(build_witness_hash(AssignmentBuilder::new(gf2), req_attrs, parsed, mac_ap)?.into_inner())
 }
 #[cfg(feature = "experimental")]
-pub(in crate::mdoc::runtime::v2) fn push_witness_hash_packed<N: Nat<4>>(
+pub(in crate::mdoc::runtime::v2) fn push_witness_hash_boolean<N: Nat<4>>(
     gf2: &Gf2_128Field,
     req_attrs: &[RequestedAttribute],
     parsed: &ParsedMdoc<N>,
     mac_ap: &[[u128; 2]; 3],
-) -> Result<crate::core::bits::PackedBits, MdocProverErrorCode> {
+) -> Result<Vec<Gf2_128>, MdocProverErrorCode> {
     Ok(build_witness_hash(
-        AssignmentBuilder::new_packed(gf2),
+        AssignmentBuilder::new_boolean(gf2),
         req_attrs,
         parsed,
         mac_ap,
     )?
-    .into_bits())
+    .into_inner())
 }
 
 fn push_witness_attrs<N: Nat<4>>(

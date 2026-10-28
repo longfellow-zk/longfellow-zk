@@ -105,8 +105,8 @@ pub fn generate_packed_hash_circuit_variant(
     if variant > 2 {
         return Err("unsupported packed compiler variant".into());
     }
-    use crate::compile::logic::LogicIO;
     let mut domain = None;
+    let mut late_recipe = false;
     let (circuit, _, _) = crate::compile::compiler::compile_v2(f, |base_logic| {
         let logic = if variant == 0 {
             base_logic
@@ -121,19 +121,19 @@ pub fn generate_packed_hash_circuit_variant(
             crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(&logic);
         let ps = crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&logic);
         let mut allocator =
-            WireAllocator::new_packed(&logic, &io, crate::compile::logic::K_FIRST_WIRE_POSITION);
-        let (given, derived, npublic, ninput) =
+            WireAllocator::new_boolean(&logic, &io, crate::compile::logic::K_FIRST_WIRE_POSITION);
+        let (given, derived, npublic, _) =
             allocate_hash(&mut allocator, num_attrs, &p8, &p256, &ps);
-        let boolean = crate::circuits::boolean::Boolean::new(&logic);
-        let values = [&given.issuer_sig_e, &given.device_pk.0, &given.device_pk.1];
-        let starts = std::array::from_fn(|i| {
-            logic.position_in_input_array(&boolean.as_eltw(values[i / 2].bit((i % 2) * 128)))
-                - npublic
-        });
+        let ninput = allocator.pos;
+        let late_ranges = allocator
+            .field_input_ranges
+            .iter()
+            .filter(|r| r.end <= npublic)
+            .cloned()
+            .collect::<Vec<_>>();
         domain = Some(crate::mdoc::proto::packed::HashInputManifest {
             public_bits: npublic,
             private_bits: ninput - npublic,
-            mac_starts: starts,
             compiler_variant: variant,
             witness_recipe: Default::default(),
         });
@@ -141,33 +141,21 @@ pub fn generate_packed_hash_circuit_variant(
             logic.begin_boolean_witness(ninput);
         }
         let assertion =
-            MdocHash::new(&logic, num_attrs).assert_valid_presentation(&given, &derived);
+            MdocHash::new(&logic, num_attrs).assert_valid_presentation_and_macs(&given, &derived);
         let recipe = logic.take_boolean_witness();
+        late_recipe=recipe.nodes.iter().any(|op|matches!(op,crate::core::bits::recipe::BitOp::Input(i) if late_ranges.iter().any(|r|r.contains(i))));
         let manifest = domain.as_mut().unwrap();
         manifest.private_bits += recipe.outputs.len();
         manifest.witness_recipe = recipe;
         (assertion, npublic, 0)
     });
+    if late_recipe {
+        return Err("private witness recipe depends on late public MAC inputs".into());
+    }
     let manifest = domain.ok_or("missing packed domain")?;
     manifest.validate()?;
     if circuit.raw.ninput != manifest.public_bits + manifest.private_bits {
         return Err("packed allocation mismatch".into());
-    }
-    if variant > 0 {
-        use crate::core::algebra::AlgebraicField;
-        for (layer_index, layer) in circuit.raw.layers.iter().enumerate() {
-            let mut bad = None;
-            layer.for_each_term(&circuit.raw.constants, |term| {
-                if term.k != f.zero() && term.k != f.one() {
-                    bad = Some(term.g);
-                }
-            });
-            if let Some(gate) = bad {
-                return Err(format!(
-                    "non-Boolean coefficient at layer {layer_index}, gate {gate}"
-                ));
-            }
-        }
     }
     Ok((
         crate::compile::compiler::segment_circuit(f, &circuit),

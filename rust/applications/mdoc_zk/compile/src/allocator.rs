@@ -28,7 +28,8 @@ pub struct WireAllocator<'l, 'a, FC: CompileField> {
     pub iologic: &'l CompilerLogic<'a, FC>,
     pub bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
     pub pos: usize,
-    packed: bool,
+    boolean_inputs: bool,
+    pub(super) field_input_ranges: Vec<std::ops::Range<usize>>,
 }
 
 impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
@@ -41,12 +42,13 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
             iologic,
             bitvec_io,
             pos,
-            packed: false,
+            boolean_inputs: false,
+            field_input_ranges: Vec::new(),
         }
     }
 
     #[cfg(feature = "experimental")]
-    pub(super) fn new_packed(
+    pub(super) fn new_boolean(
         iologic: &'l CompilerLogic<'a, FC>,
         bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
         pos: usize,
@@ -55,25 +57,34 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
             iologic,
             bitvec_io,
             pos,
-            packed: true,
+            boolean_inputs: true,
+            field_input_ranges: Vec::new(),
         }
     }
     pub fn allocate_wire(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
         self.iologic.next(&mut self.pos)
     }
-    /// V9's six pads and seven public MAC fields live outside the hash circuit.
-    pub(super) fn allocate_mac_wire(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
-        if self.packed {
-            self.iologic.zero()
-        } else {
-            self.allocate_wire()
+    /// Reconstruct an ordinary field-valued circuit input from Boolean coordinates.
+    pub(super) fn allocate_field_input(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
+        if !self.boolean_inputs {
+            return self.allocate_wire();
         }
+        let start = self.pos;
+        let terms = (0..128)
+            .map(|i| {
+                let bit = self.allocate_wire();
+                self.iologic
+                    .mulk(&self.iologic.field().pseudo_basis(i), &bit)
+            })
+            .collect::<Vec<_>>();
+        self.field_input_ranges.push(start..self.pos);
+        self.iologic.sum(&terms)
     }
 
     pub fn allocate_bitvec<const N: usize>(
         &mut self,
     ) -> crate::circuits::bitvec::Bitvec<CompilerLogic<'a, FC>, N> {
-        if self.packed {
+        if self.boolean_inputs {
             let boolean = crate::circuits::boolean::Boolean::new(self.iologic);
             crate::circuits::bitvec::Bitvec::new(
                 (0..N)
@@ -93,7 +104,7 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
     ) -> (V8<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
-        if self.packed {
+        if self.boolean_inputs {
             return (self.allocate_bitvec(), Vec::new());
         }
         let n_packed = 8 / PLUCKER_WIDTH;
@@ -122,7 +133,7 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
     ) -> (V32<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
-        if self.packed {
+        if self.boolean_inputs {
             return (self.allocate_bitvec(), Vec::new());
         }
         let n_packed = 32 / PLUCKER_WIDTH;
@@ -138,7 +149,7 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         V128<CompilerLogic<'a, FC>>,
         Vec<Eltw<CompilerLogic<'a, FC>>>,
     ) {
-        if self.packed {
+        if self.boolean_inputs {
             return (self.allocate_bitvec(), Vec::new());
         }
         let n_packed = 128 / PLUCKER_WIDTH;
@@ -154,7 +165,7 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         V256<CompilerLogic<'a, FC>>,
         Vec<Eltw<CompilerLogic<'a, FC>>>,
     ) {
-        if self.packed {
+        if self.boolean_inputs {
             return (self.allocate_bitvec(), Vec::new());
         }
         let n_packed = 256 / PLUCKER_WIDTH;
@@ -175,3 +186,6 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         ([t0, t1], [p0, p1])
     }
 }
+#[cfg(all(test, feature = "experimental"))]
+#[path = "../tests/boolean_mac.rs"]
+mod tests;

@@ -596,23 +596,25 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    SupportsSampling<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
+    SupportsSampling for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
+        let last = self.modulo.iter().rposition(|&limb| limb != 0).unwrap();
+        let bits = (last + 1) * crate::runtime::algebra::LIMB_BITS
+            - self.modulo[last].leading_zeros() as usize;
+        let byte_count = bits.div_ceil(8);
+        let high_mask = u8::MAX >> ((8 - bits % 8) % 8);
         loop {
-            let buf = rng(W * 8);
+            let mut raw = rng(byte_count);
             assert_eq!(
-                buf.len(),
-                W * 8,
+                raw.len(),
+                byte_count,
                 "sampling callback returned an unexpected number of bytes"
             );
-            let mut words = [0u64; W];
-            for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
-                *word = u64::from_le_bytes(chunk.try_into().unwrap());
-            }
-            let res = crate::runtime::algebra::words64_to_limbs(&words);
-            if lt(&res, &self.modulo) {
-                return self.to_montgomery(&res);
+            *raw.last_mut().unwrap() &= high_mask;
+            raw.resize(W * 8, 0);
+            if let Ok(x) = self.bytes_to_element(&raw) {
+                return x;
             }
         }
     }
@@ -628,5 +630,42 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     fn newton_denominator(&self, _k: usize, i: usize) -> Self::E {
         let val = self.u64_to_element(i as u64);
         self.invert(&val)
+    }
+}
+
+impl<const W: usize, const L: usize, const A: usize, Tag, S: MontgomeryStrategy<L>>
+    crate::runtime::algebra::packing::FiniteField for FpGenericField<W, L, A, Tag, S>
+{
+    fn order_le(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for limb in &self.modulo {
+            bytes.extend_from_slice(&limb.to_le_bytes());
+        }
+        while bytes.last() == Some(&0) {
+            bytes.pop();
+        }
+        bytes
+    }
+    fn field_id(&self) -> Vec<u8> {
+        let mut id = b"prime/canonical-integer/v1/".to_vec();
+        id.extend_from_slice(&self.order_le());
+        id
+    }
+}
+impl<const W: usize, const L: usize, const A: usize, Tag, S: MontgomeryStrategy<L>>
+    crate::runtime::algebra::packing::PackingField for FpGenericField<W, L, A, Tag, S>
+{
+    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+    fn packing_extension(&self) -> Self::Packing {
+        crate::runtime::algebra::packing::IdentityExtension::new(Self {
+            modulo: self.modulo,
+            neg_modulo: self.neg_modulo,
+            m_prime: self.m_prime,
+            r2: self.r2,
+            r: self.r,
+            accum_scale: self.accum_scale,
+            raw_half: self.raw_half,
+            _marker: PhantomData,
+        })
     }
 }

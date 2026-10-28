@@ -15,6 +15,7 @@
 //! Polygero masks tests.
 
 use super::*;
+use crate::runtime::algebra::SubfieldV1;
 
 /// Record which field supplies the masks, independently of the witness values.
 struct MaskRng {
@@ -26,21 +27,21 @@ impl RandomEngine for MaskRng {
     fn bytes(&mut self, len: usize) -> Vec<u8> {
         self.inner.bytes(len)
     }
-    fn elt_field<const W: usize, F: SupportsSampling<W>>(&mut self, f: &F) -> F::E {
+    fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
         self.field_samples += 1;
         self.inner.elt_field(f)
     }
-    fn elt_subfield<SF: Subfield>(&mut self, sf: &SF) -> SF::E {
+    fn elt_subfield<SF: SubfieldV1>(&mut self, sf: &SF) -> SF::E {
         self.subfield_samples += 1;
         self.inner.elt_subfield(sf)
     }
 }
 
-fn compact_rows<
+fn ambient_rows<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
-    SF: Subfield<E = F::E>,
+    SF: SubfieldV1<E = F::E>,
 >(
     f: &F,
     d: &D,
@@ -53,14 +54,6 @@ fn compact_rows<
         n: 64,
         t: 2,
     };
-    // Specialized subfield interpolation must agree with the general encoder.
-    for degree in [1, 3, 8, 17] {
-        let samples: Vec<_> = (0..degree).map(|_| sf.sample(|n| rng.bytes(n))).collect();
-        let encoder = d.make_range(0..degree, degree..128);
-        let fast = encoder.apply_subfield(&samples, sf);
-        let general = encoder.apply(&samples);
-        assert_eq!(fast, general);
-    }
     let products = [
         PolygeroProductConstraint { x: 0, y: 1, z: 2 },
         PolygeroProductConstraint { x: 4, y: 3, z: 5 },
@@ -72,22 +65,8 @@ fn compact_rows<
             z: 24,
         },
     ];
-    // Full-field slots may happen to contain subfield values. Mask selection
-    // must still follow the public boundary, including rows that straddle it.
-    for (subfield_boundary, subfield_count) in [
-        (0, 0),
-        (0, 30),
-        (1, 30),
-        (5, 30),
-        (6, 6),
-        (6, 30),
-        (9, 9),
-        (9, 30),
-        (18, 18),
-        (18, 30),
-        (29, 30),
-        (30, 30),
-    ] {
+    // The distribution of masks is independent of witness membership.
+    for subfield_count in [0, 6, 30] {
         let mut witness = rng.elt_field_slice(30, f);
         for value in &mut witness[..subfield_count] {
             *value = sf.sample(|n| rng.bytes(n));
@@ -99,59 +78,20 @@ fn compact_rows<
         let param = PolygeroParam::try_new(30, &products, config, d, f).unwrap();
         let verifier_param = PolygeroParam::try_new(30, &products, config, d, f).unwrap();
         let mut transcript = Transcript::new(b"polygero/compact");
-        // Corrupt each declared subfield position in turn. Rejection must
-        // precede mask sampling and any change to the transcript.
-        for index in 0..subfield_boundary {
-            let mut invalid = witness.clone();
-            let mut rejection_rng = DeterministicRng::new(106);
-            invalid[index] = (0..32)
-                .map(|_| rejection_rng.elt_field(f))
-                .find(|value| !sf.contains(value))
-                .expect("test requires a proper subfield");
-            let before_rng = rejection_rng.state;
-            let mut rejection_ts = Transcript::new(b"polygero/subfield-rejection");
-            let mut before = rejection_ts.clone();
-            let rejected = PolygeroProver::commit(
-                subfield_boundary,
-                invalid,
-                param.clone(),
-                &mut rejection_ts,
-                d,
-                &mut rejection_rng,
-                f,
-                sf,
-            );
-            assert!(
-                matches!(rejected, Err(PolygeroError(ref message)) if message == "witness outside declared subfield")
-            );
-            assert_eq!(rejection_rng.state, before_rng);
-            assert_eq!(before.u128(), rejection_ts.u128());
-        }
         let before = transcript.clone();
         let mut mask_rng = MaskRng {
             inner: DeterministicRng::new(95213),
             field_samples: 0,
             subfield_samples: 0,
         };
-        let (prover, commitment) = PolygeroProver::commit(
-            subfield_boundary,
-            witness.clone(),
-            param,
-            &mut transcript,
-            d,
-            &mut mask_rng,
-            f,
-            sf,
-        )
-        .unwrap();
+        let (prover, commitment) =
+            PolygeroProver::commit(witness.clone(), param, &mut transcript, d, &mut mask_rng, f)
+                .unwrap();
         let geom = verifier_param.geometry();
-        let compact_rows = subfield_boundary / geom.ordinary_width();
-        assert_eq!(mask_rng.subfield_samples, geom.t * compact_rows);
+        assert_eq!(mask_rng.subfield_samples, 0);
         assert_eq!(
             mask_rng.field_samples,
-            3 * geom.k
-                + geom.s
-                + geom.t * (geom.ordinary_rows() - compact_rows + 2 * geom.product_groups()),
+            3 * geom.k + geom.s + geom.t * (geom.ordinary_rows() + 2 * geom.product_groups())
         );
         let constraints: Vec<_> = witness
             .iter()
@@ -180,19 +120,10 @@ fn compact_rows<
             d,
             f,
         );
-        // Only rows wholly inside the declared subfield portion are compact.
         for row in 0..geom.ordinary_rows() {
-            let width = geom.k - geom.t;
-            let in_subfield = ((row + 1) * width).min(witness.len()) <= subfield_boundary;
-            if in_subfield {
-                assert!(proof.rows[(2 + row) * geom.t..(3 + row) * geom.t]
-                    .iter()
-                    .all(|value| sf.contains(value)));
-            } else {
-                assert!(proof.rows[(2 + row) * geom.t..(3 + row) * geom.t]
-                    .iter()
-                    .any(|value| !sf.contains(value)));
-            }
+            assert!(proof.rows[(2 + row) * geom.t..(3 + row) * geom.t]
+                .iter()
+                .any(|value| !sf.contains(value)));
         }
         let fstar = geom.transmitted_rows() - 1;
         for row in [0, 1, fstar] {
@@ -207,13 +138,9 @@ fn compact_rows<
         {
             assert!(row.iter().any(|value| !sf.contains(value)));
         }
-        let bytes = proof.write(&geom, f, sf).unwrap();
-        let full_bytes = proof.write(&geom, f, &FullField::<W, _>(f)).unwrap();
-        if compact_rows > 0 {
-            assert!(bytes.len() < full_bytes.len());
-        }
+        let bytes = proof.write(&geom, f).unwrap();
         let mut remaining = bytes.as_slice();
-        let decoded = crate::runtime::proto::polygero::read(&mut remaining, &geom, f, sf).unwrap();
+        let decoded = crate::runtime::proto::polygero::read(&mut remaining, &geom, f).unwrap();
         assert!(remaining.is_empty());
         assert_eq!(decoded, proof);
         let mut verifier_ts = Transcript::new(b"polygero/compact");
@@ -265,22 +192,16 @@ fn compact_rows<
 }
 
 #[test]
-fn binary_compact_masks_codec_and_privacy() {
+fn binary_ambient_masks_codec_and_privacy() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
     let d = BinaryInterpolatorFactory::new(&f, &sf);
-    compact_rows(&f, &d, &sf);
-    // Domain compatibility cannot silently change a statically subfield row.
-    let narrow = BinarySubfield::new(
-        &sf.basis()[..8]
-            .iter()
-            .map(|x| x.to_u128())
-            .collect::<Vec<_>>(),
-    );
+    ambient_rows(&f, &d, &sf);
+    let narrow = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1[..8]);
     let param = PolygeroParam::try_new(
         6,
         &[],
@@ -295,42 +216,10 @@ fn binary_compact_masks_codec_and_privacy() {
     )
     .unwrap();
     let geometry = param.geometry();
-    for subfield_boundary in [1, 5, 6] {
-        let mut transcript = Transcript::new(b"polygero/narrow-subfield");
-        let mut before = transcript.clone();
-        let mut rng = DeterministicRng::new(791);
-        let rejected = PolygeroProver::commit(
-            subfield_boundary,
-            vec![f.one(); 6],
-            param.clone(),
-            &mut transcript,
-            &d,
-            &mut rng,
-            &f,
-            &narrow,
-        );
-        assert!(
-            matches!(rejected, Err(PolygeroError(ref message)) if message == "nonzero subfield_boundary requires a subfield interpolation domain")
-        );
-        assert_eq!(rng.state, 791);
-        assert_eq!(before.u128(), transcript.u128());
-    }
-
-    // A zero subfield boundary permits this domain. The ordinary row uses
-    // full-field masks even though all six witness values happen to equal one.
     let mut transcript = Transcript::new(b"polygero/narrow-subfield");
     let mut rng = DeterministicRng::new(791);
-    let (prover, _) = PolygeroProver::commit(
-        0,
-        vec![f.one(); 6],
-        param,
-        &mut transcript,
-        &d,
-        &mut rng,
-        &f,
-        &narrow,
-    )
-    .unwrap();
+    let (prover, _) =
+        PolygeroProver::commit(vec![f.one(); 6], param, &mut transcript, &d, &mut rng, &f).unwrap();
     let proof = prover
         .prove(&[], &mut transcript, &[], &Digest::default(), &d, &f)
         .unwrap();
@@ -341,12 +230,12 @@ fn binary_compact_masks_codec_and_privacy() {
 
 #[cfg(feature = "experimental")]
 #[test]
-fn extension_compact_masks_codec_and_privacy() {
+fn extension_ambient_masks_codec_and_privacy() {
     use crate::runtime::algebra::{
         fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
         range_interpolation::CrtInterpolatorFactory,
     };
-    compact_rows(
+    ambient_rows(
         &RuntimeFp24Ext6::new(),
         &CrtInterpolatorFactory,
         &RuntimeFp24Subfield,
@@ -357,7 +246,7 @@ fn extension_compact_masks_codec_and_privacy() {
 fn ordinary_only_rows_allow_large_mask_prefixes() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let field = Gf2_128Field::new();
     let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
@@ -376,14 +265,12 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let verifier_param = param.clone();
         let mut prover_ts = Transcript::new(b"polygero/ordinary-only");
         let (prover, commitment) = PolygeroProver::commit(
-            witness.len(),
             witness.clone(),
             param,
             &mut prover_ts,
             &domain,
             &mut DeterministicRng::new(879),
             &field,
-            &subfield,
         )
         .unwrap();
         let proof = prover
@@ -392,13 +279,11 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         assert!(
             proof.rows[2 * geometry.t..(2 + geometry.ordinary_rows()) * geometry.t]
                 .iter()
-                .all(|value| subfield.contains(value))
+                .any(|value| !subfield.contains(value))
         );
-        let bytes = proof.write(&geometry, &field, &subfield).unwrap();
+        let bytes = proof.write(&geometry, &field).unwrap();
         let mut input = bytes.as_slice();
-        let decoded =
-            crate::runtime::proto::polygero::read(&mut input, &geometry, &field, &subfield)
-                .unwrap();
+        let decoded = crate::runtime::proto::polygero::read(&mut input, &geometry, &field).unwrap();
         assert!(input.is_empty());
         let mut verifier_ts = Transcript::new(b"polygero/ordinary-only");
         let mut verifier = PolygeroVerifier::new(verifier_param);

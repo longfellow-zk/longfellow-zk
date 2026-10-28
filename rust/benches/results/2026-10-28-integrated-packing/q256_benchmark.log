@@ -1,0 +1,23 @@
+Gnuplot not found, using plotters backend
+Benchmarking Q-256/add
+Benchmarking Q-256/add: Warming up for 100.00 ms
+Benchmarking Q-256/add: Collecting 10 samples in estimated 500.00 ms (300M iterations)
+Benchmarking Q-256/add: Analyzing
+Q-256/add               time:   [1.6784 ns 1.6841 ns 1.6909 ns]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low mild
+  1 (10.00%) high mild
+Benchmarking Q-256/mul
+Benchmarking Q-256/mul: Warming up for 100.00 ms
+Benchmarking Q-256/mul: Collecting 10 samples in estimated 500.00 ms (30M iterations)
+Benchmarking Q-256/mul: Analyzing
+Q-256/mul               time:   [16.484 ns 16.531 ns 16.617 ns]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking Q-256/invert
+Benchmarking Q-256/invert: Warming up for 100.00 ms
+Benchmarking Q-256/invert: Collecting 10 samples in estimated 500.06 ms (247k iterations)
+Benchmarking Q-256/invert: Analyzing
+Q-256/invert            time:   [2.0260 µs 2.0320 µs 2.0378 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild

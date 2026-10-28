@@ -21,7 +21,7 @@ use crate::{
     runtime::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-            subfield::BinarySubfield, AlgebraicField, RuntimeField,
+            subfield_v1::BinarySubfield, AlgebraicField, RuntimeField,
         },
         ligero::LigeroConfig,
         proto::sumcheck_v1::SumcheckProofGeometry,
@@ -169,7 +169,7 @@ fn test_zk_prover_verifier_end_to_end() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -274,7 +274,7 @@ fn test_zk_rfc_testvector1() {
     use crate::core::algebra::SupportsU128Conversions;
     let g_gen = f.u128_to_element(0x5c5971877501d4b8_f1871e01b64fda4c);
     let mut cur_gen = f.one();
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     for _ in 0..16 {
@@ -629,7 +629,7 @@ fn test_zk_triple_zero_zero_zero() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -773,7 +773,7 @@ fn test_zk_intermediate_zero_logw() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -840,7 +840,7 @@ fn test_zk_zero_layers() {
         nreq: 16,
         block_enc: 256,
     };
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
 

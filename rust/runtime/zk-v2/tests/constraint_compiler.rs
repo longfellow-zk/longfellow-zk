@@ -12,6 +12,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::runtime::algebra::{blas, ElementOf};
+/// Emit one equation per circuit layer and one final input equation, in that order.
+/// Preserve all terms, including zero coefficients; repeated terms remain additive.
+/// Equations and their constants remain even when every variable coefficient vanishes.
+fn compile_direct<const W: usize, F: RuntimeField<W>>(
+    constraints: &Constraints<ElementOf<F>>,
+    pads: &CircuitPadLayout,
+    public_inputs: &[ElementOf<F>],
+    f: &F,
+) -> Result<(Vec<PolygeroLinearTerm<ElementOf<F>>>, Vec<ElementOf<F>>), String> {
+    validate(constraints, pads, public_inputs.len())?;
+    let (mut a, mut b) = compile_layers(constraints, pads, f)?;
+    append_input_constraint(&mut a, &mut b, constraints, pads, public_inputs, f)?;
+    Ok((a, b))
+}
+
+/// Emit the final input equation, with N public inputs and weights a_i:
+///
+/// ```text
+/// sum_{(p,k) in claim.terms} k*w[coordinate(p)]
+///   + sum_{j=0}^{nprivate-1} (-a_{N+j})*w[j]
+///   + (claim.constant - sum_{i=0}^{N-1} a_i*public[i]) = 0.
+/// ```
+/// Pad coefficients already have their constraint signs and pass through unchanged.
+fn append_input_constraint<const W: usize, F: RuntimeField<W>>(
+    a: &mut Vec<PolygeroLinearTerm<F::E>>,
+    b: &mut Vec<F::E>,
+    constraints: &Constraints<F::E>,
+    pads: &CircuitPadLayout,
+    public_inputs: &[F::E],
+    f: &F,
+) -> Result<(), String> {
+    let claim = &constraints.input_claim;
+    let weights = &constraints.input_weights;
+    let npublic = public_inputs.len();
+    let c = b.len();
+    // The input sum is subtracted from the claim, so its known public part
+    // contributes -sum_i a_i*public[i] to the constant b[c].
+    let public_sum = blas::dot(&weights[..npublic], public_inputs, f);
+    b.push(f.subf(&claim.constant, &public_sum));
+    for w in 0..weights.len() - npublic {
+        let weight = &weights[npublic + w];
+        a.push(PolygeroLinearTerm {
+            c,
+            w,
+            // Subtract the private part of that same sum, once.
+            k: f.neg(weight),
+        });
+    }
+    append_pad_terms(a, c, claim, pads)
+}
+
 use super::*;
 use crate::{
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
@@ -65,7 +117,7 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
     residuals
 }
 
-fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn check_compilation<const W: usize, F: crate::runtime::algebra::ZkField<W>>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -121,14 +173,6 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
             .enumerate()
             .map(|(layer, _)| if layer == 0 { f.zero() } else { element(37) })
             .collect();
-        let layer_challenges = points
-            .iter()
-            .zip(&alphas)
-            .map(|(point, alpha)| LayerChallenges {
-                point_l: point.clone(),
-                alpha: alpha.clone(),
-            })
-            .collect();
         let input_weights = vec![element(41), f.zero(), element(43)];
         let inputs = vec![element(47), element(53), element(59)];
         let expected = reference(
@@ -140,7 +184,18 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
             &inputs,
             f,
         );
-        let constraints = build_constraints(&proof, layer_challenges, input_weights, f);
+        let make_constraints = || {
+            let challenges = points
+                .iter()
+                .zip(&alphas)
+                .map(|(point, alpha)| LayerChallenges {
+                    point_l: point.clone(),
+                    alpha: alpha.clone(),
+                })
+                .collect();
+            build_constraints(&proof, challenges, input_weights.clone(), f)
+        };
+        let constraints = make_constraints();
         assert_eq!(
             constraints.residuals(&inputs, &pad_values, f).unwrap(),
             expected
@@ -148,7 +203,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
         for npublic in [0, 1, inputs.len()] {
             let nprivate = inputs.len() - npublic;
             let layout = geometry.pad_layout(nprivate);
-            let (a, b) = compile(&constraints, &layout, &inputs[..npublic], f).unwrap();
+            let (a, b) = compile_direct(&constraints, &layout, &inputs[..npublic], f).unwrap();
             let mut witness = inputs[npublic..].to_vec();
             for layer in &pad_values.layers {
                 for round in &layer.rounds {
@@ -165,6 +220,43 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
                 residuals
             };
             assert_eq!(evaluate(&witness), expected);
+            // Exercise the production compiler and packing handoff, independently
+            // of the retained direct-field compiler. The direct packing row uses
+            // input_sum - claim, the opposite sign of the reference's final row.
+            let physical = crate::runtime::proto::zk_v2::PackingLayout::new(
+                nprivate,
+                witness.len() - nprivate,
+                1,
+            )
+            .unwrap();
+            let statement = compile(
+                make_constraints(),
+                &layout,
+                &inputs[..npublic],
+                &physical,
+                f,
+            )
+            .unwrap();
+            let backend = super::super::commitment::PackingCommitment::new(
+                f.clone(),
+                physical,
+                crate::runtime::algebra::IdentityExtension::new(f.clone()),
+            )
+            .unwrap();
+            let rows = crate::runtime::dual_packing::generic::reconstruct(
+                &backend.parameters,
+                &statement.claim,
+                &crate::runtime::proto::dual_packing::PackingProof::Direct,
+                &[],
+            )
+            .unwrap();
+            let (native_a, mut native_b) = backend.authenticate::<W>(statement, &rows).unwrap();
+            for term in native_a {
+                f.fma(&mut native_b[term.c], &term.k, &witness[term.w]);
+            }
+            let final_row = expected.len() - 1;
+            assert_eq!(&native_b[..final_row], &expected[..final_row]);
+            assert_eq!(native_b[final_row], f.neg(&expected[final_row]));
             let products = product_constraints(nprivate, &geometry);
             assert!(products
                 .iter()
@@ -214,7 +306,7 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
         logw_layers: vec![0],
     }
     .pad_layout(1);
-    let (a, b) = compile(&constraints, &pads, &[e(13)], &f).unwrap();
+    let (a, b) = compile_direct(&constraints, &pads, &[e(13)], &f).unwrap();
 
     // w = [private, p_A, p_B, p_A*p_B]. Starting from claim = 0 gives
     // -3*p_A - 2*p_B - w[3] - 6 = 0.
@@ -248,11 +340,29 @@ fn zero_weights_preserve_constant_constraint() {
         logw_layers: vec![],
     }
     .pad_layout(3);
-    let (a, b) = compile(&constraints, &pads, &[], &f).unwrap();
+    let (a, b) = compile_direct(&constraints, &pads, &[], &f).unwrap();
     assert_eq!(a.len(), 3);
     assert!(a.iter().all(|term| f.is_zero(&term.k)));
     // This equation is unsatisfiable even though every variable weight is zero.
     assert_eq!(b, vec![f.one()]);
+    let physical = crate::runtime::proto::zk_v2::PackingLayout::new(3, 0, 1).unwrap();
+    let statement = compile::<2, _>(constraints, &pads, &[], &physical, &f).unwrap();
+    let backend = super::super::commitment::PackingCommitment::new(
+        f.clone(),
+        physical,
+        crate::runtime::algebra::IdentityExtension::new(f.clone()),
+    )
+    .unwrap();
+    let rows = crate::runtime::dual_packing::generic::reconstruct(
+        &backend.parameters,
+        &statement.claim,
+        &crate::runtime::proto::dual_packing::PackingProof::Direct,
+        &[],
+    )
+    .unwrap();
+    let (native_a, native_b) = backend.authenticate::<2>(statement, &rows).unwrap();
+    assert!(native_a.iter().all(|term| f.is_zero(&term.k)));
+    assert_eq!(native_b, vec![f.one()]);
 }
 
 #[test]
@@ -284,10 +394,10 @@ fn rejects_mismatched_challenges_and_pad_layout() {
         logw_layers: vec![],
     }
     .pad_layout(0);
-    assert!(compile(&constraints, &missing_pads, &[], &f).is_err());
+    assert!(compile_direct(&constraints, &missing_pads, &[], &f).is_err());
     let pads = SumcheckProofGeometry {
         logw_layers: vec![0],
     }
     .pad_layout(0);
-    assert!(compile(&constraints, &pads, &[f.one()], &f).is_err());
+    assert!(compile_direct(&constraints, &pads, &[f.one()], &f).is_err());
 }

@@ -36,6 +36,15 @@ pub struct Circuit<F: SerializableField> {
     pub raw: RawCircuit<F>,
     pub id: DigestBytes,
 }
+impl<F: SerializableField> Circuit<F> {
+    /// V1 file metadata remains readable; V2 commits ambient-field cells only.
+    pub fn validate_v2(&self) -> Result<(), String> {
+        if self.raw.subfield_boundary != 0 {
+            return Err("V2 requires subfield_boundary = 0".into());
+        }
+        Ok(())
+    }
+}
 
 fn update8(hasher: &mut Sha256, val: usize) {
     hasher.update((val as u64).to_le_bytes());

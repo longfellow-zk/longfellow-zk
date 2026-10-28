@@ -1,0 +1,5 @@
+UNCERTIFIED PROTOTYPE PARAMETERS; kernel timings exclude witness generation and public preprocessing.
+binary: config=PolygeroConfig { k: 512, s: 64, n: 8192, t: 64 }, witnesses=8192, preprocessing(two parties)=0.114 ms, commit=15.690 ms, prove=3.400 ms, decode+verify=15.010 ms, proof=93728 bytes
+p256: config=PolygeroConfig { k: 512, s: 64, n: 8192, t: 64 }, witnesses=8192, preprocessing(two parties)=0.092 ms, commit=122.197 ms, prove=45.973 ms, decode+verify=320.594 ms, proof=172384 bytes
+q256 scalar reference (small workload): config=PolygeroConfig { k: 8, s: 2, n: 64, t: 2 }, witnesses=30, preprocessing(two parties)=0.004 ms, commit=0.341 ms, prove=0.205 ms, decode+verify=0.651 ms, proof=2400 bytes
+extension: config=PolygeroConfig { k: 512, s: 64, n: 8192, t: 64 }, witnesses=8192, preprocessing(two parties)=0.099 ms, commit=91.025 ms, prove=33.698 ms, decode+verify=244.853 ms, proof=103616 bytes

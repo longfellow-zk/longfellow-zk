@@ -21,7 +21,7 @@
 //! The two public phases preserve the legacy transcript and proof layout.
 
 use crate::runtime::{
-    algebra::{ElementOf, RangeInterpolatorFactory, Subfield, ZkField},
+    algebra::{ElementOf, RangeInterpolatorFactory, SubfieldV1, ZkField},
     ligero::{param::LigeroQuadraticConstraint, LigeroProver},
     random::{RandomEngine, Transcript},
     sumcheck_v1::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck},
@@ -55,7 +55,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     pub fn commit<
         IF: RangeInterpolatorFactory<W, F>,
         R: RandomEngine,
-        SF: Subfield<E = ElementOf<F>>,
+        SF: SubfieldV1<E = ElementOf<F>>,
     >(
         &self,
         witness_only: &[ElementOf<F>],

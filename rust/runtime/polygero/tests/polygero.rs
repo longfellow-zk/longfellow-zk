@@ -18,34 +18,13 @@ use crate::{
     runtime::{
         algebra::{
             range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
-            RangeInterpolatorFactory, RuntimeField, Subfield, SupportsSampling,
+            RangeInterpolatorFactory, RuntimeField, SupportsSampling,
         },
         proto::Digest,
         random::{DeterministicRng, RandomEngine, Transcript},
     },
 };
 
-struct FullField<'a, const W: usize, F>(&'a F);
-impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>> Subfield
-    for FullField<'_, W, F>
-{
-    type E = F::E;
-    fn to_bytes_into(&self, e: &F::E, dst: &mut [u8]) {
-        self.0.to_bytes_into(e, dst);
-    }
-    fn contains(&self, _: &F::E) -> bool {
-        true
-    }
-    fn serialized_size_bytes(&self) -> usize {
-        self.0.serialized_size_bytes()
-    }
-    fn bytes_to_element(&self, b: &[u8]) -> Result<F::E, String> {
-        self.0.bytes_to_element(b)
-    }
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, r: R) -> F::E {
-        self.0.sample(r)
-    }
-}
 // This wrapper exposes only the range API and enforces the original point-table bound.
 // Every core and V2 proof must work with only the original k+n point table.
 struct BoundedDomain<'a, D> {
@@ -142,13 +121,12 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
 
 fn exercise<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,
     backend: &D,
 ) {
-    let sf = FullField::<W, _>(f);
     let mut rng = DeterministicRng::new(314159);
     let nonzero: Vec<_> = (1..9).map(|i| backend.point(i)).collect();
     let inverses = crate::runtime::algebra::field::batch_inverse(&nonzero, f);
@@ -182,14 +160,8 @@ fn exercise<
             (37, 35),
         ] {
             let encoder = backend.make_range(0..k, start..n);
-            for compact in [false, true] {
-                let suffix = if compact {
-                    encoder.apply_subfield(&samples, &sf)
-                } else {
-                    encoder.apply(&samples)
-                };
-                assert_eq!(suffix, output[start..n]);
-            }
+            let suffix = encoder.apply(&samples);
+            assert_eq!(suffix, output[start..n]);
         }
     }
     assert!(extend::<W, F, _>(&[], 16, backend, f)
@@ -232,7 +204,7 @@ fn exercise<
         let mut ts = Transcript::new(b"polygero/test");
         let before = ts.clone();
         let (prover, com) =
-            PolygeroProver::commit(0, witness.clone(), p, &mut ts, d, &mut rng, f, &sf).unwrap();
+            PolygeroProver::commit(witness.clone(), p, &mut ts, d, &mut rng, f).unwrap();
         let mut a = Vec::new();
         let mut b = vec![f.zero(); 3];
         for (w, value) in witness.iter().enumerate() {
@@ -372,9 +344,9 @@ fn exercise<
         assert_eq!(reordered_proof, proof);
         assert_eq!(reordered_ts.bytes(32), ts.clone().bytes(32));
 
-        let bytes = proof.write(&vp.geom, f, &sf).unwrap();
+        let bytes = proof.write(&vp.geom, f).unwrap();
         let mut input = bytes.as_slice();
-        let decoded = crate::runtime::proto::polygero::read(&mut input, &vp.geom, f, &sf).unwrap();
+        let decoded = crate::runtime::proto::polygero::read(&mut input, &vp.geom, f).unwrap();
         assert!(input.is_empty());
         assert_eq!(decoded, proof);
         for which in 0..if products.is_empty() { 17 } else { 19 } {
@@ -464,36 +436,30 @@ fn exercise<
             bad.data[0] ^= 1;
             assert!(verify(&proof, &b, &a, &com, &bad).is_err());
             for length in (0..32).chain([bytes.len() / 2, bytes.len() - 1]) {
-                assert!(crate::runtime::proto::polygero::read(
-                    &mut &bytes[..length],
-                    &vp.geom,
-                    f,
-                    &sf
-                )
-                .is_err());
+                assert!(
+                    crate::runtime::proto::polygero::read(&mut &bytes[..length], &vp.geom, f)
+                        .is_err()
+                );
             }
         }
         {
             let mut bad = bytes.clone();
             bad[0] ^= 1;
             assert!(
-                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f, &sf)
-                    .is_err()
+                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f).is_err()
             );
         }
         {
             let mut bad = bytes.clone();
             bad[4] ^= 1;
             assert!(
-                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f, &sf)
-                    .is_err()
+                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f).is_err()
             );
         }
         {
             let mut bad = bytes.clone();
             bad[bytes.len() - 1] ^= 1;
-            let result =
-                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f, &sf);
+            let result = crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f);
             if let Ok(decoded_bad) = result {
                 assert!(verify(&decoded_bad, &b, &a, &com, &statement).is_err());
             }
@@ -504,8 +470,7 @@ fn exercise<
                 assert!(crate::runtime::proto::polygero::read(
                     &mut noncanonical.as_slice(),
                     &vp.geom,
-                    f,
-                    &sf
+                    f
                 )
                 .is_err());
             }
@@ -517,8 +482,7 @@ fn exercise<
             assert!(crate::runtime::proto::polygero::read(
                 &mut oversized_frontier.as_slice(),
                 &vp.geom,
-                f,
-                &sf
+                f
             )
             .is_err());
         }
@@ -533,7 +497,7 @@ fn exercise<
 fn binary_reference_and_failures() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
@@ -611,7 +575,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
 fn reject_invalid_geometry_and_backend_contracts() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
@@ -744,7 +708,7 @@ fn translated_point_table_without_translation_contract() {
     use crate::runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
@@ -762,7 +726,7 @@ fn translated_point_table_without_translation_contract() {
 fn binary_profile_fits_exact_original_point_table() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
     };
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1[..8]);
@@ -789,17 +753,8 @@ fn binary_profile_fits_exact_original_point_table() {
     let verifier_param = param.clone();
     let mut ts = Transcript::new(b"polygero/tight-table");
     let before = ts.clone();
-    let (prover, commitment) = PolygeroProver::commit(
-        0,
-        witness.clone(),
-        param,
-        &mut ts,
-        &domain,
-        &mut rng,
-        &f,
-        &FullField::<2, _>(&f),
-    )
-    .unwrap();
+    let (prover, commitment) =
+        PolygeroProver::commit(witness.clone(), param, &mut ts, &domain, &mut rng, &f).unwrap();
     let constraints = [PolygeroLinearTerm {
         c: 0,
         w: 2,

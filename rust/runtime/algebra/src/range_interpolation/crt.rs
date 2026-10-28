@@ -28,10 +28,7 @@ use crate::{
         fp24::{add_base, invert_base, mul_base, sub_base, Q},
         AlgebraicField, BareField, SupportsU64Conversions,
     },
-    runtime::algebra::{
-        fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, EXTENSION_DEGREE},
-        Subfield,
-    },
+    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, EXTENSION_DEGREE},
 };
 
 /// Experimental interpolation using exact componentwise CRT convolution.
@@ -159,22 +156,18 @@ impl CrtInterpolationPlan {
         }
         fft_backward(prepared, &self.inverse_roots);
     }
-
-    /// Apply independent exact convolutions to the requested extension components.
-    fn apply_components(
-        &self,
-        source: &[RuntimeElement],
-        components: usize,
-    ) -> Vec<RuntimeElement> {
+}
+impl InterpolationPlan<3, RuntimeFp24Ext6> for CrtInterpolationPlan {
+    /// Apply independent exact convolutions to all extension components.
+    fn apply(&self, source: &[RuntimeElement]) -> Vec<RuntimeElement> {
         let f = RuntimeFp24Ext6::new();
-        // Omitted extension components on the base-subfield path remain zero.
         let mut destination = vec![f.zero(); self.ranges.destination.len()];
         if self.ranges.trivial(source, &mut destination) {
             return destination;
         }
         let mut prepared = vec![0; self.roots.len()];
         let mut work = vec![0; self.roots.len()];
-        for component in 0..components {
+        for component in 0..EXTENSION_DEGREE {
             self.prepare_component(source, component, &mut prepared);
             for block in &self.blocks {
                 for i in 0..work.len() {
@@ -185,27 +178,6 @@ impl CrtInterpolationPlan {
             }
         }
         destination
-    }
-}
-impl InterpolationPlan<3, RuntimeFp24Ext6> for CrtInterpolationPlan {
-    fn apply(&self, source: &[RuntimeElement]) -> Vec<RuntimeElement> {
-        self.apply_components(source, EXTENSION_DEGREE)
-    }
-    fn apply_subfield<SF: Subfield<E = RuntimeElement>>(
-        &self,
-        source: &[RuntimeElement],
-        sf: &SF,
-    ) -> Vec<RuntimeElement> {
-        if sf.serialized_size_bytes() != 3 {
-            return self.apply(source);
-        }
-        assert!(
-            source
-                .iter()
-                .all(|x| x.coefficients()[1..].iter().all(|&c| c == 0)),
-            "invalid base-subfield interpolation hint"
-        );
-        self.apply_components(source, 1)
     }
 }
 impl RangeInterpolatorFactory<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {

@@ -21,7 +21,7 @@ use crate::{
     runtime::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-            subfield::BinarySubfield, AlgebraicField, RuntimeField,
+            subfield_v1::BinarySubfield, AlgebraicField, RuntimeField,
         },
         polygero::PolygeroConfig,
         random::{RandomEngine, Transcript},
@@ -161,20 +161,16 @@ fn test_zk_prover_verifier_end_to_end() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
-    let prover_inst = ZkProver::new(circ, config);
+    let prover_inst = ZkProver::new_full_field(circ, config);
     let (prover, geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::zk_v2::ZkContext {
                 f: &f,
                 domain: &make_interpolator,
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
@@ -182,7 +178,6 @@ fn test_zk_prover_verifier_end_to_end() {
     let zkp = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             prover,
             &mut ts_prover,
             &crate::runtime::zk_v2::ZkContext {
@@ -192,10 +187,8 @@ fn test_zk_prover_verifier_end_to_end() {
         )
         .expect("Failed to prove");
     // 5. Serialize / deserialize proof roundtrip
-    let serialized = zkp
-        .write(&geom, &f, &sf)
-        .expect("Failed to serialize ZkProof");
-    let mut verifier = ZkVerifier::new(
+    let serialized = zkp.write(&geom, &f).expect("Failed to serialize ZkProof");
+    let mut verifier = ZkVerifier::new_full_field(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -207,7 +200,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let v_geom = verifier.geometry();
     let mut r_slice = serialized.as_slice();
     let deserialized =
-        ZkProof::read(&mut r_slice, &v_geom, &f, &sf).expect("Failed to deserialize ZkProof");
+        ZkProof::read(&mut r_slice, &v_geom, &f).expect("Failed to deserialize ZkProof");
     assert!(r_slice.is_empty());
     assert_eq!(
         zkp, deserialized,
@@ -345,28 +338,21 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert!(tail.is_empty());
                 assert_eq!(decoded.id, circuit.id);
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
-                let prover = ZkProver::new(decoded, config);
+                let prover = ZkProver::new_full_field(decoded, config);
                 let mut rng = SimpleRng { state: 42 };
                 let mut prover_ts = Transcript::new(b"lexicographic-zk");
                 let (commitment, geometry) = prover
                     .commit(
-                        &witness_inputs[1..],
+                        witness_inputs[1..].to_vec(),
                         &context,
                         &mut prover_ts,
                         &mut rng,
-                        &sf,
                     )
                     .unwrap();
                 let proof = prover
-                    .prove(
-                        &witness_inputs[..1],
-                        witness_inputs[1..].to_vec(),
-                        commitment,
-                        &mut prover_ts,
-                        &context,
-                    )
+                    .prove(&witness_inputs[..1], commitment, &mut prover_ts, &context)
                     .unwrap();
-                let proof_bytes = proof.write(&geometry, &f, &sf).unwrap();
+                let proof_bytes = proof.write(&geometry, &f).unwrap();
                 if let Some(expected) = &expected_proof {
                     assert_eq!(&proof_bytes, expected);
                 } else {
@@ -378,12 +364,12 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     prover.circuit.raw.layers[0].terms(&prover.circuit.raw.constants),
                     ordered
                 );
-                let mut verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
+                let mut verifier =
+                    ZkVerifier::new_full_field(prover.circuit, config, &context).unwrap();
                 let verifier_geometry = verifier.geometry();
                 assert_eq!(geometry, verifier_geometry);
                 let mut remaining = proof_bytes.as_slice();
-                let decoded_proof =
-                    ZkProof::read(&mut remaining, &verifier_geometry, &f, &sf).unwrap();
+                let decoded_proof = ZkProof::read(&mut remaining, &verifier_geometry, &f).unwrap();
                 assert!(remaining.is_empty());
                 assert_eq!(proof, decoded_proof);
                 let mut verifier_ts = Transcript::new(b"lexicographic-zk");
@@ -467,27 +453,22 @@ fn test_zk_triple_zero_zero_zero() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
-    let prover_inst = ZkProver::new(circ, config);
+    let prover_inst = ZkProver::new_full_field(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::zk_v2::ZkContext {
                 f: &f,
                 domain: &make_interpolator,
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
     let zkp = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
             &mut ts_prover,
             &crate::runtime::zk_v2::ZkContext {
@@ -497,7 +478,7 @@ fn test_zk_triple_zero_zero_zero() {
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
-    let mut verifier = ZkVerifier::new(
+    let mut verifier = ZkVerifier::new_full_field(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -615,27 +596,22 @@ fn test_zk_intermediate_zero_logw() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
-    let prover_inst = ZkProver::new(circ, config);
+    let prover_inst = ZkProver::new_full_field(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::zk_v2::ZkContext {
                 f: &f,
                 domain: &make_interpolator,
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
     let zkp = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
             &mut ts_prover,
             &crate::runtime::zk_v2::ZkContext {
@@ -645,7 +621,7 @@ fn test_zk_intermediate_zero_logw() {
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
-    let mut verifier = ZkVerifier::new(
+    let mut verifier = ZkVerifier::new_full_field(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -686,9 +662,6 @@ fn test_zk_zero_layers() {
         n: 128,
         t: 4,
     };
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
 
     // Try all 16 combinations of zero / non-zero across the 4 inputs
     for mask in 0u32..16 {
@@ -709,23 +682,21 @@ fn test_zk_zero_layers() {
         };
         let mut ts_prover = Transcript::new(b"test_zk_zero_layers");
 
-        let prover_inst = ZkProver::new(circ, config);
+        let prover_inst = ZkProver::new_full_field(circ, config);
         let (commit_res, _geom) = prover_inst
             .commit(
-                &w0[2..],
+                w0[2..].to_vec(),
                 &crate::runtime::zk_v2::ZkContext {
                     f: &f,
                     domain: &make_interpolator,
                 },
                 &mut ts_prover,
                 &mut rng,
-                &sf,
             )
             .unwrap();
 
         let prove_res = prover_inst.prove(
             &w0[..2],
-            w0[2..].to_vec(),
             commit_res,
             &mut ts_prover,
             &crate::runtime::zk_v2::ZkContext {
@@ -747,7 +718,7 @@ fn test_zk_zero_layers() {
             );
             let zkp = prove_res.unwrap();
 
-            let mut verifier = ZkVerifier::new(
+            let mut verifier = ZkVerifier::new_full_field(
                 prover_inst.circuit,
                 config,
                 &crate::runtime::zk_v2::ZkContext {

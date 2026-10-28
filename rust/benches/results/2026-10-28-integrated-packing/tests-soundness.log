@@ -1,0 +1,72 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 36.24s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-686f9c07c9bbea20)
+
+running 65 tests
+test mdoc::compile::allocator::tests::reconstructed_mac_inputs_are_checked_by_the_circuit ... ok
+test module_dag_tests::production_after_test_items_is_checked ... ok
+test module_dag_tests::source_literals_and_comments_cannot_hide_or_invent_dependencies ... ok
+test module_dag_tests::sumcheck_dependency_checks_cover_import_forms_and_features ... ok
+test module_dag_tests::test_development_provider_boundaries ... ok
+test module_dag_tests::test_dual_packing_protocol_dependencies ... ok
+test module_dag_tests::test_experimental_phase_boundaries ... ok
+test module_dag_tests::test_hahn_certificate_sources ... ok
+test module_dag_tests::test_interpolation_dependencies ... ok
+test module_dag_tests::test_module_dependency_dag_and_layer_boundaries ... ok
+test module_dag_tests::test_polygero_compiler_boundaries ... ok
+test module_dag_tests::test_polygero_protocol_and_phase_boundaries ... ok
+test module_dag_tests::test_polygero_source_layout_and_test_privacy ... ok
+test module_dag_tests::test_sumcheck_protocol_dependencies ... ok
+test module_dag_tests::test_sumcheck_v2_source_layout_and_test_privacy ... ok
+test module_dag_tests::test_tooling_and_system_source_boundaries ... ok
+test module_dag_tests::test_v1_test_layout_and_privacy ... ok
+test module_dag_tests::test_v1_v2_implementation_isolation ... ok
+test module_dag_tests::test_v2_backend_has_no_subfield_encoding ... ok
+test module_dag_tests::test_v2_input_security_boundaries ... ok
+test module_dag_tests::test_v2_role_and_shared_module_boundaries ... ok
+test module_dag_tests::test_zk_v2_source_layout_and_test_privacy ... ok
+test runtime::dual_packing::generic_tests::binary128_generic_matches_specialized_messages_transcript_and_equations ... ok
+test runtime::dual_packing::generic_tests::distinguished_mask_coordinate_must_complement_the_base_field ... ok
+test runtime::dual_packing::generic_tests::exhaustive_false_claim_error_in_gf9_includes_arbitrary_b ... ok
+test runtime::dual_packing::generic_tests::field_orders_and_exponents_are_not_machine_words ... ok
+test runtime::dual_packing::generic_tests::generic_equations_authenticate_against_the_original_polygero_commitment ... ok
+test runtime::dual_packing::generic_tests::gf128_over_gf256_packs_non_boolean_coordinates ... ok
+test runtime::dual_packing::generic_tests::identity_has_no_masks_messages_or_challenges_even_with_nonunit_basis ... ok
+test runtime::dual_packing::generic_tests::odd_characteristic_nonunit_basis_and_characteristic_dividing_degree ... ok
+test runtime::dual_packing::generic_tests::protocol_and_v1_subfield_paths_use_the_field_sampler ... ok
+test runtime::dual_packing::generic_tests::sextic_prime_extension ... ok
+test runtime::dual_packing::generic_tests::sparse_prime_codec_samples_uniformly_without_padding_grinding ... ok
+test runtime::dual_packing::tests::changed_messages_context_claims_and_auxiliaries_fail ... ok
+test runtime::dual_packing::tests::complete_u_precedes_delta_and_a_is_bound_afterward ... ok
+test runtime::dual_packing::tests::components_are_the_papers_trace_adjoint_forms ... ok
+test runtime::dual_packing::tests::expanded_rows_equal_native_paper_equations_for_arbitrary_cells ... ok
+test runtime::dual_packing::tests::honest_native_equations_allow_zero_and_one_challenges ... ok
+test runtime::dual_packing::tests::lean_inconsistent_square_cell_regression ... ok
+test runtime::dual_packing::tests::malformed_shapes_and_nonzero_traces_leave_transcript_unchanged ... ok
+test runtime::dual_packing::tests::masked_reduction_and_verifier_transcript_agree ... ok
+test runtime::dual_packing::tests::polynomial_coordinates_trace_parity_and_dual_basis ... ok
+test runtime::dual_packing::tests::second_equation_alone_allows_an_adaptive_false_target ... ok
+test runtime::dual_packing::tests::transposed_dual_coordinates_match_direct_conversion ... ok
+test runtime::polygero::tests::binary_profile_fits_exact_original_point_table ... ok
+test runtime::polygero::tests::binary_reference_and_failures ... ok
+test runtime::polygero::tests::duplicate_opening_indices_reject_with_polygero_node_hash ... ok
+test runtime::polygero::tests::extension_crt_reference_and_failures ... ok
+test runtime::polygero::tests::masks::binary_ambient_masks_codec_and_privacy ... ok
+test runtime::polygero::tests::masks::extension_ambient_masks_codec_and_privacy ... ok
+test runtime::polygero::tests::masks::ordinary_only_rows_allow_large_mask_prefixes ... ok
+test runtime::polygero::tests::merkle_codecs_bind_role_index_context_and_salt ... ok
+test runtime::polygero::tests::q256_scalar_reference_and_failures ... ok
+test runtime::polygero::tests::quadratic_extension_fft_reference_and_failures ... ok
+test runtime::polygero::tests::reject_invalid_geometry_and_backend_contracts ... ok
+test runtime::polygero::tests::translated_point_table_without_translation_contract ... ok
+test runtime::zk_v2::constraint_compiler::tests::prime_field_coefficients_preserve_zero_sum_signs ... ok
+test runtime::zk_v2::constraint_compiler::tests::rejects_mismatched_challenges_and_pad_layout ... ok
+test runtime::zk_v2::constraint_compiler::tests::symbolic_and_compiled_constraints_match_numerical_binary ... ok
+test runtime::zk_v2::constraint_compiler::tests::symbolic_and_compiled_constraints_match_numerical_prime ... ok
+test runtime::zk_v2::constraint_compiler::tests::zero_weights_preserve_constant_constraint ... ok
+test runtime::zk_v2::packing_tests::boolean_kernels_match_the_shared_protocol_and_reserved_one_is_checked ... ok
+test runtime::zk_v2::packing_tests::identity_extension_has_no_packing_messages ... ok
+test runtime::zk_v2::packing_tests::invalid_membership_and_public_shapes_do_not_advance_transcript ... ok
+test runtime::zk_v2::packing_tests::sextic_public_values_are_unmodified_and_all_authenticated_parts_reject_tampering ... ok
+
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.28s

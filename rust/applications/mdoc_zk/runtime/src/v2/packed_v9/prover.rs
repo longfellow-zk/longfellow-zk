@@ -16,7 +16,7 @@
 
 use super::{
     super::inputs::{
-        public_inputs_fit, push_input_hash_packed, push_input_sig, push_witness_hash_packed,
+        public_inputs_fit, push_input_hash_boolean, push_input_sig, push_witness_hash_boolean,
         push_witness_sig,
     },
     proto::{MdocProof, MdocProofGeometry},
@@ -145,6 +145,8 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
     let mac_ap = generate_mac_ap(rng);
 
     let mut tp = Transcript::new(transcript);
+    tp.write_bytes(b"mdoc/v9/statement/v1");
+    tp.write_bytes(&zk_spec.combined_hash);
     let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -155,7 +157,7 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
@@ -175,22 +177,25 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
         }
     }
 
-    let mut witness_hash = push_witness_hash_packed(&gf2, attrs, &parsed, &mac_ap)?;
+    let mut witness_hash = push_witness_hash_boolean(&gf2, attrs, &parsed, &mac_ap)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
-    let hash_public_bits = push_input_hash_packed(
+    // The compiler checks that the private witness recipe is independent of
+    // the MAC public inputs, which are sampled after both commitments.
+    let recipe_public = push_input_hash_boolean(
         &gf2,
         attrs,
         now.as_bytes(),
+        &[0; 6],
+        0,
         false,
         doc_type.as_bytes(),
     );
     zk_spec
         .manifest
-        .extend_witness(&hash_public_bits, &mut witness_hash)
+        .extend_witness(&recipe_public, &mut witness_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
 
     let context_hash = ZkContext {
         f: &gf2,
@@ -203,39 +208,21 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
 
     #[cfg(feature = "bench-profile")]
     profile.next("app.prover.hash_commit");
-    let mut prover_hash = crate::runtime::zk_v2::packed::PackedCircuit::new(
-        c_hash,
-        config_hash,
-        6,
-        zk_spec.manifest.digest(),
-    )
-    .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
+    let mut prover_hash = crate::runtime::zk_v2::ZkProver::new(c_hash, config_hash);
     if let Some(window) = boolean_window {
         prover_hash = prover_hash
             .with_boolean_window(window)
             .map_err(|_| MdocProverErrorCode::InvalidInput)?;
     }
+    let private_hash = witness_hash;
     let (commit_hash, geom_hash) = prover_hash
-        .commit(
-            witness_hash,
-            mac_ap
-                .iter()
-                .flatten()
-                .copied()
-                .map(crate::runtime::algebra::gf2_128::Gf2_128::from)
-                .collect(),
-            &context_hash,
-            &mut tp,
-            rng,
-            &sf_hash,
-        )
+        .commit(private_hash, &context_hash, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-
     #[cfg(feature = "bench-profile")]
     profile.next("app.prover.signature_commit");
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig
-        .commit(&witness_sig, &context_sig, &mut tp, rng, &sf_sig)
+        .commit(witness_sig, &context_sig, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     #[cfg(feature = "bench-profile")]
@@ -251,35 +238,25 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
     let sig_pub_inputs =
         push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
 
-    let hash_pub_inputs = (0..hash_public_bits.len())
-        .map(|i| {
-            crate::runtime::algebra::gf2_128::Gf2_128::from(u128::from(hash_public_bits.get(i)))
-        })
-        .collect::<Vec<_>>();
-    let claims = super::mac_claims(&zk_spec.manifest, av_val, &macs, &gf2)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let hash_pub_inputs = push_input_hash_boolean(
+        &gf2,
+        attrs,
+        now.as_bytes(),
+        &macs,
+        av_val,
+        false,
+        doc_type.as_bytes(),
+    );
     #[cfg(feature = "bench-profile")]
     profile.next("app.prover.hash_proof");
     let proof_hash = prover_hash
-        .prove(
-            &hash_pub_inputs,
-            &claims,
-            commit_hash,
-            &mut tp,
-            &context_hash,
-        )
+        .prove(&hash_pub_inputs, commit_hash, &mut tp, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     #[cfg(feature = "bench-profile")]
     profile.next("app.prover.signature_proof");
     let proof_sig = prover_sig
-        .prove(
-            &sig_pub_inputs,
-            witness_sig,
-            commit_sig,
-            &mut tp,
-            &context_sig,
-        )
+        .prove(&sig_pub_inputs, commit_sig, &mut tp, &context_sig)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     #[cfg(feature = "bench-profile")]
@@ -294,6 +271,6 @@ pub fn run_mdoc_prover_inner_with_window<RNG: RandomEngine>(
         proof_sig,
     };
     proof
-        .write(&geom, &gf2, &sf_hash, &p256, &sf_sig)
+        .write(&geom, &gf2, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)
 }

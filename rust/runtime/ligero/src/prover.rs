@@ -29,7 +29,7 @@ use crate::{
     core::algebra::ElementOf,
     runtime::{
         algebra::{
-            blas, InterpolationPlan, RangeInterpolatorFactory, RuntimeField, Subfield,
+            blas, InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SubfieldV1,
             SupportsSampling,
         },
         ligero::{
@@ -55,7 +55,7 @@ pub struct LigeroProver<const W: usize, F: RuntimeField<W>> {
 
 impl<
         const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling<W>,
+        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling,
     > LigeroProver<W, F>
 {
     /// Encode the witness and product copies, commit their columns, and bind the root.
@@ -66,7 +66,7 @@ impl<
     pub fn commit<
         IF: RangeInterpolatorFactory<W, F>,
         R: RandomEngine,
-        SF: Subfield<E = ElementOf<F>>,
+        SF: SubfieldV1<E = ElementOf<F>>,
     >(
         subfield_boundary: usize,
         witness: &[ElementOf<F>],
@@ -279,7 +279,7 @@ impl<
 }
 
 // Fill tableau[i, [0,n)] with random elements.
-fn random_row<const W: usize, F: SupportsSampling<W>, R: RandomEngine>(
+fn random_row<const W: usize, F: RuntimeField<W> + SupportsSampling, R: RandomEngine>(
     i: usize,
     n: usize,
     tableau: &mut Tableau<ElementOf<F>>,
@@ -292,7 +292,7 @@ fn random_row<const W: usize, F: SupportsSampling<W>, R: RandomEngine>(
 }
 
 /// Fill a declared subfield prefix in the existing tableau allocation.
-fn random_subfield_row<SF: Subfield, R: RandomEngine>(
+fn random_subfield_row<SF: SubfieldV1, R: RandomEngine>(
     i: usize,
     n: usize,
     tableau: &mut Tableau<SF::E>,
@@ -318,7 +318,7 @@ fn extend_row<const W: usize, F: RuntimeField<W>>(
 /// witness-slot sum; the quadratic mask is zero at every witness slot.
 fn layout_blinding_rows<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
     R: RandomEngine,
 >(
@@ -363,9 +363,9 @@ fn layout_blinding_rows<
 /// Place each witness block after its random prefix, then extend that row.
 fn layout_witness_rows<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     R: RandomEngine,
-    SF: Subfield<E = ElementOf<F>>,
+    SF: SubfieldV1<E = ElementOf<F>>,
 >(
     subfield_boundary: usize,
     witness: &[ElementOf<F>],
@@ -395,18 +395,13 @@ fn layout_witness_rows<
         if max_col < w {
             blas::clear(&mut row_slice[max_col..w], f);
         }
-        if subfield_only {
-            let (source, destination) = tableau.row_mut(row_idx).split_at_mut(param.block);
-            destination.clone_from_slice(&interp.apply_subfield(source, sf));
-        } else {
-            extend_row::<W, F>(tableau.row_mut(row_idx), param.block, interp);
-        }
+        extend_row::<W, F>(tableau.row_mut(row_idx), param.block, interp);
     }
 }
 
 /// Copy product operands/results into separate x/y/z row groups. Their random
 /// prefixes are sampled independently; equality to the originals is batched later.
-fn layout_quadratic_rows<const W: usize, F: SupportsSampling<W>, R: RandomEngine>(
+fn layout_quadratic_rows<const W: usize, F: RuntimeField<W> + SupportsSampling, R: RandomEngine>(
     witness: &[ElementOf<F>],
     param: &LigeroParam,
     tableau: &mut Tableau<ElementOf<F>>,
@@ -454,10 +449,10 @@ fn layout_quadratic_rows<const W: usize, F: SupportsSampling<W>, R: RandomEngine
 /// Construct all rows in their committed order using one ordinary-row encoder.
 fn layout<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
     R: RandomEngine,
-    SF: Subfield<E = ElementOf<F>>,
+    SF: SubfieldV1<E = ElementOf<F>>,
 >(
     subfield_boundary: usize,
     witness: &[ElementOf<F>],

@@ -29,7 +29,7 @@ use crate::{
     runtime::algebra::{
         field::{RuntimeSerializableField, SupportsSampling},
         poly::InterpolationField,
-        RuntimeField, RuntimeNat, Subfield,
+        RuntimeField, RuntimeNat, SubfieldV1,
     },
 };
 
@@ -195,21 +195,25 @@ impl crate::core::algebra::SupportsNatConversions<3> for RuntimeFp24Ext6 {
     }
 }
 
-impl SupportsSampling<3> for RuntimeFp24Ext6 {
+impl SupportsSampling for RuntimeFp24Ext6 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let mut coefficients = [0u32; EXTENSION_DEGREE];
         for coefficient in &mut coefficients {
-            loop {
-                let bytes = rng(4);
-                assert_eq!(bytes.len(), 4);
-                let candidate = u32::from_le_bytes(bytes.try_into().unwrap()) & 0x7f_ffff;
-                if candidate < Q {
-                    *coefficient = candidate;
-                    break;
-                }
-            }
+            *coefficient = sample_base(&mut rng);
         }
         RuntimeElement::new(coefficients)
+    }
+}
+
+/// Shared exact sampler for the prime coordinates, including the V1 codec.
+pub(super) fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
+    loop {
+        let bytes = rng(3);
+        assert_eq!(bytes.len(), 3);
+        let candidate = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], 0]) & 0x7f_ffff;
+        if candidate < Q {
+            return candidate;
+        }
     }
 }
 
@@ -225,7 +229,7 @@ impl InterpolationField<3> for RuntimeFp24Ext6 {
 
 pub struct RuntimeFp24Subfield;
 
-impl Subfield for RuntimeFp24Subfield {
+impl SubfieldV1 for RuntimeFp24Subfield {
     type E = RuntimeElement;
 
     fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
@@ -258,15 +262,8 @@ impl Subfield for RuntimeFp24Subfield {
     }
 
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        loop {
-            let bytes = rng(4);
-            assert_eq!(bytes.len(), 4);
-            let candidate = u32::from_le_bytes(bytes.try_into().unwrap()) & 0x7f_ffff;
-            if candidate < Q {
-                let mut coefficients = [0; EXTENSION_DEGREE];
-                coefficients[0] = candidate;
-                return RuntimeElement::new(coefficients);
-            }
-        }
+        let mut coefficients = [0; EXTENSION_DEGREE];
+        coefficients[0] = sample_base(&mut rng);
+        RuntimeElement::new(coefficients)
     }
 }

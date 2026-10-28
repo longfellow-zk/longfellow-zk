@@ -34,14 +34,12 @@ use crate::runtime::proto::polygero::{
 /// `zk_tool check-profiles --protocol polygero --check-lean <FORMAL>`
 /// checks every shipped profile against the concrete one-level FS theorem.
 /// This does not certify the complete Rust implementation or Merkle binding.
-/// `accept` must check the interpolation backend's capacity. Subfield bytes
-/// are only a cost hint: the actual policy also checks all domain points.
+/// `accept` must check the interpolation backend's capacity. All opened rows
+/// use the ambient field encoding.
 pub fn tune_large_field(
     nw: usize,
     products: &[PolygeroProductConstraint],
-    subfield_boundary: usize,
     field_bytes: usize,
-    subfield_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
     tune_profiles(
@@ -53,9 +51,7 @@ pub fn tune_large_field(
         }),
         nw,
         products,
-        subfield_boundary,
         field_bytes,
-        subfield_bytes,
         accept,
     )
 }
@@ -69,9 +65,7 @@ pub fn tune_large_field_at_rate(
     rateinv: usize,
     nw: usize,
     products: &[PolygeroProductConstraint],
-    subfield_boundary: usize,
     field_bytes: usize,
-    subfield_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
     let profiles = match rateinv {
@@ -88,9 +82,7 @@ pub fn tune_large_field_at_rate(
         }),
         nw,
         products,
-        subfield_boundary,
         field_bytes,
-        subfield_bytes,
         accept,
     )
 }
@@ -102,7 +94,6 @@ pub fn tune_large_field_at_rate(
 pub fn tune_mldsa_128(
     nw: usize,
     products: &[PolygeroProductConstraint],
-    subfield_boundary: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
     tune_profiles(
@@ -111,9 +102,7 @@ pub fn tune_mldsa_128(
             .map(|&(k, s, t)| PolygeroConfig { k, s, n: 4 * k, t }),
         nw,
         products,
-        subfield_boundary,
         crate::core::algebra::fp24_ext6::SERIALIZED_SIZE,
-        crate::core::algebra::fp24_ext6::BASE_SERIALIZED_SIZE,
         accept,
     )
 }
@@ -122,14 +111,10 @@ fn tune_profiles(
     profiles: impl Iterator<Item = PolygeroConfig>,
     nw: usize,
     products: &[PolygeroProductConstraint],
-    subfield_boundary: usize,
     field_bytes: usize,
-    subfield_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
-    if subfield_boundary > nw
-        || subfield_bytes == 0
-        || subfield_bytes > field_bytes
+    if field_bytes == 0
         || products
             .iter()
             .any(|p| [p.x, p.y, p.z].iter().any(|&w| w >= nw))
@@ -150,7 +135,7 @@ fn tune_profiles(
             if geom.validate().is_err() {
                 return None;
             }
-            let column_bytes = column_bytes(&geom, subfield_boundary, field_bytes, subfield_bytes);
+            let column_bytes = geom.transmitted_rows() as u128 * field_bytes as u128;
             let responses = geom.response_lengths().iter().sum::<usize>() as u128;
             // Maximum shared frontier for distinct queries in a binary tree.
             let query_level = config.t.next_power_of_two().ilog2() as usize;
@@ -164,24 +149,6 @@ fn tune_profiles(
         })
         .min_by_key(|&(_, bytes)| bytes)
         .map(|(config, _)| config)
-}
-
-/// Estimate transmitted column bytes from public witness types. Virtual product
-/// outputs are omitted. Product inputs and dedicated masks always use full-field
-/// elements; only ordinary rows wholly inside the public boundary are compact.
-fn column_bytes(
-    geom: &PolygeroGeometry,
-    subfield_boundary: usize,
-    field_bytes: usize,
-    subfield_bytes: usize,
-) -> u128 {
-    let mut subfield_count = 0;
-    let width = geom.ordinary_width();
-    for row in 0..geom.ordinary_rows() {
-        subfield_count += usize::from(((row + 1) * width).min(geom.nw) <= subfield_boundary);
-    }
-    subfield_count as u128 * subfield_bytes as u128
-        + (geom.transmitted_rows() - subfield_count) as u128 * field_bytes as u128
 }
 
 #[cfg(test)]

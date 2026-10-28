@@ -50,7 +50,7 @@ struct Bindings<const W: usize, F: InterpolationField<W>> {
 }
 
 /// Bind the circuit statement and public input prefix, then prove every layer.
-pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,
@@ -78,7 +78,7 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
 
 /// Prove after the caller has bound the statement to the transcript. Layer inputs
 /// arrive in circuit output-to-input order; return messages and local verifier data.
-pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     mut in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,
@@ -173,7 +173,7 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>
 /// Prove one layer with alternating r/l bindings. Return the two unmasked witness
 /// claims and their points, together with masked messages and interpolation data.
 #[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     logw: usize,
     nw: usize,
     wires: Vec<ElementOf<F>>,

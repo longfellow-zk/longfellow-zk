@@ -18,7 +18,7 @@ use crate::{
     },
     runtime::algebra::{
         fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield, Q},
-        RuntimeField, RuntimeNat, Subfield, SupportsSampling,
+        RuntimeField, RuntimeNat, SubfieldV1, SupportsSampling,
     },
 };
 
@@ -67,14 +67,14 @@ fn sampling_rejects_noncanonical_candidates_in_extension_and_subfield() {
     let f = RuntimeFp24Ext6::new();
     let mut candidates = [Q, Q + 1, 0, 1, 2, 3, 4, Q - 1].into_iter();
     let sampled = f.sample(|n| {
-        assert_eq!(n, 4);
-        candidates.next().unwrap().to_le_bytes().to_vec()
+        assert_eq!(n, 3);
+        candidates.next().unwrap().to_le_bytes()[..3].to_vec()
     });
     assert_eq!(sampled, f.from_coefficients([0, 1, 2, 3, 4, Q - 1]));
     let mut base_candidates = [Q, 42].into_iter();
     let base_sample = RuntimeFp24Subfield.sample(|n| {
-        assert_eq!(n, 4);
-        base_candidates.next().unwrap().to_le_bytes().to_vec()
+        assert_eq!(n, 3);
+        base_candidates.next().unwrap().to_le_bytes()[..3].to_vec()
     });
     assert_eq!(base_sample, f.u64_to_element(42));
     assert!(RuntimeFp24Subfield.contains(&base_sample));

@@ -1,0 +1,7 @@
+Cache comparison: byte-identical headers and payloads after the version marker
+attributes=2,variant=0: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=416/2912/15/86; signature k/n/s/t=416/2912/15/86
+attributes=2,variant=1: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=416/2912/15/86; signature k/n/s/t=416/2912/15/86
+attributes=2,variant=2: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=512/3584/18/87; signature k/n/s/t=416/2912/15/86
+attributes=4,variant=0: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=416/2912/15/86; signature k/n/s/t=416/2912/15/86
+attributes=4,variant=1: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=416/2912/15/86; signature k/n/s/t=416/2912/15/86
+attributes=4,variant=2: identical circuit ID, parameters, manifest and compressed circuit; hash k/n/s/t=512/3584/18/87; signature k/n/s/t=416/2912/15/86

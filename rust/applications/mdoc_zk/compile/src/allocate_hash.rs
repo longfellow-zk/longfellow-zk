@@ -142,10 +142,10 @@ where
         .map(|_| allocate_disclosed_attribute(allocator, plucker_v8))
         .collect();
 
-    let mac_e = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
-    let mac_device_pkx = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
-    let mac_device_pky = [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()];
-    let mac_av = allocator.allocate_mac_wire();
+    let mac_e = [allocator.allocate_field_input(), allocator.allocate_field_input()];
+    let mac_device_pkx = [allocator.allocate_field_input(), allocator.allocate_field_input()];
+    let mac_device_pky = [allocator.allocate_field_input(), allocator.allocate_field_input()];
+    let mac_av = allocator.allocate_field_input();
 
     let suppress_doc_type_check = allocator.allocate_bitvec::<1>().bit(0).clone();
     let (expected_doc_type_bytes, _) =
@@ -195,7 +195,7 @@ where
     let subfield_boundary_val = allocator.pos;
 
     let mac_ap =
-        std::array::from_fn(|_| [allocator.allocate_mac_wire(), allocator.allocate_mac_wire()]);
+        std::array::from_fn(|_| [allocator.allocate_field_input(), allocator.allocate_field_input()]);
 
     let given = crate::mdoc::circuits::hash::Given {
         disclosed_attributes,

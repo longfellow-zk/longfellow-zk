@@ -58,7 +58,7 @@ fn main() {
         .map(|variant| {
             let path = cache
                 .as_ref()
-                .map(|d| d.join(format!("v9-flat-{attributes}-{variant}.cache")));
+                .map(|d| d.join(format!("v9-uniform-inputs-{attributes}-{variant}.cache")));
             let bundle = if let Some(p) = path.as_ref().filter(|p| p.exists()) {
                 provider::read_packed_v9(p).unwrap()
             } else {
@@ -73,7 +73,7 @@ fn main() {
         })
         .collect::<Vec<_>>();
     eprintln!(
-        "Experimental flat-trace v9; memory instrumentation={}; no kernel selected automatically",
+        "Experimental trace-zero v9; memory instrumentation={}; no kernel selected automatically",
         cfg!(feature = "bench-memory")
     );
     println!("attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap");

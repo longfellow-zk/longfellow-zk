@@ -35,7 +35,7 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
         npublic_input: 1,
         noutput: 1,
         logv: 0,
-        subfield_boundary: 1,
+        subfield_boundary: 0,
         constants: vec![f.one()],
         layers: vec![Layer::new_compressed(
             1,

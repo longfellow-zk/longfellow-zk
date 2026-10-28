@@ -82,7 +82,7 @@ impl TranscriptSumcheck for Transcript {
 /// Start the sumcheck transcript domain and return the initial output weights a.
 /// Sample the logv coordinates of u and form a[g] = product_j u[j]^g_j.
 /// A scalar output has logv=0 and weight one, so it consumes no field challenges.
-pub(super) fn begin<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn begin<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
@@ -96,7 +96,10 @@ pub(super) fn begin<const W: usize, F: SerializableField + SupportsSampling<W>>(
 /// Sample one replacement coefficient for every zero-coefficient quad, in
 /// circuit traversal order. The prover reuses this sequence in both quad bindings.
 /// Each coefficient replaces the full a[g]*QUAD[g,l,r] factor for its assertion.
-pub(super) fn assertion_weights<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn assertion_weights<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     layer: &Layer<F>,
     constants: &[F::E],
     layer_index: usize,
@@ -117,7 +120,10 @@ pub(super) fn assertion_weights<const W: usize, F: SerializableField + SupportsS
 /// Absorb m = [c0-s0,c1-s1] before sampling the round challenge z.
 /// With the pads already committed, fixing both messages determines the
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
-pub(super) fn round_challenge<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn round_challenge<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     m: &RoundPoly<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -130,7 +136,10 @@ pub(super) fn round_challenge<const W: usize, F: SerializableField + SupportsSam
 
 /// Bind the masked final claims before sampling alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
-pub(super) fn end_layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn end_layer<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     claims: &[F::E; 2],
     transcript: &mut Transcript,
     f: &F,

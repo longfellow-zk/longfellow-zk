@@ -21,7 +21,7 @@ pub trait RuntimeSerializableField<const W: usize>:
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String>;
 }
 
-pub trait RuntimeField<const W: usize>: crate::core::algebra::AlgebraicField {
+pub trait RuntimeField<const W: usize>: SupportsSampling {
     type Accum: Clone + std::fmt::Debug;
 
     // Arithmetic operations
@@ -63,7 +63,9 @@ pub use crate::core::algebra::{
     SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
 };
 
-pub trait SupportsSampling<const W: usize>: RuntimeField<W> {
+/// Sample with minimum byte draws, mask unused high bits, and reject overflow.
+/// Sampling is independent of storage width and serialization.
+pub trait SupportsSampling: AlgebraicField {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
 }
 

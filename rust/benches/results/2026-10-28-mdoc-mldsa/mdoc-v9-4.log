@@ -1,0 +1,6 @@
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,233.729019,131.268203,187336,0,0
+4,0,0,1,228.582479,131.070692,187336,0,0
+4,0,0,2,228.068887,132.613605,187336,0,0
+median attributes=4 variant=0 window=0: prover=228.582 ms verifier=131.268 ms

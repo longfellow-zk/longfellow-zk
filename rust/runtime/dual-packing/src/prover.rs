@@ -1,22 +1,9 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! One masked response; no inner sumcheck and no tower-field operations.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Trace-zero messages U, followed by the masked scalar A from the paper.
 use super::{
     field::{self, PolynomialBasis128},
-    BitLinearClaim, DualPacking128Proof, PackedLinearClaim, DUAL_PACKING_MASK_CELLS,
-    DUAL_PACKING_MESSAGES,
+    BitLinearClaim, DualPacking128Proof, PackedLinearClaim, DUAL_PACKING_COORDINATES,
+    DUAL_PACKING_FREE_MASKS, DUAL_PACKING_MASK_CELLS,
 };
 use crate::{
     core::bits::PackedBits,
@@ -28,85 +15,88 @@ use crate::{
         random::{RandomEngine, Transcript},
     },
 };
-
 pub struct DualPackingMaskValues {
-    random: [E; DUAL_PACKING_MESSAGES],
-    checksum: E,
+    free: [E; DUAL_PACKING_FREE_MASKS],
+    r: E,
+    b: E,
 }
 impl DualPackingMaskValues {
     pub fn sample(rng: &mut impl RandomEngine, f: &F) -> Self {
-        let random = std::array::from_fn(|_| E::from(rng.u128()));
-        let mut checksum = f.zero();
-        for (index, &r) in random.iter().enumerate() {
-            f.add(&mut checksum, &field::frobenius(r, index + 1, f));
+        let free = std::array::from_fn(|_| E::from(rng.u128()));
+        let r = E::from(rng.u128());
+        Self {
+            free,
+            r,
+            b: f.mulf(&r, &r),
         }
-        Self { random, checksum }
     }
     pub fn cells(&self) -> [E; DUAL_PACKING_MASK_CELLS] {
-        std::array::from_fn(|i| {
-            if i < DUAL_PACKING_MESSAGES {
-                self.random[i]
-            } else {
-                self.checksum
-            }
+        std::array::from_fn(|i| match i {
+            DUAL_PACKING_FREE_MASKS => self.r,
+            index if index == DUAL_PACKING_FREE_MASKS + 1 => self.b,
+            _ => self.free[i],
         })
     }
+    pub(super) fn coordinates(&self, f: &F) -> [E; DUAL_PACKING_COORDINATES] {
+        let mut result = [f.zero(); DUAL_PACKING_COORDINATES];
+        result[1..].copy_from_slice(&self.free);
+        for (j, t) in self.free.iter().enumerate() {
+            f.fma(&mut result[0], &E::from(1u128 << (j + 1)), t);
+        }
+        result
+    }
 }
-/// Write R[i,j]=sum_h beta_h*r[i,j,h], with binary r. Transpose each public
-/// coefficient row, then compute Z[h]=sum_(i,j) X[i]*dual_j*r[i,j,h].
-/// The original components are V_s=sum_h beta_h^(2^-s)*Z[h]. This moves all
-/// Frobenius operations past the large witness sum and keeps only 128 fields.
+/// B_k=sum_i D_ik*X_i, where D_ik=sum_j alpha_j*digit_k(R_ij).
+/// Only public coefficient rows are transposed. No Frobenius orbit is computed.
 pub(super) fn components(
     basis: &PolynomialBasis128,
     weights: &[E],
     bits: &PackedBits,
     f: &F,
-) -> [E; DUAL_PACKING_MESSAGES] {
-    if weights.is_empty() {
-        return [f.zero(); DUAL_PACKING_MESSAGES];
-    }
-    let mut accum = std::array::from_fn::<_, 128, _>(|_| f.zero_accum());
-    for (i, row) in weights.chunks(128).enumerate() {
+) -> [E; DUAL_PACKING_COORDINATES] {
+    let mut accum = std::array::from_fn::<_, DUAL_PACKING_COORDINATES, _>(|_| f.zero_accum());
+    for (i, row) in weights.chunks(DUAL_PACKING_COORDINATES).enumerate() {
         let numerators = field::dual_coordinate_numerators(row);
         let word = E::from(bits.word128(i));
         for (a, coefficient) in accum.iter_mut().zip(&numerators) {
             f.mac(a, &word, coefficient);
         }
     }
-    // All dual basis elements share the denominator P'(x)=x^6+1.
-    let z = accum.map(|a| f.mulf(&basis.dual(127), &f.accum_reduce(&a)));
-    let mut values = [f.zero(); DUAL_PACKING_MESSAGES];
-    let mut point = E::from(2); // beta_h=x^h, so evaluate Z(T) at x^(2^-s).
-    for t in 1..128 {
-        point = f.mulf(&point, &point);
-        let mut value = z[127];
-        for coefficient in z[..127].iter().rev() {
-            value = f.addf(&f.mulf(&value, &point), coefficient);
-        }
-        values[127 - t] = value;
-    }
-    values
+    accum.map(|a| f.mulf(&basis.dual(127), &f.accum_reduce(&a)))
 }
+#[allow(clippy::too_many_arguments)]
 pub fn reduce(
     basis: &PolynomialBasis128,
     claim: &BitLinearClaim,
     bits: &PackedBits,
+    auxiliary: &[E],
     masks: DualPackingMaskValues,
     context: &[u8],
     ts: &mut Transcript,
     f: &F,
-) -> Result<(DualPacking128Proof, PackedLinearClaim), String> {
+) -> Result<(DualPacking128Proof, [PackedLinearClaim; 2]), String> {
     claim.validate()?;
-    if bits.len() != claim.weights.len() {
-        return Err("dual packing logical bit count mismatch".into());
+    if bits.len() != claim.weights.len() || auxiliary.len() != claim.auxiliary_count {
+        return Err("dual packing witness shape mismatch".into());
     }
-    let beta = super::transcript::begin(claim, context, ts, f);
-    let values = components(basis, &claim.weights, bits, f);
-    let alpha = super::inverse_twists(beta, f);
-    let proof = DualPacking128Proof {
-        messages: std::array::from_fn(|i| f.addf(&values[i], &f.mulf(&alpha[i], &masks.random[i]))),
-    };
-    let gamma = super::transcript::batch(&proof, ts, f);
-    let result = super::reconstruct(basis, claim, &proof, beta, &gamma, f);
+    let target = claim.rhs.evaluate(auxiliary, f)?;
+    let t = masks.coordinates(f);
+    let b = components(basis, &claim.weights, bits, f);
+    let u = std::array::from_fn(|k| {
+        f.addf(
+            &f.addf(&b[k], &f.mulf(&basis.dual(k), &target)),
+            &f.addf(&t[k], &f.mulf(&t[k], &t[k])),
+        )
+    });
+    super::validate_traces(basis, &u)?;
+    super::transcript::begin(claim, context, ts, f);
+    let delta = super::transcript::challenge(&u, ts, f);
+    let mut a = masks.r;
+    for (d, mask) in delta.iter().zip(&t) {
+        f.fma(&mut a, d, mask);
+    }
+    super::transcript::finish(a, ts, f);
+    let proof = DualPacking128Proof { u, a };
+    let result = super::reconstruct(basis, claim, &proof, &delta, f);
     Ok((proof, result))
 }

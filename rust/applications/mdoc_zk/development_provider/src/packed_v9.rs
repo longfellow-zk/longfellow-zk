@@ -30,14 +30,14 @@ use crate::{
         algebra::{
             fp2::Fp2Field,
             gf2_128::Gf2_128Field,
-            p256::{P256Field, P256Subfield},
+            p256::P256Field,
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            subfield::BinarySubfield,
-            Subfield, SupportsFFT,
+            subfield_v1::BinarySubfield,
+            SupportsFFT,
         },
-        proto::packed_zk::PackedLayout,
+        proto::zk_v2::packing_layout,
     },
 };
 pub fn compile_packed_v9(num_attributes: usize) -> Result<ProvidedCircuit, String> {
@@ -85,18 +85,10 @@ pub fn compile_packed_v9_variant(
     let s = crate::core::proto::reader::CircuitReader::new(&p, FieldID::P256)
         .from_bytes(&archive.entries[0].payload, true)?
         .0;
-    let (layout, _, products) = PackedLayout::new(&h, 6)?;
-    let hc = crate::compile::polygero::tune_large_field_at_rate(
-        7,
-        layout.witness_count,
-        &products,
-        0,
-        16,
-        sf.serialized_size_bytes(),
-        |c| c.can_interpolate(&d),
-    )
+    let (layout, _, products) = packing_layout(&h, &f)?;
+    let hc = crate::compile::polygero::tune_large_field_at_rate(7, layout.witness_count, &products, 16, |c| c.can_interpolate(&d))
     .ok_or("no packed Polygero profile")?;
-    let sc = super::next_v2::select_parameters(&s, &pd, &p, &P256Subfield::new(&p))?;
+    let sc = super::next_v2::select_parameters(&s, &pd, &p)?;
     let par = |c: crate::runtime::polygero::PolygeroConfig| PolygeroParameters {
         k: c.k,
         s: c.s,
@@ -120,7 +112,7 @@ pub fn compile_packed_v9_variant(
 }
 pub fn write_packed_v9(path: &std::path::Path, bundle: &ProvidedCircuit) -> Result<(), String> {
     let s = bundle.spec();
-    let mut b = b"MDOCBIT2".to_vec();
+    let mut b = b"MDOCBIT6".to_vec();
     b.extend_from_slice(&s.combined_hash);
     for n in [
         s.num_attributes,
@@ -153,13 +145,12 @@ pub fn read_packed_v9(path: &std::path::Path) -> Result<ProvidedCircuit, String>
     let end = start
         .checked_add(length)
         .ok_or("manifest length overflow")?;
-    if b.len() <= end || &b[..8] != b"MDOCBIT2" {
+    if b.len() <= end || &b[..8] != b"MDOCBIT6" {
         return Err("invalid packed v9 cache".into());
     }
     let mut ns = [0usize; 10];
     for (n, c) in ns.iter_mut().zip(b[40..120].as_chunks::<8>().0) {
-        *n = usize::try_from(u64::from_le_bytes(*c))
-            .map_err(|_| "cache count overflow")?
+        *n = usize::try_from(u64::from_le_bytes(*c)).map_err(|_| "cache count overflow")?
     }
     let manifest = HashInputManifest::from_bytes(&b[start..end])?;
     let par = |i: usize| PolygeroParameters {

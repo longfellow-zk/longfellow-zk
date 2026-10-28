@@ -1,0 +1,349 @@
+    Checking longfellow-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust)
+warning: using `chunks_exact` with a constant chunk size
+   --> src/../runtime/algebra/src/fp_generic.rs:610:59
+    |
+610 |             for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
+    |                                                           ^^^^^^^^^^^^^^^
+    |
+help: consider using `as_chunks::<8>()` instead
+   --> src/../runtime/algebra/src/fp_generic.rs:610:59
+    |
+610 |             for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
+    |                                                           ^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+    = note: `#[warn(clippy::chunks_exact_to_as_chunks)]` on by default
+
+warning: using `chunks_exact_mut` with a constant chunk size
+   --> src/../runtime/algebra/src/rfft.rs:612:28
+    |
+612 |             for chunk in a.chunks_exact_mut(2) {
+    |                            ^^^^^^^^^^^^^^^^^^^ help: consider using `as_chunks_mut` instead: `as_chunks_mut::<2>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+
+warning: using `chunks_exact_mut` with a constant chunk size
+   --> src/../runtime/algebra/src/rfft.rs:616:28
+    |
+616 |             for chunk in a.chunks_exact_mut(4) {
+    |                            ^^^^^^^^^^^^^^^^^^^ help: consider using `as_chunks_mut` instead: `as_chunks_mut::<4>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+
+warning: using `chunks_exact_mut` with a constant chunk size
+   --> src/../runtime/algebra/src/rfft.rs:702:28
+    |
+702 |             for chunk in a.chunks_exact_mut(2) {
+    |                            ^^^^^^^^^^^^^^^^^^^ help: consider using `as_chunks_mut` instead: `as_chunks_mut::<2>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+
+warning: using `chunks_exact_mut` with a constant chunk size
+   --> src/../runtime/algebra/src/rfft.rs:706:28
+    |
+706 |             for chunk in a.chunks_exact_mut(4) {
+    |                            ^^^^^^^^^^^^^^^^^^^ help: consider using `as_chunks_mut` instead: `as_chunks_mut::<4>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+
+warning: the loop variable `i` is used to index `copy_weights`
+  --> src/../runtime/polygero/src/constraints.rs:59:18
+   |
+59 |         for i in 0..g.nq {
+   |                  ^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+   = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator and enumerate()
+   |
+59 -         for i in 0..g.nq {
+59 +         for (i, <item>) in copy_weights.iter().enumerate().take(g.nq) {
+   |
+
+warning: this function has too many arguments (8/7)
+   --> src/../runtime/polygero/src/prover_commitment.rs:119:1
+    |
+119 | / fn encode_ordinary_rows<
+120 | |     const W: usize,
+121 | |     F: SupportsSampling<W>,
+122 | |     D: EvaluationDomain<W, F>,
+...   |
+133 | |     sf: &SF,
+134 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: the loop variable `row` is used to index `rows`
+   --> src/../runtime/polygero/src/prover.rs:160:20
+    |
+160 |         for row in 0..rows.len() {
+    |                    ^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+160 -         for row in 0..rows.len() {
+160 +         for (row, <item>) in rows.iter().enumerate() {
+    |
+
+warning: `mut received` is shadowed
+   --> src/../runtime/polygero/src/verifier.rs:161:17
+    |
+161 |         let mut received = received.chunks_exact(g.t);
+    |                 ^^^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/polygero/src/verifier.rs:156:9
+    |
+156 |         received: &[F::E],
+    |         ^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_reuse
+    = note: requested on the command line with `-W clippy::shadow-reuse`
+
+warning: the loop variable `row` is used to index `rows`
+   --> src/../runtime/polygero/src/verifier.rs:277:20
+    |
+277 |         for row in 0..rows.len() {
+    |                    ^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+277 -         for row in 0..rows.len() {
+277 +         for (row, <item>) in rows.iter().enumerate() {
+    |
+
+warning: using `chunks_exact` with a constant chunk size
+  --> src/../runtime/sumcheck-v1/src/dense.rs:99:32
+   |
+99 |     for chunk in v[..2 * half].chunks_exact(2) {
+   |                                ^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<2>().0`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#chunks_exact_to_as_chunks
+
+warning: can be more succinctly written as a byte str
+  --> src/../applications/mdoc_zk/proto/src/hash/constants.rs:28:46
+   |
+28 |   pub const K_NAMESPACE_CHECK_CBOR: [u8; 17] = [
+   |  ______________________________________________^
+29 | |     b'o', b'r', b'g', b'.', b'i', b's', b'o', b'.', b'1', b'8', b'0', b'1', b'3', b'.', b'5', b'.',
+30 | |     b'1',
+31 | | ];
+   | |_^ help: try: `*b"org.iso.18013.5.1"`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#byte_char_slices
+   = note: `#[warn(clippy::byte_char_slices)]` on by default
+
+warning: `longfellow-zk` (lib) generated 12 warnings (run `cargo clippy --fix --lib -p longfellow-zk -- ` to apply 6 suggestions)
+warning: the loop variable `row` is used to index `rows`
+   --> src/../runtime/polygero/src/../tests/reference.rs:192:16
+    |
+192 |     for row in 0..fstar {
+    |                ^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+192 -     for row in 0..fstar {
+192 +     for (row, <item>) in rows.iter().enumerate().take(fstar) {
+    |
+
+warning: the loop variable `i` is used to index `sent_rows`
+   --> src/../runtime/polygero/src/../tests/reference.rs:272:14
+    |
+272 |     for i in 0..sent_rows.len() {
+    |              ^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+272 -     for i in 0..sent_rows.len() {
+272 +     for (i, <item>) in sent_rows.iter().enumerate() {
+    |
+
+warning: the loop variable `query` is used to index `indices`
+   --> src/../runtime/polygero/src/../tests/reference.rs:274:22
+    |
+274 |         for query in 0..indices.len() {
+    |                      ^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+274 -         for query in 0..indices.len() {
+274 +         for (query, <item>) in indices.iter().enumerate() {
+    |
+
+warning: `h` shadows a previous, unrelated binding
+   --> src/../runtime/polygero/src/../tests/reference.rs:291:9
+    |
+291 |     let h = proof.h.clone();
+    |         ^
+    |
+note: previous binding is here
+   --> src/../runtime/polygero/src/../tests/reference.rs:191:9
+    |
+191 |     let mut h = rows[fstar].clone();
+    |         ^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+    = note: requested on the command line with `-W clippy::shadow-unrelated`
+
+warning: `mut z` shadows a previous, unrelated binding
+   --> src/../runtime/polygero/src/../tests/reference.rs:292:13
+    |
+292 |     let mut z = proof.z.clone();
+    |             ^
+    |
+note: previous binding is here
+   --> src/../runtime/polygero/src/../tests/reference.rs:230:9
+    |
+230 |     let z = interpolate(&omega, &selector, f);
+    |         ^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `indices` shadows a previous, unrelated binding
+   --> src/../runtime/polygero/src/../tests/reference.rs:299:9
+    |
+299 |     let indices = transcript::queries(&mut ts, p, &h, &z, f);
+    |         ^^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/polygero/src/../tests/reference.rs:263:9
+    |
+263 |     let indices = transcript::queries(&mut ts.clone(), p, &proof.h, &proof.z, f);
+    |         ^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `rows` shadows a previous, unrelated binding
+   --> src/../runtime/polygero/src/../tests/reference.rs:300:10
+    |
+300 |     let (rows, opening) = prover.open_columns(&indices);
+    |          ^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/polygero/src/../tests/reference.rs:181:9
+    |
+181 |     let rows: Vec<_> = prover
+    |         ^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: the loop variable `round` is used to index `points`
+  --> src/../runtime/zk-v2/src/../tests/constraint_compiler.rs:45:22
+   |
+45 |         for round in 0..messages.rounds.len() {
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+   |
+45 -         for round in 0..messages.rounds.len() {
+45 +         for (round, <item>) in points.iter().enumerate().take(messages.rounds.len()) {
+   |
+
+warning: `committed` shadows a previous, unrelated binding
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:187:14
+    |
+187 |         let (committed, _) = other_prover
+    |              ^^^^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:156:10
+    |
+156 |     let (committed, prover_geometry) = p.commit(&witness, &context, &mut tp, &mut rng, sf).unwrap();
+    |          ^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `mut other_circuit` shadows a previous, unrelated binding
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:202:17
+    |
+202 |         let mut other_circuit = circuit(f);
+    |                 ^^^^^^^^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:183:13
+    |
+183 |         let mut other_circuit = circuit(f);
+    |             ^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `mut other_ts` shadows a previous, unrelated binding
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:205:17
+    |
+205 |         let mut other_ts = Transcript::new(b"longfellow/v2/test");
+    |                 ^^^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:186:13
+    |
+186 |         let mut other_ts = Transcript::new(b"longfellow/v2/test");
+    |             ^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `config` shadows a previous, unrelated binding
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:323:85
+    |
+323 |         crate::compile::polygero::tune_mldsa_128(nw, &products, subfield_boundary, |config| {
+    |                                                                                     ^^^^^^
+    |
+note: previous binding is here
+   --> src/../runtime/zk-v2/src/../tests/zk.rs:316:9
+    |
+316 |     let config = select(|p| p.k == 992).unwrap();
+    |         ^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `provided` is shadowed
+  --> src/../applications/mdoc_zk/development_provider/src/../tests/provider.rs:26:29
+   |
+26 |     let ProvidedCircuit::V1(provided) = provided else {
+   |                             ^^^^^^^^
+   |
+note: previous binding is here
+  --> src/../applications/mdoc_zk/development_provider/src/../tests/provider.rs:21:9
+   |
+21 |     let provided = materialize(CircuitRequest::FrozenV1 {
+   |         ^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_reuse
+
+warning: `source` is shadowed
+   --> src/dependency_tests.rs:952:13
+    |
+952 |         let source = fs::read_to_string(root.join(source)).unwrap();
+    |             ^^^^^^
+    |
+note: previous binding is here
+   --> src/dependency_tests.rs:942:10
+    |
+942 |     for (source, tests) in [
+    |          ^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_reuse
+
+warning: `directory` shadows a previous, unrelated binding
+    --> src/dependency_tests.rs:1046:10
+     |
+1046 |     for (directory, compiling) in [
+     |          ^^^^^^^^^
+     |
+note: previous binding is here
+    --> src/dependency_tests.rs:1031:9
+     |
+1031 |     let directory = root.join("applications/mdoc_zk/development_provider");
+     |         ^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `mut files` shadows a previous, unrelated binding
+    --> src/dependency_tests.rs:1050:17
+     |
+1050 |         let mut files = Vec::new();
+     |                 ^^^^^
+     |
+note: previous binding is here
+    --> src/dependency_tests.rs:1032:9
+     |
+1032 |     let mut files = Vec::new();
+     |         ^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#shadow_unrelated
+
+warning: `longfellow-zk` (lib test) generated 28 warnings (12 duplicates)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1.51s

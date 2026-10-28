@@ -20,11 +20,12 @@
 use crate::runtime::algebra::ZkField;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
-    core::{algebra::SerializableField, proto::circuit::Circuit},
+    core::proto::circuit::Circuit,
     runtime::{
         algebra::EvaluationDomain,
         polygero::{PolygeroConfig, PolygeroParam},
-        proto::zk_v2::commitment_layout,
+        proto::zk_v2::packing_layout_with_degree,
+        zk_v2::commitment::PackingCommitment,
         zk_v2::ZkProofGeometry,
     },
 };
@@ -36,8 +37,10 @@ pub struct ZkContext<'a, const W: usize, F: ZkField<W>, D> {
 }
 
 /// Count private inputs from the trusted circuit metadata.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn private_input_count<F: SerializableField>(circuit: &Circuit<F>) -> usize {
+#[cfg(any(test, feature = "prover"))]
+pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
+    circuit: &Circuit<F>,
+) -> usize {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "public input count exceeds total inputs"
@@ -50,17 +53,25 @@ pub(super) fn private_input_count<F: SerializableField>(circuit: &Circuit<F>) ->
 /// Product coordinates are local to construction; Polygero retains its own copy.
 /// This prepares metadata only, with no polynomial samples or interpolation plans.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn prepare_layout<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
+pub(super) fn prepare_layout<
+    const W: usize,
+    F: ZkField<W>,
+    D: EvaluationDomain<W, F>,
+    X: crate::runtime::algebra::PackingExtension<Ambient = F>,
+>(
     circuit: &Circuit<F>,
     config: PolygeroConfig,
+    extension: X,
     ctx: &ZkContext<'_, W, F, D>,
-) -> Result<(ZkProofGeometry, PolygeroParam), String> {
-    let (sc_geom, nw, products) = commitment_layout(circuit);
-    let param = PolygeroParam::try_new(nw, &products, config, ctx.domain, ctx.f)
-        .map_err(|error| error.to_string())?;
+) -> Result<(ZkProofGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
+    let (layout, sc_geom, products) = packing_layout_with_degree(circuit, extension.degree())?;
+    let param = PolygeroParam::try_new(layout.witness_count, &products, config, ctx.domain, ctx.f)
+        .map_err(|e| e.to_string())?;
     let geometry = ZkProofGeometry {
         sc_geom,
         com_geom: param.geometry(),
+        packing_degree: layout.degree,
     };
-    Ok((geometry, param))
+    let backend = PackingCommitment::new(ctx.f.clone(), layout, extension)?;
+    Ok((geometry, param, backend))
 }

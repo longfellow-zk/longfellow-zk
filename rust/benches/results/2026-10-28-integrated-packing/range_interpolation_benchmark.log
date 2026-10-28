@@ -1,0 +1,261 @@
+Gnuplot not found, using plotters backend
+Benchmarking range/quadratic-extension-fft-v8/prefix/plan
+Benchmarking range/quadratic-extension-fft-v8/prefix/plan: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/prefix/plan: Collecting 10 samples in estimated 440.75 ms (385 iterations)
+Benchmarking range/quadratic-extension-fft-v8/prefix/plan: Analyzing
+range/quadratic-extension-fft-v8/prefix/plan
+                        time:   [1.1349 ms 1.1410 ms 1.1461 ms]
+Benchmarking range/quadratic-extension-fft-v8/prefix/apply
+Benchmarking range/quadratic-extension-fft-v8/prefix/apply: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/prefix/apply: Collecting 10 samples in estimated 432.09 ms (550 iterations)
+Benchmarking range/quadratic-extension-fft-v8/prefix/apply: Analyzing
+range/quadratic-extension-fft-v8/prefix/apply
+                        time:   [780.23 µs 783.81 µs 787.64 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/quadratic-extension-fft-v8/shifted/plan
+Benchmarking range/quadratic-extension-fft-v8/shifted/plan: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/shifted/plan: Collecting 10 samples in estimated 416.14 ms (385 iterations)
+Benchmarking range/quadratic-extension-fft-v8/shifted/plan: Analyzing
+range/quadratic-extension-fft-v8/shifted/plan
+                        time:   [1.0780 ms 1.0818 ms 1.0861 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+Benchmarking range/quadratic-extension-fft-v8/shifted/apply
+Benchmarking range/quadratic-extension-fft-v8/shifted/apply: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/shifted/apply: Collecting 10 samples in estimated 434.81 ms (550 iterations)
+Benchmarking range/quadratic-extension-fft-v8/shifted/apply: Analyzing
+range/quadratic-extension-fft-v8/shifted/apply
+                        time:   [779.95 µs 783.73 µs 787.37 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/quadratic-extension-fft-v8/backward/plan
+Benchmarking range/quadratic-extension-fft-v8/backward/plan: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/backward/plan: Collecting 10 samples in estimated 429.95 ms (385 iterations)
+Benchmarking range/quadratic-extension-fft-v8/backward/plan: Analyzing
+range/quadratic-extension-fft-v8/backward/plan
+                        time:   [1.1075 ms 1.1134 ms 1.1192 ms]
+Benchmarking range/quadratic-extension-fft-v8/backward/apply
+Benchmarking range/quadratic-extension-fft-v8/backward/apply: Warming up for 100.00 ms
+Benchmarking range/quadratic-extension-fft-v8/backward/apply: Collecting 10 samples in estimated 430.88 ms (550 iterations)
+Benchmarking range/quadratic-extension-fft-v8/backward/apply: Analyzing
+range/quadratic-extension-fft-v8/backward/apply
+                        time:   [778.83 µs 781.19 µs 783.68 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/binary-v8/prefix/plan
+Benchmarking range/binary-v8/prefix/plan: Warming up for 100.00 ms
+Benchmarking range/binary-v8/prefix/plan: Collecting 10 samples in estimated 401.04 ms (20k iterations)
+Benchmarking range/binary-v8/prefix/plan: Analyzing
+range/binary-v8/prefix/plan
+                        time:   [20.005 µs 20.015 µs 20.027 µs]
+Found 2 outliers among 10 measurements (20.00%)
+  2 (20.00%) high mild
+Benchmarking range/binary-v8/prefix/apply
+Benchmarking range/binary-v8/prefix/apply: Warming up for 100.00 ms
+Benchmarking range/binary-v8/prefix/apply: Collecting 10 samples in estimated 400.98 ms (7260 iterations)
+Benchmarking range/binary-v8/prefix/apply: Analyzing
+range/binary-v8/prefix/apply
+                        time:   [55.036 µs 55.165 µs 55.291 µs]
+
+Benchmarking range/binary-v8/shifted/plan
+Benchmarking range/binary-v8/shifted/plan: Warming up for 100.00 ms
+Benchmarking range/binary-v8/shifted/plan: Collecting 10 samples in estimated 401.56 ms (11k iterations)
+Benchmarking range/binary-v8/shifted/plan: Analyzing
+range/binary-v8/shifted/plan
+                        time:   [37.054 µs 37.114 µs 37.193 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking range/binary-v8/shifted/apply
+Benchmarking range/binary-v8/shifted/apply: Warming up for 100.00 ms
+Benchmarking range/binary-v8/shifted/apply: Collecting 10 samples in estimated 401.38 ms (3960 iterations)
+Benchmarking range/binary-v8/shifted/apply: Analyzing
+range/binary-v8/shifted/apply
+                        time:   [101.11 µs 101.51 µs 101.96 µs]
+
+Benchmarking range/binary-v8/backward/plan
+Benchmarking range/binary-v8/backward/plan: Warming up for 100.00 ms
+Benchmarking range/binary-v8/backward/plan: Collecting 10 samples in estimated 400.28 ms (20k iterations)
+Benchmarking range/binary-v8/backward/plan: Analyzing
+range/binary-v8/backward/plan
+                        time:   [19.976 µs 19.994 µs 20.014 µs]
+Benchmarking range/binary-v8/backward/apply
+Benchmarking range/binary-v8/backward/apply: Warming up for 100.00 ms
+Benchmarking range/binary-v8/backward/apply: Collecting 10 samples in estimated 400.53 ms (7260 iterations)
+Benchmarking range/binary-v8/backward/apply: Analyzing
+range/binary-v8/backward/apply
+                        time:   [55.093 µs 55.239 µs 55.355 µs]
+
+Benchmarking range/scalar/plan
+Benchmarking range/scalar/plan: Warming up for 100.00 ms
+Benchmarking range/scalar/plan: Collecting 10 samples in estimated 400.10 ms (84k iterations)
+Benchmarking range/scalar/plan: Analyzing
+range/scalar/plan       time:   [4.7353 µs 4.7477 µs 4.7586 µs]
+Benchmarking range/scalar/apply
+Benchmarking range/scalar/apply: Warming up for 100.00 ms
+Benchmarking range/scalar/apply: Collecting 10 samples in estimated 400.57 ms (2255 iterations)
+Benchmarking range/scalar/apply: Analyzing
+range/scalar/apply      time:   [176.42 µs 177.36 µs 178.63 µs]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) high mild
+  1 (10.00%) high severe
+
+Benchmarking range/crt-mldsa/prefix/plan
+Benchmarking range/crt-mldsa/prefix/plan: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/prefix/plan: Collecting 10 samples in estimated 408.92 ms (1650 iterations)
+Benchmarking range/crt-mldsa/prefix/plan: Analyzing
+range/crt-mldsa/prefix/plan
+                        time:   [246.76 µs 247.30 µs 247.92 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking range/crt-mldsa/prefix/apply
+Benchmarking range/crt-mldsa/prefix/apply: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/prefix/apply: Collecting 10 samples in estimated 444.84 ms (495 iterations)
+Benchmarking range/crt-mldsa/prefix/apply: Analyzing
+range/crt-mldsa/prefix/apply
+                        time:   [896.92 µs 903.08 µs 909.09 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/crt-mldsa/shifted/plan
+Benchmarking range/crt-mldsa/shifted/plan: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/shifted/plan: Collecting 10 samples in estimated 404.98 ms (1650 iterations)
+Benchmarking range/crt-mldsa/shifted/plan: Analyzing
+range/crt-mldsa/shifted/plan
+                        time:   [244.45 µs 245.03 µs 245.72 µs]
+Benchmarking range/crt-mldsa/shifted/apply
+Benchmarking range/crt-mldsa/shifted/apply: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/shifted/apply: Collecting 10 samples in estimated 441.65 ms (495 iterations)
+Benchmarking range/crt-mldsa/shifted/apply: Analyzing
+range/crt-mldsa/shifted/apply
+                        time:   [889.21 µs 891.39 µs 893.96 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/crt-mldsa/backward/plan
+Benchmarking range/crt-mldsa/backward/plan: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/backward/plan: Collecting 10 samples in estimated 408.87 ms (1650 iterations)
+Benchmarking range/crt-mldsa/backward/plan: Analyzing
+range/crt-mldsa/backward/plan
+                        time:   [246.67 µs 247.45 µs 248.48 µs]
+Benchmarking range/crt-mldsa/backward/apply
+Benchmarking range/crt-mldsa/backward/apply: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/backward/apply: Collecting 10 samples in estimated 443.79 ms (495 iterations)
+Benchmarking range/crt-mldsa/backward/apply: Analyzing
+range/crt-mldsa/backward/apply
+                        time:   [894.79 µs 900.05 µs 909.99 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+
+Benchmarking range/crt-mldsa/base-inputs/apply
+Benchmarking range/crt-mldsa/base-inputs/apply: Warming up for 100.00 ms
+Benchmarking range/crt-mldsa/base-inputs/apply: Collecting 10 samples in estimated 444.14 ms (495 iterations)
+Benchmarking range/crt-mldsa/base-inputs/apply: Analyzing
+range/crt-mldsa/base-inputs/apply
+                        time:   [895.59 µs 899.37 µs 903.35 µs]
+
+Benchmarking range/binary/easy-control/plan
+Benchmarking range/binary/easy-control/plan: Warming up for 100.00 ms
+Benchmarking range/binary/easy-control/plan: Collecting 10 samples in estimated 400.11 ms (20k iterations)
+Benchmarking range/binary/easy-control/plan: Analyzing
+range/binary/easy-control/plan
+                        time:   [19.968 µs 19.977 µs 19.989 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking range/binary/easy-control/apply
+Benchmarking range/binary/easy-control/apply: Warming up for 100.00 ms
+Benchmarking range/binary/easy-control/apply: Collecting 10 samples in estimated 400.51 ms (7260 iterations)
+Benchmarking range/binary/easy-control/apply: Analyzing
+range/binary/easy-control/apply
+                        time:   [54.962 µs 55.061 µs 55.138 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/binary/v8-h/plan
+Benchmarking range/binary/v8-h/plan: Warming up for 100.00 ms
+Benchmarking range/binary/v8-h/plan: Collecting 10 samples in estimated 400.65 ms (7645 iterations)
+Benchmarking range/binary/v8-h/plan: Analyzing
+range/binary/v8-h/plan  time:   [52.197 µs 52.317 µs 52.440 µs]
+Benchmarking range/binary/v8-h/apply
+Benchmarking range/binary/v8-h/apply: Warming up for 100.00 ms
+Benchmarking range/binary/v8-h/apply: Collecting 10 samples in estimated 402.28 ms (3300 iterations)
+Benchmarking range/binary/v8-h/apply: Analyzing
+range/binary/v8-h/apply time:   [121.94 µs 122.12 µs 122.37 µs]
+
+Benchmarking range/binary/v8-h-wide/plan
+Benchmarking range/binary/v8-h-wide/plan: Warming up for 100.00 ms
+Benchmarking range/binary/v8-h-wide/plan: Collecting 10 samples in estimated 400.74 ms (7645 iterations)
+Benchmarking range/binary/v8-h-wide/plan: Analyzing
+range/binary/v8-h-wide/plan
+                        time:   [52.437 µs 52.528 µs 52.631 µs]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) high mild
+  1 (10.00%) high severe
+Benchmarking range/binary/v8-h-wide/apply
+Benchmarking range/binary/v8-h-wide/apply: Warming up for 100.00 ms
+Benchmarking range/binary/v8-h-wide/apply: Collecting 10 samples in estimated 417.96 ms (715 iterations)
+Benchmarking range/binary/v8-h-wide/apply: Analyzing
+range/binary/v8-h-wide/apply
+                        time:   [582.62 µs 583.98 µs 585.15 µs]
+
+Benchmarking range/binary/unbalanced/plan
+Benchmarking range/binary/unbalanced/plan: Warming up for 100.00 ms
+Benchmarking range/binary/unbalanced/plan: Collecting 10 samples in estimated 401.15 ms (9515 iterations)
+Benchmarking range/binary/unbalanced/plan: Analyzing
+range/binary/unbalanced/plan
+                        time:   [42.013 µs 42.091 µs 42.173 µs]
+Benchmarking range/binary/unbalanced/apply
+Benchmarking range/binary/unbalanced/apply: Warming up for 100.00 ms
+Benchmarking range/binary/unbalanced/apply: Collecting 10 samples in estimated 401.17 ms (3850 iterations)
+Benchmarking range/binary/unbalanced/apply: Analyzing
+range/binary/unbalanced/apply
+                        time:   [103.40 µs 103.74 µs 104.16 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/binary/two-large-pieces/plan
+Benchmarking range/binary/two-large-pieces/plan: Warming up for 100.00 ms
+Benchmarking range/binary/two-large-pieces/plan: Collecting 10 samples in estimated 400.04 ms (10k iterations)
+Benchmarking range/binary/two-large-pieces/plan: Analyzing
+range/binary/two-large-pieces/plan
+                        time:   [39.295 µs 39.346 µs 39.397 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking range/binary/two-large-pieces/apply
+Benchmarking range/binary/two-large-pieces/apply: Warming up for 100.00 ms
+Benchmarking range/binary/two-large-pieces/apply: Collecting 10 samples in estimated 402.46 ms (3630 iterations)
+Benchmarking range/binary/two-large-pieces/apply: Analyzing
+range/binary/two-large-pieces/apply
+                        time:   [110.41 µs 110.71 µs 111.06 µs]
+
+Benchmarking range/binary/small/plan
+Benchmarking range/binary/small/plan: Warming up for 100.00 ms
+Benchmarking range/binary/small/plan: Collecting 10 samples in estimated 401.22 ms (16k iterations)
+Benchmarking range/binary/small/plan: Analyzing
+range/binary/small/plan time:   [24.555 µs 24.575 µs 24.602 µs]
+Benchmarking range/binary/small/apply
+Benchmarking range/binary/small/apply: Warming up for 100.00 ms
+Benchmarking range/binary/small/apply: Collecting 10 samples in estimated 400.32 ms (35k iterations)
+Benchmarking range/binary/small/apply: Analyzing
+range/binary/small/apply
+                        time:   [11.343 µs 11.384 µs 11.427 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking range/binary/high-boundary/plan
+Benchmarking range/binary/high-boundary/plan: Warming up for 100.00 ms
+Benchmarking range/binary/high-boundary/plan: Collecting 10 samples in estimated 484.88 ms (275 iterations)
+Benchmarking range/binary/high-boundary/plan: Analyzing
+range/binary/high-boundary/plan
+                        time:   [1.7435 ms 1.7553 ms 1.7642 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+Benchmarking range/binary/high-boundary/apply
+Benchmarking range/binary/high-boundary/apply: Warming up for 100.00 ms
+Benchmarking range/binary/high-boundary/apply: Collecting 10 samples in estimated 427.69 ms (110 iterations)
+Benchmarking range/binary/high-boundary/apply: Analyzing
+range/binary/high-boundary/apply
+                        time:   [3.8372 ms 3.8773 ms 3.9000 ms]

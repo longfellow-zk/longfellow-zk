@@ -1,0 +1,31 @@
+Gnuplot not found, using plotters backend
+Benchmarking RFFT Forward/256
+Benchmarking RFFT Forward/256: Warming up for 100.00 ms
+Benchmarking RFFT Forward/256: Collecting 10 samples in estimated 500.47 ms (30k iterations)
+Benchmarking RFFT Forward/256: Analyzing
+RFFT Forward/256        time:   [16.557 µs 16.598 µs 16.667 µs]
+Found 3 outliers among 10 measurements (30.00%)
+  1 (10.00%) low mild
+  1 (10.00%) high mild
+  1 (10.00%) high severe
+Benchmarking RFFT Forward/1024
+Benchmarking RFFT Forward/1024: Warming up for 100.00 ms
+Benchmarking RFFT Forward/1024: Collecting 10 samples in estimated 500.05 ms (6270 iterations)
+Benchmarking RFFT Forward/1024: Analyzing
+RFFT Forward/1024       time:   [79.078 µs 79.319 µs 79.594 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking RFFT Forward/8192
+Benchmarking RFFT Forward/8192: Warming up for 100.00 ms
+Benchmarking RFFT Forward/8192: Collecting 10 samples in estimated 509.97 ms (605 iterations)
+Benchmarking RFFT Forward/8192: Analyzing
+RFFT Forward/8192       time:   [835.74 µs 839.10 µs 842.21 µs]
+Benchmarking RFFT Forward/65536
+Benchmarking RFFT Forward/65536: Warming up for 100.00 ms
+
+Warning: Unable to complete 10 samples in 500.0ms. You may wish to increase target time to 511.9ms or enable flat sampling.
+Benchmarking RFFT Forward/65536: Collecting 10 samples in estimated 511.95 ms (55 iterations)
+Benchmarking RFFT Forward/65536: Analyzing
+RFFT Forward/65536      time:   [9.3429 ms 9.3777 ms 9.4092 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild

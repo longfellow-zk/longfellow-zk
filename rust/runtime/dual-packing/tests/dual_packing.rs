@@ -1,307 +1,375 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Independent polynomial-coordinate, trace, transcript and malformed-proof checks.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Independent trace-adjoint and paper-native equation oracles.
 use super::{
-    field::{
-        dual_coordinate_numerators, frobenius, pack, select_bit, trace, unpack, PolynomialBasis128,
-    },
+    field::{dual_coordinate_numerators, pack, select_bit, trace, unpack, PolynomialBasis128},
     prover::{self, DualPackingMaskValues},
     verifier, AffineClaim, BitLinearClaim, DualPacking128Proof, DUAL_PACKING_MASK_CELLS,
-    DUAL_PACKING_MESSAGES,
 };
 use crate::{
     core::{algebra::AlgebraicField, bits::PackedBits},
     runtime::{
-        algebra::gf2_128::{Gf2_128, Gf2_128Field},
+        algebra::gf2_128::{Gf2_128 as E, Gf2_128Field as F},
         random::{DeterministicRng, RandomEngine, Transcript},
     },
 };
 
-#[test]
-fn polynomial_coordinates_and_trace_dual_basis() {
-    let f = Gf2_128Field::new();
-    let basis = PolynomialBasis128::new(&f);
-    for j in 0..128 {
-        let word = Gf2_128::from(1u128 << j);
-        let bits = unpack(&[word], 128).unwrap();
-        assert_eq!(bits.word128(0), 1u128 << j);
-        assert_eq!(pack(&bits), vec![word]);
-        for k in 0..128 {
-            assert_eq!(
-                trace(f.mulf(&basis.dual(j), &Gf2_128::from(1u128 << k)), &f),
-                if j == k { f.one() } else { f.zero() },
-                "dual ({j},{k})"
-            );
-        }
-    }
-}
-#[test]
-fn transposed_dual_coordinates_match_trace_pairing() {
-    let f = Gf2_128Field::new();
-    let basis = PolynomialBasis128::new(&f);
-    // Across these permutations, every (coefficient index, bit index) occurs.
-    for rotation in 0..128 {
-        let row =
-            std::array::from_fn::<_, 128, _>(|j| Gf2_128::from(1u128 << ((j + rotation) % 128)));
-        let numerators = dual_coordinate_numerators(&row);
-        for (h, numerator) in numerators.iter().enumerate() {
-            assert_eq!(
-                f.mulf(&basis.dual(127), numerator),
-                basis.dual((h + 128 - rotation) % 128),
-                "rotation={rotation}, coordinate={h}",
-            );
-        }
-    }
-    let mut rng = DeterministicRng::new(519);
-    for n in [0, 1, 7, 63, 127, 128] {
-        let row = (0..n)
-            .map(|_| Gf2_128::from(rng.u128()))
-            .collect::<Vec<_>>();
-        let numerators = dual_coordinate_numerators(&row);
-        for (h, numerator) in numerators.iter().enumerate() {
-            let mut direct = f.zero();
-            for (j, coefficient) in row.iter().enumerate() {
-                f.add(&mut direct, &select_bit(basis.dual(j), coefficient.bit(h)));
-            }
-            assert_eq!(
-                f.mulf(&basis.dual(127), numerator),
-                direct,
-                "n={n}, coordinate={h}"
-            );
-        }
-    }
-}
-
-#[test]
-fn compressed_components_match_direct_linear_forms_and_original_bit_claim() {
-    let f = Gf2_128Field::new();
-    let basis = PolynomialBasis128::new(&f);
-    for n in [0, 1, 7, 127, 128, 129, 257, 513] {
-        let (claim, bits, aux, _, _) = case(n, 19 + n as u64);
-        let packed = pack(&bits);
-        let components = prover::components(&basis, &claim.weights, &bits, &f);
-        let mut powers = claim.weights.clone();
-        for t in 1..128 {
-            let mut value = f.zero();
-            for (index, r) in powers.iter_mut().enumerate() {
-                *r = f.mulf(r, r);
-                let coefficient = f.mulf(&basis.dual(index % 128), r);
-                f.add(&mut value, &f.mulf(&coefficient, &packed[index / 128]));
-            }
-            assert_eq!(components[127 - t], value, "n={n}, component={}", 128 - t);
-        }
-        let mut value = f.zero();
-        for (index, &r) in claim.weights.iter().enumerate() {
-            let coefficient = f.mulf(&basis.dual(index % 128), &r);
-            f.add(&mut value, &f.mulf(&coefficient, &packed[index / 128]));
-        }
-        for (index, &v) in components.iter().enumerate() {
-            f.add(&mut value, &frobenius(v, index + 1, &f));
-        }
-        assert_eq!(value, claim.rhs.evaluate(&aux, &f).unwrap(), "n={n}");
-    }
-}
-
-#[test]
-fn transposed_reconstruction_matches_dense_public_coefficients() {
-    let f = Gf2_128Field::new();
-    let basis = PolynomialBasis128::new(&f);
-    let mut rng = DeterministicRng::new(815);
-    let gamma = std::array::from_fn(|_| Gf2_128::from(rng.u128()));
-    let beta = Gf2_128::from(rng.u128());
-    let proof = DualPacking128Proof {
-        messages: std::array::from_fn(|_| Gf2_128::from(rng.u128())),
-    };
-    for n in [0, 1, 127, 128, 129, 257, 513] {
-        let (claim, _, _, _, _) = case(n, 27 + n as u64);
-        let result = super::reconstruct(&basis, &claim, &proof, beta, &gamma, &f);
-        let expected = claim
-            .weights
-            .chunks(128)
-            .map(|row| {
-                let mut value = f.zero();
-                for (j, &r) in row.iter().enumerate() {
-                    let mut x = r;
-                    let mut psi = r;
-                    for t in 1..128 {
-                        x = f.mulf(&x, &x);
-                        f.add(&mut psi, &f.mulf(&gamma[127 - t], &x));
-                    }
-                    f.add(&mut value, &f.mulf(&basis.dual(j), &psi));
-                }
-                value
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(result.weights, expected, "n={n}");
-    }
-}
-#[test]
-fn entire_response_precedes_independent_batching_challenges() {
-    let f = Gf2_128Field::new();
-    let (claim, _, _, _, _) = case(7, 11);
-    let mut a = Transcript::new(b"flat order");
-    let mut b = a.clone();
-    let beta = super::transcript::begin(&claim, b"", &mut a, &f);
-    assert_eq!(beta, super::transcript::begin(&claim, b"", &mut b, &f));
-    let proof = DualPacking128Proof {
-        messages: [f.zero(); DUAL_PACKING_MESSAGES],
-    };
-    let mut bad = proof.clone();
-    bad.messages[DUAL_PACKING_MESSAGES - 1] = f.one();
-    let ga = super::transcript::batch(&proof, &mut a, &f);
-    let gb = super::transcript::batch(&bad, &mut b, &f);
-    assert_ne!(ga[0], gb[0]);
-    assert_ne!(ga[1], f.mulf(&ga[0], &ga[0]));
-    for (index, alpha) in super::inverse_twists(beta, &f).into_iter().enumerate() {
-        assert_eq!(frobenius(alpha, index + 1, &f), beta);
-    }
-}
 fn case(
     n: usize,
     seed: u64,
 ) -> (
     BitLinearClaim,
     PackedBits,
-    Vec<Gf2_128>,
+    Vec<E>,
     DualPackingMaskValues,
-    [Gf2_128; DUAL_PACKING_MASK_CELLS],
+    [E; DUAL_PACKING_MASK_CELLS],
 ) {
-    let f = Gf2_128Field::new();
+    let f = F::new();
     let mut rng = DeterministicRng::new(seed);
     let bits: PackedBits = (0..n).map(|_| rng.u128() & 1 != 0).collect();
-    let weights: Vec<_> = (0..n).map(|_| Gf2_128::from(rng.u128())).collect();
-    let auxiliary: Vec<_> = (0..3).map(|_| Gf2_128::from(rng.u128())).collect();
-    let terms: Vec<_> = (0..3).map(|i| (i, Gf2_128::from(rng.u128()))).collect();
+    let weights: Vec<_> = (0..n).map(|_| E::from(rng.u128())).collect();
+    let auxiliary: Vec<_> = (0..3).map(|_| E::from(rng.u128())).collect();
+    let terms: Vec<_> = (0..3).map(|i| (i, E::from(rng.u128()))).collect();
     let mut constant = f.zero();
-    for (i, a) in weights.iter().enumerate() {
-        f.add(&mut constant, &select_bit(*a, bits.get(i)));
+    for (i, &r) in weights.iter().enumerate() {
+        f.add(&mut constant, &select_bit(r, bits.get(i)));
     }
-    for &(i, a) in &terms {
-        f.add(&mut constant, &f.mulf(&a, &auxiliary[i]));
+    for &(i, k) in &terms {
+        f.add(&mut constant, &f.mulf(&k, &auxiliary[i]));
     }
     let claim = BitLinearClaim {
         weights,
-        auxiliary_count: 3,
+        auxiliary_count: auxiliary.len(),
         rhs: AffineClaim { constant, terms },
     };
     let masks = DualPackingMaskValues::sample(&mut rng, &f);
     let cells = masks.cells();
     (claim, bits, auxiliary, masks, cells)
 }
+/// Direct public coefficient conversion, without the transpose implementation.
+fn direct_components(basis: &PolynomialBasis128, weights: &[E], packed: &[E], f: &F) -> [E; 128] {
+    let mut result = [f.zero(); 128];
+    for (i, row) in weights.chunks(128).enumerate() {
+        for (j, r) in row.iter().enumerate() {
+            let term = f.mulf(&basis.dual(j), &packed[i]);
+            for (k, value) in result.iter_mut().enumerate() {
+                if r.bit(k) {
+                    f.add(value, &term);
+                }
+            }
+        }
+    }
+    result
+}
+/// The paper's L1/L2 literally evaluated, including its dependent t_0.
+#[allow(clippy::too_many_arguments)]
+fn native_residuals(
+    basis: &PolynomialBasis128,
+    claim: &BitLinearClaim,
+    packed: &[E],
+    aux: &[E],
+    cells: &[E; 129],
+    proof: &DualPacking128Proof,
+    delta: &[E; 128],
+    f: &F,
+) -> [E; 2] {
+    let mut t = [f.zero(); 128];
+    t[1..].copy_from_slice(&cells[..127]);
+    for (j, value) in cells[..127].iter().enumerate() {
+        f.add(&mut t[0], &f.mulf(&E::from(1u128 << (j + 1)), value));
+    }
+    let b = direct_components(basis, &claim.weights, packed, f);
+    let target = claim.rhs.evaluate(aux, f).unwrap();
+    let mut one = f.addf(&proof.a, &cells[127]);
+    let mut two = f.addf(&f.mulf(&proof.a, &proof.a), &cells[128]);
+    for k in 0..128 {
+        f.add(&mut one, &f.mulf(&delta[k], &t[k]));
+        let gamma = f.mulf(&delta[k], &delta[k]);
+        let value = f.addf(
+            &f.addf(&proof.u[k], &b[k]),
+            &f.addf(&f.mulf(&basis.dual(k), &target), &t[k]),
+        );
+        f.add(&mut two, &f.mulf(&gamma, &value));
+    }
+    [one, two]
+}
+fn residuals(
+    rows: &[super::PackedLinearClaim; 2],
+    packed: &[E],
+    aux: &[E],
+    cells: &[E; 129],
+    f: &F,
+) -> [E; 2] {
+    std::array::from_fn(|i| rows[i].residual(packed, aux, cells, f).unwrap())
+}
 
 #[test]
+fn polynomial_coordinates_trace_parity_and_dual_basis() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    for j in 0..128 {
+        let word = E::from(1u128 << j);
+        let bits = unpack(&[word], 128).unwrap();
+        assert_eq!(bits.word128(0), 1u128 << j);
+        assert_eq!(pack(&bits), vec![word]);
+        assert_eq!(basis.trace_bit(word), trace(word, &f) == f.one());
+        for k in 0..128 {
+            assert_eq!(
+                trace(f.mulf(&basis.dual(j), &E::from(1u128 << k)), &f),
+                if j == k { f.one() } else { f.zero() }
+            );
+        }
+    }
+    let mut rng = DeterministicRng::new(11);
+    for _ in 0..256 {
+        let x = E::from(rng.u128());
+        assert_eq!(basis.trace_bit(x), trace(x, &f) == f.one());
+    }
+    assert!(!basis.trace_bit(f.one())); // Degree 128 is even: Tr(1)=0.
+    assert!(basis.trace_bit(basis.dual(0)));
+}
+#[test]
+fn transposed_dual_coordinates_match_direct_conversion() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    for rotation in 0..128 {
+        let row = std::array::from_fn::<_, 128, _>(|j| E::from(1u128 << ((j + rotation) % 128)));
+        for (h, n) in dual_coordinate_numerators(&row).iter().enumerate() {
+            assert_eq!(
+                f.mulf(&basis.dual(127), n),
+                basis.dual((h + 128 - rotation) % 128)
+            );
+        }
+    }
+    for n in [0, 1, 7, 63, 127, 128] {
+        let mut rng = DeterministicRng::new(n as u64 + 519);
+        let row = (0..n).map(|_| E::from(rng.u128())).collect::<Vec<_>>();
+        for (h, numerator) in dual_coordinate_numerators(&row).iter().enumerate() {
+            let mut expected = f.zero();
+            for (j, r) in row.iter().enumerate() {
+                f.add(&mut expected, &select_bit(basis.dual(j), r.bit(h)));
+            }
+            assert_eq!(f.mulf(&basis.dual(127), numerator), expected);
+        }
+    }
+}
+#[test]
+fn components_are_the_papers_trace_adjoint_forms() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    for n in [0, 1, 7, 127, 128, 129, 257, 513] {
+        let (claim, bits, aux, _, _) = case(n, n as u64 + 19);
+        let packed = pack(&bits);
+        let actual = prover::components(&basis, &claim.weights, &bits, &f);
+        assert_eq!(
+            actual,
+            direct_components(&basis, &claim.weights, &packed, &f)
+        );
+        let target = claim.rhs.evaluate(&aux, &f).unwrap();
+        for (k, &b) in actual.iter().enumerate() {
+            assert_eq!(basis.trace_bit(b), target.bit(k));
+        }
+    }
+}
+#[test]
+fn expanded_rows_equal_native_paper_equations_for_arbitrary_cells() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let mut rng = DeterministicRng::new(918);
+    for n in [0, 1, 7, 127, 128, 129, 257] {
+        let (mut claim, bits, aux, _, _) = case(n, n as u64 + 27);
+        let packed = pack(&bits);
+        // False targets and unrelated r,b are deliberately permitted here.
+        f.add(&mut claim.rhs.constant, &f.one());
+        let cells = std::array::from_fn(|_| E::from(rng.u128()));
+        let proof = DualPacking128Proof {
+            u: std::array::from_fn(|_| E::from(rng.u128())),
+            a: E::from(rng.u128()),
+        };
+        for kind in 0..4 {
+            let delta = std::array::from_fn(|k| match kind {
+                0 => f.zero(),
+                1 => f.one(),
+                2 => E::from(1u128 << k),
+                _ => E::from(rng.u128()),
+            });
+            let rows = super::reconstruct(&basis, &claim, &proof, &delta, &f);
+            assert_eq!(
+                residuals(&rows, &packed, &aux, &cells, &f),
+                native_residuals(&basis, &claim, &packed, &aux, &cells, &proof, &delta, &f)
+            );
+        }
+    }
+}
+#[test]
+fn honest_native_equations_allow_zero_and_one_challenges() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let (claim, bits, aux, masks, cells) = case(193, 4);
+    let t = masks.coordinates(&f);
+    let target = claim.rhs.evaluate(&aux, &f).unwrap();
+    let b = prover::components(&basis, &claim.weights, &bits, &f);
+    let u = std::array::from_fn(|k| {
+        f.addf(
+            &f.addf(&b[k], &f.mulf(&basis.dual(k), &target)),
+            &f.addf(&t[k], &f.mulf(&t[k], &t[k])),
+        )
+    });
+    for delta in [[f.zero(); 128], [f.one(); 128]] {
+        let mut a = cells[127];
+        for (k, &d) in delta.iter().enumerate() {
+            f.add(&mut a, &f.mulf(&d, &t[k]));
+        }
+        let proof = DualPacking128Proof { u, a };
+        let rows = super::reconstruct(&basis, &claim, &proof, &delta, &f);
+        assert_eq!(
+            residuals(&rows, &pack(&bits), &aux, &cells, &f),
+            [f.zero(); 2]
+        );
+    }
+}
+#[test]
+fn lean_inconsistent_square_cell_regression() {
+    // PippoDreams DualPacking/AuditCases.lean: this false statement accepts at
+    // one particular challenge without requiring b=r^2. Do not strengthen it.
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let claim = BitLinearClaim {
+        weights: vec![f.zero()],
+        auxiliary_count: 0,
+        rhs: AffineClaim {
+            constant: f.one(),
+            terms: vec![],
+        },
+    };
+    let mut cells = [f.zero(); 129];
+    cells[128] = basis.dual(0);
+    let proof = DualPacking128Proof {
+        u: [f.zero(); 128],
+        a: f.zero(),
+    };
+    let mut delta = [f.zero(); 128];
+    delta[0] = f.one();
+    super::validate_traces(&basis, &proof.u).unwrap();
+    let rows = super::reconstruct(&basis, &claim, &proof, &delta, &f);
+    assert_eq!(
+        residuals(&rows, &[f.zero()], &[], &cells, &f),
+        [f.zero(); 2]
+    );
+    let zero_rows = super::reconstruct(&basis, &claim, &proof, &[f.zero(); 128], &f);
+    assert_ne!(
+        residuals(&zero_rows, &[f.zero()], &[], &cells, &f),
+        [f.zero(); 2]
+    );
+}
+#[test]
+fn second_equation_alone_allows_an_adaptive_false_target() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let claim = BitLinearClaim {
+        weights: vec![f.zero()],
+        auxiliary_count: 0,
+        rhs: AffineClaim {
+            constant: f.one(),
+            terms: vec![],
+        },
+    };
+    let mut delta = [f.zero(); 128];
+    delta[0] = f.one();
+    let mut a = basis.dual(0);
+    for _ in 0..127 {
+        a = f.mulf(&a, &a);
+    } // sqrt(eta), chosen after delta.
+    let proof = DualPacking128Proof {
+        u: [f.zero(); 128],
+        a,
+    };
+    let rows = super::reconstruct(&basis, &claim, &proof, &delta, &f);
+    let errors = residuals(&rows, &[f.zero()], &[], &[f.zero(); 129], &f);
+    assert!(!f.is_zero(&errors[0]));
+    assert!(f.is_zero(&errors[1]));
+}
+#[test]
+fn complete_u_precedes_delta_and_a_is_bound_afterward() {
+    let f = F::new();
+    let (claim, _, _, _, _) = case(7, 11);
+    let mut a = Transcript::new(b"order");
+    let mut b = a.clone();
+    super::transcript::begin(&claim, b"source", &mut a, &f);
+    super::transcript::begin(&claim, b"source", &mut b, &f);
+    let u = [f.zero(); 128];
+    let mut other = u;
+    other[127] = f.one();
+    let da = super::transcript::challenge(&u, &mut a, &f);
+    let db = super::transcript::challenge(&other, &mut b, &f);
+    assert_ne!(da, db);
+    assert_ne!(da[1], f.mulf(&da[0], &da[0]));
+    let mut other_a = a.clone();
+    super::transcript::finish(f.zero(), &mut a, &f);
+    super::transcript::finish(f.one(), &mut other_a, &f);
+    assert_ne!(a.bytes(32), other_a.bytes(32));
+}
+#[test]
 fn masked_reduction_and_verifier_transcript_agree() {
-    let f = Gf2_128Field::new();
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
     for n in [0, 1, 2, 7, 8, 127, 128, 129, 255, 257, 513] {
-        let (claim, bits, auxiliary, masks, cells) = case(n, 100 + n as u64);
-        let mut pt = Transcript::new(b"standalone dual packing test");
+        let (claim, bits, aux, masks, cells) = case(n, 100 + n as u64);
+        let mut pt = Transcript::new(b"roundtrip");
         let mut vt = pt.clone();
-        let (proof, output) = prover::reduce(
-            &PolynomialBasis128::new(&f),
-            &claim,
-            &bits,
-            masks,
-            b"source",
-            &mut pt,
-            &f,
-        )
-        .unwrap();
-        let expected = verifier::reduce(
-            &PolynomialBasis128::new(&f),
-            &claim,
-            &proof,
-            b"source",
-            &mut vt,
-            &f,
-        )
-        .unwrap();
-        assert_eq!(output, expected);
+        let (proof, rows) =
+            prover::reduce(&basis, &claim, &bits, &aux, masks, b"source", &mut pt, &f).unwrap();
+        assert!(proof.u.iter().all(|&u| !basis.trace_bit(u)));
+        assert_eq!(
+            verifier::reduce(&basis, &claim, &proof, b"source", &mut vt, &f).unwrap(),
+            rows
+        );
         assert_eq!(pt.bytes(32), vt.bytes(32));
         assert_eq!(
-            output
-                .residual(&pack(&bits), &auxiliary, &cells, &f)
-                .unwrap(),
-            f.zero()
+            residuals(&rows, &pack(&bits), &aux, &cells, &f),
+            [f.zero(); 2]
         );
-        let mut bytes = Vec::new();
+        let mut bytes = vec![];
         proof.write_to_buf(&mut bytes);
-        assert_eq!(bytes.len(), 2032);
+        assert_eq!(bytes.len(), 2064);
         assert_eq!(DualPacking128Proof::from_bytes(&bytes).unwrap(), proof);
     }
 }
-
 #[test]
-fn incorrect_checksum_has_exact_randomized_error() {
-    let f = Gf2_128Field::new();
-    let (mut claim, bits, auxiliary, masks, mut cells) = case(193, 5);
-    let delta = Gf2_128::from(123);
-    let checksum_error = Gf2_128::from(456);
-    f.add(&mut claim.rhs.constant, &delta);
-    f.add(&mut cells[DUAL_PACKING_MESSAGES], &checksum_error);
-    let (_, output) = prover::reduce(
-        &PolynomialBasis128::new(&f),
-        &claim,
-        &bits,
-        masks,
-        b"source",
-        &mut Transcript::new(b"bad checksum"),
-        &f,
-    )
-    .unwrap();
-    let actual = output
-        .residual(&pack(&bits), &auxiliary, &cells, &f)
-        .unwrap();
-    assert_eq!(
-        actual,
-        f.addf(&delta, &f.mulf(&output.checksum_weight, &checksum_error))
-    );
-    assert!(!f.is_zero(&actual));
-}
-
-#[test]
-fn changed_messages_context_auxiliaries_and_claims_fail() {
-    let f = Gf2_128Field::new();
-    let (claim, bits, auxiliary, masks, cells) = case(129, 7);
+fn changed_messages_context_claims_and_auxiliaries_fail() {
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let (claim, bits, aux, masks, cells) = case(129, 7);
     let packed = pack(&bits);
     let start = Transcript::new(b"binding");
     let (proof, _) = prover::reduce(
-        &PolynomialBasis128::new(&f),
+        &basis,
         &claim,
         &bits,
+        &aux,
         masks,
         b"source",
         &mut start.clone(),
         &f,
     )
     .unwrap();
-    for j in 0..DUAL_PACKING_MESSAGES {
+    for j in 0..128 {
         let mut bad = proof.clone();
-        f.add(&mut bad.messages[j], &f.one());
-        let out = verifier::reduce(
-            &PolynomialBasis128::new(&f),
-            &claim,
-            &bad,
-            b"source",
-            &mut start.clone(),
-            &f,
-        )
-        .unwrap();
-        assert!(!f.is_zero(&out.residual(&packed, &auxiliary, &cells, &f).unwrap()));
+        // Tr(1)=0: exercise authentication, not just trace rejection.
+        f.add(&mut bad.u[j], &f.one());
+        let rows =
+            verifier::reduce(&basis, &claim, &bad, b"source", &mut start.clone(), &f).unwrap();
+        assert_ne!(residuals(&rows, &packed, &aux, &cells, &f), [f.zero(); 2]);
     }
-    let context_result = verifier::reduce(
-        &PolynomialBasis128::new(&f),
+    let mut bad = proof.clone();
+    f.add(&mut bad.a, &f.one());
+    let changed_a =
+        verifier::reduce(&basis, &claim, &bad, b"source", &mut start.clone(), &f).unwrap();
+    assert_ne!(
+        residuals(&changed_a, &packed, &aux, &cells, &f),
+        [f.zero(); 2]
+    );
+    let different_context = verifier::reduce(
+        &basis,
         &claim,
         &proof,
         b"other source",
@@ -309,67 +377,73 @@ fn changed_messages_context_auxiliaries_and_claims_fail() {
         &f,
     )
     .unwrap();
-    assert!(!f.is_zero(
-        &context_result
-            .residual(&packed, &auxiliary, &cells, &f)
-            .unwrap()
-    ));
-    let mut other_claim = claim.clone();
-    f.add(&mut other_claim.rhs.constant, &f.one());
-    let claim_result = verifier::reduce(
-        &PolynomialBasis128::new(&f),
-        &other_claim,
-        &proof,
-        b"source",
-        &mut start.clone(),
-        &f,
-    )
-    .unwrap();
-    assert!(!f.is_zero(
-        &claim_result
-            .residual(&packed, &auxiliary, &cells, &f)
-            .unwrap()
-    ));
-    let auxiliary_result = verifier::reduce(
-        &PolynomialBasis128::new(&f),
-        &claim,
-        &proof,
-        b"source",
-        &mut start.clone(),
-        &f,
-    )
-    .unwrap();
-    let mut bad_auxiliary = auxiliary;
-    f.add(&mut bad_auxiliary[0], &f.one());
-    assert!(!f.is_zero(
-        &auxiliary_result
-            .residual(&packed, &bad_auxiliary, &cells, &f)
-            .unwrap()
-    ));
+    assert_ne!(
+        residuals(&different_context, &packed, &aux, &cells, &f),
+        [f.zero(); 2]
+    );
+    let mut other = claim.clone();
+    f.add(&mut other.rhs.constant, &f.one());
+    let different_target =
+        verifier::reduce(&basis, &other, &proof, b"source", &mut start.clone(), &f).unwrap();
+    assert_ne!(
+        residuals(&different_target, &packed, &aux, &cells, &f),
+        [f.zero(); 2]
+    );
+    let original =
+        verifier::reduce(&basis, &claim, &proof, b"source", &mut start.clone(), &f).unwrap();
+    let mut other_aux = aux;
+    f.add(&mut other_aux[0], &f.one());
+    assert_ne!(
+        residuals(&original, &packed, &other_aux, &cells, &f),
+        [f.zero(); 2]
+    );
 }
-
 #[test]
-fn malformed_shapes_reject_without_changing_transcript() {
-    for len in [0, 112, 2031, 2033, 2048] {
+fn malformed_shapes_and_nonzero_traces_leave_transcript_unchanged() {
+    for len in [0, 112, 2032, 2048, 2063, 2065] {
         assert!(DualPacking128Proof::from_bytes(&vec![0; len]).is_err());
     }
-    let f = Gf2_128Field::new();
-    let (mut claim, bits, _, masks, _) = case(7, 9);
+    let f = F::new();
+    let basis = PolynomialBasis128::new(&f);
+    let (mut claim, bits, aux, masks, _) = case(7, 9);
+    let start = Transcript::new(b"shape");
+    let mut bad_claim_transcript = start.clone();
     claim.rhs.terms[0].0 = 3;
-    let original = Transcript::new(b"shape");
-    let mut ts = original.clone();
     assert!(prover::reduce(
-        &PolynomialBasis128::new(&f),
+        &basis,
         &claim,
         &bits,
+        &aux,
         masks,
         b"",
-        &mut ts,
+        &mut bad_claim_transcript,
         &f
     )
     .is_err());
-    assert_eq!(ts.bytes(32), original.clone().bytes(32));
+    assert_eq!(bad_claim_transcript.bytes(32), start.clone().bytes(32));
+    claim.rhs.terms[0].0 = 0;
+    let mut proof = DualPacking128Proof {
+        u: [f.zero(); 128],
+        a: f.zero(),
+    };
+    proof.u[127] = basis.dual(0);
+    let mut bad_trace_transcript = start.clone();
+    assert!(verifier::reduce(&basis, &claim, &proof, b"", &mut bad_trace_transcript, &f).is_err());
+    assert_eq!(bad_trace_transcript.bytes(32), start.clone().bytes(32));
+    let (_, _, _, other_masks, _) = case(7, 9);
+    let mut bad_aux_transcript = start.clone();
+    assert!(prover::reduce(
+        &basis,
+        &claim,
+        &bits,
+        &aux[..2],
+        other_masks,
+        b"",
+        &mut bad_aux_transcript,
+        &f
+    )
+    .is_err());
+    assert_eq!(bad_aux_transcript.bytes(32), start.clone().bytes(32));
     assert!(unpack(&[], 1).is_err());
-    let bit = PackedBits::from_le_bytes(&[255], 1).unwrap();
-    assert_eq!(bit.word128(0), 1);
+    assert_eq!(PackedBits::from_le_bytes(&[255], 1).unwrap().word128(0), 1);
 }

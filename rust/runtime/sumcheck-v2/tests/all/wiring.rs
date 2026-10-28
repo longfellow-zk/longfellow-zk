@@ -28,7 +28,7 @@ use crate::{
     },
 };
 
-fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
+fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -79,7 +79,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 
 fn check_repeated_output<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     f: &F,
 ) {
@@ -122,10 +122,7 @@ fn check_repeated_output<
     assert_ne!(q_l[0], f.zero());
 }
 
-fn check_quad_order<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
->(
+fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -189,7 +186,12 @@ fn functional_transition_and_independent_assertions_binary() {
 /// Check the initial weights and the next PRF bytes independently of the
 /// prover/verifier roundtrip. Both roles could otherwise share the same extra
 /// sampling bug. Include a scalar output, which must sample no coordinates.
-fn check_output_sampling<const W: usize, F: SerializableField + SupportsSampling<W>>(f: &F) {
+fn check_output_sampling<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    f: &F,
+) {
     use crate::core::proto::circuit::{Circuit, RawCircuit};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
         let circuit = Circuit {

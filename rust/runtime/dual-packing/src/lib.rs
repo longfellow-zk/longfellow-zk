@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Standalone flat trace adapter from bit-linear claims to packed GF128 claims.
+//! Trace-pairing adapter from bit-linear claims to two packed GF128 equations.
 //!
-//! The caller commits polynomial-basis packed words, auxiliaries, 127 independent
-//! masks and their checksum before any challenges. It must authenticate the
-//! returned equation; this module does not depend on a commitment backend.
+//! The caller commits packed words, auxiliaries, 127 free masks and scalar cells
+//! r,b before challenges. Honest setup sets b=r^2; the verifier does not enforce
+//! that relation. Both returned linear equations must be authenticated.
 pub mod field;
+pub mod generic;
+mod generic_codec;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -27,7 +29,8 @@ use crate::runtime::algebra::{
     AlgebraicField,
 };
 pub use crate::runtime::proto::dual_packing::{
-    DualPacking128Proof, DUAL_PACKING_MASK_CELLS, DUAL_PACKING_MESSAGES, PACKING_BASIS_ID,
+    DualPacking128Proof, DUAL_PACKING_COORDINATES, DUAL_PACKING_FREE_MASKS,
+    DUAL_PACKING_MASK_CELLS, PACKING_BASIS_ID,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,14 +74,14 @@ impl BitLinearClaim {
         Ok(())
     }
 }
-/// rhs(auxiliary)+offset = dot(weights,packed)+dot(mask_weights,R)+checksum_weight*S.
+/// rhs(auxiliary)+offset = dot(weights,packed)+dot(mask_weights,cells).
+/// Empty weights mean the equation does not use the packed words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackedLinearClaim {
     pub weights: Vec<E>,
     pub rhs: AffineClaim,
     pub offset: E,
-    pub mask_weights: [E; DUAL_PACKING_MESSAGES],
-    pub checksum_weight: E,
+    pub mask_weights: [E; DUAL_PACKING_MASK_CELLS],
 }
 impl PackedLinearClaim {
     pub fn residual(
@@ -88,7 +91,7 @@ impl PackedLinearClaim {
         cells: &[E; DUAL_PACKING_MASK_CELLS],
         f: &F,
     ) -> Result<E, String> {
-        if packed.len() != self.weights.len() {
+        if !self.weights.is_empty() && packed.len() != self.weights.len() {
             return Err("dual packing packed word count mismatch".into());
         }
         let mut value = self.rhs.evaluate(auxiliary, f)?;
@@ -99,43 +102,31 @@ impl PackedLinearClaim {
         for (a, x) in self.mask_weights.iter().zip(cells) {
             f.add(&mut value, &f.mulf(a, x));
         }
-        f.add(
-            &mut value,
-            &f.mulf(&self.checksum_weight, &cells[DUAL_PACKING_MESSAGES]),
-        );
         Ok(value)
     }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-fn inverse_twists(beta: E, f: &F) -> [E; DUAL_PACKING_MESSAGES] {
-    let mut powers = [beta; 128];
-    for t in 1..128 {
-        powers[t] = f.mulf(&powers[t - 1], &powers[t - 1]);
+fn validate_traces(
+    basis: &field::PolynomialBasis128,
+    u: &[E; DUAL_PACKING_COORDINATES],
+) -> Result<(), String> {
+    if u.iter().any(|&value| basis.trace_bit(value)) {
+        return Err("dual packing response has nonzero trace".into());
     }
-    std::array::from_fn(|index| powers[127 - index])
+    Ok(())
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 fn reconstruct(
     basis: &field::PolynomialBasis128,
     claim: &BitLinearClaim,
     proof: &DualPacking128Proof,
-    beta: E,
-    gamma: &[E; DUAL_PACKING_MESSAGES],
+    delta: &[E; DUAL_PACKING_COORDINATES],
     f: &F,
-) -> PackedLinearClaim {
-    // Psi(z)=z+sum_{s=1}^{127} gamma_s*z^(2^-s) is binary linear.
-    // Write R_ij=sum_h beta_h*r_ijh. Then
-    // a_i=sum_h Psi(beta_h)*sum_j dual_j*r_ijh.
-    // The transposed dual coordinates share the factor dual_127=1/P'(x).
-    let images: [E; 128] = std::array::from_fn(|k| {
-        let mut x = E::from(1u128 << k);
-        let mut result = x;
-        for t in 1..128 {
-            x = f.mulf(&x, &x);
-            f.add(&mut result, &f.mulf(&gamma[127 - t], &x));
-        }
-        f.mulf(&basis.dual(127), &result)
-    });
+) -> [PackedLinearClaim; 2] {
+    let gamma = delta.map(|x| f.mulf(&x, &x));
+    // D_ik = sum_j alpha_j * digit_k(R_ij). The existing transpose returns
+    // D_ik/alpha_127, so move that common factor into the public weights.
+    let images = gamma.map(|x| f.mulf(&x, &basis.dual(127)));
     let weights = claim
         .weights
         .chunks(128)
@@ -148,22 +139,39 @@ fn reconstruct(
             f.accum_reduce(&accum)
         })
         .collect();
-    let alpha = inverse_twists(beta, f);
-    let mut offset = f.zero();
-    for (index, &message) in proof.messages.iter().enumerate() {
-        f.add(&mut offset, &field::frobenius(message, index + 1, f));
-        f.add(&mut offset, &f.mulf(&gamma[index], &message));
-    }
-    PackedLinearClaim {
+    let beta: [E; 128] = std::array::from_fn(|j| E::from(1u128 << j));
+    let dual: [E; 128] = std::array::from_fn(|j| basis.dual(j));
+    let rhs = generic::Affine {
+        constant: claim.rhs.constant,
+        terms: claim.rhs.terms.clone(),
+    };
+    let equations = generic::native_equations(
+        f,
+        &beta,
+        &dual,
+        &rhs,
+        &proof.u,
+        &proof.a,
+        delta,
+        &gamma,
+        &f.mulf(&proof.a, &proof.a),
         weights,
-        rhs: claim.rhs.clone(),
-        offset,
-        mask_weights: std::array::from_fn(|i| f.mulf(&gamma[i], &alpha[i])),
-        checksum_weight: beta,
-    }
+    );
+    equations.map(|eq| PackedLinearClaim {
+        weights: eq.words,
+        rhs: AffineClaim {
+            constant: f.zero(),
+            terms: eq.auxiliary,
+        },
+        offset: eq.constant,
+        mask_weights: eq.masks.try_into().expect("fixed GF128 mask count"),
+    })
 }
 cfg_prover! { pub mod prover; }
 cfg_verifier! { pub mod verifier; }
+#[cfg(test)]
+#[path = "../tests/generic.rs"]
+mod generic_tests;
 #[cfg(test)]
 #[path = "../tests/dual_packing.rs"]
 mod tests;

@@ -1,0 +1,30 @@
+Gnuplot not found, using plotters backend
+Benchmarking FFT Forward/256
+Benchmarking FFT Forward/256: Warming up for 100.00 ms
+Benchmarking FFT Forward/256: Collecting 10 samples in estimated 500.25 ms (11k iterations)
+Benchmarking FFT Forward/256: Analyzing
+FFT Forward/256         time:   [44.931 µs 45.020 µs 45.094 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking FFT Forward/1024
+Benchmarking FFT Forward/1024: Warming up for 100.00 ms
+Benchmarking FFT Forward/1024: Collecting 10 samples in estimated 505.88 ms (2310 iterations)
+Benchmarking FFT Forward/1024: Analyzing
+FFT Forward/1024        time:   [218.32 µs 218.89 µs 219.49 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking FFT Forward/8192
+Benchmarking FFT Forward/8192: Warming up for 100.00 ms
+Benchmarking FFT Forward/8192: Collecting 10 samples in estimated 505.85 ms (220 iterations)
+Benchmarking FFT Forward/8192: Analyzing
+FFT Forward/8192        time:   [2.2884 ms 2.3113 ms 2.3461 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking FFT Forward/65536
+Benchmarking FFT Forward/65536: Warming up for 100.00 ms
+Benchmarking FFT Forward/65536: Collecting 10 samples in estimated 693.97 ms (30 iterations)
+Benchmarking FFT Forward/65536: Analyzing
+FFT Forward/65536       time:   [22.744 ms 22.867 ms 22.991 ms]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low mild
+  1 (10.00%) high mild

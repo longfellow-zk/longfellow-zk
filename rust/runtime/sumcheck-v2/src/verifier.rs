@@ -52,7 +52,7 @@ use crate::{
 /// Bind the circuit ID and public-input prefix, then check with revealed pads.
 /// `inputs` contains the complete circuit input vector in circuit wire order;
 /// `pads` has the proof's shape and stores the secret pads instead of messages.
-pub fn verify<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,
@@ -70,7 +70,7 @@ pub fn verify<const W: usize, F: SerializableField + SupportsSampling<W>>(
 /// Check sumcheck numerically after the caller has bound the public statement.
 /// Reconstruct constraints from the masked transcript, substitute the inputs
 /// and pads, then check the layer residuals followed by the final input residual.
-pub fn verify_core<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub fn verify_core<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,

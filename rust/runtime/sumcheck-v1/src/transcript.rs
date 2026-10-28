@@ -44,13 +44,13 @@ pub trait TranscriptSumcheck {
     /// Because of a quirk of history, the format is defined to always
     /// sample `MAX_LOGW` elements from the transcript, irrespective
     /// of how many are actually needed.
-    fn begin_circuit<const W: usize, F: SupportsSampling<W>>(
+    fn begin_circuit<const W: usize, F: RuntimeField<W> + SupportsSampling>(
         &mut self,
         f: &F,
     ) -> (Vec<ElementOf<F>>, Vec<ElementOf<F>>);
 
     /// Samples alpha and beta challenges at the start of a layer verification.
-    fn begin_layer<const W: usize, F: SupportsSampling<W>>(
+    fn begin_layer<const W: usize, F: RuntimeField<W> + SupportsSampling>(
         &mut self,
         f: &F,
     ) -> (ElementOf<F>, ElementOf<F>);
@@ -59,7 +59,7 @@ pub trait TranscriptSumcheck {
     fn end_layer<F: SerializableField>(&mut self, claims: &[ElementOf<F>; 2], f: &F);
 
     /// Writes a round polynomial to the transcript and samples a challenge.
-    fn round<const W: usize, F: SerializableField + SupportsSampling<W>>(
+    fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
         &mut self,
         poly: &RoundPoly<W, F>,
         f: &F,
@@ -101,7 +101,7 @@ impl TranscriptSumcheck for Transcript {
         self.write0(nterms);
     }
 
-    fn begin_circuit<const W: usize, F: SupportsSampling<W>>(
+    fn begin_circuit<const W: usize, F: RuntimeField<W> + SupportsSampling>(
         &mut self,
         f: &F,
     ) -> (Vec<ElementOf<F>>, Vec<ElementOf<F>>) {
@@ -110,7 +110,7 @@ impl TranscriptSumcheck for Transcript {
         (q, g)
     }
 
-    fn begin_layer<const W: usize, F: SupportsSampling<W>>(
+    fn begin_layer<const W: usize, F: RuntimeField<W> + SupportsSampling>(
         &mut self,
         f: &F,
     ) -> (ElementOf<F>, ElementOf<F>) {
@@ -123,7 +123,7 @@ impl TranscriptSumcheck for Transcript {
         self.write_elt_field_slice(claims, f);
     }
 
-    fn round<const W: usize, F: SerializableField + SupportsSampling<W>>(
+    fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
         &mut self,
         poly: &RoundPoly<W, F>,
         f: &F,

@@ -28,7 +28,7 @@ use longfellow_zk::{
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
         InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
     },
 };
@@ -124,8 +124,7 @@ fn all_backends(c: &mut Criterion) {
     #[cfg(feature = "experimental")]
     {
         use longfellow_zk::runtime::algebra::{
-            fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
-            range_interpolation::CrtInterpolatorFactory,
+            fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
         };
         let f = RuntimeFp24Ext6::new();
         let factory = CrtInterpolatorFactory;
@@ -138,10 +137,8 @@ fn all_backends(c: &mut Criterion) {
             .map(|i| f.u64_to_element((i * i + 1) as u64))
             .collect();
         let plan = factory.make_range(0..k, 992..4960);
-        let mut group = c.benchmark_group("range/crt-mldsa/base-subfield");
-        group.bench_function("apply", |b| {
-            b.iter(|| plan.apply_subfield(black_box(&base_values), &RuntimeFp24Subfield))
-        });
+        let mut group = c.benchmark_group("range/crt-mldsa/base-inputs");
+        group.bench_function("apply", |b| b.iter(|| plan.apply(black_box(&base_values))));
         group.finish();
     }
 }

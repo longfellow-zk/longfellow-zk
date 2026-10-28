@@ -652,6 +652,8 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/sumcheck-v2/src/verifier.rs", "prover"),
         ("runtime/sumcheck-v2/src/reduction.rs", "prover"),
         ("runtime/zk-v2/src/prover.rs", "verifier"),
+        ("runtime/zk-v2/src/commitment_prover.rs", "verifier"),
+        ("runtime/zk-v2/src/commitment_verifier.rs", "prover"),
         ("runtime/zk-v2/src/verifier.rs", "prover"),
         ("runtime/polygero/src/prover.rs", "verifier"),
         ("runtime/polygero/src/prover_commitment.rs", "verifier"),
@@ -730,7 +732,7 @@ fn test_v2_role_and_shared_module_boundaries() {
                     "verifier",
                     "PolygeroProver",
                     "PolygeroVerifier",
-                    "Subfield"
+                    "SubfieldV1"
                 ]
                 .contains(&word)),
             "role implementation dependency in shared Polygero module {}",
@@ -916,7 +918,7 @@ fn test_tooling_and_system_source_boundaries() {
         .collect();
         if version == "v2" {
             expected_system_files.extend(
-                ["mod", "provider", "claims", "proto", "prover", "verifier"]
+                ["mod", "provider", "proto", "prover", "verifier"]
                     .map(|name| directory.join(format!("packed_v9/{name}.rs"))),
             );
         }
@@ -1185,9 +1187,9 @@ fn test_zk_v2_source_layout_and_test_privacy() {
         "lib.rs",
         "context.rs",
         "constraint_compiler.rs",
-        "packed.rs",
-        "packed_prover.rs",
-        "packed_verifier.rs",
+        "commitment.rs",
+        "commitment_prover.rs",
+        "commitment_verifier.rs",
         "transcript.rs",
         "prover.rs",
         "verifier.rs",
@@ -1397,14 +1399,19 @@ fn test_hahn_certificate_sources() {
     assert!(rust_sources.is_empty(), "Lean sources belong in ../formal");
 }
 
-/// Row membership guides only prover sampling and codec compression. Arithmetic
-/// verification and proof geometry cannot depend on that classification.
+/// The V2 backend and codec operate entirely in the ambient field.
 #[test]
-fn test_v2_subfield_work_stays_in_prover_and_codec() {
+fn test_v2_backend_has_no_subfield_encoding() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for relative in [
         "runtime/polygero/src/verifier.rs",
+        "runtime/polygero/src/prover.rs",
+        "runtime/polygero/src/prover_commitment.rs",
         "runtime/zk-v2/src/verifier.rs",
+        "runtime/zk-v2/src/prover.rs",
+        "runtime/proto/src/polygero.rs",
+        "runtime/proto/src/zk_v2.rs",
+        "compile/polygero/src/lib.rs",
         "runtime/polygero/src/param.rs",
     ] {
         let source = fs::read_to_string(root.join(relative)).unwrap();
@@ -1412,7 +1419,13 @@ fn test_v2_subfield_work_stays_in_prover_and_codec() {
         assert!(
             !production
                 .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
-                .any(|word| ["Subfield", "subfield_rows", "com_subfield_rows"].contains(&word)),
+                .any(|word| [
+                    "SubfieldV1",
+                    "subfield_boundary",
+                    "subfield_rows",
+                    "com_subfield_rows"
+                ]
+                .contains(&word)),
             "subfield classification in {relative}"
         );
     }

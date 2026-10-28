@@ -1,0 +1,20 @@
+Gnuplot not found, using plotters backend
+Benchmarking P-256/add
+Benchmarking P-256/add: Warming up for 100.00 ms
+Benchmarking P-256/add: Collecting 10 samples in estimated 500.00 ms (303M iterations)
+Benchmarking P-256/add: Analyzing
+P-256/add               time:   [1.6404 ns 1.6444 ns 1.6492 ns]
+Benchmarking P-256/mul
+Benchmarking P-256/mul: Warming up for 100.00 ms
+Benchmarking P-256/mul: Collecting 10 samples in estimated 500.00 ms (59M iterations)
+Benchmarking P-256/mul: Analyzing
+P-256/mul               time:   [8.5104 ns 8.5340 ns 8.5697 ns]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking P-256/invert
+Benchmarking P-256/invert: Warming up for 100.00 ms
+Benchmarking P-256/invert: Collecting 10 samples in estimated 500.04 ms (251k iterations)
+Benchmarking P-256/invert: Analyzing
+P-256/invert            time:   [1.9821 µs 1.9873 µs 1.9924 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe

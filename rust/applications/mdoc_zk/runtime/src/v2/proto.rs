@@ -17,7 +17,7 @@
 use crate::{
     core::proto::SerializableField,
     runtime::{
-        algebra::{ElementOf, RuntimeField, Subfield},
+        algebra::RuntimeField,
         proto::zk_v2::{ZkProof, ZkProofGeometry},
     },
 };
@@ -38,36 +38,27 @@ pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
 impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
     MdocProof<F1, F2>
 {
-    pub fn write<SF1: Subfield<E = ElementOf<F1>>, SF2: Subfield<E = ElementOf<F2>>>(
-        &self,
-        geom: &MdocProofGeometry,
-        f1: &F1,
-        sf1: &SF1,
-        f2: &F2,
-        sf2: &SF2,
-    ) -> Result<Vec<u8>, String> {
+    pub fn write(&self, geom: &MdocProofGeometry, f1: &F1, f2: &F2) -> Result<Vec<u8>, String> {
         let mut proof_bytes = Vec::new();
         for m in &self.macs {
             proof_bytes.extend_from_slice(&m.to_le_bytes());
         }
         self.proof_hash
-            .write_to_buf(&mut proof_bytes, &geom.geom_hash, f1, sf1)
+            .write_to_buf(&mut proof_bytes, &geom.geom_hash, f1)
             .map_err(|e| e.to_string())?;
 
         self.proof_sig
-            .write_to_buf(&mut proof_bytes, &geom.geom_sig, f2, sf2)
+            .write_to_buf(&mut proof_bytes, &geom.geom_sig, f2)
             .map_err(|e| e.to_string())?;
 
         Ok(proof_bytes)
     }
 
-    pub fn read<'a, SF1: Subfield<E = ElementOf<F1>>, SF2: Subfield<E = ElementOf<F2>>>(
+    pub fn read<'a>(
         bytes: &'a [u8],
         geom: &MdocProofGeometry,
         f1: &F1,
-        sf1: &SF1,
         f2: &F2,
-        sf2: &SF2,
     ) -> Result<(&'a [u8], Self), String> {
         let mut remaining = bytes;
         if remaining.len() < 6 * 16 {
@@ -80,10 +71,10 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             remaining = &remaining[16..];
         }
 
-        let proof_hash = ZkProof::read(&mut remaining, &geom.geom_hash, f1, sf1)
+        let proof_hash = ZkProof::read(&mut remaining, &geom.geom_hash, f1)
             .map_err(|e| format!("Failed to read hash proof: {e:?}"))?;
 
-        let proof_sig = ZkProof::read(&mut remaining, &geom.geom_sig, f2, sf2)
+        let proof_sig = ZkProof::read(&mut remaining, &geom.geom_sig, f2)
             .map_err(|e| format!("Failed to read signature proof: {e:?}"))?;
 
         Ok((

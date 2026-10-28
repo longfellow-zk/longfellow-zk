@@ -25,7 +25,7 @@ use crate::{
             interpolate_range, BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
         InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
     },
 };
@@ -287,11 +287,6 @@ fn binary_range_interpolation() {
     ] {
         case(&f, &factory, source, destination, coefficient);
     }
-    let source: Vec<_> = (0..9).map(|i| sf.embed(i + 1)).collect();
-    let plan = factory.make_range(1..10, 4..24);
-    let ordinary = plan.apply(&source);
-    let hinted = plan.apply_subfield(&source, &sf);
-    assert_eq!(ordinary, hinted);
 }
 
 #[test]
@@ -308,8 +303,7 @@ fn scalar_range_interpolation() {
 #[test]
 fn crt_range_interpolation() {
     use crate::runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
-        range_interpolation::CrtInterpolatorFactory,
+        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
     };
     let f = RuntimeFp24Ext6::new();
     let factory = CrtInterpolatorFactory;
@@ -328,16 +322,12 @@ fn crt_range_interpolation() {
             .clone()
             .map(|i| f.u64_to_element((i * i + 1) as u64))
             .collect();
-        let plan = factory.make_range(source, destination.clone());
-        let ordinary = plan.apply(&values);
-        let hinted = plan.apply_subfield(&values, &RuntimeFp24Subfield);
-        assert_eq!(ordinary, hinted);
-        let mut invalid = values;
-        invalid[0] = f.from_coefficients([1, 1, 0, 0, 0, 0]);
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-            || plan.apply_subfield(&invalid, &RuntimeFp24Subfield)
-        ))
-        .is_err());
+        let plan = factory.make_range(source.clone(), destination.clone());
+        let actual = plan.apply(&values);
+        let expected: Vec<_> = destination
+            .map(|i| evaluate(&f, &[f.one(), f.zero(), f.one()], &factory.point(i)))
+            .collect();
+        assert_eq!(actual, expected);
     }
     let q = u128::from(crate::core::algebra::fp24::Q - 1);
     let bound = ((18_446_744_072_195_407_873u128 - 1) / (q * q)) as usize;

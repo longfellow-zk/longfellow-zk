@@ -32,12 +32,12 @@ use crate::{
         algebra::{
             fp2::Fp2Field,
             gf2_128::Gf2_128Field,
-            p256::{P256Field, P256Subfield},
+            p256::P256Field,
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            subfield::BinarySubfield,
-            RangeInterpolatorFactory, RuntimeField, Subfield, SupportsFFT,
+            subfield_v1::BinarySubfield,
+            RangeInterpolatorFactory, RuntimeField, SupportsFFT,
         },
         proto::{polygero::PolygeroConfig, zk_v2::commitment_layout},
     },
@@ -71,7 +71,6 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     let ext = Fp2Field::new(&p);
     let pd =
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    let psf = P256Subfield::new(&p);
     let hash = CircuitReader::new(&f, FieldID::Gf2_128)
         .from_bytes(
             &archive.get("hash").ok_or("Missing hash circuit")?.payload,
@@ -87,8 +86,8 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
             false,
         )?
         .0;
-    let h = select_parameters(&hash, &d, &f, &sf)?;
-    let s = select_parameters(&sig, &pd, &p, &psf)?;
+    let h = select_parameters(&hash, &d, &f)?;
+    let s = select_parameters(&sig, &pd, &p)?;
     Ok(ZkSpecStruct {
         combined_hash: archive.combined_id,
         num_attributes,
@@ -112,28 +111,15 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
 /// NEXT uses rate 1/7; the chosen dimensions become part of its saved spec.
 pub(super) fn select_parameters<
     const W: usize,
-    F: RuntimeField<W> + SerializableField,
+    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::PackingField,
     D: RangeInterpolatorFactory<W, F>,
-    SF: Subfield<E = F::E>,
 >(
     circuit: &Circuit<F>,
     domain: &D,
     f: &F,
-    sf: &SF,
 ) -> Result<PolygeroConfig, String> {
-    let (_, nw, products) = commitment_layout(circuit);
-    let subfield_boundary = circuit
-        .raw
-        .subfield_boundary
-        .saturating_sub(circuit.raw.npublic_input);
-    tune_large_field_at_rate(
-        7,
-        nw,
-        &products,
-        subfield_boundary,
-        f.serialized_size_bytes(),
-        sf.serialized_size_bytes(),
-        |config| config.can_interpolate(domain),
-    )
+    circuit.validate_v2()?;
+    let (_, nw, products) = commitment_layout(circuit,f);
+    tune_large_field_at_rate(7, nw, &products, f.serialized_size_bytes(), |config| config.can_interpolate(domain))
     .ok_or_else(|| "no supported Polygero tuning profile".to_string())
 }

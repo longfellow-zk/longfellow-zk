@@ -1,0 +1,21 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 38.59s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-716a97145744c34b)
+
+running 14 tests
+test mdoc::runtime::v2::inputs::tests::rejects_invalid_public_inputs_before_loading_or_sampling ... ok
+test runtime::algebra::tests_all::fp24_ext6::sampling_rejects_noncanonical_candidates_in_extension_and_subfield ... ok
+test runtime::algebra::tests_all::fp_generic::test_sampling_rejects_wrong_byte_count - should panic ... ok
+test runtime::algebra::tests_all::gf2_128::test_sampling_rejects_wrong_byte_count - should panic ... ok
+test runtime::algebra::tests_all::sampling::binary_fields_and_v1_subfields_use_all_and_only_the_required_bits ... ok
+test runtime::algebra::tests_all::sampling::mldsa_sampling_reads_three_bytes_and_masks_23_bits_per_coordinate ... ok
+test runtime::algebra::tests_all::sampling::p256_q256_and_v1_p256_sampling_keep_their_byte_contract ... ok
+test runtime::algebra::tests_all::sampling::prime_sampling_masks_exact_bits_and_ignores_storage_padding ... ok
+test runtime::algebra::tests_all::sampling::quadratic_extensions_sample_their_two_prime_coordinates_in_order ... ok
+test runtime::algebra::tests_all::subfield_v1::test_subfield_sampling_rejects_wrong_byte_count - should panic ... ok
+test runtime::random::tests_transcript::test_transcript_gf2_128_subfield_sampling ... ok
+test runtime::sumcheck_v2::tests::wiring::output_sampling_uses_exact_dimension_binary ... ok
+test runtime::sumcheck_v2::tests::wiring::output_sampling_uses_exact_dimension_prime ... ok
+test runtime::zk_v2::tests::v2_rejects_legacy_boundary_before_sampling_or_transcript_changes ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 615 filtered out; finished in 0.00s

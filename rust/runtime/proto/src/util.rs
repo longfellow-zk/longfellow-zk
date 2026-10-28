@@ -18,7 +18,7 @@ use std::io::{Error, ErrorKind, Result};
 
 use crate::{
     core::algebra::{ElementOf, SerializableField},
-    runtime::algebra::Subfield,
+    runtime::algebra::SubfieldV1,
 };
 
 /// Helper to read a single serialized field element.
@@ -60,7 +60,7 @@ pub fn write_elt_field<F: SerializableField>(bytes: &mut Vec<u8>, e: &ElementOf<
     f.to_bytes_into(e, &mut bytes[start..]);
 }
 
-pub fn write_subfield_elt<SF: Subfield>(bytes: &mut Vec<u8>, x: &SF::E, sf: &SF) -> Result<()> {
+pub fn write_subfield_elt<SF: SubfieldV1>(bytes: &mut Vec<u8>, x: &SF::E, sf: &SF) -> Result<()> {
     if !sf.contains(x) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -75,7 +75,7 @@ pub fn write_subfield_elt<SF: Subfield>(bytes: &mut Vec<u8>, x: &SF::E, sf: &SF)
 }
 
 /// Helper to read a subfield element.
-pub fn read_subfield_elt<SF: Subfield>(bytes: &mut &[u8], sf: &SF) -> Result<SF::E> {
+pub fn read_subfield_elt<SF: SubfieldV1>(bytes: &mut &[u8], sf: &SF) -> Result<SF::E> {
     let size = sf.serialized_size_bytes();
     if size > bytes.len() {
         return Err(Error::new(

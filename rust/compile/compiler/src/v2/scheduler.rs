@@ -489,7 +489,7 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
         npublic_input,
         noutput,
         logv: ceil_log2(noutput),
-        subfield_boundary,
+        subfield_boundary: 0,
         constants,
         layers,
     };

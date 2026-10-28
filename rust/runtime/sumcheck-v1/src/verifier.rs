@@ -36,7 +36,7 @@ use crate::runtime::{
 /// Independently derive local verifier data after the statement has been bound.
 /// Success validates proof shape and derives coefficients; it does not establish
 /// acceptance. Only scalar data and the final dense input weights are retained.
-pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     circuit: &crate::core::proto::circuit::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
@@ -114,7 +114,7 @@ pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsS
 
 /// Numerical verification with revealed inputs and pads, using the same logical
 /// relations that production ZK verification compiles into Ligero constraints.
-pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,
@@ -140,7 +140,7 @@ pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W
 }
 
 /// Bind the public statement, then check the proof against revealed witness data.
-pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
+pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,

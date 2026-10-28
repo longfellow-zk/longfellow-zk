@@ -36,7 +36,7 @@ pub(in crate::runtime::polygero) fn snapshot<const W: usize, F: RuntimeField<W>>
 /// when the prover computes both responses from that same incorrect full W.
 pub(in crate::runtime::polygero) fn check_virtual_product_binding<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     prover: &PolygeroProver<W, F>,
@@ -154,7 +154,7 @@ fn vanish<F: AlgebraicField>(nodes: &[F::E], f: &F) -> Vec<F::E> {
 #[allow(clippy::too_many_arguments)]
 pub(in crate::runtime::polygero) fn check<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: crate::runtime::algebra::EvaluationDomain<W, F>,
 >(
     prover: &PolygeroProver<W, F>,

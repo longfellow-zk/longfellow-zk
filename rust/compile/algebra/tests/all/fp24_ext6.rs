@@ -17,7 +17,7 @@ use crate::core::algebra::fp24::Q;
 use crate::core::algebra::fp24_ext6::BETA;
 use crate::core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions};
 use crate::runtime::algebra::fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield};
-use crate::runtime::algebra::{field::RuntimeSerializableField, Subfield};
+use crate::runtime::algebra::{field::RuntimeSerializableField, SubfieldV1};
 
 #[test]
 fn compile_and_runtime_fields_agree() {

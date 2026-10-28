@@ -1,28 +1,12 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Fix the entire incoming affine claim before beta; fix all messages before gamma.
-use super::{BitLinearClaim, DualPacking128Proof, DUAL_PACKING_MESSAGES, PACKING_BASIS_ID};
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Bind the claim, then U before independent delta coordinates, then response A.
+use super::{BitLinearClaim, DUAL_PACKING_COORDINATES, PACKING_BASIS_ID};
 use crate::runtime::{
-    algebra::{
-        gf2_128::{Gf2_128 as E, Gf2_128Field as F},
-        AlgebraicField,
-    },
+    algebra::gf2_128::{Gf2_128 as E, Gf2_128Field as F},
     random::{RandomEngine, Transcript},
 };
-pub(super) fn begin(claim: &BitLinearClaim, context: &[u8], ts: &mut Transcript, f: &F) -> E {
-    ts.write_bytes(b"longfellow/dual-packing128/flat-trace/v1");
+pub(super) fn begin(claim: &BitLinearClaim, context: &[u8], ts: &mut Transcript, f: &F) {
+    ts.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
     ts.write_bytes(context);
     ts.write_bytes(&PACKING_BASIS_ID.to_le_bytes());
     ts.write_elt_field_slice(&claim.weights, f);
@@ -33,21 +17,18 @@ pub(super) fn begin(claim: &BitLinearClaim, context: &[u8], ts: &mut Transcript,
         ts.write_bytes(&(index as u64).to_le_bytes());
         ts.write_elt_field(&coefficient, f);
     }
-    ts.write_bytes(b"flat128/beta/nonzero");
-    loop {
-        let beta = E::from(ts.u128());
-        if !f.is_zero(&beta) {
-            return beta;
-        }
-    }
 }
-pub(super) fn batch(
-    proof: &DualPacking128Proof,
+pub(super) fn challenge(
+    u: &[E; DUAL_PACKING_COORDINATES],
     ts: &mut Transcript,
     f: &F,
-) -> [E; DUAL_PACKING_MESSAGES] {
-    ts.write_bytes(b"flat128/entire-response");
-    ts.write_elt_field_slice(&proof.messages, f);
-    ts.write_bytes(b"flat128/independent-gamma");
+) -> [E; DUAL_PACKING_COORDINATES] {
+    ts.write_bytes(b"trace-zero128/U");
+    ts.write_elt_field_slice(u, f);
+    ts.write_bytes(b"trace-zero128/independent-delta");
     std::array::from_fn(|_| E::from(ts.u128()))
+}
+pub(super) fn finish(a: E, ts: &mut Transcript, f: &F) {
+    ts.write_bytes(b"trace-zero128/A");
+    ts.write_elt_field(&a, f);
 }

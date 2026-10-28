@@ -15,7 +15,7 @@
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{field::RuntimeField, Subfield},
+        algebra::{field::RuntimeField, SubfieldV1},
         proto::{
             util::{
                 read_bytes_32, read_elt_field, read_size_4bytes, read_subfield_elt, read_vec_field,
@@ -53,7 +53,7 @@ pub struct LigeroProof<const W: usize, F: SerializableField> {
 }
 
 impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
-    pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
+    pub fn write_to_buf<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         bytes: &mut Vec<u8>,
         geom: &LigeroGeometry,
@@ -137,7 +137,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
         Ok(())
     }
 
-    pub fn write<SF: Subfield<E = ElementOf<F>>>(
+    pub fn write<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         geom: &LigeroGeometry,
         f: &F,
@@ -148,7 +148,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
         Ok(bytes)
     }
 
-    pub fn read<SF: Subfield<E = ElementOf<F>>>(
+    pub fn read<SF: SubfieldV1<E = ElementOf<F>>>(
         bytes: &mut &[u8],
         geom: &LigeroGeometry,
         f: &F,

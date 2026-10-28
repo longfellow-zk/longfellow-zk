@@ -1,0 +1,55 @@
+Gnuplot not found, using plotters backend
+Benchmarking LCH14 FFT/FFT/8
+Benchmarking LCH14 FFT/FFT/8: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/FFT/8: Collecting 10 samples in estimated 500.14 ms (168k iterations)
+Benchmarking LCH14 FFT/FFT/8: Analyzing
+LCH14 FFT/FFT/8         time:   [2.9708 µs 2.9752 µs 2.9795 µs]
+Benchmarking LCH14 FFT/IFFT/8
+Benchmarking LCH14 FFT/IFFT/8: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/IFFT/8: Collecting 10 samples in estimated 500.06 ms (167k iterations)
+Benchmarking LCH14 FFT/IFFT/8: Analyzing
+LCH14 FFT/IFFT/8        time:   [2.9847 µs 2.9915 µs 3.0011 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking LCH14 FFT/BidirectionalFFT/8
+Benchmarking LCH14 FFT/BidirectionalFFT/8: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/BidirectionalFFT/8: Collecting 10 samples in estimated 500.11 ms (158k iterations)
+Benchmarking LCH14 FFT/BidirectionalFFT/8: Analyzing
+LCH14 FFT/BidirectionalFFT/8
+                        time:   [3.1542 µs 3.1608 µs 3.1690 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+Benchmarking LCH14 FFT/FFT/12
+Benchmarking LCH14 FFT/FFT/12: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/FFT/12: Collecting 10 samples in estimated 503.51 ms (7205 iterations)
+Benchmarking LCH14 FFT/FFT/12: Analyzing
+LCH14 FFT/FFT/12        time:   [69.550 µs 69.734 µs 69.930 µs]
+Benchmarking LCH14 FFT/IFFT/12
+Benchmarking LCH14 FFT/IFFT/12: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/IFFT/12: Collecting 10 samples in estimated 501.57 ms (7205 iterations)
+Benchmarking LCH14 FFT/IFFT/12: Analyzing
+LCH14 FFT/IFFT/12       time:   [69.553 µs 69.760 µs 69.972 µs]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking LCH14 FFT/BidirectionalFFT/12
+Benchmarking LCH14 FFT/BidirectionalFFT/12: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/BidirectionalFFT/12: Collecting 10 samples in estimated 502.80 ms (7095 iterations)
+Benchmarking LCH14 FFT/BidirectionalFFT/12: Analyzing
+LCH14 FFT/BidirectionalFFT/12
+                        time:   [70.478 µs 70.710 µs 70.906 µs]
+Benchmarking LCH14 FFT/FFT/16
+Benchmarking LCH14 FFT/FFT/16: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/FFT/16: Collecting 10 samples in estimated 574.92 ms (385 iterations)
+Benchmarking LCH14 FFT/FFT/16: Analyzing
+LCH14 FFT/FFT/16        time:   [1.4925 ms 1.4936 ms 1.4947 ms]
+Benchmarking LCH14 FFT/IFFT/16
+Benchmarking LCH14 FFT/IFFT/16: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/IFFT/16: Collecting 10 samples in estimated 574.61 ms (385 iterations)
+Benchmarking LCH14 FFT/IFFT/16: Analyzing
+LCH14 FFT/IFFT/16       time:   [1.4911 ms 1.4962 ms 1.5018 ms]
+Benchmarking LCH14 FFT/BidirectionalFFT/16
+Benchmarking LCH14 FFT/BidirectionalFFT/16: Warming up for 100.00 ms
+Benchmarking LCH14 FFT/BidirectionalFFT/16: Collecting 10 samples in estimated 573.00 ms (385 iterations)
+Benchmarking LCH14 FFT/BidirectionalFFT/16: Analyzing
+LCH14 FFT/BidirectionalFFT/16
+                        time:   [1.4824 ms 1.4860 ms 1.4887 ms]

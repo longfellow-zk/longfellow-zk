@@ -168,7 +168,9 @@ impl BinarySubfield {
     }
 }
 
-pub trait Subfield {
+/// Legacy V1 membership, masking and serialization interface.
+/// Generic packing uses `packing::PackingExtension` instead.
+pub trait SubfieldV1 {
     type E;
     fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]);
     #[inline]
@@ -184,7 +186,7 @@ pub trait Subfield {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
 }
 
-impl Subfield for BinarySubfield {
+impl SubfieldV1 for BinarySubfield {
     type E = Gf2_128;
 
     #[inline]

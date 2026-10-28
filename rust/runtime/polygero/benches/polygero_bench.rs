@@ -18,36 +18,15 @@ use std::time::Instant;
 use longfellow_zk::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, Subfield, SupportsSampling},
+        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
         polygero::*,
         proto::Digest,
         random::{DeterministicRng, RandomEngine, Transcript},
     },
 };
-struct FullField<'a, const W: usize, F>(&'a F);
-impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>> Subfield
-    for FullField<'_, W, F>
-{
-    type E = F::E;
-    fn to_bytes_into(&self, e: &F::E, b: &mut [u8]) {
-        self.0.to_bytes_into(e, b);
-    }
-    fn contains(&self, _: &F::E) -> bool {
-        true
-    }
-    fn serialized_size_bytes(&self) -> usize {
-        self.0.serialized_size_bytes()
-    }
-    fn bytes_to_element(&self, b: &[u8]) -> Result<F::E, String> {
-        self.0.bytes_to_element(b)
-    }
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, r: R) -> F::E {
-        self.0.sample(r)
-    }
-}
 fn run<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     name: &str,
@@ -97,34 +76,19 @@ fn run<
     let (com, bytes, commit, prove) = {
         let mut ts = Transcript::new(b"polygero/kernel/bench");
         let commit_start = Instant::now();
-        let (prover, com) = PolygeroProver::commit(
-            0,
-            witness,
-            param,
-            &mut ts,
-            d,
-            &mut rng,
-            f,
-            &FullField::<W, _>(f),
-        )
-        .unwrap();
+        let (prover, com) =
+            PolygeroProver::commit(witness, param, &mut ts, d, &mut rng, f).unwrap();
         let commit = commit_start.elapsed();
         let prove_start = Instant::now();
         let proof = prover.prove(&b, &mut ts, &a, &statement, d, f).unwrap();
         let prove = prove_start.elapsed();
-        let bytes = proof
-            .write(&vp.geometry(), f, &FullField::<W, _>(f))
-            .unwrap();
+        let bytes = proof.write(&vp.geometry(), f).unwrap();
         (com, bytes, commit, prove)
     };
     let verify_start = Instant::now();
-    let decoded_proof = longfellow_zk::runtime::proto::polygero::read(
-        &mut bytes.as_slice(),
-        &vp.geometry(),
-        f,
-        &FullField::<W, _>(f),
-    )
-    .unwrap();
+    let decoded_proof =
+        longfellow_zk::runtime::proto::polygero::read(&mut bytes.as_slice(), &vp.geometry(), f)
+            .unwrap();
     let mut verifier_ts = Transcript::new(b"polygero/kernel/bench");
     let mut verifier = PolygeroVerifier::new(vp);
     verifier.receive_commitment(&com, &mut verifier_ts);
@@ -160,7 +124,7 @@ fn main() {
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfield,
         SupportsFFT,
     };
     eprintln!("UNCERTIFIED PROTOTYPE PARAMETERS; kernel timings exclude witness generation and public preprocessing.");

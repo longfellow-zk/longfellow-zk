@@ -1,0 +1,3 @@
+    Blocking waiting for file lock on build directory
+    Checking longfellow-zk v0.1.0 (/home/athena/sandbox/longfellow-zk/rust)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 11.56s

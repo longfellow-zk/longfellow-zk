@@ -85,6 +85,8 @@ fn load(
     if !hash_tail.is_empty() || hash.id != hash_entry.circuit_id {
         return Err("Hash payload does not match its archive entry".into());
     }
+    signature.validate_v2()?;
+    hash.validate_v2()?;
     Ok((signature, hash))
 }
 

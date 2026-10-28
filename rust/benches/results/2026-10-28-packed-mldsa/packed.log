@@ -1,0 +1,43 @@
+Packed Polygero prototype implementation, six prime coordinates per sextic word, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Packed private inputs: 161551 -> 26926 sextic words; 912 pad cells, 7 packing cells; 27845 committed cells
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 17abe7bc76f5e2873ced7bcb7c0fa6ab200b8e33523dba331c1fa0a7f782ec4a
+  Run 1/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732146 bytes
+  End to end: prover=896.840 ms, verifier=427.414 ms, proof=178868 bytes
+  Offline circuit preparation: 14179.453 ms
+  Prover subtimings: circuit_load=2.860, witness=1.322, commit=40.939, prove=851.230, serialize=0.038 ms
+  Verifier subtimings: circuit_load=2.695, public_inputs=0.108, deserialize=0.265, verify=424.006 ms
+  Run 2/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732146 bytes
+  End to end: prover=884.173 ms, verifier=419.411 ms, proof=178868 bytes
+  Offline circuit preparation: 14179.453 ms
+  Prover subtimings: circuit_load=2.753, witness=0.569, commit=41.483, prove=838.886, serialize=0.039 ms
+  Verifier subtimings: circuit_load=2.776, public_inputs=0.092, deserialize=0.253, verify=415.693 ms
+  Run 3/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732146 bytes
+  End to end: prover=896.823 ms, verifier=428.504 ms, proof=178868 bytes
+  Offline circuit preparation: 14179.453 ms
+  Prover subtimings: circuit_load=2.891, witness=0.643, commit=42.057, prove=850.605, serialize=0.040 ms
+  Verifier subtimings: circuit_load=2.817, public_inputs=0.091, deserialize=0.255, verify=424.814 ms
+  Packed private inputs: 185446 -> 30908 sextic words; 912 pad cells, 7 packing cells; 31827 committed cells
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 6e8acba621188a398b7ef2a836c53e076fc95064276e484329817bb16dd9294e
+  Run 1/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: Some(CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }), LFC2=1972268 bytes
+  End to end: prover=1015.546 ms, verifier=499.942 ms, proof=187412 bytes
+  Offline circuit preparation: 17431.386 ms
+  Prover subtimings: circuit_load=3.014, witness=0.748, commit=44.508, prove=966.751, serialize=0.040 ms
+  Verifier subtimings: circuit_load=2.965, public_inputs=0.159, deserialize=0.257, verify=496.201 ms
+  Run 2/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: Some(CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }), LFC2=1972268 bytes
+  End to end: prover=1030.489 ms, verifier=482.899 ms, proof=187412 bytes
+  Offline circuit preparation: 17431.386 ms
+  Prover subtimings: circuit_load=3.207, witness=1.527, commit=44.127, prove=981.105, serialize=0.044 ms
+  Verifier subtimings: circuit_load=3.025, public_inputs=0.168, deserialize=0.259, verify=478.337 ms
+  Run 3/3
+V2 packed Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: Some(CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }), LFC2=1972268 bytes
+  End to end: prover=1032.015 ms, verifier=491.119 ms, proof=187412 bytes
+  Offline circuit preparation: 17431.386 ms
+  Prover subtimings: circuit_load=3.030, witness=0.779, commit=46.781, prove=980.898, serialize=0.037 ms
+  Verifier subtimings: circuit_load=3.014, public_inputs=0.158, deserialize=0.259, verify=487.317 ms

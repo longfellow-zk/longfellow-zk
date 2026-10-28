@@ -20,8 +20,6 @@
 pub mod dual_packing;
 pub mod ligero;
 pub mod merkle;
-#[cfg(feature = "experimental")]
-pub mod packed_zk;
 pub mod polygero;
 pub mod sumcheck_v1;
 pub mod sumcheck_v2;

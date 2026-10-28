@@ -17,7 +17,7 @@
 pub use run_mdoc_verifier_inner as run_mdoc_verifier;
 
 use super::{
-    super::inputs::{public_inputs_fit, push_input_hash_packed, push_input_sig},
+    super::inputs::{public_inputs_fit, push_input_hash_boolean, push_input_sig},
     proto::{MdocProof, MdocProofGeometry},
     PackedV9Spec,
 };
@@ -87,7 +87,7 @@ pub fn run_mdoc_verifier_inner(
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfield::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
@@ -104,18 +104,9 @@ pub fn run_mdoc_verifier_inner(
         domain: &make_interpolator_sig,
     };
 
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
-    let hash_protocol = crate::runtime::zk_v2::packed::PackedCircuit::new(
-        c_hash,
-        config_hash,
-        6,
-        zk_spec.manifest.digest(),
-    )
-    .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
-    let public_hash_count = hash_protocol.public_input_count();
-    let mut verifier_hash =
-        crate::runtime::zk_v2::packed::PackedVerifier::new(hash_protocol, &context_hash)
-            .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let public_hash_count = c_hash.raw.npublic_input;
+    let mut verifier_hash = ZkVerifier::new(c_hash, config_hash, &context_hash)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let geom_hash = verifier_hash.geometry();
 
     let mut verifier_sig = ZkVerifier::<4, _>::new(c_sig, config_sig, &context_sig)
@@ -129,7 +120,7 @@ pub fn run_mdoc_verifier_inner(
 
     #[cfg(feature = "bench-profile")]
     profile.next("app.verifier.proof_decoding");
-    let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &sf_hash, &p256, &sf_sig)
+    let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &p256)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
 
     if !remaining.is_empty() {
@@ -139,16 +130,20 @@ pub fn run_mdoc_verifier_inner(
     #[cfg(feature = "bench-profile")]
     profile.next("app.verifier.public_statement");
     let mut tp = Transcript::new(transcript);
+    tp.write_bytes(b"mdoc/v9/statement/v1");
+    tp.write_bytes(&zk_spec.combined_hash);
 
     verifier_hash.receive_commitment(&proof.proof_hash, &mut tp);
     verifier_sig.receive_commitment(&proof.proof_sig, &mut tp);
 
     let av_val = tp.u128();
 
-    let hash_public_bits = push_input_hash_packed(
+    let hash_public_bits = push_input_hash_boolean(
         &gf2,
         attrs,
         now.as_bytes(),
+        &proof.macs,
+        av_val,
         false,
         doc_type.as_bytes(),
     );
@@ -157,23 +152,11 @@ pub fn run_mdoc_verifier_inner(
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
 
-    let pub_inputs_hash = (0..hash_public_bits.len())
-        .map(|i| {
-            crate::runtime::algebra::gf2_128::Gf2_128::from(u128::from(hash_public_bits.get(i)))
-        })
-        .collect::<Vec<_>>();
-    let claims = super::mac_claims(&zk_spec.manifest, av_val, &proof.macs, &gf2)
-        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let pub_inputs_hash = hash_public_bits;
     #[cfg(feature = "bench-profile")]
     profile.next("app.verifier.hash_proof");
     verifier_hash
-        .verify(
-            &pub_inputs_hash,
-            &claims,
-            &proof.proof_hash,
-            &mut tp,
-            &context_hash,
-        )
+        .verify(&pub_inputs_hash, &proof.proof_hash, &mut tp, &context_hash)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
 
     #[cfg(feature = "bench-profile")]

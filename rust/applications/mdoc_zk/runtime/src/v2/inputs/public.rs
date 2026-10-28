@@ -123,23 +123,25 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     .into_inner()
 }
 #[cfg(feature = "experimental")]
-pub(in crate::mdoc::runtime::v2) fn push_input_hash_packed(
+pub(in crate::mdoc::runtime::v2) fn push_input_hash_boolean(
     gf2: &Gf2_128Field,
     attrs: &[RequestedAttribute],
     now_bytes: &[u8],
+    macs: &[u128; 6],
+    av: u128,
     suppress_doc_type_check: bool,
     expected_doc_type: &[u8],
-) -> crate::core::bits::PackedBits {
+) -> Vec<Gf2_128> {
     build_input_hash(
-        AssignmentBuilder::new_packed(gf2),
+        AssignmentBuilder::new_boolean(gf2),
         attrs,
         now_bytes,
-        &[0; 6],
-        0,
+        macs,
+        av,
         suppress_doc_type_check,
         expected_doc_type,
     )
-    .into_bits()
+    .into_inner()
 }
 
 pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(

@@ -35,6 +35,7 @@ pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableFiel
     circuit: &Circuit<F>,
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {
+    circuit.validate_v2()?;
     let mut w_layers = Vec::with_capacity(circuit.raw.layers.len());
     for (layer_index, layer) in circuit.raw.layers.iter().enumerate().rev() {
         let noutput = if layer_index == 0 {

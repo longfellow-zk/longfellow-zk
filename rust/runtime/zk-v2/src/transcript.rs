@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Bind the completed sumcheck execution as Polygero's source statement.
+//! Bind the completed sumcheck and packing execution as Polygero's source statement.
 //!
-//! Both roles sample this identifier after the final sumcheck challenge and
-//! before compiling constraints. The transcript already binds circuit identity,
-//! public inputs, commitments and masked sumcheck messages. Its fixed sampling
+//! Both roles sample this identifier after the packing response A. The
+//! transcript already binds circuit identity, public inputs, commitments,
+//! masked sumcheck messages and the packing reduction. Its fixed sampling
 //! schedule determines the challenges used to derive those constraints.
 //!
 //! Polygero absorbs the identifier before its batching challenges. This makes

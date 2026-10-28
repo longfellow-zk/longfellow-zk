@@ -72,11 +72,11 @@ fn test_util_read_write_subfield_elt() {
 
 #[test]
 fn test_util_rejects_noncanonical_subfield_elt() {
-    use crate::runtime::algebra::{gf2_128::Gf2_128, Subfield};
+    use crate::runtime::algebra::{gf2_128::Gf2_128, SubfieldV1};
 
     struct AliasedSubfield;
 
-    impl Subfield for AliasedSubfield {
+    impl SubfieldV1 for AliasedSubfield {
         type E = Gf2_128;
 
         fn to_bytes_into(&self, _e: &Self::E, dst: &mut [u8]) {
@@ -308,7 +308,7 @@ fn test_ligero_proof_read_allows_zero_length_merkle_path() {
 fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
     use crate::{
         core::algebra::SupportsU128Conversions,
-        runtime::algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield},
+        runtime::algebra::{gf2_128::Gf2_128Field, subfield_v1::BinarySubfield},
     };
 
     let f = Gf2_128Field::new();
@@ -376,7 +376,7 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
 
 #[test]
 fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
-    use crate::runtime::algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield, Subfield};
+    use crate::runtime::algebra::{gf2_128::Gf2_128Field, subfield_v1::BinarySubfield, SubfieldV1};
 
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
