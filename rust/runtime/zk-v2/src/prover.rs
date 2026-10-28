@@ -136,7 +136,10 @@ impl<const W: usize, F: ZkField<W>, X: PackingExtension<Ambient = F>> ZkProver<W
         if state.circuit_id != self.circuit.id || state.config != self.config {
             return Err("commitment belongs to another circuit or configuration".into());
         }
-        if state.inner.backend.layout.degree > 1 && public.first() != Some(&ctx.f.one()) {
+        if !self.circuit.raw.layers.iter().any(|l| l.affine().is_some())
+            && state.inner.backend.layout.degree > 1
+            && public.first() != Some(&ctx.f.one())
+        {
             return Err("reserved One must equal one".into());
         }
         let geometry = sumcheck_v2::SumcheckProofGeometry::from_circuit(&self.circuit);

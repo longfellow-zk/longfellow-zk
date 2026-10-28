@@ -1,0 +1,8 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-39d197074eb832ec)
+
+running 1 test
+test mdoc::runtime::v2::packed_v9::tests::packed_v9_mdoc_two_and_four_attributes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 636 filtered out; finished in 292.26s
+

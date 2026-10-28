@@ -16,8 +16,12 @@
 
 pub use run_mdoc_verifier_inner as run_mdoc_verifier;
 
+#[cfg(not(feature = "degree-separated"))]
+use super::super::inputs::push_input_sig;
+#[cfg(feature = "degree-separated")]
+use super::super::inputs::push_input_sig_no_one as push_input_sig;
 use super::{
-    super::inputs::{public_inputs_fit, push_input_hash_boolean, push_input_sig},
+    super::inputs::{public_inputs_fit, push_input_hash_boolean},
     proto::{MdocProof, MdocProofGeometry},
     PackedV9Spec,
 };

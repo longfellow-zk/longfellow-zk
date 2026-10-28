@@ -62,7 +62,7 @@ use crate::{
         sumcheck_v2::{
             dense::{as_scalar, bind},
             proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            quad::{bind_r, weights_next},
+            quad::{bind_r, weights_next_affine},
             symbolic::{build_constraints, Constraints, LayerChallenges},
             transcript::{assertion_weights, begin, end_layer, round_challenge},
         },
@@ -75,7 +75,10 @@ use crate::{
 /// sum. `layer` proves its dot product and returns weights and a claim on its
 /// input wires. Return the masked proof messages and the symbolic constraints
 /// reconstructed from the sampled challenges.
-pub(crate) fn prove_core<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(crate) fn prove_core<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::circuit::Circuit<F>,
@@ -86,7 +89,11 @@ pub(crate) fn prove_core<const W: usize, F: RuntimeField<W> + SerializableField 
 }
 
 /// Numerical kernels vary independently of the masked transcript protocol.
-pub(super) trait ProverKernel<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling> {
+pub(super) trait ProverKernel<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>
+{
     #[allow(clippy::too_many_arguments)]
     fn bind_r(
         &self,
@@ -195,7 +202,11 @@ where
 /// a_next and claim_next = sum_r a_next[r]*W[r].
 /// Assertion coefficients are sampled once and reused in both tensor bindings.
 #[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, K: ProverKernel<W, F>>(
+fn layer<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    K: ProverKernel<W, F>,
+>(
     kernel: &K,
     layer_index: usize,
     w: Vec<F::E>,
@@ -213,11 +224,13 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 
     let assertions = assertion_weights(circuit_layer, constants, layer_index, transcript, f);
     let q_l = kernel.bind_r(layer_index, circuit_layer, constants, a, &assertions, &w, f);
-    let (proof, challenges, claim_next) =
+    let constant = super::quad::affine_constant(circuit_layer, constants, a, f);
+    let claim = f.subf(&claim, &constant);
+    let (proof, mut challenges, mut claim_next) =
         kernel.dot_product(layer_index, w, q_l, pads, claim, transcript, f);
-
-    // A + alpha*B = sum_r (m_l[r] + alpha*q_r[r])*W[r].
-    let a_next = weights_next(
+    // For LFD2, B also contains public L(u). Subtract alpha*L(u) from
+    // A + alpha*B to obtain the weighted claim on the next layer's inputs.
+    let (a_next, _, linear) = weights_next_affine(
         circuit_layer,
         constants,
         a,
@@ -226,6 +239,9 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         &challenges.alpha,
         f,
     );
+    f.fnms(&mut claim_next, &challenges.alpha, &linear);
+    challenges.constant = constant;
+    challenges.linear = linear;
     (proof, challenges, a_next, claim_next)
 }
 
@@ -234,7 +250,10 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 /// The final scalars A = W(u), B = q_l(u) must multiply to the last round claim.
 /// Return this layer's masked messages, sampled challenges, and the unmasked
 /// combined claim A + alpha*B for the next layer.
-pub(super) fn prove_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(super) fn prove_dot_product<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
     pads: &LayerProof<W, F>,
@@ -254,7 +273,10 @@ pub(super) fn prove_dot_product<const W: usize, F: RuntimeField<W> + Serializabl
     finish_dot_product(&w, &q_l, pads, claim, rounds, point_l, transcript, f)
 }
 #[allow(clippy::too_many_arguments)]
-pub(super) fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(super) fn finish_dot_product<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     w: &[F::E],
     q_l: &[F::E],
     pads: &LayerProof<W, F>,
@@ -284,7 +306,12 @@ pub(super) fn finish_dot_product<const W: usize, F: RuntimeField<W> + Serializab
             rounds,
             claims: masked,
         },
-        LayerChallenges { point_l, alpha },
+        LayerChallenges {
+            point_l,
+            alpha,
+            constant: f.zero(),
+            linear: f.zero(),
+        },
         claim,
     )
 }
@@ -315,7 +342,10 @@ fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     (m, z, claim_next)
 }
 /// Shared masking, challenge sampling and claim update for every numerical kernel.
-pub(super) fn mask_round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(super) fn mask_round<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     p: RoundPoly<W, F>,
     pads: &RoundPoly<W, F>,
     claim: F::E,

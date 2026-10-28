@@ -1,0 +1,4 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/hack/longfellow-zk/rust)
+    Finished `bench` profile [optimized] target(s) in 37.26s
+  Executable applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs (target/release/deps/mdoc_zk_bench_v9-0dbfa289a41a7637)
+  Executable circuits/experimental/benches/mldsa_bench_v2.rs (target/release/deps/mldsa_bench_v2-03559d9020041c80)

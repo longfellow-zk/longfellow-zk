@@ -1,0 +1,56 @@
+comparison sample 0
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=187.771 ms verifier=102.266 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,187.770717,102.266436,186472,0,0
+
+comparison sample 1
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=186.685 ms verifier=98.101 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,186.685371,98.100843,186472,0,0
+
+comparison sample 2
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=186.786 ms verifier=98.383 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,186.785588,98.383083,186472,0,0
+
+comparison sample 3
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=188.134 ms verifier=98.175 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,188.133767,98.174501,186472,0,0
+
+comparison sample 4
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=188.303 ms verifier=98.277 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,188.303324,98.276614,186472,0,0
+
+comparison sample 5
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=191.091 ms verifier=99.315 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,191.090862,99.315372,186472,0,0
+
+comparison sample 6
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=187.748 ms verifier=99.332 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,187.748034,99.332143,186472,0,0
+

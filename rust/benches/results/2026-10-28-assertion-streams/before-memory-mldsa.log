@@ -1,0 +1,25 @@
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: true
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=654.884 ms, verifier=332.323 ms, proof=178836 bytes
+  Offline circuit preparation: 123.118 ms
+  Prover subtimings: circuit_load=4.923, witness=1.425, commit=41.385, prove=605.389, serialize=0.029 ms
+  Verifier subtimings: circuit_load=4.973, public_inputs=0.087, deserialize=0.414, verify=326.437 ms
+  End-to-end additional peak heap: prover=106405112, verifier=38487708 bytes
+  Circuit size: raw=1925294 zstd=563657 bytes
+  Decoded circuit heap: 5851028 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[209555, 1566734, 3226336], [0, 2040319, 884797], [0, 38653, 98166]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 8218198e7e7f6cab664805f9d7500155d12162d81c18efbe79d3146fe1b73851
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: None, LFC2=1925294 bytes
+  End to end: prover=754.709 ms, verifier=372.419 ms, proof=187892 bytes
+  Offline circuit preparation: 134.168 ms
+  Prover subtimings: circuit_load=5.012, witness=1.601, commit=47.265, prove=700.037, serialize=0.032 ms
+  Verifier subtimings: circuit_load=5.046, public_inputs=0.156, deserialize=0.426, verify=366.251 ms
+  End-to-end additional peak heap: prover=111751519, verifier=42958088 bytes

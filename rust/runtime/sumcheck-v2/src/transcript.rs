@@ -108,6 +108,11 @@ pub(super) fn assertion_weights<
 ) -> Vec<F::E> {
     transcript.write_bytes(b"single-hand-assertions");
     transcript.write_bytes(&(layer_index as u64).to_le_bytes());
+    if let Some(c) = layer.coefficients() {
+        return (0..c.assertions.num_terms() + layer.linear_assertion_count())
+            .map(|_| transcript.elt_field(f))
+            .collect();
+    }
     let mut assertions = Vec::new();
     layer.for_each_term(constants, |term| {
         if f.is_zero(&term.k) {

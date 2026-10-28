@@ -107,6 +107,8 @@ fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableFiel
     for z in [f.zero(), f.one(), f.mone(), element(7)] {
         let expected = f.addf(&c0, &f.mulf(&z, &f.addf(&c1, &f.mulf(&z, &c2))));
         let layer_challenges = vec![LayerChallenges {
+            constant: f.zero(),
+            linear: f.zero(),
             point_l: vec![z],
             alpha: f.one(),
         }];

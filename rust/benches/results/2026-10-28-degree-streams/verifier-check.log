@@ -1,0 +1,5 @@
+   Compiling cc v1.10.0
+   Compiling sha2-asm v0.6.4
+    Checking sha2 v0.10.9
+    Checking longfellow-zk v0.1.0 (/home/athena/sandbox/hack/longfellow-zk/rust)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1.60s

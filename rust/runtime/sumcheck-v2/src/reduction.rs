@@ -41,7 +41,7 @@ use crate::{
         random::Transcript,
         sumcheck_v2::{
             proof::{LayerProof, SumcheckProof, SumcheckProofGeometry},
-            quad::weights_next,
+            quad::weights_next_affine,
             symbolic::{build_constraints, Constraints, LayerChallenges},
             transcript::{assertion_weights, begin, end_layer, round_challenge},
         },
@@ -51,7 +51,10 @@ use crate::{
 /// Reconstruct each circuit layer's challenges and input weights, then build
 /// the symbolic constraints. The caller must have absorbed the public statement.
 /// Validate message counts before advancing the transcript.
-pub(crate) fn derive_constraints<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(crate) fn derive_constraints<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
@@ -106,8 +109,9 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     // Bind both masked claims before drawing their combination challenge.
     let alpha = end_layer(&proof.claims, transcript, f);
 
-    // A + alpha*B = sum_r (m_l[r] + alpha*q_r[r])*W[r].
-    let a_next = weights_next(
+    // LFD2's next claim is A + alpha*(B - L(u)). Its weights use only Q;
+    // the symbolic builder subtracts the public linear correction separately.
+    let (a_next, constant, linear) = weights_next_affine(
         circuit_layer,
         constants,
         a,
@@ -116,5 +120,13 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         &alpha,
         f,
     );
-    (LayerChallenges { point_l, alpha }, a_next)
+    (
+        LayerChallenges {
+            point_l,
+            alpha,
+            constant,
+            linear,
+        },
+        a_next,
+    )
 }

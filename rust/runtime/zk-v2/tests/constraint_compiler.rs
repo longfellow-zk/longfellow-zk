@@ -189,6 +189,8 @@ fn check_compilation<const W: usize, F: crate::runtime::algebra::ZkField<W>>(
                 .iter()
                 .zip(&alphas)
                 .map(|(point, alpha)| LayerChallenges {
+                    constant: f.zero(),
+                    linear: f.zero(),
                     point_l: point.clone(),
                     alpha: alpha.clone(),
                 })
@@ -298,6 +300,8 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
         }],
     };
     let challenges = vec![LayerChallenges {
+        constant: f.zero(),
+        linear: f.zero(),
         point_l: vec![],
         alpha: e(5),
     }];
@@ -378,6 +382,8 @@ fn rejects_mismatched_challenges_and_pad_layout() {
         std::panic::catch_unwind(|| { build_constraints(&proof, vec![], vec![], &f) }).is_err()
     );
     let extra_round = vec![LayerChallenges {
+        constant: f.zero(),
+        linear: f.zero(),
         point_l: vec![f.zero()],
         alpha: f.one(),
     }];
@@ -386,6 +392,8 @@ fn rejects_mismatched_challenges_and_pad_layout() {
             .is_err()
     );
     let layer_challenges = vec![LayerChallenges {
+        constant: f.zero(),
+        linear: f.zero(),
         point_l: vec![],
         alpha: f.one(),
     }];

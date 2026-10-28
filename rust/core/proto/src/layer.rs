@@ -63,6 +63,10 @@ pub struct TermDelta {
 }
 
 pub struct Layer<F: SerializableField> {
+    pub(in crate::core::proto) coefficients: Option<Box<super::fixed::FixedCoefficients<F>>>,
+    /// LFD2 stores linear and constant streams separately. These child streams
+    /// have no affine children; their unused input indices are zero.
+    pub(in crate::core::proto) affine: Option<Box<[Layer<F>; 2]>>,
     pub(in crate::core::proto) nw: usize,
     pub(in crate::core::proto) logw: usize,
     pub(in crate::core::proto) deltas: Vec<TermDelta>,
@@ -80,12 +84,76 @@ impl<F: SerializableField> Layer<F> {
         delta_tokens: Vec<u32>,
     ) -> Self {
         Self {
+            affine: None,
+            coefficients: None,
             nw,
             logw,
             deltas,
             delta_segments,
             delta_tokens,
             _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn with_affine(mut self, linear: Layer<F>, constant: Layer<F>) -> Self {
+        assert!(linear.affine.is_none() && constant.affine.is_none());
+        self.affine = Some(Box::new([linear, constant]));
+        self
+    }
+
+    pub fn with_coefficients(mut self, coefficients: super::fixed::FixedCoefficients<F>) -> Self {
+        self.coefficients = Some(Box::new(coefficients));
+        self
+    }
+    pub fn coefficients(&self) -> Option<&super::fixed::FixedCoefficients<F>> {
+        self.coefficients.as_deref()
+    }
+
+    pub fn has_linear_assertions(&self) -> bool {
+        self.affine().is_some_and(|a| {
+            a[0].coefficients()
+                .is_some_and(|c| matches!(&c.assertions, super::fixed::UnitTerms::Linear(_)))
+        })
+    }
+    pub fn linear_assertion_count(&self) -> usize {
+        self.affine()
+            .and_then(|a| a[0].coefficients())
+            .map_or(0, |c| c.assertions.num_terms())
+    }
+
+    pub fn affine(&self) -> Option<&[Layer<F>; 2]> {
+        self.affine.as_deref()
+    }
+
+    pub fn streams(&self) -> impl Iterator<Item = &Layer<F>> {
+        std::iter::once(self).chain(self.affine.iter().flat_map(|a| a.iter()))
+    }
+
+    /// Owned allocation capacity, excluding this Layer value and allocator metadata.
+    pub fn heap_bytes(&self) -> usize {
+        self.coefficients.as_ref().map_or(0, |c| {
+            std::mem::size_of::<super::fixed::FixedCoefficients<F>>() + c.heap_bytes()
+        }) + self.deltas.capacity() * std::mem::size_of::<TermDelta>()
+            + self.delta_segments.capacity() * std::mem::size_of::<Vec<u32>>()
+            + self
+                .delta_segments
+                .iter()
+                .map(|s| s.capacity() * 4)
+                .sum::<usize>()
+            + self.delta_tokens.capacity() * 4
+            + self.affine.as_ref().map_or(0, |a| {
+                std::mem::size_of::<[Layer<F>; 2]>() + a.iter().map(Self::heap_bytes).sum::<usize>()
+            })
+    }
+
+    pub fn remap_constants(&mut self, mapping: &[u32]) {
+        for d in &mut self.deltas {
+            d.k_index = mapping[d.k_index as usize];
+        }
+        if let Some(streams) = &mut self.affine {
+            for stream in streams.iter_mut() {
+                stream.remap_constants(mapping);
+            }
         }
     }
 
@@ -197,8 +265,10 @@ impl<F: SerializableField> Layer<F> {
         Ok(())
     }
 
+    /// Visit this stream. On an LFD2 parent this is the quadratic stream;
+    /// `streams()` also exposes its linear and constant children.
     #[inline(always)]
-    pub fn for_each_term<MutCb: FnMut(Term<F>)>(&self, constants: &[F::E], mut cb: MutCb) {
+    pub fn for_each_general_term<MutCb: FnMut(Term<F>)>(&self, constants: &[F::E], mut cb: MutCb) {
         let mut prev_g = 0u32;
         let mut prev_h0 = 0u32;
         let mut prev_h1 = 0u32;
@@ -225,7 +295,7 @@ impl<F: SerializableField> Layer<F> {
     }
 
     #[inline(always)]
-    pub fn try_for_each_term<E, MutCb: FnMut(Term<F>) -> Result<(), E>>(
+    pub fn try_for_each_general_term<E, MutCb: FnMut(Term<F>) -> Result<(), E>>(
         &self,
         constants: &[F::E],
         mut cb: MutCb,
@@ -257,6 +327,55 @@ impl<F: SerializableField> Layer<F> {
     }
 
     #[inline(always)]
+    pub fn for_each_term(&self, constants: &[F::E], mut cb: impl FnMut(Term<F>)) {
+        self.for_each_general_term(constants, &mut cb);
+        if let Some(c) = self.coefficients() {
+            c.units.for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.one().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            });
+            c.assertions.for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.zero().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            });
+        }
+    }
+    pub fn try_for_each_term<E>(
+        &self,
+        constants: &[F::E],
+        mut cb: impl FnMut(Term<F>) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.try_for_each_general_term(constants, &mut cb)?;
+        if let Some(c) = self.coefficients() {
+            c.units.try_for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.one().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            })?;
+            c.assertions.try_for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.zero().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            })?;
+        }
+        Ok(())
+    }
+
+    #[inline(always)]
     pub fn terms(&self, constants: &[F::E]) -> Vec<Term<F>> {
         let mut terms = Vec::with_capacity(self.num_terms());
         self.for_each_term(
@@ -270,10 +389,20 @@ impl<F: SerializableField> Layer<F> {
     /// Returns the total number of terms across all macro segments referenced in this layer.
     #[must_use]
     pub fn num_terms(&self) -> usize {
-        self.delta_tokens
-            .iter()
-            .map(|&tok| self.delta_segments[tok as usize].len())
-            .sum()
+        self.coefficients
+            .as_ref()
+            .map_or(0, |c| c.units.num_terms() + c.assertions.num_terms())
+            + self
+                .delta_tokens
+                .iter()
+                .map(|&tok| self.delta_segments[tok as usize].len())
+                .sum::<usize>()
+            + self
+                .affine
+                .iter()
+                .flat_map(|a| a.iter())
+                .map(Self::num_terms)
+                .sum::<usize>()
     }
 
     /// Computes the exact capacity needed for `hc` and `vc` vectors when constructing an `HQuad`

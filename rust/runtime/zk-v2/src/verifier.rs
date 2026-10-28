@@ -77,7 +77,10 @@ impl<const W: usize, F: ZkField<W>, X: PackingExtension<Ambient = F>> ZkVerifier
                 actual: public.len(),
             });
         }
-        if self.commitment.backend.layout.degree > 1 && public.first() != Some(&ctx.f.one()) {
+        if !self.circuit.raw.layers.iter().any(|l| l.affine().is_some())
+            && self.commitment.backend.layout.degree > 1
+            && public.first() != Some(&ctx.f.one())
+        {
             return Err(ZkVerificationError::InvalidSumcheck(
                 "reserved One must equal one".into(),
             ));

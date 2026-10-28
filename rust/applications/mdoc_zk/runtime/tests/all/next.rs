@@ -1067,8 +1067,7 @@ fn expected_parameters<
     f: &F,
     _sf: &SF,
 ) -> crate::runtime::proto::polygero::PolygeroConfig {
-    let (layout, _, products) =
-        crate::runtime::proto::zk_v2::packing_layout_with_degree(circuit, 1).unwrap();
+    let (layout, _, products) = crate::runtime::proto::zk_v2::packing_layout(circuit, f).unwrap();
     let nw = layout.witness_count;
     crate::compile::polygero::tune_large_field_at_rate(
         7,

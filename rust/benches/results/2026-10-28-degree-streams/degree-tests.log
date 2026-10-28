@@ -1,0 +1,13 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/hack/longfellow-zk/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 27.11s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-39d197074eb832ec)
+
+running 5 tests
+test runtime::sumcheck_v2::tests::degree::degree_reader_rejects_affine_assertions_and_indices ... ok
+test runtime::sumcheck_v2::tests::degree::degree_scalar_linear_layer_has_no_rounds_or_one_input ... ok
+test runtime::sumcheck_v2::tests::degree::degree_streams_binary ... ok
+test runtime::sumcheck_v2::tests::degree::degree_compiler_removes_one_and_evaluates_multiple_layers ... ok
+test runtime::sumcheck_v2::tests::degree::degree_streams_prime ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 632 filtered out; finished in 0.00s
+

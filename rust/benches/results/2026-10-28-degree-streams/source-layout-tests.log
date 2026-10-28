@@ -1,0 +1,19 @@
+    Updating crates.io index
+     Locking 98 packages to highest compatible versions
+      Adding aes v0.8.4 (available: v0.9.3)
+      Adding criterion v0.5.1 (available: v0.8.2)
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding getrandom v0.3.4 (available: v0.4.3)
+      Adding num-bigint v0.4.8 (available: v0.5.1)
+      Adding sha2 v0.10.9 (available: v0.11.1)
+      Adding zstd v0.13.3 (available: v0.14.3)
+    Blocking waiting for file lock on build directory
+   Compiling longfellow-zk v0.1.0 (/tmp/degree-clean-src/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 01s
+     Running unittests src/lib.rs (/home/athena/sandbox/hack/longfellow-zk/rust/target/debug/deps/longfellow_zk-39d197074eb832ec)
+
+running 1 test
+test module_dag_tests::test_sumcheck_v2_source_layout_and_test_privacy ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 636 filtered out; finished in 0.00s
+

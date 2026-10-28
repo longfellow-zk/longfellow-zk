@@ -1,0 +1,56 @@
+comparison sample 0
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=198.615 ms verifier=102.530 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,198.615459,102.529930,186472,0,0
+
+comparison sample 1
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=197.333 ms verifier=105.605 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,197.333436,105.604804,186472,0,0
+
+comparison sample 2
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=198.734 ms verifier=100.844 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,198.733811,100.843549,186472,0,0
+
+comparison sample 3
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=193.209 ms verifier=105.428 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,193.209144,105.428233,186472,0,0
+
+comparison sample 4
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=198.529 ms verifier=103.360 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,198.528787,103.359726,186472,0,0
+
+comparison sample 5
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=196.299 ms verifier=104.598 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,196.299449,104.598417,186472,0,0
+
+comparison sample 6
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=4 variant=0 window=0: prover=199.925 ms verifier=103.556 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,199.925264,103.555553,186472,0,0
+

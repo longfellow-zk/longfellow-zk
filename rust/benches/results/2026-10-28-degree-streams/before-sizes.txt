@@ -1,0 +1,4 @@
+v9 2: zstd=176134 raw=675774
+v9 4: zstd=176756 raw=695394
+ML-DSA-44: zstd=508205 raw=1732146
+ML-DSA-65: zstd=542487 raw=1972268

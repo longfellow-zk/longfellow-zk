@@ -31,3 +31,5 @@ mod tests;
 pub(super) use private::push_witness_hash_boolean;
 #[cfg(feature = "experimental")]
 pub(super) use public::push_input_hash_boolean;
+#[cfg(feature = "degree-separated")]
+pub(super) use public::push_input_sig_no_one;

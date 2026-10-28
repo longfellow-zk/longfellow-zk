@@ -1,0 +1,35 @@
+
+running 1 test
+test mdoc::runtime::tests_all::next::test_all_next_zk ... 
+thread '<unnamed>' (394531) panicked at src/../applications/mdoc_zk/runtime/src/../tests/all/next.rs:1049:5:
+assertion `left == right` failed: NEXT parameters for 1 attributes
+  left: Some((PolygeroConfig { k: 288, s: 10, n: 2016, t: 90 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+ right: Some((PolygeroConfig { k: 1536, s: 52, n: 10752, t: 95 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'mdoc::runtime::tests_all::next::test_all_next_zk' (394530) panicked at src/../applications/mdoc_zk/runtime/src/../tests/all/next.rs:53:54:
+called `Result::unwrap()` on an `Err` value: Any { .. }
+
+thread '<unnamed>' (394532) panicked at src/../applications/mdoc_zk/runtime/src/../tests/all/next.rs:1049:5:
+assertion `left == right` failed: NEXT parameters for 2 attributes
+  left: Some((PolygeroConfig { k: 256, s: 9, n: 1792, t: 89 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+ right: Some((PolygeroConfig { k: 1536, s: 52, n: 10752, t: 95 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+
+thread '<unnamed>' (394533) panicked at src/../applications/mdoc_zk/runtime/src/../tests/all/next.rs:1049:5:
+assertion `left == right` failed: NEXT parameters for 3 attributes
+  left: Some((PolygeroConfig { k: 256, s: 9, n: 1792, t: 89 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+ right: Some((PolygeroConfig { k: 1536, s: 52, n: 10752, t: 95 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+
+thread '<unnamed>' (394534) panicked at src/../applications/mdoc_zk/runtime/src/../tests/all/next.rs:1049:5:
+assertion `left == right` failed: NEXT parameters for 4 attributes
+  left: Some((PolygeroConfig { k: 256, s: 9, n: 1792, t: 89 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+ right: Some((PolygeroConfig { k: 1536, s: 52, n: 10752, t: 95 }, PolygeroConfig { k: 416, s: 15, n: 2912, t: 86 }))
+FAILED
+
+failures:
+
+failures:
+    mdoc::runtime::tests_all::next::test_all_next_zk
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 636 filtered out; finished in 20.05s
+

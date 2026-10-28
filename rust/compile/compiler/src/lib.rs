@@ -48,3 +48,6 @@ test_compilers!("../tests/all/mod.rs");
 #[cfg(test)]
 #[path = "../tests/backends.rs"]
 mod backend_tests;
+
+#[cfg(feature = "degree-separated")]
+pub use v2::compile_degree_separated;

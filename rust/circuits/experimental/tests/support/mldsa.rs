@@ -26,6 +26,7 @@ use crate::{
 
 // Keep analysis, evaluation, and proof benchmarks on exactly the same circuit.
 // The public input is the expanded key; mu and the signature are private inputs.
+#[allow(dead_code)] // Shared by tests and by the alternative benchmark builds.
 pub fn compile_verifier<P: MlDsaParams>(
     field: &CompileFp24Ext6,
     v2: bool,
@@ -62,4 +63,16 @@ fn build<'a, P: MlDsaParams>(
         public_input_count,
         position,
     )
+}
+
+#[cfg(feature = "degree-separated")]
+#[allow(dead_code)] // Used by the benchmark, not the ordinary circuit tests.
+pub fn compile_degree_verifier<P: MlDsaParams>(
+    field: &CompileFp24Ext6,
+) -> (
+    crate::core::proto::circuit::Circuit<CompileFp24Ext6>,
+    CircuitGeometry,
+    crate::compile::compiler::CircuitDebugSymbols,
+) {
+    crate::compile::compiler::compile_degree_separated(field, build::<P>)
 }

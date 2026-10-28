@@ -69,6 +69,9 @@ pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>
     noutput: usize,
     f: &F,
 ) -> Result<Vec<F::E>, String> {
+    if layer.coefficients().is_some() {
+        return eval_partition(w, layer, constants, noutput, f);
+    }
     let mut outputs = vec![f.zero(); noutput];
     let one = f.one();
     layer.try_for_each_term(constants, |term| {
@@ -89,5 +92,84 @@ pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>
         }
         Ok(())
     })?;
+    if let Some([linear, constant]) = layer.affine() {
+        let mone = f.mone();
+        linear.for_each_term(constants, |t| {
+            let output = &mut outputs[t.g as usize];
+            let input = &w[t.h0 as usize];
+            if t.k == one {
+                f.add(output, input);
+            } else if t.k == mone {
+                f.sub(output, input);
+            } else {
+                f.fma(output, &t.k, input);
+            }
+        });
+        constant.for_each_term(constants, |t| f.add(&mut outputs[t.g as usize], &t.k));
+    }
+    Ok(outputs)
+}
+
+fn eval_partition<const W: usize, F: RuntimeField<W> + SerializableField>(
+    w: &[F::E],
+    layer: &Layer<F>,
+    constants: &[F::E],
+    noutput: usize,
+    f: &F,
+) -> Result<Vec<F::E>, String> {
+    let mut outputs = vec![f.zero(); noutput];
+    let c = layer.coefficients().unwrap();
+    layer.for_each_general_term(constants, |t| {
+        f.fma(
+            &mut outputs[t.g as usize],
+            &t.k,
+            &f.mulf(&w[t.h0 as usize], &w[t.h1 as usize]),
+        )
+    });
+    c.units.for_each(|g, l, r| {
+        f.add(
+            &mut outputs[g as usize],
+            &f.mulf(&w[l as usize], &w[r as usize]),
+        )
+    });
+    c.assertions.try_for_each(|_, l, r| {
+        if !f.is_zero(&f.mulf(&w[l as usize], &w[r as usize])) {
+            return Err("quadratic assertion not satisfied".to_string());
+        }
+        Ok(())
+    })?;
+    if let Some([linear, constant]) = layer.affine() {
+        let mone = f.mone();
+        linear.for_each_general_term(constants, |t| {
+            if t.k == mone {
+                f.sub(&mut outputs[t.g as usize], &w[t.h0 as usize]);
+            } else {
+                f.fma(&mut outputs[t.g as usize], &t.k, &w[t.h0 as usize]);
+            }
+        });
+        linear
+            .coefficients()
+            .unwrap()
+            .units
+            .for_each(|g, l, _| f.add(&mut outputs[g as usize], &w[l as usize]));
+        constant.for_each_general_term(constants, |t| f.add(&mut outputs[t.g as usize], &t.k));
+        linear
+            .coefficients()
+            .unwrap()
+            .assertions
+            .try_for_each(|_, l, _| {
+                if f.is_zero(&w[l as usize]) {
+                    Ok(())
+                } else {
+                    Err("linear assertion not satisfied".to_string())
+                }
+            })?;
+        let one = f.one();
+        constant
+            .coefficients()
+            .unwrap()
+            .units
+            .for_each(|g, _, _| f.add(&mut outputs[g as usize], &one));
+    }
     Ok(outputs)
 }

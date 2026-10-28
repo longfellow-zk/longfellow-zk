@@ -1,0 +1,15 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-39d197074eb832ec)
+
+running 8 tests
+test mdoc::runtime::v2::attribute::tests::circuit_supports_rejects_malformed_trailing_data ... ok
+test mdoc::runtime::v2::circuits::tests::circuit_identifier_enforcement_is_opt_in ... ok
+test mdoc::runtime::v2::inputs::tests::rejects_invalid_public_inputs_before_loading_or_sampling ... ok
+test mdoc::runtime::v2::packed_v9::tests::semantic_manifest_codec_and_witness_recipe ... ok
+test mdoc::runtime::v2::provider::tests::frozen_v2_loader_reads_archive_without_a_compiler ... ok
+test mdoc::runtime::v2::provider::tests::next_is_not_a_frozen_v2_circuit ... ok
+test mdoc::runtime::v2::provider::tests::provider_rejects_wrong_archive_entries ... ok
+test mdoc::runtime::v2::inputs::tests::private_hash_inputs_enforce_sha_capacity ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 629 filtered out; finished in 0.00s
+

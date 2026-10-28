@@ -16,3 +16,5 @@ mod dense;
 mod poly;
 mod sumcheck_v2;
 mod wiring;
+
+mod degree;

@@ -29,7 +29,7 @@ pub(super) struct AssignmentBuilder<
     pub(super) field: &'a F,
     buffer: Vec<F::E>,
     #[cfg(feature = "experimental")]
-    boolean: bool,
+    pub(super) boolean: bool,
 }
 
 impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>

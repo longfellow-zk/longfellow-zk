@@ -109,7 +109,11 @@ fn prove<P: MlDsaParams>(
     let witness_start = Instant::now();
     let instance = ConcreteInstance::<P>::new(public_key, signature, message, context)
         .ok_or("invalid MLDSA instance")?;
-    let mut inputs = vec![field.one()];
+    let mut inputs = if cfg!(feature = "degree-separated") {
+        Vec::new()
+    } else {
+        vec![field.one()]
+    };
     instance.push_wires(&field, &mut inputs);
     assert_eq!(inputs.len(), circuit.raw.ninput);
     let witness = witness_start.elapsed();
@@ -154,7 +158,11 @@ fn public_inputs<P: MlDsaParams>(
     bytes: &[u8],
 ) -> BenchResult<Vec<RuntimeElement>> {
     let key = decode_public_key::<P>(bytes).ok_or("invalid MLDSA public key")?;
-    let mut inputs = vec![field.one()];
+    let mut inputs = if cfg!(feature = "degree-separated") {
+        Vec::new()
+    } else {
+        vec![field.one()]
+    };
     for polynomial in key.a_hat.iter().flatten() {
         inputs.extend(
             polynomial
@@ -231,15 +239,42 @@ fn run<P: MlDsaParams>(source: &str, marker: &str) {
                 None,
             )
         } else {
+            #[cfg(not(feature = "degree-separated"))]
             let (compiled, geometry, _) = support::compile_verifier::<P>(&compile_field, true);
+            #[cfg(feature = "degree-separated")]
+            let (compiled, geometry, _) = support::compile_degree_verifier::<P>(&compile_field);
             let segmented = compile::compiler::segment_circuit(&compile_field, &compiled);
             let bytes = core::proto::writer::CircuitWriter::new(&compile_field, FieldID::None)
                 .to_bytes_lfc2(&segmented);
             (bytes, Some(geometry))
         };
+    if let Some(directory) = std::env::var_os("MLDSA_BENCH_SAVE_DIR") {
+        std::fs::create_dir_all(&directory).unwrap();
+        let name = std::any::type_name::<P>().rsplit("::").next().unwrap();
+        std::fs::write(
+            std::path::PathBuf::from(directory).join(format!("{name}.lfc2")),
+            &circuit_bytes,
+        )
+        .unwrap();
+    }
+    eprintln!(
+        "  Circuit size: raw={} zstd={} bytes",
+        circuit_bytes.len(),
+        zstd::encode_all(circuit_bytes.as_slice(), 16)
+            .unwrap()
+            .len()
+    );
     let report_field = RuntimeFp24Ext6::new();
     let report_circuit = read_circuit(&circuit_bytes, &report_field).unwrap();
+    eprintln!(
+        "  Decoded circuit heap: {} bytes",
+        report_circuit.heap_bytes()
+    );
     let selected_config = config(&report_circuit).unwrap();
+    eprintln!(
+        "  Term counts [quadratic,linear,constant] x [zero,one,other]: {:?}",
+        report_circuit.term_breakdown(&report_field)
+    );
     eprintln!("  Selected Polygero parameters: {selected_config:?}");
     drop(report_circuit);
     let offline_setup = offline_start.elapsed();

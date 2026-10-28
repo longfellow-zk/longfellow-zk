@@ -66,6 +66,26 @@ fn main() {
             };
             assert_eq!(bundle.spec().num_attributes, attributes);
             assert_eq!(bundle.spec().manifest.compiler_variant, variant);
+            let (sig, hash) = packed_v9::provider::load(
+                bundle.spec(),
+                bundle.compressed(),
+                &longfellow_zk::runtime::algebra::p256::P256Field::new(),
+                &longfellow_zk::runtime::algebra::gf2_128::Gf2_128Field::new(),
+            )
+            .unwrap();
+            eprintln!(
+                "decoded circuit attributes={attributes} variant={variant}: heap={} bytes",
+                sig.heap_bytes() + hash.heap_bytes()
+            );
+            eprintln!("term counts [quadratic,linear,constant] x [zero,one,other]: hash={:?} signature={:?}",
+                hash.term_breakdown(&longfellow_zk::runtime::algebra::gf2_128::Gf2_128Field::new()),
+                sig.term_breakdown(&longfellow_zk::runtime::algebra::p256::P256Field::new()));
+            drop((sig, hash));
+            eprintln!(
+                "circuit attributes={attributes} variant={variant}: zstd={} raw={} bytes",
+                bundle.compressed().len(),
+                zstd::decode_all(bundle.compressed()).unwrap().len()
+            );
             if let Some(p) = path {
                 provider::write_packed_v9(&p, &bundle).unwrap()
             }

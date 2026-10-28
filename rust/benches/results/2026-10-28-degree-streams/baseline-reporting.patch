@@ -1,0 +1,134 @@
+diff --git a/rust/Cargo.toml b/rust/Cargo.toml
+index 5977a33..b448e93 100644
+--- a/rust/Cargo.toml
++++ b/rust/Cargo.toml
+@@ -30,6 +30,7 @@ bench-memory = []
+ bench-profile = []
+ # Opt-in arithmetic and circuits under development; never enabled by default.
+ experimental = []
++degree-separated = []
+ # Offline audits and specification generation; never a proof-role dependency.
+ tooling = ["compiler", "experimental", "dep:serde_json"]
+ 
+diff --git a/rust/applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs b/rust/applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs
+index 8af4d71..cf70189 100644
+--- a/rust/applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs
++++ b/rust/applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs
+@@ -66,6 +66,23 @@ fn main() {
+             };
+             assert_eq!(bundle.spec().num_attributes, attributes);
+             assert_eq!(bundle.spec().manifest.compiler_variant, variant);
++            let (sig, hash) = packed_v9::provider::load(
++                bundle.spec(),
++                bundle.compressed(),
++                &longfellow_zk::runtime::algebra::p256::P256Field::new(),
++                &longfellow_zk::runtime::algebra::gf2_128::Gf2_128Field::new(),
++            )
++            .unwrap();
++            eprintln!(
++                "decoded circuit attributes={attributes} variant={variant}: heap={} bytes",
++                sig.heap_bytes() + hash.heap_bytes()
++            );
++            drop((sig, hash));
++            eprintln!(
++                "circuit attributes={attributes} variant={variant}: zstd={} raw={} bytes",
++                bundle.compressed().len(),
++                zstd::decode_all(bundle.compressed()).unwrap().len()
++            );
+             if let Some(p) = path {
+                 provider::write_packed_v9(&p, &bundle).unwrap()
+             }
+diff --git a/rust/circuits/experimental/benches/mldsa_bench_v2.rs b/rust/circuits/experimental/benches/mldsa_bench_v2.rs
+index 245d0ba..4af6e49 100644
+--- a/rust/circuits/experimental/benches/mldsa_bench_v2.rs
++++ b/rust/circuits/experimental/benches/mldsa_bench_v2.rs
+@@ -109,7 +109,11 @@ fn prove<P: MlDsaParams>(
+     let witness_start = Instant::now();
+     let instance = ConcreteInstance::<P>::new(public_key, signature, message, context)
+         .ok_or("invalid MLDSA instance")?;
+-    let mut inputs = vec![field.one()];
++    let mut inputs = if cfg!(feature = "degree-separated") {
++        Vec::new()
++    } else {
++        vec![field.one()]
++    };
+     instance.push_wires(&field, &mut inputs);
+     assert_eq!(inputs.len(), circuit.raw.ninput);
+     let witness = witness_start.elapsed();
+@@ -154,7 +158,11 @@ fn public_inputs<P: MlDsaParams>(
+     bytes: &[u8],
+ ) -> BenchResult<Vec<RuntimeElement>> {
+     let key = decode_public_key::<P>(bytes).ok_or("invalid MLDSA public key")?;
+-    let mut inputs = vec![field.one()];
++    let mut inputs = if cfg!(feature = "degree-separated") {
++        Vec::new()
++    } else {
++        vec![field.one()]
++    };
+     for polynomial in key.a_hat.iter().flatten() {
+         inputs.extend(
+             polynomial
+@@ -231,14 +239,37 @@ fn run<P: MlDsaParams>(source: &str, marker: &str) {
+                 None,
+             )
+         } else {
++            #[cfg(not(feature = "degree-separated"))]
+             let (compiled, geometry, _) = support::compile_verifier::<P>(&compile_field, true);
++            #[cfg(feature = "degree-separated")]
++            let (compiled, geometry, _) = support::compile_degree_verifier::<P>(&compile_field);
+             let segmented = compile::compiler::segment_circuit(&compile_field, &compiled);
+             let bytes = core::proto::writer::CircuitWriter::new(&compile_field, FieldID::None)
+                 .to_bytes_lfc2(&segmented);
+             (bytes, Some(geometry))
+         };
++    if let Some(directory) = std::env::var_os("MLDSA_BENCH_SAVE_DIR") {
++        std::fs::create_dir_all(&directory).unwrap();
++        let name = std::any::type_name::<P>().rsplit("::").next().unwrap();
++        std::fs::write(
++            std::path::PathBuf::from(directory).join(format!("{name}.lfc2")),
++            &circuit_bytes,
++        )
++        .unwrap();
++    }
++    eprintln!(
++        "  Circuit size: raw={} zstd={} bytes",
++        circuit_bytes.len(),
++        zstd::encode_all(circuit_bytes.as_slice(), 16)
++            .unwrap()
++            .len()
++    );
+     let report_field = RuntimeFp24Ext6::new();
+     let report_circuit = read_circuit(&circuit_bytes, &report_field).unwrap();
++    eprintln!(
++        "  Decoded circuit heap: {} bytes",
++        report_circuit.heap_bytes()
++    );
+     let selected_config = config(&report_circuit).unwrap();
+     eprintln!("  Selected Polygero parameters: {selected_config:?}");
+     drop(report_circuit);
+diff --git a/rust/core/proto/src/circuit.rs b/rust/core/proto/src/circuit.rs
+index ab00c08..f40ecde 100644
+--- a/rust/core/proto/src/circuit.rs
++++ b/rust/core/proto/src/circuit.rs
+@@ -37,6 +37,8 @@ pub struct Circuit<F: SerializableField> {
+     pub id: DigestBytes,
+ }
+ impl<F: SerializableField> Circuit<F> {
++pub fn heap_bytes(&self)->usize { self.raw.constants.capacity()*std::mem::size_of::<F::E>() + self.raw.layers.capacity()*std::mem::size_of::<Layer<F>>() + self.raw.layers.iter().map(Layer::heap_bytes).sum::<usize>() }
++
+     /// V1 file metadata remains readable; V2 commits ambient-field cells only.
+     pub fn validate_v2(&self) -> Result<(), String> {
+         if self.raw.subfield_boundary != 0 {
+diff --git a/rust/core/proto/src/layer.rs b/rust/core/proto/src/layer.rs
+index f79bb51..ef71ab5 100644
+--- a/rust/core/proto/src/layer.rs
++++ b/rust/core/proto/src/layer.rs
+@@ -72,6 +72,8 @@ pub struct Layer<F: SerializableField> {
+ }
+ 
+ impl<F: SerializableField> Layer<F> {
++pub fn heap_bytes(&self)->usize { self.deltas.capacity()*std::mem::size_of::<TermDelta>() + self.delta_segments.capacity()*std::mem::size_of::<Vec<u32>>() + self.delta_segments.iter().map(|s|s.capacity()*4).sum::<usize>() + self.delta_tokens.capacity()*4 }
++
+     pub fn new(
+         nw: usize,
+         logw: usize,

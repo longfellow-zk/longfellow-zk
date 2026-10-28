@@ -59,6 +59,16 @@ impl BooleanKernel {
                         term.k == f.one() && domain[term.h0 as usize] && domain[term.h1 as usize];
                 }
             });
+            if let Some([linear, constant]) = layer.affine() {
+                linear.for_each_term(&circuit.raw.constants, |t| {
+                    if t.k != f.zero() {
+                        next[t.g as usize] &= t.k == f.one() && domain[t.h0 as usize];
+                    }
+                });
+                constant.for_each_term(&circuit.raw.constants, |t| {
+                    next[t.g as usize] &= t.k == f.one();
+                });
+            }
             domain = next;
         }
         Ok(Self { certified, window })
@@ -78,7 +88,7 @@ impl ProverKernel<2, F> for BooleanKernel {
         w: &[E],
         f: &F,
     ) -> Vec<E> {
-        if !self.certified[index] {
+        if !self.certified[index] || layer.affine().is_some() {
             return quad::bind_r(layer, constants, a, assertions, w, f);
         }
         let mut result = vec![f.zero(); w.len()];

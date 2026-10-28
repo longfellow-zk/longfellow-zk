@@ -1,0 +1,56 @@
+comparison sample 0
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=183.671 ms verifier=99.002 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,183.670843,99.001816,185000,0,0
+
+comparison sample 1
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=182.165 ms verifier=96.780 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,182.164550,96.780041,185000,0,0
+
+comparison sample 2
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=183.501 ms verifier=96.129 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,183.501225,96.128800,185000,0,0
+
+comparison sample 3
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=179.998 ms verifier=97.417 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,179.997959,97.416804,185000,0,0
+
+comparison sample 4
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=186.048 ms verifier=96.027 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,186.047940,96.026749,185000,0,0
+
+comparison sample 5
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=182.108 ms verifier=97.777 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,182.108315,97.777300,185000,0,0
+
+comparison sample 6
+decoded circuit attributes=2 variant=0: heap=2306040 bytes
+circuit attributes=2 variant=0: zstd=177355 raw=650271 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=183.775 ms verifier=98.887 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,183.774618,98.886610,185000,0,0
+

@@ -1,0 +1,98 @@
+comparison sample 0
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=623.328 ms, verifier=304.694 ms, proof=178836 bytes
+  Offline circuit preparation: 120.673 ms
+  Prover subtimings: circuit_load=4.518, witness=0.988, commit=40.387, prove=576.117, serialize=0.033 ms
+  Verifier subtimings: circuit_load=4.482, public_inputs=0.086, deserialize=0.300, verify=299.445 ms
+
+comparison sample 1
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=632.281 ms, verifier=307.809 ms, proof=178836 bytes
+  Offline circuit preparation: 119.776 ms
+  Prover subtimings: circuit_load=4.647, witness=1.090, commit=40.828, prove=583.624, serialize=0.033 ms
+  Verifier subtimings: circuit_load=4.884, public_inputs=0.087, deserialize=0.301, verify=302.120 ms
+
+comparison sample 2
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=620.691 ms, verifier=302.442 ms, proof=178836 bytes
+  Offline circuit preparation: 123.250 ms
+  Prover subtimings: circuit_load=4.464, witness=1.218, commit=41.282, prove=572.425, serialize=0.033 ms
+  Verifier subtimings: circuit_load=4.532, public_inputs=0.103, deserialize=0.300, verify=297.125 ms
+
+comparison sample 3
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=621.612 ms, verifier=304.054 ms, proof=178836 bytes
+  Offline circuit preparation: 108.920 ms
+  Prover subtimings: circuit_load=4.493, witness=1.019, commit=40.840, prove=573.979, serialize=0.034 ms
+  Verifier subtimings: circuit_load=4.538, public_inputs=0.086, deserialize=0.304, verify=298.747 ms
+
+comparison sample 4
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=618.507 ms, verifier=299.271 ms, proof=178836 bytes
+  Offline circuit preparation: 104.312 ms
+  Prover subtimings: circuit_load=4.455, witness=1.278, commit=40.586, prove=570.901, serialize=0.030 ms
+  Verifier subtimings: circuit_load=4.512, public_inputs=0.085, deserialize=0.300, verify=293.988 ms
+
+comparison sample 5
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=620.294 ms, verifier=305.211 ms, proof=178836 bytes
+  Offline circuit preparation: 120.054 ms
+  Prover subtimings: circuit_load=4.492, witness=0.951, commit=40.674, prove=572.941, serialize=0.031 ms
+  Verifier subtimings: circuit_load=4.600, public_inputs=0.085, deserialize=0.300, verify=299.842 ms
+
+comparison sample 6
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1730493 zstd=542023 bytes
+  Decoded circuit heap: 5325408 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[182193, 1514287, 2141814], [0, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 4bc6656a69b4855e130d6c6dbb76c37a45ee0b8266485ab5899ec9c2e08645d7
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1730493 bytes
+  End to end: prover=615.564 ms, verifier=303.223 ms, proof=178836 bytes
+  Offline circuit preparation: 104.499 ms
+  Prover subtimings: circuit_load=4.463, witness=1.521, commit=40.162, prove=567.933, serialize=0.035 ms
+  Verifier subtimings: circuit_load=4.558, public_inputs=0.086, deserialize=0.303, verify=297.879 ms
+

@@ -76,7 +76,13 @@ fn build_input_hash<'a>(
     expected_doc_type: &[u8],
 ) -> AssignmentBuilder<'a, Gf2_128Field> {
     let gf2 = builder.field;
-    builder.push_elt(&gf2.one());
+    #[cfg(not(feature = "degree-separated"))]
+    let include_one = true;
+    #[cfg(feature = "degree-separated")]
+    let include_one = !builder.boolean;
+    if include_one {
+        builder.push_elt(&gf2.one());
+    }
     for i in 0..K_TIMESTAMP_LEN {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
     }
@@ -151,8 +157,32 @@ pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
     macs: &[u128; 6],
     av: u128,
 ) -> Vec<P256Element> {
+    input_sig(p256, issuer_pk, device_sig_e, macs, av, true)
+}
+
+#[cfg(feature = "degree-separated")]
+pub(in crate::mdoc::runtime::v2) fn push_input_sig_no_one<N: Nat<4>>(
+    p256: &P256Field,
+    issuer_pk: &(P256Element, P256Element),
+    device_sig_e: &N,
+    macs: &[u128; 6],
+    av: u128,
+) -> Vec<P256Element> {
+    input_sig(p256, issuer_pk, device_sig_e, macs, av, false)
+}
+
+fn input_sig<N: Nat<4>>(
+    p256: &P256Field,
+    issuer_pk: &(P256Element, P256Element),
+    device_sig_e: &N,
+    macs: &[u128; 6],
+    av: u128,
+    include_one: bool,
+) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);
-    builder.push_elt(&p256.u64_to_element(1));
+    if include_one {
+        builder.push_elt(&p256.u64_to_element(1));
+    }
     builder.push_elt(&issuer_pk.0);
     builder.push_elt(&issuer_pk.1);
 

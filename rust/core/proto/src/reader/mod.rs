@@ -90,9 +90,23 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         let buf = stream
             .fill_buf()
             .map_err(|e| format!("Failed to read stream header: {e}"))?;
-        if buf.starts_with(b"LFC2") {
+        if buf.starts_with(b"LFC2")
+            || buf.starts_with(b"LFD2")
+            || buf.starts_with(b"LFD3")
+            || buf.starts_with(b"LFD4")
+        {
+            let linear_assertions = buf.starts_with(b"LFD4");
+            let coefficients = buf.starts_with(b"LFD3") || linear_assertions;
+            let separated = buf.starts_with(b"LFD2") || coefficients;
             stream.consume(4);
-            lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
+            lfc2::from_stream_lfc2_inner(
+                self,
+                stream,
+                enforce_circuit_id,
+                separated,
+                coefficients,
+                linear_assertions,
+            )
         } else if !buf.is_empty() && buf[0] == 1 {
             stream.consume(1);
             lfc1::from_stream_lfc1_inner(self, stream, enforce_circuit_id)
@@ -128,12 +142,22 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         stream
             .read_exact(&mut header)
             .map_err(|_| "Empty or incomplete stream buffer".to_string())?;
-        if &header != b"LFC2" {
+        let linear_assertions = &header == b"LFD4";
+        let coefficients = &header == b"LFD3" || linear_assertions;
+        let separated = &header == b"LFD2" || coefficients;
+        if &header != b"LFC2" && !separated {
             return Err(format!(
                 "Unsupported LFC2 header: expected b\"LFC2\", got {header:?}"
             ));
         }
-        lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
+        lfc2::from_stream_lfc2_inner(
+            self,
+            stream,
+            enforce_circuit_id,
+            separated,
+            coefficients,
+            linear_assertions,
+        )
     }
 
     #[allow(dead_code)]

@@ -54,7 +54,10 @@ pub fn compile_packed_v9_variant(
     let cp = crate::compile::algebra::p256::P256Field::new();
     let (hash, manifest) =
         compile::generate_packed_hash_circuit_variant(&cf, num_attributes, variant)?;
+    #[cfg(not(feature = "degree-separated"))]
     let sig = compile::generate_sig_circuit(&cp)?;
+    #[cfg(feature = "degree-separated")]
+    let sig = compile::generate_sig_degree_circuit(&cp)?;
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(9);
     builder.add_entry(
@@ -86,7 +89,13 @@ pub fn compile_packed_v9_variant(
         .from_bytes(&archive.entries[0].payload, true)?
         .0;
     let (layout, _, products) = packing_layout(&h, &f)?;
-    let hc = crate::compile::polygero::tune_large_field_at_rate(7, layout.witness_count, &products, 16, |c| c.can_interpolate(&d))
+    let hc = crate::compile::polygero::tune_large_field_at_rate(
+        7,
+        layout.witness_count,
+        &products,
+        16,
+        |c| c.can_interpolate(&d),
+    )
     .ok_or("no packed Polygero profile")?;
     let sc = super::next_v2::select_parameters(&s, &pd, &p)?;
     let par = |c: crate::runtime::polygero::PolygeroConfig| PolygeroParameters {

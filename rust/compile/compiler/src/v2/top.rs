@@ -39,6 +39,38 @@ where
     F: CompileField + crate::core::algebra::SerializableField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
+    compile_with_mode(f, build, false)
+}
+
+#[cfg(feature = "degree-separated")]
+pub fn compile_degree_separated<F, Build>(
+    f: &F,
+    build: Build,
+) -> (
+    Circuit<F>,
+    CircuitGeometry,
+    crate::compile::compiler::debug::CircuitDebugSymbols,
+)
+where
+    F: CompileField + crate::core::algebra::SerializableField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
+{
+    compile_with_mode(f, build, true)
+}
+
+pub(crate) fn compile_with_mode<F, Build>(
+    f: &F,
+    build: Build,
+    degree_separated: bool,
+) -> (
+    Circuit<F>,
+    CircuitGeometry,
+    crate::compile::compiler::debug::CircuitDebugSymbols,
+)
+where
+    F: CompileField + crate::core::algebra::SerializableField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
+{
     let source_tracker = AssertionScope::new();
     // Each rewrite owns its destination arena. End the source arena's scope
     // as soon as the next representation is complete; only owned quads survive.
@@ -61,8 +93,11 @@ where
             let copied = crate::compile::compiler::copy::rewrite(&copy_arena, f, simplified);
             (copied, npublic_input, subfield_boundary)
         };
-        let (quad_circuit, quad_asserts) =
-            crate::compile::compiler::ir_to_quad::rewrite(&copy_arena, f, copied, &source_tracker);
+        let (quad_circuit, quad_asserts) = if degree_separated {
+            super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker)
+        } else {
+            crate::compile::compiler::ir_to_quad::rewrite(&copy_arena, f, copied, &source_tracker)
+        };
         (quad_circuit, quad_asserts, npublic_input, subfield_boundary)
     };
 
@@ -73,6 +108,7 @@ where
         npublic_input,
         subfield_boundary,
         source_tracker,
+        degree_separated,
     );
 
     assert!(info.ninput > 0);

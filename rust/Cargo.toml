@@ -30,6 +30,10 @@ bench-memory = []
 bench-profile = []
 # Opt-in arithmetic and circuits under development; never enabled by default.
 experimental = []
+# Experimental LFC2 degree streams and v2 circuits without a One input.
+degree-separated = ["experimental"]
+coefficient-separated = ["degree-separated"]
+assertion-separated = ["coefficient-separated"]
 # Offline audits and specification generation; never a proof-role dependency.
 tooling = ["compiler", "experimental", "dep:serde_json"]
 

@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-28",
+  "base_revision": "f9cb430",
+  "cpu": "AMD Ryzen 9 9950X",
+  "boost": false,
+  "affinity_cpu": 2,
+  "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+  "profile": { "optimization": 3, "target_cpu": "native", "lto": true, "codegen_units": 1 },
+  "samples": 7,
+  "warmups_per_version_and_circuit": 1,
+  "ordering": "paired before/after; reversed on alternate samples",
+  "allocation_tracking_for_timing": false,
+  "zstd": { "level": 16, "api": "zstd::encode_all" },
+  "v9": { "variant": 0, "kernel": "reference", "rate": "1/7", "k": 416, "s": 15, "n": 2912, "t": 86 },
+  "mldsa": { "rate": "1/4", "k": 1024, "s": 25, "n": 4096, "t": 128 },
+  "rng_seed": 42,
+  "before_format": "LFC2",
+  "after_format": "LFD2; separate degree streams; missing-factor leading sort key"
+}

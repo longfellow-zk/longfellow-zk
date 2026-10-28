@@ -18,3 +18,8 @@ mod scheduler;
 mod top;
 pub use top::compile;
 mod term_order;
+
+mod ir_to_terms;
+#[cfg(feature = "degree-separated")]
+pub use top::compile_degree_separated;
+pub(crate) use top::compile_with_mode;

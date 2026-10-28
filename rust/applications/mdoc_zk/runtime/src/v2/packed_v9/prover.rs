@@ -14,10 +14,13 @@
 
 //! Experimental packed-v9 application prover with a direct-field signature proof.
 
+#[cfg(not(feature = "degree-separated"))]
+use super::super::inputs::push_input_sig;
+#[cfg(feature = "degree-separated")]
+use super::super::inputs::push_input_sig_no_one as push_input_sig;
 use super::{
     super::inputs::{
-        public_inputs_fit, push_input_hash_boolean, push_input_sig, push_witness_hash_boolean,
-        push_witness_sig,
+        public_inputs_fit, push_input_hash_boolean, push_witness_hash_boolean, push_witness_sig,
     },
     proto::{MdocProof, MdocProofGeometry},
     PackedV9Spec,

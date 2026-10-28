@@ -41,6 +41,9 @@ pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
     b_l: &[F::E],
     f: &F,
 ) -> Vec<F::E> {
+    if layer.coefficients().is_some() {
+        return bind_partition::<W, F, true>(layer, constants, a, assertions, b_l, f);
+    }
     let mut q_r = vec![f.zero(); layer.nw()];
     let one = f.one();
     let mut assertion_challenges = assertions.iter();
@@ -79,6 +82,18 @@ pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
     b_r: &[F::E],
     f: &F,
 ) -> Vec<F::E> {
+    if layer.coefficients().is_some() {
+        let mut q = bind_partition::<W, F, false>(layer, constants, a, assertions, b_r, f);
+        add_linear(
+            layer,
+            constants,
+            a,
+            &assertions[layer.coefficients().unwrap().assertions.num_terms()..],
+            &mut q,
+            f,
+        );
+        return q;
+    }
     let mut q_l = vec![f.zero(); layer.nw()];
     let one = f.one();
     let mut assertion_challenges = assertions.iter();
@@ -104,6 +119,19 @@ pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
         assertion_challenges.next().is_none(),
         "unused assertion challenge"
     );
+    if let Some([linear, _]) = layer.affine() {
+        let mone = f.mone();
+        linear.for_each_term(constants, |t| {
+            let output = &mut q_l[t.h0 as usize];
+            if t.k == one {
+                f.add(output, &a[t.g as usize]);
+            } else if t.k == mone {
+                f.sub(output, &a[t.g as usize]);
+            } else {
+                f.fma(output, &a[t.g as usize], &t.k);
+            }
+        });
+    }
     q_l
 }
 
@@ -117,6 +145,8 @@ pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
 ///
 /// Thus sum_r a_next[r]*W[r] = A + alpha*B. Prover and verifier use the same
 /// public computation; only bind_r, above, needs the prover's witness.
+#[cfg(test)]
+#[allow(dead_code)] // Reference entry point for independent wiring diagnostics.
 pub(super) fn weights_next<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &Layer<F>,
     constants: &[F::E],
@@ -126,8 +156,133 @@ pub(super) fn weights_next<const W: usize, F: RuntimeField<W> + SerializableFiel
     alpha: &F::E,
     f: &F,
 ) -> Vec<F::E> {
-    let mut a_next = monomial::weights(layer.logw(), layer.nw(), point_l, f);
-    let q_r = bind_l(layer, constants, a, assertions, &a_next, f);
-    blas::axpy(&mut a_next, alpha, &q_r, f);
-    a_next
+    weights_next_affine(layer, constants, a, assertions, point_l, alpha, f).0
+}
+
+pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + SerializableField>(
+    layer: &Layer<F>,
+    constants: &[F::E],
+    a: &[F::E],
+    assertions: &[F::E],
+    point: &[F::E],
+    alpha: &F::E,
+    f: &F,
+) -> (Vec<F::E>, F::E, F::E) {
+    let mut weights = monomial::weights(layer.logw(), layer.nw(), point, f);
+    let mut linear = f.zero();
+    if let Some([stream, _]) = layer.affine() {
+        let one = f.one();
+        let mone = f.mone();
+        stream.for_each_general_term(constants, |t| {
+            let a = &a[t.g as usize];
+            let m = &weights[t.h0 as usize];
+            if t.k == one {
+                f.fma(&mut linear, a, m);
+            } else if t.k == mone {
+                f.fnms(&mut linear, a, m);
+            } else {
+                f.fma(&mut linear, &f.mulf(a, &t.k), m);
+            }
+        });
+    }
+    if let Some([stream, _]) = layer.affine() {
+        if let Some(c) = stream.coefficients() {
+            c.units
+                .for_each(|g, l, _| f.fma(&mut linear, &a[g as usize], &weights[l as usize]));
+        }
+    }
+    if let Some([s, _]) = layer.affine() {
+        if let Some(c) = s.coefficients() {
+            let qn = layer.coefficients().unwrap().assertions.num_terms();
+            let mut rho = assertions[qn..].iter();
+            c.assertions
+                .for_each(|_, l, _| f.fma(&mut linear, rho.next().unwrap(), &weights[l as usize]));
+            assert!(rho.next().is_none());
+        }
+    }
+    let q = bind_l(layer, constants, a, assertions, &weights, f);
+    blas::axpy(&mut weights, alpha, &q, f);
+    (weights, affine_constant(layer, constants, a, f), linear)
+}
+
+pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
+    layer: &Layer<F>,
+    constants: &[F::E],
+    a: &[F::E],
+    f: &F,
+) -> F::E {
+    let mut result = f.zero();
+    if let Some([_, stream]) = layer.affine() {
+        stream.for_each_general_term(constants, |t| f.fma(&mut result, &a[t.g as usize], &t.k));
+        if let Some(c) = stream.coefficients() {
+            c.units
+                .for_each(|g, _, _| f.add(&mut result, &a[g as usize]));
+        }
+    }
+    result
+}
+
+/// The coefficient class is chosen once per array, outside its hot loop.
+fn bind_partition<const W: usize, F: RuntimeField<W> + SerializableField, const LEFT: bool>(
+    layer: &Layer<F>,
+    constants: &[F::E],
+    a: &[F::E],
+    assertions: &[F::E],
+    b: &[F::E],
+    f: &F,
+) -> Vec<F::E> {
+    let mut q = vec![f.zero(); layer.nw()];
+    let c = layer.coefficients().unwrap();
+    layer.for_each_general_term(constants, |t| {
+        let (l, r) = (t.h0 as usize, t.h1 as usize);
+        let (target, source) = if LEFT { (r, l) } else { (l, r) };
+        f.fma(&mut q[target], &f.mulf(&a[t.g as usize], &t.k), &b[source]);
+    });
+    c.units.for_each(|g, l, r| {
+        let (target, source) = if LEFT { (r, l) } else { (l, r) };
+        f.fma(&mut q[target as usize], &a[g as usize], &b[source as usize]);
+    });
+    assert_eq!(
+        assertions.len(),
+        c.assertions.num_terms() + layer.linear_assertion_count(),
+        "assertion shape mismatch"
+    );
+    let mut coefficients = assertions.iter();
+    c.assertions.for_each(|_, l, r| {
+        let (target, source) = if LEFT { (r, l) } else { (l, r) };
+        f.fma(
+            &mut q[target as usize],
+            coefficients.next().unwrap(),
+            &b[source as usize],
+        );
+    });
+    q
+}
+#[cfg(any(test, feature = "prover"))]
+fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
+    layer: &Layer<F>,
+    constants: &[F::E],
+    a: &[F::E],
+    assertions: &[F::E],
+    q: &mut [F::E],
+    f: &F,
+) {
+    if let Some([s, _]) = layer.affine() {
+        let mone = f.mone();
+        s.for_each_general_term(constants, |t| {
+            if t.k == mone {
+                f.sub(&mut q[t.h0 as usize], &a[t.g as usize]);
+            } else {
+                f.fma(&mut q[t.h0 as usize], &a[t.g as usize], &t.k);
+            }
+        });
+        if let Some(c) = s.coefficients() {
+            assert_eq!(assertions.len(), c.assertions.num_terms());
+            let mut rho = assertions.iter();
+            c.assertions
+                .for_each(|_, l, _| f.add(&mut q[l as usize], rho.next().unwrap()));
+            c.units
+                .for_each(|g, l, _| f.add(&mut q[l as usize], &a[g as usize]));
+        }
+    }
 }

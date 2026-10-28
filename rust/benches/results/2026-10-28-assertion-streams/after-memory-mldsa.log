@@ -1,0 +1,25 @@
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: true
+  Circuit size: raw=1731719 zstd=541420 bytes
+  Decoded circuit heap: 5328968 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[1042, 1513245, 2141814], [181151, 1947053, 778765], [0, 31595, 95850]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 41b0bbb4d6f1a40a045e2a835d800902df84f1771d8f86bdd52174f276689cf0
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: None, LFC2=1731719 bytes
+  End to end: prover=651.590 ms, verifier=320.446 ms, proof=178868 bytes
+  Offline circuit preparation: 119.466 ms
+  Prover subtimings: circuit_load=4.610, witness=1.345, commit=42.362, prove=602.109, serialize=0.030 ms
+  Verifier subtimings: circuit_load=4.607, public_inputs=0.086, deserialize=0.401, verify=314.955 ms
+  End-to-end additional peak heap: prover=106383664, verifier=38491316 bytes
+  Circuit size: raw=1927696 zstd=563659 bytes
+  Decoded circuit heap: 5859152 bytes
+  Term counts [quadratic,linear,constant] x [zero,one,other]: [[4372, 1562362, 3226336], [205183, 2040319, 884797], [0, 38653, 98166]]
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 600acac2f6216d61c14f27911917933c9a2db18f83ec87b39eb9fa317ce7fcf9
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: None, LFC2=1927696 bytes
+  End to end: prover=728.323 ms, verifier=376.034 ms, proof=187956 bytes
+  Offline circuit preparation: 135.005 ms
+  Prover subtimings: circuit_load=5.034, witness=1.006, commit=46.555, prove=675.107, serialize=0.033 ms
+  Verifier subtimings: circuit_load=5.204, public_inputs=0.156, deserialize=0.423, verify=369.812 ms
+  End-to-end additional peak heap: prover=111654715, verifier=42966308 bytes

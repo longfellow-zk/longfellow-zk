@@ -1,0 +1,63 @@
+comparison sample 0
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=170.921 ms verifier=93.006 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,170.921374,93.005505,184680,0,0
+
+comparison sample 1
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=172.293 ms verifier=91.491 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,172.292925,91.490685,184680,0,0
+
+comparison sample 2
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=165.352 ms verifier=89.106 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,165.351504,89.105835,184680,0,0
+
+comparison sample 3
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=164.000 ms verifier=89.337 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,164.000140,89.337409,184680,0,0
+
+comparison sample 4
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=172.198 ms verifier=93.833 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,172.198047,93.833317,184680,0,0
+
+comparison sample 5
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=169.940 ms verifier=93.403 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,169.939964,93.403432,184680,0,0
+
+comparison sample 6
+decoded circuit attributes=2 variant=0: heap=2059344 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[18698, 1339191, 482479], [0, 223218, 1330608], [0, 790911, 203]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=2 variant=0: zstd=157598 raw=575318 bytes
+Experimental trace-zero v9; memory instrumentation=false; no kernel selected automatically
+median attributes=2 variant=0 window=0: prover=169.475 ms verifier=91.168 ms
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+2,0,0,0,169.474973,91.167961,184680,0,0
+

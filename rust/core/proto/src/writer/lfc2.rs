@@ -31,7 +31,19 @@ pub(super) fn to_bytes_lfc2<F: SerializableField>(
     let mut bytes = Vec::new();
 
     // Write header
-    bytes.extend_from_slice(b"LFC2"); // magic header
+    let separated = sc_c.raw.layers.iter().any(|l| l.affine().is_some());
+    let linear_assertions = sc_c.raw.layers.iter().any(|l| l.has_linear_assertions());
+    let coefficients = sc_c.raw.layers.iter().any(|l| l.coefficients().is_some());
+    assert!(!coefficients || separated, "LFD3 requires degree streams");
+    bytes.extend_from_slice(if linear_assertions {
+        b"LFD4"
+    } else if coefficients {
+        b"LFD3"
+    } else if separated {
+        b"LFD2"
+    } else {
+        b"LFC2"
+    }); // magic header
     serialize_uleb128_max4(&mut bytes, writer.field_id as usize);
     serialize_uleb128_max4(&mut bytes, sc_c.raw.noutput); // sc_c.nv
     serialize_uleb128_max4(&mut bytes, 1); // sc_c.nc
@@ -48,6 +60,7 @@ pub(super) fn to_bytes_lfc2<F: SerializableField>(
 
     // Serialize each layer
     for layer in &sc_c.raw.layers {
+        assert_eq!(layer.affine().is_some(), separated, "mixed circuit formats");
         assert!(
             crate::core::proto::sane_logw(layer.logw),
             "layer logw must be sane"
@@ -55,31 +68,78 @@ pub(super) fn to_bytes_lfc2<F: SerializableField>(
         serialize_uleb128_max4(&mut bytes, layer.logw);
         serialize_uleb128_max4(&mut bytes, layer.nw);
 
-        // Write the deduplicated delta table for this layer to disk.
-        serialize_uleb128_max4(&mut bytes, layer.deltas().len());
-        for term in layer.deltas() {
-            serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.g));
-            serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.h[0]));
-            serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.h[1]));
-            serialize_uleb128_max4_u32(&mut bytes, term.k_index);
-        }
+        for (arity, layer) in std::iter::once((2, layer)).chain(
+            layer
+                .affine()
+                .into_iter()
+                .flat_map(|streams| [(1, &streams[0]), (0, &streams[1])]),
+        ) {
+            assert_eq!(
+                layer.coefficients().is_some(),
+                coefficients,
+                "mixed coefficient formats"
+            );
+            // Write the deduplicated delta table for this layer to disk.
+            serialize_uleb128_max4(&mut bytes, layer.deltas().len());
+            for term in layer.deltas() {
+                serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.g));
+                if arity >= 1 {
+                    serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.h[0]));
+                }
+                if arity >= 2 {
+                    serialize_uleb128_max4_u32(&mut bytes, zigzag_encode_delta(term.h[1]));
+                }
+                serialize_uleb128_max4_u32(&mut bytes, term.k_index);
+            }
 
-        // Write the segments dictionary (sequences of delta indices).
-        serialize_uleb128_max4(&mut bytes, layer.delta_segments().len());
-        for seg in layer.delta_segments() {
-            serialize_uleb128_max4(&mut bytes, seg.len());
-            for &idx in seg {
-                serialize_uleb128_max4_u32(&mut bytes, idx);
+            // Write the segments dictionary (sequences of delta indices).
+            serialize_uleb128_max4(&mut bytes, layer.delta_segments().len());
+            for seg in layer.delta_segments() {
+                serialize_uleb128_max4(&mut bytes, seg.len());
+                for &idx in seg {
+                    serialize_uleb128_max4_u32(&mut bytes, idx);
+                }
+            }
+
+            // Write the token sequence indicating which segment dictionary entries to execute.
+            serialize_uleb128_max4(&mut bytes, layer.delta_tokens().len());
+            for &tok in layer.delta_tokens() {
+                serialize_uleb128_max4_u32(&mut bytes, tok);
+            }
+            if let Some(c) = layer.coefficients() {
+                use crate::core::proto::fixed::UnitTerms;
+                match &c.units {
+                    UnitTerms::Quadratic(s) => {
+                        assert_eq!(arity, 2);
+                        write_fixed(&mut bytes, s);
+                    }
+                    UnitTerms::Linear(s) => {
+                        assert_eq!(arity, 1);
+                        write_fixed(&mut bytes, s);
+                    }
+                    UnitTerms::Constant(s) => {
+                        assert_eq!(arity, 0);
+                        write_fixed(&mut bytes, s);
+                    }
+                }
+                if arity == 2 || (arity == 1 && linear_assertions) {
+                    match &c.assertions {
+                        UnitTerms::Quadratic(s) => {
+                            assert_eq!(arity, 2);
+                            write_fixed(&mut bytes, s);
+                        }
+                        UnitTerms::Linear(s) => {
+                            assert_eq!(arity, 1);
+                            write_fixed(&mut bytes, s);
+                        }
+                        _ => panic!("assertion degree mismatch"),
+                    }
+                } else {
+                    assert_eq!(c.assertions.num_terms(), 0);
+                }
             }
         }
-
-        // Write the token sequence indicating which segment dictionary entries to execute.
-        serialize_uleb128_max4(&mut bytes, layer.delta_tokens().len());
-        for &tok in layer.delta_tokens() {
-            serialize_uleb128_max4_u32(&mut bytes, tok);
-        }
     }
-
     bytes.extend_from_slice(&sc_c.id);
     bytes
 }
@@ -93,4 +153,27 @@ pub fn uleb128_len_u32(mut val: u32) -> u32 {
         len += 1;
     }
     len
+}
+
+fn write_fixed<const N: usize>(
+    bytes: &mut Vec<u8>,
+    stream: &crate::core::proto::fixed::FixedStream<N>,
+) {
+    serialize_uleb128_max4(bytes, stream.deltas.len());
+    for d in &stream.deltas {
+        for &x in d {
+            serialize_uleb128_max4_u32(bytes, zigzag_encode_delta(x));
+        }
+    }
+    serialize_uleb128_max4(bytes, stream.segments.len());
+    for s in &stream.segments {
+        serialize_uleb128_max4(bytes, s.len());
+        for &i in s {
+            serialize_uleb128_max4_u32(bytes, i);
+        }
+    }
+    serialize_uleb128_max4(bytes, stream.tokens.len());
+    for &t in &stream.tokens {
+        serialize_uleb128_max4_u32(bytes, t);
+    }
 }

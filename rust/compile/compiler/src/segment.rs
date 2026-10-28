@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::SerializableField;
-use crate::core::proto::circuit::{compute_id, Circuit, Layer, RawCircuit};
+use crate::core::{
+    algebra::SerializableField,
+    proto::circuit::{compute_id, Circuit, Layer, RawCircuit},
+};
 
 /// Compresses a single layer using the Grouped Literals heuristic directly on deduplicated delta
 /// indices.
@@ -30,6 +32,50 @@ use crate::core::proto::circuit::{compute_id, Circuit, Layer, RawCircuit};
 /// 5. Sorts the deduplicated deltas and segments by frequency, and renumbers everything.
 #[must_use]
 pub fn segment_layer<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
+    let result = segment_coefficient_stream(layer);
+    if let Some([linear, constant]) = layer.affine() {
+        result.with_affine(
+            segment_coefficient_stream(linear),
+            segment_coefficient_stream(constant),
+        )
+    } else {
+        result
+    }
+}
+fn segment_coefficient_stream<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
+    let result = segment_quadratic_stream(layer);
+    if let Some(c) = layer.coefficients() {
+        use crate::core::proto::fixed::{FixedCoefficients, UnitTerms};
+        let arity = match &c.units {
+            UnitTerms::Quadratic(_) => 2,
+            UnitTerms::Linear(_) => 1,
+            UnitTerms::Constant(_) => 0,
+        };
+        let units = UnitTerms::from_layer(
+            segment_quadratic_stream(&c.units.to_layer::<F>(layer.nw(), layer.logw())),
+            arity,
+        );
+        let assertion_arity = match &c.assertions {
+            UnitTerms::Quadratic(_) => 2,
+            UnitTerms::Linear(_) => 1,
+            UnitTerms::Constant(_) => 0,
+        };
+        let assertions = UnitTerms::from_layer(
+            segment_quadratic_stream(&c.assertions.to_layer::<F>(layer.nw(), layer.logw())),
+            assertion_arity,
+        );
+        // Fixed values are initialized explicitly from the same field encodings.
+        result.with_coefficients(FixedCoefficients::from_values(
+            units,
+            assertions,
+            c.one().clone(),
+            c.zero().clone(),
+        ))
+    } else {
+        result
+    }
+}
+fn segment_quadratic_stream<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
     let nw = layer.nw();
     let logw = layer.logw();
 
@@ -199,7 +245,7 @@ pub fn segment_circuit<F: SerializableField + Clone>(f: &F, circuit: &Circuit<F>
     let num_constants = circuit.raw.constants.len();
     let mut const_counts = vec![0usize; num_constants];
 
-    for layer in &compressed_layers {
+    for layer in compressed_layers.iter().flat_map(Layer::streams) {
         layer.for_each_delta_index(|d_idx| {
             let k_idx = layer.deltas()[d_idx as usize].k_index;
             const_counts[k_idx as usize] += 1;
@@ -222,9 +268,7 @@ pub fn segment_circuit<F: SerializableField + Clone>(f: &F, circuit: &Circuit<F>
 
     // Renumber k_index in all deltas of all compressed layers
     for layer in &mut compressed_layers {
-        for d in layer.deltas_mut() {
-            d.k_index = old_to_new_const[d.k_index as usize];
-        }
+        layer.remap_constants(&old_to_new_const);
     }
 
     let new_raw = RawCircuit {

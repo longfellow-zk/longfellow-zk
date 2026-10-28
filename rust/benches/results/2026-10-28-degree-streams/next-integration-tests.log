@@ -1,0 +1,9 @@
+   Compiling longfellow-zk v0.1.0 (/home/athena/sandbox/hack/longfellow-zk/rust)
+    Finished `test` profile [optimized + debuginfo] target(s) in 30.31s
+     Running unittests src/lib.rs (target/debug/deps/longfellow_zk-39d197074eb832ec)
+
+running 1 test
+test mdoc::runtime::tests_all::next::test_all_next_zk ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 636 filtered out; finished in 39.98s
+

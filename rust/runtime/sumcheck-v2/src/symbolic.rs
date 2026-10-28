@@ -85,6 +85,7 @@ pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + Serializabl
     };
     let mut layers = Vec::with_capacity(proof.layers.len());
     for (layer, challenges) in layer_challenges.into_iter().enumerate() {
+        f.sub(&mut claim.constant, &challenges.constant);
         let messages = &proof.layers[layer];
         assert_eq!(
             messages.rounds.len(),
@@ -97,7 +98,9 @@ pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + Serializabl
         }
         claim.subtract_claim_product(layer, &messages.claims, f);
         layers.push(claim);
+        let correction = f.mulf(&challenges.alpha, &challenges.linear);
         claim = PadExpression::claim_next(layer, &messages.claims, challenges.alpha, f);
+        f.sub(&mut claim.constant, &correction);
     }
     Constraints {
         layers,
@@ -256,6 +259,10 @@ impl<E: Clone> PadExpression<E> {
 /// to give the claim for the next layer.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct LayerChallenges<E> {
+    /// Public constant contribution to subtract before the dot-product rounds.
+    pub(crate) constant: E,
+    /// Public linear evaluation to subtract from the final B claim.
+    pub(crate) linear: E,
     pub(crate) point_l: Vec<E>,
     pub(crate) alpha: E,
 }

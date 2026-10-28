@@ -1,0 +1,6 @@
+decoded circuit attributes=4 variant=0: heap=2395868 bytes
+circuit attributes=4 variant=0: zstd=177705 raw=675481 bytes
+Experimental trace-zero v9; memory instrumentation=true; no kernel selected automatically
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,194.259349,101.640589,186472,49866900,39231382
+median attributes=4 variant=0 window=0: prover=194.259 ms verifier=101.641 ms

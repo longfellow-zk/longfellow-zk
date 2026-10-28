@@ -1101,6 +1101,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
             &[
                 "all/mod.rs",
                 "all/dense.rs",
+                "all/degree.rs",
                 "all/poly.rs",
                 "all/sumcheck_v2.rs",
                 "all/wiring.rs",

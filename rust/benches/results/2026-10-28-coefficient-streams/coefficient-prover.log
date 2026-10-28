@@ -1,0 +1,14 @@
+    Checking longfellow-zk v0.1.0 (/home/athena/sandbox/hack/longfellow-zk/rust)
+warning: associated function `from_values` is never used
+  --> src/../core/proto/src/fixed.rs:92:19
+   |
+84 | impl<F:SerializableField> FixedCoefficients<F> {
+   | ---------------------------------------------- associated function in this implementation
+...
+92 |     pub(crate) fn from_values(units:UnitTerms,assertions:FixedStream<3>,one:F::E,zero:F::E)->Self{Self{units,assertions,one,zero}}
+   |                   ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `longfellow-zk` (lib) generated 1 warning
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1.16s

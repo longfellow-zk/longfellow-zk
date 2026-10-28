@@ -35,6 +35,13 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
 
     #[must_use]
     pub fn to_bytes_lfc1(&self, sc_c: &Circuit<F>) -> Vec<u8> {
+        assert!(
+            sc_c.raw
+                .layers
+                .iter()
+                .all(|l| l.affine().is_none() && l.coefficients().is_none()),
+            "LFC1 cannot represent affine streams"
+        );
         lfc1::to_bytes_lfc1(self, sc_c)
     }
 

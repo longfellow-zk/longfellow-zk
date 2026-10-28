@@ -1,0 +1,16 @@
+failures:
+
+---- module_dag_tests::test_sumcheck_v2_source_layout_and_test_privacy stdout ----
+
+thread 'module_dag_tests::test_sumcheck_v2_source_layout_and_test_privacy' (395570) panicked at src/dependency_tests.rs:1118:9:
+assertion `left == right` failed
+  left: {"/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/degree.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/dense.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/mod.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/poly.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/streaming.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/sumcheck_v2.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/wiring.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/boolean.rs"}
+ right: {"/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/dense.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/mod.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/poly.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/sumcheck_v2.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/all/wiring.rs", "/home/athena/sandbox/hack/longfellow-zk/rust/runtime/sumcheck-v2/tests/boolean.rs"}
+
+
+failures:
+    module_dag_tests::test_sumcheck_v2_source_layout_and_test_privacy
+
+test result: FAILED. 351 passed; 1 failed; 0 ignored; 0 measured; 285 filtered out; finished in 27.55s
+
+error: test failed, to rerun pass `--lib`

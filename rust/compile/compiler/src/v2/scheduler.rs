@@ -30,8 +30,26 @@ use crate::{
     util::ceil_log2,
 };
 
+fn is_factor(w: usize) -> bool {
+    w == usize::MAX
+}
+fn node_depth(depth: &[usize], w: usize) -> usize {
+    if is_factor(w) {
+        0
+    } else {
+        depth[w]
+    }
+}
+fn wire_id(ids: &[WireId], w: usize) -> usize {
+    if is_factor(w) {
+        u32::MAX as usize
+    } else {
+        ids[w].id_within_layer
+    }
+}
+
 // Assert that all nodes in the circuit are needed
-fn assert_all_needed<F: CompileField>(nodes: &[WExpr<F>]) {
+fn assert_all_needed<F: CompileField>(f: &F, nodes: &[WExpr<F>]) {
     let mut needed = vec![false; nodes.len()];
     for i in (0..nodes.len()).rev() {
         match &nodes[i] {
@@ -48,10 +66,17 @@ fn assert_all_needed<F: CompileField>(nodes: &[WExpr<F>]) {
                 needed[*w] = true;
             }
             WExpr::Sum(terms) => {
+                if terms.len() == 1 && f.is_zero(&terms[0].0) {
+                    needed[i] = true;
+                }
                 assert!(needed[i]);
                 for (_, w0, w1) in terms {
-                    needed[*w0] = true;
-                    needed[*w1] = true;
+                    if !is_factor(*w0) {
+                        needed[*w0] = true;
+                    }
+                    if !is_factor(*w1) {
+                        needed[*w1] = true;
+                    }
                 }
             }
         }
@@ -68,7 +93,7 @@ fn depth_of_node<F: CompileField>(depth: &[usize], node: &WExpr<F>) -> usize {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             terms
                 .iter()
-                .map(|(_, x, y)| 1 + std::cmp::max(depth[*x], depth[*y]))
+                .map(|(_, x, y)| 1 + std::cmp::max(node_depth(depth, *x), node_depth(depth, *y)))
                 .max()
                 .unwrap_or(0)
         }
@@ -83,9 +108,16 @@ fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &WEx
         WExpr::Sum(terms) => {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             for (e, x, y) in terms {
-                assert!(!f.is_zero(e));
-                assert_eq!(depth[i], depth[*x] + 1);
-                assert_eq!(depth[i], depth[*y] + 1);
+                assert!(
+                    !f.is_zero(e) || terms.len() == 1,
+                    "zero coefficient outside assertion"
+                );
+                if !is_factor(*x) {
+                    assert_eq!(depth[i], depth[*x] + 1);
+                }
+                if !is_factor(*y) {
+                    assert_eq!(depth[i], depth[*y] + 1);
+                }
             }
         }
     }
@@ -107,11 +139,20 @@ fn materialize_assertions<F: CompileField>(
     nodes: &mut [WExpr<F>],
     depth: &mut [usize],
     max_depth: usize,
+    degree_separated: bool,
 ) {
     for i in 0..nodes.len() {
         if let WExpr::Assert0(w) = nodes[i] {
             if depth[i] < max_depth {
-                nodes[i] = WExpr::Sum(vec![(f.zero(), w, w)]);
+                nodes[i] = WExpr::Sum(vec![(
+                    f.zero(),
+                    w,
+                    if degree_separated && cfg!(feature = "assertion-separated") {
+                        usize::MAX
+                    } else {
+                        w
+                    },
+                )]);
                 depth[i] += 1;
             }
         }
@@ -169,6 +210,7 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
     nodes: &[WExpr<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
+    degree_separated: bool,
 ) -> Vec<WireId> {
     let mut ids = vec![INVALID_WIRE_ID; nodes.len()];
 
@@ -203,8 +245,22 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
             .map(|(i, terms)| {
                 let mut rlterms = Vec::with_capacity(terms.len());
                 for &(ref e, w0, w1) in terms {
-                    let rlop0 = ids[w0].id_within_layer;
-                    let rlop1 = ids[w1].id_within_layer;
+                    // Preserve the legacy ordering of unit factors ahead of
+                    // real inputs. These are comparison keys, not wire IDs:
+                    // no One node or slot is allocated in the new circuit.
+                    let order_key = |w| {
+                        if degree_separated {
+                            if is_factor(w) {
+                                0
+                            } else {
+                                ids[w].id_within_layer + 1
+                            }
+                        } else {
+                            ids[w].id_within_layer
+                        }
+                    };
+                    let rlop0 = order_key(w0);
+                    let rlop1 = order_key(w1);
                     rlterms.push(RenamedTerm {
                         k: e.clone(),
                         rlop0: std::cmp::min(rlop0, rlop1),
@@ -269,8 +325,8 @@ fn collect_quads<F: CompileField + crate::core::algebra::SerializableField>(
                 let term = canonical_term(Term {
                     k: e.clone(),
                     g,
-                    h0: ids[w0].id_within_layer as u32,
-                    h1: ids[w1].id_within_layer as u32,
+                    h0: wire_id(&ids, w0) as u32,
+                    h1: wire_id(&ids, w1) as u32,
                 });
                 terms_in_layer[level].push(term);
             }
@@ -299,8 +355,12 @@ fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>
         let assertions = {
             let mut arr = vec![false; layer_noutput];
             for term in &terms_in_layer[l] {
-                visited[term.h0 as usize] = true;
-                visited[term.h1 as usize] = true;
+                if term.h0 != u32::MAX {
+                    visited[term.h0 as usize] = true;
+                }
+                if term.h1 != u32::MAX {
+                    visited[term.h1 as usize] = true;
+                }
                 if f.is_zero(&term.k) {
                     arr[term.g as usize] = true;
                 }
@@ -314,7 +374,11 @@ fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>
     }
 }
 
-fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<usize>, usize) {
+fn compute_node_depths<F: CompileField>(
+    f: &F,
+    nodes: &mut [WExpr<F>],
+    degree_separated: bool,
+) -> (Vec<usize>, usize) {
     let mut depth = vec![0; nodes.len()];
     for i in 0..nodes.len() {
         depth[i] = depth_of_node(&depth, &nodes[i]);
@@ -335,7 +399,7 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
     } else {
         raw_max_depth
     };
-    materialize_assertions(f, nodes, &mut depth, max_depth);
+    materialize_assertions(f, nodes, &mut depth, max_depth, degree_separated);
     (depth, max_depth)
 }
 
@@ -402,31 +466,37 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
     npublic_input: usize,
     subfield_boundary: usize,
     tracker: crate::compile::logic::scope::AssertionScope,
+    degree_separated: bool,
 ) -> (
     Circuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 ) {
+    let npublic_input = npublic_input - usize::from(degree_separated);
+    let subfield_boundary = subfield_boundary.saturating_sub(usize::from(degree_separated));
     let mut nodes = c.nodes;
     let nassertions = nodes
         .iter()
-        .filter(|node| matches!(node, WExpr::Assert0(_)))
+        .filter(|node| {
+            matches!(node, WExpr::Assert0(_))
+                || matches!(node,WExpr::Sum(t) if t.len()==1 && f.is_zero(&t[0].0))
+        })
         .count();
     assert_eq!(
         quad_asserts.len(),
         nassertions,
         "debug assertion records do not cover all circuit assertions"
     );
-    assert_all_needed(&nodes);
+    assert_all_needed(f, &nodes);
 
-    let (depth, max_depth) = compute_node_depths(f, &mut nodes);
+    let (depth, max_depth) = compute_node_depths(f, &mut nodes, degree_separated);
 
     let mut nodes_by_depth = vec![Vec::new(); max_depth + 1];
     for (i, &d) in depth.iter().enumerate() {
         nodes_by_depth[d].push(i);
     }
 
-    let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
+    let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth, degree_separated);
 
     let symbols =
         extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
@@ -441,7 +511,7 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
 
     let ninput = validate_and_count_inputs(&nodes);
     assert!(
-        npublic_input >= 1,
+        degree_separated || npublic_input >= 1,
         "npublic_input must include the reserved constant One"
     );
     assert!(
@@ -464,6 +534,7 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
         ninput,
         &nwires_in_layer,
         &constant_to_idx,
+        degree_separated,
     );
 
     let nwires = nwires_in_layer.iter().sum();
@@ -513,7 +584,11 @@ fn ordered_layers<F: CompileField + crate::core::algebra::SerializableField>(
     ninput: usize,
     nwires_in_layer: &[usize],
     constant_to_idx: &std::collections::HashMap<Vec<u8>, u32>,
+    degree_separated: bool,
 ) -> Vec<Layer<F>> {
+    if degree_separated {
+        return degree_layers(f, terms_in_layer, ninput, nwires_in_layer, constant_to_idx);
+    }
     let mut known_inputs = vec![None; ninput];
     known_inputs[0] = Some(f.one());
     let mut layers = Vec::with_capacity(terms_in_layer.len());
@@ -589,4 +664,103 @@ fn build_layer<F: CompileField>(
     }
 
     Layer::new_compressed(layer_ninput, logw, vec![deltas], vec![0])
+}
+
+fn degree_layers<F: CompileField + crate::core::algebra::SerializableField>(
+    f: &F,
+    terms: Vec<Vec<Term<F>>>,
+    ninput: usize,
+    widths: &[usize],
+    constants: &std::collections::HashMap<Vec<u8>, u32>,
+) -> Vec<Layer<F>> {
+    let mut nw = ninput;
+    terms
+        .into_iter()
+        .enumerate()
+        .map(|(i, terms)| {
+            let mut streams: [Vec<Term<F>>; 3] = std::array::from_fn(|_| Vec::new());
+            for mut t in terms {
+                let degree = if t.h0 == u32::MAX {
+                    0
+                } else if t.h1 == u32::MAX {
+                    1
+                } else {
+                    2
+                };
+                if degree < 2 {
+                    t.h1 = 0;
+                }
+                if degree == 0 {
+                    t.h0 = 0;
+                }
+                streams[2 - degree].push(t);
+            }
+            for (kind, stream) in streams.iter_mut().enumerate() {
+                let shape = |t: &Term<F>| usize::from(kind == 0 && t.h0 != t.h1);
+                stream.sort_unstable_by(|a, b| {
+                    (
+                        shape(a),
+                        std::cmp::Reverse(a.g),
+                        std::cmp::Reverse(a.h1),
+                        a.h0,
+                    )
+                        .cmp(&(
+                            shape(b),
+                            std::cmp::Reverse(b.g),
+                            std::cmp::Reverse(b.h1),
+                            b.h0,
+                        ))
+                        .then_with(|| f.to_bytes(&a.k).cmp(&f.to_bytes(&b.k)))
+                });
+            }
+            let [q, l, c] = streams;
+            let build = |terms, arity| {
+                if cfg!(feature = "coefficient-separated") {
+                    build_coefficient_layer(f, constants, terms, nw, arity)
+                } else {
+                    build_layer(f, constants, terms, nw, ceil_log2(nw))
+                }
+            };
+            let layer = build(q, 2).with_affine(build(l, 1), build(c, 0));
+            nw = widths[i];
+            layer
+        })
+        .collect()
+}
+
+fn build_coefficient_layer<F: CompileField + crate::core::algebra::SerializableField>(
+    f: &F,
+    constants: &std::collections::HashMap<Vec<u8>, u32>,
+    terms: Vec<Term<F>>,
+    nw: usize,
+    arity: usize,
+) -> Layer<F> {
+    use crate::core::proto::fixed::{FixedCoefficients, UnitTerms};
+    let mut general = Vec::new();
+    let mut units = Vec::new();
+    let mut assertions = Vec::new();
+    for t in terms {
+        if f.is_zero(&t.k) {
+            assert!(arity == 2 || (arity == 1 && cfg!(feature = "assertion-separated")));
+            assertions.push(t);
+        } else if t.k == f.one() {
+            units.push(t);
+        } else {
+            general.push(t);
+        }
+    }
+    let units = UnitTerms::from_layer(build_layer(f, constants, units, nw, ceil_log2(nw)), arity);
+    let assertion_arity = if arity == 2 {
+        2
+    } else if arity == 1 && cfg!(feature = "assertion-separated") {
+        1
+    } else {
+        0
+    };
+    let assertions = UnitTerms::from_layer(
+        build_layer(f, constants, assertions, nw, ceil_log2(nw)),
+        assertion_arity,
+    );
+    build_layer(f, constants, general, nw, ceil_log2(nw))
+        .with_coefficients(FixedCoefficients::new(units, assertions, f).unwrap())
 }

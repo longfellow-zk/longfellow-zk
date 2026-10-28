@@ -107,52 +107,75 @@ pub fn generate_packed_hash_circuit_variant(
     }
     let mut domain = None;
     let mut late_recipe = false;
-    let (circuit, _, _) = crate::compile::compiler::compile_v2(f, |base_logic| {
-        let logic = if variant == 0 {
-            base_logic
-        } else {
-            base_logic.with_boolean_arithmetic()
-        };
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
-        let io = crate::circuits::bitvec::BitvecIO::new(&bv);
-        let p8 =
-            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V8_BIT_PLUCKER }>::new(&logic);
-        let p256 =
-            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(&logic);
-        let ps = crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&logic);
-        let mut allocator =
-            WireAllocator::new_boolean(&logic, &io, crate::compile::logic::K_FIRST_WIRE_POSITION);
-        let (given, derived, npublic, _) =
-            allocate_hash(&mut allocator, num_attrs, &p8, &p256, &ps);
-        let ninput = allocator.pos;
-        let late_ranges = allocator
-            .field_input_ranges
-            .iter()
-            .filter(|r| r.end <= npublic)
-            .cloned()
-            .collect::<Vec<_>>();
-        domain = Some(crate::mdoc::proto::packed::HashInputManifest {
-            public_bits: npublic,
-            private_bits: ninput - npublic,
-            compiler_variant: variant,
-            witness_recipe: Default::default(),
-        });
-        if variant == 2 {
-            logic.begin_boolean_witness(ninput);
-        }
-        let assertion =
-            MdocHash::new(&logic, num_attrs).assert_valid_presentation_and_macs(&given, &derived);
-        let recipe = logic.take_boolean_witness();
-        late_recipe=recipe.nodes.iter().any(|op|matches!(op,crate::core::bits::recipe::BitOp::Input(i) if late_ranges.iter().any(|r|r.contains(i))));
-        let manifest = domain.as_mut().unwrap();
-        manifest.private_bits += recipe.outputs.len();
-        manifest.witness_recipe = recipe;
-        (assertion, npublic, 0)
-    });
+    let (circuit, _, _) = crate::compile::compiler::v2::compile_with_mode(
+        f,
+        |base_logic| {
+            let logic = if variant == 0 {
+                base_logic
+            } else {
+                base_logic.with_boolean_arithmetic()
+            };
+            let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
+            let io = crate::circuits::bitvec::BitvecIO::new(&bv);
+            let p8 = crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V8_BIT_PLUCKER }>::new(
+                &logic,
+            );
+            let p256 =
+                crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(
+                    &logic,
+                );
+            let ps =
+                crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&logic);
+            let mut allocator = WireAllocator::new_boolean(
+                &logic,
+                &io,
+                crate::compile::logic::K_FIRST_WIRE_POSITION,
+            );
+            let (given, derived, npublic, _) =
+                allocate_hash(&mut allocator, num_attrs, &p8, &p256, &ps);
+            let ninput = allocator.pos;
+            let late_ranges = allocator
+                .field_input_ranges
+                .iter()
+                .filter(|r| r.end <= npublic)
+                .cloned()
+                .collect::<Vec<_>>();
+            domain = Some(crate::mdoc::proto::packed::HashInputManifest {
+                public_bits: npublic,
+                private_bits: ninput - npublic,
+                compiler_variant: variant,
+                witness_recipe: Default::default(),
+            });
+            if variant == 2 {
+                logic.begin_boolean_witness(ninput);
+            }
+            let assertion = MdocHash::new(&logic, num_attrs)
+                .assert_valid_presentation_and_macs(&given, &derived);
+            let recipe = logic.take_boolean_witness();
+            late_recipe=recipe.nodes.iter().any(|op|matches!(op,crate::core::bits::recipe::BitOp::Input(i) if late_ranges.iter().any(|r|r.contains(i))));
+            let manifest = domain.as_mut().unwrap();
+            manifest.private_bits += recipe.outputs.len();
+            manifest.witness_recipe = recipe;
+            (assertion, npublic, 0)
+        },
+        cfg!(feature = "degree-separated"),
+    );
     if late_recipe {
         return Err("private witness recipe depends on late public MAC inputs".into());
     }
-    let manifest = domain.ok_or("missing packed domain")?;
+    let mut manifest = domain.ok_or("missing packed domain")?;
+    if cfg!(feature = "degree-separated") {
+        manifest.public_bits -= 1;
+        for op in &mut manifest.witness_recipe.nodes {
+            if let crate::core::bits::recipe::BitOp::Input(i) = op {
+                *op = if *i == 0 {
+                    crate::core::bits::recipe::BitOp::Constant(true)
+                } else {
+                    crate::core::bits::recipe::BitOp::Input(*i - 1)
+                };
+            }
+        }
+    }
     manifest.validate()?;
     if circuit.raw.ninput != manifest.public_bits + manifest.private_bits {
         return Err("packed allocation mismatch".into());

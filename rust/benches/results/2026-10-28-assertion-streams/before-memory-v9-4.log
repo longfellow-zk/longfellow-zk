@@ -1,0 +1,7 @@
+decoded circuit attributes=4 variant=0: heap=2133136 bytes
+term counts [quadratic,linear,constant] x [zero,one,other]: hash=[[22214, 1585715, 526147], [0, 255420, 1451668], [0, 862291, 307]] signature=[[3958, 66770, 75068], [0, 83725, 12742], [0, 33080, 1118]]
+circuit attributes=4 variant=0: zstd=158593 raw=593471 bytes
+Experimental trace-zero v9; memory instrumentation=true; no kernel selected automatically
+attributes,variant,window,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap
+4,0,0,0,183.550384,96.245335,187656,49604168,38968650
+median attributes=4 variant=0 window=0: prover=183.550 ms verifier=96.245 ms

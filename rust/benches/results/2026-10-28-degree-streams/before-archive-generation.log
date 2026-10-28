@@ -1,0 +1,19 @@
+V2 prototype implementation, rate 1/4 matched to Ligero with tuned openings. Online timings include circuit/proof decoding, input/witness preparation, commitment, serialization, and cleanup as appropriate. Inputs are memory-resident; offline compilation is separate. Allocation tracking: false
+  Circuit size: raw=1732146 zstd=508205 bytes
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 17abe7bc76f5e2873ced7bcb7c0fa6ab200b8e33523dba331c1fa0a7f782ec4a
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa44: Some(CircuitGeometry { ninput: 166672, npublic_input: 5121, noutput: 2920, nwires: 3446902, nterms: 6691580, nlayers: 24, nassertions: 185113 }), LFC2=1732146 bytes
+  End to end: prover=837.392 ms, verifier=399.985 ms, proof=178324 bytes
+  Offline circuit preparation: 14420.022 ms
+  Prover subtimings: circuit_load=2.724, witness=0.644, commit=40.990, prove=792.483, serialize=0.032 ms
+  Verifier subtimings: circuit_load=2.676, public_inputs=0.086, deserialize=0.300, verify=396.583 ms
+  Circuit size: raw=1972268 zstd=542487 bytes
+  Selected Polygero parameters: PolygeroConfig { k: 1024, s: 25, n: 4096, t: 128 }
+  LFC2 SHA-256: 6e8acba621188a398b7ef2a836c53e076fc95064276e484329817bb16dd9294e
+  Run 1/1
+V2 Polygero longfellow_zk::circuits::experimental::mldsa::params::MlDsa65: Some(CircuitGeometry { ninput: 194663, npublic_input: 9217, noutput: 2920, nwires: 3596891, nterms: 8064583, nlayers: 24, nassertions: 212475 }), LFC2=1972268 bytes
+  End to end: prover=990.623 ms, verifier=462.397 ms, proof=187668 bytes
+  Offline circuit preparation: 16505.689 ms
+  Prover subtimings: circuit_load=2.932, witness=0.639, commit=43.886, prove=942.581, serialize=0.035 ms
+  Verifier subtimings: circuit_load=2.984, public_inputs=0.205, deserialize=0.339, verify=458.482 ms

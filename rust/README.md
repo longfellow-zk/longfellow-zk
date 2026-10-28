@@ -403,3 +403,19 @@ requested namespace IDs can leave a proof valid. This remains unresolved.
 
 Licensed under the Apache License, Version 2.0.
 See [LICENSE](../LICENSE) for details.
+
+### Degree-separated circuit experiment
+
+With `degree-separated`, the v9 development provider and ML-DSA v2 benchmark
+compile separate quadratic, linear and constant streams using the experimental
+[LFD2 variant](core/proto/LFD2.md). This path omits the reserved One input and
+its layer copies. `compiler::compile_degree_separated` exposes the compiler
+explicitly; ordinary `compile_v2` retains its existing input convention.
+Use fresh circuit caches for this experiment. See the
+[size, memory and timing comparison](benches/results/2026-10-28-degree-streams/README.md).
+
+`coefficient-separated` adds compact coefficient-one and fixed-zero assertion
+arrays ([LFD3](core/proto/LFD3.md)). `assertion-separated` also uses distinct
+linear/quadratic assertions and lowers `assert0(a*b)` directly to its factors
+when possible ([LFD4](core/proto/LFD3.md)). Both include the no-One compiler.
+The benchmarks print term counts by degree and coefficient class.
