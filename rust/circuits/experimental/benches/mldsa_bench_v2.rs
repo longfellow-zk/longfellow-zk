@@ -231,11 +231,7 @@ fn run<P: MlDsaParams>(source: &str, marker: &str) {
                 None,
             )
         } else {
-            let classes = coefficients::from_env(|one, minus_one| {
-                core::proto::fixed::CoefficientClasses { one, minus_one }
-            });
-            let (compiled, geometry, _) =
-                support::compile_v2_verifier_with_classes::<P>(&compile_field, classes);
+            let (compiled, geometry, _) = support::compile_v2_verifier::<P>(&compile_field);
             let segmented = compile::compiler::segment_circuit_v2(&compile_field, &compiled);
             let bytes = core::proto::writer::CircuitWriter::new(&compile_field, FieldID::None)
                 .to_bytes_v2(&segmented);
@@ -273,7 +269,7 @@ fn run<P: MlDsaParams>(source: &str, marker: &str) {
     let offline_setup = offline_start.elapsed();
 
     use sha2::Digest;
-    eprintln!("  LFC2 SHA-256: {:x}", sha2::Sha256::digest(&circuit_bytes));
+    eprintln!("  LFC3 SHA-256: {:x}", sha2::Sha256::digest(&circuit_bytes));
     let repeats = std::env::var("MLDSA_BENCH_REPEATS")
         .map(|value| value.parse::<usize>().expect("invalid MLDSA_BENCH_REPEATS"))
         .unwrap_or(1);
@@ -359,6 +355,3 @@ fn main() {
         );
     }
 }
-
-#[path = "../../../benches/support/coefficients.rs"]
-mod coefficients;

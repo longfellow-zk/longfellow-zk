@@ -1,0 +1,12 @@
+44ca9931f58d7336cd8f4665e0b8bf665d6e259d3ed0543d0bc412dfa2e23def  /tmp/layer-split-benchmark/baseline/timing/next
+338a53a82414b565a43b1669a57c31c742408d0daed28476b68071a3d290f042  /tmp/layer-split-benchmark/baseline/timing/mldsa
+b492aa686b2d8240965a423fb73650d769523bec89a07d05a7e5634899cb023d  /tmp/layer-split-benchmark/baseline/memory/next
+a649d10dedd18de02db3ce0d6a26cb911c8c2941f9a4820833f5dc85ff339028  /tmp/layer-split-benchmark/baseline/memory/mldsa
+6a4cb828169596d699dedf7759264af868b81ec3c56b9e2e6f21e623833b121e  /tmp/layer-split-benchmark/counted/timing/next
+1701d6ec89e9136c80be94268479ff7b7e5019f712c15a290122e5890eb20579  /tmp/layer-split-benchmark/counted/timing/mldsa
+74196c2acba526b1b0d6b90eb78840148a1ea9b8f792c83b62e3494e34f265d0  /tmp/layer-split-benchmark/counted/memory/next
+82d9306ebd066050960396a2b9912dc45d53e8889e1001a6d4b5d8dec987a158  /tmp/layer-split-benchmark/counted/memory/mldsa
+d8dfd1b5e1493f60a324e608ffc139ba4d425f9c50133b7a9a8dbeb87f9bd67e  /tmp/layer-split-benchmark/timing/next
+c837c26553eed478a85f6732250db60cd4ad5cf84de2e19ae44f704f58bf68a7  /tmp/layer-split-benchmark/timing/mldsa
+82f4c51ee565a5f1a9f256039628f78248a85cb1a2e714cef302669a03196606  /tmp/layer-split-benchmark/memory/next
+00e220754f61227b96bd8e01974d89083dd15f5203c85200b09764000cbea058  /tmp/layer-split-benchmark/memory/mldsa

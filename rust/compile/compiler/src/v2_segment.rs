@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Compress native v2 record dictionaries without quadratic-record conversions.
+//! Compress the three native v2 streams.
 use std::{collections::HashMap, hash::Hash};
 
 use crate::core::proto::{
@@ -26,43 +26,38 @@ fn compress<T: Copy + Eq + Hash>(stream: &Stream<T>) -> Stream<T> {
 }
 
 fn layer(layer: &Layer) -> Layer {
-    Layer {
-        nw: layer.nw,
-        logw: layer.logw,
-        quadratic: compress(&layer.quadratic),
-        quadratic_one: compress(&layer.quadratic_one),
-        quadratic_minus_one: compress(&layer.quadratic_minus_one),
-        quadratic_assertions: compress(&layer.quadratic_assertions),
-        linear: compress(&layer.linear),
-        linear_one: compress(&layer.linear_one),
-        linear_minus_one: compress(&layer.linear_minus_one),
-        linear_assertions: compress(&layer.linear_assertions),
-        constant: compress(&layer.constant),
-        constant_one: compress(&layer.constant_one),
-        constant_minus_one: compress(&layer.constant_minus_one),
-    }
+    Layer::new(
+        layer.nw,
+        compress(&layer.quadratic),
+        compress(&layer.linear),
+        compress(&layer.constant),
+    )
 }
 
-/// Preserve expanded stream order and identity while compressing each class.
-pub fn segment_circuit_v2<F: SerializableField + Clone>(f: &F, c: &Circuit<F>) -> Circuit<F> {
+/// Preserve expanded stream order and identity while compressing each stream.
+pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: &Circuit<F>) -> Circuit<F> {
     let mut layers: Vec<_> = c.raw.layers.iter().map(layer).collect();
     let mut counts = vec![0usize; c.raw.constants.len()];
-    macro_rules! count {
-        ($stream:expr) => {
-            for &token in &$stream.tokens {
-                for &index in &$stream.segments[token as usize] {
-                    counts[$stream.deltas[index as usize].k as usize] += 1;
-                }
-            }
-        };
-    }
     for layer in &layers {
-        count!(layer.quadratic);
-        count!(layer.linear);
-        count!(layer.constant);
+        for &token in &layer.quadratic.tokens {
+            for &index in &layer.quadratic.segments[token as usize] {
+                counts[layer.quadratic.deltas[index as usize].k as usize] += 1;
+            }
+        }
+        for &token in &layer.linear.tokens {
+            for &index in &layer.linear.segments[token as usize] {
+                counts[layer.linear.deltas[index as usize].k as usize] += 1;
+            }
+        }
+        for &token in &layer.constant.tokens {
+            for &index in &layer.constant.segments[token as usize] {
+                counts[layer.constant.deltas[index as usize].k as usize] += 1;
+            }
+        }
     }
     let mut order: Vec<_> = (0..counts.len()).collect();
-    order.sort_by(|&a, &b| counts[b].cmp(&counts[a]).then_with(|| a.cmp(&b)));
+    // Indices zero, one, and minus one are canonical; reorder only other coefficients.
+    order[3..].sort_by(|&a, &b| counts[b].cmp(&counts[a]).then_with(|| a.cmp(&b)));
     let mut mapping = vec![0; counts.len()];
     let constants = order
         .into_iter()
@@ -93,13 +88,9 @@ pub fn segment_circuit_v2<F: SerializableField + Clone>(f: &F, c: &Circuit<F>) -
         layers,
     };
     assert_eq!(
-        compute_id(f, &raw, c.coefficient_classes),
+        compute_id(f, &raw),
         c.id,
         "Circuit ID changed during compression!"
     );
-    Circuit {
-        raw,
-        id: c.id,
-        coefficient_classes: c.coefficient_classes,
-    }
+    Circuit { raw, id: c.id }
 }

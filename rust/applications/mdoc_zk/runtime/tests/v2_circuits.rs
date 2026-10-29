@@ -19,7 +19,6 @@ use crate::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
         proto::{
             archive::{CircuitArchive, CircuitArchiveBuilder},
-            fixed::CoefficientClasses,
             reader::CircuitReader,
             v2::{compute_id, Circuit, Layer, Quadratic, RawCircuit, Stream},
             writer::CircuitWriter,
@@ -37,24 +36,27 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
         noutput: 1,
         logv: 0,
         subfield_boundary: 0,
-        constants: vec![f.bytes_to_element(&bytes).unwrap()],
-        layers: vec![Layer {
-            nw: 1,
-            logw: 0,
-            quadratic: Stream::<Quadratic>::from_terms([Quadratic {
+        constants: vec![
+            f.zero(),
+            f.one(),
+            f.mone(),
+            f.bytes_to_element(&bytes).unwrap(),
+        ],
+        layers: vec![Layer::new(
+            1,
+            Stream::<Quadratic>::from_terms([Quadratic {
                 g: 0,
                 l: 0,
                 r: 0,
-                k: 0,
+                k: 3,
             }]),
-            ..Default::default()
-        }],
+            Stream::default(),
+            Stream::default(),
+        )],
     };
-    let coefficient_classes = CoefficientClasses::ALL.for_field(f.is_binary());
     Circuit {
-        id: compute_id(f, &raw, coefficient_classes),
+        id: compute_id(f, &raw),
         raw,
-        coefficient_classes,
     }
 }
 fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
@@ -93,8 +95,8 @@ fn circuit_identifier_enforcement_is_opt_in() {
         .from_bytes_lfc3(&archive.entries[0].payload, true)
         .unwrap();
     let stale_id = c.id;
-    c.raw.constants[0] = p.u64_to_element(3);
-    c.id = compute_id(&p, &c.raw, c.coefficient_classes);
+    c.raw.constants[3] = p.u64_to_element(3);
+    c.id = compute_id(&p, &c.raw);
     let mut payload = CircuitWriter::new(&p, FieldID::P256).to_bytes_lfc3(&c);
     let n = payload.len();
     payload[n - 32..].copy_from_slice(&stale_id);

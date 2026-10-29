@@ -26,18 +26,18 @@ use crate::{
     util::ceil_log2,
 };
 
-fn is_factor(w: usize) -> bool {
+fn is_missing_factor(w: usize) -> bool {
     w == usize::MAX
 }
 fn node_depth(depth: &[usize], w: usize) -> usize {
-    if is_factor(w) {
+    if is_missing_factor(w) {
         0
     } else {
         depth[w]
     }
 }
 fn wire_id(ids: &[WireId], w: usize) -> usize {
-    if is_factor(w) {
+    if is_missing_factor(w) {
         u32::MAX as usize
     } else {
         ids[w].id_within_layer
@@ -51,11 +51,7 @@ fn assert_all_needed<F: CompileField>(f: &F, nodes: &[WExpr<F>]) {
         match &nodes[i] {
             WExpr::Unspecified => panic!("Unspecified in circuit"),
             WExpr::Input { .. } => {
-                if needed[i] || i == 0 {
-                    // input is needed (or i==0 which is the reserved constant One), valid
-                } else {
-                    panic!("found input that is not needed");
-                }
+                assert!(needed[i], "found input that is not needed");
             }
             WExpr::Assert0(w) => {
                 needed[i] = true;
@@ -67,10 +63,10 @@ fn assert_all_needed<F: CompileField>(f: &F, nodes: &[WExpr<F>]) {
                 }
                 assert!(needed[i]);
                 for (_, w0, w1) in terms {
-                    if !is_factor(*w0) {
+                    if !is_missing_factor(*w0) {
                         needed[*w0] = true;
                     }
-                    if !is_factor(*w1) {
+                    if !is_missing_factor(*w1) {
                         needed[*w1] = true;
                     }
                 }
@@ -108,10 +104,10 @@ fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &WEx
                     !f.is_zero(e) || terms.len() == 1,
                     "zero coefficient outside assertion"
                 );
-                if !is_factor(*x) {
+                if !is_missing_factor(*x) {
                     assert_eq!(depth[i], depth[*x] + 1);
                 }
-                if !is_factor(*y) {
+                if !is_missing_factor(*y) {
                     assert_eq!(depth[i], depth[*y] + 1);
                 }
             }
@@ -235,7 +231,7 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
                     // real inputs. These are comparison keys, not wire IDs:
                     // no One node or slot is allocated in the new circuit.
                     let order_key = |w| {
-                        if is_factor(w) {
+                        if is_missing_factor(w) {
                             0
                         } else {
                             ids[w].id_within_layer + 1
@@ -350,7 +346,7 @@ fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>
             arr
         };
         for (i, &val) in visited.iter().enumerate() {
-            assert!(val || (l == 0 && i == 0), "unvisited wire {i} in layer {l}");
+            assert!(val, "unvisited wire {i} in layer {l}");
         }
         v = assertions;
     }
@@ -533,7 +529,6 @@ pub(super) fn schedule<F: CompileField>(
     npublic_input: usize,
     subfield_boundary: usize,
     tracker: crate::compile::logic::scope::AssertionScope,
-    classes: crate::core::proto::fixed::CoefficientClasses,
 ) -> (
     crate::core::proto::v2::Circuit<F>,
     CircuitGeometry,
@@ -546,7 +541,6 @@ pub(super) fn schedule<F: CompileField>(
         graph.info.ninput,
         &graph.widths,
         &graph.constant_to_idx,
-        classes,
     )
     .into_iter()
     .rev()
@@ -560,13 +554,9 @@ pub(super) fn schedule<F: CompileField>(
         constants: graph.constants,
         layers,
     };
-    let id = crate::core::proto::v2::compute_id(f, &raw, classes);
+    let id = crate::core::proto::v2::compute_id(f, &raw);
     (
-        crate::core::proto::v2::Circuit {
-            raw,
-            id,
-            coefficient_classes: classes,
-        },
+        crate::core::proto::v2::Circuit { raw, id },
         graph.info,
         graph.symbols,
     )
@@ -576,8 +566,13 @@ fn collect_constants<F: CompileField>(
     f: &F,
     terms_in_layer: &[Vec<Term<F>>],
 ) -> (Vec<F::E>, std::collections::HashMap<Vec<u8>, u32>) {
-    let mut constants = Vec::new();
+    let mut constants = vec![f.zero(), f.one(), f.mone()];
     let mut constant_to_idx = std::collections::HashMap::new();
+    constant_to_idx.insert(f.to_bytes(&f.zero()), 0);
+    constant_to_idx.insert(f.to_bytes(&f.one()), 1);
+    if !f.is_binary() {
+        constant_to_idx.insert(f.to_bytes(&f.mone()), 2);
+    }
 
     for layer in terms_in_layer {
         for term in layer {
@@ -599,7 +594,6 @@ fn v2_layers<F: CompileField + crate::core::algebra::SerializableField>(
     ninput: usize,
     widths: &[usize],
     constants: &std::collections::HashMap<Vec<u8>, u32>,
-    classes: crate::core::proto::fixed::CoefficientClasses,
 ) -> Vec<crate::core::proto::v2::Layer> {
     let mut nw = ninput;
     terms
@@ -642,7 +636,7 @@ fn v2_layers<F: CompileField + crate::core::algebra::SerializableField>(
                 });
             }
             let [q, l, c] = streams;
-            let layer = build_v2_layer(f, constants, q, l, c, nw, classes);
+            let layer = build_v2_layer(f, constants, q, l, c, nw);
             nw = widths[i];
             layer
         })
@@ -656,96 +650,25 @@ fn build_v2_layer<F: CompileField>(
     linear: Vec<Term<F>>,
     constant: Vec<Term<F>>,
     nw: usize,
-    classes: crate::core::proto::fixed::CoefficientClasses,
 ) -> crate::core::proto::v2::Layer {
-    use crate::core::proto::v2::{
-        Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates, Quadratic,
-        QuadraticCoordinates, Stream,
-    };
-    let mut layer = Layer {
-        nw,
-        logw: ceil_log2(nw),
-        ..Layer::default()
-    };
-    enum Coefficient {
-        Assertion,
-        One,
-        MinusOne,
-        General(u32),
-    }
-    let one = f.one();
-    let minus_one = f.mone();
-    let class = |k: &F::E| {
-        if f.is_zero(k) {
-            Coefficient::Assertion
-        } else if *k == one {
-            if classes.one {
-                Coefficient::One
-            } else {
-                Coefficient::General(constants[&f.to_bytes(k)])
-            }
-        } else if classes.minus_one && *k == minus_one {
-            Coefficient::MinusOne
-        } else {
-            Coefficient::General(constants[&f.to_bytes(k)])
+    use crate::core::proto::v2::{Constant, Layer, Linear, Quadratic, Stream};
+    let quadratic = Stream::<Quadratic>::from_terms(quadratic.into_iter().map(|t| Quadratic {
+        g: t.g,
+        l: t.h0,
+        r: t.h1,
+        k: constants[&f.to_bytes(&t.k)],
+    }));
+    let linear = Stream::<Linear>::from_terms(linear.into_iter().map(|t| Linear {
+        g: t.g,
+        l: t.h0,
+        k: constants[&f.to_bytes(&t.k)],
+    }));
+    let constant = Stream::<Constant>::from_terms(constant.into_iter().map(|t| {
+        assert!(!f.is_zero(&t.k), "constant assertions are unsupported");
+        Constant {
+            g: t.g,
+            k: constants[&f.to_bytes(&t.k)],
         }
-    };
-    for t in quadratic {
-        let (g, l, r) = (t.g, t.h0, t.h1);
-        match class(&t.k) {
-            Coefficient::Assertion => layer
-                .quadratic_assertions
-                .deltas
-                .push(QuadraticCoordinates { g, l, r }),
-            Coefficient::One => layer
-                .quadratic_one
-                .deltas
-                .push(QuadraticCoordinates { g, l, r }),
-            Coefficient::MinusOne => {
-                layer
-                    .quadratic_minus_one
-                    .deltas
-                    .push(QuadraticCoordinates { g, l, r })
-            }
-            Coefficient::General(k) => layer.quadratic.deltas.push(Quadratic { g, l, r, k }),
-        }
-    }
-    for t in linear {
-        let (g, l) = (t.g, t.h0);
-        match class(&t.k) {
-            Coefficient::Assertion => layer
-                .linear_assertions
-                .deltas
-                .push(LinearCoordinates { g, l }),
-            Coefficient::One => layer.linear_one.deltas.push(LinearCoordinates { g, l }),
-            Coefficient::MinusOne => layer
-                .linear_minus_one
-                .deltas
-                .push(LinearCoordinates { g, l }),
-            Coefficient::General(k) => layer.linear.deltas.push(Linear { g, l, k }),
-        }
-    }
-    for t in constant {
-        let g = t.g;
-        match class(&t.k) {
-            Coefficient::Assertion => panic!("constant assertions are unsupported"),
-            Coefficient::One => layer.constant_one.deltas.push(ConstantCoordinates { g }),
-            Coefficient::MinusOne => layer
-                .constant_minus_one
-                .deltas
-                .push(ConstantCoordinates { g }),
-            Coefficient::General(k) => layer.constant.deltas.push(Constant { g, k }),
-        }
-    }
-    macro_rules! encode {
-        ($($stream:ident : $ty:ty),+ $(,)?) => {
-            $(layer.$stream = Stream::<$ty>::from_terms(layer.$stream.deltas);)+
-        };
-    }
-    encode!(quadratic: Quadratic, quadratic_one: QuadraticCoordinates,
-        quadratic_minus_one: QuadraticCoordinates, quadratic_assertions: QuadraticCoordinates,
-        linear: Linear, linear_one: LinearCoordinates, linear_minus_one: LinearCoordinates,
-        linear_assertions: LinearCoordinates, constant: Constant,
-        constant_one: ConstantCoordinates, constant_minus_one: ConstantCoordinates);
-    layer
+    }));
+    Layer::new(nw, quadratic, linear, constant)
 }

@@ -1,12 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Evaluate v2 v2 layers and check both assertion classes.
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{
-            Circuit, Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates, Quadratic,
-            QuadraticCoordinates,
-        },
+        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic},
     },
     runtime::algebra::RuntimeField,
 };
@@ -44,68 +40,30 @@ pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>
     noutput: usize,
     f: &F,
 ) -> Result<Vec<F::E>, String> {
-    let mut outputs = vec![f.zero(); noutput];
-    layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
-        f.fma(
-            &mut outputs[g as usize],
-            &constants[k as usize],
-            &f.mulf(&w[l as usize], &w[r as usize]),
-        );
-    });
-    layer
-        .quadratic_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
-            f.fma(&mut outputs[g as usize], &w[l as usize], &w[r as usize]);
-        });
-    layer
-        .quadratic_assertions
-        .try_for_each(|QuadraticCoordinates { g: _, l, r }| {
-            if f.is_zero(&f.mulf(&w[l as usize], &w[r as usize])) {
-                Ok(())
-            } else {
-                Err("quadratic assertion not satisfied".to_string())
+    let mut out = vec![f.zero(); noutput];
+    layer.quadratic.try_for_each(|Quadratic { g, l, r, k }| {
+        let product = f.mulf(&w[l as usize], &w[r as usize]);
+        if k == 0 {
+            if !f.is_zero(&product) {
+                return Err("quadratic assertion not satisfied".to_string());
             }
-        })?;
-    layer
-        .quadratic_minus_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
-            f.fnms(&mut outputs[g as usize], &w[l as usize], &w[r as usize]);
-        });
-    layer.linear.for_each(|Linear { g, l, k }| {
-        f.fma(
-            &mut outputs[g as usize],
-            &constants[k as usize],
-            &w[l as usize],
-        );
-    });
-    layer.linear_one.for_each(|LinearCoordinates { g, l }| {
-        f.add(&mut outputs[g as usize], &w[l as usize]);
-    });
-    layer
-        .linear_minus_one
-        .for_each(|LinearCoordinates { g, l }| {
-            f.sub(&mut outputs[g as usize], &w[l as usize]);
-        });
-    layer
-        .linear_assertions
-        .try_for_each(|LinearCoordinates { g: _, l }| {
-            if f.is_zero(&w[l as usize]) {
-                Ok(())
-            } else {
-                Err("linear assertion not satisfied".to_string())
+        } else {
+            f.fma(&mut out[g as usize], &constants[k as usize], &product);
+        }
+        Ok(())
+    })?;
+    layer.linear.try_for_each(|Linear { g, l, k }| {
+        if k == 0 {
+            if !f.is_zero(&w[l as usize]) {
+                return Err("linear assertion not satisfied".to_string());
             }
-        })?;
-    layer.constant.for_each(|Constant { g, k }| {
-        f.add(&mut outputs[g as usize], &constants[k as usize]);
-    });
-    let one = f.one();
-    layer.constant_one.for_each(|ConstantCoordinates { g }| {
-        f.add(&mut outputs[g as usize], &one);
-    });
+        } else {
+            f.fma(&mut out[g as usize], &constants[k as usize], &w[l as usize]);
+        }
+        Ok(())
+    })?;
     layer
-        .constant_minus_one
-        .for_each(|ConstantCoordinates { g }| {
-            f.sub(&mut outputs[g as usize], &one);
-        });
-    Ok(outputs)
+        .constant
+        .for_each(|Constant { g, k }| f.add(&mut out[g as usize], &constants[k as usize]));
+    Ok(out)
 }

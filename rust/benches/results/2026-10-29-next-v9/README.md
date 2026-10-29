@@ -1,5 +1,10 @@
 # NEXT v9 and ML-DSA: LFC3 benchmark
 
+Historical measurements from the retired eleven-stream implementation.
+Current native three-stream results are in the [latest report](../2026-10-29-native-three/README.md).
+Reproducing these historical layouts requires the original source revision;
+commit d8f000f contains the eleven-stream LFC3 implementation.
+
 NEXT is v9, using the single default compiler configuration. Both applications use compile_v2, the native v2 circuit representation, and LFC3's eleven streams. NEXT uses an LFA2 archive containing signature, hash and input-manifest entries; ML-DSA is measured as an individual LFC3 circuit. Neither path reserves a One wire. V8 and alternative v9 configurations are unsupported.
 
 ## Circuit storage and resident allocations

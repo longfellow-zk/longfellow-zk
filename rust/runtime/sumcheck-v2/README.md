@@ -6,9 +6,18 @@ module for the desired entry point; there is no protocol selector or proof enum.
 Each runtime has its own copies of the sumcheck arithmetic and transcript code.
 Both use the shared field, circuit, and randomness modules.
 
-V2 consumes [LFC3](../../core/proto/LFC3.md): eleven concrete streams per layer,
+V2 consumes [LFC3](../../core/proto/LFC3.md): three concrete streams per layer,
 with no One wire. The v2 compiler, compressor and reader build these streams
 directly. LFA2 remains the archive container; temporary experimental payloads are unsupported.
+
+At the beginning of each prover or reduction layer, private `split::SplitLayer`
+borrows the source token arrays and partitions stored segment records into eleven
+working streams. It classifies only coefficient indices 0, 1, 2 and other,
+adjusting coordinate deltas and retaining each source segment's full advance.
+Class records are contiguous, with a range per source segment; there is no
+hashing, deduplication or token rewriting. Both bindings and the linear/constant
+corrections use this working layer, then release it. The original circuit is
+read-only, and the type is not exposed outside `sumcheck_v2`.
 
 ## Organization
 
@@ -164,7 +173,7 @@ runtime circuit execution also checks its index capacity.
 The transcript domain is `longfellow-sumcheck-v2-projective`. Assertion sampling
 uses a separate domain and layer index; final-claim combination uses its own domain
 after the final-claim message. Both roles use `transcript::end_layer` for that
-boundary and `quad::weights_next` for the public weight update.
+boundary and `quad::weights_next_affine` for the public weight update.
 Legacy transcript operations are unchanged.
 
 | Per-layer quantity | Single-hand | Legacy round-major |
@@ -181,7 +190,7 @@ still has one terminal linear constraint and one pad-product constraint.
 Both protocols are modules in the `longfellow-zk` crate. The compiler's existing
 `compile_v1` entry point preserves historical Morton ordering and circuit IDs.
 `compile_v2` uses constant-aware, output-major ordering and targets V2. No wire
-IDs change between these layouts. The mdoc v8 builders, geometry, prover, and
+IDs change between these layouts. The mdoc NEXT v9 builders, geometry, prover, and
 verifier use V2; v5-v7 verification uses the stored legacy circuits.
 
 The shared compiler and circuit suites, including mdoc synthesis and tampering

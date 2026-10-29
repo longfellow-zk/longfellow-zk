@@ -31,6 +31,8 @@ mod monomial;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod quad;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod split;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod symbolic;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;

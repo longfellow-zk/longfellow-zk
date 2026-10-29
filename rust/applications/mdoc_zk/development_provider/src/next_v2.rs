@@ -37,19 +37,13 @@ use crate::{
     },
 };
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
-    compile_next_with_classes(num_attributes, Default::default())
-}
-pub fn compile_next_with_classes(
-    num_attributes: usize,
-    classes: crate::core::proto::fixed::CoefficientClasses,
-) -> Result<ProvidedCircuit, String> {
     if !(1..=4).contains(&num_attributes) {
         return Err("v9 supports one to four attributes".into());
     }
     let cf = crate::compile::algebra::gf2_128::Gf2_128Field::new();
     let cp = crate::compile::algebra::p256::P256Field::new();
-    let (hash, manifest) = compile::generate_hash_v2_with_classes(&cf, num_attributes, classes)?;
-    let sig = compile::generate_sig_v2_with_classes(&cp, classes)?;
+    let (hash, manifest) = compile::generate_hash_v2_circuit(&cf, num_attributes)?;
+    let sig = compile::generate_sig_v2_circuit(&cp)?;
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(9);
     builder.add_entry(

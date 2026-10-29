@@ -24,8 +24,6 @@ use longfellow_zk::{
     },
     runtime::random::DeterministicRng,
 };
-#[path = "../../../../benches/support/coefficients.rs"]
-mod coefficients;
 #[path = "../../../../benches/support/memory.rs"]
 mod memory;
 fn main() {
@@ -43,13 +41,10 @@ fn main() {
         std::fs::create_dir_all(&dir).unwrap();
         std::path::PathBuf::from(dir).join(format!("next-v9-{n}.cache"))
     });
-    let classes = coefficients::from_env(|one, minus_one| {
-        longfellow_zk::core::proto::fixed::CoefficientClasses { one, minus_one }
-    });
     let bundle = if let Some(p) = path.as_ref().filter(|p| p.exists()) {
         provider::read_next_file(p).unwrap()
     } else {
-        provider::compile_next_with_classes(n, classes).unwrap()
+        provider::compile_next(n).unwrap()
     };
     if let Some(p) = path {
         provider::write_next_file(&p, &bundle).unwrap()

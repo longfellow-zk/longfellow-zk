@@ -39,33 +39,9 @@ where
     F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
-    compile_v2_with_classes(f, build, Default::default())
-}
-
-/// Compile with an explicit coefficient policy for format and timing comparisons.
-pub fn compile_v2_with_classes<F, Build>(
-    f: &F,
-    build: Build,
-    classes: crate::core::proto::fixed::CoefficientClasses,
-) -> (
-    crate::core::proto::v2::Circuit<F>,
-    CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
-)
-where
-    F: CompileField,
-    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
-{
     let (nodes, assertions, npublic, boundary, tracker) = lower(f, build);
-    let (circuit, info, symbols) = super::scheduler::schedule(
-        f,
-        nodes,
-        &assertions,
-        npublic,
-        boundary,
-        tracker,
-        classes.for_field(f.is_binary()),
-    );
+    let (circuit, info, symbols) =
+        super::scheduler::schedule(f, nodes, &assertions, npublic, boundary, tracker);
     assert!(info.ninput > 0);
     assert!(info.nterms > 0);
     (circuit, info, symbols)

@@ -1,105 +1,100 @@
-# LFC3: v2 Longfellow circuits
+# LFC3: Longfellow Circuit 3
 
-LFC3 is emitted by `compile_v2` (also named `compile_v2`). The
-compiler returns `core::proto::v2::Circuit` directly. Each layer owns eleven
-concrete streams, without boxed or optional child layers. V2 lowering removes
-the source API's reserved One slot. Circuits and runtime assignments have no One wire.
+LFC3 is the native v2 circuit format. The compiler, reader and circuit identity
+use the same three streams directly. Sumcheck v2 privately partitions each layer
+into eleven working streams once, preserving the original circuit and its
+segmentation. There is no reserved One input wire. V1 and its LFC1/LFC2 encodings remain unchanged.
+LFA2 continues to package LFC3 payloads without any archive-format change.
 
-LFA2 remains the archive container: its entries are opaque, length-delimited
-payloads. The application `circuit_version` is independent of the payload format.
-Legacy LFC1/LFC2 codecs remain supported. Temporary experiment formats are unsupported;
-sumcheck v2's reader accepts LFC3 only.
+## Coefficients and records
 
-## Header
+Every circuit owns a coefficient table with these fixed entries:
 
-All integers use the existing bounded, at-most-four-byte ULEB128 encoding.
+| Index | Value | Stored in the file |
+|---|---|---|
+| 0 | zero | no |
+| 1 | one | no |
+| 2 | minus one | no |
+| 3 onward | other field values | yes |
 
-1. Magic `LFC3` (four bytes).
-2. Coefficient-policy mask: bit 0 separates one, bit 1 separates minus one.
-3. Field ID.
-4. Output count.
-5. Copy count, required to be one.
-6. Public input count.
-7. Subfield boundary, required to be zero.
-8. Total input count.
-9. Layer count.
-10. Coefficient count, followed by fixed-width field elements.
+Binary fields still initialize slot 2 to minus one, which equals one. All terms
+with this value reference slot 1; referencing slot 2 is noncanonical in binary
+fields. Serialized coefficients cannot repeat any of the three implicit values.
+Compression may reorder only entries starting at index 3.
 
-Masks 0–3 support the coefficient-class ablation API. Default: 3. Binary fields
-use mask 1 by default because minus one equals one; bit 1 must be clear. Unknown
-bits are rejected. Disabled coefficient streams must encode empty dictionaries,
-segments and tokens. The mask never changes the number or order of streams.
+Each layer has exactly these streams:
 
-## Layers and streams
+| Stream | Record | In-memory record bytes | Meaning |
+|---|---|---:|---|
+| quadratic | `(g,l,r,k)` | 16 | add `constants[k] * W[l] * W[r]` to output `g` |
+| linear | `(g,l,k)` | 12 | add `constants[k] * W[l]` to output `g` |
+| constant | `(g,k)` | 8 | add `constants[k]` to output `g` |
 
-Layers run from outputs toward inputs. Each starts with `logw, nw`, with
-`logw = ceil(log2(nw))` and `nw > 0`, followed by all eleven streams:
+In quadratic and linear streams, `k = 0` is an assertion marker: require
+`W[l] * W[r] = 0` or `W[l] = 0`, respectively, and emit no output contribution.
+Every assertion receives an independent transcript coefficient, in quadratic
+then linear traversal order. It replaces the whole output-weighted coefficient,
+so a zero output weight cannot erase an assertion. Constant records require
+`k != 0`. All nonzero coefficients use ordinary arithmetic, including 1 and -1.
 
-| Order | Layer field | Absolute record | Dictionary bytes | Meaning |
-|---:|---|---|---:|---|
-| 1 | `quadratic` | `(g,l,r,k)` | 16 | add `coeff[k] W[l] W[r]` |
-| 2 | `quadratic_one` | `(g,l,r)` | 12 | add `W[l] W[r]` |
-| 3 | `quadratic_minus_one` | `(g,l,r)` | 12 | subtract `W[l] W[r]` |
-| 4 | `quadratic_assertions` | `(g,l,r)` | 12 | require `W[l] W[r] = 0` |
-| 5 | `linear` | `(g,l,k)` | 12 | add `coeff[k] W[l]` |
-| 6 | `linear_one` | `(g,l)` | 8 | add `W[l]` |
-| 7 | `linear_minus_one` | `(g,l)` | 8 | subtract `W[l]` |
-| 8 | `linear_assertions` | `(g,l)` | 8 | require `W[l] = 0` |
-| 9 | `constant` | `(g,k)` | 8 | add `coeff[k]` |
-| 10 | `constant_one` | `(g)` | 4 | add one |
-| 11 | `constant_minus_one` | `(g)` | 4 | subtract one |
+The layer stores its input width, its logarithm, the three streams, and cached
+quadratic/linear assertion counts. `Layer::new` derives those counts from the
+compressed dictionaries. Counts are not serialized. Rebuild the layer after
+replacing streams so its derived metadata remains consistent.
 
-Every stream independently stores:
+## File encoding
 
-1. Delta count and dictionary records at the exact arity above.
-2. Segment count, then each segment's length and delta indices.
-3. Token count and segment indices.
+All integers use unsigned LEB128 with at most four bytes, except the final raw
+32-byte circuit ID. Coordinates use zigzag encoding of signed wrapping `u32`
+deltas. Coefficient indices are absolute, never delta-encoded.
 
-Coordinates use wrapped `u32` differences and zigzag encoding. Accumulators start
-at zero independently for each stream and continue across segment occurrences.
-`k` is an absolute coefficient-table index. Empty streams encode three zero counts.
-There is no constant assertion stream.
+The header is:
 
-General streams reject coefficient zero and any coefficient selected by the mask.
-Assertions retain diagnostic `g` coordinates, but independently sampled `rho`
-replaces the whole output-weight/coefficient factor. Assertions do not contribute
-an output value. Final outputs must also be zero.
+1. Four bytes `LFC3`.
+2. Field ID.
+3. Number of output wires.
+4. Number of copies, always 1.
+5. Number of public input wires.
+6. Subfield boundary, always 0.
+7. Number of input wires.
+8. Number of layers.
+9. Number of **serialized** coefficients, excluding the three implicit entries.
+10. Those field elements, using the field's fixed-width little-endian encoding.
 
-The reader checks dimensions, coefficients, dictionary indices, translated
-coordinate bounds, and per-layer/global expanded-term budgets. It decodes directly
-into concrete streams and keeps repeated segments shared in memory.
+The reader initializes coefficients 0, 1 and 2 from the field before reading
+entries 3 onward. A file with no explicit coefficients stores a zero count and
+no coefficient field elements. There is no coefficient-policy byte.
+
+Layers appear from circuit outputs toward inputs. Each layer stores `logw` and
+`nw`, with `nw > 0` and `logw = ceil(log2(nw))`, then the quadratic, linear and
+constant streams. Each stream stores:
+
+1. Delta-dictionary length followed by its exact-arity records.
+2. Segment-dictionary length; each segment is a length followed by delta indices.
+3. Token count followed by segment indices.
+
+Coordinates accumulate across all records of the expanded stream, including
+segment boundaries and repeated tokens. Each stream starts its coordinates at
+zero. Empty streams store three zero counts. Parsing validates coefficient,
+dictionary and token indices, translated coordinate bounds, dimensions, and
+per-layer/whole-circuit expanded-term limits without expanding repeated segments.
+
+The final field is the circuit ID. The reader can enforce it independently of
+structural validation. `CircuitReader::from_bytes_v2` and
+`CircuitWriter::to_bytes_v2` select LFC3 directly. LFC1/LFC2 are rejected by the v2
+reader; the retired eleven-stream draft is not supported.
 
 ## Circuit identity
 
-The payload ends with a 32-byte SHA-256 ID, domain `LFC3-v2-streams-v1`.
-Identity integers use little-endian `u64` encoding, in this order:
+The SHA-256 domain is `LFC3-v2-three-streams-v1`. The identity includes the field
+kind and encoding, circuit dimensions, layer widths/logarithms, and, for each of
+the three streams, its tag, expanded term count, absolute coordinates and actual
+coefficient values. Dimensions, tags, counts and coordinates are encoded as
+little-endian `u64`; field elements use their canonical fixed-width encoding.
+Assertions are identified by their unique zero coefficient. The coefficient
+table must have its canonical implicit prefix and no aliases of reserved values.
 
-1. Policy mask, binary-field flag, field-element byte size, serialized minus one.
-2. Output count, output log width, input count, public input count, subfield boundary,
-   layer count.
-3. For each layer: `nw, logw`, then degrees quadratic/linear/constant tagged 0/1/2.
-   Each term kind contributes its streams in table order. Each stream contributes its
-   expanded term count and absolute coordinates. General terms additionally
-   contribute the serialized coefficient value, not its index.
-
-The ID authenticates class membership and order while allowing dictionary
-deduplication, macro compression and coefficient renumbering to preserve it.
-LFC3 changes circuit IDs, LFA2 combined IDs and associated proof/cache artifacts.
-Historical measurements retain their historical IDs.
-
-## Compiler and sumcheck
-
-`segment_circuit_v2` compresses native record dictionaries directly. Only
-dictionary-index compression is shared with the legacy compressor; streams never
-convert into quadratic records. `CircuitWriter::to_bytes_lfc3` and
-`CircuitReader::from_bytes_lfc3` expose the codec. `to_bytes_v2` and `from_bytes_v2`
-are aliases for these operations.
-
-Numerical bind/evaluation loops visit each class explicitly. General loops perform
-uniform coefficient multiplication. Dedicated one/minus-one loops use their own
-arithmetic. Linear terms contribute a public `L(u)` correction and do not enter the
-quadratic binding. Constants bind once per layer. Quadratic and linear assertions
-sample independent weights in a fixed order.
-
-The historical [class ablation](../../benches/results/2026-10-29-class-ablation/README.md)
-records sizes, timing, term counts, proofs and memory for the earlier experiments.
+Dictionary interning, segmentation, and reordering nonreserved coefficient-table
+entries preserve the identity. Stream traversal order is authenticated. Changes
+to this format's semantics use a new identity domain. V1's circuit ID remains
+unchanged.

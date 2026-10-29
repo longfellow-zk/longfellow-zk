@@ -21,10 +21,7 @@
 //! alpha, which combines those two claims for the next layer.
 
 use crate::{
-    core::{
-        algebra::SerializableField,
-        proto::v2::{Circuit, Layer},
-    },
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::{RandomEngine, Transcript},
@@ -93,22 +90,21 @@ pub(super) fn begin<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     monomial::weights(circuit.raw.logv, circuit.raw.noutput, &point_g, f)
 }
 
-/// Sample one replacement coefficient for every zero-coefficient quad, in
-/// circuit traversal order. The prover reuses this sequence in both quad bindings.
-/// Each coefficient replaces the full a[g]*QUAD[g,l,r] factor for its assertion.
+/// Sample independent coefficients for quadratic, then linear zero markers.
+/// Both roles reuse this order. Each coefficient replaces the full output-
+/// weighted coefficient, so a zero output weight cannot erase an assertion.
 pub(super) fn assertion_weights<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
-    layer: &Layer,
-    _constants: &[F::E],
+    layer: &super::split::SplitLayer<'_>,
     layer_index: usize,
     transcript: &mut Transcript,
     f: &F,
 ) -> Vec<F::E> {
     transcript.write_bytes(b"single-hand-assertions");
     transcript.write_bytes(&(layer_index as u64).to_le_bytes());
-    (0..layer.quadratic_assertions.num_terms() + layer.linear_assertions.num_terms())
+    (0..layer.assertion_counts().iter().sum::<usize>())
         .map(|_| transcript.elt_field(f))
         .collect()
 }

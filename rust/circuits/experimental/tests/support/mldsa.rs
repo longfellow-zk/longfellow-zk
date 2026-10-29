@@ -70,15 +70,3 @@ pub fn compile_v2_verifier<P: MlDsaParams>(
 ) {
     crate::compile::compiler::compile_v2(field, build::<P>)
 }
-
-#[allow(dead_code)] // Shared with the circuit-layout benchmark.
-pub fn compile_v2_verifier_with_classes<P: MlDsaParams>(
-    field: &CompileFp24Ext6,
-    classes: crate::core::proto::fixed::CoefficientClasses,
-) -> (
-    crate::core::proto::v2::Circuit<CompileFp24Ext6>,
-    CircuitGeometry,
-    crate::compile::compiler::CircuitDebugSymbols,
-) {
-    crate::compile::compiler::compile_v2_with_classes(field, build::<P>, classes)
-}

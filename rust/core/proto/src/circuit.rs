@@ -42,26 +42,18 @@ impl<F: SerializableField> Circuit<F> {
     where F: crate::core::algebra::AlgebraicField {
         let mut counts = [[0; 3]; 3];
         let one = f.one();
+
         for layer in &self.raw.layers {
-            for (degree, stream) in layer.streams().enumerate() {
-                if let Some(c) = stream.coefficients() {
-                    counts[degree][0] += c.assertions.num_terms();
-                    counts[degree][1] += c.units.num_terms();
-                    counts[degree][2] += c.negatives.num_terms();
-                    stream.for_each_delta_index(|_| counts[degree][2] += 1);
+            layer.for_each_term(&self.raw.constants, |t| {
+                let class = if f.is_zero(&t.k) {
+                    0
+                } else if t.k == one {
+                    1
                 } else {
-                    stream.for_each_general_term(&self.raw.constants, |t| {
-                        let class = if f.is_zero(&t.k) {
-                            0
-                        } else if t.k == one {
-                            1
-                        } else {
-                            2
-                        };
-                        counts[degree][class] += 1;
-                    });
-                }
-            }
+                    2
+                };
+                counts[0][class] += 1;
+            });
         }
         counts
     }

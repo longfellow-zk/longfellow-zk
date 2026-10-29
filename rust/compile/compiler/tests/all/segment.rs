@@ -45,15 +45,7 @@ fn circuit_compression_and_recompression_preserve_lfc3() {
     assert_eq!(decoded.id, original.id);
     for l in &compressed.raw.layers {
         check_stream(&l.quadratic);
-        check_stream(&l.quadratic_one);
-        check_stream(&l.quadratic_minus_one);
-        check_stream(&l.quadratic_assertions);
         check_stream(&l.linear);
-        check_stream(&l.linear_one);
-        check_stream(&l.linear_minus_one);
-        check_stream(&l.linear_assertions);
         check_stream(&l.constant);
-        check_stream(&l.constant_one);
-        check_stream(&l.constant_minus_one);
     }
 }

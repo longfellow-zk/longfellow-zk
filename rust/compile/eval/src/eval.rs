@@ -138,59 +138,31 @@ fn eval_layer<FR: RuntimeField<W> + crate::core::algebra::SerializableField, con
     let mut failed_wires = Vec::new();
 
     layer.quadratic.for_each(|t| {
-        fr.fma(
-            &mut vout[t.g as usize],
-            &constants[t.k as usize],
-            &fr.mulf(&vin[t.l as usize], &vin[t.r as usize]),
-        )
-    });
-    layer.quadratic_one.for_each(|t| {
-        fr.fma(
-            &mut vout[t.g as usize],
-            &vin[t.l as usize],
-            &vin[t.r as usize],
-        )
-    });
-    layer.quadratic_minus_one.for_each(|t| {
-        fr.fnms(
-            &mut vout[t.g as usize],
-            &vin[t.l as usize],
-            &vin[t.r as usize],
-        )
-    });
-    layer.quadratic_assertions.for_each(|t| {
-        if !fr.is_zero(&fr.mulf(&vin[t.l as usize], &vin[t.r as usize])) {
-            failed_wires.push(t.g as usize);
+        let product = fr.mulf(&vin[t.l as usize], &vin[t.r as usize]);
+        if t.k == 0 {
+            if !fr.is_zero(&product) {
+                failed_wires.push(t.g as usize)
+            }
+        } else {
+            fr.fma(&mut vout[t.g as usize], &constants[t.k as usize], &product)
         }
     });
     layer.linear.for_each(|t| {
-        fr.fma(
-            &mut vout[t.g as usize],
-            &constants[t.k as usize],
-            &vin[t.l as usize],
-        )
-    });
-    layer
-        .linear_one
-        .for_each(|t| fr.add(&mut vout[t.g as usize], &vin[t.l as usize]));
-    layer
-        .linear_minus_one
-        .for_each(|t| fr.sub(&mut vout[t.g as usize], &vin[t.l as usize]));
-    layer.linear_assertions.for_each(|t| {
-        if !fr.is_zero(&vin[t.l as usize]) {
-            failed_wires.push(t.g as usize);
+        if t.k == 0 {
+            if !fr.is_zero(&vin[t.l as usize]) {
+                failed_wires.push(t.g as usize)
+            }
+        } else {
+            fr.fma(
+                &mut vout[t.g as usize],
+                &constants[t.k as usize],
+                &vin[t.l as usize],
+            )
         }
     });
     layer
         .constant
         .for_each(|t| fr.add(&mut vout[t.g as usize], &constants[t.k as usize]));
-    layer
-        .constant_one
-        .for_each(|t| fr.add(&mut vout[t.g as usize], &fr.one()));
-    layer
-        .constant_minus_one
-        .for_each(|t| fr.sub(&mut vout[t.g as usize], &fr.one()));
-
     failed_wires.sort_unstable();
     failed_wires.dedup();
     (vout, failed_wires)

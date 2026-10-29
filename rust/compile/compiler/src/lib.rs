@@ -50,7 +50,3 @@ test_compilers!("../tests/all/mod.rs");
 #[cfg(test)]
 #[path = "../tests/backends.rs"]
 mod backend_tests;
-
-pub use v2::compile_with_classes as compile_v2_with_classes;
-
-pub use crate::core::proto::fixed::CoefficientClasses;

@@ -1,12 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Exercise all eleven concrete classes together, including independent assertions.
+//! Exercise all three streams, including independent quadratic and linear assertions.
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{
-            Circuit, Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates, Quadratic,
-            QuadraticCoordinates, RawCircuit, Stream,
-        },
+        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
@@ -21,7 +18,7 @@ use crate::{
         },
     },
 };
-fn all_classes<
+fn three_streams<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling + Clone,
 >(
@@ -42,68 +39,76 @@ fn all_classes<
     f.fnms(&mut value, &x, &x);
     f.sub(&mut value, &y);
     f.sub(&mut value, &f.one());
-    let constants = vec![kq, kl, f.neg(&value)];
-    let layer =
-        Layer {
-            nw: 3,
-            logw: 2,
-            quadratic: Stream::<Quadratic>::from_terms([Quadratic {
+
+    let constants = vec![f.zero(), f.one(), f.mone(), kq, kl, f.neg(&value)];
+    let minus = if f.is_binary() { 1 } else { 2 };
+    let layer = Layer::new(
+        3,
+        Stream::<Quadratic>::from_terms([
+            Quadratic {
                 g: 0,
                 l: 0,
                 r: 1,
-                k: 0,
-            }]),
-            quadratic_one: Stream::<QuadraticCoordinates>::from_terms([QuadraticCoordinates {
+                k: 3,
+            },
+            Quadratic {
                 g: 0,
                 l: 1,
                 r: 1,
-            }]),
-            quadratic_assertions: Stream::<QuadraticCoordinates>::from_terms([
-                QuadraticCoordinates { g: 1, l: 0, r: 2 },
-            ]),
-            linear: Stream::<Linear>::from_terms([Linear { g: 0, l: 1, k: 1 }]),
-            linear_one: Stream::<LinearCoordinates>::from_terms([LinearCoordinates { g: 0, l: 0 }]),
-            linear_assertions: Stream::<LinearCoordinates>::from_terms([LinearCoordinates {
+                k: 1,
+            },
+            Quadratic {
+                g: 0,
+                l: 0,
+                r: 0,
+                k: minus,
+            },
+            Quadratic {
                 g: 1,
-                l: 2,
-            }]),
-            constant: Stream::<Constant>::from_terms([Constant { g: 0, k: 2 }]),
-            constant_one: Stream::<ConstantCoordinates>::from_terms([ConstantCoordinates { g: 0 }]),
-            quadratic_minus_one: Stream::<QuadraticCoordinates>::from_terms([
-                QuadraticCoordinates { g: 0, l: 0, r: 0 },
-            ]),
-            linear_minus_one: Stream::<LinearCoordinates>::from_terms([LinearCoordinates {
+                l: 0,
+                r: 2,
+                k: 0,
+            },
+        ]),
+        Stream::<Linear>::from_terms([
+            Linear { g: 0, l: 1, k: 4 },
+            Linear { g: 0, l: 0, k: 1 },
+            Linear {
                 g: 0,
                 l: 1,
-            }]),
-            constant_minus_one: Stream::<ConstantCoordinates>::from_terms([ConstantCoordinates {
-                g: 0,
-            }]),
-        };
-    assert_eq!(
-        layer.term_class_breakdown(),
-        [[1, 1, 1, 1], [1, 1, 1, 1], [0, 1, 1, 1]]
+                k: minus,
+            },
+            Linear { g: 1, l: 2, k: 0 },
+        ]),
+        Stream::<Constant>::from_terms([
+            Constant { g: 0, k: 5 },
+            Constant { g: 0, k: 1 },
+            Constant { g: 0, k: minus },
+        ]),
     );
+    assert_eq!(layer.assertion_counts(), [1, 1]);
+    assert_eq!(layer.num_terms(), 11);
     // Check the binding on an arbitrary, unsatisfied witness and rho values so
     // assertion terms cannot disappear merely because a valid witness is zero.
     let w = [x.clone(), y.clone(), scalar(11)];
     let a = [scalar(13), f.zero()];
     let rho = [scalar(17), scalar(19)];
-    let ql = bind_r(&layer, &constants, &a, &rho, &w, f);
+    let split = crate::runtime::sumcheck_v2::split::SplitLayer::new(&layer);
+    let ql = bind_r(&split, &constants, &a, &rho, &w, f);
     let expected0 = f.addf(
-        &f.addf(&f.mulf(&f.mulf(&a[0], &constants[0]), &w[1]), &a[0]),
+        &f.addf(&f.mulf(&f.mulf(&a[0], &constants[3]), &w[1]), &a[0]),
         &f.mulf(&rho[0], &w[2]),
     );
-    let expected1 = f.addf(&f.mulf(&a[0], &w[1]), &f.mulf(&a[0], &constants[1]));
+    let expected1 = f.addf(&f.mulf(&a[0], &w[1]), &f.mulf(&a[0], &constants[4]));
     let expected0 = f.subf(&expected0, &f.mulf(&a[0], &w[0]));
     let expected1 = f.subf(&expected1, &a[0]);
     assert_eq!(ql, [expected0, expected1, rho[1].clone()]);
     let point = [scalar(23), scalar(29)];
     let alpha = scalar(31);
     let m = crate::runtime::sumcheck_v2::monomial::weights(2, 3, &point, f);
-    let qr = bind_l(&layer, &constants, &a, &rho, &m, f);
-    let constant = crate::runtime::sumcheck_v2::quad::affine_constant(&layer, &constants, &a, f);
-    let (next, linear) = weights_next_affine(&layer, &constants, &a, &rho, &point, &alpha, f);
+    let qr = bind_l(&split, &constants, &a, &rho, &m, f);
+    let constant = crate::runtime::sumcheck_v2::quad::affine_constant(&split, &constants, &a, f);
+    let (next, linear) = weights_next_affine(&split, &constants, &a, &rho, &point, &alpha, f);
     assert_eq!(
         blas::dot(&m, &ql, f),
         f.addf(&blas::dot(&qr, &w, f), &linear)
@@ -115,7 +120,7 @@ fn all_classes<
             &f.mulf(&alpha, &blas::dot(&qr, &w, f))
         )
     );
-    assert_eq!(constant, f.mulf(&a[0], &constants[2]));
+    assert_eq!(constant, f.mulf(&a[0], &constants[5]));
     let inputs = vec![x, y, f.zero()];
     assert!(eval_layer(&inputs, &layer, &constants, 2, f)
         .unwrap()
@@ -126,14 +131,23 @@ fn all_classes<
     assert!(eval_layer(&bad, &layer, &constants, 2, f)
         .unwrap_err()
         .contains("quadratic assertion"));
-    let mut linear_only = layer.clone();
-    linear_only.quadratic_assertions = Stream::default();
+    let mut ordinary = Vec::new();
+    layer.quadratic.for_each(|t| {
+        if t.k != 0 {
+            ordinary.push(t)
+        }
+    });
+    let linear_only = Layer::new(
+        layer.nw,
+        Stream::<Quadratic>::from_terms(ordinary),
+        layer.linear.clone(),
+        layer.constant.clone(),
+    );
     assert!(eval_layer(&bad, &linear_only, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));
     let mut c = Circuit {
         id: [71; 32],
-        coefficient_classes: Default::default(),
         raw: RawCircuit {
             ninput: 3,
             npublic_input: 1,
@@ -179,7 +193,7 @@ fn all_classes<
                 FieldID,
             },
         };
-        c.id = compute_id(f, &c.raw, c.coefficient_classes);
+        c.id = compute_id(f, &c.raw);
         let compressed = segment_circuit_v2(f, &c);
         assert_eq!(c.id, compressed.id);
         let writer = CircuitWriter::new(f, FieldID::None);
@@ -206,27 +220,24 @@ fn all_classes<
     }
 }
 #[test]
-fn eleven_classes_prime() {
-    all_classes(&crate::runtime::algebra::p256::P256Field::new());
+fn three_streams_prime() {
+    three_streams(&crate::runtime::algebra::p256::P256Field::new());
 }
 #[test]
-fn eleven_classes_binary() {
-    all_classes(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+fn three_streams_binary() {
+    three_streams(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
 }
 #[cfg(feature = "experimental")]
 #[test]
-fn eleven_classes_extension() {
-    all_classes(&crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new());
+fn three_streams_extension() {
+    three_streams(&crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new());
 }
 #[test]
 fn records_have_their_exact_arities_and_runs_retain_deltas() {
     use std::mem::size_of;
     assert_eq!(size_of::<Quadratic>(), 16);
-    assert_eq!(size_of::<QuadraticCoordinates>(), 12);
     assert_eq!(size_of::<Linear>(), 12);
-    assert_eq!(size_of::<LinearCoordinates>(), 8);
     assert_eq!(size_of::<Constant>(), 8);
-    assert_eq!(size_of::<ConstantCoordinates>(), 4);
     let stream = Stream {
         deltas: vec![
             Linear { g: 0, l: 1, k: 3 },
@@ -302,7 +313,7 @@ fn v2_reader_rejects_quadratic_only_archives() {
 }
 
 #[test]
-fn default_v2_compiler_emits_all_classes_without_a_one_input() {
+fn default_v2_compiler_emits_three_streams_without_a_one_input() {
     use crate::{
         compile::{
             compiler::compile_v2,
@@ -338,19 +349,19 @@ fn default_v2_compiler_emits_all_classes_without_a_one_input() {
 }
 
 #[test]
-fn lfc3_rejects_minus_one_in_general_stream_even_without_id_enforcement() {
+fn lfc3_rejects_serialized_implicit_constants_even_without_id_enforcement() {
     use crate::{
         compile::{
             compiler::compile_v2,
             logic::{Logic, LogicIO},
         },
         core::{
-            algebra::{AlgebraicField, SupportsU64Conversions},
+            algebra::SupportsU64Conversions,
             proto::{reader::CircuitReader, writer::CircuitWriter, FieldID},
         },
     };
     let cf = crate::compile::algebra::p256::P256Field::new();
-    let (mut c, _, _) = compile_v2(&cf, |logic| {
+    let (c, _, _) = compile_v2(&cf, |logic| {
         let x = logic.input(1);
         let y = logic.input(2);
         let target = logic.input(3);
@@ -363,138 +374,130 @@ fn lfc3_rejects_minus_one_in_general_stream_even_without_id_enforcement() {
     CircuitReader::new(&f, FieldID::P256)
         .from_bytes_v2(&bytes, true)
         .unwrap();
-    let index = c
-        .raw
-        .constants
-        .iter()
-        .position(|k| *k == cf.u64_to_element(7))
-        .unwrap();
-    c.raw.constants[index] = cf.mone();
-    c.id = crate::core::proto::v2::compute_id(&cf, &c.raw, c.coefficient_classes);
-    let corrupt = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc3(&c);
+
+    // Mutate a serialized ordinary coefficient into a reserved value. The ID
+    // check is disabled to isolate canonical coefficient-table validation.
+    let mut corrupt = bytes.clone();
+    let mut tail = &corrupt[4..];
+    let mut additional = 0;
+    for _ in 0..8 {
+        additional = crate::core::proto::read_uleb128_max4(&mut tail).unwrap();
+    }
+    assert!(additional > 0);
+    let offset = corrupt.len() - tail.len();
+    let minus = cf.serialized_mone();
+    corrupt[offset..offset + minus.len()].copy_from_slice(&minus);
     assert!(CircuitReader::new(&f, FieldID::P256)
         .from_bytes_v2(&corrupt, false)
         .is_err());
 }
 
-fn policy_matrix<const W: usize, CF, RF>(cf: &CF, f: &RF)
+fn reserved_slots<const W: usize, CF, RF>(cf: &CF, f: &RF)
 where
     CF: crate::compile::algebra::field::CompileField + SerializableField,
     RF: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::{
         compile::{
-            compiler::{compile_v2_with_classes, CoefficientClasses as C},
+            compiler::{compile_v2, segment_circuit_v2},
             logic::{Logic, LogicIO},
         },
         core::proto::{reader::CircuitReader, writer::CircuitWriter, FieldID},
     };
-    let literal = |n: u8| {
-        let mut b = vec![0; cf.serialized_size_bytes()];
-        b[0] = n;
-        cf.bytes_to_element(&b).unwrap()
-    };
-    let scalar = |n: u8| {
-        let mut b = vec![0; f.serialized_size_bytes()];
-        b[0] = n;
-        f.bytes_to_element(&b).unwrap()
-    };
-    let mut geometry = None;
-    for classes in [C::ASSERTIONS, C::ONE, C::MINUS_ONE, C::ALL] {
-        let (c, g, _) = compile_v2_with_classes(
-            cf,
-            |l| {
-                let x = l.input(1);
-                let y = l.input(2);
-                let target = l.input(3);
-                let a = l.sub(&l.mul(&x, &x), &l.mul(&y, &y));
-                let a = l.add(&l.sub(&a, &l.one()), &l.mulk(&literal(7), &y));
-                (l.assert_eq("result", &l.add(&a, &x), &target), 2, 0)
-            },
-            classes,
-        );
-        let shape = (g.ninput, g.nwires, g.nterms, g.nlayers);
-        if let Some(expected) = geometry {
-            assert_eq!(expected, shape);
-        } else {
-            geometry = Some(shape);
-        }
-        let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes_lfc3(&c);
-        assert_eq!(&bytes[..4], b"LFC3");
-        assert_eq!(bytes[4] as usize, classes.for_field(cf.is_binary()).bits());
-        let (c, tail) = CircuitReader::new(f, FieldID::None)
-            .from_bytes_v2(&bytes, true)
-            .unwrap();
-        assert!(tail.is_empty());
-        for n in 0..bytes.len() {
-            assert!(CircuitReader::new(f, FieldID::None)
-                .from_bytes_v2(&bytes[..n], true)
-                .is_err());
-        }
-        let (x, y) = (scalar(0), scalar(3));
-        let mut target = f.subf(&f.mulf(&x, &x), &f.mulf(&y, &y));
-        f.sub(&mut target, &f.one());
-        f.fma(&mut target, &scalar(7), &y);
-        f.add(&mut target, &x);
-        let inputs = vec![x, y, target];
-        let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
-        let mut rng = DeterministicRng::new(334);
-        let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
-        let (proof, _) = prove(
-            witnesses,
-            &pads,
-            &c,
-            &mut Transcript::new(b"coefficient-policy"),
-            f,
-        );
-        verify(
-            inputs.clone(),
-            &pads,
-            &c,
-            &proof,
-            &mut Transcript::new(b"coefficient-policy"),
-            f,
-        )
-        .unwrap();
-        let mut bad = inputs;
-        f.add(&mut bad[2], &f.one());
-        assert!(eval_circuit(bad.clone(), &c, f).is_err());
-        assert!(verify(
-            bad,
-            &pads,
-            &c,
-            &proof,
-            &mut Transcript::new(b"coefficient-policy"),
-            f
-        )
-        .is_err());
-        if !classes.one {
-            let mut bad = bytes;
-            bad[4] = 4;
-            assert!(CircuitReader::new(f, FieldID::None)
-                .from_bytes_v2(&bad, false)
-                .is_err());
+    let (c, _, _) = compile_v2(cf, |l| {
+        let x = l.input(1);
+        let y = l.input(2);
+        let target = l.input(3);
+        let a = l.sub(&l.mul(&x, &x), &l.mul(&y, &y));
+        let a = l.sub(&a, &l.one());
+        (l.assert_eq("result", &l.add(&a, &x), &target), 2, 0)
+    });
+    assert_eq!(c.raw.constants[0], cf.zero());
+    assert_eq!(c.raw.constants[1], cf.one());
+    assert_eq!(c.raw.constants[2], cf.mone());
+    if cf.is_binary() {
+        for layer in &c.raw.layers {
+            assert!(layer.quadratic.deltas.iter().all(|t| t.k != 2));
+            assert!(layer.linear.deltas.iter().all(|t| t.k != 2));
+            assert!(layer.constant.deltas.iter().all(|t| t.k != 2));
         }
     }
+    let c = segment_circuit_v2(cf, &c);
+    assert_eq!(c.raw.constants[0], cf.zero());
+    assert_eq!(c.raw.constants[1], cf.one());
+    assert_eq!(c.raw.constants[2], cf.mone());
+    // All coefficients are implicit: no field element may be serialized.
+    assert_eq!(c.raw.constants.len(), 3);
+    let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes_lfc3(&c);
+    let mut header = &bytes[4..];
+    for _ in 0..7 {
+        crate::core::proto::read_uleb128_max4(&mut header).unwrap();
+    }
+    assert_eq!(
+        crate::core::proto::read_uleb128_max4(&mut header).unwrap(),
+        0,
+        "implicit constants must not occupy serialized field elements"
+    );
+    let (c, tail) = CircuitReader::new(f, FieldID::None)
+        .from_bytes_v2(&bytes, true)
+        .unwrap();
+    assert!(tail.is_empty());
+    assert_eq!(c.raw.constants, vec![f.zero(), f.one(), f.mone()]);
+    let x = f.zero();
+    let y = f.one();
+    let mut target = f.neg(&f.mulf(&y, &y));
+    f.sub(&mut target, &f.one());
+    let inputs = vec![x, y, target];
+    let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
+    let mut rng = DeterministicRng::new(334);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
+    let (proof, _) = prove(
+        witnesses,
+        &pads,
+        &c,
+        &mut Transcript::new(b"reserved-coefficients"),
+        f,
+    );
+    verify(
+        inputs.clone(),
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"reserved-coefficients"),
+        f,
+    )
+    .unwrap();
+    let mut bad = inputs;
+    f.add(&mut bad[2], &f.one());
+    assert!(eval_circuit(bad.clone(), &c, f).is_err());
+    assert!(verify(
+        bad,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"reserved-coefficients"),
+        f
+    )
+    .is_err());
 }
 #[test]
-fn coefficient_policy_matrix_prime() {
-    policy_matrix(
+fn reserved_slots_prime() {
+    reserved_slots(
         &crate::compile::algebra::p256::P256Field::new(),
         &crate::runtime::algebra::p256::P256Field::new(),
     );
 }
 #[test]
-fn coefficient_policy_matrix_binary() {
-    policy_matrix(
+fn reserved_slots_binary() {
+    reserved_slots(
         &crate::compile::algebra::gf2_128::Gf2_128Field::new(),
         &crate::runtime::algebra::gf2_128::Gf2_128Field::new(),
     );
 }
 #[cfg(feature = "experimental")]
 #[test]
-fn coefficient_policy_matrix_extension() {
-    policy_matrix(
+fn reserved_slots_extension() {
+    reserved_slots(
         &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
         &crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new(),
     );

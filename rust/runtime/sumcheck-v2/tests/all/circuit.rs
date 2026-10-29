@@ -4,10 +4,10 @@ use crate::{
     core::{
         algebra::{SerializableField, SupportsU64Conversions},
         proto::{
-            circuit::{compute_id, Circuit, RawCircuit},
             reader::CircuitReader,
+            v2::{compute_id, Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
             writer::CircuitWriter,
-            FieldID, Layer, TermDelta,
+            FieldID,
         },
     },
     runtime::{
@@ -18,23 +18,6 @@ use crate::{
         },
     },
 };
-
-fn stream<F: SerializableField>(nw: usize, terms: &[(u32, u32, u32, u32)]) -> Layer<F> {
-    let mut prev = [0u32; 3];
-    let deltas = terms
-        .iter()
-        .map(|&(g, l, r, k_index)| {
-            let d = TermDelta {
-                g: g.wrapping_sub(prev[0]),
-                h: [l.wrapping_sub(prev[1]), r.wrapping_sub(prev[2])],
-                k_index,
-            };
-            prev = [g, l, r];
-            d
-        })
-        .collect();
-    Layer::new_compressed(nw, crate::util::ceil_log2(nw), vec![deltas], vec![0])
-}
 
 fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(f: &F) {
     // x*y + k*x + c - z = 0. No circuit input is a reserved constant.
@@ -47,24 +30,38 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     f.fma(&mut z, &k, &x);
     f.add(&mut z, &constant);
     let inputs = vec![x, y, z];
-    let q = stream::<F>(3, &[(0, 0, 1, 0)]);
-    let l = stream::<F>(3, &[(0, 0, 0, 1), (0, 2, 0, 2)]);
-    let c = stream::<F>(3, &[(0, 0, 0, 3)]);
+
+    let layer = Layer::new(
+        3,
+        Stream::<Quadratic>::from_terms([Quadratic {
+            g: 0,
+            l: 0,
+            r: 1,
+            k: 1,
+        }]),
+        Stream::<Linear>::from_terms([
+            Linear { g: 0, l: 0, k: 3 },
+            Linear {
+                g: 0,
+                l: 2,
+                k: if f.is_binary() { 1 } else { 2 },
+            },
+        ]),
+        Stream::<Constant>::from_terms([Constant { g: 0, k: 4 }]),
+    );
     let raw = RawCircuit {
         ninput: 3,
         npublic_input: 1,
         noutput: 1,
         logv: 0,
         subfield_boundary: 0,
-        constants: vec![f.one(), k, f.mone(), constant],
-        layers: vec![q.with_affine(l, c)],
+        constants: vec![f.zero(), f.one(), f.mone(), k, constant],
+        layers: vec![layer],
     };
     let circuit = Circuit {
         id: compute_id(f, &raw),
         raw,
     };
-    let mut circuit = circuit.into_v2(f).unwrap();
-    circuit.id = crate::core::proto::v2::compute_id(f, &circuit.raw, circuit.coefficient_classes);
     let bytes = CircuitWriter::new(f, FieldID::None).to_bytes_lfc3(&circuit);
     assert_eq!(&bytes[..4], b"LFC3");
     let (circuit, tail) = CircuitReader::new(f, FieldID::None)
@@ -190,22 +187,25 @@ fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
 fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
     use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
     let f = P256Field::new();
+
     let raw = RawCircuit {
         ninput: 1,
         npublic_input: 0,
         noutput: 1,
         logv: 0,
         subfield_boundary: 0,
-        constants: vec![f.one(), f.u64_to_element(9)],
-        layers: vec![
-            stream(1, &[]).with_affine(stream(1, &[(0, 0, 0, 0)]), stream(1, &[(0, 0, 0, 1)]))
-        ],
+        constants: vec![f.zero(), f.one(), f.mone(), f.u64_to_element(9)],
+        layers: vec![Layer::new(
+            1,
+            Stream::default(),
+            Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }]),
+            Stream::<Constant>::from_terms([Constant { g: 0, k: 3 }]),
+        )],
     };
     let c = Circuit {
         id: compute_id(&f, &raw),
         raw,
     };
-    let c = c.into_v2(&f).unwrap();
     let inputs = vec![f.neg(&f.u64_to_element(9))];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(38);
@@ -224,43 +224,100 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
 }
 
 #[test]
-fn v2_reader_rejects_general_zero_and_invalid_indices() {
-    use crate::{
-        core::{
-            algebra::AlgebraicField,
-            proto::{
-                fixed::CoefficientClasses,
-                v2::{self, Linear, Stream},
-            },
-        },
-        runtime::algebra::p256::P256Field,
-    };
-    let f = P256Field::new();
-    for (g, l, k) in [(0, 3, 0), (1, 0, 0), (0, 0, 1)] {
-        let raw = v2::RawCircuit {
-            ninput: 3,
-            npublic_input: 0,
-            noutput: 1,
-            logv: 0,
-            subfield_boundary: 0,
-            constants: vec![f.one(), f.zero()],
-            layers: vec![v2::Layer {
-                nw: 3,
-                logw: 2,
-                linear: Stream::<Linear>::from_terms([Linear { g, l, k }]),
-                ..Default::default()
-            }],
-        };
-        let coefficient_classes = CoefficientClasses::ASSERTIONS;
-        let c = v2::Circuit {
-            id: v2::compute_id(&f, &raw, coefficient_classes),
-            raw,
-            coefficient_classes,
-        };
-        let bytes = CircuitWriter::new(&f, FieldID::P256).to_bytes_lfc3(&c);
-        assert!(CircuitReader::new(&f, FieldID::P256)
-            .from_bytes_v2(&bytes, true)
-            .is_err());
+fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
+    use crate::core::proto::serialize_uleb128_max4;
+    let f = crate::runtime::algebra::p256::P256Field::new();
+    let reader = CircuitReader::new(&f, FieldID::P256);
+    for (g, l, k, valid) in [
+        (0, 0, 0, true),
+        (0, 0, 1, true),
+        (0, 0, 2, true),
+        (0, 3, 1, false),
+        (1, 0, 1, false),
+        (0, 0, 3, false),
+    ] {
+        let mut bytes = b"LFC3".to_vec();
+        for n in [
+            FieldID::P256 as usize,
+            1,
+            1,
+            0,
+            0,
+            3,
+            1,
+            0,
+            2,
+            3,
+            0,
+            0,
+            0,
+            1,
+            2 * g,
+            2 * l,
+            k,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+        ] {
+            serialize_uleb128_max4(&mut bytes, n);
+        }
+        bytes.extend([0; 32]);
+        let decoded = reader.from_bytes_v2(&bytes, false);
+        assert_eq!(decoded.is_ok(), valid, "g={g} l={l} k={k}");
+        if valid {
+            assert_eq!(
+                decoded.unwrap().0.raw.layers[0].assertion_counts(),
+                [0, usize::from(k == 0)]
+            );
+        }
+    }
+}
+
+#[test]
+fn binary_lfc3_uses_one_slot_for_both_signs() {
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    for k in [1, 2] {
+        let mut bytes = b"LFC3".to_vec();
+        for n in [
+            FieldID::Gf2_128 as usize,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            k,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+        ] {
+            crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
+        }
+        bytes.extend([0; 32]);
+        let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes_v2(&bytes, false);
+        assert_eq!(result.is_ok(), k == 1);
+        if let Ok((c, _)) = result {
+            assert_eq!(c.raw.constants[1], c.raw.constants[2]);
+        }
     }
 }
 
@@ -299,10 +356,7 @@ where
             0,
         )
     });
-    assert_eq!(
-        c.coefficient_classes,
-        crate::core::proto::fixed::CoefficientClasses::ALL.for_field(cf.is_binary())
-    );
+
     let c = segment_circuit_v2(cf, &c);
     let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes_lfc3(&c);
     assert_eq!(&bytes[..4], b"LFC3");

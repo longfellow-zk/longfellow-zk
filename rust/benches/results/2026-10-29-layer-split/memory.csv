@@ -1,0 +1,13 @@
+implementation,application,prover_heap_bytes,verifier_heap_bytes
+baseline,next-2,44717608,35945090
+baseline,next-4,49809452,39173902
+baseline,mldsa-44,106263700,38371352
+baseline,mldsa-65,111486147,42797740
+counted,next-2,44847188,36001306
+counted,next-4,49939520,39235718
+counted,mldsa-44,106295720,38728008
+counted,mldsa-65,111518167,43126408
+split,next-2,45295380,36168294
+split,next-4,50332740,39418166
+split,mldsa-44,106367032,40173212
+split,mldsa-65,111589479,45785516

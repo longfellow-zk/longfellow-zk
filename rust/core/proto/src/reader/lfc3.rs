@@ -5,12 +5,8 @@ use std::io::BufRead;
 use super::CircuitReader;
 use crate::{
     core::proto::{
-        fixed::CoefficientClasses,
         uleb::{read_uleb128_max4, read_uleb128_max4_u32},
-        v2::{
-            self, Circuit, Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates,
-            Quadratic, QuadraticCoordinates, RawCircuit, Stream,
-        },
+        v2::{self, Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
         SerializableField,
     },
     util::ceil_log2,
@@ -93,15 +89,6 @@ fn read_stream<R: BufRead, T, const N: usize>(
     })
 }
 
-fn require_empty<T>(enabled: bool, stream: &Stream<T>) -> Result<(), String> {
-    if !enabled
-        && (!stream.deltas.is_empty() || !stream.segments.is_empty() || !stream.tokens.is_empty())
-    {
-        return Err("LFC3 disabled coefficient stream must be empty".into());
-    }
-    Ok(())
-}
-
 pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     reader: &CircuitReader<'_, F>,
     input: &mut R,
@@ -113,10 +100,6 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
         .map_err(|e| format!("LFC3 incomplete header: {e}"))?;
     if &magic != v2::encoding::MAGIC {
         return Err("expected LFC3 magic".into());
-    }
-    let classes = CoefficientClasses::from_bits(read_uleb128_max4(input)?)?;
-    if reader.f.is_binary() && classes.minus_one {
-        return Err("LFC3 binary fields use one streams for minus one".into());
     }
     if read_uleb128_max4(input)? != reader.field_id as usize {
         return Err("LFC3 field ID mismatch".into());
@@ -134,30 +117,30 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
         return Err("LFC3 public inputs exceed total inputs".into());
     }
     let nlayers = bounded(input, super::MAX_LAYERS, "layers")?;
-    let nconstants = bounded(input, super::MAX_CONSTANTS, "constants")?;
+    let nconstants = bounded(input, super::MAX_CONSTANTS - 3, "constants")?;
     let f = reader.f;
+
+    let implicit = v2::implicit_constants(f)?;
     let mut bytes = vec![0; f.serialized_size_bytes()];
-    if bytes.is_empty() {
-        return Err("LFC3 empty field encoding".into());
-    }
-    let zero = f.bytes_to_element(&bytes)?;
-    bytes[0] = 1;
-    let one = f.bytes_to_element(&bytes)?;
-    let minus_one = f.bytes_to_element(&f.serialized_mone())?;
-    let mut constants = Vec::with_capacity(nconstants);
+    let mut constants = Vec::with_capacity(nconstants + 3);
+    constants.extend(implicit.iter().cloned());
     for _ in 0..nconstants {
         input
             .read_exact(&mut bytes)
             .map_err(|e| format!("LFC3 incomplete constant: {e}"))?;
-        constants.push(f.bytes_to_element(&bytes)?);
+        let k = f.bytes_to_element(&bytes)?;
+        if implicit.contains(&k) {
+            return Err("LFC3 implicit coefficient repeated in serialized table".into());
+        }
+        constants.push(k);
     }
     let coefficient = |input: &mut R| -> Result<u32, String> {
         let index = read_uleb128_max4_u32(input)?;
-        let k = constants
-            .get(index as usize)
-            .ok_or("LFC3 coefficient index out of bounds")?;
-        if *k == zero || (classes.one && *k == one) || (classes.minus_one && *k == minus_one) {
-            return Err("LFC3 special coefficient in general stream".into());
+        if index == 2 && f.is_binary() {
+            return Err("LFC3 binary terms must use coefficient index one for -1".into());
+        }
+        if index as usize >= constants.len() {
+            return Err("LFC3 coefficient index out of bounds".into());
         }
         Ok(index)
     };
@@ -172,39 +155,49 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
         let outputs = layers.last().map_or(noutput, |layer| layer.nw);
         let budget = total_remaining.min(super::MAX_TERMS_PER_LAYER);
         let mut remaining = budget;
-        macro_rules! general {
-            ($ty:ident, [$($coord:ident),+], [$($limit:expr),+]) => {
-                read_stream(input, |input| Ok($ty { $($coord: delta(input)?,)+ k: coefficient(input)? }),
-                    |term: &$ty| [$(term.$coord),+], [$($limit),+], &mut remaining)?
-            };
+        let quadratic = read_stream(
+            input,
+            |input| {
+                Ok(Quadratic {
+                    g: delta(input)?,
+                    l: delta(input)?,
+                    r: delta(input)?,
+                    k: coefficient(input)?,
+                })
+            },
+            |term: &Quadratic| [term.g, term.l, term.r],
+            [outputs, nw, nw],
+            &mut remaining,
+        )?;
+        let linear = read_stream(
+            input,
+            |input| {
+                Ok(Linear {
+                    g: delta(input)?,
+                    l: delta(input)?,
+                    k: coefficient(input)?,
+                })
+            },
+            |term: &Linear| [term.g, term.l],
+            [outputs, nw],
+            &mut remaining,
+        )?;
+        let constant = read_stream(
+            input,
+            |input| {
+                Ok(Constant {
+                    g: delta(input)?,
+                    k: coefficient(input)?,
+                })
+            },
+            |term: &Constant| [term.g],
+            [outputs],
+            &mut remaining,
+        )?;
+        if constant.deltas.iter().any(|t| t.k == 0) {
+            return Err("LFC3 constant terms cannot have zero coefficients".into());
         }
-        macro_rules! fixed {
-            ($ty:ident, [$($coord:ident),+], [$($limit:expr),+]) => {
-                read_stream(input, |input| Ok($ty { $($coord: delta(input)?,)+ }),
-                    |term: &$ty| [$(term.$coord),+], [$($limit),+], &mut remaining)?
-            };
-        }
-        let layer = Layer {
-            nw,
-            logw,
-            quadratic: general!(Quadratic, [g, l, r], [outputs, nw, nw]),
-            quadratic_one: fixed!(QuadraticCoordinates, [g, l, r], [outputs, nw, nw]),
-            quadratic_minus_one: fixed!(QuadraticCoordinates, [g, l, r], [outputs, nw, nw]),
-            quadratic_assertions: fixed!(QuadraticCoordinates, [g, l, r], [outputs, nw, nw]),
-            linear: general!(Linear, [g, l], [outputs, nw]),
-            linear_one: fixed!(LinearCoordinates, [g, l], [outputs, nw]),
-            linear_minus_one: fixed!(LinearCoordinates, [g, l], [outputs, nw]),
-            linear_assertions: fixed!(LinearCoordinates, [g, l], [outputs, nw]),
-            constant: general!(Constant, [g], [outputs]),
-            constant_one: fixed!(ConstantCoordinates, [g], [outputs]),
-            constant_minus_one: fixed!(ConstantCoordinates, [g], [outputs]),
-        };
-        require_empty(classes.one, &layer.quadratic_one)?;
-        require_empty(classes.one, &layer.linear_one)?;
-        require_empty(classes.one, &layer.constant_one)?;
-        require_empty(classes.minus_one, &layer.quadratic_minus_one)?;
-        require_empty(classes.minus_one, &layer.linear_minus_one)?;
-        require_empty(classes.minus_one, &layer.constant_minus_one)?;
+        let layer = Layer::new(nw, quadratic, linear, constant);
         total_remaining -= budget - remaining;
         layers.push(layer);
     }
@@ -224,12 +217,8 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     input
         .read_exact(&mut id)
         .map_err(|e| format!("LFC3 incomplete circuit ID: {e}"))?;
-    if enforce_id && v2::compute_id(f, &raw, classes) != id {
+    if enforce_id && v2::compute_id(f, &raw) != id {
         return Err("LFC3 circuit ID verification failed".into());
     }
-    Ok(Circuit {
-        raw,
-        id,
-        coefficient_classes: classes,
-    })
+    Ok(Circuit { raw, id })
 }

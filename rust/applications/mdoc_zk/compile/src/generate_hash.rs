@@ -90,51 +90,26 @@ pub fn generate_hash_v2_circuit(
     ),
     String,
 > {
-    generate_hash_v2_with_classes(f, num_attrs, Default::default())
-}
-pub fn generate_hash_v2_with_classes(
-    f: &Gf2_128Field,
-    num_attrs: usize,
-    classes: crate::core::proto::fixed::CoefficientClasses,
-) -> Result<
-    (
-        crate::core::proto::v2::Circuit<Gf2_128Field>,
-        crate::mdoc::proto::packed::HashInputManifest,
-    ),
-    String,
-> {
     let mut counts = (0, 0);
-    let (circuit, _, _) = crate::compile::compiler::compile_v2_with_classes(
-        f,
-        |logic| {
-            let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
-            let io = crate::circuits::bitvec::BitvecIO::new(&bv);
-            let p8 = crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V8_BIT_PLUCKER }>::new(
-                &logic,
-            );
-            let p256 =
-                crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(
-                    &logic,
-                );
-            let ps =
-                crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&logic);
-            let mut allocator = WireAllocator::new_boolean(
-                &logic,
-                &io,
-                crate::compile::logic::K_FIRST_WIRE_POSITION,
-            );
-            let (given, derived, npublic, _) =
-                allocate_hash(&mut allocator, num_attrs, &p8, &p256, &ps);
-            counts = (npublic - 1, allocator.pos - npublic);
-            (
-                MdocHash::new(&logic, num_attrs)
-                    .assert_valid_presentation_and_macs(&given, &derived),
-                npublic,
-                0,
-            )
-        },
-        classes,
-    );
+    let (circuit, _, _) = crate::compile::compiler::compile_v2(f, |logic| {
+        let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
+        let io = crate::circuits::bitvec::BitvecIO::new(&bv);
+        let p8 =
+            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V8_BIT_PLUCKER }>::new(&logic);
+        let p256 =
+            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(&logic);
+        let ps = crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&logic);
+        let mut allocator =
+            WireAllocator::new_boolean(&logic, &io, crate::compile::logic::K_FIRST_WIRE_POSITION);
+        let (given, derived, npublic, _) =
+            allocate_hash(&mut allocator, num_attrs, &p8, &p256, &ps);
+        counts = (npublic - 1, allocator.pos - npublic);
+        (
+            MdocHash::new(&logic, num_attrs).assert_valid_presentation_and_macs(&given, &derived),
+            npublic,
+            0,
+        )
+    });
     let manifest = crate::mdoc::proto::packed::HashInputManifest {
         public_bits: counts.0,
         private_bits: counts.1,

@@ -303,23 +303,39 @@ fn test_sumcheck_core_single_hand_permutations() {
     for layout in 0..4 {
         let (mut circuit, _) = reader.from_bytes_lfc3(&bytes, true).unwrap();
         for layer in &mut circuit.raw.layers {
-            macro_rules! reorder {
-                ($($name:ident:$ty:ty),+ $(,)?) => {$(
-                    let mut terms = Vec::new();
-                    layer.$name.for_each(|t| terms.push(t));
-                    match layout { 0 => (), 1 => terms.sort_by_key(|t| format!("{t:?}")), 2 => terms.reverse(), _ => { for chunk in terms.chunks_mut(3) { chunk.reverse(); } } }
-                    layer.$name = Stream::<$ty>::from_terms(terms);
-                )+};
+            fn reorder<T: std::fmt::Debug>(terms: &mut [T], layout: usize) {
+                match layout {
+                    0 => (),
+                    1 => terms.sort_by_key(|t| format!("{t:?}")),
+                    2 => terms.reverse(),
+                    _ => {
+                        for chunk in terms.chunks_mut(3) {
+                            chunk.reverse();
+                        }
+                    }
+                }
             }
-            use crate::core::proto::v2::{
-                Constant, ConstantCoordinates, Linear, LinearCoordinates, Quadratic,
-                QuadraticCoordinates,
-            };
-            reorder!(quadratic:Quadratic, quadratic_one:QuadraticCoordinates, quadratic_minus_one:QuadraticCoordinates, quadratic_assertions:QuadraticCoordinates,
-                linear:Linear, linear_one:LinearCoordinates, linear_minus_one:LinearCoordinates, linear_assertions:LinearCoordinates,
-                constant:Constant, constant_one:ConstantCoordinates, constant_minus_one:ConstantCoordinates);
+            use crate::core::proto::v2::{Constant, Layer, Linear, Quadratic};
+            let mut quadratic = Vec::new();
+            layer.quadratic.for_each(|t| quadratic.push(t));
+            reorder(&mut quadratic, layout);
+            layer.quadratic = Stream::<Quadratic>::from_terms(quadratic);
+            let mut linear = Vec::new();
+            layer.linear.for_each(|t| linear.push(t));
+            reorder(&mut linear, layout);
+            layer.linear = Stream::<Linear>::from_terms(linear);
+            let mut constant = Vec::new();
+            layer.constant.for_each(|t| constant.push(t));
+            reorder(&mut constant, layout);
+            layer.constant = Stream::<Constant>::from_terms(constant);
+            *layer = Layer::new(
+                layer.nw,
+                std::mem::take(&mut layer.quadratic),
+                std::mem::take(&mut layer.linear),
+                std::mem::take(&mut layer.constant),
+            );
         }
-        circuit.id = compute_id(&f, &circuit.raw, circuit.coefficient_classes);
+        circuit.id = compute_id(&f, &circuit.raw);
         ids.push(circuit.id);
         let segmented = crate::compile::compiler::segment_circuit_v2(&f, &circuit);
         let encoded = writer.to_bytes_lfc3(&segmented);

@@ -36,13 +36,6 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
 
     #[must_use]
     pub fn to_bytes_lfc1(&self, sc_c: &Circuit<F>) -> Vec<u8> {
-        assert!(
-            sc_c.raw
-                .layers
-                .iter()
-                .all(|l| l.affine().is_none() && l.coefficients().is_none()),
-            "LFC1 cannot represent affine streams"
-        );
         lfc1::to_bytes_lfc1(self, sc_c)
     }
 
@@ -51,8 +44,7 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
         lfc2::to_bytes_lfc2(self, sc_c)
     }
 
-    /// Write a native LFC3 circuit. Historical imports retain their original IDs;
-    /// recompute the LFC3 identity before converting such a circuit.
+    /// Write a native LFC3 circuit.
     #[must_use]
     pub fn to_bytes_v2(&self, circuit: &crate::core::proto::v2::Circuit<F>) -> Vec<u8> {
         self.to_bytes_lfc3(circuit)

@@ -98,7 +98,7 @@ pub(super) trait ProverKernel<
     fn bind_r(
         &self,
         index: usize,
-        layer: &crate::core::proto::v2::Layer,
+        layer: &super::split::SplitLayer<'_>,
         constants: &[F::E],
         a: &[F::E],
         assertions: &[F::E],
@@ -124,7 +124,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling> 
     fn bind_r(
         &self,
         _: usize,
-        layer: &crate::core::proto::v2::Layer,
+        layer: &super::split::SplitLayer<'_>,
         constants: &[F::E],
         a: &[F::E],
         assertions: &[F::E],
@@ -217,21 +217,21 @@ fn layer<
     transcript: &mut Transcript,
     f: &F,
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, Vec<F::E>, F::E) {
-    let circuit_layer = &circuit.raw.layers[layer_index];
+    let split = super::split::SplitLayer::new(&circuit.raw.layers[layer_index]);
     let constants = &circuit.raw.constants;
-    assert!(circuit_layer.nw() > 0, "sumcheck layer must contain a wire");
-    assert_eq!(w.len(), circuit_layer.nw(), "layer witness width mismatch");
+    assert!(split.nw > 0, "sumcheck layer must contain a wire");
+    assert_eq!(w.len(), split.nw, "layer witness width mismatch");
 
-    let assertions = assertion_weights(circuit_layer, constants, layer_index, transcript, f);
-    let q_l = kernel.bind_r(layer_index, circuit_layer, constants, a, &assertions, &w, f);
-    let constant = super::quad::affine_constant(circuit_layer, constants, a, f);
+    let assertions = assertion_weights(&split, layer_index, transcript, f);
+    let q_l = kernel.bind_r(layer_index, &split, constants, a, &assertions, &w, f);
+    let constant = super::quad::affine_constant(&split, constants, a, f);
     let claim = f.subf(&claim, &constant);
     let (proof, mut challenges, mut claim_next) =
         kernel.dot_product(layer_index, w, q_l, pads, claim, transcript, f);
     // B also contains public L(u). Subtract alpha*L(u) from
     // A + alpha*B to obtain the weighted claim on the next layer's inputs.
     let (a_next, linear) = weights_next_affine(
-        circuit_layer,
+        &split,
         constants,
         a,
         &assertions,

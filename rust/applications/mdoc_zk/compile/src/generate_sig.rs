@@ -67,16 +67,7 @@ pub fn generate_sig_circuit(f: &P256Field) -> Result<Circuit<P256Field>, String>
 pub fn generate_sig_v2_circuit(
     f: &P256Field,
 ) -> Result<crate::core::proto::v2::Circuit<P256Field>, String> {
-    generate_sig_v2_with_classes(f, Default::default())
-}
-pub fn generate_sig_v2_with_classes(
-    f: &P256Field,
-    classes: crate::core::proto::fixed::CoefficientClasses,
-) -> Result<crate::core::proto::v2::Circuit<P256Field>, String> {
-    let (circuit, _, _) = crate::compile::compiler::compile_v2_with_classes(
-        f,
-        |logic| build_signature(f, logic),
-        classes,
-    );
+    let (circuit, _, _) =
+        crate::compile::compiler::compile_v2(f, |logic| build_signature(f, logic));
     Ok(crate::compile::compiler::segment_circuit_v2(f, &circuit))
 }

@@ -257,8 +257,8 @@ fn test_serialize_and_verify_mdoc_signature_circuit() {
     let (circuit, _stats) = mdoc_zk_circuits_signature_circuit(&p256_c);
 
     let expected_id: [u8; 32] = [
-        222, 193, 89, 34, 205, 161, 229, 3, 216, 142, 163, 182, 242, 67, 127, 151, 161, 229, 202,
-        254, 169, 54, 226, 145, 29, 223, 137, 212, 185, 98, 238, 221,
+        181, 127, 63, 212, 245, 253, 76, 14, 219, 240, 118, 47, 1, 133, 91, 17, 222, 207, 179, 173,
+        85, 165, 93, 170, 210, 70, 85, 118, 61, 38, 22, 107,
     ];
     assert_eq!(
         circuit.id, expected_id,

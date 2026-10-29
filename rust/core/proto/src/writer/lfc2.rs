@@ -30,13 +30,6 @@ pub(super) fn to_bytes_lfc2<F: SerializableField>(
 ) -> Vec<u8> {
     let mut bytes = Vec::new();
 
-    assert!(
-        sc_c.raw
-            .layers
-            .iter()
-            .all(|l| l.affine().is_none() && l.coefficients().is_none()),
-        "LFC2 supports legacy quadratic layers only"
-    );
     bytes.extend_from_slice(b"LFC2");
     serialize_uleb128_max4(&mut bytes, writer.field_id as usize);
     serialize_uleb128_max4(&mut bytes, sc_c.raw.noutput); // sc_c.nv

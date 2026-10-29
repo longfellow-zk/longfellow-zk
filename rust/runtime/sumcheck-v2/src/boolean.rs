@@ -18,9 +18,7 @@ use super::{dense, quad};
 use crate::{
     core::{
         bits::PackedBits,
-        proto::v2::{
-            Circuit, Constant, Layer, Linear, LinearCoordinates, Quadratic, QuadraticCoordinates,
-        },
+        proto::v2::{Circuit, Constant, Linear, Quadratic},
     },
     runtime::{
         algebra::{
@@ -53,32 +51,25 @@ impl BooleanKernel {
             } else {
                 circuit.raw.layers[i - 1].nw()
             };
+
             let mut next = vec![true; noutput];
-            layer
-                .quadratic
-                .for_each(|Quadratic { g, .. }| next[g as usize] = false);
-            layer
-                .quadratic_one
-                .for_each(|QuadraticCoordinates { g, l, r }| {
-                    next[g as usize] &= domain[l as usize] && domain[r as usize]
-                });
-            layer
-                .linear
-                .for_each(|Linear { g, .. }| next[g as usize] = false);
-            layer
-                .quadratic_minus_one
-                .for_each(|QuadraticCoordinates { g, l, r }| {
-                    next[g as usize] &= domain[l as usize] && domain[r as usize]
-                });
-            layer
-                .linear_minus_one
-                .for_each(|LinearCoordinates { g, l }| next[g as usize] &= domain[l as usize]);
-            layer
-                .linear_one
-                .for_each(|LinearCoordinates { g, l }| next[g as usize] &= domain[l as usize]);
-            layer
-                .constant
-                .for_each(|Constant { g, .. }| next[g as usize] = false);
+            let one = E::from(1u128);
+            layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
+                if k != 0 {
+                    next[g as usize] &= circuit.raw.constants[k as usize] == one
+                        && domain[l as usize]
+                        && domain[r as usize];
+                }
+            });
+            layer.linear.for_each(|Linear { g, l, k }| {
+                if k != 0 {
+                    next[g as usize] &=
+                        circuit.raw.constants[k as usize] == one && domain[l as usize];
+                }
+            });
+            layer.constant.for_each(|Constant { g, k }| {
+                next[g as usize] &= circuit.raw.constants[k as usize] == one;
+            });
             domain = next;
         }
         Ok(Self { certified, window })
@@ -91,7 +82,7 @@ impl ProverKernel<2, F> for BooleanKernel {
     fn bind_r(
         &self,
         index: usize,
-        layer: &Layer,
+        layer: &super::split::SplitLayer<'_>,
         constants: &[E],
         a: &[E],
         assertions: &[E],
@@ -101,33 +92,40 @@ impl ProverKernel<2, F> for BooleanKernel {
         if !self.certified[index] {
             return quad::bind_r(layer, constants, a, assertions, w, f);
         }
-        let nq = layer.quadratic_assertions.num_terms();
-        assert_eq!(assertions.len(), nq + layer.linear_assertions.num_terms());
-        let mut result = vec![f.zero(); w.len()];
-        layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
-            let coefficient = f.mulf(&a[g as usize], &constants[k as usize]);
-            result[l as usize].xor_in_place(&select(coefficient, w[r as usize].to_u128() as u8));
-        });
-        layer
-            .quadratic_one
-            .for_each(|QuadraticCoordinates { g, l, r }| {
-                result[l as usize]
-                    .xor_in_place(&select(a[g as usize], w[r as usize].to_u128() as u8));
-            });
+
+        let [nq, nl] = layer.assertion_counts();
+        assert_eq!(assertions.len(), nq + nl);
         let mut rho = assertions[..nq].iter();
-        // In characteristic two the implicit negative coefficient equals one.
+        let mut result = vec![f.zero(); w.len()];
         layer
-            .quadratic_minus_one
-            .for_each(|QuadraticCoordinates { g, l, r }| {
+            .quadratic
+            .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
+                let coefficient = f.mulf(&a[g as usize], &constants[k as usize]);
+                result[l as usize]
+                    .xor_in_place(&select(coefficient, w[r as usize].to_u128() as u8));
+            });
+        layer.quadratic_one.for_each(
+            &layer.quadratic_runs,
+            |super::split::QuadraticCoordinates { g, l, r }| {
                 result[l as usize]
                     .xor_in_place(&select(a[g as usize], w[r as usize].to_u128() as u8));
-            });
-        layer
-            .quadratic_assertions
-            .for_each(|QuadraticCoordinates { g: _, l, r }| {
+            },
+        );
+        // In the binary field, implicit minus one equals one.
+        layer.quadratic_minus_one.for_each(
+            &layer.quadratic_runs,
+            |super::split::QuadraticCoordinates { g, l, r }| {
+                result[l as usize]
+                    .xor_in_place(&select(a[g as usize], w[r as usize].to_u128() as u8));
+            },
+        );
+        layer.quadratic_assertions.for_each(
+            &layer.quadratic_runs,
+            |super::split::QuadraticCoordinates { g: _, l, r }| {
                 result[l as usize]
                     .xor_in_place(&select(*rho.next().unwrap(), w[r as usize].to_u128() as u8));
-            });
+            },
+        );
         quad::add_linear(layer, constants, a, &assertions[nq..], &mut result, f);
         result
     }

@@ -660,6 +660,7 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/polygero/src/verifier.rs", "prover"),
         ("runtime/sumcheck-v2/src/monomial.rs", "shared_sumcheck"),
         ("runtime/sumcheck-v2/src/quad.rs", "shared_sumcheck"),
+        ("runtime/sumcheck-v2/src/split.rs", "shared_sumcheck"),
         ("runtime/sumcheck-v2/src/symbolic.rs", "shared_sumcheck"),
         ("runtime/sumcheck-v2/src/transcript.rs", "shared_sumcheck"),
     ] {
@@ -1078,6 +1079,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
             &[
                 "lib.rs",
                 "monomial.rs",
+                "split.rs",
                 "dense.rs",
                 "boolean.rs",
                 "quad.rs",
@@ -1100,6 +1102,8 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "all/sumcheck_v2.rs",
                 "all/wiring.rs",
                 "boolean.rs",
+                "split.rs",
+                "reference.rs",
             ][..],
         ),
     ] {

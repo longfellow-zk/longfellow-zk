@@ -327,8 +327,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        195, 252, 3, 125, 234, 169, 116, 50, 203, 0, 209, 46, 149, 114, 236, 57, 41, 22, 66, 187,
-        118, 32, 122, 182, 19, 49, 136, 196, 189, 201, 93, 174,
+        59, 222, 40, 189, 4, 104, 229, 175, 222, 241, 141, 148, 211, 199, 190, 146, 208, 200, 48,
+        239, 177, 253, 191, 111, 140, 62, 235, 57, 234, 64, 224, 53,
     ];
     assert_eq!(
         circuit.id, expected_id,

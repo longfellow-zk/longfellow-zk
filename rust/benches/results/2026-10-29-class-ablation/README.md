@@ -1,5 +1,10 @@
 # Circuit class ablation: mdoc v9 and ML-DSA
 
+Historical measurements from the retired eleven-stream implementation.
+Current native three-stream results are in the [latest report](../2026-10-29-native-three/README.md).
+Reproducing these historical layouts requires the original source revision;
+commit d8f000f contains the eleven-stream LFC3 implementation.
+
 ## Retained implementation
 
 The final implementation keeps all eleven concrete streams and uses `{0,1,-1}`

@@ -22,7 +22,7 @@ use crate::mdoc::runtime::{v1, v2};
 mod cache_v2;
 mod next_v2;
 pub use cache_v2::{read_next, read_next_file, write_next, write_next_file};
-pub use next_v2::{compile_next, compile_next_with_classes};
+pub use next_v2::compile_next;
 
 /// Explicit selection keeps development compilation distinct from frozen lookup.
 pub enum CircuitRequest {

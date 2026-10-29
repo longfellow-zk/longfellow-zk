@@ -1,12 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Explicit bindings for the eleven v2 term classes of a v2 layer.
+//! Explicit arithmetic over the eleven private per-layer streams.
+use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{
-            Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates, Quadratic,
-            QuadraticCoordinates,
-        },
+        proto::v2::{Constant, Linear, Quadratic},
     },
     runtime::{
         algebra::{blas, RuntimeField},
@@ -17,7 +15,7 @@ use crate::{
 /// Bind quadratic g,l coordinates. Linear terms have no r coordinate and enter
 /// the public L(u) correction separately.
 pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -26,32 +24,36 @@ pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
 ) -> Vec<F::E> {
     assert_eq!(
         assertions.len(),
-        layer.quadratic_assertions.num_terms() + layer.linear_assertions.num_terms()
+        layer.assertion_counts()[0] + layer.assertion_counts()[1]
     );
     let mut q_r = vec![f.zero(); layer.nw];
-    layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
-        f.fma(
-            &mut q_r[r as usize],
-            &f.mulf(&a[g as usize], &constants[k as usize]),
-            &b_l[l as usize],
-        );
-    });
+    layer
+        .quadratic
+        .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
+            f.fma(
+                &mut q_r[r as usize],
+                &f.mulf(&a[g as usize], &constants[k as usize]),
+                &b_l[l as usize],
+            );
+        });
     layer
         .quadratic_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
+        .for_each(&layer.quadratic_runs, |QuadraticCoordinates { g, l, r }| {
             f.fma(&mut q_r[r as usize], &a[g as usize], &b_l[l as usize]);
         });
     let mut rho = assertions.iter();
-    layer
-        .quadratic_minus_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
+    layer.quadratic_minus_one.for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g, l, r }| {
             f.fnms(&mut q_r[r as usize], &a[g as usize], &b_l[l as usize]);
-        });
-    layer
-        .quadratic_assertions
-        .for_each(|QuadraticCoordinates { g: _, l, r }| {
+        },
+    );
+    layer.quadratic_assertions.for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g: _, l, r }| {
             f.fma(&mut q_r[r as usize], rho.next().unwrap(), &b_l[l as usize]);
-        });
+        },
+    );
     q_r
 }
 
@@ -60,89 +62,83 @@ pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// rho directly, without an output weight or a witness multiplication.
 #[cfg(any(test, feature = "prover"))]
 pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
     w: &[F::E],
     f: &F,
 ) -> Vec<F::E> {
-    let nq = layer.quadratic_assertions.num_terms();
-    assert_eq!(assertions.len(), nq + layer.linear_assertions.num_terms());
+    let nq = layer.assertion_counts()[0];
+    assert_eq!(assertions.len(), nq + layer.assertion_counts()[1]);
     let mut q_l = vec![f.zero(); layer.nw];
-    layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
-        f.fma(
-            &mut q_l[l as usize],
-            &f.mulf(&a[g as usize], &constants[k as usize]),
-            &w[r as usize],
-        );
-    });
+    layer
+        .quadratic
+        .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
+            f.fma(
+                &mut q_l[l as usize],
+                &f.mulf(&a[g as usize], &constants[k as usize]),
+                &w[r as usize],
+            );
+        });
     layer
         .quadratic_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
+        .for_each(&layer.quadratic_runs, |QuadraticCoordinates { g, l, r }| {
             f.fma(&mut q_l[l as usize], &a[g as usize], &w[r as usize]);
         });
     let mut rho = assertions[..nq].iter();
-    layer
-        .quadratic_minus_one
-        .for_each(|QuadraticCoordinates { g, l, r }| {
+    layer.quadratic_minus_one.for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g, l, r }| {
             f.fnms(&mut q_l[l as usize], &a[g as usize], &w[r as usize]);
-        });
-    layer
-        .quadratic_assertions
-        .for_each(|QuadraticCoordinates { g: _, l, r }| {
+        },
+    );
+    layer.quadratic_assertions.for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g: _, l, r }| {
             f.fma(&mut q_l[l as usize], rho.next().unwrap(), &w[r as usize]);
-        });
+        },
+    );
     add_linear(layer, constants, a, &assertions[nq..], &mut q_l, f);
     q_l
 }
 
 #[cfg(any(test, feature = "prover"))]
 pub(super) fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
     q_l: &mut [F::E],
     f: &F,
 ) {
-    layer.linear.for_each(|Linear { g, l, k }| {
-        f.fma(&mut q_l[l as usize], &a[g as usize], &constants[k as usize]);
-    });
-    layer.linear_one.for_each(|LinearCoordinates { g, l }| {
-        f.add(&mut q_l[l as usize], &a[g as usize]);
-    });
-    assert_eq!(assertions.len(), layer.linear_assertions.num_terms());
+    layer
+        .linear
+        .for_each(&layer.linear_runs, |Linear { g, l, k }| {
+            f.fma(&mut q_l[l as usize], &a[g as usize], &constants[k as usize]);
+        });
+    layer
+        .linear_one
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
+            f.add(&mut q_l[l as usize], &a[g as usize]);
+        });
+    assert_eq!(assertions.len(), layer.assertion_counts()[1]);
     layer
         .linear_minus_one
-        .for_each(|LinearCoordinates { g, l }| {
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
             f.sub(&mut q_l[l as usize], &a[g as usize]);
         });
     let mut rho = assertions.iter();
     layer
         .linear_assertions
-        .for_each(|LinearCoordinates { g: _, l }| {
+        .for_each(&layer.linear_runs, |LinearCoordinates { g: _, l }| {
             f.add(&mut q_l[l as usize], rho.next().unwrap());
         });
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(super) fn weights_next<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
-    constants: &[F::E],
-    a: &[F::E],
-    assertions: &[F::E],
-    point: &[F::E],
-    alpha: &F::E,
-    f: &F,
-) -> Vec<F::E> {
-    weights_next_affine(layer, constants, a, assertions, point, alpha, f).0
-}
-
 /// a_next = m(u) + alpha*Q(u, .); the next claim subtracts alpha*L(u).
 pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -152,25 +148,29 @@ pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + Serializa
 ) -> (Vec<F::E>, F::E) {
     let mut weights = monomial::weights(layer.logw, layer.nw, point, f);
     let mut linear = f.zero();
-    layer.linear.for_each(|Linear { g, l, k }| {
-        let (a, m, k) = (&a[g as usize], &weights[l as usize], &constants[k as usize]);
-        f.fma(&mut linear, &f.mulf(a, k), m);
-    });
-    layer.linear_one.for_each(|LinearCoordinates { g, l }| {
-        f.fma(&mut linear, &a[g as usize], &weights[l as usize]);
-    });
-    let nq = layer.quadratic_assertions.num_terms();
-    assert_eq!(assertions.len(), nq + layer.linear_assertions.num_terms());
+    layer
+        .linear
+        .for_each(&layer.linear_runs, |Linear { g, l, k }| {
+            let (a, m, k) = (&a[g as usize], &weights[l as usize], &constants[k as usize]);
+            f.fma(&mut linear, &f.mulf(a, k), m);
+        });
+    layer
+        .linear_one
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
+            f.fma(&mut linear, &a[g as usize], &weights[l as usize]);
+        });
+    let nq = layer.assertion_counts()[0];
+    assert_eq!(assertions.len(), nq + layer.assertion_counts()[1]);
     let mut rho = assertions[nq..].iter();
     layer
         .linear_assertions
-        .for_each(|LinearCoordinates { g: _, l }| {
+        .for_each(&layer.linear_runs, |LinearCoordinates { g: _, l }| {
             f.fma(&mut linear, rho.next().unwrap(), &weights[l as usize]);
         });
     let q_r = bind_l(layer, constants, a, assertions, &weights, f);
     layer
         .linear_minus_one
-        .for_each(|LinearCoordinates { g, l }| {
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
             f.fnms(&mut linear, &a[g as usize], &weights[l as usize]);
         });
     blas::axpy(&mut weights, alpha, &q_r, f);
@@ -178,21 +178,25 @@ pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + Serializa
 }
 
 pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &Layer,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     f: &F,
 ) -> F::E {
     let mut constant = f.zero();
-    layer.constant.for_each(|Constant { g, k }| {
-        f.fma(&mut constant, &a[g as usize], &constants[k as usize]);
-    });
-    layer.constant_one.for_each(|ConstantCoordinates { g }| {
-        f.add(&mut constant, &a[g as usize]);
-    });
+    layer
+        .constant
+        .for_each(&layer.constant_runs, |Constant { g, k }| {
+            f.fma(&mut constant, &a[g as usize], &constants[k as usize]);
+        });
+    layer
+        .constant_one
+        .for_each(&layer.constant_runs, |ConstantCoordinates { g }| {
+            f.add(&mut constant, &a[g as usize]);
+        });
     layer
         .constant_minus_one
-        .for_each(|ConstantCoordinates { g }| {
+        .for_each(&layer.constant_runs, |ConstantCoordinates { g }| {
             f.sub(&mut constant, &a[g as usize]);
         });
     constant

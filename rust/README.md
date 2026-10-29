@@ -110,7 +110,7 @@ two attributes, including both the hash and signature proofs.
 | Version | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
 |---|---|---:|---:|---:|---:|---:|
 | Longfellow v1 | v7 | 467 ms | 196 ms | 360,428 bytes | 104.1 MiB | 45.1 MiB |
-| Longfellow v2 | NEXT v9 | 159 ms | 85 ms | 184,968 bytes | 42.5 MiB | 34.1 MiB |
+| Longfellow v2 | NEXT v9 | 167 ms | 88 ms | 185,576 bytes | 43.2 MiB | 34.5 MiB |
 
 The experimental ML-DSA verifier circuits use v2/Polygero separately from
 the mdoc application. These runs are outside the 117-bit two-field theorem
@@ -118,16 +118,18 @@ above.
 
 | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
 |---|---:|---:|---:|---:|---:|
-| ML-DSA-44 | 923 ms | 608 ms | 178,338 bytes | 114.8 MiB | 39.2 MiB |
-| ML-DSA-65 | 1,081 ms | 701 ms | 188,386 bytes | 121.9 MiB | 43.0 MiB |
+| ML-DSA-44 | 621 ms | 290 ms | 178,964 bytes | 101.4 MiB | 38.3 MiB |
+| ML-DSA-65 | 717 ms | 339 ms | 188,180 bytes | 106.4 MiB | 43.7 MiB |
 
-Measurements were rerun on 2026-10-26 using Rust 1.99.1 release builds
-with `target-cpu=native` on an AMD Ryzen 9 9950X with boost disabled.
-Benchmarks ran sequentially after builds and tests finished. The mdoc
-comparison uses compressed LFA2 archives. V1 timings are Criterion means
-from ten samples; v2 and ML-DSA timings are medians of three runs.
-The [run data](benches/results/2026-10-26.json) includes individual timings,
-exact heap counts, parameter profiles, and circuit/proof fingerprints.
+NEXT and ML-DSA measurements were rerun on 2026-10-29 using three-stream LFC3
+and a private per-layer split in sumcheck v2, Rust 1.99.1 release builds with
+`target-cpu=native` on an AMD Ryzen 9 9950X
+with boost disabled. Times are medians of seven samples after warmup, pinned to
+one CPU, after builds and tests finished. NEXT uses compressed LFA2 archives.
+The [current report](benches/results/2026-10-29-layer-split/README.md) includes
+raw/zstd sizes, decoded memory, term breakdowns, and all samples. The v1 row
+retains its 2026-10-26 Criterion mean from ten samples, recorded in the
+[historical run data](benches/results/2026-10-26.json).
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -236,7 +238,7 @@ packs these bits into GF128 elements; the P256 signature component keeps its
 field-valued input convention. Neither circuit contains a One wire.
 
 The LFA2 bundle contains the signature circuit, hash circuit, and an authenticated
-`hash-input` manifest. Both circuits use LFC3's eleven streams. Bundle and cache
+`hash-input` manifest. Both circuits use LFC3's three streams. Bundle and cache
 creation verify payload IDs; runtime invocations validate the manifest and declared
 identities under the existing trusted-archive contract. The hash circuit checks
 its MAC equations on reconstructed bit inputs.
@@ -400,11 +402,17 @@ See [LICENSE](../LICENSE) for details.
 
 `compile_v1` preserves the historical compiler, input convention and LFC1/LFC2
 encoding used by frozen v5–v7 circuits. `compile_v2` emits native v2
-[LFC3](core/proto/LFC3.md) circuits with eleven independently compressed streams
+[LFC3](core/proto/LFC3.md) circuits with three independently compressed streams
 per layer and no One wire. Both circuit formats fit inside the existing LFA2
 archive container. Shared compiler/circuit tests use LFC3; dedicated v1
 compatibility tests retain legacy fixtures and byte hashes.
 
-The coefficient-policy API supports the recorded
-[class ablation](benches/results/2026-10-29-class-ablation/README.md).
-Benchmarks print term counts by degree and coefficient class.
+Sumcheck v2 privately splits each layer's stored segments into eleven working
+streams once, using coefficient indices 0, 1 and 2. Bindings traverse each class
+independently. Source circuits remain read-only; token arrays are borrowed and
+repeated segments are not expanded.
+
+The earlier [class ablation](benches/results/2026-10-29-class-ablation/README.md)
+records the retired eleven-stream implementation. Current LFC3 has three streams
+and implicit coefficient slots 0, 1 and 2 for 0, 1 and -1.
+Benchmarks print quadratic, linear and constant counts, including assertion and coefficient-value breakdowns.

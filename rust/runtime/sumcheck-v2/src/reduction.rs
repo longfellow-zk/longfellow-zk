@@ -96,13 +96,13 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     transcript: &mut Transcript,
     f: &F,
 ) -> (LayerChallenges<F::E>, Vec<F::E>) {
-    let circuit_layer = &circuit.raw.layers[layer_index];
+    let split = super::split::SplitLayer::new(&circuit.raw.layers[layer_index]);
     let constants = &circuit.raw.constants;
-    assert!(circuit_layer.nw() > 0, "sumcheck layer must contain a wire");
-    let assertions = assertion_weights(circuit_layer, constants, layer_index, transcript, f);
+    assert!(split.nw > 0, "sumcheck layer must contain a wire");
+    let assertions = assertion_weights(&split, layer_index, transcript, f);
 
     // Each coefficient pair is absorbed before its challenge is sampled.
-    let mut point_l = Vec::with_capacity(circuit_layer.logw());
+    let mut point_l = Vec::with_capacity(split.logw);
     for m in &proof.rounds {
         point_l.push(round_challenge(m, transcript, f));
     }
@@ -111,16 +111,9 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 
     // The next claim is A + alpha*(B - L(u)). Its weights use only Q;
     // the symbolic builder subtracts the public linear correction separately.
-    let constant = super::quad::affine_constant(circuit_layer, constants, a, f);
-    let (a_next, linear) = weights_next_affine(
-        circuit_layer,
-        constants,
-        a,
-        &assertions,
-        &point_l,
-        &alpha,
-        f,
-    );
+    let constant = super::quad::affine_constant(&split, constants, a, f);
+    let (a_next, linear) =
+        weights_next_affine(&split, constants, a, &assertions, &point_l, &alpha, f);
     (
         LayerChallenges {
             point_l,

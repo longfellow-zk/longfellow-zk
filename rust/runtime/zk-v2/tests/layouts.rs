@@ -339,6 +339,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert_eq!(decoded.id, circuit.id);
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
                 let decoded = crate::core::proto::v2::quadratic_fixture(decoded, &f);
+                let native_id = decoded.id;
                 let original_storage = format!("{:?}", decoded.raw.layers);
                 let prover = ZkProver::new_full_field(decoded, config);
                 let mut rng = SimpleRng { state: 42 };
@@ -361,7 +362,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     expected_proof = Some(proof_bytes.clone());
                 }
                 // Proving must not change storage, segmentation, or ID.
-                assert_eq!(prover.circuit.id, circuit.id);
+                assert_eq!(prover.circuit.id, native_id);
                 assert_eq!(format!("{:?}", prover.circuit.raw.layers), original_storage);
                 let mut verifier =
                     ZkVerifier::new_full_field(prover.circuit, config, &context).unwrap();
