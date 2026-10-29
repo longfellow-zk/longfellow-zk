@@ -6,7 +6,7 @@ index 5977a33..b448e93 100644
  bench-profile = []
  # Opt-in arithmetic and circuits under development; never enabled by default.
  experimental = []
-+degree-separated = []
++v2 = []
  # Offline audits and specification generation; never a proof-role dependency.
  tooling = ["compiler", "experimental", "dep:serde_json"]
  
@@ -47,7 +47,7 @@ index 245d0ba..4af6e49 100644
      let instance = ConcreteInstance::<P>::new(public_key, signature, message, context)
          .ok_or("invalid MLDSA instance")?;
 -    let mut inputs = vec![field.one()];
-+    let mut inputs = if cfg!(feature = "degree-separated") {
++    let mut inputs = if cfg!(feature = "v2") {
 +        Vec::new()
 +    } else {
 +        vec![field.one()]
@@ -60,7 +60,7 @@ index 245d0ba..4af6e49 100644
  ) -> BenchResult<Vec<RuntimeElement>> {
      let key = decode_public_key::<P>(bytes).ok_or("invalid MLDSA public key")?;
 -    let mut inputs = vec![field.one()];
-+    let mut inputs = if cfg!(feature = "degree-separated") {
++    let mut inputs = if cfg!(feature = "v2") {
 +        Vec::new()
 +    } else {
 +        vec![field.one()]
@@ -72,10 +72,10 @@ index 245d0ba..4af6e49 100644
                  None,
              )
          } else {
-+            #[cfg(not(feature = "degree-separated"))]
++            #[cfg(not(feature = "v2"))]
              let (compiled, geometry, _) = support::compile_verifier::<P>(&compile_field, true);
-+            #[cfg(feature = "degree-separated")]
-+            let (compiled, geometry, _) = support::compile_degree_verifier::<P>(&compile_field);
++            #[cfg(feature = "v2")]
++            let (compiled, geometry, _) = support::compile_v2_verifier::<P>(&compile_field);
              let segmented = compile::compiler::segment_circuit(&compile_field, &compiled);
              let bytes = core::proto::writer::CircuitWriter::new(&compile_field, FieldID::None)
                  .to_bytes_lfc2(&segmented);

@@ -29,7 +29,6 @@ pub struct WireAllocator<'l, 'a, FC: CompileField> {
     pub bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
     pub pos: usize,
     boolean_inputs: bool,
-    pub(super) field_input_ranges: Vec<std::ops::Range<usize>>,
 }
 
 impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
@@ -43,11 +42,9 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
             bitvec_io,
             pos,
             boolean_inputs: false,
-            field_input_ranges: Vec::new(),
         }
     }
 
-    #[cfg(feature = "experimental")]
     pub(super) fn new_boolean(
         iologic: &'l CompilerLogic<'a, FC>,
         bitvec_io: &'l BitvecIO<'l, CompilerLogic<'a, FC>>,
@@ -58,7 +55,6 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
             bitvec_io,
             pos,
             boolean_inputs: true,
-            field_input_ranges: Vec::new(),
         }
     }
     pub fn allocate_wire(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
@@ -69,7 +65,6 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         if !self.boolean_inputs {
             return self.allocate_wire();
         }
-        let start = self.pos;
         let terms = (0..128)
             .map(|i| {
                 let bit = self.allocate_wire();
@@ -77,7 +72,6 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
                     .mulk(&self.iologic.field().pseudo_basis(i), &bit)
             })
             .collect::<Vec<_>>();
-        self.field_input_ranges.push(start..self.pos);
         self.iologic.sum(&terms)
     }
 

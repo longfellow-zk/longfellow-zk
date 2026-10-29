@@ -81,7 +81,7 @@ pub(crate) fn prove_core<
 >(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
@@ -98,7 +98,7 @@ pub(super) trait ProverKernel<
     fn bind_r(
         &self,
         index: usize,
-        layer: &crate::core::proto::Layer<F>,
+        layer: &crate::core::proto::v2::Layer,
         constants: &[F::E],
         a: &[F::E],
         assertions: &[F::E],
@@ -124,7 +124,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling> 
     fn bind_r(
         &self,
         _: usize,
-        layer: &crate::core::proto::Layer<F>,
+        layer: &crate::core::proto::v2::Layer,
         constants: &[F::E],
         a: &[F::E],
         assertions: &[F::E],
@@ -154,7 +154,7 @@ pub(super) fn prove_core_with_kernel<
 >(
     witnesses: I,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
     kernel: &K,
@@ -211,7 +211,7 @@ fn layer<
     layer_index: usize,
     w: Vec<F::E>,
     pads: &LayerProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     a: &[F::E],
     claim: F::E,
     transcript: &mut Transcript,
@@ -228,9 +228,9 @@ fn layer<
     let claim = f.subf(&claim, &constant);
     let (proof, mut challenges, mut claim_next) =
         kernel.dot_product(layer_index, w, q_l, pads, claim, transcript, f);
-    // For LFD2, B also contains public L(u). Subtract alpha*L(u) from
+    // B also contains public L(u). Subtract alpha*L(u) from
     // A + alpha*B to obtain the weighted claim on the next layer's inputs.
-    let (a_next, _, linear) = weights_next_affine(
+    let (a_next, linear) = weights_next_affine(
         circuit_layer,
         constants,
         a,
@@ -477,7 +477,7 @@ pub(crate) fn sample_pads<
 pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {

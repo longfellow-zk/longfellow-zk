@@ -3,7 +3,7 @@
 use core::fmt;
 
 use crate::{
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, IdentityExtension, PackingExtension, PackingField, ZkField},
         polygero::PolygeroConfig,
@@ -76,14 +76,6 @@ impl<const W: usize, F: ZkField<W>, X: PackingExtension<Ambient = F>> ZkVerifier
                 expected: self.public_input_count(),
                 actual: public.len(),
             });
-        }
-        if !self.circuit.raw.layers.iter().any(|l| l.affine().is_some())
-            && self.commitment.backend.layout.degree > 1
-            && public.first() != Some(&ctx.f.one())
-        {
-            return Err(ZkVerificationError::InvalidSumcheck(
-                "reserved One must equal one".into(),
-            ));
         }
         proof
             .sumcheck_proof

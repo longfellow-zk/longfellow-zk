@@ -14,16 +14,9 @@
 
 //! Version-neutral reporting of circuit geometry; no compilation policy.
 
-use crate::{
-    compile::algebra::field::CompileField,
-    core::proto::circuit::{Circuit, CircuitGeometry},
-};
+use crate::core::proto::circuit::CircuitGeometry;
 
-pub fn dump_stats<F: CompileField + crate::core::algebra::SerializableField>(
-    name: &str,
-    _circuit: &Circuit<F>,
-    info: &CircuitGeometry,
-) {
+pub fn dump_stats<C>(name: &str, _circuit: &C, info: &CircuitGeometry) {
     println!(
         "{}: nin:{} pubin:{} nout:{} w:{} w+in:{} t:{} l:{} assertions:{}",
         name,

@@ -21,21 +21,11 @@
 use crate::mdoc::runtime::{v1, v2};
 mod cache_v2;
 mod next_v2;
-#[cfg(feature = "experimental")]
-mod packed_v9;
-pub use cache_v2::{read_next, write_next};
-pub use next_v2::compile_next;
-#[cfg(feature = "experimental")]
-pub use packed_v9::{
-    compile_packed_v9, compile_packed_v9_variant, read_packed_v9, write_packed_v9,
-};
+pub use cache_v2::{read_next, read_next_file, write_next, write_next_file};
+pub use next_v2::{compile_next, compile_next_with_classes};
 
 /// Explicit selection keeps development compilation distinct from frozen lookup.
 pub enum CircuitRequest {
-    #[cfg(feature = "experimental")]
-    PackedV9 {
-        num_attributes: usize,
-    },
     FrozenV1 {
         version: usize,
         num_attributes: usize,
@@ -51,8 +41,6 @@ pub enum CircuitRequest {
 
 /// The system remains explicit; each variant has its own spec and proof API.
 pub enum ProvidedCircuit {
-    #[cfg(feature = "experimental")]
-    PackedV9(v2::packed_v9::provider::ProvidedCircuit),
     V1(v1::provider::ProvidedCircuit),
     V2(v2::provider::ProvidedCircuit),
 }
@@ -60,10 +48,6 @@ pub enum ProvidedCircuit {
 /// Delegate frozen requests; compile explicit NEXT or experimental versioned requests.
 pub fn materialize(request: CircuitRequest) -> Result<ProvidedCircuit, String> {
     match request {
-        #[cfg(feature = "experimental")]
-        CircuitRequest::PackedV9 { num_attributes } => {
-            compile_packed_v9(num_attributes).map(ProvidedCircuit::PackedV9)
-        }
         CircuitRequest::FrozenV1 {
             version,
             num_attributes,

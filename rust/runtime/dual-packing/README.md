@@ -123,7 +123,7 @@ mdoc continues to use GF2 coordinates.
 accepts an admissible basis, computes its coordinate transform and trace-dual
 basis, and rejects singular choices or an invalid distinguished coordinate.
 Relative trace is a Frobenius sum, with no
-normalization by the extension degree, including when the characteristic
+normalization by the extension v2, including when the characteristic
 divides that degree. Construction is preprocessing and can be reused.
 
 `generic::{SourceClaim, Affine, PackingMasks, PackingProof, NativeEquation}`

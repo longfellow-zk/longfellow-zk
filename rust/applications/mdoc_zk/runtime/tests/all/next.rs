@@ -990,13 +990,13 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
             &p256,
             crate::core::proto::FieldID::P256,
         )
-        .from_bytes(&sig_entry.payload, true)
+        .from_bytes_lfc3(&sig_entry.payload, true)
         .unwrap();
         let (hash, hash_tail) = crate::core::proto::reader::CircuitReader::new(
             &gf2,
             crate::core::proto::FieldID::Gf2_128,
         )
-        .from_bytes(&hash_entry.payload, true)
+        .from_bytes_lfc3(&hash_entry.payload, true)
         .unwrap();
         assert!(sig_tail.is_empty() && hash_tail.is_empty());
         assert_eq!(sig.id, sig_entry.circuit_id);
@@ -1062,7 +1062,7 @@ fn expected_parameters<
     D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
     SF: crate::runtime::algebra::SubfieldV1<E = F::E>,
 >(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     domain: &D,
     f: &F,
     _sf: &SF,

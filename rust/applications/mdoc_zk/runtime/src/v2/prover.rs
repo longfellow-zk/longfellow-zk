@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Longfellow v2 application prover.
+//! NEXT v9 application prover with a direct-field signature proof.
 
 use super::{
     inputs::{
-        public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash, push_witness_sig,
+        public_inputs_fit, push_input_hash_boolean, push_input_sig, push_witness_hash_boolean,
+        push_witness_sig,
     },
     proto::{MdocProof, MdocProofGeometry},
     ZkSpecStruct,
@@ -26,7 +27,6 @@ use crate::{
         circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
         runtime::v2::{
             attribute::{circuit_supports, same_namespace},
-            circuits::for_spec,
             key::parse_pk_coordinate,
             mac::{generate_mac_ap, push_macs},
             MdocProverErrorCode, RequestedAttribute,
@@ -87,6 +87,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     doc_type: &str,
     rng: &mut RNG,
 ) -> Result<Vec<u8>, MdocProverErrorCode> {
+    #[cfg(feature = "bench-profile")]
+    let mut profile = crate::util::profile::Timer::new("app.prover.setup_and_witness");
     if !zk_spec.supports_version() {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
@@ -115,6 +117,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let mac_ap = generate_mac_ap(rng);
 
     let mut tp = Transcript::new(transcript);
+    tp.write_bytes(b"mdoc/v9/statement/v1");
+    tp.write_bytes(&zk_spec.combined_hash);
     let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -130,7 +134,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
 
-    let (c_sig, c_hash) = for_spec(zk_spec, circuits_compressed, &p256, &gf2)
+    let (c_sig, c_hash) = super::provider::load_trusted(zk_spec, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
     let parsed: ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>> =
@@ -145,10 +149,24 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         }
     }
 
-    let witness_hash = push_witness_hash(&gf2, attrs, &parsed, &mac_ap)?;
+    let witness_hash = push_witness_hash_boolean(&gf2, attrs, &parsed, &mac_ap)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
+    // Validate the bit-input lengths before the MAC public inputs are sampled.
+    let placeholder_public = push_input_hash_boolean(
+        &gf2,
+        attrs,
+        now.as_bytes(),
+        &[0; 6],
+        0,
+        false,
+        doc_type.as_bytes(),
+    );
+    zk_spec
+        .manifest
+        .validate_witness(&placeholder_public, &witness_hash)
+        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let context_hash = ZkContext {
         f: &gf2,
@@ -159,16 +177,22 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         domain: &make_interpolator_sig,
     };
 
-    let prover_hash = ZkProver::<2, _>::new_full_field(c_hash, config_hash);
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.hash_commit");
+    let prover_hash = crate::runtime::zk_v2::ZkProver::new(c_hash, config_hash);
+    let private_hash = witness_hash;
     let (commit_hash, geom_hash) = prover_hash
-        .commit(witness_hash, &context_hash, &mut tp, rng)
+        .commit(private_hash, &context_hash, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.signature_commit");
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig
         .commit(witness_sig, &context_sig, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.public_statement");
     let av_val = tp.u128();
 
     let macs = push_macs(
@@ -177,7 +201,10 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         av_val,
         &mac_ap,
     );
-    let hash_pub_inputs = push_input_hash(
+    let sig_pub_inputs =
+        push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
+
+    let hash_pub_inputs = push_input_hash_boolean(
         &gf2,
         attrs,
         now.as_bytes(),
@@ -186,17 +213,20 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         false,
         doc_type.as_bytes(),
     );
-    let sig_pub_inputs =
-        push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
-
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.hash_proof");
     let proof_hash = prover_hash
         .prove(&hash_pub_inputs, commit_hash, &mut tp, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.signature_proof");
     let proof_sig = prover_sig
         .prove(&sig_pub_inputs, commit_sig, &mut tp, &context_sig)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
+    #[cfg(feature = "bench-profile")]
+    profile.next("app.prover.encoding_and_cleanup");
     let geom = MdocProofGeometry {
         geom_hash,
         geom_sig,

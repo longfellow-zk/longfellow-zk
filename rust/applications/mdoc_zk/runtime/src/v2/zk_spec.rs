@@ -19,7 +19,7 @@
 
 use crate::runtime::polygero::PolygeroConfig;
 pub const SYSTEM_ID: &str = "longfellow-libzk-v2";
-pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[8];
+pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[9];
 
 /// Independent Polygero choices, fixed for the circuit supplied with this spec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +56,7 @@ pub struct ZkSpecStruct {
     pub combined_hash: [u8; 32],
     pub num_attributes: usize,
     pub version: usize,
+    pub manifest: crate::mdoc::proto::packed::HashInputManifest,
     pub polygero_hash: PolygeroParameters,
     pub polygero_sig: PolygeroParameters,
 }
@@ -64,6 +65,8 @@ impl ZkSpecStruct {
     #[must_use]
     pub fn supports_version(&self) -> bool {
         is_supported_version(self.version)
+            && (1..=4).contains(&self.num_attributes)
+            && self.manifest.validate().is_ok()
     }
     #[must_use]
     pub const fn configs(&self) -> (PolygeroConfig, PolygeroConfig) {

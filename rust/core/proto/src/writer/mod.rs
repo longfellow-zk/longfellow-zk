@@ -14,6 +14,7 @@
 
 pub mod lfc1;
 pub mod lfc2;
+mod lfc3;
 
 use super::{FieldID, SerializableField};
 use crate::core::proto::circuit::Circuit;
@@ -48,6 +49,18 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
     #[must_use]
     pub fn to_bytes_lfc2(&self, sc_c: &Circuit<F>) -> Vec<u8> {
         lfc2::to_bytes_lfc2(self, sc_c)
+    }
+
+    /// Write a native LFC3 circuit. Historical imports retain their original IDs;
+    /// recompute the LFC3 identity before converting such a circuit.
+    #[must_use]
+    pub fn to_bytes_v2(&self, circuit: &crate::core::proto::v2::Circuit<F>) -> Vec<u8> {
+        self.to_bytes_lfc3(circuit)
+    }
+
+    #[must_use]
+    pub fn to_bytes_lfc3(&self, circuit: &crate::core::proto::v2::Circuit<F>) -> Vec<u8> {
+        lfc3::to_bytes(self, circuit)
     }
 
     pub(super) fn serialize_elt(&self, bytes: &mut Vec<u8>, v: &F::E) {

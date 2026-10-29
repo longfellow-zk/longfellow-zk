@@ -22,18 +22,18 @@ pub type DigestBytes = [u8; 32];
 
 pub use crate::core::proto::layer::{canonical_term, compare_term, Layer, Term, TermDelta};
 
-pub struct RawCircuit<F: SerializableField> {
+pub struct RawCircuit<F: SerializableField, L = Layer<F>> {
     pub ninput: usize,
     pub npublic_input: usize,
     pub noutput: usize,
     pub logv: usize,
     pub subfield_boundary: usize,
     pub constants: Vec<F::E>,
-    pub layers: Vec<Layer<F>>,
+    pub layers: Vec<L>,
 }
 
-pub struct Circuit<F: SerializableField> {
-    pub raw: RawCircuit<F>,
+pub struct Circuit<F: SerializableField, L = Layer<F>> {
+    pub raw: RawCircuit<F, L>,
     pub id: DigestBytes,
 }
 impl<F: SerializableField> Circuit<F> {
@@ -47,6 +47,7 @@ impl<F: SerializableField> Circuit<F> {
                 if let Some(c) = stream.coefficients() {
                     counts[degree][0] += c.assertions.num_terms();
                     counts[degree][1] += c.units.num_terms();
+                    counts[degree][2] += c.negatives.num_terms();
                     stream.for_each_delta_index(|_| counts[degree][2] += 1);
                 } else {
                     stream.for_each_general_term(&self.raw.constants, |t| {
@@ -71,7 +72,9 @@ impl<F: SerializableField> Circuit<F> {
             + self.raw.layers.capacity() * std::mem::size_of::<Layer<F>>()
             + self.raw.layers.iter().map(Layer::heap_bytes).sum::<usize>()
     }
+}
 
+impl<F: SerializableField, L> Circuit<F, L> {
     /// V1 file metadata remains readable; V2 commits ambient-field cells only.
     pub fn validate_v2(&self) -> Result<(), String> {
         if self.raw.subfield_boundary != 0 {
@@ -86,14 +89,7 @@ fn update8(hasher: &mut Sha256, val: usize) {
 }
 
 pub fn compute_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestBytes {
-    if raw.layers.iter().any(|l| l.coefficients().is_some()) {
-        return compute_coefficient_id(f, raw);
-    }
     let mut hasher = Sha256::new();
-    if raw.layers.iter().any(|l| l.affine().is_some()) {
-        hasher.update(b"LFD2-degree-streams-v1");
-    }
-
     if f.is_binary() {
         hasher.update(2u64.to_le_bytes());
         hasher.update(((f.serialized_size_bytes() * 8) as u64).to_le_bytes());
@@ -168,21 +164,6 @@ pub fn compute_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestByt
         hasher.update(&buf[..buf_len]);
     }
 
-    for layer in &raw.layers {
-        if let Some(streams) = layer.affine() {
-            for (index, stream) in streams.iter().enumerate() {
-                update8(&mut hasher, index + 1);
-                update8(&mut hasher, stream.num_terms());
-                stream.for_each_term(&raw.constants, |t| {
-                    update8(&mut hasher, t.g as usize);
-                    if index == 0 {
-                        update8(&mut hasher, t.h0 as usize);
-                    }
-                    hasher.update(f.to_bytes(&t.k));
-                });
-            }
-        }
-    }
     let result = hasher.finalize();
     let mut digest = [0u8; 32];
     digest.copy_from_slice(&result);
@@ -236,73 +217,4 @@ pub struct CircuitGeometry {
     pub nterms: usize,
     pub nlayers: usize,
     pub nassertions: usize,
-}
-
-fn compute_coefficient_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestBytes {
-    let mut h = Sha256::new();
-    h.update(if raw.layers.iter().any(|l| l.has_linear_assertions()) {
-        b"LFD4-coefficient-streams-v1"
-    } else {
-        b"LFD3-coefficient-streams-v1"
-    });
-    update8(&mut h, usize::from(f.is_binary()));
-    update8(&mut h, f.serialized_size_bytes());
-    h.update(f.serialized_mone());
-    for n in [
-        raw.noutput,
-        raw.logv,
-        raw.ninput,
-        raw.npublic_input,
-        raw.subfield_boundary,
-        raw.layers.len(),
-    ] {
-        update8(&mut h, n);
-    }
-    for layer in &raw.layers {
-        update8(&mut h, layer.nw());
-        update8(&mut h, layer.logw());
-        for (degree, s) in layer.streams().enumerate() {
-            let c = s.coefficients().expect("mixed coefficient formats");
-            update8(&mut h, degree);
-            update8(
-                &mut h,
-                s.num_terms()
-                    - c.units.num_terms()
-                    - c.assertions.num_terms()
-                    - s.affine()
-                        .map_or(0, |a| a.iter().map(Layer::num_terms).sum()),
-            );
-            s.for_each_general_term(&raw.constants, |t| {
-                update8(&mut h, t.g as usize);
-                if degree < 2 {
-                    update8(&mut h, t.h0 as usize);
-                }
-                if degree == 0 {
-                    update8(&mut h, t.h1 as usize);
-                }
-                h.update(f.to_bytes(&t.k));
-            });
-            update8(&mut h, c.units.num_terms());
-            c.units.for_each(|g, l, r| {
-                update8(&mut h, g as usize);
-                if degree < 2 {
-                    update8(&mut h, l as usize);
-                }
-                if degree == 0 {
-                    update8(&mut h, r as usize);
-                }
-            });
-            update8(&mut h, c.assertions.num_terms());
-            c.assertions.for_each(|g, l, r| {
-                update8(&mut h, g as usize);
-                if degree < 2 {
-                    update8(&mut h, l as usize);
-                }
-                if degree == 0 {
-                    update8(&mut h, r as usize);
-                }
-            });
-        }
-    }
-    h.finalize().into()
 }

@@ -14,7 +14,6 @@
 
 //! Development selection and cache round trips are independent of frozen publication.
 use super::*;
-use crate::core::proto::archive::CircuitArchiveBuilder;
 
 #[test]
 fn frozen_requests_delegate_and_never_compile_next() {
@@ -58,32 +57,10 @@ fn next_compilation_is_reproducible_and_unregistered() {
 
 #[test]
 fn next_cache_preserves_the_complete_spec() {
-    use crate::mdoc::runtime::v2::{PolygeroParameters, ZkSpecStruct};
-    let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
-    builder.add_entry("sig", [1; 32], vec![1]);
-    builder.add_entry("hash", [2; 32], vec![2]);
-    let archive = builder.build();
-    // Deliberately different choices from NEXT's policy: loading must not retune them.
-    let spec = ZkSpecStruct {
-        combined_hash: archive.combined_id,
-        version: crate::mdoc::circuits::NEXT_VERSION,
-        num_attributes: 3,
-        polygero_hash: PolygeroParameters {
-            k: 512,
-            n: 3584,
-            s: 19,
-            t: 90,
-        },
-        polygero_sig: PolygeroParameters {
-            k: 416,
-            n: 2912,
-            s: 16,
-            t: 89,
-        },
-    };
-    let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
-    let provided = v2::provider::from_compressed(spec, compressed).unwrap();
+    let original = compile_next(3).unwrap();
+    let mut spec = *original.spec();
+    spec.polygero_hash.s += 1;
+    let provided = v2::provider::from_compressed(spec, original.compressed().to_vec()).unwrap();
     let mut bytes = Vec::new();
     write_next(&mut bytes, &provided).unwrap();
     let restored = read_next(bytes.as_slice()).unwrap();

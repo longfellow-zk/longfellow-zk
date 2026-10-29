@@ -32,8 +32,8 @@ fn check<P: MlDsaParams>(example: &[Vec<u8>]) {
     assert_eq!(instance.mu.as_slice(), example[3]);
     let cf = CompileFp24Ext6::new();
     let rf = RuntimeFp24Ext6::new();
-    let (circuit, _, symbols) = support::compile_verifier::<P>(&cf, super::V2);
-    let segmented = crate::compile::compiler::segment_circuit(&cf, &circuit);
+    let (circuit, _, symbols) = support::compile_verifier::<P>(&cf);
+    let segmented = crate::compile::compiler::segment_circuit_v2(&cf, &circuit);
     let mut inputs = crate::compile::eval::initial_inputs(&rf);
     instance.push_wires(&rf, &mut inputs);
     crate::compile::eval::eval_circuit_fc(&cf, &rf, &segmented, &symbols, &inputs, FieldID::None)

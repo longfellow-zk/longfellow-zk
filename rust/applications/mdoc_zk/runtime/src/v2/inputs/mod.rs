@@ -16,20 +16,17 @@
 
 mod builder;
 mod public;
-pub(super) use public::{public_inputs_fit, push_input_hash, push_input_sig};
+pub(super) use public::{public_inputs_fit, push_input_sig};
 
 cfg_prover! {
     mod private;
-    pub(super) use private::{push_witness_hash, push_witness_sig};
+    pub(super) use private::push_witness_sig;
 }
 
 #[cfg(test)]
 #[path = "../../../tests/v2_inputs.rs"]
 mod tests;
 
-#[cfg(all(feature = "experimental", any(test, feature = "prover")))]
+#[cfg(any(test, feature = "prover"))]
 pub(super) use private::push_witness_hash_boolean;
-#[cfg(feature = "experimental")]
 pub(super) use public::push_input_hash_boolean;
-#[cfg(feature = "degree-separated")]
-pub(super) use public::push_input_sig_no_one;

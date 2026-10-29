@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Degree-separated streams must prove the same polynomial without a One wire.
+//! V2 streams must prove the same polynomial without a One wire.
 use crate::{
     core::{
         algebra::{SerializableField, SupportsU64Conversions},
@@ -63,20 +63,22 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         id: compute_id(f, &raw),
         raw,
     };
-    let bytes = CircuitWriter::new(f, FieldID::None).to_bytes_lfc2(&circuit);
-    assert_eq!(&bytes[..4], b"LFD2");
+    let mut circuit = circuit.into_v2(f).unwrap();
+    circuit.id = crate::core::proto::v2::compute_id(f, &circuit.raw, circuit.coefficient_classes);
+    let bytes = CircuitWriter::new(f, FieldID::None).to_bytes_lfc3(&circuit);
+    assert_eq!(&bytes[..4], b"LFC3");
     let (circuit, tail) = CircuitReader::new(f, FieldID::None)
-        .from_bytes_lfc2(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     assert!(tail.is_empty());
     assert_eq!(circuit.raw.layers[0].num_terms(), 4);
     assert!(CircuitReader::new(f, FieldID::None)
         .with_total_term_limit(3)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .is_err());
     for i in 0..bytes.len() {
         assert!(CircuitReader::new(f, FieldID::None)
-            .from_bytes(&bytes[..i], true)
+            .from_bytes_v2(&bytes[..i], true)
             .is_err());
     }
     let mut rng = DeterministicRng::new(42);
@@ -119,24 +121,23 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     let last = corrupted.len() - 1;
     corrupted[last] ^= 1;
     assert!(CircuitReader::new(f, FieldID::None)
-        .from_bytes(&corrupted, true)
+        .from_bytes_v2(&corrupted, true)
         .is_err());
 }
 #[test]
-fn degree_streams_prime() {
+fn v2_streams_prime() {
     check(&crate::runtime::algebra::p256::P256Field::new());
 }
 #[test]
-fn degree_streams_binary() {
+fn v2_streams_binary() {
     check(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
 }
 
-#[cfg(feature = "degree-separated")]
 #[test]
-fn degree_compiler_removes_one_and_evaluates_multiple_layers() {
+fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
     use crate::{
         compile::{
-            compiler::{compile_degree_separated as compile_v2, segment_circuit},
+            compiler::{compile_v2, segment_circuit_v2},
             logic::{Logic, LogicIO},
         },
         runtime::algebra::p256::P256Field,
@@ -152,12 +153,12 @@ fn degree_compiler_removes_one_and_evaluates_multiple_layers() {
     });
     assert_eq!(geometry.ninput, 3);
     assert_eq!(geometry.npublic_input, 1);
-    assert!(c.raw.layers.iter().all(|l| l.affine().is_some()));
-    let c = segment_circuit(&cf, &c);
+    assert_eq!(c.raw.layers.len(), geometry.nlayers);
+    let c = segment_circuit_v2(&cf, &c);
     let f = P256Field::new();
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc2(&c);
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc3(&c);
     let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     let inputs = vec![
         f.u64_to_element(2),
@@ -171,7 +172,7 @@ fn degree_compiler_removes_one_and_evaluates_multiple_layers() {
         witnesses,
         &pads,
         &c,
-        &mut Transcript::new(b"degree-compiler"),
+        &mut Transcript::new(b"v2-compiler"),
         &f,
     );
     verify(
@@ -179,14 +180,14 @@ fn degree_compiler_removes_one_and_evaluates_multiple_layers() {
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"degree-compiler"),
+        &mut Transcript::new(b"v2-compiler"),
         &f,
     )
     .unwrap();
 }
 
 #[test]
-fn degree_scalar_linear_layer_has_no_rounds_or_one_input() {
+fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
     use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
     let f = P256Field::new();
     let raw = RawCircuit {
@@ -204,56 +205,72 @@ fn degree_scalar_linear_layer_has_no_rounds_or_one_input() {
         id: compute_id(&f, &raw),
         raw,
     };
+    let c = c.into_v2(&f).unwrap();
     let inputs = vec![f.neg(&f.u64_to_element(9))];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(38);
     let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, &f);
-    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"degree-scalar"), &f);
+    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"v2-scalar"), &f);
     assert!(proof.layers[0].rounds.is_empty());
     verify(
         inputs,
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"degree-scalar"),
+        &mut Transcript::new(b"v2-scalar"),
         &f,
     )
     .unwrap();
 }
 
 #[test]
-fn degree_reader_rejects_affine_assertions_and_indices() {
-    use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
+fn v2_reader_rejects_general_zero_and_invalid_indices() {
+    use crate::{
+        core::{
+            algebra::AlgebraicField,
+            proto::{
+                fixed::CoefficientClasses,
+                v2::{self, Linear, Stream},
+            },
+        },
+        runtime::algebra::p256::P256Field,
+    };
     let f = P256Field::new();
-    for (g, h, k) in [(0, 3, 0), (1, 0, 0), (0, 0, 1)] {
-        let raw = RawCircuit {
+    for (g, l, k) in [(0, 3, 0), (1, 0, 0), (0, 0, 1)] {
+        let raw = v2::RawCircuit {
             ninput: 3,
             npublic_input: 0,
             noutput: 1,
             logv: 0,
             subfield_boundary: 0,
             constants: vec![f.one(), f.zero()],
-            layers: vec![stream(3, &[]).with_affine(stream(3, &[(g, h, 0, k)]), stream(3, &[]))],
+            layers: vec![v2::Layer {
+                nw: 3,
+                logw: 2,
+                linear: Stream::<Linear>::from_terms([Linear { g, l, k }]),
+                ..Default::default()
+            }],
         };
-        let c = Circuit {
-            id: compute_id(&f, &raw),
+        let coefficient_classes = CoefficientClasses::ASSERTIONS;
+        let c = v2::Circuit {
+            id: v2::compute_id(&f, &raw, coefficient_classes),
             raw,
+            coefficient_classes,
         };
-        let bytes = CircuitWriter::new(&f, FieldID::P256).to_bytes_lfc2(&c);
+        let bytes = CircuitWriter::new(&f, FieldID::P256).to_bytes_lfc3(&c);
         assert!(CircuitReader::new(&f, FieldID::P256)
-            .from_bytes(&bytes, true)
+            .from_bytes_v2(&bytes, true)
             .is_err());
     }
 }
 
-#[cfg(feature = "coefficient-separated")]
 fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
 where
     FC: crate::compile::algebra::field::CompileField + SerializableField + Clone,
     FR: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::compile::{
-        compiler::{compile_degree_separated, segment_circuit},
+        compiler::{compile_v2, segment_circuit_v2},
         logic::{Logic, LogicIO},
     };
     let scalar = |n: u8| {
@@ -261,7 +278,7 @@ where
         bytes[0] = n;
         cf.bytes_to_element(&bytes).unwrap()
     };
-    let (c, _, _) = compile_degree_separated(cf, |logic| {
+    let (c, _, _) = compile_v2(cf, |logic| {
         let x = logic.input(1);
         let y = logic.input(2);
         let target = logic.input(3);
@@ -282,24 +299,15 @@ where
             0,
         )
     });
-    assert!(c
-        .raw
-        .layers
-        .iter()
-        .flat_map(Layer::streams)
-        .all(|s| s.coefficients().is_some()));
-    let c = segment_circuit(cf, &c);
-    let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes_lfc2(&c);
     assert_eq!(
-        &bytes[..4],
-        if cfg!(feature = "assertion-separated") {
-            b"LFD4"
-        } else {
-            b"LFD3"
-        }
+        c.coefficient_classes,
+        crate::core::proto::fixed::CoefficientClasses::ALL.for_field(cf.is_binary())
     );
+    let c = segment_circuit_v2(cf, &c);
+    let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes_lfc3(&c);
+    assert_eq!(&bytes[..4], b"LFC3");
     let (c, rest) = CircuitReader::new(f, FieldID::None)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     assert!(rest.is_empty());
     let scalar = |n: u8| {
@@ -346,24 +354,23 @@ where
         f
     )
     .is_err());
-    let terms = c.raw.layers.iter().map(Layer::num_terms).sum::<usize>();
+    let terms = c.raw.layers.iter().map(|l| l.num_terms()).sum::<usize>();
     assert!(CircuitReader::new(f, FieldID::None)
         .with_total_term_limit(terms - 1)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .is_err());
     for n in 0..bytes.len() {
         assert!(CircuitReader::new(f, FieldID::None)
-            .from_bytes(&bytes[..n], true)
+            .from_bytes_v2(&bytes[..n], true)
             .is_err());
     }
     let mut malformed = bytes;
     let end = malformed.len() - 1;
     malformed[end] ^= 1;
     assert!(CircuitReader::new(f, FieldID::None)
-        .from_bytes(&malformed, true)
+        .from_bytes_v2(&malformed, true)
         .is_err());
 }
-#[cfg(feature = "coefficient-separated")]
 #[test]
 fn coefficient_arrays_binary() {
     check_coefficients(
@@ -371,7 +378,6 @@ fn coefficient_arrays_binary() {
         &crate::runtime::algebra::gf2_128::Gf2_128Field::new(),
     );
 }
-#[cfg(feature = "coefficient-separated")]
 #[test]
 fn coefficient_arrays_prime() {
     check_coefficients(
@@ -379,8 +385,8 @@ fn coefficient_arrays_prime() {
         &crate::runtime::algebra::p256::P256Field::new(),
     );
 }
-#[cfg(feature = "coefficient-separated")]
 #[test]
+#[cfg(feature = "experimental")]
 fn coefficient_arrays_sextic() {
     check_coefficients(
         &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
@@ -388,12 +394,12 @@ fn coefficient_arrays_sextic() {
     );
 }
 
-#[cfg(feature = "coefficient-separated")]
 #[test]
+#[cfg(feature = "experimental")]
 fn coefficient_arrays_boolean_windows_match_generic() {
     use crate::{
         compile::{
-            compiler::compile_degree_separated,
+            compiler::compile_v2,
             logic::{Logic, LogicIO},
         },
         runtime::{
@@ -404,7 +410,7 @@ fn coefficient_arrays_boolean_windows_match_generic() {
         },
     };
     let cf = crate::compile::algebra::gf2_128::Gf2_128Field::new();
-    let (c, _, _) = compile_degree_separated(&cf, |l| {
+    let (c, _, _) = compile_v2(&cf, |l| {
         let x = l.input(1);
         let y = l.input(2);
         let target = l.input(3);
@@ -422,10 +428,10 @@ fn coefficient_arrays_boolean_windows_match_generic() {
             0,
         )
     });
-    let bytes = CircuitWriter::new(&cf, FieldID::Gf2_128).to_bytes_lfc2(&c);
+    let bytes = CircuitWriter::new(&cf, FieldID::Gf2_128).to_bytes_lfc3(&c);
     let f = Gf2_128Field::new();
     let (c, _) = CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     let inputs = vec![f.one(), f.zero(), f.zero(), f.zero()];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
@@ -447,12 +453,11 @@ fn coefficient_arrays_boolean_windows_match_generic() {
     }
 }
 
-#[cfg(feature = "assertion-separated")]
 #[test]
 fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     use crate::{
         compile::{
-            compiler::{compile_degree_separated, segment_circuit},
+            compiler::{compile_v2, segment_circuit_v2},
             logic::{Logic, LogicIO},
         },
         runtime::algebra::{p256::P256Field, AlgebraicField},
@@ -461,7 +466,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     let f = P256Field::new();
     // The shallow product assertion must use its factors directly while another
     // assertion keeps the circuit deep. Its product result is never materialized.
-    let (c, info, _) = compile_degree_separated(&cf, |l| {
+    let (c, info, _) = compile_v2(&cf, |l| {
         let a = l.input(1);
         let b = l.input(2);
         let c = l.input(3);
@@ -481,10 +486,10 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
         info.nwires <= 3,
         "product result or squared assertion was materialized"
     );
-    let c = segment_circuit(&cf, &c);
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc2(&c);
+    let c = segment_circuit_v2(&cf, &c);
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc3(&c);
     let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     let counts = c.term_breakdown(&f);
     assert_eq!(counts[0][0], 2);
@@ -517,7 +522,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     .is_err());
     // With two linear assertions, wire zero being zero must not make a nonzero
     // second wire look valid through an implicit multiplication by wire zero.
-    let (c, _, _) = compile_degree_separated(&cf, |l| {
+    let (c, _, _) = compile_v2(&cf, |l| {
         let a = l.input(1);
         let b = l.input(2);
         (
@@ -526,9 +531,9 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
             0,
         )
     });
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc2(&c);
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes_lfc3(&c);
     let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes_v2(&bytes, true)
         .unwrap();
     assert_eq!(c.term_breakdown(&f)[0][0], 0);
     assert_eq!(c.term_breakdown(&f)[1][0], 2);

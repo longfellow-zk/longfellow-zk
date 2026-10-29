@@ -55,6 +55,10 @@ fn segment_coefficient_stream<F: SerializableField + Clone>(layer: &Layer<F>) ->
             segment_quadratic_stream(&c.units.to_layer::<F>(layer.nw(), layer.logw())),
             arity,
         );
+        let negatives = UnitTerms::from_layer(
+            segment_quadratic_stream(&c.negatives.to_layer::<F>(layer.nw(), layer.logw())),
+            arity,
+        );
         let assertion_arity = match &c.assertions {
             UnitTerms::Quadratic(_) => 2,
             UnitTerms::Linear(_) => 1,
@@ -66,25 +70,38 @@ fn segment_coefficient_stream<F: SerializableField + Clone>(layer: &Layer<F>) ->
         );
         // Fixed values are initialized explicitly from the same field encodings.
         result.with_coefficients(FixedCoefficients::from_values(
+            c.classes,
             units,
+            negatives,
             assertions,
             c.one().clone(),
             c.zero().clone(),
+            c.minus_one().clone(),
         ))
     } else {
         result
     }
 }
 fn segment_quadratic_stream<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
-    let nw = layer.nw();
-    let logw = layer.logw();
-
-    // 1. Unroll deduplicated delta indices (u32) for this layer.
     let mut terms = Vec::with_capacity(layer.num_terms());
     layer.for_each_delta_index(|idx| terms.push(idx));
+    let stream = segment_stream(layer.deltas(), terms);
+    Layer::new(
+        layer.nw(),
+        layer.logw(),
+        stream.deltas,
+        stream.segments,
+        stream.tokens,
+    )
+}
 
+/// Compression works on dictionary indices, independently of term degree or field.
+pub(crate) fn segment_stream<T: Copy>(
+    deltas: &[T],
+    terms: Vec<u32>,
+) -> crate::core::proto::v2::Stream<T> {
     if terms.is_empty() {
-        return Layer::new(nw, logw, Vec::new(), Vec::new(), Vec::new());
+        return crate::core::proto::v2::Stream::default();
     }
 
     const W: usize = 32;
@@ -178,7 +195,6 @@ fn segment_quadratic_stream<F: SerializableField + Clone>(layer: &Layer<F>) -> L
     }
 
     // 3. Frequency sorting of deltas and segments
-    let deltas = layer.deltas();
     let mut delta_counts = vec![0usize; deltas.len()];
     for &tok in &final_tokens {
         for &d_idx in &raw_segments[tok as usize] {
@@ -225,7 +241,11 @@ fn segment_quadratic_stream<F: SerializableField + Clone>(layer: &Layer<F>) -> L
         *tok = old_to_new_seg[*tok as usize];
     }
 
-    Layer::new(nw, logw, sorted_deltas, sorted_segments, final_tokens)
+    crate::core::proto::v2::Stream {
+        deltas: sorted_deltas,
+        segments: sorted_segments,
+        tokens: final_tokens,
+    }
 }
 
 /// Compresses an entire circuit by invoking `compress_layer` independently on each layer,

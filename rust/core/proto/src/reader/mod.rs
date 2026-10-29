@@ -14,6 +14,7 @@
 
 pub mod lfc1;
 pub mod lfc2;
+mod lfc3;
 
 use super::{FieldID, SerializableField};
 use crate::core::proto::circuit::{Circuit, RawCircuit};
@@ -52,6 +53,24 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         self
     }
 
+    pub fn from_bytes_lfc3<'b>(
+        &self,
+        bytes: &'b [u8],
+        enforce_circuit_id: bool,
+    ) -> Result<(crate::core::proto::v2::Circuit<F>, &'b [u8]), String> {
+        let mut cursor = bytes;
+        let circuit = self.from_stream_lfc3(&mut cursor, enforce_circuit_id)?;
+        Ok((circuit, cursor))
+    }
+
+    pub fn from_stream_lfc3<R: std::io::BufRead>(
+        &self,
+        stream: &mut R,
+        enforce_circuit_id: bool,
+    ) -> Result<crate::core::proto::v2::Circuit<F>, String> {
+        lfc3::from_stream(self, stream, enforce_circuit_id)
+    }
+
     pub fn from_bytes<'b>(
         &self,
         bytes: &'b [u8],
@@ -87,32 +106,21 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         stream: &mut R,
         enforce_circuit_id: bool,
     ) -> Result<Circuit<F>, String> {
-        let buf = stream
-            .fill_buf()
-            .map_err(|e| format!("Failed to read stream header: {e}"))?;
-        if buf.starts_with(b"LFC2")
-            || buf.starts_with(b"LFD2")
-            || buf.starts_with(b"LFD3")
-            || buf.starts_with(b"LFD4")
-        {
-            let linear_assertions = buf.starts_with(b"LFD4");
-            let coefficients = buf.starts_with(b"LFD3") || linear_assertions;
-            let separated = buf.starts_with(b"LFD2") || coefficients;
-            stream.consume(4);
-            lfc2::from_stream_lfc2_inner(
-                self,
-                stream,
-                enforce_circuit_id,
-                separated,
-                coefficients,
-                linear_assertions,
-            )
-        } else if !buf.is_empty() && buf[0] == 1 {
-            stream.consume(1);
-            lfc1::from_stream_lfc1_inner(self, stream, enforce_circuit_id)
-        } else {
-            Err("Unsupported format header".to_string())
+        let mut first = [0];
+        stream
+            .read_exact(&mut first)
+            .map_err(|e| format!("Incomplete circuit header: {e}"))?;
+        if first[0] == 1 {
+            return lfc1::from_stream_lfc1_inner(self, stream, enforce_circuit_id);
         }
+        let mut header = [first[0], 0, 0, 0];
+        stream
+            .read_exact(&mut header[1..])
+            .map_err(|e| format!("Incomplete circuit header: {e}"))?;
+        if &header != b"LFC2" {
+            return Err("Unsupported legacy circuit format; use the v2 reader for LFC3".into());
+        }
+        lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
     }
 
     pub fn from_stream_lfc1<R: std::io::BufRead>(
@@ -142,22 +150,10 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         stream
             .read_exact(&mut header)
             .map_err(|_| "Empty or incomplete stream buffer".to_string())?;
-        let linear_assertions = &header == b"LFD4";
-        let coefficients = &header == b"LFD3" || linear_assertions;
-        let separated = &header == b"LFD2" || coefficients;
-        if &header != b"LFC2" && !separated {
-            return Err(format!(
-                "Unsupported LFC2 header: expected b\"LFC2\", got {header:?}"
-            ));
+        if &header != b"LFC2" {
+            return Err("expected LFC2 magic".into());
         }
-        lfc2::from_stream_lfc2_inner(
-            self,
-            stream,
-            enforce_circuit_id,
-            separated,
-            coefficients,
-            linear_assertions,
-        )
+        lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
     }
 
     #[allow(dead_code)]
@@ -214,5 +210,16 @@ mod tests {
         let field = crate::compile::algebra::p256::P256Field::new();
         let reader = super::CircuitReader::new(&field, crate::core::proto::FieldID::P256);
         assert_eq!(reader.max_total_terms, 20_000_000);
+    }
+}
+
+impl<'a, F: SerializableField> CircuitReader<'a, F> {
+    /// V2 executes LFC3's concrete v2 streams only.
+    pub fn from_bytes_v2<'b>(
+        &self,
+        bytes: &'b [u8],
+        enforce_circuit_id: bool,
+    ) -> Result<(crate::core::proto::v2::Circuit<F>, &'b [u8]), String> {
+        self.from_bytes_lfc3(bytes, enforce_circuit_id)
     }
 }

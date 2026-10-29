@@ -23,7 +23,7 @@
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::{circuit::Circuit, Layer},
+        proto::v2::{Circuit, Layer},
     },
     runtime::{
         algebra::{ElementOf, RuntimeField, SupportsSampling},
@@ -73,7 +73,7 @@ impl TranscriptSumcheck for Transcript {
             .raw
             .layers
             .iter()
-            .map(crate::core::proto::Layer::num_terms)
+            .map(crate::core::proto::v2::Layer::num_terms)
             .sum::<usize>();
         self.write0(nterms);
     }
@@ -100,26 +100,17 @@ pub(super) fn assertion_weights<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
-    layer: &Layer<F>,
-    constants: &[F::E],
+    layer: &Layer,
+    _constants: &[F::E],
     layer_index: usize,
     transcript: &mut Transcript,
     f: &F,
 ) -> Vec<F::E> {
     transcript.write_bytes(b"single-hand-assertions");
     transcript.write_bytes(&(layer_index as u64).to_le_bytes());
-    if let Some(c) = layer.coefficients() {
-        return (0..c.assertions.num_terms() + layer.linear_assertion_count())
-            .map(|_| transcript.elt_field(f))
-            .collect();
-    }
-    let mut assertions = Vec::new();
-    layer.for_each_term(constants, |term| {
-        if f.is_zero(&term.k) {
-            assertions.push(transcript.elt_field(f));
-        }
-    });
-    assertions
+    (0..layer.quadratic_assertions.num_terms() + layer.linear_assertions.num_terms())
+        .map(|_| transcript.elt_field(f))
+        .collect()
 }
 
 /// Absorb m = [c0-s0,c1-s1] before sampling the round challenge z.

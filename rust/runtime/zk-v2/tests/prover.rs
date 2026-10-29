@@ -43,10 +43,11 @@ fn evaluation_failures_do_not_disclose_witness_values() {
             vec![0],
         )],
     };
-    let circuit = Circuit {
+    let circuit = crate::core::proto::circuit::Circuit {
         id: compute_id(&f, &raw),
         raw,
     };
+    let circuit = crate::core::proto::v2::quadratic_fixture(circuit, &f);
     for secret in [17, 0x12345678, 0xabcdef01] {
         let inputs = vec![
             f.one(),
@@ -54,6 +55,6 @@ fn evaluation_failures_do_not_disclose_witness_values() {
             f.u128_to_element(secret + 1),
         ];
         let message = sumcheck_v2::eval_circuit(inputs, &circuit, &f).unwrap_err();
-        assert_eq!(message, "Witness does not satisfy circuit constraints at layer 0: gate multiplication constraint not satisfied: wire_l=1, wire_r=2");
+        assert_eq!(message, "Witness does not satisfy circuit constraints at layer 0: quadratic assertion not satisfied");
     }
 }

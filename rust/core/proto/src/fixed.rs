@@ -2,6 +2,55 @@
 //! Compressed coordinate-only streams with an implicit coefficient.
 use super::{Layer, SerializableField, TermDelta};
 
+/// Compile-time coefficient partition policy. The default separates assertions,
+/// one and minus one. Explicit policies support coefficient-class ablation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CoefficientClasses {
+    pub one: bool,
+    pub minus_one: bool,
+}
+impl Default for CoefficientClasses {
+    fn default() -> Self {
+        Self::ALL
+    }
+}
+impl CoefficientClasses {
+    pub const ASSERTIONS: Self = Self {
+        one: false,
+        minus_one: false,
+    };
+    pub const ONE: Self = Self {
+        one: true,
+        minus_one: false,
+    };
+    pub const MINUS_ONE: Self = Self {
+        one: false,
+        minus_one: true,
+    };
+    pub const ALL: Self = Self {
+        one: true,
+        minus_one: true,
+    };
+    pub fn bits(self) -> usize {
+        usize::from(self.one) | (usize::from(self.minus_one) << 1)
+    }
+    pub fn from_bits(bits: usize) -> Result<Self, String> {
+        if bits > 3 {
+            return Err("invalid coefficient-class mask".into());
+        }
+        Ok(Self {
+            one: bits & 1 != 0,
+            minus_one: bits & 2 != 0,
+        })
+    }
+    pub fn for_field(mut self, binary: bool) -> Self {
+        if binary {
+            self.minus_one = false;
+        }
+        self
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct FixedStream<const N: usize> {
     pub deltas: Vec<[u32; N]>,
@@ -89,6 +138,13 @@ pub enum UnitTerms {
     Constant(FixedStream<1>),
 }
 impl UnitTerms {
+    pub fn empty_like(&self) -> Self {
+        match self {
+            Self::Quadratic(_) => Self::Quadratic(FixedStream::default()),
+            Self::Linear(_) => Self::Linear(FixedStream::default()),
+            Self::Constant(_) => Self::Constant(FixedStream::default()),
+        }
+    }
     pub fn num_terms(&self) -> usize {
         match self {
             Self::Quadratic(s) => s.num_terms(),
@@ -206,13 +262,38 @@ impl FixedStream<3> {
 }
 
 pub struct FixedCoefficients<F: SerializableField> {
+    pub classes: CoefficientClasses,
     pub units: UnitTerms,
+    pub negatives: UnitTerms,
     pub assertions: UnitTerms,
     one: F::E,
     zero: F::E,
+    minus_one: F::E,
 }
 impl<F: SerializableField> FixedCoefficients<F> {
     pub fn new(units: UnitTerms, assertions: UnitTerms, f: &F) -> Result<Self, String> {
+        let negatives = units.empty_like();
+        Self::new_with_negatives(units, negatives, assertions, f)
+    }
+    pub fn new_with_negatives(
+        units: UnitTerms,
+        negatives: UnitTerms,
+        assertions: UnitTerms,
+        f: &F,
+    ) -> Result<Self, String> {
+        let classes = CoefficientClasses {
+            one: true,
+            minus_one: negatives.num_terms() != 0,
+        };
+        Self::new_with_classes(units, negatives, assertions, classes, f)
+    }
+    pub fn new_with_classes(
+        units: UnitTerms,
+        negatives: UnitTerms,
+        assertions: UnitTerms,
+        classes: CoefficientClasses,
+        f: &F,
+    ) -> Result<Self, String> {
         // Canonical scalar one/zero in the supported little-endian field encodings.
         let mut bytes = vec![0; f.serialized_size_bytes()];
         if bytes.is_empty() {
@@ -221,24 +302,35 @@ impl<F: SerializableField> FixedCoefficients<F> {
         let zero = f.bytes_to_element(&bytes)?;
         bytes[0] = 1;
         let one = f.bytes_to_element(&bytes)?;
+        let minus_one = f.bytes_to_element(&f.serialized_mone())?;
         Ok(Self {
+            classes,
             units,
+            negatives,
             assertions,
             one,
             zero,
+            minus_one,
         })
     }
+    #[cfg(any(test, feature = "compiler"))]
     pub(crate) fn from_values(
+        classes: CoefficientClasses,
         units: UnitTerms,
+        negatives: UnitTerms,
         assertions: UnitTerms,
         one: F::E,
         zero: F::E,
+        minus_one: F::E,
     ) -> Self {
         Self {
+            classes,
             units,
+            negatives,
             assertions,
             one,
             zero,
+            minus_one,
         }
     }
     pub fn one(&self) -> &F::E {
@@ -247,7 +339,10 @@ impl<F: SerializableField> FixedCoefficients<F> {
     pub fn zero(&self) -> &F::E {
         &self.zero
     }
+    pub fn minus_one(&self) -> &F::E {
+        &self.minus_one
+    }
     pub fn heap_bytes(&self) -> usize {
-        self.units.heap_bytes() + self.assertions.heap_bytes()
+        self.units.heap_bytes() + self.negatives.heap_bytes() + self.assertions.heap_bytes()
     }
 }

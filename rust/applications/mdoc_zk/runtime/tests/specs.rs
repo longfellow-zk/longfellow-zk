@@ -31,6 +31,7 @@ fn systems_own_disjoint_specifications() {
     assert!((5..=7).all(v1::is_supported_version));
     assert!(!v1::is_supported_version(8));
     assert!(!v2::is_supported_version(7));
+    assert!(!v2::is_supported_version(8));
     assert!(!v2::is_supported_version(99));
 }
 #[test]
@@ -75,7 +76,7 @@ fn each_entry_point_rejects_unsupported_circuit_versions() {
     let mut legacy = v1::ZK_SPECS[0];
     legacy.version = 8;
     let mut next = v2_spec();
-    next.version = 7;
+    next.version = 8;
     assert_eq!(
         v1::run_mdoc_prover_inner(
             &legacy,
@@ -121,7 +122,11 @@ pub(super) fn v2_spec() -> v2::ZkSpecStruct {
     v2::ZkSpecStruct {
         combined_hash: [0; 32],
         num_attributes: 1,
-        version: 8,
+        version: 9,
+        manifest: crate::mdoc::proto::packed::HashInputManifest {
+            public_bits: 1,
+            private_bits: 0,
+        },
         polygero_hash: v2::PolygeroParameters {
             k: 512,
             n: 3584,

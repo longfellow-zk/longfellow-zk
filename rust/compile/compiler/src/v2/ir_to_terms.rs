@@ -20,7 +20,7 @@ use crate::compile::{
     },
 };
 
-// A missing factor denotes degree, never a node or circuit input.
+// A missing factor describes a term's arity, never a node or circuit input.
 const MISSING_FACTOR: Wire = usize::MAX;
 
 struct WireMemoizer {
@@ -134,10 +134,9 @@ pub fn rewrite<'src, 'dst, F: CompileField>(
     let mut nodes = Vec::new();
     let mut quad_asserts = Vec::new();
     let ememo = WireMemoizer::new();
-    let mut assertion_wires = rustc_hash::FxHashMap::default();
     let mut assertion_factors = rustc_hash::FxHashMap::default();
     for item in x.iter() {
-        if cfg!(feature = "assertion-separated") {
+        {
             let (a, b) = match &item.expr.v {
                 Expr::Quadratic(e, x, y) => {
                     assert!(!f.is_zero(e));
@@ -165,15 +164,6 @@ pub fn rewrite<'src, 'dst, F: CompileField>(
                 assertion_factors.insert((a, b), item.id);
                 quad_asserts.push((index, item.id));
             }
-            continue;
-        }
-        let wx = walk_eltw(f, &ememo, &mut nodes, item.expr);
-        if let Some(&existing_id) = assertion_wires.get(&wx) {
-            tracker.union(existing_id, item.id);
-        } else {
-            let quad_node_idx = push_node(&mut nodes, WExpr::Assert0(wx));
-            assertion_wires.insert(wx, item.id);
-            quad_asserts.push((quad_node_idx, item.id));
         }
     }
     (QuadCircuit { nodes }, quad_asserts)

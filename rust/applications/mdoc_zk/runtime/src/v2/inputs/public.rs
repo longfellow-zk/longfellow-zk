@@ -15,7 +15,7 @@
 //! Longfellow v2 public assignment encoding.
 
 use crate::{
-    core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
+    core::algebra::{AlgebraicField, Nat},
     mdoc::{
         proto::{config::K_ATTR_LEN_BITS, hash::constants::K_TIMESTAMP_LEN},
         runtime::v2::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
@@ -76,13 +76,6 @@ fn build_input_hash<'a>(
     expected_doc_type: &[u8],
 ) -> AssignmentBuilder<'a, Gf2_128Field> {
     let gf2 = builder.field;
-    #[cfg(not(feature = "degree-separated"))]
-    let include_one = true;
-    #[cfg(feature = "degree-separated")]
-    let include_one = !builder.boolean;
-    if include_one {
-        builder.push_elt(&gf2.one());
-    }
     for i in 0..K_TIMESTAMP_LEN {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
     }
@@ -108,27 +101,6 @@ fn build_input_hash<'a>(
     builder
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_input_hash(
-    gf2: &Gf2_128Field,
-    attrs: &[RequestedAttribute],
-    now_bytes: &[u8],
-    macs: &[u128; 6],
-    av: u128,
-    suppress_doc_type_check: bool,
-    expected_doc_type: &[u8],
-) -> Vec<Gf2_128> {
-    build_input_hash(
-        AssignmentBuilder::new(gf2),
-        attrs,
-        now_bytes,
-        macs,
-        av,
-        suppress_doc_type_check,
-        expected_doc_type,
-    )
-    .into_inner()
-}
-#[cfg(feature = "experimental")]
 pub(in crate::mdoc::runtime::v2) fn push_input_hash_boolean(
     gf2: &Gf2_128Field,
     attrs: &[RequestedAttribute],
@@ -157,18 +129,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
     macs: &[u128; 6],
     av: u128,
 ) -> Vec<P256Element> {
-    input_sig(p256, issuer_pk, device_sig_e, macs, av, true)
-}
-
-#[cfg(feature = "degree-separated")]
-pub(in crate::mdoc::runtime::v2) fn push_input_sig_no_one<N: Nat<4>>(
-    p256: &P256Field,
-    issuer_pk: &(P256Element, P256Element),
-    device_sig_e: &N,
-    macs: &[u128; 6],
-    av: u128,
-) -> Vec<P256Element> {
-    input_sig(p256, issuer_pk, device_sig_e, macs, av, false)
+    input_sig(p256, issuer_pk, device_sig_e, macs, av)
 }
 
 fn input_sig<N: Nat<4>>(
@@ -177,12 +138,8 @@ fn input_sig<N: Nat<4>>(
     device_sig_e: &N,
     macs: &[u128; 6],
     av: u128,
-    include_one: bool,
 ) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);
-    if include_one {
-        builder.push_elt(&p256.u64_to_element(1));
-    }
     builder.push_elt(&issuer_pk.0);
     builder.push_elt(&issuer_pk.1);
 

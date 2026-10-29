@@ -858,7 +858,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v2_circuits.rs",
         "v2_inputs.rs",
         "v2_attributes.rs",
-        "packed_v9.rs",
+        "next.rs",
         "specs.rs",
         "v1_provider.rs",
         "v2_provider.rs",
@@ -896,7 +896,7 @@ fn test_tooling_and_system_source_boundaries() {
         let directory = root.join(format!("applications/mdoc_zk/runtime/src/{version}"));
         let mut actual = Vec::new();
         collect_rs_files(&directory, &mut actual);
-        let mut expected_system_files: BTreeSet<_> = [
+        let expected_system_files: BTreeSet<_> = [
             "mod.rs",
             "zk_spec.rs",
             "provider.rs",
@@ -916,12 +916,6 @@ fn test_tooling_and_system_source_boundaries() {
         .map(|f| directory.join(f))
         .into_iter()
         .collect();
-        if version == "v2" {
-            expected_system_files.extend(
-                ["mod", "provider", "proto", "prover", "verifier"]
-                    .map(|name| directory.join(format!("packed_v9/{name}.rs"))),
-            );
-        }
         assert_eq!(
             actual.into_iter().collect::<BTreeSet<_>>(),
             expected_system_files
@@ -1037,7 +1031,6 @@ fn test_development_provider_boundaries() {
         "src/lib.rs",
         "src/next_v2.rs",
         "src/cache_v2.rs",
-        "src/packed_v9.rs",
         "tests/provider.rs",
     ]
     .map(|name| directory.join(name))
@@ -1101,7 +1094,8 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
             &[
                 "all/mod.rs",
                 "all/dense.rs",
-                "all/degree.rs",
+                "all/circuit.rs",
+                "all/explicit.rs",
                 "all/poly.rs",
                 "all/sumcheck_v2.rs",
                 "all/wiring.rs",

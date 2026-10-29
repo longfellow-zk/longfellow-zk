@@ -1,7 +1,7 @@
-# Linear and quadratic assertions: LFD3 → LFD4
+# Linear and quadratic assertions: unit-stream experiment → assertion-stream experiment
 
 Feature `assertion-separated` includes `coefficient-separated` and
-`degree-separated`. It uses the eight-array [LFD4 format](../../../core/proto/LFD3.md).
+`v2`. It uses the eight-array [assertion-stream experiment format](../../../core/proto/LFC3.md).
 There is no reserved One input or copied One wire. This follows the
 [coefficient split](../2026-10-28-coefficient-streams/README.md), on upstream
 `v2` at `f9cb430`.
@@ -21,7 +21,7 @@ the product binding. Neither adds a sumcheck round or masked message.
 Exact bytes, zstd level 16. V9 sizes include hash, signature and manifest in the
 bundle, excluding its 169-byte cache wrapper. ML-DSA covers its verifier circuit.
 
-| Circuit | LFD3 zstd | LFD4 zstd | LFD3 uncompressed | LFD4 uncompressed |
+| Circuit | unit-stream experiment zstd | assertion-stream experiment zstd | unit-stream experiment uncompressed | assertion-stream experiment uncompressed |
 |---|---:|---:|---:|---:|
 | v9-2 | 157598 | 157611 | 575318 | 574590 |
 | v9-4 | 158593 | 158615 | 593471 | 593582 |
@@ -31,7 +31,7 @@ bundle, excluding its 169-byte cache wrapper. ML-DSA covers its verifier circuit
 For comparison with the original upstream format, before any of these three
 experiments:
 
-| Circuit | Original LFC2 zstd | Final LFD4 zstd | Original LFC2 raw | Final LFD4 raw |
+| Circuit | Original LFC2 zstd | Final assertion-stream experiment zstd | Original LFC2 raw | Final assertion-stream experiment raw |
 |---|---:|---:|---:|---:|
 | v9-2 | 176134 | 157611 | 675774 | 574590 |
 | v9-4 | 176756 | 158615 | 695394 | 593582 |
@@ -47,7 +47,7 @@ commitment, proving/verification, serialization and cleanup; compilation and
 parameter selection are excluded. V9 decodes zstd; ML-DSA decodes raw circuits.
 All four proofs verify, and both ML-DSA cases reject changed public keys.
 
-| Circuit | LFD3 prover ms | LFD4 prover ms | LFD3 verifier ms | LFD4 verifier ms | Proof bytes before → after |
+| Circuit | unit-stream experiment prover ms | assertion-stream experiment prover ms | unit-stream experiment verifier ms | assertion-stream experiment verifier ms | Proof bytes before → after |
 |---|---:|---:|---:|---:|---:|
 | v9-2 | 166.058 | 165.383 | 90.199 | 89.265 | 184680 → 185352 |
 | v9-4 | 177.520 | 179.103 | 94.740 | 93.862 | 187656 → 187144 |
@@ -66,7 +66,7 @@ Bytes below are owned decoded circuit allocations and additional live online
 peak heap, measured with allocation tracking separately from timing. They are
 not RSS. Serialized bytes do not include witness/commitment working memory.
 
-| Circuit | Decoded heap LFD3 → LFD4 | Prover peak LFD3 → LFD4 | Verifier peak LFD3 → LFD4 |
+| Circuit | Decoded heap unit-stream experiment → assertion-stream experiment | Prover peak unit-stream experiment → assertion-stream experiment | Verifier peak unit-stream experiment → assertion-stream experiment |
 |---|---:|---:|---:|
 | v9-2 | 2059344 → 2057220 | 44528608 → 44526228 | 35756026 → 35753710 |
 | v9-4 | 2133136 → 2133980 | 49604168 → 49604852 | 38968650 → 38969302 |

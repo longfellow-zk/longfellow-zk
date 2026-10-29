@@ -112,7 +112,7 @@ fn private_hash_inputs_enforce_sha_capacity() {
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     for length in [K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_CBOR_LEN + 1, 255, 256] {
         parsed.attrs[0].cbor_issuer_signed_item = vec![0; length];
-        let result = super::push_witness_hash(&field, &request, &parsed, &[[0; 2]; 3]);
+        let result = super::push_witness_hash_boolean(&field, &request, &parsed, &[[0; 2]; 3]);
         if length == K_MAX_ATTR_CBOR_LEN {
             assert!(result.is_ok());
         } else {
@@ -121,7 +121,7 @@ fn private_hash_inputs_enforce_sha_capacity() {
     }
     parsed.cbor_mso = vec![0; K_MSO_PREIMAGE_LEN];
     assert_eq!(
-        super::push_witness_hash(&field, &request, &parsed, &[[0; 2]; 3]),
+        super::push_witness_hash_boolean(&field, &request, &parsed, &[[0; 2]; 3]),
         Err(MdocProverErrorCode::TaggedMsoTooBig),
     );
 }

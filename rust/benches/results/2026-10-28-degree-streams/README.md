@@ -1,7 +1,7 @@
-# Degree-separated LFC2 / sumcheck-v2 experiment
+# V2 LFC2 / sumcheck-v2 experiment
 
 Upstream `v2` was fast-forwarded to `f9cb430` (2026-10-28). The experiment is
-opt-in with `degree-separated`; the ordinary compiler and archived circuits
+opt-in with `v2`; the ordinary compiler and archived circuits
 retain their existing format. The experimental compiler emits separate quadratic,
 linear and constant streams with no reserved One input and no One layer copies.
 
@@ -12,7 +12,7 @@ All sizes are exact bytes. Compression uses streaming `zstd::encode_all` at leve
 input manifest in their LFA2 bundle; the 169-byte development-cache wrapper is
 excluded. ML-DSA rows cover the complete verifier circuit.
 
-| Circuit | LFC2 zstd | LFD2 zstd | Change | LFC2 uncompressed | LFD2 uncompressed | Change |
+| Circuit | LFC2 zstd | degree-only experiment zstd | Change | LFC2 uncompressed | degree-only experiment uncompressed | Change |
 |---|---:|---:|---:|---:|---:|---:|
 | v9-2 | 176134 | 177355 | +0.69% | 675774 | 650271 | -3.77% |
 | v9-4 | 176756 | 177705 | +0.54% | 695394 | 675481 | -2.86% |
@@ -35,7 +35,7 @@ a storage measurement). V9 uses compact variant 0 and the
 reference kernel. ML-DSA uses the ordinary sextic field with the same selected
 Polygero configuration in both versions: `k=1024, s=25, n=4096, t=128`.
 
-| Circuit | LFC2 prove ms | LFD2 prove ms | Change | LFC2 verify ms | LFD2 verify ms | Change | Proof bytes LFC2 → LFD2 |
+| Circuit | LFC2 prove ms | degree-only experiment prove ms | Change | LFC2 verify ms | degree-only experiment verify ms | Change | Proof bytes LFC2 → degree-only experiment |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | v9-2 | 186.148 | 174.861 | -6.06% | 93.950 | 92.789 | -1.24% | 184232 → 185000 |
 | v9-4 | 203.234 | 187.771 | -7.61% | 100.665 | 98.383 | -2.27% | 186824 → 186472 |
@@ -57,7 +57,7 @@ allocator metadata and stack values. Peak heap is the additional live allocation
 peak of the complete online operation, measured separately with `bench-memory`.
 The timing numbers from those allocation-instrumented runs are not used above.
 
-| Circuit | Decoded circuit bytes LFC2 → LFD2 | Prover peak MiB LFC2 → LFD2 | Verifier peak MiB LFC2 → LFD2 |
+| Circuit | Decoded circuit bytes LFC2 → degree-only experiment | Prover peak MiB LFC2 → degree-only experiment | Verifier peak MiB LFC2 → degree-only experiment |
 |---|---:|---:|---:|
 | v9-2 | 2306024 → 2306040 | 42.701 → 42.701 | 34.334 → 34.335 |
 | v9-4 | 2377572 → 2395868 | 47.539 → 47.557 | 37.396 → 37.414 |
@@ -78,7 +78,7 @@ remains opt-in; timing, serialized size and live memory are assessed separately.
 
 ## Implementation and validation
 
-[Format and reduction design](../../../core/proto/LFD2.md). Each layer has three
+[Format and reduction design](../../../core/proto/LFC3.md). Each layer has three
 independent LFC2 delta/segment streams with two, one and zero input coordinates.
 The compiler lowers missing factors without creating One nodes, renumbers the
 user inputs, and preserves a separate square/product ordering within the quadratic
@@ -135,7 +135,7 @@ as `rust/Cargo.lock` in both checkouts.
 # Upstream baseline
 cargo bench --no-run --bench mdoc_zk_bench_v9 --bench mldsa_bench_v2 --features testonly,experimental
 # Experiment
-cargo bench --no-run --bench mdoc_zk_bench_v9 --bench mldsa_bench_v2 --features testonly,degree-separated
+cargo bench --no-run --bench mdoc_zk_bench_v9 --bench mldsa_bench_v2 --features testonly,v2
 ```
 
 Copy the emitted binaries to separate directories as `v9` and `mldsa`. Prepare
@@ -158,6 +158,6 @@ For the independent heap runs, rebuild each version with `bench-memory` added
 and run one sample per circuit using the same caches. Run the regression suite:
 
 ```sh
-cargo test --lib --features testonly,degree-separated -- --test-threads=1
-cargo check --all-targets --features testonly,degree-separated
+cargo test --lib --features testonly,v2 -- --test-threads=1
+cargo check --all-targets --features testonly,v2
 ```

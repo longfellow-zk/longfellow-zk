@@ -17,15 +17,23 @@ pub use crate::compile::proto::debug;
 #[allow(clippy::module_inception)]
 pub mod eval;
 
-pub use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-pub use crate::compile::proto::debug::{
-    AssertionSymbol, CircuitDebugSymbols, CompiledAssertionStatus, CompiledEvalAssertions,
-    EvaluatedCompiledAssertion, WireRef,
+pub use crate::{
+    compile::{
+        algebra::field::{CompileField, SupportsNatConversions},
+        eval::eval::{eval_circuit, eval_circuit_fc, initial_inputs},
+        proto::debug::{
+            AssertionSymbol, CircuitDebugSymbols, CompiledAssertionStatus, CompiledEvalAssertions,
+            EvaluatedCompiledAssertion, WireRef,
+        },
+    },
+    core::{
+        algebra::SerializableField,
+        proto::{
+            circuit::{
+                canonical_term, compare_term, compute_id, CircuitGeometry, DigestBytes, FieldID,
+                Term, TermDelta,
+            },
+            v2::{Circuit, Layer, RawCircuit},
+        },
+    },
 };
-pub use crate::core::algebra::SerializableField;
-pub use crate::core::proto::circuit::{
-    canonical_term, compare_term, compute_id, Circuit, CircuitGeometry, DigestBytes, FieldID,
-    Layer, RawCircuit, Term, TermDelta,
-};
-
-pub use crate::compile::eval::eval::{eval_circuit, eval_circuit_fc, initial_inputs};

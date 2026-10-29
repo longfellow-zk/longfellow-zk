@@ -1,0 +1,5 @@
+application,raw_bytes,zstd_bytes,decoded_heap_bytes
+next-2,575951,157378,2046716
+next-4,594943,158323,2123444
+mldsa-44,1679298,515043,5199000
+mldsa-65,1869518,535961,5715720

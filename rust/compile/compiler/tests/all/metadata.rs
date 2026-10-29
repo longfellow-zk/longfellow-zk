@@ -12,23 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::p256::P256Field;
-use crate::compile::logic::{Logic, LogicIO};
+use crate::compile::{
+    algebra::p256::P256Field,
+    logic::{Logic, LogicIO},
+};
 
 #[test]
-#[should_panic(expected = "npublic_input must include the reserved constant One")]
+#[should_panic(expected = "source public-input boundary must be at least 1")]
 fn test_rejects_no_public_inputs() {
     compile_with_metadata(0, 0);
 }
 
 #[test]
-#[should_panic(expected = "npublic_input (3) exceeds ninput (2)")]
+#[should_panic(expected = "npublic_input (2) exceeds ninput (1)")]
 fn test_rejects_too_many_public_inputs() {
     compile_with_metadata(3, 0);
 }
 
 #[test]
-#[should_panic(expected = "subfield_boundary (3) exceeds ninput (2)")]
+#[should_panic(expected = "subfield_boundary (2) exceeds ninput (1)")]
 fn test_rejects_subfield_boundary_past_inputs() {
     compile_with_metadata(1, 3);
 }

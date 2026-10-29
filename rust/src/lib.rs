@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Run shared compiler/circuit tests with each compiler entry point.
+/// Run compiler/circuit tests through the native LFC3 compiler.
 #[cfg(test)]
 macro_rules! test_compilers {
     ($path:literal) => {
-        #[allow(clippy::duplicate_mod)] // Intentionally instantiate each test module twice.
-        mod v1_tests {
-            #[allow(dead_code)]
-            const V2: bool = false;
-            #[allow(unused_imports)]
-            use crate::compile::compiler::compile_v1 as compile;
-            include!($path);
-        }
-        #[allow(clippy::duplicate_mod)]
         mod v2_tests {
             #[allow(dead_code)]
             const V2: bool = true;

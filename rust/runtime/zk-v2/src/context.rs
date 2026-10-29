@@ -20,7 +20,7 @@
 use crate::runtime::algebra::ZkField;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     runtime::{
         algebra::EvaluationDomain,
         polygero::{PolygeroConfig, PolygeroParam},

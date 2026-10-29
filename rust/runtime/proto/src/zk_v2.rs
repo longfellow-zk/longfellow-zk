@@ -3,7 +3,7 @@
 use crate::{
     core::{
         algebra::{ElementOf, SerializableField},
-        proto::circuit::Circuit,
+        proto::v2::Circuit,
     },
     runtime::{
         algebra::{

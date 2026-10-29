@@ -59,6 +59,7 @@ fn native_rows_and_shared_pad_products_use_the_physical_layout() {
         id: compute_id(&f, &raw),
         raw,
     };
+    let c = crate::core::proto::v2::quadratic_fixture(c, &f);
     let config = PolygeroConfig {
         k: 16,
         s: 2,

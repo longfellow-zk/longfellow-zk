@@ -141,7 +141,7 @@ fn test_zk_prover_verifier_end_to_end() {
         h1: 1,
     };
     let raw = make_raw_circuit(&f, 2, 0, 1, 0, &[2], &[1], vec![vec![term]]);
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // 2. Setup inputs
     let mut w0 = [f.zero(); 2];
@@ -338,6 +338,8 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert!(tail.is_empty());
                 assert_eq!(decoded.id, circuit.id);
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
+                let decoded = crate::core::proto::v2::quadratic_fixture(decoded, &f);
+                let original_storage = format!("{:?}", decoded.raw.layers);
                 let prover = ZkProver::new_full_field(decoded, config);
                 let mut rng = SimpleRng { state: 42 };
                 let mut prover_ts = Transcript::new(b"lexicographic-zk");
@@ -360,10 +362,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 }
                 // Proving must not change storage, segmentation, or ID.
                 assert_eq!(prover.circuit.id, circuit.id);
-                assert_eq!(
-                    prover.circuit.raw.layers[0].terms(&prover.circuit.raw.constants),
-                    ordered
-                );
+                assert_eq!(format!("{:?}", prover.circuit.raw.layers), original_storage);
                 let mut verifier =
                     ZkVerifier::new_full_field(prover.circuit, config, &context).unwrap();
                 let verifier_geometry = verifier.geometry();
@@ -436,7 +435,7 @@ fn test_zk_triple_zero_zero_zero() {
     };
     // 1 wire, 0 pubin, 1 output. logv = 0, layer_logw = 0!
     let raw = make_raw_circuit(&f, 1, 0, 1, 0, &[1], &[0], vec![vec![term]]);
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // To test ZK proof generation and verification cleanly on this logv=0, logw=0 circuit,
     // we set w0[0] = 0 so the constraint 0 * 0 == 0 is satisfied.
@@ -566,7 +565,7 @@ fn test_zk_intermediate_zero_logw() {
         &[0, 0, 2],
         vec![layer0_terms, layer1_terms, layer2_terms],
     );
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // Let's set inputs such that a + b + c = 0 in GF(2^128).
     // In characteristic 2, addition is XOR. Let a = 10, b = 20 => c = 10 ^ 20 = 30.
@@ -666,7 +665,7 @@ fn test_zk_zero_layers() {
     // Try all 16 combinations of zero / non-zero across the 4 inputs
     for mask in 0u32..16 {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
-        let circ = Circuit { raw, id: [0u8; 32] };
+        let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
         let mut w0 = vec![f.zero(); 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {

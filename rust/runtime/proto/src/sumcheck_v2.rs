@@ -82,14 +82,14 @@ fn invalid(message: &str) -> std::io::Error {
 }
 impl SumcheckProofGeometry {
     pub fn from_circuit<F: SerializableField>(
-        circuit: &crate::core::proto::circuit::Circuit<F>,
+        circuit: &crate::core::proto::v2::Circuit<F>,
     ) -> Self {
         Self {
             logw_layers: circuit
                 .raw
                 .layers
                 .iter()
-                .map(crate::core::proto::Layer::logw)
+                .map(crate::core::proto::v2::Layer::logw)
                 .collect(),
         }
     }

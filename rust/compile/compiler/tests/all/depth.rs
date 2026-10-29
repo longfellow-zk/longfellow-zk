@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::p256::P256Field;
-use crate::compile::eval::eval_circuit_fc;
-use crate::compile::logic::{Logic, LogicIO};
-use crate::core::algebra::AlgebraicField;
-use crate::core::proto::FieldID;
-use crate::runtime::algebra::p256::P256Field as RuntimeP256Field;
+use crate::{
+    compile::{
+        algebra::p256::P256Field,
+        eval::eval_circuit_fc,
+        logic::{Logic, LogicIO},
+    },
+    core::{algebra::AlgebraicField, proto::FieldID},
+    runtime::algebra::p256::P256Field as RuntimeP256Field,
+};
 
 #[test]
 fn test_direct_input_assertion_has_one_layer() {
@@ -35,7 +38,7 @@ fn test_direct_input_assertion_has_one_layer() {
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one(), runtime_f.zero()],
+        &[runtime_f.zero()],
         FieldID::P256,
     )
     .unwrap()
@@ -46,7 +49,7 @@ fn test_direct_input_assertion_has_one_layer() {
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one(), runtime_f.one()],
+        &[runtime_f.one()],
         FieldID::P256,
     )
     .unwrap();

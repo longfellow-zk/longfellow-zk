@@ -26,20 +26,15 @@ use crate::{
 
 // Keep analysis, evaluation, and proof benchmarks on exactly the same circuit.
 // The public input is the expanded key; mu and the signature are private inputs.
-#[allow(dead_code)] // Shared by tests and by the alternative benchmark builds.
+#[allow(dead_code)]
 pub fn compile_verifier<P: MlDsaParams>(
     field: &CompileFp24Ext6,
-    v2: bool,
 ) -> (
-    crate::core::proto::circuit::Circuit<CompileFp24Ext6>,
+    crate::core::proto::v2::Circuit<CompileFp24Ext6>,
     CircuitGeometry,
     crate::compile::compiler::CircuitDebugSymbols,
 ) {
-    if v2 {
-        crate::compile::compiler::compile_v2(field, build::<P>)
-    } else {
-        crate::compile::compiler::compile_v1(field, build::<P>)
-    }
+    crate::compile::compiler::compile_v2(field, build::<P>)
 }
 
 fn build<'a, P: MlDsaParams>(
@@ -65,14 +60,25 @@ fn build<'a, P: MlDsaParams>(
     )
 }
 
-#[cfg(feature = "degree-separated")]
 #[allow(dead_code)] // Used by the benchmark, not the ordinary circuit tests.
-pub fn compile_degree_verifier<P: MlDsaParams>(
+pub fn compile_v2_verifier<P: MlDsaParams>(
     field: &CompileFp24Ext6,
 ) -> (
-    crate::core::proto::circuit::Circuit<CompileFp24Ext6>,
+    crate::core::proto::v2::Circuit<CompileFp24Ext6>,
     CircuitGeometry,
     crate::compile::compiler::CircuitDebugSymbols,
 ) {
-    crate::compile::compiler::compile_degree_separated(field, build::<P>)
+    crate::compile::compiler::compile_v2(field, build::<P>)
+}
+
+#[allow(dead_code)] // Shared with the circuit-layout benchmark.
+pub fn compile_v2_verifier_with_classes<P: MlDsaParams>(
+    field: &CompileFp24Ext6,
+    classes: crate::core::proto::fixed::CoefficientClasses,
+) -> (
+    crate::core::proto::v2::Circuit<CompileFp24Ext6>,
+    CircuitGeometry,
+    crate::compile::compiler::CircuitDebugSymbols,
+) {
+    crate::compile::compiler::compile_v2_with_classes(field, build::<P>, classes)
 }

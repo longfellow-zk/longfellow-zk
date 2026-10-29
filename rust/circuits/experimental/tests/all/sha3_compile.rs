@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::circuits::experimental::sha3::{
-    concrete::{self, keccak_f_1600_trajectory, ConcreteGiven},
-    Sha3,
+use crate::{
+    circuits::{
+        bitvec::BitvecLogic,
+        experimental::sha3::{
+            concrete::{self, keccak_f_1600_trajectory, ConcreteGiven},
+            Sha3,
+        },
+    },
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        eval::FieldID,
+    },
+    core::algebra::SerializableField,
+    runtime::algebra::field::RuntimeField,
 };
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::compile::eval::FieldID;
-use crate::core::algebra::SerializableField;
-use crate::runtime::algebra::field::RuntimeField;
 
 fn test_compile_keccak_f_1600_for_field<
     'a,
@@ -80,8 +86,7 @@ fn test_compile_keccak_f_1600_unrolled_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    use crate::circuits::bitvec::BitvecIO;
-    use crate::circuits::experimental::sha3::State;
+    use crate::circuits::{bitvec::BitvecIO, experimental::sha3::State};
 
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
@@ -155,12 +160,12 @@ fn test_compile_keccak_f_1600() {
         "keccak_f_1600_gf2_128",
         FieldID::Gf2_128,
         crate::compile::eval::CircuitGeometry {
-            ninput: 40001,
-            npublic_input: 1,
+            ninput: 40000,
+            npublic_input: 0,
             noutput: 40600,
             nlayers: 2,
-            nwires: 119601,
-            nterms: 696625,
+            nwires: 119600,
+            nterms: 696624,
             nassertions: 40600,
         },
     );
@@ -172,12 +177,12 @@ fn test_compile_keccak_f_1600() {
         "keccak_f_1600_p256",
         FieldID::P256,
         crate::compile::eval::CircuitGeometry {
-            ninput: 40001,
-            npublic_input: 1,
+            ninput: 40000,
+            npublic_input: 0,
             noutput: 600,
             nlayers: 7,
-            nwires: 429806,
-            nterms: 738606,
+            nwires: 429800,
+            nterms: 738600,
             nassertions: 40600,
         },
     );
@@ -214,8 +219,7 @@ fn test_compile_keccak_f_1600_sliced_for_field<
     name: &str,
     field_id: FieldID,
 ) {
-    use crate::circuits::bitvec::BitvecIO;
-    use crate::circuits::experimental::sha3::State;
+    use crate::circuits::{bitvec::BitvecIO, experimental::sha3::State};
 
     let slice_rounds = [5, 11, 17, 23];
 

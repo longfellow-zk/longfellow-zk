@@ -18,7 +18,7 @@ use crate::{
         zk_v2::{ZkContext, ZkProver, ZkVerifier},
     },
 };
-fn circuit() -> Circuit<F> {
+fn circuit() -> crate::core::proto::v2::Circuit<F> {
     let f = F::new();
     let raw = RawCircuit {
         ninput: 9,
@@ -45,10 +45,13 @@ fn circuit() -> Circuit<F> {
             vec![0],
         )],
     };
-    Circuit {
-        id: compute_id(&f, &raw),
-        raw,
-    }
+    crate::core::proto::v2::quadratic_fixture(
+        Circuit {
+            id: compute_id(&f, &raw),
+            raw,
+        },
+        &f,
+    )
 }
 fn config() -> PolygeroConfig {
     PolygeroConfig {
@@ -176,7 +179,7 @@ fn identity_extension_has_no_packing_messages() {
     assert_eq!(t.u128(), tv.u128());
 }
 #[test]
-fn boolean_kernels_match_the_shared_protocol_and_reserved_one_is_checked() {
+fn boolean_kernels_match_the_shared_protocol_with_zero_first_input() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
         subfield_v1::BinarySubfield,
@@ -221,10 +224,14 @@ fn boolean_kernels_match_the_shared_protocol_and_reserved_one_is_checked() {
         crate::core::proto::writer::CircuitWriter::new(&f, crate::core::proto::FieldID::Gf2_128)
             .to_bytes_lfc2(&c);
     let fresh = || {
-        crate::core::proto::reader::CircuitReader::new(&f, crate::core::proto::FieldID::Gf2_128)
-            .from_bytes_lfc2(&encoded, false)
-            .unwrap()
-            .0
+        let c = crate::core::proto::reader::CircuitReader::new(
+            &f,
+            crate::core::proto::FieldID::Gf2_128,
+        )
+        .from_bytes_lfc2(&encoded, false)
+        .unwrap()
+        .0;
+        crate::core::proto::v2::quadratic_fixture(c, &f)
     };
     let mut reference = None;
     for window in 0..=4 {
@@ -268,7 +275,7 @@ fn boolean_kernels_match_the_shared_protocol_and_reserved_one_is_checked() {
         assert_eq!(t.u128(), tv.u128());
     }
     let p = ZkProver::new(
-        c,
+        crate::core::proto::v2::quadratic_fixture(c, &f),
         PolygeroConfig {
             k: 8,
             s: 2,
@@ -280,7 +287,6 @@ fn boolean_kernels_match_the_shared_protocol_and_reserved_one_is_checked() {
     let (state, _) = p
         .commit(vec![f.one()], &ctx, &mut t, &mut DeterministicRng::new(52))
         .unwrap();
-    let mut original = t.clone();
-    assert!(p.prove(&[f.zero()], state, &mut t, &ctx).is_err());
-    assert_eq!(t.u128(), original.u128());
+    // Wire zero is an ordinary public input, with no reserved One check.
+    p.prove(&[f.zero()], state, &mut t, &ctx).unwrap();
 }

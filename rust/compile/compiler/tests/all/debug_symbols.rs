@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::p256::P256Field;
-use crate::compile::eval::eval_circuit_fc;
-use crate::compile::logic::{Logic, LogicIO};
-use crate::core::algebra::AlgebraicField;
-use crate::core::proto::FieldID;
-use crate::runtime::algebra::p256::P256Field as RuntimeP256Field;
+use crate::{
+    compile::{
+        algebra::p256::P256Field,
+        eval::eval_circuit_fc,
+        logic::{Logic, LogicIO},
+    },
+    core::{algebra::AlgebraicField, proto::FieldID},
+    runtime::algebra::p256::P256Field as RuntimeP256Field,
+};
 
 #[test]
 fn test_compiled_circuit_debug_symbols() {
@@ -51,7 +54,7 @@ fn test_compiled_circuit_debug_symbols() {
 
     // Passing test: inputs w1 = 0, w2 = 0
     {
-        let inputs = vec![rf.one(), rf.zero(), rf.zero()];
+        let inputs = vec![rf.zero(), rf.zero()];
         let eval_res =
             eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
         eval_res.assert_all_passed();
@@ -59,7 +62,7 @@ fn test_compiled_circuit_debug_symbols() {
 
     // Failing test 1: w1 = 1, w2 = 0 -> failure at "root/block_a/check_w1"
     {
-        let inputs = vec![rf.one(), rf.one(), rf.zero()];
+        let inputs = vec![rf.one(), rf.zero()];
         let eval_res =
             eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
         eval_res.assert_any_failed_at("root/block_a/check_w1");
@@ -67,7 +70,7 @@ fn test_compiled_circuit_debug_symbols() {
 
     // Failing test 2: w1 = 0, w2 = 1 -> failure at "root/block_b/check_w2"
     {
-        let inputs = vec![rf.one(), rf.zero(), rf.one()];
+        let inputs = vec![rf.zero(), rf.one()];
         let eval_res =
             eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
         eval_res.assert_any_failed_at("root/block_b/check_w2");
@@ -103,7 +106,7 @@ fn test_debug_symbols_record_assertion_layers() {
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one(), runtime_f.one()],
+        &[runtime_f.one()],
         FieldID::P256,
     )
     .unwrap();
@@ -134,7 +137,7 @@ fn test_attached_assertion_keeps_its_path() {
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one(), runtime_f.one(), runtime_f.zero()],
+        &[runtime_f.one(), runtime_f.zero()],
         FieldID::P256,
     )
     .unwrap();

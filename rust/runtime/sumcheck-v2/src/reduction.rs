@@ -35,7 +35,7 @@
 //! checks them through Polygero. Deriving constraints alone does not check them.
 
 use crate::{
-    core::{algebra::SerializableField, proto::circuit::Circuit},
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::Transcript,
@@ -109,9 +109,10 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     // Bind both masked claims before drawing their combination challenge.
     let alpha = end_layer(&proof.claims, transcript, f);
 
-    // LFD2's next claim is A + alpha*(B - L(u)). Its weights use only Q;
+    // The next claim is A + alpha*(B - L(u)). Its weights use only Q;
     // the symbolic builder subtracts the public linear correction separately.
-    let (a_next, constant, linear) = weights_next_affine(
+    let constant = super::quad::affine_constant(circuit_layer, constants, a, f);
+    let (a_next, linear) = weights_next_affine(
         circuit_layer,
         constants,
         a,

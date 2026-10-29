@@ -14,7 +14,6 @@
 
 //! Longfellow v2 wire scheduling and circuit encoding.
 
-use super::term_order;
 use crate::{
     compile::{
         algebra::field::CompileField,
@@ -22,10 +21,7 @@ use crate::{
     },
     core::{
         algebra::ElementOf,
-        proto::circuit::{
-            canonical_term, compare_term, compute_id, Circuit, CircuitGeometry, Layer, RawCircuit,
-            Term, TermDelta,
-        },
+        proto::circuit::{canonical_term, CircuitGeometry, Term},
     },
     util::ceil_log2,
 };
@@ -139,20 +135,11 @@ fn materialize_assertions<F: CompileField>(
     nodes: &mut [WExpr<F>],
     depth: &mut [usize],
     max_depth: usize,
-    degree_separated: bool,
 ) {
     for i in 0..nodes.len() {
         if let WExpr::Assert0(w) = nodes[i] {
             if depth[i] < max_depth {
-                nodes[i] = WExpr::Sum(vec![(
-                    f.zero(),
-                    w,
-                    if degree_separated && cfg!(feature = "assertion-separated") {
-                        usize::MAX
-                    } else {
-                        w
-                    },
-                )]);
+                nodes[i] = WExpr::Sum(vec![(f.zero(), w, usize::MAX)]);
                 depth[i] += 1;
             }
         }
@@ -210,7 +197,6 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
     nodes: &[WExpr<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
-    degree_separated: bool,
 ) -> Vec<WireId> {
     let mut ids = vec![INVALID_WIRE_ID; nodes.len()];
 
@@ -249,14 +235,10 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
                     // real inputs. These are comparison keys, not wire IDs:
                     // no One node or slot is allocated in the new circuit.
                     let order_key = |w| {
-                        if degree_separated {
-                            if is_factor(w) {
-                                0
-                            } else {
-                                ids[w].id_within_layer + 1
-                            }
+                        if is_factor(w) {
+                            0
                         } else {
-                            ids[w].id_within_layer
+                            ids[w].id_within_layer + 1
                         }
                     };
                     let rlop0 = order_key(w0);
@@ -374,11 +356,7 @@ fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>
     }
 }
 
-fn compute_node_depths<F: CompileField>(
-    f: &F,
-    nodes: &mut [WExpr<F>],
-    degree_separated: bool,
-) -> (Vec<usize>, usize) {
+fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<usize>, usize) {
     let mut depth = vec![0; nodes.len()];
     for i in 0..nodes.len() {
         depth[i] = depth_of_node(&depth, &nodes[i]);
@@ -399,7 +377,7 @@ fn compute_node_depths<F: CompileField>(
     } else {
         raw_max_depth
     };
-    materialize_assertions(f, nodes, &mut depth, max_depth, degree_separated);
+    materialize_assertions(f, nodes, &mut depth, max_depth);
     (depth, max_depth)
 }
 
@@ -458,22 +436,27 @@ fn extract_debug_symbols<F: CompileField>(
     crate::compile::compiler::debug::CircuitDebugSymbols::new(sym_list, tracker)
 }
 
-/// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
-pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField>(
+struct Scheduled<F: CompileField> {
+    terms: Vec<Vec<Term<F>>>,
+    widths: Vec<usize>,
+    constants: Vec<F::E>,
+    constant_to_idx: std::collections::HashMap<Vec<u8>, u32>,
+    info: CircuitGeometry,
+    symbols: crate::compile::compiler::debug::CircuitDebugSymbols,
+}
+
+fn schedule_graph<F: CompileField + crate::core::algebra::SerializableField>(
     f: &F,
     c: QuadCircuit<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
     tracker: crate::compile::logic::scope::AssertionScope,
-    degree_separated: bool,
-) -> (
-    Circuit<F>,
-    CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
-) {
-    let npublic_input = npublic_input - usize::from(degree_separated);
-    let subfield_boundary = subfield_boundary.saturating_sub(usize::from(degree_separated));
+) -> Scheduled<F> {
+    let npublic_input = npublic_input
+        .checked_sub(1)
+        .expect("source public-input boundary must be at least 1");
+    let subfield_boundary = subfield_boundary.saturating_sub(1);
     let mut nodes = c.nodes;
     let nassertions = nodes
         .iter()
@@ -489,14 +472,14 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
     );
     assert_all_needed(f, &nodes);
 
-    let (depth, max_depth) = compute_node_depths(f, &mut nodes, degree_separated);
+    let (depth, max_depth) = compute_node_depths(f, &mut nodes);
 
     let mut nodes_by_depth = vec![Vec::new(); max_depth + 1];
     for (i, &d) in depth.iter().enumerate() {
         nodes_by_depth[d].push(i);
     }
 
-    let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth, degree_separated);
+    let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
 
     let symbols =
         extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
@@ -511,10 +494,6 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
 
     let ninput = validate_and_count_inputs(&nodes);
     assert!(
-        degree_separated || npublic_input >= 1,
-        "npublic_input must include the reserved constant One"
-    );
-    assert!(
         npublic_input <= ninput,
         "npublic_input ({npublic_input}) exceeds ninput ({ninput})"
     );
@@ -528,77 +507,69 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
 
     let (constants, constant_to_idx) = collect_constants(f, &terms_in_layer);
 
-    let c_layers = ordered_layers(
-        f,
-        terms_in_layer,
-        ninput,
-        &nwires_in_layer,
-        &constant_to_idx,
-        degree_separated,
-    );
-
-    let nwires = nwires_in_layer.iter().sum();
-    let total_terms = c_layers
-        .iter()
-        .map(crate::core::proto::Layer::num_terms)
-        .sum();
-
     let info = CircuitGeometry {
         ninput,
         npublic_input,
         noutput,
-        nlayers: c_layers.len(),
-        nwires,
-        nterms: total_terms,
+        nlayers: terms_in_layer.len(),
+        nwires: nwires_in_layer.iter().sum(),
+        nterms: terms_in_layer.iter().map(Vec::len).sum(),
         nassertions,
     };
-
-    let layers: Vec<Layer<F>> = c_layers.into_iter().rev().collect();
-
-    let raw_circuit = RawCircuit {
-        ninput,
-        npublic_input,
-        noutput,
-        logv: ceil_log2(noutput),
-        subfield_boundary: 0,
+    Scheduled {
+        terms: terms_in_layer,
+        widths: nwires_in_layer,
         constants,
-        layers,
-    };
-
-    let id = compute_id(f, &raw_circuit);
-
-    (
-        Circuit {
-            raw: raw_circuit,
-            id,
-        },
+        constant_to_idx,
         info,
         symbols,
-    )
+    }
 }
 
-/// Propagate constants and arrange terms in the v2 output-major traversal.
-fn ordered_layers<F: CompileField + crate::core::algebra::SerializableField>(
+pub(super) fn schedule<F: CompileField>(
     f: &F,
-    terms_in_layer: Vec<Vec<Term<F>>>,
-    ninput: usize,
-    nwires_in_layer: &[usize],
-    constant_to_idx: &std::collections::HashMap<Vec<u8>, u32>,
-    degree_separated: bool,
-) -> Vec<Layer<F>> {
-    if degree_separated {
-        return degree_layers(f, terms_in_layer, ninput, nwires_in_layer, constant_to_idx);
-    }
-    let mut known_inputs = vec![None; ninput];
-    known_inputs[0] = Some(f.one());
-    let mut layers = Vec::with_capacity(terms_in_layer.len());
-    for (i, mut terms) in terms_in_layer.into_iter().enumerate() {
-        let nw = known_inputs.len();
-        let nv = nwires_in_layer[i];
-        known_inputs = term_order::order_layer(f, &mut terms, &known_inputs, nv);
-        layers.push(build_layer(f, constant_to_idx, terms, nw, ceil_log2(nw)));
-    }
-    layers
+    c: QuadCircuit<F>,
+    assertions: &[(usize, AssertionId)],
+    npublic_input: usize,
+    subfield_boundary: usize,
+    tracker: crate::compile::logic::scope::AssertionScope,
+    classes: crate::core::proto::fixed::CoefficientClasses,
+) -> (
+    crate::core::proto::v2::Circuit<F>,
+    CircuitGeometry,
+    crate::compile::compiler::debug::CircuitDebugSymbols,
+) {
+    let graph = schedule_graph(f, c, assertions, npublic_input, subfield_boundary, tracker);
+    let layers = v2_layers(
+        f,
+        graph.terms,
+        graph.info.ninput,
+        &graph.widths,
+        &graph.constant_to_idx,
+        classes,
+    )
+    .into_iter()
+    .rev()
+    .collect();
+    let raw = crate::core::proto::v2::RawCircuit {
+        ninput: graph.info.ninput,
+        npublic_input: graph.info.npublic_input,
+        noutput: graph.info.noutput,
+        logv: ceil_log2(graph.info.noutput),
+        subfield_boundary: 0,
+        constants: graph.constants,
+        layers,
+    };
+    let id = crate::core::proto::v2::compute_id(f, &raw, classes);
+    (
+        crate::core::proto::v2::Circuit {
+            raw,
+            id,
+            coefficient_classes: classes,
+        },
+        graph.info,
+        graph.symbols,
+    )
 }
 
 fn collect_constants<F: CompileField>(
@@ -622,57 +593,14 @@ fn collect_constants<F: CompileField>(
     (constants, constant_to_idx)
 }
 
-fn build_layer<F: CompileField>(
-    f: &F,
-    constant_to_idx: &std::collections::HashMap<Vec<u8>, u32>,
-    layer_sorted: Vec<Term<F>>,
-    layer_ninput: usize,
-    logw: usize,
-) -> Layer<F> {
-    for idx in 1..layer_sorted.len() {
-        assert!(
-            compare_term(f, &layer_sorted[idx - 1], &layer_sorted[idx])
-                != std::cmp::Ordering::Equal,
-            "Scheduler: duplicate term detected in layer outputs (no coalescing allowed)"
-        );
-    }
-
-    // Preserve traversal order directly. Layer construction owns dictionary
-    // compression; building and expanding another dictionary here adds no data.
-    let mut deltas = Vec::with_capacity(layer_sorted.len());
-    let mut prev_g = 0u32;
-    let mut prev_h0 = 0u32;
-    let mut prev_h1 = 0u32;
-
-    for term in layer_sorted {
-        let key = f.to_bytes(&term.k);
-        let k_index = constant_to_idx[&key];
-
-        let dg = term.g.wrapping_sub(prev_g);
-        let dh0 = term.h0.wrapping_sub(prev_h0);
-        let dh1 = term.h1.wrapping_sub(prev_h1);
-
-        deltas.push(TermDelta {
-            g: dg,
-            h: [dh0, dh1],
-            k_index,
-        });
-
-        prev_g = term.g;
-        prev_h0 = term.h0;
-        prev_h1 = term.h1;
-    }
-
-    Layer::new_compressed(layer_ninput, logw, vec![deltas], vec![0])
-}
-
-fn degree_layers<F: CompileField + crate::core::algebra::SerializableField>(
+fn v2_layers<F: CompileField + crate::core::algebra::SerializableField>(
     f: &F,
     terms: Vec<Vec<Term<F>>>,
     ninput: usize,
     widths: &[usize],
     constants: &std::collections::HashMap<Vec<u8>, u32>,
-) -> Vec<Layer<F>> {
+    classes: crate::core::proto::fixed::CoefficientClasses,
+) -> Vec<crate::core::proto::v2::Layer> {
     let mut nw = ninput;
     terms
         .into_iter()
@@ -714,53 +642,110 @@ fn degree_layers<F: CompileField + crate::core::algebra::SerializableField>(
                 });
             }
             let [q, l, c] = streams;
-            let build = |terms, arity| {
-                if cfg!(feature = "coefficient-separated") {
-                    build_coefficient_layer(f, constants, terms, nw, arity)
-                } else {
-                    build_layer(f, constants, terms, nw, ceil_log2(nw))
-                }
-            };
-            let layer = build(q, 2).with_affine(build(l, 1), build(c, 0));
+            let layer = build_v2_layer(f, constants, q, l, c, nw, classes);
             nw = widths[i];
             layer
         })
         .collect()
 }
 
-fn build_coefficient_layer<F: CompileField + crate::core::algebra::SerializableField>(
+fn build_v2_layer<F: CompileField>(
     f: &F,
     constants: &std::collections::HashMap<Vec<u8>, u32>,
-    terms: Vec<Term<F>>,
+    quadratic: Vec<Term<F>>,
+    linear: Vec<Term<F>>,
+    constant: Vec<Term<F>>,
     nw: usize,
-    arity: usize,
-) -> Layer<F> {
-    use crate::core::proto::fixed::{FixedCoefficients, UnitTerms};
-    let mut general = Vec::new();
-    let mut units = Vec::new();
-    let mut assertions = Vec::new();
-    for t in terms {
-        if f.is_zero(&t.k) {
-            assert!(arity == 2 || (arity == 1 && cfg!(feature = "assertion-separated")));
-            assertions.push(t);
-        } else if t.k == f.one() {
-            units.push(t);
+    classes: crate::core::proto::fixed::CoefficientClasses,
+) -> crate::core::proto::v2::Layer {
+    use crate::core::proto::v2::{
+        Constant, ConstantCoordinates, Layer, Linear, LinearCoordinates, Quadratic,
+        QuadraticCoordinates, Stream,
+    };
+    let mut layer = Layer {
+        nw,
+        logw: ceil_log2(nw),
+        ..Layer::default()
+    };
+    enum Coefficient {
+        Assertion,
+        One,
+        MinusOne,
+        General(u32),
+    }
+    let one = f.one();
+    let minus_one = f.mone();
+    let class = |k: &F::E| {
+        if f.is_zero(k) {
+            Coefficient::Assertion
+        } else if *k == one {
+            if classes.one {
+                Coefficient::One
+            } else {
+                Coefficient::General(constants[&f.to_bytes(k)])
+            }
+        } else if classes.minus_one && *k == minus_one {
+            Coefficient::MinusOne
         } else {
-            general.push(t);
+            Coefficient::General(constants[&f.to_bytes(k)])
+        }
+    };
+    for t in quadratic {
+        let (g, l, r) = (t.g, t.h0, t.h1);
+        match class(&t.k) {
+            Coefficient::Assertion => layer
+                .quadratic_assertions
+                .deltas
+                .push(QuadraticCoordinates { g, l, r }),
+            Coefficient::One => layer
+                .quadratic_one
+                .deltas
+                .push(QuadraticCoordinates { g, l, r }),
+            Coefficient::MinusOne => {
+                layer
+                    .quadratic_minus_one
+                    .deltas
+                    .push(QuadraticCoordinates { g, l, r })
+            }
+            Coefficient::General(k) => layer.quadratic.deltas.push(Quadratic { g, l, r, k }),
         }
     }
-    let units = UnitTerms::from_layer(build_layer(f, constants, units, nw, ceil_log2(nw)), arity);
-    let assertion_arity = if arity == 2 {
-        2
-    } else if arity == 1 && cfg!(feature = "assertion-separated") {
-        1
-    } else {
-        0
-    };
-    let assertions = UnitTerms::from_layer(
-        build_layer(f, constants, assertions, nw, ceil_log2(nw)),
-        assertion_arity,
-    );
-    build_layer(f, constants, general, nw, ceil_log2(nw))
-        .with_coefficients(FixedCoefficients::new(units, assertions, f).unwrap())
+    for t in linear {
+        let (g, l) = (t.g, t.h0);
+        match class(&t.k) {
+            Coefficient::Assertion => layer
+                .linear_assertions
+                .deltas
+                .push(LinearCoordinates { g, l }),
+            Coefficient::One => layer.linear_one.deltas.push(LinearCoordinates { g, l }),
+            Coefficient::MinusOne => layer
+                .linear_minus_one
+                .deltas
+                .push(LinearCoordinates { g, l }),
+            Coefficient::General(k) => layer.linear.deltas.push(Linear { g, l, k }),
+        }
+    }
+    for t in constant {
+        let g = t.g;
+        match class(&t.k) {
+            Coefficient::Assertion => panic!("constant assertions are unsupported"),
+            Coefficient::One => layer.constant_one.deltas.push(ConstantCoordinates { g }),
+            Coefficient::MinusOne => layer
+                .constant_minus_one
+                .deltas
+                .push(ConstantCoordinates { g }),
+            Coefficient::General(k) => layer.constant.deltas.push(Constant { g, k }),
+        }
+    }
+    macro_rules! encode {
+        ($($stream:ident : $ty:ty),+ $(,)?) => {
+            $(layer.$stream = Stream::<$ty>::from_terms(layer.$stream.deltas);)+
+        };
+    }
+    encode!(quadratic: Quadratic, quadratic_one: QuadraticCoordinates,
+        quadratic_minus_one: QuadraticCoordinates, quadratic_assertions: QuadraticCoordinates,
+        linear: Linear, linear_one: LinearCoordinates, linear_minus_one: LinearCoordinates,
+        linear_assertions: LinearCoordinates, constant: Constant,
+        constant_one: ConstantCoordinates, constant_minus_one: ConstantCoordinates);
+    layer
 }

@@ -326,19 +326,10 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
 
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
-    let expected_id: [u8; 32] = if super::V2 {
-        [
-            0x3a, 0xec, 0x9b, 0x70, 0x81, 0x6b, 0x23, 0x8b, 0x15, 0x1b, 0xc3, 0xfe, 0x64, 0x1d,
-            0x93, 0x64, 0x60, 0x69, 0x31, 0x66, 0x90, 0x44, 0x87, 0x26, 0x07, 0x6f, 0xc9, 0x62,
-            0xb4, 0xf9, 0x9f, 0xe2,
-        ]
-    } else {
-        [
-            0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea,
-            0x7e, 0x87, 0x3e, 0x06, 0x2b, 0x4d, 0x83, 0x25, 0x1e, 0x7b, 0x91, 0x4e, 0x36, 0xfc,
-            0x43, 0xbe, 0x97, 0x26,
-        ]
-    };
+    let expected_id: [u8; 32] = [
+        195, 252, 3, 125, 234, 169, 116, 50, 203, 0, 209, 46, 149, 114, 236, 57, 41, 22, 66, 187,
+        118, 32, 122, 182, 19, 49, 136, 196, 189, 201, 93, 174,
+    ];
     assert_eq!(
         circuit.id, expected_id,
         "Circuit hash changed! Expected {:?}, got {:?}",
@@ -346,7 +337,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     );
 
     let writer = CircuitWriter::new(&gf2_c, FieldID::Gf2_128);
-    let serialized = writer.to_bytes(&circuit);
+    let serialized = writer.to_bytes_lfc3(&circuit);
     let orig_size = serialized.len();
 
     let compressed =

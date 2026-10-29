@@ -34,8 +34,10 @@ pub use zk_spec::{
     NUM_ZK_SPECS, SUPPORTED_CIRCUIT_VERSIONS, SYSTEM_ID, ZK_SPECS,
 };
 
-#[cfg(feature = "experimental")]
-pub mod packed_v9;
 pub mod provider;
 cfg_prover! { mod mac; pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
 cfg_verifier! { pub mod verifier; pub use verifier::{run_mdoc_verifier,run_mdoc_verifier_inner}; }
+
+#[cfg(test)]
+#[path = "../../tests/next.rs"]
+mod tests;

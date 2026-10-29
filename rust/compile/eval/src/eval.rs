@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::ElementOf;
-use crate::runtime::algebra::field::RuntimeField;
-
-use crate::compile::eval::{Circuit, Layer};
+use crate::{
+    compile::eval::{Circuit, Layer},
+    core::algebra::ElementOf,
+    runtime::algebra::field::RuntimeField,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum EvalError {
@@ -25,8 +26,8 @@ pub enum EvalError {
     ExcessiveInput,
 }
 
-pub fn initial_inputs<const W: usize, F: RuntimeField<W>>(f: &F) -> Vec<ElementOf<F>> {
-    vec![f.one()]
+pub fn initial_inputs<const W: usize, F: RuntimeField<W>>(_f: &F) -> Vec<ElementOf<F>> {
+    Vec::new()
 }
 
 pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
@@ -44,7 +45,11 @@ pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
     }
 }
 
-pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algebra::SerializableField>(
+pub fn eval_circuit<
+    'a,
+    const W: usize,
+    FR: RuntimeField<W> + crate::core::algebra::SerializableField,
+>(
     fr: &FR,
     circuit: &Circuit<FR>,
     symbols: &'a crate::compile::eval::CircuitDebugSymbols,
@@ -103,9 +108,11 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
             let status = if is_ok {
                 crate::compile::logic::scope::AssertionStatus::Passed
             } else {
-                crate::compile::logic::scope::AssertionStatus::Failed("circuit output non-zero".to_string())
+                crate::compile::logic::scope::AssertionStatus::Failed(
+                    "circuit output non-zero".to_string(),
+                )
             };
-            fates.insert(id, status);
+            fates.entry(id).or_insert(status);
         }
     }
 
@@ -123,44 +130,85 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
 fn eval_layer<FR: RuntimeField<W> + crate::core::algebra::SerializableField, const W: usize>(
     fr: &FR,
     noutput: usize,
-    layer: &Layer<FR>,
+    layer: &Layer,
     constants: &[ElementOf<FR>],
     vin: &[ElementOf<FR>],
 ) -> (Vec<ElementOf<FR>>, Vec<usize>) {
     let mut vout = vec![fr.zero(); noutput];
     let mut failed_wires = Vec::new();
 
-    layer.for_each_term(
-        constants,
-        #[inline(always)]
-        |term| {
-            let y = fr.mulf(&vin[term.h0 as usize], &vin[term.h1 as usize]);
-
-            if fr.is_zero(&term.k) {
-                if !fr.is_zero(&y) {
-                    failed_wires.push(term.g as usize);
-                }
-            } else {
-                fr.fma(&mut vout[term.g as usize], &term.k, &y);
-            }
-        },
-    );
+    layer.quadratic.for_each(|t| {
+        fr.fma(
+            &mut vout[t.g as usize],
+            &constants[t.k as usize],
+            &fr.mulf(&vin[t.l as usize], &vin[t.r as usize]),
+        )
+    });
+    layer.quadratic_one.for_each(|t| {
+        fr.fma(
+            &mut vout[t.g as usize],
+            &vin[t.l as usize],
+            &vin[t.r as usize],
+        )
+    });
+    layer.quadratic_minus_one.for_each(|t| {
+        fr.fnms(
+            &mut vout[t.g as usize],
+            &vin[t.l as usize],
+            &vin[t.r as usize],
+        )
+    });
+    layer.quadratic_assertions.for_each(|t| {
+        if !fr.is_zero(&fr.mulf(&vin[t.l as usize], &vin[t.r as usize])) {
+            failed_wires.push(t.g as usize);
+        }
+    });
+    layer.linear.for_each(|t| {
+        fr.fma(
+            &mut vout[t.g as usize],
+            &constants[t.k as usize],
+            &vin[t.l as usize],
+        )
+    });
+    layer
+        .linear_one
+        .for_each(|t| fr.add(&mut vout[t.g as usize], &vin[t.l as usize]));
+    layer
+        .linear_minus_one
+        .for_each(|t| fr.sub(&mut vout[t.g as usize], &vin[t.l as usize]));
+    layer.linear_assertions.for_each(|t| {
+        if !fr.is_zero(&vin[t.l as usize]) {
+            failed_wires.push(t.g as usize);
+        }
+    });
+    layer
+        .constant
+        .for_each(|t| fr.add(&mut vout[t.g as usize], &constants[t.k as usize]));
+    layer
+        .constant_one
+        .for_each(|t| fr.add(&mut vout[t.g as usize], &fr.one()));
+    layer
+        .constant_minus_one
+        .for_each(|t| fr.sub(&mut vout[t.g as usize], &fr.one()));
 
     failed_wires.sort_unstable();
     failed_wires.dedup();
     (vout, failed_wires)
 }
 
-fn convert_circuit<FC: crate::core::algebra::SerializableField, FR: crate::core::algebra::SerializableField>(
+fn convert_circuit<
+    FC: crate::core::algebra::SerializableField,
+    FR: crate::core::algebra::SerializableField,
+>(
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
     field_id: crate::core::proto::FieldID,
 ) -> Result<Circuit<FR>, String> {
     let writer = crate::core::proto::writer::CircuitWriter::new(fc, field_id);
-    let bytes = writer.to_bytes(circuit);
+    let bytes = writer.to_bytes_lfc3(circuit);
     let reader = crate::core::proto::reader::CircuitReader::new(fr, field_id);
-    let (converted_circuit, remaining) = reader.from_bytes(&bytes, true)?;
+    let (converted_circuit, remaining) = reader.from_bytes_lfc3(&bytes, true)?;
     if !remaining.is_empty() {
         return Err("Remaining bytes after deserialization".to_string());
     }

@@ -23,52 +23,66 @@ use crate::{
         },
         logic::AssertionScope,
     },
-    core::proto::circuit::{Circuit, CircuitGeometry},
+    core::proto::circuit::CircuitGeometry,
 };
 
-/// Compile with constant-aware output-major term order.
-pub fn compile<F, Build>(
+/// Compile directly into the concrete v2 streams, with no One input.
+pub fn compile_v2<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    Circuit<F>,
+    crate::core::proto::v2::Circuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
 where
-    F: CompileField + crate::core::algebra::SerializableField,
+    F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
-    compile_with_mode(f, build, false)
+    compile_v2_with_classes(f, build, Default::default())
 }
 
-#[cfg(feature = "degree-separated")]
-pub fn compile_degree_separated<F, Build>(
+/// Compile with an explicit coefficient policy for format and timing comparisons.
+pub fn compile_v2_with_classes<F, Build>(
     f: &F,
     build: Build,
+    classes: crate::core::proto::fixed::CoefficientClasses,
 ) -> (
-    Circuit<F>,
+    crate::core::proto::v2::Circuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
 where
-    F: CompileField + crate::core::algebra::SerializableField,
+    F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
-    compile_with_mode(f, build, true)
+    let (nodes, assertions, npublic, boundary, tracker) = lower(f, build);
+    let (circuit, info, symbols) = super::scheduler::schedule(
+        f,
+        nodes,
+        &assertions,
+        npublic,
+        boundary,
+        tracker,
+        classes.for_field(f.is_binary()),
+    );
+    assert!(info.ninput > 0);
+    assert!(info.nterms > 0);
+    (circuit, info, symbols)
 }
 
-pub(crate) fn compile_with_mode<F, Build>(
+fn lower<F, Build>(
     f: &F,
     build: Build,
-    degree_separated: bool,
 ) -> (
-    Circuit<F>,
-    CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::compiler::quad::QuadCircuit<F>,
+    Vec<(usize, crate::compile::logic::scope::AssertionId)>,
+    usize,
+    usize,
+    AssertionScope,
 )
 where
-    F: CompileField + crate::core::algebra::SerializableField,
+    F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
     let source_tracker = AssertionScope::new();
@@ -93,25 +107,16 @@ where
             let copied = crate::compile::compiler::copy::rewrite(&copy_arena, f, simplified);
             (copied, npublic_input, subfield_boundary)
         };
-        let (quad_circuit, quad_asserts) = if degree_separated {
-            super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker)
-        } else {
-            crate::compile::compiler::ir_to_quad::rewrite(&copy_arena, f, copied, &source_tracker)
-        };
+        let (quad_circuit, quad_asserts) =
+            super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker);
         (quad_circuit, quad_asserts, npublic_input, subfield_boundary)
     };
 
-    let (circuit, info, symbols) = super::scheduler::schedule(
-        f,
+    (
         quad_circuit,
-        &quad_asserts,
+        quad_asserts,
         npublic_input,
         subfield_boundary,
         source_tracker,
-        degree_separated,
-    );
-
-    assert!(info.ninput > 0);
-    assert!(info.nterms > 0);
-    (circuit, info, symbols)
+    )
 }

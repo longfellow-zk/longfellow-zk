@@ -52,6 +52,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         vec![0],
     );
     let constants = [f.zero(), element(3)];
+    let layer = crate::core::proto::v2::quadratic_layer_fixture(layer, &constants, f);
     let a = [element(7), f.zero()];
     let mut transcript = Transcript::new(b"assertion-independence");
     let rho = assertion_weights(&layer, &constants, 0, &mut transcript, f);
@@ -102,6 +103,8 @@ fn check_repeated_output<
         ]],
         vec![0],
     );
+    let repeated_output =
+        crate::core::proto::v2::quadratic_layer_fixture(repeated_output, &constants, f);
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.clone();
     expected.write_bytes(b"single-hand-assertions");
@@ -156,6 +159,7 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         ]],
         vec![0],
     );
+    let reordered = crate::core::proto::v2::quadratic_layer_fixture(reordered, &constants, f);
     let rho = assertion_weights(&reordered, &constants, 2, &mut transcript, f);
     assert_eq!(rho.len(), 2);
     let q_l = bind_r(&reordered, &constants, &a, &rho, &w, f);
@@ -192,10 +196,11 @@ fn check_output_sampling<
 >(
     f: &F,
 ) {
-    use crate::core::proto::circuit::{Circuit, RawCircuit};
+    use crate::core::proto::v2::{Circuit, RawCircuit};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
         let circuit = Circuit {
             id: [0; 32],
+            coefficient_classes: Default::default(),
             raw: RawCircuit {
                 ninput: noutput,
                 npublic_input: 0,

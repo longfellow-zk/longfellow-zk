@@ -27,7 +27,7 @@ use crate::mdoc::{
     },
 };
 
-const MAGIC: &[u8; 9] = b"MDOCNEXT3";
+const MAGIC: &[u8; 9] = b"MDOCNEXT4";
 
 /// Save a trusted NEXT bundle for reuse by development tools and benchmarks.
 pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(), String> {
@@ -55,6 +55,8 @@ pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(
             .write_all(&(value as u64).to_le_bytes())
             .map_err(|error| error.to_string())?;
     }
+    let manifest = spec.manifest.to_bytes();
+    writer.write_all(&manifest).map_err(|e| e.to_string())?;
     writer
         .write_all(circuit.compressed())
         .map_err(|error| error.to_string())
@@ -86,6 +88,11 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
         combined_hash,
         num_attributes,
         version,
+        manifest: {
+            let mut bytes = [0; crate::mdoc::proto::packed::HashInputManifest::HEADER_SIZE];
+            reader.read_exact(&mut bytes).map_err(|e| e.to_string())?;
+            crate::mdoc::proto::packed::HashInputManifest::from_bytes(&bytes)?
+        },
         polygero_hash: PolygeroParameters {
             k: hk,
             n: hn,
@@ -113,4 +120,14 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
         return Err("Cache does not describe a supported NEXT circuit".into());
     }
     Ok(())
+}
+
+pub fn write_next_file(path: &std::path::Path, bundle: &ProvidedCircuit) -> Result<(), String> {
+    write_next(
+        std::fs::File::create(path).map_err(|e| e.to_string())?,
+        bundle,
+    )
+}
+pub fn read_next_file(path: &std::path::Path) -> Result<ProvidedCircuit, String> {
+    read_next(std::fs::File::open(path).map_err(|e| e.to_string())?)
 }

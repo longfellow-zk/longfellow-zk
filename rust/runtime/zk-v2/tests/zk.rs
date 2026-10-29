@@ -95,7 +95,9 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
     }
 }
 
-fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(f: &F) -> Circuit<F> {
+fn legacy_circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
+    f: &F,
+) -> Circuit<F> {
     let raw = RawCircuit {
         ninput: 3,
         npublic_input: 1,
@@ -231,7 +233,7 @@ pub(crate) fn exercise<
             nreq: 2,
             block_enc: 64,
         };
-        let old = crate::runtime::zk_v1::ZkProver::new(circuit(f), cfg);
+        let old = crate::runtime::zk_v1::ZkProver::new(legacy_circuit(f), cfg);
         let mut legacy_ts = Transcript::new(b"longfellow/v1/comparison");
         let (commit, geom) = old.commit(&witness, &legacy_context, &mut legacy_ts, &mut rng, sf);
         let legacy_proof = old
@@ -244,7 +246,7 @@ pub(crate) fn exercise<
             )
             .unwrap();
         let legacy_bytes = legacy_proof.write(&geom, f, sf).unwrap();
-        let verifier = crate::runtime::zk_v1::ZkVerifier::new(circuit(f), cfg);
+        let verifier = crate::runtime::zk_v1::ZkVerifier::new(legacy_circuit(f), cfg);
         let mut tv = Transcript::new(b"longfellow/v1/comparison");
         verifier.recv_commitment(&legacy_proof, &mut tv, &legacy_context);
         verifier
@@ -361,7 +363,6 @@ fn v2_rejects_legacy_boundary_before_sampling_or_transcript_changes() {
     assert!(legacy().validate_v2().is_err());
     assert!(crate::runtime::sumcheck_v2::eval_circuit(vec![f.one(); 2], &legacy(), &f).is_err());
     assert!(ZkVerifier::new(legacy(), config, &context).is_err());
-    #[cfg(feature = "experimental")]
     let p = ZkProver::new(legacy(), config);
     let mut ts = Transcript::new(b"boundary");
     let mut before = ts.clone();
@@ -372,4 +373,10 @@ fn v2_rejects_legacy_boundary_before_sampling_or_transcript_changes() {
         .is_err());
     assert_eq!(rng.state, state);
     assert_eq!(ts.u128(), before.u128());
+}
+
+fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
+    f: &F,
+) -> crate::core::proto::v2::Circuit<F> {
+    crate::core::proto::v2::quadratic_fixture(legacy_circuit(f), f)
 }

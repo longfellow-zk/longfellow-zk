@@ -42,17 +42,18 @@ fn reconstructed_mac_inputs_are_checked_by_the_circuit() {
             0,
         )
     });
-    let bytes = CircuitWriter::new(&fc, FieldID::Gf2_128).to_bytes_lfc2(&compiled);
+    let bytes = CircuitWriter::new(&fc, FieldID::Gf2_128).to_bytes_lfc3(&compiled);
     let f = Gf2_128Field::new();
     let (circuit, tail) = CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_bytes_lfc2(&bytes, false)
+        .from_bytes_lfc3(&bytes, false)
         .unwrap();
     assert!(tail.is_empty());
     let message = std::array::from_fn::<_, 32, _>(|i| (i * 13 + 7) as u8);
     let av = 0x123456789abcdefu128;
     let pads = [0xabcdef123456789u128, 0xdeadbeef1234u128];
     let tags = crate::circuits::mac::concrete::compute_tag(&message, av, &pads);
-    let mut inputs = vec![f.one()];
+    let mut inputs = Vec::new();
+    public_count -= 1;
     let mut word = |value: u128| {
         inputs.extend((0..128).map(|i| Gf2_128::from((value >> i) & 1)));
     };
@@ -72,9 +73,9 @@ fn reconstructed_mac_inputs_are_checked_by_the_circuit() {
     sumcheck_v2::eval_circuit(inputs.clone(), &circuit, &f).unwrap();
     // Reject changed public tags/challenge, changed message bits, and either private mask.
     for index in [
-        1,
-        129,
-        257,
+        0,
+        128,
+        256,
         public_count,
         public_count + 256,
         public_count + 384,

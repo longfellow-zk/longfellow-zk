@@ -1,0 +1,10 @@
+circuit,degree,minus_one_expanded,general_expanded,one_expanded,assertions_expanded,minus_one_dictionary,general_dictionary,all_dictionary
+ML-DSA-44,quadratic,117963,2141814,1513245,1042,588,26392,48602
+ML-DSA-44,linear,76124,778765,1947053,181151,1205,7237,25092
+ML-DSA-44,constant,90634,95850,31595,0,11,22,99
+ML-DSA-65,quadratic,144973,3226336,1562362,4372,592,27868,50473
+ML-DSA-65,linear,94561,884797,2040319,205183,1234,7270,27065
+ML-DSA-65,constant,91142,98166,38653,0,10,21,96
+mdoc-signature,quadratic,6950,75068,66770,0,109,2570,6254
+mdoc-signature,linear,864,12742,83725,3958,68,857,3930
+mdoc-signature,constant,10,1118,33080,0,7,43,149

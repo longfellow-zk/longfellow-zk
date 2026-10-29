@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Compile NEXT and choose v2 parameters from its actual public circuit metadata.
-
+//! Explicit packed v9 development compilation and a separately tagged cache.
 use crate::{
-    compile::polygero::tune_large_field_at_rate,
-    core::{
-        algebra::SerializableField,
-        proto::{archive::CircuitArchive, circuit::Circuit, reader::CircuitReader, FieldID},
-    },
+    core::proto::{archive::CircuitArchiveBuilder, writer::CircuitWriter, FieldID},
     mdoc::{
-        circuits::{config::K_ZSTD_LEVEL, NEXT_VERSION},
         compile,
         runtime::v2::{
-            provider::{self, ProvidedCircuit},
+            provider::{from_compressed, ProvidedCircuit},
             PolygeroParameters, ZkSpecStruct,
         },
     },
@@ -37,33 +31,40 @@ use crate::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
             subfield_v1::BinarySubfield,
-            RangeInterpolatorFactory, RuntimeField, SupportsFFT,
+            SupportsFFT,
         },
-        proto::{polygero::PolygeroConfig, zk_v2::commitment_layout},
+        proto::zk_v2::packing_layout,
     },
 };
-
-/// Compile the development circuit and return its matching specification.
-/// Parameter search runs here, once per invocation, outside proving and verification.
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
-    if !(1..=4).contains(&num_attributes) {
-        return Err("NEXT supports one to four attributes".into());
-    }
-    let bytes = compile::compile_circuits(num_attributes)?;
-    let archive = CircuitArchive::from_bytes(&bytes)?;
-    let spec = specification(&archive, num_attributes)?;
-    let compressed =
-        zstd::encode_all(bytes.as_slice(), K_ZSTD_LEVEL).map_err(|error| error.to_string())?;
-    provider::from_compressed(spec, compressed)
-        .map_err(|error| format!("Invalid compiled NEXT bundle: {error:?}"))
+    compile_next_with_classes(num_attributes, Default::default())
 }
-
-/// The compiler supplies IDs and circuit structure; offline selection supplies
-/// K, N, S and T. The runtime derives all remaining geometry from those choices.
-fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSpecStruct, String> {
-    if archive.circuit_version as usize != NEXT_VERSION {
-        return Err("Compiler returned a circuit other than NEXT".into());
+pub fn compile_next_with_classes(
+    num_attributes: usize,
+    classes: crate::core::proto::fixed::CoefficientClasses,
+) -> Result<ProvidedCircuit, String> {
+    if !(1..=4).contains(&num_attributes) {
+        return Err("v9 supports one to four attributes".into());
     }
+    let cf = crate::compile::algebra::gf2_128::Gf2_128Field::new();
+    let cp = crate::compile::algebra::p256::P256Field::new();
+    let (hash, manifest) = compile::generate_hash_v2_with_classes(&cf, num_attributes, classes)?;
+    let sig = compile::generate_sig_v2_with_classes(&cp, classes)?;
+    let mut builder = CircuitArchiveBuilder::new();
+    builder.set_circuit_version(9);
+    builder.add_entry(
+        "sig",
+        sig.id,
+        CircuitWriter::new(&cp, FieldID::P256).to_bytes_v2(&sig),
+    );
+    builder.add_entry(
+        "hash",
+        hash.id,
+        CircuitWriter::new(&cf, FieldID::Gf2_128).to_bytes_v2(&hash),
+    );
+    builder.add_entry("hash-input", manifest.digest(), manifest.to_bytes());
+    let archive = builder.build();
+    let bytes = archive.to_bytes();
     let f = Gf2_128Field::new();
     let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
     let d = BinaryInterpolatorFactory::new(&f, &sf);
@@ -71,55 +72,66 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     let ext = Fp2Field::new(&p);
     let pd =
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    let hash = CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_bytes(
-            &archive.get("hash").ok_or("Missing hash circuit")?.payload,
-            false,
-        )?
+    // Decode into runtime field types; compiler field types are deliberately separate.
+    let h = crate::core::proto::reader::CircuitReader::new(&f, FieldID::Gf2_128)
+        .with_total_term_limit(crate::mdoc::proto::packed::V9_MAX_TOTAL_TERMS)
+        .from_bytes_v2(&archive.entries[1].payload, true)?
         .0;
-    let sig = CircuitReader::new(&p, FieldID::P256)
-        .from_bytes(
-            &archive
-                .get("sig")
-                .ok_or("Missing signature circuit")?
-                .payload,
-            false,
-        )?
+    let s = crate::core::proto::reader::CircuitReader::new(&p, FieldID::P256)
+        .from_bytes_v2(&archive.entries[0].payload, true)?
         .0;
-    let h = select_parameters(&hash, &d, &f)?;
-    let s = select_parameters(&sig, &pd, &p)?;
-    Ok(ZkSpecStruct {
+    let (layout, _, products) = packing_layout(&h, &f)?;
+    let hc = crate::compile::polygero::tune_large_field_at_rate(
+        7,
+        layout.witness_count,
+        &products,
+        16,
+        |c| c.can_interpolate(&d),
+    )
+    .ok_or("no packed Polygero profile")?;
+    let sc = select_parameters(&s, &pd, &p)?;
+    let par = |c: crate::runtime::polygero::PolygeroConfig| PolygeroParameters {
+        k: c.k,
+        s: c.s,
+        n: c.n,
+        t: c.t,
+    };
+    let spec = ZkSpecStruct {
         combined_hash: archive.combined_id,
         num_attributes,
-        version: NEXT_VERSION,
-        polygero_hash: PolygeroParameters {
-            k: h.k,
-            n: h.n,
-            s: h.s,
-            t: h.t,
-        },
-        polygero_sig: PolygeroParameters {
-            k: s.k,
-            n: s.n,
-            s: s.s,
-            t: s.t,
-        },
-    })
+        version: 9,
+        manifest,
+        polygero_hash: par(hc),
+        polygero_sig: par(sc),
+    };
+    let compressed = zstd::encode_all(
+        bytes.as_slice(),
+        crate::mdoc::circuits::config::K_ZSTD_LEVEL,
+    )
+    .map_err(|e| e.to_string())?;
+    from_compressed(spec, compressed)
 }
-
 /// Translate the v2 pad layout into public witness coordinates for selection.
 /// NEXT uses rate 1/7; the chosen dimensions become part of its saved spec.
 pub(super) fn select_parameters<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::PackingField,
-    D: RangeInterpolatorFactory<W, F>,
+    F: crate::runtime::algebra::RuntimeField<W>
+        + crate::core::algebra::SerializableField
+        + crate::runtime::algebra::PackingField,
+    D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
 >(
-    circuit: &Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     domain: &D,
     f: &F,
-) -> Result<PolygeroConfig, String> {
+) -> Result<crate::runtime::proto::polygero::PolygeroConfig, String> {
     circuit.validate_v2()?;
-    let (_, nw, products) = commitment_layout(circuit,f);
-    tune_large_field_at_rate(7, nw, &products, f.serialized_size_bytes(), |config| config.can_interpolate(domain))
+    let (_, nw, products) = crate::runtime::proto::zk_v2::commitment_layout(circuit, f);
+    crate::compile::polygero::tune_large_field_at_rate(
+        7,
+        nw,
+        &products,
+        f.serialized_size_bytes(),
+        |config| config.can_interpolate(domain),
+    )
     .ok_or_else(|| "no supported Polygero tuning profile".to_string())
 }

@@ -28,7 +28,6 @@ pub(super) struct AssignmentBuilder<
 > {
     pub(super) field: &'a F,
     buffer: Vec<F::E>,
-    #[cfg(feature = "experimental")]
     pub(super) boolean: bool,
 }
 
@@ -39,12 +38,10 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
         Self {
             field,
             buffer: Vec::new(),
-            #[cfg(feature = "experimental")]
             boolean: false,
         }
     }
 
-    #[cfg(feature = "experimental")]
     pub(super) fn new_boolean(field: &'a F) -> Self {
         Self {
             field,
@@ -53,7 +50,6 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
         }
     }
     pub(super) fn push_elt(&mut self, elt: &F::E) {
-        #[cfg(feature = "experimental")]
         if self.boolean {
             assert!(
                 *elt == self.field.zero() || *elt == self.field.one(),
@@ -117,7 +113,6 @@ impl<
             *item = (cur_val & 1) != 0;
             cur_val >>= 1;
         }
-        #[cfg(feature = "experimental")]
         if self.boolean {
             for bit in bits {
                 self.push_bit(bit);
@@ -136,7 +131,6 @@ impl<F: MdocHashRuntimeField> AssignmentBuilder<'_, F> {
 
     /// Supply the MAC field value in the circuit's selected input representation.
     pub(super) fn push_mac_field(&mut self, val: u128) {
-        #[cfg(feature = "experimental")]
         if self.boolean {
             for i in 0..128 {
                 self.push_bit((val >> i) & 1 != 0);
@@ -204,8 +198,7 @@ cfg_prover! {
                 }
             }
 
-            #[cfg(feature = "experimental")]
-            if self.boolean {
+                        if self.boolean {
                 for bit in bits {
                     self.push_bit(bit);
                 }

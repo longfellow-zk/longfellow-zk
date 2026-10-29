@@ -64,7 +64,7 @@ pub struct TermDelta {
 
 pub struct Layer<F: SerializableField> {
     pub(in crate::core::proto) coefficients: Option<Box<super::fixed::FixedCoefficients<F>>>,
-    /// LFD2 stores linear and constant streams separately. These child streams
+    /// degree-only experiment stores linear and constant streams separately. These child streams
     /// have no affine children; their unused input indices are zero.
     pub(in crate::core::proto) affine: Option<Box<[Layer<F>; 2]>>,
     pub(in crate::core::proto) nw: usize,
@@ -265,7 +265,7 @@ impl<F: SerializableField> Layer<F> {
         Ok(())
     }
 
-    /// Visit this stream. On an LFD2 parent this is the quadratic stream;
+    /// Visit this stream. On an degree-only experiment parent this is the quadratic stream;
     /// `streams()` also exposes its linear and constant children.
     #[inline(always)]
     pub fn for_each_general_term<MutCb: FnMut(Term<F>)>(&self, constants: &[F::E], mut cb: MutCb) {
@@ -338,6 +338,14 @@ impl<F: SerializableField> Layer<F> {
                     h1,
                 })
             });
+            c.negatives.for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.minus_one().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            });
             c.assertions.for_each(|g, h0, h1| {
                 cb(Term {
                     k: c.zero().clone(),
@@ -358,6 +366,14 @@ impl<F: SerializableField> Layer<F> {
             c.units.try_for_each(|g, h0, h1| {
                 cb(Term {
                     k: c.one().clone(),
+                    g,
+                    h0,
+                    h1,
+                })
+            })?;
+            c.negatives.try_for_each(|g, h0, h1| {
+                cb(Term {
+                    k: c.minus_one().clone(),
                     g,
                     h0,
                     h1,
@@ -389,14 +405,13 @@ impl<F: SerializableField> Layer<F> {
     /// Returns the total number of terms across all macro segments referenced in this layer.
     #[must_use]
     pub fn num_terms(&self) -> usize {
-        self.coefficients
-            .as_ref()
-            .map_or(0, |c| c.units.num_terms() + c.assertions.num_terms())
-            + self
-                .delta_tokens
-                .iter()
-                .map(|&tok| self.delta_segments[tok as usize].len())
-                .sum::<usize>()
+        self.coefficients.as_ref().map_or(0, |c| {
+            c.units.num_terms() + c.negatives.num_terms() + c.assertions.num_terms()
+        }) + self
+            .delta_tokens
+            .iter()
+            .map(|&tok| self.delta_segments[tok as usize].len())
+            .sum::<usize>()
             + self
                 .affine
                 .iter()

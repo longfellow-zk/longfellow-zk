@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::experimental::ecmul::{
-    concrete::{self, ConcreteGiven},
-    EcmulCircuit,
-};
-use crate::compile::algebra::{
-    field::{CompilePrimeField, SupportsNatConversions},
-    p256::P256Field,
-    secp256r1::Secp256r1,
-};
-use crate::compile::eval::FieldID;
-use crate::core::algebra::{Nat, SerializableField};
-use crate::runtime::algebra::field::RuntimeField;
-
 use super::testvec;
+use crate::{
+    circuits::experimental::ecmul::{
+        concrete::{self, ConcreteGiven},
+        EcmulCircuit,
+    },
+    compile::{
+        algebra::{
+            field::{CompilePrimeField, SupportsNatConversions},
+            p256::P256Field,
+            secp256r1::Secp256r1,
+        },
+        eval::FieldID,
+    },
+    core::algebra::{Nat, SerializableField},
+    runtime::algebra::field::RuntimeField,
+};
 
 fn test_compile_ecmul_generic<
     const W: usize,
@@ -53,12 +56,12 @@ fn test_compile_ecmul_generic<
 
     crate::compile::compiler::dump_stats("ecmul", &compiled_circuit, &stats);
 
-    assert_eq!(stats.ninput, 1030);
-    assert_eq!(stats.npublic_input, 1);
+    assert_eq!(stats.ninput, 1029);
+    assert_eq!(stats.npublic_input, 0);
     assert_eq!(stats.noutput, 765);
     assert_eq!(stats.nlayers, 4);
-    assert_eq!(stats.nwires, 11503);
-    assert_eq!(stats.nterms, 22480);
+    assert_eq!(stats.nwires, 11500);
+    assert_eq!(stats.nterms, 22477);
 
     // Verify compiled circuit evaluation
     let tv = testvec::get_testvec();

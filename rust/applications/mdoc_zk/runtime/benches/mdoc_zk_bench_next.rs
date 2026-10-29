@@ -12,230 +12,116 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Longfellow v2 / NEXT circuit end-to-end benchmark.
-
-//! Complete v8 flow, including circuit loading, native preparation, commitments,
-//! serialization and cleanup. Longfellow v2 uses the checked Polygero parameter family.
+//! NEXT v9 default: end-to-end timing and optional allocation measurements.
 use std::time::Instant;
-
-#[path = "../../../../benches/support/memory.rs"]
-mod memory;
 
 use longfellow_zk::{
     compile::algebra::CompileNat,
-    core::algebra::Nat,
     mdoc::{
         circuits::parse_test_data,
-        v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner},
+        development_provider as provider,
+        v2::{self, req_attr},
     },
     runtime::random::DeterministicRng,
 };
+#[path = "../../../../benches/support/coefficients.rs"]
+mod coefficients;
+#[path = "../../../../benches/support/memory.rs"]
+mod memory;
 fn main() {
+    let n = std::env::var("MDOC_V9_ATTRIBUTES")
+        .unwrap_or("2".into())
+        .parse::<usize>()
+        .unwrap();
+    assert!((1..=4).contains(&n));
+    let samples = std::env::var("MDOC_V9_SAMPLES")
+        .unwrap_or("3".into())
+        .parse::<usize>()
+        .unwrap();
+    assert!(samples > 0);
+    let path = std::env::var_os("MDOC_V9_CACHE").map(|dir| {
+        std::fs::create_dir_all(&dir).unwrap();
+        std::path::PathBuf::from(dir).join(format!("next-v9-{n}.cache"))
+    });
+    let classes = coefficients::from_env(|one, minus_one| {
+        longfellow_zk::core::proto::fixed::CoefficientClasses { one, minus_one }
+    });
+    let bundle = if let Some(p) = path.as_ref().filter(|p| p.exists()) {
+        provider::read_next_file(p).unwrap()
+    } else {
+        provider::compile_next_with_classes(n, classes).unwrap()
+    };
+    if let Some(p) = path {
+        provider::write_next_file(&p, &bundle).unwrap()
+    }
+    let p = longfellow_zk::runtime::algebra::p256::P256Field::new();
+    let f = longfellow_zk::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let (sig, hash) = v2::provider::load(bundle.spec(), bundle.compressed(), &p, &f).unwrap();
+    eprintln!(
+        "circuit attributes={n}: zstd={} raw={} decoded_heap={}",
+        bundle.compressed().len(),
+        zstd::decode_all(bundle.compressed()).unwrap().len(),
+        sig.heap_bytes() + hash.heap_bytes()
+    );
+    eprintln!("term counts [quadratic,linear,constant] x [zero,one,minus_one,general]: hash={:?} signature={:?}",hash.term_class_breakdown(&f),sig.term_class_breakdown(&p));
+    drop((sig, hash));
     let data = &longfellow_zk::mdoc::testcases::vectors::TEST_DATA;
-    let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
-    let attrs: Vec<_> = parsed
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
+    let attrs = parsed
         .attrs
         .iter()
-        .take(2)
+        .cycle()
+        .take(n)
         .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
-    let pkx = format!(
-        "0x{}",
-        num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
-    );
-    let pky = format!(
-        "0x{}",
-        num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
-    );
-    let offline = Instant::now();
-    let (spec, circuits) = prepare_circuits(attrs.len());
-    eprintln!(
-        "Longfellow v2 / NEXT v{}; parameters checked in the ideal-binding one-level FS model.",
-        longfellow_zk::mdoc::circuits::NEXT_VERSION
-    );
-    eprintln!(
-        "Offline circuit preparation: {:.3} ms",
-        offline.elapsed().as_secs_f64() * 1000.0
-    );
-    let geometry = report_profiles(&circuits, &spec);
-    memory::reset_peak();
-    let prover_baseline = memory::get_current_allocated();
-    let prover_start = Instant::now();
-    let proof = run_mdoc_prover_inner(
-        &spec,
-        &circuits,
-        data.mdoc,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &mut DeterministicRng::new(42),
-    )
-    .unwrap();
-    let prover = prover_start.elapsed();
-    let prover_peak = memory::get_peak_allocated().saturating_sub(prover_baseline);
-    memory::reset_peak();
-    let verifier_baseline = memory::get_current_allocated();
-    let verifier_start = Instant::now();
-    run_mdoc_verifier_inner(
-        &spec,
-        &circuits,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &proof,
-    )
-    .unwrap();
-    let verifier = verifier_start.elapsed();
-    let verifier_peak = memory::get_peak_allocated().saturating_sub(verifier_baseline);
-    eprintln!(
-        "Longfellow v2 (circuit v8) end to end: prover={:.3} ms, verifier={:.3} ms, proof={} bytes",
-        prover.as_secs_f64() * 1000.0,
-        verifier.as_secs_f64() * 1000.0,
-        proof.len()
-    );
-    report_proof_sizes(&proof, &geometry);
-    if cfg!(feature = "bench-memory") {
-        eprintln!(
-            "  End-to-end additional peak heap: prover={prover_peak}, verifier={verifier_peak} bytes"
-        );
-    }
-    let mut bad = proof.clone();
-    let last = bad.len() - 1;
-    bad[last] ^= 1;
-    assert!(run_mdoc_verifier_inner(
-        &spec,
-        &circuits,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &bad
-    )
-    .is_err());
-}
-
-/// Prepare the spec/archive pair before online timing; decoded archive storage stays here.
-fn prepare_circuits(num_attributes: usize) -> (runtime::ZkSpecStruct, Vec<u8>) {
-    let provided = if let Some(path) = std::env::var_os("MDOC_BENCH_ARCHIVE") {
-        longfellow_zk::mdoc::development_provider::read_next(std::fs::File::open(path).unwrap())
-            .unwrap()
-    } else {
-        longfellow_zk::mdoc::development_provider::compile_next(num_attributes).unwrap()
-    };
-    assert_eq!(provided.spec().num_attributes, num_attributes);
-    if let Some(path) = std::env::var_os("MDOC_BENCH_SAVE_ARCHIVE") {
-        longfellow_zk::mdoc::development_provider::write_next(
-            std::fs::File::create(path).unwrap(),
-            &provided,
+        .collect::<Vec<_>>();
+    println!("attributes,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap");
+    let mut ps = Vec::new();
+    let mut vs = Vec::new();
+    for sample in 0..samples {
+        memory::reset_peak();
+        let baseline = memory::get_current_allocated();
+        let start = Instant::now();
+        let proof = v2::run_mdoc_prover_inner(
+            bundle.spec(),
+            bundle.compressed(),
+            data.mdoc,
+            data.pkx,
+            data.pky,
+            data.transcript,
+            &attrs,
+            now,
+            data.doc_type,
+            &mut DeterministicRng::new(42),
         )
         .unwrap();
+        let pm = start.elapsed().as_secs_f64() * 1000.;
+        let ph = memory::get_peak_allocated().saturating_sub(baseline);
+        memory::reset_peak();
+        let baseline = memory::get_current_allocated();
+        let start = Instant::now();
+        v2::run_mdoc_verifier_inner(
+            bundle.spec(),
+            bundle.compressed(),
+            data.pkx,
+            data.pky,
+            data.transcript,
+            &attrs,
+            now,
+            data.doc_type,
+            &proof,
+        )
+        .unwrap();
+        let vm = start.elapsed().as_secs_f64() * 1000.;
+        let vh = memory::get_peak_allocated().saturating_sub(baseline);
+        println!("{n},{sample},{pm:.6},{vm:.6},{},{ph},{vh}", proof.len());
+        ps.push(pm);
+        vs.push(vm);
     }
-    provided.into_parts()
-}
-
-/// Report the selected public profiles and derive sizes outside timed operations.
-fn report_profiles(
-    circuits: &[u8],
-    spec: &runtime::ZkSpecStruct,
-) -> runtime::proto::MdocProofGeometry {
-    use longfellow_zk::runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
-        },
-        zk_v2::ZkContext,
-    };
-    let binary = Gf2_128Field::new();
-    let subfield = longfellow_zk::runtime::algebra::subfield_v1::BinarySubfield::new(
-        &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
-    );
-    let binary_domain = BinaryInterpolatorFactory::new(&binary, &subfield);
-    let prime = P256Field::new();
-    let extension = Fp2Field::new(&prime);
-    let prime_domain = QuadraticExtensionFftInterpolatorFactory::new(
-        &prime,
-        &extension,
-        extension.omega(),
-        extension.omega_order(),
-    );
-    let (signature, hash) = runtime::decompress_circuits(circuits, &prime, &binary, false).unwrap();
-    let hash_context = ZkContext {
-        f: &binary,
-        domain: &binary_domain,
-    };
-    let signature_context = ZkContext {
-        f: &prime,
-        domain: &prime_domain,
-    };
-    let (hash_config, signature_config) = spec.configs();
-    eprintln!("  Selected hash profile: {hash_config:?}");
-    eprintln!("  Selected signature profile: {signature_config:?}");
-    let hash_verifier =
-        longfellow_zk::runtime::zk_v2::ZkVerifier::new_full_field(hash, hash_config, &hash_context)
-            .unwrap();
-    let signature_verifier = longfellow_zk::runtime::zk_v2::ZkVerifier::new(
-        signature,
-        signature_config,
-        &signature_context,
-    )
-    .unwrap();
-    runtime::proto::MdocProofGeometry {
-        geom_hash: hash_verifier.geometry(),
-        geom_sig: signature_verifier.geometry(),
-    }
-}
-
-/// Measure actual serialized component proofs, excluding the six shared MACs.
-fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry) {
-    use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
-    use sha2::{Digest, Sha256};
-    let binary = Gf2_128Field::new();
-    let prime = P256Field::new();
-    let (remaining, proof) =
-        runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
-    assert!(remaining.is_empty());
-    let hash = proof
-        .proof_hash
-        .write(&geometry.geom_hash, &binary)
-        .unwrap();
-    let signature = proof.proof_sig.write(&geometry.geom_sig, &prime).unwrap();
-    let hash_polygero = proof
-        .proof_hash
-        .com_proof
-        .write(&geometry.geom_hash.com_geom, &binary)
-        .unwrap();
-    let hash_sumcheck = proof
-        .proof_hash
-        .sumcheck_proof
-        .write(&geometry.geom_hash.sc_geom, &binary)
-        .unwrap();
-    assert_eq!(
-        hash.len(),
-        4 + 32 + hash_sumcheck.len() + hash_polygero.len()
-    );
-    assert_eq!(bytes.len(), 96 + hash.len() + signature.len());
+    ps.sort_by(f64::total_cmp);
+    vs.sort_by(f64::total_cmp);
     eprintln!(
-        "  SHA/hash circuit: {} bytes (Polygero={}, sumcheck={}, version+commitment=36)",
-        hash.len(),
-        hash_polygero.len(),
-        hash_sumcheck.len()
+        "median: prover={:.3} ms verifier={:.3} ms",
+        ps[samples / 2],
+        vs[samples / 2]
     );
-    eprintln!(
-        "  Signature circuit: {} bytes; shared MACs: 96 bytes",
-        signature.len()
-    );
-    eprintln!("  Proof SHA256: {:x}", Sha256::digest(bytes));
 }

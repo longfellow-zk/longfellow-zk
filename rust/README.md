@@ -79,10 +79,10 @@ by Matteo Frigo and abhi shelat.
 | Commitment protocol | Ligero | Nonrecursive Polygero |
 | Combined proof implementation | `runtime::zk_v1` | `runtime::zk_v2` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 8 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, version 9 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v8 uses Longfellow v2.
+while NEXT circuit v9 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
@@ -102,7 +102,7 @@ the [checked component certificates](../formal/parameters/polygero/PolygeroRustH
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
 Fiat–Shamir model. This component bound excludes the Merkle binding reduction
 and the rest of the Longfellow v2 composition.
-The experimental packed-v9 composition is outside these theorems.
+NEXT v9's packed composition is outside these component theorems.
 
 The following measurements cover a complete mdoc presentation disclosing
 two attributes, including both the hash and signature proofs.
@@ -110,7 +110,7 @@ two attributes, including both the hash and signature proofs.
 | Version | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
 |---|---|---:|---:|---:|---:|---:|
 | Longfellow v1 | v7 | 467 ms | 196 ms | 360,428 bytes | 104.1 MiB | 45.1 MiB |
-| Longfellow v2 | NEXT v8 | 269 ms | 131 ms | 213,204 bytes | 74.8 MiB | 38.3 MiB |
+| Longfellow v2 | NEXT v9 | 159 ms | 85 ms | 184,968 bytes | 42.5 MiB | 34.1 MiB |
 
 The experimental ML-DSA verifier circuits use v2/Polygero separately from
 the mdoc application. These runs are outside the 117-bit two-field theorem
@@ -228,43 +228,35 @@ unchanged. Development of a subsequent version uses an explicit versioned reques
 Circuit archives are trusted inputs. The v2 loader supports optional
 circuit-ID recomputation through `enforce_circuit_id`.
 
-### Experimental packed v9
+### NEXT v9
 
-With `experimental`, `CircuitRequest::PackedV9 { num_attributes }` compiles
-a separate v9 bundle. NEXT remains v8. The paired API is
-`mdoc::v2::packed_v9`; its specification and cache are separate types/formats.
+NEXT is v9, executed through `mdoc::v2`. There is one compiler configuration:
+compact analog arithmetic with direct Boolean hash inputs. The hash commitment
+packs these bits into GF128 elements; the P256 signature component keeps its
+field-valued input convention. Neither circuit contains a One wire.
 
-V9's hash circuit takes logical bits and commits polynomial-basis GF128 packed
-words. Its canonical `hash-input` manifest is the third archive entry and
-participates in the combined identity. Bundle creation/cache loading verifies
-circuit payload IDs; runtime invocations use the same trusted-archive premise
-as v8 and check the manifest and declared identities. The hash circuit reconstructs its six private MAC masks and seven public MAC
-values from ordinary bit inputs and checks the MAC equations internally. Both
-circuits use ordinary zk-v2 and the shared `LFV4` proof envelope; the commitment
-wrapper handles packing transparently.
+The LFA2 bundle contains the signature circuit, hash circuit, and an authenticated
+`hash-input` manifest. Both circuits use LFC3's eleven streams. Bundle and cache
+creation verify payload IDs; runtime invocations validate the manifest and declared
+identities under the existing trusted-archive contract. The hash circuit checks
+its MAC equations on reconstructed bit inputs.
 
-`compile_packed_v9_variant(count, variant)` exposes the measured alternatives:
-0 is compact analog arithmetic, 1 is Boolean carry-save arithmetic, and 2
-uses additional Boolean partial-sum witnesses with local carry checks.
-Each variant gets its own manifest, circuit identity and parameters.
-`run_mdoc_prover_inner_with_window` selects the reference prover (`None`)
-or Boolean windows 1–4; fixed randomness produces identical proof bytes
-within a compiler variant. No variant is selected automatically.
+`development_provider::compile_next(count)` compiles the default circuit and selects
+parameters offline. `read_next` / `write_next` preserve that complete specification.
+V8 and alternative v9 compiler/witness configurations are not supported.
 
-This is a Rust prototype. The existing v8 security bound does not cover the
-new dual-packing composition. Joint zero knowledge, composed Fiat–Shamir
-soundness, and Lean formalization remain open gates before production use.
-
-The v9 benchmark emits interleaved raw CSV samples and reports medians.
-Use a single pinned CPU, keep allocation tracking off for timing, and run
-heap measurements separately:
+The benchmark prints raw samples. Keep allocation tracking disabled for timings
+and enable it separately for heap measurements:
 
 ```sh
-MDOC_V9_SAMPLES=3 MDOC_V9_ATTRIBUTES=2 MDOC_V9_CACHE=/tmp/mdoc-v9-trace-zero \
-  taskset -c 2 cargo bench --bench mdoc_zk_bench_v9 --features testonly,experimental
-# MDOC_V9_QUICK=1 selects only the compact reference case.
-# Repeat with MDOC_V9_ATTRIBUTES=4; add bench-memory only for separate heap runs.
+MDOC_V9_SAMPLES=7 MDOC_V9_ATTRIBUTES=2 MDOC_V9_CACHE=/tmp/next-v9 \
+  taskset -c 2 cargo bench --bench mdoc_zk_bench_next --features testonly
+# Repeat with MDOC_V9_ATTRIBUTES=4. Add bench-memory only for heap measurements.
 ```
+
+See the [current NEXT/ML-DSA benchmark](benches/results/2026-10-29-next-v9/README.md)
+for raw/zstd sizes, proof bytes, term counts, times and memory.
+
 
 ## Cargo features
 
@@ -320,7 +312,7 @@ cargo test --release --features testonly,experimental
 cargo test --no-default-features --features tooling --bin zk_tool
 ```
 
-Shared compiler and circuit suites exercise both compiler backends.
+Shared compiler and circuit suites exercise compile_v2 and LFC3. Dedicated compatibility tests exercise compile_v1.
 V1 tests verify saved proofs and reproduce their exact bytes. V2 tests
 cover successful proofs, rejected statements, and malformed proofs.
 
@@ -335,7 +327,7 @@ circuit-file options.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v8 and two attributes.
+# V2 with NEXT v9 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 
 # Experimental packed ML-DSA-44 and ML-DSA-65, three runs per circuit.
@@ -404,18 +396,15 @@ requested namespace IDs can leave a proof valid. This remains unresolved.
 Licensed under the Apache License, Version 2.0.
 See [LICENSE](../LICENSE) for details.
 
-### Degree-separated circuit experiment
+### Circuit compilers and formats
 
-With `degree-separated`, the v9 development provider and ML-DSA v2 benchmark
-compile separate quadratic, linear and constant streams using the experimental
-[LFD2 variant](core/proto/LFD2.md). This path omits the reserved One input and
-its layer copies. `compiler::compile_degree_separated` exposes the compiler
-explicitly; ordinary `compile_v2` retains its existing input convention.
-Use fresh circuit caches for this experiment. See the
-[size, memory and timing comparison](benches/results/2026-10-28-degree-streams/README.md).
+`compile_v1` preserves the historical compiler, input convention and LFC1/LFC2
+encoding used by frozen v5–v7 circuits. `compile_v2` emits native v2
+[LFC3](core/proto/LFC3.md) circuits with eleven independently compressed streams
+per layer and no One wire. Both circuit formats fit inside the existing LFA2
+archive container. Shared compiler/circuit tests use LFC3; dedicated v1
+compatibility tests retain legacy fixtures and byte hashes.
 
-`coefficient-separated` adds compact coefficient-one and fixed-zero assertion
-arrays ([LFD3](core/proto/LFD3.md)). `assertion-separated` also uses distinct
-linear/quadratic assertions and lowers `assert0(a*b)` directly to its factors
-when possible ([LFD4](core/proto/LFD3.md)). Both include the no-One compiler.
-The benchmarks print term counts by degree and coefficient class.
+The coefficient-policy API supports the recorded
+[class ablation](benches/results/2026-10-29-class-ablation/README.md).
+Benchmarks print term counts by degree and coefficient class.

@@ -26,23 +26,28 @@ pub use generate_sig::*;
 
 use crate::compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
 
-/// Generate NEXT circuits independently of the runtime proof system.
+/// Generate NEXT v9 circuits independently of runtime parameter selection.
 pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
     let f = Gf2_128Field::new();
     let p = P256Field::new();
-    let sig = generate_sig_circuit(&p)?;
-    let hash = generate_hash_circuit(&f, num_attrs)?;
-    let sig_bytes =
+    let sig = generate_sig_v2_circuit(&p)?;
+    let (hash, manifest) = generate_hash_v2_circuit(&f, num_attrs)?;
+    let mut b = crate::core::proto::archive::CircuitArchiveBuilder::new();
+    b.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    b.add_entry(
+        "sig",
+        sig.id,
         crate::core::proto::writer::CircuitWriter::new(&p, crate::core::proto::FieldID::P256)
-            .to_bytes_lfc2(&sig);
-    let hash_bytes =
+            .to_bytes_lfc3(&sig),
+    );
+    b.add_entry(
+        "hash",
+        hash.id,
         crate::core::proto::writer::CircuitWriter::new(&f, crate::core::proto::FieldID::Gf2_128)
-            .to_bytes_lfc2(&hash);
-    let mut builder = crate::core::proto::archive::CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
-    builder.add_entry("sig", sig.id, sig_bytes);
-    builder.add_entry("hash", hash.id, hash_bytes);
-    Ok(builder.build().to_bytes())
+            .to_bytes_lfc3(&hash),
+    );
+    b.add_entry("hash-input", manifest.digest(), manifest.to_bytes());
+    Ok(b.build().to_bytes())
 }
 pub use compile_circuits as generate_circuits;
 

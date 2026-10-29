@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! One v2 prover over the field-selected packing commitment.
 use crate::{
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     runtime::{
         algebra::{
             packing::{IdentityExtension, PackingExtension, PackingField},
@@ -135,12 +135,6 @@ impl<const W: usize, F: ZkField<W>, X: PackingExtension<Ambient = F>> ZkProver<W
         }
         if state.circuit_id != self.circuit.id || state.config != self.config {
             return Err("commitment belongs to another circuit or configuration".into());
-        }
-        if !self.circuit.raw.layers.iter().any(|l| l.affine().is_some())
-            && state.inner.backend.layout.degree > 1
-            && public.first() != Some(&ctx.f.one())
-        {
-            return Err("reserved One must equal one".into());
         }
         let geometry = sumcheck_v2::SumcheckProofGeometry::from_circuit(&self.circuit);
         state.pads.validate(&geometry).map_err(|e| e.to_string())?;

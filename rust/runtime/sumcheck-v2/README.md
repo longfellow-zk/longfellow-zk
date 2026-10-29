@@ -6,6 +6,10 @@ module for the desired entry point; there is no protocol selector or proof enum.
 Each runtime has its own copies of the sumcheck arithmetic and transcript code.
 Both use the shared field, circuit, and randomness modules.
 
+V2 consumes [LFC3](../../core/proto/LFC3.md): eleven concrete streams per layer,
+with no One wire. The v2 compiler, compressor and reader build these streams
+directly. LFA2 remains the archive container; temporary experimental payloads are unsupported.
+
 ## Organization
 
 | Responsibility | Legacy | V2 |

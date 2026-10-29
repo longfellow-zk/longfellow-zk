@@ -30,10 +30,6 @@ bench-memory = []
 bench-profile = []
 # Opt-in arithmetic and circuits under development; never enabled by default.
 experimental = []
-# Experimental LFC2 degree streams and v2 circuits without a One input.
-degree-separated = ["experimental"]
-coefficient-separated = ["degree-separated"]
-assertion-separated = ["coefficient-separated"]
 # Offline audits and specification generation; never a proof-role dependency.
 tooling = ["compiler", "experimental", "dep:serde_json"]
 
@@ -124,12 +120,6 @@ name = "fp24_benchmark"
 path = "runtime/algebra/benches/fp24_benchmark.rs"
 harness = false
 required-features = ["experimental"]
-
-[[bench]]
-name = "mdoc_zk_bench_v9"
-path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v9.rs"
-harness = false
-required-features = ["prover", "verifier", "compiler", "mdoc", "testonly", "experimental"]
 
 [[bench]]
 name = "mldsa_bench_v2"

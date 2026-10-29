@@ -17,4 +17,5 @@ mod poly;
 mod sumcheck_v2;
 mod wiring;
 
-mod degree;
+mod circuit;
+mod explicit;

@@ -19,6 +19,7 @@ pub mod fixed;
 pub mod layer;
 pub mod reader;
 pub mod uleb;
+pub mod v2;
 pub mod writer;
 
 pub use archive::{ArchiveEntry, CircuitArchive, CircuitArchiveBuilder};

@@ -55,7 +55,7 @@ use crate::{
 pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -73,7 +73,7 @@ pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField + SupportsS
 pub fn verify_core<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
