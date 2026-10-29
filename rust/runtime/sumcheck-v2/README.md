@@ -10,13 +10,16 @@ V2 consumes [LFC3](../../core/proto/LFC3.md): three concrete streams per layer,
 with no One wire. The v2 compiler, compressor and reader build these streams
 directly. LFA2 remains the archive container; temporary experimental payloads are unsupported.
 
-At the beginning of each prover or reduction layer, private `split::SplitLayer`
-borrows the source token arrays and partitions stored segment records into eleven
-working streams. It classifies only coefficient indices 0, 1, 2 and other,
+Before witness evaluation, the prover builds all private `split::SplitLayer`
+values once. Evaluation traverses their eleven streams explicitly, then sumcheck
+consumes the same values and releases each after proving its layer. The reduction
+builds each split once as it reaches that layer. Each split borrows the source
+token arrays and partitions stored segment records into eleven working streams.
+It classifies only coefficient indices 0, 1, 2 and other,
 adjusting coordinate deltas and retaining each source segment's full advance.
 Class records are contiguous, with a range per source segment; there is no
 hashing, deduplication or token rewriting. Both bindings and the linear/constant
-corrections use this working layer, then release it. The original circuit is
+corrections use this working layer. The original circuit is
 read-only, and the type is not exposed outside `sumcheck_v2`.
 
 ## Organization

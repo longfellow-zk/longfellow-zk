@@ -122,13 +122,13 @@ fn three_streams<
     );
     assert_eq!(constant, f.mulf(&a[0], &constants[5]));
     let inputs = vec![x, y, f.zero()];
-    assert!(eval_layer(&inputs, &layer, &constants, 2, f)
+    assert!(eval_layer(&inputs, &split, &constants, 2, f)
         .unwrap()
         .iter()
         .all(|x| f.is_zero(x)));
     let mut bad = inputs.clone();
     bad[2] = f.one();
-    assert!(eval_layer(&bad, &layer, &constants, 2, f)
+    assert!(eval_layer(&bad, &split, &constants, 2, f)
         .unwrap_err()
         .contains("quadratic assertion"));
     let mut ordinary = Vec::new();
@@ -143,7 +143,8 @@ fn three_streams<
         layer.linear.clone(),
         layer.constant.clone(),
     );
-    assert!(eval_layer(&bad, &linear_only, &constants, 2, f)
+    let linear_split = crate::runtime::sumcheck_v2::split::SplitLayer::new(&linear_only);
+    assert!(eval_layer(&bad, &linear_split, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));
     let mut c = Circuit {

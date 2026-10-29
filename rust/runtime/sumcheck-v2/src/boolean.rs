@@ -247,13 +247,20 @@ pub(crate) fn prove_core(
     f: &F,
     window: usize,
 ) -> Result<(super::SumcheckProof<2, F>, super::symbolic::Constraints<E>), String> {
+    c.validate_v2()?;
+    let layers: Vec<_> = c
+        .raw
+        .layers
+        .iter()
+        .map(super::split::SplitLayer::new)
+        .collect();
     let kernel = BooleanKernel::new(c, window)?;
-    let mut saved = Vec::with_capacity(c.raw.layers.len());
-    for (i, layer) in c.raw.layers.iter().enumerate().rev() {
+    let mut saved = Vec::with_capacity(layers.len());
+    for (i, layer) in layers.iter().enumerate().rev() {
         let nout = if i == 0 {
             c.raw.noutput
         } else {
-            c.raw.layers[i - 1].nw()
+            layers[i - 1].nw
         };
         let next = super::eval::eval_layer(&w, layer, &c.raw.constants, nout, f)?;
         saved.push(if kernel.certified[i] {
@@ -271,6 +278,7 @@ pub(crate) fn prove_core(
         saved.into_iter().map(LayerWitness::into_fields),
         pads,
         c,
+        layers,
         t,
         f,
         &kernel,

@@ -298,8 +298,23 @@ impl SplitStream<Quadratic> {
 impl SplitStream<QuadraticCoordinates> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 3>, mut cb: impl FnMut(QuadraticCoordinates)) {
+        let result: Result<(), std::convert::Infallible> = self.try_for_each(runs, |term| {
+            cb(term);
+            Ok(())
+        });
+        match result {
+            Ok(()) => (),
+            Err(e) => match e {},
+        }
+    }
+    #[inline(always)]
+    pub(super) fn try_for_each<E>(
+        &self,
+        runs: &Runs<'_, 3>,
+        mut cb: impl FnMut(QuadraticCoordinates) -> Result<(), E>,
+    ) -> Result<(), E> {
         if self.records.is_empty() {
-            return;
+            return Ok(());
         }
         let mut base = [0u32; 3];
         for &token in runs.tokens {
@@ -313,13 +328,14 @@ impl SplitStream<QuadraticCoordinates> {
                 term.l = position[1];
                 position[2] = position[2].wrapping_add(term.r);
                 term.r = position[2];
-                cb(term);
+                cb(term)?;
             }
             let advance = runs.advances[token as usize];
             base[0] = base[0].wrapping_add(advance[0]);
             base[1] = base[1].wrapping_add(advance[1]);
             base[2] = base[2].wrapping_add(advance[2]);
         }
+        Ok(())
     }
 }
 
@@ -351,8 +367,23 @@ impl SplitStream<Linear> {
 impl SplitStream<LinearCoordinates> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 2>, mut cb: impl FnMut(LinearCoordinates)) {
+        let result: Result<(), std::convert::Infallible> = self.try_for_each(runs, |term| {
+            cb(term);
+            Ok(())
+        });
+        match result {
+            Ok(()) => (),
+            Err(e) => match e {},
+        }
+    }
+    #[inline(always)]
+    pub(super) fn try_for_each<E>(
+        &self,
+        runs: &Runs<'_, 2>,
+        mut cb: impl FnMut(LinearCoordinates) -> Result<(), E>,
+    ) -> Result<(), E> {
         if self.records.is_empty() {
-            return;
+            return Ok(());
         }
         let mut base = [0u32; 2];
         for &token in runs.tokens {
@@ -364,12 +395,13 @@ impl SplitStream<LinearCoordinates> {
                 term.g = position[0];
                 position[1] = position[1].wrapping_add(term.l);
                 term.l = position[1];
-                cb(term);
+                cb(term)?;
             }
             let advance = runs.advances[token as usize];
             base[0] = base[0].wrapping_add(advance[0]);
             base[1] = base[1].wrapping_add(advance[1]);
         }
+        Ok(())
     }
 }
 

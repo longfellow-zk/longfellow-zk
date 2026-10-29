@@ -502,7 +502,13 @@ fn coefficient_arrays_boolean_windows_match_generic() {
         let kernel = BooleanKernel::new(&c, window).unwrap();
         let mut t = Transcript::new(b"coefficient-boolean");
         t.write_sumcheck_statement(&c, &inputs[..c.raw.npublic_input], &f);
-        let actual = prove_core_with_kernel(w.clone(), &pads, &c, &mut t, &f, &kernel);
+        let layers = c
+            .raw
+            .layers
+            .iter()
+            .map(crate::runtime::sumcheck_v2::split::SplitLayer::new)
+            .collect();
+        let actual = prove_core_with_kernel(w.clone(), &pads, &c, layers, &mut t, &f, &kernel);
         assert_eq!(actual, expected);
     }
 }

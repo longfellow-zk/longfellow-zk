@@ -54,13 +54,16 @@ cfg_prover! {
     mod eval;
     mod prover;
 
+    #[cfg(test)]
     pub(crate) use eval::eval_circuit;
     pub use dense::bind;
-    pub(crate) use prover::{prove_core, sample_pads};
+    pub(crate) use prover::{evaluate_and_prove, sample_pads};
 }
 
 #[cfg(test)]
 pub(crate) use prover::prove;
+#[cfg(test)]
+pub(crate) use prover::prove_core;
 
 cfg_verifier! {
     mod reduction;

@@ -14,8 +14,9 @@
 
 //! Prove each circuit layer from outputs toward inputs, carrying one weighted claim.
 //!
-//! The ZK caller supplies each layer's input witness W and secret pads already
-//! covered by its commitment. Layers run from circuit outputs toward inputs.
+//! The ZK caller supplies circuit inputs and secret pads already covered by its
+//! commitment. Evaluation computes the layer witnesses using a private split
+//! circuit, then sumcheck reuses it from circuit outputs toward inputs.
 //! Initially, a contains sampled weights on the circuit outputs and claim is
 //! zero, since every output must vanish. For each layer, first form
 //!
@@ -69,12 +70,44 @@ use crate::{
     },
 };
 
-/// Prove after the caller has bound the statement to the transcript.
-/// `w_layers[j]` contains layer j's input witness, in circuit output-to-input order.
-/// At each iteration, a weights that layer's outputs and claim is their weighted
-/// sum. `layer` proves its dot product and returns weights and a claim on its
-/// input wires. Return the masked proof messages and the symbolic constraints
-/// reconstructed from the sampled challenges.
+/// Split the complete circuit once, evaluate its witnesses, then consume those
+/// same split layers during sumcheck. The caller has already bound the statement
+/// to the transcript. Split storage stays private and each layer is released
+/// after its dot product is proved.
+pub(crate) fn evaluate_and_prove<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    inputs: Vec<F::E>,
+    pads: &SumcheckProof<W, F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
+    transcript: &mut Transcript,
+    f: &F,
+) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+    circuit
+        .validate_v2()
+        .map_err(|e| format!("eval_circuit failed: {e}"))?;
+    let layers: Vec<_> = circuit
+        .raw
+        .layers
+        .iter()
+        .map(super::split::SplitLayer::new)
+        .collect();
+    let witnesses = super::eval::eval_split_circuit(inputs, circuit, &layers, f)
+        .map_err(|e| format!("eval_circuit failed: {e}"))?;
+    Ok(prove_core_with_kernel(
+        witnesses,
+        pads,
+        circuit,
+        layers,
+        transcript,
+        f,
+        &GenericKernel,
+    ))
+}
+
+/// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.
+#[cfg(test)]
 pub(crate) fn prove_core<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -85,7 +118,21 @@ pub(crate) fn prove_core<
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
-    prove_core_with_kernel(w_layers, pads, circuit, transcript, f, &GenericKernel)
+    let layers = circuit
+        .raw
+        .layers
+        .iter()
+        .map(super::split::SplitLayer::new)
+        .collect();
+    prove_core_with_kernel(
+        w_layers,
+        pads,
+        circuit,
+        layers,
+        transcript,
+        f,
+        &GenericKernel,
+    )
 }
 
 /// Numerical kernels vary independently of the masked transcript protocol.
@@ -155,6 +202,7 @@ pub(super) fn prove_core_with_kernel<
     witnesses: I,
     pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
+    layers: Vec<super::split::SplitLayer<'_>>,
     transcript: &mut Transcript,
     f: &F,
     kernel: &K,
@@ -167,17 +215,19 @@ where
     pads.validate(&SumcheckProofGeometry::from_circuit(circuit))
         .expect("pad shape mismatch");
     assert_eq!(w_layers.len(), circuit.raw.layers.len());
+    assert_eq!(layers.len(), w_layers.len());
     let mut a = begin(circuit, transcript, f);
     let mut claim = f.zero();
     let mut proof_layers = Vec::with_capacity(w_layers.len());
     let mut layer_challenges = Vec::with_capacity(w_layers.len());
-    for (layer_index, w) in w_layers.into_iter().enumerate() {
+    for ((layer_index, w), split) in w_layers.enumerate().zip(layers) {
         let (proof, challenges, a_next, claim_next) = layer(
             kernel,
             layer_index,
             w,
             &pads.layers[layer_index],
-            circuit,
+            &split,
+            &circuit.raw.constants,
             &a,
             claim,
             transcript,
@@ -211,27 +261,26 @@ fn layer<
     layer_index: usize,
     w: Vec<F::E>,
     pads: &LayerProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    split: &super::split::SplitLayer<'_>,
+    constants: &[F::E],
     a: &[F::E],
     claim: F::E,
     transcript: &mut Transcript,
     f: &F,
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, Vec<F::E>, F::E) {
-    let split = super::split::SplitLayer::new(&circuit.raw.layers[layer_index]);
-    let constants = &circuit.raw.constants;
     assert!(split.nw > 0, "sumcheck layer must contain a wire");
     assert_eq!(w.len(), split.nw, "layer witness width mismatch");
 
-    let assertions = assertion_weights(&split, layer_index, transcript, f);
-    let q_l = kernel.bind_r(layer_index, &split, constants, a, &assertions, &w, f);
-    let constant = super::quad::affine_constant(&split, constants, a, f);
+    let assertions = assertion_weights(split, layer_index, transcript, f);
+    let q_l = kernel.bind_r(layer_index, split, constants, a, &assertions, &w, f);
+    let constant = super::quad::affine_constant(split, constants, a, f);
     let claim = f.subf(&claim, &constant);
     let (proof, mut challenges, mut claim_next) =
         kernel.dot_product(layer_index, w, q_l, pads, claim, transcript, f);
     // B also contains public L(u). Subtract alpha*L(u) from
     // A + alpha*B to obtain the weighted claim on the next layer's inputs.
     let (a_next, linear) = weights_next_affine(
-        &split,
+        split,
         constants,
         a,
         &assertions,

@@ -676,6 +676,7 @@ fn test_v2_role_and_shared_module_boundaries() {
                 "ZkProver",
                 "prove_core",
                 "eval_circuit",
+                "evaluate_and_prove",
             ],
             "verifier" => &[
                 "verifier",
@@ -689,6 +690,7 @@ fn test_v2_role_and_shared_module_boundaries() {
                 "prove_core",
                 "derive_constraints",
                 "eval_circuit",
+                "evaluate_and_prove",
                 "ligero",
                 "polygero",
                 "LigeroLinearConstraint",

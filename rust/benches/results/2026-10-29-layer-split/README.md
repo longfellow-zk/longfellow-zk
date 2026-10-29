@@ -1,5 +1,9 @@
 # Private per-layer sumcheck split
 
+Measurements for fa577b6, before split witness evaluation. The
+[current report](../2026-10-29-split-evaluation/README.md) reuses one split circuit
+for both evaluation and sumcheck.
+
 Sumcheck v2 builds a private SplitLayer at the beginning of each prover or reduction layer, reuses it for that layer's bindings and affine corrections, and drops it before the next layer. Original LFC3 circuits remain three-stream and read-only. This runtime optimization preserves compiler behavior, the stored format, circuit IDs, archive bytes and parameters.
 
 SplitLayer is declared pub(super) inside the private sumcheck_v2::split module. It is not re-exported or used outside sumcheck v2. Its constructor takes &Layer and no field or coefficient values. Only coefficient indices are classified: 0 for assertions, 1 for one, 2 for minus one, all others general. Quadratic and linear terms each produce four streams; constants produce three, since zero constant records are invalid.

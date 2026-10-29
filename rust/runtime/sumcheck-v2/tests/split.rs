@@ -238,6 +238,29 @@ where F: crate::runtime::algebra::RuntimeField<W>
             .collect::<Vec<_>>();
         let w = (0..7).map(|_| rng.elt_field(f)).collect::<Vec<_>>();
         let b = (0..7).map(|_| rng.elt_field(f)).collect::<Vec<_>>();
+        let mut ordinary_quadratic = raw.quadratic.clone();
+        for term in &mut ordinary_quadratic.deltas {
+            if term.k == 0 {
+                term.k = 1;
+            }
+        }
+        let mut ordinary_linear = raw.linear.clone();
+        for term in &mut ordinary_linear.deltas {
+            if term.k == 0 {
+                term.k = 1;
+            }
+        }
+        let ordinary = Layer::new(
+            raw.nw,
+            ordinary_quadratic,
+            ordinary_linear,
+            raw.constant.clone(),
+        );
+        let ordinary_split = SplitLayer::new(&ordinary);
+        assert_eq!(
+            crate::runtime::sumcheck_v2::eval::eval_layer(&w, &ordinary_split, &constants, 5, f),
+            super::reference::eval_layer(&w, &ordinary, &constants, 5, f)
+        );
         assert_eq!(
             quad::bind_r(&split, &constants, &a, &rho, &w, f),
             super::reference::bind_r(&raw, &constants, &a, &rho, &w, f)
@@ -368,11 +391,17 @@ where F: crate::runtime::algebra::RuntimeField<W>
     let bytes_before = writer.to_bytes_v2(&circuit);
     let id_before = circuit.id;
     let inputs = vec![x, y, f.zero()];
-    let witnesses = sumcheck_v2::eval_circuit(inputs.clone(), &circuit, f).unwrap();
+    let witnesses = super::reference::eval_circuit(inputs.clone(), &circuit, f).unwrap();
+    assert_eq!(
+        sumcheck_v2::eval_circuit(inputs.clone(), &circuit, f).unwrap(),
+        witnesses
+    );
     let mut rng = DeterministicRng::new(44);
     let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&circuit), &mut rng, f);
     let mut actual = Transcript::new(b"private-layer-split");
-    let got = sumcheck_v2::prove(witnesses.clone(), &pads, &circuit, &mut actual, f);
+    actual.write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let got =
+        sumcheck_v2::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual, f).unwrap();
     let mut expected = Transcript::new(b"private-layer-split");
     expected.write_sumcheck_statement(&circuit, &inputs[..1], f);
     let reference = super::reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);

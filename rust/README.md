@@ -110,7 +110,7 @@ two attributes, including both the hash and signature proofs.
 | Version | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
 |---|---|---:|---:|---:|---:|---:|
 | Longfellow v1 | v7 | 467 ms | 196 ms | 360,428 bytes | 104.1 MiB | 45.1 MiB |
-| Longfellow v2 | NEXT v9 | 167 ms | 88 ms | 185,576 bytes | 43.2 MiB | 34.5 MiB |
+| Longfellow v2 | NEXT v9 | 163 ms | 85 ms | 185,576 bytes | 48.2 MiB | 34.5 MiB |
 
 The experimental ML-DSA verifier circuits use v2/Polygero separately from
 the mdoc application. These runs are outside the 117-bit two-field theorem
@@ -118,15 +118,15 @@ above.
 
 | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
 |---|---:|---:|---:|---:|---:|
-| ML-DSA-44 | 621 ms | 290 ms | 178,964 bytes | 101.4 MiB | 38.3 MiB |
-| ML-DSA-65 | 717 ms | 339 ms | 188,180 bytes | 106.4 MiB | 43.7 MiB |
+| ML-DSA-44 | 580 ms | 289 ms | 178,964 bytes | 132.2 MiB | 38.3 MiB |
+| ML-DSA-65 | 675 ms | 339 ms | 188,180 bytes | 139.8 MiB | 43.7 MiB |
 
 NEXT and ML-DSA measurements were rerun on 2026-10-29 using three-stream LFC3
-and a private per-layer split in sumcheck v2, Rust 1.99.1 release builds with
+and one private split circuit reused for evaluation and sumcheck v2, Rust 1.99.1 release builds with
 `target-cpu=native` on an AMD Ryzen 9 9950X
 with boost disabled. Times are medians of seven samples after warmup, pinned to
 one CPU, after builds and tests finished. NEXT uses compressed LFA2 archives.
-The [current report](benches/results/2026-10-29-layer-split/README.md) includes
+The [current report](benches/results/2026-10-29-split-evaluation/README.md) includes
 raw/zstd sizes, decoded memory, term breakdowns, and all samples. The v1 row
 retains its 2026-10-26 Criterion mean from ten samples, recorded in the
 [historical run data](benches/results/2026-10-26.json).
@@ -408,8 +408,8 @@ archive container. Shared compiler/circuit tests use LFC3; dedicated v1
 compatibility tests retain legacy fixtures and byte hashes.
 
 Sumcheck v2 privately splits each layer's stored segments into eleven working
-streams once, using coefficient indices 0, 1 and 2. Bindings traverse each class
-independently. Source circuits remain read-only; token arrays are borrowed and
+streams once before witness evaluation, using coefficient indices 0, 1 and 2.
+Evaluation and sumcheck reuse those streams and traverse each class independently. Source circuits remain read-only; token arrays are borrowed and
 repeated segments are not expanded.
 
 The earlier [class ablation](benches/results/2026-10-29-class-ablation/README.md)

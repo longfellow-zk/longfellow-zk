@@ -148,9 +148,7 @@ impl<const W: usize, F: ZkField<W>, X: PackingExtension<Ambient = F>> ZkProver<W
         {
             kernel(inputs, &state.pads, &self.circuit, t, ctx.f, self.window)?
         } else {
-            let layers = sumcheck_v2::eval_circuit(inputs, &self.circuit, ctx.f)
-                .map_err(|e| format!("eval_circuit failed: {e}"))?;
-            sumcheck_v2::prove_core(layers, &state.pads, &self.circuit, t, ctx.f)
+            sumcheck_v2::evaluate_and_prove(inputs, &state.pads, &self.circuit, t, ctx.f)?
         };
         let pads = geometry.pad_layout(state.inner.backend.layout.suffix_start);
         let statement = super::constraint_compiler::compile::<W, F>(
