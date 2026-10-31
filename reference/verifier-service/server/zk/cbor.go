@@ -35,9 +35,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/fxamacker/cbor/v2"
 )
+
+// Maximum distance between the holder-chosen proof timestamp and the server clock.
+const TIMESTAMP_MAX_SKEW = 5 * time.Minute
 
 // X5ChainIndex is the index of the x509 chain in the COSE_Sign1 unprotected header.
 const X5ChainIndex = 33
@@ -241,6 +245,15 @@ func validateRequestIso(doc *zkDocumentIso, zkdata *zkDocumentDataIso) error {
 	}
 	if len(zkdata.Timestamp) != TIMESTAMP_LEN {
 		return fmt.Errorf("invalid timestamp length: got %d, want %d", len(zkdata.Timestamp), TIMESTAMP_LEN)
+	}
+	// The holder chooses the timestamp the proof is bound to, so it must be
+	// close to the server clock or an expired credential would still verify.
+	ts, err := time.Parse(time.RFC3339, zkdata.Timestamp)
+	if err != nil {
+		return fmt.Errorf("invalid timestamp: %w", err)
+	}
+	if d := time.Since(ts); d > TIMESTAMP_MAX_SKEW || d < -TIMESTAMP_MAX_SKEW {
+		return fmt.Errorf("timestamp %s is outside the allowed %s skew from server time", zkdata.Timestamp, TIMESTAMP_MAX_SKEW)
 	}
 	if len(zkdata.DocType) == 0 {
 		return errors.New("doctype is empty")
