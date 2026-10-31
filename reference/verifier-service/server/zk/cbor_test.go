@@ -110,7 +110,7 @@ func TestProcessDeviceResponseISO(t *testing.T) {
 			ZkSystemId:   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			IssuerSigned: issuerSigned,
 			MsoX5chain:   leafCert.Raw,
-			Timestamp:    "2025-01-01T00:00:00Z",
+			Timestamp:    time.Now().UTC().Format(time.RFC3339),
 		}
 		docDataBytes, err := cbor.Marshal(docData)
 		if err != nil {
@@ -141,7 +141,7 @@ func TestProcessDeviceResponseISO(t *testing.T) {
 			ZkSystemId:   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			IssuerSigned: issuerSigned,
 			MsoX5chain:   [][]byte{leafCert.Raw},
-			Timestamp:    "2025-01-01T00:00:00Z",
+			Timestamp:    time.Now().UTC().Format(time.RFC3339),
 		}
 		docDataBytes, err := cbor.Marshal(docData)
 		if err != nil {
@@ -165,6 +165,39 @@ func TestProcessDeviceResponseISO(t *testing.T) {
 			t.Errorf("ProcessDeviceResponseISO() with array of certs error = %v, wantErr %v", err, false)
 		}
 	})
+
+	for name, ts := range map[string]string{
+		"stale timestamp":       time.Now().UTC().Add(-2 * TIMESTAMP_MAX_SKEW).Format(time.RFC3339),
+		"future timestamp":      time.Now().UTC().Add(2 * TIMESTAMP_MAX_SKEW).Format(time.RFC3339),
+		"unparseable timestamp": "aaaaaaaaaaaaaaaaaaaa", // TIMESTAMP_LEN chars, so only the parse rejects it
+	} {
+		t.Run(name, func(t *testing.T) {
+			docData := &zkDocumentDataIso{
+				DocType:      "test_doctype",
+				ZkSystemId:   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				IssuerSigned: issuerSigned,
+				MsoX5chain:   leafCert.Raw,
+				Timestamp:    ts,
+			}
+			docDataBytes, err := cbor.Marshal(docData)
+			if err != nil {
+				t.Fatalf("failed to marshal doc data: %v", err)
+			}
+			resp := &zkDeviceResponseIso{
+				Version:     "1.0",
+				ZKDocuments: []zkDocumentIso{{DocumentData: docDataBytes, Proof: []byte("test_proof")}},
+				Status:      0,
+			}
+			respBytes, err := cbor.Marshal(resp)
+			if err != nil {
+				t.Fatalf("failed to marshal response: %v", err)
+			}
+
+			if _, err := ProcessDeviceResponseISO(respBytes); err == nil {
+				t.Errorf("ProcessDeviceResponseISO() with %s error = nil, wantErr %v", name, true)
+			}
+		})
+	}
 }
 
 func generateTestCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
