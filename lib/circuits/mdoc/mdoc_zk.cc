@@ -427,6 +427,12 @@ MdocProverErrorCode run_mdoc_prover(
     return MDOC_PROVER_INVALID_INPUT;
   }
 
+  // compute_transcript_hash aborts the process when the cbor framing of the
+  // transcript exceeds 65535 bytes; reject oversized transcripts first.
+  if (tr_len > 65000) {
+    return MDOC_PROVER_INVALID_INPUT;
+  }
+
   // Parse circuits from cached byte representation.
   const f2_p256 p256_2(p256_base);
   const f_128 Fs;
@@ -590,6 +596,11 @@ MdocVerifierErrorCode run_mdoc_verifier(
   // Sanity check input sizes.
   if (bcsz < 50000 || tr_len < 1 || attrs_len < 1 || proof_len < 20000) {
     return MDOC_VERIFIER_ARGUMENTS_TOO_SMALL;
+  }
+  // compute_transcript_hash aborts the process when the cbor framing of the
+  // transcript exceeds 65535 bytes; reject oversized transcripts first.
+  if (tr_len > 65000) {
+    return MDOC_VERIFIER_INVALID_INPUT;
   }
 
   const f2_p256 p256_2(p256_base);
