@@ -16,6 +16,8 @@ import Bcs.TerminalPairTape
 import Bcs.TwoCoordinatePotential
 import Bcs.TwoFreshCoordinates
 import Bcs.WeightedTerminal
+import ECDSA.NonVacuity
+import PkCircuitPoly
 import Lean.Util.CollectAxioms
 
 /-! Full declaration audit, including private helpers. This is a separate
@@ -28,7 +30,8 @@ set_option maxHeartbeats 20000000
 
 private def auditedModule (name : Name) : Bool :=
   #["LfzkV1", "LfzkV2", "SumcheckV1", "SumcheckV2", "Bcs", "Merkle",
-    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles"].any fun root =>
+    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles",
+    "ECDSA", "PkCircuit", "PkCircuitPoly"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
 
 run_cmd do

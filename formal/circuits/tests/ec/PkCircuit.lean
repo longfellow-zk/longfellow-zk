@@ -17,28 +17,32 @@
 module
 public import Mathlib
 public import ECDSA.EC
+public import ECDSA.ECBridge
 
 /-
-This Lean 4 formalization structurally models and verifies the `assert_public_key` logic defined in 
+This Lean 4 formalization structurally models and verifies the `assert_public_key` logic defined in
 `google3/privacy/proofs/zk/lib/circuits/tests/ec/pk_circuit.h`.
 
-It imports curve definitions and projective arithmetic from `ECDSA.EC`.
+It imports curve definitions, projective arithmetic, and curve-preservation lemmas from
+`ECDSA.EC` and `ECDSA.ECBridge`.
 
 Outline of the file:
 - `pureLoopResult` / `scalarMulProjective` : Mathematical specification of the loop.
 - `Witness` : Structure for ZK witness lists (bits and intermediate coordinates).
 - `IsCircuitBitMuxValid` : Models the conditional multiplexing of base points.
+- `AssertEqualProjective` : Models the C++ `assert_equal_projective` cross-multiplication constraints.
 - `LoopConstraints` / `loopResult` : Models the original C++ loop constraints and accumulator updates.
-- `ValidPublicKeyWitness` : Bundles constraints and projective equivalence checks for the public key.
-- `assert_public_key_sound` : Soundness theorem showing the original loop constraints imply equivalence to scalar multiplication.
-- `LoopConstraintsZipped` / `loopResultZipped` / `ValidPublicKeyWitnessZipped` : Alternative zipped formulation of constraints to simplify proofs.
+- `ValidPublicKeyWitness` : Bundles the exact constraints enforced by `assert_public_key`.
+- `scalarMulProjective_equiv_bsmul` : Bridges `scalarMulProjective` to `bsmul`.
+- `assert_public_key_sound` : Soundness theorem deriving curve membership and projective equivalence to `bsmul`.
+- `LoopConstraintsZipped` / `loopResultZipped` / `ValidPublicKeyWitnessZipped` : Alternative zipped formulation.
 - `assert_public_key_sound_zipped` : Soundness theorem for the zipped formulation.
 -/
 
 @[expose] public section
 
 /-!
-###  Mathematical Specification
+### Mathematical Specification
 Formal definitions mapping cryptographic algebraic structure over elliptic curves
 -/
 
@@ -93,6 +97,13 @@ def IsCircuitBitMuxValid {F : Type} [Field F] (b : Bool) (tx ty tz : F) (params 
     tx = 0 ∧ ty = 1 ∧ tz = 0
 
 /--
+  Models `assert_equal_projective` in `circuits/tests/ec/pk_circuit.h`:
+  checks the cross-multiplications `X1 * Z2 = X2 * Z1` and `Y1 * Z2 = Y2 * Z1`.
+-/
+def AssertEqualProjective {F : Type} [CommRing F] (p1 p2 : ProjectivePoint F) : Prop :=
+  p1.X * p2.Z = p2.X * p1.Z ∧ p1.Y * p2.Z = p2.Y * p1.Z
+
+/--
   Models the constraint bindings inside the main `for` loop of `assert_public_key` in
   `circuits/tests/ec/pk_circuit.h`.
   Specifically, it captures the `lc_.assert_eq` calls that enforce the step evaluation
@@ -130,10 +141,9 @@ def loopResult {F : Type} [Field F] :
 
 /--
   Models the entirety of the `assert_public_key` boundary function in
-  `circuits/tests/ec/pk_circuit.h`.
-  It tightly couples the unrolled loop constraints (`LoopConstraints`), public key
-  projective scale equivalence (`assert_equal_projective`), and the affine curve
-  validation check (`is_on_curve`).
+  `circuits/tests/ec/pk_circuit.h`: the unrolled loop constraints (`LoopConstraints`),
+  the cross-multiplication check `assert_equal_projective(ax, ay, az, pk_x, pk_y, 1)`,
+  and the affine curve validation check `is_on_curve(pk_x, pk_y)`.
 -/
 def ValidPublicKeyWitness {F : Type} [Field F] (w : Witness F) (pk : AffinePoint F) (params : CurveParameters F) : Prop :=
   w.bits.length = params.kBits ∧
@@ -143,9 +153,8 @@ def ValidPublicKeyWitness {F : Type} [Field F] (w : Witness F) (pk : AffinePoint
   let acc0 := infinityPoint
   LoopConstraints acc0 w.bits w.int_x w.int_y w.int_z params ∧
   let finalAcc := loopResult acc0 w.bits w.int_x w.int_y w.int_z params
-  ProjectiveEquiv finalAcc pk.toProjective ∧
-  pk.IsOnCurve params ∧
-  finalAcc.IsOnCurve params
+  AssertEqualProjective finalAcc pk.toProjective ∧
+  pk.IsOnCurve params
 
 def zipLists {F : Type} : List Bool → List F → List F → List F → List (Bool × ProjectivePoint F)
 | [], _, _, _ => []
@@ -186,15 +195,15 @@ def ValidPublicKeyWitnessZipped {F : Type} [Field F] (w : Witness F) (pk : Affin
   LoopConstraintsZipped acc0 zipped params ∧
   let last_b := getLastBool w.bits
   let finalAcc := loopResultZipped acc0 zipped last_b params
-  ProjectiveEquiv finalAcc pk.toProjective ∧
-  pk.IsOnCurve params ∧
-  finalAcc.IsOnCurve params
+  AssertEqualProjective finalAcc pk.toProjective ∧
+  pk.IsOnCurve params
 
 end CircuitLogic
 
 /-!
 ### Verification & Soundness Proofs
-Proves that the circuit logic corresponds exactly to the mathematical specification
+Proves that the circuit logic corresponds to projective scalar multiplication (`bsmul`)
+and derives `finalAcc.IsOnCurve` and `ProjectiveEquiv` from the circuit's polynomial constraints.
 -/
 section Verification
 
@@ -244,19 +253,126 @@ theorem loopResult_eq_pureLoopResult {F : Type} [Field F] (acc : ProjectivePoint
               · exact hacc_y
               · exact hacc_z
             rw [h_nextAcc_eq]
-  
-theorem assert_public_key_sound {F : Type} [Field F]
+
+lemma pureLoopResult_append {F : Type} [Field F]
+    (acc : ProjectivePoint F) (s1 s2 : List Bool) (params : CurveParameters F) :
+    pureLoopResult acc (s1 ++ s2) params = pureLoopResult (pureLoopResult acc s1 params) s2 params := by
+  induction s1 generalizing acc with
+  | nil => rfl
+  | cons _ _ ih => exact ih _
+
+/-- Inductive curve-membership invariant noted in `pk_circuit.h`: starting on the curve, every step stays on the curve. -/
+lemma pureLoopResult_on_curve {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)]
+    (acc : ProjectivePoint F) (bits : List Bool) (params : CurveParameters F)
+    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
+    (h_acc : acc.IsOnCurve params)
+    (h_G : AffinePoint.IsOnCurve { X := params.gx, Y := params.gy } params) :
+    (pureLoopResult acc bits params).IsOnCurve params := by
+  induction bits generalizing acc with
+  | nil => exact h_acc
+  | cons b bs ih =>
+    dsimp [pureLoopResult]
+    apply ih
+    unfold circuitStep
+    have h_dbl : (doubleE acc params).IsOnCurve params := doubleE_on_curve acc params h_acc
+    have h_mux : ({ X := if b then params.gx else 0, Y := if b then params.gy else 1, Z := if b then 1 else 0 } : ProjectivePoint F).IsOnCurve params := by
+      cases b
+      · exact infinity_on_curve params
+      · exact affine_to_projective_on_curve { X := params.gx, Y := params.gy } params h_G
+    exact addE_on_curve _ _ params h_dbl h_mux
+
+/-- Proves that `assert_equal_projective(ax, ay, az, pk_x, pk_y, 1)` implies `ProjectiveEquiv` whenever `(ax, ay, az)` is on the curve. -/
+lemma projectiveEquiv_of_assertEqualProjective {F : Type} [Field F]
+    (p : ProjectivePoint F) (pk : AffinePoint F) (params : CurveParameters F)
+    (hp : p.IsOnCurve params)
+    (heq : AssertEqualProjective p pk.toProjective) :
+    ProjectiveEquiv p pk.toProjective := by
+  rcases heq with ⟨hx, hy⟩
+  dsimp [AffinePoint.toProjective] at hx hy
+  rw [mul_one] at hx hy
+  have hz_ne : p.Z ≠ 0 := by
+    intro hz0
+    have hy_ne : p.Y ≠ 0 := ProjectivePoint.Y_ne_zero_of_Z_eq_zero p params hp hz0
+    rw [hz0, mul_zero] at hy
+    exact hy_ne hy
+  refine ⟨p.Z, hz_ne, ?_⟩
+  ext
+  · dsimp [AffinePoint.toProjective, HSMul.hSMul, SMul.smul]
+    rw [hx, mul_comm]
+  · dsimp [AffinePoint.toProjective, HSMul.hSMul, SMul.smul]
+    rw [hy, mul_comm]
+  · dsimp [AffinePoint.toProjective, HSMul.hSMul, SMul.smul]
+    rw [mul_one]
+
+/-- Bridges `scalarMulProjective` (iterated `circuitStep`) to `bsmul` (standard `nsmulFastE ∘ bitsToNat`). -/
+theorem scalarMulProjective_equiv_bsmul {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)]
+    (s : List Bool) (params : CurveParameters F)
+    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
+    (h_G : AffinePoint.IsOnCurve { X := params.gx, Y := params.gy } params) :
+    ProjectiveEquiv (scalarMulProjective s params)
+      (bsmul s ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) := by
+  induction s using List.reverseRecOn with
+  | nil =>
+    unfold scalarMulProjective pureLoopResult bsmul bitsToNat
+    dsimp
+    rw [nsmulFastE_zero]
+    exact ProjectiveEquiv.refl _
+  | append_singleton bs b ih =>
+    unfold scalarMulProjective at ih ⊢
+    rw [pureLoopResult_append]
+    dsimp [pureLoopResult, circuitStep]
+    unfold bsmul at ih ⊢
+    rw [bitsToNat_append, nsmulFastE_bit]
+    dsimp
+    have h_dbl : ProjectiveEquiv (doubleE (pureLoopResult infinityPoint bs params) params)
+        (doubleE (nsmulFastE (bitsToNat bs) ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) params) :=
+      ih.doubleE params
+    cases b
+    · dsimp
+      have h_bs_on : (pureLoopResult infinityPoint bs params).IsOnCurve params :=
+        pureLoopResult_on_curve infinityPoint bs params (infinity_on_curve params) h_G
+      have h_dbl_on : (doubleE (pureLoopResult infinityPoint bs params) params).IsOnCurve params :=
+        doubleE_on_curve _ params h_bs_on
+      have h_inf_right : ProjectiveEquiv
+          (addE (doubleE (pureLoopResult infinityPoint bs params) params) infinityPoint params)
+          (doubleE (pureLoopResult infinityPoint bs params) params) := by
+        rw [addE_comm]
+        exact addE_infinity_left _ params h_dbl_on.Y_ne_zero
+      exact ProjectiveEquiv.trans h_inf_right h_dbl
+    · dsimp
+      exact h_dbl.addE params (ProjectiveEquiv.refl _)
+
+theorem assert_public_key_sound {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)]
     (w : Witness F)
     (pk : AffinePoint F)
     (params : CurveParameters F)
+    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
+    (h_G : AffinePoint.IsOnCurve { X := params.gx, Y := params.gy } params)
     (h : ValidPublicKeyWitness w pk params) :
-    ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective := by
+    0 < params.kBits ∧
+    ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective ∧
+    ProjectiveEquiv (bsmul w.bits ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) pk.toProjective := by
   have h_loop : LoopConstraints infinityPoint w.bits w.int_x w.int_y w.int_z params := h.2.2.2.2.1
-  have h_proj : ProjectiveEquiv (loopResult infinityPoint w.bits w.int_x w.int_y w.int_z params) pk.toProjective := h.2.2.2.2.2.1
+  have h_assert_eq : AssertEqualProjective (loopResult infinityPoint w.bits w.int_x w.int_y w.int_z params) pk.toProjective := h.2.2.2.2.2.1
   have h_result_eq : loopResult infinityPoint w.bits w.int_x w.int_y w.int_z params = pureLoopResult infinityPoint w.bits params :=
     loopResult_eq_pureLoopResult infinityPoint w.bits w.int_x w.int_y w.int_z params h_loop
-  rw [h_result_eq] at h_proj
-  exact h_proj
+  rw [h_result_eq] at h_assert_eq
+  have h_on : (pureLoopResult infinityPoint w.bits params).IsOnCurve params :=
+    pureLoopResult_on_curve infinityPoint w.bits params (infinity_on_curve params) h_G
+  have h_proj : ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective :=
+    projectiveEquiv_of_assertEqualProjective _ pk params h_on h_assert_eq
+  have h_kbits_pos : 0 < params.kBits := by
+    by_contra hk0
+    have hk_eq : params.kBits = 0 := Nat.eq_zero_of_not_pos hk0
+    have hnil : w.bits = [] := List.eq_nil_of_length_eq_zero (h.1.trans hk_eq)
+    rw [hnil] at h_assert_eq
+    have hy := h_assert_eq.2
+    dsimp [pureLoopResult, infinityPoint, AffinePoint.toProjective] at hy
+    rw [mul_one, mul_zero] at hy
+    exact one_ne_zero hy
+  have h_bsmul : ProjectiveEquiv (bsmul w.bits ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) pk.toProjective :=
+    ProjectiveEquiv.trans (ProjectiveEquiv.symm (scalarMulProjective_equiv_bsmul w.bits params h_G)) h_proj
+  exact ⟨h_kbits_pos, h_proj, h_bsmul⟩
 
 lemma zipLists_map_append_last {F : Type} (bits : List Bool) (wX wY wZ : List F)
     (h_len_X : wX.length = bits.length - 1)
@@ -323,29 +439,52 @@ theorem loopResultZipped_eq_pureLoopResult {F : Type} [Field F] (acc : Projectiv
       exact h_step
     rw [h_step']
 
-theorem assert_public_key_sound_zipped {F : Type} [Field F]
+theorem assert_public_key_sound_zipped {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)]
     (w : Witness F)
     (pk : AffinePoint F)
     (params : CurveParameters F)
-    (h_bits : w.bits ≠ [])
+    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
+    (h_G : AffinePoint.IsOnCurve { X := params.gx, Y := params.gy } params)
     (h : ValidPublicKeyWitnessZipped w pk params) :
-    ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective := by
+    0 < params.kBits ∧
+    ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective ∧
+    ProjectiveEquiv (bsmul w.bits ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) pk.toProjective := by
   have h_loop : LoopConstraintsZipped infinityPoint (zipLists w.bits w.int_x w.int_y w.int_z) params := h.2.2.2.2.1
-  have h_proj : ProjectiveEquiv (loopResultZipped infinityPoint (zipLists w.bits w.int_x w.int_y w.int_z) (getLastBool w.bits) params) pk.toProjective := h.2.2.2.2.2.1
+  have h_assert_eq : AssertEqualProjective (loopResultZipped infinityPoint (zipLists w.bits w.int_x w.int_y w.int_z) (getLastBool w.bits) params) pk.toProjective := h.2.2.2.2.2.1
+  have h_bits : w.bits ≠ [] := by
+    intro hnil
+    rw [hnil] at h_assert_eq
+    have hz_nil : zipLists ([] : List Bool) w.int_x w.int_y w.int_z = [] := by
+      cases w.int_x <;> cases w.int_y <;> cases w.int_z <;> rfl
+    rw [hz_nil] at h_assert_eq
+    dsimp [getLastBool, loopResultZipped, circuitStep, AffinePoint.toProjective] at h_assert_eq
+    rw [doubleE_infinity] at h_assert_eq
+    change AssertEqualProjective (addE infinityPoint infinityPoint params) { X := pk.X, Y := pk.Y, Z := 1 } at h_assert_eq
+    rw [addE_infinity_infinity] at h_assert_eq
+    have hy := h_assert_eq.2
+    dsimp [infinityPoint] at hy
+    rw [mul_one, mul_zero] at hy
+    exact one_ne_zero hy
+  have h_kbits_pos : 0 < params.kBits := by
+    rw [← h.1]
+    exact List.length_pos_iff.mpr h_bits
   have h_result_eq : loopResultZipped infinityPoint (zipLists w.bits w.int_x w.int_y w.int_z) (getLastBool w.bits) params =
     pureLoopResult infinityPoint ((zipLists w.bits w.int_x w.int_y w.int_z).map (·.1) ++ [getLastBool w.bits]) params :=
     loopResultZipped_eq_pureLoopResult infinityPoint (zipLists w.bits w.int_x w.int_y w.int_z) (getLastBool w.bits) params h_loop
   have h_zip_eq : (zipLists w.bits w.int_x w.int_y w.int_z).map (·.1) ++ [getLastBool w.bits] = w.bits := by
     apply zipLists_map_append_last
-    · rw [h.1]
-      exact h.2.1
-    · rw [h.1]
-      exact h.2.2.1
-    · rw [h.1]
-      exact h.2.2.2.1
+    · rw [h.1]; exact h.2.1
+    · rw [h.1]; exact h.2.2.1
+    · rw [h.1]; exact h.2.2.2.1
     · exact h_bits
   rw [h_zip_eq] at h_result_eq
-  rw [h_result_eq] at h_proj
-  exact h_proj
+  rw [h_result_eq] at h_assert_eq
+  have h_on : (pureLoopResult infinityPoint w.bits params).IsOnCurve params :=
+    pureLoopResult_on_curve infinityPoint w.bits params (infinity_on_curve params) h_G
+  have h_proj : ProjectiveEquiv (scalarMulProjective w.bits params) pk.toProjective :=
+    projectiveEquiv_of_assertEqualProjective _ pk params h_on h_assert_eq
+  have h_bsmul : ProjectiveEquiv (bsmul w.bits ({ X := params.gx, Y := params.gy : AffinePoint F }).toProjective params) pk.toProjective :=
+    ProjectiveEquiv.trans (ProjectiveEquiv.symm (scalarMulProjective_equiv_bsmul w.bits params h_G)) h_proj
+  exact ⟨h_kbits_pos, h_proj, h_bsmul⟩
 
 end Verification
