@@ -53,6 +53,19 @@ variable {F : Type} [Field F] [NeZero (2 : F)] [NeZero (3 : F)] [NeZero (4 : F)]
        at infinity (i.e., their Z-coordinates must be non-zero). This avoids exceptional addition cases.
 
 -/
+private lemma natReconstruct_lt (bi : List Nat) (mux : Nat → Nat) (hmux : ∀ v, mux v < 2) :
+    natReconstruct bi mux < 2 ^ bi.length := by
+  induction bi with
+  | nil => simp [natReconstruct]
+  | cons v vs ih =>
+    rw [natReconstruct_cons, List.length_cons, Nat.pow_succ, Nat.mul_comm (2 ^ vs.length) 2]
+    have hv : mux v ≤ 1 := Nat.lt_succ_iff.mp (hmux v)
+    have hmul : mux v * 2 ^ vs.length ≤ 1 * 2 ^ vs.length := Nat.mul_le_mul_right _ hv
+    omega
+
+lemma natE_lt (bi : List Nat) : natE bi < 2 ^ bi.length :=
+  natReconstruct_lt bi muxE (fun v => Nat.mod_lt v (by decide))
+
 theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F) (order : Nat) (params : CurveParameters F)
     [h_ell : (params.toMathlib).IsElliptic]
     [CurveHasNoPointsOfOrder2 params]
@@ -66,6 +79,8 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
       r = natR (w.bi.map val3) ∧
       s = order - natS (w.bi.map val3) ∧
       e_nat = natE (w.bi.map val3) ∧
+      e_nat < 2 ^ params.kBits ∧
+      (e_nat : F) = e ∧
       StandardEcdsaVerify pk e_nat r s order params := by
   have h_copy := h
   rcases h with ⟨h_len, h_len_x, h_len_y, h_len_z, h_len_pre, h_bi, h_pre, h_loop, h_final_x, h_final_z, h_est, h_rst, h_on_pk, h_on_r, h_rx_inv, h_s_inv_f, h_pk_inv, h_r_lt, h_s_lt⟩
@@ -74,10 +89,16 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
   let r_nat := natR bi_nat
   let s_nat := natS bi_nat
   let e_nat := natE bi_nat
+  have h_e_lt : e_nat < 2 ^ params.kBits := by
+    have h_bi_len : bi_nat.length = params.kBits := by simp [bi_nat, h_len]
+    rw [← h_bi_len]
+    exact natE_lt bi_nat
+  have h_e_cast : (e_nat : F) = e := by
+    rw [← h_est, reconstructE_eq_natE]
   use r_nat
   use (order - s_nat)
   use e_nat
-  refine ⟨rfl, rfl, rfl, ?_⟩
+  refine ⟨rfl, rfl, rfl, h_e_lt, h_e_cast, ?_⟩
   unfold StandardEcdsaVerify
   refine ⟨h_on_pk, h_pk_order, ?_⟩
   -- 1. Prove r range checks
@@ -203,5 +224,44 @@ theorem ecdsa_circuit_soundness (w : EcdsaWitness F) (pk : AffinePoint F) (e : F
     have h_rx_eq : reconstructR bi_nat = ((natR bi_nat : Nat) : F) := reconstructR_eq_natR bi_nat
     rw [h_rx_eq] at h_rst
     exact h_rst
+
+/--
+  Trust assumption for deployed curves: every curve point is annihilated by `order`
+  (equivalently, the curve group has prime order `order`, cofactor 1). This holds for
+  NIST P-256 and secp256k1, but proving it in Lean requires a point count (Hasse bound),
+  which Mathlib does not provide. On such a curve, the circuit's `pk ≠ O` and `R ≠ O`
+  checks already imply that `pk` and `R` have order exactly `order`.
+-/
+class CurveHasPrimeOrder {F : Type} [Field F] (params : CurveParameters F) (order : Nat) : Prop where
+  order_ann : ∀ P : ProjectivePoint F, P.IsOnCurve params →
+    ProjectiveEquiv (bsmul (padBits (natToBits order) params.kBits) P params) infinityPoint
+
+/--
+  Soundness under the single `CurveHasPrimeOrder` trust assumption. Unlike
+  `ecdsa_circuit_soundness`, no hypothesis mentions the prover-chosen witness `w` or the
+  public key `pk`: the order facts for `G`, `pk`, and `R = (w.rx, w.ry)` are all derived
+  from their on-curve-ness, which the circuit itself enforces.
+-/
+theorem ecdsa_circuit_soundness_of_prime_order (w : EcdsaWitness F) (pk : AffinePoint F) (e : F) (order : Nat) (params : CurveParameters F)
+    [h_ell : (params.toMathlib).IsElliptic]
+    [CurveHasNoPointsOfOrder2 params]
+    [h_prime : Fact (Nat.Prime order)]
+    [h_po : CurveHasPrimeOrder params order]
+    (h : ValidEcdsaWitness w pk e order params)
+    (h_G : AffinePoint.IsOnCurve { X := params.gx, Y := params.gy } params) :
+    ∃ (r s : Nat) (e_nat : Nat),
+      r = natR (w.bi.map val3) ∧
+      s = order - natS (w.bi.map val3) ∧
+      e_nat = natE (w.bi.map val3) ∧
+      e_nat < 2 ^ params.kBits ∧
+      (e_nat : F) = e ∧
+      StandardEcdsaVerify pk e_nat r s order params := by
+  have h_on_pk : pk.IsOnCurve params := h.2.2.2.2.2.2.2.2.2.2.2.2.1
+  have h_on_r : AffinePoint.IsOnCurve { X := w.rx, Y := w.ry } params := h.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+  have h_G_on := affine_to_projective_on_curve _ params h_G
+  exact ecdsa_circuit_soundness w pk e order params h h_G_on
+    (h_po.order_ann _ (affine_to_projective_on_curve pk params h_on_pk))
+    (h_po.order_ann _ h_G_on)
+    (h_po.order_ann _ (affine_to_projective_on_curve _ params h_on_r))
 
 end ECDSA
