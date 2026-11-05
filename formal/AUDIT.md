@@ -1,5 +1,74 @@
 # Formal security claims and audit
 
+The layered-sumcheck chain targets the immutable Rust snapshot based on
+`12d5b8f`, SHA-256
+`29a9b61191f73d05dbd5b9e5c08843c51d713ca39baef0eb9876eaef07847f5a`.
+Its complete endpoint is
+[`Layered.Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Layered/Joint/RawRuntimeExtraction.lean).
+The retained `Joint`, `Linear`, `Packed`, `Native`, and V1 proof files are
+unchanged. New frontend-dependent replay and composition modules are separate;
+scalar algebra, packing, typed backend, Merkle primitives and numerical
+certificate proofs are reused.
+
+## Layered sumcheck theorem chain
+
+- [Entry algebra](lfzk-v2/LfzkV2/Layered/Entry.lean) remaps existing weights
+  and adds independent zero-output coefficients. It permits overlapping
+  coordinates, arbitrary entry depths, scalar outputs and zero-layer circuits.
+  [Structural tests](lfzk-v2/LfzkV2/Layered/Tests/Structure.lean) cover those
+  cases, including actual non-power-of-two contiguous offsets.
+- [Quad fragments](lfzk-v2/LfzkV2/Layered/Fragments.lean) contain only sparse
+  terms and index maps. [Sparse tensor semantics](lfzk-v2/LfzkV2/Layered/SparseLayer.lean)
+  proves their evaluation and left/right kernels agree with the ordinary
+  tensor layer. Intermediate ranges concatenate actual widths. At the shared
+  input boundary ranges overlap, and coefficients add without a disjointness
+  premise. Each layer retains one monomial array and one combining challenge.
+- [Deterministic soundness](lfzk-v2/LfzkV2/Layered/Soundness.lean),
+  [causal replay](lfzk-v2/LfzkV2/Layered/CausalReplay.lean), and
+  [adaptive accounting](lfzk-v2/LfzkV2/Layered/FrontendBound.lean) cover the
+  complete recursive schedule, not just the singleton mdoc case. Nonempty
+  entry blocks each contribute `1/q`; assertion vectors, ordinary rounds and
+  terminal challenges have their existing bounds. An empty block has no slot.
+- [Actual packing rows](lfzk-v2/LfzkV2/Layered/Packed.lean) transfer to the
+  final shared-input claim or the counted packing event. The
+  [compiled-side constructors](lfzk-v2/LfzkV2/Layered/Runtime/CompiledFS.lean)
+  prove this transfer from backend row satisfaction. They do not postulate
+  the desired input equation or successful extraction. The
+  [honest frontend](lfzk-v2/LfzkV2/Layered/Prover.lean),
+  [honest packing bridge](lfzk-v2/LfzkV2/Layered/PackedProver.lean), and retained
+  [backend construction](lfzk-v2/LfzkV2/Joint/Honest.lean) establish completeness.
+- [Joint replay](lfzk-v2/LfzkV2/Layered/Joint/Causality.lean) fixes both field
+  statements before backend challenges and both responses before the shared
+  opening. [Authenticated extraction](lfzk-v2/LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)
+  yields a candidate pair satisfying both layered circuits and the retained
+  MAC agreement from one explained tuple commitment.
+
+The exact finite bound remains
+`1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255 +
+adaptiveNumerator(5824,tA,L+(1+N))/2^256`, with `L <= 1204`.
+The all-budget comparison is `(1+N+tA)/2^116`.
+The [size bounds](lfzk-v2/LfzkV2/Layered/Sizes.lean) use the actual mdoc
+singleton schedules: ordinary numerators at most 589 for the hash field
+and 563 for the signature field, below the conservative 593 and 565 limits
+used by the certificate.
+The underlying geometry and candidate limits remain unchanged.
+
+Rust correspondence still requires that the trusted schedule encodes every
+output and assertion occurrence, the index maps use actual global ranges,
+and padding coordinates are zero. Whole-vector ideal samples model each
+output block and the complete assertion vector before the first round;
+concrete transcript expansion and rejection sampling remain outside Lean.
+The ordered circuits, layout and source identifiers must be bound by the
+`layered-sumcheck/circuits/v1`, `enter-circuit/v1`, `assertions/v1`, and
+`commitment-layout/v1` domains (the latter three share the same prefix).
+The model does not parse `JPG1`, `LFV7`, or `MJP2`. Field arithmetic,
+compiled-row placement, the six circuit MAC identities, balanced backend
+samplers, Merkle codec/role decoders and sufficient answer-tape size remain
+explicit premises. This is full composition for that mathematical model,
+not verification of Rust execution or a full joint zero-knowledge theorem.
+
+## Retained joint-commitment checkpoint
+
 The joint-commitment V2 chain targets Rust `8943498`. Its complete endpoint
 [`Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Joint/RawRuntimeExtraction.lean)
 proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for all

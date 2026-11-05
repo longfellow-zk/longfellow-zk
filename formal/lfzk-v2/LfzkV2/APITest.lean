@@ -2,6 +2,7 @@ import LfzkV2
 import LfzkV2.Native.APITest
 import LfzkV2.Linear.Tests.APITest
 import LfzkV2.Joint.Tests.APITest
+import LfzkV2.Layered.Tests.APITest
 import Lean.Util.CollectAxioms
 
 /-! Build the public API and reject unchecked proof dependencies. -/

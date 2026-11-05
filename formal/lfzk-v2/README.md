@@ -1,5 +1,61 @@
 # Longfellow V2: extraction and soundness
 
+The `LfzkV2.Layered` namespace models layered sumcheck with sparse quad
+fragments, one dense wire array per layer, and one shared input array. Its
+[authenticated extraction endpoint](LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)
+proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for every
+transcript-query budget `N` and Merkle-query budget `tA`.
+
+The source checkpoint is the immutable Rust snapshot based on `12d5b8f`,
+SHA-256 `29a9b61191f73d05dbd5b9e5c08843c51d713ca39baef0eb9876eaef07847f5a`.
+It uses `JPG1`, `LFV7`, and `MJP2`. The bound covers the new layered frontend,
+its final packing reduction, both field checks, the retained affine MAC,
+and one authenticated tuple commitment with shared column queries.
+
+[Entries](LfzkV2/Layered/Entry.lean) add independently weighted zero outputs
+at any layer boundary, including scalar outputs and zero-layer circuits.
+Each nonempty entry block costs at most `1/q`; the proof does not assume
+that only one circuit is present. [Sparse layers](LfzkV2/Layered/SparseLayer.lean)
+translate local term indices into global coordinates and prove that fragment
+traversal evaluates the same tensors. Input ranges may overlap: their
+contributions add. Intermediate arrays concatenate actual widths; only the
+tail of the global array has implicit zero padding. There are no component
+index rounds, separate component terminal factors, or extra advice rows.
+
+The [soundness reduction](LfzkV2/Layered/Soundness.lean) and
+[causal replay](LfzkV2/Layered/CausalReplay.lean) cover arbitrary finite depth
+schedules. Each ordinary layer has one sumcheck, one randomized linear
+terminal check, and one combining challenge. Assertion coefficients are
+independent of output weights. The [packing bridge](LfzkV2/Layered/Packed.lean)
+proves the actual compiled rows authenticate the final shared-input claim;
+it never assumes arbitrary committed extension-field cells are bits.
+[Honest frontend construction](LfzkV2/Layered/Prover.lean) and
+[honest packing rows](LfzkV2/Layered/PackedProver.lean) compose with the retained
+[typed backend completeness theorem](LfzkV2/Joint/Honest.lean).
+
+For a circuit schedule, let `B` be the number of nonempty output-entry
+blocks, `R` the sum of global layer round counts, and `D` its depth. Its
+ordinary challenge numerator is at most `B + 2R + 2D`, divided by `q`; nonzero terminal scales
+add `2D/(q-1)`. The [adaptive frontend theorem](LfzkV2/Layered/FrontendBound.lean)
+counts every entry, assertion, round, terminal, and combining event. The mdoc
+fields remain singleton schedules: the ordinary numerators are at most 589
+and 563. The complete certificate conservatively retains the previous
+593 and 565 limits and hence the same exact finite bound:
+
+```text
+1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255
+  + adaptiveNumerator(5824,tA,L+(1+N))/2^256,  L <= 1204.
+```
+
+The geometry remains `(k,s,n,t)=(416,15,2912,86)`, with candidate limits 25
+and 33. The theorem's explicit premises cover correspondence of the trusted
+circuit schedule and layouts to Rust, balanced ideal challenge samplers,
+field sizes, compiler row placement, MAC identities and Merkle encoding.
+Concrete byte parsing, hash expansion/rejection sampling and Rust execution
+are not verified by Lean. Full joint zero knowledge is not claimed.
+
+## Retained joint-commitment checkpoint
+
 The `LfzkV2.Joint` namespace models Rust commit `8943498`: one typed Polygero
 column tree and one shared opening set for the hash and signature fields.
 [`Joint.RawRuntimeExtraction.extraction_116`](LfzkV2/Joint/RawRuntimeExtraction.lean)

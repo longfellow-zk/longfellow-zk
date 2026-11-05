@@ -1,15 +1,19 @@
 # Formal verification
 
-**The modeled joint-commitment Longfellow V2 verifier at commit `8943498`
-has a 116-bit work-normalized extraction bound.** Native affine sumcheck,
-binary-input packing, linear-only Polygero, and the two-field MAC compose with
-one authenticated tuple tree and one shared set of column queries.
-[`LfzkV2.Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Joint/RawRuntimeExtraction.lean)
-proves `Pr[accept ∧ paired extraction fails] ≤ (1 + N + tA) / 2^116` for all
-transcript-query budgets `N` and Merkle-query budgets `tA`. The exact finite
-bound is also proved. Circuit/layout, sampler, MAC-row and codec premises
-remain explicit; see the [audit and implementation boundary](AUDIT.md).
-The previous `LfzkV2.Linear` checkpoint at `21cb029` remains unchanged.
+**The modeled layered-sumcheck Longfellow V2 verifier has a 116-bit
+work-normalized extraction bound.** Sparse quad fragments share one wire
+array per layer and one input array. Circuits may have different depths,
+scalar outputs, or no layers. Binary packing, linear-only Polygero and the
+retained two-field MAC compose with one authenticated tuple tree and one
+shared set of column queries.
+[`LfzkV2.Layered.Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)
+proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for all
+transcript-query budgets `N` and Merkle-query budgets `tA`. The
+[V2 README](lfzk-v2/README.md) identifies the immutable source snapshot and
+exact finite bound. Circuit/layout, ideal sampler, MAC-row and codec
+premises remain explicit; see the [implementation boundary](AUDIT.md).
+The earlier `Joint` (`8943498`), `Linear` (`21cb029`), `Native`, `Packed`,
+and V1 proof modules remain unchanged.
 
 The prior product-checked snapshot `fcf8a3a` retains its separate
 [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
