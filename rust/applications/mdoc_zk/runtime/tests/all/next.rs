@@ -1059,29 +1059,29 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         extension.omega_order(),
     );
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f, false).unwrap();
-    let expected_hash = expected_parameters(&hash, &d, &f);
-    let expected_sig = expected_parameters(&sig, &pd, &p);
-    assert_eq!(
-        Some(spec.configs()),
-        Some((expected_hash, expected_sig)),
-        "NEXT parameters for {} attributes",
-        spec.num_attributes
+    let expected = crate::runtime::proto::polygero::PolygeroConfig {
+        k: 384,
+        s: 13,
+        n: 2560,
+        t: 87,
+    };
+    assert_eq!(spec.configs(), (expected, expected));
+    assert!(expected.can_interpolate(&d));
+    assert!(expected.can_interpolate(&pd));
+    let geometry = crate::mdoc::v2::proof_geometry(spec, &sig, &hash).unwrap();
+    // Keep the numerical frontend and Merkle charges tied to the actual
+    // hash-plus-adapter geometry, including entries for both quad fragments.
+    let binary = &geometry.geom_hash.sc_geom;
+    let native = &geometry.geom_sig.sc_geom;
+    assert!(2 * binary.logw_layers.iter().sum::<usize>() + 2 * binary.logw_layers.len() + 2 <= 593);
+    assert!(binary.logw_layers.len() <= 20);
+    assert!(2 * native.logw_layers.iter().sum::<usize>() + 2 * native.logw_layers.len() + 1 <= 593);
+    assert!(native.logw_layers.len() <= 20);
+    assert!(
+        binary.logw_layers.iter().sum::<usize>()
+            + native.logw_layers.iter().sum::<usize>()
+            + 4 * (binary.logw_layers.len() + native.logw_layers.len())
+            + 16
+            <= 1204
     );
-}
-
-fn expected_parameters<
-    const W: usize,
-    F: crate::runtime::algebra::RuntimeField<W> + crate::runtime::algebra::PackingField,
-    D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
->(
-    circuit: &crate::core::proto::v2::Circuit<F>,
-    domain: &D,
-    f: &F,
-) -> crate::runtime::proto::polygero::PolygeroConfig {
-    use crate::runtime::proto::zk_v2::commitment_layout;
-    let (_, nw) = commitment_layout(circuit, f);
-    crate::compile::polygero::tune_large_field_at_rate(7, nw, f.serialized_size_bytes(), |config| {
-        config.can_interpolate(domain)
-    })
-    .unwrap()
 }

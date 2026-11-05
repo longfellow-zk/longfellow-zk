@@ -102,11 +102,12 @@ The current MAC-free P256 adapter requires its own formal extension; that
 certificate does not yet cover the complete current application.
 Circuit/layout correspondence and ideal-sampler premises remain explicit in the
 [audit](../formal/AUDIT.md). Shared-query failure budgets add across fields.
-Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
-the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
-establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
-Fiat–Shamir model. This component bound excludes the Merkle binding reduction
-and the rest of the Longfellow v2 composition, including packing.
+Current parameter selection targets the same 116-bit work-normalized budget.
+[Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
+cover rank, Johnson list sizes, and the sum of both fields' query charges.
+The earlier 127-bit component certificates apply to the previous parameter
+profiles. Full formal integration of the current profile and adapter remains
+pending. Complete V2 joint-view zero knowledge is not yet proved.
 
 ## Performance
 
@@ -118,15 +119,15 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 133.8 ms | 76.7 ms | 142,831 | 42.47 MiB | 34.46 MiB |
-| 4 | 145.6 ms | 82.0 ms | 144,463 | 47.17 MiB | 37.51 MiB |
+| 2 | 129.7 ms | 74.4 ms | 139,487 | 42.30 MiB | 34.46 MiB |
+| 4 | 140.5 ms | 79.7 ms | 141,263 | 46.99 MiB | 37.51 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
 | 2 | 632,006 | 163,286 | 1.78 MiB |
 | 4 | 657,741 | 163,307 | 1.87 MiB |
 
-Both cases use `(k,s,n,t)=(416,15,2912,86)` for the hash and signature
+Both cases use `(k,s,n,t)=(384,13,2560,87)` for the hash and signature
 circuits. The combined hash/adapter has 20 layers; the signature has 11.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
@@ -281,9 +282,10 @@ For v2, the hash and signature circuits share the same
 | `s` | Batching-polynomial degree bound |
 | `T` | Number of opened columns and random prefix samples per row |
 
-Offline parameter selection lives in `compile::polygero`. The selected
-parameters are saved in the specification. Provers and verifiers derive
-the remaining geometry deterministically; they do not tune parameters.
+Generic offline parameter selection lives in `compile::polygero`. The mdoc
+development provider uses one profile checked against the complete two-field
+budget. Specifications save these choices. Provers and verifiers derive the
+remaining geometry deterministically; they do not tune parameters.
 
 ### Frozen circuits and NEXT
 

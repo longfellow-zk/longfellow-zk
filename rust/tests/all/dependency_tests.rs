@@ -1018,6 +1018,7 @@ fn test_development_provider_boundaries() {
         "src/next_v2.rs",
         "src/cache_v2.rs",
         "tests/provider.rs",
+        "tests/parameters.rs",
     ]
     .map(|name| directory.join(name))
     .into_iter()

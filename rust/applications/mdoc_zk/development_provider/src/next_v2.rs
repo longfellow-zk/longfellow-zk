@@ -38,6 +38,16 @@ use crate::{
     },
 };
 
+// One geometry serves both fields. Smaller responses and fewer oracle columns
+// balance the full mdoc proof; the two fields' query errors must be added.
+// Exact rank, Johnson-list and shared-query budgets are checked in the tests.
+const NEXT_PARAMETERS: PolygeroConfig = PolygeroConfig {
+    k: 384,
+    s: 13,
+    n: 2560,
+    t: 87,
+};
+
 /// Compile the development circuit and return its matching specification.
 /// The saved specification retains the shared proof parameter profile.
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
@@ -80,12 +90,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     )?;
     // Both fields share one column/query geometry. Validate the fixed profile
     // against each interpolation domain.
-    let config = PolygeroConfig {
-        k: 416,
-        s: 15,
-        n: 2912,
-        t: 86,
-    };
+    let config = NEXT_PARAMETERS;
     if !config.can_interpolate(&d) || !config.can_interpolate(&pd) {
         return Err("unsupported fixed Polygero profile".into());
     }
@@ -103,3 +108,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
         polygero_sig: parameters,
     })
 }
+
+#[cfg(test)]
+#[path = "../tests/parameters.rs"]
+mod tests;
