@@ -89,7 +89,7 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 cfg_prover! {
-    use crate::mdoc::proto::config::K_SIG_MAC_BIT_PLUCKER;
+    use crate::mdoc::proto::config::K_SIG_MAC_BIT_PLUCKER_V1;
 
 
     impl<
@@ -153,7 +153,7 @@ cfg_prover! {
 
     impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
         pub(super) fn push_plucked_128_legacy(&mut self, val: u128) {
-            self.push_value_plucked_legacy::<{ K_SIG_MAC_BIT_PLUCKER }, 128>(val);
+            self.push_value_plucked_legacy::<{ K_SIG_MAC_BIT_PLUCKER_V1 }, 128>(val);
         }
     }
 }

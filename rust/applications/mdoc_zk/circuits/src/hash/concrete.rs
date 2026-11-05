@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::Nat;
-
 use super::constants::K_MSO_PREIMAGE_LEN;
-use crate::mdoc::circuits::mso_attribute::concrete::FieldLocator as MsoFieldLocator;
+use crate::{
+    core::algebra::Nat, mdoc::circuits::mso_attribute::concrete::FieldLocator as MsoFieldLocator,
+};
 
 #[derive(Clone, Debug)]
 pub struct AttrInput {
@@ -24,12 +24,6 @@ pub struct AttrInput {
     pub cbor_issuer_signed_item: Vec<u8>,
     pub mso_digest_offset_in_preimage: usize,
     pub field_locator: MsoFieldLocator,
-}
-
-#[derive(Clone, Debug)]
-pub struct HashMac {
-    pub mac_av: u128,
-    pub mac_ap: [[u128; 2]; 3],
 }
 
 #[derive(Clone, Debug)]
@@ -74,10 +68,6 @@ pub struct AttrDerived {
 #[derive(Clone, Debug)]
 pub struct ConcreteGiven<N> {
     pub hash_input: HashInput<N>,
-    pub mac_input: HashMac,
-    pub mac_e: [u128; 2],
-    pub mac_device_pkx: [u128; 2],
-    pub mac_device_pky: [u128; 2],
     pub preimage: MsoPreimageBytes,
     pub nblocks: u8,
     pub doc_type_offset_in_preimage: u16,
@@ -86,7 +76,6 @@ pub struct ConcreteGiven<N> {
     pub dev_key_info_offset_in_preimage: u16,
     pub value_digests_offset_in_preimage: u16,
     pub attribute_given: Vec<AttrGiven>,
-    pub mac_ap: [[u128; 2]; 3],
 }
 
 #[derive(Clone, Debug)]
@@ -95,43 +84,7 @@ pub struct ConcreteDerived {
     pub sha_derived: crate::circuits::sha256msg::concrete::ConcreteDerived,
 }
 
-pub fn compute_mac_tags<const W: usize, N: Nat<W>>(
-    hash_input: &HashInput<N>,
-    mac_input: &HashMac,
-) -> ([u128; 2], [u128; 2], [u128; 2]) {
-    let nat_to_32bytes = |n: &N| -> [u8; 32] {
-        let bytes = n.to_bytes_le();
-        assert!(bytes.len() <= 32);
-        let mut padded = [0u8; 32];
-        padded[..bytes.len()].copy_from_slice(&bytes);
-        padded
-    };
-
-    let mac_e = crate::circuits::mac::concrete::compute_tag(
-        &nat_to_32bytes(&hash_input.issuer_sig_e),
-        mac_input.mac_av,
-        &mac_input.mac_ap[0],
-    );
-    let mac_device_pkx = crate::circuits::mac::concrete::compute_tag(
-        &nat_to_32bytes(&hash_input.device_pk.0),
-        mac_input.mac_av,
-        &mac_input.mac_ap[1],
-    );
-    let mac_device_pky = crate::circuits::mac::concrete::compute_tag(
-        &nat_to_32bytes(&hash_input.device_pk.1),
-        mac_input.mac_av,
-        &mac_input.mac_ap[2],
-    );
-
-    (mac_e, mac_device_pkx, mac_device_pky)
-}
-
-pub fn given<const W: usize, N: Nat<W>>(
-    hash_input: HashInput<N>,
-    mac_input: HashMac,
-) -> ConcreteGiven<N> {
-    let (mac_e, mac_device_pkx, mac_device_pky) = compute_mac_tags::<W, N>(&hash_input, &mac_input);
-
+pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
     let cose_sha_wit = crate::circuits::sha256msg::concrete::given(
         &hash_input.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
@@ -181,9 +134,7 @@ pub fn given<const W: usize, N: Nat<W>>(
         preimage_base_offset + hash_input.value_digests_offset as u16;
 
     ConcreteGiven {
-        mac_ap: mac_input.mac_ap,
         hash_input,
-        mac_input: mac_input.clone(),
         preimage,
         nblocks: nblocks.try_into().unwrap(),
         doc_type_offset_in_preimage,
@@ -192,9 +143,6 @@ pub fn given<const W: usize, N: Nat<W>>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
-        mac_e,
-        mac_device_pkx,
-        mac_device_pky,
     }
 }
 
@@ -279,4 +227,3 @@ impl ConcreteDerived {
         self.sha_derived.push_derived(fr, &mut push);
     }
 }
-

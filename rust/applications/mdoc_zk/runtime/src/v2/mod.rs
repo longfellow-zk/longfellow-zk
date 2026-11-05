@@ -14,6 +14,8 @@
 
 //! Longfellow v2 application API and its own specification registry.
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod adapter;
 mod attribute;
 mod circuits;
 mod error;
@@ -27,6 +29,8 @@ pub mod zk_spec;
 pub(in crate::mdoc::runtime) use attribute::{circuit_supports, same_namespace};
 pub use attribute::{req_attr, RequestedAttribute};
 pub use circuits::decompress_circuits;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub use circuits::proof_geometry;
 pub use error::{MdocProverErrorCode, MdocVerifierErrorCode};
 pub use proto::{MdocProof, MdocProofGeometry};
 pub use zk_spec::{
@@ -35,5 +39,5 @@ pub use zk_spec::{
 };
 
 pub mod provider;
-cfg_prover! { mod mac; pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
+cfg_prover! { pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
 cfg_verifier! { pub mod verifier; pub use verifier::{run_mdoc_verifier,run_mdoc_verifier_inner}; }

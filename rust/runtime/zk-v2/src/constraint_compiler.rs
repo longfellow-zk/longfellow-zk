@@ -56,7 +56,7 @@ fn append_pad_terms<E: Clone>(
 
 /// Resolve a logical pad while checking every layer/round/slot index. Claim
 /// expressions can reference all four terminal cells directly.
-fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
+pub(crate) fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
     match pad {
         Pad::Product { layer } => pads.layers.get(layer).map(|p| &p.product),
         Pad::Cross { layer } => pads.layers.get(layer).map(|p| &p.cross),
@@ -94,7 +94,7 @@ fn validate<E>(
 #[path = "../tests/constraint_compiler.rs"]
 mod tests;
 
-fn compile_layers<E: Clone>(
+pub(crate) fn compile_layers<E: Clone>(
     constraints: &Constraints<E>,
     pads: &CircuitPadLayout,
 ) -> Result<(Vec<PolygeroLinearTerm<E>>, Vec<E>), String> {
@@ -107,7 +107,7 @@ fn compile_layers<E: Clone>(
     Ok((a, b))
 }
 
-pub(super) fn compile_packed<const W: usize, F: RuntimeField<W>>(
+pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     constraints: Constraints<F::E>,
     pads: &CircuitPadLayout,
     public: &[F::E],

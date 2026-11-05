@@ -15,18 +15,19 @@
 pub mod cbor;
 pub mod traits;
 
+pub(crate) mod p256_adapter;
+
 pub use cbor::{cbor_encode::*, mdoc::*};
 pub use traits::*;
 
 pub use crate::mdoc::proto::config;
 
-pub const NEXT_VERSION: usize = 9;
+pub const NEXT_VERSION: usize = 10;
 
 cfg_compiler! {
     pub mod cbor_decoder;
     pub mod hash;
     pub mod mso_attribute;
-    pub mod signature;
 }
 
 cfg_testonly! {

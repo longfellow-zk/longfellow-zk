@@ -6,10 +6,10 @@ use crate::runtime::{
     polygero::LinearStatement,
     random::{RandomEngine, Transcript},
 };
-pub(in crate::runtime::zk_v2) struct PreparedInputs<E> {
+pub(crate) struct PreparedInputs<E> {
     packed: Vec<E>,
 }
-pub(in crate::runtime::zk_v2) struct PackingState<E> {
+pub(crate) struct PackingState<E> {
     words: Vec<E>,
     suffix: Vec<E>,
     masks: PackingMasks<E>,

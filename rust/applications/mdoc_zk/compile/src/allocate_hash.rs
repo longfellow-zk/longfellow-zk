@@ -19,7 +19,7 @@ use crate::{
             hash::{
                 circuit::{
                     AttrDerived, AttrGiven, AttrPreimageBytes, Derived as HashDerived,
-                    Given as HashGiven, MsoPreimageBytes,
+                    MsoPreimageBytes,
                 },
                 constants::{
                     K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_TIMESTAMP_LEN,
@@ -106,37 +106,33 @@ pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
     (given, derived)
 }
 
-pub fn allocate_hash<'b, FC>(
+pub fn allocate_hash_core<'b, FC: MdocHashCompileField>(
     allocator: &mut WireAllocator<'_, 'b, FC>,
     num_attrs: usize,
 ) -> (
-    HashGiven<CompilerLogic<'b, FC>>,
+    crate::mdoc::circuits::hash::circuit::Given<CompilerLogic<'b, FC>>,
     HashDerived<CompilerLogic<'b, FC>>,
     usize,
-)
-where
-    FC: MdocHashCompileField,
-{
+) {
     let now = allocator.allocate_bitvec_array::<8, K_TIMESTAMP_LEN>();
 
     let disclosed_attributes = (0..num_attrs)
         .map(|_| allocate_disclosed_attribute(allocator))
         .collect();
 
-    let mac_e = [
-        allocator.allocate_binary_word(),
-        allocator.allocate_binary_word(),
-    ];
-    let mac_device_pkx = [
-        allocator.allocate_binary_word(),
-        allocator.allocate_binary_word(),
-    ];
-    let mac_device_pky = [
-        allocator.allocate_binary_word(),
-        allocator.allocate_binary_word(),
-    ];
-    let mac_av = allocator.allocate_binary_word();
+    allocate_body(allocator, num_attrs, now, disclosed_attributes)
+}
 
+fn allocate_body<'b, FC: MdocHashCompileField>(
+    allocator: &mut WireAllocator<'_, 'b, FC>,
+    num_attrs: usize,
+    now: [crate::circuits::bitvec::V8<CompilerLogic<'b, FC>>; K_TIMESTAMP_LEN],
+    disclosed_attributes: Vec<DisclosedAttribute<CompilerLogic<'b, FC>>>,
+) -> (
+    crate::mdoc::circuits::hash::circuit::Given<CompilerLogic<'b, FC>>,
+    HashDerived<CompilerLogic<'b, FC>>,
+    usize,
+) {
     let boolean_io = crate::circuits::boolean::BooleanIO::new(allocator.iologic);
     let suppress_doc_type_check = boolean_io.next(&mut allocator.pos);
     let expected_doc_type_bytes = allocator.allocate_bitvec_array::<8, 32>();
@@ -178,14 +174,7 @@ where
 
     let sha_derived = allocate_sha_derived(allocator, K_MAX_SHA_BLOCKS);
 
-    let mac_ap = std::array::from_fn(|_| {
-        [
-            allocator.allocate_binary_word(),
-            allocator.allocate_binary_word(),
-        ]
-    });
-
-    let given = crate::mdoc::circuits::hash::Given {
+    let presentation = crate::mdoc::circuits::hash::circuit::Given {
         disclosed_attributes,
         now,
         suppress_doc_type_check,
@@ -201,11 +190,6 @@ where
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
-        mac_e,
-        mac_device_pkx,
-        mac_device_pky,
-        mac_av,
-        mac_ap,
     };
 
     let derived = HashDerived {
@@ -213,5 +197,5 @@ where
         sha_derived,
     };
 
-    (given, derived, pub_inputs_count)
+    (presentation, derived, pub_inputs_count)
 }

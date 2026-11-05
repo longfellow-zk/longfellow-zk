@@ -82,10 +82,10 @@ by Matteo Frigo and abhi shelat.
 | Commitment protocol | Ligero | Nonrecursive Polygero |
 | Combined proof implementation | `runtime::zk_v1` | `runtime::zk_v2` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 9 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 10 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v9 uses Longfellow v2.
+while NEXT circuit v10 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
@@ -96,12 +96,11 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
 assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**116-bit extraction security** for the modeled mdoc geometry with layered
-sumcheck: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^116`. This includes
-quad fragments, shared inputs, circuits of different depths, one shared
-commitment and opening, packing, and the
-[linear terminal reduction](runtime/sumcheck-v2/README.md). Circuit/layout
-correspondence and ideal-sampler premises remain explicit in the
+**116-bit extraction security** for the earlier MAC-based checkpoint
+`de904b4`, including quad fragments, packing and the shared opening.
+The current MAC-free P256 adapter requires its own formal extension; that
+certificate does not yet cover the complete current application.
+Circuit/layout correspondence and ideal-sampler premises remain explicit in the
 [audit](../formal/AUDIT.md). Shared-query failure budgets add across fields.
 Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
 the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
@@ -111,7 +110,7 @@ and the rest of the Longfellow v2 composition, including packing.
 
 ## Performance
 
-Complete NEXT v9 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
+Complete NEXT v10 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
 Times are medians of 14 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
@@ -119,28 +118,30 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 154.8 ms | 86.5 ms | 163,084 | 42.74 MiB | 34.31 MiB |
-| 4 | 168.3 ms | 89.9 ms | 164,844 | 47.44 MiB | 37.36 MiB |
+| 2 | 136.2 ms | 79.4 ms | 142,831 | 42.47 MiB | 34.46 MiB |
+| 4 | 158.0 ms | 89.8 ms | 144,463 | 47.17 MiB | 37.51 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 647,272 | 175,687 | 2.14 MiB |
-| 4 | 672,517 | 176,928 | 2.23 MiB |
+| 2 | 632,006 | 163,286 | 1.78 MiB |
+| 4 | 657,741 | 163,307 | 1.87 MiB |
 
 Both cases use `(k,s,n,t)=(416,15,2912,86)` for the hash and signature
-circuits. Each hash circuit has 20 layers; the signature has 21.
+circuits. The combined hash/adapter has 20 layers; the signature has 11.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash, 2 attributes | 286,367 | 2,056,052 | 4,175,387 | 267 |
-| Hash, 4 attributes | 313,771 | 2,314,852 | 4,691,287 | 274 |
-| Signature, either case | 3,940 | 179,657 | 276,461 | 260 |
+| Hash + adapter, 2 attributes | 284,979 | 2,060,975 | 4,183,379 | 267 |
+| Hash + adapter, 4 attributes | 312,383 | 2,319,775 | 4,699,279 | 274 |
+| Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
 
-The hash circuit packs 128 private input bits per committed GF128 word.
-Its trace-zero packing response occupies 2,064 bytes. Signature inputs use
-degree-one packing, which adds no masks, messages, or transcript challenges.
-Proof sizes include the sampled Merkle frontier, whose size varies with the
-transcript.
+The binary circuit packs 128 private input bits per committed GF128 word.
+Its trace-zero packing response occupies 2,064 bytes. The adapter adds a
+32-byte masked prime-field claim and three bytes of masked quotient advice.
+The native signature side commits its remaining field inputs, one hiding
+scalar and sumcheck pads. The 768 shared digest/key bits are committed only
+on the binary side. Proof sizes include the sampled Merkle frontier, whose
+size varies with the transcript.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -174,22 +175,32 @@ and one opening query set. All statements are bound before batching challenges,
 and all responses before queries. A single field uses the same protocol through
 `(participant, ())`. Shared-query failure bounds add across participants; they
 do not assume independence. The mdoc application combines its hash and signature fields in one tuple,
-with one commitment and one opening. Its cross-field MAC checks remain in place.
+with one commitment and one opening. A P256-to-binary adapter connects the
+signature claim to the packed digest and device-key bits. V2 uses no MACs.
 
 Within a field, layered sumcheck combines multiple circuits with one shared
 input array. Each intermediate layer has one contiguous wire array, ordered
 by circuit, without padding between circuits. Only the sparse quadratic,
 linear and constant terms are stored in quad fragments; local gate offsets
 address the global arrays. Shorter circuits join later, aligned at their inputs.
-The final shared-input claim uses one packing reduction. The mdoc hash and
-signature fields currently each use one circuit through this implementation.
+The final shared-input claim uses one packing reduction. The mdoc binary
+side combines the hash and adapter trees through this implementation.
+
+The application circuit library builds the product-tree topology directly,
+without invoking the compiler. Both proof roles instantiate its public
+coefficients from the masked native claim and two independent conversion
+challenges. The leaves are ordinary linear expressions over the shared
+Boolean inputs; intermediate nodes multiply, and two final equations assert
+the rescaled prime-field claim. The application prover and verifier sequence
+native sumcheck, claim conversion, binary sumcheck, packing and the joint opening.
 
 V2 binary circuits accept Boolean public and private inputs. Authenticated
 packing enforces their bit representation, so the Boolean layer omits bitness
 assertions on binary input wires. Internal arithmetic uses the full field;
 converting an arbitrary field expression back to a Boolean still checks bitness.
 Nonbinary circuits retain field-element inputs and Boolean input assertions.
-Unused circuit inputs are rejected.
+Compilation rejects unused input declarations. Adapter pads in the shared
+source layout are consumed by the tree.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. The top-level dependency checker enforces these boundaries,
@@ -283,7 +294,7 @@ requests to the runtime providers and compiles only an explicit NEXT
 request. The result contains the circuit archive and its matching v2
 specification.
 
-NEXT currently denotes circuit version 9. It is under development and is
+NEXT currently denotes circuit version 10. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
 
@@ -357,7 +368,7 @@ circuit-file options.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v9 and two attributes.
+# V2 with NEXT v10 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 ```
 

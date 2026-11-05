@@ -28,7 +28,7 @@ use crate::runtime::{
     random::{RandomEngine, Transcript},
 };
 
-pub(super) fn statement_digest(transcript: &mut Transcript) -> Digest {
+pub(crate) fn statement_digest(transcript: &mut Transcript) -> Digest {
     transcript.write_bytes(b"longfellow-v2/polygero-statement/v1");
     Digest {
         data: transcript.bytes(32).try_into().unwrap(),

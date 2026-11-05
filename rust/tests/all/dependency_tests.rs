@@ -370,8 +370,6 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("circuits::ecdsa2", "circuits/ecdsa2/src"),
         ("circuits::gf2_128", "circuits/gf2_128/src"),
         ("circuits::lookup", "circuits/lookup/src"),
-        ("circuits::mac", "circuits/mac/src"),
-        ("circuits::mac_gf128", "circuits/mac_gf128/src"),
         ("circuits::memcmp", "circuits/memcmp/src"),
         ("circuits::polynomial", "circuits/polynomial/src"),
         ("circuits::routing", "circuits/routing/src"),
@@ -606,6 +604,24 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/sumcheck-v2/src/verifier.rs", "prover"),
         ("runtime/sumcheck-v2/src/reduction.rs", "prover"),
         ("runtime/zk-v2/src/prover.rs", "verifier"),
+        ("runtime/zk-v2/src/native_prover.rs", "verifier"),
+        ("runtime/zk-v2/src/native_verifier.rs", "prover"),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/native_prover.rs",
+            "verifier",
+        ),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/native_verifier.rs",
+            "prover",
+        ),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/binary_prover.rs",
+            "verifier",
+        ),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/binary_verifier.rs",
+            "prover",
+        ),
         ("runtime/zk-v2/src/verifier.rs", "prover"),
         ("runtime/polygero/src/prover.rs", "verifier"),
         ("runtime/polygero/src/prover_commitment.rs", "verifier"),
@@ -812,6 +828,7 @@ fn test_tooling_and_system_source_boundaries() {
         "all/next.rs",
         "v2_circuits.rs",
         "v2_inputs.rs",
+        "v2_adapter.rs",
         "v2_attributes.rs",
         "specs.rs",
         "v1_provider.rs",
@@ -867,6 +884,21 @@ fn test_tooling_and_system_source_boundaries() {
             "prover.rs",
             "verifier.rs",
         ]
+        .into_iter()
+        .filter(|f| version == "v1" || *f != "mac.rs")
+        .chain(if version == "v2" {
+            vec![
+                "adapter/mod.rs",
+                "adapter/native.rs",
+                "adapter/native_prover.rs",
+                "adapter/native_verifier.rs",
+                "adapter/binary.rs",
+                "adapter/binary_prover.rs",
+                "adapter/binary_verifier.rs",
+            ]
+        } else {
+            vec![]
+        })
         .map(|f| directory.join(f))
         .into_iter()
         .collect();
@@ -1143,6 +1175,9 @@ fn test_zk_v2_source_layout_and_test_privacy() {
     let expected: BTreeSet<_> = [
         "lib.rs",
         "joint.rs",
+        "native.rs",
+        "native_prover.rs",
+        "native_verifier.rs",
         "context.rs",
         "constraint_compiler.rs",
         "transcript.rs",

@@ -187,28 +187,9 @@ fn report_profiles(
     circuits: &[u8],
     spec: &runtime::ZkSpecStruct,
 ) -> runtime::proto::MdocProofGeometry {
-    use longfellow_zk::runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
-        },
-        zk_v2::ZkContext,
-    };
+    use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     let binary = Gf2_128Field::new();
-    let binary_domain = BinaryInterpolatorFactory::full_field(&binary);
     let prime = P256Field::new();
-    let extension = Fp2Field::new(&prime);
-    let prime_domain = QuadraticExtensionFftInterpolatorFactory::new(
-        &prime,
-        &extension,
-        extension.omega(),
-        extension.omega_order(),
-    );
     let baseline = memory::get_current_allocated();
     let (signature, hash) = runtime::decompress_circuits(circuits, &prime, &binary, false).unwrap();
     if cfg!(feature = "bench-memory") {
@@ -238,40 +219,13 @@ fn report_profiles(
     }
     report("Hash", &hash);
     report("Signature", &signature);
-    let hash_context = ZkContext {
-        f: &binary,
-        domain: &binary_domain,
-    };
-    let signature_context = ZkContext {
-        f: &prime,
-        domain: &prime_domain,
-    };
     let (hash_config, signature_config) = spec.configs();
     eprintln!("  Selected hash profile: {hash_config:?}");
     eprintln!("  Selected signature profile: {signature_config:?}");
-    use longfellow_zk::runtime::{polygero::JointPolygeroParam, zk_v2::joint::CircuitParticipant};
-    let hash_participant = CircuitParticipant::new(&hash, hash_config, &hash_context).unwrap();
-    let signature_participant =
-        CircuitParticipant::new(&signature, signature_config, &signature_context).unwrap();
-    let joint = JointPolygeroParam::new((
-        hash_participant.participant(&hash_context).unwrap(),
-        (
-            signature_participant
-                .participant(&signature_context)
-                .unwrap(),
-            (),
-        ),
-    ))
-    .unwrap();
-    runtime::proto::MdocProofGeometry {
-        geom_hash: hash_participant.geometry(),
-        geom_sig: signature_participant.geometry(),
-        joint_context: joint.context(),
-        config: joint.config(),
-    }
+    runtime::proof_geometry(spec, &signature, &hash).unwrap()
 }
 
-/// Measure actual serialized component proofs, excluding the six shared MACs.
+/// Measure actual serialized proof bodies and adapter messages.
 fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry) {
     use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     use sha2::{Digest, Sha256};
@@ -292,7 +246,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
     assert_eq!(
         bytes.len(),
-        96 + 36 + hash.len() + signature.len() + shared_bytes
+        32 + proof.masked.len() + 36 + hash.len() + signature.len() + shared_bytes
     );
     eprintln!(
         "  SHA/hash reduction: {} bytes; signature reduction: {} bytes",
@@ -300,6 +254,9 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
         signature.len()
     );
     eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier}, context+version=36)");
-    eprintln!("  Shared MACs: 96 bytes; version+commitment: 36 bytes");
+    eprintln!(
+        "  Adapter: {} bytes; version+commitment: 36 bytes",
+        32 + proof.masked.len()
+    );
     eprintln!("  Proof SHA256: {:x}", Sha256::digest(bytes));
 }

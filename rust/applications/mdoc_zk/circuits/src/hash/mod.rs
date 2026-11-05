@@ -14,8 +14,9 @@
 
 pub mod circuit;
 
-pub use crate::mdoc::proto::hash::constants;
 pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
+
+pub use crate::mdoc::proto::hash::constants;
 
 cfg_testonly! {
     pub mod allocate;
@@ -25,10 +26,9 @@ cfg_testonly! {
     pub use self::{
         allocate::{allocate_derived, allocate_given},
         concrete::{
-            compute_mac_tags, derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
-            ConcreteGiven, HashInput, HashMac,
+            derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
+            ConcreteGiven, HashInput,
         },
         evaluate::{evaluate_derived, evaluate_given},
     };
 }
-

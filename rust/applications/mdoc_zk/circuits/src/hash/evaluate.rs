@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::core::algebra::Nat;
-
 use super::{
     circuit::{
         AttrDerived as WireAttrDerived, AttrGiven as WireAttrGiven,
@@ -24,22 +21,17 @@ use super::{
     concrete::{ConcreteDerived, ConcreteGiven},
     constants::K_HASH_INDEX_BITS,
 };
-use crate::mdoc::circuits::mso_attribute::{
-    circuit::{
-        AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
-        FieldLocator as WireFieldLocator,
+use crate::{
+    circuits::bitvec::BitvecLogic,
+    core::algebra::Nat,
+    mdoc::circuits::mso_attribute::{
+        circuit::{
+            AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
+            FieldLocator as WireFieldLocator,
+        },
+        constants::K_ATTR_INDEX_BITS,
     },
-    constants::K_ATTR_INDEX_BITS,
 };
-
-fn eval_mac_gf128<L: crate::compile::logic::LogicIO>(bv: &BitvecLogic<L>, val: u128) -> L::Wire {
-    let boolean = crate::circuits::boolean::Boolean::new(bv.logic());
-    let v128 = bv.from_fn::<128, _>(|idx| {
-        let bit_val = (val.checked_shr(idx as u32).unwrap_or(0) & 1) == 1;
-        boolean.konst(bit_val)
-    });
-    bv.as_eltw_field(&v128)
-}
 
 pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
     logic: &L,
@@ -163,21 +155,6 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         });
     }
 
-    let mac_e = [
-        eval_mac_gf128(bv, given.mac_e[0]),
-        eval_mac_gf128(bv, given.mac_e[1]),
-    ];
-    let mac_device_pkx = [
-        eval_mac_gf128(bv, given.mac_device_pkx[0]),
-        eval_mac_gf128(bv, given.mac_device_pkx[1]),
-    ];
-    let mac_device_pky = [
-        eval_mac_gf128(bv, given.mac_device_pky[0]),
-        eval_mac_gf128(bv, given.mac_device_pky[1]),
-    ];
-
-    let mac_av = eval_mac_gf128(bv, given.mac_input.mac_av);
-
     let suppress_doc_type_check = boolean.konst(given.hash_input.suppress_doc_type_check);
     let expected_doc_type = MsoSlice {
         data: std::array::from_fn(|i| {
@@ -202,16 +179,6 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
-        mac_e,
-        mac_device_pkx,
-        mac_device_pky,
-        mac_av,
-        mac_ap: std::array::from_fn(|i| {
-            [
-                eval_mac_gf128(bv, given.mac_input.mac_ap[i][0]),
-                eval_mac_gf128(bv, given.mac_input.mac_ap[i][1]),
-            ]
-        }),
     }
 }
 
@@ -222,11 +189,13 @@ pub fn evaluate_derived<L: crate::compile::logic::LogicIO>(
 ) -> WireDerived<L> {
     let mut attribute_derived = Vec::with_capacity(derived.attribute_derived.len());
     for a in &derived.attribute_derived {
-        let sha_derived = crate::circuits::sha256msg::evaluate::evaluate_derived(&a.sha_derived, bv);
+        let sha_derived =
+            crate::circuits::sha256msg::evaluate::evaluate_derived(&a.sha_derived, bv);
         attribute_derived.push(WireAttrDerived { sha_derived });
     }
 
-    let sha_derived = crate::circuits::sha256msg::evaluate::evaluate_derived(&derived.sha_derived, bv);
+    let sha_derived =
+        crate::circuits::sha256msg::evaluate::evaluate_derived(&derived.sha_derived, bv);
 
     WireDerived {
         attribute_derived,

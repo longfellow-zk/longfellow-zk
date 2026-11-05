@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[96..100], b"MJP2");
+    assert_eq!(&zkproof[..4], b"MDA4");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -805,9 +805,11 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
     }
 
     // The application accepts only the joint envelope, never two old standalone proofs.
-    for marker in [b"LFV5", b"LFV6", b"MJP1"] {
+    for marker in [
+        b"LFV5", b"LFV6", b"MJP1", b"MJP2", b"MDA1", b"MDA2", b"MDA3",
+    ] {
         let mut obsolete = zkproof.clone();
-        obsolete[96..100].copy_from_slice(marker);
+        obsolete[..4].copy_from_slice(marker);
         assert_eq!(
             run_mdoc_verifier_inner(
                 provided.spec(),

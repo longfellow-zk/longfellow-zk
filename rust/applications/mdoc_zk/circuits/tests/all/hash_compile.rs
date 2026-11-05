@@ -19,8 +19,7 @@ use crate::{
     mdoc::circuits::{
         config::K_ZSTD_LEVEL,
         hash::{
-            derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven, HashMac,
-            MdocHash,
+            derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven, MdocHash,
         },
         parse_test_data, MdocHashCompileField,
     },
@@ -63,7 +62,7 @@ where FC: MdocHashCompileField {
         >(&bv, num_attrs, &mut pos);
 
         (
-            mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
+            mdoc.assert_valid_presentation(&given_wires, &derived_wires),
             1,
             0,
         )
@@ -145,15 +144,6 @@ where
 
     push_bytes(&mut inputs, &given.hash_input.now, K_TIMESTAMP_LEN, fr);
 
-    for value in given
-        .mac_e
-        .iter()
-        .chain(&given.mac_device_pkx)
-        .chain(&given.mac_device_pky)
-    {
-        inputs.push(fr.u128_to_element(*value));
-    }
-    inputs.push(fr.u128_to_element(given.mac_input.mac_av));
     inputs.push(if given.hash_input.suppress_doc_type_check {
         fr.one()
     } else {
@@ -215,11 +205,6 @@ where
         }
     }
 
-    for pair in given.mac_input.mac_ap {
-        inputs.push(fr.u128_to_element(pair[0]));
-        inputs.push(fr.u128_to_element(pair[1]));
-    }
-
     derived.push_derived(fr, |value| inputs.push(value));
     inputs
 }
@@ -249,7 +234,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
         >(&bv, num_attrs, &mut pos);
 
         (
-            mdoc.assert_valid_presentation_and_macs(&given_wires, &derived_wires),
+            mdoc.assert_valid_presentation(&given_wires, &derived_wires),
             1,
             0,
         )
@@ -274,14 +259,8 @@ fn test_compile_mdoc_hash_corruptors() {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-    let mac_input = HashMac {
-        mac_av: 0x112233445566778899aabbccddeeff00,
-        mac_ap: [[
-            0xabcdef0123456789abcdef0123456789,
-            0xfedcba9876543210fedcba9876543210,
-        ]; 3],
-    };
-    let base_given = given::<4, _>(hash_input, mac_input);
+
+    let base_given = given::<4, _>(hash_input);
     let base_derived = derived::<4, _>(&base_given);
 
     crate::compile::eval::eval_circuit_fc(
@@ -327,8 +306,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        12, 98, 107, 54, 196, 227, 48, 201, 178, 251, 104, 240, 29, 101, 115, 218, 161, 73, 13,
-        241, 126, 118, 114, 26, 23, 65, 63, 151, 4, 31, 134, 87,
+        179, 100, 118, 158, 103, 46, 124, 235, 75, 153, 114, 21, 35, 8, 53, 26, 109, 121,
+        108, 246, 196, 120, 140, 206, 137, 14, 187, 95, 221, 186, 177, 9,
     ];
     assert_eq!(
         circuit.id, expected_id,

@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod adapter;
 pub mod allocate_hash;
-pub mod allocate_sig;
 pub mod allocator;
 pub mod generate_hash;
 pub mod generate_sig;
 
 pub use allocate_hash::*;
-pub use allocate_sig::*;
 pub use allocator::*;
 pub use generate_hash::*;
 pub use generate_sig::*;

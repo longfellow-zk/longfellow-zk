@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Compile NEXT and choose v2 parameters from its actual public circuit metadata.
+//! Compile NEXT with the shared, checked Polygero profile.
 
 use crate::{
-    compile::polygero::tune_large_field_at_rate,
     core::{
         algebra::SerializableField,
         proto::{
@@ -42,12 +41,12 @@ use crate::{
             },
             RangeInterpolatorFactory, RuntimeField, SupportsFFT,
         },
-        proto::{polygero::PolygeroConfig, zk_v2::commitment_layout},
+        proto::polygero::PolygeroConfig,
     },
 };
 
 /// Compile the development circuit and return its matching specification.
-/// Parameter search runs here, once per invocation, outside proving and verification.
+/// The saved specification retains the shared proof parameter profile.
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
     if !(1..=4).contains(&num_attributes) {
         return Err("NEXT supports one to four attributes".into());
@@ -109,8 +108,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     })
 }
 
-/// Translate the v2 pad layout into public witness coordinates for selection.
-/// NEXT uses rate 1/7; the chosen dimensions become part of its saved spec.
+/// Retain the shared profile and validate interpolation support in each field.
 fn select_parameters<
     const W: usize,
     F: RuntimeField<W> + SerializableField + crate::runtime::algebra::PackingField,
@@ -120,9 +118,17 @@ fn select_parameters<
     domain: &D,
     f: &F,
 ) -> Result<PolygeroConfig, String> {
-    let (_, nw) = commitment_layout(circuit, f);
-    tune_large_field_at_rate(7, nw, f.serialized_size_bytes(), |config| {
-        config.can_interpolate(domain)
-    })
-    .ok_or_else(|| "no supported Polygero tuning profile".to_string())
+    let _ = (circuit, f);
+    // Keep the shared profile while the application architecture changes.
+    // Combined parameter tuning follows the completed adapter integration.
+    let config = PolygeroConfig {
+        k: 416,
+        s: 15,
+        n: 2912,
+        t: 86,
+    };
+    if !config.can_interpolate(domain) {
+        return Err("unsupported fixed Polygero profile".into());
+    }
+    Ok(config)
 }

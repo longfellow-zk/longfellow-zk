@@ -25,8 +25,7 @@ use crate::{
     core::algebra::Nat,
     mdoc::circuits::{
         hash::{
-            derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc, HashMac,
-            MdocHash,
+            derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc, MdocHash,
         },
         mso_attribute::{constants::K_ATTR_INDEX_BITS, DisclosedAttribute},
         parse_test_data,
@@ -43,18 +42,14 @@ fn test_eval_mdoc_hash_independent() {
     let tracker = crate::compile::logic::tracker::AssertionTracker::new();
     let l = EvalLogic::new_with_tracker(&fc, &tracker);
 
-    let mac_input = HashMac {
-        mac_av: 0,
-        mac_ap: [[0, 0]; 3],
-    };
-    let given = given::<4, _>(hash_input, mac_input);
+    let given = given::<4, _>(hash_input);
     let derived = derived::<4, _>(&given);
     let mdoc = MdocHash::new(&l, given.hash_input.attrs.len());
     let bv = BitvecLogic::new(&l);
     let wire_given = evaluate_given(&l, &bv, &given);
     let wire_derived = evaluate_derived(&l, &bv, &derived);
 
-    let assertion = mdoc.assert_valid_presentation_and_macs(&wire_given, &wire_derived);
+    let assertion = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
     assertion.unwrap();
 }
 
@@ -64,11 +59,7 @@ where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
-    let mac_input = HashMac {
-        mac_av: 0,
-        mac_ap: [[0, 0]; 3],
-    };
-    let given = given::<4, _>(hash_input, mac_input);
+    let given = given::<4, _>(hash_input);
     let derived = derived::<4, _>(&given);
     let bv = BitvecLogic::new(l);
     let wire_given = evaluate_given(l, &bv, &given);
@@ -80,47 +71,12 @@ where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
     assertion.unwrap();
 }
 
-fn test_eval_mdoc_hash_with_mac_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
-where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
-    let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-
-    let av_u128 = 0x112233445566778899aabbccddeeff00u128;
-    let ap0_u128 = 0xabcdef0123456789abcdef0123456789u128;
-    let ap1_u128 = 0xfedcba9876543210fedcba9876543210u128;
-    let ap_keys = [[ap0_u128, ap1_u128]; 3];
-
-    let mac_input = HashMac {
-        mac_av: av_u128,
-        mac_ap: ap_keys,
-    };
-    let given = given::<4, _>(hash_input, mac_input);
-    let derived = derived::<4, _>(&given);
-    let bv = BitvecLogic::new(l);
-    let wire_given = evaluate_given(l, &bv, &given);
-    let wire_derived = evaluate_derived(l, &bv, &derived);
-
-    let mdoc = MdocHash::new(l, given.hash_input.attrs.len());
-    let assertion = mdoc.assert_valid_presentation_and_macs(&wire_given, &wire_derived);
-
-    assertion.unwrap();
-}
-
 #[test]
 fn test_eval_mdoc_hash() {
     let f = Gf2_128Field::new();
     let tracker = crate::compile::logic::tracker::AssertionTracker::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_eval_mdoc_hash_generic::<2, _>(&l);
-}
-
-#[test]
-fn test_eval_mdoc_hash_with_mac() {
-    let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
-    let l = EvalLogic::new_with_tracker(&f, &tracker);
-    test_eval_mdoc_hash_with_mac_generic::<2, _>(&l);
 }
 
 fn apply_negative_test_modifications<'a, FC: CompileField>(
@@ -245,11 +201,7 @@ where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
         let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(case.data);
         let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
-        let mac_input = HashMac {
-            mac_av: 0,
-            mac_ap: [[0, 0]; 3],
-        };
-        let given = given::<4, _>(hash_input, mac_input);
+        let given = given::<4, _>(hash_input);
         let derived = derived::<4, _>(&given);
         let bitvec_logic = BitvecLogic::new(l);
         let mut wire_given = evaluate_given(l, &bitvec_logic, &given);
@@ -307,11 +259,7 @@ fn test_namespace_mixup_exploit() {
     let tracker = crate::compile::logic::tracker::AssertionTracker::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
-    let mac_input = HashMac {
-        mac_av: 0,
-        mac_ap: [[0, 0]; 3],
-    };
-    let given = given::<4, _>(hash_input, mac_input);
+    let given = given::<4, _>(hash_input);
     let derived = derived::<4, _>(&given);
     let bv = BitvecLogic::new(&l);
     let mut tampered_given = given.clone();
@@ -339,30 +287,13 @@ fn test_eval_mdoc_hash_shared_corruptors() {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let base_hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-    let base_mac_input = HashMac {
-        mac_av: 0x112233445566778899aabbccddeeff00u128,
-        mac_ap: [
-            [
-                0xabcdef0123456789abcdef0123456789u128,
-                0xfedcba9876543210fedcba9876543210u128,
-            ],
-            [
-                0xabcdef0123456789abcdef0123456789u128,
-                0xfedcba9876543210fedcba9876543210u128,
-            ],
-            [
-                0xabcdef0123456789abcdef0123456789u128,
-                0xfedcba9876543210fedcba9876543210u128,
-            ],
-        ],
-    };
 
     let corruptors = mdoc_hash_corruptors::all_mdoc_hash_corruptors();
     for c in corruptors {
         let tracker = crate::compile::logic::tracker::AssertionTracker::new();
         let l = EvalLogic::new_with_tracker(&f, &tracker);
         let bv = BitvecLogic::new(&l);
-        let base_given = given::<4, _>(base_hash_input.clone(), base_mac_input.clone());
+        let base_given = given::<4, _>(base_hash_input.clone());
         let derived_val = derived::<4, _>(&base_given);
 
         let mut tampered_given = base_given.clone();
@@ -372,7 +303,7 @@ fn test_eval_mdoc_hash_shared_corruptors() {
         let wire_derived = evaluate_derived(&l, &bv, &derived_val);
 
         let mdoc = MdocHash::new(&l, tampered_given.hash_input.attrs.len());
-        let res = mdoc.assert_valid_presentation_and_macs(&wire_given, &wire_derived);
+        let res = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
         assert!(
             res.is_err(),
             "Corruptor '{}' failed to cause assertion error",
@@ -404,11 +335,7 @@ fn test_check_doc_type_suppression() {
     hash_input.suppress_doc_type_check = false;
     hash_input.expected_doc_type = b"org.iso.18013.5.1.mDL".to_vec();
 
-    let mac_input = HashMac {
-        mac_av: 0,
-        mac_ap: [[0, 0]; 3],
-    };
-    let given_val = given::<4, _>(hash_input.clone(), mac_input.clone());
+    let given_val = given::<4, _>(hash_input.clone());
     let derived_val = derived::<4, _>(&given_val);
     let wire_given = evaluate_given(&l, &bv, &given_val);
     let wire_derived = evaluate_derived(&l, &bv, &derived_val);
@@ -419,7 +346,7 @@ fn test_check_doc_type_suppression() {
     // 2. When suppress_doc_type_check is false and expected_doc_type is wrong, evaluation fails.
     let mut wrong_hash_input = hash_input.clone();
     wrong_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
-    let given_wrong = given::<4, _>(wrong_hash_input, mac_input.clone());
+    let given_wrong = given::<4, _>(wrong_hash_input);
 
     let tracker2 = crate::compile::logic::tracker::AssertionTracker::new();
     let l2 = EvalLogic::new_with_tracker(&f, &tracker2);
@@ -429,13 +356,12 @@ fn test_check_doc_type_suppression() {
     let wire_derived_wrong = evaluate_derived(&l2, &bv2, &derived_val);
 
     let mdoc2 = MdocHash::new(&l2, given_wrong.hash_input.attrs.len());
-    let res_wrong =
-        mdoc2.assert_valid_presentation_and_macs(&wire_given_wrong, &wire_derived_wrong);
+    let res_wrong = mdoc2.assert_valid_presentation(&wire_given_wrong, &wire_derived_wrong);
     assert!(res_wrong.is_err());
     let failed_all = res_wrong.failed_paths();
     println!("ALL FAILED PATHS: {:?}", failed_all);
     res_wrong.assert_any_failed_at(
-        "assert_valid_presentation_and_macs/assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/doc_type_byte"
+        "assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/doc_type_byte",
     );
 
     // 3. When suppress_doc_type_check is true, even with wrong expected_doc_type, evaluation
@@ -443,7 +369,7 @@ fn test_check_doc_type_suppression() {
     let mut suppressed_hash_input = hash_input.clone();
     suppressed_hash_input.suppress_doc_type_check = true;
     suppressed_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
-    let given_suppressed = given::<4, _>(suppressed_hash_input, mac_input);
+    let given_suppressed = given::<4, _>(suppressed_hash_input);
     let tracker3 = crate::compile::logic::tracker::AssertionTracker::new();
     let l3 = EvalLogic::new_with_tracker(&f, &tracker3);
     let bv3 = BitvecLogic::new(&l3);

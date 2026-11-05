@@ -272,13 +272,14 @@ including scalar outputs and zero-layer circuits. It connects the final input
 claim to authenticated packing and the joint commitment. Each nonempty output
 entry block contributes at most `1/q`; the modeled mdoc geometry retains the
 116-bit extraction bound. Circuit/layout correspondence and ideal-sampler
-premises remain explicit.
+premises remain explicit. The current MAC-free mdoc adapter requires its own
+formal composition extension.
 
 ## Compiler selection and testing
 
 Both protocols are modules in the `longfellow-zk` crate. The compiler's existing
 `compile_v1` entry point preserves historical Morton ordering and circuit IDs.
-`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v9
+`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v10
 uses that representation; v5-v7 verification uses the stored legacy circuits.
 
 The circuit synthesis and tampering suites use the native v2 compiler. Dedicated

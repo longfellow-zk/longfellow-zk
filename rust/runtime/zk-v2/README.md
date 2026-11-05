@@ -8,14 +8,11 @@ that share one Polygero commitment across fields. Prover and verifier orchestrat
 stay in separate files; layout and constraint arithmetic are shared.
 
 The [Lean development](../../../formal/lfzk-v2/README.md) proves authenticated
-extraction for the layered composition. Its model covers quad fragments,
-shared inputs, different circuit depths, scalar outputs and zero-layer circuits.
-For the mdoc geometry it establishes
-`Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^116`, under the documented circuit,
-layout, MAC, binding and ideal-sampler premises. The bound includes one shared
-commitment and query set, with correlated per-field failure budgets added.
-Complete joint-view zero knowledge remains open. See the
-[audit](../../../formal/AUDIT.md) and [sumcheck algebra](../sumcheck-v2/README.md).
+extraction for the layered composition at checkpoint `de904b4`. Its mdoc
+model still uses the earlier MAC connection. The current MAC-free adapter
+requires a formal extension; complete joint-view zero knowledge also remains
+open. Circuit/layout, MAC, binding and ideal-sampler premises for the retained
+certificate are documented in the [audit](../../../formal/AUDIT.md).
 
 ## Commitment and field participants
 
@@ -113,17 +110,25 @@ serialized, and no intermediate dense input-weight vectors are cached.
 
 The mdoc application exposes `mdoc::v2::run_mdoc_prover` and
 `mdoc::v2::run_mdoc_verifier`, with corresponding deterministic inner entry points.
-NEXT v9 combines the hash and signature fields in one commitment and opening;
-its cross-field MAC checks remain in place. Each field currently has one circuit
-circuit. V1 owns frozen versions 5–7; the frozen v2 registry is empty.
-`mdoc::development_provider` compiles NEXT and selects matching parameters;
-runtime providers need no compiler.
+NEXT v10 connects the hash and signature fields through an application-owned
+P256 adapter. Its two product trees share the binary input array and layered
+sumcheck with the hash circuit. The application commits shared bits only on the
+binary side, while native inputs, one hiding scalar and pads stay in the prime
+field. It sequences the native reduction, conversion challenges, binary
+reduction and packing before one joint opening. V1 retains its frozen versions
+5–7 and runtime MACs; the v2 frozen registry is empty.
 
-Proof types and canonical codecs live in `runtime::proto`. Standalone ZK proofs
-use `LFV7`, mdoc joint proofs use `MJP2`, and the shared Polygero envelope uses
-`JPG1`. The version change distinguishes the layered sumcheck challenge schedule even
-when the circuit count is one. Serialization writes backend data directly
-into the containing proof buffer. V1 encodings and transcripts are unchanged.
+`native.rs` batches every native sumcheck layer equation and the final input
+claim into one linear claim. Its numerical and verifier entry points remain
+in separate files. The application adapter uses this staged handoff and the
+same packing/constraint primitives as `CircuitParticipant`; the fixed-circuit
+API retains its circuit-identity and typed-input checks.
+
+Proof types and canonical codecs live in `runtime::proto`, with the application
+envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV7`, mdoc
+adapter proofs use `MDA4`, and the shared Polygero envelope uses `JPG1`.
+Serialization writes backend data directly into the containing proof buffer.
+V1 encodings and transcripts are unchanged.
 
 Tests under `tests/` cover single- and multiple-circuit proofs, binary packing and
 prime-field direct inputs, shared input layouts, independent transcript replay,

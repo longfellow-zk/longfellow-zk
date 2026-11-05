@@ -37,7 +37,6 @@ use crate::{
 pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     req_attrs: &[RequestedAttribute],
     parsed: &ParsedMdoc<N>,
-    mac_ap: &[[u128; 2]; 3],
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
     let mut builder = BinaryAssignmentBuilder::new();
 
@@ -98,11 +97,6 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     // 7. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
 
-    for pair in mac_ap {
-        builder.push_u128(pair[0]);
-        builder.push_u128(pair[1]);
-    }
-
     Ok(builder.into_inner())
 }
 
@@ -159,7 +153,6 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
     secp256r1: &C,
     issuer_pk: &(F::E, F::E),
     parsed: &ParsedMdoc<F::N>,
-    mac_ap: &[[u128; 2]; 3],
 ) -> Result<Vec<F::E>, String>
 where
     F: crate::mdoc::circuits::MdocSigRuntimeField<E = P256Element>,
@@ -221,22 +214,16 @@ where
     builder.push_nat_256_bits(&parsed.device_pk.1);
 
     // 3. issuer_sig_given
-    builder.push_ecdsa_given(&issuer_sig_given);
+    builder.push_ecdsa_signature(&issuer_sig_given);
 
     // 4. device_sig_given
-    builder.push_ecdsa_given(&device_sig_given);
+    builder.push_ecdsa_signature(&device_sig_given);
 
     // 5. issuer_sig_derived
     builder.push_ecdsa_derived(&issuer_sig_derived);
 
     // 6. device_sig_derived
     builder.push_ecdsa_derived(&device_sig_derived);
-
-    // 7. mac_ap
-    for pair in mac_ap {
-        builder.push_plucked_128(pair[0]);
-        builder.push_plucked_128(pair[1]);
-    }
 
     Ok(builder.into_inner())
 }

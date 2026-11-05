@@ -28,15 +28,17 @@
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod commitment;
+pub(crate) mod commitment;
 mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
+#[cfg(all(feature = "mdoc", any(test, feature = "prover", feature = "verifier")))]
+pub(crate) mod native;
 pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod constraint_compiler;
+pub(crate) mod constraint_compiler;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod transcript;
+pub(crate) mod transcript;
 pub use crate::runtime::proto::zk_v2::{ZkProof, ZkProofGeometry};
 cfg_prover! { mod prover; pub use prover::{ZkProver, ZkProverCommitment}; }
 cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}; }

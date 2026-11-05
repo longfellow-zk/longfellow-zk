@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::arithmetic::Arithmetic;
-use crate::circuits::bitvec::{BitvecLogic, V256};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::ec::{EcCircuit, Pt2, Pt3};
-use crate::compile::algebra::{
-    field::{CompileField, SupportsNatConversions},
-    Curve,
+use crate::{
+    circuits::{
+        arithmetic::Arithmetic,
+        bitvec::{BitvecLogic, V256},
+        boolean::Boolean,
+        ec::{EcCircuit, Pt2, Pt3},
+    },
+    compile::{
+        algebra::{
+            field::{CompileField, SupportsNatConversions},
+            Curve,
+        },
+        logic::{Eltw, Logic, LogicIO},
+    },
 };
-use crate::compile::logic::{Eltw, Logic, LogicIO};
 
 #[derive(Clone)]
 pub struct Slicing<L: Logic> {
@@ -103,6 +109,26 @@ where
         }
     }
 
+    /// Tie every ECDSA exponent bit to the actual digest, including digests >= p.
+    pub fn assert_signature_on_digest(
+        &self,
+        given: &Given<L>,
+        derived: &Derived<L>,
+        digest: &V256<L>,
+    ) -> L::Assertions {
+        let signature = self.assert_signature(given, derived);
+        let lookup = crate::circuits::lookup::Lookup::new(self.logic);
+        let table = lookup.table(9, |idx| self.delta8(idx, (idx & 4) != 0));
+        let exact = self.logic.assert_mapi("exact_digest", 0..256, |r| {
+            self.logic.assert_eq(
+                "digest_bit",
+                &table.eval(&given.ers[r]),
+                &self.boolean.as_eltw(digest.bit(r)),
+            )
+        });
+        self.logic
+            .assert_all("ecdsa_exact_digest", &[signature, exact])
+    }
     pub fn assert_signature(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
         assert_eq!(given.ers.len(), 256);
 

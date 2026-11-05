@@ -149,8 +149,6 @@ pub mod circuits {
         pub mod ec;
         #[path = "ecdsa2/src/lib.rs"]
         pub mod ecdsa2;
-        #[path = "mac/src/lib.rs"]
-        pub mod mac;
         #[path = "sha256/src/lib.rs"]
         pub mod sha256;
         #[path = "sha256msg/src/lib.rs"]
@@ -174,8 +172,6 @@ pub mod circuits {
         pub mod gf2_128;
         #[path = "lookup/src/lib.rs"]
         pub mod lookup;
-        #[path = "mac_gf128/src/lib.rs"]
-        pub mod mac_gf128;
         #[path = "memcmp/src/lib.rs"]
         pub mod memcmp;
         #[path = "polynomial/src/lib.rs"]

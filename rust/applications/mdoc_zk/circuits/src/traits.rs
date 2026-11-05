@@ -30,7 +30,7 @@ impl<F> MdocHashRuntimeField for F where F: Sized
 {
 }
 
-/// Bundles all runtime derived value derivation requirements for `MdocSignature` field arithmetic.
+/// Bundles all runtime derived value derivation requirements for signature field arithmetic.
 pub trait MdocSigRuntimeField:
     Sized
     + crate::core::algebra::BareField
@@ -70,21 +70,4 @@ cfg_compiler! {
     {
     }
 
-    /// Bundles all compile-time circuit generation requirements for `MdocSignature`.
-    pub trait MdocSigCompileField:
-        Sized
-        + crate::compile::algebra::field::CompilePrimeField
-        + crate::compile::algebra::field::SupportsNatConversions<4, N = crate::compile::algebra::CompileNat<4>>
-        + crate::core::algebra::SupportsU64Conversions
-        + crate::core::algebra::SerializableField
-    {
-    }
-
-    impl<F> MdocSigCompileField for F where F: Sized
-            + crate::compile::algebra::field::CompilePrimeField
-            + crate::compile::algebra::field::SupportsNatConversions<4, N = crate::compile::algebra::CompileNat<4>>
-            + crate::core::algebra::SupportsU64Conversions
-            + crate::core::algebra::SerializableField
-    {
-    }
 }

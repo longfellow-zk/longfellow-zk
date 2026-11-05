@@ -66,8 +66,6 @@ fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAtt
 pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     attrs: &[RequestedAttribute],
     now_bytes: &[u8],
-    macs: &[u128; 6],
-    av: u128,
     suppress_doc_type_check: bool,
     expected_doc_type: &[u8],
 ) -> Vec<bool> {
@@ -77,11 +75,6 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     }
 
     push_input_attrs(&mut builder, attrs);
-
-    for &m in macs {
-        builder.push_u128(m);
-    }
-    builder.push_u128(av);
 
     builder.push_bit(suppress_doc_type_check);
     for i in 0..DOC_TYPE_BYTES {
@@ -96,8 +89,6 @@ pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
     p256: &P256Field,
     issuer_pk: &(P256Element, P256Element),
     device_sig_e: &N,
-    macs: &[u128; 6],
-    av: u128,
 ) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);
     builder.push_elt(&issuer_pk.0);
@@ -105,9 +96,5 @@ pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
 
     builder.push_nat_256_bits(device_sig_e);
 
-    for &m in macs {
-        builder.push_plucked_128(m);
-    }
-    builder.push_plucked_128(av);
     builder.into_inner()
 }

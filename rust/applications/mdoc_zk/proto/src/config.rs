@@ -15,6 +15,6 @@
 pub const K_SHA_BIT_PLUCKER: usize = 4;
 pub const K_HASH_V8_BIT_PLUCKER: usize = 2;
 pub const K_HASH_V256_BIT_PLUCKER: usize = 2;
-pub const K_SIG_MAC_BIT_PLUCKER: usize = 2;
+pub const K_SIG_MAC_BIT_PLUCKER_V1: usize = 2;
 pub const K_ATTR_LEN_BITS: usize = 10;
 pub const K_ZSTD_LEVEL: i32 = 16;

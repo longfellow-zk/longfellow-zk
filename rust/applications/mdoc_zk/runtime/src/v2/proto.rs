@@ -20,7 +20,8 @@ pub struct MdocProofGeometry {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
-    pub macs: [u128; 6],
+    pub mu: F2::E,
+    pub masked: Vec<u8>,
     pub commitment: PolygeroCommitment,
     pub proof_hash: CircuitProof<2, F1>,
     pub proof_sig: CircuitProof<4, F2>,
@@ -31,11 +32,19 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
 {
     pub fn write(&self, g: &MdocProofGeometry, f1: &F1, f2: &F2) -> Result<Vec<u8>, String> {
         let mut out = Vec::new();
-        for m in &self.macs {
-            out.extend_from_slice(&m.to_le_bytes());
+        let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
+        if self.masked.len() != plan.advice_bytes()
+            || self
+                .masked
+                .last()
+                .is_some_and(|&b| b >> (plan.advice_bits() % 8) != 0)
+        {
+            return Err("noncanonical adapter advice".into());
         }
-        out.extend_from_slice(b"MJP2");
+        out.extend_from_slice(b"MDA4");
         out.extend_from_slice(&self.commitment.root.data);
+        out.extend_from_slice(&f2.to_bytes(&self.mu));
+        out.extend_from_slice(&self.masked);
         self.proof_hash
             .write_to_buf(&mut out, &g.geom_hash, f1)
             .map_err(|e| e.to_string())?;
@@ -62,22 +71,36 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         f1: &F1,
         f2: &F2,
     ) -> Result<(&'a [u8], Self), String> {
-        if bytes.len() < 100 || bytes.get(96..100) != Some(b"MJP2") {
-            return Err("mdoc joint proof version or size".into());
+        if bytes.get(..4) != Some(b"MDA4") {
+            return Err("mdoc adapter proof version or size".into());
         }
-        let mut remaining = bytes;
-        let mut macs = [0u128; 6];
-        for m in &mut macs {
-            *m = u128::from_le_bytes(remaining[..16].try_into().unwrap());
-            remaining = &remaining[16..];
-        }
-        remaining = &remaining[4..];
+        let mut remaining = &bytes[4..];
         let commitment = PolygeroCommitment {
             root: Digest {
                 data: crate::runtime::proto::util::read_bytes_32(&mut remaining)
                     .map_err(|e| e.to_string())?,
             },
         };
+        let size = f2.serialized_size_bytes();
+        let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
+        if remaining.len() < size + plan.advice_bytes() {
+            return Err("truncated adapter proof".into());
+        }
+        let mu = f2
+            .bytes_to_element(&remaining[..size])
+            .map_err(|e| e.to_string())?;
+        if f2.to_bytes(&mu) != remaining[..size] {
+            return Err("noncanonical adapter scalar".into());
+        }
+        remaining = &remaining[size..];
+        let masked = remaining[..plan.advice_bytes()].to_vec();
+        if masked
+            .last()
+            .is_some_and(|&b| b >> (plan.advice_bits() % 8) != 0)
+        {
+            return Err("noncanonical adapter advice".into());
+        }
+        remaining = &remaining[plan.advice_bytes()..];
         let proof_hash =
             CircuitProof::read(&mut remaining, &g.geom_hash, f1).map_err(|e| e.to_string())?;
         let proof_sig =
@@ -98,7 +121,8 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         Ok((
             remaining,
             Self {
-                macs,
+                mu,
+                masked,
                 commitment,
                 proof_hash,
                 proof_sig,

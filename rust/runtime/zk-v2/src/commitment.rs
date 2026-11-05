@@ -13,12 +13,12 @@ use crate::runtime::{
     random::Transcript,
 };
 /// Backend handoff: one logical input claim and physical sumcheck linear rows.
-pub(super) struct CommitmentStatement<E> {
+pub(crate) struct CommitmentStatement<E> {
     pub claim: SourceClaim<E>,
     pub a: Vec<PolygeroLinearTerm<E>>,
     pub b: Vec<E>,
 }
-pub(super) struct PackingCommitment<
+pub(crate) struct PackingCommitment<
     F: PackingField,
     X: PackingExtension<Ambient = F> = <F as PackingField>::Packing,
 > {
@@ -103,5 +103,5 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         Ok((a, b))
     }
 }
-cfg_prover! { #[path="commitment_prover.rs"]mod prover;pub(super) use prover::PackingState; }
+cfg_prover! { #[path="commitment_prover.rs"]mod prover;pub(crate) use prover::PackingState; }
 cfg_verifier! { #[path="commitment_verifier.rs"]mod verifier; }

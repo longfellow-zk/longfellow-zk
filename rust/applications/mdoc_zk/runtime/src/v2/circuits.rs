@@ -95,3 +95,47 @@ fn load(
 #[cfg(test)]
 #[path = "../../tests/v2_circuits.rs"]
 mod tests;
+
+/// Derive the application's proof codec dimensions from its trusted circuits.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub fn proof_geometry(
+    spec: &ZkSpecStruct,
+    signature: &Circuit<P256Field>,
+    hash: &Circuit<Gf2_128Field>,
+) -> Result<super::MdocProofGeometry, String> {
+    use crate::runtime::{
+        algebra::{
+            fp2::Fp2Field,
+            range_interpolation::{
+                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+            },
+            SupportsFFT,
+        },
+        polygero::JointPolygeroParam,
+        zk_v2::ZkContext,
+    };
+    let f = Gf2_128Field::new();
+    let p = P256Field::new();
+    let ext = Fp2Field::new(&p);
+    let hd = BinaryInterpolatorFactory::full_field(&f);
+    let sd =
+        QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
+    let hc = ZkContext { f: &f, domain: &hd };
+    let sc = ZkContext { f: &p, domain: &sd };
+    let (h, s) = spec.configs();
+    let h = super::adapter::BinaryParticipant::new(hash, h, &hc)?;
+    let s = super::adapter::SharedParticipant::new(
+        signature,
+        crate::mdoc::circuits::p256_adapter::SHARED_BITS,
+        s,
+        &sc,
+    )?;
+    let joint = JointPolygeroParam::new((h.participant(&hc)?, (s.participant(&sc)?, ())))
+        .map_err(|e| e.to_string())?;
+    Ok(super::MdocProofGeometry {
+        geom_hash: h.geometry(),
+        geom_sig: s.geometry(),
+        joint_context: joint.context(),
+        config: joint.config(),
+    })
+}

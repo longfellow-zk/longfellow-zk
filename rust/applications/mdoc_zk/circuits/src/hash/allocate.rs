@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{BitvecIO, BitvecLogic};
-use crate::circuits::boolean::BooleanIO;
-use crate::compile::logic::LogicIO;
-
-use crate::mdoc::circuits::{
-    hash::{
-        circuit::{AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes},
-        constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_LEN},
+use crate::{
+    circuits::{
+        bitvec::{BitvecIO, BitvecLogic},
+        boolean::BooleanIO,
     },
-    mso_attribute::constants::K_ATTR_INDEX_BITS,
+    compile::logic::LogicIO,
+    mdoc::circuits::{
+        hash::{
+            circuit::{
+                AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
+            },
+            constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_LEN},
+        },
+        mso_attribute::constants::K_ATTR_INDEX_BITS,
+    },
 };
 
 pub fn allocate_given<L: LogicIO>(
@@ -34,25 +39,22 @@ pub fn allocate_given<L: LogicIO>(
     let boolean_io = BooleanIO::new(logic);
 
     let disclosed_attributes = (0..num_attrs)
-        .map(|_| crate::mdoc::circuits::mso_attribute::circuit::DisclosedAttribute {
-            expected_name: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
-                data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-                len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+        .map(
+            |_| crate::mdoc::circuits::mso_attribute::circuit::DisclosedAttribute {
+                expected_name: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
+                    data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+                    len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+                },
+                expected_cbor_value: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
+                    data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
+                    len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
+                },
             },
-            expected_cbor_value: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
-                data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-                len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
-            },
-        })
+        )
         .collect();
 
     let now: [crate::circuits::bitvec::V8<L>; K_TIMESTAMP_LEN] =
         std::array::from_fn(|_| bitvec_io.next::<8>(pos));
-
-    let mac_e = [logic.next(pos), logic.next(pos)];
-    let mac_device_pkx = [logic.next(pos), logic.next(pos)];
-    let mac_device_pky = [logic.next(pos), logic.next(pos)];
-    let mac_av = logic.next(pos);
 
     let suppress_doc_type_check = boolean_io.next(pos);
 
@@ -89,8 +91,6 @@ pub fn allocate_given<L: LogicIO>(
         })
         .collect();
 
-    let mac_ap = std::array::from_fn(|_| [logic.next(pos), logic.next(pos)]);
-
     Given {
         disclosed_attributes,
         now,
@@ -107,11 +107,6 @@ pub fn allocate_given<L: LogicIO>(
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
         attribute_given,
-        mac_e,
-        mac_device_pkx,
-        mac_device_pky,
-        mac_av,
-        mac_ap,
     }
 }
 

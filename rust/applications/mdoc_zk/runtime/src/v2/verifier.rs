@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Longfellow v2 application verifier.
-
-pub use run_mdoc_verifier_inner as run_mdoc_verifier;
+//! Shared-root mdoc verifier with a packed binary circuit and a native P256 circuit.
 
 use super::{
+    adapter::{BinaryParticipant, SharedParticipant},
     inputs::{public_inputs_fit, push_input_hash, push_input_sig},
-    proto::{MdocProof, MdocProofGeometry},
     ZkSpecStruct,
 };
 use crate::{
     core::algebra::Nat,
-    mdoc::runtime::v2::{
-        attribute::{circuit_supports, same_namespace},
-        key::parse_pk_coordinate,
-        MdocVerifierErrorCode, RequestedAttribute,
+    mdoc::{
+        circuits::p256_adapter::runtime as adapter,
+        runtime::v2::{
+            attribute::{circuit_supports, same_namespace},
+            key::parse_pk_coordinate,
+            MdocVerifierErrorCode, RequestedAttribute,
+        },
     },
     runtime::{
         algebra::{
@@ -37,9 +38,8 @@ use crate::{
             },
             SupportsFFT,
         },
-        polygero::{JointPolygeroParam, JointPolygeroVerifier},
-        random::{transcript::Transcript, RandomEngine},
-        zk_v2::{joint::CircuitParticipant, ZkContext},
+        random::transcript::Transcript,
+        zk_v2::ZkContext,
     },
 };
 
@@ -99,11 +99,14 @@ pub fn run_mdoc_verifier_inner(
         f: &p256,
         domain: &make_interpolator_sig,
     };
-    let verifier_hash = CircuitParticipant::new(&c_hash, config_hash, &context_hash)
+
+    let plan = adapter::plan();
+    let verifier_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let verifier_sig = CircuitParticipant::new(&c_sig, config_sig, &context_sig)
-        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let joint = JointPolygeroParam::new((
+    let verifier_sig =
+        SharedParticipant::new(&c_sig, adapter::SHARED_BITS, config_sig, &context_sig)
+            .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let param = crate::runtime::polygero::JointPolygeroParam::new((
         verifier_hash
             .participant(&context_hash)
             .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?,
@@ -115,81 +118,78 @@ pub fn run_mdoc_verifier_inner(
         ),
     ))
     .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let geom = MdocProofGeometry {
+    let geom = super::proto::MdocProofGeometry {
         geom_hash: verifier_hash.geometry(),
         geom_sig: verifier_sig.geometry(),
-        joint_context: joint.context(),
-        config: joint.config(),
+        joint_context: param.context(),
+        config: param.config(),
     };
-    let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &p256)
+    let (remaining, decoded) = super::proto::MdocProof::read(proof_bytes, &geom, &gf2, &p256)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-
     if !remaining.is_empty() {
         return Err(MdocVerifierErrorCode::GeneralFailure);
     }
-
+    let super::proto::MdocProof {
+        commitment: root,
+        mu,
+        masked,
+        proof_hash,
+        proof_sig,
+        polygero: proof,
+    } = decoded;
+    let mut joint = crate::runtime::polygero::JointPolygeroVerifier::new(param);
     let mut tp = Transcript::new(transcript);
+    tp.write_bytes(b"mdoc/adapter/statement/v1");
+    tp.write_bytes(&zk_spec.combined_hash);
 
+    let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
+    tp.write_bytes(&app_public.iter().map(|&b| u8::from(b)).collect::<Vec<_>>());
     verifier_hash.bind(&mut tp);
     verifier_sig.bind(&mut tp);
-    let mut polygero = JointPolygeroVerifier::new(joint);
-    // Fix both fields before the MAC challenge, using the same root and order
-    // as the prover. Circuit verification below only reconstructs constraints.
-    polygero.receive_commitment(&proof.commitment, &mut tp);
-
-    let av_val = tp.u128();
-
-    let pub_inputs_hash = push_input_hash(
-        attrs,
-        now.as_bytes(),
-        &proof.macs,
-        av_val,
-        false,
-        doc_type.as_bytes(),
-    );
-
-    if pub_inputs_hash.len() != c_hash.raw.npublic_input {
-        return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
-    }
-
+    joint.receive_commitment(&root, &mut tp);
+    let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
+    let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
+    let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val);
+    let claim = verifier_sig
+        .reduce_verify(
+            &c_sig,
+            &pub_inputs_sig,
+            &proof_sig.sumcheck_proof,
+            &mut tp,
+            &p256,
+        )
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let e = adapter::eta(&mut tp, &p256);
+    let weights = adapter::weights(&claim.weights, &e, &mu, &mut tp, &p256)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let alpha = adapter::alphas(&mut tp, &p256);
+    let encoded = plan
+        .encode(&weights, &mu, &alpha, None, &p256, &gf2)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let pub_inputs_hash = adapter::public(&plan, encoded, &masked, &mut tp)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let statement_hash = verifier_hash
         .verify(
             &c_hash,
+            &app_public,
+            &proof_hash,
             &pub_inputs_hash,
-            &proof.proof_hash,
             &mut tp,
             &context_hash,
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-
-    let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
-    let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
-
-    let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val, &proof.macs, av_val);
-
-    if pub_inputs_sig.len() != c_sig.raw.npublic_input {
-        return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
-    }
-
     let statement_sig = verifier_sig
-        .verify(
-            &c_sig,
-            &pub_inputs_sig,
-            &proof.proof_sig,
-            &mut tp,
-            &context_sig,
-        )
+        .finish(claim, &e, &mu, &mut tp, &p256)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-
-    // Acceptance requires both reconstructed statements to pass against the
-    // shared authenticated columns; neither circuit reduction suffices alone.
-    polygero
+    joint
         .verify(
-            &proof.commitment,
-            &proof.polygero,
+            &root,
+            &proof,
             &(statement_hash, (statement_sig, ())),
             &mut tp,
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     Ok(())
 }
+
+pub use run_mdoc_verifier_inner as run_mdoc_verifier;

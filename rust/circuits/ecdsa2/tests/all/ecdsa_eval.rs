@@ -12,18 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::ecdsa2::{derived, evaluate_derived, evaluate_given, given, EcdsaCircuit};
-use crate::compile::algebra::{
-    field::{CompileField, CompilePrimeField, SupportsNatConversions},
-    p256::P256Field,
-    q256::Q256Field,
-    secp256r1::Secp256r1,
-    Curve,
-};
-use crate::compile::logic::eval::EvalLogic;
-use crate::core::algebra::Nat;
-
 use super::test_support;
+use crate::{
+    circuits::ecdsa2::{derived, evaluate_derived, evaluate_given, given, EcdsaCircuit},
+    compile::{
+        algebra::{
+            field::{CompileField, CompilePrimeField, SupportsNatConversions},
+            p256::P256Field,
+            q256::Q256Field,
+            secp256r1::Secp256r1,
+            Curve,
+        },
+        logic::eval::EvalLogic,
+    },
+    core::algebra::Nat,
+};
 
 fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
     let s_clean = s.strip_prefix("0x").unwrap_or(s);
@@ -189,4 +192,42 @@ fn test_sign_and_verify_ecdsa() {
     let fn_field = Q256Field::new();
     let curve = Secp256r1::new(&f);
     test_sign_and_verify_ecdsa_generic::<4, _, _, _>(&curve, &f, &fn_field);
+}
+
+#[test]
+fn exact_digest_rejects_a_coordinate_field_alias() {
+    use crate::{circuits::big_bitvec::BigBitvec, compile::algebra::CompileNat};
+    let f = P256Field::new();
+    let order = Q256Field::new();
+    let curve = Secp256r1::new(&f);
+    let digest = CompileNat::<4>::from_u64(1);
+    let alias = parse_hex::<4, CompileNat<4>>(
+        "ffffffff00000001000000000000000000000001000000000000000000000000",
+    );
+    assert_eq!(f.reduce_nat(&digest), f.reduce_nat(&alias));
+    let (given, derived) = test_support::sign_and_generate_given_derived::<4, _, _, _>(
+        &curve,
+        &f,
+        &order,
+        &CompileNat::from_u64(123456789),
+        &CompileNat::from_u64(987654321),
+        &digest,
+    );
+    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
+    let given = evaluate_given::<4, _, _>(&given, &logic);
+    let derived = evaluate_derived::<4, _, _>(&derived, &logic);
+    let ecdsa = EcdsaCircuit::new(&logic, &curve);
+    let bigint = BigBitvec::new(&logic);
+    let exact = bigint.of_nat::<4, 256, P256Field>(&digest);
+    ecdsa
+        .assert_signature_on_digest(&given, &derived, &exact)
+        .assert_all_passed();
+    let alias = bigint.of_nat::<4, 256, P256Field>(&alias);
+    assert!(!ecdsa
+        .assert_signature_on_digest(&given, &derived, &alias)
+        .failed_paths()
+        .is_empty());
+    // Both bit vectors reduce to the same native element, so a field equality
+    // alone cannot enforce the digest used by ECDSA's exponent lookup.
 }
