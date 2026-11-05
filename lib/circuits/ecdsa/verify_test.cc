@@ -294,6 +294,25 @@ TEST(ecdsa, verify3_p256) {
                                      p256, p256_scalar, n256_order);
 }
 
+// d = 1, digest = 1, nonce = 2: the public key is the generator.
+// Multiplication by the group order need not produce the canonical
+// projective triple (0, 1, 0), but this is a valid public key.
+TEST(ecdsa, generator_public_key) {
+  const auto nG = p256.scalar_multf(p256.generator(), n256_order);
+  EXPECT_EQ(nG.x, p256_base.zero());
+  EXPECT_EQ(nG.z, p256_base.zero());
+  EXPECT_NE(nG.y, p256_base.one());
+  EXPECT_TRUE(p256.equal(nG, p256.zero()));
+  const ecdsa_testvec tests[] = {{
+      StaticString("0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
+      StaticString("0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
+      StaticString("1"),
+      StaticString("0x7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978"),
+      StaticString("0xbe793d8bc681a7bfc5291c01825a8d61beb832480f84dcdd4ce289dfa1e4df65"),
+  }};
+  test_signature3<P256, Fp256Scalar>(tests, 1, p256, p256_scalar, n256_order);
+}
+
 TEST(ecdsa, p256_failure) {
   using Field = Fp256Base;
   using Nat = Field::N;
