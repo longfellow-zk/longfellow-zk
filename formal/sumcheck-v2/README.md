@@ -1,7 +1,7 @@
 # Sumcheck V2
 
 Lean proofs for the projective, single-hand protocol at Rust snapshot
-`fcf8a3a`, in
+`21cb029`, with the earlier `fcf8a3a` terminal retained, in
 [`rust/runtime/sumcheck-v2`](../../rust/runtime/sumcheck-v2/README.md).
 The library and namespace are `SumcheckV2`. From `formal/`, run:
 
@@ -47,8 +47,25 @@ a_next[i] = m[i] + alpha*q_r[i]
 C_next    = A + alpha*(B - dot m L).
 ```
 
-After the sumcheck rounds, the terminal constraint checks the reduced claim
-against `A*B`. The two final claims must be fixed before `alpha` is sampled.
+The linear terminal commits four pad cells and checks
+
+```text
+d      = A*pB + B*pA - pD          (sent before nonzero r)
+mA,mB  = A+r*pA, B+r*pB            (sent before alpha)
+0      = C+r*(d+pD)+r²*pAB-mA*mB
+C_next = mA+alpha*mB-r*pA-alpha*r*pB-alpha*L(u).
+```
+
+Honesty sets `pAB=pA*pB`; soundness does not assume it. A false reduced claim
+leaves a nonzero quadratic with at most two nonzero roots. The additional
+terminal loss is `2/(|F|-1)`, plus the usual `1/|F|` combining loss.
+[`LinearTerminal`](SumcheckV2/LinearTerminal.lean) proves this reduction and
+its affine symbolic row. [`LinearTerminalMasking`](SumcheckV2/LinearTerminalMasking.lean)
+proves the local honest masking bijection for nonzero `r`.
+
+The `Masked` product-slot terminal below belongs to the retained earlier
+checkpoint. Its explicit product-consistency premise is not part of the
+new verifier or soundness proof.
 
 ## Checked results
 
@@ -79,15 +96,17 @@ correct; there is at most one such `alpha`.
 
 Strategies are functions of the earlier challenge prefix. Their types do not
 permit access to the current or later challenges when choosing a message,
-incoming claim, or true polynomial. For `R` sumcheck slots and `L` combination
-slots, let `N = R+L`. The mixed theorem bounds bad tapes by
+incoming claim, or true polynomial. For the retained round/combination component, let `R` be the number of round
+slots and `L` the number of combining slots, with `N = R+L`. Its theorem
+bounds bad tapes by
 
 ```text
 (2R + L) * |F|^(N-1).
 ```
 
-Thus uniform independent field challenges give the usual `(2R + L)/|F|`
-upper bound. The Lean theorem is stated as a natural-number cardinality bound,
+Thus this component costs `(2R + L)/|F|`; the new protocol additionally
+charges `2L/(|F|-1)` for terminal scales. The complete replay accounts for
+these different challenge spaces and their committed candidate families. The Lean theorem is stated as a natural-number cardinality bound,
 including empty tapes. Over very small fields it can be trivial: the API
 checks exhibit two distinct bad challenges over `F₂`.
 
@@ -105,8 +124,8 @@ the Rust operations modeled; it is not a source-level refinement certificate.
 | `sumcheck-v2/src/prover.rs`, `dense.rs` | `roundMessage`, `fold`, `honestMessages` |
 | `sumcheck-v2/src/monomial.rs` | `monomialWeights`, `evaluate_eq_dot` |
 | `sumcheck-v2/src/quad.rs` | `bindRightAffine`, `bindLeft`, `affine_rebinding`, `affine_nextWeights_correct` |
-| `sumcheck-v2/src/symbolic.rs` | Shared `PadExpression` operations and `LfzkV2.Native.buildConstraints_correct`, including both public corrections |
-| `zk-v2/src/constraint_compiler.rs` | `lowered_terminal_iff`, `input_constraint_eq`, and `LfzkV2.Native.compiled_iff_clear`; `LfzkV2.Packed` authenticates the packed source equation |
+| `sumcheck-v2/src/symbolic.rs` at `21cb029` | Shared `PadExpression` operations and `LfzkV2.Linear.buildConstraints_correct`, including both public corrections |
+| `zk-v2/src/constraint_compiler.rs` at `21cb029` | `LfzkV2.Linear.compiled_iff_clear` and `Linear.Runtime.CompiledFS`; the new backend has only affine rows |
 | `sumcheck-v2/src/transcript.rs` | Prefix-dependent challenge strategies |
 
 `roundMessage` takes the incoming claim explicitly, matching
@@ -138,7 +157,8 @@ The remaining correspondence obligations are specific:
   `LfzkV2`'s circuit tensors and explicit input/pad coordinate maps.
 
 Serialization and concrete transcript encoding are also outside the model.
-The complete protocol composition is in `LfzkV2.Packed`; this component library
-does not itself assert a full zero-knowledge theorem. Later changes to terminal
-masking or the backend are outside the stated snapshot. Existing `LfzkV1`
-security certificates remain about V1.
+The complete linear-terminal protocol composition is in `LfzkV2.Linear.Runtime`,
+including actual packed/direct rows, adaptive Fiat–Shamir, MAC, and both Merkle
+commitments. `LfzkV2.Packed` retains the earlier product-checked checkpoint.
+Neither this component library nor the complete soundness composition asserts
+full joint zero knowledge. Existing V1 proofs and certificates remain unchanged.

@@ -6,3 +6,5 @@ import SumcheckV2.Layer
 import SumcheckV2.Affine
 import SumcheckV2.Masked
 import SumcheckV2.FiatShamir
+import SumcheckV2.LinearTerminal
+import SumcheckV2.LinearTerminalMasking

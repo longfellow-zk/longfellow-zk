@@ -1,15 +1,19 @@
 # Formal verification
 
-**The modeled packed Longfellow V2 verifier at commit `fcf8a3a` has a
-117-bit work-normalized extraction bound.** The native affine frontend,
-binary-input packing, quadratic Polygero backend, two-field MAC, and Merkle
-openings share one adaptive Fiat–Shamir transcript. The checked endpoint
-[`LfzkV2.Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
-proves `Pr[accept ∧ paired extraction fails] ≤ (1 + N + tA) / 2^117` for all
-transcript-query budgets `N` and Merkle-query budgets `tA`. The verifier
-recomputes the MAC challenge from the raw proof. Circuit/layout, sampler,
-MAC-row and codec premises remain explicit; see the
-[audit and implementation boundary](AUDIT.md).
+**The modeled linear-terminal Longfellow V2 verifier at commit `21cb029`
+has a 116-bit work-normalized extraction bound.** The native affine frontend,
+binary-input packing, linear-only Polygero backend, two-field MAC, and both
+Merkle openings share one adaptive Fiat–Shamir transcript.
+[`LfzkV2.Linear.Runtime.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean)
+proves `Pr[accept ∧ paired extraction fails] ≤ (1 + N + tA) / 2^116` for all
+transcript-query budgets `N` and Merkle-query budgets `tA`. The exact finite
+bound is also proved. Circuit/layout, sampler, MAC-row and codec premises
+remain explicit; see the [audit and implementation boundary](AUDIT.md).
+
+The prior product-checked snapshot `fcf8a3a` retains its separate
+[`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
+certificate without changes. Its constants do not describe the randomized
+linear terminal.
 
 The earlier v7 verifier using Ligero V1 retains its 116-bit extraction and
 false-statement soundness bounds for signature and SHA circuits with one
@@ -65,11 +69,13 @@ path keeps its original source equation and has no packing challenge or cost.
 The packed hash and direct signature sides both use geometry
 `(n,k,s,t) = (2912,416,15,86)`, with certified candidate bounds 25 and 33.
 Before Merkle costs, the adaptive bound is
-`925*N/2^128 + 17303/2^128 + 18889/2^255`; raw verification adds one transcript
+`925*N/2^128 + 19303/2^128 + 21661/2^255`; raw verification adds one transcript
 lookup. The authenticated extractor returns satisfying witnesses with equal
 common messages. Exact startup and small-Merkle bounds yield the all-budget
-117-bit endpoint above. The older unpacked composition remains available as
-a separate model. The later linear-terminal backend is outside this checkpoint.
+116-bit endpoint above. This conservative numerical certificate includes
+`2/(|F|-1)` per layer, with 20 hash layers and 21 signature layers; the
+field-normalized theorem retains the exact nonzero denominator. The older
+product-checked and unpacked compositions remain separate models.
 
 Backend response/opening simulation and affine-MAC privacy remain component
 results: complete joint frontend/backend/Merkle zero knowledge is not proved.
@@ -89,7 +95,7 @@ packing over arbitrary finite field extensions. Its fixed-commitment
 false-claim bound is `1 / |F|`, including arbitrary committed mask cells.
 The library and its binary and odd-characteristic regression cases are in
 the default build. The native compiler and staged Fiat–Shamir composition in
-`LfzkV2.Packed` lift this fixed-claim bound to the authenticated endpoint above.
+`LfzkV2.Linear.Runtime` lift this fixed-claim bound to the authenticated endpoint above.
 
 From this directory:
 

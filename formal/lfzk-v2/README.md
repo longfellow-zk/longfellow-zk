@@ -1,10 +1,54 @@
 # Longfellow V2: extraction and soundness
 
-This library models the native affine sumcheck frontend, binary input packing,
-quadratic Polygero backend, two Merkle commitments, and affine MAC used by Rust
-snapshot `fcf8a3a`. The `LfzkV2.Native` and `LfzkV2.Packed` namespaces contain
-this composition. Changes to terminal masking or the backend after that
-snapshot are outside its scope.
+The `LfzkV2.Linear` namespace models Rust snapshot `21cb029`: native affine
+sumcheck, binary input packing, linear-only Polygero, two Merkle commitments,
+and the affine MAC. Its complete authenticated raw-proof endpoint is
+[`Linear.Runtime.RawRuntimeExtraction.extraction_116`](LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean).
+The prior `LfzkV2.Native`/`LfzkV2.Packed` product-checked snapshot `fcf8a3a`
+and its 117-bit certificate are retained unchanged.
+
+## Randomized linear terminal
+
+Four ordinary pad cells `pA,pB,pAB,pD` are committed. After the rounds, the
+prover sends `d`, receives a nonzero scale `r`, sends `mA,mB`, then receives
+`alpha`. The verifier emits only the affine row
+
+```text
+C + r*(d+pD) + r²*pAB - mA*mB = 0
+```
+
+and carries `mA+alpha*mB-r*pA-alpha*r*pB-alpha*L(u)` to the next layer.
+Honest construction uses `pAB=pA*pB`; soundness allows arbitrary `pAB`.
+A false claim leaves a fixed nonzero quadratic in `r`, hence an additional
+`2/(|F|-1)` per layer. The round and combination losses are unchanged.
+The new frontend replay proves the required message order and causality.
+
+[`Linear.Runtime.CompiledFS`](LfzkV2/Linear/Runtime/CompiledFS.lean) proves
+both actual compiler transfers. Its instances have `nq=0`, reuse the shared
+Polygero analysis, and require no product-copy checks. The direct input path
+has no packing stage; the packed path uses the same trace check and two
+affine adapter rows. The complete authenticated bound, including the MAC and
+both Merkle terms, is proved in
+[`Linear.Runtime.RawExtraction`](LfzkV2/Linear/Runtime/RawExtraction.lean).
+
+For the geometry and candidate lists below, the conservative annotated cost
+is `(925*N+19303)/2^128+21661/2^255`. Raw replay replaces `N` with `N+1`.
+There are at most 1205 verifier challenge slots, with 20 hash layers and
+21 signature layers. The exact normalized cost retains the nonzero-field
+denominators; the rounded certificate uses `2/(q-1) <= 4/q`. The all-budget
+result is `(1+N+tA)/2^116`, rather than reusing the old numerical certificate.
+See the [audit](../AUDIT.md) for the exact finite bound and explicit premises.
+
+The sumcheck messages use `2*rounds+3*layers` field elements and the pad plan
+uses `2*rounds+4*layers`, proved in [`Linear.Sizes`](LfzkV2/Linear/Sizes.lean).
+The honest terminal masking bijection is proved for nonzero `r`; complete
+joint zero knowledge is not asserted.
+
+## Retained product-checked checkpoint
+
+The following detailed tables describe the unchanged `fcf8a3a` model.
+Shared native circuit semantics, packing identities, geometries, MAC, and
+Merkle results are also used by the linear-terminal composition above.
 
 The model separates protocol soundness from implementation correspondence.
 It proves extraction for the mathematical verifier under the explicit field,

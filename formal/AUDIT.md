@@ -1,25 +1,70 @@
 # Formal security claims and audit
 
-The packed V2 soundness chain reaches the modeled authenticated verifier at
-commit `fcf8a3a`, with native affine circuit streams, binary-input packing,
-the quadratic Polygero backend, raw proofs, and a verifier-recomputed MAC key.
-Its checked all-budget result is
+The linear-terminal V2 soundness chain reaches the modeled authenticated
+verifier at commit `21cb029`, including native affine circuits, binary-input
+packing, the linear-only Polygero backend, raw proofs, and the
+verifier-recomputed MAC key. Its checked all-budget result is
 
 ```text
-Pr[both sides accept and paired extraction fails] <= (1 + N + tA) / 2^117.
+Pr[both sides accept and paired extraction fails] <= (1 + N + tA) / 2^116.
 ```
 
 `N` counts adversarial Fiat–Shamir queries and `tA` counts adversarial
-Merkle-hash queries. The startup constant is one for every pair of query
-budgets. The probability is a finite count over the shared uniform
-transcript oracle and Merkle answer tape. Recommitment, arbitrary query
-order, and adaptive proof selection are allowed.
+Merkle-hash queries. The finite experiment permits recommitment, arbitrary
+query order, and adaptive proof selection. The earlier `fcf8a3a`
+product-checked checkpoint retains its separate 117-bit theorem unchanged.
+
+## Linear-terminal theorem chain
+
+[`LinearTerminal`](sumcheck-v2/SumcheckV2/LinearTerminal.lean) proves that a
+false terminal claim can pass at at most two nonzero scales. The committed
+product pad is arbitrary in soundness. The polynomial's constant term is the
+false claim, its linear coefficient includes the cross message sent before
+the scale, and its quadratic coefficient is `pAB-pA*pB`. No product-consistency
+premise survives in the verifier, compiler transfer, or extraction proof.
+[`Linear.CausalReplay`](lfzk-v2/LfzkV2/Linear/CausalReplay.lean) fixes this
+polynomial before the scale and the recovered pair before the combining
+challenge. The ideal nonzero sampler has exactly `|F|-1` possible outputs.
+
+[`Linear.Runtime.CompiledFS`](lfzk-v2/LfzkV2/Linear/Runtime/CompiledFS.lean)
+constructs the direct and packed affine row systems and proves their transfer
+from actual backend satisfaction. Its side instances require `nq=0`; shared
+Polygero theorems then have an empty product predicate. All witness and mask
+rows are ordinary opened rows. Packing, MAC, and Merkle lemmas are reused.
+[`ProfiledSide`](lfzk-v2/LfzkV2/Linear/Runtime/ProfiledSide.lean) supplies the
+same certified geometries and candidate lists as the retained checkpoint.
+
+[`RawExtraction.probability_le`](lfzk-v2/LfzkV2/Linear/Runtime/RawExtraction.lean)
+includes both authenticated opening checks, common cut-trace extraction,
+adaptive transcript accounting, and verifier replay of the MAC lookup.
+[`RawRuntimeExtraction.probability_bound`](lfzk-v2/LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean)
+proves the conservative bound
+
+```text
+925*(1+N)/2^128 + 19303/2^128 + 21661/2^255
+  + 2*adaptiveNumerator(11648,tA,L+(1+N))/2^256,  L <= 1205.
+```
+
+The exact normalized frontend term is
+`B*(N*max(max(out,2)/q,2/(q-1)) + (out+sharpLayerBudget)/q + 2*layers/(q-1))`.
+The numerical certificate uses 20 hash layers and 21 signature layers and
+conservatively bounds `2/(q-1)` by `4/q`; it is not an optimal-security claim.
+The previous 117-bit unit-offset certificate is not asserted for this model.
+`extraction_116` combines the new cost with the existing small-Merkle argument
+for every pair of query budgets. No additional distinct-leaf premise is used.
+
+[`LinearTerminalMasking`](sumcheck-v2/SumcheckV2/LinearTerminalMasking.lean)
+proves an invertible honest map between three independent pads and the cross
+message/two masked claims when the scale is nonzero. This local fact does not
+establish full joint zero knowledge. Rust byte encodings, concrete rejection
+sampling, and arithmetic remain correspondence obligations.
 
 ## Checked endpoints
 
 | Claim | Theorem or build target | Scope |
 |---|---|---|
-| Packed V2 authenticated raw-proof extraction, all budgets | [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean) | `(1+N+tA)/2^117`, under the model premises below. |
+| Linear-terminal V2 authenticated extraction, all budgets | [`Linear.Runtime.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean) | `(1+N+tA)/2^116`, for snapshot `21cb029`; exact finite bound also proved. |
+| Retained product-checked V2 extraction, all budgets | [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean) | `(1+N+tA)/2^117`, under the model premises below. |
 | Packed V2 actual compiler instances | [`Packed.Compiled.side`, `Packed.Direct.side`](lfzk-v2/LfzkV2/Packed/CompiledFS.lean), [`ProfiledSide`](lfzk-v2/LfzkV2/Packed/ProfiledSide.lean) | Actual row construction proves the frontend transfer; the profile chooses its candidate bound before that transfer and counting proof. |
 | Earlier unpacked V2 authenticated composition | [`RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/RawRuntimeExtraction.lean) | Retained separate model, with earlier hash geometry and frontend budgets. Its numbered-leaf and annotated-proof variants are not needed by the packed endpoint. |
 | Retained standalone Polygero profiles | [`Profile.fs_extraction_failure_127`](parameters/polygero/PolygeroRustHahn.lean) | `(N+1)/2^127`, including satisfiable transcript-dependent statements, in the ideal-binding, uniform-sampler model. Frontend, packing, MAC, and Merkle costs are excluded from this component result. |
@@ -27,7 +72,7 @@ order, and adaptive proof selection are allowed.
 | V2 privacy components | [`PolygeroZk`](lfzk-v2/LfzkV2/PolygeroZk.lean), [`BackendEncoding`](lfzk-v2/LfzkV2/BackendEncoding.lean), [`Mac`](lfzk-v2/LfzkV2/Mac.lean) | Backend response/opening simulation and affine-tag uniformity. A complete joint frontend/backend/Merkle zero-knowledge theorem is not established. |
 | Dual-packing adapter | [`Instance.linear_native_soundness_probability`](dual-packing/DualPacking/ArtinSchreierBackend.lean) | At most `1/|F|` for a false fixed claim, with arbitrary committed cells and an independent uniform vector challenge. `LfzkV2.Packed` composes it with the native frontend, backend and Fiat–Shamir analysis. |
 
-## V2 theorem chain
+## Retained product-checked theorem chain
 
 1. [`Packed.RawExtraction.key_coherent`](lfzk-v2/LfzkV2/Packed/RawExtraction.lean)
    derives the MAC answer from the verifier lookup. `probability` has no
@@ -97,7 +142,9 @@ efficiently recovers a witness.
 
 ## Premises and implementation boundary
 
-The packed numerical endpoint retains the following explicit premises:
+Both packed numerical endpoints retain the following explicit premises;
+the linear-terminal endpoint additionally bounds hash/signature layers by
+20/21 and samples each terminal scale uniformly from the nonzero field:
 
 - Hash and signature geometries `(n,k,s,t) = (2912,416,15,86)`, with the
   instance's distinct evaluation points and decoder/column encodings.
@@ -143,8 +190,9 @@ protocol's challenge order and prefixes; byte-level transcript equivalence
 is outside the theorem. The individual registered application's circuit
 semantics must also be related to the modeled trusted circuit.
 
-The checkpoint is the quadratic-backend protocol at `fcf8a3a`. The later
-linear-terminal backend is outside this theorem chain.
+The retained `LfzkV2.Packed` checkpoint describes `fcf8a3a`; the separate
+`LfzkV2.Linear.Runtime` theorem chain describes `21cb029`. Later runtime
+changes require their own correspondence and cost audit.
 
 V2 joint-view zero knowledge still needs the frontend's causal transmission
 and commitment-dependent pads combined with the backend simulator and
@@ -185,11 +233,10 @@ builds keep their short API and certificate checks. These checks establish
 the stated proof dependencies and exact numerical facts; they do not
 discharge the implementation correspondence premises above.
 
-The packed checkpoint passes the default build and the targeted V2 API tests.
-The full dependency audit checks 10,579 declarations with standard axioms only
-and 7,306 legacy V1 declarations with the documented native-row allowance.
-The source audit scans 873 Lean files; its local documentation-link check
-also passes.
+The default build checks both the retained checkpoint and the linear-terminal
+API. The latter includes arbitrary malicious product pads, two distinct bad
+terminal scales, characteristic-two completeness, and nonzero-scale masking.
+The full dependency and source/link audits also include the new V2 modules.
 
 The V1 Rust inspectors load the frozen archives through the current
 single-crate runtime, recompute archive and circuit IDs, compare the five
