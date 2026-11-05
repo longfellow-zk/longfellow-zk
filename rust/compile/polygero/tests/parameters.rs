@@ -27,12 +27,11 @@ use crate::{
 fn tuning_uses_public_layout_and_respects_capacity() {
     for (nw, bytes) in [(0, 16), (4096, 32), (77000, 16), (162000, 18), (186000, 18)] {
         let selected =
-            crate::compile::polygero::tune_large_field(nw, &[], bytes, |p| p.n <= 16384).unwrap();
+            crate::compile::polygero::tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap();
         assert!(selected.n <= 16384);
         assert_eq!(selected.t, 80);
         let geom = PolygeroGeometry {
             nw,
-            nq: 0,
             k: selected.k,
             s: selected.s,
             n: selected.n,
@@ -41,20 +40,18 @@ fn tuning_uses_public_layout_and_respects_capacity() {
         assert!(geom.validate().is_ok());
         assert_eq!(
             selected,
-            crate::compile::polygero::tune_large_field(nw, &[], bytes, |p| p.n <= 16384).unwrap()
+            crate::compile::polygero::tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap()
         );
     }
-    assert!(crate::compile::polygero::tune_large_field(30, &[], 0, |_| true).is_none());
-    assert!(crate::compile::polygero::tune_large_field(30, &[], 0, |_| true).is_none());
-    assert!(crate::compile::polygero::tune_large_field(30, &[], 16, |_| false).is_none());
+    assert!(crate::compile::polygero::tune_large_field(30, 0, |_| true).is_none());
+    assert!(crate::compile::polygero::tune_large_field(30, 16, |_| false).is_none());
 }
 
 #[test]
 fn rate_tuning_matches_ligero_and_reoptimizes_openings() {
-    let products = [PolygeroProductConstraint { x: 0, y: 1, z: 2 }];
     for (nw, bytes) in [(4096, 32), (77410, 16)] {
         let tune = |accept: fn(PolygeroConfig) -> bool| {
-            crate::compile::polygero::tune_large_field_at_rate(7, nw, &products, bytes, accept)
+            crate::compile::polygero::tune_large_field_at_rate(7, nw, bytes, accept)
         };
         let selected = tune(|_| true).unwrap();
         assert_eq!(selected.n, 7 * selected.k);
@@ -73,23 +70,18 @@ fn rate_tuning_matches_ligero_and_reoptimizes_openings() {
         );
     }
     for unsupported in [0, 1, 2, 8, usize::MAX] {
-        assert!(crate::compile::polygero::tune_large_field_at_rate(
-            unsupported,
-            3,
-            &products,
-            32,
-            |_| true,
-        )
-        .is_none());
+        assert!(
+            crate::compile::polygero::tune_large_field_at_rate(unsupported, 3, 32, |_| true,)
+                .is_none()
+        );
     }
 }
 
 #[test]
 fn rate_four_tuning_respects_capacity() {
-    let products = [PolygeroProductConstraint { x: 0, y: 1, z: 2 }];
     for nw in [162463, 186358] {
         let tune = |accept: fn(PolygeroConfig) -> bool| {
-            crate::compile::polygero::tune_large_field_at_rate(4, nw, &products, 18, accept)
+            crate::compile::polygero::tune_large_field_at_rate(4, nw, 18, accept)
         };
         let selected = tune(|_| true).unwrap();
         assert_eq!(selected.n, 4 * selected.k);
@@ -179,13 +171,11 @@ fn roundtrip_profiles<
     profiles: impl IntoIterator<Item = PolygeroConfig>,
 ) {
     let mut rng = DeterministicRng::new(81409);
-    let mut witness: Vec<_> = rng.elt_field_slice(1000, f);
-    witness[2] = f.mulf(&witness[0], &witness[1]);
-    let products = [PolygeroProductConstraint { x: 0, y: 1, z: 2 }];
+    let witness = rng.elt_field_slice(1000, f);
     for config in profiles {
         let statement = Digest::default();
-        let param = PolygeroParam::try_new(witness.len(), &products, config, d, f).unwrap();
-        let vp = PolygeroParam::try_new(witness.len(), &products, config, d, f).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, d, f).unwrap();
+        let vp = PolygeroParam::try_new(witness.len(), config, d, f).unwrap();
 
         let mut ts = Transcript::new(b"polygero/admitted");
         let (prover, com) =

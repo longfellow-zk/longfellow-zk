@@ -47,10 +47,12 @@ impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LayerProof<const W: usize, F: SerializableField> {
     pub rounds: Vec<RoundPoly<W, F>>,
+    /// Masked cross coefficient, fixed before the terminal mask scale is sampled.
+    pub cross: F::E,
     /// `sum_l m_l[l] W[l]` and
     /// `sum_{g,l,r} a[g] QUAD[g,l,r] m_l[l] W[r] + L(u)`,
-    /// with their respective pads subtracted. Here `g` ranges over outputs,
-    /// and `l,r` range over input wires, with m_l[l] = product_j u[j]^l_j;
+    /// with the terminal challenge times their respective pads added. Here `g` ranges over
+    /// outputs, and `l,r` range over input wires, with m_l[l] = product_j u[j]^l_j;
     /// assertion terms use their replacement coefficients. L(u) is the public
     /// linear-coefficient contraction at u, removed when combining the claims.
     pub claims: [ElementOf<F>; 2],
@@ -66,17 +68,19 @@ pub struct SumcheckProofGeometry {
 #[derive(Clone, Debug)]
 pub struct LayerPadLayout {
     pub rounds: Vec<[usize; 2]>,
-    pub claims: [usize; 3],
+    pub claims: [usize; 2],
+    pub product: usize,
+    pub cross: usize,
 }
 #[derive(Clone, Debug)]
 pub struct CircuitPadLayout {
     pub layers: Vec<LayerPadLayout>,
 }
 
-/// Two pads per round, two final-claim pads, and their committed product.
+/// Two pads per round, two terminal pads, p_AB, and an independent cross pad.
 pub const fn pad_count(logw: usize) -> usize {
     assert!(sane_logw(logw), "sumcheck logw exceeds MAX_LOGW");
-    2 * logw + 3
+    2 * logw + 4
 }
 fn invalid(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message)
@@ -94,37 +98,35 @@ impl SumcheckProofGeometry {
                 .collect(),
         }
     }
-    /// Two coefficients per round and two final claims per layer are transmitted.
+    /// Two coefficients per round, one cross coefficient, and two final claims per layer.
     pub fn serialized_elements(&self) -> std::io::Result<usize> {
         self.logw_layers.iter().try_fold(0usize, |total, &logw| {
             if !sane_logw(logw) {
                 return Err(invalid("sumcheck logw exceeds MAX_LOGW"));
             }
             total
-                .checked_add(2 * logw + 2)
+                .checked_add(2 * logw + 3)
                 .ok_or_else(|| invalid("sumcheck size overflow"))
-        })
-    }
-    /// Positions of the two final-claim pads and their product in each layer.
-    pub fn claim_indices(&self, base: usize) -> impl Iterator<Item = [usize; 3]> + '_ {
-        self.logw_layers.iter().scan(base, |next, &logw| {
-            assert!(sane_logw(logw));
-            let claims = *next + pad_count(logw) - 3;
-            *next = claims + 3;
-            Some([claims, claims + 1, claims + 2])
         })
     }
     pub fn pad_layout(&self, base: usize) -> CircuitPadLayout {
         let layers: Vec<_> = self
             .logw_layers
             .iter()
-            .zip(self.claim_indices(base))
-            .map(|(&logw, claims)| {
-                let start = claims[0] - 2 * logw;
+            .scan(base, |next, &logw| {
+                let count = pad_count(logw);
+                let start = *next;
+                *next += count;
+                let terminal = *next - 4;
                 let rounds = (0..logw)
                     .map(|round| [start + 2 * round, start + 2 * round + 1])
                     .collect();
-                LayerPadLayout { rounds, claims }
+                Some(LayerPadLayout {
+                    rounds,
+                    claims: [terminal, terminal + 1],
+                    product: terminal + 2,
+                    cross: terminal + 3,
+                })
             })
             .collect();
         CircuitPadLayout { layers }
@@ -171,6 +173,7 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
             }
             layers.push(LayerProof {
                 rounds,
+                cross: read_elt_field(bytes, f)?,
                 claims: [read_elt_field(bytes, f)?, read_elt_field(bytes, f)?],
             });
         }
@@ -189,6 +192,7 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
                     write_elt_field(bytes, elt, f);
                 }
             }
+            write_elt_field(bytes, &layer.cross, f);
             for claim in &layer.claims {
                 write_elt_field(bytes, claim, f);
             }

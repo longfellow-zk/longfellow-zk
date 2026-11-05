@@ -37,8 +37,9 @@
 //! q_r[r] = sum_{g,l} a[g] QUAD[g,l,r] m_l[l],
 //! ```
 //!
-//! Their product must equal the final round claim. Send the masked A,B before
-//! sampling alpha. `weights_next_affine` makes their combined claim the starting point
+//! Their product must equal the final round claim. Bind a masked cross coefficient,
+//! sample a nonzero terminal scale, then send the scaled-mask versions of A,B
+//! before sampling alpha. `weights_next_affine` makes their combined claim the starting point
 //! for the next layer, where these input wires become output wires:
 //!
 //! ```text
@@ -227,10 +228,13 @@ fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + S
         claim == f.mulf(&claims[0], &claims[1]),
         "single-hand terminal product mismatch"
     );
+    // Hide the cross coefficient independently, before choosing the scale.
+    let mut cross = f.mulf(&claims[0], &pads.claims[1]);
+    f.fma(&mut cross, &claims[1], &pads.claims[0]);
+    f.sub(&mut cross, &pads.cross);
+    let terminal = super::transcript::terminal_challenge(&cross, transcript, f);
     let mut masked = claims.clone();
-    // Send m_A = A - p_A and m_B = B - p_B. Symbolic verification restores
-    // the hidden claims as message + pad before forming claim - A*B = 0.
-    blas::sub(&mut masked, &pads.claims, f);
+    blas::axpy(&mut masked, &terminal, &pads.claims, f);
     // Bind both masked claims before drawing their combination challenge.
     let alpha = end_layer(&masked, transcript, f);
     claim = claims[0].clone();
@@ -238,11 +242,13 @@ fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + S
     (
         LayerProof {
             rounds,
+            cross,
             claims: masked,
         },
         LayerChallenges {
             point_l,
             alpha,
+            terminal,
             constant: f.zero(),
             linear: f.zero(),
         },
@@ -360,9 +366,9 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
 /// Sample additive sumcheck pads and their flattened commitment witness.
 /// The structured copy matches the proof's round and claim slots for masking.
 /// The flat copy follows the codec's committed-pad layout: two pads per round,
-/// then p_A,p_B,p_A*p_B for each layer. The product slot lets the ZK compiler
-/// express claim - A*B as a linear constraint on committed values; Polygero also
-/// enforces that the product slot equals p_A*p_B.
+/// then p_A,p_B,p_AB,p_D for each layer. The honest prover sets p_AB=p_A*p_B,
+/// but Polygero enforces only affine equations on these cells. The cross message
+/// and fresh terminal scale check a random-point identity instead.
 pub(crate) fn sample_pads<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -391,8 +397,11 @@ pub(crate) fn sample_pads<
         let claim_pads = [rng.elt_field(f), rng.elt_field(f)];
         witness.extend(claim_pads.clone());
         witness.push(f.mulf(&claim_pads[0], &claim_pads[1]));
+        let cross = rng.elt_field(f);
+        witness.push(cross.clone());
         proof_layers.push(LayerProof {
             rounds,
+            cross,
             claims: claim_pads,
         });
     }

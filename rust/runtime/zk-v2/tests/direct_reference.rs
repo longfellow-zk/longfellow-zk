@@ -12,7 +12,7 @@ pub(in crate::runtime::zk_v2) fn compile<const W: usize, F: RuntimeField<W>>(
     f: &F,
 ) -> Result<(Vec<PolygeroLinearTerm<ElementOf<F>>>, Vec<ElementOf<F>>), String> {
     validate(constraints, pads, public_inputs.len())?;
-    let (mut a, mut b) = compile_layers(constraints, pads, f)?;
+    let (mut a, mut b) = compile_layers(constraints, pads)?;
     append_input_constraint(&mut a, &mut b, constraints, pads, public_inputs, f)?;
     Ok((a, b))
 }

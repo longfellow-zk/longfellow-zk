@@ -20,12 +20,12 @@
 //! then bind H and Z before choosing columns.
 //! Column order is exactly the order returned by `choose`.
 //!
-//! The commitment context fixes dimensions, product constraints and domain
+//! The commitment context fixes dimensions and domain
 //! ordering. The later digest binds the source statement from which
 //! the caller derives A and b, independently of their sparse representation.
 use sha2::{Digest as _, Sha256};
 
-use super::{PolygeroCommitment, PolygeroGeometry, PolygeroParam, PolygeroProductConstraint};
+use super::{PolygeroCommitment, PolygeroGeometry, PolygeroParam};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
@@ -47,7 +47,7 @@ pub(super) fn receive_commitment(
 }
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
 pub(super) struct Challenges<E> {
-    /// Linear equations first, then three copy-equality weights per product.
+    /// One independent weight per affine equation.
     pub(super) alpha: Vec<E>,
     /// Uniform evaluations of B_i on the first s+1 nodes of the oracle.
     /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
@@ -68,7 +68,7 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     ts.write_bytes(b"polygero/root/challenges/oracle-basis/v6");
     ts.write_bytes(&statement.data);
 
-    let alpha = ts.elt_field_slice(nconstraints + 3 * param.geom.nq, f);
+    let alpha = ts.elt_field_slice(nconstraints, f);
     let batching_samples = param
         .batched_rows()
         .map(|_| ts.elt_field_slice(param.geom.s + 1, f))
@@ -97,25 +97,15 @@ pub(super) fn queries<F: SerializableField>(
     indices
 }
 
-/// Bind the point ordering, dimensions and product layout into every
+/// Bind the point ordering and dimensions into every
 /// column hash and transcript. The byte encoding is independent of FFT machinery.
-pub(super) fn context_digest(
-    geom: &PolygeroGeometry,
-    domain_id: &[u8],
-    products: &[PolygeroProductConstraint],
-) -> Digest {
+pub(super) fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Digest {
     let mut hash = Sha256::new();
-    hash.update(b"polygero/root/context/fstar-last/v10");
-    hash.update((geom.k as u64).to_le_bytes());
+    hash.update(b"polygero/root/context/linear/v1");
     hash.update((domain_id.len() as u64).to_le_bytes());
     hash.update(domain_id);
     for size in geom.sizes() {
         hash.update((size as u64).to_le_bytes());
-    }
-    for product in products {
-        for index in [product.x, product.y, product.z] {
-            hash.update((index as u64).to_le_bytes());
-        }
     }
     Digest {
         data: hash.finalize().into(),

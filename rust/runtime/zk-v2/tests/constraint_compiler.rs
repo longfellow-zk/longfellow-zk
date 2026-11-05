@@ -17,10 +17,7 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
     runtime::{
         algebra::{field::SupportsU64Conversions, gf2_128::Gf2_128Field, p256::P256Field},
-        proto::{
-            sumcheck_v2::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            zk_v2::product_constraints,
-        },
+        proto::sumcheck_v2::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
         sumcheck_v2::{symbolic::build_constraints, LayerChallenges},
     },
 };
@@ -33,6 +30,7 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
     pad_values: &SumcheckProof<W, F>,
     points: &[Vec<F::E>],
     alphas: &[F::E],
+    terminals: &[F::E],
     weights: &[F::E],
     inputs: &[F::E],
     f: &F,
@@ -51,11 +49,18 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
             let z = &points[layer][round];
             claim = f.addf(&c0, &f.mulf(z, &f.addf(&c1, &f.mulf(z, &c2))));
         }
+        let r = &terminals[layer];
         let claims = [
-            f.addf(&messages.claims[0], &pads.claims[0]),
-            f.addf(&messages.claims[1], &pads.claims[1]),
+            f.subf(&messages.claims[0], &f.mulf(r, &pads.claims[0])),
+            f.subf(&messages.claims[1], &f.mulf(r, &pads.claims[1])),
         ];
-        residuals.push(f.subf(&claim, &f.mulf(&claims[0], &claims[1])));
+        // Evaluate the terminal polynomial directly with independently chosen
+        // messages and pads; it need not vanish for this artificial transcript.
+        let c0 = f.subf(&claim, &f.mulf(&messages.claims[0], &messages.claims[1]));
+        let c1 = f.addf(&messages.cross, &pads.cross);
+        let c2 = f.mulf(&pads.claims[0], &pads.claims[1]);
+        residuals.push(f.addf(&c0, &f.mulf(r, &f.addf(&c1, &f.mulf(r, &c2)))));
+
         claim = f.addf(&claims[0], &f.mulf(&alphas[layer], &claims[1]));
     }
     residuals.push(f.subf(
@@ -83,6 +88,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
                             coefficients: [element(3 + (layer + round) as u64), element(11)],
                         })
                         .collect(),
+                    cross: element(67),
                     claims: [element(7), element(13 + layer as u64)],
                 })
                 .collect(),
@@ -96,6 +102,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
                             coefficients: [element(17), element(19)],
                         })
                         .collect(),
+                    cross: element(71),
                     claims: [element(23), element(29)],
                 })
                 .collect(),
@@ -121,10 +128,13 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
             .enumerate()
             .map(|(layer, _)| if layer == 0 { f.zero() } else { element(37) })
             .collect();
+        let terminals = vec![element(61); widths.len()];
         let layer_challenges = points
             .iter()
             .zip(&alphas)
-            .map(|(point, alpha)| LayerChallenges {
+            .zip(&terminals)
+            .map(|((point, alpha), terminal)| LayerChallenges {
+                terminal: terminal.clone(),
                 point_l: point.clone(),
                 alpha: alpha.clone(),
                 constant: f.zero(),
@@ -138,6 +148,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
             &pad_values,
             &points,
             &alphas,
+            &terminals,
             &input_weights,
             &inputs,
             f,
@@ -158,6 +169,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
                 }
                 witness.extend_from_slice(&layer.claims);
                 witness.push(f.mulf(&layer.claims[0], &layer.claims[1]));
+                witness.push(layer.cross.clone());
             }
             let evaluate = |values: &[F::E]| {
                 let mut residuals = b.clone();
@@ -167,19 +179,14 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
                 residuals
             };
             assert_eq!(evaluate(&witness), expected);
-            let products = product_constraints(nprivate, &geometry);
-            assert!(products
-                .iter()
-                .all(|p| f.mulf(&witness[p.x], &witness[p.y]) == witness[p.z]));
-            // The product slot must be enforced in both the linear row and
-            // the quadratic commitment relation, including over prime fields.
-            if let Some(product) = products.first() {
-                f.add(&mut witness[product.z], &f.one());
-                assert_ne!(evaluate(&witness), expected);
-                assert_ne!(
-                    f.mulf(&witness[product.x], &witness[product.y]),
-                    witness[product.z]
-                );
+            // Both terminal cells are authenticated by the affine equation.
+            // The backend deliberately imposes no separate multiplication relation.
+            if let Some(pads) = layout.layers.first() {
+                for position in [pads.product, pads.cross] {
+                    let mut changed = witness.clone();
+                    f.add(&mut changed[position], &f.one());
+                    assert_ne!(evaluate(&changed), expected);
+                }
             }
         }
     }
@@ -204,10 +211,12 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
     let proof = SumcheckProof {
         layers: vec![LayerProof {
             rounds: vec![],
+            cross: e(11),
             claims: [e(2), e(3)],
         }],
     };
     let challenges = vec![LayerChallenges {
+        terminal: e(7),
         point_l: vec![],
         alpha: e(5),
         constant: f.zero(),
@@ -220,21 +229,20 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
     .pad_layout(1);
     let (a, b) = compile(&constraints, &pads, &[e(13)], &f).unwrap();
 
-    // w = [private, p_A, p_B, p_A*p_B]. Starting from claim = 0 gives
-    // -3*p_A - 2*p_B - w[3] - 6 = 0.
-    // The next claim is (2+p_A) + 5*(3+p_B), hence the input equation is
-    // p_A + 5*p_B - 11*private + (17 - 7*13) = 0.
+    // w = [private, p_A, p_B, p_AB, p_D]. With C=0, r=7, d=11:
+    // 7*p_D + 49*p_AB + (7*11 - 2*3) = 0.
+    // The next claim is (2-7*p_A) + 5*(3-7*p_B), so its input row is
+    // -7*p_A - 35*p_B - 11*private + (17 - 7*13) = 0.
     let expected = vec![
-        (0, 1, f.neg(&e(3))),
-        (0, 2, f.neg(&e(2))),
-        (0, 3, f.mone()),
+        (0, 4, e(7)),
+        (0, 3, e(49)),
         (1, 0, f.neg(&e(11))),
-        (1, 1, f.one()),
-        (1, 2, e(5)),
+        (1, 1, f.neg(&e(7))),
+        (1, 2, f.neg(&e(35))),
     ];
     let actual: Vec<_> = a.into_iter().map(|term| (term.c, term.w, term.k)).collect();
     assert_eq!(actual, expected);
-    assert_eq!(b, vec![f.neg(&e(6)), f.neg(&e(74))]);
+    assert_eq!(b, vec![e(71), f.neg(&e(74))]);
 }
 
 #[test]
@@ -265,6 +273,7 @@ fn rejects_mismatched_challenges_and_pad_layout() {
     let proof = SumcheckProof {
         layers: vec![LayerProof {
             rounds: vec![],
+            cross: f.zero(),
             claims: [f.zero(); 2],
         }],
     };
@@ -272,6 +281,7 @@ fn rejects_mismatched_challenges_and_pad_layout() {
         std::panic::catch_unwind(|| { build_constraints(&proof, vec![], vec![], &f) }).is_err()
     );
     let extra_round = vec![LayerChallenges {
+        terminal: f.one(),
         point_l: vec![f.zero()],
         alpha: f.one(),
         constant: f.zero(),
@@ -282,6 +292,7 @@ fn rejects_mismatched_challenges_and_pad_layout() {
             .is_err()
     );
     let layer_challenges = vec![LayerChallenges {
+        terminal: f.one(),
         point_l: vec![],
         alpha: f.one(),
         constant: f.zero(),

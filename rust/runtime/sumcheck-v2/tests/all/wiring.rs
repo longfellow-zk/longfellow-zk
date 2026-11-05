@@ -219,7 +219,7 @@ fn check_output_sampling<
         let weights = crate::runtime::sumcheck_v2::transcript::begin(&circuit, &mut actual, f);
 
         let mut expected = Transcript::new(b"v2-output-challenges");
-        expected.write_bytes(b"longfellow-sumcheck-v2-projective");
+        expected.write_bytes(b"longfellow-sumcheck-v2-projective-linear-terminal-v1");
         let point = expected.elt_field_slice(logv, f);
         assert_eq!(weights.len(), noutput);
         for (g, weight) in weights.iter().enumerate() {

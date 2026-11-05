@@ -12,7 +12,6 @@ use crate::{
 fn geometry() -> PolygeroGeometry {
     PolygeroGeometry {
         nw: 6,
-        nq: 0,
         k: 4,
         s: 1,
         n: 16,
@@ -23,7 +22,7 @@ fn proof(g: &PolygeroGeometry, field: &Gf2_128Field) -> PolygeroProof<Gf2_128> {
     PolygeroProof {
         h: vec![field.zero(); g.k + g.s],
         z: vec![field.one(); 2 * g.k],
-        rows: (0..g.t * g.transmitted_rows())
+        rows: (0..g.t * g.nrow())
             .map(|i| Gf2_128::from((i as u128) << 100))
             .collect(),
         opening: MerkleProof {
@@ -39,7 +38,6 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
         geometry(),
         PolygeroGeometry {
             nw: 3,
-            nq: 3,
             k: 8,
             t: 2,
             ..geometry()
@@ -47,8 +45,8 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
     ] {
         let p = proof(&g, &f);
         let bytes = p.write(&g, &f).unwrap();
-        assert_eq!(&bytes[..4], b"PLG8");
-        let offset = 28 + (p.h.len() + p.z.len()) * 16;
+        assert_eq!(&bytes[..4], b"PLG9");
+        let offset = 24 + (p.h.len() + p.z.len()) * 16;
         let expected = p
             .rows
             .iter()
@@ -57,7 +55,7 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
         assert_eq!(&bytes[offset..bytes.len() - 32 * g.t - 4], expected);
         assert_eq!(
             bytes.len(),
-            28 + (p.h.len() + p.z.len() + p.rows.len()) * 16 + 32 * g.t + 4
+            24 + (p.h.len() + p.z.len() + p.rows.len()) * 16 + 32 * g.t + 4
         );
         let mut concat = bytes.clone();
         concat.extend_from_slice(&bytes);
@@ -83,7 +81,7 @@ fn malformed_geometry_frontier_versions_and_every_truncation_are_rejected() {
             "length {n}"
         );
     }
-    for marker in [b"PLG7", b"PLG6", b"PYG2"] {
+    for marker in [b"PLG8", b"PLG7", b"PLG6", b"PYG2"] {
         let mut bad = bytes.clone();
         bad[..4].copy_from_slice(marker);
         assert!(polygero::read(&mut bad.as_slice(), &g, &f).is_err());
@@ -126,6 +124,6 @@ impl SerializableField for Aliased {
 fn noncanonical_ambient_elements_are_rejected() {
     let f = Gf2_128Field::new();
     let mut b = proof(&geometry(), &f).write(&geometry(), &f).unwrap();
-    b[28..44].fill(0xff);
+    b[24..40].fill(0xff);
     assert!(polygero::read(&mut b.as_slice(), &geometry(), &Aliased(f)).is_err());
 }

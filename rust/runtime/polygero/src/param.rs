@@ -14,15 +14,15 @@
 
 //! Validate the public layout and bind the context used for commitment.
 //!
-//! `PolygeroConfig` supplies k, s, n, t; the witness and product counts complete
-//! the proof geometry. Construction checks dimensions, product indices and all
+//! `PolygeroConfig` supplies k, s, n, t; the witness count completes
+//! the proof geometry. Construction checks dimensions and all
 //! required interpolation shapes. It binds these values and the ordered domain
 //! into the context used by transcript and Merkle hashing. The source-statement
 //! digest is supplied later, directly to proving and verification.
 //!
 //! Row accessors define the common ordering of W: u, m, data rows, then fstar.
 //! Polynomial samples and interpolation plans are computed by their consumers.
-use super::{ensure, PolygeroConfig, PolygeroError, PolygeroGeometry, PolygeroProductConstraint};
+use super::{ensure, PolygeroConfig, PolygeroError, PolygeroGeometry};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
@@ -31,16 +31,15 @@ use crate::{
     },
 };
 
-/// Validated public dimensions, product layout and transcript identity for one invocation.
+/// Validated public dimensions and transcript identity for one invocation.
 #[derive(Clone, Debug)]
 pub struct PolygeroParam {
     pub(super) geom: PolygeroGeometry,
     pub(super) domain_id: Vec<u8>,
-    pub(super) products: Vec<PolygeroProductConstraint>,
     pub(super) context: Digest,
 }
 impl PolygeroParam {
-    /// Validate dimensions, product indices and backend capacity; bind the public context.
+    /// Validate dimensions and backend capacity; bind the public context.
     /// The statement derived later is supplied separately to prove/verify.
     /// This validates operational geometry, not a security target. Applications
     /// select certified parameters separately; small test configurations are valid here.
@@ -50,38 +49,23 @@ impl PolygeroParam {
         D: EvaluationDomain<W, F>,
     >(
         nw: usize,
-        products: &[PolygeroProductConstraint],
         config: PolygeroConfig,
         domain: &D,
         _f: &F,
     ) -> Result<Self, PolygeroError> {
         let PolygeroConfig { k, s, n, t } = config;
-        let geom = PolygeroGeometry {
-            nw,
-            nq: products.len(),
-            k,
-            s,
-            n,
-            t,
-        };
+        let geom = PolygeroGeometry { nw, k, s, n, t };
         geom.validate()?;
-        ensure(
-            products
-                .iter()
-                .all(|p| [p.x, p.y, p.z].iter().all(|&i| i < nw)),
-            "product index out of bounds",
-        )?;
         ensure(
             config.can_interpolate(domain),
             "interpolation capacity exceeded",
         )?;
         // Distinct points within admitted ranges are guaranteed by the backend.
         let id = domain.domain_id();
-        let context = super::transcript::context_digest(&geom, &id, products);
+        let context = super::transcript::context_digest(&geom, &id);
         Ok(Self {
             geom,
             domain_id: id,
-            products: products.to_vec(),
             context,
         })
     }
@@ -110,7 +94,7 @@ impl PolygeroParam {
         1
     }
 
-    /// Ordinary rows and product triples follow the two arithmetic masks.
+    /// Witness rows follow the two arithmetic masks.
     pub(super) fn data_start(&self) -> usize {
         2
     }
@@ -118,12 +102,5 @@ impl PolygeroParam {
     /// Every row except fstar receives a challenge polynomial B_i in H.
     pub(super) fn batched_rows(&self) -> std::ops::Range<usize> {
         0..self.fstar_row()
-    }
-
-    /// Only the third row of each product triple is reconstructed from its inputs.
-    pub(super) fn is_product_output(&self, row: usize) -> bool {
-        let start = self.data_start() + self.geom.ordinary_rows();
-        let end = start + 3 * self.geom.product_groups();
-        (start..end).contains(&row) && (row - start) % 3 == 2
     }
 }

@@ -23,13 +23,12 @@
 //! Z = sum_{data rows i} C_i*W_i + V*u + z_R*m.
 //! ```
 //! W_r = fstar is the final row; every preceding row receives a B_i.
-//! C_i contains the alpha-weighted linear and copy-constraint coefficients for
+//! C_i contains the alpha-weighted linear coefficients for
 //! row i; B_i is its primary batching polynomial. The rows fstar, u and m mask
 //! the two responses.
 //!
-//! Product-output rows are virtual. Reconstruct W_z = W_x*W_y at the queries
-//! before authenticating columns; the commitment and both responses include
-//! these reconstructed values in the same row order as the prover's full W.
+//! All rows are opened in commitment order. Authentication and both response
+//! checks use those same column values directly.
 //!
 //! H and Z come as oracle-prefix samples, so their lengths enforce their
 //! dimension bounds. For logical points d_j = domain.point(j), also check
@@ -39,12 +38,11 @@
 //! sum_{j=t}^{k-1} Z(d_j) + tau = 0.
 //! ```
 //!
-//! This global sum connects the column checks to A*w + b = 0. Copy constraints
-//! contribute zero constants, so tau contains only the original b terms.
+//! This global sum connects the column checks to A*w + b = 0.
 //!
 //! Public polynomials use the shared interpolation and constraint code. Gather
 //! their queried values for dense BLAS checks against the proof's packed rows.
-//! Received and reconstructed rows are contiguous and need no transposition.
+//! Opened rows are contiguous and need no transposition.
 use super::{
     constraints, ensure, hash, transcript, PolygeroCommitment, PolygeroError, PolygeroLinearTerm,
     PolygeroParam, PolygeroProof,
@@ -109,13 +107,13 @@ impl PolygeroVerifier {
         let challenge = transcript::challenges(ts, &self.param, b.len(), statement, f);
         let indices = transcript::queries(ts, &self.param, &proof.h, &proof.z, f);
 
-        let opened = self.materialize_rows(&proof.rows, f);
-        self.authenticate_columns(commitment, proof, &indices, &opened, f)?;
+        let opened = &proof.rows;
+        self.authenticate_columns(commitment, proof, &indices, opened, f)?;
         self.verify_primary_response(
             proof,
             &indices,
             &challenge.batching_samples,
-            &opened,
+            opened,
             domain,
             f,
         )?;
@@ -124,7 +122,7 @@ impl PolygeroVerifier {
         // Batch the constants of A*w + b = 0 as tau = sum_{c=0}^{b.len()-1} alpha[c]*b[c].
         // The arithmetic check keeps that sign: sum_{j=t}^{k-1} Z(d_j) + tau = 0.
         let tau = blas::dot(&challenge.alpha[..b.len()], b, f);
-        self.verify_arithmetic(proof, &indices, &rows, &opened, &tau, domain, f)
+        self.verify_arithmetic(proof, &indices, &rows, opened, &tau, domain, f)
     }
 
     /// Check commitment reception, domain identity, proof shape and constraint
@@ -149,31 +147,7 @@ impl PolygeroVerifier {
         constraints::validate(self.param.geom.nw, b.len(), a)
     }
 
-    /// Restore the full W row order at the queries. Consume one proof row for
-    /// each transmitted row; reconstruct each virtual z from the preceding x,y.
-    fn materialize_rows<const W: usize, F: RuntimeField<W>>(
-        &self,
-        received: &[F::E],
-        f: &F,
-    ) -> Vec<F::E> {
-        let g = self.param.geom;
-        let mut rows = Vec::with_capacity(g.nrow() * g.t);
-        let mut received = received.chunks_exact(g.t);
-        for row in 0..g.nrow() {
-            if self.param.is_product_output(row) {
-                // Copy x into the new row and multiply by y in dense query order.
-                let start = rows.len();
-                rows.extend_from_within(start - 2 * g.t..start - g.t);
-                let (inputs, z) = rows.split_at_mut(start);
-                blas::mul(z, &inputs[start - g.t..], f);
-            } else {
-                rows.extend_from_slice(received.next().expect("validated proof row count"));
-            }
-        }
-        rows
-    }
-
-    /// Hash each queried column from the full packed rows, including virtual z.
+    /// Hash each queried column from all opened rows in commitment order.
     /// Check the shared Merkle path against the root received into the transcript.
     fn authenticate_columns<F: SerializableField>(
         &self,

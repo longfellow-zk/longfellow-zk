@@ -120,8 +120,8 @@ fn select_parameters<
     domain: &D,
     f: &F,
 ) -> Result<PolygeroConfig, String> {
-    let (_, nw, products) = commitment_layout(circuit, f);
-    tune_large_field_at_rate(7, nw, &products, f.serialized_size_bytes(), |config| {
+    let (_, nw) = commitment_layout(circuit, f);
+    tune_large_field_at_rate(7, nw, f.serialized_size_bytes(), |config| {
         config.can_interpolate(domain)
     })
     .ok_or_else(|| "no supported Polygero tuning profile".to_string())

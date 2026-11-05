@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[96..100], b"LFV4");
+    assert_eq!(&zkproof[96..100], b"LFV5");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -1057,13 +1057,9 @@ fn expected_parameters<
     f: &F,
 ) -> crate::runtime::proto::polygero::PolygeroConfig {
     use crate::runtime::proto::zk_v2::commitment_layout;
-    let (_, nw, products) = commitment_layout(circuit, f);
-    crate::compile::polygero::tune_large_field_at_rate(
-        7,
-        nw,
-        &products,
-        f.serialized_size_bytes(),
-        |config| config.can_interpolate(domain),
-    )
+    let (_, nw) = commitment_layout(circuit, f);
+    crate::compile::polygero::tune_large_field_at_rate(7, nw, f.serialized_size_bytes(), |config| {
+        config.can_interpolate(domain)
+    })
     .unwrap()
 }

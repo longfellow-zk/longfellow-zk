@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The packing/Polygero boundary. The commitment contains packed input words,
-//! packing masks, then full-field sumcheck pads and products. Packing changes
+//! packing masks, then full-field sumcheck pads and terminal cells. Packing changes
 //! only the input claim; pad positions already refer to this physical layout.
 use crate::runtime::{
     algebra::{

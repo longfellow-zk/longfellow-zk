@@ -36,18 +36,7 @@ fn run<
     nw: usize,
 ) {
     let mut rng = DeterministicRng::new(42);
-    let mut witness = rng.elt_field_slice(nw, f);
-    let products: Vec<_> = (0..nw / 3)
-        .map(|i| {
-            let x = 3 * i;
-            witness[x + 2] = f.mulf(&witness[x], &witness[x + 1]);
-            PolygeroProductConstraint {
-                x,
-                y: x + 1,
-                z: x + 2,
-            }
-        })
-        .collect();
+    let witness = rng.elt_field_slice(nw, f);
     let mut b = vec![f.zero(); 8];
     let a: Vec<_> = witness
         .iter()
@@ -69,8 +58,8 @@ fn run<
         data: fixture.bytes(32).try_into().unwrap(),
     };
     let preprocessing_start = Instant::now();
-    let param = PolygeroParam::try_new(nw, &products, config, d, f).unwrap();
-    let vp = PolygeroParam::try_new(nw, &products, config, d, f).unwrap();
+    let param = PolygeroParam::try_new(nw, config, d, f).unwrap();
+    let vp = PolygeroParam::try_new(nw, config, d, f).unwrap();
     let preprocessing = preprocessing_start.elapsed();
     // Release the prover's rows and Merkle tree before timing verification.
     let (com, bytes, commit, prove) = {

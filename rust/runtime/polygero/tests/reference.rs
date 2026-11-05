@@ -32,9 +32,9 @@ pub(in crate::runtime::polygero) fn snapshot<const W: usize, F: RuntimeField<W>>
     }
 }
 
-/// A commitment to an incorrect virtual output must fail authentication, even
-/// when the prover computes both responses from that same incorrect full W.
-pub(in crate::runtime::polygero) fn check_virtual_product_binding<
+/// Recommitting a wrong witness authenticates successfully but must fail the
+/// original linear equations, even with consistently recomputed responses.
+pub(in crate::runtime::polygero) fn check_recommitted_wrong_witness<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
@@ -49,7 +49,7 @@ pub(in crate::runtime::polygero) fn check_virtual_product_binding<
 ) {
     let mut forged = snapshot(prover);
     let param = forged.param.clone();
-    let output = param.data_start() + param.geom.ordinary_rows() + 2;
+    let output = param.data_start();
     for value in &mut forged.w[output] {
         f.add(value, &f.one());
     }
@@ -87,7 +87,7 @@ pub(in crate::runtime::polygero) fn check_virtual_product_binding<
             f,
         )
         .unwrap_err();
-    assert!(error.0.starts_with("root mismatch:"), "{error}");
+    assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }
 
 fn add<F: AlgebraicField>(a: &mut Vec<F::E>, b: &[F::E], f: &F) {
@@ -208,21 +208,6 @@ pub(in crate::runtime::polygero) fn check<
             &f.mulf(&challenge.alpha[term.c], &term.k),
         );
     }
-    for (i, product) in p.products.iter().enumerate() {
-        for (part, w) in [product.x, product.y, product.z].into_iter().enumerate() {
-            let weight = &challenge.alpha[b.len() + 3 * i + part];
-            let width = g.k.div_ceil(2) - g.t;
-            f.add(
-                &mut coefficients[g.ordinary_rows() + 3 * (i / width) + part][g.t + i % width],
-                weight,
-            );
-            let ordinary_width = g.k - g.t;
-            f.sub(
-                &mut coefficients[w / ordinary_width][g.t + w % ordinary_width],
-                weight,
-            );
-        }
-    }
     let v = vanish(&omega, f);
     let selector: Vec<_> = (0..g.k)
         .map(|i| if i < g.t { f.zero() } else { f.one() })
@@ -258,32 +243,12 @@ pub(in crate::runtime::polygero) fn check<
             .map(|i| eval(&n, &domain.point(i), f))
             .collect::<Vec<_>>()
     );
-    // Check the packed-row layout against W independently of open_columns.
-    // Product outputs remain in the commitment but are absent from the proof.
+    // All committed rows are transmitted in row order at the sampled columns.
     let indices = transcript::queries(&mut ts.clone(), p, &proof.h, &proof.z, f);
-    let product_start = 2 + g.ordinary_rows();
-    let mut sent_rows: Vec<_> = (0..product_start).collect();
-    for group in 0..g.product_groups() {
-        sent_rows.push(product_start + 3 * group);
-        sent_rows.push(product_start + 3 * group + 1);
-    }
-    sent_rows.push(fstar);
-    assert_eq!(proof.rows.len(), (g.nrow() - g.product_groups()) * g.t);
-    for i in 0..sent_rows.len() {
-        let row = sent_rows[i];
+    assert_eq!(proof.rows.len(), g.nrow() * g.t);
+    for row in 0..g.nrow() {
         for query in 0..indices.len() {
-            assert_eq!(proof.rows[i * g.t + query], prover.w[row][indices[query]]);
-        }
-    }
-    // Derive each virtual product value independently at the queried columns.
-    for group in 0..g.product_groups() {
-        let start = (product_start + 2 * group) * g.t;
-        let pair = &proof.rows[start..start + 2 * g.t];
-        for query in 0..indices.len() {
-            assert_eq!(
-                f.mulf(&pair[query], &pair[g.t + query]),
-                prover.w[product_start + 3 * group + 2][indices[query]],
-            );
+            assert_eq!(proof.rows[row * g.t + query], prover.w[row][indices[query]]);
         }
     }
     // Reopen genuine columns after changing the response: authentication must

@@ -30,9 +30,9 @@
 //! ```
 //!
 //! In Longfellow v2, the prover first commits to the private inputs, secret pads,
-//! and the products of each layer's two final-claim pads. It then sends sumcheck
-//! messages with those pads subtracted. Both parties derive the same public
-//! challenges and final input weights from the circuit and the masked transcript.
+//! and four terminal cells p_A,p_B,p_AB,p_D per layer. Round messages have their
+//! pads subtracted. Both parties derive the same public challenges and final
+//! input weights from the circuit and the masked transcript.
 //! The trusted layer's weighted constant contribution K is subtracted before
 //! its rounds. Its linear contribution is folded into q_l; after the rounds,
 //! L(u) denotes the public linear-coefficient contraction at the sampled point.
@@ -43,14 +43,21 @@
 //! the final evaluations of `W` and `q_l`, called `A` and `B`, must satisfy:
 //!
 //! ```text
-//! A = m_A + p_A,  B = m_B + p_B
-//! claim - A*B = 0
+//! d = A*p_B + B*p_A - p_D       (sent before sampling nonzero r)
+//! m_A = A + r*p_A,  m_B = B + r*p_B
+//! claim + r*(d+p_D) + r^2*p_AB - m_A*m_B = 0
 //! claim_next = A + alpha*(B - L(u)).
 //! ```
 //!
-//! Expanding `claim - A*B` leaves an affine expression minus `p_A*p_B`. We record
-//! that constraint and continue with `claim_next`. Both K and L(u) come from
-//! circuit coefficients and verifier challenges, not extra prover messages.
+//! Honest pads have p_AB=p_A*p_B, which makes the terminal equation exact.
+//! The backend need not enforce this multiplication: for fixed A,B and committed
+//! cells, its error is a polynomial in r with constant coefficient claim-A*B.
+//! A false product claim therefore has at most two roots among the nonzero
+//! challenges. As usual, later layer checks justify the claimed A,B; alpha is
+//! sampled only after both masked values are bound. The independent p_D hides
+//! the cross coefficient, and excluding r=0 keeps both final values masked.
+//! Both K and L(u) come from circuit coefficients and verifier challenges,
+//! not extra prover messages.
 //! At the end we also record
 //! `claim - sum_i input_weights[i] * W[i] = 0`, where `W` is now the circuit input.
 //! Affine pad expressions use sparse lists of `(pad, coefficient)` terms; the
@@ -58,11 +65,9 @@
 //!
 //! Both prover and verifier pass these constraints to the v2 constraint compiler.
 //! It substitutes public inputs, maps symbolic pads to committed positions, and
-//! uses the committed product slots for `p_A*p_B`. Polygero proves and verifies
-//! the resulting linear constraints and the constraints on those product slots.
-//! Thus each circuit layer contributes one linear constraint and one pad-product
-//! constraint, followed by one final linear constraint connecting the input claim
-//! to the committed inputs.
+//! authenticates the resulting linear equations with Polygero. Each circuit
+//! layer contributes one linear constraint, followed by one final constraint
+//! connecting the input claim to the committed inputs.
 
 use crate::{
     core::algebra::SerializableField,
@@ -102,10 +107,22 @@ pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + Serializabl
         for (round, z) in challenges.point_l.into_iter().enumerate() {
             claim.round(layer, round, &messages.rounds[round].coefficients, &z, f);
         }
-        claim.subtract_claim_product(layer, &messages.claims, f);
+        claim.terminal_constraint(
+            layer,
+            &messages.claims,
+            &messages.cross,
+            &challenges.terminal,
+            f,
+        );
         layers.push(claim);
         let correction = f.mulf(&challenges.alpha, &challenges.linear);
-        claim = PadExpression::claim_next(layer, &messages.claims, challenges.alpha, f);
+        claim = PadExpression::claim_next(
+            layer,
+            &messages.claims,
+            challenges.alpha,
+            challenges.terminal,
+            f,
+        );
         f.sub(&mut claim.constant, &correction);
     }
     Constraints {
@@ -116,12 +133,11 @@ pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + Serializabl
 }
 
 /// Constraints produced by symbolically running all rounds and layer transitions.
-/// Each layer contributes one product constraint; the final constraint connects
+/// Each layer contributes one affine terminal constraint; the final constraint connects
 /// the last claim to the circuit inputs.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Constraints<E> {
-    /// For layer `j`: `layers[j] - p_A[j] * p_B[j] = 0`.
-    /// Only the affine part is stored; the pad-product term is implicit.
+    /// Complete affine terminal equations, including the r^2*p_AB term.
     pub(crate) layers: Vec<PadExpression<E>>,
     /// Final claim, giving `input_claim - sum_i input_weights[i] * W[i] = 0`.
     pub(crate) input_claim: PadExpression<E>,
@@ -142,6 +158,10 @@ pub(crate) struct PadExpression<E> {
 /// This lets constraints refer to pads before assigning committed witness positions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Pad {
+    /// Committed scalar, honestly initialized as p_A*p_B but not checked as a product.
+    Product { layer: usize },
+    /// Independent pad hiding the cross coefficient before the terminal challenge.
+    Cross { layer: usize },
     /// Pad subtracted from one of a round's two polynomial coefficients.
     Round {
         /// Zero-based layer index, from circuit outputs toward inputs.
@@ -154,13 +174,13 @@ pub(crate) enum Pad {
         /// Here p(x) = c0 + c1*x + c2*x^2 and c2 = claim - c0.
         slot: usize,
     },
-    /// Pad subtracted from one of the layer's two final claims.
+    /// Pad added with the nonzero terminal scale r to a final claim.
     Claim {
         /// Zero-based layer index, from circuit outputs toward inputs.
         layer: usize,
         /// Position in the layer's two-claim message:
-        /// `0` names `p_A` in `message[0] = A - p_A`;
-        /// `1` names `p_B` in `message[1] = B - p_B`.
+        /// `0` names `p_A` in `message[0] = A + r*p_A`;
+        /// `1` names `p_B` in `message[1] = B + r*p_B`.
         slot: usize,
     },
 }
@@ -214,38 +234,34 @@ impl<E: Clone> PadExpression<E> {
         self.terms.extend([(s0, one_minus_z2), (s1, z.clone())]);
     }
 
-    /// Form the affine part of the constraint `claim - A*B = 0`:
-    ///
-    /// ```text
-    /// claim - m_A*m_B - m_B*p_A - m_A*p_B.
-    /// ```
-    ///
-    /// The remaining term `-p_A*p_B` is implicit in `Constraints::layers`.
-    fn subtract_claim_product<const W: usize, F: RuntimeField<W, E = E>>(
+    /// Add r*(d+p_D)+r^2*p_AB-m_A*m_B to the running claim. Every hidden
+    /// value now appears linearly, including the unchecked product cell.
+    fn terminal_constraint<const W: usize, F: RuntimeField<W, E = E>>(
         &mut self,
         layer: usize,
         messages: &[E; 2],
+        cross: &E,
+        terminal: &E,
         f: &F,
     ) {
         let [m_a, m_b] = messages;
-        // Subtract the constant m_A*m_B in (m_A+p_A)*(m_B+p_B).
         f.fnms(&mut self.constant, m_a, m_b);
-        // The two cross terms are -m_B*p_A and -m_A*p_B; their signs are
-        // already those of the constraint and pass unchanged to the compiler.
+        f.fma(&mut self.constant, terminal, cross);
         self.terms.extend([
-            (Pad::Claim { layer, slot: 0 }, f.neg(m_b)),
-            (Pad::Claim { layer, slot: 1 }, f.neg(m_a)),
+            (Pad::Cross { layer }, terminal.clone()),
+            (Pad::Product { layer }, f.mulf(terminal, terminal)),
         ]);
     }
 
     /// Combine `A` and `B` into one claim for the next layer:
-    /// `(m_A + alpha*m_B) + p_A + alpha*p_B`.
+    /// `(m_A + alpha*m_B) - r*p_A - alpha*r*p_B`.
     /// Earlier round pads occur only in the constraint just recorded; this new
     /// claim depends only on the two final-claim pads.
     fn claim_next<const W: usize, F: RuntimeField<W, E = E>>(
         layer: usize,
         messages: &[E; 2],
         alpha: E,
+        terminal: E,
         f: &F,
     ) -> Self {
         let mut constant = messages[0].clone();
@@ -253,8 +269,11 @@ impl<E: Clone> PadExpression<E> {
         Self {
             constant,
             terms: vec![
-                (Pad::Claim { layer, slot: 0 }, f.one()),
-                (Pad::Claim { layer, slot: 1 }, alpha),
+                (Pad::Claim { layer, slot: 0 }, f.neg(&terminal)),
+                (
+                    Pad::Claim { layer, slot: 1 },
+                    f.neg(&f.mulf(&alpha, &terminal)),
+                ),
             ],
         }
     }
@@ -265,6 +284,8 @@ impl<E: Clone> PadExpression<E> {
 /// to give the claim for the next layer.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct LayerChallenges<E> {
+    /// Nonzero scale sampled after the cross message, before the masked claims.
+    pub(crate) terminal: E,
     /// Public constant contribution to subtract before the dot-product rounds.
     pub(crate) constant: E,
     /// Public linear evaluation to subtract from the final B claim.

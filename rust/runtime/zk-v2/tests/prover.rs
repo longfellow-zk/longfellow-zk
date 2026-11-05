@@ -20,7 +20,6 @@ use crate::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
         },
         polygero::{PolygeroConfig, PolygeroParam, PolygeroVerifier},
-        proto::zk_v2::product_constraints,
         random::{DeterministicRng, RandomEngine},
         zk_v2::{constraint_compiler, transcript::statement_digest, ZkContext},
     },
@@ -184,13 +183,8 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         )
         .unwrap();
 
-    let independent_products = product_constraints(
-        reference.inner.backend.layout.suffix_start,
-        &geometry.sc_geom,
-    );
     let independent_param = PolygeroParam::try_new(
         reference.inner.backend.layout.witness_count,
-        &independent_products,
         prover.config,
         &domain,
         &f,

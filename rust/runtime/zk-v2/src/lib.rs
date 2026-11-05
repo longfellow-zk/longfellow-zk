@@ -14,7 +14,7 @@
 
 //! Longfellow v2 composes projective sumcheck with nonrecursive Polygero.
 //!
-//! Commit the packed private inputs, packing masks, sumcheck pads, and pad products.
+//! Commit the packed private inputs, packing masks, sumcheck pads, and terminal cells.
 //! Then run sumcheck on the same transcript with the public inputs bound. Its
 //! symbolic constraints describe the checks on those hidden values. Reduce the
 //! input claim to two packing equations (one direct equation for degree one),
@@ -35,7 +35,7 @@ pub use context::{CircuitInput, ZkContext};
 mod constraint_compiler;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-pub use crate::runtime::proto::zk_v2::{witness_and_constraint_count, ZkProof, ZkProofGeometry};
+pub use crate::runtime::proto::zk_v2::{ZkProof, ZkProofGeometry};
 cfg_prover! { mod prover; pub use prover::{ZkProver, ZkProverCommitment}; }
 cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}; }
 

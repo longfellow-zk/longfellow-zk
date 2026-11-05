@@ -17,7 +17,8 @@
 //! The statement binds the trusted circuit ID and public inputs. `begin` then
 //! samples weights for the circuit outputs. Each layer samples its assertion
 //! coefficients before any rounds; each round absorbs both masked coefficients
-//! before sampling z. `end_layer` absorbs the final-claim pair before sampling
+//! before sampling z. Bind the cross coefficient before sampling nonzero r,
+//! then `end_layer` absorbs the scaled final-claim pair before sampling
 //! alpha, which combines those two claims for the next layer.
 
 use crate::{
@@ -85,7 +86,7 @@ pub(super) fn begin<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     f: &F,
 ) -> Vec<F::E> {
     assert!(crate::runtime::sumcheck_v2::sane_logw(circuit.raw.logv));
-    transcript.write_bytes(b"longfellow-sumcheck-v2-projective");
+    transcript.write_bytes(b"longfellow-sumcheck-v2-projective-linear-terminal-v1");
     let point_g = transcript.elt_field_slice(circuit.raw.logv, f);
     monomial::weights(circuit.raw.logv, circuit.raw.noutput, &point_g, f)
 }
@@ -139,4 +140,22 @@ pub(super) fn end_layer<
     transcript.write_elt_field_slice(claims, f);
     transcript.write_bytes(b"single-hand-combine");
     transcript.elt_field(f)
+}
+
+/// Fix d before sampling the nonzero mask scale r. The resulting equation
+/// C+r*(d+p_D)+r^2*p_AB=(A+r*p_A)*(B+r*p_B) is linear in committed cells.
+/// Excluding zero keeps both terminal values masked.
+pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
+    cross: &F::E,
+    transcript: &mut Transcript,
+    f: &F,
+) -> F::E {
+    transcript.write_bytes(b"single-hand-linear-terminal/v1");
+    transcript.write_elt_field(cross, f);
+    loop {
+        let r = transcript.elt_field(f);
+        if !f.is_zero(&r) {
+            return r;
+        }
+    }
 }

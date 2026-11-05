@@ -32,22 +32,24 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
                     };
                     3
                 ],
+                cross: f.zero(),
                 claims: [f.one(), f.zero()],
             },
             LayerProof {
                 rounds: vec![],
+                cross: f.zero(),
                 claims: [f.zero(), f.one()],
             },
         ],
     };
     let geometry = proof.geometry();
-    assert_eq!(geometry.serialized_elements().unwrap(), 10);
+    assert_eq!(geometry.serialized_elements().unwrap(), 12);
     let layout = geometry.pad_layout(7);
     assert_eq!(layout.layers[0].rounds[2], [11, 12]);
-    assert_eq!(layout.layers[0].claims, [13, 14, 15]);
-    assert_eq!(layout.layers[1].claims, [16, 17, 18]);
+    assert_eq!(layout.layers[0].claims, [13, 14]);
+    assert_eq!(layout.layers[1].claims, [17, 18]);
     let bytes = proof.write(&geometry, &f).unwrap();
-    assert_eq!(bytes.len(), 10 * f.serialized_size_bytes());
+    assert_eq!(bytes.len(), 12 * f.serialized_size_bytes());
     assert_eq!(
         SumcheckProof::read(&mut bytes.as_slice(), &geometry, &f).unwrap(),
         proof
@@ -79,13 +81,14 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
                     };
                     logw
                 ],
+                cross: f.zero(),
                 claims: [f.one(), f.zero()],
             }],
         };
         let geometry = proof.geometry();
-        assert_eq!(geometry.serialized_elements().unwrap(), 2 * logw + 2);
+        assert_eq!(geometry.serialized_elements().unwrap(), 2 * logw + 3);
         let layout = geometry.pad_layout(7);
-        assert_eq!(layout.layers[0].claims[2] + 1, 7 + pad_count(logw));
+        assert_eq!(layout.layers[0].cross + 1, 7 + pad_count(logw));
         let bytes = proof.write(&geometry, &f).unwrap();
         let mut remaining = bytes.as_slice();
         assert_eq!(
@@ -114,6 +117,7 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
                 };
                 MAX_LOGW + 1
             ],
+            cross: f.zero(),
             claims: [f.one(), f.zero()],
         }],
     };

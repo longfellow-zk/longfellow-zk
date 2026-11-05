@@ -62,7 +62,9 @@ behavior, and proof encoding.
 
 **Longfellow v2 is still evolving and is not final.**
 It introduces projective sumcheck and replaces Ligero with nonrecursive
-Polygero. V1 remains supported. Fiat–Shamir challenges currently use a SHA-256
+Polygero. A fresh challenge at each sumcheck terminal makes all commitment
+constraints linear, eliminating Polygero's product-copy rows. V1 remains supported.
+Fiat–Shamir challenges currently use a SHA-256
 transcript accumulator and an AES-256 pseudorandom generator.
 
 In particular, the Fiat–Shamir transcript will change to conform to the CFRG
@@ -94,11 +96,13 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
 assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**117-bit extraction security** for its earlier authenticated two-field model:
-`Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`. That model uses unpacked
-inputs and earlier hash parameters; the bound does not yet cover the current
-packed mdoc verifier. Its circuit/MAC correspondence and ideal-sampler premises
-are documented in the [audit](../formal/AUDIT.md).
+**117-bit extraction security** for the packed authenticated two-field model at
+`fcf8a3a`: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`. This includes
+packing and native affine sumcheck, with circuit/MAC correspondence and
+ideal-sampler premises documented in the [audit](../formal/AUDIT.md).
+That model retains quadratic backend checks. The current
+[linear terminal reduction](runtime/sumcheck-v2/README.md) needs a separate
+formal adaptation before applying this numerical bound.
 Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
 the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
@@ -115,8 +119,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 159.1 ms | 91.0 ms | 186,344 | 43.40 MiB | 34.33 MiB |
-| 4 | 169.4 ms | 95.0 ms | 186,760 | 48.10 MiB | 37.38 MiB |
+| 2 | 154.9 ms | 89.7 ms | 177,792 | 43.00 MiB | 34.33 MiB |
+| 4 | 164.5 ms | 92.0 ms | 179,808 | 47.70 MiB | 37.38 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|

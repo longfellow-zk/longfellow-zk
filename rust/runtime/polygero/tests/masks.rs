@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Ambient-field masking, product rows, and privacy under witness translations.
+//! Ambient-field masking and privacy under witness translations.
 use super::*;
 
 struct MaskRng {
@@ -27,27 +27,13 @@ where
         n: 64,
         t: 2,
     };
-    let products = [
-        PolygeroProductConstraint { x: 0, y: 1, z: 2 },
-        PolygeroProductConstraint { x: 4, y: 3, z: 5 },
-        PolygeroProductConstraint { x: 6, y: 7, z: 8 },
-        PolygeroProductConstraint { x: 0, y: 20, z: 21 },
-        PolygeroProductConstraint {
-            x: 22,
-            y: 23,
-            z: 24,
-        },
-    ];
     let mut rng = DeterministicRng::new(61723);
     for fixed_prefix in [0, 6, 30] {
         let mut witness = rng.elt_field_slice(30, f);
         for value in &mut witness[..fixed_prefix] {
             *value = f.one();
         }
-        for p in products {
-            witness[p.z] = f.mulf(&witness[p.x], &witness[p.y]);
-        }
-        let param = PolygeroParam::try_new(witness.len(), &products, config, domain, f).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, domain, f).unwrap();
         let geometry = param.geometry();
         let mut mask_rng = MaskRng {
             inner: DeterministicRng::new(42),
@@ -60,16 +46,13 @@ where
             &mut mask_rng,
             f,
         );
-        let expected_samples = 3 * geometry.k
-            + geometry.s
-            + geometry.t * geometry.ordinary_rows()
-            + 2 * geometry.t * geometry.product_groups();
+        let expected_samples = 3 * geometry.k + geometry.s + geometry.t * geometry.data_rows();
         assert_eq!(mask_rng.samples, expected_samples);
 
         // Recover each ordinary row's logical samples and its unchanged witness.
         let decoder = domain.make_range(geometry.k..2 * geometry.k, 0..geometry.k);
-        let width = geometry.ordinary_width();
-        for row in 0..geometry.ordinary_rows() {
+        let width = geometry.row_width();
+        for row in 0..geometry.data_rows() {
             let samples = decoder.apply(&w[2 + row][..geometry.k]);
             let end = ((row + 1) * width).min(witness.len());
             assert_eq!(
@@ -80,16 +63,10 @@ where
                 .iter()
                 .any(|v| *v != f.zero() && *v != f.one()));
         }
-        let first_product = 2 + geometry.ordinary_rows();
-        for group in 0..geometry.product_groups() {
-            let rows = &w[first_product + 3 * group..first_product + 3 * group + 3];
-            for column in 0..geometry.n {
-                assert_eq!(rows[2][column], f.mulf(&rows[0][column], &rows[1][column]));
-            }
-        }
+        // Invalid witness lengths fail before consuming randomness or transcript.
+        let param = PolygeroParam::try_new(witness.len(), config, domain, f).unwrap();
         let mut invalid = witness;
-        f.add(&mut invalid[products[0].z], &f.one());
-        let param = PolygeroParam::try_new(invalid.len(), &products, config, domain, f).unwrap();
+        invalid.pop();
         let mut rejected_rng = MaskRng {
             inner: DeterministicRng::new(42),
             samples: 0,
@@ -146,7 +123,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
             n: 64,
             t,
         };
-        let param = PolygeroParam::try_new(witness.len(), &[], config, &domain, &field).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, &domain, &field).unwrap();
         let geometry = param.geometry();
         let verifier_param = param.clone();
         let mut prover_ts = Transcript::new(b"polygero/ordinary-only");
@@ -163,7 +140,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
             .prove(&[], &mut prover_ts, &[], &statement, &domain, &field)
             .unwrap();
         assert!(
-            proof.rows[2 * geometry.t..(2 + geometry.ordinary_rows()) * geometry.t]
+            proof.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
                 .iter()
                 .any(|value| *value != field.zero() && *value != field.one())
         );

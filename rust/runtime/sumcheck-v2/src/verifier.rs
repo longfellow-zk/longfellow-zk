@@ -18,16 +18,16 @@
 //! proof, then substitute the supplied input vector and secret pads. Each
 //! constraint becomes a field residual that must be zero.
 //!
-//! For a layer's final round claim C, the two messages hide A and B:
+//! For a layer's final round claim C, a cross message d precedes the nonzero
+//! challenge r and the two masked values m_A,m_B:
 //!
 //! ```text
-//! A = m_A + p_A,  B = m_B + p_B,
-//! E = C - m_A*m_B - m_B*p_A - m_A*p_B,
-//! layer_residual = E - p_A*p_B = C - A*B.
+//! layer_residual = C + r*(d+p_D) + r^2*p_AB - m_A*m_B.
 //! ```
 //!
-//! The symbolic builder stores only the affine expression E. Evaluate it with
-//! the revealed pads, then subtract the omitted product. After the last layer,
+//! This diagnostic uses honest p_AB=p_A*p_B. The production backend accepts
+//! arbitrary committed p_AB and authenticates the same affine equation;
+//! soundness comes from the fresh r, as explained in `symbolic`. After the last layer,
 //! also check input_residual = input_claim - sum_i input_weights[i]*inputs[i].
 //!
 //! This diagnostic verifier requires complete inputs and pads and is not used
@@ -112,13 +112,8 @@ impl<E: Clone> Constraints<E> {
             return Err("sumcheck constraint input shape mismatch".into());
         }
         let mut residuals = Vec::with_capacity(self.layers.len() + 1);
-        for (expression, layer_pads) in self.layers.iter().zip(&pads.layers) {
-            // The expression stores E = C - m_A*m_B - m_B*p_A - m_A*p_B.
-            // Restore its omitted quadratic term to obtain C - A*B.
-            let mut residual = expression.evaluate(pads, f)?;
-            let [p_a, p_b] = &layer_pads.claims;
-            f.fnms(&mut residual, p_a, p_b);
-            residuals.push(residual);
+        for expression in &self.layers {
+            residuals.push(expression.evaluate(pads, f)?);
         }
         // input_claim - sum_i input_weights[i]*inputs[i] = 0.
         let mut input_residual = self.input_claim.evaluate(pads, f)?;
@@ -141,7 +136,7 @@ impl<E: Clone> PadExpression<E> {
     ) -> Result<E, String> {
         let mut value = self.constant.clone();
         for (pad, k) in &self.terms {
-            f.fma(&mut value, k, pad_value(*pad, pads)?);
+            f.fma(&mut value, k, &pad_value(*pad, pads, f)?);
         }
         Ok(value)
     }
@@ -149,20 +144,28 @@ impl<E: Clone> PadExpression<E> {
 
 /// Resolve a symbolic pad coordinate in the revealed proof-shaped pad array.
 /// Round slots 0,1 hold the pads for c0,c1; claim slots 0,1 hold p_A,p_B.
-fn pad_value<const W: usize, F: SerializableField>(
+fn pad_value<const W: usize, F: RuntimeField<W> + SerializableField>(
     pad: Pad,
     pads: &SumcheckProof<W, F>,
-) -> Result<&F::E, String> {
+    f: &F,
+) -> Result<F::E, String> {
     match pad {
+        Pad::Product { layer } => pads
+            .layers
+            .get(layer)
+            .map(|p| f.mulf(&p.claims[0], &p.claims[1])),
+        Pad::Cross { layer } => pads.layers.get(layer).map(|p| p.cross.clone()),
         Pad::Round { layer, round, slot } => pads
             .layers
             .get(layer)
             .and_then(|layer_pads| layer_pads.rounds.get(round))
-            .and_then(|RoundPoly { coefficients }| coefficients.get(slot)),
+            .and_then(|RoundPoly { coefficients }| coefficients.get(slot))
+            .cloned(),
         Pad::Claim { layer, slot } => pads
             .layers
             .get(layer)
-            .and_then(|layer_pads| layer_pads.claims.get(slot)),
+            .and_then(|layer_pads| layer_pads.claims.get(slot))
+            .cloned(),
     }
     .ok_or_else(|| "sumcheck constraint pad shape mismatch".into())
 }

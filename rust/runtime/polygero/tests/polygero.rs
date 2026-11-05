@@ -176,21 +176,7 @@ fn exercise<
         (30, 8, 0),
         (30, 8, 12),
     ] {
-        let mut witness = rng.elt_field_slice(nw, f);
-        let products = if nw >= 5 {
-            witness[2] = f.mulf(&witness[0], &witness[1]);
-            witness[3] = f.mulf(&witness[0], &witness[0]);
-            witness[4] = f.mulf(&witness[1], &witness[1]);
-            (0..9)
-                .map(|i| match i % 3 {
-                    0 => PolygeroProductConstraint { x: 0, y: 1, z: 2 },
-                    1 => PolygeroProductConstraint { x: 0, y: 0, z: 3 },
-                    _ => PolygeroProductConstraint { x: 1, y: 1, z: 4 },
-                })
-                .collect::<Vec<_>>()
-        } else {
-            vec![]
-        };
+        let witness = rng.elt_field_slice(nw, f);
         let config = PolygeroConfig { k, s, n: 64, t: 2 };
         let statement = Digest { data: [7; 32] };
         let bounded = BoundedDomain {
@@ -198,8 +184,8 @@ fn exercise<
             limit: k + config.n,
         };
         let d = &bounded;
-        let p = PolygeroParam::try_new(nw, &products, config, d, f).unwrap();
-        let vp = PolygeroParam::try_new(nw, &products, config, d, f).unwrap();
+        let p = PolygeroParam::try_new(nw, config, d, f).unwrap();
+        let vp = PolygeroParam::try_new(nw, config, d, f).unwrap();
         assert_eq!(vp.oracle_range(), k..k + config.n);
         let mut ts = Transcript::new(b"polygero/test");
         let before = ts.clone();
@@ -291,8 +277,8 @@ fn exercise<
             "Polygero commitment was not received"
         );
 
-        if !products.is_empty() {
-            super::prover::reference::check_virtual_product_binding(
+        if nw != 0 {
+            super::prover::reference::check_recommitted_wrong_witness(
                 &reference,
                 &b,
                 &a,
@@ -309,7 +295,7 @@ fn exercise<
                       commitment: &PolygeroCommitment,
                       hash: &Digest| {
             let mut verifier_ts = Transcript::new(b"polygero/test");
-            let verifier_param = PolygeroParam::try_new(nw, &products, config, d, f).unwrap();
+            let verifier_param = PolygeroParam::try_new(nw, config, d, f).unwrap();
             let mut v = PolygeroVerifier::new(verifier_param);
             v.receive_commitment(commitment, &mut verifier_ts);
             v.verify(
@@ -349,7 +335,7 @@ fn exercise<
         let decoded = crate::runtime::proto::polygero::read(&mut input, &vp.geom, f).unwrap();
         assert!(input.is_empty());
         assert_eq!(decoded, proof);
-        for which in 0..if products.is_empty() { 17 } else { 19 } {
+        for which in 0..17 {
             let mut bad = proof.clone();
             match which {
                 0 => f.add(&mut bad.h[0], &f.one()),
@@ -385,8 +371,7 @@ fn exercise<
                     }
                 }
                 11 => {
-                    // The trailing fstar is transmitted and authenticated even
-                    // when no product rows precede it.
+                    // The trailing masking row is transmitted and authenticated.
                     let start = bad.rows.len() - vp.geom.t;
                     f.add(&mut bad.rows[start], &f.one());
                 }
@@ -397,12 +382,7 @@ fn exercise<
                 14 => bad.rows.push(f.zero()),
                 15 => bad.h.push(f.zero()),
                 16 => bad.z.push(f.zero()),
-                _ => {
-                    // Changing either product input changes the reconstructed
-                    // output as well; the full committed column must reject it.
-                    let row = vp.data_start() + vp.geom.ordinary_rows() + which - 17;
-                    f.add(&mut bad.rows[row * vp.geom.t], &f.one());
-                }
+                _ => unreachable!(),
             }
             let error = verify(&bad, &b, &a, &com, &statement)
                 .expect_err(&format!("accepted mutation {which}"));
@@ -465,8 +445,8 @@ fn exercise<
             }
             if !f.is_binary() {
                 let mut noncanonical = bytes.clone();
-                // The first field element follows the version and six u32 counts.
-                noncanonical[28..28 + f.serialized_size_bytes()].fill(255);
+                // The first field element follows the version and five u32 counts.
+                noncanonical[24..24 + f.serialized_size_bytes()].fill(255);
                 assert!(crate::runtime::proto::polygero::read(
                     &mut noncanonical.as_slice(),
                     &vp.geom,
@@ -490,7 +470,7 @@ fn exercise<
             t: config.k,
             ..config
         };
-        assert!(PolygeroParam::try_new(nw, &products, invalid, d, f).is_err());
+        assert!(PolygeroParam::try_new(nw, invalid, d, f).is_err());
     }
 }
 #[test]
@@ -586,7 +566,7 @@ fn reject_invalid_geometry_and_backend_contracts() {
             inner: &domain,
             kind,
         };
-        assert!(PolygeroParam::try_new(2, &[], config, &broken, &f).is_err());
+        assert!(PolygeroParam::try_new(2, config, &broken, &f).is_err());
     }
     for bad in [
         PolygeroConfig {
@@ -597,16 +577,8 @@ fn reject_invalid_geometry_and_backend_contracts() {
         PolygeroConfig { t: 0, ..config },
         PolygeroConfig { t: 8, ..config },
     ] {
-        assert!(PolygeroParam::try_new(2, &[], bad, &domain, &f).is_err());
+        assert!(PolygeroParam::try_new(2, bad, &domain, &f).is_err());
     }
-    assert!(PolygeroParam::try_new(
-        2,
-        &[PolygeroProductConstraint { x: 2, y: 0, z: 0 }],
-        config,
-        &domain,
-        &f
-    )
-    .is_err());
 }
 #[test]
 fn merkle_codecs_bind_role_index_context_and_salt() {
@@ -738,11 +710,9 @@ fn binary_profile_fits_exact_original_point_table() {
     assert!(config.can_interpolate(&domain));
     assert!(!domain.can_interpolate(0..config.k, 256..448));
     let mut rng = DeterministicRng::new(963852);
-    let mut witness = rng.elt_field_slice(3, &f);
-    witness[2] = f.mulf(&witness[0], &witness[1]);
-    let products = [PolygeroProductConstraint { x: 0, y: 1, z: 2 }];
+    let witness = rng.elt_field_slice(3, &f);
     let statement = Digest::default();
-    let param = PolygeroParam::try_new(3, &products, config, &domain, &f).unwrap();
+    let param = PolygeroParam::try_new(3, config, &domain, &f).unwrap();
     assert_eq!(param.oracle_range().end, 256);
     let verifier_param = param.clone();
     let mut ts = Transcript::new(b"polygero/tight-table");

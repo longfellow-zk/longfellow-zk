@@ -12,9 +12,7 @@ use crate::{
         },
         proto::{
             dual_packing::PackingProof,
-            polygero::{
-                PolygeroCommitment, PolygeroGeometry, PolygeroProductConstraint, PolygeroProof,
-            },
+            polygero::{PolygeroCommitment, PolygeroGeometry, PolygeroProof},
             sumcheck_v2::{SumcheckProof, SumcheckProofGeometry},
         },
     },
@@ -85,7 +83,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
                 if g.packing_degree > 1 && u.len() == g.packing_degree => {}
             _ => return Err(Error::new(ErrorKind::InvalidData, "v2 packing shape")),
         }
-        buf.extend_from_slice(b"LFV4");
+        buf.extend_from_slice(b"LFV5");
         buf.extend_from_slice(&self.com.root.data);
         self.sumcheck_proof.write_to_buf(buf, &g.sc_geom, f)?;
         if let PackingProof::TraceZero { u, a } = &self.packing {
@@ -102,7 +100,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     }
     pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
-        if b.get(..4) != Some(b"LFV4") {
+        if b.get(..4) != Some(b"LFV5") {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "Longfellow v2 version marker",
@@ -163,27 +161,13 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
 pub fn packing_layout<F: SerializableField + PackingField>(
     c: &Circuit<F>,
     f: &F,
-) -> Result<
-    (
-        PackingLayout,
-        SumcheckProofGeometry,
-        Vec<PolygeroProductConstraint>,
-    ),
-    String,
-> {
+) -> Result<(PackingLayout, SumcheckProofGeometry), String> {
     packing_layout_with_degree(c, f.packing_extension().degree())
 }
 pub fn packing_layout_with_degree<F: SerializableField>(
     c: &Circuit<F>,
     degree: usize,
-) -> Result<
-    (
-        PackingLayout,
-        SumcheckProofGeometry,
-        Vec<PolygeroProductConstraint>,
-    ),
-    String,
-> {
+) -> Result<(PackingLayout, SumcheckProofGeometry), String> {
     let sc = SumcheckProofGeometry::from_circuit(c);
     sc.serialized_elements().map_err(|e| e.to_string())?;
     let pads = sc.logw_layers.iter().try_fold(0usize, |n, &l| {
@@ -198,28 +182,12 @@ pub fn packing_layout_with_degree<F: SerializableField>(
         pads,
         degree,
     )?;
-    let products = product_constraints(layout.suffix_start, &sc);
-    Ok((layout, sc, products))
+    Ok((layout, sc))
 }
 pub fn commitment_layout<F: SerializableField + PackingField>(
     c: &Circuit<F>,
     f: &F,
-) -> (SumcheckProofGeometry, usize, Vec<PolygeroProductConstraint>) {
-    let (l, s, p) = packing_layout(c, f).expect("valid commitment layout");
-    (s, l.witness_count, p)
-}
-pub(crate) fn product_constraints(
-    start: usize,
-    g: &SumcheckProofGeometry,
-) -> Vec<PolygeroProductConstraint> {
-    g.claim_indices(start)
-        .map(|[x, y, z]| PolygeroProductConstraint { x, y, z })
-        .collect()
-}
-pub fn witness_and_constraint_count<F: SerializableField + PackingField>(
-    c: &Circuit<F>,
-    f: &F,
-) -> (usize, usize) {
-    let (_, nw, p) = commitment_layout(c, f);
-    (nw, p.len())
+) -> (SumcheckProofGeometry, usize) {
+    let (layout, geometry) = packing_layout(c, f).expect("valid commitment layout");
+    (geometry, layout.witness_count)
 }

@@ -15,8 +15,7 @@
 //! Interpolation capacity and sparse linear terms for a Polygero invocation.
 //!
 //! The caller selects k, s, n, t. `PolygeroParam` validates them against the
-//! witness layout and interpolation backend. Linear terms describe A*w+b=0;
-//! product constraints describe w[x]*w[y]=w[z] and are fixed before commitment.
+//! witness layout and interpolation backend. Linear terms describe A*w+b=0.
 
 #[cfg(any(test, feature = "prover", feature = "verifier", feature = "compiler"))]
 impl crate::runtime::proto::polygero::PolygeroConfig {
@@ -46,7 +45,6 @@ impl crate::runtime::proto::polygero::PolygeroConfig {
         [
             (0..self.k, oracle.clone()), // Rows, m, selector z_R, and verifier C_i.
             (0..self.k + 1, oracle.clone()), // Public vanishing polynomial V.
-            (0..self.k.div_ceil(2), oracle.clone()), // Product input rows.
             (0..self.k, self.k..self.k + double), // Prover C_i on Z's oracle points.
             (self.k..double, oracle.clone()), // Free arithmetic mask u.
             (self.k..self.k + work, oracle.clone()), // Primary mask and H verification.

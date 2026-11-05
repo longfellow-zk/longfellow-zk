@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Turn A*w + b = 0 and product-copy equalities into dense logical samples C_i.
+//! Turn A*w + b = 0 into dense logical samples C_i.
 //!
 //! The same routine serves both roles. Each returned vector has k entries and
 //! corresponds to one data row of W. Entry j is C_i(x_j), not a monomial
@@ -34,9 +34,8 @@ pub(super) fn validate<E>(
     )
 }
 
-/// Combine the equations A*w + b = 0 and the product-copy equalities using alpha.
-/// The first b.len() scalars weight linear equations; each product then has
-/// three scalars for its input and output copies. The constant contribution
+/// Combine the equations A*w + b = 0 using independent weights alpha.
+/// The constant contribution
 /// sum_c alpha[c]*b[c] is checked separately; these rows contain only variable
 /// weights. Return data rows in W order, excluding the three dedicated mask rows.
 pub(super) fn batch_constraints<const W: usize, F: RuntimeField<W>>(
@@ -47,48 +46,17 @@ pub(super) fn batch_constraints<const W: usize, F: RuntimeField<W>>(
     f: &F,
 ) -> Vec<Vec<F::E>> {
     let g = param.geom;
-    let (copy_weights, _) = alpha[b.len()..b.len() + 3 * g.nq].as_chunks::<3>();
-    let mut rows = {
-        let mut witness_coefficients = vec![f.zero(); g.nw];
-        // Accumulate all terms at their original witness indices, including repeats.
-        for term in a {
-            f.fma(&mut witness_coefficients[term.w], &alpha[term.c], &term.k);
-        }
-        // Each equality is weight * (copy - original) = 0. The positive copy
-        // coefficients are laid out below; subtract their weights at the originals.
-        for i in 0..g.nq {
-            let product = &param.products[i];
-            let weights = &copy_weights[i];
-            f.sub(&mut witness_coefficients[product.x], &weights[0]);
-            f.sub(&mut witness_coefficients[product.y], &weights[1]);
-            f.sub(&mut witness_coefficients[product.z], &weights[2]);
-        }
-
-        // Place ordinary coefficients after the T reserved mask slots. Unused
-        // slots stay zero; row boundaries follow contiguous witness blocks.
-        let mut rows = Vec::with_capacity(g.data_rows());
-        for block in witness_coefficients.chunks(g.ordinary_width()) {
-            let mut row = vec![f.zero(); g.k];
-            blas::copy(&mut row[g.t..g.t + block.len()], block);
-            rows.push(row);
-        }
-        rows
-    };
-
-    // Place positive copy weights in consecutive input/input/output row triples.
-    // The product width is needed only when there are product constraints.
-    if g.nq != 0 {
-        for group in copy_weights.chunks(g.product_width()) {
-            let mut triple: [Vec<F::E>; 3] = std::array::from_fn(|_| vec![f.zero(); g.k]);
-            for slot in 0..group.len() {
-                for part in 0..3 {
-                    // This is the +weight contribution. Each slot starts at zero
-                    // and has no other contributions, so assign instead of adding.
-                    triple[part][g.t + slot] = group[slot][part].clone();
-                }
-            }
-            rows.extend(triple);
-        }
+    assert_eq!(alpha.len(), b.len(), "constraint challenge count");
+    let mut witness_coefficients = vec![f.zero(); g.nw];
+    // Accumulate repeated terms at their original witness coordinates.
+    for term in a {
+        f.fma(&mut witness_coefficients[term.w], &alpha[term.c], &term.k);
+    }
+    let mut rows = Vec::with_capacity(g.data_rows());
+    for block in witness_coefficients.chunks(g.row_width()) {
+        let mut row = vec![f.zero(); g.k];
+        blas::copy(&mut row[g.t..g.t + block.len()], block);
+        rows.push(row);
     }
     rows
 }

@@ -15,25 +15,20 @@
 //! Lower symbolic sumcheck constraints into Polygero's sparse A*w+b=0 format.
 //!
 //! The committed vector starts with packed private inputs and packing masks,
-//! followed by each layer's round pads and final-claim pads p_A,p_B,p_A*p_B. Symbolic sumcheck
+//! followed by each layer's round pads and terminal cells p_A,p_B,p_AB,p_D. Symbolic sumcheck
 //! expressions instead name pads by (layer, round, slot), independently of this
 //! physical layout. Compilation replaces each logical pad with its committed
 //! coordinate and substitutes the known public-input prefix.
 //!
-//! A layer supplies E(p) = c + sum_{(p,k) in terms} k*p, with the constraint
-//!
-//! ```text
-//! sum_{(p,k) in terms} k*w[coordinate(p)] - w[product_slot] + c = 0.
-//! ```
-//!
-//! The product slot holds p_A*p_B. Preserve E's signed coefficients and constant;
-//! the coefficient -1 restores the product term left implicit by sumcheck.
+//! A layer supplies its complete affine terminal equation. Preserve its
+//! coefficients and constant, including the coefficient on the unchecked p_AB
+//! cell. The terminal challenge supplies soundness; no backend product check is needed.
 //! The final input claim substitutes public inputs and passes private weights
 //! to the packing reduction. Layer equations and the returned packing equations
 //! all have the form sum_w A[c,w]*w+b[c]=0.
 //!
-//! Both roles run this transformation after sumcheck. Product constraints and
-//! committed positions are fixed separately when preparing the circuit layout.
+//! Both roles run this transformation after sumcheck. Committed positions are
+//! fixed separately when preparing the circuit layout.
 use crate::runtime::{
     algebra::{blas, RuntimeField},
     polygero::PolygeroLinearTerm,
@@ -60,9 +55,11 @@ fn append_pad_terms<E: Clone>(
 }
 
 /// Resolve a logical pad while checking every layer/round/slot index. Claim
-/// expressions can reference p_A and p_B; their product slot is emitted separately.
+/// expressions can reference all four terminal cells directly.
 fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
     match pad {
+        Pad::Product { layer } => pads.layers.get(layer).map(|p| &p.product),
+        Pad::Cross { layer } => pads.layers.get(layer).map(|p| &p.cross),
         Pad::Round { layer, round, slot } => pads
             .layers
             .get(layer)
@@ -71,7 +68,7 @@ fn pad_coordinate(pad: Pad, pads: &CircuitPadLayout) -> Result<usize, String> {
         Pad::Claim { layer, slot } => pads
             .layers
             .get(layer)
-            .and_then(|layer_pads| layer_pads.claims[..2].get(slot)),
+            .and_then(|layer_pads| layer_pads.claims.get(slot)),
     }
     .copied()
     .ok_or_else(|| "sumcheck constraint pad shape mismatch".into())
@@ -97,21 +94,14 @@ fn validate<E>(
 #[path = "../tests/constraint_compiler.rs"]
 mod tests;
 
-fn compile_layers<const W: usize, F: RuntimeField<W>>(
-    constraints: &Constraints<F::E>,
+fn compile_layers<E: Clone>(
+    constraints: &Constraints<E>,
     pads: &CircuitPadLayout,
-    f: &F,
-) -> Result<(Vec<PolygeroLinearTerm<F::E>>, Vec<F::E>), String> {
+) -> Result<(Vec<PolygeroLinearTerm<E>>, Vec<E>), String> {
     let (mut a, mut b) = (Vec::new(), Vec::with_capacity(constraints.layers.len() + 1));
     for c in 0..constraints.layers.len() {
         let constraint = &constraints.layers[c];
         append_pad_terms(&mut a, c, constraint, pads)?;
-        // E(p) - p_A*p_B = 0: the product slot contributes with coefficient -1.
-        a.push(PolygeroLinearTerm {
-            c,
-            w: pads.layers[c].claims[2],
-            k: f.mone(),
-        });
         b.push(constraint.constant.clone());
     }
     Ok((a, b))
@@ -129,7 +119,7 @@ pub(super) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     if constraints.input_weights.len() != public.len() + layout.private_inputs {
         return Err("input claim shape".into());
     }
-    let (a, b) = compile_layers(&constraints, pads, f)?;
+    let (a, b) = compile_layers(&constraints, pads)?;
     let constant = f.subf(
         &constraints.input_claim.constant,
         &blas::dot(&constraints.input_weights[..public.len()], public, f),

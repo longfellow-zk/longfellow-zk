@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::{SerializableField, SupportsU128Conversions, SupportsU64Conversions},
+    core::algebra::{
+        AlgebraicField, SerializableField, SupportsU128Conversions, SupportsU64Conversions,
+    },
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
         sumcheck_v2::{
@@ -90,6 +92,7 @@ fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableFiel
             rounds: vec![RoundPoly {
                 coefficients: [element(5), element(9)],
             }],
+            cross: f.zero(),
             claims: [f.zero(), f.zero()],
         }],
     };
@@ -101,12 +104,14 @@ fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableFiel
                     f.subf(&c1, &pads.layers[0].rounds[0].coefficients[1]),
                 ],
             }],
+            cross: f.zero(),
             claims: [f.zero(), f.zero()],
         }],
     };
     for z in [f.zero(), f.one(), f.mone(), element(7)] {
         let expected = f.addf(&c0, &f.mulf(&z, &f.addf(&c1, &f.mulf(&z, &c2))));
         let layer_challenges = vec![LayerChallenges {
+            terminal: f.one(),
             constant: f.zero(),
             linear: f.zero(),
             point_l: vec![z],
@@ -139,4 +144,129 @@ fn round_polynomial_and_constraints_extension() {
     let element = |x: u64| f.from_coefficients([x as u32, 1, 2, 3, 4, 5]);
     check_round_polynomial(&f, element);
     check_round_constraints(&f, element);
+}
+
+// A dishonest product cell is allowed. Construct an error polynomial with two
+// chosen roots, and check the actual symbolic terminal against that polynomial.
+// This catches signs and challenge powers in both characteristics, and shows why
+// the soundness cost is two roots rather than an unchecked multiplication.
+fn check_terminal<const W: usize, F: RuntimeField<W> + SerializableField>(
+    f: &F,
+    element: impl Fn(u64) -> F::E,
+) {
+    use crate::runtime::sumcheck_v2::symbolic::Pad;
+    let a = element(7);
+    let b = element(11);
+    let pa = element(13);
+    let pb = element(17);
+    let pd = element(19);
+    let r1 = element(2);
+    let r2 = element(5);
+    let error = element(3);
+    let c2 = f.mulf(&error, &f.invert(&f.mulf(&r1, &r2)));
+    let c1 = f.neg(&f.mulf(&c2, &f.addf(&r1, &r2)));
+    for dishonest in [false, true] {
+        let mut claim = f.mulf(&a, &b);
+        let mut product = f.mulf(&pa, &pb);
+        let mut cross = f.subf(&f.addf(&f.mulf(&a, &pb), &f.mulf(&b, &pa)), &pd);
+        if dishonest {
+            f.add(&mut claim, &error);
+            f.add(&mut product, &c2);
+            f.add(&mut cross, &c1);
+        }
+        let mut roots = 0;
+        for value in 1..64 {
+            let r = element(value);
+            let proof = SumcheckProof::<W, F> {
+                layers: vec![LayerProof {
+                    rounds: vec![],
+                    cross: cross.clone(),
+                    claims: [f.addf(&a, &f.mulf(&r, &pa)), f.addf(&b, &f.mulf(&r, &pb))],
+                }],
+            };
+            let constraints = build_constraints(
+                &proof,
+                vec![LayerChallenges {
+                    // With no rounds, -K supplies the incoming terminal claim.
+                    constant: f.neg(&claim),
+                    linear: f.zero(),
+                    point_l: vec![],
+                    terminal: r.clone(),
+                    alpha: element(23),
+                }],
+                vec![],
+                f,
+            );
+            let evaluate =
+                |expression: &crate::runtime::sumcheck_v2::symbolic::PadExpression<F::E>| {
+                    let mut value = expression.constant.clone();
+                    for (pad, coefficient) in &expression.terms {
+                        let cell = match pad {
+                            Pad::Claim { slot: 0, .. } => &pa,
+                            Pad::Claim { slot: 1, .. } => &pb,
+                            Pad::Product { .. } => &product,
+                            Pad::Cross { .. } => &pd,
+                            _ => panic!("unexpected pad in a zero-round terminal"),
+                        };
+                        f.fma(&mut value, coefficient, cell);
+                    }
+                    value
+                };
+            let residual = evaluate(&constraints.layers[0]);
+            let expected = if dishonest {
+                f.mulf(&c2, &f.mulf(&f.subf(&r, &r1), &f.subf(&r, &r2)))
+            } else {
+                f.zero()
+            };
+            assert_eq!(residual, expected);
+            roots += usize::from(f.is_zero(&residual));
+            assert_eq!(
+                evaluate(&constraints.input_claim),
+                f.addf(&a, &f.mulf(&element(23), &b))
+            );
+        }
+        assert_eq!(roots, if dishonest { 2 } else { 63 });
+    }
+}
+
+#[test]
+fn terminal_honesty_and_forged_product_roots() {
+    let prime = P256Field::new();
+    check_terminal(&prime, |x| prime.u64_to_element(x));
+    let binary = Gf2_128Field::new();
+    check_terminal(&binary, |x| binary.u128_to_element(x as u128));
+}
+
+#[test]
+fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() {
+    use crate::runtime::{
+        random::{RandomEngine, Transcript},
+        sumcheck_v2::transcript,
+    };
+    let f = P256Field::new();
+    let cross = f.u64_to_element(13);
+    let mut prover = Transcript::new(b"terminal-order");
+    let mut reference = prover.clone();
+    reference.write_bytes(b"single-hand-linear-terminal/v1");
+    reference.write_elt_field(&cross, &f);
+    let expected = reference.elt_field(&f);
+    assert_ne!(expected, f.zero());
+    let r = transcript::terminal_challenge(&cross, &mut prover, &f);
+    assert_eq!(r, expected);
+    assert_eq!(prover.clone().bytes(32), reference.clone().bytes(32));
+
+    let claims = [f.u64_to_element(17), f.u64_to_element(19)];
+    let mut changed = prover.clone();
+    reference.write_elt_field_slice(&claims, &f);
+    reference.write_bytes(b"single-hand-combine");
+    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover, &f);
+    assert_eq!(alpha, reference.elt_field(&f));
+    assert_eq!(prover.bytes(32), reference.bytes(32));
+    let changed_alpha = transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed, &f);
+    assert_ne!(alpha, changed_alpha);
+    let mut changed_cross = Transcript::new(b"terminal-order");
+    assert_ne!(
+        r,
+        transcript::terminal_challenge(&f.one(), &mut changed_cross, &f)
+    );
 }

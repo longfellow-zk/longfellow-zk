@@ -16,8 +16,7 @@
 //!
 //! Geometry determines the lengths of H, Z, packed rows and Merkle nonces.
 //! Each row contains its t queried values in transcript order, with rows consecutive
-//! in memory and on the wire. Product-output rows are virtual: only x and y are
-//! sent, and the verifier reconstructs z = x*y. Responses use full-field elements.
+//! in memory and on the wire. Every committed row is opened at those columns.
 //! All responses and opened rows use canonical full-width field elements.
 use std::io::{Error, ErrorKind, Result};
 
@@ -37,29 +36,18 @@ pub struct PolygeroConfig {
     pub t: usize,
 }
 
-/// One product constraint w[x]*w[y]=w[z], using original witness indices.
-/// Commitment creates a triple of row copies; linear batching later connects
-/// each copy to its original witness value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PolygeroProductConstraint {
-    pub x: usize,
-    pub y: usize,
-    pub z: usize,
-}
-
 /// Public counts used to validate proof shape and derive the committed row layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PolygeroGeometry {
     pub(crate) nw: usize,
-    pub(crate) nq: usize,
     pub(crate) k: usize,
     pub(crate) s: usize,
     pub(crate) n: usize,
     pub(crate) t: usize,
 }
 impl PolygeroGeometry {
-    pub(crate) fn sizes(&self) -> [usize; 6] {
-        [self.nw, self.nq, self.k, self.s, self.n, self.t]
+    pub(crate) fn sizes(&self) -> [usize; 5] {
+        [self.nw, self.k, self.s, self.n, self.t]
     }
     pub(crate) fn validate(&self) -> Result<()> {
         let invalid = || Error::new(ErrorKind::InvalidInput, "invalid Polygero geometry");
@@ -70,7 +58,6 @@ impl PolygeroGeometry {
             || self.t > self.n
             || self.k.checked_add(self.s).is_none_or(|d| d > self.n)
             || self.k.checked_mul(2).is_none_or(|d| d > self.n)
-            || (self.nq > 0 && self.k.div_ceil(2) <= self.t)
         {
             return Err(invalid());
         }
@@ -80,44 +67,19 @@ impl PolygeroGeometry {
             .ok_or_else(invalid)?;
         Ok(())
     }
-    pub(crate) fn ordinary_rows(&self) -> usize {
-        self.nw.div_ceil(self.ordinary_width())
-    }
-    /// Number of product groups, each represented by three rows x, y, z.
-    pub(crate) fn product_groups(&self) -> usize {
-        if self.nq == 0 {
-            0
-        } else {
-            self.nq.div_ceil(self.product_width())
-        }
-    }
     pub(crate) fn data_rows(&self) -> usize {
-        self.ordinary_rows() + 3 * self.product_groups()
+        self.nw.div_ceil(self.row_width())
     }
     pub(crate) fn nrow(&self) -> usize {
         self.data_rows() + 3
-    }
-    /// Rows carried in the proof; each product-output row is reconstructed from x and y.
-    pub(crate) fn transmitted_rows(&self) -> usize {
-        self.nrow() - self.product_groups()
     }
     pub(crate) fn response_lengths(&self) -> [usize; 2] {
         [self.k + self.s, 2 * self.k]
     }
 
     /// Witness slots in an ordinary row, after its random prefix.
-    pub(crate) fn ordinary_width(&self) -> usize {
+    pub(crate) fn row_width(&self) -> usize {
         self.k - self.t
-    }
-
-    /// Dimension of each product input polynomial; their product has dimension at most K.
-    pub(crate) fn product_dimension(&self) -> usize {
-        self.k.div_ceil(2)
-    }
-
-    /// Product slots in each group of two inputs and one output.
-    pub(crate) fn product_width(&self) -> usize {
-        self.product_dimension() - self.t
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,8 +92,7 @@ pub struct PolygeroProof<E> {
     pub(crate) h: Vec<E>,
     /// Arithmetic response Z, dimension at most 2k, on the first 2k oracle nodes.
     pub(crate) z: Vec<E>,
-    /// Selected oracle values, packed by row, omitting virtual product-output rows.
-    /// Order: u, m, ordinary rows, product-input pairs x,y, then fstar.
+    /// Selected oracle values, packed by row: u, m, witness rows, then fstar.
     /// Each row has t entries in transcript query order, both in memory and on the wire.
     pub(crate) rows: Vec<E>,
     pub(crate) opening: MerkleProof,
@@ -143,7 +104,7 @@ impl<E> PolygeroProof<E> {
     pub(crate) fn validate(&self, geom: &PolygeroGeometry) -> Result<()> {
         geom.validate()?;
         if [self.h.len(), self.z.len()] != geom.response_lengths()
-            || self.rows.len() != geom.t * geom.transmitted_rows()
+            || self.rows.len() != geom.t * geom.nrow()
             || self.opening.nonce.len() != geom.t
             || self.opening.path.len()
                 > geom.t * (geom.n.next_power_of_two().trailing_zeros() as usize + 1)
@@ -172,7 +133,7 @@ impl<E> PolygeroProof<E> {
         f: &F,
     ) -> Result<()> {
         self.validate(geom)?;
-        out.extend_from_slice(b"PLG8");
+        out.extend_from_slice(b"PLG9");
         for size in geom.sizes() {
             super::util::write_size_4bytes(out, size);
         }
@@ -200,7 +161,7 @@ pub fn read<F: SerializableField>(
     if f.serialized_size_bytes() == 0 {
         return Err(invalid("zero field encoding width"));
     }
-    if bytes.get(..4) != Some(b"PLG8") {
+    if bytes.get(..4) != Some(b"PLG9") {
         return Err(invalid("Polygero version marker"));
     }
     *bytes = &bytes[4..];
@@ -211,7 +172,7 @@ pub fn read<F: SerializableField>(
     }
     let lengths = geom.response_lengths();
     let count = lengths.iter().sum::<usize>();
-    let opened_count = geom.t * geom.transmitted_rows();
+    let opened_count = geom.t * geom.nrow();
     // Check all fixed-width fields, nonces and frontier length before allocating.
     let needed = count
         .checked_mul(f.serialized_size_bytes())

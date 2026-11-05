@@ -49,6 +49,7 @@ fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
                     };
                     layer.logw()
                 ],
+                cross: f.zero(),
                 claims: [f.zero(), f.zero()],
             })
             .collect(),
@@ -90,6 +91,7 @@ fn single_hand_rejects_a_false_internal_assertion() {
     let forged = SumcheckProof {
         layers: vec![LayerProof {
             rounds: vec![],
+            cross: f.zero(),
             claims: [f.one(), f.zero()],
         }],
     };

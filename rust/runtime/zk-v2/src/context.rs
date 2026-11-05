@@ -49,8 +49,7 @@ pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
 }
 
 /// Derive the complete public layout from a trusted circuit and fixed config.
-/// Both roles use the same witness count, pad products, and proof dimensions.
-/// Product coordinates are local to construction; Polygero retains its own copy.
+/// Both roles use the same witness count, pad layout, and proof dimensions.
 /// This prepares metadata only, with no polynomial samples or interpolation plans.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(super) fn prepare_layout<
@@ -67,8 +66,8 @@ pub(super) fn prepare_layout<
     if ctx.f.is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
-    let (layout, sc_geom, products) = packing_layout_with_degree(circuit, extension.degree())?;
-    let param = PolygeroParam::try_new(layout.witness_count, &products, config, ctx.domain, ctx.f)
+    let (layout, sc_geom) = packing_layout_with_degree(circuit, extension.degree())?;
+    let param = PolygeroParam::try_new(layout.witness_count, config, ctx.domain, ctx.f)
         .map_err(|e| e.to_string())?;
     let geometry = ZkProofGeometry {
         sc_geom,

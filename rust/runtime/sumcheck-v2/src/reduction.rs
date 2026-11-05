@@ -16,7 +16,8 @@
 //!
 //! Starting at the circuit outputs, a holds the weights of the current claim.
 //! For each layer, absorb the masked round coefficients to sample a point u,
-//! then absorb the final-claim pair to sample its combination challenge alpha.
+//! then absorb the cross message to sample nonzero r. Absorb the scaled
+//! final-claim pair before sampling its combination challenge alpha.
 //! The public circuit determines the next weights:
 //!
 //! ```text
@@ -108,7 +109,8 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     for m in &proof.rounds {
         point_l.push(round_challenge(m, transcript, f));
     }
-    // Bind both masked claims before drawing their combination challenge.
+    let terminal = super::transcript::terminal_challenge(&proof.cross, transcript, f);
+    // Bind both scaled claims before drawing their combination challenge.
     let alpha = end_layer(&proof.claims, transcript, f);
 
     // The next claim is A + alpha*(B - L(u)). Its weights use only Q;
@@ -120,6 +122,7 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         LayerChallenges {
             point_l,
             alpha,
+            terminal,
             constant,
             linear,
         },

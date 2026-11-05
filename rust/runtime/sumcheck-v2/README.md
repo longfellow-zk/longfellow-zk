@@ -30,7 +30,8 @@ Ordinary tests live in private modules under `tests/`.
 for testing and is not used in production. Production verification uses
 `runtime::zk_v2::ZkVerifier` and Polygero.
 
-V2 uses `LayerProof.rounds` and two final claims with their pads subtracted.
+V2 uses `LayerProof.rounds`, a masked cross coefficient, and two final claims
+with independently sampled pads scaled by a fresh nonzero challenge.
 Legacy retains its two `hp` vectors. V2 proof
 geometry and committed-pad positions belong to `runtime::proto::sumcheck_v2`.
 Zero-knowledge proving uses `runtime::zk_v2`; see its [README](../zk-v2/README.md).
@@ -136,8 +137,8 @@ binding; previously generated v2 proofs require their original verifier.
 
 The numerical prover advances the main transcript directly and returns the proof
 and its symbolic constraints. During proving, each `LayerChallenges` retains the
-sampled round challenges in `point_l` and the final-claim combination challenge
-`alpha`, together with the public constant and linear corrections. The same `point_l` supplies the monomial weights. At the end, the prover
+sampled round challenges in `point_l`, the nonzero terminal challenge, and
+the final-claim combination challenge `alpha`, together with the public constant and linear corrections. The same `point_l` supplies the monomial weights. At the end, the prover
 passes these challenges and the final dense input weights to the shared symbolic
 builder. Both compute the next claim directly from the round coefficients.
 
@@ -149,8 +150,8 @@ message slot. The final input constraint retains the dense input weights.
 
 `runtime::zk_v2::constraint_compiler` maps these logical pads to committed witness
 positions, substitutes public inputs, and emits sparse Polygero entries. Committed
-products of final-claim pads lower the terminal quadratic terms to linear rows; the
-ZK context fixes the quadratic product-consistency constraints before commitment.
+terminal cells enter affine rows; a fresh terminal challenge supplies the
+product check described below. Polygero enforces only linear constraints.
 Every coefficient is retained, including zeros, along with each constraint's constant.
 Sumcheck random values are called pads; mask refers to Polygero mask rows.
 
@@ -173,7 +174,7 @@ consumes none. Each layer then samples exactly `logw` round challenges. The code
 independently caps serialized layers at 40 rounds, regardless of host index width;
 runtime circuit execution also checks its index capacity.
 
-The transcript domain is `longfellow-sumcheck-v2-projective`. Assertion sampling
+The transcript domain is `longfellow-sumcheck-v2-projective-linear-terminal-v1`. Assertion sampling
 uses a separate domain and layer index; final-claim combination uses its own domain
 after the final-claim message. Both roles use `transcript::end_layer` for that
 boundary and `quad::weights_next_affine` for the public weight update.
@@ -182,11 +183,49 @@ Legacy transcript operations are unchanged.
 | Per-layer quantity | Single-hand | Legacy round-major |
 |---|---:|---:|
 | Round polynomials | `logw` | `2 logw` |
-| Transmitted field elements | `2 logw + 2` | `4 logw + 2` |
-| Committed pad coordinates | `2 logw + 3` | `4 logw + 3` |
+| Transmitted field elements | `2 logw + 3` | `4 logw + 2` |
+| Committed pad coordinates | `2 logw + 4` | `4 logw + 3` |
 
-The third final-claim pad coordinate is the product of the first two. Each layer
-still has one terminal linear constraint and one pad-product constraint.
+The terminal cells are `p_A,p_B,p_AB,p_D`. The honest prover sets
+`p_AB=p_A*p_B` and samples the other three independently before commitment.
+Each layer contributes one affine terminal equation; there are no backend
+multiplication constraints.
+
+Before sending the final claims, the prover sends
+
+```text
+d = A*p_B + B*p_A - p_D.
+```
+
+After binding `d`, both sides sample a fresh nonzero `r`. The prover sends
+`m_A=A+r*p_A` and `m_B=B+r*p_B`; only then is `alpha` sampled. The terminal
+and next-layer equations become
+
+```text
+C + r*(d+p_D) + r^2*p_AB - m_A*m_B = 0,
+claim_next = m_A + alpha*m_B - r*p_A - alpha*r*p_B - alpha*L(u).
+```
+
+Both equations are affine in the committed values. To see why a dishonest
+`p_AB` does not bypass soundness, fix a decoded witness and its genuine terminal
+evaluations `A,B` before `r`. Expanding the terminal error gives
+
+```text
+(C-A*B) + r*(d+p_D-A*p_B-B*p_A) + r^2*(p_AB-p_A*p_B).
+```
+
+If `C != A*B`, this polynomial is nonzero and has at most two nonzero roots,
+so this step contributes at most `2/(|F|-1)` in the ideal uniform-challenge
+model. A claimed pair different from the genuine evaluations is handled by
+the following combination challenge and layer reduction. The cross message
+must precede `r`; allowing it to depend on `r` would defeat this argument.
+The independent `p_D` masks the cross coefficient, and excluding zero keeps
+both final evaluations masked. These local masking facts do not constitute
+a complete joint-view zero-knowledge proof.
+
+The [packed Lean composition](../../../formal/lfzk-v2/README.md) targets
+`fcf8a3a`, which predates this terminal reduction and still checks pad products.
+Its numerical endpoint must be adapted before being applied to this protocol.
 
 ## Compiler selection and testing
 

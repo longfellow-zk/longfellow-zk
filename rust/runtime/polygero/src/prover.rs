@@ -72,7 +72,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>
             param.domain_id == domain.domain_id(),
             "interpolation domain mismatch",
         )?;
-        prover_commitment::validate_witness(&param, &witness, f)?;
+        ensure(witness.len() == param.geom.nw, "witness length mismatch")?;
         let w = prover_commitment::encode_rows(&param, witness, domain, rng, f);
         let (tree, salts) = prover_commitment::commit_columns(&param, &w, rng, f);
         let commitment = PolygeroCommitment { root: tree.root() };
@@ -88,7 +88,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>
         ))
     }
 
-    /// Prove A*w + b = 0 and the product constraints fixed at commitment.
+    /// Prove A*w + b = 0 against the original commitment.
     /// Consumes the prover state.
     /// `statement` identifies the source statement implemented by A and b;
     /// it may depend on a protocol run after commitment, such as sumcheck.
@@ -196,15 +196,12 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>
     }
 
     /// Gather the selected columns of each W row, retaining transcript query order.
-    /// Omit product-output rows: the verifier reconstructs z = x*y from each pair.
-    /// The remaining rows are consecutive, with indices.len() values per row.
+    /// Rows are consecutive, with indices.len() values per row.
     fn open_columns(&self, indices: &[usize]) -> (Vec<F::E>, MerkleProof) {
         let g = self.param.geom;
-        let mut rows = Vec::with_capacity(indices.len() * g.transmitted_rows());
-        for row in 0..self.w.len() {
-            if !self.param.is_product_output(row) {
-                rows.extend(blas::gather(indices, &self.w[row]));
-            }
+        let mut rows = Vec::with_capacity(indices.len() * g.nrow());
+        for row in &self.w {
+            rows.extend(blas::gather(indices, row));
         }
         let opening = MerkleProof {
             nonce: blas::gather(indices, &self.salts),

@@ -24,9 +24,7 @@ pub mod profiles;
 
 use profiles::*;
 
-use crate::runtime::proto::polygero::{
-    PolygeroConfig, PolygeroGeometry, PolygeroProductConstraint,
-};
+use crate::runtime::proto::polygero::{PolygeroConfig, PolygeroGeometry};
 
 /// Minimize a conservative wire-size estimate within an audited family.
 /// The caller must use a field of cardinality at least 2^128. Every profile
@@ -37,7 +35,6 @@ use crate::runtime::proto::polygero::{
 /// `accept` must check the interpolation backend's capacity.
 pub fn tune_large_field(
     nw: usize,
-    products: &[PolygeroProductConstraint],
     field_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
@@ -49,7 +46,6 @@ pub fn tune_large_field(
             t: TUNING_QUERIES,
         }),
         nw,
-        products,
         field_bytes,
         accept,
     )
@@ -63,7 +59,6 @@ pub fn tune_large_field(
 pub fn tune_large_field_at_rate(
     rateinv: usize,
     nw: usize,
-    products: &[PolygeroProductConstraint],
     field_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
@@ -80,7 +75,6 @@ pub fn tune_large_field_at_rate(
             t,
         }),
         nw,
-        products,
         field_bytes,
         accept,
     )
@@ -89,15 +83,10 @@ pub fn tune_large_field_at_rate(
 fn tune_profiles(
     profiles: impl Iterator<Item = PolygeroConfig>,
     nw: usize,
-    products: &[PolygeroProductConstraint],
     field_bytes: usize,
     accept: impl Fn(PolygeroConfig) -> bool,
 ) -> Option<PolygeroConfig> {
-    if field_bytes == 0
-        || products
-            .iter()
-            .any(|p| [p.x, p.y, p.z].iter().any(|&w| w >= nw))
-    {
+    if field_bytes == 0 {
         return None;
     }
     profiles
@@ -105,7 +94,6 @@ fn tune_profiles(
         .filter_map(|config| {
             let geom = PolygeroGeometry {
                 nw,
-                nq: products.len(),
                 k: config.k,
                 s: config.s,
                 n: config.n,
@@ -114,7 +102,7 @@ fn tune_profiles(
             if geom.validate().is_err() {
                 return None;
             }
-            let column_bytes = geom.transmitted_rows() as u128 * field_bytes as u128;
+            let column_bytes = geom.nrow() as u128 * field_bytes as u128;
             let responses = geom.response_lengths().iter().sum::<usize>() as u128;
             // Maximum shared frontier for distinct queries in a binary tree.
             let query_level = config.t.next_power_of_two().ilog2() as usize;

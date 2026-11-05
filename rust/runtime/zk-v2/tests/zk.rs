@@ -139,8 +139,8 @@ pub(crate) fn exercise<
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
     let bytes = proof.write(&prover_geometry, f).unwrap();
-    assert_eq!(&bytes[..4], b"LFV4");
-    for old_marker in [b"ZNP1", b"ZNG1"] {
+    assert_eq!(&bytes[..4], b"LFV5");
+    for old_marker in [b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
         assert!(ZkProof::read(&mut obsolete.as_slice(), &prover_geometry, f).is_err());
@@ -202,6 +202,11 @@ pub(crate) fn exercise<
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
+    {
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+        f.add(&mut bad.sumcheck_proof.layers[0].cross, &f.one());
+        assert!(verify(public.clone(), &bad).is_err());
+    }
     if let crate::runtime::proto::dual_packing::PackingProof::TraceZero { .. } = &decoded.packing {
         for change_first_response in [true, false] {
             let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
@@ -259,12 +264,11 @@ fn extension_zk_comparison() {
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
     use crate::runtime::proto::zk_v2::commitment_layout;
-    let (_, nw, products) = commitment_layout(&c, &f);
+    let (_, nw) = commitment_layout(&c, &f);
     let select = |filter: fn(PolygeroConfig) -> bool| {
         crate::compile::polygero::tune_large_field_at_rate(
             4,
             nw,
-            &products,
             f.serialized_size_bytes(),
             |config| filter(config) && config.can_interpolate(&CrtInterpolatorFactory),
         )

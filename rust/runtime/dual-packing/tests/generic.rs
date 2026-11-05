@@ -547,7 +547,6 @@ fn authenticate<
     witness.extend_from_slice(masks.cells());
     let param = PolygeroParam::try_new(
         witness.len(),
-        &[],
         PolygeroConfig {
             k: 8,
             s: 2,

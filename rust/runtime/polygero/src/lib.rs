@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Nonrecursive Polygero proves linear and product constraints on a committed witness.
+//! Nonrecursive Polygero proves linear constraints on a committed witness.
 //!
 //! The prover encodes masked witness rows W on oracle points k..k+n and commits
 //! their columns. After commitment, the caller supplies a source-statement digest
 //! and A and b for A*w+b=0. Longfellow v2 obtains them from sumcheck. After
-//! absorbing the digest, random scalar weights batch the linear constraints
-//! with copy constraints linking product rows to the original witness.
+//! absorbing the digest, random scalar weights batch the linear constraints.
 //!
 //! Two responses summarize the rows: H uses random polynomial weights, while Z
 //! carries the batched arithmetic constraints and zero-sum masks. Their samples
 //! determine the opening queries. The verifier authenticates the queried columns,
-//! checks both responses and row products there, and checks Z's logical sum.
+//! checks both responses there, and checks Z's logical sum.
 //!
 //! `prover` owns commitment state and response generation; `prover_commitment`
 //! encodes W and builds its Merkle tree. `verifier` reconstructs public values
@@ -53,7 +52,7 @@ pub use config::PolygeroLinearTerm;
 pub use param::PolygeroParam;
 
 pub use crate::runtime::proto::polygero::{
-    PolygeroCommitment, PolygeroConfig, PolygeroGeometry, PolygeroProductConstraint, PolygeroProof,
+    PolygeroCommitment, PolygeroConfig, PolygeroGeometry, PolygeroProof,
 };
 cfg_prover! { mod prover_commitment; mod prover; pub use prover::PolygeroProver; }
 cfg_verifier! { mod verifier; pub use verifier::PolygeroVerifier; }
