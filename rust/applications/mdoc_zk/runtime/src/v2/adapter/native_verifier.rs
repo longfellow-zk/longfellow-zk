@@ -1,7 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
-    #[cfg(any(test, feature = "verifier"))]
     pub fn reduce_verify(
         &self,
         circuit: &Circuit<F>,

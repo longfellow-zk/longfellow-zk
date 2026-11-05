@@ -13,13 +13,9 @@
 // limitations under the License.
 
 pub mod adapter;
-pub mod allocate_hash;
-pub mod allocator;
 pub mod generate_hash;
 pub mod generate_sig;
 
-pub use allocate_hash::*;
-pub use allocator::*;
 pub use generate_hash::*;
 pub use generate_sig::*;
 

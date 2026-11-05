@@ -13,6 +13,26 @@ fn integer<P: SerializableField>(p: &P, x: &P::E) -> BigUint {
     BigUint::from_bytes_le(&p.to_bytes(x))
 }
 #[test]
+fn advice_encoding_checks_lengths_and_unused_high_bits() {
+    for bits in [2, 16, 32, 256] {
+        let plan = Plan::new(vec![bits]).unwrap();
+        let mut advice = vec![u8::MAX; plan.advice_bytes()];
+        let used = plan.advice_bits() % 8;
+        if used != 0 {
+            *advice.last_mut().unwrap() = (1 << used) - 1;
+        }
+        assert!(plan.validate_advice(&advice).is_ok());
+        assert!(plan.validate_advice(&advice[..advice.len() - 1]).is_err());
+        let mut extended = advice.clone();
+        extended.push(0);
+        assert!(plan.validate_advice(&extended).is_err());
+        if used != 0 {
+            *advice.last_mut().unwrap() |= 1 << used;
+            assert!(plan.validate_advice(&advice).is_err());
+        }
+    }
+}
+#[test]
 fn imported_conversion_matches_independent_integer_quotients() {
     let p = P256Field::new();
     let f = Gf2_128Field::new();

@@ -18,13 +18,16 @@ pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
 
 pub use crate::mdoc::proto::hash::constants;
 
-cfg_testonly! {
+cfg_compiler! {
     pub mod allocate;
+    pub use allocate::allocate;
+}
+
+cfg_testonly! {
     pub mod concrete;
     pub mod evaluate;
 
     pub use self::{
-        allocate::{allocate_derived, allocate_given},
         concrete::{
             derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
             ConcreteGiven, HashInput,

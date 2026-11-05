@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! The mdoc witness layout, shared by the application compiler and circuit tests.
+//! Public fields come first. Each attribute's private data and SHA witnesses
+//! stay adjacent, matching the runtime assignment encoder.
 use crate::{
     circuits::{
         bitvec::{BitvecIO, BitvecLogic},
@@ -23,108 +26,106 @@ use crate::{
             circuit::{
                 AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
             },
-            constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_LEN},
+            constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
         },
-        mso_attribute::constants::K_ATTR_INDEX_BITS,
+        mso_attribute::{
+            constants::K_ATTR_INDEX_BITS, AttrSlice, DisclosedAttribute, FieldLocator,
+        },
     },
 };
 
-pub fn allocate_given<L: LogicIO>(
+/// Allocate the complete presentation and return the end of its public prefix.
+pub fn allocate<L: LogicIO>(
     logic: &L,
-    bv: &BitvecLogic<L>,
     num_attrs: usize,
     pos: &mut usize,
-) -> Given<L> {
-    let bitvec_io = BitvecIO::new(bv);
+) -> (Given<L>, Derived<L>, usize) {
+    let bv = BitvecLogic::new(logic);
+    let io = BitvecIO::new(&bv);
     let boolean_io = BooleanIO::new(logic);
-
+    let now = std::array::from_fn(|_| io.next::<8>(pos));
     let disclosed_attributes = (0..num_attrs)
-        .map(
-            |_| crate::mdoc::circuits::mso_attribute::circuit::DisclosedAttribute {
-                expected_name: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
-                    data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-                    len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
-                },
-                expected_cbor_value: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
-                    data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-                    len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
-                },
+        .map(|_| DisclosedAttribute {
+            expected_name: AttrSlice {
+                data: std::array::from_fn(|_| io.next::<8>(pos)),
+                len: io.next::<K_ATTR_INDEX_BITS>(pos),
             },
-        )
-        .collect();
-
-    let now: [crate::circuits::bitvec::V8<L>; K_TIMESTAMP_LEN] =
-        std::array::from_fn(|_| bitvec_io.next::<8>(pos));
-
-    let suppress_doc_type_check = boolean_io.next(pos);
-
-    let expected_doc_type = crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
-        data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-        len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
-    };
-
-    let issuer_sig_e = bitvec_io.next::<256>(pos);
-    let preimage = MsoPreimageBytes {
-        value: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-        len: bitvec_io.next::<K_HASH_INDEX_BITS>(pos),
-    };
-    let nblocks = bitvec_io.next::<8>(pos);
-    let device_pk = (bitvec_io.next::<256>(pos), bitvec_io.next::<256>(pos));
-    let doc_type_offset_in_preimage = bitvec_io.next::<16>(pos);
-    let valid_from_offset_in_preimage = bitvec_io.next::<16>(pos);
-    let valid_until_offset_in_preimage = bitvec_io.next::<16>(pos);
-    let dev_key_info_offset_in_preimage = bitvec_io.next::<16>(pos);
-    let value_digests_offset_in_preimage = bitvec_io.next::<16>(pos);
-
-    let attribute_given = (0..num_attrs)
-        .map(|_| AttrGiven {
-            preimage: AttrPreimageBytes {
-                data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
-                len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
-            },
-            mso_digest_offset_in_preimage: bitvec_io.next::<16>(pos),
-            field_locator: crate::mdoc::circuits::mso_attribute::FieldLocator {
-                slot_position: std::array::from_fn(|_| bitvec_io.next::<K_ATTR_INDEX_BITS>(pos)),
-                length: std::array::from_fn(|_| bitvec_io.next::<K_ATTR_INDEX_BITS>(pos)),
-                permutation: std::array::from_fn(|_| bitvec_io.next::<2>(pos)),
+            expected_cbor_value: AttrSlice {
+                data: std::array::from_fn(|_| io.next::<8>(pos)),
+                len: io.next::<K_ATTR_INDEX_BITS>(pos),
             },
         })
         .collect();
+    let suppress_doc_type_check = boolean_io.next(pos);
+    let expected_doc_type = AttrSlice {
+        data: std::array::from_fn(|_| io.next::<8>(pos)),
+        len: io.next::<K_ATTR_INDEX_BITS>(pos),
+    };
+    let npublic = *pos;
+    let issuer_sig_e = io.next::<256>(pos);
+    let preimage = MsoPreimageBytes {
+        value: std::array::from_fn(|_| io.next::<8>(pos)),
+        len: io.next::<K_HASH_INDEX_BITS>(pos),
+    };
+    let nblocks = io.next::<8>(pos);
+    let device_pk = (io.next::<256>(pos), io.next::<256>(pos));
+    let doc_type_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let valid_from_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let valid_until_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let dev_key_info_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let value_digests_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
 
-    Given {
-        disclosed_attributes,
-        now,
-        suppress_doc_type_check,
-        expected_doc_type,
-
-        preimage,
-        nblocks,
-        issuer_sig_e,
-        device_pk,
-        doc_type_offset_in_preimage,
-        valid_from_offset_in_preimage,
-        valid_until_offset_in_preimage,
-        dev_key_info_offset_in_preimage,
-        value_digests_offset_in_preimage,
-        attribute_given,
-    }
+    let (attribute_given, attribute_derived) = (0..num_attrs)
+        .map(|_| allocate_attribute(&bv, &io, pos))
+        .unzip();
+    let sha_derived = crate::circuits::sha256msg::allocate_derived::<_, K_MAX_SHA_BLOCKS>(&bv, pos);
+    (
+        Given {
+            disclosed_attributes,
+            now,
+            suppress_doc_type_check,
+            expected_doc_type,
+            preimage,
+            nblocks,
+            issuer_sig_e,
+            device_pk,
+            doc_type_offset_in_preimage,
+            valid_from_offset_in_preimage,
+            valid_until_offset_in_preimage,
+            dev_key_info_offset_in_preimage,
+            value_digests_offset_in_preimage,
+            attribute_given,
+        },
+        Derived {
+            attribute_derived,
+            sha_derived,
+        },
+        npublic,
+    )
 }
 
-pub fn allocate_derived<L: LogicIO, const MAX_MSO_BLOCKS: usize>(
+fn allocate_attribute<L: LogicIO>(
     bv: &BitvecLogic<L>,
-    num_attrs: usize,
+    io: &BitvecIO<L>,
     pos: &mut usize,
-) -> Derived<L> {
-    let attribute_derived = (0..num_attrs)
-        .map(|_| AttrDerived {
-            sha_derived: crate::circuits::sha256msg::allocate_derived::<_, 2>(bv, pos),
-        })
-        .collect();
-
-    let sha_derived = crate::circuits::sha256msg::allocate_derived::<_, MAX_MSO_BLOCKS>(bv, pos);
-
-    Derived {
-        attribute_derived,
-        sha_derived,
-    }
+) -> (AttrGiven<L>, AttrDerived<L>) {
+    let preimage = AttrPreimageBytes {
+        data: std::array::from_fn(|_| io.next::<8>(pos)),
+        len: io.next::<K_ATTR_INDEX_BITS>(pos),
+    };
+    let mso_digest_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let field_locator = FieldLocator {
+        slot_position: std::array::from_fn(|_| io.next::<K_ATTR_INDEX_BITS>(pos)),
+        length: std::array::from_fn(|_| io.next::<K_ATTR_INDEX_BITS>(pos)),
+        permutation: std::array::from_fn(|_| io.next::<2>(pos)),
+    };
+    let sha_derived = crate::circuits::sha256msg::allocate_derived::<_, 2>(bv, pos);
+    (
+        AttrGiven {
+            preimage,
+            mso_digest_offset_in_preimage,
+            field_locator,
+        },
+        AttrDerived { sha_derived },
+    )
 }

@@ -12,6 +12,65 @@ use crate::{
         zk_v2::ZkContext,
     },
 };
+
+#[test]
+fn binary_source_positions_match_native_shared_inputs() {
+    use crate::{
+        core::algebra::{SerializableField, SupportsNatConversions},
+        mdoc::{
+            circuits::{p256_adapter, parse_test_data},
+            runtime::v2::{inputs, req_attr},
+        },
+        runtime::algebra::{secp256r1::Secp256r1, Q256Field, RuntimeNat},
+    };
+    let f = P256Field::new();
+    let q = Q256Field::new();
+    let curve = Secp256r1::new(&f);
+    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let (issuer, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(fixture);
+    let issuer_pk = (f.reduce_nat(&issuer.0), f.reduce_nat(&issuer.1));
+    let mask = f.u64_to_element(1234567);
+    let plan = p256_adapter::shared_plan();
+    for count in 1..=4 {
+        let attrs: Vec<_> = parsed
+            .attrs
+            .iter()
+            .cycle()
+            .take(count)
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
+            .collect();
+        let public =
+            inputs::push_input_hash(&attrs, now.as_bytes(), false, fixture.doc_type.as_bytes());
+        let mut private = inputs::push_witness_hash(&attrs, &parsed).unwrap();
+        let bytes = f.to_bytes(&mask);
+        private.extend((0..256).map(|r| (bytes[r / 8] >> (r % 8)) & 1 != 0));
+        private.resize(private.len() + plan.advice_bits(), true);
+        let positions = binary::sources(public.len(), public.len() + private.len()).unwrap();
+        let mut expected = inputs::push_witness_sig(&f, &q, &curve, &issuer_pk, &parsed).unwrap();
+        expected.truncate(p256_adapter::SHARED_BITS);
+        expected.extend((0..256).map(|r| {
+            if (bytes[r / 8] >> (r % 8)) & 1 != 0 {
+                f.one()
+            } else {
+                f.zero()
+            }
+        }));
+        let actual: Vec<_> = positions
+            .iter()
+            .map(|&i| {
+                if private[i - public.len()] {
+                    f.one()
+                } else {
+                    f.zero()
+                }
+            })
+            .collect();
+        assert_eq!(actual, expected);
+        assert!(positions
+            .iter()
+            .all(|&i| i < public.len() + private.len() - plan.advice_bits()));
+    }
+}
 #[test]
 fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     let f = P256Field::new();

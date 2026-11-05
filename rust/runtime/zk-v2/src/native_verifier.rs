@@ -1,6 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-#[cfg(any(test, feature = "verifier"))]
 pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],

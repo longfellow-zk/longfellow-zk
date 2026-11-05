@@ -15,14 +15,7 @@
 //! Compile NEXT with the shared, checked Polygero profile.
 
 use crate::{
-    core::{
-        algebra::SerializableField,
-        proto::{
-            archive::CircuitArchive,
-            v2::{Circuit, CircuitReader},
-            FieldID,
-        },
-    },
+    core::proto::{archive::CircuitArchive, v2::CircuitReader, FieldID},
     mdoc::{
         circuits::{config::K_ZSTD_LEVEL, NEXT_VERSION},
         compile,
@@ -39,7 +32,7 @@ use crate::{
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            RangeInterpolatorFactory, RuntimeField, SupportsFFT,
+            SupportsFFT,
         },
         proto::polygero::PolygeroConfig,
     },
@@ -72,63 +65,41 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     let ext = Fp2Field::new(&p);
     let pd =
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    let hash = CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_bytes(
-            &archive.get("hash").ok_or("Missing hash circuit")?.payload,
-            false,
-        )?
-        .0;
-    let sig = CircuitReader::new(&p, FieldID::P256)
-        .from_bytes(
-            &archive
-                .get("sig")
-                .ok_or("Missing signature circuit")?
-                .payload,
-            false,
-        )?
-        .0;
-    let h = select_parameters(&hash, &d, &f)?;
-    let s = select_parameters(&sig, &pd, &p)?;
-    Ok(ZkSpecStruct {
-        combined_hash: archive.combined_id,
-        num_attributes,
-        version: NEXT_VERSION,
-        polygero_hash: PolygeroParameters {
-            k: h.k,
-            n: h.n,
-            s: h.s,
-            t: h.t,
-        },
-        polygero_sig: PolygeroParameters {
-            k: s.k,
-            n: s.n,
-            s: s.s,
-            t: s.t,
-        },
-    })
-}
-
-/// Retain the shared profile and validate interpolation support in each field.
-fn select_parameters<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::PackingField,
-    D: RangeInterpolatorFactory<W, F>,
->(
-    circuit: &Circuit<F>,
-    domain: &D,
-    f: &F,
-) -> Result<PolygeroConfig, String> {
-    let _ = (circuit, f);
-    // Keep the shared profile while the application architecture changes.
-    // Combined parameter tuning follows the completed adapter integration.
+    // Keep payload validation even though the fixed profile does not inspect
+    // circuit sizes. The provider separately checks the archive's metadata.
+    CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(
+        &archive.get("hash").ok_or("Missing hash circuit")?.payload,
+        false,
+    )?;
+    CircuitReader::new(&p, FieldID::P256).from_bytes(
+        &archive
+            .get("sig")
+            .ok_or("Missing signature circuit")?
+            .payload,
+        false,
+    )?;
+    // Both fields share one column/query geometry. Validate the fixed profile
+    // against each interpolation domain.
     let config = PolygeroConfig {
         k: 416,
         s: 15,
         n: 2912,
         t: 86,
     };
-    if !config.can_interpolate(domain) {
+    if !config.can_interpolate(&d) || !config.can_interpolate(&pd) {
         return Err("unsupported fixed Polygero profile".into());
     }
-    Ok(config)
+    let parameters = PolygeroParameters {
+        k: config.k,
+        n: config.n,
+        s: config.s,
+        t: config.t,
+    };
+    Ok(ZkSpecStruct {
+        combined_hash: archive.combined_id,
+        num_attributes,
+        version: NEXT_VERSION,
+        polygero_hash: parameters,
+        polygero_sig: parameters,
+    })
 }

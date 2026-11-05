@@ -29,24 +29,24 @@ pub(in crate::mdoc::runtime::v2) struct BinaryParticipant {
 }
 /// The archive and compiler define this shared layout. R and quotient pads are
 /// last; the tree consumes every pad while presentation predicates use the rest.
-fn sources(c: &Circuit<F>) -> Result<Vec<usize>, String> {
+pub(super) fn sources(npublic: usize, ninput: usize) -> Result<Vec<usize>, String> {
     let p = p256_adapter::shared_plan();
-    let private = c
-        .raw
-        .ninput
-        .checked_sub(c.raw.npublic_input)
-        .ok_or("binary public prefix")?;
+    let private = ninput.checked_sub(npublic).ok_or("binary public prefix")?;
     let mask = private
         .checked_sub(p.advice_bits() + 256)
         .ok_or("adapter mask layout")?;
-    let device = 256 + 8 * crate::mdoc::proto::hash::constants::K_MSO_PREIMAGE_LEN + 16 + 8;
+    // Between issuer digest and device coordinates are the padded MSO preimage,
+    // its length, and the one-byte SHA block count. This is the allocation
+    // order in hash::allocate, also used by the private assignment encoder.
+    use crate::mdoc::proto::hash::constants::{K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN};
+    let device = 256 + 8 * K_MSO_PREIMAGE_LEN + K_HASH_INDEX_BITS + 8;
     if device + 512 > mask {
         return Err("adapter source overlap".into());
     }
     Ok((0..256)
         .chain(device..device + 512)
         .chain(mask..mask + 256)
-        .map(|i| c.raw.npublic_input + i)
+        .map(|i| npublic + i)
         .collect())
 }
 impl BinaryParticipant {
@@ -55,7 +55,7 @@ impl BinaryParticipant {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, 2, F, D>,
     ) -> Result<Self, String> {
-        let sources = sources(c)?;
+        let sources = sources(c.raw.npublic_input, c.raw.ninput)?;
         let template = tree::template(
             &p256_adapter::shared_plan(),
             &sources,

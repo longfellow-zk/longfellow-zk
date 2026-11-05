@@ -53,13 +53,8 @@ where FC: MdocHashCompileField {
 
     super::compile(fc, |iologic| {
         let mdoc = MdocHash::new(&iologic, num_attrs);
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
-        let given_wires =
-            crate::mdoc::circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
-        let derived_wires = crate::mdoc::circuits::hash::allocate_derived::<
-            _,
-            { crate::mdoc::circuits::hash::constants::K_MAX_SHA_BLOCKS },
-        >(&bv, num_attrs, &mut pos);
+        let (given_wires, derived_wires, _) =
+            crate::mdoc::circuits::hash::allocate(&iologic, num_attrs, &mut pos);
 
         (
             mdoc.assert_valid_presentation(&given_wires, &derived_wires),
@@ -130,6 +125,8 @@ where
 
     let mut inputs = crate::compile::eval::initial_inputs(fr);
 
+    push_bytes(&mut inputs, &given.hash_input.now, K_TIMESTAMP_LEN, fr);
+
     for attr in &given.hash_input.attrs {
         push_bytes(&mut inputs, &attr.expected_name, EXPECTED_NAME_LEN, fr);
         push_bits(&mut inputs, attr.expected_name.len() as u128, 10, fr);
@@ -141,8 +138,6 @@ where
         );
         push_bits(&mut inputs, attr.expected_cbor_value.len() as u128, 10, fr);
     }
-
-    push_bytes(&mut inputs, &given.hash_input.now, K_TIMESTAMP_LEN, fr);
 
     inputs.push(if given.hash_input.suppress_doc_type_check {
         fr.one()
@@ -180,7 +175,7 @@ where
         push_bits(&mut inputs, u128::from(offset), 16, fr);
     }
 
-    for attr in &given.attribute_given {
+    for (attr, witness) in given.attribute_given.iter().zip(&derived.attribute_derived) {
         push_bytes(&mut inputs, &attr.padded_preimage, K_ATTR_PREIMAGE_LEN, fr);
         push_bits(&mut inputs, attr.unpadded_preimage_len as u128, 10, fr);
         push_bits(
@@ -203,9 +198,14 @@ where
                 fr,
             );
         }
+        witness
+            .sha_derived
+            .push_derived(fr, |value| inputs.push(value));
     }
 
-    derived.push_derived(fr, |value| inputs.push(value));
+    derived
+        .sha_derived
+        .push_derived(fr, |value| inputs.push(value));
     inputs
 }
 
@@ -225,13 +225,8 @@ fn test_mdoc_zk_circuits_hash_for_field<
     let (_circuit, stats, _symbols) = super::compile(fc, |iologic| {
         let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
         let mdoc = MdocHash::new(&iologic, num_attrs);
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
-        let given_wires =
-            crate::mdoc::circuits::hash::allocate_given(&iologic, &bv, num_attrs, &mut pos);
-        let derived_wires = crate::mdoc::circuits::hash::allocate_derived::<
-            _,
-            { crate::mdoc::circuits::hash::constants::K_MAX_SHA_BLOCKS },
-        >(&bv, num_attrs, &mut pos);
+        let (given_wires, derived_wires, _) =
+            crate::mdoc::circuits::hash::allocate(&iologic, num_attrs, &mut pos);
 
         (
             mdoc.assert_valid_presentation(&given_wires, &derived_wires),
@@ -306,8 +301,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        179, 100, 118, 158, 103, 46, 124, 235, 75, 153, 114, 21, 35, 8, 53, 26, 109, 121,
-        108, 246, 196, 120, 140, 206, 137, 14, 187, 95, 221, 186, 177, 9,
+        69, 83, 112, 14, 186, 182, 107, 17, 250, 251, 35, 86, 217, 151, 31, 63, 222, 120, 209, 104,
+        14, 29, 52, 255, 195, 24, 30, 108, 247, 78, 239, 187,
     ];
     assert_eq!(
         circuit.id, expected_id,

@@ -17,6 +17,11 @@ pub(crate) const MODULUS: [u64; 4] = [
 use crate::core::algebra::SerializableField;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::core::algebra::{AlgebraicField, SupportsU128Conversions};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::runtime::algebra::{
+    gf2_128::{Gf2_128, Gf2_128Field},
+    p256::{P256Element, P256Field},
+};
 
 const MAX_BITS: usize = 1 << 24;
 
@@ -60,6 +65,16 @@ impl Plan {
     pub fn advice_bytes(&self) -> usize {
         self.advice_bits().div_ceil(8)
     }
+    /// Advice has an exact byte length and zeroes above its final quotient bit.
+    pub fn validate_advice(&self, bytes: &[u8]) -> Result<(), String> {
+        let used = self.advice_bits() % 8;
+        if bytes.len() != self.advice_bytes()
+            || (used != 0 && bytes.last().is_some_and(|&b| b >> used != 0))
+        {
+            return Err("noncanonical adapter advice".into());
+        }
+        Ok(())
+    }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub fn public_count(&self) -> usize {
         2 * self.bits + self.advice_bits() + 2
@@ -86,13 +101,13 @@ impl Plan {
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub fn encode(
         &self,
-        weights: &[crate::runtime::algebra::p256::P256Element],
-        target: &crate::runtime::algebra::p256::P256Element,
-        alpha: &[crate::runtime::algebra::p256::P256Element; 2],
-        values: Option<&[crate::runtime::algebra::p256::P256Element]>,
-        p: &crate::runtime::algebra::p256::P256Field,
-        f: &crate::runtime::algebra::gf2_128::Gf2_128Field,
-    ) -> Result<Encoded<crate::runtime::algebra::gf2_128::Gf2_128>, String> {
+        weights: &[P256Element],
+        target: &P256Element,
+        alpha: &[P256Element; 2],
+        values: Option<&[P256Element]>,
+        p: &P256Field,
+        f: &Gf2_128Field,
+    ) -> Result<Encoded, String> {
         if weights.len() != self.widths.len()
             || alpha.iter().any(|a| p.is_zero(a))
             || values.is_some_and(|v| v.len() != weights.len())
@@ -106,7 +121,7 @@ impl Plan {
         let g = pow(f, x.clone(), u128::MAX - (1u128 << 64));
         // Owned 16-byte-position fixed-base table, about 64 KiB.
         let mut base = g;
-        let tables: Vec<Vec<crate::runtime::algebra::gf2_128::Gf2_128>> = (0..16)
+        let tables: Vec<Vec<Gf2_128>> = (0..16)
             .map(|_| {
                 let mut value = f.one();
                 let table = (0..256)
@@ -184,14 +199,14 @@ impl Plan {
 }
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) struct Encoded<E> {
-    pub coefficients: Vec<E>,
-    pub targets: [E; 2],
+pub(crate) struct Encoded {
+    pub coefficients: Vec<Gf2_128>,
+    pub targets: [Gf2_128; 2],
     #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
     pub quotients: Option<[u32; 2]>,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) fn to_word<P: SerializableField>(p: &P, value: &P::E) -> Word {
+pub(crate) fn to_word(p: &P256Field, value: &P256Element) -> Word {
     let bytes = p.to_bytes(value);
     std::array::from_fn(|i| u64::from_le_bytes(bytes[8 * i..8 * i + 8].try_into().unwrap()))
 }

@@ -2,7 +2,6 @@
 use super::*;
 use crate::runtime::random::RandomEngine;
 impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
-    #[cfg(any(test, feature = "prover"))]
     pub fn prepare(
         &self,
         circuit: &Circuit<F>,
@@ -29,7 +28,6 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
             witness,
         ))
     }
-    #[cfg(any(test, feature = "prover"))]
     pub fn reduce(
         &self,
         circuit: &Circuit<F>,
@@ -52,7 +50,6 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
     }
 }
 
-#[cfg(any(test, feature = "prover"))]
 pub(in crate::mdoc::runtime::v2) struct SharedState<const W: usize, F: ZkField<W>> {
     prepared: native_frontend::Prepared<W, F>,
     mask: F::E,
@@ -60,14 +57,12 @@ pub(in crate::mdoc::runtime::v2) struct SharedState<const W: usize, F: ZkField<W
     id: [u8; 32],
     config: PolygeroConfig,
 }
-#[cfg(any(test, feature = "prover"))]
 pub(in crate::mdoc::runtime::v2) struct SharedReduction<const W: usize, F: ZkField<W>> {
     pub proof: SumcheckProof<W, F>,
     pub claim: LinearClaim<F::E>,
     pub values: Vec<F::E>,
     pub mask: F::E,
 }
-#[cfg(any(test, feature = "prover"))]
 impl<const W: usize, F: ZkField<W>> SharedReduction<W, F> {
     pub fn masked_value(&self, eta: &F::E, f: &F) -> F::E {
         f.addf(

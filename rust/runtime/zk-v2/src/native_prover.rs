@@ -1,14 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-#[cfg(any(test, feature = "prover"))]
 pub(crate) struct Prepared<const W: usize, F: RuntimeField<W> + SerializableField> {
     circuit_id: [u8; 32],
     pads: SumcheckProof<W, F>,
-    /// Native private inputs followed by all native pads and their products.
+    /// Native private inputs followed by round pads and independent terminal cells.
     pub values: Vec<F::E>,
 }
 
-#[cfg(any(test, feature = "prover"))]
 pub(crate) fn prepare<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -37,7 +35,6 @@ pub(crate) fn prepare<
     })
 }
 
-#[cfg(any(test, feature = "prover"))]
 pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],

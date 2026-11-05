@@ -33,14 +33,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     pub fn write(&self, g: &MdocProofGeometry, f1: &F1, f2: &F2) -> Result<Vec<u8>, String> {
         let mut out = Vec::new();
         let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
-        if self.masked.len() != plan.advice_bytes()
-            || self
-                .masked
-                .last()
-                .is_some_and(|&b| b >> (plan.advice_bits() % 8) != 0)
-        {
-            return Err("noncanonical adapter advice".into());
-        }
+        plan.validate_advice(&self.masked)?;
         out.extend_from_slice(b"MDA4");
         out.extend_from_slice(&self.commitment.root.data);
         out.extend_from_slice(&f2.to_bytes(&self.mu));
@@ -94,12 +87,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         }
         remaining = &remaining[size..];
         let masked = remaining[..plan.advice_bytes()].to_vec();
-        if masked
-            .last()
-            .is_some_and(|&b| b >> (plan.advice_bits() % 8) != 0)
-        {
-            return Err("noncanonical adapter advice".into());
-        }
+        plan.validate_advice(&masked)?;
         remaining = &remaining[plan.advice_bytes()..];
         let proof_hash =
             CircuitProof::read(&mut remaining, &g.geom_hash, f1).map_err(|e| e.to_string())?;

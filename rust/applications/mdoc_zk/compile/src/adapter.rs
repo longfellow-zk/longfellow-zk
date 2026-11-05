@@ -3,7 +3,7 @@
 use crate::{
     circuits::{
         arithmetic::Arithmetic,
-        bitvec::{BitvecIO, BitvecLogic, V256},
+        bitvec::V256,
         boolean::Boolean,
         ecdsa2::{EcdsaCircuit, Given},
     },
@@ -13,10 +13,7 @@ use crate::{
         logic::{Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::proto::v2::Circuit,
-    mdoc::{
-        circuits::{hash::circuit::MdocHash, p256_adapter::MODULUS},
-        compile::{allocate_hash::allocate_hash_core, allocator::WireAllocator},
-    },
+    mdoc::circuits::{hash::circuit::MdocHash, p256_adapter::MODULUS},
 };
 pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
     let (c, _, _) = compile_v2(f, |logic| {
@@ -72,11 +69,8 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
     }
     let (c, _, _) = compile_v2(f, |l| {
         let mut pos = K_FIRST_WIRE_POSITION;
-        let bv = BitvecLogic::new(&l);
-        let io = BitvecIO::new(&bv);
-        let mut allocator = WireAllocator::new(&l, &io, pos);
-        let (given, derived, npublic) = allocate_hash_core(&mut allocator, num_attrs);
-        pos = allocator.pos;
+        let (given, derived, npublic) =
+            crate::mdoc::circuits::hash::allocate(&l, num_attrs, &mut pos);
         let mask = allocate_mask(&l, &mut pos);
         let b = Boolean::new(&l);
         let a = Arithmetic::new(&l);

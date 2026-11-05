@@ -214,16 +214,3 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
         value_digests_offset: parsed.value_digests_offset_in_mso,
     }
 }
-
-impl ConcreteDerived {
-    pub fn push_derived<const W: usize, FR: crate::runtime::algebra::field::RuntimeField<W>>(
-        &self,
-        fr: &FR,
-        mut push: impl FnMut(FR::E),
-    ) {
-        for attr_wit in &self.attribute_derived {
-            attr_wit.sha_derived.push_derived(fr, &mut push);
-        }
-        self.sha_derived.push_derived(fr, &mut push);
-    }
-}

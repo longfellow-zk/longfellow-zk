@@ -49,16 +49,11 @@ pub(crate) fn alphas(t: &mut Transcript, p: &P256Field) -> [P256Element; 2] {
 }
 pub(crate) fn public(
     plan: &Plan,
-    encoded: super::Encoded<Gf2_128>,
+    encoded: super::Encoded,
     masked: &[u8],
     t: &mut Transcript,
 ) -> Result<Vec<Gf2_128>, String> {
-    if masked.len() != plan.advice_bytes()
-        || (plan.advice_bits() % 8 != 0
-            && masked[masked.len() - 1] >> (plan.advice_bits() % 8) != 0)
-    {
-        return Err("adapter noncanonical quotient advice".into());
-    }
+    plan.validate_advice(masked)?;
     t.write_bytes(b"p256-adapter/masked-quotient-bits/v1");
     t.write_bytes(masked);
     let mut values = Vec::with_capacity(plan.public_count());

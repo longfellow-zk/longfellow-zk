@@ -118,8 +118,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 136.2 ms | 79.4 ms | 142,831 | 42.47 MiB | 34.46 MiB |
-| 4 | 158.0 ms | 89.8 ms | 144,463 | 47.17 MiB | 37.51 MiB |
+| 2 | 133.8 ms | 76.7 ms | 142,831 | 42.47 MiB | 34.46 MiB |
+| 4 | 145.6 ms | 82.0 ms | 144,463 | 47.17 MiB | 37.51 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -200,7 +200,8 @@ assertions on binary input wires. Internal arithmetic uses the full field;
 converting an arbitrary field expression back to a Boolean still checks bitness.
 Nonbinary circuits retain field-element inputs and Boolean input assertions.
 Compilation rejects unused input declarations. Adapter pads in the shared
-source layout are consumed by the tree.
+source layout are consumed by the tree. The application compiler and circuit
+tests use the same input allocator and witness ordering.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. The top-level dependency checker enforces these boundaries,
