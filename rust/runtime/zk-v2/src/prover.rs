@@ -23,6 +23,7 @@ pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     packing: PackingState<F::E>,
     id: [u8; 32],
     config: PolygeroConfig,
+    additional_ids: Vec<[u8; 32]>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Validate and pack typed inputs before sampling any masks. The returned
@@ -42,6 +43,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
                 packing,
                 id: self.id,
                 config: self.config,
+                additional_ids: self.additional_ids.clone(),
             },
             witness,
         ))
@@ -59,8 +61,32 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         t: &mut Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        validate_inputs(circuit, public, &private)?;
-        if circuit.id != self.id || state.id != self.id || state.config != self.config {
+        self.prove_circuits(circuit, public, private, state, &[], t, ctx)
+    }
+    /// Prove all supplied circuits against the same typed public and private inputs.
+    /// The result contains one ordinary sumcheck and one packing reduction.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prove_circuits<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        private: Vec<CircuitInput<F>>,
+        state: CircuitState<W, F>,
+        others: &[&Circuit<F>],
+        t: &mut Transcript,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
+        if public.len() != circuit.raw.npublic_input {
+            return Err("public inputs length mismatch".into());
+        }
+        self.validate_circuits(circuit, public.len(), others)?;
+        if private.len() != self.backend.layout.private_inputs {
+            return Err("witness length mismatch".into());
+        }
+        if state.id != self.id
+            || state.config != self.config
+            || state.additional_ids != self.additional_ids
+        {
             return Err("commitment belongs to another circuit or configuration".into());
         }
         state
@@ -71,9 +97,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let public = extension.input_elements(ctx.f, public);
         let private = extension.into_input_elements(ctx.f, private);
         let inputs = prepare_inputs(&public, private);
-        t.write_sumcheck_statement(circuit, &public, ctx.f);
+        let mut circuits = vec![circuit];
+        circuits.extend_from_slice(others);
+        for c in &circuits {
+            t.write_sumcheck_statement(c, &public, ctx.f);
+        }
         let (sumcheck_proof, constraints) =
-            sumcheck_v2::evaluate_and_prove(inputs, &state.pads, circuit, t, ctx.f)?;
+            sumcheck_v2::evaluate_and_prove_circuits(&circuits, inputs, &state.pads, t, ctx.f)?;
         let pad_layout = self
             .geometry
             .sc_geom
@@ -168,19 +198,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             com_proof,
         })
     }
-}
-fn validate_inputs<F: crate::core::algebra::SerializableField, I>(
-    circuit: &Circuit<F>,
-    public: &[I],
-    private: &[I],
-) -> Result<(), String> {
-    if public.len() != circuit.raw.npublic_input {
-        return Err("public inputs length mismatch".into());
-    }
-    if private.len() != private_input_count(circuit) {
-        return Err("witness length mismatch".into());
-    }
-    Ok(())
 }
 fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>) -> Vec<E> {
     let mut inputs = Vec::with_capacity(public.len() + private.len());

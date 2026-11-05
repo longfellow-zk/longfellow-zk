@@ -351,8 +351,9 @@ fn test_sumcheck_core_single_hand_permutations() {
         inputs[1] = f.u64_to_element(12345);
         let w_layers = eval_circuit(inputs.clone(), &circuit, &f).unwrap();
         let pad = zero_proof(&circuit, &f);
-        // Deliberately hold challenges fixed by calling the core, after the
-        // order-sensitive circuit-ID statement step. Full prove/verify binds IDs.
+        // Hold the trusted identity fixed only for this arithmetic-layout comparison.
+        // Layered sumcheck binds each actual circuit ID before sampling.
+        circuit.id = [42; 32];
         let mut pt = Transcript::new(b"fixed-layout-comparison");
         let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt, &f);
         let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");
@@ -369,9 +370,8 @@ fn test_sumcheck_core_single_hand_permutations() {
         let transcript = pt.bytes(64);
         assert_eq!(transcript, vt.bytes(64));
         assert_eq!(transcript, verifier_transcript.bytes(64));
-        let geometry = SumcheckProofGeometry {
-            logw_layers: circuit.raw.layers.iter().map(|l| l.logw()).collect(),
-        };
+        let geometry =
+            SumcheckProofGeometry::new(circuit.raw.layers.iter().map(|l| l.logw()).collect());
         let result = (proof.write(&geometry, &f).unwrap(), constraints, transcript);
         if let Some(reference) = &expected {
             assert_eq!(&result, reference);

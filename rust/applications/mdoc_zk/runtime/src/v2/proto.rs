@@ -34,7 +34,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         for m in &self.macs {
             out.extend_from_slice(&m.to_le_bytes());
         }
-        out.extend_from_slice(b"MJP1");
+        out.extend_from_slice(b"MJP2");
         out.extend_from_slice(&self.commitment.root.data);
         self.proof_hash
             .write_to_buf(&mut out, &g.geom_hash, f1)
@@ -62,7 +62,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         f1: &F1,
         f2: &F2,
     ) -> Result<(&'a [u8], Self), String> {
-        if bytes.len() < 100 || bytes.get(96..100) != Some(b"MJP1") {
+        if bytes.len() < 100 || bytes.get(96..100) != Some(b"MJP2") {
             return Err("mdoc joint proof version or size".into());
         }
         let mut remaining = bytes;

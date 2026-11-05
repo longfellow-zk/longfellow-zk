@@ -6,27 +6,25 @@ use crate::{
         algebra::SerializableField,
         proto::v2::{Constant, Linear, Quadratic},
     },
-    runtime::{
-        algebra::{blas, RuntimeField},
-        sumcheck_v2::monomial,
-    },
+    runtime::algebra::RuntimeField,
 };
 
 /// Bind quadratic g,l coordinates. Linear terms have no r coordinate and enter
 /// the public L(u) correction separately.
-pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn bind_l_into<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
     b_l: &[F::E],
+    q_r: &mut [F::E],
     f: &F,
-) -> Vec<F::E> {
+) {
     assert_eq!(
         assertions.len(),
         layer.assertion_counts()[0] + layer.assertion_counts()[1]
     );
-    let mut q_r = vec![f.zero(); layer.nw];
+    assert_eq!(q_r.len(), layer.nw);
     layer
         .quadratic
         .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
@@ -54,24 +52,24 @@ pub(super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
             f.fma(&mut q_r[r as usize], rho.next().unwrap(), &b_l[l as usize]);
         },
     );
-    q_r
 }
 
 /// Bind quadratic g,r coordinates against W, then add the independent linear
 /// classes. Unit terms save a coefficient multiplication; linear assertions add
 /// rho directly, without an output weight or a witness multiplication.
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn bind_r_into<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
     w: &[F::E],
+    q_l: &mut [F::E],
     f: &F,
-) -> Vec<F::E> {
+) {
     let nq = layer.assertion_counts()[0];
     assert_eq!(assertions.len(), nq + layer.assertion_counts()[1]);
-    let mut q_l = vec![f.zero(); layer.nw];
+    assert_eq!(q_l.len(), layer.nw);
     layer
         .quadratic
         .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
@@ -99,8 +97,7 @@ pub(super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
             f.fma(&mut q_l[l as usize], rho.next().unwrap(), &w[r as usize]);
         },
     );
-    add_linear(layer, constants, a, &assertions[nq..], &mut q_l, f);
-    q_l
+    add_linear(layer, constants, a, &assertions[nq..], q_l, f);
 }
 
 #[cfg(any(test, feature = "prover"))]
@@ -136,17 +133,17 @@ fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
         });
 }
 
-/// a_next = m(u) + alpha*Q(u, .); the next claim subtracts alpha*L(u).
-pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + SerializableField>(
+/// Contract the linear stream at the same global monomial weights used by Q.
+/// The caller sums fragment corrections and subtracts alpha*L(u) from the
+/// ordinary two-factor transition. Purely linear fragments use this same path.
+pub(super) fn affine_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &SplitLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
-    point: &[F::E],
-    alpha: &F::E,
+    weights: &[F::E],
     f: &F,
-) -> (Vec<F::E>, F::E) {
-    let mut weights = monomial::weights(layer.logw, layer.nw, point, f);
+) -> F::E {
     let mut linear = f.zero();
     layer
         .linear
@@ -167,14 +164,12 @@ pub(super) fn weights_next_affine<const W: usize, F: RuntimeField<W> + Serializa
         .for_each(&layer.linear_runs, |LinearCoordinates { g: _, l }| {
             f.fma(&mut linear, rho.next().unwrap(), &weights[l as usize]);
         });
-    let q_r = bind_l(layer, constants, a, assertions, &weights, f);
     layer
         .linear_minus_one
         .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
             f.fnms(&mut linear, &a[g as usize], &weights[l as usize]);
         });
-    blas::axpy(&mut weights, alpha, &q_r, f);
-    (weights, linear)
+    linear
 }
 
 pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
@@ -201,3 +196,9 @@ pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableF
         });
     constant
 }
+
+#[cfg(test)]
+#[path = "../tests/quad_fixtures.rs"]
+mod fixtures;
+#[cfg(test)]
+pub(super) use fixtures::{bind_l, bind_r, weights_next_affine};

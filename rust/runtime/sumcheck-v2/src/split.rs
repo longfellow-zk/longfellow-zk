@@ -469,7 +469,6 @@ impl SplitStream<ConstantCoordinates> {
 
 pub(super) struct SplitLayer<'a> {
     pub(super) nw: usize,
-    pub(super) logw: usize,
     pub(super) quadratic_runs: Runs<'a, 3>,
     pub(super) linear_runs: Runs<'a, 2>,
     pub(super) constant_runs: Runs<'a, 1>,
@@ -496,7 +495,6 @@ impl<'a> SplitLayer<'a> {
             split_constant(&layer.constant, classes);
         Self {
             nw: layer.nw,
-            logw: layer.logw,
             quadratic_runs,
             linear_runs,
             constant_runs,

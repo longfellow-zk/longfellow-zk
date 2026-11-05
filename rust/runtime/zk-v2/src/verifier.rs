@@ -34,6 +34,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             public,
             &proof.sumcheck_proof,
             &proof.packing,
+            &[],
             t,
             ctx,
         )
@@ -44,12 +45,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         public: &[CircuitInput<F>],
         sumcheck: &crate::runtime::proto::sumcheck_v2::SumcheckProof<W, F>,
         packing: &crate::runtime::proto::dual_packing::PackingProof<F::E>,
+        others: &[&Circuit<F>],
         t: &mut Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
-        if circuit.id != self.id || public.len() != circuit.raw.npublic_input {
-            return Err("joint circuit statement mismatch".into());
-        }
+        self.validate_circuits(circuit, public.len(), others)?;
         sumcheck
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;
@@ -58,8 +58,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .parameters
             .extension()
             .input_elements(ctx.f, public);
-        t.write_sumcheck_statement(circuit, &public, ctx.f);
-        let constraints = sumcheck_v2::derive_constraints(circuit, sumcheck, t, ctx.f)?;
+        let mut circuits = vec![circuit];
+        circuits.extend_from_slice(others);
+        for c in &circuits {
+            t.write_sumcheck_statement(c, &public, ctx.f);
+        }
+        let constraints =
+            sumcheck_v2::derive_constraints_for_circuits(&circuits, sumcheck, t, ctx.f)?;
         let pads = self
             .geometry
             .sc_geom
@@ -72,6 +77,27 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             ctx.f,
         )?;
         self.backend.verify::<W>(statement, packing, &self.id, t)
+    }
+    /// Reduce all circuit statements to authenticated affine equations. The
+    /// caller must still complete the shared Polygero verification.
+    pub fn verify_circuits<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        proof: &CircuitProof<W, F>,
+        others: &[&Circuit<F>],
+        t: &mut Transcript,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<LinearStatement<F::E>, String> {
+        self.verify_parts(
+            circuit,
+            public,
+            &proof.sumcheck_proof,
+            &proof.packing,
+            others,
+            t,
+            ctx,
+        )
     }
 }
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
@@ -146,6 +172,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 public,
                 &proof.sumcheck_proof,
                 &proof.packing,
+                &[],
                 t,
                 ctx,
             )

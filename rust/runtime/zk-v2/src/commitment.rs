@@ -12,7 +12,7 @@ use crate::runtime::{
     proto::zk_v2::PackingLayout,
     random::Transcript,
 };
-/// Backend handoff: one logical input claim and physical GKR linear rows.
+/// Backend handoff: one logical input claim and physical sumcheck linear rows.
 pub(super) struct CommitmentStatement<E> {
     pub claim: SourceClaim<E>,
     pub a: Vec<PolygeroLinearTerm<E>>,

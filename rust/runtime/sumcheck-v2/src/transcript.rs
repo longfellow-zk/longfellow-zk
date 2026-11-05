@@ -14,19 +14,20 @@
 
 //! Bind the public statement and masked messages, then sample sumcheck challenges.
 //!
-//! The statement binds the trusted circuit ID and public inputs. `begin` then
-//! samples weights for the circuit outputs. Each layer samples its assertion
+//! The caller binds every trusted circuit ID and the shared public inputs.
+//! The shared schedule samples independent output weights when a circuit
+//! enters, including for scalar outputs. Each layer samples its assertion
 //! coefficients before any rounds; each round absorbs both masked coefficients
 //! before sampling z. Bind the cross coefficient before sampling nonzero r,
-//! then `end_layer` absorbs the scaled final-claim pair before sampling
-//! alpha, which combines those two claims for the next layer.
+//! then `end_layer` absorbs the two masked virtual-circuit factors before sampling
+//! alpha, which combines them into one next-layer claim.
 
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::{RandomEngine, Transcript},
-        sumcheck_v2::{monomial, RoundPoly},
+        sumcheck_v2::RoundPoly,
     },
 };
 
@@ -75,20 +76,6 @@ impl TranscriptSumcheck for Transcript {
             .sum::<usize>();
         self.write0(nterms);
     }
-}
-
-/// Start the sumcheck transcript domain and return the initial output weights a.
-/// Sample the logv coordinates of u and form a[g] = product_j u[j]^g_j.
-/// A scalar output has logv=0 and weight one, so it consumes no field challenges.
-pub(super) fn begin<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    circuit: &Circuit<F>,
-    transcript: &mut Transcript,
-    f: &F,
-) -> Vec<F::E> {
-    assert!(crate::runtime::sumcheck_v2::sane_logw(circuit.raw.logv));
-    transcript.write_bytes(b"longfellow-sumcheck-v2-projective-linear-terminal-v1");
-    let point_g = transcript.elt_field_slice(circuit.raw.logv, f);
-    monomial::weights(circuit.raw.logv, circuit.raw.noutput, &point_g, f)
 }
 
 /// Sample independent coefficients for quadratic, then linear zero markers.
@@ -143,8 +130,8 @@ pub(super) fn end_layer<
 }
 
 /// Fix d before sampling the nonzero mask scale r. The resulting equation
-/// C+r*(d+p_D)+r^2*p_AB=(A+r*p_A)*(B+r*p_B) is linear in committed cells.
-/// Excluding zero keeps both terminal values masked.
+/// C+r*(d+p_D)+r^2*p_AB=(A+r*p_A)*(B+r*p_B) is affine in committed
+/// cells once the masked factors are messages. Excluding zero keeps both masked.
 pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     cross: &F::E,
     transcript: &mut Transcript,

@@ -49,7 +49,7 @@ pub struct LayerProof<const W: usize, F: SerializableField> {
     pub rounds: Vec<RoundPoly<W, F>>,
     /// Masked cross coefficient, fixed before the terminal mask scale is sampled.
     pub cross: F::E,
-    /// `sum_l m_l[l] W[l]` and
+    /// Two factors for the complete virtual layer: `sum_l m_l[l] W[l]` and
     /// `sum_{g,l,r} a[g] QUAD[g,l,r] m_l[l] W[r] + L(u)`,
     /// with the terminal challenge times their respective pads added. Here `g` ranges over
     /// outputs, and `l,r` range over input wires, with m_l[l] = product_j u[j]^l_j;
@@ -86,6 +86,17 @@ fn invalid(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 impl SumcheckProofGeometry {
+    pub fn new(logw_layers: Vec<usize>) -> Self {
+        Self { logw_layers }
+    }
+
+    pub fn pad_count(&self) -> Result<usize, String> {
+        self.serialized_elements()
+            .map_err(|e| e.to_string())?
+            .checked_add(self.logw_layers.len())
+            .ok_or_else(|| "sumcheck pad overflow".into())
+    }
+
     pub fn from_circuit<F: SerializableField>(
         circuit: &crate::core::proto::v2::Circuit<F>,
     ) -> Self {
@@ -110,6 +121,8 @@ impl SumcheckProofGeometry {
         })
     }
     pub fn pad_layout(&self, base: usize) -> CircuitPadLayout {
+        base.checked_add(self.pad_count().expect("valid sumcheck geometry"))
+            .expect("sumcheck pad layout overflow");
         let layers: Vec<_> = self
             .logw_layers
             .iter()

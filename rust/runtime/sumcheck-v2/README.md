@@ -1,6 +1,7 @@
 # Sumcheck V2
 
-`runtime::sumcheck_v2` implements only single-hand sumcheck. The original
+`runtime::sumcheck_v2` implements single-hand sumcheck over one or more circuits
+using sparse quad fragments. The original
 `runtime::sumcheck_v1` module implements the legacy two-hand protocol. Import the
 module for the desired entry point; there is no protocol selector or proof enum.
 Each runtime has its own copies of the sumcheck arithmetic and transcript code.
@@ -10,6 +11,7 @@ Both use shared field and randomness modules; v2 consumes native LFC3 circuits.
 
 | Responsibility | Legacy | V2 |
 |---|---|---|
+| Shared quad-fragment schedule | — | `sumcheck-v2/src/fragments.rs` |
 | Numerical prover | `sumcheck-v1/src/prover.rs` | `sumcheck-v2/src/prover.rs` |
 | Symbolic constraint construction | `sumcheck-v1/src/symbolic.rs` | `sumcheck-v2/src/symbolic.rs` |
 | Commitment constraint compiler | `zk-v1/src/constraint_compiler.rs` | `zk-v2/src/constraint_compiler.rs` |
@@ -50,6 +52,46 @@ releasing each layer after proving it. The verifier constructs one layer at a ti
 Unit-coefficient arithmetic is confined to these eleven streams. See the
 [LFC3 format](../../core/proto/LFC3.md) for encoding and circuit identity.
 
+## Quad fragments and global layer arrays
+
+A `QuadFragment` identifies one supplied circuit's sparse terms at a layer,
+including its quadratic, linear and constant streams. Its ranges translate
+local gate indices into the global arrays. A `SplitFragment` adds the eleven-way
+split and sampled assertion coefficients. Neither owns a wire array.
+
+All circuits use the same input array and the same public/private input
+ordering. Every intermediate layer is the contiguous concatenation of its active
+circuits' wires. Local wire indices start at zero; their offset is the sum of
+the preceding circuits' widths. There is no padding between circuits. At
+the common input boundary every circuit's input offset is zero.
+
+For example, three intermediate widths 3, 5 and 3 occupy ranges `0..3`, `3..8`
+and `8..11`. Sumcheck uses `ceil(log2(11))` wire rounds. Missing coefficients
+beyond the end of the entire array are implicitly zero, as for an ordinary
+single circuit. Circuit indices introduce no extra protocol coordinates,
+terminal claims or combination challenges.
+
+A layer has one witness array W, one bound coefficient array q_l and one round
+polynomial. Sparse tensor binding iterates over quad fragments using
+slices at their offsets; dense folding operates on the global arrays. The
+verifier similarly constructs one monomial array and one q_r, then applies the
+ordinary `m(u) + alpha*q_r` transition once with `blas::axpy`. Circuits do not
+receive separate witness or claim arrays. Their only separate state is sparse
+circuit metadata and independently sampled assertion coefficients.
+
+Circuits align at their inputs. A depth-three circuit joins a depth-five
+circuit at stage two, adding freshly weighted zero outputs to the current
+claim. Each output receives an independent field weight, including scalar
+outputs. Evaluation checks all circuit outputs and assertions; once a
+circuit finishes, its checked zero outputs leave the global witness array.
+A zero-layer circuit asserts that the shared inputs themselves vanish and
+joins the final input claim directly.
+
+The ZK layer commits the common inputs once, runs this ordinary sumcheck and
+performs one packing reduction. Binary sources remain Boolean and degree-one
+packing remains a no-op. Circuit input layouts must agree; the runtime does
+not insert adapters or independent affine input views.
+
 ## Single-hand transition
 
 
@@ -64,8 +106,8 @@ V[g] = \sum_{l,r} Q[g,l,r]W[l]W[r] + \sum_l L[g,l]W[l] + K[g].
 $$
 
 The array `a` contains the current weights on output index `g`. Initially
-these are monomial weights at a transcript point; later they are the combined
-weights carried from the preceding sumcheck. The incoming claim is
+these are independent weights on outputs as circuits enter; later they are
+the combined weights carried from the preceding sumcheck. The incoming claim is
 
 $$
 c = \sum_g a[g]\,V[g].
@@ -95,8 +137,9 @@ q_r[r] = \sum_{g,l} a[g]Q[g,l,r]m_l[l],
 \qquad B = \sum_r q_r[r]W[r] + L(u),\quad L(u)=\sum_{g,l}a[g]L[g,l]m_l[l].
 $$
 
-Both bindings live in `quad.rs`. The shared `bind_l` routine performs the public
-binding for both roles; `bind_r` consumes witness values and is prover-gated.
+Both bindings live in `quad.rs`. The shared `bind_l_into` routine accumulates public
+bindings into the global q_r for both roles; `bind_r_into` consumes witness
+values and accumulates q_l only in the prover.
 Neither routine has an input selector, and neither role imports the other's implementation.
 
 Binding `g,l` lets the verifier express `B` as a claim about `W` without
@@ -163,22 +206,22 @@ Numerical verification with revealed inputs and pads evaluates those constraints
 directly. Both parties reconstruct the challenges, input weights, and constraints
 from the circuit and transcript.
 
-Each layer samples its assertion challenges once and reuses them in both quad
-bindings. The prover forms `q_l` once, folds both arrays once,
-expands `m_l[i]` once, and forms `q_r` once. Intermediate arrays
+Each fragment samples its assertion challenges once and reuses them in both
+quad bindings. Across a complete layer the prover forms `q_l` once, folds both
+arrays once, expands `m_l[i]` once, and forms `q_r` once. Intermediate arrays
 live within their layer; only the final combined input weights survive.
 Polygero continues on the advanced main transcript without replay.
 
-The initial output point has exactly `logv` sampled coordinates; a scalar output
-consumes none. Each layer then samples exactly `logw` round challenges. The codec
-independently caps serialized layers at 40 rounds, regardless of host index width;
-runtime circuit execution also checks its index capacity.
+Each entering circuit samples one weight per output; each global layer then
+samples exactly `ceil(log2(nw))` round challenges. The codec independently caps
+serialized layers at 40 rounds, regardless of host index width; circuit
+execution also checks its index capacity.
 
-The transcript domain is `longfellow-sumcheck-v2-projective-linear-terminal-v1`. Assertion sampling
-uses a separate domain and layer index; final-claim combination uses its own domain
-after the final-claim message. Both roles use `transcript::end_layer` for that
-boundary and `quad::weights_next_affine` for the public weight update.
-Legacy transcript operations are unchanged.
+The transcript binds ordered circuit IDs and depths under
+`layered-sumcheck/circuits/v1`. Circuit entry and assertion sampling have
+separate domains. `transcript::end_layer` binds the two final claims before the
+ordinary alpha challenge. Prover and verifier share the fragment layout and
+public transition arithmetic; legacy transcript operations are unchanged.
 
 | Per-layer quantity | Single-hand | Legacy round-major |
 |---|---:|---:|
@@ -223,9 +266,13 @@ The independent `p_D` masks the cross coefficient, and excluding zero keeps
 both final evaluations masked. These local masking facts do not constitute
 a complete joint-view zero-knowledge proof.
 
-The [packed Lean composition](../../../formal/lfzk-v2/README.md) targets
-`fcf8a3a`, which predates this terminal reduction and still checks pad products.
-Its numerical endpoint must be adapted before being applied to this protocol.
+The [layered Lean composition](../../../formal/lfzk-v2/README.md) models
+quad-fragment traversal, shared inputs and circuits entering at different depths,
+including scalar outputs and zero-layer circuits. It connects the final input
+claim to authenticated packing and the joint commitment. Each nonempty output
+entry block contributes at most `1/q`; the modeled mdoc geometry retains the
+116-bit extraction bound. Circuit/layout correspondence and ideal-sampler
+premises remain explicit.
 
 ## Compiler selection and testing
 
@@ -239,7 +286,8 @@ backend tests pin v1 circuit bytes and compare v1/v2 evaluation over binary and
 prime fields. Saved v1 proofs remain byte-for-byte fixtures. Runtime tests check
 split and reference execution, affine corrections, independent numerical and
 symbolic constraints, proof/transcript agreement, malformed encodings, arbitrary
-traversal, zero-round and zero-layer circuits, and sparse constraint lowering.
+traversal, quad fragments versus physically merged circuits, shared inputs, unequal
+depths and widths, zero-round and zero-layer circuits, and sparse constraint lowering.
 
 From `rust/`, run `cargo test --offline --release --features testonly` for the
 complete suite. Filter with `runtime::sumcheck_v1` or `runtime::sumcheck_v2` for

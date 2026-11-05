@@ -139,15 +139,23 @@ pub(super) fn prove_core<
 ) {
     use crate::runtime::{
         random::RandomEngine,
-        sumcheck_v2::{prover, symbolic, transcript},
+        sumcheck_v2::{prover, symbolic},
     };
-    let mut a = transcript::begin(circuit, t, f);
+    t.write_bytes(b"layered-sumcheck/circuits/v1");
+    t.write_bytes(&1u64.to_le_bytes());
+    t.write_bytes(&circuit.id);
+    t.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
+    t.write_bytes(b"layered-sumcheck/enter-circuit/v1");
+    t.write_bytes(&0u64.to_le_bytes());
+    let mut a = t.elt_field_slice(circuit.raw.noutput, f);
     let mut claim = f.zero();
     let mut layers = Vec::new();
     let mut challenges = Vec::new();
     for (index, w) in witnesses.into_iter().enumerate() {
         let layer = &circuit.raw.layers[index];
         let constants = &circuit.raw.constants;
+        t.write_bytes(b"layered-sumcheck/assertions/v1");
+        t.write_bytes(&0u64.to_le_bytes());
         t.write_bytes(b"single-hand-assertions");
         t.write_bytes(&(index as u64).to_le_bytes());
         let rho: Vec<_> = (0..layer.assertion_counts().iter().sum::<usize>())

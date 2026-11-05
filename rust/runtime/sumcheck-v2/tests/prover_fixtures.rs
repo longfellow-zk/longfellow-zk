@@ -14,7 +14,16 @@ pub(crate) fn prove_core<
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
     let layers = super::super::split::split_layers(circuit, f);
-    prove_split(w_layers, pads, circuit, layers, transcript, f)
+    prove_split(
+        &[circuit],
+        vec![layers],
+        w_layers,
+        pads,
+        Schedule::new(&[circuit]).unwrap(),
+        transcript,
+        f,
+    )
+    .unwrap()
 }
 
 /// Bind the statement and run the prover for a test with at least one layer.

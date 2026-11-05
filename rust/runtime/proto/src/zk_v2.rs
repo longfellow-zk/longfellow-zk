@@ -166,7 +166,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         g: &ZkProofGeometry,
         f: &F,
     ) -> std::io::Result<()> {
-        buf.extend_from_slice(b"LFV6");
+        buf.extend_from_slice(b"LFV7");
         buf.extend_from_slice(&self.com.root.data);
         CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)?;
         self.com_proof
@@ -181,7 +181,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     }
     pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
-        if b.get(..4) != Some(b"LFV6") {
+        if b.get(..4) != Some(b"LFV7") {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "Longfellow v2 version marker",

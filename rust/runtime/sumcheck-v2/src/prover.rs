@@ -1,187 +1,169 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Prove each circuit layer from outputs toward inputs, carrying one weighted claim.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Numerical sumcheck over one circuit described by sparse quad fragments.
 //!
-//! The ZK caller supplies circuit inputs and secret pads already covered by its
-//! commitment. Evaluation computes the layer witnesses using a private split
-//! circuit, then sumcheck reuses it from circuit outputs toward inputs.
-//! Initially, a contains sampled weights on the circuit outputs and claim is
-//! zero, since every output must vanish. For each layer, first form
+//! All supplied circuits share the same input array. Intermediate wire arrays
+//! concatenate the active circuits' wires, with no padding between them.
+//! Evaluation saves one complete witness array per layer, from inputs to outputs;
+//! proving consumes those arrays in reverse. Shorter circuits join later with
+//! freshly weighted zero outputs, leaving the running claim unchanged.
+//!
+//! The sparse Q, L and K tensors are traversed fragment by fragment, applying
+//! local-to-global offsets through slices. At the input layer every fragment has
+//! offset zero. Once the tensors are bound, ordinary sumcheck operates on one W
+//! array and one q_l array, indexed only by the global wire index.
+//!
+//! For global output weights a[g] and global input witness W, form
 //!
 //! ```text
-//! q_l[l] = sum_g a[g] (sum_r Q[g,l,r] W[r] + L[g,l]),
-//! claim - sum_g a[g] K[g] = sum_l q_l[l] W[l].
+//! q_l[l] = sum_g a[g] * (sum_r Q[g,l,r]*W[r] + L[g,l]),
+//! K_a    = sum_g a[g]*K[g],
+//! C - K_a = sum_l q_l[l]*W[l].
 //! ```
 //!
-//! `layer` forms this dot-product claim and calls `prove_dot_product`. Each
-//! `round` sends two masked polynomial coefficients, samples z, and binds one
-//! wire-index coordinate in both arrays. After all coordinates
-//! are bound at u, the arrays contain two scalars A and B:
+//! Assertion terms replace their entire weighted coefficient with an independent
+//! challenge, reused in both tensor bindings. Linear terms enter q_l directly;
+//! constants have no witness factor and are subtracted before the rounds.
+//!
+//! Folding global wire bits at u leaves exactly two terminal factors:
 //!
 //! ```text
-//! m_l[l] = product_j u[j]^l_j,
-//! A = sum_l m_l[l] W[l],
-//! B = sum_l m_l[l] q_l[l] = sum_r q_r[r] W[r] + L(u),
-//! q_r[r] = sum_{g,l} a[g] QUAD[g,l,r] m_l[l],
+//! m(u)[l] = product_j u[j]^l_j,
+//! A = sum_l m(u)[l]*W[l],
+//! B = sum_l m(u)[l]*q_l[l] = sum_r q_r[r]*W[r] + L(u),
+//! q_r[r] = sum_{g,l} a[g]*Q[g,l,r]*m(u)[l],
+//! L(u)   = sum_{g,l} a[g]*L[g,l]*m(u)[l].
 //! ```
 //!
-//! Their product must equal the final round claim. Bind a masked cross coefficient,
-//! sample a nonzero terminal scale, then send the scaled-mask versions of A,B
-//! before sampling alpha. `weights_next_affine` makes their combined claim the starting point
-//! for the next layer, where these input wires become output wires:
-//!
-//! ```text
-//! a_next[r] = m_l[r] + alpha*q_r[r],
-//! claim_next = A + alpha*(B - L(u)) = sum_r a_next[r] W[r].
-//! ```
-//!
-//! Linear terms enter q_l directly; the public constant contribution is removed
-//! before the rounds. The next claim subtracts alpha*L(u), because the linear
-//! contribution has no right-hand witness factor. Both corrections are also
-//! recorded in the shared symbolic constraints.
-//!
-//! Assertion quads use sampled coefficients in place of a[g] QUAD[g,l,r].
-//! The prover records the challenges as it runs, then uses the shared symbolic
-//! builder to express the same round updates and product checks as constraints
-//! on the committed pads. The last claim is constrained to the weighted circuit
-//! inputs. Return these constraints alongside the masked proof messages.
-
+//! The randomized affine terminal identity checks C=A*B. After both masked
+//! factors are bound, one alpha combines them. The next weights are
+//! a_next[r]=m(u)[r]+alpha*q_r[r], and the next claim is A+alpha*(B-L(u)).
+//! Subtracting alpha*L(u) removes the term with no right-hand witness factor.
+//! Both K_a and L(u) are recorded for the shared symbolic builder's affine rows.
+//! The final dense input weights directly address the common authenticated inputs.
+use super::{
+    dense::{as_scalar, bind},
+    fragments::{self, Schedule, SplitFragment},
+    proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
+    split::{split_layers, SplitLayer},
+    symbolic::{build_constraints, Constraints, LayerChallenges},
+    transcript::{end_layer, round_challenge},
+};
 use crate::{
-    core::algebra::SerializableField,
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        proto::sumcheck_v2::pad_count,
         random::{RandomEngine, Transcript},
-        sumcheck_v2::{
-            dense::{as_scalar, bind},
-            proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            quad::{bind_r, weights_next_affine},
-            symbolic::{build_constraints, Constraints, LayerChallenges},
-            transcript::{assertion_weights, begin, end_layer, round_challenge},
-        },
     },
 };
 
-/// Split the complete circuit once, evaluate its witnesses, then consume those
-/// same split layers during sumcheck. The caller has already bound the statement
-/// to the transcript. Split storage stays private and each layer is released
-/// after its dot product is proved.
+#[cfg(test)]
 pub(crate) fn evaluate_and_prove<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
-    transcript: &mut Transcript,
+    circuit: &Circuit<F>,
+    t: &mut Transcript,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    let layers = super::split::split_layers(circuit, f);
-    let witnesses = super::eval::eval_split_circuit(inputs, circuit, &layers, f)
-        .map_err(|e| format!("eval_circuit failed: {e}"))?;
-    Ok(prove_split(witnesses, pads, circuit, layers, transcript, f))
+    evaluate_and_prove_circuits(&[circuit], inputs, pads, t, f)
 }
 
-fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, I>(
-    witnesses: I,
+/// The caller binds all circuit statements and shared public inputs first.
+/// Split each circuit once for both evaluation and proving; consume its split
+/// layers and witnesses as the shared schedule advances toward the inputs.
+pub(crate) fn evaluate_and_prove_circuits<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[&Circuit<F>],
+    inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
-    layers: Vec<super::split::SplitLayer<'_>>,
-    transcript: &mut Transcript,
+    t: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, Constraints<F::E>)
-where
-    I: IntoIterator<Item = Vec<F::E>>,
-    I::IntoIter: ExactSizeIterator,
-{
-    let w_layers = witnesses.into_iter();
-    pads.validate(&SumcheckProofGeometry::from_circuit(circuit))
-        .expect("pad shape mismatch");
-    assert_eq!(w_layers.len(), circuit.raw.layers.len());
-    assert_eq!(layers.len(), w_layers.len());
-    let mut a = begin(circuit, transcript, f);
-    let mut claim = f.zero();
-    let mut proof_layers = Vec::with_capacity(w_layers.len());
-    let mut layer_challenges = Vec::with_capacity(w_layers.len());
-    for ((layer_index, w), split) in w_layers.enumerate().zip(layers) {
-        let (proof, challenges, a_next, claim_next) = layer(
-            layer_index,
-            w,
-            &pads.layers[layer_index],
-            &split,
-            &circuit.raw.constants,
-            &a,
-            claim,
-            transcript,
-            f,
-        );
-        a = a_next;
-        claim = claim_next;
-        proof_layers.push(proof);
-        layer_challenges.push(challenges);
+) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+    let schedule = Schedule::new(circuits)?;
+    pads.validate(&schedule.geometry)
+        .map_err(|e| e.to_string())?;
+    if inputs.len() != schedule.ninput {
+        return Err("shared input width mismatch".into());
     }
+    let layers: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
+    let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
+        .map_err(|e| format!("eval_circuit failed: {e}"))?;
+    prove_split(circuits, layers, witnesses, pads, schedule, t, f)
+}
+
+fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+    circuits: &[&Circuit<F>],
+    layers: Vec<Vec<SplitLayer<'_>>>,
+    witnesses: Vec<Vec<F::E>>,
+    pads: &SumcheckProof<W, F>,
+    schedule: Schedule,
+    t: &mut Transcript,
+    f: &F,
+) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+    pads.validate(&schedule.geometry)
+        .map_err(|e| e.to_string())?;
+    assert_eq!(layers.len(), circuits.len());
+    assert_eq!(witnesses.len(), schedule.layers.len());
+    let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
+    schedule.bind(circuits, t);
+    let mut weights = Vec::new();
+    let mut claim = f.zero();
+    let mut proof_layers = Vec::with_capacity(pads.layers.len());
+    let mut challenges = Vec::with_capacity(pads.layers.len());
+    for ((stage, w), pp) in witnesses.into_iter().enumerate().zip(&pads.layers) {
+        let layout = &schedule.layers[stage];
+        assert_eq!(w.len(), layout.nw);
+        schedule.enter(circuits, &mut weights, stage, t, f);
+        let active: Vec<_> = layout
+            .fragments
+            .iter()
+            .map(|s| {
+                SplitFragment::new(
+                    s,
+                    layers[s.circuit].next().expect("scheduled fragment"),
+                    t,
+                    f,
+                )
+            })
+            .collect();
+        // Every fragment accumulates into its slice of one q_l. At the shared
+        // input boundary those slices overlap intentionally, combining the gates.
+        let mut q = vec![f.zero(); layout.nw];
+        for a in &active {
+            let s = &a.fragment;
+            super::quad::bind_r_into(
+                &a.layer,
+                &circuits[s.circuit].raw.constants,
+                &weights[s.output_range.clone()],
+                &a.assertions,
+                &w[s.input_range.clone()],
+                &mut q[s.input_range.clone()],
+                f,
+            );
+        }
+        let constant = fragments::constant(circuits, &weights, &active, f);
+        let (proof, mut c, mut next) = prove_dot_product(w, q, pp, f.subf(&claim, &constant), t, f);
+        let (next_weights, linear) = fragments::transition(
+            circuits, &weights, &active, layout.nw, &c.point_l, &c.alpha, f,
+        );
+        weights = next_weights;
+        f.fnms(&mut next, &c.alpha, &linear);
+        claim = next;
+        c.constant = constant;
+        c.linear = linear;
+        proof_layers.push(proof);
+        challenges.push(c);
+    }
+    schedule.enter(circuits, &mut weights, pads.layers.len(), t, f);
     let proof = SumcheckProof {
         layers: proof_layers,
     };
-    let constraints = build_constraints(&proof, layer_challenges, a, f);
-    (proof, constraints)
-}
-
-/// Prove one circuit layer and carry its weighted claim to the layer's inputs.
-/// Bind QUAD with the incoming output weights a and witness W to obtain
-/// q_l[l] = sum_g a[g]*(sum_r Q[g,l,r]*W[r] + L[g,l]).
-/// Remove the constant contribution before proving sum_l q_l[l]*W[l].
-/// Return the proof messages, sampled challenges, and the next weighted claim:
-/// a_next and claim_next = sum_r a_next[r]*W[r].
-/// Assertion coefficients are sampled once and reused in both tensor bindings.
-#[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    layer_index: usize,
-    w: Vec<F::E>,
-    pads: &LayerProof<W, F>,
-    split: &super::split::SplitLayer<'_>,
-    constants: &[F::E],
-    a: &[F::E],
-    claim: F::E,
-    transcript: &mut Transcript,
-    f: &F,
-) -> (LayerProof<W, F>, LayerChallenges<F::E>, Vec<F::E>, F::E) {
-    assert!(split.nw > 0, "sumcheck layer must contain a wire");
-    assert_eq!(w.len(), split.nw, "layer witness width mismatch");
-
-    let assertions = assertion_weights(split, layer_index, transcript, f);
-    let q_l = bind_r(split, constants, a, &assertions, &w, f);
-    let constant = super::quad::affine_constant(split, constants, a, f);
-    let claim = f.subf(&claim, &constant);
-    let (proof, mut challenges, mut claim_next) =
-        prove_dot_product(w, q_l, pads, claim, transcript, f);
-    // B also contains public L(u). Subtract alpha*L(u) from
-    // A + alpha*B to obtain the weighted claim on the next layer's inputs.
-    let (a_next, linear) = weights_next_affine(
-        split,
-        constants,
-        a,
-        &assertions,
-        &challenges.point_l,
-        &challenges.alpha,
-        f,
-    );
-    f.fnms(&mut claim_next, &challenges.alpha, &linear);
-    challenges.constant = constant;
-    challenges.linear = linear;
-    (proof, challenges, a_next, claim_next)
+    let constraints = build_constraints(&proof, challenges, weights, f);
+    Ok((proof, constraints))
 }
 
 /// Reduce `claim = sum_l q_l[l] W[l]`.
@@ -378,11 +360,7 @@ pub(crate) fn sample_pads<
     rng: &mut R,
     f: &F,
 ) -> (SumcheckProof<W, F>, Vec<F::E>) {
-    let npads = geometry
-        .logw_layers
-        .iter()
-        .map(|&logw| pad_count(logw))
-        .sum();
+    let npads = geometry.pad_count().expect("valid pad geometry");
     let mut witness = Vec::with_capacity(npads);
     let mut proof_layers = Vec::with_capacity(geometry.logw_layers.len());
     for &logw in &geometry.logw_layers {

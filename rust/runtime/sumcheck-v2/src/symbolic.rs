@@ -14,8 +14,13 @@
 
 //! Reduce sumcheck verification to constraints on committed circuit inputs and pads.
 //!
+//! An ordinary circuit layer can store its sparse gates in quad fragments.
+//! Intermediate wires are concatenated; the input array is shared.
+//! There is one global wire index and exactly two terminal factors, so all
+//! formulas below apply unchanged to one or many supplied circuits.
+//!
 //! Sumcheck starts with the claim that the circuit's outputs are zero. Working
-//! through the circuit from outputs to inputs, it reduces each layer's claim to
+//! through the virtual circuit from outputs to inputs, it reduces each layer's claim to
 //! two claims on that layer's inputs, then combines them into one claim for the
 //! next layer. The last claim must equal a weighted sum of the circuit inputs.
 //!

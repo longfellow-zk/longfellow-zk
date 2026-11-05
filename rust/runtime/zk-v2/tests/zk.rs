@@ -139,7 +139,7 @@ pub(crate) fn exercise<
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
     let bytes = proof.write(&prover_geometry, f).unwrap();
-    assert_eq!(&bytes[..4], b"LFV6");
+    assert_eq!(&bytes[..4], b"LFV7");
     for old_marker in [b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);

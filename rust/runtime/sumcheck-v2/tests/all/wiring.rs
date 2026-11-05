@@ -195,7 +195,7 @@ fn functional_transition_and_independent_assertions_binary() {
 
 /// Check the initial weights and the next PRF bytes independently of the
 /// prover/verifier roundtrip. Both roles could otherwise share the same extra
-/// sampling bug. Include a scalar output, which must sample no coordinates.
+/// sampling bug. Include a scalar output, which receives one independent weight.
 fn check_output_sampling<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -216,31 +216,23 @@ fn check_output_sampling<
             },
         };
         let mut actual = Transcript::new(b"v2-output-challenges");
-        let weights = crate::runtime::sumcheck_v2::transcript::begin(&circuit, &mut actual, f);
-
+        let schedule = crate::runtime::sumcheck_v2::fragments::Schedule::new(&[&circuit]).unwrap();
+        let mut weights = Vec::new();
+        schedule.enter(&[&circuit], &mut weights, 0, &mut actual, f);
         let mut expected = Transcript::new(b"v2-output-challenges");
-        expected.write_bytes(b"longfellow-sumcheck-v2-projective-linear-terminal-v1");
-        let point = expected.elt_field_slice(logv, f);
-        assert_eq!(weights.len(), noutput);
-        for (g, weight) in weights.iter().enumerate() {
-            let mut product = f.one();
-            for (bit, coordinate) in point.iter().enumerate() {
-                if g & (1 << bit) != 0 {
-                    f.mul(&mut product, coordinate);
-                }
-            }
-            assert_eq!(*weight, product);
-        }
+        expected.write_bytes(b"layered-sumcheck/enter-circuit/v1");
+        expected.write_bytes(&0u64.to_le_bytes());
+        assert_eq!(weights, expected.elt_field_slice(noutput, f));
         assert_eq!(actual.bytes(32), expected.bytes(32), "logv={logv}");
     }
 }
 
 #[test]
-fn output_sampling_uses_exact_dimension_prime() {
+fn output_sampling_uses_independent_weights_prime() {
     check_output_sampling(&crate::runtime::algebra::p256::P256Field::new());
 }
 
 #[test]
-fn output_sampling_uses_exact_dimension_binary() {
+fn output_sampling_uses_independent_weights_binary() {
     check_output_sampling(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
 }

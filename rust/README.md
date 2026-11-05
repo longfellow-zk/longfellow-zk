@@ -96,14 +96,13 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
 assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**116-bit extraction security** for the linear-terminal two-field model at
-`21cb029`: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^116`. This includes
-packing, native affine sumcheck and the
-[linear terminal reduction](runtime/sumcheck-v2/README.md), with circuit/MAC
-correspondence and ideal-sampler premises documented in the
-[audit](../formal/AUDIT.md). That model authenticates the fields separately.
-The current joint-field backend requires a composition bound for its shared
-commitment and opening queries before this numerical certificate applies.
+**116-bit extraction security** for the modeled mdoc geometry with layered
+sumcheck: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^116`. This includes
+quad fragments, shared inputs, circuits of different depths, one shared
+commitment and opening, packing, and the
+[linear terminal reduction](runtime/sumcheck-v2/README.md). Circuit/layout
+correspondence and ideal-sampler premises remain explicit in the
+[audit](../formal/AUDIT.md). Shared-query failure budgets add across fields.
 Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
 the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
@@ -120,8 +119,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 155.9 ms | 85.8 ms | 163,372 | 42.74 MiB | 34.31 MiB |
-| 4 | 167.4 ms | 90.7 ms | 164,844 | 47.43 MiB | 37.36 MiB |
+| 2 | 154.8 ms | 86.5 ms | 163,084 | 42.74 MiB | 34.31 MiB |
+| 4 | 168.3 ms | 89.9 ms | 164,844 | 47.44 MiB | 37.36 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -129,7 +128,7 @@ two disclosures.
 | 4 | 672,517 | 176,928 | 2.23 MiB |
 
 Both cases use `(k,s,n,t)=(416,15,2912,86)` for the hash and signature
-components. Each hash circuit has 20 layers; the signature has 21.
+circuits. Each hash circuit has 20 layers; the signature has 21.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
@@ -137,7 +136,7 @@ components. Each hash circuit has 20 layers; the signature has 21.
 | Hash, 4 attributes | 313,771 | 2,314,852 | 4,691,287 | 274 |
 | Signature, either case | 3,940 | 179,657 | 276,461 | 260 |
 
-The hash component packs 128 private input bits per committed GF128 word.
+The hash circuit packs 128 private input bits per committed GF128 word.
 Its trace-zero packing response occupies 2,064 bytes. Signature inputs use
 degree-one packing, which adds no masks, messages, or transcript challenges.
 Proof sizes include the sampled Merkle frontier, whose size varies with the
@@ -177,8 +176,15 @@ and all responses before queries. A single field uses the same protocol through
 do not assume independence. The mdoc application combines its hash and signature fields in one tuple,
 with one commitment and one opening. Its cross-field MAC checks remain in place.
 
-V2 binary circuits accept Boolean public and private inputs.
- Authenticated
+Within a field, layered sumcheck combines multiple circuits with one shared
+input array. Each intermediate layer has one contiguous wire array, ordered
+by circuit, without padding between circuits. Only the sparse quadratic,
+linear and constant terms are stored in quad fragments; local gate offsets
+address the global arrays. Shorter circuits join later, aligned at their inputs.
+The final shared-input claim uses one packing reduction. The mdoc hash and
+signature fields currently each use one circuit through this implementation.
+
+V2 binary circuits accept Boolean public and private inputs. Authenticated
 packing enforces their bit representation, so the Boolean layer omits bitness
 assertions on binary input wires. Internal arithmetic uses the full field;
 converting an arbitrary field expression back to a Boolean still checks bitness.
@@ -199,7 +205,7 @@ they are not separate crates.
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
 | `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
 | `runtime/` | Concrete arithmetic, interpolation, proof protocols, and proof serialization |
-| `circuits/` | Reusable circuit components and native witness generation |
+| `circuits/` | Reusable circuits and native witness generation |
 | `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
 | `tools/` | Rust commands for parameter auditing and specification generation |
 | `src/lib.rs` | Module assembly and feature gates |
@@ -253,7 +259,7 @@ Applications select `mdoc::v1` or `mdoc::v2`. Each provides
 A specification identifies a circuit and fixes its commitment parameters.
 The prover and verifier use the same specification and matching archive.
 
-For v2, the hash and signature components share the same
+For v2, the hash and signature circuits share the same
 `(K, N, s, T)` parameters for their joint column commitment:
 
 | Parameter | Meaning |

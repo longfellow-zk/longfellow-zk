@@ -3,46 +3,19 @@ use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates,
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{Circuit, Constant, Linear, Quadratic},
+        proto::v2::{Constant, Linear, Quadratic},
     },
     runtime::algebra::RuntimeField,
 };
 
-pub(super) fn eval_split_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
-    mut w: Vec<F::E>,
-    circuit: &Circuit<F>,
-    layers: &[SplitLayer<'_>],
-    f: &F,
-) -> Result<Vec<Vec<F::E>>, String> {
-    let mut saved = Vec::with_capacity(layers.len());
-    for (index, layer) in layers.iter().enumerate().rev() {
-        let noutput = if index == 0 {
-            circuit.raw.noutput
-        } else {
-            layers[index - 1].nw
-        };
-        let outputs = eval_layer(&w, layer, &circuit.raw.constants, noutput, f).map_err(|e| {
-            format!("Witness does not satisfy circuit constraints at layer {index}: {e}")
-        })?;
-        saved.push(w);
-        w = outputs;
-    }
-    for (g, x) in w.iter().enumerate() {
-        if !f.is_zero(x) {
-            return Err(format!("Circuit output at index {g} is not zero"));
-        }
-    }
-    saved.reverse();
-    Ok(saved)
-}
-pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
+/// Add one fragment's terms to its slice of the common layer output array.
+pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableField>(
     w: &[F::E],
     layer: &SplitLayer<'_>,
     constants: &[F::E],
-    noutput: usize,
+    out: &mut [F::E],
     f: &F,
-) -> Result<Vec<F::E>, String> {
-    let mut out = vec![f.zero(); noutput];
+) -> Result<(), String> {
     layer
         .quadratic
         .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
@@ -111,7 +84,7 @@ pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>
         .for_each(&layer.constant_runs, |ConstantCoordinates { g }| {
             f.sub(&mut out[g as usize], &one);
         });
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -119,3 +92,59 @@ pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>
 mod fixtures;
 #[cfg(test)]
 pub(crate) use fixtures::eval_circuit;
+#[cfg(test)]
+pub(super) use fixtures::{eval_layer, eval_split_circuit};
+
+/// Evaluate the quad fragments from common inputs toward circuit outputs.
+/// Each saved witness is one complete global layer. Completed circuits' zero
+/// outputs are checked before dropping their slots; the remaining slots already
+/// have the next layer's ordering.
+pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
+    mut w: Vec<F::E>,
+    circuits: &[&crate::core::proto::v2::Circuit<F>],
+    layers: &[Vec<SplitLayer<'_>>],
+    schedule: &super::fragments::Schedule,
+    f: &F,
+) -> Result<Vec<Vec<F::E>>, String> {
+    if w.len() != schedule.ninput {
+        return Err("shared input width mismatch".into());
+    }
+    if circuits.iter().any(|c| c.raw.layers.is_empty()) {
+        if let Some(g) = w.iter().position(|v| !f.is_zero(v)) {
+            return Err(format!("Circuit output at index {g} is not zero"));
+        }
+    }
+    let mut saved = Vec::with_capacity(schedule.layers.len());
+    for (stage, layout) in schedule.layers.iter().enumerate().rev() {
+        assert_eq!(w.len(), layout.nw);
+        let mut out = vec![f.zero(); layout.nv];
+        for s in &layout.fragments {
+            eval_layer_into(&w[s.input_range.clone()], &layers[s.circuit][s.layer],
+                &circuits[s.circuit].raw.constants, &mut out[s.output_range.clone()], f)
+                .map_err(|e| format!("Witness does not satisfy circuit constraints at stage {stage}, circuit {}: {e}", s.circuit))?;
+        }
+        let mut next = 0;
+        for s in &layout.fragments {
+            if s.layer == 0 {
+                if out[s.output_range.clone()].iter().any(|v| !f.is_zero(v)) {
+                    return Err(format!(
+                        "Circuit output in circuit {} is not zero",
+                        s.circuit
+                    ));
+                }
+            } else {
+                if next != s.output_range.start {
+                    for (j, old) in s.output_range.clone().enumerate() {
+                        out[next + j] = out[old].clone();
+                    }
+                }
+                next += s.output_range.len();
+            }
+        }
+        out.truncate(next);
+        saved.push(w);
+        w = out;
+    }
+    saved.reverse();
+    Ok(saved)
+}

@@ -1,131 +1,112 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Derive constraints on hidden inputs and pads from the public sumcheck transcript.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Reconstruct ordinary sumcheck over a circuit described by sparse quad fragments.
 //!
-//! Starting at the circuit outputs, a holds the weights of the current claim.
-//! For each layer, absorb the masked round coefficients to sample a point u,
-//! then absorb the cross message to sample nonzero r. Absorb the scaled
-//! final-claim pair before sampling its combination challenge alpha.
-//! The public circuit determines the next weights:
+//! The wire arrays are global: common inputs at the bottom and concatenated
+//! intermediate wires above. Quad fragment offsets affect sparse tensor traversal,
+//! not the sumcheck rounds or terminal algebra. At point u, each fragment reads
+//! the corresponding slice of one monomial array m(u). Accumulate all public
+//! contractions into one q_r, then form a_next=m(u)+alpha*q_r with one BLAS call.
 //!
-//! ```text
-//! m_l[i] = product_j u[j]^i_j,
-//! q_r[r] = sum_{g,l} a[g] QUAD[g,l,r] m_l[l],
-//! a_next[r] = m_l[r] + alpha*q_r[r].
-//! ```
+//! The terminal factors are A=<m(u),W> and B=<q_r,W>+L(u), so subtract alpha*L(u)
+//! when combining them. Constants K are removed before the rounds; linear terms
+//! and assertions use the same path in every fragment. No witness values are
+//! needed to derive these public corrections or the final input weights.
 //!
-//! These weights express A + alpha*(B - L(u)) as a weighted sum of the
-//! layer's inputs. Assertion quads use their sampled replacement coefficients.
-//! After the last layer, a weights the circuit inputs. Pass it and all sampled
-//! challenges to `build_constraints`, which tracks the hidden claims as affine
-//! expressions in the pads and forms the layer and input constraints.
+//! Each round message precedes its challenge. The cross message precedes the
+//! nonzero terminal scale, and both masked factors precede the single alpha.
+//! Newly entering circuits receive weights on their zero outputs before their
+//! assertion challenges. Only the current stage's split metadata is retained.
 //!
-//! [`crate::runtime::zk_v2::ZkVerifier`] compiles the resulting constraints and
-//! checks them through Polygero. Deriving constraints alone does not check them.
-
+//! This derives affine constraints, not an acceptance decision. The caller must
+//! authenticate every stage equation and the final shared-input claim against
+//! the commitment received before sumcheck.
+use super::{
+    fragments::{self, Schedule, SplitFragment},
+    split::SplitLayer,
+    symbolic::{build_constraints, Constraints, LayerChallenges},
+    transcript::{end_layer, round_challenge, terminal_challenge},
+    SumcheckProof,
+};
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::{
+        algebra::SerializableField,
+        proto::v2::{classify_constants, Circuit},
+    },
     runtime::{
-        algebra::{ElementOf, RuntimeField, SupportsSampling},
+        algebra::{RuntimeField, SupportsSampling},
         random::Transcript,
-        sumcheck_v2::{
-            proof::{LayerProof, SumcheckProof, SumcheckProofGeometry},
-            quad::weights_next_affine,
-            symbolic::{build_constraints, Constraints, LayerChallenges},
-            transcript::{assertion_weights, begin, end_layer, round_challenge},
-        },
     },
 };
 
-/// Reconstruct each circuit layer's challenges and input weights, then build
-/// the symbolic constraints. The caller must have absorbed the public statement.
-/// Validate message counts before advancing the transcript.
 pub(crate) fn derive_constraints<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
+    t: &mut Transcript,
     f: &F,
-) -> Result<Constraints<ElementOf<F>>, String> {
-    proof
-        .validate(&SumcheckProofGeometry::from_circuit(circuit))
-        .map_err(|e| e.to_string())?;
-    let mut a = begin(circuit, transcript, f);
-    let classes = crate::core::proto::v2::classify_constants(f, &circuit.raw.constants);
-    let mut layer_challenges = Vec::with_capacity(proof.layers.len());
-    for layer_index in 0..proof.layers.len() {
-        let (challenges, a_next) = layer(
-            layer_index,
-            &proof.layers[layer_index],
-            circuit,
-            &a,
-            transcript,
-            f,
-            &classes,
-        );
-        a = a_next;
-        layer_challenges.push(challenges);
-    }
-    if a.len() != circuit.raw.ninput {
-        return Err("single-hand input width mismatch".into());
-    }
-    Ok(build_constraints(proof, layer_challenges, a, f))
+) -> Result<Constraints<F::E>, String> {
+    derive_constraints_for_circuits(&[circuit], proof, t, f)
 }
 
-/// Reconstruct one layer's challenges and return weights on its inputs.
-/// The round challenges form point_l = u. Binding QUAD at u expresses B as
-/// sum_r q_r[r]*W[r] + L(u), while A = sum_r m_l[r]*W[r]. The corrected claim
-/// uses a_next[r] = m_l[r] + alpha*q_r[r]. All these weights are public.
-fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    layer_index: usize,
-    proof: &LayerProof<W, F>,
-    circuit: &Circuit<F>,
-    a: &[F::E],
-    transcript: &mut Transcript,
+/// Validate all message counts before advancing the transcript. Circuit metadata
+/// is trusted, as in the single-circuit entry point; shared public inputs must
+/// already have been bound by the caller.
+pub(crate) fn derive_constraints_for_circuits<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[&Circuit<F>],
+    proof: &SumcheckProof<W, F>,
+    t: &mut Transcript,
     f: &F,
-    classes: &[crate::core::proto::v2::CoefficientClass],
-) -> (LayerChallenges<F::E>, Vec<F::E>) {
-    let split = super::split::SplitLayer::with_classes(&circuit.raw.layers[layer_index], classes);
-    let constants = &circuit.raw.constants;
-    assert!(split.nw > 0, "sumcheck layer must contain a wire");
-    let assertions = assertion_weights(&split, layer_index, transcript, f);
-
-    // Each coefficient pair is absorbed before its challenge is sampled.
-    let mut point_l = Vec::with_capacity(split.logw);
-    for m in &proof.rounds {
-        point_l.push(round_challenge(m, transcript, f));
-    }
-    let terminal = super::transcript::terminal_challenge(&proof.cross, transcript, f);
-    // Bind both scaled claims before drawing their combination challenge.
-    let alpha = end_layer(&proof.claims, transcript, f);
-
-    // The next claim is A + alpha*(B - L(u)). Its weights use only Q;
-    // the symbolic builder subtracts the public linear correction separately.
-    let constant = super::quad::affine_constant(&split, constants, a, f);
-    let (a_next, linear) =
-        weights_next_affine(&split, constants, a, &assertions, &point_l, &alpha, f);
-    (
-        LayerChallenges {
+) -> Result<Constraints<F::E>, String> {
+    let schedule = Schedule::new(circuits)?;
+    proof
+        .validate(&schedule.geometry)
+        .map_err(|e| e.to_string())?;
+    let classes: Vec<_> = circuits
+        .iter()
+        .map(|c| classify_constants(f, &c.raw.constants))
+        .collect();
+    schedule.bind(circuits, t);
+    let mut weights = Vec::new();
+    let mut challenges = Vec::with_capacity(proof.layers.len());
+    for (stage, p) in proof.layers.iter().enumerate() {
+        schedule.enter(circuits, &mut weights, stage, t, f);
+        let layout = &schedule.layers[stage];
+        // Only sparse fragment metadata is local; all dense arrays are global.
+        let active: Vec<_> = layout
+            .fragments
+            .iter()
+            .map(|s| {
+                SplitFragment::new(
+                    s,
+                    SplitLayer::with_classes(
+                        &circuits[s.circuit].raw.layers[s.layer],
+                        &classes[s.circuit],
+                    ),
+                    t,
+                    f,
+                )
+            })
+            .collect();
+        let point_l: Vec<_> = p.rounds.iter().map(|m| round_challenge(m, t, f)).collect();
+        let terminal = terminal_challenge(&p.cross, t, f);
+        let alpha = end_layer(&p.claims, t, f);
+        let constant = fragments::constant(circuits, &weights, &active, f);
+        let (next_weights, linear) =
+            fragments::transition(circuits, &weights, &active, layout.nw, &point_l, &alpha, f);
+        weights = next_weights;
+        challenges.push(LayerChallenges {
             point_l,
-            alpha,
             terminal,
+            alpha,
             constant,
             linear,
-        },
-        a_next,
-    )
+        });
+    }
+    schedule.enter(circuits, &mut weights, proof.layers.len(), t, f);
+    Ok(build_constraints(proof, challenges, weights, f))
 }

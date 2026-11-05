@@ -14,8 +14,11 @@
 
 //! Longfellow v2 sumcheck produces constraints on committed circuit inputs and pads.
 //!
-//! `prover` sends masked messages while reducing claims from circuit outputs to
-//! inputs. `reduction` reconstructs the public challenges and input weights from
+//! `prover` sends masked messages while reducing an ordered set of same-field
+//! circuits from outputs to inputs. `fragments` aligns their input depths and
+//! supplies shared weight updates; the single-circuit case uses that same path.
+//! Layers have independent quadratic, linear and constant streams. `reduction`
+//! reconstructs the public challenges and input weights from
 //! those messages. Both use `symbolic` to form the same sparse pad constraints,
 //! with dense weights for the final input claim. The ZK v2 constraint compiler
 //! maps the logical inputs and pads to committed positions for Polygero.
@@ -26,6 +29,10 @@
 //! with revealed inputs and pads for diagnostics; production verification is
 //! performed by [`crate::runtime::zk_v2::ZkVerifier`].
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod fragments;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) use fragments::geometry as circuit_geometry;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod monomial;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -55,7 +62,9 @@ cfg_prover! {
     #[cfg(test)]
     pub(crate) use eval::eval_circuit;
     pub use dense::bind;
-    pub(crate) use prover::{evaluate_and_prove, sample_pads};
+    pub(crate) use prover::{evaluate_and_prove_circuits, sample_pads};
+    #[cfg(test)]
+    pub(crate) use prover::evaluate_and_prove;
 }
 
 #[cfg(test)]
@@ -65,7 +74,7 @@ pub(crate) use prover::prove_core;
 
 cfg_verifier! {
     mod reduction;
-    pub(crate) use reduction::derive_constraints;
+    pub(crate) use reduction::{derive_constraints, derive_constraints_for_circuits};
 
     pub mod verifier;
 }

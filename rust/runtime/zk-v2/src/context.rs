@@ -24,7 +24,7 @@ use crate::{
     runtime::{
         algebra::EvaluationDomain,
         polygero::{JointPolygeroParam, Participant, PolygeroConfig, PolygeroParam},
-        proto::zk_v2::packing_layout_with_degree,
+        proto::zk_v2::PackingLayout,
         zk_v2::commitment::PackingCommitment,
         zk_v2::ZkProofGeometry,
     },
@@ -48,17 +48,16 @@ pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
     circuit.raw.ninput - circuit.raw.npublic_input
 }
 
-/// Derive the complete public layout from a trusted circuit and fixed config.
-/// Both roles use the same witness count, pad layout, and proof dimensions.
-/// This prepares metadata only, with no polynomial samples or interpolation plans.
+/// Derive the common source layout and one input-aligned sumcheck pad suffix.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn prepare_layout<
+pub(super) fn prepare_circuit_layout<
     const W: usize,
     F: ZkField<W> + crate::runtime::algebra::PackingField,
     D: EvaluationDomain<W, F>,
     X: crate::runtime::algebra::PackingExtension<Ambient = F>,
 >(
     circuit: &Circuit<F>,
+    others: &[&Circuit<F>],
     config: PolygeroConfig,
     extension: X,
     ctx: &ZkContext<'_, W, F, D>,
@@ -66,7 +65,15 @@ pub(super) fn prepare_layout<
     if ctx.f.is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
-    let (layout, sc_geom) = packing_layout_with_degree(circuit, extension.degree())?;
+    let private_inputs = circuit
+        .raw
+        .ninput
+        .checked_sub(circuit.raw.npublic_input)
+        .ok_or("public prefix")?;
+    let mut circuits = vec![circuit];
+    circuits.extend_from_slice(others);
+    let sc_geom = crate::runtime::sumcheck_v2::circuit_geometry(&circuits)?;
+    let layout = PackingLayout::new(private_inputs, sc_geom.pad_count()?, extension.degree())?;
     let param = PolygeroParam::try_new(layout.witness_count, config, ctx.domain, ctx.f)
         .map_err(|e| e.to_string())?;
     let geometry = ZkProofGeometry {

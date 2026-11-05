@@ -204,6 +204,12 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .participant
         .backend
         .bind(&mut independent, &prover.circuit.id);
+    independent.write_bytes(b"layered-sumcheck/commitment-layout/v1");
+    independent.write_bytes(&0u64.to_le_bytes()); // No additional circuits.
+    independent.write_bytes(&(geometry.sc_geom.logw_layers.len() as u64).to_le_bytes());
+    for &width in &geometry.sc_geom.logw_layers {
+        independent.write_bytes(&(width as u64).to_le_bytes());
+    }
     independent_verifier.receive_commitment(&reference.commitment, &mut independent);
     let public_elements: Vec<_> = public
         .iter()
