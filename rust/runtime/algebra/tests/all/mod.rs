@@ -26,6 +26,7 @@ mod q256;
 mod quadratic_extension_fft_interpolation;
 mod range_interpolation;
 mod rfft;
+mod sampling;
 mod subfield;
 
 mod crt_interpolation;

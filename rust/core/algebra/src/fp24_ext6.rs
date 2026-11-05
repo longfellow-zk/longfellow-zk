@@ -33,26 +33,22 @@ pub(crate) fn sub_extension(a: &mut [u32; EXTENSION_DEGREE], b: &[u32; EXTENSION
     }
 }
 
-pub(crate) fn mul_extension(a: &mut [u32; EXTENSION_DEGREE], b: &[u32; EXTENSION_DEGREE]) {
-    let lhs = *a;
-    if b[1..].iter().all(|&coefficient| coefficient == 0) {
-        for (dst, &coefficient) in a.iter_mut().zip(&lhs) {
-            *dst = mul_base(coefficient, b[0]);
-        }
-        return;
-    }
-    if lhs[1..].iter().all(|&coefficient| coefficient == 0) {
-        for (dst, &coefficient) in a.iter_mut().zip(b) {
-            *dst = mul_base(lhs[0], coefficient);
-        }
-        return;
-    }
+#[inline]
+pub(crate) fn product_unreduced(
+    a: &[u32; EXTENSION_DEGREE],
+    b: &[u32; EXTENSION_DEGREE],
+) -> [u64; 2 * EXTENSION_DEGREE - 1] {
     let mut product = [0u64; 2 * EXTENSION_DEGREE - 1];
     for i in 0..EXTENSION_DEGREE {
         for j in 0..EXTENSION_DEGREE {
-            product[i + j] += u64::from(lhs[i]) * u64::from(b[j]);
+            product[i + j] += u64::from(a[i]) * u64::from(b[j]);
         }
     }
+    product
+}
+
+pub(crate) fn mul_extension(a: &mut [u32; EXTENSION_DEGREE], b: &[u32; EXTENSION_DEGREE]) {
+    let mut product = product_unreduced(a, b);
     for i in 0..(EXTENSION_DEGREE - 1) {
         product[i] += product[i + EXTENSION_DEGREE] * u64::from(BETA);
     }

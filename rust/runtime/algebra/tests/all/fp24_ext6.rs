@@ -17,8 +17,8 @@ use crate::{
         AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
     },
     runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield, Q},
-        RuntimeField, RuntimeNat, Subfield, SupportsSampling,
+        fp24_ext6::{RuntimeFp24Ext6, Q},
+        RuntimeField, RuntimeNat,
     },
 };
 
@@ -63,19 +63,70 @@ fn runtime_field_laws_and_natural_reduction() {
 }
 
 #[test]
-fn sampling_rejects_noncanonical_candidates_in_extension_and_subfield() {
+fn lazy_accumulator_keeps_the_full_unreduced_polynomial() {
     let f = RuntimeFp24Ext6::new();
-    let mut candidates = [Q, Q + 1, 0, 1, 2, 3, 4, Q - 1].into_iter();
-    let sampled = f.sample(|n| {
-        assert_eq!(n, 4);
-        candidates.next().unwrap().to_le_bytes().to_vec()
+    let high = f.from_coefficients([0, 0, 0, 0, 0, Q - 1]);
+    let mut accum = f.zero_accum();
+    f.mac(&mut accum, &high, &high);
+    f.mac(&mut accum, &high, &high);
+    assert_eq!(accum[10], 2 * u128::from(Q - 1).pow(2));
+    assert!(accum[10] > u128::from(Q));
+    assert!(accum[..10].iter().all(|&x| x == 0));
+    assert_eq!(
+        f.accum_reduce(&accum),
+        f.from_coefficients([0, 0, 0, 0, 14, 0])
+    );
+}
+
+#[test]
+fn lazy_accumulator_matches_eager_products_and_can_be_read_repeatedly() {
+    use crate::runtime::random::{DeterministicRng, RandomEngine};
+    let f = RuntimeFp24Ext6::new();
+    let mut rng = DeterministicRng::new(913);
+    for n in [0usize, 1, 2, 3, 5, 7, 16, 257, 4096] {
+        let mut accum = f.zero_accum();
+        let mut expected = f.zero();
+        let x = rng.elt_field_slice(n, &f);
+        let y = rng.elt_field_slice(n, &f);
+        for (a, b) in x.iter().zip(&y) {
+            f.mac(&mut accum, a, b);
+            f.fma(&mut expected, a, b);
+        }
+        let saved = accum;
+        assert_eq!(f.accum_reduce(&accum), expected);
+        assert_eq!(f.accum_reduce(&accum), expected);
+        assert_eq!(accum, saved);
+        assert_eq!(crate::runtime::algebra::blas::dot(&x, &y, &f), expected);
+    }
+}
+
+#[test]
+fn lazy_accumulator_exceeds_u64_without_losing_carries() {
+    let f = RuntimeFp24Ext6::new();
+    let a = f.from_coefficients([Q - 1; 6]);
+    let mut accum = f.zero_accum();
+    for _ in 0..65_536 {
+        f.mac(&mut accum, &a, &a);
+    }
+    assert!(accum[5] > u128::from(u64::MAX));
+    assert_eq!(
+        f.accum_reduce(&accum),
+        f.mulf(&f.mulf(&a, &a), &f.u64_to_element(65_536))
+    );
+}
+
+#[test]
+fn lazy_accumulator_handles_the_u64_batch_length_bound() {
+    let f = RuntimeFp24Ext6::new();
+    let n = u128::from(u64::MAX);
+    let product = u128::from(Q - 1).pow(2);
+    let accum = std::array::from_fn(|degree| {
+        let terms = if degree < 6 { degree + 1 } else { 11 - degree };
+        terms as u128 * n * product
     });
-    assert_eq!(sampled, f.from_coefficients([0, 1, 2, 3, 4, Q - 1]));
-    let mut base_candidates = [Q, 42].into_iter();
-    let base_sample = RuntimeFp24Subfield.sample(|n| {
-        assert_eq!(n, 4);
-        base_candidates.next().unwrap().to_le_bytes().to_vec()
-    });
-    assert_eq!(base_sample, f.u64_to_element(42));
-    assert!(RuntimeFp24Subfield.contains(&base_sample));
+    assert!(accum.iter().any(|&x| x > u128::from(u64::MAX)));
+    assert!(36 * n * product < (1u128 << 116));
+    let a = f.from_coefficients([Q - 1; 6]);
+    let scalar = f.u64_to_element((n % u128::from(Q)) as u64);
+    assert_eq!(f.accum_reduce(&accum), f.mulf(&f.mulf(&a, &a), &scalar));
 }

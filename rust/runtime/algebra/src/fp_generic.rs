@@ -130,6 +130,8 @@ pub struct FpGenericField<
     r: [Limb; L],
     accum_scale: FpGenericElement<L, Tag>,
     raw_half: FpGenericElement<L, Tag>,
+    sample_byte_count: usize,
+    sample_high_mask: u8,
     _marker: PhantomData<(Tag, S)>,
 }
 
@@ -189,6 +191,11 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         crate::runtime::algebra::limb::propagate_carry(&mut raw_half_limbs, 0, true);
         let raw_half = FpGenericElement(raw_half_limbs, PhantomData);
 
+        let last = modulo_words.iter().rposition(|&word| word != 0).unwrap();
+        let bits = (last + 1) * 64 - modulo_words[last].leading_zeros() as usize;
+        let sample_byte_count = bits.div_ceil(8);
+        let sample_high_mask = u8::MAX >> (8 * sample_byte_count - bits);
+
         Self {
             modulo,
             neg_modulo,
@@ -197,6 +204,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             r,
             accum_scale,
             raw_half,
+            sample_byte_count,
+            sample_high_mask,
             _marker: PhantomData,
         }
     }
@@ -600,19 +609,16 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         loop {
-            let buf = rng(W * 8);
+            let mut raw = rng(self.sample_byte_count);
             assert_eq!(
-                buf.len(),
-                W * 8,
+                raw.len(),
+                self.sample_byte_count,
                 "sampling callback returned an unexpected number of bytes"
             );
-            let mut words = [0u64; W];
-            for (word, chunk) in words.iter_mut().zip(buf.chunks_exact(8)) {
-                *word = u64::from_le_bytes(chunk.try_into().unwrap());
-            }
-            let res = crate::runtime::algebra::words64_to_limbs(&words);
-            if lt(&res, &self.modulo) {
-                return self.to_montgomery(&res);
+            *raw.last_mut().unwrap() &= self.sample_high_mask;
+            raw.resize(W * 8, 0);
+            if let Ok(x) = self.bytes_to_element(&raw) {
+                return x;
             }
         }
     }

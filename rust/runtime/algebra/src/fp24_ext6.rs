@@ -137,19 +137,33 @@ impl crate::core::algebra::HasLookupPoints for RuntimeFp24Ext6 {
 }
 
 impl RuntimeField<3> for RuntimeFp24Ext6 {
-    type Accum = RuntimeElement;
+    // Keep the degree-ten polynomial unreduced. Each product contributes at
+    // most 6*(q-1)^2 to a coefficient. Even a batch of u64::MAX products and
+    // the final x^6=7 fold fit below 2^116, well within u128.
+    type Accum = [u128; 2 * EXTENSION_DEGREE - 1];
 
     fn zero_accum(&self) -> Self::Accum {
-        self.zero()
+        [0; 2 * EXTENSION_DEGREE - 1]
     }
 
     fn mac(&self, acc: &mut Self::Accum, x: &Self::E, y: &Self::E) {
-        let product = self.mulf(x, y);
-        self.add(acc, &product);
+        // One unreduced product fits in u64: at most six 23-bit products
+        // contribute to a coefficient. No field or polynomial reduction occurs.
+        let product =
+            crate::core::algebra::fp24_ext6::product_unreduced(&x.coefficients, &y.coefficients);
+        for (coefficient, product) in acc.iter_mut().zip(product) {
+            *coefficient += u128::from(product);
+        }
     }
 
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E {
-        *acc
+        RuntimeElement::new(std::array::from_fn(|i| {
+            let mut coefficient = acc[i];
+            if i + EXTENSION_DEGREE < acc.len() {
+                coefficient += u128::from(BETA) * acc[i + EXTENSION_DEGREE];
+            }
+            (coefficient % u128::from(Q)) as u32
+        }))
     }
 }
 
@@ -199,17 +213,21 @@ impl SupportsSampling<3> for RuntimeFp24Ext6 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let mut coefficients = [0u32; EXTENSION_DEGREE];
         for coefficient in &mut coefficients {
-            loop {
-                let bytes = rng(4);
-                assert_eq!(bytes.len(), 4);
-                let candidate = u32::from_le_bytes(bytes.try_into().unwrap()) & 0x7f_ffff;
-                if candidate < Q {
-                    *coefficient = candidate;
-                    break;
-                }
-            }
+            *coefficient = sample_base(&mut rng);
         }
         RuntimeElement::new(coefficients)
+    }
+}
+
+/// Shared exact sampler for the prime coordinates, including the V1 codec.
+fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
+    loop {
+        let bytes = rng(3);
+        assert_eq!(bytes.len(), 3);
+        let candidate = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], 0]) & 0x7f_ffff;
+        if candidate < Q {
+            return candidate;
+        }
     }
 }
 
@@ -258,15 +276,8 @@ impl Subfield for RuntimeFp24Subfield {
     }
 
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        loop {
-            let bytes = rng(4);
-            assert_eq!(bytes.len(), 4);
-            let candidate = u32::from_le_bytes(bytes.try_into().unwrap()) & 0x7f_ffff;
-            if candidate < Q {
-                let mut coefficients = [0; EXTENSION_DEGREE];
-                coefficients[0] = candidate;
-                return RuntimeElement::new(coefficients);
-            }
-        }
+        let mut coefficients = [0; EXTENSION_DEGREE];
+        coefficients[0] = sample_base(&mut rng);
+        RuntimeElement::new(coefficients)
     }
 }

@@ -108,14 +108,14 @@ and the rest of the Longfellow v2 composition.
 
 Complete NEXT v8 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
-Times are medians of seven samples after one warmup; heap measurements use
+Times are medians of 14 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
 two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 263.7 ms | 138.3 ms | 213,204 | 74.82 MiB | 38.29 MiB |
-| 4 | 288.9 ms | 147.9 ms | 214,610 | 83.31 MiB | 43.12 MiB |
+| 2 | 276.1 ms | 144.4 ms | 213,204 | 74.82 MiB | 38.29 MiB |
+| 4 | 300.9 ms | 153.7 ms | 214,610 | 83.31 MiB | 43.12 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -176,6 +176,13 @@ verifier implementations also remain separate within each protocol.
 
 The circuit compiler has v1 and v2 backends. The v1 backend preserves
 historical Morton ordering and circuit IDs.
+
+Prime-field sampling draws only the required bytes, masks unused high bits,
+and rejects out-of-range values. Its parameters are precomputed at field
+construction. Existing GF128/P256 transcript byte contracts are preserved.
+Auxiliary sextic arithmetic, available to tests and tooling,
+defers reduction across accumulated products through the existing sumcheck
+accumulator interface.
 
 Formal proofs and parameter certificates live in [`../formal`](../formal),
 including `../formal/parameters`. There are no Lean source files in the
