@@ -1,17 +1,21 @@
 # Formal verification
 
-**The modeled v7 Longfellow verifier using Ligero V1 has 116-bit T-security.** For the
-signature and SHA circuits with one through four attributes on one
-Fiat–Shamir transcript, the certified soundness error is at most
-`(1 + tA + N) / 2^116`, where `tA` and `N` are the Merkle- and
-transcript-oracle query budgets. The extraction theorems and their
-false-statement soundness corollaries are checked by
-[`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) in the default build.
-Their premises and deployment boundary are stated in the
-[Longfellow README](lfzk-v1/README.md).
+**The modeled packed Longfellow V2 verifier at commit `fcf8a3a` has a
+117-bit work-normalized extraction bound.** The native affine frontend,
+binary-input packing, quadratic Polygero backend, two-field MAC, and Merkle
+openings share one adaptive Fiat–Shamir transcript. The checked endpoint
+[`LfzkV2.Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
+proves `Pr[accept ∧ paired extraction fails] ≤ (1 + N + tA) / 2^117` for all
+transcript-query budgets `N` and Merkle-query budgets `tA`. The verifier
+recomputes the MAC challenge from the raw proof. Circuit/layout, sampler,
+MAC-row and codec premises remain explicit; see the
+[audit and implementation boundary](AUDIT.md).
 
-The 116-bit proof uses flat extraction for zero transcript queries and a
-graded extraction bound for positive query counts.
+The earlier v7 verifier using Ligero V1 retains its 116-bit extraction and
+false-statement soundness bounds for signature and SHA circuits with one
+through four attributes. Its flat zero-query and graded positive-query
+proofs are checked by [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean).
+The [Longfellow V1 README](lfzk-v1/README.md) states their premises.
 
 Version 7 uses Ligero V1; version 8 uses Polygero. The
 [Ligero README](ligero/README.md) documents the component analysis.
@@ -51,37 +55,41 @@ two sumcheck libraries:
   masked constraint equations, and challenge-tape bounds. These are component
   theorems; the `LfzkV1` security certificates above still use V1.
 
-[Longfellow V2](lfzk-v2/README.md), imported as `LfzkV2`, connects the V2
-builder, compiler, trusted circuit evaluation, assertions, and honest prover.
-It connects the Polygero decoder to the compiled constraints and proves a
-candidate-family composition on one adaptive Fiat–Shamir oracle. The
-ideal-binding backend extraction term is proved for transcript-dependent
-statements, and every retained runtime profile gives a 127-bit per-query bound.
-A joint Polygero response simulator now preserves both full responses and all
-opened columns, with compatibility derived from the actual V2 compiler rows.
-Concrete prefix replay and whole-block challenge counting now connect the actual
-V2 frontend to V1's adaptive oracle machinery. The graded composition now uses
-V1's curve, decoder-balance lemmas, rational potential compiler, and Merkle
-cut-trace reduction for the actual V2 verifier. The merged two-field adaptive
-bound and its authenticated two-opening reduction also check, under explicit
-per-side MAC-row hypotheses for V2's `av*msg+ap` construction. The explicit
-extractor returns two satisfying witnesses with equal common messages. The
-zero-query experiment has the exact independent-tape coupling used in V1.
-The authenticated raw-proof endpoint derives the MAC key by verifier replay
-and proves `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117` for every pair of
-query budgets. Small Merkle budgets require predictable digest guesses;
-larger budgets cover the composition's startup cost. With numbered leaves,
-the digest-guessing argument applies to every Merkle budget below 87.
-Geometry, circuit/MAC correspondence, and balanced-sampler hypotheses remain
-explicit. Compiled joint-view zero knowledge is still a component development.
-Its API and axiom checks are in the default build. See the
-[audit and deployment boundary](AUDIT.md) for the exact theorem chain and checks.
+[Longfellow V2](lfzk-v2/README.md), imported as `LfzkV2`, connects the native
+affine circuit, linear and quadratic assertions, honest prover, and actual
+compiled rows. Its staged replay fixes the packing response `U` before an
+independent vector challenge and the scalar response `A` afterward. Packing
+and layer checks read the same authenticated cells. The degree-one signature
+path keeps its original source equation and has no packing challenge or cost.
+
+The packed hash and direct signature sides both use geometry
+`(n,k,s,t) = (2912,416,15,86)`, with certified candidate bounds 25 and 33.
+Before Merkle costs, the adaptive bound is
+`925*N/2^128 + 17303/2^128 + 18889/2^255`; raw verification adds one transcript
+lookup. The authenticated extractor returns satisfying witnesses with equal
+common messages. Exact startup and small-Merkle bounds yield the all-budget
+117-bit endpoint above. The older unpacked composition remains available as
+a separate model. The later linear-terminal backend is outside this checkpoint.
+
+Backend response/opening simulation and affine-MAC privacy remain component
+results: complete joint frontend/backend/Merkle zero knowledge is not proved.
+API and axiom checks are in the default build. Rust arithmetic, concrete
+layouts, parsing and byte-level transcript correspondence remain implementation
+obligations.
 
 The [recursive Polygero development](polygero/README.md) proves witness
 extraction for the transmitted recursive public-coin verifier, with failure
 bound `1 − ∏ᵢ(1 − εᵢ)` from certified local errors. False-statement soundness
 is derived from extraction validity and the same failure bound. It reuses
 the Ligero code and tableau infrastructure.
+
+[Dual packing](dual-packing/README.md), imported as `DualPacking`, proves
+trace-pairing coordinate recovery and the two native linear constraints for
+packing over arbitrary finite field extensions. Its fixed-commitment
+false-claim bound is `1 / |F|`, including arbitrary committed mask cells.
+The library and its binary and odd-characteristic regression cases are in
+the default build. The native compiler and staged Fiat–Shamir composition in
+`LfzkV2.Packed` lift this fixed-claim bound to the authenticated endpoint above.
 
 From this directory:
 

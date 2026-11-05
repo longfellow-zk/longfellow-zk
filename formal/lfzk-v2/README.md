@@ -1,154 +1,169 @@
 # Longfellow V2: extraction and soundness
 
-This library models the trusted-circuit path in `rust/runtime/sumcheck-v2`
-and `rust/runtime/zk-v2`. It composes the projective sumcheck frontend,
-nonrecursive Polygero, two authenticated side proofs, and V2's affine MAC
-on one adaptive Fiat–Shamir transcript.
+This library models the native affine sumcheck frontend, binary input packing,
+quadratic Polygero backend, two Merkle commitments, and affine MAC used by Rust
+snapshot `fcf8a3a`. The `LfzkV2.Native` and `LfzkV2.Packed` namespaces contain
+this composition. Changes to terminal masking or the backend after that
+snapshot are outside its scope.
 
-## Strongest checked results
+The model separates protocol soundness from implementation correspondence.
+It proves extraction for the mathematical verifier under the explicit field,
+sampler, geometry, and circuit premises below; it does not verify Rust source
+execution or concrete hash implementations.
 
-| Result | Bound and scope | Endpoint |
-|---|---|---|
-| Authenticated two-field extraction, all query budgets | **117-bit security:** `Pr[accept ∧ paired extraction fails] ≤ (1+N+tA)/2^117`. Raw proofs use the verifier-recomputed MAC key. | [`RawRuntimeExtraction.extraction_117`](LfzkV2/RawRuntimeExtraction.lean) |
-| Numbered leaves, `tA < 87` | At most `(12992+tA)*(2*tA+1)/2^256`, independent of `N`, assuming distinct leaf inputs. | `RawRuntimeExtraction.probability_numbered_merkle` |
-| Standalone runtime Polygero hash/signature backend | `(N+1)/2^127` in the ideal-binding, uniform-sampler FS model, including transcript-dependent satisfiable statements. | [`Profile.fs_extraction_failure_127`](../parameters/polygero/PolygeroRustHahn.lean), `Profile.fs_soundness_127` |
-| Backend privacy components | One tape bijection preserves both complete response polynomials and all opened core/mask columns; exact joint distributions support statements and coins chosen from the opened view. | [`PolygeroZk.sameDistribution_adaptive`](LfzkV2/PolygeroZk.lean), [`BackendEncoding.compatible_compiled`](LfzkV2/BackendEncoding.lean) |
+## Native affine frontend
 
-`N` counts adversarial transcript queries and `tA` counts adversarial
-Merkle-hash queries. Both bounds allow arbitrary query order, recommitment,
-grinding, and adaptive proof selection. The full composition includes the
-frontend, MAC, and both Merkle explanation errors. The standalone backend
-bound covers only that component.
+The circuit has independent quadratic, linear, and constant streams, with
+separate linear and quadratic assertion occurrences. For effective streams
+`Q,L,K`, the prover binds `q = Q*W+L` and begins the rounds with `C-K`.
+The final claims are `A=W(u)` and `B=q(u)`. The next weights use `Q`, and the
+next claim is `A+alpha*(B-L(u))`. Both corrections are reconstructed from the
+trusted circuit and earlier challenges.
 
-The all-budget numerator has startup constant one. The proof charges the
-verifier's key lookup as one extra query. Eight Merkle queries cover that
-lookup and the composition's startup cost; fewer queries require a digest
-guess to explain even one authentication path. This final result does not
-require a numbered-leaf assumption. Numbered leaves, as in the runtime,
-strengthen the digest-guessing threshold to 87 queries. The complete V2
-joint-view zero-knowledge theorem remains open.
-
-## End-to-end theorem chain
-
-1. [`RawRuntimeExtraction.key_coherent`](LfzkV2/RawRuntimeExtraction.lean)
-   derives the key answer from verifier replay.
-   `probability_eq_annotated` proves equality between the raw acceptance
-   and extraction-failure event and the annotated experiment. The final
-   raw event has no supplied-key coherence premise.
-2. [`TwoFieldCommitmentFS.extraction_le`](LfzkV2/TwoFieldCommitmentFS.lean)
-   reduces both authenticated opening checks to the same cut-trace
-   context, adding both Merkle explanation errors. Context resampling
-   invariance follows from the common execution.
-3. [`TwoFieldFS.extraction_le`](LfzkV2/TwoFieldFS.lean) applies the
-   rational potential compiler to the merged MAC/hash/signature schedule.
-   Every adversarial query pays the maximum local cost across roles.
-   [`GradedBudgets`](LfzkV2/GradedBudgets.lean) and
-   [`GradedCost`](LfzkV2/GradedCost.lean) prove the slot sums and their
-   normalization by the full answer alphabet.
-4. [`TwoFieldPotential.extract_valid`](LfzkV2/TwoFieldPotential.lean)
-   proves that a returned pair satisfies both actual circuit predicates
-   and agrees on the common message. The two private MAC pads may differ.
-5. [`CompiledSide`](LfzkV2/CompiledSide.lean),
-   [`CompiledReplay`](LfzkV2/CompiledReplay.lean), and
-   [`GradedFS`](LfzkV2/GradedFS.lean) connect accepted Polygero openings and
-   decoded witnesses to the compiled frontend constraints, pad-product
-   checks, and trusted-circuit satisfaction.
-6. [`RuntimeProfiles`](LfzkV2/RuntimeProfiles.lean),
-   [`RuntimeCost`](LfzkV2/RuntimeCost.lean), and
-   [`RuntimeSecurity`](LfzkV2/RuntimeSecurity.lean) supply the exact
-   packing, tail, and rational comparisons used by the final endpoint.
-
-The extractor searches finite lists associated with the committed
-oracles. Every successful pair satisfies both circuits with equal common
-values, so a false statement cannot have a successful extracted pair.
-Efficient witness recovery from Rust proof bytes alone is outside the
-theorem.
-
-## Frontend and compiler correctness
-
-The algebraic model follows the V2 projective convention:
-`C = c0+c2` and `z²*C+(1-z²)*c0+z*c1`. It is valid in characteristic two
-and does not require a third interpolation node.
-
-| Result | Checked interface |
+| Result | Endpoint |
 |---|---|
-| Exact constraint construction, malformed-length rejection, and public/private input reconstruction | [`buildConstraints_correct`](LfzkV2/Constraints.lean), [`compiled_iff_clear`](LfzkV2/Compiler.lean), [`compiled_circuit_reduction`](LfzkV2/Inputs.lean) |
-| Complete trusted circuit and honest prover, including zero outputs and intermediate assertion failures | [`CircuitLayer.effective_truth`](LfzkV2/Circuit.lean), [`Circuit.soundness_reduction`](LfzkV2/Program.lean), [`Circuit.prove_complete`](LfzkV2/Prover.lean) |
-| Concrete prefix replay and whole-block adaptive challenge accounting | [`Schedule`](LfzkV2/Schedule.lean), [`HashReplay`](LfzkV2/HashReplay.lean), [`FrontendFS`](LfzkV2/FrontendFS.lean) |
-| Polygero statement and product-copy compatibility derived from the actual compiler | [`Backend.decoded_compiled`](LfzkV2/Backend.lean), [`BackendEncoding.compatible_compiled`](LfzkV2/BackendEncoding.lean) |
+| Affine layer completeness and soundness over any field | [`SumcheckV2.affine_layer_completeness`, `affine_layer_reduction`](../sumcheck-v2/SumcheckV2/Affine.lean) |
+| Three-stream truth, including invalid assertions | [`Native.CircuitLayer.effective_truth`](LfzkV2/Native/Circuit.lean) |
+| Corrected builder, malformed-length rejection, fixed product slots, and sparse lowering | [`Native.buildConstraints_correct`, `compiled_iff_clear`](LfzkV2/Native/Constraints.lean) |
+| Circuit soundness and honest masked construction | [`Native.Circuit.soundness_reduction`](LfzkV2/Native/Soundness.lean), [`prove_complete`](LfzkV2/Native/Prover.lean) |
+| Challenge tests and sharp budget | [`Native.Circuit.tests_soundness`, `tests_budget_le_sharp`](LfzkV2/Native/Events.lean) |
+| Native prefix reconstruction and causal hash-point data | [`Native.Replay.semantic_bad_of_accepts`](LfzkV2/Native/SemanticReplay.lean), [`pointData_eq`](LfzkV2/Native/HashReplay.lean) |
 
-Each output/assertion/combine test has at most one bad field value and
-each sumcheck round at most two. Only the last nonzero assertion residual
-is selected. The sharp frontend budget is
+The projective round identity is `C=c0+c2`, followed by
+`z²*C+(1-z²)*c0+z*c1`. Its bad-event bound is two field values per round,
+one per final combination, and at most one per layer's assertion batch.
+The sharp frontend budget is
 `logv + sum_layers(min(1, assertions) + 2*logw + 1)`.
+The affine corrections add no challenge slots. Scalar layers, empty chains,
+and repeated assertion occurrences are included.
 
-The pad-product layout is fixed by the trusted circuit, independently
-of proof messages. Product consistency is indispensable: the API checks
-include a witness whose affine equations pass while its product checks
-and clear verifier reject.
+The native replay reuses the earlier model's message geometry through
+`Circuit.shape`. This is only a schedule projection: all claims, true
+polynomials, corrections, and bad-event semantics use the native circuit.
 
-## Runtime parameters and numerical accounting
+## Packed inputs and the compiled backend
 
-| Side | `n` | `k` | `s` | Openings | Committed-list bound |
-|---|---:|---:|---:|---:|---:|
-| Hash | 3584 | 512 | 18 | 87 | 22 |
-| Signature | 2912 | 416 | 15 | 86 | 33 |
+[Dual packing](../dual-packing/README.md) supplies the field-basis and
+trace-pairing identities. The adapter's source equation is the native
+frontend's final input claim, after subtracting the public-input contribution.
+Each committed packed word has canonical base-field coordinates. Over
+`GF(2)`, every extracted private coordinate is a bit, even for an adversarial
+committed word; unused trailing coordinates have coefficient zero.
 
-With the field, sampler, and circuit-budget premises below, the exact
-normalized field/MAC cost for the annotated experiment is at most
+The verifier checks that each coordinate of `U` has zero trace. It then samples
+the packing vector challenge, receives the scalar response `A`, and supplies
+two affine equations to Polygero. `A` and the later backend response are absent
+from the packing challenge's prefix. A false source equation pays at most
+one field inverse per committed candidate. Degree-one inputs retain the
+original source row and add no packing challenge. Their unused scalar in the
+common abstract carrier is the constant-zero annotation of the direct codec;
+allowing other annotations in the theorem is conservative.
+
+| Result | Endpoint |
+|---|---|
+| Exact two-row lowering and backend extraction | [`Packed.Statement.rows_iff_native`, `satisfies_rows`](LfzkV2/Packed/Backend.lean) |
+| Source-claim equality, native frontend transfer, and binary coordinates | [`source_claim_iff`, `frontend_or_bad`, `unpack_binary_bit`](LfzkV2/Packed/Inputs.lean) |
+| Fixed-candidate and sampled candidate-family packing bounds | [`Packed.Statement.sampled_candidates_card_le`](LfzkV2/Packed/Counting.lean) |
+| Actual packed and direct compiler instances | [`Packed.Compiled.side`, `Packed.Direct.side`](LfzkV2/Packed/CompiledFS.lean) |
+| Instances with certified geometry and terminal potentials | [`profiledSide`](LfzkV2/Packed/ProfiledSide.lean) |
+
+The compiler transfer follows from the emitted rows and the native source
+identity; it is not a soundness premise supplied to the composed endpoint.
+Product consistency remains an independent backend constraint in this
+snapshot. The API checks include an assignment whose affine rows pass while
+its product check and clear verifier reject.
+
+## Authenticated extraction
+
+The composition uses one adaptive transcript oracle. Both commitment roots
+are fixed before the MAC challenge. The hash proof comes first, and the
+signature proof's context contains that complete transcript, including its
+packing and backend responses. Each adaptive query pays the maximum local
+budget across the MAC and both sides.
+
+The extractor searches the two fixed committed candidate lists. A returned
+pair satisfies both native circuit predicates and has equal common messages.
+The MAC row identities are checked separately for each side, so their private
+additive blinds need not agree.
+
+| Result | Endpoint |
+|---|---|
+| Native frontend, packing, and graded Polygero charge on one staged oracle | [`Packed.FiatShamir.event_soundness_le`](LfzkV2/Packed/FiatShamir.lean) |
+| Two-field paired extraction and shared adaptive-query bound | [`Packed.TwoFieldPotential.extract_valid`](LfzkV2/Packed/TwoFieldPotential.lean), [`TwoFieldFS.extraction_le`](LfzkV2/Packed/TwoFieldFS.lean) |
+| Both Merkle opening checks, common cut-trace extraction, and context invariance | [`Packed.TwoFieldCommitmentFS.extraction_le`](LfzkV2/Packed/TwoFieldCommitmentFS.lean) |
+| Verifier-recomputed MAC answer and raw acceptance probability | [`Packed.RawExtraction.key_coherent`, `probability_le`](LfzkV2/Packed/RawExtraction.lean) |
+| All-budget numerical extraction bound | [`Packed.RawRuntimeExtraction.extraction_117`](LfzkV2/Packed/RawRuntimeExtraction.lean) |
+
+The numerical endpoint bounds
+`Pr[accept and paired extraction fails] <= (1+N+tA)/2^117`, where `N` counts
+adversarial transcript queries and `tA` counts adversarial Merkle-hash queries.
+It allows arbitrary query order, recommitment, grinding, and adaptive proof
+selection. The raw acceptance event has no supplied-MAC-answer coherence
+premise: verifier replay derives the answer.
+
+## Geometry and numerical accounting
+
+| Side | `n` | `k` | `s` | Openings | Analysis cutoff | Candidate bound |
+|---|---:|---:|---:|---:|---:|---:|
+| Hash | 2912 | 416 | 15 | 86 | 1136 | 25 |
+| Signature | 2912 | 416 | 15 | 86 | 1127 | 33 |
+
+The list cutoffs are analysis choices, not protocol changes. The hash-side
+packing charge is `25/|F_hash|`; the shared MAC charge is at most
+`25*33/|F_mac|`. With the stated field sizes and frontend bounds, the exact
+normalized annotated field/MAC cost is at most
 
 ```text
-737*N/2^128 + 16383/2^128 + 18460/2^255.
+(925*N + 17303)/2^128 + 18889/2^255.
 ```
 
-Raw verifier replay adds one lookup to that accounting. The two Merkle
-explanation errors are included by the numerical extraction endpoint.
-The small-budget proof fixes the transcript oracle, bounds the resulting
-Merkle program, then averages over transcript oracles. Its bound therefore
-has no transcript-query factor, even with arbitrary query interleaving.
-All retained Hahn and runtime backend certificates build by default.
+Raw verifier replay replaces `N` by `N+1`. The numerical theorem also includes
+both Merkle explanation errors, with at most 1164 verifier challenge slots
+and 11648 Merkle checking queries. Eight adversarial Merkle queries cover the
+startup cost; below that threshold, authenticated acceptance already requires
+a digest guess. This small-budget argument needs no numbered-leaf assumption.
 
-V2 defines `tag = av*message+ap` directly. For fixed unequal messages and
-separate fixed additive pads, the two tags agree at at most one multiplier.
-Translating a fresh pad gives exact tag uniformity. These facts are proved
-in [`Mac`](LfzkV2/Mac.lean).
+The [profiles](LfzkV2/Packed/RuntimeProfiles.lean),
+[cost normalization](LfzkV2/Packed/RuntimeCost.lean), and
+[numerical comparison](LfzkV2/Packed/RuntimeSecurity.lean) are kernel checked.
+The source geometry bounds are exposed as premises rather than inferred from
+unverified Rust metadata.
 
-## Assumptions and deployment boundary
+## Assumptions and implementation boundary
 
-The numerical theorem retains explicit premises for:
+The theorem retains explicit premises for:
 
-- The runtime geometries above, distinct evaluation points, and the
-  Polygero decoder/column encodings.
-- Hash and MAC field sizes at least `2^128`, signature field size at
-  least `2^255`, and Merkle digest alphabet of size exactly `2^256`.
-- Balanced samplers for the actual frontend challenge blocks, backend
-  coins and fixed-size query sets, and the MAC key, on one common ideal
-  transcript alphabet.
-- Trusted circuit and pad layouts, public/private input embeddings,
-  output dimensions at most 5 and 3, and sharp frontend budgets at most
-  655 and 552. Every satisfying committed candidate must enforce its
-  circuit's MAC equation and the shared public tag.
-- The Merkle codecs and role decoders, with enough answer tape:
-  `TM ≥ tA+12992`.
+- The geometries above, distinct evaluation points, and the Polygero
+  decoder and column encodings.
+- Hash and MAC fields of size at least `2^128`, a signature field of size
+  at least `2^255`, and a Merkle digest alphabet of size exactly `2^256`.
+- Balanced samplers for frontend blocks, packing vectors, backend coins,
+  query sets, and the MAC key on one common ideal transcript alphabet.
+- Trusted native circuits, basis and input embeddings, pad and product
+  layouts, public inputs, and each circuit's MAC row identity.
+- Output dimensions at most 5 and 3, with frontend budgets at most 593 and
+  565; the checked round/layer bounds imply those budgets.
+- Merkle codecs, role decoders, and enough answer tape:
+  `TM >= tA+11648`.
 
-The proof is end to end for this mathematical verifier model. Identifying
-Rust circuit data, byte-level transcript encodings, parser behavior,
-field arithmetic, allocation bounds, and SHA/AES expansion/rejection
-sampling with that model remains an implementation correspondence task.
-The [formal audit](../AUDIT.md) records this boundary and the shared
-verification commands.
+Identifying Rust circuit data, byte-level transcript encodings, parser behavior,
+field arithmetic, allocation bounds, and SHA/AES expansion or rejection sampling
+with this model remains an implementation correspondence task. Efficient
+recovery of witnesses from Rust proof bytes alone is outside the theorem.
+The [formal audit](../AUDIT.md) records the shared verification boundary.
 
-## Privacy status
+## Retained models and privacy
 
-The joint Polygero simulator preserves both full responses and all opened
-columns, including adaptive statements read from those openings.
-Compiler compatibility follows from the actual V2 rows and product-slot
-encoding. The affine MAC has exact tag-uniformity theorems.
+The earlier `LfzkV2` quadratic/unpacked circuit model and its numerical
+certificates remain available in their original namespaces. Their hash
+geometry is different, and they are not used as a semantic replacement for
+the native circuit. Shared round algebra, sparse rows, Polygero analysis,
+MAC collision bounds, and generic Merkle compilers are reused.
 
-Complete joint-view zero knowledge still requires the frontend's causal
-transmission and commitment-dependent pads to be combined with that
-backend simulator and the Merkle-hiding/oracle-programming hybrids.
-No full V2 privacy theorem is claimed.
+The retained backend privacy components prove a joint response/opening
+simulation and affine-MAC tag uniformity. A complete joint-view V2
+zero-knowledge theorem, including native frontend transmission, packing,
+commitment-dependent pads, and Merkle programming, is not claimed.
 
 ## Reproduce the checks
 
@@ -162,8 +177,7 @@ rustc --edition 2024 scripts/audit.rs -o /tmp/longfellow-source-audit
 lake env lean scripts/Audit.lean
 ```
 
-The V2 endpoint audit and retained certificates are in the default
-build. V2 proofs permit only Lean's standard `propext`, `Classical.choice`,
-and `Quot.sound` axioms. The API checks cover scalar and empty proofs,
-mismatched round counts, assertion failures with zero outputs, committed
-slot offsets, and the product-consistency boundary.
+The endpoint audit and certificates are included in the default build.
+V2 proofs permit only Lean's standard `propext`, `Classical.choice`, and
+`Quot.sound` axioms. The API checks cover both affine corrections, scalar and
+empty proofs, malformed round counts, false assertions, and product consistency.

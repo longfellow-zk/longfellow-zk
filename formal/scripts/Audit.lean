@@ -2,6 +2,7 @@ import LfzkV2
 import LfzkV1
 import LfzkV1.FlatV7All
 import SumcheckV2.APITest
+import DualPacking
 import RuntimeHahn.APITest
 import PolygeroRustHahn
 import TunedProfiles
@@ -27,7 +28,7 @@ open Lean Elab Command
 set_option maxHeartbeats 20000000
 
 private def auditedModule (name : Name) : Bool :=
-  #["LfzkV1", "LfzkV2", "SumcheckV1", "SumcheckV2", "Bcs", "Merkle",
+  #["LfzkV1", "LfzkV2", "SumcheckV1", "SumcheckV2", "DualPacking", "Bcs", "Merkle",
     "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
 

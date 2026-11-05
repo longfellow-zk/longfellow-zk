@@ -61,3 +61,13 @@ import LfzkV2.RuntimeExtraction
 import LfzkV2.TwoFieldKeyReplay
 import LfzkV2.TwoFieldPreparedFS
 import LfzkV2.RawRuntimeExtraction
+import LfzkV2.Native.Prover
+import LfzkV2.Native.Events
+import LfzkV2.Native.SemanticReplay
+import LfzkV2.Native.HashReplay
+import LfzkV2.Packed.RawExtraction
+import LfzkV2.Packed.CompiledFS
+import LfzkV2.Packed.RuntimeCost
+import LfzkV2.Packed.RuntimeSecurity
+import LfzkV2.Packed.ProfiledSide
+import LfzkV2.Packed.RawRuntimeExtraction

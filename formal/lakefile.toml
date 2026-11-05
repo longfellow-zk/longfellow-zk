@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest"]
 
 [leanOptions]
 autoImplicit = false
@@ -71,6 +71,11 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false }
 [[lean_lib]]
 name = "SumcheckV2"
 srcDir = "sumcheck-v2"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+[[lean_lib]]
+name = "DualPacking"
+srcDir = "dual-packing"
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
