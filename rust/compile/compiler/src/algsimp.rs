@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-
-use crate::compile::compiler::ir::{Expr, ExprNode, RewriteT};
+use crate::compile::{
+    algebra::field::CompileField,
+    compiler::ir::{Expr, ExprNode, RewriteT},
+};
 
 /// Algebraic simplification rewriter
 pub struct AlgebraicRewriter<'a, F: CompileField, NEXT> {
@@ -54,7 +55,29 @@ where NEXT: RewriteT<'a, F>
                 _ => result.push(*x),
             }
         }
-        result
+        // A containing ordinary sum may already have flattened the other
+        // occurrence, leaving `precious(x + y) + x + y`. If we preserve the
+        // precious alias here, depth alignment reconstructs `x + y` and turns
+        // both occurrences into the same copy wire, after coefficient folding
+        // has finished. Expose the alias now while its summands are already
+        // present, so cancellation/coalescing happens before the copy pass.
+        if !result
+            .iter()
+            .any(|item| matches!(item.v, Expr::Sum(_, true)))
+        {
+            return result;
+        }
+        let present: rustc_hash::FxHashSet<_> = result.iter().copied().collect();
+        let mut expanded = Vec::with_capacity(result.len());
+        for item in result {
+            match &item.v {
+                Expr::Sum(inner, true) if inner.iter().all(|term| present.contains(term)) => {
+                    expanded.extend(inner.iter().copied());
+                }
+                _ => expanded.push(item),
+            }
+        }
+        expanded
     }
 
     fn low_degree(&self, x: &ExprNode<'a, F>) -> bool {

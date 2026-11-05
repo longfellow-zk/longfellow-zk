@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Public dimensions, witness coordinates, and the mixed-field Polygero wire format.
+//! Public dimensions, witness coordinates, and the ambient-field Polygero wire format.
 //!
 //! Geometry determines the lengths of H, Z, packed rows and Merkle nonces.
 //! Each row contains its t queried values in transcript order, with rows consecutive
 //! in memory and on the wire. Product-output rows are virtual: only x and y are
 //! sent, and the verifier reconstructs z = x*y. Responses use full-field elements.
-//! Packed row values use maximal runs selected by actual subfield membership.
-//! Decoding restores ambient-field elements, so verification needs neither a
-//! subfield-row bitmap nor prover sampling hints.
+//! All responses and opened rows use canonical full-width field elements.
 use std::io::{Error, ErrorKind, Result};
 
 use super::{Digest, MerkleProof};
-use crate::{core::algebra::SerializableField, runtime::algebra::Subfield};
+use crate::core::algebra::SerializableField;
 
 /// Public dimensions of a nonrecursive invocation, selected by the caller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -154,31 +152,27 @@ impl<E> PolygeroProof<E> {
         }
         Ok(())
     }
-    /// Encode packed row values by actual membership, using alternating full-field
-    /// and subfield runs. Responses retain their fixed full-field encoding.
-    pub fn write<F: SerializableField<E = E>, SF: Subfield<E = E>>(
+    /// Encode all field elements at the ambient field's canonical width.
+    pub fn write<F: SerializableField<E = E>>(
         &self,
         geom: &PolygeroGeometry,
         f: &F,
-        sf: &SF,
     ) -> Result<Vec<u8>> {
         let mut out = Vec::new();
-        self.write_to_buf(&mut out, geom, f, sf)?;
+        self.write_to_buf(&mut out, geom, f)?;
         Ok(out)
     }
 
     /// Append directly to a containing proof's buffer, avoiding a second copy
     /// of the complete Polygero encoding during Longfellow serialization.
-    pub(crate) fn write_to_buf<F: SerializableField<E = E>, SF: Subfield<E = E>>(
+    pub(crate) fn write_to_buf<F: SerializableField<E = E>>(
         &self,
         out: &mut Vec<u8>,
         geom: &PolygeroGeometry,
         f: &F,
-        sf: &SF,
     ) -> Result<()> {
         self.validate(geom)?;
-        validate_codecs(f, sf)?;
-        out.extend_from_slice(b"PLG7");
+        out.extend_from_slice(b"PLG8");
         for size in geom.sizes() {
             super::util::write_size_4bytes(out, size);
         }
@@ -187,24 +181,26 @@ impl<E> PolygeroProof<E> {
                 super::util::write_elt_field(out, value, f);
             }
         }
-        write_rows(out, &self.rows, f, sf)?;
+        for value in &self.rows {
+            super::util::write_elt_field(out, value, f);
+        }
         self.opening.write_nonces(out);
         self.opening.write_path(out);
         Ok(())
     }
 }
 
-/// Decode self-describing row runs into ambient-field elements. No witness
-/// boundary, row classification, or prover sampling policy is needed.
-pub fn read<F: SerializableField, SF: Subfield<E = F::E>>(
+/// Decode canonical ambient-field elements using trusted public geometry.
+pub fn read<F: SerializableField>(
     bytes: &mut &[u8],
     geom: &PolygeroGeometry,
     f: &F,
-    sf: &SF,
 ) -> Result<PolygeroProof<F::E>> {
     geom.validate()?;
-    validate_codecs(f, sf)?;
-    if bytes.get(..4) != Some(b"PLG7") {
+    if f.serialized_size_bytes() == 0 {
+        return Err(invalid("zero field encoding width"));
+    }
+    if bytes.get(..4) != Some(b"PLG8") {
         return Err(invalid("Polygero version marker"));
     }
     *bytes = &bytes[4..];
@@ -216,18 +212,16 @@ pub fn read<F: SerializableField, SF: Subfield<E = F::E>>(
     let lengths = geom.response_lengths();
     let count = lengths.iter().sum::<usize>();
     let opened_count = geom.t * geom.transmitted_rows();
-    // Even the shortest encoding must contain all responses, compact rows,
-    // at least one run header, the nonces, and the frontier length. Check this
-    // before allocating vectors from the supplied dimensions.
+    // Check all fixed-width fields, nonces and frontier length before allocating.
     let needed = count
         .checked_mul(f.serialized_size_bytes())
         .and_then(|size| {
             opened_count
-                .checked_mul(sf.serialized_size_bytes())?
+                .checked_mul(f.serialized_size_bytes())?
                 .checked_add(size)
         })
         .and_then(|size| (32 * geom.t).checked_add(size))
-        .and_then(|size| size.checked_add(8))
+        .and_then(|size| size.checked_add(4))
         .ok_or_else(|| invalid("Polygero size overflow"))?;
     if bytes.len() < needed {
         return Err(Error::new(ErrorKind::UnexpectedEof, "Polygero fields"));
@@ -235,7 +229,7 @@ pub fn read<F: SerializableField, SF: Subfield<E = F::E>>(
     let mut values = |n| -> Result<Vec<F::E>> { (0..n).map(|_| read_field(bytes, f)).collect() };
     let h = values(lengths[0])?;
     let z = values(lengths[1])?;
-    let rows = read_rows(bytes, opened_count, f, sf)?;
+    let rows = values(opened_count)?;
     let opening = read_opening(bytes, geom)?;
     Ok(PolygeroProof {
         h,
@@ -245,78 +239,7 @@ pub fn read<F: SerializableField, SF: Subfield<E = F::E>>(
     })
 }
 
-/// Runs start with full-field values. An empty initial run selects subfield
-/// values immediately; all later runs are nonempty and maximal by membership.
-fn write_rows<F: SerializableField, SF: Subfield<E = F::E>>(
-    out: &mut Vec<u8>,
-    values: &[F::E],
-    f: &F,
-    sf: &SF,
-) -> Result<()> {
-    let mut index = 0;
-    let mut subfield = false;
-    while index < values.len() {
-        let length = values[index..]
-            .iter()
-            .take_while(|value| sf.contains(value) == subfield)
-            .count();
-        super::util::write_size_4bytes(out, length);
-        for value in &values[index..index + length] {
-            if subfield {
-                super::util::write_subfield_elt(out, value, sf)?;
-            } else {
-                super::util::write_elt_field(out, value, f);
-            }
-        }
-        index += length;
-        subfield = !subfield;
-    }
-    Ok(())
-}
-
-/// Enforce a unique run encoding: only the initial full-field run may be empty,
-/// and every value must belong to the class declared by its run.
-fn read_rows<F: SerializableField, SF: Subfield<E = F::E>>(
-    bytes: &mut &[u8],
-    count: usize,
-    f: &F,
-    sf: &SF,
-) -> Result<Vec<F::E>> {
-    let mut values = Vec::with_capacity(count);
-    let mut subfield = false;
-    let mut first = true;
-    while values.len() < count {
-        let length = super::util::read_size_4bytes(bytes)?;
-        if (length == 0 && !first) || length > count - values.len() {
-            return Err(invalid("invalid Polygero row run length"));
-        }
-        first = false;
-        let width = if subfield {
-            sf.serialized_size_bytes()
-        } else {
-            f.serialized_size_bytes()
-        };
-        if length > bytes.len() / width {
-            return Err(Error::new(ErrorKind::UnexpectedEof, "Polygero row run"));
-        }
-        for _ in 0..length {
-            let value = if subfield {
-                super::util::read_subfield_elt(bytes, sf)?
-            } else {
-                read_field(bytes, f)?
-            };
-            if sf.contains(&value) != subfield {
-                return Err(invalid("noncanonical Polygero row encoding"));
-            }
-            values.push(value);
-        }
-        subfield = !subfield;
-    }
-    Ok(values)
-}
-
-/// Full-width responses may themselves lie in the subfield. Their encoding is
-/// fixed by the response layout, independent of the row compression scheme.
+/// Reject aliases of the field's canonical encoding.
 fn read_field<F: SerializableField>(bytes: &mut &[u8], field: &F) -> Result<F::E> {
     let width = field.serialized_size_bytes();
     let raw = bytes
@@ -344,11 +267,4 @@ fn read_opening(bytes: &mut &[u8], geom: &PolygeroGeometry) -> Result<MerkleProo
         .map(|_| super::util::read_bytes_32(bytes).map(|data| Digest { data }))
         .collect::<Result<Vec<_>>>()?;
     Ok(MerkleProof { nonce, path })
-}
-
-fn validate_codecs<F: SerializableField, SF: Subfield<E = F::E>>(f: &F, sf: &SF) -> Result<()> {
-    if sf.serialized_size_bytes() == 0 || sf.serialized_size_bytes() > f.serialized_size_bytes() {
-        return Err(invalid("invalid Polygero subfield codec"));
-    }
-    Ok(())
 }

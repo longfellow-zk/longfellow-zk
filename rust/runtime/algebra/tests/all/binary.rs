@@ -11,14 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use super::*;
-use crate::{core::algebra::AlgebraicField, runtime::algebra::gf2_128::Gf2_128RuntimeField};
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{gf2_128::Gf2_128RuntimeField, subfield_v1::BinarySubfieldV1},
+};
 
 // Direct root products define the novel basis independently of either FFT.
 fn evaluation_matrix(
     f: &Gf2_128RuntimeField,
-    sf: &BinarySubfield,
+    sf: &BinarySubfieldV1,
     size: usize,
     coset: usize,
 ) -> Vec<Vec<Gf2_128>> {
@@ -55,8 +57,8 @@ fn binary_mixed_transform_all_intervals_and_nonzero_tails() {
         &crate::core::algebra::proto::GF2_16_BASIS_V1[..8],
         &ordinary,
     ] {
-        let sf = BinarySubfield::new(basis);
-        let fft = Lch14::new(&f, &sf);
+        let sf = BinarySubfieldV1::new(basis);
+        let fft = Lch14::new(&f, sf.basis());
         for log in 0..=6 {
             let size = 1 << log;
             let matrix = evaluation_matrix(&f, &sf, size, 0);
@@ -115,8 +117,8 @@ fn binary_mixed_transform_shifted_domains() {
         &crate::core::algebra::proto::GF2_16_BASIS_V1[..8],
         &ordinary,
     ] {
-        let sf = BinarySubfield::new(basis);
-        let fft = Lch14::new(&f, &sf);
+        let sf = BinarySubfieldV1::new(basis);
+        let fft = Lch14::new(&f, sf.basis());
         for log in 0..=5 {
             let size = 1 << log;
             for coset in [1, 7, 64, 127] {
@@ -147,5 +149,55 @@ fn binary_mixed_transform_shifted_domains() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn binary_domain_rejects_invalid_bases() {
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    assert!(std::panic::catch_unwind(|| BinaryInterpolatorFactory::new(&f, &[])).is_err());
+    let one = Gf2_128::from(1);
+    assert!(std::panic::catch_unwind(|| BinaryInterpolatorFactory::new(&f, &[one, one])).is_err());
+}
+
+#[test]
+fn ambient_binary_domain_uses_native_coordinates_without_a_small_domain_limit() {
+    let f = Gf2_128RuntimeField::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    assert_eq!(domain.basis.len(), 128);
+    let point = |index: usize| {
+        let mut value = 0u128;
+        for bit in 0..usize::BITS {
+            if index & (1usize << bit) != 0 {
+                value ^= crate::core::algebra::CANTOR_BASIS_U128[bit as usize];
+            }
+        }
+        Gf2_128::from(value)
+    };
+    for index in [0, 1, 0xffff, 0x10000, usize::MAX] {
+        assert_eq!(domain.point(index), point(index));
+    }
+    let middle = 1usize << (usize::BITS - 1);
+    assert!(!domain.can_interpolate(middle - 1..middle + 1, 0..2));
+    let coefficients: Vec<_> = (0..7).map(|i| Gf2_128::from((i + 1) << 100)).collect();
+    let value = |index| {
+        let x = point(index);
+        coefficients
+            .iter()
+            .rev()
+            .fold(f.zero(), |sum, c| f.addf(c, &f.mulf(&sum, &x)))
+    };
+    for (source, destination) in [
+        (3..10, 65536..65544),
+        (usize::MAX - 15..usize::MAX - 8, 4..13),
+        (5..12, usize::MAX - 9..usize::MAX),
+    ] {
+        assert!(domain.can_interpolate(source.clone(), destination.clone()));
+        let samples: Vec<_> = source.clone().map(&value).collect();
+        let actual = domain
+            .make_range(source, destination.clone())
+            .apply(&samples);
+        let expected: Vec<_> = destination.map(&value).collect();
+        assert_eq!(actual, expected);
     }
 }

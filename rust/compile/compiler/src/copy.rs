@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::util::memoize::Memoizer;
-
-use crate::compile::compiler::{
-    arena::CompilerArena,
-    cse::Cse,
-    ir::{Assertions, Expr, ExprNode, RewriteT},
+use crate::{
+    compile::{
+        algebra::field::CompileField,
+        compiler::{
+            arena::CompilerArena,
+            cse::Cse,
+            ir::{Assertions, Expr, ExprNode, RewriteT},
+        },
+    },
+    util::memoize::Memoizer,
 };
 
 /// Introduce copy wires. Note that algsimp will remove

@@ -14,14 +14,10 @@
 
 use super::*;
 use crate::{
-    core::proto::{
-        circuit::{compute_id, RawCircuit},
-        Layer, TermDelta,
-    },
+    core::proto::v1::{compute_id, Layer, RawCircuit, TermDelta},
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-            subfield::BinarySubfield, AlgebraicField,
+            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
         },
         polygero::{PolygeroConfig, PolygeroParam, PolygeroVerifier},
         proto::zk_v2::product_constraints,
@@ -52,10 +48,13 @@ fn evaluation_failures_do_not_disclose_witness_values() {
             vec![0],
         )],
     };
-    let circuit = Circuit {
-        id: compute_id(&f, &raw),
-        raw,
-    };
+    let circuit = crate::core::proto::v2::quadratic_fixture(
+        crate::core::proto::v1::Circuit {
+            id: compute_id(&f, &raw),
+            raw,
+        },
+        &f,
+    );
     for secret in [17, 0x12345678, 0xabcdef01] {
         let inputs = vec![
             f.one(),
@@ -63,15 +62,14 @@ fn evaluation_failures_do_not_disclose_witness_values() {
             f.u128_to_element(secret + 1),
         ];
         let message = sumcheck_v2::eval_circuit(inputs, &circuit, &f).unwrap_err();
-        assert_eq!(message, "Witness does not satisfy circuit constraints at layer 0: gate multiplication constraint not satisfied: wire_l=1, wire_r=2");
+        assert_eq!(message, "Witness does not satisfy circuit constraints at layer 0: quadratic assertion not satisfied");
     }
 }
 
 #[test]
 fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let domain = BinaryInterpolatorFactory::new(&f, &sf);
+    let domain = BinaryInterpolatorFactory::full_field(&f);
     let context = ZkContext {
         f: &f,
         domain: &domain,
@@ -101,10 +99,13 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             vec![0],
         )],
     };
-    let circuit = Circuit {
-        id: compute_id(&f, &raw),
-        raw,
-    };
+    let circuit = crate::core::proto::v2::quadratic_fixture(
+        crate::core::proto::v1::Circuit {
+            id: compute_id(&f, &raw),
+            raw,
+        },
+        &f,
+    );
     let prover = ZkProver::new(
         circuit,
         PolygeroConfig {
@@ -123,7 +124,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let mut original_ts = rejected_ts.clone();
     let mut rejected_rng = DeterministicRng::new(42);
     assert!(matches!(
-        prover.commit(&[], &context, &mut rejected_ts, &mut rejected_rng, &sf),
+        prover.commit(&[], &context, &mut rejected_ts, &mut rejected_rng),
         Err(error) if error == "witness length mismatch"
     ));
     assert_eq!(rejected_ts.bytes(32), original_ts.bytes(32));
@@ -140,7 +141,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
                 &context,
                 &mut transcript,
                 &mut DeterministicRng::new(42),
-                &sf,
             )
             .unwrap();
         let mut unchanged = transcript.clone();
@@ -162,7 +162,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             &context,
             &mut actual_ts,
             &mut DeterministicRng::new(42),
-            &sf,
         )
         .unwrap();
     let (reference, reference_geometry) = prover
@@ -171,7 +170,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             &context,
             &mut numerical,
             &mut DeterministicRng::new(42),
-            &sf,
         )
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
@@ -241,8 +239,8 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         com_proof,
     };
     assert_eq!(
-        actual.write(&geometry, &f, &sf).unwrap(),
-        expected.write(&geometry, &f, &sf).unwrap()
+        actual.write(&geometry, &f).unwrap(),
+        expected.write(&geometry, &f).unwrap()
     );
     independent_verifier
         .verify(

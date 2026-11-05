@@ -28,7 +28,7 @@ use longfellow_zk::{
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::{BinarySubfieldV1, InterpolationPlanV1},
         InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
     },
 };
@@ -107,8 +107,8 @@ fn all_backends(c: &mut Criterion) {
     }
     {
         let f = Gf2_128RuntimeField::new();
-        let sf = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
-        let factory = BinaryInterpolatorFactory::new(&f, &sf);
+        let sf = BinarySubfieldV1::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
+        let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
         let k = 512;
         let values: Vec<_> = (0..k)
             .map(|i| Gf2_128::from((i as u128 + 1) * 0x123456789abcdef123456789u128))
@@ -124,7 +124,7 @@ fn all_backends(c: &mut Criterion) {
     #[cfg(any(test, feature = "tooling"))]
     {
         use longfellow_zk::runtime::algebra::{
-            fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
+            fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
             range_interpolation::CrtInterpolatorFactory,
         };
         let f = RuntimeFp24Ext6::new();
@@ -140,15 +140,15 @@ fn all_backends(c: &mut Criterion) {
         let plan = factory.make_range(0..k, 992..4960);
         let mut group = c.benchmark_group("range/crt-sextic/base-subfield");
         group.bench_function("apply", |b| {
-            b.iter(|| plan.apply_subfield(black_box(&base_values), &RuntimeFp24Subfield))
+            b.iter(|| plan.apply_subfield_v1(black_box(&base_values), &RuntimeFp24SubfieldV1))
         });
         group.finish();
     }
 }
 fn binary_ranges(c: &mut Criterion) {
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
-    let factory = BinaryInterpolatorFactory::new(&f, &sf);
+    let sf = BinarySubfieldV1::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
+    let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
     for (name, source, destination) in [
         ("easy-control", 0..512, 512..4096),
         ("v8-h", 512..1042, 512..4096),

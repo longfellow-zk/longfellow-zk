@@ -19,7 +19,7 @@ use std::io::Result;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{field::RuntimeField, Subfield},
+        algebra::field::RuntimeField,
         proto::{
             polygero::{
                 PolygeroCommitment, PolygeroGeometry, PolygeroProductConstraint, PolygeroProof,
@@ -47,37 +47,21 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
 }
 
 impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
-    pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
-        &self,
-        buf: &mut Vec<u8>,
-        geom: &ZkProofGeometry,
-        f: &F,
-        sf: &SF,
-    ) -> Result<()> {
+    pub fn write_to_buf(&self, buf: &mut Vec<u8>, geom: &ZkProofGeometry, f: &F) -> Result<()> {
         buf.extend_from_slice(b"LFV2");
         buf.extend_from_slice(&self.com.root.data);
         self.sumcheck_proof.write_to_buf(buf, &geom.sc_geom, f)?;
-        self.com_proof.write_to_buf(buf, &geom.com_geom, f, sf)?;
+        self.com_proof.write_to_buf(buf, &geom.com_geom, f)?;
         Ok(())
     }
 
-    pub fn write<SF: Subfield<E = ElementOf<F>>>(
-        &self,
-        geom: &ZkProofGeometry,
-        f: &F,
-        sf: &SF,
-    ) -> Result<Vec<u8>> {
+    pub fn write(&self, geom: &ZkProofGeometry, f: &F) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
-        self.write_to_buf(&mut buf, geom, f, sf)?;
+        self.write_to_buf(&mut buf, geom, f)?;
         Ok(buf)
     }
 
-    pub fn read<SF: Subfield<E = ElementOf<F>>>(
-        bytes: &mut &[u8],
-        geom: &ZkProofGeometry,
-        f: &F,
-        sf: &SF,
-    ) -> Result<Self> {
+    pub fn read(bytes: &mut &[u8], geom: &ZkProofGeometry, f: &F) -> Result<Self> {
         if bytes.get(..4) != Some(b"LFV2") {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -91,7 +75,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         };
 
         let sumcheck_proof = SumcheckProof::read(bytes, &geom.sc_geom, f)?;
-        let com_proof = crate::runtime::proto::polygero::read(bytes, &geom.com_geom, f, sf)?;
+        let com_proof = crate::runtime::proto::polygero::read(bytes, &geom.com_geom, f)?;
 
         Ok(ZkProof {
             sumcheck_proof,
@@ -106,7 +90,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
 /// Private inputs precede all layer pads. Each layer's last three pad positions
 /// contain p_A, p_B and p_A*p_B, fixing one product constraint before challenges.
 pub fn commitment_layout<F: SerializableField>(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
 ) -> (SumcheckProofGeometry, usize, Vec<PolygeroProductConstraint>) {
     let (nw, _) = witness_and_constraint_count(circuit);
     let sumcheck = SumcheckProofGeometry::from_circuit(circuit);
@@ -130,7 +114,7 @@ pub(crate) fn product_constraints(
 /// are compiled later and have a separate count (one more than the layer count).
 #[must_use]
 pub fn witness_and_constraint_count<F: SerializableField>(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
 ) -> (usize, usize) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,

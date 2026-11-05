@@ -25,7 +25,7 @@
 //! a_next[r] = m_l[r] + alpha*q_r[r].
 //! ```
 //!
-//! These weights express the next claim A + alpha*B as a weighted sum of the
+//! These weights express A + alpha*(B - L(u)) as a weighted sum of the
 //! layer's inputs. Assertion quads use their sampled replacement coefficients.
 //! After the last layer, a weights the circuit inputs. Pass it and all sampled
 //! challenges to `build_constraints`, which tracks the hidden claims as affine
@@ -35,13 +35,13 @@
 //! checks them through Polygero. Deriving constraints alone does not check them.
 
 use crate::{
-    core::{algebra::SerializableField, proto::circuit::Circuit},
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
-        algebra::{ElementOf, SupportsSampling},
+        algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::Transcript,
         sumcheck_v2::{
             proof::{LayerProof, SumcheckProof, SumcheckProofGeometry},
-            quad::weights_next,
+            quad::weights_next_affine,
             symbolic::{build_constraints, Constraints, LayerChallenges},
             transcript::{assertion_weights, begin, end_layer, round_challenge},
         },
@@ -51,7 +51,10 @@ use crate::{
 /// Reconstruct each circuit layer's challenges and input weights, then build
 /// the symbolic constraints. The caller must have absorbed the public statement.
 /// Validate message counts before advancing the transcript.
-pub(crate) fn derive_constraints<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(crate) fn derive_constraints<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
@@ -61,6 +64,7 @@ pub(crate) fn derive_constraints<const W: usize, F: SerializableField + Supports
         .validate(&SumcheckProofGeometry::from_circuit(circuit))
         .map_err(|e| e.to_string())?;
     let mut a = begin(circuit, transcript, f);
+    let classes = crate::core::proto::v2::classify_constants(f, &circuit.raw.constants);
     let mut layer_challenges = Vec::with_capacity(proof.layers.len());
     for layer_index in 0..proof.layers.len() {
         let (challenges, a_next) = layer(
@@ -70,6 +74,7 @@ pub(crate) fn derive_constraints<const W: usize, F: SerializableField + Supports
             &a,
             transcript,
             f,
+            &classes,
         );
         a = a_next;
         layer_challenges.push(challenges);
@@ -82,38 +87,42 @@ pub(crate) fn derive_constraints<const W: usize, F: SerializableField + Supports
 
 /// Reconstruct one layer's challenges and return weights on its inputs.
 /// The round challenges form point_l = u. Binding QUAD at u expresses B as
-/// sum_r q_r[r]*W[r], while A = sum_r m_l[r]*W[r]. Their combined claim therefore
+/// sum_r q_r[r]*W[r] + L(u), while A = sum_r m_l[r]*W[r]. The corrected claim
 /// uses a_next[r] = m_l[r] + alpha*q_r[r]. All these weights are public.
-fn layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
+fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
     layer_index: usize,
     proof: &LayerProof<W, F>,
     circuit: &Circuit<F>,
     a: &[F::E],
     transcript: &mut Transcript,
     f: &F,
+    classes: &[crate::core::proto::v2::CoefficientClass],
 ) -> (LayerChallenges<F::E>, Vec<F::E>) {
-    let circuit_layer = &circuit.raw.layers[layer_index];
+    let split = super::split::SplitLayer::with_classes(&circuit.raw.layers[layer_index], classes);
     let constants = &circuit.raw.constants;
-    assert!(circuit_layer.nw() > 0, "sumcheck layer must contain a wire");
-    let assertions = assertion_weights(circuit_layer, constants, layer_index, transcript, f);
+    assert!(split.nw > 0, "sumcheck layer must contain a wire");
+    let assertions = assertion_weights(&split, layer_index, transcript, f);
 
     // Each coefficient pair is absorbed before its challenge is sampled.
-    let mut point_l = Vec::with_capacity(circuit_layer.logw());
+    let mut point_l = Vec::with_capacity(split.logw);
     for m in &proof.rounds {
         point_l.push(round_challenge(m, transcript, f));
     }
     // Bind both masked claims before drawing their combination challenge.
     let alpha = end_layer(&proof.claims, transcript, f);
 
-    // A + alpha*B = sum_r (m_l[r] + alpha*q_r[r])*W[r].
-    let a_next = weights_next(
-        circuit_layer,
-        constants,
-        a,
-        &assertions,
-        &point_l,
-        &alpha,
-        f,
-    );
-    (LayerChallenges { point_l, alpha }, a_next)
+    // The next claim is A + alpha*(B - L(u)). Its weights use only Q;
+    // the symbolic builder subtracts the public linear correction separately.
+    let constant = super::quad::affine_constant(&split, constants, a, f);
+    let (a_next, linear) =
+        weights_next_affine(&split, constants, a, &assertions, &point_l, &alpha, f);
+    (
+        LayerChallenges {
+            point_l,
+            alpha,
+            constant,
+            linear,
+        },
+        a_next,
+    )
 }

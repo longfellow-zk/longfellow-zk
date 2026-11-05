@@ -130,7 +130,6 @@ pub fn allocate_hash<'b, FC>(
     HashGiven<CompilerLogic<'b, FC>>,
     HashDerived<CompilerLogic<'b, FC>>,
     usize,
-    usize,
 )
 where
     FC: MdocHashCompileField,
@@ -193,8 +192,6 @@ where
 
     let sha_derived = allocate_sha_derived(allocator, plucker_sha, K_MAX_SHA_BLOCKS);
 
-    let subfield_boundary_val = allocator.pos;
-
     let mac_ap = std::array::from_fn(|_| [allocator.allocate_wire(), allocator.allocate_wire()]);
 
     let given = crate::mdoc::circuits::hash::Given {
@@ -225,5 +222,5 @@ where
         sha_derived,
     };
 
-    (given, derived, pub_inputs_count, subfield_boundary_val)
+    (given, derived, pub_inputs_count)
 }

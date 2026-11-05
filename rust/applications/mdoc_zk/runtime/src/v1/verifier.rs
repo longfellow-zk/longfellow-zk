@@ -95,10 +95,10 @@ pub fn run_mdoc_verifier_inner(
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
-    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
+    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
@@ -120,7 +120,7 @@ pub fn run_mdoc_verifier_inner(
         geom_sig,
     };
 
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
+    let sf_sig = crate::runtime::algebra::p256::P256SubfieldV1::new(&p256);
     let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &sf_hash, &p256, &sf_sig)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
 

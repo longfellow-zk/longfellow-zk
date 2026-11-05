@@ -21,12 +21,13 @@ use crate::{
     runtime::{
         algebra::p256::P256Field,
         proto::{
-            ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
+            ligero_v1::{LigeroCommitment, LigeroGeometry, LigeroProof},
             merkle::{Digest, MerkleNonce, MerkleProof},
+            subfield_v1::{read_subfield_elt_v1, write_subfield_elt_v1},
             sumcheck_v1::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
             util::{
-                read_elt_field, read_size_4bytes, read_subfield_elt, write_elt_field,
-                write_size_4bytes, write_subfield_elt, zero_field_element,
+                read_elt_field, read_size_4bytes, write_elt_field, write_size_4bytes,
+                zero_field_element,
             },
             zk_v1::{ZkProof, ZkProofGeometry},
         },
@@ -59,24 +60,24 @@ fn test_util_read_write_size_4bytes() {
 #[test]
 fn test_util_read_write_subfield_elt() {
     let f = P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256Subfield::new(&f);
+    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
     let val = f.u64_to_element(987654321u64);
 
     let mut buf = Vec::new();
-    write_subfield_elt(&mut buf, &val, &sf).unwrap();
+    write_subfield_elt_v1(&mut buf, &val, &sf).unwrap();
     let mut r_slice = buf.as_slice();
-    let decoded = read_subfield_elt(&mut r_slice, &sf).unwrap();
+    let decoded = read_subfield_elt_v1(&mut r_slice, &sf).unwrap();
     assert!(r_slice.is_empty());
     assert_eq!(decoded, val);
 }
 
 #[test]
 fn test_util_rejects_noncanonical_subfield_elt() {
-    use crate::runtime::algebra::{gf2_128::Gf2_128, Subfield};
+    use crate::runtime::algebra::{gf2_128::Gf2_128, SubfieldV1};
 
     struct AliasedSubfield;
 
-    impl Subfield for AliasedSubfield {
+    impl SubfieldV1 for AliasedSubfield {
         type E = Gf2_128;
 
         fn to_bytes_into(&self, _e: &Self::E, dst: &mut [u8]) {
@@ -107,10 +108,10 @@ fn test_util_rejects_noncanonical_subfield_elt() {
     let sf = AliasedSubfield;
 
     let mut canonical = [0u8].as_slice();
-    assert!(read_subfield_elt(&mut canonical, &sf).is_ok());
+    assert!(read_subfield_elt_v1(&mut canonical, &sf).is_ok());
 
     let mut aliased = [1u8].as_slice();
-    let err = read_subfield_elt(&mut aliased, &sf).unwrap_err();
+    let err = read_subfield_elt_v1(&mut aliased, &sf).unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
     assert_eq!(err.to_string(), "Non-canonical subfield element encoding");
 }
@@ -244,7 +245,7 @@ fn test_ligero_proof_read_write() {
         },
     };
 
-    let sf = crate::runtime::algebra::p256::P256Subfield::new(&f);
+    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
     let serialized = proof.write(&geom, &f, &sf).unwrap();
     let mut r_slice = serialized.as_slice();
     let decoded = LigeroProof::read(&mut r_slice, &geom, &f, &sf).unwrap();
@@ -256,7 +257,7 @@ fn test_ligero_proof_read_write() {
 fn test_ligero_proof_read_allows_zero_length_merkle_path() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256Subfield::new(&f);
+    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 2,
@@ -308,7 +309,7 @@ fn test_ligero_proof_read_allows_zero_length_merkle_path() {
 fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
     use crate::{
         core::algebra::SupportsU128Conversions,
-        runtime::algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield},
+        runtime::algebra::{gf2_128::Gf2_128Field, subfield_v1::BinarySubfieldV1},
     };
 
     let f = Gf2_128Field::new();
@@ -352,7 +353,7 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
         },
     };
 
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
     let sub_val = sf.embed(10);
     let field_val = f.u128_to_element(11);
     assert!(sf.contains(&sub_val), "sub_val should be in subfield");
@@ -376,10 +377,12 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
 
 #[test]
 fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
-    use crate::runtime::algebra::{gf2_128::Gf2_128Field, subfield::BinarySubfield, Subfield};
+    use crate::runtime::algebra::{
+        gf2_128::Gf2_128Field, subfield_v1::BinarySubfieldV1, SubfieldV1,
+    };
 
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
     let geom = LigeroGeometry {
         block: 0,
         dblock: 0,
@@ -441,7 +444,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
 fn test_zk_proof_read_write() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256Subfield::new(&f);
+    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 4,

@@ -58,11 +58,6 @@ name = "verifier_only"
 path = "applications/mdoc_zk/verifier_only/src/main.rs"
 required-features = ["verifier", "mdoc"]
 
-[[bin]]
-name = "convert_circuits_v1"
-path = "applications/mdoc_zk/runtime/src/bin/convert_circuits_v1.rs"
-required-features = ["compiler", "mdoc"]
-
 [[bench]]
 name = "p256_benchmark"
 path = "runtime/algebra/benches/p256_benchmark.rs"

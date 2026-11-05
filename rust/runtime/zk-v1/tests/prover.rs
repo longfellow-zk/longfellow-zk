@@ -16,22 +16,19 @@ use super::*;
 use crate::{
     core::{
         algebra::AlgebraicField,
-        proto::{
-            circuit::{Circuit, RawCircuit},
-            Layer, TermDelta,
-        },
+        proto::v1::{Circuit, Layer, RawCircuit, TermDelta},
     },
     runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
+        subfield_v1::BinarySubfieldV1,
     },
 };
 
 #[test]
 fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let interpolation = BinaryInterpolatorFactory::new(&f, &sf);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let interpolation = BinaryInterpolatorFactory::new(&f, sf.basis());
     let context = ZkContext {
         f: &f,
         make_interpolator: &interpolation,
@@ -66,7 +63,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     };
     let prover = ZkProver::new(
         circuit,
-        crate::runtime::ligero::LigeroConfig {
+        crate::runtime::ligero_v1::LigeroConfig {
             rateinv: 4,
             nreq: 16,
             block_enc: 256,
@@ -84,12 +81,12 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     );
     let (nw, nq) = crate::runtime::proto::zk_v1::witness_and_constraint_count(&prover.circuit);
     let param =
-        crate::runtime::ligero::param::LigeroParam::new(nw, nq, prover.config, &interpolation);
+        crate::runtime::ligero_v1::param::LigeroParam::new(nw, nq, prover.config, &interpolation);
     let mut numerical = Transcript::new(b"legacy-symbolic-equivalence");
     let mut independent = Transcript::new(b"legacy-symbolic-equivalence");
     for stream in [&mut numerical, &mut independent] {
         {
-            let mut receiver = crate::runtime::ligero::LigeroVerifier::new(stream, &param);
+            let mut receiver = crate::runtime::ligero_v1::LigeroVerifier::new(stream, &param);
             receiver.receive_commitment(&committed.com);
         }
         stream.write_sumcheck_statement(&prover.circuit, &public, &f);
@@ -178,7 +175,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         expected.write(&geometry, &f, &sf).unwrap()
     );
     {
-        let mut verifier = crate::runtime::ligero::LigeroVerifier::new(&mut independent, &param);
+        let mut verifier = crate::runtime::ligero_v1::LigeroVerifier::new(&mut independent, &param);
         verifier
             .verify(
                 &b,

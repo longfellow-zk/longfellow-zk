@@ -21,7 +21,7 @@ fn next_is_not_a_frozen_v2_circuit() {
     assert!(registered_versions_and_attrs().is_empty());
     for count in 1..=4 {
         assert!(matches!(
-            materialize(8, count),
+            materialize(crate::mdoc::circuits::NEXT_VERSION, count),
             Err(MdocProverErrorCode::InvalidZkSpecVersion)
         ));
     }
@@ -35,7 +35,7 @@ fn provider_rejects_wrong_archive_entries() {
         vec!["sig", "hash", "extra"],
     ] {
         let mut builder = CircuitArchiveBuilder::new();
-        builder.set_circuit_version(8);
+        builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
         for name in names {
             builder.add_entry(name, [1; 32], vec![1]);
         }
@@ -53,7 +53,7 @@ fn provider_rejects_wrong_archive_entries() {
 #[test]
 fn frozen_v2_loader_reads_archive_without_a_compiler() {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(8);
+    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();
@@ -72,9 +72,9 @@ fn frozen_v2_loader_reads_archive_without_a_compiler() {
     std::fs::remove_file(&path).unwrap();
     assert!(load(&directory, &spec).is_err());
     std::fs::remove_dir(directory).unwrap();
-    spec.version = 9;
+    spec.version = 99;
     assert!(from_compressed(spec, compressed.clone()).is_err());
-    spec.version = 8;
+    spec.version = crate::mdoc::circuits::NEXT_VERSION;
     spec.combined_hash[0] ^= 1;
     assert!(from_compressed(spec, compressed).is_err());
 }

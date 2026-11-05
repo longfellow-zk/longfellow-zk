@@ -75,14 +75,14 @@ mod tests {
                 c_hash.raw.npublic_input
             );
 
-            let sig_id = crate::core::proto::circuit::compute_id(&p256, &c_sig.raw);
+            let sig_id = crate::core::proto::v1::compute_id(&p256, &c_sig.raw);
             assert_eq!(
                 sig_id, c_sig.id,
                 "Signature ID mismatch for {}",
                 provided.name
             );
 
-            let hash_id = crate::core::proto::circuit::compute_id(&gf2, &c_hash.raw);
+            let hash_id = crate::core::proto::v1::compute_id(&gf2, &c_hash.raw);
             assert_eq!(hash_id, c_hash.id, "Hash ID mismatch for {}", provided.name);
 
             let mut hasher = Sha256::new();

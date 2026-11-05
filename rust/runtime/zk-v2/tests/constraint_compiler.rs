@@ -127,6 +127,8 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
             .map(|(point, alpha)| LayerChallenges {
                 point_l: point.clone(),
                 alpha: alpha.clone(),
+                constant: f.zero(),
+                linear: f.zero(),
             })
             .collect();
         let input_weights = vec![element(41), f.zero(), element(43)];
@@ -208,6 +210,8 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
     let challenges = vec![LayerChallenges {
         point_l: vec![],
         alpha: e(5),
+        constant: f.zero(),
+        linear: f.zero(),
     }];
     let constraints = build_constraints(&proof, challenges, vec![e(7), e(11)], &f);
     let pads = SumcheckProofGeometry {
@@ -270,6 +274,8 @@ fn rejects_mismatched_challenges_and_pad_layout() {
     let extra_round = vec![LayerChallenges {
         point_l: vec![f.zero()],
         alpha: f.one(),
+        constant: f.zero(),
+        linear: f.zero(),
     }];
     assert!(
         std::panic::catch_unwind(|| { build_constraints(&proof, extra_round, vec![], &f) })
@@ -278,6 +284,8 @@ fn rejects_mismatched_challenges_and_pad_layout() {
     let layer_challenges = vec![LayerChallenges {
         point_l: vec![],
         alpha: f.one(),
+        constant: f.zero(),
+        linear: f.zero(),
     }];
     let constraints = build_constraints(&proof, layer_challenges, vec![], &f);
     let missing_pads = SumcheckProofGeometry {

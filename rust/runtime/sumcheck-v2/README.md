@@ -4,7 +4,7 @@
 `runtime::sumcheck_v1` module implements the legacy two-hand protocol. Import the
 module for the desired entry point; there is no protocol selector or proof enum.
 Each runtime has its own copies of the sumcheck arithmetic and transcript code.
-Both use the shared field, circuit, and randomness modules.
+Both use shared field and randomness modules; v2 consumes native LFC3 circuits.
 
 ## Organization
 
@@ -35,7 +35,22 @@ Legacy retains its two `hp` vectors. V2 proof
 geometry and committed-pad positions belong to `runtime::proto::sumcheck_v2`.
 Zero-knowledge proving uses `runtime::zk_v2`; see its [README](../zk-v2/README.md).
 
+## Circuit storage and execution
+
+LFC3 stores quadratic, linear, and constant terms in three streams, with an
+explicit coefficient table and no reserved One input. Each invocation classifies
+the coefficient table once. The private split uses four quadratic streams and
+four linear streams (general, one, minus one, and assertions), plus three constant
+streams. In characteristic two, minus one shares the one stream.
+
+The split preserves repeated segment runs and borrows their token sequences.
+The prover builds it once for witness evaluation and reuses it for sumcheck,
+releasing each layer after proving it. The verifier constructs one layer at a time.
+Unit-coefficient arithmetic is confined to these eleven streams. See the
+[LFC3 format](../../core/proto/LFC3.md) for encoding and circuit identity.
+
 ## Single-hand transition
+
 
 The index `g` ranges over this layer's outputs; `l,r` range over its input
 wires. The code array `w` holds the input witness `W[i]`, and `V[g]` is the
@@ -44,7 +59,7 @@ layer output. In a folding loop, `n` counts the remaining array entries, while
 `ceil(n/2)`. All sums are explicit:
 
 $$
-V[g] = \sum_l \sum_r \mathrm{QUAD}[g,l,r]\,W[l]\,W[r].
+V[g] = \sum_{l,r} Q[g,l,r]W[l]W[r] + \sum_l L[g,l]W[l] + K[g].
 $$
 
 The array `a` contains the current weights on output index `g`. Initially
@@ -58,8 +73,8 @@ $$
 The prover binds `g,r`, leaving `l` free. The code calls this array `q_l`:
 
 $$
-q_l[l] = \sum_g \sum_r a[g]\,\mathrm{QUAD}[g,l,r]\,W[r],
-\qquad c = \sum_l q_l[l]\,W[l].
+q_l[l] = \sum_g a[g]\left(\sum_r Q[g,l,r]W[r] + L[g,l]\right),
+\qquad c - \sum_g a[g]K[g] = \sum_l q_l[l]W[l].
 $$
 
 Sumcheck binds the bits of `l` at challenges collected in `point_l = u`.
@@ -75,8 +90,8 @@ Both prover and verifier bind `g,l`, leaving `r` free. The code calls this
 array `q_r`:
 
 $$
-q_r[r] = \sum_g \sum_l a[g]\,\mathrm{QUAD}[g,l,r]\,m_l[l],
-\qquad B = \sum_r q_r[r]\,W[r].
+q_r[r] = \sum_{g,l} a[g]Q[g,l,r]m_l[l],
+\qquad B = \sum_r q_r[r]W[r] + L(u),\quad L(u)=\sum_{g,l}a[g]L[g,l]m_l[l].
 $$
 
 Both bindings live in `quad.rs`. The shared `bind_l` routine performs the public
@@ -89,7 +104,7 @@ $\alpha$ and continue with
 
 $$
 a_{\mathrm{next}}[i] = m_l[i] + \alpha\,q_r[i],
-\qquad c_{\mathrm{next}} = A + \alpha B.
+\qquad c_{\mathrm{next}} = A + \alpha(B-L(u)).
 $$
 
 The index `i` labels the same input wires as `l,r`, now viewed as outputs of
@@ -97,10 +112,11 @@ the next layer. The terminal sumcheck equation checks that the reduced claim
 equals $AB$. Both roles reuse the monomial-weight array as the next `a`, applying
 `blas::axpy` directly for the combination.
 
-The formulas above describe ordinary quads. Each assertion marker instead
-replaces its entire $a[g]\,\mathrm{QUAD}[g,l,r]$ coefficient by an independent
-challenge, sampled in quad traversal order. Both bindings reuse those challenges,
-even when several assertion quads share an output index. No bitmap is needed.
+Each quadratic or linear assertion replaces its entire output-weighted
+coefficient by an independent challenge, sampled in quadratic then linear
+traversal order. Both bindings reuse those challenges, even when several
+assertions share an output index. Linear assertions also enter the public
+$L(u)$ correction. No bitmap is needed.
 
 V2 treats each table as multilinear monomial coefficients, equivalently values on
 the projective cube $\{0,\infty\}^{\mathrm{logw}}$. Binding a pair uses
@@ -121,7 +137,7 @@ binding; previously generated v2 proofs require their original verifier.
 The numerical prover advances the main transcript directly and returns the proof
 and its symbolic constraints. During proving, each `LayerChallenges` retains the
 sampled round challenges in `point_l` and the final-claim combination challenge
-`alpha`. The same `point_l` supplies the monomial weights. At the end, the prover
+`alpha`, together with the public constant and linear corrections. The same `point_l` supplies the monomial weights. At the end, the prover
 passes these challenges and the final dense input weights to the shared symbolic
 builder. Both compute the next claim directly from the round coefficients.
 
@@ -160,7 +176,7 @@ runtime circuit execution also checks its index capacity.
 The transcript domain is `longfellow-sumcheck-v2-projective`. Assertion sampling
 uses a separate domain and layer index; final-claim combination uses its own domain
 after the final-claim message. Both roles use `transcript::end_layer` for that
-boundary and `quad::weights_next` for the public weight update.
+boundary and `quad::weights_next_affine` for the public weight update.
 Legacy transcript operations are unchanged.
 
 | Per-layer quantity | Single-hand | Legacy round-major |
@@ -176,21 +192,20 @@ still has one terminal linear constraint and one pad-product constraint.
 
 Both protocols are modules in the `longfellow-zk` crate. The compiler's existing
 `compile_v1` entry point preserves historical Morton ordering and circuit IDs.
-`compile_v2` uses constant-aware, output-major ordering and targets V2. No wire
-IDs change between these layouts. The mdoc v8 builders, geometry, prover, and
-verifier use V2; v5-v7 verification uses the stored legacy circuits.
+`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v9
+uses that representation; v5-v7 verification uses the stored legacy circuits.
 
-The shared compiler and circuit suites, including mdoc synthesis and tampering
-checks, run with both compiler entry points. Legacy tests retain circuit-ID and
-RFC proof-byte fixtures. Runtime tests check independent numerical and symbolic
-constraints, independent constraint derivation, proof/transcript fingerprints,
-malformed proofs, final-claim pads, arbitrary V2 traversal, zero-round and zero-layer circuits,
-and sparse lowering over prime and binary fields.
+The circuit synthesis and tampering suites use the native v2 compiler. Dedicated
+backend tests pin v1 circuit bytes and compare v1/v2 evaluation over binary and
+prime fields. Saved v1 proofs remain byte-for-byte fixtures. Runtime tests check
+split and reference execution, affine corrections, independent numerical and
+symbolic constraints, proof/transcript agreement, malformed encodings, arbitrary
+traversal, zero-round and zero-layer circuits, and sparse constraint lowering.
 
-From `rust/`, run `cargo test --release --features testonly` for the complete
-suite. Filter with `v1_tests` or `v2_tests` to run the shared circuit suites
-under one compiler, or with `runtime::sumcheck_v1` / `runtime::sumcheck_v2` for the
-sumcheck protocols. Both paths use the existing Cargo feature gates.
+From `rust/`, run `cargo test --offline --release --features testonly` for the
+complete suite. Filter with `runtime::sumcheck_v1` or `runtime::sumcheck_v2` for
+one protocol. Both paths use the existing Cargo feature gates.
+
 
 ## Feature boundaries
 

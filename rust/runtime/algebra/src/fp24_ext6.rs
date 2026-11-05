@@ -29,7 +29,7 @@ use crate::{
     runtime::algebra::{
         field::{RuntimeSerializableField, SupportsSampling},
         poly::InterpolationField,
-        RuntimeField, RuntimeNat, Subfield,
+        RuntimeField, RuntimeNat, SubfieldV1,
     },
 };
 
@@ -241,9 +241,9 @@ impl InterpolationField<3> for RuntimeFp24Ext6 {
     }
 }
 
-pub struct RuntimeFp24Subfield;
+pub struct RuntimeFp24SubfieldV1;
 
-impl Subfield for RuntimeFp24Subfield {
+impl SubfieldV1 for RuntimeFp24SubfieldV1 {
     type E = RuntimeElement;
 
     fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {

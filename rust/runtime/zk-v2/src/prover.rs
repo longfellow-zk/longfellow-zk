@@ -25,9 +25,9 @@
 //! the original commitment. Pads and symbolic constraints end at the sumcheck
 //! phase; the encoded witness and Merkle tree end when this invocation returns.
 use crate::{
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     runtime::{
-        algebra::{ElementOf, EvaluationDomain, Subfield, ZkField},
+        algebra::{ElementOf, EvaluationDomain, ZkField},
         polygero::{PolygeroConfig, PolygeroLinearTerm, PolygeroProver},
         proto::Digest,
         random::{RandomEngine, Transcript},
@@ -63,25 +63,17 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     /// Each layer's final pads p_A,p_B also have a committed product p_A*p_B.
     /// Fix those product constraints now, before sumcheck chooses any challenges.
     #[allow(clippy::too_many_arguments)]
-    pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine, SF: Subfield<E = ElementOf<F>>>(
+    pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine>(
         &self,
         private_inputs: &[ElementOf<F>],
         ctx: &ZkContext<'_, W, F, D>,
         transcript: &mut Transcript,
         rng: &mut R,
-        sf: &SF,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
         let nprivate = private_input_count(&self.circuit);
         if private_inputs.len() != nprivate {
             return Err("witness length mismatch".into());
         }
-
-        // Circuit indices include the public prefix; Polygero commits only the suffix.
-        let subfield_boundary = self
-            .circuit
-            .raw
-            .subfield_boundary
-            .saturating_sub(self.circuit.raw.npublic_input);
 
         let (geom, param) = prepare_layout(&self.circuit, self.config, ctx)?;
         let (pads, pad_values) = sumcheck_v2::sample_pads(&geom.sc_geom, rng, ctx.f);
@@ -90,17 +82,9 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         witness.extend_from_slice(private_inputs);
         witness.extend(pad_values);
 
-        let (polygero, commitment) = PolygeroProver::commit(
-            subfield_boundary,
-            witness,
-            param,
-            transcript,
-            ctx.domain,
-            rng,
-            ctx.f,
-            sf,
-        )
-        .map_err(|e| e.to_string())?;
+        let (polygero, commitment) =
+            PolygeroProver::commit(witness, param, transcript, ctx.domain, rng, ctx.f)
+                .map_err(|e| e.to_string())?;
         Ok((
             ZkProverCommitment {
                 pads,
@@ -165,10 +149,8 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             .map_err(|error| error.to_string())?;
         let inputs = prepare_inputs(public_inputs, private_inputs);
         transcript.write_sumcheck_statement(&self.circuit, public_inputs, f);
-        let w_layers = sumcheck_v2::eval_circuit(inputs, &self.circuit, f)
-            .map_err(|e| format!("eval_circuit failed: {e}"))?;
         let (proof, constraints) =
-            sumcheck_v2::prove_core(w_layers, &pads, &self.circuit, transcript, f);
+            sumcheck_v2::evaluate_and_prove(inputs, &pads, &self.circuit, transcript, f)?;
         let statement = super::transcript::statement_digest(transcript);
         let layout = geometry.pad_layout(private_input_count(&self.circuit));
         let (a, b) = constraint_compiler::compile(&constraints, &layout, public_inputs, f)?;

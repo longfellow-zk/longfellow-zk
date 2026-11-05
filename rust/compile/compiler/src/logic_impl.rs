@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{scope::AssertionScope, Logic, LogicIO};
-
-use crate::compile::compiler::{
-    algsimp::AlgebraicRewriter,
-    arena::CompilerArena,
-    cse::Cse,
-    ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
+use crate::compile::{
+    algebra::field::CompileField,
+    compiler::{
+        algsimp::AlgebraicRewriter,
+        arena::CompilerArena,
+        cse::Cse,
+        ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
+    },
+    logic::{scope::AssertionScope, Logic, LogicIO},
 };
 
 #[derive(Debug, PartialEq, Eq)]

@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::p256::P256Field;
-use crate::compile::compiler::quad::{QuadCircuit, WExpr};
+use crate::compile::{
+    algebra::p256::P256Field,
+    compiler::{graph::Node as GraphNode, v1::quad::QuadCircuit},
+};
 
 #[test]
 fn test_quad_circuits_instantiation() {
     let circuit = QuadCircuit::<P256Field> {
-        nodes: vec![WExpr::Unspecified],
+        nodes: vec![GraphNode::Input {
+            position_in_input_array: 0,
+        }],
     };
     assert_eq!(circuit.nodes.len(), 1);
 }

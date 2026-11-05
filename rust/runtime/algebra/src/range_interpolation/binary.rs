@@ -24,23 +24,52 @@
 use std::ops::Range;
 
 use super::{batch_inverse, InterpolationPlan, RangeInterpolatorFactory, Ranges};
-use crate::runtime::algebra::{
-    blas, field::RuntimeBinaryField, gf2_128::Gf2_128, lch14::Lch14, subfield::BinarySubfield,
-};
+use crate::runtime::algebra::{blas, field::RuntimeBinaryField, gf2_128::Gf2_128, lch14::Lch14};
 
 /// Additive point-table interpolation over a fixed binary basis.
 /// The enclosing source coset determines the transform size, which can be much
 /// larger than the sample count near a high dyadic boundary.
 pub struct BinaryInterpolatorFactory<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> {
     field: &'a F,
-    subfield: &'a BinarySubfield,
+    basis: Vec<Gf2_128>,
 }
 
 impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>
     BinaryInterpolatorFactory<'a, W, F>
 {
-    pub fn new(field: &'a F, subfield: &'a BinarySubfield) -> Self {
-        Self { field, subfield }
+    /// The ambient binary field's complete 128-vector Cantor basis.
+    pub fn full_field(field: &'a F) -> Self {
+        Self {
+            field,
+            basis: crate::core::algebra::CANTOR_BASIS_U128
+                .map(Gf2_128::from)
+                .to_vec(),
+        }
+    }
+
+    pub fn new(field: &'a F, basis: &[Gf2_128]) -> Self {
+        assert!(
+            !basis.is_empty() && basis.len() <= 128,
+            "unsupported binary basis dimension"
+        );
+        let mut echelon: Vec<(usize, Gf2_128)> = Vec::with_capacity(basis.len());
+        for &point in basis {
+            let mut value = point;
+            for &(pivot, row) in &echelon {
+                if value.bit(pivot) {
+                    value.add(&row);
+                }
+            }
+            let pivot = (0..128)
+                .find(|&bit| value.bit(bit))
+                .expect("binary basis must be linearly independent");
+            echelon.push((pivot, value));
+        }
+
+        Self {
+            field,
+            basis: basis.to_vec(),
+        }
     }
 }
 
@@ -392,7 +421,7 @@ impl OutputBlock {
             let mut begin = segment.start;
             while begin < segment.end {
                 let base = begin & !(size - 1);
-                let end = segment.end.min(base + size);
+                let end = segment.end.min(base.saturating_add(size));
                 blocks.push(Self {
                     output: begin - ranges.destination.start..end - ranges.destination.start,
                     coset: base ^ source_base,
@@ -414,12 +443,15 @@ struct RangeTransform<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>
 
 impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeTransform<'a, W, F> {
     /// Use the smallest aligned additive coset enclosing both source endpoints.
-    fn new(ranges: &Ranges, field: &'a F, subfield: &'a BinarySubfield) -> Self {
+    fn new(ranges: &Ranges, field: &'a F, basis: &[Gf2_128]) -> Self {
         let source = &ranges.source;
         let log = (usize::BITS - (source.start ^ (source.end - 1)).leading_zeros()) as usize;
         let size = 1 << log;
         let base = source.start & !(size - 1);
-        let fft = Lch14::new(field, subfield);
+        let maximum = ranges.source.end.max(ranges.destination.end) - 1;
+        let dimension = (usize::BITS - maximum.leading_zeros()) as usize;
+        let fft = Lch14::new(field, &basis[..dimension]);
+
         let transform =
             BinaryTransform::new(size, 0, source.start - base, source.len(), &fft, field);
         let blocks = OutputBlock::cover(ranges, size, base);
@@ -478,7 +510,20 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
     type Plan = BinaryInterpolationPlan<'a, W, F>;
 
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
-        Ranges::valid(&source, &destination, 1 << self.subfield.dimension())
+        let limit = 1usize
+            .checked_shl(self.basis.len() as u32)
+            .unwrap_or(usize::MAX);
+        if !Ranges::valid(&source, &destination, limit) {
+            return false;
+        }
+        let ranges = Ranges::new(source, destination);
+        if !ranges.needs_work() {
+            return true;
+        }
+        let log = usize::BITS - (ranges.source.start ^ (ranges.source.end - 1)).leading_zeros();
+        1usize
+            .checked_shl(log)
+            .is_some_and(|size| size <= isize::MAX as usize / std::mem::size_of::<Gf2_128>())
     }
 
     fn make_range(&self, source: Range<usize>, destination: Range<usize>) -> Self::Plan {
@@ -489,7 +534,7 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
         let ranges = Ranges::new(source, destination);
         let transform = ranges
             .needs_work()
-            .then(|| RangeTransform::new(&ranges, self.field, self.subfield));
+            .then(|| RangeTransform::new(&ranges, self.field, &self.basis));
         BinaryInterpolationPlan {
             field: self.field,
             ranges,
@@ -499,10 +544,17 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
 
     fn point(&self, index: usize) -> F::E {
         assert!(
-            index < 1 << self.subfield.dimension(),
+            self.basis.len() >= usize::BITS as usize || index < 1 << self.basis.len(),
             "point outside binary domain"
         );
-        self.subfield.embed(index as u64)
+        let mut value = self.field.zero();
+        let mut bits = index;
+        while bits != 0 {
+            self.field
+                .add(&mut value, &self.basis[bits.trailing_zeros() as usize]);
+            bits &= bits - 1;
+        }
+        value
     }
 }
 
@@ -512,7 +564,7 @@ where F: RuntimeBinaryField<W, E = Gf2_128> + crate::core::algebra::Serializable
 {
     fn domain_id(&self) -> Vec<u8> {
         let mut id = b"gf2_128/lch14-prefix/v1".to_vec();
-        for point in self.subfield.basis() {
+        for point in &self.basis {
             id.extend(self.field.to_bytes(point));
         }
         id

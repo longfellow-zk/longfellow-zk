@@ -19,7 +19,7 @@
 
 use crate::runtime::polygero::PolygeroConfig;
 pub const SYSTEM_ID: &str = "longfellow-libzk-v2";
-pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[8];
+pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[crate::mdoc::circuits::NEXT_VERSION];
 
 /// Independent Polygero choices, fixed for the circuit supplied with this spec.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -23,7 +23,7 @@ use crate::{core::algebra::SerializableField, runtime::algebra::field::RuntimeFi
 /// Return each layer's input witness after checking assertions and final outputs.
 pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {
     let nl = circuit.raw.layers.len();
@@ -58,7 +58,7 @@ pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 pub fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
     nv: usize,
     w: &[F::E],
-    layer: &crate::core::proto::circuit::Layer<F>,
+    layer: &crate::core::proto::v1::Layer<F>,
     constants: &[F::E],
     f: &F,
 ) -> Result<Vec<F::E>, String> {

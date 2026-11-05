@@ -986,18 +986,14 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
         let gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
         let sig_entry = archive.get("sig").unwrap();
         let hash_entry = archive.get("hash").unwrap();
-        let (sig, sig_tail) = crate::core::proto::reader::CircuitReader::new(
-            &p256,
-            crate::core::proto::FieldID::P256,
-        )
-        .from_bytes(&sig_entry.payload, true)
-        .unwrap();
-        let (hash, hash_tail) = crate::core::proto::reader::CircuitReader::new(
-            &gf2,
-            crate::core::proto::FieldID::Gf2_128,
-        )
-        .from_bytes(&hash_entry.payload, true)
-        .unwrap();
+        let (sig, sig_tail) =
+            crate::core::proto::v2::CircuitReader::new(&p256, crate::core::proto::FieldID::P256)
+                .from_bytes(&sig_entry.payload, true)
+                .unwrap();
+        let (hash, hash_tail) =
+            crate::core::proto::v2::CircuitReader::new(&gf2, crate::core::proto::FieldID::Gf2_128)
+                .from_bytes(&hash_entry.payload, true)
+                .unwrap();
         assert!(sig_tail.is_empty() && hash_tail.is_empty());
         assert_eq!(sig.id, sig_entry.circuit_id);
         assert_eq!(hash.id, hash_entry.circuit_id);
@@ -1024,16 +1020,14 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
     use crate::runtime::algebra::{
         fp2::Fp2Field,
         gf2_128::Gf2_128Field,
-        p256::{P256Field, P256Subfield},
+        p256::P256Field,
         range_interpolation::{
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
         },
-        subfield::BinarySubfield,
         SupportsFFT,
     };
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let d = BinaryInterpolatorFactory::new(&f, &sf);
+    let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
     let extension = Fp2Field::new(&p);
     let pd = QuadraticExtensionFftInterpolatorFactory::new(
@@ -1042,10 +1036,9 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         extension.omega(),
         extension.omega_order(),
     );
-    let psf = P256Subfield::new(&p);
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f, false).unwrap();
-    let expected_hash = expected_parameters(&hash, &d, &f, &sf);
-    let expected_sig = expected_parameters(&sig, &pd, &p, &psf);
+    let expected_hash = expected_parameters(&hash, &d, &f);
+    let expected_sig = expected_parameters(&sig, &pd, &p);
     assert_eq!(
         Some(spec.configs()),
         Some((expected_hash, expected_sig)),
@@ -1058,12 +1051,10 @@ fn expected_parameters<
     const W: usize,
     F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SerializableField,
     D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
-    SF: crate::runtime::algebra::Subfield<E = F::E>,
 >(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     domain: &D,
     f: &F,
-    sf: &SF,
 ) -> crate::runtime::proto::polygero::PolygeroConfig {
     use crate::runtime::proto::zk_v2::commitment_layout;
     let (_, nw, products) = commitment_layout(circuit);
@@ -1071,12 +1062,7 @@ fn expected_parameters<
         7,
         nw,
         &products,
-        circuit
-            .raw
-            .subfield_boundary
-            .saturating_sub(circuit.raw.npublic_input),
         f.serialized_size_bytes(),
-        sf.serialized_size_bytes(),
         |config| config.can_interpolate(domain),
     )
     .unwrap()

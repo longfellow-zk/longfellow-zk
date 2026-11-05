@@ -38,11 +38,9 @@ use super::{
     PolygeroLinearTerm, PolygeroParam, PolygeroProof,
 };
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::algebra::SerializableField,
     runtime::{
-        algebra::{
-            blas, EvaluationDomain, InterpolationPlan, RuntimeField, Subfield, SupportsSampling,
-        },
+        algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField, SupportsSampling},
         merkle::MerkleHeap,
         proto::{Digest, MerkleNonce, MerkleProof},
         random::{RandomEngine, Transcript},
@@ -61,26 +59,21 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W
     PolygeroProver<W, F>
 {
     /// Validate and encode the witness, commit its columns, and bind the root.
-    /// `subfield_boundary` is fixed by the public witness layout; every value
-    /// before it must belong to sf, and only ordinary rows use subfield masks.
     #[allow(clippy::too_many_arguments)]
-    pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine, SF: Subfield<E = ElementOf<F>>>(
-        subfield_boundary: usize,
+    pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine>(
         witness: Vec<F::E>,
         param: PolygeroParam,
         ts: &mut Transcript,
         domain: &D,
         rng: &mut R,
         f: &F,
-        sf: &SF,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
         ensure(
             param.domain_id == domain.domain_id(),
             "interpolation domain mismatch",
         )?;
-        prover_commitment::validate_witness(&param, &witness, subfield_boundary, domain, f, sf)?;
-        let w =
-            prover_commitment::encode_rows(&param, witness, subfield_boundary, domain, rng, f, sf);
+        prover_commitment::validate_witness(&param, &witness, f)?;
+        let w = prover_commitment::encode_rows(&param, witness, domain, rng, f);
         let (tree, salts) = prover_commitment::commit_columns(&param, &w, rng, f);
         let commitment = PolygeroCommitment { root: tree.root() };
         transcript::receive_commitment(ts, &param, &commitment);

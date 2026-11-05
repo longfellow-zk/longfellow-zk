@@ -17,14 +17,19 @@
 use crate::{
     compile::{
         algebra::field::CompileField,
-        compiler::quad::{QuadCircuit, WExpr},
-    },
-    core::{
-        algebra::ElementOf,
-        proto::circuit::{
-            canonical_term, compare_term, compute_id, Circuit, CircuitGeometry, Layer, RawCircuit,
-            Term, TermDelta,
+        compiler::{
+            graph::Node as GraphNode,
+            scheduling::{
+                extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
+                INVALID_WIRE_ID,
+            },
+            v1::quad::{QuadCircuit, WExpr},
         },
+        logic::scope::AssertionId,
+    },
+    core::proto::v1::{
+        canonical_term, compare_term, compute_id, Circuit, CircuitGeometry, Layer, RawCircuit,
+        Term, TermDelta,
     },
     util::ceil_log2,
 };
@@ -34,19 +39,18 @@ fn assert_all_needed<F: CompileField>(nodes: &[WExpr<F>]) {
     let mut needed = vec![false; nodes.len()];
     for i in (0..nodes.len()).rev() {
         match &nodes[i] {
-            WExpr::Unspecified => panic!("Unspecified in circuit"),
-            WExpr::Input { .. } => {
+            GraphNode::Input { .. } => {
                 if needed[i] || i == 0 {
                     // input is needed (or i==0 which is the reserved constant One), valid
                 } else {
                     panic!("found input that is not needed");
                 }
             }
-            WExpr::Assert0(w) => {
+            GraphNode::Assert0(w) => {
                 needed[i] = true;
                 needed[*w] = true;
             }
-            WExpr::Sum(terms) => {
+            GraphNode::Sum(terms) => {
                 assert!(needed[i]);
                 for (_, w0, w1) in terms {
                     needed[*w0] = true;
@@ -60,10 +64,9 @@ fn assert_all_needed<F: CompileField>(nodes: &[WExpr<F>]) {
 // Depth of node assuming children depth has already been computed
 fn depth_of_node<F: CompileField>(depth: &[usize], node: &WExpr<F>) -> usize {
     match node {
-        WExpr::Unspecified => panic!("Unspecified in circuit"),
-        WExpr::Input { .. } => 0,
-        WExpr::Assert0(w) => depth[*w],
-        WExpr::Sum(terms) => {
+        GraphNode::Input { .. } => 0,
+        GraphNode::Assert0(w) => depth[*w],
+        GraphNode::Sum(terms) => {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             terms
                 .iter()
@@ -76,10 +79,9 @@ fn depth_of_node<F: CompileField>(depth: &[usize], node: &WExpr<F>) -> usize {
 
 fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &WExpr<F>) {
     match node {
-        WExpr::Unspecified => panic!("Unspecified in circuit"),
-        WExpr::Input { .. } => assert_eq!(depth[i], 0),
-        WExpr::Assert0(w) => assert_eq!(depth[i], depth[*w]),
-        WExpr::Sum(terms) => {
+        GraphNode::Input { .. } => assert_eq!(depth[i], 0),
+        GraphNode::Assert0(w) => assert_eq!(depth[i], depth[*w]),
+        GraphNode::Sum(terms) => {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             for (e, x, y) in terms {
                 assert!(!f.is_zero(e));
@@ -90,15 +92,6 @@ fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &WEx
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct WireId {
-    id_within_layer: usize,
-}
-
-const INVALID_WIRE_ID: WireId = WireId {
-    id_within_layer: usize::MAX,
-};
-
 // Materialize all in-circuit assertions into quad nodes. Assertions
 // in the last layer become outputs and are not instantiated.
 fn materialize_assertions<F: CompileField>(
@@ -108,58 +101,12 @@ fn materialize_assertions<F: CompileField>(
     max_depth: usize,
 ) {
     for i in 0..nodes.len() {
-        if let WExpr::Assert0(w) = nodes[i] {
+        if let GraphNode::Assert0(w) = nodes[i] {
             if depth[i] < max_depth {
-                nodes[i] = WExpr::Sum(vec![(f.zero(), w, w)]);
+                nodes[i] = GraphNode::Sum(vec![(f.zero(), w, w)]);
                 depth[i] += 1;
             }
         }
-    }
-}
-
-struct RenamedTerm<F: CompileField + crate::core::algebra::SerializableField> {
-    k: ElementOf<F>,
-    rlop0: usize,
-    rlop1: usize,
-}
-
-impl<F: CompileField + crate::core::algebra::SerializableField> RenamedTerm<F> {
-    fn compare(&self, other: &Self, f: &F) -> std::cmp::Ordering {
-        self.rlop1
-            .cmp(&other.rlop1)
-            .then(self.rlop0.cmp(&other.rlop0))
-            .then_with(|| f.to_bytes(&self.k).cmp(&f.to_bytes(&other.k)))
-    }
-}
-
-struct RenamedNode<F: CompileField + crate::core::algebra::SerializableField> {
-    original_node_index: usize,
-    rlterms: Vec<RenamedTerm<F>>,
-}
-
-impl<F: CompileField + crate::core::algebra::SerializableField> RenamedNode<F> {
-    fn compare(&self, other: &Self, f: &F) -> std::cmp::Ordering {
-        let mut ia = self.rlterms.len();
-        let mut ib = other.rlterms.len();
-        while ia > 0 && ib > 0 {
-            ia -= 1;
-            ib -= 1;
-            let ord = self.rlterms[ia].compare(&other.rlterms[ib], f);
-            if ord != std::cmp::Ordering::Equal {
-                return ord;
-            }
-        }
-
-        let len_ord = other.rlterms.len().cmp(&self.rlterms.len());
-        if len_ord != std::cmp::Ordering::Equal {
-            return len_ord;
-        }
-
-        assert_eq!(
-            self.original_node_index, other.original_node_index,
-            "Compare tie-break occurred: duplicate node detected"
-        );
-        other.original_node_index.cmp(&self.original_node_index)
     }
 }
 
@@ -174,7 +121,7 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
     // Depth 0: Inputs
     if !nodes_by_depth.is_empty() {
         for &i in &nodes_by_depth[0] {
-            if let WExpr::Input {
+            if let GraphNode::Input {
                 position_in_input_array,
             } = &nodes[i]
             {
@@ -189,7 +136,7 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
     for nodes_at_d in nodes_by_depth.iter().take(max_depth + 1).skip(1) {
         let mut layer_nodes = Vec::new();
         for &i in nodes_at_d {
-            if let WExpr::Sum(terms) = &nodes[i] {
+            if let GraphNode::Sum(terms) = &nodes[i] {
                 layer_nodes.push((i, terms));
             }
         }
@@ -255,7 +202,7 @@ fn collect_quads<F: CompileField + crate::core::algebra::SerializableField>(
         let level = d - 1;
         let mut layer_nodes = Vec::new();
         for &i in nodes_at_d {
-            if let WExpr::Sum(terms) = &nodes[i] {
+            if let GraphNode::Sum(terms) = &nodes[i] {
                 layer_nodes.push((i, terms));
             }
         }
@@ -316,7 +263,7 @@ fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>
 fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<usize>, usize) {
     let mut depth = vec![0; nodes.len()];
     for i in 0..nodes.len() {
-        depth[i] = depth_of_node(&depth, &nodes[i]);
+        depth[i] = depth_of_node::<F>(&depth, &nodes[i]);
     }
     for (i, node) in nodes.iter().enumerate() {
         assert_layering(f, &depth, i, node);
@@ -327,7 +274,9 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
     // outputs, so materialize its assertions in a single assertion layer.
     let max_depth = if raw_max_depth == 0 {
         assert!(
-            nodes.iter().any(|node| matches!(node, WExpr::Assert0(_))),
+            nodes
+                .iter()
+                .any(|node| matches!(node, GraphNode::Assert0(_))),
             "circuit with no depth makes no sense"
         );
         1
@@ -336,61 +285,6 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
     };
     materialize_assertions(f, nodes, &mut depth, max_depth);
     (depth, max_depth)
-}
-
-fn validate_and_count_inputs<F: CompileField>(nodes: &[WExpr<F>]) -> usize {
-    let mut ninput_wires = 0;
-    let mut max_input_pos = 0;
-    for n in nodes {
-        if let WExpr::Input {
-            position_in_input_array,
-        } = n
-        {
-            ninput_wires += 1;
-            max_input_pos = std::cmp::max(max_input_pos, *position_in_input_array);
-        }
-    }
-    let ninput_positions = 1 + max_input_pos;
-    if ninput_wires == ninput_positions {
-        ninput_wires
-    } else {
-        panic!("some inputs are unused, cannot schedule");
-    }
-}
-
-use crate::compile::logic::scope::AssertionId;
-
-fn extract_debug_symbols<F: CompileField>(
-    nodes: &[WExpr<F>],
-    quad_asserts: &[(usize, AssertionId)],
-    wire_ids: &[WireId],
-    depth: &[usize],
-    max_depth: usize,
-    tracker: crate::compile::logic::scope::AssertionScope,
-) -> crate::compile::compiler::debug::CircuitDebugSymbols {
-    let mut sym_list = Vec::new();
-    for &(quad_idx, id) in quad_asserts {
-        if quad_idx < nodes.len() {
-            let target_idx = match nodes[quad_idx] {
-                WExpr::Assert0(w) => w,
-                _ => quad_idx,
-            };
-            if target_idx < wire_ids.len() {
-                let wid = wire_ids[target_idx].id_within_layer;
-                if wid != usize::MAX {
-                    let layer = max_depth
-                        .checked_sub(depth[target_idx])
-                        .expect("assertion target is deeper than the circuit");
-                    let wire = crate::compile::compiler::debug::WireRef::new(layer, wid);
-                    sym_list.push(crate::compile::compiler::debug::AssertionSymbol::new(
-                        wire, id,
-                    ));
-                }
-            }
-        }
-    }
-    sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    crate::compile::compiler::debug::CircuitDebugSymbols::new(sym_list, tracker)
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
@@ -409,14 +303,14 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
     let mut nodes = c.nodes;
     let nassertions = nodes
         .iter()
-        .filter(|node| matches!(node, WExpr::Assert0(_)))
+        .filter(|node| matches!(node, GraphNode::Assert0(_)))
         .count();
     assert_eq!(
         quad_asserts.len(),
         nassertions,
         "debug assertion records do not cover all circuit assertions"
     );
-    assert_all_needed(&nodes);
+    assert_all_needed::<F>(&nodes);
 
     let (depth, max_depth) = compute_node_depths(f, &mut nodes);
 
@@ -468,7 +362,7 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
     let nwires = nwires_in_layer.iter().sum();
     let total_terms = c_layers
         .iter()
-        .map(crate::core::proto::Layer::num_terms)
+        .map(crate::core::proto::v1::Layer::num_terms)
         .sum();
 
     let info = CircuitGeometry {

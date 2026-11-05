@@ -12,24 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Run shared compiler/circuit tests with each compiler entry point.
+/// Run shared compiler/circuit tests through the native v2 compiler.
+/// V1 byte compatibility is checked independently by the backend tests.
 #[cfg(test)]
 macro_rules! test_compilers {
     ($path:literal) => {
-        #[allow(clippy::duplicate_mod)] // Intentionally instantiate each test module twice.
-        mod v1_tests {
-            #[allow(dead_code)]
-            const V2: bool = false;
-            #[allow(unused_imports)]
-            use crate::compile::compiler::compile_v1 as compile;
-            include!($path);
-        }
-        #[allow(clippy::duplicate_mod)]
         mod v2_tests {
-            #[allow(dead_code)]
-            const V2: bool = true;
             #[allow(unused_imports)]
-            use crate::compile::compiler::compile_v2 as compile;
+            use crate::compile::compiler::source_fixture::compile;
+
             include!($path);
         }
     };
@@ -101,8 +92,8 @@ pub mod core {
 pub mod runtime {
     #[path = "algebra/src/lib.rs"]
     pub mod algebra;
-    #[path = "ligero/src/lib.rs"]
-    pub mod ligero;
+    #[path = "ligero-v1/src/lib.rs"]
+    pub mod ligero_v1;
     #[path = "merkle/src/lib.rs"]
     pub mod merkle;
     #[path = "polygero/src/lib.rs"]
@@ -219,5 +210,5 @@ pub mod mdoc {
 
 /// Checks module dependencies across all source files and inactive feature paths.
 #[cfg(test)]
-#[path = "dependency_tests.rs"]
+#[path = "../tests/all/dependency_tests.rs"]
 mod module_dag_tests;

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-
-use crate::compile::compiler::{
-    ir::{Expr, ExprNode},
-    node::Node,
+use crate::compile::{
+    algebra::field::CompileField,
+    compiler::{
+        ir::{Expr, ExprNode},
+        node::Node,
+    },
 };
 
 pub struct CompilerArena<'a, F: CompileField> {

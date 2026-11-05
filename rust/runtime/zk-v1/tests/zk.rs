@@ -14,16 +14,15 @@
 
 use crate::{
     core::proto::{
-        circuit::{Circuit, Layer, RawCircuit, Term, TermDelta},
-        reader::CircuitReader,
+        v1::{Circuit, CircuitReader, Layer, RawCircuit, Term, TermDelta},
         SerializableField,
     },
     runtime::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-            subfield::BinarySubfield, AlgebraicField, RuntimeField,
+            subfield_v1::BinarySubfieldV1, AlgebraicField, RuntimeField,
         },
-        ligero::LigeroConfig,
+        ligero_v1::LigeroConfig,
         proto::sumcheck_v1::SumcheckProofGeometry,
         random::{RandomEngine, Transcript},
         zk_v1::{ZkProof, ZkProver, ZkVerifier},
@@ -113,7 +112,7 @@ fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
             prev_h1 = term.h1;
         }
 
-        let unrolled_deltas: Vec<crate::core::proto::TermDelta> = delta_segment
+        let unrolled_deltas: Vec<crate::core::proto::v1::TermDelta> = delta_segment
             .iter()
             .map(|&idx| deltas[idx as usize])
             .collect();
@@ -140,7 +139,7 @@ fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 #[test]
 fn test_zk_prover_verifier_end_to_end() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // 1. Manually build a simple 1-layer circuit
     let term = Term {
@@ -158,7 +157,7 @@ fn test_zk_prover_verifier_end_to_end() {
     w0[1] = f.zero();
 
     // 3. Prover commit
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
 
     let mut rng = SimpleRng { state: 42 };
     let mut ts_prover = Transcript::new(b"test_zk");
@@ -169,7 +168,7 @@ fn test_zk_prover_verifier_end_to_end() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -242,7 +241,7 @@ fn test_zk_prover_verifier_end_to_end() {
 #[test]
 fn test_zk_rfc_testvector1() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // 1. Parse circuit from hex string
     let circuit_bytes: &[u8] = &[
@@ -274,7 +273,7 @@ fn test_zk_rfc_testvector1() {
     use crate::core::algebra::SupportsU128Conversions;
     let g_gen = f.u128_to_element(0x5c5971877501d4b8_f1871e01b64fda4c);
     let mut cur_gen = f.one();
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     for _ in 0..16 {
@@ -289,7 +288,7 @@ fn test_zk_rfc_testvector1() {
     w0[3] = f.mulf(&f.addf(&n, &m), &f.u128_to_element(2));
 
     // 3. Prover commit
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
 
     struct TestRng;
     impl RandomEngine for TestRng {
@@ -602,7 +601,7 @@ fn test_zk_rfc_testvector1() {
 #[test]
 fn test_zk_triple_zero_zero_zero() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // One triple (0, 0, 0) with k = 0 representing assert 0 = 1 (when w[0] is 1).
     let term = Term {
@@ -619,7 +618,7 @@ fn test_zk_triple_zero_zero_zero() {
     // we set w0[0] = 0 so the constraint 0 * 0 == 0 is satisfied.
     let w0 = [f.zero(); 1];
 
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
     let mut rng = SimpleRng { state: 42 };
     let mut ts_prover = Transcript::new(b"test_zk_zero");
 
@@ -629,7 +628,7 @@ fn test_zk_triple_zero_zero_zero() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -689,7 +688,7 @@ fn test_zk_triple_zero_zero_zero() {
 fn test_zk_intermediate_zero_logw() {
     use crate::core::algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // Layer 0 (output layer): squares the single wire from layer 1: v[0] = w[0] * w[0]
     let layer0_terms = vec![Term {
@@ -763,7 +762,7 @@ fn test_zk_intermediate_zero_logw() {
     );
 
     // Now test ZK proof generation and verification
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
     let mut rng = SimpleRng { state: 9999 };
     let mut ts_prover = Transcript::new(b"test_zk_interm");
 
@@ -773,7 +772,7 @@ fn test_zk_intermediate_zero_logw() {
         block_enc: 256,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let prover_inst = ZkProver::new(circ, config);
@@ -832,15 +831,15 @@ fn test_zk_intermediate_zero_logw() {
 #[test]
 fn test_zk_zero_layers() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
     let config = LigeroConfig {
         rateinv: 4,
         nreq: 16,
         block_enc: 256,
     };
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
 

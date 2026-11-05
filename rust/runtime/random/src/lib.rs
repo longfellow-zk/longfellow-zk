@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{Subfield, SupportsSampling};
+use crate::runtime::algebra::SupportsSampling;
 
 pub mod transcript;
+pub mod v1;
 pub use transcript::Transcript;
 
 /// Trait defining operations for seedable/pseudorandom challenge engines.
@@ -27,11 +28,6 @@ pub trait RandomEngine {
         f.sample(|len| self.bytes(len))
     }
 
-    /// Generates a random subfield element.
-    fn elt_subfield<SF: Subfield>(&mut self, sf: &SF) -> SF::E {
-        sf.sample(|len| self.bytes(len))
-    }
-
     /// Generates a slice of field elements with random values.
     fn elt_field_slice<const W: usize, F: SupportsSampling<W>>(
         &mut self,
@@ -41,15 +37,6 @@ pub trait RandomEngine {
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(self.elt_field(f));
-        }
-        v
-    }
-
-    /// Generates a slice of subfield elements with random values.
-    fn elt_subfield_slice<SF: Subfield>(&mut self, len: usize, sf: &SF) -> Vec<SF::E> {
-        let mut v = Vec::with_capacity(len);
-        for _ in 0..len {
-            v.push(self.elt_subfield(sf));
         }
         v
     }

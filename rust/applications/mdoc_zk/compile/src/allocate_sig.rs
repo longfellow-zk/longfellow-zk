@@ -33,7 +33,6 @@ pub fn allocate_sig<'b, FC, C>(
     SigGiven<CompilerLogic<'b, FC>>,
     SigDerived<CompilerLogic<'b, FC>>,
     usize,
-    usize,
 )
 where
     FC: MdocSigCompileField,
@@ -63,8 +62,6 @@ where
     let device_sig_derived =
         crate::circuits::ecdsa2::allocate_derived_wires(allocator.iologic, &mut allocator.pos);
 
-    let subfield_boundary_val = allocator.pos;
-
     let mac_ap = {
         let (ap0, _) = allocator.allocate_tag_plucked(plucker);
         let (ap1, _) = allocator.allocate_tag_plucked(plucker);
@@ -91,5 +88,5 @@ where
         device_sig_derived,
     };
 
-    (given, derived, pub_inputs_count, subfield_boundary_val)
+    (given, derived, pub_inputs_count)
 }

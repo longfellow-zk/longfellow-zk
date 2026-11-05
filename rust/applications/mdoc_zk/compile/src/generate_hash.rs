@@ -14,7 +14,7 @@
 
 use crate::{
     compile::algebra::gf2_128::Gf2_128Field,
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     mdoc::{
         circuits::{
             config::{K_HASH_V256_BIT_PLUCKER, K_HASH_V8_BIT_PLUCKER, K_SHA_BIT_PLUCKER},
@@ -30,7 +30,7 @@ pub fn mdoc_zk_circuits_hash<FC>(
     num_attrs: usize,
 ) -> (
     Circuit<FC>,
-    crate::core::proto::circuit::CircuitGeometry,
+    crate::core::proto::CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
 where
@@ -54,7 +54,7 @@ where
             crate::compile::logic::K_FIRST_WIRE_POSITION,
         );
 
-        let (given, derived, pub_inputs_count, subfield_boundary_val) = allocate_hash(
+        let (given, derived, pub_inputs_count) = allocate_hash(
             &mut allocator,
             num_attrs,
             &plucker_v8,
@@ -64,7 +64,7 @@ where
 
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let assertion = mdoc.assert_valid_presentation_and_macs(&given, &derived);
-        (assertion, pub_inputs_count, subfield_boundary_val)
+        (assertion, pub_inputs_count)
     })
 }
 
@@ -74,5 +74,5 @@ pub fn generate_hash_circuit(
     num_attrs: usize,
 ) -> Result<Circuit<Gf2_128Field>, String> {
     let (circuit, _, _) = mdoc_zk_circuits_hash(f, num_attrs);
-    Ok(crate::compile::compiler::segment_circuit(f, &circuit))
+    Ok(crate::compile::compiler::segment_circuit_v2(f, &circuit))
 }

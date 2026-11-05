@@ -54,7 +54,7 @@ impl<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableFiel
     #[allow(clippy::too_many_arguments)]
     /// Bind output weights and combine adjacent equal (r,l) corners.
     pub fn bind_g(
-        layer: &crate::core::proto::circuit::Layer<F>,
+        layer: &crate::core::proto::v1::Layer<F>,
         constants: &[F::E],
         logv: usize,
         nv: usize,

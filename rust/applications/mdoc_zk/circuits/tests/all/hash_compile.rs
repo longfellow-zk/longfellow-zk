@@ -319,26 +319,17 @@ fn test_compile_mdoc_hash_corruptors() {
 
 #[test]
 fn test_serialize_and_verify_mdoc_hash_circuit() {
-    use crate::core::proto::{writer::CircuitWriter, FieldID};
+    use crate::core::proto::{v2::CircuitWriter, FieldID};
 
     let gf2_c = Gf2_128Field::new();
     let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
 
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
-    let expected_id: [u8; 32] = if super::V2 {
-        [
-            0x3a, 0xec, 0x9b, 0x70, 0x81, 0x6b, 0x23, 0x8b, 0x15, 0x1b, 0xc3, 0xfe, 0x64, 0x1d,
-            0x93, 0x64, 0x60, 0x69, 0x31, 0x66, 0x90, 0x44, 0x87, 0x26, 0x07, 0x6f, 0xc9, 0x62,
-            0xb4, 0xf9, 0x9f, 0xe2,
-        ]
-    } else {
-        [
-            0x7f, 0xec, 0x95, 0x56, 0x51, 0x4f, 0x03, 0xfb, 0x2f, 0x83, 0x3c, 0xf2, 0xe5, 0xea,
-            0x7e, 0x87, 0x3e, 0x06, 0x2b, 0x4d, 0x83, 0x25, 0x1e, 0x7b, 0x91, 0x4e, 0x36, 0xfc,
-            0x43, 0xbe, 0x97, 0x26,
-        ]
-    };
+    let expected_id: [u8; 32] = [
+        118, 84, 229, 146, 82, 70, 115, 139, 131, 112, 110, 9, 198, 74, 115, 3, 137, 156, 6, 2,
+        123, 209, 38, 181, 126, 46, 221, 50, 84, 136, 30, 169,
+    ];
     assert_eq!(
         circuit.id, expected_id,
         "Circuit hash changed! Expected {:?}, got {:?}",

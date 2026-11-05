@@ -22,12 +22,8 @@ Its methods take the transcript explicitly so sumcheck can run between reception
 and verification.
 Opened oracle values stay packed by row in the prover, serialized proof, and
 verifier, with the selected columns in transcript query order within each row.
-The `PLG7` encoding uses dynamic full-field/subfield runs. Only the codec needs the
-subfield serializer; verifier geometry and algebra have no row classification.
-The prover chooses ordinary-row masks from the circuit's public `subfield_boundary`
-and validates all witnesses in that portion before masking. A row crossing the
-boundary uses full-field masks; product rows and dedicated masks always do so.
-A nonzero `subfield_boundary` requires the entire domain to lie in the subfield.
+The `PLG8` encoding stores every response and opened row as canonical
+full-width field elements. Every row uses uniform ambient-field masks.
 The committed row order is `u, m`, ordinary witness rows, product triples, then
 `fstar`. Batching polynomial indices match all row indices before `fstar`.
 The commitment hashes all three rows of each triple. Proofs omit each product
@@ -95,7 +91,7 @@ The mdoc application exposes `mdoc::v2::run_mdoc_prover` / `mdoc::v2::run_mdoc_v
 and corresponding deterministic inner entry points. Applications explicitly choose this system; its typed specification cannot be
 passed to v1. V1 owns versions 5–7 and v2 owns the implemented versions from 8.
 `mdoc::v2::MdocProof` and `mdoc::v2::MdocProofGeometry` expose the v2 application proof container.
-The frozen v2 registry is empty. NEXT v8 is prepared by the compiler-enabled
+The frozen v2 registry is empty. NEXT v9 is prepared by the compiler-enabled
 application `mdoc::development_provider`, which returns the compiled archive
 and its matching spec with concrete Polygero parameters. Runtime providers load
 only frozen archives and need no compiler. Circuit generation is independent

@@ -14,8 +14,8 @@
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{p256::P256Field, Subfield},
-        random::{RandomEngine, Transcript},
+        algebra::{p256::P256Field, SubfieldV1},
+        random::{v1::RandomEngineV1, RandomEngine, Transcript},
     },
 };
 
@@ -72,7 +72,7 @@ fn test_transcript_cpp_compatibility() {
 
 #[test]
 fn test_transcript_gf2_128_subfield_sampling() {
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let init = [1u8, 2, 3, 4];
@@ -80,10 +80,10 @@ fn test_transcript_gf2_128_subfield_sampling() {
 
     for len in [0, 1, 17, 100] {
         let mut scalar_ts = ts.clone();
-        let values = ts.elt_subfield_slice(len, &sf);
+        let values = ts.elt_subfield_v1_slice(len, &sf);
         assert_eq!(values.len(), len);
         for val in values {
-            assert_eq!(val, scalar_ts.elt_subfield(&sf));
+            assert_eq!(val, scalar_ts.elt_subfield_v1(&sf));
             assert!(sf.contains(&val), "Sampled value not in subfield");
 
             let bytes = sf.to_bytes(&val);

@@ -21,7 +21,7 @@
 //! A separate product constraint enforces each committed pad product x*y=z.
 use crate::runtime::{
     algebra::{ElementOf, RuntimeField},
-    ligero::param::{LigeroLinearConstraint, LigeroQuadraticConstraint},
+    ligero_v1::param::{LigeroLinearConstraint, LigeroQuadraticConstraint},
     proto::sumcheck_v1::{CircuitPadLayout, SumcheckProofGeometry},
     sumcheck_v1::symbolic::{Pad, PadExpression, VerificationRelations},
 };

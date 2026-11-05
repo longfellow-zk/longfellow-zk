@@ -14,9 +14,7 @@
 
 use std::{fmt, hash::Hash};
 
-use crate::compile::algebra::field::CompileField;
-
-use crate::compile::compiler::node::Node;
+use crate::compile::{algebra::field::CompileField, compiler::node::Node};
 
 #[derive(Debug)]
 pub enum IrError {

@@ -17,7 +17,7 @@
 use crate::{
     core::proto::SerializableField,
     runtime::{
-        algebra::{ElementOf, RuntimeField, Subfield},
+        algebra::{ElementOf, RuntimeField, SubfieldV1},
         proto::zk_v1::{ZkProof, ZkProofGeometry},
     },
 };
@@ -38,7 +38,7 @@ pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
 impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
     MdocProof<F1, F2>
 {
-    pub fn write<SF1: Subfield<E = ElementOf<F1>>, SF2: Subfield<E = ElementOf<F2>>>(
+    pub fn write<SF1: SubfieldV1<E = ElementOf<F1>>, SF2: SubfieldV1<E = ElementOf<F2>>>(
         &self,
         geom: &MdocProofGeometry,
         f1: &F1,
@@ -61,7 +61,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         Ok(proof_bytes)
     }
 
-    pub fn read<'a, SF1: Subfield<E = ElementOf<F1>>, SF2: Subfield<E = ElementOf<F2>>>(
+    pub fn read<'a, SF1: SubfieldV1<E = ElementOf<F1>>, SF2: SubfieldV1<E = ElementOf<F2>>>(
         bytes: &'a [u8],
         geom: &MdocProofGeometry,
         f1: &F1,

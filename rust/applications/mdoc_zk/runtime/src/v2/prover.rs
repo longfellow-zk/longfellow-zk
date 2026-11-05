@@ -125,10 +125,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
-    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
+    let make_interpolator_hash = BinaryInterpolatorFactory::full_field(&gf2);
 
     let (c_sig, c_hash) = for_spec(zk_spec, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
@@ -149,8 +146,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
-
     let context_hash = ZkContext {
         f: &gf2,
         domain: &make_interpolator_hash,
@@ -162,12 +157,12 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
 
     let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash
-        .commit(&witness_hash, &context_hash, &mut tp, rng, &sf_hash)
+        .commit(&witness_hash, &context_hash, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig
-        .commit(&witness_sig, &context_sig, &mut tp, rng, &sf_sig)
+        .commit(&witness_sig, &context_sig, &mut tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
     let av_val = tp.u128();
@@ -220,6 +215,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         proof_sig,
     };
     proof
-        .write(&geom, &gf2, &sf_hash, &p256, &sf_sig)
+        .write(&geom, &gf2, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)
 }

@@ -37,7 +37,7 @@ use crate::runtime::{
 /// Success validates proof shape and derives coefficients; it does not establish
 /// acceptance. Only scalar data and the final dense input weights are retained.
 pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -117,7 +117,7 @@ pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsS
 pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -143,7 +143,7 @@ pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W
 pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,

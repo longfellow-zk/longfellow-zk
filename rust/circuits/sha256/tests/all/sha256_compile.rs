@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_adder::FieldWrappingSum;
-use crate::circuits::sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256};
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::compile::eval::FieldID;
-use crate::core::algebra::SerializableField;
-use crate::runtime::algebra::field::RuntimeField;
-
 use super::test_support;
+use crate::{
+    circuits::{
+        analog_adder::FieldWrappingSum,
+        sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256},
+    },
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        eval::FieldID,
+    },
+    core::algebra::SerializableField,
+    runtime::algebra::field::RuntimeField,
+};
 
 fn push_u32_bits<const W: usize, FR: RuntimeField<W>>(inputs: &mut Vec<FR::E>, val: u32, fr: &FR) {
     for k in 0..32 {
@@ -116,12 +121,12 @@ fn test_compile_sha256() {
         "sha256_p256",
         FieldID::P256,
         crate::compile::eval::CircuitGeometry {
-            ninput: 6657,
-            npublic_input: 1,
-            noutput: 176,
+            ninput: 6656,
+            npublic_input: 0,
+            noutput: 128,
             nlayers: 6,
-            nwires: 30354,
-            nterms: 118114,
+            nwires: 30295,
+            nterms: 118055,
             nassertions: 6840,
         },
     );
@@ -133,12 +138,12 @@ fn test_compile_sha256() {
         "sha256_gf2_128",
         FieldID::Gf2_128,
         crate::compile::eval::CircuitGeometry {
-            ninput: 6657,
-            npublic_input: 1,
+            ninput: 6656,
+            npublic_input: 0,
             noutput: 128,
             nlayers: 12,
-            nwires: 51473,
-            nterms: 98993,
+            nwires: 51408,
+            nterms: 98928,
             nassertions: 6840,
         },
     );

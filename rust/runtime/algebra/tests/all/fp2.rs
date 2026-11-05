@@ -63,7 +63,7 @@ fn test_fp2_algebraic_properties() {
     let a_mul_inv = field.mulf(&a, &a_inv);
     assert_eq!(a_mul_inv, one);
 
-    // 6. Subfield properties: base field elements mapped to Fp2 behave identically
+    // 6. SubfieldV1 properties: base field elements mapped to Fp2 behave identically
     let s1 = field.u64_to_element(42);
     let s2 = field.u64_to_element(100);
     let s_sum = field.addf(&s1, &s2);

@@ -28,7 +28,7 @@ pub mod q256;
 pub mod range_interpolation;
 pub mod rfft;
 pub mod secp256r1;
-pub mod subfield;
+pub mod subfield_v1;
 
 pub use field::{
     RuntimeBinaryField, RuntimeField, SupportsFFT, SupportsQuadraticExtension, SupportsSampling,
@@ -41,7 +41,7 @@ pub use poly::{InterpolationField, LagrangeBasis, Poly};
 pub use q256::{Q256Element, Q256Field};
 pub use range_interpolation::{EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory};
 pub use secp256r1::Secp256r1 as RuntimeSecp256r1;
-pub use subfield::Subfield;
+pub use subfield_v1::SubfieldV1;
 
 pub use crate::core::algebra::{AlgebraicField, Curve as RuntimeCurve, ElementOf};
 

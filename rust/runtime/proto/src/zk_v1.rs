@@ -19,9 +19,9 @@ use std::io::Result;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{field::RuntimeField, Subfield},
+        algebra::{field::RuntimeField, SubfieldV1},
         proto::{
-            ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
+            ligero_v1::{LigeroCommitment, LigeroGeometry, LigeroProof},
             sumcheck_v1::{SumcheckProof, SumcheckProofGeometry},
         },
     },
@@ -45,7 +45,7 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
 }
 
 impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
-    pub fn write_to_buf<SF: Subfield<E = ElementOf<F>>>(
+    pub fn write_to_buf<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         buf: &mut Vec<u8>,
         geom: &ZkProofGeometry,
@@ -58,7 +58,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         Ok(())
     }
 
-    pub fn write<SF: Subfield<E = ElementOf<F>>>(
+    pub fn write<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         geom: &ZkProofGeometry,
         f: &F,
@@ -69,7 +69,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         Ok(buf)
     }
 
-    pub fn read<SF: Subfield<E = ElementOf<F>>>(
+    pub fn read<SF: SubfieldV1<E = ElementOf<F>>>(
         bytes: &mut &[u8],
         geom: &ZkProofGeometry,
         f: &F,
@@ -95,7 +95,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
 /// taking into account the private/public witness splits and ZK padding variables.
 #[must_use]
 pub fn witness_and_constraint_count<F: SerializableField>(
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
 ) -> (usize, usize) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,

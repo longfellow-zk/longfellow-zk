@@ -14,7 +14,9 @@
 
 //! Longfellow v2 circuit compilation backend.
 
+mod ir_to_terms;
 mod scheduler;
 mod top;
-pub use top::compile;
-mod term_order;
+pub use top::compile_v2 as compile;
+
+mod terms;

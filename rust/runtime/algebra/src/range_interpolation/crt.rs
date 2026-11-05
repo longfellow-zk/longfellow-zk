@@ -30,7 +30,7 @@ use crate::{
     },
     runtime::algebra::{
         fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, EXTENSION_DEGREE},
-        Subfield,
+        SubfieldV1,
     },
 };
 
@@ -191,7 +191,11 @@ impl InterpolationPlan<3, RuntimeFp24Ext6> for CrtInterpolationPlan {
     fn apply(&self, source: &[RuntimeElement]) -> Vec<RuntimeElement> {
         self.apply_components(source, EXTENSION_DEGREE)
     }
-    fn apply_subfield<SF: Subfield<E = RuntimeElement>>(
+}
+impl crate::runtime::algebra::subfield_v1::InterpolationPlanV1<3, RuntimeFp24Ext6>
+    for CrtInterpolationPlan
+{
+    fn apply_subfield_v1<SF: SubfieldV1<E = RuntimeElement>>(
         &self,
         source: &[RuntimeElement],
         sf: &SF,

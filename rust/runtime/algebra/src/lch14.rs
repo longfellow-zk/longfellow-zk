@@ -21,7 +21,7 @@
 // [DP24] Benjamin E. Diamond and Jim Posen, Polylogarithmic Proofs
 // for Multilinears over Binary Towers, https://eprint.iacr.org/2024/504
 
-use crate::runtime::algebra::{field::RuntimeBinaryField, subfield::BinarySubfield};
+use crate::runtime::algebra::field::RuntimeBinaryField;
 
 pub struct Lch14<
     'a,
@@ -29,7 +29,7 @@ pub struct Lch14<
     F: RuntimeBinaryField<W, E = crate::runtime::algebra::gf2_128::Gf2_128>,
 > {
     f: &'a F,
-    subfield: &'a BinarySubfield,
+    dimension: usize,
     w_hat: Vec<F::E>,
 }
 
@@ -39,45 +39,56 @@ impl<
         F: RuntimeBinaryField<W, E = crate::runtime::algebra::gf2_128::Gf2_128>,
     > Lch14<'a, W, F>
 {
-    pub fn new(f: &'a F, subfield: &'a BinarySubfield) -> Self {
+    pub fn new(f: &'a F, basis: &[F::E]) -> Self {
         // Compute W_i(\beta_j) for all i, j.
         //
         // We store the unnormalized W_[i][j] = W_i(\beta_j)
         // in the same memory as the normalized \hat{W}_i(\beta_j), since
         // the unnormalized values are not needed after normalization.
-        let dimension_subfield = subfield.dimension();
-        let mut w_hat = vec![f.zero(); dimension_subfield * dimension_subfield];
+        let dimension = basis.len();
+        assert!(dimension > 0 && dimension <= 128);
+        let mut w_hat = vec![f.zero(); dimension * dimension];
 
         // Base case: W_0(X) = X => W_0(\beta_j) = \beta_j
-        let basis = subfield.basis();
-        w_hat[..dimension_subfield].clone_from_slice(basis);
+        w_hat[..dimension].clone_from_slice(basis);
 
         // Inductive case: W_{i+1}(X) = W_i(X)(W_i(X) + W_i(\beta_i))
-        for i in 0..(dimension_subfield - 1) {
-            let w_i_beta_i = w_hat[i * dimension_subfield + i];
-            for j in 0..dimension_subfield {
-                let mut sum = w_hat[i * dimension_subfield + j];
+        for i in 0..(dimension - 1) {
+            let w_i_beta_i = w_hat[i * dimension + i];
+            for j in 0..dimension {
+                let mut sum = w_hat[i * dimension + j];
                 f.add(&mut sum, &w_i_beta_i);
-                let mut prod = w_hat[i * dimension_subfield + j];
+                let mut prod = w_hat[i * dimension + j];
                 f.mul(&mut prod, &sum);
-                w_hat[(i + 1) * dimension_subfield + j] = prod;
+                w_hat[(i + 1) * dimension + j] = prod;
             }
         }
 
         // Normalize: \hat{W}_i(\beta_j) = W_i(\beta_j) / W_i(\beta_i)
-        for i in 0..dimension_subfield {
-            let scale = f.invert(&w_hat[i * dimension_subfield + i]);
-            for j in 0..dimension_subfield {
-                f.mul(&mut w_hat[i * dimension_subfield + j], &scale);
+        for i in 0..dimension {
+            let scale = f.invert(&w_hat[i * dimension + i]);
+            for j in 0..dimension {
+                f.mul(&mut w_hat[i * dimension + j], &scale);
             }
         }
 
-        Self { f, subfield, w_hat }
+        Self {
+            f,
+            dimension,
+            w_hat,
+        }
+    }
+
+    fn transform_size(&self, log: usize) -> usize {
+        assert!(log <= self.dimension);
+        1usize
+            .checked_shl(log as u32)
+            .expect("FFT size exceeds index capacity")
     }
 
     #[must_use]
     pub fn w_hat(&self, i: usize, j: usize) -> &F::E {
-        &self.w_hat[i * self.subfield.dimension() + j]
+        &self.w_hat[i * self.dimension + j]
     }
 
     // Computation of a single twiddle factor.
@@ -114,10 +125,9 @@ impl<
     // Notation from [DP24, Algorithm 2], except that we hardcode R=0
     // and add the coset parameter.
     pub fn fft(&self, l: usize, coset: usize, b: &mut [F::E]) {
-        assert!(l <= self.subfield.dimension());
+        let len = self.transform_size(l);
 
         if l > 0 {
-            let len = 1 << l;
             assert!(b.len() >= len);
             let b_slice = &mut b[..len];
             let n_tw = 1 << (l - 1);
@@ -137,10 +147,9 @@ impl<
     }
 
     pub fn ifft(&self, l: usize, coset: usize, b: &mut [F::E]) {
-        assert!(l <= self.subfield.dimension());
+        let len = self.transform_size(l);
 
         if l > 0 {
-            let len = 1 << l;
             assert!(b.len() >= len);
             let b_slice = &mut b[..len];
             let n_tw = 1 << (l - 1);
@@ -227,9 +236,8 @@ impl<
         k: usize,
         buffer_len: usize,
     ) -> usize {
-        assert!(coset < 1 << self.subfield.dimension());
-        assert!(l <= self.subfield.dimension());
-        let len = 1 << l;
+        assert!(self.dimension >= usize::BITS as usize || coset < 1 << self.dimension);
+        let len = self.transform_size(l);
         assert!(k <= len, "bidirectional FFT requires k <= 2^l");
         assert!(
             buffer_len >= len,

@@ -18,7 +18,8 @@ use crate::{
         logic::{Logic, LogicIO},
     },
     core::proto::{
-        circuit::Circuit, reader::CircuitReader, writer::CircuitWriter, FieldID, SerializableField,
+        v1::{Circuit, CircuitReader, CircuitWriter},
+        FieldID, SerializableField,
     },
     runtime::{
         algebra::{

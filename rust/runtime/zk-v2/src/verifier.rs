@@ -27,7 +27,7 @@
 use core::fmt;
 
 use crate::{
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     runtime::{
         algebra::{ElementOf, EvaluationDomain, ZkField},
         polygero::{PolygeroConfig, PolygeroLinearTerm, PolygeroVerifier},

@@ -15,7 +15,10 @@
 use crate::{
     circuits::boolean::Boolean,
     compile::{algebra::p256::P256Field, eval::SerializableField, logic::LogicIO},
-    core::proto::{reader::CircuitReader, writer::CircuitWriter, FieldID},
+    core::proto::{
+        v1::{CircuitReader, CircuitWriter},
+        FieldID,
+    },
 };
 
 #[test]
@@ -78,7 +81,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
     let (deserialized, remaining) = deserialized_res.unwrap();
     assert_eq!(remaining.len(), 0);
 
-    let computed_id = crate::compile::eval::compute_id(&rf, &deserialized.raw);
+    let computed_id = crate::core::proto::v1::compute_id(&rf, &deserialized.raw);
     assert_eq!(deserialized.raw.ninput, circuit.raw.ninput);
     assert_eq!(deserialized.raw.npublic_input, circuit.raw.npublic_input);
     assert_eq!(deserialized.raw.noutput, circuit.raw.noutput);
@@ -135,7 +138,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
     let (deserialized, remaining) = deserialized_res.unwrap();
     assert_eq!(remaining.len(), 0);
 
-    let computed_id = crate::compile::eval::compute_id(&rf, &deserialized.raw);
+    let computed_id = crate::core::proto::v1::compute_id(&rf, &deserialized.raw);
     assert_eq!(deserialized.id, circuit.id);
     assert_eq!(computed_id, circuit.id);
 }
@@ -209,4 +212,27 @@ fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
     reader
         .from_bytes(&writer.to_bytes_lfc2(&circuit), false)
         .unwrap();
+}
+
+#[test]
+fn both_circuit_codecs_preserve_legacy_subfield_boundary() {
+    let f = P256Field::new();
+    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let x = boolean.of_eltw(logic.input(1));
+        (boolean.assert_true("bit", &x), 1, 2)
+    });
+    assert_eq!(circuit.raw.subfield_boundary, 2);
+    let writer = CircuitWriter::new(&f, FieldID::P256);
+    for bytes in [
+        writer.to_bytes_lfc1(&circuit),
+        writer.to_bytes_lfc2(&circuit),
+    ] {
+        let (decoded, tail) = CircuitReader::new(&f, FieldID::P256)
+            .from_bytes(&bytes, true)
+            .unwrap();
+        assert!(tail.is_empty());
+        assert_eq!(decoded.id, circuit.id);
+        assert_eq!(decoded.raw.subfield_boundary, 2);
+    }
 }

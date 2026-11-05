@@ -80,10 +80,10 @@ by Matteo Frigo and abhi shelat.
 | Commitment protocol | Ligero | Nonrecursive Polygero |
 | Combined proof implementation | `runtime::zk_v1` | `runtime::zk_v2` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 8 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 9 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v8 uses Longfellow v2.
+while NEXT circuit v9 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
@@ -106,7 +106,7 @@ and the rest of the Longfellow v2 composition.
 
 ## Performance
 
-Complete NEXT v8 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
+Complete NEXT v9 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
 Times are medians of 14 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
@@ -114,17 +114,28 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 276.1 ms | 144.4 ms | 213,204 | 74.82 MiB | 38.29 MiB |
-| 4 | 300.9 ms | 153.7 ms | 214,610 | 83.31 MiB | 43.12 MiB |
+| 2 | 227.9 ms | 123.6 ms | 315,128 | 76.20 MiB | 38.75 MiB |
+| 4 | 246.0 ms | 132.3 ms | 323,976 | 83.72 MiB | 42.64 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 770,782 | 183,465 | 2.53 MiB |
-| 4 | 803,703 | 186,421 | 2.64 MiB |
+| 2 | 746,013 | 182,613 | 2.50 MiB |
+| 4 | 772,213 | 184,705 | 2.60 MiB |
 
-Both cases use hash profile `(k,s,n,t)=(512,18,3584,87)` and signature profile
+Both cases use hash profile `(k,s,n,t)=(1536,52,10752,95)` and signature profile
 `(416,15,2912,86)`. Each hash circuit has 20 layers; the signature has 21.
-The benchmark also reports sumcheck rounds, wires, and term counts.
+
+| Circuit | Wires excluding inputs | Terms | Sumcheck rounds |
+|---|---:|---:|---:|
+| Hash, 2 attributes | 3,386,208 | 6,384,895 | 294 |
+| Hash, 4 attributes | 3,770,222 | 7,108,197 | 300 |
+| Signature, either case | 179,657 | 276,461 | 260 |
+
+V2 commits and encodes every witness row over the ambient field. Compared
+with the preceding compact-row implementation, proofs are 48–51% larger.
+This increase is expected; packing will provide compact commitments, and its
+integration is deferred. Prover peak heap is about 0.5–2% higher; verifier
+heap is within about 1% of the compact-row implementation.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -169,13 +180,30 @@ they are not separate crates.
 | `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
 | `tools/` | Rust commands for parameter auditing and specification generation |
 | `src/lib.rs` | Module assembly and feature gates |
-| `src/dependency_tests.rs` | Dependency and source-organization checks |
+| `tests/all/dependency_tests.rs` | Dependency and source-organization checks |
 
 Compile-time and runtime code occupy separate directories. Prover and
 verifier implementations also remain separate within each protocol.
 
-The circuit compiler has v1 and v2 backends. The v1 backend preserves
-historical Morton ordering and circuit IDs.
+Circuit representations and codecs live in `core::proto::v1` and
+`core::proto::v2`. Their readers and writers accept their own formats only.
+The v1-only commitment implementation is named `runtime::ligero_v1`; compact
+row sampling, interpolation hints, and element codecs have explicit v1 APIs.
+
+The circuit compiler shares its source frontend, simplification, copy rewriting,
+dictionary compression, and scheduling helpers across v1 and v2 backends.
+V2 represents quadratic, linear, and constant terms explicitly throughout
+lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
+historical Morton ordering and circuit IDs. V2 compiles directly to
+[LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
+separately with an explicit coefficient table. It removes the reserved One wire.
+V2 proof encoding uses canonical full-width elements throughout. Legacy
+compact-row interfaces are explicitly named `SubfieldV1` in `subfield_v1`.
+V2 binary interpolation uses the ambient field's complete 128-vector Cantor
+basis, with transform preprocessing limited to the coordinates it needs.
+The prover reuses one eleven-way execution split for evaluation and sumcheck;
+the verifier builds the same split one layer at a time. Linear and constant
+terms enter sumcheck through public corrections to the running claim.
 
 Prime-field sampling draws only the required bytes, masks unused high bits,
 and rejects out-of-range values. Its parameters are precomputed at field
@@ -220,7 +248,7 @@ requests to the runtime providers and compiles only an explicit NEXT
 request. The result contains the circuit archive and its matching v2
 specification.
 
-NEXT currently denotes circuit version 8. It is under development and is
+NEXT currently denotes circuit version 9. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
 
@@ -278,7 +306,8 @@ cargo test --release --features testonly
 cargo test --no-default-features --features tooling --bin zk_tool
 ```
 
-Shared compiler and circuit suites exercise both compiler backends.
+Circuit synthesis and tampering tests use the native v2 compiler. Dedicated
+backend tests pin v1 bytes and compare v1/v2 evaluation semantics.
 V1 tests verify saved proofs and reproduce their exact bytes. V2 tests
 cover successful proofs, rejected statements, and malformed proofs.
 
@@ -293,7 +322,7 @@ circuit-file options.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v8 and two attributes.
+# V2 with NEXT v9 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 ```
 

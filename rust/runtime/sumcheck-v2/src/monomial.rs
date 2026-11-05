@@ -32,33 +32,22 @@ pub(super) fn weights<const W: usize, F: RuntimeField<W>>(
 ) -> Vec<F::E> {
     assert!(crate::runtime::sumcheck_v2::sane_logw(logn) && point.len() >= logn);
     assert!(n as u64 <= (1u64 << logn));
-    let mut weights = vec![f.zero(); n];
-    if n != 0 {
-        fill(&mut weights, &point[..logn], &f.one(), f);
+    let mut weights = Vec::with_capacity(n);
+    if n == 0 {
+        return weights;
+    }
+    weights.push(f.one());
+    // Appending the existing prefix times z introduces the next set index bit.
+    // Stop at n, including when the final block is only partially populated.
+    for z in &point[..logn] {
+        let stride = weights.len();
+        for i in 0..stride.min(n - stride) {
+            let value = f.mulf(&weights[i], z);
+            weights.push(value);
+        }
+        if weights.len() == n {
+            break;
+        }
     }
     weights
-}
-
-/// Fill a prefix of the monomial table with an accumulated high-bit weight.
-/// Split on the highest remaining bit so each branch occupies a contiguous
-/// block: bit 0 keeps the weight, while bit 1 multiplies it by that coordinate.
-fn fill<const W: usize, F: RuntimeField<W>>(
-    weights: &mut [F::E],
-    point: &[F::E],
-    weight: &F::E,
-    f: &F,
-) {
-    if let Some((z, point_lo)) = point.split_last() {
-        let stride = 1usize << point_lo.len();
-        if stride < weights.len() {
-            let weight1 = f.mulf(weight, z);
-            let (weights0, weights1) = weights.split_at_mut(stride);
-            fill(weights0, point_lo, weight, f);
-            fill(weights1, point_lo, &weight1, f);
-        } else {
-            fill(weights, point_lo, weight, f);
-        }
-    } else {
-        weights[0] = weight.clone();
-    }
 }

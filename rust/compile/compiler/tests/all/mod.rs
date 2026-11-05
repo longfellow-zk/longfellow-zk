@@ -18,7 +18,6 @@ mod copy;
 mod cse;
 mod debug_symbols;
 mod depth;
-mod ir_to_quad;
 mod logic_impl;
 mod metadata;
 mod precious_alias;

@@ -24,7 +24,7 @@ use core::fmt;
 
 use crate::runtime::{
     algebra::{ElementOf, RangeInterpolatorFactory, ZkField},
-    ligero::param::{LigeroConfig, LigeroParam},
+    ligero_v1::param::{LigeroConfig, LigeroParam},
     random::Transcript,
     sumcheck_v1::TranscriptSumcheck,
     zk_v1::{common::ZkContext, ZkProof},
@@ -32,13 +32,13 @@ use crate::runtime::{
 
 /// A trusted legacy circuit and the configuration used to decode its commitment.
 pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
-    pub circuit: crate::core::proto::circuit::Circuit<F>,
+    pub circuit: crate::core::proto::v1::Circuit<F>,
     pub config: LigeroConfig,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     /// Constructs a new `ZkVerifier` with the given Ligero configuration.
-    pub fn new(circuit: crate::core::proto::circuit::Circuit<F>, config: LigeroConfig) -> Self {
+    pub fn new(circuit: crate::core::proto::v1::Circuit<F>, config: LigeroConfig) -> Self {
         Self { circuit, config }
     }
 
@@ -63,7 +63,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         ctx: &ZkContext<'_, W, F, IF>,
     ) {
         let ligero_param = self.ligero_param(ctx);
-        let mut lv = crate::runtime::ligero::LigeroVerifier::new(tv, &ligero_param);
+        let mut lv = crate::runtime::ligero_v1::LigeroVerifier::new(tv, &ligero_param);
         lv.receive_commitment(&zkp.com);
     }
 
@@ -112,7 +112,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         let lqc =
             crate::runtime::zk_v1::constraint_compiler::product_constraints(n_witness, &geometry);
 
-        let mut lv = crate::runtime::ligero::LigeroVerifier::new(tv, &ligero_param);
+        let mut lv = crate::runtime::ligero_v1::LigeroVerifier::new(tv, &ligero_param);
         lv.verify(
             &b,
             &zkp.com,

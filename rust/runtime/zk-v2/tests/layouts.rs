@@ -14,14 +14,13 @@
 
 use crate::{
     core::proto::{
-        circuit::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
-        reader::CircuitReader,
+        v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
         SerializableField,
     },
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-            subfield::BinarySubfield, AlgebraicField, RuntimeField,
+            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
+            RuntimeField,
         },
         polygero::PolygeroConfig,
         random::{RandomEngine, Transcript},
@@ -104,7 +103,7 @@ fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
             prev_h1 = term.h1;
         }
 
-        let unrolled_deltas: Vec<crate::core::proto::TermDelta> = delta_segment
+        let unrolled_deltas: Vec<crate::core::proto::v1::TermDelta> = delta_segment
             .iter()
             .map(|&idx| deltas[idx as usize])
             .collect();
@@ -131,7 +130,6 @@ fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 #[test]
 fn test_zk_prover_verifier_end_to_end() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // 1. Manually build a simple 1-layer circuit
     let term = Term {
@@ -141,7 +139,7 @@ fn test_zk_prover_verifier_end_to_end() {
         h1: 1,
     };
     let raw = make_raw_circuit(&f, 2, 0, 1, 0, &[2], &[1], vec![vec![term]]);
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // 2. Setup inputs
     let mut w0 = [f.zero(); 2];
@@ -149,7 +147,7 @@ fn test_zk_prover_verifier_end_to_end() {
     w0[1] = f.zero();
 
     // 3. Prover commit
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
 
     let mut rng = SimpleRng { state: 42 };
     let mut ts_prover = Transcript::new(b"test_zk");
@@ -161,9 +159,6 @@ fn test_zk_prover_verifier_end_to_end() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
     let prover_inst = ZkProver::new(circ, config);
     let (prover, geom) = prover_inst
         .commit(
@@ -174,7 +169,6 @@ fn test_zk_prover_verifier_end_to_end() {
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
@@ -192,9 +186,7 @@ fn test_zk_prover_verifier_end_to_end() {
         )
         .expect("Failed to prove");
     // 5. Serialize / deserialize proof roundtrip
-    let serialized = zkp
-        .write(&geom, &f, &sf)
-        .expect("Failed to serialize ZkProof");
+    let serialized = zkp.write(&geom, &f).expect("Failed to serialize ZkProof");
     let mut verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
@@ -207,7 +199,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let v_geom = verifier.geometry();
     let mut r_slice = serialized.as_slice();
     let deserialized =
-        ZkProof::read(&mut r_slice, &v_geom, &f, &sf).expect("Failed to deserialize ZkProof");
+        ZkProof::read(&mut r_slice, &v_geom, &f).expect("Failed to deserialize ZkProof");
     assert!(r_slice.is_empty());
     assert_eq!(
         zkp, deserialized,
@@ -235,12 +227,14 @@ fn test_zk_prover_verifier_end_to_end() {
 fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
     use crate::core::{
         algebra::SupportsU128Conversions,
-        proto::{circuit::compute_id, writer::CircuitWriter, FieldID},
+        proto::{
+            v1::{compute_id, CircuitReader, CircuitWriter},
+            FieldID,
+        },
     };
 
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let interpolation = BinaryInterpolatorFactory::new(&f, &sf);
+    let interpolation = BinaryInterpolatorFactory::full_field(&f);
     let context = crate::runtime::zk_v2::ZkContext {
         f: &f,
         domain: &interpolation,
@@ -345,17 +339,16 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert!(tail.is_empty());
                 assert_eq!(decoded.id, circuit.id);
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
+                let decoded = crate::core::proto::v2::quadratic_fixture(decoded, &f);
+                let native_id = decoded.id;
+                let native_writer =
+                    crate::core::proto::v2::CircuitWriter::new(&f, FieldID::Gf2_128);
+                let native_bytes = native_writer.to_bytes(&decoded);
                 let prover = ZkProver::new(decoded, config);
                 let mut rng = SimpleRng { state: 42 };
                 let mut prover_ts = Transcript::new(b"lexicographic-zk");
                 let (commitment, geometry) = prover
-                    .commit(
-                        &witness_inputs[1..],
-                        &context,
-                        &mut prover_ts,
-                        &mut rng,
-                        &sf,
-                    )
+                    .commit(&witness_inputs[1..], &context, &mut prover_ts, &mut rng)
                     .unwrap();
                 let proof = prover
                     .prove(
@@ -366,24 +359,20 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                         &context,
                     )
                     .unwrap();
-                let proof_bytes = proof.write(&geometry, &f, &sf).unwrap();
+                let proof_bytes = proof.write(&geometry, &f).unwrap();
                 if let Some(expected) = &expected_proof {
                     assert_eq!(&proof_bytes, expected);
                 } else {
                     expected_proof = Some(proof_bytes.clone());
                 }
                 // Proving must not change storage, segmentation, or ID.
-                assert_eq!(prover.circuit.id, circuit.id);
-                assert_eq!(
-                    prover.circuit.raw.layers[0].terms(&prover.circuit.raw.constants),
-                    ordered
-                );
+                assert_eq!(prover.circuit.id, native_id);
+                assert_eq!(native_writer.to_bytes(&prover.circuit), native_bytes);
                 let mut verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
                 let verifier_geometry = verifier.geometry();
                 assert_eq!(geometry, verifier_geometry);
                 let mut remaining = proof_bytes.as_slice();
-                let decoded_proof =
-                    ZkProof::read(&mut remaining, &verifier_geometry, &f, &sf).unwrap();
+                let decoded_proof = ZkProof::read(&mut remaining, &verifier_geometry, &f).unwrap();
                 assert!(remaining.is_empty());
                 assert_eq!(proof, decoded_proof);
                 let mut verifier_ts = Transcript::new(b"lexicographic-zk");
@@ -439,7 +428,6 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
 #[test]
 fn test_zk_triple_zero_zero_zero() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // One triple (0, 0, 0) with k = 0 representing assert 0 = 1 (when w[0] is 1).
     let term = Term {
@@ -450,13 +438,13 @@ fn test_zk_triple_zero_zero_zero() {
     };
     // 1 wire, 0 pubin, 1 output. logv = 0, layer_logw = 0!
     let raw = make_raw_circuit(&f, 1, 0, 1, 0, &[1], &[0], vec![vec![term]]);
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // To test ZK proof generation and verification cleanly on this logv=0, logw=0 circuit,
     // we set w0[0] = 0 so the constraint 0 * 0 == 0 is satisfied.
     let w0 = [f.zero(); 1];
 
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let mut rng = SimpleRng { state: 42 };
     let mut ts_prover = Transcript::new(b"test_zk_zero");
 
@@ -467,9 +455,6 @@ fn test_zk_triple_zero_zero_zero() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
@@ -480,7 +465,6 @@ fn test_zk_triple_zero_zero_zero() {
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
@@ -530,7 +514,6 @@ fn test_zk_triple_zero_zero_zero() {
 fn test_zk_intermediate_zero_logw() {
     use crate::core::algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
     // Layer 0 (output layer): squares the single wire from layer 1: v[0] = w[0] * w[0]
     let layer0_terms = vec![Term {
@@ -585,7 +568,7 @@ fn test_zk_intermediate_zero_logw() {
         &[0, 0, 2],
         vec![layer0_terms, layer1_terms, layer2_terms],
     );
-    let circ = Circuit { raw, id: [0u8; 32] };
+    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // Let's set inputs such that a + b + c = 0 in GF(2^128).
     // In characteristic 2, addition is XOR. Let a = 10, b = 20 => c = 10 ^ 20 = 30.
@@ -604,7 +587,7 @@ fn test_zk_intermediate_zero_logw() {
     );
 
     // Now test ZK proof generation and verification
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let mut rng = SimpleRng { state: 9999 };
     let mut ts_prover = Transcript::new(b"test_zk_interm");
 
@@ -615,9 +598,6 @@ fn test_zk_intermediate_zero_logw() {
         t: 4,
     };
 
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
@@ -628,7 +608,6 @@ fn test_zk_intermediate_zero_logw() {
             },
             &mut ts_prover,
             &mut rng,
-            &sf,
         )
         .unwrap();
 
@@ -677,23 +656,19 @@ fn test_zk_intermediate_zero_logw() {
 #[test]
 fn test_zk_zero_layers() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
 
-    let make_interpolator = BinaryInterpolatorFactory::new(&f, &subfield);
+    let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let config = PolygeroConfig {
         k: 16,
         s: 2,
         n: 128,
         t: 4,
     };
-    let sf = crate::runtime::algebra::subfield::BinarySubfield::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
 
     // Try all 16 combinations of zero / non-zero across the 4 inputs
     for mask in 0u32..16 {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
-        let circ = Circuit { raw, id: [0u8; 32] };
+        let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
         let mut w0 = vec![f.zero(); 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {
@@ -719,7 +694,6 @@ fn test_zk_zero_layers() {
                 },
                 &mut ts_prover,
                 &mut rng,
-                &sf,
             )
             .unwrap();
 

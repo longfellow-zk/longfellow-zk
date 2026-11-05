@@ -104,10 +104,10 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield::BinarySubfield::new(
+    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
-    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
+    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
@@ -128,7 +128,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let witness_sig =
         super::inputs::push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap);
 
-    let sf_sig = crate::runtime::algebra::p256::P256Subfield::new(&p256);
+    let sf_sig = crate::runtime::algebra::p256::P256SubfieldV1::new(&p256);
 
     let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash.commit(

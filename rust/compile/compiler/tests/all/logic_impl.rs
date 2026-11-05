@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{CompileField, SupportsNatConversions},
-    p256::P256Field,
+use crate::{
+    compile::{
+        algebra::{
+            field::{CompileField, SupportsNatConversions},
+            p256::P256Field,
+        },
+        compiler::{arena::CompilerArena, ir::Expr, CompilerLogic},
+        logic::{scope::AssertionScope, Logic, LogicIO},
+    },
+    core::algebra::Nat,
 };
-use crate::compile::compiler::{arena::CompilerArena, ir::Expr, CompilerLogic};
-use crate::compile::logic::{scope::AssertionScope, Logic, LogicIO};
-use crate::core::algebra::Nat;
 
 fn run_test<const W: usize, F: CompileField + SupportsNatConversions<W>>(field: &F) {
     let arena = CompilerArena::new();

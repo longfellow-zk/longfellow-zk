@@ -1,92 +1,121 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Circuit evaluation and assertion checks for the v2 prover.
-//!
-//! Circuit layers are stored from outputs toward inputs. Evaluate them in
-//! reverse order, saving each layer's input witness before advancing to its
-//! outputs. Return those witnesses in the original layer order for sumcheck.
-//! Ordinary quads accumulate output values; assertion quads require their
-//! input product to vanish. The final circuit outputs must all be zero.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::{circuit::Circuit, Layer},
+        proto::v2::{Circuit, Constant, Linear, Quadratic},
     },
     runtime::algebra::RuntimeField,
 };
 
-/// Check all assertion products and final outputs, returning each layer's inputs
-/// in sumcheck order (from the circuit outputs toward its inputs).
-/// Start with the circuit input vector w; each layer produces the next vector.
-pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn eval_split_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
     circuit: &Circuit<F>,
+    layers: &[SplitLayer<'_>],
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {
-    let mut w_layers = Vec::with_capacity(circuit.raw.layers.len());
-    for (layer_index, layer) in circuit.raw.layers.iter().enumerate().rev() {
-        let noutput = if layer_index == 0 {
+    let mut saved = Vec::with_capacity(layers.len());
+    for (index, layer) in layers.iter().enumerate().rev() {
+        let noutput = if index == 0 {
             circuit.raw.noutput
         } else {
-            circuit.raw.layers[layer_index - 1].nw()
+            layers[index - 1].nw
         };
         let outputs = eval_layer(&w, layer, &circuit.raw.constants, noutput, f).map_err(|e| {
-            format!("Witness does not satisfy circuit constraints at layer {layer_index}: {e}")
+            format!("Witness does not satisfy circuit constraints at layer {index}: {e}")
         })?;
-        w_layers.push(w);
+        saved.push(w);
         w = outputs;
     }
-    // The last evaluated vector contains the circuit outputs, all required zero.
-    for (g, value) in w.iter().enumerate() {
-        if !f.is_zero(value) {
+    for (g, x) in w.iter().enumerate() {
+        if !f.is_zero(x) {
             return Err(format!("Circuit output at index {g} is not zero"));
         }
     }
-    w_layers.reverse();
-    Ok(w_layers)
+    saved.reverse();
+    Ok(saved)
 }
-
-/// Evaluate V[g] = sum_{l,r} QUAD[g,l,r]*W[l]*W[r] for ordinary quads.
-/// Here w holds W and the returned vector holds V. A zero term coefficient is
-/// an assertion marker: require W[l]*W[r] = 0 instead of accumulating an output.
-fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
     w: &[F::E],
-    layer: &Layer<F>,
+    layer: &SplitLayer<'_>,
     constants: &[F::E],
     noutput: usize,
     f: &F,
 ) -> Result<Vec<F::E>, String> {
-    let mut outputs = vec![f.zero(); noutput];
-    let one = f.one();
-    layer.try_for_each_term(constants, |term| {
-        let g = term.g as usize;
-        let l = term.h0 as usize;
-        let r = term.h1 as usize;
-        let product = f.mulf(&w[l], &w[r]);
-        if f.is_zero(&term.k) {
-            if !f.is_zero(&product) {
-                return Err(format!(
-                    "gate multiplication constraint not satisfied: wire_l={l}, wire_r={r}"
-                ));
+    let mut out = vec![f.zero(); noutput];
+    layer
+        .quadratic
+        .for_each(&layer.quadratic_runs, |Quadratic { g, l, r, k }| {
+            f.fma(
+                &mut out[g as usize],
+                &constants[k as usize],
+                &f.mulf(&w[l as usize], &w[r as usize]),
+            );
+        });
+    layer
+        .quadratic_one
+        .for_each(&layer.quadratic_runs, |QuadraticCoordinates { g, l, r }| {
+            f.fma(&mut out[g as usize], &w[l as usize], &w[r as usize]);
+        });
+    layer.quadratic_minus_one.for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g, l, r }| {
+            f.fnms(&mut out[g as usize], &w[l as usize], &w[r as usize]);
+        },
+    );
+    layer.quadratic_assertions.try_for_each(
+        &layer.quadratic_runs,
+        |QuadraticCoordinates { g: _, l, r }| {
+            if !f.is_zero(&f.mulf(&w[l as usize], &w[r as usize])) {
+                return Err("quadratic assertion not satisfied".to_string());
             }
-        } else if term.k == one {
-            f.add(&mut outputs[g], &product);
-        } else {
-            f.fma(&mut outputs[g], &term.k, &product);
-        }
-        Ok(())
-    })?;
-    Ok(outputs)
+            Ok(())
+        },
+    )?;
+    layer
+        .linear
+        .for_each(&layer.linear_runs, |Linear { g, l, k }| {
+            f.fma(&mut out[g as usize], &constants[k as usize], &w[l as usize]);
+        });
+    layer
+        .linear_one
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
+            f.add(&mut out[g as usize], &w[l as usize]);
+        });
+    layer
+        .linear_minus_one
+        .for_each(&layer.linear_runs, |LinearCoordinates { g, l }| {
+            f.sub(&mut out[g as usize], &w[l as usize]);
+        });
+    layer
+        .linear_assertions
+        .try_for_each(&layer.linear_runs, |LinearCoordinates { g: _, l }| {
+            if !f.is_zero(&w[l as usize]) {
+                return Err("linear assertion not satisfied".to_string());
+            }
+            Ok(())
+        })?;
+    layer
+        .constant
+        .for_each(&layer.constant_runs, |Constant { g, k }| {
+            f.add(&mut out[g as usize], &constants[k as usize])
+        });
+    let one = f.one();
+    layer
+        .constant_one
+        .for_each(&layer.constant_runs, |ConstantCoordinates { g }| {
+            f.add(&mut out[g as usize], &one);
+        });
+    layer
+        .constant_minus_one
+        .for_each(&layer.constant_runs, |ConstantCoordinates { g }| {
+            f.sub(&mut out[g as usize], &one);
+        });
+    Ok(out)
 }
+
+#[cfg(test)]
+#[path = "../tests/eval_fixtures.rs"]
+mod fixtures;
+#[cfg(test)]
+pub(crate) use fixtures::eval_circuit;

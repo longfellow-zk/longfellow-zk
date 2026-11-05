@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecIO, BitvecLogic};
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::circuits::routing::Routing;
-use crate::compile::algebra::{field::SupportsU64Conversions, p256::P256Field};
-use crate::compile::logic::{Logic, LogicIO};
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecIO, BitvecLogic},
+        boolean::{Bitw, Boolean},
+        routing::Routing,
+    },
+    compile::{
+        algebra::{field::SupportsU64Conversions, p256::P256Field},
+        logic::{Logic, LogicIO},
+    },
+};
 
 #[test]
 fn test_compile_routing() {
@@ -46,16 +52,18 @@ fn test_compile_routing() {
 
     crate::compile::compiler::dump_stats("shifte_16_16_2", &circuit, &stats);
 
-    assert_eq!(stats.ninput, 22);
-    assert_eq!(stats.npublic_input, 1);
+    assert_eq!(stats.ninput, 21);
+    assert_eq!(stats.npublic_input, 0);
     assert_eq!(stats.noutput, 16);
     assert_eq!(stats.nlayers, 3);
-    assert_eq!(stats.nwires, 74);
-    assert_eq!(stats.nterms, 184);
+    assert_eq!(stats.nwires, 72);
+    assert_eq!(stats.nterms, 182);
 }
 
-use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-use crate::compile::logic::eval::EvalLogic;
+use crate::compile::{
+    algebra::field::{CompileField, SupportsNatConversions},
+    logic::eval::EvalLogic,
+};
 
 fn int_to_bits(val: usize, bits: usize) -> Vec<bool> {
     (0..bits).map(|i| ((val >> i) & 1) == 1).collect()

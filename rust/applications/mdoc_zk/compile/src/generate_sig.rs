@@ -14,7 +14,7 @@
 
 use crate::{
     compile::algebra::p256::P256Field,
-    core::proto::circuit::Circuit,
+    core::proto::v2::Circuit,
     mdoc::{
         circuits::{
             config::K_SIG_MAC_BIT_PLUCKER, signature::circuit::MdocSignature, MdocSigCompileField,
@@ -27,7 +27,7 @@ pub fn mdoc_zk_circuits_signature<FC>(
     fc: &FC,
 ) -> (
     Circuit<FC>,
-    crate::core::proto::circuit::CircuitGeometry,
+    crate::core::proto::CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
 where FC: MdocSigCompileField {
@@ -44,17 +44,16 @@ where FC: MdocSigCompileField {
         );
 
         let curve = crate::compile::algebra::secp256r1::Secp256r1::new(fc);
-        let (given, derived, pub_inputs_count, subfield_boundary_val) =
-            allocate_sig(&mut allocator, &plucker, &curve);
+        let (given, derived, pub_inputs_count) = allocate_sig(&mut allocator, &plucker, &curve);
 
         let mdoc_sig = MdocSignature::new(&iologic, &curve);
         let assertion = mdoc_sig.assert_signatures_and_macs(&given, &derived);
-        (assertion, pub_inputs_count, subfield_boundary_val)
+        (assertion, pub_inputs_count)
     })
 }
 
 /// Compile and segment the NEXT circuit without selecting commitment parameters.
 pub fn generate_sig_circuit(f: &P256Field) -> Result<Circuit<P256Field>, String> {
     let (circuit, _, _) = mdoc_zk_circuits_signature(f);
-    Ok(crate::compile::compiler::segment_circuit(f, &circuit))
+    Ok(crate::compile::compiler::segment_circuit_v2(f, &circuit))
 }

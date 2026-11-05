@@ -121,7 +121,7 @@ pub(super) fn v2_spec() -> v2::ZkSpecStruct {
     v2::ZkSpecStruct {
         combined_hash: [0; 32],
         num_attributes: 1,
-        version: 8,
+        version: crate::mdoc::circuits::NEXT_VERSION,
         polygero_hash: v2::PolygeroParameters {
             k: 512,
             n: 3584,

@@ -20,10 +20,11 @@ use crate::{
         algebra::{AlgebraicField, SerializableField},
         proto::{
             archive::{CircuitArchive, CircuitArchiveBuilder},
-            circuit::{compute_id, Circuit, RawCircuit},
-            reader::CircuitReader,
-            writer::CircuitWriter,
-            FieldID, Layer, TermDelta,
+            v2::{
+                compute_id, Circuit, CircuitReader, CircuitWriter, Layer, Quadratic, RawCircuit,
+                Stream,
+            },
+            FieldID,
         },
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
@@ -35,17 +36,18 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
         npublic_input: 1,
         noutput: 1,
         logv: 0,
-        subfield_boundary: 1,
         constants: vec![f.one()],
-        layers: vec![Layer::new_compressed(
+        layers: vec![Layer::with_assertions(
             1,
-            0,
-            vec![vec![TermDelta {
+            Stream::<Quadratic>::from_terms([Quadratic {
                 g: 0,
-                h: [0, 0],
-                k_index: 0,
-            }]],
-            vec![0],
+                l: 0,
+                r: 0,
+                k: 0,
+            }]),
+            Stream::default(),
+            Stream::default(),
+            |_| false,
         )],
     };
     Circuit {
@@ -57,16 +59,16 @@ fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
     let sig = tiny(p);
     let hash = tiny(f);
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(8);
+    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
     builder.add_entry(
         "sig",
         sig.id,
-        CircuitWriter::new(p, FieldID::P256).to_bytes_lfc2(&sig),
+        CircuitWriter::new(p, FieldID::P256).to_bytes(&sig),
     );
     builder.add_entry(
         "hash",
         hash.id,
-        CircuitWriter::new(f, FieldID::Gf2_128).to_bytes_lfc2(&hash),
+        CircuitWriter::new(f, FieldID::Gf2_128).to_bytes(&hash),
     );
     builder.build()
 }
@@ -85,7 +87,12 @@ fn circuit_identifier_enforcement_is_opt_in() {
         .from_bytes(&archive.entries[0].payload, true)
         .unwrap();
     circuit.raw.constants[0] = p.zero();
-    archive.entries[0].payload = CircuitWriter::new(&p, FieldID::P256).to_bytes_lfc2(&circuit);
+    let stale_id = circuit.id;
+    circuit.id = compute_id(&p, &circuit.raw);
+    let mut payload = CircuitWriter::new(&p, FieldID::P256).to_bytes(&circuit);
+    let id_offset = payload.len() - stale_id.len();
+    payload[id_offset..].copy_from_slice(&stale_id);
+    archive.entries[0].payload = payload;
     assert_eq!(archive.combined_id, original);
     assert!(
         decompress_circuits(&compressed(&archive), &p, &f, true).is_err(),

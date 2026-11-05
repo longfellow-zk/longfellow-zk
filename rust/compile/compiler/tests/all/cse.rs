@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{CompileField, SupportsNatConversions},
-    p256::P256Field,
-};
-use crate::compile::compiler::{
-    arena::CompilerArena,
-    cse::Cse,
-    ir::{AssertionItem, RewriteT},
+use crate::compile::{
+    algebra::{
+        field::{CompileField, SupportsNatConversions},
+        p256::P256Field,
+    },
+    compiler::{
+        arena::CompilerArena,
+        cse::Cse,
+        ir::{AssertionItem, RewriteT},
+    },
 };
 
 fn run_test_cse<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {

@@ -17,7 +17,11 @@ use std::io::BufRead;
 
 use super::ZkSpecStruct;
 use crate::{
-    core::proto::{archive::CircuitArchive, circuit::Circuit, reader::CircuitReader, FieldID},
+    core::proto::{
+        archive::CircuitArchive,
+        v2::{Circuit, CircuitReader},
+        FieldID,
+    },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 

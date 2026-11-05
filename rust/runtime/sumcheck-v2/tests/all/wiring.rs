@@ -15,7 +15,10 @@
 use crate::{
     core::{
         algebra::{SupportsU128Conversions, SupportsU64Conversions},
-        proto::{Layer, SerializableField, TermDelta},
+        proto::{
+            v1::{Layer, TermDelta},
+            SerializableField,
+        },
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
@@ -41,7 +44,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
             TermDelta {
                 g: 0,
                 h: [0, 1],
-                k_index: 1,
+                k_index: 3,
             },
             TermDelta {
                 g: 1,
@@ -51,10 +54,12 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         ]],
         vec![0],
     );
-    let constants = [f.zero(), element(3)];
+    let constants = [f.zero(), f.one(), f.mone(), element(3)];
+    let raw_layer = crate::core::proto::v2::quadratic_layer_fixture(layer, &constants, f);
+    let layer = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_layer);
     let a = [element(7), f.zero()];
     let mut transcript = Transcript::new(b"assertion-independence");
-    let rho = assertion_weights(&layer, &constants, 0, &mut transcript, f);
+    let rho = assertion_weights(&layer, 0, &mut transcript, f);
     assert_eq!(rho.len(), 1);
     assert_ne!(rho[0], f.zero());
     let w = [element(2), element(5), element(11)];
@@ -102,12 +107,15 @@ fn check_repeated_output<
         ]],
         vec![0],
     );
+    let raw_repeated_output =
+        crate::core::proto::v2::quadratic_layer_fixture(repeated_output, &constants, f);
+    let repeated_output = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_repeated_output);
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.clone();
     expected.write_bytes(b"single-hand-assertions");
     expected.write_bytes(&1u64.to_le_bytes());
     let expected_rho = expected.elt_field_slice(2, f);
-    let rho = assertion_weights(&repeated_output, &constants, 1, &mut transcript, f);
+    let rho = assertion_weights(&repeated_output, 1, &mut transcript, f);
     assert_eq!(rho, expected_rho);
     assert_eq!(transcript.bytes(32), expected.bytes(32));
     let q_l = bind_r(
@@ -129,7 +137,7 @@ fn check_quad_order<
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
-    let constants = [f.zero(), element(3)];
+    let constants = [f.zero(), f.one(), f.mone(), element(3)];
     let a = [element(7), f.zero()];
     let w = [element(2), element(5), element(11)];
     let point = [element(13), element(17)];
@@ -149,7 +157,7 @@ fn check_quad_order<
             TermDelta {
                 g: u32::MAX,
                 h: [1, 0],
-                k_index: 1,
+                k_index: 3,
             },
             TermDelta {
                 g: 0,
@@ -159,14 +167,16 @@ fn check_quad_order<
         ]],
         vec![0],
     );
-    let rho = assertion_weights(&reordered, &constants, 2, &mut transcript, f);
+    let raw_reordered = crate::core::proto::v2::quadratic_layer_fixture(reordered, &constants, f);
+    let reordered = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_reordered);
+    let rho = assertion_weights(&reordered, 2, &mut transcript, f);
     assert_eq!(rho.len(), 2);
     let q_l = bind_r(&reordered, &constants, &a, &rho, &w, f);
     assert_eq!(
         q_l,
         [
             f.mulf(&rho[0], &w[1]),
-            f.mulf(&f.mulf(&a[0], &constants[1]), &w[1]),
+            f.mulf(&f.mulf(&a[0], &constants[3]), &w[1]),
             f.mulf(&rho[1], &w[0]),
         ]
     );
@@ -189,8 +199,13 @@ fn functional_transition_and_independent_assertions_binary() {
 /// Check the initial weights and the next PRF bytes independently of the
 /// prover/verifier roundtrip. Both roles could otherwise share the same extra
 /// sampling bug. Include a scalar output, which must sample no coordinates.
-fn check_output_sampling<const W: usize, F: SerializableField + SupportsSampling<W>>(f: &F) {
-    use crate::core::proto::circuit::{Circuit, RawCircuit};
+fn check_output_sampling<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
+    f: &F,
+) {
+    use crate::core::proto::v2::{Circuit, RawCircuit};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
         let circuit = Circuit {
             id: [0; 32],
@@ -199,7 +214,6 @@ fn check_output_sampling<const W: usize, F: SerializableField + SupportsSampling
                 npublic_input: 0,
                 noutput,
                 logv,
-                subfield_boundary: 0,
                 constants: vec![],
                 layers: vec![],
             },

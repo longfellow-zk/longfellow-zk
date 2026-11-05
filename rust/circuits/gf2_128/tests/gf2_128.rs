@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{concrete::push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::gf2_128::Gf2_128Mul;
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::core::algebra::{ElementOf, SerializableField};
+use crate::{
+    circuits::{
+        bitvec::{concrete::push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic},
+        boolean::Boolean,
+        gf2_128::Gf2_128Mul,
+    },
+    compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+    core::algebra::{ElementOf, SerializableField},
+};
 
 fn ref_mul(x: u128, y: u128) -> u128 {
     let poly: u128 = 0x87;
@@ -36,8 +40,7 @@ fn ref_mul(x: u128, y: u128) -> u128 {
     a
 }
 
-use crate::compile::eval::FieldID;
-use crate::runtime::algebra::field::RuntimeField;
+use crate::{compile::eval::FieldID, runtime::algebra::field::RuntimeField};
 
 fn test_compile_gf2_128_mul_for_field<
     const W: usize,
@@ -97,11 +100,11 @@ fn test_compile_gf2_128_mul() {
         "gf2_128_mul_bin",
         FieldID::Gf2_128,
         crate::compile::eval::CircuitGeometry {
-            ninput: 385,
-            npublic_input: 1,
+            ninput: 384,
+            npublic_input: 0,
             noutput: 385,
-            nwires: 1811,
-            nterms: 10306,
+            nwires: 1810,
+            nterms: 10305,
             nlayers: 2,
             nassertions: 385,
         },
@@ -115,11 +118,11 @@ fn test_compile_gf2_128_mul() {
         "gf2_128_mul_prime",
         FieldID::P256,
         crate::compile::eval::CircuitGeometry {
-            ninput: 385,
-            npublic_input: 1,
+            ninput: 384,
+            npublic_input: 0,
             noutput: 1,
-            nwires: 19645,
-            nterms: 27869,
+            nwires: 19627,
+            nterms: 27851,
             nlayers: 19,
             nassertions: 385,
         },

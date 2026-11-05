@@ -49,12 +49,12 @@ fn test_mdoc_zk_circuits_signature_generic(
     assert_eq!(
         stats,
         crate::compile::eval::CircuitGeometry {
-            ninput: 4773,
-            npublic_input: 1,
+            ninput: 4772,
+            npublic_input: 0,
             noutput: 6,
             nlayers: 19,
-            nwires: 167739,
-            nterms: 259551,
+            nwires: 167721,
+            nterms: 259533,
             nassertions: 4796,
         }
     );
@@ -251,24 +251,15 @@ fn test_compile_mdoc_signature_corruptors() {
 
 #[test]
 fn test_serialize_and_verify_mdoc_signature_circuit() {
-    use crate::core::proto::{writer::CircuitWriter, FieldID};
+    use crate::core::proto::{v2::CircuitWriter, FieldID};
 
     let p256_c = P256Field::new();
     let (circuit, _stats) = mdoc_zk_circuits_signature_circuit(&p256_c);
 
-    let expected_id: [u8; 32] = if super::V2 {
-        [
-            0x95, 0x3f, 0x4d, 0x5d, 0x01, 0x8f, 0x10, 0x5c, 0x0a, 0xef, 0xcc, 0xe2, 0x2b, 0x75,
-            0xe4, 0xdf, 0x6b, 0x99, 0xce, 0x05, 0xdb, 0xff, 0xd9, 0x7a, 0xb3, 0x8b, 0x87, 0xf7,
-            0xbd, 0xbc, 0x8f, 0xdc,
-        ]
-    } else {
-        [
-            0x2b, 0x08, 0x70, 0xbd, 0x6a, 0x14, 0x39, 0x85, 0xbe, 0x93, 0x79, 0x0f, 0x2c, 0xaa,
-            0x6b, 0x66, 0x81, 0x3e, 0x6b, 0xff, 0x27, 0xe8, 0x7a, 0xd6, 0xe9, 0x93, 0x0f, 0x62,
-            0x1b, 0xa2, 0x74, 0xe9,
-        ]
-    };
+    let expected_id: [u8; 32] = [
+        200, 158, 112, 38, 217, 250, 30, 98, 109, 102, 246, 129, 246, 66, 62, 103, 91, 80, 251,
+        134, 250, 8, 31, 203, 4, 150, 228, 22, 136, 241, 176, 204,
+    ];
     assert_eq!(
         circuit.id, expected_id,
         "Circuit hash changed! Expected {:?}, got {:?}",

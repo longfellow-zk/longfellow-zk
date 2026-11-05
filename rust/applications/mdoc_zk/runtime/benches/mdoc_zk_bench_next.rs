@@ -14,7 +14,7 @@
 
 //! Longfellow v2 / NEXT circuit end-to-end benchmark.
 
-//! Complete v8 flow, including circuit loading, native preparation, commitments,
+//! Complete NEXT flow, including circuit loading, native preparation, commitments,
 //! serialization and cleanup. Longfellow v2 uses the checked Polygero parameter family.
 use std::time::Instant;
 
@@ -126,11 +126,11 @@ fn main() {
             continue;
         }
         eprintln!(
-        "Longfellow v2 (circuit v8) end to end: prover={:.3} ms, verifier={:.3} ms, proof={} bytes",
-        prover.as_secs_f64() * 1000.0,
-        verifier.as_secs_f64() * 1000.0,
-        proof.len()
-    );
+            "Longfellow v2 end to end: prover={:.3} ms, verifier={:.3} ms, proof={} bytes",
+            prover.as_secs_f64() * 1000.0,
+            verifier.as_secs_f64() * 1000.0,
+            proof.len()
+        );
         report_proof_sizes(&proof, &geometry);
         if cfg!(feature = "bench-memory") {
             eprintln!(
@@ -195,14 +195,12 @@ fn report_profiles(
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            subfield::BinarySubfield,
             SupportsFFT,
         },
         zk_v2::ZkContext,
     };
     let binary = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
-    let binary_domain = BinaryInterpolatorFactory::new(&binary, &subfield);
+    let binary_domain = BinaryInterpolatorFactory::full_field(&binary);
     let prime = P256Field::new();
     let extension = Fp2Field::new(&prime);
     let prime_domain = QuadraticExtensionFftInterpolatorFactory::new(
@@ -226,7 +224,7 @@ fn report_profiles(
     );
     fn report<F: longfellow_zk::core::algebra::SerializableField>(
         name: &str,
-        c: &longfellow_zk::core::proto::circuit::Circuit<F>,
+        c: &longfellow_zk::core::proto::v2::Circuit<F>,
     ) {
         eprintln!(
             "{name} circuit: inputs={} outputs={} layers={} rounds={} wires={} terms={}",
@@ -267,38 +265,22 @@ fn report_profiles(
 
 /// Measure actual serialized component proofs, excluding the six shared MACs.
 fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry) {
-    use longfellow_zk::runtime::algebra::{
-        gf2_128::Gf2_128Field,
-        p256::{P256Field, P256Subfield},
-        subfield::BinarySubfield,
-    };
+    use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
-    let subfield = BinarySubfield::new(&longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1);
     let prime = P256Field::new();
-    let signature_subfield = P256Subfield::new(&prime);
-    let (remaining, proof) = runtime::proto::MdocProof::read(
-        bytes,
-        geometry,
-        &binary,
-        &subfield,
-        &prime,
-        &signature_subfield,
-    )
-    .unwrap();
+    let (remaining, proof) =
+        runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
     assert!(remaining.is_empty());
     let hash = proof
         .proof_hash
-        .write(&geometry.geom_hash, &binary, &subfield)
+        .write(&geometry.geom_hash, &binary)
         .unwrap();
-    let signature = proof
-        .proof_sig
-        .write(&geometry.geom_sig, &prime, &signature_subfield)
-        .unwrap();
+    let signature = proof.proof_sig.write(&geometry.geom_sig, &prime).unwrap();
     let hash_polygero = proof
         .proof_hash
         .com_proof
-        .write(&geometry.geom_hash.com_geom, &binary, &subfield)
+        .write(&geometry.geom_hash.com_geom, &binary)
         .unwrap();
     let hash_sumcheck = proof
         .proof_hash

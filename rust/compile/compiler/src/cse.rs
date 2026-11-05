@@ -14,13 +14,15 @@
 
 use std::cell::RefCell;
 
-use crate::compile::algebra::field::CompileField;
 use rustc_hash::FxHashMap;
 
-use crate::compile::compiler::{
-    arena::CompilerArena,
-    ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},
-    node::Node,
+use crate::compile::{
+    algebra::field::CompileField,
+    compiler::{
+        arena::CompilerArena,
+        ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},
+        node::Node,
+    },
 };
 
 fn canonical2<'a, T>(x: &'a Node<'a, T>, y: &'a Node<'a, T>) -> (&'a Node<'a, T>, &'a Node<'a, T>) {

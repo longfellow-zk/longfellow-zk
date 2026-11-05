@@ -16,42 +16,15 @@ use super::{ZkContext, ZkProof, ZkProver, ZkVerifier};
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::{
-            circuit::{compute_id, Circuit, RawCircuit},
-            Layer, TermDelta,
-        },
+        proto::v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
     },
     runtime::{
-        algebra::{
-            EvaluationDomain, RangeInterpolatorFactory, RuntimeField, Subfield, SupportsSampling,
-            ZkField,
-        },
+        algebra::{EvaluationDomain, RangeInterpolatorFactory, RuntimeField, ZkField},
         polygero::PolygeroConfig,
         random::{DeterministicRng, Transcript},
     },
 };
 
-struct FullField<'a, const W: usize, F>(&'a F);
-impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>> Subfield
-    for FullField<'_, W, F>
-{
-    type E = F::E;
-    fn to_bytes_into(&self, e: &F::E, dst: &mut [u8]) {
-        self.0.to_bytes_into(e, dst);
-    }
-    fn contains(&self, _: &F::E) -> bool {
-        true
-    }
-    fn serialized_size_bytes(&self) -> usize {
-        self.0.serialized_size_bytes()
-    }
-    fn bytes_to_element(&self, b: &[u8]) -> Result<F::E, String> {
-        self.0.bytes_to_element(b)
-    }
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, r: R) -> F::E {
-        self.0.sample(r)
-    }
-}
 // This wrapper exposes only the range API and enforces the original point-table bound.
 // Every core and V2 proof must work with only the original k+n point table.
 struct BoundedDomain<'a, D> {
@@ -95,7 +68,9 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
     }
 }
 
-fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(f: &F) -> Circuit<F> {
+fn legacy_circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
+    f: &F,
+) -> Circuit<F> {
     let raw = RawCircuit {
         ninput: 3,
         npublic_input: 1,
@@ -124,15 +99,14 @@ fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(f: &F) -
     let id = compute_id(f, &raw);
     Circuit { raw, id }
 }
-pub(crate) fn exercise<
-    const W: usize,
-    F: ZkField<W>,
-    D: EvaluationDomain<W, F>,
-    SF: Subfield<E = F::E>,
->(
+fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
+    f: &F,
+) -> crate::core::proto::v2::Circuit<F> {
+    crate::core::proto::v2::quadratic_fixture(legacy_circuit(f), f)
+}
+pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
     f: &F,
     domain: &D,
-    sf: &SF,
 ) {
     let config = PolygeroConfig {
         k: 8,
@@ -153,23 +127,23 @@ pub(crate) fn exercise<
     let p = ZkProver::new(circuit(f), config);
     let mut tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
-    let (committed, prover_geometry) = p.commit(&witness, &context, &mut tp, &mut rng, sf).unwrap();
+    let (committed, prover_geometry) = p.commit(&witness, &context, &mut tp, &mut rng).unwrap();
     let proof = p
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
-    let bytes = proof.write(&prover_geometry, f, sf).unwrap();
+    let bytes = proof.write(&prover_geometry, f).unwrap();
     assert_eq!(&bytes[..4], b"LFV2");
     for old_marker in [b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
-        assert!(ZkProof::read(&mut obsolete.as_slice(), &prover_geometry, f, sf).is_err());
+        assert!(ZkProof::read(&mut obsolete.as_slice(), &prover_geometry, f).is_err());
     }
 
     // Independently reconstruct the circuit, geometry, and decoded verifier proof.
     let mut v = ZkVerifier::new(circuit(f), config, &context).unwrap();
     let geometry = v.geometry();
     let mut input = bytes.as_slice();
-    let decoded = ZkProof::read(&mut input, &geometry, f, sf).unwrap();
+    let decoded = ZkProof::read(&mut input, &geometry, f).unwrap();
     assert!(input.is_empty());
     let mut verify = |inputs: Vec<F::E>, candidate: &ZkProof<W, F>| {
         let mut tv = Transcript::new(b"longfellow/v2/test");
@@ -190,7 +164,6 @@ pub(crate) fn exercise<
                 &context,
                 &mut other_ts,
                 &mut DeterministicRng::new(42),
-                sf,
             )
             .unwrap();
         let other_proof = other_prover
@@ -212,72 +185,35 @@ pub(crate) fn exercise<
     assert!(verify(bad_public, &decoded).is_err());
     assert!(verify(vec![], &decoded).is_err());
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f, sf).unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
         f.add(&mut bad.com_proof.h[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f, sf).unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
-    }
-    {
-        // The same circuit, field, and witness must succeed through the existing Ligero path.
-        let legacy_context = crate::runtime::zk_v1::common::ZkContext {
-            f,
-            make_interpolator: domain,
-        };
-        let cfg = crate::runtime::ligero::LigeroConfig {
-            rateinv: 2,
-            nreq: 2,
-            block_enc: 64,
-        };
-        let old = crate::runtime::zk_v1::ZkProver::new(circuit(f), cfg);
-        let mut legacy_ts = Transcript::new(b"longfellow/v1/comparison");
-        let (commit, geom) = old.commit(&witness, &legacy_context, &mut legacy_ts, &mut rng, sf);
-        let legacy_proof = old
-            .prove(
-                public.clone(),
-                witness,
-                &commit,
-                &mut legacy_ts,
-                &legacy_context,
-            )
-            .unwrap();
-        let legacy_bytes = legacy_proof.write(&geom, f, sf).unwrap();
-        let verifier = crate::runtime::zk_v1::ZkVerifier::new(circuit(f), cfg);
-        let mut tv = Transcript::new(b"longfellow/v1/comparison");
-        verifier.recv_commitment(&legacy_proof, &mut tv, &legacy_context);
-        verifier
-            .verify(public, &legacy_proof, &mut tv, &legacy_context)
-            .unwrap();
-        assert!(ZkProof::read(&mut legacy_bytes.as_slice(), &geometry, f, sf).is_err());
     }
 }
 #[test]
 fn binary_zk_comparison() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
-        subfield::BinarySubfield,
     };
     let f = Gf2_128Field::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let d = BinaryInterpolatorFactory::new(&f, &sf);
-    exercise(&f, &d, &sf);
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    exercise(&f, &d);
 }
 #[test]
 fn prime_zk_comparison() {
     use crate::runtime::algebra::{
-        fp2::Fp2Field,
-        p256::{P256Field, P256Subfield},
-        range_interpolation::QuadraticExtensionFftInterpolatorFactory,
-        SupportsFFT,
+        fp2::Fp2Field, p256::P256Field,
+        range_interpolation::QuadraticExtensionFftInterpolatorFactory, SupportsFFT,
     };
     let f = P256Field::new();
-    let sf = P256Subfield::new(&f);
     let f2 = Fp2Field::new(&f);
     let d = QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
-    exercise(&f, &d, &sf);
+    exercise(&f, &d);
 }
 #[test]
 fn q256_zk_comparison() {
@@ -286,29 +222,24 @@ fn q256_zk_comparison() {
     };
     let f = Q256Field::new();
     let d = ScalarInterpolatorFactory::new(&f, 128);
-    let sf = FullField::<4, _>(&f);
-    exercise(&f, &d, &sf);
+    exercise(&f, &d);
 }
 #[test]
 fn extension_zk_comparison() {
     use crate::runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
-        range_interpolation::CrtInterpolatorFactory,
+        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
     };
     let f = RuntimeFp24Ext6::new();
-    exercise(&f, &CrtInterpolatorFactory, &RuntimeFp24Subfield);
+    exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
     use crate::runtime::proto::zk_v2::commitment_layout;
     let (_, nw, products) = commitment_layout(&c);
-    let subfield_boundary = c.raw.subfield_boundary.saturating_sub(c.raw.npublic_input);
     let select = |filter: fn(PolygeroConfig) -> bool| {
         crate::compile::polygero::tune_large_field_at_rate(
             4,
             nw,
             &products,
-            subfield_boundary,
             f.serialized_size_bytes(),
-            RuntimeFp24Subfield.serialized_size_bytes(),
             |config| filter(config) && config.can_interpolate(&CrtInterpolatorFactory),
         )
     };

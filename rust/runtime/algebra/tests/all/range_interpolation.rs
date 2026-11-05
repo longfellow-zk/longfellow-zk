@@ -25,7 +25,7 @@ use crate::{
             interpolate_range, BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
         },
-        subfield::BinarySubfield,
+        subfield_v1::{BinarySubfieldV1, InterpolationPlanV1},
         InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
     },
 };
@@ -262,8 +262,8 @@ fn quadratic_extension_fft_range_interpolation() {
 #[test]
 fn binary_range_interpolation() {
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let factory = BinaryInterpolatorFactory::new(&f, &sf);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
     let coefficient = |i| {
         Gf2_128::from(u128::from(random_word(2 * i)) | (u128::from(random_word(2 * i + 1)) << 64))
     };
@@ -290,7 +290,7 @@ fn binary_range_interpolation() {
     let source: Vec<_> = (0..9).map(|i| sf.embed(i + 1)).collect();
     let plan = factory.make_range(1..10, 4..24);
     let ordinary = plan.apply(&source);
-    let hinted = plan.apply_subfield(&source, &sf);
+    let hinted = plan.apply_subfield_v1(&source, &sf);
     assert_eq!(ordinary, hinted);
 }
 
@@ -307,7 +307,7 @@ fn scalar_range_interpolation() {
 #[test]
 fn crt_range_interpolation() {
     use crate::runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
+        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
         range_interpolation::CrtInterpolatorFactory,
     };
     let f = RuntimeFp24Ext6::new();
@@ -329,12 +329,12 @@ fn crt_range_interpolation() {
             .collect();
         let plan = factory.make_range(source, destination.clone());
         let ordinary = plan.apply(&values);
-        let hinted = plan.apply_subfield(&values, &RuntimeFp24Subfield);
+        let hinted = plan.apply_subfield_v1(&values, &RuntimeFp24SubfieldV1);
         assert_eq!(ordinary, hinted);
         let mut invalid = values;
         invalid[0] = f.from_coefficients([1, 1, 0, 0, 0, 0]);
         assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-            || plan.apply_subfield(&invalid, &RuntimeFp24Subfield)
+            || plan.apply_subfield_v1(&invalid, &RuntimeFp24SubfieldV1)
         ))
         .is_err());
     }
@@ -348,8 +348,8 @@ fn crt_range_interpolation() {
 fn binary_range_interpolation_with_non_cantor_basis() {
     let f = Gf2_128RuntimeField::new();
     let basis: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    let sf = BinarySubfield::new(&basis);
-    let domain = BinaryInterpolatorFactory::new(&f, &sf);
+    let sf = BinarySubfieldV1::new(&basis);
+    let domain = BinaryInterpolatorFactory::new(&f, sf.basis());
     let sample = |i| Gf2_128::from(u128::from(random_word(i)));
     arbitrary_values(&f, &domain, sample);
     for a in [0, 1, 3, 15, 31, 127] {
@@ -413,12 +413,12 @@ fn interpolation_backend_points_are_distinct() {
     assert_distinct_points(&scalar_field, &scalar, std::iter::once(0..2048));
 
     let binary_field = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfield::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
-    let binary = BinaryInterpolatorFactory::new(&binary_field, &subfield);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let binary = BinaryInterpolatorFactory::new(&binary_field, subfield.basis());
     assert_distinct_points(&binary_field, &binary, std::iter::once(0..1 << 16));
     let basis: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    let other_subfield = BinarySubfield::new(&basis);
-    let other_binary = BinaryInterpolatorFactory::new(&binary_field, &other_subfield);
+    let other_subfield = BinarySubfieldV1::new(&basis);
+    let other_binary = BinaryInterpolatorFactory::new(&binary_field, other_subfield.basis());
     assert_distinct_points(&binary_field, &other_binary, std::iter::once(0..256));
 
     {

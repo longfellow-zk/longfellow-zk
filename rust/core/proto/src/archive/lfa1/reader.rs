@@ -89,7 +89,7 @@ pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, St
 
     let cursor1 = &raw_bytes[..];
     let reader_sig =
-        crate::core::proto::reader::CircuitReader::new(&p256, crate::core::proto::FieldID::P256);
+        crate::core::proto::v1::CircuitReader::new(&p256, crate::core::proto::FieldID::P256);
     let (c_sig, remaining1) = reader_sig.from_bytes(cursor1, false)?;
 
     let sig_len = raw_bytes.len() - remaining1.len();
@@ -97,7 +97,7 @@ pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, St
 
     let cursor2 = remaining1;
     let reader_hash =
-        crate::core::proto::reader::CircuitReader::new(&gf2, crate::core::proto::FieldID::Gf2_128);
+        crate::core::proto::v1::CircuitReader::new(&gf2, crate::core::proto::FieldID::Gf2_128);
     let (c_hash, remaining2) = reader_hash.from_bytes(cursor2, false)?;
 
     let hash_len = cursor2.len() - remaining2.len();

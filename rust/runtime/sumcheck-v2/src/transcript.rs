@@ -21,10 +21,7 @@
 //! alpha, which combines those two claims for the next layer.
 
 use crate::{
-    core::{
-        algebra::SerializableField,
-        proto::{circuit::Circuit, Layer},
-    },
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{ElementOf, RuntimeField, SupportsSampling},
         random::{RandomEngine, Transcript},
@@ -73,7 +70,7 @@ impl TranscriptSumcheck for Transcript {
             .raw
             .layers
             .iter()
-            .map(crate::core::proto::Layer::num_terms)
+            .map(crate::core::proto::v2::Layer::num_terms)
             .sum::<usize>();
         self.write0(nterms);
     }
@@ -82,7 +79,10 @@ impl TranscriptSumcheck for Transcript {
 /// Start the sumcheck transcript domain and return the initial output weights a.
 /// Sample the logv coordinates of u and form a[g] = product_j u[j]^g_j.
 /// A scalar output has logv=0 and weight one, so it consumes no field challenges.
-pub(super) fn begin<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn begin<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
@@ -93,31 +93,32 @@ pub(super) fn begin<const W: usize, F: SerializableField + SupportsSampling<W>>(
     monomial::weights(circuit.raw.logv, circuit.raw.noutput, &point_g, f)
 }
 
-/// Sample one replacement coefficient for every zero-coefficient quad, in
-/// circuit traversal order. The prover reuses this sequence in both quad bindings.
-/// Each coefficient replaces the full a[g]*QUAD[g,l,r] factor for its assertion.
-pub(super) fn assertion_weights<const W: usize, F: SerializableField + SupportsSampling<W>>(
-    layer: &Layer<F>,
-    constants: &[F::E],
+/// Sample independent coefficients for quadratic, then linear zero markers.
+/// Both roles reuse this order. Each coefficient replaces the full output-
+/// weighted coefficient, so a zero output weight cannot erase an assertion.
+pub(super) fn assertion_weights<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
+    layer: &super::split::SplitLayer<'_>,
     layer_index: usize,
     transcript: &mut Transcript,
     f: &F,
 ) -> Vec<F::E> {
     transcript.write_bytes(b"single-hand-assertions");
     transcript.write_bytes(&(layer_index as u64).to_le_bytes());
-    let mut assertions = Vec::new();
-    layer.for_each_term(constants, |term| {
-        if f.is_zero(&term.k) {
-            assertions.push(transcript.elt_field(f));
-        }
-    });
-    assertions
+    (0..layer.assertion_counts().iter().sum::<usize>())
+        .map(|_| transcript.elt_field(f))
+        .collect()
 }
 
 /// Absorb m = [c0-s0,c1-s1] before sampling the round challenge z.
 /// With the pads already committed, fixing both messages determines the
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
-pub(super) fn round_challenge<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn round_challenge<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
     m: &RoundPoly<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -130,7 +131,10 @@ pub(super) fn round_challenge<const W: usize, F: SerializableField + SupportsSam
 
 /// Bind the masked final claims before sampling alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
-pub(super) fn end_layer<const W: usize, F: SerializableField + SupportsSampling<W>>(
+pub(super) fn end_layer<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+>(
     claims: &[F::E; 2],
     transcript: &mut Transcript,
     f: &F,

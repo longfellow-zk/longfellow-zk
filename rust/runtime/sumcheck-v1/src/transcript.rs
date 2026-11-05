@@ -21,7 +21,7 @@
 //! the final input-combination challenge. These tags, lengths and ordering are part of
 //! legacy proof compatibility, including samples that the circuit does not use.
 use crate::{
-    core::{algebra::SerializableField, proto::circuit::Circuit},
+    core::{algebra::SerializableField, proto::v1::Circuit},
     runtime::{
         algebra::{field::RuntimeField, ElementOf, SupportsSampling},
         proto::sumcheck_v1::RoundPoly,
@@ -96,7 +96,7 @@ impl TranscriptSumcheck for Transcript {
             .raw
             .layers
             .iter()
-            .map(crate::core::proto::Layer::num_terms)
+            .map(crate::core::proto::v1::Layer::num_terms)
             .sum::<usize>();
         self.write0(nterms);
     }

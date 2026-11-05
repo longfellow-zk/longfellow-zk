@@ -63,7 +63,7 @@ fn test_circuit_archive_lfa1_roundtrip() {
             algebra::{gf2_128::Gf2_128Field, p256::P256Field},
             logic::LogicIO,
         },
-        core::proto::writer::CircuitWriter,
+        core::proto::v1::CircuitWriter,
     };
 
     let f256 = P256Field::new();
@@ -155,7 +155,7 @@ fn test_circuit_archive_legacy_concatenated_stream() {
             algebra::{gf2_128::Gf2_128Field, p256::P256Field},
             logic::LogicIO,
         },
-        core::proto::writer::CircuitWriter,
+        core::proto::v1::CircuitWriter,
     };
 
     let f256 = P256Field::new();

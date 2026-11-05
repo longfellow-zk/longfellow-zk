@@ -40,7 +40,7 @@
 
 use std::ops::Range;
 
-use super::{RuntimeField, Subfield};
+use super::RuntimeField;
 use crate::core::algebra::{AlgebraicField, SupportsU64Conversions};
 
 mod arithmetic;
@@ -51,10 +51,13 @@ mod crt;
 mod crt_fft;
 mod quadratic_extension_fft;
 mod scalar;
+pub(in crate::runtime::algebra) use binary::BinaryInterpolationPlan;
 pub use binary::BinaryInterpolatorFactory;
 #[cfg(any(test, feature = "tooling"))]
 pub use crt::CrtInterpolatorFactory;
+pub(in crate::runtime::algebra) use quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan;
 pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
+pub(in crate::runtime::algebra) use scalar::ScalarInterpolationPlan;
 pub use scalar::ScalarInterpolatorFactory;
 
 /// An immutable plan for fixed source and destination ranges.
@@ -62,12 +65,6 @@ pub trait InterpolationPlan<const W: usize, F: RuntimeField<W>> {
     /// Return evaluations on the destination range used to construct the plan.
     /// The source length must match the plan; its values are unchanged.
     fn apply(&self, source: &[F::E]) -> Vec<F::E>;
-
-    /// A public layout hint that all source values belong to `subfield`.
-    /// The default implementation works without subfield specialization.
-    fn apply_subfield<SF: Subfield<E = F::E>>(&self, source: &[F::E], _subfield: &SF) -> Vec<F::E> {
-        self.apply(source)
-    }
 }
 
 /// A backend and its fixed ordering of distinct evaluation points.

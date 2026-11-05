@@ -22,8 +22,8 @@ pub fn decompress_circuits(
     gf2: &crate::runtime::algebra::gf2_128::Gf2_128Field,
 ) -> Result<
     (
-        crate::core::proto::circuit::Circuit<crate::runtime::algebra::p256::P256Field>,
-        crate::core::proto::circuit::Circuit<crate::runtime::algebra::gf2_128::Gf2_128Field>,
+        crate::core::proto::v1::Circuit<crate::runtime::algebra::p256::P256Field>,
+        crate::core::proto::v1::Circuit<crate::runtime::algebra::gf2_128::Gf2_128Field>,
     ),
     String,
 > {
@@ -45,28 +45,24 @@ pub fn decompress_circuits(
             .get("sig")
             .ok_or_else(|| "Missing 'sig' entry in circuit archive".to_string())?;
         let reader_sig =
-            crate::core::proto::reader::CircuitReader::new(p256, crate::core::proto::FieldID::P256);
+            crate::core::proto::v1::CircuitReader::new(p256, crate::core::proto::FieldID::P256);
         let (c_sig, _) = reader_sig.from_bytes(&sig_entry.payload, false)?;
 
         let hash_entry = archive
             .get("hash")
             .ok_or_else(|| "Missing 'hash' entry in circuit archive".to_string())?;
-        let reader_hash = crate::core::proto::reader::CircuitReader::new(
-            gf2,
-            crate::core::proto::FieldID::Gf2_128,
-        );
+        let reader_hash =
+            crate::core::proto::v1::CircuitReader::new(gf2, crate::core::proto::FieldID::Gf2_128);
         let (c_hash, _) = reader_hash.from_bytes(&hash_entry.payload, false)?;
 
         Ok((c_sig, c_hash))
     } else {
         let reader1 =
-            crate::core::proto::reader::CircuitReader::new(p256, crate::core::proto::FieldID::P256);
+            crate::core::proto::v1::CircuitReader::new(p256, crate::core::proto::FieldID::P256);
         let c_sig = reader1.from_stream(&mut buf_stream, false)?;
 
-        let reader2 = crate::core::proto::reader::CircuitReader::new(
-            gf2,
-            crate::core::proto::FieldID::Gf2_128,
-        );
+        let reader2 =
+            crate::core::proto::v1::CircuitReader::new(gf2, crate::core::proto::FieldID::Gf2_128);
         let c_hash = reader2.from_stream(&mut buf_stream, false)?;
 
         Ok((c_sig, c_hash))

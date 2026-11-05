@@ -53,7 +53,7 @@ struct Bindings<const W: usize, F: InterpolationField<W>> {
 pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
@@ -81,7 +81,7 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
 pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling<W>>(
     mut in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::circuit::Circuit<F>,
+    circuit: &crate::core::proto::v1::Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {

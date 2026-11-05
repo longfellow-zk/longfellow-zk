@@ -17,7 +17,7 @@
 //! The Merkle module owns tree construction and path verification. These two
 //! hash functions supply Polygero's context and distinct leaf/node tags. A leaf
 //! binds its column index, salt and every W row in order. Hashing always uses
-//! full-field canonical bytes, independently of subfield compression on the wire.
+//! canonical full-width field bytes.
 use sha2::{Digest as _, Sha256};
 
 use crate::{

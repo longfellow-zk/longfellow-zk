@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::ElementOf;
-use crate::runtime::algebra::field::RuntimeField;
-
-use crate::compile::eval::{Circuit, Layer};
+use crate::{
+    compile::eval::{Circuit, Layer},
+    core::{
+        algebra::ElementOf,
+        proto::v2::{classify_constants, CoefficientClass},
+    },
+    runtime::algebra::field::RuntimeField,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum EvalError {
@@ -25,8 +29,8 @@ pub enum EvalError {
     ExcessiveInput,
 }
 
-pub fn initial_inputs<const W: usize, F: RuntimeField<W>>(f: &F) -> Vec<ElementOf<F>> {
-    vec![f.one()]
+pub fn initial_inputs<const W: usize, F: RuntimeField<W>>(_f: &F) -> Vec<ElementOf<F>> {
+    Vec::new()
 }
 
 pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
@@ -44,7 +48,11 @@ pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
     }
 }
 
-pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algebra::SerializableField>(
+pub fn eval_circuit<
+    'a,
+    const W: usize,
+    FR: RuntimeField<W> + crate::core::algebra::SerializableField,
+>(
     fr: &FR,
     circuit: &Circuit<FR>,
     symbols: &'a crate::compile::eval::CircuitDebugSymbols,
@@ -67,6 +75,7 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
     let mut current_v = vin;
     let mut fates = std::collections::HashMap::new();
     let mut overall_failed = false;
+    let classes = classify_constants(fr, &raw.constants);
 
     for l in (0..raw.layers.len()).rev() {
         let noutput = if l == 0 {
@@ -75,7 +84,14 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
             raw.layers[l - 1].nw()
         };
 
-        let (v, failed_wires) = eval_layer(fr, noutput, &raw.layers[l], &raw.constants, &current_v);
+        let (v, failed_wires) = eval_layer(
+            fr,
+            noutput,
+            &raw.layers[l],
+            &raw.constants,
+            &classes,
+            &current_v,
+        );
         current_v = v;
         if !failed_wires.is_empty() {
             overall_failed = true;
@@ -103,9 +119,11 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
             let status = if is_ok {
                 crate::compile::logic::scope::AssertionStatus::Passed
             } else {
-                crate::compile::logic::scope::AssertionStatus::Failed("circuit output non-zero".to_string())
+                crate::compile::logic::scope::AssertionStatus::Failed(
+                    "circuit output non-zero".to_string(),
+                )
             };
-            fates.insert(id, status);
+            fates.entry(id).or_insert(status);
         }
     }
 
@@ -123,43 +141,57 @@ pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + crate::core::algeb
 fn eval_layer<FR: RuntimeField<W> + crate::core::algebra::SerializableField, const W: usize>(
     fr: &FR,
     noutput: usize,
-    layer: &Layer<FR>,
+    layer: &Layer,
     constants: &[ElementOf<FR>],
+    classes: &[CoefficientClass],
     vin: &[ElementOf<FR>],
 ) -> (Vec<ElementOf<FR>>, Vec<usize>) {
     let mut vout = vec![fr.zero(); noutput];
     let mut failed_wires = Vec::new();
 
-    layer.for_each_term(
-        constants,
-        #[inline(always)]
-        |term| {
-            let y = fr.mulf(&vin[term.h0 as usize], &vin[term.h1 as usize]);
-
-            if fr.is_zero(&term.k) {
-                if !fr.is_zero(&y) {
-                    failed_wires.push(term.g as usize);
-                }
-            } else {
-                fr.fma(&mut vout[term.g as usize], &term.k, &y);
+    layer.quadratic.for_each(|t| {
+        let product = fr.mulf(&vin[t.l as usize], &vin[t.r as usize]);
+        if classes[t.k as usize] == CoefficientClass::Zero {
+            if !fr.is_zero(&product) {
+                failed_wires.push(t.g as usize)
             }
-        },
-    );
-
+        } else {
+            fr.fma(&mut vout[t.g as usize], &constants[t.k as usize], &product)
+        }
+    });
+    layer.linear.for_each(|t| {
+        if classes[t.k as usize] == CoefficientClass::Zero {
+            if !fr.is_zero(&vin[t.l as usize]) {
+                failed_wires.push(t.g as usize)
+            }
+        } else {
+            fr.fma(
+                &mut vout[t.g as usize],
+                &constants[t.k as usize],
+                &vin[t.l as usize],
+            )
+        }
+    });
+    layer
+        .constant
+        .for_each(|t| fr.add(&mut vout[t.g as usize], &constants[t.k as usize]));
     failed_wires.sort_unstable();
     failed_wires.dedup();
     (vout, failed_wires)
 }
 
-fn convert_circuit<FC: crate::core::algebra::SerializableField, FR: crate::core::algebra::SerializableField>(
+fn convert_circuit<
+    FC: crate::core::algebra::SerializableField,
+    FR: crate::core::algebra::SerializableField,
+>(
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
     field_id: crate::core::proto::FieldID,
 ) -> Result<Circuit<FR>, String> {
-    let writer = crate::core::proto::writer::CircuitWriter::new(fc, field_id);
+    let writer = crate::core::proto::v2::CircuitWriter::new(fc, field_id);
     let bytes = writer.to_bytes(circuit);
-    let reader = crate::core::proto::reader::CircuitReader::new(fr, field_id);
+    let reader = crate::core::proto::v2::CircuitReader::new(fr, field_id);
     let (converted_circuit, remaining) = reader.from_bytes(&bytes, true)?;
     if !remaining.is_empty() {
         return Err("Remaining bytes after deserialization".to_string());

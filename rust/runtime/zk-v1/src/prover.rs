@@ -21,8 +21,8 @@
 //! The two public phases preserve the legacy transcript and proof layout.
 
 use crate::runtime::{
-    algebra::{ElementOf, RangeInterpolatorFactory, Subfield, ZkField},
-    ligero::{param::LigeroQuadraticConstraint, LigeroProver},
+    algebra::{ElementOf, RangeInterpolatorFactory, SubfieldV1, ZkField},
+    ligero_v1::{param::LigeroQuadraticConstraint, LigeroProver},
     random::{RandomEngine, Transcript},
     sumcheck_v1::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck},
     zk_v1::{common::ZkContext, ZkProof},
@@ -30,8 +30,8 @@ use crate::runtime::{
 
 /// A trusted legacy circuit and the configuration for its Ligero commitment.
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
-    pub circuit: crate::core::proto::circuit::Circuit<F>,
-    pub config: crate::runtime::ligero::param::LigeroConfig,
+    pub circuit: crate::core::proto::v1::Circuit<F>,
+    pub config: crate::runtime::ligero_v1::param::LigeroConfig,
 }
 
 /// Private state retained between commitment and proof generation.
@@ -40,13 +40,13 @@ pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
     pad: SumcheckProof<W, F>,
     lqc: Vec<LigeroQuadraticConstraint>,
     lp: LigeroProver<W, F>,
-    pub com: crate::runtime::proto::ligero::LigeroCommitment,
+    pub com: crate::runtime::proto::ligero_v1::LigeroCommitment,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     pub fn new(
-        circuit: crate::core::proto::circuit::Circuit<F>,
-        config: crate::runtime::ligero::param::LigeroConfig,
+        circuit: crate::core::proto::v1::Circuit<F>,
+        config: crate::runtime::ligero_v1::param::LigeroConfig,
     ) -> Self {
         Self { circuit, config }
     }
@@ -55,7 +55,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     pub fn commit<
         IF: RangeInterpolatorFactory<W, F>,
         R: RandomEngine,
-        SF: Subfield<E = ElementOf<F>>,
+        SF: SubfieldV1<E = ElementOf<F>>,
     >(
         &self,
         witness_only: &[ElementOf<F>],
@@ -66,7 +66,10 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     ) -> (
         ZkCommitResult<W, F>,
         crate::runtime::proto::zk_v1::ZkProofGeometry,
-    ) {
+    )
+    where
+        IF::Plan: crate::runtime::algebra::subfield_v1::InterpolationPlanV1<W, F>,
+    {
         assert!(
             self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
             "npublic_input ({}) exceeds ninput ({})",
@@ -95,14 +98,14 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         let lqc =
             crate::runtime::zk_v1::constraint_compiler::product_constraints(n_witness, &sc_geom);
 
-        let ligero_param = crate::runtime::ligero::param::LigeroParam::new(
+        let ligero_param = crate::runtime::ligero_v1::param::LigeroParam::new(
             witness.len(),
             self.circuit.raw.layers.len(),
             self.config,
             ctx.make_interpolator,
         );
 
-        let (lp, com) = crate::runtime::ligero::prover::LigeroProver::commit(
+        let (lp, com) = crate::runtime::ligero_v1::prover::LigeroProver::commit(
             subfield_boundary,
             &witness,
             ligero_param,

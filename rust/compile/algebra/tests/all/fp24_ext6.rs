@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::fp24_ext6::CompileFp24Ext6;
-use crate::core::algebra::fp24::Q;
-use crate::core::algebra::fp24_ext6::BETA;
-use crate::core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions};
-use crate::runtime::algebra::fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield};
-use crate::runtime::algebra::{field::RuntimeSerializableField, Subfield};
+use crate::{
+    compile::algebra::fp24_ext6::CompileFp24Ext6,
+    core::algebra::{
+        fp24::Q, fp24_ext6::BETA, AlgebraicField, SerializableField, SupportsU64Conversions,
+    },
+    runtime::algebra::{
+        field::RuntimeSerializableField,
+        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
+        SubfieldV1,
+    },
+};
 
 #[test]
 fn compile_and_runtime_fields_agree() {
@@ -81,7 +86,7 @@ fn inverses_and_serialization_are_canonical() {
 #[test]
 fn base_subfield_is_distinct_from_the_extension() {
     let runtime = RuntimeFp24Ext6::new();
-    let subfield = RuntimeFp24Subfield;
+    let subfield = RuntimeFp24SubfieldV1;
     let base = runtime.u64_to_element(1234);
     let extension = runtime.from_coefficients([1234, 1, 0, 0, 0, 0]);
 
@@ -99,7 +104,7 @@ fn base_subfield_is_distinct_from_the_extension() {
 fn compact_fp24_encodings_are_exact_and_canonical() {
     let compile = CompileFp24Ext6::new();
     let runtime = RuntimeFp24Ext6::new();
-    let subfield = RuntimeFp24Subfield;
+    let subfield = RuntimeFp24SubfieldV1;
     assert_eq!(compile.serialized_size_bytes(), 18);
     assert_eq!(runtime.serialized_size_bytes(), 18);
     assert_eq!(subfield.serialized_size_bytes(), 3);

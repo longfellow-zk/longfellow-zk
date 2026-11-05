@@ -17,16 +17,16 @@
 //! Fields must describe messages or metadata used by both prover and verifier.
 //! Private witness data and role-specific allocation sizes belong to their protocols.
 
-pub mod ligero;
+pub mod ligero_v1;
 pub mod merkle;
 pub mod polygero;
+pub mod subfield_v1;
 pub mod sumcheck_v1;
 pub mod sumcheck_v2;
 pub mod util;
 pub mod zk_v1;
 pub mod zk_v2;
 
-pub use ligero::{LigeroCommitment, LigeroGeometry, LigeroProof};
 pub use merkle::{Digest, MerkleNonce, MerkleProof, DIGEST_LEN, NONCE_LEN};
 
 #[cfg(test)]

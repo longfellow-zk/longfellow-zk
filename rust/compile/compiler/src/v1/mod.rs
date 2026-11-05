@@ -17,3 +17,13 @@
 mod scheduler;
 mod top;
 pub use top::compile;
+
+pub(crate) mod ir_to_quad;
+mod segment;
+pub use segment::{segment_circuit, segment_layer};
+
+#[cfg(test)]
+#[path = "../../tests/ir_to_quad_v1.rs"]
+mod tests_ir_to_quad;
+
+pub(crate) mod quad;

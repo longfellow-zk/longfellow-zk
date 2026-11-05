@@ -15,7 +15,7 @@
 //! Longfellow v2 public assignment encoding.
 
 use crate::{
-    core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
+    core::algebra::{AlgebraicField, Nat},
     mdoc::{
         proto::{config::K_ATTR_LEN_BITS, hash::constants::K_TIMESTAMP_LEN},
         runtime::v2::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
@@ -76,7 +76,6 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     expected_doc_type: &[u8],
 ) -> Vec<Gf2_128> {
     let mut builder = AssignmentBuilder::new(gf2);
-    builder.push_elt(&gf2.one());
     for i in 0..K_TIMESTAMP_LEN {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
     }
@@ -110,7 +109,6 @@ pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
     av: u128,
 ) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);
-    builder.push_elt(&p256.u64_to_element(1));
     builder.push_elt(&issuer_pk.0);
     builder.push_elt(&issuer_pk.1);
 

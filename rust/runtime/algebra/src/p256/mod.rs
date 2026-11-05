@@ -15,7 +15,7 @@
 use crate::runtime::algebra::{
     field::{RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension},
     fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
-    Subfield,
+    SubfieldV1,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -107,18 +107,18 @@ impl SupportsFFT<4> for crate::runtime::algebra::fp2::Fp2Field<'_, 4, P256Field>
     }
 }
 
-pub struct P256Subfield<'a> {
+pub struct P256SubfieldV1<'a> {
     field: &'a P256Field,
 }
 
-impl<'a> P256Subfield<'a> {
+impl<'a> P256SubfieldV1<'a> {
     #[must_use]
     pub fn new(field: &'a P256Field) -> Self {
         Self { field }
     }
 }
 
-impl Subfield for P256Subfield<'_> {
+impl SubfieldV1 for P256SubfieldV1<'_> {
     type E = P256Element;
 
     #[inline]

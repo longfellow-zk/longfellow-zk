@@ -23,59 +23,71 @@ use crate::{
         },
         logic::AssertionScope,
     },
-    core::proto::circuit::{Circuit, CircuitGeometry},
+    core::proto::CircuitGeometry,
 };
 
-/// Compile with constant-aware output-major term order.
-pub fn compile<F, Build>(
+/// Compile directly into the concrete v2 streams, with no One input.
+/// The shared source API numbers inputs from one and includes its reserved
+/// position in the public-input boundary; native circuit indices start at zero.
+pub fn compile_v2<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    Circuit<F>,
+    crate::core::proto::v2::Circuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
 where
-    F: CompileField + crate::core::algebra::SerializableField,
-    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
+    F: CompileField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize),
+{
+    let (nodes, assertions, npublic, tracker) = lower(f, build);
+    let (circuit, info, symbols) =
+        super::scheduler::schedule(f, nodes, &assertions, npublic, tracker);
+    assert!(info.ninput > 0);
+    assert!(info.nterms > 0);
+    (circuit, info, symbols)
+}
+
+fn lower<F, Build>(
+    f: &F,
+    build: Build,
+) -> (
+    super::terms::CircuitGraph<F>,
+    Vec<(usize, crate::compile::logic::scope::AssertionId)>,
+    usize,
+    AssertionScope,
+)
+where
+    F: CompileField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize),
 {
     let source_tracker = AssertionScope::new();
     // Each rewrite owns its destination arena. End the source arena's scope
     // as soon as the next representation is complete; only owned quads survive.
-    let (quad_circuit, quad_asserts, npublic_input, subfield_boundary) = {
+    let (quad_circuit, quad_asserts, npublic_input) = {
         let copy_arena = CompilerArena::new();
-        let (copied, npublic_input, subfield_boundary) = {
+        let (copied, npublic_input) = {
             let simplified_arena = CompilerArena::new();
-            let (simplified, npublic_input, subfield_boundary) = {
+            let (simplified, npublic_input) = {
                 let source_arena = CompilerArena::new();
                 let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker);
-                let (assertions, npublic_input, subfield_boundary) = build(source_logic);
+                let (assertions, npublic_input) = build(source_logic);
                 let simplified = crate::compile::compiler::assertion::rewrite(
                     &simplified_arena,
                     f,
                     assertions.items,
                     &source_tracker,
                 );
-                (simplified, npublic_input, subfield_boundary)
+                (simplified, npublic_input)
             };
             let copied = crate::compile::compiler::copy::rewrite(&copy_arena, f, simplified);
-            (copied, npublic_input, subfield_boundary)
+            (copied, npublic_input)
         };
         let (quad_circuit, quad_asserts) =
-            crate::compile::compiler::ir_to_quad::rewrite(&copy_arena, f, copied, &source_tracker);
-        (quad_circuit, quad_asserts, npublic_input, subfield_boundary)
+            super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker);
+        (quad_circuit, quad_asserts, npublic_input)
     };
 
-    let (circuit, info, symbols) = super::scheduler::schedule(
-        f,
-        quad_circuit,
-        &quad_asserts,
-        npublic_input,
-        subfield_boundary,
-        source_tracker,
-    );
-
-    assert!(info.ninput > 0);
-    assert!(info.nterms > 0);
-    (circuit, info, symbols)
+    (quad_circuit, quad_asserts, npublic_input, source_tracker)
 }

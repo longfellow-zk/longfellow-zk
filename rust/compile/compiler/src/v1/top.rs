@@ -23,7 +23,7 @@ use crate::{
         },
         logic::AssertionScope,
     },
-    core::proto::circuit::{Circuit, CircuitGeometry},
+    core::proto::v1::{Circuit, CircuitGeometry},
 };
 
 /// Compile with the historical Morton order.
@@ -59,8 +59,12 @@ where
     drop(arena1);
 
     // Pass 3: ir_to_quad rewrite into owned QuadCircuit representation
-    let (quad_circuit, quad_asserts) =
-        crate::compile::compiler::ir_to_quad::rewrite(&arena2, f, copy_propagated, &source_tracker);
+    let (quad_circuit, quad_asserts) = crate::compile::compiler::v1::ir_to_quad::rewrite(
+        &arena2,
+        f,
+        copy_propagated,
+        &source_tracker,
+    );
 
     // Quad nodes are owned; release the expression arena before scheduling.
     drop(arena2);
