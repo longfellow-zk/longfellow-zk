@@ -289,7 +289,6 @@ fn q256_zk_comparison() {
     let sf = FullField::<4, _>(&f);
     exercise(&f, &d, &sf);
 }
-#[cfg(feature = "experimental")]
 #[test]
 fn extension_zk_comparison() {
     use crate::runtime::algebra::{
@@ -319,15 +318,6 @@ fn extension_zk_comparison() {
         (992, 26, 3968, 131)
     );
     assert!(select(|_| false).is_none());
-    let select_mldsa = |filter: fn(PolygeroConfig) -> bool| {
-        crate::compile::polygero::tune_mldsa_128(nw, &products, subfield_boundary, |config| {
-            filter(config) && config.can_interpolate(&CrtInterpolatorFactory)
-        })
-    };
-    let mldsa = select_mldsa(|p| p.k == 992).unwrap();
-    assert_eq!((mldsa.k, mldsa.s, mldsa.n, mldsa.t), (992, 24, 3968, 128));
-    assert!(select_mldsa(|_| false).is_none());
-    assert!(select_mldsa(|p| p.k == 993).is_none());
     // A public resource filter can only restrict the certified family.
     assert!(select(|p| p.k == 993).is_none());
 }

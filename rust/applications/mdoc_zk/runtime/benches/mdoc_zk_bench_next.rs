@@ -31,14 +31,29 @@ use longfellow_zk::{
     runtime::random::DeterministicRng,
 };
 fn main() {
+    let attributes = std::env::var("MDOC_BENCH_ATTRIBUTES")
+        .unwrap_or_else(|_| "2".into())
+        .parse::<usize>()
+        .unwrap();
+    let samples = std::env::var("MDOC_BENCH_SAMPLES")
+        .unwrap_or_else(|_| "8".into())
+        .parse::<usize>()
+        .unwrap();
+    assert!((1..=4).contains(&attributes));
+    assert!(
+        samples >= 2,
+        "one warmup and at least one measured sample required"
+    );
     let data = &longfellow_zk::mdoc::testcases::vectors::TEST_DATA;
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
     let attrs: Vec<_> = parsed
         .attrs
         .iter()
-        .take(2)
+        .cycle()
+        .take(attributes)
         .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
         .collect();
+    assert_eq!(attrs.len(), attributes);
     let pkx = format!(
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
@@ -58,68 +73,94 @@ fn main() {
         offline.elapsed().as_secs_f64() * 1000.0
     );
     let geometry = report_profiles(&circuits, &spec);
-    memory::reset_peak();
-    let prover_baseline = memory::get_current_allocated();
-    let prover_start = Instant::now();
-    let proof = run_mdoc_prover_inner(
-        &spec,
-        &circuits,
-        data.mdoc,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &mut DeterministicRng::new(42),
-    )
-    .unwrap();
-    let prover = prover_start.elapsed();
-    let prover_peak = memory::get_peak_allocated().saturating_sub(prover_baseline);
-    memory::reset_peak();
-    let verifier_baseline = memory::get_current_allocated();
-    let verifier_start = Instant::now();
-    run_mdoc_verifier_inner(
-        &spec,
-        &circuits,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &proof,
-    )
-    .unwrap();
-    let verifier = verifier_start.elapsed();
-    let verifier_peak = memory::get_peak_allocated().saturating_sub(verifier_baseline);
-    eprintln!(
+    let mut prover_times = Vec::new();
+    let mut verifier_times = Vec::new();
+    println!("attributes,sample,prover_ms,verifier_ms,proof_bytes,prover_heap,verifier_heap");
+    for sample in 0..samples {
+        memory::reset_peak();
+        let prover_baseline = memory::get_current_allocated();
+        let prover_start = Instant::now();
+        let proof = run_mdoc_prover_inner(
+            &spec,
+            &circuits,
+            data.mdoc,
+            &pkx,
+            &pky,
+            data.transcript,
+            &attrs,
+            now,
+            "org.iso.18013.5.1.mDL",
+            &mut DeterministicRng::new(42),
+        )
+        .unwrap();
+        let prover = prover_start.elapsed();
+        let prover_peak = memory::get_peak_allocated().saturating_sub(prover_baseline);
+        memory::reset_peak();
+        let verifier_baseline = memory::get_current_allocated();
+        let verifier_start = Instant::now();
+        run_mdoc_verifier_inner(
+            &spec,
+            &circuits,
+            &pkx,
+            &pky,
+            data.transcript,
+            &attrs,
+            now,
+            "org.iso.18013.5.1.mDL",
+            &proof,
+        )
+        .unwrap();
+        let verifier = verifier_start.elapsed();
+        let verifier_peak = memory::get_peak_allocated().saturating_sub(verifier_baseline);
+        let pm = prover.as_secs_f64() * 1000.0;
+        let vm = verifier.as_secs_f64() * 1000.0;
+        println!(
+            "{attributes},{sample},{pm:.6},{vm:.6},{},{prover_peak},{verifier_peak}",
+            proof.len()
+        );
+        if sample > 0 {
+            prover_times.push(pm);
+            verifier_times.push(vm);
+        }
+        if sample + 1 != samples {
+            continue;
+        }
+        eprintln!(
         "Longfellow v2 (circuit v8) end to end: prover={:.3} ms, verifier={:.3} ms, proof={} bytes",
         prover.as_secs_f64() * 1000.0,
         verifier.as_secs_f64() * 1000.0,
         proof.len()
     );
-    report_proof_sizes(&proof, &geometry);
-    if cfg!(feature = "bench-memory") {
-        eprintln!(
+        report_proof_sizes(&proof, &geometry);
+        if cfg!(feature = "bench-memory") {
+            eprintln!(
             "  End-to-end additional peak heap: prover={prover_peak}, verifier={verifier_peak} bytes"
         );
+        }
+        let mut bad = proof.clone();
+        let last = bad.len() - 1;
+        bad[last] ^= 1;
+        assert!(run_mdoc_verifier_inner(
+            &spec,
+            &circuits,
+            &pkx,
+            &pky,
+            data.transcript,
+            &attrs,
+            now,
+            "org.iso.18013.5.1.mDL",
+            &bad
+        )
+        .is_err());
     }
-    let mut bad = proof.clone();
-    let last = bad.len() - 1;
-    bad[last] ^= 1;
-    assert!(run_mdoc_verifier_inner(
-        &spec,
-        &circuits,
-        &pkx,
-        &pky,
-        data.transcript,
-        &attrs,
-        now,
-        "org.iso.18013.5.1.mDL",
-        &bad
-    )
-    .is_err());
+    prover_times.sort_by(f64::total_cmp);
+    verifier_times.sort_by(f64::total_cmp);
+    let median = |values: &[f64]| (values[(values.len() - 1) / 2] + values[values.len() / 2]) / 2.0;
+    eprintln!(
+        "Median after warmup: prover={:.6} ms verifier={:.6} ms",
+        median(&prover_times),
+        median(&verifier_times)
+    );
 }
 
 /// Prepare the spec/archive pair before online timing; decoded archive storage stays here.
@@ -170,7 +211,35 @@ fn report_profiles(
         extension.omega(),
         extension.omega_order(),
     );
+    let baseline = memory::get_current_allocated();
     let (signature, hash) = runtime::decompress_circuits(circuits, &prime, &binary, false).unwrap();
+    if cfg!(feature = "bench-memory") {
+        eprintln!(
+            "Decoded circuit heap: {} bytes",
+            memory::get_current_allocated().saturating_sub(baseline)
+        );
+    }
+    eprintln!(
+        "Circuit archive: compressed={} raw={} bytes",
+        circuits.len(),
+        zstd::decode_all(circuits).unwrap().len()
+    );
+    fn report<F: longfellow_zk::core::algebra::SerializableField>(
+        name: &str,
+        c: &longfellow_zk::core::proto::circuit::Circuit<F>,
+    ) {
+        eprintln!(
+            "{name} circuit: inputs={} outputs={} layers={} rounds={} wires={} terms={}",
+            c.raw.ninput,
+            c.raw.noutput,
+            c.raw.layers.len(),
+            c.raw.layers.iter().map(|l| l.logw()).sum::<usize>(),
+            c.raw.layers.iter().map(|l| l.nw()).sum::<usize>() - c.raw.ninput + c.raw.noutput,
+            c.raw.layers.iter().map(|l| l.num_terms()).sum::<usize>()
+        );
+    }
+    report("Hash", &hash);
+    report("Signature", &signature);
     let hash_context = ZkContext {
         f: &binary,
         domain: &binary_domain,

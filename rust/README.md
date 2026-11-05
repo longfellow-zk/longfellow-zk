@@ -62,7 +62,8 @@ behavior, and proof encoding.
 
 **Longfellow v2 is still evolving and is not final.**
 It introduces projective sumcheck and replaces Ligero with nonrecursive
-Polygero. V1 remains supported alongside this development.
+Polygero. V1 remains supported. Fiat–Shamir challenges currently use a SHA-256
+transcript accumulator and an AES-256 pseudorandom generator.
 
 In particular, the Fiat–Shamir transcript will change to conform to the CFRG
 [Fiat-Shamir Transformation specification](https://datatracker.ietf.org/doc/draft-irtf-cfrg-fiat-shamir/),
@@ -88,7 +89,7 @@ Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
 remain subject to change. There are currently no frozen v2 mdoc circuits.
 
-## Performance
+## Security bounds
 
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
@@ -103,30 +104,27 @@ establish **127 bits** for the hash/signature profiles in the ideal-binding, uni
 Fiat–Shamir model. This component bound excludes the Merkle binding reduction
 and the rest of the Longfellow v2 composition.
 
-The following measurements cover a complete mdoc presentation disclosing
-two attributes, including both the hash and signature proofs.
+## Performance
 
-| Version | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
-|---|---|---:|---:|---:|---:|---:|
-| Longfellow v1 | v7 | 467 ms | 196 ms | 360,428 bytes | 104.1 MiB | 45.1 MiB |
-| Longfellow v2 | NEXT v8 | 269 ms | 131 ms | 213,204 bytes | 74.8 MiB | 38.3 MiB |
+Complete NEXT v8 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
+on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
+Times are medians of seven samples after one warmup; heap measurements use
+separate allocation-tracking runs. The four-slot case repeats the fixture's
+two disclosures.
 
-The experimental ML-DSA verifier circuits use v2/Polygero separately from
-the mdoc application. These runs are outside the 117-bit two-field theorem
-above.
-
-| Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
+| Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| ML-DSA-44 | 923 ms | 608 ms | 178,338 bytes | 114.8 MiB | 39.2 MiB |
-| ML-DSA-65 | 1,081 ms | 701 ms | 188,386 bytes | 121.9 MiB | 43.0 MiB |
+| 2 | 263.7 ms | 138.3 ms | 213,204 | 74.82 MiB | 38.29 MiB |
+| 4 | 288.9 ms | 147.9 ms | 214,610 | 83.31 MiB | 43.12 MiB |
 
-Measurements were rerun on 2026-10-26 using Rust 1.99.1 release builds
-with `target-cpu=native` on an AMD Ryzen 9 9950X with boost disabled.
-Benchmarks ran sequentially after builds and tests finished. The mdoc
-comparison uses compressed LFA2 archives. V1 timings are Criterion means
-from ten samples; v2 and ML-DSA timings are medians of three runs.
-The [run data](benches/results/2026-10-26.json) includes individual timings,
-exact heap counts, parameter profiles, and circuit/proof fingerprints.
+| Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
+|---|---:|---:|---:|
+| 2 | 770,782 | 183,465 | 2.53 MiB |
+| 4 | 803,703 | 186,421 | 2.64 MiB |
+
+Both cases use hash profile `(k,s,n,t)=(512,18,3584,87)` and signature profile
+`(416,15,2912,86)`. Each hash circuit has 20 layers; the signature has 21.
+The benchmark also reports sumcheck rounds, wires, and term counts.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -137,8 +135,6 @@ Online timings include circuit decoding, native input preparation,
 commitment, proof encoding or decoding, and cleanup. Inputs are already
 memory-resident. Offline circuit compilation and parameter selection are
 excluded.
-
-The comparison includes changes to both the circuit and the proof protocol.
 
 ## Architecture
 
@@ -221,9 +217,8 @@ NEXT currently denotes circuit version 8. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
 
-Freezing a circuit requires publishing its archive, complete specification,
-and compatibility fixtures. Frozen artifacts and parameters remain
-unchanged. Further circuit development requires advancing NEXT.
+Frozen artifacts and parameters are immutable. NEXT bundles store their
+matching circuit archive and complete parameter specification.
 
 Circuit archives are trusted inputs. The v2 loader supports optional
 circuit-ID recomputation through `enforce_circuit_id`.
@@ -240,14 +235,12 @@ compiler. The default features are `verifier`, `prover`, `compiler`, and
 | `prover` | Witness generation and runtime proving |
 | `compiler` | Symbolic construction, circuit compilation, and parameter selection |
 | `mdoc` | mdoc application and circuit-archive support |
-| `experimental` | Additional arithmetic and circuits under development |
 | `testonly` | Test fixtures and deterministic randomness; also enables both proof roles and the compiler |
-| `tooling` | Offline Rust tools, including compiler and experimental-arithmetic dependencies |
+| `tooling` | Offline Rust tools, including compiler and auxiliary-arithmetic dependencies |
 | `bench-memory` | Benchmark allocation tracking |
 
-V2 itself does not require `experimental`. Neither `experimental` nor
-`tooling` is enabled by default. The `tooling` feature does not enable
-proving or verification.
+The `tooling` feature is not enabled by default and does not enable proving or
+verification. Auxiliary extension arithmetic is available to tests and tooling.
 
 Feature gates are placed high in the module tree. The `cfg_compiler!`,
 `cfg_prover!`, `cfg_verifier!`, `cfg_prover_or_compiler!`, and
@@ -274,9 +267,6 @@ cargo build --release --no-default-features --features compiler,mdoc
 # Standard test suites.
 cargo test --release --features testonly
 
-# Include experimental components.
-cargo test --release --features testonly,experimental
-
 # Offline-tool tests without proof-role features.
 cargo test --no-default-features --features tooling --bin zk_tool
 ```
@@ -298,22 +288,24 @@ MDOC_BENCH_ATTRIBUTES=2 \
 
 # V2 with NEXT v8 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
-
-# Experimental ML-DSA-44 and ML-DSA-65, three runs per circuit.
-MLDSA_BENCH_REPEATS=3 \
-  cargo bench --bench mldsa_bench_v2 --features testonly,experimental
 ```
 
 The NEXT benchmark can save a specification/archive bundle using
 `MDOC_BENCH_SAVE_ARCHIVE`, or load one using `MDOC_BENCH_ARCHIVE`.
 Loading a bundle preserves its saved parameters.
-Repeat the NEXT run three times for the reported median; subsequent runs
-can load the bundle saved by the first run.
+Set `MDOC_BENCH_ATTRIBUTES` to 2 or 4 and `MDOC_BENCH_SAMPLES` to the desired
+sample count (default 8, including one discarded warmup). The test fixture has
+two attributes; the four-slot workload repeats those disclosures. Subsequent
+runs can load the bundle saved by the first run.
 
 Timing and allocation tracking run separately. Add `bench-memory` for
 memory measurements. It reports peak additional Rust heap, excluding
 already-resident input buffers; it does not measure process RSS.
 Keep allocation tracking disabled for timing comparisons.
+
+Store benchmark archives and output outside the checkout, for example under
+`/tmp/longfellow-bench/`. Raw results, logs, profiles, and caches are not committed;
+the summary above records the measured code configuration.
 
 ## Offline tools
 
@@ -334,20 +326,6 @@ Parameter certificates establish mathematical bounds under their stated
 assumptions; they do not certify the complete Rust implementation.
 
 The tools are written in Rust. Python is not required.
-
-## Development conventions
-
-Keep compiler, prover, and verifier responsibilities explicit. Preserve
-v1 compatibility while developing v2.
-
-Tests belong outside production source files. Register new files in the
-top-level dependency checks.
-
-Before every commit, run:
-
-```sh
-cargo +nightly fmt
-```
 
 ## Known limitation
 

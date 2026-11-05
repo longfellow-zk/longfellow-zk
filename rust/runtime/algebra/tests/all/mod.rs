@@ -28,8 +28,6 @@ mod range_interpolation;
 mod rfft;
 mod subfield;
 
-#[cfg(feature = "experimental")]
 mod crt_interpolation;
 
-#[cfg(feature = "experimental")]
 mod fp24_ext6;

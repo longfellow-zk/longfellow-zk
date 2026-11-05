@@ -16,5 +16,4 @@ mod fp;
 mod gf2_128;
 mod interpolation;
 
-#[cfg(feature = "experimental")]
 mod fp24_ext6;

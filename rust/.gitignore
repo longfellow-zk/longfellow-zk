@@ -1,1 +1,4 @@
 Cargo.lock
+
+# Generated benchmark outputs stay local.
+/benches/results/

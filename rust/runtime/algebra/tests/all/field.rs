@@ -46,7 +46,6 @@ fn power_works_in_binary_prime_and_extension_fields() {
         &extension,
         extension.addf(&extension.one(), &extension.one()),
     );
-    #[cfg(feature = "experimental")]
     {
         let sextic = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
         check(&sextic, sextic.addf(&sextic.one(), &sextic.one()));

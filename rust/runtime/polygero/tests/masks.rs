@@ -339,7 +339,6 @@ fn binary_compact_masks_codec_and_privacy() {
         .any(|value| !narrow.contains(value)));
 }
 
-#[cfg(feature = "experimental")]
 #[test]
 fn extension_compact_masks_codec_and_privacy() {
     use crate::runtime::algebra::{

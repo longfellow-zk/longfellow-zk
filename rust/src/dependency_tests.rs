@@ -375,7 +375,6 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("circuits::routing", "circuits/routing/src"),
         ("circuits::sha256", "circuits/sha256/src"),
         ("circuits::sha256msg", "circuits/sha256msg/src"),
-        ("circuits::experimental", "circuits/experimental/src"),
         ("mdoc::proto", "applications/mdoc_zk/proto/src"),
         ("mdoc::circuits", "applications/mdoc_zk/circuits/src"),
         ("mdoc::compile", "applications/mdoc_zk/compile/src"),
@@ -692,10 +691,10 @@ fn test_v2_role_and_shared_module_boundaries() {
     }
 }
 
-/// Arithmetic and MLDSA keep compiler and runtime dependencies
+/// Arithmetic and proof protocols keep compiler and runtime dependencies
 /// in separate directories, regardless of which features enable the files.
 #[test]
-fn test_experimental_phase_boundaries() {
+fn test_phase_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for (path, forbidden) in [
         ("core/algebra/src/fp24.rs", "both"),
@@ -713,10 +712,6 @@ fn test_experimental_phase_boundaries() {
         ("compile/algebra/src/fp24_ext6.rs", "runtime"),
         ("compile/compiler/src/v1", "runtime"),
         ("compile/compiler/src/v2", "runtime"),
-        ("circuits/experimental/src/mldsa/params.rs", "both"),
-        ("circuits/experimental/src/mldsa/shake_layout.rs", "both"),
-        ("circuits/experimental/src/mldsa/runtime", "compile"),
-        ("circuits/experimental/src/mldsa/compile", "runtime"),
     ] {
         let checked_path = root.join(path);
         let mut files = Vec::new();
@@ -738,8 +733,7 @@ fn test_experimental_phase_boundaries() {
                     !deps
                         .iter()
                         .any(|dep| dep.starts_with(&format!("{phase}::")))
-                        && !production.contains(&format!("super::{phase}::"))
-                        && !production.contains(&format!("mldsa::{phase}::")),
+                        && !production.contains(&format!("super::{phase}::")),
                     "phase boundary violation in {}: {phase}",
                     file.display()
                 );

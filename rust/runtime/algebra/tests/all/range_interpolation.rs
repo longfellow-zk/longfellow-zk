@@ -304,7 +304,6 @@ fn scalar_range_interpolation() {
     invalid_ranges(&f, &factory, 2048);
 }
 
-#[cfg(feature = "experimental")]
 #[test]
 fn crt_range_interpolation() {
     use crate::runtime::algebra::{
@@ -422,7 +421,6 @@ fn interpolation_backend_points_are_distinct() {
     let other_binary = BinaryInterpolatorFactory::new(&binary_field, &other_subfield);
     assert_distinct_points(&binary_field, &other_binary, std::iter::once(0..256));
 
-    #[cfg(feature = "experimental")]
     {
         use crate::runtime::algebra::{
             fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,

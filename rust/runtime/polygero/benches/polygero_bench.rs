@@ -193,7 +193,7 @@ fn main() {
             30,
         );
     }
-    #[cfg(feature = "experimental")]
+    #[cfg(any(test, feature = "tooling"))]
     {
         use longfellow_zk::runtime::algebra::{
             fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,

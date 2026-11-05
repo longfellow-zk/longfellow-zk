@@ -641,7 +641,6 @@ fn test_range_capacity_includes_response_source() {
     ligero_test(&limited, &f, &sf, 300, 30, 18, 7, 256);
 }
 
-#[cfg(feature = "experimental")]
 #[test]
 fn test_ligero_sextic_subfield_matches_full_field_reference() {
     use crate::{

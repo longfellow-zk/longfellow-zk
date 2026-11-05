@@ -110,7 +110,7 @@ impl Block {
     }
 }
 
-/// Experimental range interpolation for the six-component MLDSA field.
+/// Range interpolation for a six-component prime-field extension.
 pub struct CrtInterpolationPlan {
     ranges: Ranges,
     weights: Vec<u32>,

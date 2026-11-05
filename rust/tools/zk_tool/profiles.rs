@@ -84,31 +84,6 @@ fn rational(value: &Value) -> Result<Q> {
     )?;
     Ok(Q::new(integer(&parts[0])?, denominator))
 }
-pub fn field_minimum(row: &Value) -> Result<BigInt> {
-    if row.get("field_min").is_some() {
-        integer(&row["field_min"])
-    } else {
-        Ok(pow2(128))
-    }
-}
-pub fn threshold(row: &Value) -> Result<Q> {
-    if row.get("field_min").is_none() {
-        return Ok(Q::new(BigInt::one(), pow2(130)));
-    }
-    let q = BigInt::from(longfellow_zk::core::algebra::fp24::Q)
-        .pow(longfellow_zk::core::algebra::fp24_ext6::EXTENSION_DEGREE as u32);
-    require(
-        field_minimum(row)? == q && small(row, "security_bits")? == 128,
-        "MLDSA field/security mismatch",
-    )?;
-    let theta = Q::new(BigInt::one(), pow2(128)).sub(&Q::new(2.into(), q));
-    require(
-        theta > Q::int(0) && rational(&row["threshold"])? == theta,
-        "MLDSA threshold must reserve both field terms",
-    )?;
-    Ok(theta)
-}
-
 /// Use the three-term recurrence, independently of the hypergeometric search.
 fn kernels(n: usize, w: usize, degree: usize) -> Vec<Vec<Q>> {
     let mut polynomials = vec![vec![Q::int(1)]];
@@ -210,7 +185,11 @@ fn verify_polynomial(row: &Value, n: usize, w: usize, lambda: usize, count: &Big
 
 /// Verify all finite hypotheses before accepting a manifest's list-size cap.
 pub fn check_hahn(row: &Value) -> Result<Profile> {
-    let theta = threshold(row)?;
+    require(
+        row.get("field_min").is_none(),
+        "field-specific profiles are unsupported",
+    )?;
+    let theta = Q::new(BigInt::one(), pow2(130));
     let (n, k, s, t) = (
         small(row, "n")?,
         small(row, "k")?,
@@ -249,13 +228,12 @@ pub fn check_hahn(row: &Value) -> Result<Profile> {
     }
     require(lambda < w && w <= n / 2, "invalid Hahn weight/overlap")?;
     require(
-        count > 1.into() && count <= field_minimum(row)? && u >= 1.into() && u <= count,
+        count > 1.into() && count <= pow2(128) && u >= 1.into() && u <= count,
         "invalid count/index",
     )?;
     verify_polynomial(row, n, w, lambda, &count)?;
-    let divisor = if row.get("field_min").is_some() { 1 } else { 4 };
     require(
-        choose(n, k + 2 * s + 1) * divisor <= field_minimum(row)?.pow(s as u32),
+        choose(n, k + 2 * s + 1) * 4 <= pow2(128).pow(s as u32),
         "rank budget failed",
     )?;
     let denominator = choose(n, t);
@@ -277,14 +255,13 @@ pub fn manifest() -> Result<Vec<Value>> {
         .ok_or("missing profiles")?
         .clone())
 }
-pub fn catalog(protocol: Protocol) -> (Vec<Profile>, BTreeSet<Profile>) {
-    let (queries, fixed, r7, r4, mldsa) = match protocol {
+pub fn catalog(protocol: Protocol) -> Vec<Profile> {
+    let (queries, fixed, r7, r4) = match protocol {
         Protocol::Polygero => (
             gero::TUNING_QUERIES,
             gero::TUNING_PROFILES,
             gero::RATE7_PROFILES,
             gero::RATE4_PROFILES,
-            gero::MLDSA_PROFILES,
         ),
     };
     let mut out: Vec<_> = fixed
@@ -304,12 +281,7 @@ pub fn catalog(protocol: Protocol) -> (Vec<Profile>, BTreeSet<Profile>) {
             t,
         }));
     }
-    let field_specific: BTreeSet<_> = mldsa
-        .iter()
-        .map(|&(k, s, t)| Profile { k, s, n: 4 * k, t })
-        .collect();
-    out.extend(field_specific.iter().copied());
-    (out, field_specific)
+    out
 }
 fn baseline_budget(p: Profile) -> bool {
     let theta = Q::new(1.into(), pow2(130));
@@ -321,7 +293,7 @@ fn baseline_budget(p: Profile) -> bool {
         && Q::new(choose(p.k + 2 * p.s - 1, p.t), denominator) <= theta.square()
 }
 pub fn audit(protocol: Protocol) -> Result<Audit> {
-    let (profiles, mldsa) = catalog(protocol);
+    let profiles = catalog(protocol);
     let rows = manifest()?;
     let mut hahn = BTreeMap::new();
     let names: BTreeSet<_> = rows
@@ -329,7 +301,7 @@ pub fn audit(protocol: Protocol) -> Result<Audit> {
         .map(|r| r["name"].as_str().unwrap_or(""))
         .collect();
     require(
-        names == BTreeSet::from(["Hash", "Signature", "Mldsa960", "Mldsa992", "Mldsa1024"]),
+        names == BTreeSet::from(["Hash", "Signature"]),
         "unexpected Hahn inventory",
     )?;
     for row in rows {
@@ -346,15 +318,9 @@ pub fn audit(protocol: Protocol) -> Result<Audit> {
             k > 2 * t && t > 0 && usize::max(k + 2 * s + 1, 2 * k + s) <= n,
             "profile geometry failed",
         )?;
-        let specific = mldsa.contains(&p);
-        let q = if specific {
-            field_minimum(hahn.get(&p).ok_or("missing field-specific certificate")?)?
-        } else {
-            pow2(128)
-        };
-        let divisor = if specific { 1 } else { 4 };
+        let q = pow2(128);
         require(
-            choose(n, k + 2 * s + 1) * divisor <= q.pow(s as u32),
+            choose(n, k + 2 * s + 1) * 4 <= q.pow(s as u32),
             "profile rank budget failed",
         )?;
         if !hahn.contains_key(&p) {
@@ -363,7 +329,7 @@ pub fn audit(protocol: Protocol) -> Result<Audit> {
         let rate_family = n == 4 * k || n == 7 * k;
         if rate_family {
             require(
-                (0..s).all(|j| choose(n, k + 2 * j + 1) * divisor > q.pow(j as u32)),
+                (0..s).all(|j| choose(n, k + 2 * j + 1) * 4 > q.pow(j as u32)),
                 "masking degree is not minimal",
             )?;
             if !hahn.contains_key(&p) {
@@ -383,8 +349,8 @@ mod tests {
     #[test]
     fn all_manifests_and_catalog() {
         let a = audit(Protocol::Polygero).unwrap();
-        assert_eq!(a.profiles.len(), 66);
-        assert_eq!(a.hahn.len(), 5);
+        assert_eq!(a.profiles.len(), 63);
+        assert_eq!(a.hahn.len(), 2);
     }
     #[test]
     fn fewer_openings_reject() {
@@ -404,17 +370,10 @@ mod tests {
         }
     }
     #[test]
-    fn both_field_terms_are_reserved() {
-        for r in manifest().unwrap() {
-            if r.get("field_min").is_some() {
-                assert_eq!(
-                    threshold(&r)
-                        .unwrap()
-                        .add(&Q::new(2.into(), field_minimum(&r).unwrap())),
-                    Q::new(1.into(), pow2(128))
-                );
-            }
-        }
+    fn field_specific_profiles_reject() {
+        let mut row = manifest().unwrap().remove(0);
+        row["field_min"] = serde_json::json!(17);
+        assert!(check_hahn(&row).is_err());
     }
     #[test]
     fn negative_weight_rejects() {

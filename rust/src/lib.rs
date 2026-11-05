@@ -188,17 +188,6 @@ pub mod circuits {
         #[path = "routing/src/lib.rs"]
         pub mod routing;
     }
-
-    #[cfg(any(
-        test,
-        feature = "testonly",
-        all(
-            feature = "experimental",
-            any(feature = "compiler", feature = "prover")
-        )
-    ))]
-    #[path = "experimental/src/lib.rs"]
-    pub mod experimental;
 }
 
 #[cfg(feature = "mdoc")]

@@ -131,7 +131,6 @@ fn round_constraints_match_polynomial_binary() {
     check_round_constraints(&f, |x| f.u128_to_element(x as u128));
 }
 
-#[cfg(feature = "experimental")]
 #[test]
 fn round_polynomial_and_constraints_extension() {
     let f = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();

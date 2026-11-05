@@ -25,7 +25,7 @@ pub use crate::core::algebra::{AlgebraicField, Curve, ElementOf};
 pub use field::{CompileBinaryField, CompileField};
 pub use nat::CompileNat;
 
-#[cfg(feature = "experimental")]
+#[cfg(any(test, feature = "tooling"))]
 pub mod fp24_ext6;
 
 #[cfg(test)]

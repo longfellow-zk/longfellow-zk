@@ -26,10 +26,8 @@ limb32 = ["force-32bit-limbs"]
 force-generic-arch = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
-# Opt-in arithmetic and circuits under development; never enabled by default.
-experimental = []
 # Offline audits and specification generation; never a proof-role dependency.
-tooling = ["compiler", "experimental", "dep:serde_json"]
+tooling = ["compiler", "dep:serde_json"]
 
 [dependencies]
 aes = "0.8.4"
@@ -117,13 +115,7 @@ required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 name = "fp24_benchmark"
 path = "runtime/algebra/benches/fp24_benchmark.rs"
 harness = false
-required-features = ["experimental"]
-
-[[bench]]
-name = "mldsa_bench_v2"
-path = "circuits/experimental/benches/mldsa_bench_v2.rs"
-harness = false
-required-features = ["experimental", "testonly"]
+required-features = ["tooling"]
 
 [[bench]]
 name = "polygero_bench"

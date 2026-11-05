@@ -234,7 +234,7 @@ pub fn certify(args: &Args) -> Result<()> {
     }) {
         compile(&cache, file, &gero)?;
     }
-    for name in ["Hash", "Signature", "Mldsa992", "Mldsa1024", "Mldsa960"] {
+    for name in ["Hash", "Signature"] {
         compile(
             &cache,
             Path::new(&format!("RuntimeHahn/{name}.lean")),
@@ -242,7 +242,7 @@ pub fn certify(args: &Args) -> Result<()> {
         )?;
     }
     compile(&cache, Path::new("PolygeroRustHahn.lean"), &gero)?;
-    let status = "Lean checked: five packing bounds, the concrete FS bridge and axiom audits";
+    let status = "Lean checked: two packing bounds, the concrete FS bridge and axiom audits";
     cache::write_json(
         &cache.join("build-state.json"),
         &json!({"status":status,"source_sha256":hashes,"manifest_sha256":cache::digest(&root().join("tools/parameters/hahn/profiles.json"))?}),
@@ -290,12 +290,7 @@ fn numeric_source(
         let label = p.label();
         if let Some(row) = audit.hahn.get(&p) {
             let name = row["name"].as_str().ok_or("missing manifest name")?;
-            let budget = if row.get("field_min").is_some() {
-                "mldsa128"
-            } else {
-                "universal"
-            };
-            writeln!(&mut body,"def profile_{label} : {namespace}.RustHahnProfiles.Profile {n} {k} {s} {t} .{budget} := {namespace}.RustHahnProfiles.{name}.profile")?;
+            writeln!(&mut body,"def profile_{label} : {namespace}.RustHahnProfiles.Profile {n} {k} {s} {t} .universal := {namespace}.RustHahnProfiles.{name}.profile")?;
         } else {
             let names = choices(p)
                 .iter()

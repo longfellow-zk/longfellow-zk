@@ -62,7 +62,7 @@ pub fn tune_large_field(
 
 /// Tune at a fixed ordinary code rate k/n, with independently optimized
 /// masking degree and opening count. The audited families support inverse
-/// rates 4 (MLDSA) and 7 (v8), matching their Ligero profiles. Other rates
+/// rates 4 and 7 (v8), matching their Ligero profiles. Other rates
 /// return None.
 /// The field-size and certification limits of `tune_large_field` apply.
 pub fn tune_large_field_at_rate(
@@ -91,29 +91,6 @@ pub fn tune_large_field_at_rate(
         subfield_boundary,
         field_bytes,
         subfield_bytes,
-        accept,
-    )
-}
-
-/// Select profiles for MLDSA's concrete sextic field, q = 8,380,417^6.
-/// These profiles must not be used with a different field.
-/// The checked coefficient, including rank and batching errors, is at most 2^-128.
-#[cfg(feature = "experimental")]
-pub fn tune_mldsa_128(
-    nw: usize,
-    products: &[PolygeroProductConstraint],
-    subfield_boundary: usize,
-    accept: impl Fn(PolygeroConfig) -> bool,
-) -> Option<PolygeroConfig> {
-    tune_profiles(
-        MLDSA_PROFILES
-            .iter()
-            .map(|&(k, s, t)| PolygeroConfig { k, s, n: 4 * k, t }),
-        nw,
-        products,
-        subfield_boundary,
-        crate::core::algebra::fp24_ext6::SERIALIZED_SIZE,
-        crate::core::algebra::fp24_ext6::BASE_SERIALIZED_SIZE,
         accept,
     )
 }

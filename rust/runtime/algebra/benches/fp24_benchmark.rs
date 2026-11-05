@@ -169,7 +169,7 @@ fn main() {
     let crt = crt_start.elapsed() / 20;
 
     eprintln!(
-        "ML-DSA algebra benchmark: FFT Fp24/8192={fp24:?}; FFT Fp24_6/8192={fp24_6:?}; CRT RS(950,5699)={crt:?}"
+        "Prime-field extension algebra benchmark: FFT Fp24/8192={fp24:?}; FFT Fp24_6/8192={fp24_6:?}; CRT RS(950,5699)={crt:?}"
     );
     std::hint::black_box((base, extension, source));
 }

@@ -45,14 +45,14 @@ use crate::core::algebra::{AlgebraicField, SupportsU64Conversions};
 
 mod arithmetic;
 mod binary;
-#[cfg(feature = "experimental")]
+#[cfg(any(test, feature = "tooling"))]
 mod crt;
-#[cfg(feature = "experimental")]
+#[cfg(any(test, feature = "tooling"))]
 mod crt_fft;
 mod quadratic_extension_fft;
 mod scalar;
 pub use binary::BinaryInterpolatorFactory;
-#[cfg(feature = "experimental")]
+#[cfg(any(test, feature = "tooling"))]
 pub use crt::CrtInterpolatorFactory;
 pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
 pub use scalar::ScalarInterpolatorFactory;

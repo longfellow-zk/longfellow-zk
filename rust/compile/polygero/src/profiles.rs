@@ -66,7 +66,7 @@ pub const RATE7_PROFILES: &[(usize, usize, usize)] = &[
     (1536, 52, 95),
 ];
 
-// The MLDSA Ligero profiles use ordinary code rate 1/4. As above,
+// Additional profiles at ordinary code rate 1/4. As above,
 // Minimize s for the universal rank certificate; use checked Hahn counts
 // where available, and second-moment counts for the remaining widths.
 pub const RATE4_PROFILES: &[(usize, usize, usize)] = &[
@@ -96,7 +96,3 @@ pub const RATE4_PROFILES: &[(usize, usize, usize)] = &[
     (1792, 47, 133),
     (2048, 54, 133),
 ];
-
-#[cfg(feature = "experimental")]
-pub const MLDSA_PROFILES: &[(usize, usize, usize)] =
-    &[(960, 24, 128), (992, 24, 128), (1024, 25, 128)];

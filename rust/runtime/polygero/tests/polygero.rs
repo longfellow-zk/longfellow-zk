@@ -560,7 +560,6 @@ fn q256_scalar_reference_and_failures() {
     let d = ScalarInterpolatorFactory::new(&f, 128);
     exercise(&f, &d);
 }
-#[cfg(feature = "experimental")]
 #[test]
 fn extension_crt_reference_and_failures() {
     use crate::runtime::algebra::{

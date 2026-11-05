@@ -66,7 +66,6 @@ fn binding_matches_monomial_weights_binary() {
     check_binding(&f, |x| f.u128_to_element(x as u128));
 }
 
-#[cfg(feature = "experimental")]
 #[test]
 fn binding_matches_monomial_weights_extension() {
     let f = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();

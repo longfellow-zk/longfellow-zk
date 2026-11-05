@@ -121,7 +121,7 @@ fn all_backends(c: &mut Criterion) {
         let values: Vec<_> = (0..32).map(|i| f.u64_to_element(i * i + 1)).collect();
         benchmark(c, "range/scalar", &factory, 3..35, 128..256, &values);
     }
-    #[cfg(feature = "experimental")]
+    #[cfg(any(test, feature = "tooling"))]
     {
         use longfellow_zk::runtime::algebra::{
             fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
@@ -133,12 +133,12 @@ fn all_backends(c: &mut Criterion) {
         let values: Vec<_> = (0..k)
             .map(|i| f.from_coefficients(std::array::from_fn(|j| (i * i + 17 * j + 1) as u32)))
             .collect();
-        benchmark_ranges(c, "range/crt-mldsa", &factory, k, 992..4960, &values);
+        benchmark_ranges(c, "range/crt-sextic", &factory, k, 992..4960, &values);
         let base_values: Vec<_> = (0..k)
             .map(|i| f.u64_to_element((i * i + 1) as u64))
             .collect();
         let plan = factory.make_range(0..k, 992..4960);
-        let mut group = c.benchmark_group("range/crt-mldsa/base-subfield");
+        let mut group = c.benchmark_group("range/crt-sextic/base-subfield");
         group.bench_function("apply", |b| {
             b.iter(|| plan.apply_subfield(black_box(&base_values), &RuntimeFp24Subfield))
         });

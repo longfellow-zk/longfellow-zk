@@ -116,7 +116,7 @@ fn rate_tuning_matches_ligero_and_reoptimizes_openings() {
 }
 
 #[test]
-fn mldsa_rate_tuning_matches_ligero_and_respects_capacity() {
+fn rate_four_tuning_respects_capacity() {
     let products = [PolygeroProductConstraint { x: 0, y: 1, z: 2 }];
     for (nw, subfield_boundary) in [(162463, 160000), (186358, 185000)] {
         let tune = |accept: fn(PolygeroConfig) -> bool| {
@@ -178,7 +178,6 @@ fn admitted_profiles_encode_and_verify() {
         );
     let prime_subfield = crate::runtime::algebra::p256::P256Subfield::new(&prime);
     admitted_profiles_roundtrip(&prime, &prime_domain, &prime_subfield);
-    #[cfg(feature = "experimental")]
     {
         let sextic = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
         admitted_profiles_roundtrip(
@@ -260,35 +259,4 @@ fn roundtrip_profiles<
             .verify(&[], &com, &decoded, &[], &statement, &mut tv, d, f)
             .unwrap();
     }
-}
-
-#[cfg(feature = "experimental")]
-#[test]
-fn mldsa_128_catalog_roundtrips() {
-    use crate::runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24Subfield},
-        range_interpolation::CrtInterpolatorFactory,
-    };
-    let field = RuntimeFp24Ext6::new();
-    let profiles = crate::compile::polygero::profiles::MLDSA_PROFILES
-        .iter()
-        .map(|&(k, s, t)| PolygeroConfig { k, s, n: 4 * k, t });
-    roundtrip_profiles(
-        &field,
-        &CrtInterpolatorFactory,
-        &RuntimeFp24Subfield,
-        profiles,
-    );
-    let selected =
-        crate::compile::polygero::tune_mldsa_128(162463, &[], 161551, |p| p.k == 1024).unwrap();
-    assert_eq!(
-        selected,
-        PolygeroConfig {
-            k: 1024,
-            s: 25,
-            n: 4096,
-            t: 128
-        }
-    );
-    assert!(crate::compile::polygero::tune_mldsa_128(162463, &[], 161551, |_| false).is_none());
 }
