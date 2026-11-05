@@ -15,7 +15,7 @@
 use crate::{
     circuits::{
         bit_plucker::BitPlucker,
-        bitvec::{BitvecIO, V128, V256, V32, V8},
+        bitvec::{BitvecIO, V128},
     },
     compile::{
         algebra::field::CompileField,
@@ -53,42 +53,33 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         self.bitvec_io.next::<N>(&mut self.pos)
     }
 
-    pub fn allocate_plucked_v8<const PLUCKER_WIDTH: usize>(
+    pub fn allocate_bitvec_array<const BITS: usize, const N: usize>(
         &mut self,
-        plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
-    ) -> (V8<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
-        let n_packed = 8 / PLUCKER_WIDTH;
-        let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
-        let unpacked = plucker.unpack::<8>(&packed);
-        (unpacked, packed)
+    ) -> [crate::circuits::bitvec::Bitvec<CompilerLogic<'a, FC>, BITS>; N] {
+        std::array::from_fn(|_| self.allocate_bitvec())
     }
-
-    pub fn allocate_plucked_v8_array<const N: usize, const PLUCKER_WIDTH: usize>(
-        &mut self,
-        plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
-    ) -> (
-        [V8<CompilerLogic<'a, FC>>; N],
-        Vec<Eltw<CompilerLogic<'a, FC>>>,
-    ) {
-        let mut plucked = Vec::with_capacity(N * 8 / PLUCKER_WIDTH);
-        let arr = std::array::from_fn(|_| {
-            let (v, p) = self.allocate_plucked_v8::<PLUCKER_WIDTH>(plucker);
-            plucked.extend(p);
-            v
-        });
-        (arr, plucked)
+    pub fn allocate_binary_word(&mut self) -> Eltw<CompilerLogic<'a, FC>> {
+        use crate::compile::logic::Logic;
+        let bits = self.allocate_bitvec::<128>();
+        let boolean = crate::circuits::boolean::Boolean::new(self.iologic);
+        self.iologic.sum(
+            &bits
+                .as_array()
+                .iter()
+                .enumerate()
+                .map(|(i, bit)| {
+                    let mut bytes = vec![0; self.iologic.field().serialized_size_bytes()];
+                    bytes[i / 8] = 1 << (i % 8);
+                    let coefficient = self
+                        .iologic
+                        .field()
+                        .bytes_to_element(&bytes)
+                        .expect("binary polynomial basis coefficient");
+                    self.iologic.mulk(&coefficient, &boolean.as_eltw(bit))
+                })
+                .collect::<Vec<_>>(),
+        )
     }
-
-    pub fn allocate_plucked_v32<const PLUCKER_WIDTH: usize>(
-        &mut self,
-        plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
-    ) -> (V32<CompilerLogic<'a, FC>>, Vec<Eltw<CompilerLogic<'a, FC>>>) {
-        let n_packed = 32 / PLUCKER_WIDTH;
-        let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
-        let unpacked = plucker.unpack::<32>(&packed);
-        (unpacked, packed)
-    }
-
     pub fn allocate_plucked_v128<const PLUCKER_WIDTH: usize>(
         &mut self,
         plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
@@ -99,19 +90,6 @@ impl<'l, 'a, FC: CompileField> WireAllocator<'l, 'a, FC> {
         let n_packed = 128 / PLUCKER_WIDTH;
         let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
         let unpacked = plucker.unpack::<128>(&packed);
-        (unpacked, packed)
-    }
-
-    pub fn allocate_plucked_v256<const PLUCKER_WIDTH: usize>(
-        &mut self,
-        plucker: &BitPlucker<'_, CompilerLogic<'a, FC>, PLUCKER_WIDTH>,
-    ) -> (
-        V256<CompilerLogic<'a, FC>>,
-        Vec<Eltw<CompilerLogic<'a, FC>>>,
-    ) {
-        let n_packed = 256 / PLUCKER_WIDTH;
-        let packed: Vec<_> = (0..n_packed).map(|_| self.allocate_wire()).collect();
-        let unpacked = plucker.unpack::<256>(&packed);
         (unpacked, packed)
     }
 

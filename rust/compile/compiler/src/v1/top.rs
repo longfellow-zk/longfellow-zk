@@ -42,7 +42,7 @@ where
     let source_arena = crate::compile::compiler::arena::CompilerArena::new();
     let source_tracker = AssertionScope::new();
 
-    let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker);
+    let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker, true);
     let (assertions, npublic_input, subfield_boundary) = build(source_logic);
     let arena1 = CompilerArena::new();
     let simplified =

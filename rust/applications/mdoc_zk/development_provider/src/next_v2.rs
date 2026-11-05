@@ -113,14 +113,14 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
 /// NEXT uses rate 1/7; the chosen dimensions become part of its saved spec.
 fn select_parameters<
     const W: usize,
-    F: RuntimeField<W> + SerializableField,
+    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::PackingField,
     D: RangeInterpolatorFactory<W, F>,
 >(
     circuit: &Circuit<F>,
     domain: &D,
     f: &F,
 ) -> Result<PolygeroConfig, String> {
-    let (_, nw, products) = commitment_layout(circuit);
+    let (_, nw, products) = commitment_layout(circuit, f);
     tune_large_field_at_rate(7, nw, &products, f.serialized_size_bytes(), |config| {
         config.can_interpolate(domain)
     })

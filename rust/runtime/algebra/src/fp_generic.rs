@@ -605,7 +605,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    SupportsSampling<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
+    SupportsSampling for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         loop {

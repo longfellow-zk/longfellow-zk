@@ -45,10 +45,17 @@ pub struct CompilerLogic<
     f: &'a F,
     tracker: &'a AssertionScope,
     next: NEXT,
+    // TODO: Remove the v1 compiler, then remove this flag and its Logic hook.
+    retain_bit_assertions_v1: bool,
 }
 
 impl<'a, F: CompileField> CompilerLogic<'a, F> {
-    pub fn new(arena: &'a CompilerArena<'a, F>, f: &'a F, tracker: &'a AssertionScope) -> Self {
+    pub fn new(
+        arena: &'a CompilerArena<'a, F>,
+        f: &'a F,
+        tracker: &'a AssertionScope,
+        retain_bit_assertions_v1: bool,
+    ) -> Self {
         let cse = Cse::new(arena);
         let next = AlgebraicRewriter::new(f, cse);
         Self {
@@ -56,6 +63,7 @@ impl<'a, F: CompileField> CompilerLogic<'a, F> {
             f,
             tracker,
             next,
+            retain_bit_assertions_v1,
         }
     }
 }
@@ -66,6 +74,10 @@ where NEXT: RewriteT<'a, F>
     type F = F;
     type Wire = ExprNode<'a, F>;
     type Assertions = CompilerAssertions<'a, F>;
+
+    fn retain_bit_assertions_v1(&self) -> bool {
+        self.retain_bit_assertions_v1
+    }
 
     fn field(&self) -> &Self::F {
         self.f
@@ -174,6 +186,7 @@ where NEXT: RewriteT<'a, F>
             position_in_input_array > 0,
             "position_in_input_array = 0 is reserved for the constant One"
         );
+        self.arena.record_input(position_in_input_array);
         self.next.input(position_in_input_array)
     }
 

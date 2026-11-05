@@ -109,7 +109,7 @@ impl<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>
 #[allow(clippy::too_many_arguments)]
 fn ligero_test<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
     SF: SubfieldV1<E = ElementOf<F>>,
 >(
@@ -274,7 +274,7 @@ fn ligero_test<
 
 fn test_ligero_verifier_failures_generic<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     IF: RangeInterpolatorFactory<W, F>,
     SF: SubfieldV1<E = ElementOf<F>>,
 >(

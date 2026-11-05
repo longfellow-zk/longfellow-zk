@@ -55,7 +55,7 @@ pub struct PolygeroProver<const W: usize, F: RuntimeField<W>> {
     tree: MerkleHeap,
     salts: Vec<MerkleNonce>,
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>
+impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>
     PolygeroProver<W, F>
 {
     /// Validate and encode the witness, commit its columns, and bind the root.

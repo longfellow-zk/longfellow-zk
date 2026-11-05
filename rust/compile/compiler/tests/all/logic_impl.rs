@@ -27,7 +27,7 @@ use crate::{
 fn run_test<const W: usize, F: CompileField + SupportsNatConversions<W>>(field: &F) {
     let arena = CompilerArena::new();
     let tracker = AssertionScope::new();
-    let l = CompilerLogic::new(&arena, field, &tracker);
+    let l = CompilerLogic::new(&arena, field, &tracker, false);
     let z = l.zero();
     let o = l.one();
     let add_node = l.add(&z, &o);
@@ -52,7 +52,7 @@ fn test_precious_sum_behavior() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
     let tracker = AssertionScope::new();
-    let l = CompilerLogic::new(&arena, &f, &tracker);
+    let l = CompilerLogic::new(&arena, &f, &tracker, false);
 
     let w1 = l.input(1);
     let w2 = l.input(2);
@@ -170,7 +170,7 @@ fn test_compiler_assertion_path_and_simplification() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
     let tracker = AssertionScope::new();
-    let l = CompilerLogic::new(&arena, &f, &tracker);
+    let l = CompilerLogic::new(&arena, &f, &tracker, false);
 
     let w1 = l.input(1);
     let w2 = l.input(2);
@@ -193,7 +193,7 @@ fn test_assertion_paths_do_not_expand_through_shared_groups() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
     let tracker = AssertionScope::new();
-    let l = CompilerLogic::new(&arena, &f, &tracker);
+    let l = CompilerLogic::new(&arena, &f, &tracker, false);
     let x = l.input(1);
 
     let mut assertion = l.assert0("leaf", &x);
@@ -221,7 +221,7 @@ fn test_duplicate_assertion_paths_keep_first_path() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
     let tracker = AssertionScope::new();
-    let l = CompilerLogic::new(&arena, &f, &tracker);
+    let l = CompilerLogic::new(&arena, &f, &tracker, false);
     let x = l.input(1);
 
     let first = l.assert0("first", &x);

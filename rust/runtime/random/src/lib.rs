@@ -24,16 +24,12 @@ pub trait RandomEngine {
     fn bytes(&mut self, len: usize) -> Vec<u8>;
 
     /// Generates a random field element.
-    fn elt_field<const W: usize, F: SupportsSampling<W>>(&mut self, f: &F) -> F::E {
+    fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
         f.sample(|len| self.bytes(len))
     }
 
     /// Generates a slice of field elements with random values.
-    fn elt_field_slice<const W: usize, F: SupportsSampling<W>>(
-        &mut self,
-        len: usize,
-        f: &F,
-    ) -> Vec<F::E> {
+    fn elt_field_slice<F: SupportsSampling>(&mut self, len: usize, f: &F) -> Vec<F::E> {
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(self.elt_field(f));

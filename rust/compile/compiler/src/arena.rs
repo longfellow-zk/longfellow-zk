@@ -23,6 +23,7 @@ use crate::compile::{
 pub struct CompilerArena<'a, F: CompileField> {
     pub(in crate::compile::compiler) bump: bumpalo::Bump,
     next_node_id: std::cell::Cell<usize>,
+    input_end: std::cell::Cell<usize>,
     _marker: std::marker::PhantomData<&'a F>,
 }
 
@@ -38,8 +39,20 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
         Self {
             bump: bumpalo::Bump::new(),
             next_node_id: std::cell::Cell::new(0),
+            input_end: std::cell::Cell::new(0),
             _marker: std::marker::PhantomData,
         }
+    }
+
+    pub(super) fn record_input(&self, position: usize) {
+        self.input_end.set(
+            self.input_end
+                .get()
+                .max(position.checked_add(1).expect("input index overflow")),
+        );
+    }
+    pub(super) fn input_end(&self) -> usize {
+        self.input_end.get()
     }
 
     pub fn alloc_node(&'a self, expr: Expr<'a, F>, depth: usize) -> ExprNode<'a, F> {

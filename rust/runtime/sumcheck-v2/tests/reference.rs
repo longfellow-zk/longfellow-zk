@@ -126,7 +126,7 @@ pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableF
 /// Frozen three-stream layer loop used only to check proof/transcript identity.
 pub(super) fn prove_core<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::SupportsSampling,
 >(
     witnesses: Vec<Vec<F::E>>,
     pads: &crate::runtime::sumcheck_v2::SumcheckProof<W, F>,

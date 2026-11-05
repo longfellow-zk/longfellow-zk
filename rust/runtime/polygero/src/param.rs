@@ -42,6 +42,8 @@ pub struct PolygeroParam {
 impl PolygeroParam {
     /// Validate dimensions, product indices and backend capacity; bind the public context.
     /// The statement derived later is supplied separately to prove/verify.
+    /// This validates operational geometry, not a security target. Applications
+    /// select certified parameters separately; small test configurations are valid here.
     pub fn try_new<
         const W: usize,
         F: RuntimeField<W> + SerializableField,

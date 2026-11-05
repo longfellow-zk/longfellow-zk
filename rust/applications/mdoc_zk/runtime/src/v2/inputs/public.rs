@@ -15,15 +15,15 @@
 //! Longfellow v2 public assignment encoding.
 
 use crate::{
-    core::algebra::{AlgebraicField, Nat},
+    core::algebra::Nat,
     mdoc::{
         proto::{config::K_ATTR_LEN_BITS, hash::constants::K_TIMESTAMP_LEN},
-        runtime::v2::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
+        runtime::v2::{
+            attribute::RequestedAttribute,
+            inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
+        },
     },
-    runtime::algebra::{
-        gf2_128::{Gf2_128, Gf2_128Field},
-        p256::{P256Element, P256Field},
-    },
+    runtime::algebra::p256::{P256Element, P256Field},
 };
 
 const ATTRIBUTE_ID_BYTES: usize = 32;
@@ -48,10 +48,7 @@ pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
         })
 }
 
-fn push_input_attrs(
-    builder: &mut AssignmentBuilder<'_, Gf2_128Field>,
-    attrs: &[RequestedAttribute],
-) {
+fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAttribute]) {
     for la in attrs {
         let cbor_id = crate::mdoc::circuits::cbor::encode_cbor_string(&la.id);
         for i in 0..ATTRIBUTE_ID_BYTES {
@@ -67,15 +64,14 @@ fn push_input_attrs(
 }
 
 pub(in crate::mdoc::runtime::v2) fn push_input_hash(
-    gf2: &Gf2_128Field,
     attrs: &[RequestedAttribute],
     now_bytes: &[u8],
     macs: &[u128; 6],
     av: u128,
     suppress_doc_type_check: bool,
     expected_doc_type: &[u8],
-) -> Vec<Gf2_128> {
-    let mut builder = AssignmentBuilder::new(gf2);
+) -> Vec<bool> {
+    let mut builder = BinaryAssignmentBuilder::new();
     for i in 0..K_TIMESTAMP_LEN {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
     }
@@ -87,12 +83,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     }
     builder.push_u128(av);
 
-    let suppress_val = if suppress_doc_type_check {
-        gf2.one()
-    } else {
-        gf2.zero()
-    };
-    builder.push_elt(&suppress_val);
+    builder.push_bit(suppress_doc_type_check);
     for i in 0..DOC_TYPE_BYTES {
         builder.push_v8(*expected_doc_type.get(i).unwrap_or(&0));
     }

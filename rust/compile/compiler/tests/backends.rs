@@ -132,3 +132,59 @@ fn v1_bytes_and_v2_semantics_binary() {
         ],
     );
 }
+
+#[test]
+fn unused_binary_inputs_are_rejected_before_and_after_a_used_input() {
+    let f = crate::compile::algebra::gf2_128::Gf2_128Field::new();
+    for used in [1, 2] {
+        let failure = std::panic::catch_unwind(|| {
+            compile_v2(&f, |logic| {
+                let inputs = [logic.input(1), logic.input(2)];
+                (logic.assert0("used", &inputs[used - 1]), 1)
+            });
+        });
+        let error = failure.expect_err("unused input accepted");
+        let message = error
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| error.downcast_ref::<&str>().copied())
+            .unwrap();
+        assert!(message.contains("some inputs are unused"), "{message}");
+    }
+}
+
+#[test]
+fn binary_input_bit_assertions_are_v1_only() {
+    use crate::circuits::boolean::{Boolean, BooleanIO};
+    let f = crate::compile::algebra::gf2_128::Gf2_128Field::new();
+    let (_, v1, _) = compile_v1(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let input = BooleanIO::new(&logic).input(1);
+        (logic.assert0("zero", &boolean.as_eltw(&input)), 1, 0)
+    });
+    let (v2_circuit, v2, _) = compile_v2(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let input = BooleanIO::new(&logic).input(1);
+        (logic.assert0("zero", &boolean.as_eltw(&input)), 1)
+    });
+    assert_eq!(v1.nassertions, 2);
+    assert_eq!(v2.nassertions, 1);
+    assert!(v2_circuit
+        .raw
+        .layers
+        .iter()
+        .all(|layer| layer.quadratic.num_terms() == 0));
+
+    // An explicit field-to-bit conversion still emits its constraint in v2.
+    let (checked_circuit, checked, _) = compile_v2(&f, |logic| {
+        let boolean = Boolean::new(&logic);
+        let input = boolean.of_eltw(logic.input(1));
+        (logic.assert0("zero", &boolean.as_eltw(&input)), 1)
+    });
+    assert_eq!(checked.nassertions, 2);
+    assert!(checked_circuit
+        .raw
+        .layers
+        .iter()
+        .any(|layer| layer.quadratic.num_terms() != 0));
+}

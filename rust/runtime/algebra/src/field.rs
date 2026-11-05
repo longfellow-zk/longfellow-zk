@@ -63,7 +63,7 @@ pub use crate::core::algebra::{
     SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
 };
 
-pub trait SupportsSampling<const W: usize>: RuntimeField<W> {
+pub trait SupportsSampling: crate::core::algebra::AlgebraicField {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
 }
 

@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_decoder::{AnalogDecoder, BinaryDecoder};
-use crate::circuits::bitvec::Bitvec;
-use crate::compile::logic::{Eltw, Logic};
+use crate::{
+    circuits::{
+        analog_decoder::{AnalogDecoder, BinaryDecoder},
+        bitvec::Bitvec,
+    },
+    compile::logic::{Eltw, Logic},
+};
 
 pub struct BitPlucker<'a, L: Logic, const LOGN: usize> {
     decoder: BinaryDecoder<'a, L>,
@@ -30,8 +34,9 @@ impl<'a, L: Logic, const LOGN: usize> BitPlucker<'a, L, LOGN> {
     /// Extracts a LOGN-bit vector from an encoded field element.
     ///
     /// # Soundness Note
-    /// Delegates to `BinaryDecoder::decode`, which evaluates table lookup polynomials for each bit
-    /// position and enforces boolean constraints `v * (1 - v) = 0` on every extracted bit.
+    /// BinaryDecoder checks that the encoded value is a valid table point and
+    /// attaches that shared range assertion to every extracted bit. The bit
+    /// polynomials evaluate to zero or one on those table points.
     pub fn pluck(&self, e: &Eltw<L>) -> Bitvec<L, LOGN> {
         let bits = self.decoder.decode(e);
         Bitvec::new(bits)

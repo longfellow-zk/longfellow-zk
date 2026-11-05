@@ -102,11 +102,11 @@ fn test_compile_gf2_128_mul() {
         crate::compile::eval::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
-            noutput: 385,
-            nwires: 1810,
-            nterms: 10305,
+            noutput: 1,
+            nwires: 1042,
+            nterms: 9153,
             nlayers: 2,
-            nassertions: 385,
+            nassertions: 1,
         },
     );
 

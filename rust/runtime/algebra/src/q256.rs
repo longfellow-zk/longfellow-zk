@@ -44,3 +44,17 @@ impl Q256Field {
         Self::new_generic(Q256_MODULUS)
     }
 }
+
+impl crate::runtime::algebra::packing::PackingField for Q256Field {
+    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+    fn packing_extension(&self) -> Self::Packing {
+        crate::runtime::algebra::packing::IdentityExtension::new(self.clone())
+    }
+    fn packing_id(&self) -> Vec<u8> {
+        let mut id = b"prime/canonical-integer/v1/".to_vec();
+        id.extend_from_slice(&crate::core::algebra::SerializableField::serialized_mone(
+            self,
+        ));
+        id
+    }
+}

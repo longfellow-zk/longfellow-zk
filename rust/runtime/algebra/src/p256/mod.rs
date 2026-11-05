@@ -149,3 +149,17 @@ impl SubfieldV1 for P256SubfieldV1<'_> {
         crate::runtime::algebra::field::SupportsSampling::sample(self.field, rng)
     }
 }
+
+impl crate::runtime::algebra::packing::PackingField for P256Field {
+    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+    fn packing_extension(&self) -> Self::Packing {
+        crate::runtime::algebra::packing::IdentityExtension::new(self.clone())
+    }
+    fn packing_id(&self) -> Vec<u8> {
+        let mut id = b"prime/canonical-integer/v1/".to_vec();
+        id.extend_from_slice(&crate::core::algebra::SerializableField::serialized_mone(
+            self,
+        ));
+        id
+    }
+}

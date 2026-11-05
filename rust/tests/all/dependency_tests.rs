@@ -339,6 +339,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("bench_support", "benches/support"),
         ("tools::zk_tool", "tools/zk_tool"),
         ("core::algebra", "core/algebra/src"),
+        ("core::bits", "core/bits/src"),
         ("core::proto", "core/proto/src"),
         ("runtime::algebra", "runtime/algebra/src"),
         ("runtime::proto", "runtime/proto/src"),
@@ -349,6 +350,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::zk_v2", "runtime/zk-v2/src"),
         ("runtime::ligero_v1", "runtime/ligero-v1/src"),
         ("runtime::polygero", "runtime/polygero/src"),
+        ("runtime::dual_packing", "runtime/dual-packing/src"),
         ("runtime::zk_v1", "runtime/zk-v1/src"),
         ("compile::algebra", "compile/algebra/src"),
         ("compile::proto", "compile/proto/src"),
@@ -1132,6 +1134,9 @@ fn test_zk_v2_source_layout_and_test_privacy() {
         "context.rs",
         "constraint_compiler.rs",
         "transcript.rs",
+        "commitment.rs",
+        "commitment_prover.rs",
+        "commitment_verifier.rs",
         "prover.rs",
         "verifier.rs",
     ]
@@ -1150,6 +1155,52 @@ fn test_zk_v2_source_layout_and_test_privacy() {
     }
     let context = fs::read_to_string(directory.join("context.rs")).unwrap();
     assert!(!production_code(&context).contains("prepare_inputs"));
+}
+
+#[test]
+fn test_packing_dependencies_and_role_separation() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for (directory, allowed) in [
+        ("core/bits/src", &["core::bits"][..]),
+        (
+            "runtime/algebra/src/packing",
+            &["core::algebra", "core::bits", "runtime::algebra"][..],
+        ),
+        (
+            "runtime/dual-packing/src",
+            &[
+                "core::algebra",
+                "runtime::algebra",
+                "runtime::random",
+                "runtime::proto",
+            ][..],
+        ),
+    ] {
+        let mut files = Vec::new();
+        collect_rs_files(&root.join(directory), &mut files);
+        assert!(!files.is_empty());
+        for file in files {
+            let source = fs::read_to_string(&file).unwrap();
+            assert!(
+                !source.lines().any(|line| line.trim() == "#[test]"),
+                "inline test in {}",
+                file.display()
+            );
+            let production = production_code(&source);
+            for dependency in extract_crate_deps(&production) {
+                assert!(
+                    allowed.contains(&dependency.as_str()),
+                    "{} imports {dependency}",
+                    file.display()
+                );
+            }
+            if file.file_name().unwrap() == "prover.rs" {
+                assert!(!production.contains("verifier::"));
+            } else if file.file_name().unwrap() == "verifier.rs" {
+                assert!(!production.contains("prover::"));
+            }
+        }
+    }
 }
 
 /// Legacy test bodies live outside production sources; module links stay private.

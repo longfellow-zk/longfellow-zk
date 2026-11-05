@@ -115,8 +115,8 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             t: 2,
         },
     );
-    let public = vec![f.one()];
-    let witness = vec![f.zero(), f.zero(), f.one()];
+    let public = vec![true];
+    let witness = vec![false, false, true];
     let seed = b"longfellow-v2/numerical-symbolic-equivalence";
 
     // Input-shape errors must not consume random masks or transcript challenges.
@@ -172,7 +172,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             &mut DeterministicRng::new(42),
         )
         .unwrap();
-    assert_eq!(committed.commitment, reference.commitment);
+    assert_eq!(committed.inner.commitment, reference.inner.commitment);
     assert_eq!(geometry, reference_geometry);
     let actual = prover
         .prove(
@@ -185,11 +185,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
 
     let independent_products = product_constraints(
-        prover.circuit.raw.ninput - prover.circuit.raw.npublic_input,
+        reference.inner.backend.layout.suffix_start,
         &geometry.sc_geom,
     );
     let independent_param = PolygeroParam::try_new(
-        crate::runtime::zk_v2::witness_and_constraint_count(&prover.circuit).0,
+        reference.inner.backend.layout.witness_count,
         &independent_products,
         prover.config,
         &domain,
@@ -197,12 +197,24 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     )
     .unwrap();
     let mut independent_verifier = PolygeroVerifier::new(independent_param);
-    independent_verifier.receive_commitment(&reference.commitment, &mut independent);
+    reference
+        .inner
+        .backend
+        .bind(&mut independent, &prover.circuit.id);
+    independent_verifier.receive_commitment(&reference.inner.commitment, &mut independent);
+    let public_elements: Vec<_> = public
+        .iter()
+        .map(|bit| if *bit { f.one() } else { f.zero() })
+        .collect();
     for transcript in [&mut numerical, &mut independent] {
-        transcript.write_sumcheck_statement(&prover.circuit, &public, &f);
+        transcript.write_sumcheck_statement(&prover.circuit, &public_elements, &f);
     }
-    let mut inputs = public.clone();
-    inputs.extend(witness);
+    let mut inputs = public_elements.clone();
+    inputs.extend(
+        witness
+            .iter()
+            .map(|bit| if *bit { f.one() } else { f.zero() }),
+    );
     let w_layers = sumcheck_v2::eval_circuit(inputs, &prover.circuit, &f).unwrap();
     let (proof, constraints) = sumcheck_v2::prove_core(
         w_layers,
@@ -216,26 +228,56 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(constraints, verifier_constraints);
     let mut different_execution = numerical.clone();
     different_execution.write_bytes(b"different sumcheck execution");
-    let statement = statement_digest(&mut numerical);
-    let verifier_statement = statement_digest(&mut independent);
+    let mut binding_reference = numerical.clone();
+    let statement = statement_digest(&mut binding_reference);
+    let mut binding_verifier = independent.clone();
+    let verifier_statement = statement_digest(&mut binding_verifier);
     assert_eq!(statement, verifier_statement);
     assert_ne!(statement, statement_digest(&mut different_execution));
     assert_ne!(statement.data, prover.circuit.id);
-    let pads = geometry
-        .sc_geom
-        .pad_layout(prover.circuit.raw.ninput - public.len());
-    let (a, b) = constraint_compiler::compile(&constraints, &pads, &public, &f).unwrap();
-    let (verifier_a, verifier_b) =
-        constraint_compiler::compile(&verifier_constraints, &pads, &public, &f).unwrap();
-    assert_eq!(a, verifier_a);
-    assert_eq!(b, verifier_b);
-    let com_proof = reference
-        .polygero
-        .prove(&b, &mut numerical, &a, &statement, &domain, &f)
+    let layout = reference.inner.backend.layout.clone();
+    let pads = geometry.sc_geom.pad_layout(layout.suffix_start);
+    let source =
+        constraint_compiler::compile_packed(constraints, &pads, &public_elements, &layout, &f)
+            .unwrap();
+    let verifier_source = constraint_compiler::compile_packed(
+        verifier_constraints,
+        &pads,
+        &public_elements,
+        &layout,
+        &f,
+    )
+    .unwrap();
+    assert_eq!(source.claim, verifier_source.claim);
+    assert_eq!(source.a, verifier_source.a);
+    assert_eq!(source.b, verifier_source.b);
+    let verifier_backend = crate::runtime::zk_v2::commitment::PackingCommitment::new(
+        f.clone(),
+        layout,
+        crate::runtime::algebra::packing::binary::Binary128Extension,
+    )
+    .unwrap();
+    let commitment = reference.inner.commitment.clone();
+    let (packing, com_proof) = reference
+        .inner
+        .prove(source, &prover.circuit.id, &mut numerical, &domain)
+        .unwrap();
+    let rows = crate::runtime::dual_packing::verifier::verify(
+        &verifier_backend.parameters,
+        &verifier_source.claim,
+        &packing,
+        &prover.circuit.id,
+        &mut independent,
+    )
+    .unwrap();
+    let verifier_statement = statement_digest(&mut independent);
+    let (verifier_a, verifier_b) = verifier_backend
+        .authenticate::<2>(verifier_source, &rows)
         .unwrap();
     let expected = ZkProof {
-        com: reference.commitment,
+        com: commitment,
         sumcheck_proof: proof,
+        packing,
         com_proof,
     };
     assert_eq!(

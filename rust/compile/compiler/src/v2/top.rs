@@ -41,9 +41,13 @@ where
     F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize),
 {
-    let (nodes, assertions, npublic, tracker) = lower(f, build);
+    let (nodes, assertions, npublic, declared_inputs, tracker) = lower(f, build);
     let (circuit, info, symbols) =
         super::scheduler::schedule(f, nodes, &assertions, npublic, tracker);
+    assert_eq!(
+        info.ninput, declared_inputs,
+        "some inputs are unused, cannot schedule"
+    );
     assert!(info.ninput > 0);
     assert!(info.nterms > 0);
     (circuit, info, symbols)
@@ -56,6 +60,7 @@ fn lower<F, Build>(
     super::terms::CircuitGraph<F>,
     Vec<(usize, crate::compile::logic::scope::AssertionId)>,
     usize,
+    usize,
     AssertionScope,
 )
 where
@@ -65,13 +70,13 @@ where
     let source_tracker = AssertionScope::new();
     // Each rewrite owns its destination arena. End the source arena's scope
     // as soon as the next representation is complete; only owned quads survive.
-    let (quad_circuit, quad_asserts, npublic_input) = {
+    let (quad_circuit, quad_asserts, npublic_input, declared_inputs) = {
         let copy_arena = CompilerArena::new();
-        let (copied, npublic_input) = {
+        let (copied, npublic_input, declared_inputs) = {
             let simplified_arena = CompilerArena::new();
-            let (simplified, npublic_input) = {
+            let (simplified, npublic_input, declared_inputs) = {
                 let source_arena = CompilerArena::new();
-                let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker);
+                let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker, false);
                 let (assertions, npublic_input) = build(source_logic);
                 let simplified = crate::compile::compiler::assertion::rewrite(
                     &simplified_arena,
@@ -79,15 +84,25 @@ where
                     assertions.items,
                     &source_tracker,
                 );
-                (simplified, npublic_input)
+                let declared_inputs = source_arena
+                    .input_end()
+                    .checked_sub(1)
+                    .expect("circuit has no inputs");
+                (simplified, npublic_input, declared_inputs)
             };
             let copied = crate::compile::compiler::copy::rewrite(&copy_arena, f, simplified);
-            (copied, npublic_input)
+            (copied, npublic_input, declared_inputs)
         };
         let (quad_circuit, quad_asserts) =
             super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker);
-        (quad_circuit, quad_asserts, npublic_input)
+        (quad_circuit, quad_asserts, npublic_input, declared_inputs)
     };
 
-    (quad_circuit, quad_asserts, npublic_input, source_tracker)
+    (
+        quad_circuit,
+        quad_asserts,
+        npublic_input,
+        declared_inputs,
+        source_tracker,
+    )
 }

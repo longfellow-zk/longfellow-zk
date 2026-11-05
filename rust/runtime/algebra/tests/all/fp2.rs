@@ -20,6 +20,26 @@ use crate::runtime::algebra::{
 };
 
 #[test]
+fn fp2_has_no_sampling_or_packing_capability() {
+    trait AmbiguousSampling<A> {
+        fn check() {}
+    }
+    impl<T: ?Sized> AmbiguousSampling<()> for T {}
+    impl<T: ?Sized + crate::runtime::algebra::SupportsSampling> AmbiguousSampling<u8> for T {}
+    trait AmbiguousPacking<A> {
+        fn check() {}
+    }
+    impl<T: ?Sized> AmbiguousPacking<()> for T {}
+    impl<T: crate::runtime::algebra::PackingField> AmbiguousPacking<u8> for T {}
+    // Either added capability would make its inferred marker ambiguous.
+    let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousSampling<_>>::check;
+    let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousPacking<_>>::check;
+    let _: crate::runtime::zk_v2::CircuitInput<crate::runtime::algebra::gf2_128::Gf2_128Field> =
+        false;
+    let _: crate::runtime::zk_v2::CircuitInput<P256Field> = P256Field::new().one();
+}
+
+#[test]
 fn test_fp2_algebraic_properties() {
     let base = P256Field::new();
     let field: Fp2Field<'_, 4, _> = Fp2Field::new(&base);

@@ -264,3 +264,65 @@ fn test_analog_decoder_evaluation() {
     test_analog_decoder_unary_generic::<4, _>(&f);
     test_analog_decoder_binary_generic::<4, _>(&f);
 }
+
+#[test]
+fn binary_field_decoders_retain_range_assertions_on_derived_values() {
+    use crate::{
+        compile::{algebra::gf2_128::Gf2_128Field, logic::scope::AssertionStatus},
+        core::algebra::{AlgebraicField, SupportsU128Conversions},
+    };
+    let f = Gf2_128Field::new();
+    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
+    let decoder = AnalogDecoder::new(&logic);
+    let boolean = Boolean::new(&logic);
+    let binary = decoder.binary(3);
+    let valid_points: Vec<_> = (0..8).map(|i| decoder.binary_point(3, i)).collect();
+    for (i, value) in valid_points.iter().enumerate() {
+        let bits = binary.decode(&logic.konst(value));
+        for (k, bit) in bits.iter().enumerate() {
+            let wire = boolean.as_eltw(bit);
+            assert_eq!(wire.value, if i >> k & 1 == 1 { f.one() } else { f.zero() });
+            assert!(!wire.assertions.is_empty());
+            assert!(wire
+                .assertions
+                .values()
+                .all(|s| matches!(s, AssertionStatus::Passed)));
+        }
+    }
+    // These are full-field intermediate values, not Boolean circuit inputs.
+    // Every returned bit must carry the failed range check, regardless of its value.
+    for value in [decoder.binary_point(3, 8), f.u128_to_element(1 << 100)] {
+        assert!(!valid_points.contains(&value));
+        for bit in binary.decode(&logic.konst(&value)) {
+            assert!(boolean
+                .as_eltw(&bit)
+                .assertions
+                .values()
+                .any(|s| matches!(s, AssertionStatus::Failed(_))));
+        }
+    }
+    let unary = decoder.unary(5);
+    let (assertion, bits) = unary.decode(&logic.konst(&decoder.unary_point(5, 5)));
+    assert!(assertion.is_err());
+    for bit in bits {
+        assert!(boolean
+            .as_eltw(&bit)
+            .assertions
+            .values()
+            .any(|s| matches!(s, AssertionStatus::Failed(_))));
+    }
+
+    // A one-bit table has a nonconstant affine interpolant. An input outside
+    // its two points therefore produces a nonbit, which the standalone API
+    // must reject even without a shared input-range assertion.
+    let standalone = decoder.bit(1, 0);
+    let outside = logic.konst(&decoder.binary_point(1, 2));
+    let result = boolean.as_eltw(&standalone.decode(&outside));
+    assert_ne!(result.value, f.zero());
+    assert_ne!(result.value, f.one());
+    assert!(result
+        .assertions
+        .values()
+        .any(|s| matches!(s, AssertionStatus::Failed(_))));
+}

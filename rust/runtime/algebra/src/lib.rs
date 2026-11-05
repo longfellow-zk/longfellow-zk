@@ -22,6 +22,7 @@ pub mod lch14;
 pub mod limb;
 pub mod nat;
 pub mod p256;
+pub mod packing;
 pub(in crate::runtime::algebra) mod permutations;
 pub mod poly;
 pub mod q256;
@@ -37,6 +38,7 @@ pub use limb::{
     limbs_to_u64, limbs_to_words64, u64_to_limbs, words64_to_limbs, Limb, LIMBS_PER_U64, LIMB_BITS,
 };
 pub use nat::RuntimeNat;
+pub use packing::{IdentityExtension, PackingExtension, PackingField, PackingParameters};
 pub use poly::{InterpolationField, LagrangeBasis, Poly};
 pub use q256::{Q256Element, Q256Field};
 pub use range_interpolation::{EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory};
@@ -47,10 +49,10 @@ pub use crate::core::algebra::{AlgebraicField, Curve as RuntimeCurve, ElementOf}
 
 /// Stable trait alias bundling requirements for zero-knowledge proving.
 pub trait ZkField<const W: usize>:
-    InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling<W>
+    InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
 {
 }
-impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling<W>
+impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
 {}
 
 #[cfg(any(test, feature = "tooling"))]

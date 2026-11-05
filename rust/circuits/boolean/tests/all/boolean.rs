@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::boolean::Boolean;
-use crate::compile::algebra::{field::SupportsU64Conversions, p256::P256Field};
-use crate::compile::logic::LogicIO;
+use crate::{
+    circuits::boolean::Boolean,
+    compile::{
+        algebra::{field::SupportsU64Conversions, p256::P256Field},
+        logic::LogicIO,
+    },
+};
 
 #[test]
 fn test_compile_boolean() {
@@ -35,12 +39,16 @@ fn test_compile_boolean() {
     crate::compile::compiler::dump_stats("boolean_xor_compile", &circuit, &stats);
 }
 
-use crate::circuits::boolean::Bitw;
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field};
-use crate::compile::logic::{eval::EvalLogic, Eltw, Logic};
 use test_helpers::{compare_bool as compare, new_f65537_field, LPrime};
 
 use super::test_helpers;
+use crate::{
+    circuits::boolean::Bitw,
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field},
+        logic::{eval::EvalLogic, Eltw, Logic},
+    },
+};
 
 type LBinary<'a> = EvalLogic<'a, Gf2_128Field>;
 
@@ -231,6 +239,14 @@ fn test_of_eltw() {
     let tracker = crate::compile::logic::scope::AssertionScope::new();
     let l = LPrime::new(&field, &tracker);
     run_test_of_eltw(&l);
+}
+
+#[test]
+fn test_of_eltw_binary_field() {
+    let field = Gf2_128Field::new();
+    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let logic = LBinary::new(&field, &tracker);
+    run_test_of_eltw(&logic);
 }
 
 fn run_test_one_hot_muxes<F: CompileField + SupportsU64Conversions>(logic: &EvalLogic<'_, F>) {

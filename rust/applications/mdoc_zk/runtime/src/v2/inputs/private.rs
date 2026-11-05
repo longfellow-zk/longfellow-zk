@@ -26,29 +26,25 @@ use crate::{
             },
         },
         runtime::v2::{
-            attribute::RequestedAttribute, error::MdocProverErrorCode,
-            inputs::builder::AssignmentBuilder,
+            attribute::RequestedAttribute,
+            error::MdocProverErrorCode,
+            inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
         },
     },
-    runtime::algebra::{
-        field::RuntimeField,
-        gf2_128::{Gf2_128, Gf2_128Field},
-        p256::P256Element,
-    },
+    runtime::algebra::{field::RuntimeField, p256::P256Element},
 };
 
 pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
-    gf2: &Gf2_128Field,
     req_attrs: &[RequestedAttribute],
     parsed: &ParsedMdoc<N>,
     mac_ap: &[[u128; 2]; 3],
-) -> Result<Vec<Gf2_128>, MdocProverErrorCode> {
-    let mut builder = AssignmentBuilder::new(gf2);
+) -> Result<Vec<bool>, MdocProverErrorCode> {
+    let mut builder = BinaryAssignmentBuilder::new();
 
-    // 1. issuer_sig_digest (plucked V256)
+    // 1. issuer_sig_digest (256 bits)
     builder.push_nat256(&parsed.issuer_sig_digest);
 
-    // 2. preimage (MSO preimage - plucked V8) + preimage.len
+    // 2. preimage (MSO preimage - bytes as bits) + preimage.len
     let mso_sha_in = crate::circuits::sha256msg::concrete::given(
         &parsed.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
@@ -66,10 +62,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     }
     builder.push_bits_len(parsed.cbor_mso.len() as u64, 16);
 
-    // 3. nblocks (plucked V8)
+    // 3. nblocks (bytes as bits)
     builder.push_v8(nblocks as u8);
 
-    // 4. device_pkx and device_pky (plucked V256)
+    // 4. device_pkx and device_pky (256 bits)
     builder.push_nat256(&parsed.device_pk.0);
     builder.push_nat256(&parsed.device_pk.1);
 
@@ -113,7 +109,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
 fn push_witness_attrs<N: Nat<4>>(
     req_attrs: &[RequestedAttribute],
     parsed: &ParsedMdoc<N>,
-    builder: &mut AssignmentBuilder<Gf2_128Field>,
+    builder: &mut BinaryAssignmentBuilder,
 ) -> Result<(), MdocProverErrorCode> {
     for la in req_attrs {
         let pa = parsed

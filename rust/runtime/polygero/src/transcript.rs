@@ -56,7 +56,7 @@ pub(super) struct Challenges<E> {
 /// Bind the source statement, then sample challenges for its compiled equations.
 /// The caller supplies the same digest to both roles and guarantees that A and b
 /// implement that statement. Term ordering and explicit zeros are not hashed.
-pub(super) fn challenges<const W: usize, F: SupportsSampling<W> + SerializableField>(
+pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     ts: &mut Transcript,
     param: &PolygeroParam,
     nconstraints: usize,

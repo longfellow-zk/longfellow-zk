@@ -75,7 +75,7 @@ fn prime_sampling_masks_exact_bits_and_ignores_storage_padding() {
         );
     }
 }
-fn full_width_prime<F: SupportsSampling<4> + SerializableField>(f: &F) {
+fn full_width_prime<F: SupportsSampling + SerializableField>(f: &F) {
     let p = (num_bigint::BigUint::from_bytes_le(&f.serialized_mone())
         + num_bigint::BigUint::from(1u8))
     .to_bytes_le();

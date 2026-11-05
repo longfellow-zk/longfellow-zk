@@ -209,7 +209,7 @@ impl crate::core::algebra::SupportsNatConversions<3> for RuntimeFp24Ext6 {
     }
 }
 
-impl SupportsSampling<3> for RuntimeFp24Ext6 {
+impl SupportsSampling for RuntimeFp24Ext6 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let mut coefficients = [0u32; EXTENSION_DEGREE];
         for coefficient in &mut coefficients {
@@ -220,7 +220,7 @@ impl SupportsSampling<3> for RuntimeFp24Ext6 {
 }
 
 /// Shared exact sampler for the prime coordinates, including the V1 codec.
-fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
+pub(in crate::runtime::algebra) fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
     loop {
         let bytes = rng(3);
         assert_eq!(bytes.len(), 3);

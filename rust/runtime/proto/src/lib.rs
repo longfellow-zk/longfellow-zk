@@ -17,6 +17,7 @@
 //! Fields must describe messages or metadata used by both prover and verifier.
 //! Private witness data and role-specific allocation sizes belong to their protocols.
 
+pub mod dual_packing;
 pub mod ligero_v1;
 pub mod merkle;
 pub mod polygero;

@@ -142,9 +142,9 @@ fn test_compile_sha256() {
             npublic_input: 0,
             noutput: 128,
             nlayers: 12,
-            nwires: 51408,
-            nterms: 98928,
-            nassertions: 6840,
+            nwires: 38096,
+            nterms: 78960,
+            nassertions: 184,
         },
     );
 }

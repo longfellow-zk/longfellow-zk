@@ -10,7 +10,7 @@ impl RandomEngine for MaskRng {
     fn bytes(&mut self, len: usize) -> Vec<u8> {
         self.inner.bytes(len)
     }
-    fn elt_field<const W: usize, F: SupportsSampling<W>>(&mut self, f: &F) -> F::E {
+    fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
         self.samples += 1;
         self.inner.elt_field(f)
     }
@@ -18,7 +18,7 @@ impl RandomEngine for MaskRng {
 
 fn ambient_rows<const W: usize, F, D>(f: &F, domain: &D)
 where
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 {
     let config = PolygeroConfig {

@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{Eltw, Logic, LogicIO};
-use crate::core::algebra::ElementOf;
+use crate::{
+    compile::{
+        algebra::field::CompileField,
+        logic::{Eltw, Logic, LogicIO},
+    },
+    core::algebra::ElementOf,
+};
 
 mod imp {
     use super::{CompileField, ElementOf, Eltw, Logic};
@@ -172,12 +176,27 @@ mod imp {
             }
         }
 
+        /// Convert a field expression to a bit, enforcing x*(1-x)=0 in every field.
         pub fn of_eltw(&self, x: Eltw<L>) -> Bitw<L> {
             let logic = &self.logic;
             let zero_or_one = logic.assert0("is_boolean", &logic.sub(&x, &logic.mul(&x, &x)));
             Bitw(Inner::P(logic.with_assertions(zero_or_one, &x)))
         }
 
+        /// Convert a circuit input wire to a bit. Native binary circuits obtain
+        /// input bitness from authenticated packing; prime fields and v1 retain
+        /// the explicit assertion. Pass only an input wire, never an intermediate
+        /// field expression: packing does not constrain intermediate values.
+        pub fn of_input_eltw(&self, x: Eltw<L>) -> Bitw<L> {
+            if self.logic.field().is_binary() && !self.logic.retain_bit_assertions_v1() {
+                Bitw(Inner::P(x))
+            } else {
+                self.of_eltw(x)
+            }
+        }
+
+        /// Attach an existing proof that x is Boolean, such as a lookup range
+        /// assertion. The caller must ensure the assertion actually implies this.
         pub fn of_eltw_with_assertion(&self, x: Eltw<L>, assertion: L::Assertions) -> Bitw<L> {
             Bitw(Inner::P(self.logic.with_assertions(assertion, &x)))
         }
@@ -494,7 +513,7 @@ impl<'a, L: LogicIO> BooleanIO<'a, L> {
 
     pub fn input(&self, position_in_input_array: usize) -> Bitw<L> {
         let input_wire = self.logic.input(position_in_input_array);
-        self.boolean.of_eltw(input_wire)
+        self.boolean.of_input_eltw(input_wire)
     }
 
     pub fn next(&self, pos: &mut usize) -> Bitw<L> {

@@ -25,7 +25,7 @@ pub fn sample<
     const W: usize,
     F: crate::runtime::algebra::poly::InterpolationField<W>
         + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling<W>,
+        + crate::runtime::algebra::SupportsSampling,
     R: RandomEngine,
 >(
     geometry: &crate::runtime::sumcheck_v1::proof::SumcheckProofGeometry,

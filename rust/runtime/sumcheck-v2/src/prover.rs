@@ -79,7 +79,7 @@ use crate::{
 /// after its dot product is proved.
 pub(crate) fn evaluate_and_prove<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
@@ -93,7 +93,7 @@ pub(crate) fn evaluate_and_prove<
     Ok(prove_split(witnesses, pads, circuit, layers, transcript, f))
 }
 
-fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>, I>(
+fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, I>(
     witnesses: I,
     pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
@@ -146,7 +146,7 @@ where
 /// a_next and claim_next = sum_r a_next[r]*W[r].
 /// Assertion coefficients are sampled once and reused in both tensor bindings.
 #[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
+fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     layer_index: usize,
     w: Vec<F::E>,
     pads: &LayerProof<W, F>,
@@ -190,7 +190,7 @@ fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 /// combined claim A + alpha*B for the next layer.
 pub(super) fn prove_dot_product<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
@@ -211,10 +211,7 @@ pub(super) fn prove_dot_product<
     finish_dot_product(&w, &q_l, pads, claim, rounds, point_l, transcript, f)
 }
 #[allow(clippy::too_many_arguments)]
-fn finish_dot_product<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
->(
+fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     w: &[F::E],
     q_l: &[F::E],
     pads: &LayerProof<W, F>,
@@ -226,9 +223,8 @@ fn finish_dot_product<
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
     let claims = [as_scalar::<W, F>(w), as_scalar::<W, F>(q_l)];
-    assert_eq!(
-        claim,
-        f.mulf(&claims[0], &claims[1]),
+    assert!(
+        claim == f.mulf(&claims[0], &claims[1]),
         "single-hand terminal product mismatch"
     );
     let mut masked = claims.clone();
@@ -265,7 +261,7 @@ fn finish_dot_product<
 ///
 /// After binding, claim' = sum_i q_l'[i]*w'[i], with one fewer index bit.
 /// Return the masked message, z, and the next claim.
-fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
+fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     w: &mut Vec<F::E>,
     q_l: &mut Vec<F::E>,
     pads: &RoundPoly<W, F>,
@@ -282,7 +278,7 @@ fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 /// Shared masking, challenge sampling and claim update for every numerical kernel.
 pub(super) fn mask_round<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     p: RoundPoly<W, F>,
     pads: &RoundPoly<W, F>,
@@ -369,7 +365,7 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
 /// enforces that the product slot equals p_A*p_B.
 pub(crate) fn sample_pads<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     R: RandomEngine,
 >(
     geometry: &SumcheckProofGeometry,

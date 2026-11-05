@@ -104,7 +104,11 @@ fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
 ) -> crate::core::proto::v2::Circuit<F> {
     crate::core::proto::v2::quadratic_fixture(legacy_circuit(f), f)
 }
-pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
+pub(crate) fn exercise<
+    const W: usize,
+    F: ZkField<W> + crate::runtime::algebra::PackingField,
+    D: EvaluationDomain<W, F>,
+>(
     f: &F,
     domain: &D,
 ) {
@@ -122,8 +126,11 @@ pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>
         f,
         domain: &bounded,
     };
-    let public = vec![f.one()];
-    let witness = vec![f.one(), f.one()];
+    use crate::runtime::algebra::{AlgebraicField, PackingExtension};
+    let extension = f.packing_extension();
+    let base = extension.base();
+    let public = vec![base.one()];
+    let witness = vec![base.one(), base.one()];
     let p = ZkProver::new(circuit(f), config);
     let mut tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
@@ -132,7 +139,7 @@ pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
     let bytes = proof.write(&prover_geometry, f).unwrap();
-    assert_eq!(&bytes[..4], b"LFV2");
+    assert_eq!(&bytes[..4], b"LFV4");
     for old_marker in [b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
@@ -145,7 +152,8 @@ pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>
     let mut input = bytes.as_slice();
     let decoded = ZkProof::read(&mut input, &geometry, f).unwrap();
     assert!(input.is_empty());
-    let mut verify = |inputs: Vec<F::E>, candidate: &ZkProof<W, F>| {
+    let mut verify = |inputs: Vec<crate::runtime::zk_v2::CircuitInput<F>>,
+                      candidate: &ZkProof<W, F>| {
         let mut tv = Transcript::new(b"longfellow/v2/test");
         v.receive_commitment(candidate, &mut tv);
         v.verify(&inputs, candidate, &mut tv, &context)
@@ -181,7 +189,7 @@ pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>
             .verify(&public, &other_proof, &mut other_ts, &context)
             .unwrap();
     }
-    let bad_public = vec![f.addf(&f.one(), &f.one())];
+    let bad_public = vec![base.zero()];
     assert!(verify(bad_public, &decoded).is_err());
     assert!(verify(vec![], &decoded).is_err());
     {
@@ -193,6 +201,24 @@ pub(crate) fn exercise<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>
         let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
+    }
+    if let crate::runtime::proto::dual_packing::PackingProof::TraceZero { .. } = &decoded.packing {
+        for change_first_response in [true, false] {
+            let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+            let crate::runtime::proto::dual_packing::PackingProof::TraceZero { u, a } =
+                &mut bad.packing
+            else {
+                unreachable!()
+            };
+            if change_first_response {
+                // In GF128, Tr(1)=0. This alteration passes the trace test and
+                // must still be rejected by authentication of the packing rows.
+                f.add(&mut u[0], &f.one());
+            } else {
+                f.add(a, &f.one());
+            }
+            assert!(verify(public.clone(), &bad).is_err());
+        }
     }
 }
 #[test]
@@ -233,7 +259,7 @@ fn extension_zk_comparison() {
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
     use crate::runtime::proto::zk_v2::commitment_layout;
-    let (_, nw, products) = commitment_layout(&c);
+    let (_, nw, products) = commitment_layout(&c, &f);
     let select = |filter: fn(PolygeroConfig) -> bool| {
         crate::compile::polygero::tune_large_field_at_rate(
             4,

@@ -142,7 +142,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         }
     }
 
-    let witness_hash = push_witness_hash(&gf2, attrs, &parsed, &mac_ap)?;
+    let witness_hash = push_witness_hash(attrs, &parsed, &mac_ap)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
@@ -174,7 +174,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         &mac_ap,
     );
     let hash_pub_inputs = push_input_hash(
-        &gf2,
         attrs,
         now.as_bytes(),
         &macs,

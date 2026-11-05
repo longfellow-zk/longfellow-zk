@@ -121,7 +121,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
 
 fn exercise<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,

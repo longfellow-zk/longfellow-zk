@@ -142,9 +142,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // 2. Setup inputs
-    let mut w0 = [f.zero(); 2];
-    w0[0] = f.one();
-    w0[1] = f.zero();
+    let w0 = [true, false];
 
     // 3. Prover commit
     let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
@@ -225,12 +223,9 @@ fn test_zk_prover_verifier_end_to_end() {
 
 #[test]
 fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
-    use crate::core::{
-        algebra::SupportsU128Conversions,
-        proto::{
-            v1::{compute_id, CircuitReader, CircuitWriter},
-            FieldID,
-        },
+    use crate::core::proto::{
+        v1::{compute_id, CircuitReader, CircuitWriter},
+        FieldID,
     };
 
     let f = Gf2_128Field::new();
@@ -241,12 +236,16 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
     };
     // A non-power-of-two width exercises several sumcheck rounds and input pairs
     // (0,3)/(2,2), whose Morton and lexicographic orders differ.
-    let inputs: Vec<_> = (1..=7).map(|v| f.u128_to_element(v)).collect();
+    let inputs: Vec<_> = (1..=7).map(|v| v % 3 != 0).collect();
     let mut terms = Vec::new();
     let mut sum = f.zero();
     for h0 in 0..7 {
         for h1 in h0..7 {
-            f.fma(&mut sum, &inputs[h0], &inputs[h1]);
+            f.fma(
+                &mut sum,
+                &if inputs[h0] { f.one() } else { f.zero() },
+                &if inputs[h1] { f.one() } else { f.zero() },
+            );
             terms.push(Term {
                 h0: h0 as u32,
                 h1: h1 as u32,
@@ -325,7 +324,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
         };
 
         // All-zero witnesses exercise a zero final claim.
-        let zero_inputs = vec![f.zero(); inputs.len()];
+        let zero_inputs = vec![false; inputs.len()];
         for witness_inputs in [&inputs, &zero_inputs] {
             let serializations = vec![
                 writer.to_bytes_lfc1(&circuit),
@@ -442,7 +441,7 @@ fn test_zk_triple_zero_zero_zero() {
 
     // To test ZK proof generation and verification cleanly on this logv=0, logw=0 circuit,
     // we set w0[0] = 0 so the constraint 0 * 0 == 0 is satisfied.
-    let w0 = [f.zero(); 1];
+    let w0 = [false; 1];
 
     let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let mut rng = SimpleRng { state: 42 };
@@ -512,7 +511,6 @@ fn test_zk_triple_zero_zero_zero() {
 
 #[test]
 fn test_zk_intermediate_zero_logw() {
-    use crate::core::algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
 
     // Layer 0 (output layer): squares the single wire from layer 1: v[0] = w[0] * w[0]
@@ -570,16 +568,17 @@ fn test_zk_intermediate_zero_logw() {
     );
     let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
-    // Let's set inputs such that a + b + c = 0 in GF(2^128).
-    // In characteristic 2, addition is XOR. Let a = 10, b = 20 => c = 10 ^ 20 = 30.
-    let mut w0 = vec![f.zero(); 4];
-    w0[0] = f.one();
-    w0[1] = f.u128_to_element(10);
-    w0[2] = f.u128_to_element(20);
-    w0[3] = f.u128_to_element(30);
+    // The three bit inputs sum to zero in characteristic two.
+    let w0 = vec![true, true, false, true];
 
     // Check that plain evaluation succeeds (sum is 0, squared twice is 0)
-    let eval_res = crate::runtime::sumcheck_v2::eval_circuit(w0.clone(), &circ, &f);
+    let eval_res = crate::runtime::sumcheck_v2::eval_circuit(
+        w0.iter()
+            .map(|bit| if *bit { f.one() } else { f.zero() })
+            .collect(),
+        &circ,
+        &f,
+    );
     assert!(
         eval_res.is_ok(),
         "Plain circuit evaluation failed: {:?}",
@@ -670,14 +669,20 @@ fn test_zk_zero_layers() {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
         let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
-        let mut w0 = vec![f.zero(); 4];
+        let mut w0 = vec![false; 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {
             if (mask & (1 << i)) != 0 {
-                *elem = f.one(); // non-zero
+                *elem = true; // non-zero
             }
         }
 
-        let eval_res = crate::runtime::sumcheck_v2::eval_circuit(w0.clone(), &circ, &f);
+        let eval_res = crate::runtime::sumcheck_v2::eval_circuit(
+            w0.iter()
+                .map(|bit| if *bit { f.one() } else { f.zero() })
+                .collect(),
+            &circ,
+            &f,
+        );
 
         let mut rng = SimpleRng {
             state: 9999 + mask as u64,

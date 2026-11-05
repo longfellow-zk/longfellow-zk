@@ -208,7 +208,7 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 }
 
-impl crate::runtime::algebra::field::SupportsSampling<2> for Gf2_128Field {
+impl crate::runtime::algebra::field::SupportsSampling for Gf2_128Field {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let buf = rng(16);
         assert_eq!(

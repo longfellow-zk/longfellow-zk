@@ -168,7 +168,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
 fn check_bindings<const W: usize, F>(f: &F)
 where F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling<W> {
+        + crate::runtime::algebra::SupportsSampling {
     use crate::runtime::{
         random::{DeterministicRng, RandomEngine},
         sumcheck_v2::quad,
@@ -302,7 +302,7 @@ fn split_bindings_match_three_stream_sextic() {
 fn check_proof<const W: usize, F>(f: &F)
 where F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling<W> {
+        + crate::runtime::algebra::SupportsSampling {
     use crate::{
         core::proto::{
             v2::{compute_id, Circuit, CircuitWriter, RawCircuit},

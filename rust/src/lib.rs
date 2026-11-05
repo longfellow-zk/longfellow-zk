@@ -84,6 +84,8 @@ pub(crate) mod util;
 pub mod core {
     #[path = "algebra/src/lib.rs"]
     pub mod algebra;
+    #[path = "bits/src/lib.rs"]
+    pub mod bits;
     #[path = "proto/src/lib.rs"]
     pub mod proto;
 }
@@ -92,6 +94,8 @@ pub mod core {
 pub mod runtime {
     #[path = "algebra/src/lib.rs"]
     pub mod algebra;
+    #[path = "dual-packing/src/lib.rs"]
+    pub mod dual_packing;
     #[path = "ligero-v1/src/lib.rs"]
     pub mod ligero_v1;
     #[path = "merkle/src/lib.rs"]

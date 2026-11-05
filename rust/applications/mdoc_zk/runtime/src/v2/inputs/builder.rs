@@ -16,10 +16,7 @@
 
 use crate::{
     core::algebra::Nat,
-    mdoc::{
-        circuits::{MdocHashRuntimeField, MdocSigRuntimeField},
-        proto::config::{K_HASH_V8_BIT_PLUCKER, K_SIG_MAC_BIT_PLUCKER},
-    },
+    mdoc::{circuits::MdocSigRuntimeField, proto::config::K_SIG_MAC_BIT_PLUCKER},
 };
 
 pub(super) struct AssignmentBuilder<
@@ -38,10 +35,6 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
             field,
             buffer: Vec::new(),
         }
-    }
-
-    pub(super) fn push_elt(&mut self, elt: &F::E) {
-        self.buffer.push(elt.clone());
     }
 
     pub(super) fn into_inner(self) -> Vec<F::E> {
@@ -103,17 +96,11 @@ impl<
     }
 }
 
-impl<F: MdocHashRuntimeField> AssignmentBuilder<'_, F> {
-    pub(super) fn push_v8(&mut self, byte: u8) {
-        self.push_value_plucked::<{ K_HASH_V8_BIT_PLUCKER }, 8>(u128::from(byte));
-    }
-
-    pub(super) fn push_u128(&mut self, val: u128) {
-        self.buffer.push(self.field.u128_to_element(val));
-    }
-}
-
 impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
+    pub(super) fn push_elt(&mut self, elt: &F::E) {
+        self.buffer.push(elt.clone());
+    }
+
     pub(super) fn push_nat_256_bits<N: Nat<4>>(&mut self, nat: &N) {
         let mut bytes = nat.to_bytes_le();
         bytes.resize(32, 0);
@@ -128,10 +115,7 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 cfg_prover! {
-    use crate::mdoc::proto::config::{K_HASH_V256_BIT_PLUCKER, K_SHA_BIT_PLUCKER};
-
-    impl<F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>
-        AssignmentBuilder<'_, F>
+    impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F>
     {
         pub(super) fn push_ecdsa_given(
             &mut self,
@@ -148,41 +132,16 @@ cfg_prover! {
         }
     }
 
-    impl<
-            F: crate::core::algebra::BareField
-                + crate::core::algebra::AlgebraicField
-                + crate::core::algebra::HasLookupPoints,
-        > AssignmentBuilder<'_, F>
-    {
-        fn push_nat_plucked<const PLUCKER_WIDTH: usize, const W: usize, N: Nat<W>>(
-            &mut self,
-            nat: &N,
-        ) {
-            let mut bytes = nat.to_bytes_le();
-            bytes.resize(W * 8, 0);
 
-            let mut bits = vec![false; W * 64];
-            for (i, &byte) in bytes.iter().enumerate() {
-                let mut cur_byte = byte;
-                for k in 0..8 {
-                    bits[i * 8 + k] = (cur_byte & 1) != 0;
-                    cur_byte >>= 1;
-                }
-            }
 
-            let elts = self.pack_bits_to_elements::<PLUCKER_WIDTH>(&bits);
-            self.buffer.extend(elts);
-        }
-
-    }
-
-    impl<F: MdocHashRuntimeField> AssignmentBuilder<'_, F> {
+    impl BinaryAssignmentBuilder {
         pub(super) fn push_v32(&mut self, val: u32) {
-            self.push_value_plucked::<{ K_SHA_BIT_PLUCKER }, 32>(u128::from(val));
+            self.push_bits_len(u64::from(val),32);
         }
 
         pub(super) fn push_nat256<N: Nat<4>>(&mut self, nat: &N) {
-            self.push_nat_plucked::<{ K_HASH_V256_BIT_PLUCKER }, 4, N>(nat);
+            let mut bytes=nat.to_bytes_le(); bytes.resize(32,0);
+            for byte in bytes { self.push_v8(byte); }
         }
 
         pub(super) fn push_sha256_derived(
@@ -204,4 +163,34 @@ cfg_prover! {
         }
     }
 
+}
+
+/// Binary assignment input methods accept bits and bit strings, never field elements.
+#[derive(Default)]
+pub(super) struct BinaryAssignmentBuilder {
+    buffer: Vec<bool>,
+}
+impl BinaryAssignmentBuilder {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+    pub(super) fn push_bit(&mut self, bit: bool) {
+        self.buffer.push(bit);
+    }
+    pub(super) fn push_bits_len(&mut self, value: u64, len: usize) {
+        for bit in 0..len {
+            self.push_bit(value >> bit & 1 != 0);
+        }
+    }
+    pub(super) fn push_v8(&mut self, byte: u8) {
+        self.push_bits_len(u64::from(byte), 8);
+    }
+    pub(super) fn push_u128(&mut self, value: u128) {
+        for byte in value.to_le_bytes() {
+            self.push_v8(byte);
+        }
+    }
+    pub(super) fn into_inner(self) -> Vec<bool> {
+        self.buffer
+    }
 }

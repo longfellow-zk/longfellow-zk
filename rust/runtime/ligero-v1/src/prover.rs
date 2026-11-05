@@ -55,7 +55,7 @@ pub struct LigeroProver<const W: usize, F: RuntimeField<W>> {
 
 impl<
         const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling<W>,
+        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling,
     > LigeroProver<W, F>
 {
     /// Encode the witness and product copies, commit their columns, and bind the root.
@@ -282,7 +282,11 @@ impl<
 }
 
 // Fill tableau[i, [0,n)] with random elements.
-fn random_row<const W: usize, F: SupportsSampling<W>, R: RandomEngine>(
+fn random_row<
+    const W: usize,
+    F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
+    R: RandomEngine,
+>(
     i: usize,
     n: usize,
     tableau: &mut Tableau<ElementOf<F>>,
@@ -321,7 +325,7 @@ fn extend_row<const W: usize, F: RuntimeField<W>>(
 /// witness-slot sum; the quadratic mask is zero at every witness slot.
 fn layout_blinding_rows<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
     IF: RangeInterpolatorFactory<W, F>,
     R: RandomEngine,
 >(
@@ -366,7 +370,7 @@ fn layout_blinding_rows<
 /// Place each witness block after its random prefix, then extend that row.
 fn layout_witness_rows<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
     R: RandomEngine,
     SF: SubfieldV1<E = ElementOf<F>>,
 >(
@@ -409,7 +413,11 @@ fn layout_witness_rows<
 
 /// Copy product operands/results into separate x/y/z row groups. Their random
 /// prefixes are sampled independently; equality to the originals is batched later.
-fn layout_quadratic_rows<const W: usize, F: SupportsSampling<W>, R: RandomEngine>(
+fn layout_quadratic_rows<
+    const W: usize,
+    F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
+    R: RandomEngine,
+>(
     witness: &[ElementOf<F>],
     param: &LigeroParam,
     tableau: &mut Tableau<ElementOf<F>>,
@@ -457,7 +465,7 @@ fn layout_quadratic_rows<const W: usize, F: SupportsSampling<W>, R: RandomEngine
 /// Construct all rows in their committed order using one ordinary-row encoder.
 fn layout<
     const W: usize,
-    F: SupportsSampling<W>,
+    F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
     IF: RangeInterpolatorFactory<W, F>,
     R: RandomEngine,
     SF: SubfieldV1<E = ElementOf<F>>,

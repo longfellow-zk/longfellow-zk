@@ -48,10 +48,11 @@ impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
 pub struct LayerProof<const W: usize, F: SerializableField> {
     pub rounds: Vec<RoundPoly<W, F>>,
     /// `sum_l m_l[l] W[l]` and
-    /// `sum_{g,l,r} a[g] QUAD[g,l,r] m_l[l] W[r]`,
+    /// `sum_{g,l,r} a[g] QUAD[g,l,r] m_l[l] W[r] + L(u)`,
     /// with their respective pads subtracted. Here `g` ranges over outputs,
     /// and `l,r` range over input wires, with m_l[l] = product_j u[j]^l_j;
-    /// assertion quads use their replacement coefficients.
+    /// assertion terms use their replacement coefficients. L(u) is the public
+    /// linear-coefficient contraction at u, removed when combining the claims.
     pub claims: [ElementOf<F>; 2],
 }
 #[derive(Clone, Debug, PartialEq, Eq)]

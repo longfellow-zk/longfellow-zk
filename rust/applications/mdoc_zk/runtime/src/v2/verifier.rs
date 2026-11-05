@@ -126,7 +126,6 @@ pub fn run_mdoc_verifier_inner(
     let av_val = tp.u128();
 
     let pub_inputs_hash = push_input_hash(
-        &gf2,
         attrs,
         now.as_bytes(),
         &proof.macs,

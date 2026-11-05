@@ -31,7 +31,7 @@ use crate::{
     },
 };
 
-fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
+fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -84,7 +84,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 
 fn check_repeated_output<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     f: &F,
 ) {
@@ -130,10 +130,7 @@ fn check_repeated_output<
     assert_ne!(q_l[0], f.zero());
 }
 
-fn check_quad_order<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
->(
+fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -201,7 +198,7 @@ fn functional_transition_and_independent_assertions_binary() {
 /// sampling bug. Include a scalar output, which must sample no coordinates.
 fn check_output_sampling<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     f: &F,
 ) {

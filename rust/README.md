@@ -94,15 +94,16 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
 assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**117-bit extraction security** for the modeled authenticated
-two-field verifier: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`.
-The bound holds for all query budgets, and the circuit/MAC correspondence and
-ideal-sampler premises are documented in the [audit](../formal/AUDIT.md).
+**117-bit extraction security** for its earlier authenticated two-field model:
+`Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`. That model uses unpacked
+inputs and earlier hash parameters; the bound does not yet cover the current
+packed mdoc verifier. Its circuit/MAC correspondence and ideal-sampler premises
+are documented in the [audit](../formal/AUDIT.md).
 Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
 the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
 Fiat–Shamir model. This component bound excludes the Merkle binding reduction
-and the rest of the Longfellow v2 composition.
+and the rest of the Longfellow v2 composition, including packing.
 
 ## Performance
 
@@ -114,28 +115,26 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 227.9 ms | 123.6 ms | 315,128 | 76.20 MiB | 38.75 MiB |
-| 4 | 246.0 ms | 132.3 ms | 323,976 | 83.72 MiB | 42.64 MiB |
+| 2 | 159.1 ms | 91.0 ms | 186,344 | 43.40 MiB | 34.33 MiB |
+| 4 | 169.4 ms | 95.0 ms | 186,760 | 48.10 MiB | 37.38 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 746,013 | 182,613 | 2.50 MiB |
-| 4 | 772,213 | 184,705 | 2.60 MiB |
+| 2 | 647,272 | 175,687 | 2.14 MiB |
+| 4 | 672,517 | 176,928 | 2.23 MiB |
 
-Both cases use hash profile `(k,s,n,t)=(1536,52,10752,95)` and signature profile
-`(416,15,2912,86)`. Each hash circuit has 20 layers; the signature has 21.
+Both cases use `(k,s,n,t)=(416,15,2912,86)` for the hash and signature
+components. Each hash circuit has 20 layers; the signature has 21.
 
 | Circuit | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|
-| Hash, 2 attributes | 3,386,208 | 6,384,895 | 294 |
-| Hash, 4 attributes | 3,770,222 | 7,108,197 | 300 |
+| Hash, 2 attributes | 2,056,052 | 4,175,387 | 267 |
+| Hash, 4 attributes | 2,314,852 | 4,691,287 | 274 |
 | Signature, either case | 179,657 | 276,461 | 260 |
 
-V2 commits and encodes every witness row over the ambient field. Compared
-with the preceding compact-row implementation, proofs are 48–51% larger.
-This increase is expected; packing will provide compact commitments, and its
-integration is deferred. Prover peak heap is about 0.5–2% higher; verifier
-heap is within about 1% of the compact-row implementation.
+The hash component packs 128 private input bits per committed GF128 word.
+Its trace-zero packing response occupies 2,064 bytes. Signature inputs use
+degree-one packing, which adds no masks, messages, or transcript challenges.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -161,6 +160,13 @@ V1 and v2 implementations occupy separate directories and have their own
 application types, specifications, transcripts, and proof codecs. They share
 basic infrastructure such as arithmetic, interpolation, randomness, and
 Merkle trees.
+
+V2 binary circuits accept Boolean public and private inputs. Authenticated
+packing enforces their bit representation, so the Boolean layer omits bitness
+assertions on binary input wires. Internal arithmetic uses the full field;
+converting an arbitrary field expression back to a Boolean still checks bitness.
+Nonbinary circuits retain field-element inputs and Boolean input assertions.
+Unused circuit inputs are rejected.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. The top-level dependency checker enforces these boundaries,
@@ -207,7 +213,13 @@ terms enter sumcheck through public corrections to the running claim.
 
 Prime-field sampling draws only the required bytes, masks unused high bits,
 and rejects out-of-range values. Its parameters are precomputed at field
-construction. Existing GF128/P256 transcript byte contracts are preserved.
+construction. Existing GF128/P256 sampling byte contracts are preserved.
+Packing arithmetic is opt-in: adapters provide their base field, basis,
+coordinates, and relative Frobenius. Fp2 supports neither packing nor sampling.
+The trace-zero packing prover and verifier return two linear equations that
+Polygero authenticates against the original committed words and masks.
+For GF128, trace uses two polynomial-coordinate bits and the trace-dual basis
+uses the modulus's closed formula. Frobenius remains ordinary field squaring.
 Auxiliary sextic arithmetic, available to tests and tooling,
 defers reduction across accumulated products through the existing sumcheck
 accumulator interface.

@@ -287,16 +287,19 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
         .sumcheck_proof
         .write(&geometry.geom_hash.sc_geom, &binary)
         .unwrap();
+    // Each GF(2^128) element occupies 16 bytes: degree U values plus one A.
+    let packing_bytes = 16 * (geometry.geom_hash.packing_degree + 1);
     assert_eq!(
         hash.len(),
-        4 + 32 + hash_sumcheck.len() + hash_polygero.len()
+        4 + 32 + hash_sumcheck.len() + hash_polygero.len() + packing_bytes
     );
     assert_eq!(bytes.len(), 96 + hash.len() + signature.len());
     eprintln!(
-        "  SHA/hash circuit: {} bytes (Polygero={}, sumcheck={}, version+commitment=36)",
+        "  SHA/hash circuit: {} bytes (Polygero={}, sumcheck={}, packing={}, version+commitment=36)",
         hash.len(),
         hash_polygero.len(),
-        hash_sumcheck.len()
+        hash_sumcheck.len(),
+        packing_bytes
     );
     eprintln!(
         "  Signature circuit: {} bytes; shared MACs: 96 bytes",

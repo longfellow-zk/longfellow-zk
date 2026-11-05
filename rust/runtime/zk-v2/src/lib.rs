@@ -14,11 +14,12 @@
 
 //! Longfellow v2 composes projective sumcheck with nonrecursive Polygero.
 //!
-//! Commit the private circuit inputs, sumcheck pads, and final-claim pad products.
+//! Commit the packed private inputs, packing masks, sumcheck pads, and pad products.
 //! Then run sumcheck on the same transcript with the public inputs bound. Its
-//! symbolic constraints describe the checks on those hidden values. Sample a
-//! domain-separated statement identifier from the completed transcript, then
-//! compile those constraints and pass the identifier to Polygero. The runtime
+//! symbolic constraints describe the checks on those hidden values. Reduce the
+//! input claim to two packing equations (one direct equation for degree one),
+//! then sample a statement identifier from the completed transcript and pass
+//! all constraints and that identifier to Polygero. The runtime
 //! constraint compiler substitutes public inputs and maps pads to committed
 //! positions, producing sparse A and b for Polygero's A*w+b=0 check.
 //!
@@ -26,8 +27,10 @@
 //! from the messages. Both use the same constraint compiler and codec layout.
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod commitment;
 mod context;
-pub use context::ZkContext;
+pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraint_compiler;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

@@ -33,6 +33,9 @@
 //! and the products of each layer's two final-claim pads. It then sends sumcheck
 //! messages with those pads subtracted. Both parties derive the same public
 //! challenges and final input weights from the circuit and the masked transcript.
+//! The trusted layer's weighted constant contribution K is subtracted before
+//! its rounds. Its linear contribution is folded into q_l; after the rounds,
+//! L(u) denotes the public linear-coefficient contraction at the sampled point.
 //!
 //! `build_constraints` updates the claims with pads as symbolic variables: each
 //! unmasked coefficient is its message plus its pad. The update above is linear
@@ -42,11 +45,13 @@
 //! ```text
 //! A = m_A + p_A,  B = m_B + p_B
 //! claim - A*B = 0
-//! claim_next = A + alpha*B.
+//! claim_next = A + alpha*(B - L(u)).
 //! ```
 //!
 //! Expanding `claim - A*B` leaves an affine expression minus `p_A*p_B`. We record
-//! that constraint and continue with `claim_next`. At the end we also record
+//! that constraint and continue with `claim_next`. Both K and L(u) come from
+//! circuit coefficients and verifier challenges, not extra prover messages.
+//! At the end we also record
 //! `claim - sum_i input_weights[i] * W[i] = 0`, where `W` is now the circuit input.
 //! Affine pad expressions use sparse lists of `(pad, coefficient)` terms; the
 //! final input weights are dense. All constants and coefficients are public.
@@ -67,7 +72,8 @@ use crate::{
 /// Propagate an affine claim through the proof and record the constraints.
 /// The initial claim is zero because the circuit's outputs must vanish. After
 /// each layer's rounds, constrain the claim to `A * B`, then start the next layer
-/// with `A + alpha * B`. Finally constrain the claim to the weighted input sum.
+/// with `A + alpha * (B - L(u))`. Subtract the public constant correction K
+/// before each layer's rounds. Finally constrain the claim to the weighted input sum.
 pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + SerializableField>(
     proof: &SumcheckProof<W, F>,
     layer_challenges: Vec<LayerChallenges<F::E>>,

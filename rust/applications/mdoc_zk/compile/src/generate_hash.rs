@@ -16,11 +16,7 @@ use crate::{
     compile::algebra::gf2_128::Gf2_128Field,
     core::proto::v2::Circuit,
     mdoc::{
-        circuits::{
-            config::{K_HASH_V256_BIT_PLUCKER, K_HASH_V8_BIT_PLUCKER, K_SHA_BIT_PLUCKER},
-            hash::circuit::MdocHash,
-            MdocHashCompileField,
-        },
+        circuits::{hash::circuit::MdocHash, MdocHashCompileField},
         compile::{allocate_hash::allocate_hash, allocator::WireAllocator},
     },
 };
@@ -39,28 +35,13 @@ where
     crate::compile::compiler::compile_v2(fc, |iologic| {
         let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
         let bitvec_io = crate::circuits::bitvec::BitvecIO::new(&bv);
-        let plucker_v8 =
-            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V8_BIT_PLUCKER }>::new(&iologic);
-        let plucker_v256 =
-            crate::circuits::bit_plucker::BitPlucker::<_, { K_HASH_V256_BIT_PLUCKER }>::new(
-                &iologic,
-            );
-        let plucker_sha =
-            crate::circuits::bit_plucker::BitPlucker::<_, { K_SHA_BIT_PLUCKER }>::new(&iologic);
-
         let mut allocator = WireAllocator::new(
             &iologic,
             &bitvec_io,
             crate::compile::logic::K_FIRST_WIRE_POSITION,
         );
 
-        let (given, derived, pub_inputs_count) = allocate_hash(
-            &mut allocator,
-            num_attrs,
-            &plucker_v8,
-            &plucker_v256,
-            &plucker_sha,
-        );
+        let (given, derived, pub_inputs_count) = allocate_hash(&mut allocator, num_attrs);
 
         let mdoc = MdocHash::new(&iologic, num_attrs);
         let assertion = mdoc.assert_valid_presentation_and_macs(&given, &derived);

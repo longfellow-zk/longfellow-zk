@@ -26,7 +26,7 @@ use longfellow_zk::{
 };
 fn run<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     name: &str,

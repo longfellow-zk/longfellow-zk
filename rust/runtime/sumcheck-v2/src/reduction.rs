@@ -53,7 +53,7 @@ use crate::{
 /// Validate message counts before advancing the transcript.
 pub(crate) fn derive_constraints<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
@@ -89,7 +89,7 @@ pub(crate) fn derive_constraints<
 /// The round challenges form point_l = u. Binding QUAD at u expresses B as
 /// sum_r q_r[r]*W[r] + L(u), while A = sum_r m_l[r]*W[r]. The corrected claim
 /// uses a_next[r] = m_l[r] + alpha*q_r[r]. All these weights are public.
-fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling<W>>(
+fn layer<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     layer_index: usize,
     proof: &LayerProof<W, F>,
     circuit: &Circuit<F>,

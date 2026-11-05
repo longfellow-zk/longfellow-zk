@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::circuits::lookup::{Lookup, Table};
-use crate::compile::logic::{Eltw, Logic};
-use crate::core::algebra::ElementOf;
-
-use crate::circuits::analog_decoder::proto;
+use crate::{
+    circuits::{
+        analog_decoder::proto,
+        boolean::{Bitw, Boolean},
+        lookup::{Lookup, Table},
+    },
+    compile::logic::{Eltw, Logic},
+    core::algebra::ElementOf,
+};
 
 pub struct AnalogDecoder<'a, L: Logic> {
     logic: &'a L,
@@ -106,10 +109,9 @@ pub struct BitDecoder<'a, L: Logic> {
 impl<L: Logic> BitDecoder<'_, L> {
     /// Decodes a bit from an encoded field element.
     ///
-    /// # Soundness Note
-    /// `of_eltw` emits the quadratic boolean assertion `v * (1 - v) = 0` on the evaluated table
-    /// output, enforcing that the evaluated result for this bit position is strictly a boolean
-    /// bit (0 or 1).
+    /// Boolean::of_eltw checks the output is zero or one in every field. This
+    /// does not establish that the encoded input is a valid table point; use
+    /// BinaryDecoder when that shared range check is required.
     pub fn decode(&self, encoded: &Eltw<L>) -> Bitw<L> {
         let val = self.plucker.eval(encoded);
         let precious_val = self.boolean.logic().precious(&val);

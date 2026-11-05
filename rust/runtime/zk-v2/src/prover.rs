@@ -1,168 +1,125 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Prove a circuit by committing its private inputs and sumcheck pads first.
-//!
-//! `commit` samples the pads and commits the vector [private inputs, pads,
-//! pad products] with Polygero. The caller can then derive public inputs from
-//! the transcript, as the mdoc application does after committing both circuits.
-//!
-//! `prove` consumes that commitment state. It binds the public inputs, evaluates
-//! the circuit and runs numerical sumcheck. It samples the statement identifier
-//! before compiling the resulting symbolic constraints into A*w+b=0.
-//! Finally Polygero proves those constraints against
-//! the original commitment. Pads and symbolic constraints end at the sumcheck
-//! phase; the encoded witness and Merkle tree end when this invocation returns.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Commit inputs and sumcheck pads, reduce packing, then authenticate all equations.
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{ElementOf, EvaluationDomain, ZkField},
-        polygero::{PolygeroConfig, PolygeroLinearTerm, PolygeroProver},
-        proto::Digest,
+        algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
+        polygero::PolygeroConfig,
         random::{RandomEngine, Transcript},
         sumcheck_v2::{self, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck},
         zk_v2::{
-            constraint_compiler,
+            commitment::CommitmentState,
             context::{prepare_layout, private_input_count},
-            ZkContext, ZkProof, ZkProofGeometry,
+            CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
         },
     },
 };
 
-/// Trusted circuit and fixed Polygero configuration, reusable across invocations.
-pub struct ZkProver<const W: usize, F: ZkField<W>> {
+pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) circuit: Circuit<F>,
     config: PolygeroConfig,
 }
-
-/// Private state for one committed invocation, consumed by `ZkProver::prove`.
-pub struct ZkProverCommitment<const W: usize, F: ZkField<W>> {
+pub struct ZkProverCommitment<const W: usize, F: ZkField<W> + PackingField> {
     pads: SumcheckProof<W, F>,
-    polygero: PolygeroProver<W, F>,
-    commitment: crate::runtime::proto::polygero::PolygeroCommitment,
+    inner: CommitmentState<W, F, <F as PackingField>::Packing>,
+    circuit_id: [u8; 32],
+    config: PolygeroConfig,
 }
-
-impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
-    /// Select the circuit and commitment dimensions; commitment validates the domain.
+impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig) -> Self {
         Self { circuit, config }
     }
-
-    /// Sample sumcheck pads and commit them after the private circuit inputs.
-    /// Each layer's final pads p_A,p_B also have a committed product p_A*p_B.
-    /// Fix those product constraints now, before sumcheck chooses any challenges.
-    #[allow(clippy::too_many_arguments)]
+}
+impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
+    /// Validate the input domain before sampling masks or advancing the transcript.
     pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine>(
         &self,
-        private_inputs: &[ElementOf<F>],
+        private: &[CircuitInput<F>],
         ctx: &ZkContext<'_, W, F, D>,
         transcript: &mut Transcript,
         rng: &mut R,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
-        let nprivate = private_input_count(&self.circuit);
-        if private_inputs.len() != nprivate {
+        if private.len() != private_input_count(&self.circuit) {
             return Err("witness length mismatch".into());
         }
-
-        let (geom, param) = prepare_layout(&self.circuit, self.config, ctx)?;
-        let (pads, pad_values) = sumcheck_v2::sample_pads(&geom.sc_geom, rng, ctx.f);
-
-        let mut witness = Vec::with_capacity(nprivate + pad_values.len());
-        witness.extend_from_slice(private_inputs);
-        witness.extend(pad_values);
-
-        let (polygero, commitment) =
-            PolygeroProver::commit(witness, param, transcript, ctx.domain, rng, ctx.f)
-                .map_err(|e| e.to_string())?;
+        let (geometry, param, backend) =
+            prepare_layout(&self.circuit, self.config, ctx.f.packing_extension(), ctx)?;
+        let inputs = backend.prepare_inputs(private)?;
+        let (pads, suffix) = sumcheck_v2::sample_pads(&geometry.sc_geom, rng, ctx.f);
+        let inner = backend.commit(
+            inputs,
+            suffix,
+            param,
+            &self.circuit.id,
+            transcript,
+            rng,
+            ctx.domain,
+        )?;
         Ok((
             ZkProverCommitment {
                 pads,
-                polygero,
-                commitment,
+                inner,
+                circuit_id: self.circuit.id,
+                config: self.config,
             },
-            geom,
+            geometry,
         ))
     }
-
-    /// Consume one commitment, prove sumcheck, then prove its compiled constraints.
-    /// Public inputs are borrowed; private inputs become the numerical witness.
-    /// The returned proof contains only public messages and authenticated openings.
+    /// Run ordinary sumcheck, reduce its input claim, and authenticate against the same root.
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
-        public_inputs: &[ElementOf<F>],
-        private_inputs: Vec<ElementOf<F>>,
+        public: &[CircuitInput<F>],
+        private: Vec<CircuitInput<F>>,
         committed: ZkProverCommitment<W, F>,
         transcript: &mut Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<ZkProof<W, F>, String> {
-        validate_inputs(&self.circuit, public_inputs, &private_inputs)?;
-        let ZkProverCommitment {
-            pads,
-            polygero,
-            commitment,
-        } = committed;
-        let (sumcheck_proof, a, b, statement) =
-            self.prove_sumcheck(public_inputs, private_inputs, pads, transcript, ctx.f)?;
-        let com_proof = polygero
-            .prove(&b, transcript, &a, &statement, ctx.domain, ctx.f)
+        validate_inputs(&self.circuit, public, &private)?;
+        if committed.circuit_id != self.circuit.id || committed.config != self.config {
+            return Err("commitment belongs to another circuit or configuration".into());
+        }
+        let geometry = SumcheckProofGeometry::from_circuit(&self.circuit);
+        committed
+            .pads
+            .validate(&geometry)
             .map_err(|e| e.to_string())?;
-
+        let extension = committed.inner.backend.parameters.extension();
+        let public = extension.input_elements(ctx.f, public);
+        let private = extension.into_input_elements(ctx.f, private);
+        let inputs = prepare_inputs(&public, private);
+        transcript.write_sumcheck_statement(&self.circuit, &public, ctx.f);
+        let (sumcheck_proof, constraints) = sumcheck_v2::evaluate_and_prove(
+            inputs,
+            &committed.pads,
+            &self.circuit,
+            transcript,
+            ctx.f,
+        )?;
+        let pad_layout = geometry.pad_layout(committed.inner.backend.layout.suffix_start);
+        let statement = super::constraint_compiler::compile_packed(
+            constraints,
+            &pad_layout,
+            &public,
+            &committed.inner.backend.layout,
+            ctx.f,
+        )?;
+        let com = committed.inner.commitment.clone();
+        let (packing, com_proof) =
+            committed
+                .inner
+                .prove(statement, &self.circuit.id, transcript, ctx.domain)?;
         Ok(ZkProof {
-            com: commitment,
+            com,
             sumcheck_proof,
+            packing,
             com_proof,
         })
     }
-
-    /// Run sumcheck, sample its statement identifier, then compile the constraints.
-    /// This phase owns the private inputs and pads. Their storage and the
-    /// symbolic expressions are released before the Polygero response is built.
-    fn prove_sumcheck(
-        &self,
-        public_inputs: &[F::E],
-        private_inputs: Vec<F::E>,
-        pads: SumcheckProof<W, F>,
-        transcript: &mut Transcript,
-        f: &F,
-    ) -> Result<
-        (
-            SumcheckProof<W, F>,
-            Vec<PolygeroLinearTerm<F::E>>,
-            Vec<F::E>,
-            Digest,
-        ),
-        String,
-    > {
-        let geometry = SumcheckProofGeometry::from_circuit(&self.circuit);
-        pads.validate(&geometry)
-            .map_err(|error| error.to_string())?;
-        let inputs = prepare_inputs(public_inputs, private_inputs);
-        transcript.write_sumcheck_statement(&self.circuit, public_inputs, f);
-        let (proof, constraints) =
-            sumcheck_v2::evaluate_and_prove(inputs, &pads, &self.circuit, transcript, f)?;
-        let statement = super::transcript::statement_digest(transcript);
-        let layout = geometry.pad_layout(private_input_count(&self.circuit));
-        let (a, b) = constraint_compiler::compile(&constraints, &layout, public_inputs, f)?;
-        Ok((proof, a, b, statement))
-    }
 }
-
-/// Reject wrong input lengths before changing the proof transcript.
-fn validate_inputs<F: crate::core::algebra::SerializableField>(
+fn validate_inputs<F: crate::core::algebra::SerializableField, I>(
     circuit: &Circuit<F>,
-    public: &[F::E],
-    private: &[F::E],
+    public: &[I],
+    private: &[I],
 ) -> Result<(), String> {
     if public.len() != circuit.raw.npublic_input {
         return Err("public inputs length mismatch".into());
@@ -172,16 +129,12 @@ fn validate_inputs<F: crate::core::algebra::SerializableField>(
     }
     Ok(())
 }
-
-/// Assemble the public prefix and private suffix for circuit evaluation.
-/// Move private elements into the combined vector; copy only the borrowed prefix.
 fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>) -> Vec<E> {
     let mut inputs = Vec::with_capacity(public.len() + private.len());
     inputs.extend_from_slice(public);
     inputs.extend(private);
     inputs
 }
-
 #[cfg(test)]
 #[path = "../tests/prover.rs"]
 mod tests;

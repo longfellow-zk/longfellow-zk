@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::CompileField;
-use crate::core::algebra::ElementOf;
+use crate::{compile::algebra::field::CompileField, core::algebra::ElementOf};
 
 pub const K_FIRST_WIRE_POSITION: usize = 1;
 
@@ -23,6 +22,11 @@ pub trait Logic {
     type Assertions: Clone;
 
     fn field(&self) -> &Self::F;
+
+    /// Preserve historical Boolean input constraints when compiling v1 circuits.
+    fn retain_bit_assertions_v1(&self) -> bool {
+        false
+    }
 
     fn zero(&self) -> Self::Wire;
     fn one(&self) -> Self::Wire;

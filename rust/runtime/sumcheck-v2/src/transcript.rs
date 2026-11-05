@@ -79,10 +79,7 @@ impl TranscriptSumcheck for Transcript {
 /// Start the sumcheck transcript domain and return the initial output weights a.
 /// Sample the logv coordinates of u and form a[g] = product_j u[j]^g_j.
 /// A scalar output has logv=0 and weight one, so it consumes no field challenges.
-pub(super) fn begin<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
->(
+pub(super) fn begin<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
@@ -98,7 +95,7 @@ pub(super) fn begin<
 /// weighted coefficient, so a zero output weight cannot erase an assertion.
 pub(super) fn assertion_weights<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     layer: &super::split::SplitLayer<'_>,
     layer_index: usize,
@@ -117,7 +114,7 @@ pub(super) fn assertion_weights<
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
 pub(super) fn round_challenge<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     m: &RoundPoly<W, F>,
     transcript: &mut Transcript,
@@ -133,7 +130,7 @@ pub(super) fn round_challenge<
 /// Both roles use this step so the layer boundary has one transcript encoding.
 pub(super) fn end_layer<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling<W>,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     claims: &[F::E; 2],
     transcript: &mut Transcript,

@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    circuits::bit_plucker::BitPlucker,
     compile::compiler::CompilerLogic,
     mdoc::{
         circuits::{
-            config::{K_HASH_V256_BIT_PLUCKER, K_HASH_V8_BIT_PLUCKER, K_SHA_BIT_PLUCKER},
             hash::{
                 circuit::{
                     AttrDerived, AttrGiven, AttrPreimageBytes, Derived as HashDerived,
@@ -37,14 +35,13 @@ use crate::{
     },
 };
 
-pub fn allocate_disclosed_attribute<'b, FC: MdocHashCompileField, const PLUCKER_WIDTH: usize>(
+pub fn allocate_disclosed_attribute<'b, FC: MdocHashCompileField>(
     allocator: &mut WireAllocator<'_, 'b, FC>,
-    plucker: &BitPlucker<'_, CompilerLogic<'b, FC>, PLUCKER_WIDTH>,
 ) -> DisclosedAttribute<CompilerLogic<'b, FC>> {
-    let (name, _) = allocator.allocate_plucked_v8_array::<32, PLUCKER_WIDTH>(plucker);
+    let name = allocator.allocate_bitvec_array::<8, 32>();
     let name_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
 
-    let (value, _) = allocator.allocate_plucked_v8_array::<64, PLUCKER_WIDTH>(plucker);
+    let value = allocator.allocate_bitvec_array::<8, 64>();
     let value_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
 
     DisclosedAttribute {
@@ -59,44 +56,33 @@ pub fn allocate_disclosed_attribute<'b, FC: MdocHashCompileField, const PLUCKER_
     }
 }
 
-pub fn sha256_block_wires<'a, 'b, FC: MdocHashCompileField, const PLUCKER_WIDTH: usize>(
+pub fn sha256_block_wires<'a, 'b, FC: MdocHashCompileField>(
     allocator: &mut WireAllocator<'a, 'b, FC>,
-    plucker: &BitPlucker<'_, CompilerLogic<'b, FC>, PLUCKER_WIDTH>,
 ) -> crate::circuits::sha256::Derived<CompilerLogic<'b, FC>> {
-    let next_plucked =
-        |alloc: &mut WireAllocator<'a, 'b, FC>| -> crate::circuits::bitvec::V32<CompilerLogic<'b, FC>> {
-            let (unpacked, _) = alloc.allocate_plucked_v32::<PLUCKER_WIDTH>(plucker);
-            unpacked
-        };
-
     crate::circuits::sha256::Derived {
-        outw: std::array::from_fn(|_| next_plucked(allocator)),
-        oute: std::array::from_fn(|_| next_plucked(allocator)),
-        outa: std::array::from_fn(|_| next_plucked(allocator)),
-        h1: std::array::from_fn(|_| next_plucked(allocator)),
+        outw: std::array::from_fn(|_| allocator.allocate_bitvec::<32>()),
+        oute: std::array::from_fn(|_| allocator.allocate_bitvec::<32>()),
+        outa: std::array::from_fn(|_| allocator.allocate_bitvec::<32>()),
+        h1: std::array::from_fn(|_| allocator.allocate_bitvec::<32>()),
     }
 }
 
-pub fn allocate_sha_derived<'b, FC: MdocHashCompileField, const PLUCKER_WIDTH: usize>(
+pub fn allocate_sha_derived<'b, FC: MdocHashCompileField>(
     allocator: &mut WireAllocator<'_, 'b, FC>,
-    plucker: &BitPlucker<'_, CompilerLogic<'b, FC>, PLUCKER_WIDTH>,
     max_blocks: usize,
 ) -> Vec<crate::circuits::sha256::Derived<CompilerLogic<'b, FC>>> {
     (0..max_blocks)
-        .map(|_| sha256_block_wires(allocator, plucker))
+        .map(|_| sha256_block_wires(allocator))
         .collect()
 }
 
 pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
     allocator: &mut WireAllocator<'_, 'a, FC>,
-    plucker_v8: &BitPlucker<'_, CompilerLogic<'a, FC>, { K_HASH_V8_BIT_PLUCKER }>,
-    plucker_sha: &BitPlucker<'_, CompilerLogic<'a, FC>, { K_SHA_BIT_PLUCKER }>,
 ) -> (
     AttrGiven<CompilerLogic<'a, FC>>,
     AttrDerived<CompilerLogic<'a, FC>>,
 ) {
-    let (preimage_value, _) = allocator
-        .allocate_plucked_v8_array::<K_ATTR_PREIMAGE_LEN, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let preimage_value = allocator.allocate_bitvec_array::<8, K_ATTR_PREIMAGE_LEN>();
     let preimage_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
     let preimage = AttrPreimageBytes {
         data: preimage_value,
@@ -110,7 +96,7 @@ pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
         length: std::array::from_fn(|_| allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>()),
         permutation: std::array::from_fn(|_| allocator.allocate_bitvec::<2>()),
     };
-    let sha_derived = allocate_sha_derived(allocator, plucker_sha, 2);
+    let sha_derived = allocate_sha_derived(allocator, 2);
     let given = AttrGiven {
         preimage,
         mso_digest_offset_in_preimage,
@@ -123,9 +109,6 @@ pub fn allocate_attr_wires<'a, FC: MdocHashCompileField>(
 pub fn allocate_hash<'b, FC>(
     allocator: &mut WireAllocator<'_, 'b, FC>,
     num_attrs: usize,
-    plucker_v8: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_HASH_V8_BIT_PLUCKER }>,
-    plucker_v256: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_HASH_V256_BIT_PLUCKER }>,
-    plucker_sha: &BitPlucker<'_, CompilerLogic<'b, FC>, { K_SHA_BIT_PLUCKER }>,
 ) -> (
     HashGiven<CompilerLogic<'b, FC>>,
     HashDerived<CompilerLogic<'b, FC>>,
@@ -134,22 +117,29 @@ pub fn allocate_hash<'b, FC>(
 where
     FC: MdocHashCompileField,
 {
-    let (now, _) = allocator
-        .allocate_plucked_v8_array::<K_TIMESTAMP_LEN, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let now = allocator.allocate_bitvec_array::<8, K_TIMESTAMP_LEN>();
 
     let disclosed_attributes = (0..num_attrs)
-        .map(|_| allocate_disclosed_attribute(allocator, plucker_v8))
+        .map(|_| allocate_disclosed_attribute(allocator))
         .collect();
 
-    let mac_e = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_device_pkx = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_device_pky = [allocator.allocate_wire(), allocator.allocate_wire()];
-    let mac_av = allocator.allocate_wire();
+    let mac_e = [
+        allocator.allocate_binary_word(),
+        allocator.allocate_binary_word(),
+    ];
+    let mac_device_pkx = [
+        allocator.allocate_binary_word(),
+        allocator.allocate_binary_word(),
+    ];
+    let mac_device_pky = [
+        allocator.allocate_binary_word(),
+        allocator.allocate_binary_word(),
+    ];
+    let mac_av = allocator.allocate_binary_word();
 
     let boolean_io = crate::circuits::boolean::BooleanIO::new(allocator.iologic);
     let suppress_doc_type_check = boolean_io.next(&mut allocator.pos);
-    let (expected_doc_type_bytes, _) =
-        allocator.allocate_plucked_v8_array::<32, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let expected_doc_type_bytes = allocator.allocate_bitvec_array::<8, 32>();
     let expected_doc_type_len = allocator.allocate_bitvec::<{ K_ATTR_INDEX_BITS }>();
     let expected_doc_type = crate::mdoc::circuits::mso_attribute::circuit::AttrSlice {
         data: expected_doc_type_bytes,
@@ -158,21 +148,17 @@ where
 
     let pub_inputs_count = allocator.pos;
 
-    let (issuer_sig_e, _) =
-        allocator.allocate_plucked_v256::<{ K_HASH_V256_BIT_PLUCKER }>(plucker_v256);
-    let (preimage_value, _) = allocator
-        .allocate_plucked_v8_array::<K_MSO_PREIMAGE_LEN, { K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let issuer_sig_e = allocator.allocate_bitvec::<256>();
+    let preimage_value = allocator.allocate_bitvec_array::<8, K_MSO_PREIMAGE_LEN>();
     let len = allocator.allocate_bitvec::<K_HASH_INDEX_BITS>();
     let preimage = MsoPreimageBytes {
         value: preimage_value,
         len,
     };
-    let (nblocks, _) = allocator.allocate_plucked_v8::<{ K_HASH_V8_BIT_PLUCKER }>(plucker_v8);
+    let nblocks = allocator.allocate_bitvec::<8>();
 
-    let (device_pk_x, _) =
-        allocator.allocate_plucked_v256::<{ K_HASH_V256_BIT_PLUCKER }>(plucker_v256);
-    let (device_pk_y, _) =
-        allocator.allocate_plucked_v256::<{ K_HASH_V256_BIT_PLUCKER }>(plucker_v256);
+    let device_pk_x = allocator.allocate_bitvec::<256>();
+    let device_pk_y = allocator.allocate_bitvec::<256>();
     let device_pk = (device_pk_x, device_pk_y);
 
     let doc_type_offset_in_preimage = allocator.allocate_bitvec::<K_HASH_INDEX_BITS>();
@@ -185,14 +171,19 @@ where
     let mut attribute_derived = Vec::with_capacity(num_attrs);
 
     for _ in 0..num_attrs {
-        let (given, derived) = allocate_attr_wires(allocator, plucker_v8, plucker_sha);
+        let (given, derived) = allocate_attr_wires(allocator);
         attribute_given.push(given);
         attribute_derived.push(derived);
     }
 
-    let sha_derived = allocate_sha_derived(allocator, plucker_sha, K_MAX_SHA_BLOCKS);
+    let sha_derived = allocate_sha_derived(allocator, K_MAX_SHA_BLOCKS);
 
-    let mac_ap = std::array::from_fn(|_| [allocator.allocate_wire(), allocator.allocate_wire()]);
+    let mac_ap = std::array::from_fn(|_| {
+        [
+            allocator.allocate_binary_word(),
+            allocator.allocate_binary_word(),
+        ]
+    });
 
     let given = crate::mdoc::circuits::hash::Given {
         disclosed_attributes,

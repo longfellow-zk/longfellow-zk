@@ -56,7 +56,7 @@ pub(super) fn validate_witness<const W: usize, F: RuntimeField<W>>(
 /// constructs the interpolation plans it uses.
 pub(super) fn encode_rows<
     const W: usize,
-    F: RuntimeField<W> + SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
     R: RandomEngine,
 >(
@@ -79,7 +79,7 @@ pub(super) fn encode_rows<
 /// All rows use ambient-field masks, including rows with base-field witnesses.
 fn encode_ordinary_rows<
     const W: usize,
-    F: RuntimeField<W> + SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
     R: RandomEngine,
 >(
@@ -109,7 +109,7 @@ fn encode_ordinary_rows<
 /// All three rows enter the commitment; only the two input rows are transmitted.
 fn encode_product_rows<
     const W: usize,
-    F: RuntimeField<W> + SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
     R: RandomEngine,
 >(
@@ -153,7 +153,7 @@ fn encode_product_rows<
 /// samples at any K+S distinct points specify a uniform polynomial of this dimension.
 fn encode_fstar<
     const W: usize,
-    F: RuntimeField<W> + SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
     R: RandomEngine,
 >(
@@ -175,7 +175,7 @@ fn encode_fstar<
 /// over witness slots constrained to zero so z_R*m preserves the global sum.
 fn encode_arithmetic_masks<
     const W: usize,
-    F: RuntimeField<W> + SupportsSampling<W>,
+    F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
     R: RandomEngine,
 >(
