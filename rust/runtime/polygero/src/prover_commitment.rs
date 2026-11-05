@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Build the masked polynomial rows W and commit their oracle columns.
+//! Build the masked polynomial rows W for the shared column oracle.
 //!
 //! Rows are stored as u, m, witness rows, then fstar.
 //! A witness row has k logical samples: t fresh masks followed by witness values.
@@ -20,17 +20,11 @@
 //! Each row is evaluated on oracle points k..k+n. Every random masking
 //! sample is uniform in the ambient field, independently of witness values.
 //!
-//! The final helper salts and hashes columns, then constructs their Merkle tree.
 //! Interpolation plans are local to the encoding invocation that uses them.
-use super::{hash, PolygeroParam};
-use crate::{
-    core::algebra::SerializableField,
-    runtime::{
-        algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField, SupportsSampling},
-        merkle::MerkleHeap,
-        proto::MerkleNonce,
-        random::RandomEngine,
-    },
+use super::PolygeroParam;
+use crate::runtime::{
+    algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField, SupportsSampling},
+    random::RandomEngine,
 };
 
 /// Encode u and m, the witness rows, then fstar.
@@ -133,21 +127,54 @@ fn encode_arithmetic_masks<
     w.push(encoder_m.apply(&m));
 }
 
-/// Salt and hash every encoded column, then build the canonical Merkle tree.
-pub(super) fn commit_columns<F: SerializableField, R: RandomEngine>(
-    param: &PolygeroParam,
-    w: &[Vec<F::E>],
-    rng: &mut R,
-    f: &F,
-) -> (MerkleHeap, Vec<MerkleNonce>) {
-    let salts: Vec<_> = (0..param.geom.n)
-        .map(|_| MerkleNonce {
-            bytes: rng.bytes(32).try_into().unwrap(),
-        })
-        .collect();
-    let leaves: Vec<_> = (0..param.geom.n)
-        .map(|j| hash::leaf(&param.context, j, w.iter().map(|row| &row[j]), &salts[j], f))
-        .collect();
-    let tree = MerkleHeap::new_with_hash(&leaves, |l, r| hash::node(&param.context, l, r));
-    (tree, salts)
+use sha2::{Digest as _, Sha256};
+
+use super::hash::{leaf, node};
+use crate::runtime::{
+    merkle::MerkleHeap,
+    proto::{Digest, MerkleNonce, MerkleProof},
+};
+pub(super) struct ColumnOracle {
+    pub(super) tree: MerkleHeap,
+    pub(super) salts: Vec<MerkleNonce>,
+}
+impl ColumnOracle {
+    /// `append` streams every participant's column into one leaf hash. Field
+    /// arithmetic stays in the participant traversal; this tree only sees bytes.
+    pub fn new(
+        n: usize,
+        context: &Digest,
+        rng: &mut impl RandomEngine,
+        mut append: impl FnMut(usize, &mut Sha256),
+    ) -> Self {
+        let salts: Vec<_> = (0..n)
+            .map(|_| MerkleNonce {
+                bytes: rng.bytes(32).try_into().unwrap(),
+            })
+            .collect();
+        let leaves: Vec<_> = (0..n)
+            .map(|j| {
+                let mut h = leaf(context, j, &salts[j]);
+                append(j, &mut h);
+                Digest {
+                    data: h.finalize().into(),
+                }
+            })
+            .collect();
+        Self {
+            tree: MerkleHeap::new_with_hash(&leaves, |l, r| node(context, l, r)),
+            salts,
+        }
+    }
+    pub fn root(&self) -> Digest {
+        self.tree.root()
+    }
+    pub fn open(&self, indices: &[usize]) -> MerkleProof {
+        // Nonces follow query order, just like the opened values in each field.
+        // MerkleHeap separately defines the canonical authentication frontier.
+        MerkleProof {
+            nonce: indices.iter().map(|&j| self.salts[j]).collect(),
+            path: self.tree.generate_proof(indices),
+        }
+    }
 }

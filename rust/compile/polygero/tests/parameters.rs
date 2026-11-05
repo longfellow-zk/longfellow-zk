@@ -17,7 +17,10 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        polygero::{PolygeroParam, PolygeroProver, PolygeroVerifier},
+        polygero::{
+            JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
+            Participant, PolygeroParam,
+        },
         proto::Digest,
         random::{DeterministicRng, RandomEngine, Transcript},
     },
@@ -175,22 +178,29 @@ fn roundtrip_profiles<
     for config in profiles {
         let statement = Digest::default();
         let param = PolygeroParam::try_new(witness.len(), config, d, f).unwrap();
-        let vp = PolygeroParam::try_new(witness.len(), config, d, f).unwrap();
+        let param = JointPolygeroParam::new((Participant::new(param, f, d).unwrap(), ())).unwrap();
 
         let mut ts = Transcript::new(b"polygero/admitted");
         let (prover, com) =
-            PolygeroProver::commit(witness.clone(), param, &mut ts, d, &mut rng, f).unwrap();
-        let proof = prover.prove(&[], &mut ts, &[], &statement, d, f).unwrap();
-        let bytes = proof.write(&vp.geometry(), f).unwrap();
+            JointPolygeroProver::commit(&param, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
+        let statements = (
+            LinearStatement {
+                a: vec![],
+                b: vec![],
+                digest: statement,
+            },
+            (),
+        );
+        let proof = prover.prove(&param, &statements, &mut ts).unwrap();
+        let bytes = param.write(&proof).unwrap();
         let mut remaining = bytes.as_slice();
-        let decoded =
-            crate::runtime::proto::polygero::read(&mut remaining, &vp.geometry(), f).unwrap();
+        let decoded = param.read(&mut remaining).unwrap();
         assert!(remaining.is_empty());
         let mut tv = Transcript::new(b"polygero/admitted");
-        let mut verifier = PolygeroVerifier::new(vp);
+        let mut verifier = JointPolygeroVerifier::new(param);
         verifier.receive_commitment(&com, &mut tv);
         verifier
-            .verify(&[], &com, &decoded, &[], &statement, &mut tv, d, f)
+            .verify(&com, &decoded, &statements, &mut tv)
             .unwrap();
     }
 }

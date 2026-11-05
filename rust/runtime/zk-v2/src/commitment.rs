@@ -103,5 +103,5 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         Ok((a, b))
     }
 }
-cfg_prover! { #[path="commitment_prover.rs"]mod prover;pub(super) use prover::CommitmentState; }
-cfg_verifier! { #[path="commitment_verifier.rs"]mod verifier;pub(super) use verifier::CommitmentVerifier; }
+cfg_prover! { #[path="commitment_prover.rs"]mod prover;pub(super) use prover::PackingState; }
+cfg_verifier! { #[path="commitment_verifier.rs"]mod verifier; }

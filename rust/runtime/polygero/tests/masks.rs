@@ -73,9 +73,13 @@ where
         };
         let mut ts = Transcript::new(b"rejected-mask-test");
         let mut original = ts.clone();
-        assert!(
-            PolygeroProver::commit(invalid, param, &mut ts, domain, &mut rejected_rng, f).is_err()
-        );
+        assert!(JointPolygeroProver::commit(
+            &JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap(),
+            (invalid, ()),
+            &mut ts,
+            &mut rejected_rng
+        )
+        .is_err());
         assert_eq!(rejected_rng.samples, 0);
         assert_eq!(ts.bytes(32), original.bytes(32));
     }
@@ -125,42 +129,38 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         };
         let param = PolygeroParam::try_new(witness.len(), config, &domain, &field).unwrap();
         let geometry = param.geometry();
-        let verifier_param = param.clone();
+        let joint =
+            JointPolygeroParam::new((Participant::new(param, &field, &domain).unwrap(), ()))
+                .unwrap();
         let mut prover_ts = Transcript::new(b"polygero/ordinary-only");
-        let (prover, commitment) = PolygeroProver::commit(
-            witness.clone(),
-            param,
+        let (prover, commitment) = JointPolygeroProver::commit(
+            &joint,
+            (witness.clone(), ()),
             &mut prover_ts,
-            &domain,
             &mut DeterministicRng::new(879),
-            &field,
         )
         .unwrap();
         let proof = prover
-            .prove(&[], &mut prover_ts, &[], &statement, &domain, &field)
+            .prove(&joint, &(linear(&[], &[], statement), ()), &mut prover_ts)
             .unwrap();
         assert!(
-            proof.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
+            proof.bodies.0.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
                 .iter()
                 .any(|value| *value != field.zero() && *value != field.one())
         );
-        let bytes = proof.write(&geometry, &field).unwrap();
+        let bytes = joint.write(&proof).unwrap();
         let mut input = bytes.as_slice();
-        let decoded = crate::runtime::proto::polygero::read(&mut input, &geometry, &field).unwrap();
+        let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
         let mut verifier_ts = Transcript::new(b"polygero/ordinary-only");
-        let mut verifier = PolygeroVerifier::new(verifier_param);
+        let mut verifier = JointPolygeroVerifier::new(joint);
         verifier.receive_commitment(&commitment, &mut verifier_ts);
         verifier
             .verify(
-                &[],
                 &commitment,
                 &decoded,
-                &[],
-                &statement,
+                &(linear(&[], &[], statement), ()),
                 &mut verifier_ts,
-                &domain,
-                &field,
             )
             .unwrap();
     }

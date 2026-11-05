@@ -1,31 +1,20 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
-    algebra::{EvaluationDomain, PackingExtension, ZkField},
+    algebra::{PackingExtension, PackingField, ZkField},
     dual_packing::generic::{PackingMasks, PackingProof},
-    polygero::{PolygeroParam, PolygeroProver},
-    proto::polygero::{PolygeroCommitment, PolygeroProof},
+    polygero::LinearStatement,
     random::{RandomEngine, Transcript},
 };
-/// Validated logical inputs and their packed commitment prefix, prepared before sampling.
 pub(in crate::runtime::zk_v2) struct PreparedInputs<E> {
     packed: Vec<E>,
 }
-pub(in crate::runtime::zk_v2) struct CommitmentState<
-    const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::PackingField,
-    X: PackingExtension<Ambient = F>,
-> {
-    pub backend: PackingCommitment<F, X>,
-    pub commitment: PolygeroCommitment,
-    words: Vec<F::E>,
-    suffix: Vec<F::E>,
-    masks: PackingMasks<F::E>,
-    polygero: PolygeroProver<W, F>,
+pub(in crate::runtime::zk_v2) struct PackingState<E> {
+    words: Vec<E>,
+    suffix: Vec<E>,
+    masks: PackingMasks<E>,
 }
-impl<F: crate::runtime::algebra::PackingField, X: PackingExtension<Ambient = F>>
-    PackingCommitment<F, X>
-{
+impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub fn prepare_inputs(
         &self,
         logical: &[crate::runtime::algebra::packing::BaseElement<X>],
@@ -37,24 +26,15 @@ impl<F: crate::runtime::algebra::PackingField, X: PackingExtension<Ambient = F>>
             packed: self.parameters.pack(logical)?,
         })
     }
-    #[allow(clippy::too_many_arguments)]
-    pub fn commit<const W: usize, D: EvaluationDomain<W, F>, R: RandomEngine>(
-        self,
+    pub fn prepare(
+        &self,
         inputs: PreparedInputs<F::E>,
         suffix: Vec<F::E>,
-        param: PolygeroParam,
-        id: &[u8; 32],
-        t: &mut Transcript,
-        rng: &mut R,
-        domain: &D,
-    ) -> Result<CommitmentState<W, F, X>, String>
-    where
-        F: ZkField<W> + crate::runtime::algebra::PackingField,
-    {
+        rng: &mut impl RandomEngine,
+    ) -> (PackingState<F::E>, Vec<F::E>) {
         let f = self.parameters.field();
         let masks = PackingMasks::sample(&self.parameters, || rng.elt_field(f));
-        // Only a nontrivial adapter needs words again. The identity adapter's input
-        // equation authenticates directly, with no retained second witness vector.
+        // Only nontrivial packing needs the words again after commitment.
         let words = if self.layout.degree > 1 {
             inputs.packed.clone()
         } else {
@@ -63,50 +43,40 @@ impl<F: crate::runtime::algebra::PackingField, X: PackingExtension<Ambient = F>>
         let mut witness = inputs.packed;
         witness.extend_from_slice(masks.cells());
         witness.extend_from_slice(&suffix);
-        self.bind(t, id);
-        let (polygero, commitment) =
-            PolygeroProver::commit(witness, param, t, domain, rng, f).map_err(|e| e.to_string())?;
-        Ok(CommitmentState {
-            backend: self,
-            commitment,
-            words,
-            suffix,
-            masks,
-            polygero,
-        })
+        (
+            PackingState {
+                words,
+                suffix,
+                masks,
+            },
+            witness,
+        )
     }
-}
-impl<
-        const W: usize,
-        F: ZkField<W> + crate::runtime::algebra::PackingField,
-        X: PackingExtension<Ambient = F>,
-    > CommitmentState<W, F, X>
-{
-    pub fn prove<D: EvaluationDomain<W, F>>(
-        self,
+    pub fn prove<const W: usize>(
+        &self,
+        state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
         id: &[u8; 32],
         t: &mut Transcript,
-        domain: &D,
-    ) -> Result<(PackingProof<F::E>, PolygeroProof<F::E>), String> {
+    ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
+    where
+        F: ZkField<W>,
+    {
         let (packing, rows) = crate::runtime::dual_packing::prover::prove_packed(
-            &self.backend.parameters,
+            &self.parameters,
             &statement.claim,
-            &self.words,
-            &self.suffix,
-            self.masks,
+            &state.words,
+            &state.suffix,
+            state.masks,
             id,
             t,
         )?;
-        drop(self.words);
-        drop(self.suffix);
-        let binding = super::super::transcript::statement_digest(t);
-        let (a, b) = self.backend.authenticate::<W>(statement, &rows)?;
-        drop(rows);
-        let proof = self
-            .polygero
-            .prove(&b, t, &a, &binding, domain, self.backend.parameters.field())
-            .map_err(|e| e.to_string())?;
-        Ok((packing, proof))
+        drop(state.words);
+        drop(state.suffix);
+        // This prefix binds the circuit, public inputs, sumcheck and packing
+        // messages from which both roles reconstruct the affine statement.
+        let digest = super::super::transcript::statement_digest(t);
+        let (a, b) = self.authenticate::<W>(statement, &rows)?;
+        Ok((packing, LinearStatement { a, b, digest }))
     }
 }

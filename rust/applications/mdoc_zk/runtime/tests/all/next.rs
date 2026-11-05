@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[96..100], b"LFV5");
+    assert_eq!(&zkproof[96..100], b"MJP1");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -802,6 +802,26 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
                 "Verifier should reject proof with byte flip at index {idx}"
             );
         }
+    }
+
+    // The application accepts only the joint envelope, never two old standalone proofs.
+    for marker in [b"LFV5", b"LFV6"] {
+        let mut obsolete = zkproof.clone();
+        obsolete[96..100].copy_from_slice(marker);
+        assert_eq!(
+            run_mdoc_verifier_inner(
+                provided.spec(),
+                provided.compressed(),
+                &pubkey_x_string,
+                &pubkey_y_formatted,
+                transcript,
+                &req_attrs,
+                now,
+                doc_type,
+                &obsolete,
+            ),
+            Err(crate::mdoc::v2::MdocVerifierErrorCode::HashParsingFailure)
+        );
     }
 
     // 4. Truncated proof

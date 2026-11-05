@@ -624,14 +624,14 @@ fn test_v2_role_and_shared_module_boundaries() {
             "prover" => &[
                 "prover",
                 "prover_commitment",
-                "PolygeroProver",
+                "JointPolygeroProver",
                 "ZkProver",
                 "prove_core",
                 "eval_circuit",
             ],
             "verifier" => &[
                 "verifier",
-                "PolygeroVerifier",
+                "JointPolygeroVerifier",
                 "ZkVerifier",
                 "derive_constraints",
             ],
@@ -683,8 +683,8 @@ fn test_v2_role_and_shared_module_boundaries() {
                     "prover",
                     "prover_commitment",
                     "verifier",
-                    "PolygeroProver",
-                    "PolygeroVerifier",
+                    "JointPolygeroProver",
+                    "JointPolygeroVerifier",
                     "SubfieldV1"
                 ]
                 .contains(&word)),
@@ -1085,6 +1085,7 @@ fn test_polygero_source_layout_and_test_privacy() {
     let expected: BTreeSet<_> = [
         "lib.rs",
         "hash.rs",
+        "joint.rs",
         "constraints.rs",
         "config.rs",
         "param.rs",
@@ -1131,6 +1132,7 @@ fn test_zk_v2_source_layout_and_test_privacy() {
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = [
         "lib.rs",
+        "joint.rs",
         "context.rs",
         "constraint_compiler.rs",
         "transcript.rs",

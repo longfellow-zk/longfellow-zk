@@ -23,7 +23,7 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::EvaluationDomain,
-        polygero::{PolygeroConfig, PolygeroParam},
+        polygero::{JointPolygeroParam, Participant, PolygeroConfig, PolygeroParam},
         proto::zk_v2::packing_layout_with_degree,
         zk_v2::commitment::PackingCommitment,
         zk_v2::ZkProofGeometry,
@@ -72,6 +72,12 @@ pub(super) fn prepare_layout<
     let geometry = ZkProofGeometry {
         sc_geom,
         com_geom: param.geometry(),
+        com_context: JointPolygeroParam::new((
+            Participant::new(param.clone(), ctx.f, ctx.domain).map_err(|e| e.to_string())?,
+            (),
+        ))
+        .map_err(|e| e.to_string())?
+        .context(),
         packing_degree: layout.degree,
     };
     let backend = PackingCommitment::new(ctx.f.clone(), layout, extension)?;

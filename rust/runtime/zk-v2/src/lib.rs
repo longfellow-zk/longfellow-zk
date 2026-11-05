@@ -30,6 +30,8 @@
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod commitment;
 mod context;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub mod joint;
 pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraint_compiler;

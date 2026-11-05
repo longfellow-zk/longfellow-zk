@@ -12,35 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Nonrecursive Polygero proves linear constraints on a committed witness.
+//! Multi-field Polygero for Longfellow v2.
 //!
-//! The prover encodes masked witness rows W on oracle points k..k+n and commits
-//! their columns. After commitment, the caller supplies a source-statement digest
-//! and A and b for A*w+b=0. Longfellow v2 obtains them from sumcheck. After
-//! absorbing the digest, random scalar weights batch the linear constraints.
+//! Participants are recursive `(Participant, Tail)` tuples ending in `()`.
+//! Each field has its own encoded rows, masks and H/Z
+//! responses. All participants share k/s/n/t and one salted column Merkle tree.
+//! All source statements are bound before any batching challenges; every H/Z
+//! response is absorbed before a single ordered set of column queries is drawn.
+//! A one-field invocation uses `(participant, ())` through the same API.
 //!
-//! Two responses summarize the rows: H uses random polynomial weights, while Z
-//! carries the batched arithmetic constraints and zero-sum masks. Their samples
-//! determine the opening queries. The verifier authenticates the queried columns,
-//! checks both responses there, and checks Z's logical sum.
-//!
-//! `prover` owns commitment state and response generation; `prover_commitment`
-//! encodes W and builds its Merkle tree. `verifier` reconstructs public values
-//! and checks the proof. Both roles share `constraints`, `polynomials`, `hash`
-//! and `transcript`, using the dimensions and layout from `config` and `param`.
-//! Proof types and the codec live separately in `runtime::proto::polygero`.
-//! Offline parameter certificates live under `tools/parameters/polygero`;
-//! they do not certify the complete Rust implementation.
-//!
-//! The caller binds its source statement and derives A and b from that statement.
-//! Polygero accepts the digest as an opaque identifier; it does not hash the
-//! sparse arrays or verify their compilation. A fixed tag alone is insufficient
-//! when the source statement is not already bound by the caller's transcript.
+//! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
+//! rows, `hash` defines column authentication, and `joint` coordinates tuples.
+//! Typed field bodies and the Merkle envelope live in runtime::proto::polygero.
+//! The caller supplies source-statement digests and derives A*w+b=0 locally;
+//! the digests must bind the statements independently of their sparse arrays.
+//! Parameter catalogs bound each field separately. With shared queries, use
+//! the sum of the per-field failure bounds, without assuming independence.
+//! The former single-field API and PLG9 format have been removed.
 mod config;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraints;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod hash;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod param;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -51,11 +46,12 @@ pub use config::PolygeroLinearTerm;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use param::PolygeroParam;
 
-pub use crate::runtime::proto::polygero::{
-    PolygeroCommitment, PolygeroConfig, PolygeroGeometry, PolygeroProof,
-};
-cfg_prover! { mod prover_commitment; mod prover; pub use prover::PolygeroProver; }
-cfg_verifier! { mod verifier; pub use verifier::PolygeroVerifier; }
+pub use crate::runtime::proto::polygero::{PolygeroCommitment, PolygeroConfig, PolygeroGeometry};
+cfg_prover! { mod prover_commitment; }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub use joint::{JointPolygeroParam, LinearStatement, Participant};
+cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
+cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolygeroError(String);
@@ -78,6 +74,7 @@ fn ensure(condition: bool, message: &str) -> Result<(), PolygeroError> {
         Err(PolygeroError(message.into()))
     }
 }
+
 #[cfg(test)]
 #[path = "../tests/polygero.rs"]
 mod tests;

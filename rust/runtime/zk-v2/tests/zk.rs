@@ -139,7 +139,7 @@ pub(crate) fn exercise<
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
     let bytes = proof.write(&prover_geometry, f).unwrap();
-    assert_eq!(&bytes[..4], b"LFV5");
+    assert_eq!(&bytes[..4], b"LFV6");
     for old_marker in [b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
@@ -194,7 +194,7 @@ pub(crate) fn exercise<
     assert!(verify(vec![], &decoded).is_err());
     {
         let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
-        f.add(&mut bad.com_proof.h[0], &f.one());
+        f.add(&mut bad.com_proof.bodies.0.h[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {

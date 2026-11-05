@@ -59,39 +59,36 @@ fn run<
     };
     let preprocessing_start = Instant::now();
     let param = PolygeroParam::try_new(nw, config, d, f).unwrap();
-    let vp = PolygeroParam::try_new(nw, config, d, f).unwrap();
+    let param = JointPolygeroParam::new((Participant::new(param, f, d).unwrap(), ())).unwrap();
     let preprocessing = preprocessing_start.elapsed();
+    let statements = (
+        LinearStatement {
+            a,
+            b,
+            digest: statement,
+        },
+        (),
+    );
     // Release the prover's rows and Merkle tree before timing verification.
     let (com, bytes, commit, prove) = {
         let mut ts = Transcript::new(b"polygero/kernel/bench");
         let commit_start = Instant::now();
         let (prover, com) =
-            PolygeroProver::commit(witness, param, &mut ts, d, &mut rng, f).unwrap();
+            JointPolygeroProver::commit(&param, (witness, ()), &mut ts, &mut rng).unwrap();
         let commit = commit_start.elapsed();
         let prove_start = Instant::now();
-        let proof = prover.prove(&b, &mut ts, &a, &statement, d, f).unwrap();
+        let proof = prover.prove(&param, &statements, &mut ts).unwrap();
         let prove = prove_start.elapsed();
-        let bytes = proof.write(&vp.geometry(), f).unwrap();
+        let bytes = param.write(&proof).unwrap();
         (com, bytes, commit, prove)
     };
     let verify_start = Instant::now();
-    let decoded_proof =
-        longfellow_zk::runtime::proto::polygero::read(&mut bytes.as_slice(), &vp.geometry(), f)
-            .unwrap();
+    let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
     let mut verifier_ts = Transcript::new(b"polygero/kernel/bench");
-    let mut verifier = PolygeroVerifier::new(vp);
+    let mut verifier = JointPolygeroVerifier::new(param);
     verifier.receive_commitment(&com, &mut verifier_ts);
     verifier
-        .verify(
-            &b,
-            &com,
-            &decoded_proof,
-            &a,
-            &statement,
-            &mut verifier_ts,
-            d,
-            f,
-        )
+        .verify(&com, &decoded_proof, &statements, &mut verifier_ts)
         .unwrap();
     let verify = verify_start.elapsed();
     eprintln!("{name}: config={config:?}, witnesses={nw}, preprocessing(two parties)={:.3} ms, commit={:.3} ms, prove={:.3} ms, decode+verify={:.3} ms, proof={} bytes",preprocessing.as_secs_f64()*1000.0,commit.as_secs_f64()*1000.0,prove.as_secs_f64()*1000.0,verify.as_secs_f64()*1000.0,bytes.len());

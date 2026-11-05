@@ -12,7 +12,7 @@ use crate::{
         },
         proto::{
             dual_packing::PackingProof,
-            polygero::{PolygeroCommitment, PolygeroGeometry, PolygeroProof},
+            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
             sumcheck_v2::{SumcheckProof, SumcheckProofGeometry},
         },
     },
@@ -60,6 +60,9 @@ impl PackingLayout {
 pub struct ZkProofGeometry {
     pub sc_geom: SumcheckProofGeometry,
     pub com_geom: PolygeroGeometry,
+    /// Context for this circuit as a singleton participant. Joint applications
+    /// derive a separate ordered tuple context for their shared envelope.
+    pub com_context: super::Digest,
     pub packing_degree: usize,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -67,51 +70,52 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
     pub sumcheck_proof: SumcheckProof<W, F>,
     pub com: PolygeroCommitment,
     pub packing: PackingProof<ElementOf<F>>,
-    pub com_proof: PolygeroProof<ElementOf<F>>,
+    pub com_proof: JointPolygeroProof<(FieldProof<ElementOf<F>>, ())>,
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+/// A circuit reduction, authenticated later by its participant's shared opening.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CircuitProof<const W: usize, F: SerializableField> {
+    pub sumcheck_proof: SumcheckProof<W, F>,
+    pub packing: PackingProof<ElementOf<F>>,
+}
+impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> {
+    fn write_parts(
+        sumcheck: &SumcheckProof<W, F>,
+        packing: &PackingProof<F::E>,
+        buf: &mut Vec<u8>,
+        g: &ZkProofGeometry,
+        f: &F,
+    ) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+        match packing {
+            PackingProof::Direct if g.packing_degree == 1 => {}
+            PackingProof::TraceZero { u, .. }
+                if g.packing_degree > 1 && u.len() == g.packing_degree => {}
+            _ => return Err(Error::new(ErrorKind::InvalidData, "v2 packing shape")),
+        }
+        sumcheck.write_to_buf(buf, &g.sc_geom, f)?;
+        if let PackingProof::TraceZero { u, a } = packing {
+            for x in u.iter().chain(std::iter::once(a)) {
+                super::util::write_elt_field(buf, x, f);
+            }
+        }
+        Ok(())
+    }
     pub fn write_to_buf(
         &self,
         buf: &mut Vec<u8>,
         g: &ZkProofGeometry,
         f: &F,
     ) -> std::io::Result<()> {
-        use std::io::{Error, ErrorKind};
-        match &self.packing {
-            PackingProof::Direct if g.packing_degree == 1 => {}
-            PackingProof::TraceZero { u, .. }
-                if g.packing_degree > 1 && u.len() == g.packing_degree => {}
-            _ => return Err(Error::new(ErrorKind::InvalidData, "v2 packing shape")),
-        }
-        buf.extend_from_slice(b"LFV5");
-        buf.extend_from_slice(&self.com.root.data);
-        self.sumcheck_proof.write_to_buf(buf, &g.sc_geom, f)?;
-        if let PackingProof::TraceZero { u, a } = &self.packing {
-            for x in u.iter().chain(std::iter::once(a)) {
-                super::util::write_elt_field(buf, x, f);
-            }
-        }
-        self.com_proof.write_to_buf(buf, &g.com_geom, f)
+        Self::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)
     }
     pub fn write(&self, g: &ZkProofGeometry, f: &F) -> std::io::Result<Vec<u8>> {
-        let mut b = Vec::new();
-        self.write_to_buf(&mut b, g, f)?;
-        Ok(b)
+        let mut out = Vec::new();
+        self.write_to_buf(&mut out, g, f)?;
+        Ok(out)
     }
     pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
-        if b.get(..4) != Some(b"LFV5") {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Longfellow v2 version marker",
-            ));
-        }
-        *b = &b[4..];
-        let com = PolygeroCommitment {
-            root: super::Digest {
-                data: super::util::read_bytes_32(b)?,
-            },
-        };
         let sumcheck_proof = SumcheckProof::read(b, &g.sc_geom, f)?;
         let packing = if g.packing_degree == 1 {
             PackingProof::Direct
@@ -149,7 +153,57 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
             let a = v.pop().unwrap();
             PackingProof::TraceZero { u: v, a }
         };
-        let com_proof = super::polygero::read(b, &g.com_geom, f)?;
+        Ok(Self {
+            sumcheck_proof,
+            packing,
+        })
+    }
+}
+impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+    pub fn write_to_buf(
+        &self,
+        buf: &mut Vec<u8>,
+        g: &ZkProofGeometry,
+        f: &F,
+    ) -> std::io::Result<()> {
+        buf.extend_from_slice(b"LFV6");
+        buf.extend_from_slice(&self.com.root.data);
+        CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)?;
+        self.com_proof
+            .write_to_buf(buf, &g.com_context, g.com_geom.t, g.com_geom.n, |b, out| {
+                b.0.write(out, &g.com_geom, f)
+            })
+    }
+    pub fn write(&self, g: &ZkProofGeometry, f: &F) -> std::io::Result<Vec<u8>> {
+        let mut b = Vec::new();
+        self.write_to_buf(&mut b, g, f)?;
+        Ok(b)
+    }
+    pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
+        use std::io::{Error, ErrorKind};
+        if b.get(..4) != Some(b"LFV6") {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Longfellow v2 version marker",
+            ));
+        }
+        *b = &b[4..];
+        let com = PolygeroCommitment {
+            root: super::Digest {
+                data: super::util::read_bytes_32(b)?,
+            },
+        };
+        let CircuitProof {
+            sumcheck_proof,
+            packing,
+        } = CircuitProof::read(b, g, f)?;
+        let com_proof = JointPolygeroProof::read::<std::io::Error>(
+            b,
+            &g.com_context,
+            g.com_geom.t,
+            g.com_geom.n,
+            |b| Ok((FieldProof::read(b, &g.com_geom, f)?, ())),
+        )?;
         Ok(Self {
             sumcheck_proof,
             com,

@@ -42,8 +42,9 @@ use crate::{
             secp256r1::Secp256r1,
             SupportsFFT,
         },
+        polygero::{JointPolygeroParam, JointPolygeroProver},
         random::{RandomEngine, Transcript},
-        zk_v2::{ZkContext, ZkProver},
+        zk_v2::{joint::CircuitParticipant, ZkContext},
     },
 };
 
@@ -155,16 +156,34 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         domain: &make_interpolator_sig,
     };
 
-    let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
-    let (commit_hash, geom_hash) = prover_hash
-        .commit(&witness_hash, &context_hash, &mut tp, rng)
+    let prover_hash = CircuitParticipant::new(&c_hash, config_hash, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-
-    let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
-    let (commit_sig, geom_sig) = prover_sig
-        .commit(&witness_sig, &context_sig, &mut tp, rng)
+    let prover_sig = CircuitParticipant::new(&c_sig, config_sig, &context_sig)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-
+    let (state_hash, packed_hash) = prover_hash
+        .prepare(&witness_hash, rng)
+        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let (state_sig, packed_sig) = prover_sig
+        .prepare(&witness_sig, rng)
+        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let joint = JointPolygeroParam::new((
+        prover_hash
+            .participant(&context_hash)
+            .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
+        (
+            prover_sig
+                .participant(&context_sig)
+                .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
+            (),
+        ),
+    ))
+    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    prover_hash.bind(&mut tp);
+    prover_sig.bind(&mut tp);
+    // Both fields are fixed by this root before the cross-field MAC challenge.
+    let (polygero, commitment) =
+        JointPolygeroProver::commit(&joint, (packed_hash, (packed_sig, ())), &mut tp, rng)
+            .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let av_val = tp.u128();
 
     let macs = push_macs(
@@ -184,32 +203,43 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let sig_pub_inputs =
         push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
 
-    let proof_hash = prover_hash
+    let (proof_hash, statement_hash) = prover_hash
         .prove(
+            &c_hash,
             &hash_pub_inputs,
             witness_hash,
-            commit_hash,
+            state_hash,
             &mut tp,
             &context_hash,
         )
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
-    let proof_sig = prover_sig
+    let (proof_sig, statement_sig) = prover_sig
         .prove(
+            &c_sig,
             &sig_pub_inputs,
             witness_sig,
-            commit_sig,
+            state_sig,
             &mut tp,
             &context_sig,
         )
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
 
+    // Both circuit reductions are fixed before either field's backend challenges.
+    // Their affine rows share authentication, while their arithmetic stays separate.
+    let polygero = polygero
+        .prove(&joint, &(statement_hash, (statement_sig, ())), &mut tp)
+        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let geom = MdocProofGeometry {
-        geom_hash,
-        geom_sig,
+        geom_hash: prover_hash.geometry(),
+        geom_sig: prover_sig.geometry(),
+        joint_context: joint.context(),
+        config: joint.config(),
     };
     let proof = MdocProof {
         macs,
+        commitment,
+        polygero,
         proof_hash,
         proof_sig,
     };

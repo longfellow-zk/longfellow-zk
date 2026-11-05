@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
+use sha2::Digest as _;
+
+use super::{
+    joint::{FieldProof, JointPolygeroProof},
+    *,
+};
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
@@ -138,7 +143,7 @@ fn exercise<
     for k in [1, 3, 7, 12] {
         let samples = rng.elt_field_slice(k, f);
         let points: Vec<_> = (0..k).map(|i| backend.point(i)).collect();
-        let polynomial = super::prover::reference::interpolate(&points, &samples, f);
+        let polynomial = reference::interpolate(&points, &samples, f);
         let output = extend(&samples, 64, backend, f);
         assert_eq!(&output[..k], samples.as_slice());
         for (i, value) in output.iter().enumerate() {
@@ -187,10 +192,11 @@ fn exercise<
         let p = PolygeroParam::try_new(nw, config, d, f).unwrap();
         let vp = PolygeroParam::try_new(nw, config, d, f).unwrap();
         assert_eq!(vp.oracle_range(), k..k + config.n);
+        let joint = JointPolygeroParam::new((Participant::new(p, f, d).unwrap(), ())).unwrap();
         let mut ts = Transcript::new(b"polygero/test");
         let before = ts.clone();
         let (prover, com) =
-            PolygeroProver::commit(witness.clone(), p, &mut ts, d, &mut rng, f).unwrap();
+            JointPolygeroProver::commit(&joint, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
         let mut a = Vec::new();
         let mut b = vec![f.zero(); 3];
         for (w, value) in witness.iter().enumerate() {
@@ -209,22 +215,22 @@ fn exercise<
             let mut false_targets = b.clone();
             f.add(&mut false_targets[2], &f.one());
             let mut false_ts = ts.clone();
-            let false_proof = super::prover::reference::snapshot(&prover)
-                .prove(&false_targets, &mut false_ts, &a, &statement, d, f)
+            let false_proof = reference::snapshot(&prover)
+                .prove(
+                    &joint,
+                    &(linear(&a, &false_targets, statement), ()),
+                    &mut false_ts,
+                )
                 .unwrap();
             let mut verifier_ts = before.clone();
-            let mut verifier = PolygeroVerifier::new(vp.clone());
+            let mut verifier = JointPolygeroVerifier::new(joint.clone());
             verifier.receive_commitment(&com, &mut verifier_ts);
             let error = verifier
                 .verify(
-                    &false_targets,
                     &com,
                     &false_proof,
-                    &a,
-                    &statement,
+                    &(linear(&a, &false_targets, statement), ()),
                     &mut verifier_ts,
-                    d,
-                    f,
                 )
                 .unwrap_err();
             assert_eq!(error.0, "Polygero global arithmetic sum failed");
@@ -233,8 +239,12 @@ fn exercise<
         for (c, w) in [(b.len(), 0), (0, nw), (usize::MAX, 0), (0, usize::MAX)] {
             let invalid = [PolygeroLinearTerm { c, w, k: f.one() }];
             let mut rejected_ts = ts.clone();
-            let error = super::prover::reference::snapshot(&prover)
-                .prove(&b, &mut rejected_ts, &invalid, &statement, d, f)
+            let error = reference::snapshot(&prover)
+                .prove(
+                    &joint,
+                    &(linear(&invalid, &b, statement), ()),
+                    &mut rejected_ts,
+                )
                 .unwrap_err();
             assert_eq!(error.0, "linear constraint index out of bounds");
             assert_eq!(rejected_ts.u128(), ts.clone().u128());
@@ -243,10 +253,13 @@ fn exercise<
             inner: d,
             calls: std::cell::RefCell::default(),
         };
-        let reference = super::prover::reference::snapshot(&prover);
+        let reference = reference::snapshot(&prover);
         let before_prove = ts.clone();
+        let counted_param =
+            JointPolygeroParam::new((Participant::new(vp.clone(), f, &counted).unwrap(), ()))
+                .unwrap();
         let proof = prover
-            .prove(&b, &mut ts, &a, &statement, &counted, f)
+            .prove(&counted_param, &(linear(&a, &b, statement), ()), &mut ts)
             .unwrap();
         // Public V/z_R evaluations and the two response plans are built once,
         // independently of the number of rows.
@@ -260,25 +273,33 @@ fn exercise<
             ]
         );
         // A verifier must receive this root, even when handed a valid proof.
-        let mut unbound = PolygeroVerifier::new(vp.clone());
+        let mut unbound = JointPolygeroVerifier::new(joint.clone());
         let mut unbound_ts = before.clone();
         let missing_root_error = unbound
-            .verify(&b, &com, &proof, &a, &statement, &mut unbound_ts, d, f)
+            .verify(
+                &com,
+                &proof,
+                &(linear(&a, &b, statement), ()),
+                &mut unbound_ts,
+            )
             .unwrap_err();
-        assert_eq!(missing_root_error.0, "Polygero commitment was not received");
+        assert_eq!(missing_root_error.0, "joint commitment was not received");
         let mut other = com.clone();
         other.root.data[0] ^= 1;
         unbound.receive_commitment(&other, &mut unbound_ts);
         let mismatched_root_error = unbound
-            .verify(&b, &com, &proof, &a, &statement, &mut unbound_ts, d, f)
+            .verify(
+                &com,
+                &proof,
+                &(linear(&a, &b, statement), ()),
+                &mut unbound_ts,
+            )
             .unwrap_err();
-        assert_eq!(
-            mismatched_root_error.0,
-            "Polygero commitment was not received"
-        );
+        assert_eq!(mismatched_root_error.0, "joint commitment was not received");
 
         if nw != 0 {
-            super::prover::reference::check_recommitted_wrong_witness(
+            reference::check_recommitted_wrong_witness(
+                &joint,
                 &reference,
                 &b,
                 &a,
@@ -288,25 +309,24 @@ fn exercise<
                 f,
             );
         }
-        super::prover::reference::check(&reference, &proof, &b, &a, &statement, before, d, f);
-        let verify = |candidate: &PolygeroProof<F::E>,
+        reference::check(&joint, &reference, &proof, &b, &a, &statement, before, d, f);
+        let verify = |candidate: &JointPolygeroProof<(FieldProof<F::E>, ())>,
                       targets: &[F::E],
                       constraints: &[PolygeroLinearTerm<F::E>],
                       commitment: &PolygeroCommitment,
                       hash: &Digest| {
             let mut verifier_ts = Transcript::new(b"polygero/test");
             let verifier_param = PolygeroParam::try_new(nw, config, d, f).unwrap();
-            let mut v = PolygeroVerifier::new(verifier_param);
+            let verifier_param =
+                JointPolygeroParam::new((Participant::new(verifier_param, f, d).unwrap(), ()))
+                    .unwrap();
+            let mut v = JointPolygeroVerifier::new(verifier_param);
             v.receive_commitment(commitment, &mut verifier_ts);
             v.verify(
-                targets,
                 commitment,
                 candidate,
-                constraints,
-                hash,
+                &(linear(constraints, targets, *hash), ()),
                 &mut verifier_ts,
-                d,
-                f,
             )
         };
         verify(&proof, &b, &a, &com, &statement).unwrap();
@@ -324,40 +344,46 @@ fn exercise<
         }
         verify(&proof, &b, &reordered, &com, &statement).unwrap();
         let mut reordered_ts = before_prove;
-        let reordered_proof = super::prover::reference::snapshot(&reference)
-            .prove(&b, &mut reordered_ts, &reordered, &statement, d, f)
+        let reordered_proof = reference::snapshot(&reference)
+            .prove(
+                &joint,
+                &(linear(&reordered, &b, statement), ()),
+                &mut reordered_ts,
+            )
             .unwrap();
         assert_eq!(reordered_proof, proof);
         assert_eq!(reordered_ts.bytes(32), ts.clone().bytes(32));
 
-        let bytes = proof.write(&vp.geom, f).unwrap();
+        let bytes = joint.write(&proof).unwrap();
         let mut input = bytes.as_slice();
-        let decoded = crate::runtime::proto::polygero::read(&mut input, &vp.geom, f).unwrap();
+        let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
         assert_eq!(decoded, proof);
         for which in 0..17 {
             let mut bad = proof.clone();
             match which {
-                0 => f.add(&mut bad.h[0], &f.one()),
-                1 => f.add(&mut bad.z[0], &f.one()),
+                0 => f.add(&mut bad.bodies.0.h[0], &f.one()),
+                1 => f.add(&mut bad.bodies.0.z[0], &f.one()),
                 2 => {
-                    bad.z.pop();
+                    bad.bodies.0.z.pop();
                 }
-                3 => f.add(&mut bad.rows[0], &f.one()),
+                3 => f.add(&mut bad.bodies.0.rows[0], &f.one()),
                 4 => bad.opening.nonce[0].bytes[0] ^= 1,
                 5 => bad.opening.path[0].data[0] ^= 1,
                 6 => {
-                    bad.h.pop();
+                    bad.bodies.0.h.pop();
                 }
                 7 => bad.opening.path.push(Digest::default()),
                 8 => {
-                    bad.rows.pop();
+                    bad.bodies.0.rows.pop();
                 }
                 9 => {
                     // The old column-major layout must not verify as packed rows.
-                    bad.rows = (0..vp.geom.t)
+                    bad.bodies.0.rows = (0..vp.geom.t)
                         .flat_map(|query| {
                             proof
+                                .bodies
+                                .0
                                 .rows
                                 .chunks_exact(vp.geom.t)
                                 .map(move |row| row[query].clone())
@@ -366,22 +392,22 @@ fn exercise<
                 }
                 10 => {
                     // Query order within each row is fixed by the transcript.
-                    for row in bad.rows.chunks_exact_mut(vp.geom.t) {
+                    for row in bad.bodies.0.rows.chunks_exact_mut(vp.geom.t) {
                         row.swap(0, 1);
                     }
                 }
                 11 => {
                     // The trailing masking row is transmitted and authenticated.
-                    let start = bad.rows.len() - vp.geom.t;
-                    f.add(&mut bad.rows[start], &f.one());
+                    let start = bad.bodies.0.rows.len() - vp.geom.t;
+                    f.add(&mut bad.bodies.0.rows[start], &f.one());
                 }
                 12 => {
                     bad.opening.nonce.pop();
                 }
                 13 => bad.opening.nonce.push(bad.opening.nonce[0]),
-                14 => bad.rows.push(f.zero()),
-                15 => bad.h.push(f.zero()),
-                16 => bad.z.push(f.zero()),
+                14 => bad.bodies.0.rows.push(f.zero()),
+                15 => bad.bodies.0.h.push(f.zero()),
+                16 => bad.bodies.0.z.push(f.zero()),
                 _ => unreachable!(),
             }
             let error = verify(&bad, &b, &a, &com, &statement)
@@ -389,7 +415,7 @@ fn exercise<
             if which == 11 {
                 assert!(error.0.starts_with("root mismatch:"), "{error}");
             } else if (12..17).contains(&which) {
-                assert_eq!(error.0, "Polygero proof shape");
+                assert!(error.0 == "joint field proof shape" || error.0 == "joint opening shape");
             }
         }
         {
@@ -416,55 +442,38 @@ fn exercise<
             bad.data[0] ^= 1;
             assert!(verify(&proof, &b, &a, &com, &bad).is_err());
             for length in (0..32).chain([bytes.len() / 2, bytes.len() - 1]) {
-                assert!(
-                    crate::runtime::proto::polygero::read(&mut &bytes[..length], &vp.geom, f,)
-                        .is_err()
-                );
+                assert!(joint.read(&mut &bytes[..length]).is_err());
             }
         }
         {
             let mut bad = bytes.clone();
             bad[0] ^= 1;
-            assert!(
-                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f).is_err()
-            );
+            assert!(joint.read(&mut bad.as_slice()).is_err());
         }
         {
             let mut bad = bytes.clone();
             bad[4] ^= 1;
-            assert!(
-                crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f).is_err()
-            );
+            assert!(joint.read(&mut bad.as_slice()).is_err());
         }
         {
             let mut bad = bytes.clone();
             bad[bytes.len() - 1] ^= 1;
-            let result = crate::runtime::proto::polygero::read(&mut bad.as_slice(), &vp.geom, f);
+            let result = joint.read(&mut bad.as_slice());
             if let Ok(decoded_bad) = result {
                 assert!(verify(&decoded_bad, &b, &a, &com, &statement).is_err());
             }
             if !f.is_binary() {
                 let mut noncanonical = bytes.clone();
-                // The first field element follows the version and five u32 counts.
-                noncanonical[24..24 + f.serialized_size_bytes()].fill(255);
-                assert!(crate::runtime::proto::polygero::read(
-                    &mut noncanonical.as_slice(),
-                    &vp.geom,
-                    f,
-                )
-                .is_err());
+                // The first field element follows the version and context.
+                noncanonical[36..36 + f.serialized_size_bytes()].fill(255);
+                assert!(joint.read(&mut noncanonical.as_slice()).is_err());
             }
         }
         {
             let mut oversized_frontier = bytes.clone();
             let position = bytes.len() - proof.opening.path.len() * 32 - 4;
             oversized_frontier[position..position + 4].fill(255);
-            assert!(crate::runtime::proto::polygero::read(
-                &mut oversized_frontier.as_slice(),
-                &vp.geom,
-                f,
-            )
-            .is_err());
+            assert!(joint.read(&mut oversized_frontier.as_slice()).is_err());
         }
         let invalid = PolygeroConfig {
             t: config.k,
@@ -589,18 +598,25 @@ fn merkle_codecs_bind_role_index_context_and_salt() {
     let salt = MerkleNonce { bytes: [7; 32] };
     let other_salt = MerkleNonce { bytes: [8; 32] };
     let column = [f.one()];
-    let hash = hash::leaf(&context, 0, &column, &salt, &f);
-    assert_ne!(hash, hash::leaf(&context, 1, &column, &salt, &f));
-    assert_ne!(hash, hash::leaf(&other, 0, &column, &salt, &f));
-    assert_ne!(hash, hash::leaf(&context, 0, &column, &other_salt, &f));
-    assert_ne!(hash, hash::node(&context, &context, &other));
+    let leaf = |context: &Digest, index, salt: &_| {
+        let mut h = super::hash::leaf(context, index, salt);
+        h.update(f.to_bytes(&column[0]));
+        Digest {
+            data: h.finalize().into(),
+        }
+    };
+    let hash = leaf(&context, 0, &salt);
+    assert_ne!(hash, leaf(&context, 1, &salt));
+    assert_ne!(hash, leaf(&other, 0, &salt));
+    assert_ne!(hash, leaf(&context, 0, &other_salt));
+    assert_ne!(hash, super::hash::node(&context, &context, &other));
     assert_ne!(
-        hash::node(&context, &hash, &other),
-        hash::node(&context, &other, &hash)
+        super::hash::node(&context, &hash, &other),
+        super::hash::node(&context, &other, &hash)
     );
     assert_ne!(
-        hash::node(&context, &hash, &other),
-        hash::node(&other, &hash, &other)
+        super::hash::node(&context, &hash, &other),
+        super::hash::node(&other, &hash, &other)
     );
 }
 
@@ -609,14 +625,14 @@ fn duplicate_opening_indices_reject_with_polygero_node_hash() {
     use crate::runtime::merkle::{heap::verify_proof_with_hash, MerkleError, MerkleHeap};
     let context = Digest::default();
     let leaves = [Digest { data: [1; 32] }, Digest { data: [2; 32] }];
-    let tree = MerkleHeap::new_with_hash(&leaves, |l, r| hash::node(&context, l, r));
+    let tree = MerkleHeap::new_with_hash(&leaves, |l, r| super::hash::node(&context, l, r));
     let path = tree.generate_proof(&[0, 1]);
     assert!(verify_proof_with_hash(
         2,
         &tree.root(),
         &path,
         &[(0, leaves[0]), (1, leaves[1])],
-        |l, r| hash::node(&context, l, r)
+        |l, r| super::hash::node(&context, l, r)
     )
     .is_ok());
     assert_eq!(
@@ -625,7 +641,7 @@ fn duplicate_opening_indices_reject_with_polygero_node_hash() {
             &tree.root(),
             &path,
             &[(0, leaves[0]), (0, leaves[0])],
-            |l, r| hash::node(&context, l, r)
+            |l, r| super::hash::node(&context, l, r)
         ),
         Err(MerkleError::DuplicateLeafIndex { index: 0 })
     );
@@ -714,22 +730,25 @@ fn binary_profile_fits_exact_original_point_table() {
     let statement = Digest::default();
     let param = PolygeroParam::try_new(3, config, &domain, &f).unwrap();
     assert_eq!(param.oracle_range().end, 256);
-    let verifier_param = param.clone();
+    let joint =
+        JointPolygeroParam::new((Participant::new(param.clone(), &f, &domain).unwrap(), ()))
+            .unwrap();
     let mut ts = Transcript::new(b"polygero/tight-table");
     let before = ts.clone();
     let (prover, commitment) =
-        PolygeroProver::commit(witness.clone(), param, &mut ts, &domain, &mut rng, &f).unwrap();
+        JointPolygeroProver::commit(&joint, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
     let constraints = [PolygeroLinearTerm {
         c: 0,
         w: 2,
         k: f.one(),
     }];
     let b = [f.neg(&witness[2])];
-    let reference = super::prover::reference::snapshot(&prover);
+    let reference = reference::snapshot(&prover);
     let proof = prover
-        .prove(&b, &mut ts, &constraints, &statement, &domain, &f)
+        .prove(&joint, &(linear(&constraints, &b, statement), ()), &mut ts)
         .unwrap();
-    super::prover::reference::check(
+    reference::check(
+        &joint,
         &reference,
         &proof,
         &b,
@@ -740,21 +759,27 @@ fn binary_profile_fits_exact_original_point_table() {
         &f,
     );
     let mut verifier_ts = Transcript::new(b"polygero/tight-table");
-    let mut verifier = PolygeroVerifier::new(verifier_param);
+    let mut verifier = JointPolygeroVerifier::new(joint);
     verifier.receive_commitment(&commitment, &mut verifier_ts);
     verifier
         .verify(
-            &b,
             &commitment,
             &proof,
-            &constraints,
-            &statement,
+            &(linear(&constraints, &b, statement), ()),
             &mut verifier_ts,
-            &domain,
-            &f,
         )
         .unwrap();
 }
 
 #[path = "masks.rs"]
 mod masks;
+
+fn linear<E: Clone>(a: &[PolygeroLinearTerm<E>], b: &[E], digest: Digest) -> LinearStatement<E> {
+    LinearStatement {
+        a: a.to_vec(),
+        b: b.to_vec(),
+        digest,
+    }
+}
+#[path = "reference.rs"]
+mod reference;

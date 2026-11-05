@@ -401,7 +401,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let mut bad_sumcheck = decoded_proof.clone();
                 bad_sumcheck.sumcheck_proof.layers[0].rounds.pop();
                 let mut bad_polygero = decoded_proof.clone();
-                bad_polygero.com_proof.h.pop();
+                bad_polygero.com_proof.bodies.0.h.pop();
                 for malformed in [&bad_sumcheck, &bad_polygero] {
                     let mut bad_ts = Transcript::new(b"lexicographic-zk");
                     verifier.receive_commitment(malformed, &mut bad_ts);

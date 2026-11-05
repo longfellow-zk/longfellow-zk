@@ -14,32 +14,38 @@
 
 //! Independent coefficient arithmetic, kept entirely outside production code.
 use super::*;
-use crate::{core::algebra::AlgebraicField, runtime::proto::Digest};
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::{merkle::MerkleHeap, polygero::joint::Participants, proto::Digest},
+};
 
 /// Preserve private rows for independent polynomial/forgery checks after prove
 /// consumes its input. Duplication is confined to tests; production state is not Clone.
-pub(in crate::runtime::polygero) fn snapshot<const W: usize, F: RuntimeField<W>>(
-    prover: &PolygeroProver<W, F>,
-) -> PolygeroProver<W, F> {
-    PolygeroProver {
-        param: prover.param.clone(),
-        w: prover.w.clone(),
-        tree: MerkleHeap {
-            num_leaves: prover.tree.num_leaves,
-            layers: prover.tree.layers.clone(),
+pub(super) fn snapshot<E: Clone>(
+    prover: &JointPolygeroProver<(Vec<Vec<E>>, ())>,
+) -> JointPolygeroProver<(Vec<Vec<E>>, ())> {
+    JointPolygeroProver {
+        context: prover.context,
+        states: prover.states.clone(),
+        oracle: crate::runtime::polygero::prover_commitment::ColumnOracle {
+            tree: MerkleHeap {
+                num_leaves: prover.oracle.tree.num_leaves,
+                layers: prover.oracle.tree.layers.clone(),
+            },
+            salts: prover.oracle.salts.clone(),
         },
-        salts: prover.salts.clone(),
     }
 }
 
 /// Recommitting a wrong witness authenticates successfully but must fail the
 /// original linear equations, even with consistently recomputed responses.
-pub(in crate::runtime::polygero) fn check_recommitted_wrong_witness<
+pub(super) fn check_recommitted_wrong_witness<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
-    prover: &PolygeroProver<W, F>,
+    joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
+    prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
     statement: &Digest,
@@ -48,46 +54,30 @@ pub(in crate::runtime::polygero) fn check_recommitted_wrong_witness<
     f: &F,
 ) {
     let mut forged = snapshot(prover);
-    let param = forged.param.clone();
-    let output = param.data_start();
-    for value in &mut forged.w[output] {
+    let param = &joint.participants.0.param;
+    for value in &mut forged.states.0[param.data_start()] {
         f.add(value, &f.one());
     }
-    let leaves: Vec<_> = (0..param.geom.n)
-        .map(|j| {
-            super::super::hash::leaf(
-                &param.context,
-                j,
-                forged.w.iter().map(|row| &row[j]),
-                &forged.salts[j],
-                f,
-            )
-        })
-        .collect();
-    forged.tree = MerkleHeap::new_with_hash(&leaves, |l, r| {
-        super::super::hash::node(&param.context, l, r)
-    });
+    forged.oracle = crate::runtime::polygero::prover_commitment::ColumnOracle::new(
+        param.geom.n,
+        &joint.context,
+        &mut DeterministicRng::new(97),
+        |j, h| joint.participants.append_encoded(&forged.states, j, h),
+    );
     let commitment = PolygeroCommitment {
-        root: forged.tree.root(),
+        root: forged.oracle.root(),
     };
     let mut verifier_ts = ts.clone();
-    transcript::receive_commitment(&mut ts, &param, &commitment);
-    let proof = forged.prove(b, &mut ts, a, statement, domain, f).unwrap();
-    let mut verifier = super::super::PolygeroVerifier::new(param);
+    joint.receive(&commitment, &mut ts);
+    let statements = (linear(a, b, *statement), ());
+    let proof = forged.prove(joint, &statements, &mut ts).unwrap();
+    let mut verifier = JointPolygeroVerifier::new(joint.clone());
     verifier.receive_commitment(&commitment, &mut verifier_ts);
     let error = verifier
-        .verify(
-            b,
-            &commitment,
-            &proof,
-            a,
-            statement,
-            &mut verifier_ts,
-            domain,
-            f,
-        )
+        .verify(&commitment, &proof, &statements, &mut verifier_ts)
         .unwrap_err();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
+    let _ = domain;
 }
 
 fn add<F: AlgebraicField>(a: &mut Vec<F::E>, b: &[F::E], f: &F) {
@@ -121,11 +111,7 @@ fn trim<F: AlgebraicField>(p: &mut Vec<F::E>, f: &F) {
         p.pop();
     }
 }
-pub(in crate::runtime::polygero) fn interpolate<F: AlgebraicField>(
-    nodes: &[F::E],
-    values: &[F::E],
-    f: &F,
-) -> Vec<F::E> {
+pub(super) fn interpolate<F: AlgebraicField>(nodes: &[F::E], values: &[F::E], f: &F) -> Vec<F::E> {
     let mut out = vec![];
     for (i, x) in nodes.iter().enumerate() {
         let mut basis = vec![f.one()];
@@ -152,13 +138,14 @@ fn vanish<F: AlgebraicField>(nodes: &[F::E], f: &F) -> Vec<F::E> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(in crate::runtime::polygero) fn check<
+pub(super) fn check<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D: crate::runtime::algebra::EvaluationDomain<W, F>,
 >(
-    prover: &PolygeroProver<W, F>,
-    proof: &PolygeroProof<F::E>,
+    joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
+    prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
+    envelope: &JointPolygeroProof<(FieldProof<F::E>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
     statement: &Digest,
@@ -166,20 +153,27 @@ pub(in crate::runtime::polygero) fn check<
     domain: &D,
     f: &F,
 ) {
-    let p = &prover.param;
+    let p = &joint.participants.0.param;
+    let proof = &envelope.bodies.0;
+    let statements = (linear(a, b, *statement), ());
     let commitment = PolygeroCommitment {
-        root: prover.tree.root(),
+        root: prover.oracle.root(),
     };
-    let mut verifier = super::super::PolygeroVerifier::new(p.clone());
+    let mut verifier = JointPolygeroVerifier::new(joint.clone());
     verifier.receive_commitment(&commitment, &mut ts);
     let mut verifier_ts = ts.clone();
     let g = p.geom;
     let omega: Vec<_> = (0..g.k).map(|i| domain.point(i)).collect();
     let nodes: Vec<_> = p.oracle_range().map(|i| domain.point(i)).collect();
+    ts.write_bytes(b"polygero/joint/statements/v1");
+    joint.participants.bind_statements(&statements, &mut ts);
+    ts.write_bytes(b"polygero/joint/field-challenges/v1");
+    ts.write_bytes(&p.context.data);
     let challenge = transcript::challenges(&mut ts, p, b.len(), statement, f);
     let fstar = g.nrow() - 1;
     let rows: Vec<_> = prover
-        .w
+        .states
+        .0
         .iter()
         .enumerate()
         .map(|(i, row)| {
@@ -244,11 +238,14 @@ pub(in crate::runtime::polygero) fn check<
             .collect::<Vec<_>>()
     );
     // All committed rows are transmitted in row order at the sampled columns.
-    let indices = transcript::queries(&mut ts.clone(), p, &proof.h, &proof.z, f);
+    let indices = joint.queries(&envelope.bodies, &mut ts.clone());
     assert_eq!(proof.rows.len(), g.nrow() * g.t);
     for row in 0..g.nrow() {
         for query in 0..indices.len() {
-            assert_eq!(proof.rows[row * g.t + query], prover.w[row][indices[query]]);
+            assert_eq!(
+                proof.rows[row * g.t + query],
+                prover.states.0[row][indices[query]]
+            );
         }
     }
     // Reopen genuine columns after changing the response: authentication must
@@ -261,25 +258,25 @@ pub(in crate::runtime::polygero) fn check<
     for (sample, i) in z.iter_mut().zip(p.oracle_prefix(2 * g.k)) {
         f.add(sample, &eval(&delta, &domain.point(i), f));
     }
-    let indices = transcript::queries(&mut ts, p, &h, &z, f);
-    let (rows, opening) = prover.open_columns(&indices);
-    let forged = PolygeroProof {
-        h,
-        z,
-        rows,
-        opening,
+    let mut bodies = (
+        FieldProof {
+            h,
+            z,
+            rows: Vec::new(),
+        },
+        (),
+    );
+    let indices = joint.queries(&bodies, &mut ts);
+    joint
+        .participants
+        .gather(&prover.states, &mut bodies, &indices);
+    let forged = JointPolygeroProof {
+        context: joint.context,
+        bodies,
+        opening: prover.oracle.open(&indices),
     };
     let error = verifier
-        .verify(
-            b,
-            &commitment,
-            &forged,
-            a,
-            statement,
-            &mut verifier_ts,
-            domain,
-            f,
-        )
+        .verify(&commitment, &forged, &statements, &mut verifier_ts)
         .unwrap_err();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }

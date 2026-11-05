@@ -25,7 +25,7 @@
 //! the caller derives A and b, independently of their sparse representation.
 use sha2::{Digest as _, Sha256};
 
-use super::{PolygeroCommitment, PolygeroGeometry, PolygeroParam};
+use super::{PolygeroGeometry, PolygeroParam};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
@@ -35,18 +35,8 @@ use crate::{
     },
 };
 
-/// Bind the public layout and commitment root before deriving any challenges.
-pub(super) fn receive_commitment(
-    ts: &mut Transcript,
-    param: &PolygeroParam,
-    com: &PolygeroCommitment,
-) {
-    ts.write_bytes(b"polygero/root/commitment/v1");
-    ts.write_bytes(&param.context.data);
-    ts.write_bytes(&com.root.data);
-}
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
-pub(super) struct Challenges<E> {
+pub struct Challenges<E> {
     /// One independent weight per affine equation.
     pub(super) alpha: Vec<E>,
     /// Uniform evaluations of B_i on the first s+1 nodes of the oracle.
@@ -78,25 +68,6 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
         batching_samples,
     }
 }
-/// Bind H and Z, then sample distinct oracle columns in choose() order.
-/// Only response samples enter this step; columns and their opening are built
-/// afterward and therefore cannot be inputs to their own query selection.
-pub(super) fn queries<F: SerializableField>(
-    ts: &mut Transcript,
-    param: &PolygeroParam,
-    h: &[F::E],
-    z: &[F::E],
-    f: &F,
-) -> Vec<usize> {
-    ts.write_bytes(b"polygero/root/openings/v1");
-    for response in [h, z] {
-        ts.write_elt_field_slice(response, f);
-    }
-    let mut indices = vec![0; param.geom.t];
-    ts.choose(&mut indices, param.geom.n, param.geom.t);
-    indices
-}
-
 /// Bind the point ordering and dimensions into every
 /// column hash and transcript. The byte encoding is independent of FFT machinery.
 pub(super) fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Digest {

@@ -96,13 +96,14 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
 assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**117-bit extraction security** for the packed authenticated two-field model at
-`fcf8a3a`: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`. This includes
-packing and native affine sumcheck, with circuit/MAC correspondence and
-ideal-sampler premises documented in the [audit](../formal/AUDIT.md).
-That model retains quadratic backend checks. The current
-[linear terminal reduction](runtime/sumcheck-v2/README.md) needs a separate
-formal adaptation before applying this numerical bound.
+**116-bit extraction security** for the linear-terminal two-field model at
+`21cb029`: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^116`. This includes
+packing, native affine sumcheck and the
+[linear terminal reduction](runtime/sumcheck-v2/README.md), with circuit/MAC
+correspondence and ideal-sampler premises documented in the
+[audit](../formal/AUDIT.md). That model authenticates the fields separately.
+The current joint-field backend requires a composition bound for its shared
+commitment and opening queries before this numerical certificate applies.
 Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
 the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
 establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
@@ -119,8 +120,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 154.9 ms | 89.7 ms | 177,792 | 43.00 MiB | 34.33 MiB |
-| 4 | 164.5 ms | 92.0 ms | 179,808 | 47.70 MiB | 37.38 MiB |
+| 2 | 155.9 ms | 85.8 ms | 163,372 | 42.74 MiB | 34.31 MiB |
+| 4 | 167.4 ms | 90.7 ms | 164,844 | 47.43 MiB | 37.36 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -130,15 +131,17 @@ two disclosures.
 Both cases use `(k,s,n,t)=(416,15,2912,86)` for the hash and signature
 components. Each hash circuit has 20 layers; the signature has 21.
 
-| Circuit | Wires excluding inputs | Terms | Sumcheck rounds |
-|---|---:|---:|---:|
-| Hash, 2 attributes | 2,056,052 | 4,175,387 | 267 |
-| Hash, 4 attributes | 2,314,852 | 4,691,287 | 274 |
-| Signature, either case | 179,657 | 276,461 | 260 |
+| Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
+|---|---:|---:|---:|---:|
+| Hash, 2 attributes | 286,367 | 2,056,052 | 4,175,387 | 267 |
+| Hash, 4 attributes | 313,771 | 2,314,852 | 4,691,287 | 274 |
+| Signature, either case | 3,940 | 179,657 | 276,461 | 260 |
 
 The hash component packs 128 private input bits per committed GF128 word.
 Its trace-zero packing response occupies 2,064 bytes. Signature inputs use
 degree-one packing, which adds no masks, messages, or transcript challenges.
+Proof sizes include the sampled Merkle frontier, whose size varies with the
+transcript.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -165,7 +168,17 @@ application types, specifications, transcripts, and proof codecs. They share
 basic infrastructure such as arithmetic, interpolation, randomness, and
 Merkle trees.
 
-V2 binary circuits accept Boolean public and private inputs. Authenticated
+Polygero uses recursive `(Participant, Tail)` tuples ending in `()`. Each
+participant keeps its field, interpolation domain, witness rows, and arithmetic
+responses. Participants with the same `(k,s,n,t)` share one salted column tree
+and one opening query set. All statements are bound before batching challenges,
+and all responses before queries. A single field uses the same protocol through
+`(participant, ())`. Shared-query failure bounds add across participants; they
+do not assume independence. The mdoc application combines its hash and signature fields in one tuple,
+with one commitment and one opening. Its cross-field MAC checks remain in place.
+
+V2 binary circuits accept Boolean public and private inputs.
+ Authenticated
 packing enforces their bit representation, so the Boolean layer omits bitness
 assertions on binary input wires. Internal arithmetic uses the full field;
 converting an arbitrary field expression back to a Boolean still checks bitness.
@@ -240,8 +253,8 @@ Applications select `mdoc::v1` or `mdoc::v2`. Each provides
 A specification identifies a circuit and fixes its commitment parameters.
 The prover and verifier use the same specification and matching archive.
 
-For v2, the hash and signature components each have independent
-`(K, N, s, T)` parameters:
+For v2, the hash and signature components share the same
+`(K, N, s, T)` parameters for their joint column commitment:
 
 | Parameter | Meaning |
 |---|---|

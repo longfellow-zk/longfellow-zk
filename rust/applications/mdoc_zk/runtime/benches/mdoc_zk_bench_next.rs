@@ -249,17 +249,25 @@ fn report_profiles(
     let (hash_config, signature_config) = spec.configs();
     eprintln!("  Selected hash profile: {hash_config:?}");
     eprintln!("  Selected signature profile: {signature_config:?}");
-    let hash_verifier =
-        longfellow_zk::runtime::zk_v2::ZkVerifier::new(hash, hash_config, &hash_context).unwrap();
-    let signature_verifier = longfellow_zk::runtime::zk_v2::ZkVerifier::new(
-        signature,
-        signature_config,
-        &signature_context,
-    )
+    use longfellow_zk::runtime::{polygero::JointPolygeroParam, zk_v2::joint::CircuitParticipant};
+    let hash_participant = CircuitParticipant::new(&hash, hash_config, &hash_context).unwrap();
+    let signature_participant =
+        CircuitParticipant::new(&signature, signature_config, &signature_context).unwrap();
+    let joint = JointPolygeroParam::new((
+        hash_participant.participant(&hash_context).unwrap(),
+        (
+            signature_participant
+                .participant(&signature_context)
+                .unwrap(),
+            (),
+        ),
+    ))
     .unwrap();
     runtime::proto::MdocProofGeometry {
-        geom_hash: hash_verifier.geometry(),
-        geom_sig: signature_verifier.geometry(),
+        geom_hash: hash_participant.geometry(),
+        geom_sig: signature_participant.geometry(),
+        joint_context: joint.context(),
+        config: joint.config(),
     }
 }
 
@@ -277,33 +285,21 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
         .write(&geometry.geom_hash, &binary)
         .unwrap();
     let signature = proof.proof_sig.write(&geometry.geom_sig, &prime).unwrap();
-    let hash_polygero = proof
-        .proof_hash
-        .com_proof
-        .write(&geometry.geom_hash.com_geom, &binary)
-        .unwrap();
-    let hash_sumcheck = proof
-        .proof_hash
-        .sumcheck_proof
-        .write(&geometry.geom_hash.sc_geom, &binary)
-        .unwrap();
-    // Each GF(2^128) element occupies 16 bytes: degree U values plus one A.
-    let packing_bytes = 16 * (geometry.geom_hash.packing_degree + 1);
+    let polygero = &proof.polygero;
+    let (nonces, frontier) = polygero.authentication_bytes();
+    let hash_payload = polygero.bodies().0.payload_bytes(&binary);
+    let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
+    let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
     assert_eq!(
-        hash.len(),
-        4 + 32 + hash_sumcheck.len() + hash_polygero.len() + packing_bytes
-    );
-    assert_eq!(bytes.len(), 96 + hash.len() + signature.len());
-    eprintln!(
-        "  SHA/hash circuit: {} bytes (Polygero={}, sumcheck={}, packing={}, version+commitment=36)",
-        hash.len(),
-        hash_polygero.len(),
-        hash_sumcheck.len(),
-        packing_bytes
+        bytes.len(),
+        96 + 36 + hash.len() + signature.len() + shared_bytes
     );
     eprintln!(
-        "  Signature circuit: {} bytes; shared MACs: 96 bytes",
+        "  SHA/hash reduction: {} bytes; signature reduction: {} bytes",
+        hash.len(),
         signature.len()
     );
+    eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier}, context+version=36)");
+    eprintln!("  Shared MACs: 96 bytes; version+commitment: 36 bytes");
     eprintln!("  Proof SHA256: {:x}", Sha256::digest(bytes));
 }

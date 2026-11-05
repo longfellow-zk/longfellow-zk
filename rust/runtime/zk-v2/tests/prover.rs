@@ -19,7 +19,10 @@ use crate::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
         },
-        polygero::{PolygeroConfig, PolygeroParam, PolygeroVerifier},
+        polygero::{
+            JointPolygeroParam, JointPolygeroVerifier, LinearStatement, Participant,
+            PolygeroConfig, PolygeroParam,
+        },
         random::{DeterministicRng, RandomEngine},
         zk_v2::{constraint_compiler, transcript::statement_digest, ZkContext},
     },
@@ -171,7 +174,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             &mut DeterministicRng::new(42),
         )
         .unwrap();
-    assert_eq!(committed.inner.commitment, reference.inner.commitment);
+    assert_eq!(committed.commitment, reference.commitment);
     assert_eq!(geometry, reference_geometry);
     let actual = prover
         .prove(
@@ -184,18 +187,24 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
 
     let independent_param = PolygeroParam::try_new(
-        reference.inner.backend.layout.witness_count,
+        reference.participant.backend.layout.witness_count,
         prover.config,
         &domain,
         &f,
     )
     .unwrap();
-    let mut independent_verifier = PolygeroVerifier::new(independent_param);
+    let mut independent_verifier = JointPolygeroVerifier::new(
+        JointPolygeroParam::new((
+            Participant::new(independent_param, &f, &domain).unwrap(),
+            (),
+        ))
+        .unwrap(),
+    );
     reference
-        .inner
+        .participant
         .backend
         .bind(&mut independent, &prover.circuit.id);
-    independent_verifier.receive_commitment(&reference.inner.commitment, &mut independent);
+    independent_verifier.receive_commitment(&reference.commitment, &mut independent);
     let public_elements: Vec<_> = public
         .iter()
         .map(|bit| if *bit { f.one() } else { f.zero() })
@@ -212,7 +221,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let w_layers = sumcheck_v2::eval_circuit(inputs, &prover.circuit, &f).unwrap();
     let (proof, constraints) = sumcheck_v2::prove_core(
         w_layers,
-        &reference.pads,
+        &reference.state.pads,
         &prover.circuit,
         &mut numerical,
         &f,
@@ -229,7 +238,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(statement, verifier_statement);
     assert_ne!(statement, statement_digest(&mut different_execution));
     assert_ne!(statement.data, prover.circuit.id);
-    let layout = reference.inner.backend.layout.clone();
+    let layout = reference.participant.backend.layout.clone();
     let pads = geometry.sc_geom.pad_layout(layout.suffix_start);
     let source =
         constraint_compiler::compile_packed(constraints, &pads, &public_elements, &layout, &f)
@@ -251,10 +260,22 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         crate::runtime::algebra::packing::binary::Binary128Extension,
     )
     .unwrap();
-    let commitment = reference.inner.commitment.clone();
-    let (packing, com_proof) = reference
-        .inner
-        .prove(source, &prover.circuit.id, &mut numerical, &domain)
+    let commitment = reference.commitment.clone();
+    let (packing, native) = reference
+        .participant
+        .backend
+        .prove::<2>(
+            reference.state.packing,
+            source,
+            &prover.circuit.id,
+            &mut numerical,
+        )
+        .unwrap();
+    let joint = JointPolygeroParam::new((reference.participant.participant(&context).unwrap(), ()))
+        .unwrap();
+    let com_proof = reference
+        .polygero
+        .prove(&joint, &(native, ()), &mut numerical)
         .unwrap();
     let rows = crate::runtime::dual_packing::verifier::verify(
         &verifier_backend.parameters,
@@ -280,14 +301,17 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     );
     independent_verifier
         .verify(
-            &verifier_b,
             &actual.com,
             &actual.com_proof,
-            &verifier_a,
-            &verifier_statement,
+            &(
+                LinearStatement {
+                    a: verifier_a,
+                    b: verifier_b,
+                    digest: verifier_statement,
+                },
+                (),
+            ),
             &mut independent,
-            &domain,
-            &f,
         )
         .unwrap();
     let state = actual_ts.bytes(32);

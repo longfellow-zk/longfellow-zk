@@ -533,7 +533,8 @@ fn authenticate<
 {
     use crate::runtime::{
         polygero::{
-            PolygeroConfig, PolygeroLinearTerm, PolygeroParam, PolygeroProver, PolygeroVerifier,
+            JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
+            Participant, PolygeroConfig, PolygeroLinearTerm, PolygeroParam,
         },
         proto::Digest,
     };
@@ -557,11 +558,12 @@ fn authenticate<
         f,
     )
     .unwrap();
-    let mut verifier = PolygeroVerifier::new(param.clone());
+    let param = JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap();
+    let mut verifier = JointPolygeroVerifier::new(param.clone());
     let mut tp = Transcript::new(b"generic/backend");
     let mut tv = tp.clone();
     let (prover, root) =
-        PolygeroProver::commit(witness, param, &mut tp, domain, &mut rng, f).unwrap();
+        JointPolygeroProver::commit(&param, (witness, ()), &mut tp, &mut rng).unwrap();
     verifier.receive_commitment(&root, &mut tv);
     let weights = (0..values.len())
         .map(|_| rng.elt_field(f))
@@ -613,13 +615,17 @@ fn authenticate<
         data: tp.bytes(32).try_into().unwrap(),
     };
     assert_eq!(statement.data, tv.bytes(32).as_slice());
-    let backend = prover
-        .prove(&constants, &mut tp, &terms, &statement, domain, f)
-        .unwrap();
+    let statements = (
+        LinearStatement {
+            a: terms,
+            b: constants,
+            digest: statement,
+        },
+        (),
+    );
+    let backend = prover.prove(&param, &statements, &mut tp).unwrap();
     verifier
-        .verify(
-            &constants, &root, &backend, &terms, &statement, &mut tv, domain, f,
-        )
+        .verify(&root, &backend, &statements, &mut tv)
         .unwrap();
 }
 #[test]
