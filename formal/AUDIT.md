@@ -1,5 +1,61 @@
 # Formal security claims and audit
 
+The joint-commitment V2 chain targets Rust `8943498`. Its complete endpoint
+[`Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Joint/RawRuntimeExtraction.lean)
+proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for all
+adversarial transcript and Merkle query budgets. Earlier `Linear`, `Packed`,
+`Native`, and V1 theorem files are preserved unchanged.
+
+## Joint-commitment theorem chain
+
+- [Typed families](lfzk-v2/LfzkV2/Joint/Backend.lean) use a finite ordered
+  participant index, common geometry, per-field carriers and arithmetic, one
+  tuple leaf, and one column query. Repeated field types remain distinct
+  positions. The committed candidate family is fixed by the one extracted
+  tuple; its cardinality is the product of the component list sizes.
+- [Shared-query potentials](lfzk-v2/LfzkV2/Joint/Potential.lean) bound the sum
+  of residual charges over the same query alphabet. They never multiply
+  per-field query probabilities. [Honest construction](lfzk-v2/LfzkV2/Joint/Honest.lean)
+  constructs the actual linear-only response polynomials and proves
+  authenticated completeness for every shared query.
+- [Replay and causality](lfzk-v2/LfzkV2/Joint/Causality.lean) put all frontend
+  and packing data before either backend challenge and both responses before
+  the shared opening. Both backend roles recover the same earlier statement
+  message. Existing actual compiled-row transfers are reused unchanged.
+- [Adaptive extraction](lfzk-v2/LfzkV2/Joint/FiatShamir.lean) combines those
+  transfers and the two circuit MAC equations. The shared opening is one
+  oracle slot carrying both residual charges. The returned candidate pair
+  satisfies both circuits and agrees on its common message.
+- [Authentication](lfzk-v2/LfzkV2/Joint/Commitment.lean) instantiates the
+  generic family with the concrete ordered two-field tuple, extracts the
+  whole tuple from one cut trace, and proves its resampling invariance.
+  [Raw replay](lfzk-v2/LfzkV2/Joint/RawExtraction.lean) derives the MAC answer
+  with one verifier lookup; no supplied-answer coherence hypothesis remains.
+
+The exact finite bound is
+
+```text
+1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255
+  + adaptiveNumerator(5824,tA,L+(1+N))/2^256,  L <= 1204.
+```
+
+The merged opening raises the local coefficient from 925 to `925+459=1384`;
+the total verifier charge is unchanged. One Merkle explanation replaces two,
+with `2*2912=5824` checking queries. The checked all-budget 116-bit comparison
+uses the same small-Merkle argument and does not assume independence.
+
+Explicit premises identify the two actual compiled sides and their certified
+profiles, the shared query sampler, balanced ideal samplers, native circuits
+and input layouts, MAC row identities, field sizes, the Merkle codec/decoders,
+and sufficient answer tape `TM >= 5824+tA`. Context and transcript encodings
+must bind the ordered field/domain/layout identities and all source digests
+and counts, as in the target runtime. These are implementation correspondence
+obligations; Rust execution and concrete cryptographic primitives are not
+verified by Lean. The `JPG1`/`LFV6`/`MJP1` bytes are not parsed by this model.
+No full joint zero-knowledge theorem is asserted.
+
+## Retained linear-terminal checkpoint
+
 The linear-terminal V2 soundness chain reaches the modeled authenticated
 verifier at commit `21cb029`, including native affine circuits, binary-input
 packing, the linear-only Polygero backend, raw proofs, and the
@@ -63,6 +119,7 @@ sampling, and arithmetic remain correspondence obligations.
 
 | Claim | Theorem or build target | Scope |
 |---|---|---|
+| Joint-commitment V2 authenticated extraction, all budgets | [`Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Joint/RawRuntimeExtraction.lean) | `(1+N+tA)/2^116`, for `8943498`; one tree, shared queries, exact finite bound. |
 | Linear-terminal V2 authenticated extraction, all budgets | [`Linear.Runtime.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean) | `(1+N+tA)/2^116`, for snapshot `21cb029`; exact finite bound also proved. |
 | Retained product-checked V2 extraction, all budgets | [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean) | `(1+N+tA)/2^117`, under the model premises below. |
 | Packed V2 actual compiler instances | [`Packed.Compiled.side`, `Packed.Direct.side`](lfzk-v2/LfzkV2/Packed/CompiledFS.lean), [`ProfiledSide`](lfzk-v2/LfzkV2/Packed/ProfiledSide.lean) | Actual row construction proves the frontend transfer; the profile chooses its candidate bound before that transfer and counting proof. |

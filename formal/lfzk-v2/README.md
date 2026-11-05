@@ -1,5 +1,45 @@
 # Longfellow V2: extraction and soundness
 
+The `LfzkV2.Joint` namespace models Rust commit `8943498`: one typed Polygero
+column tree and one shared opening set for the hash and signature fields.
+[`Joint.RawRuntimeExtraction.extraction_116`](LfzkV2/Joint/RawRuntimeExtraction.lean)
+proves complete authenticated raw-proof extraction with the packed/direct
+frontends, randomized linear terminal, and retained affine MAC.
+
+The generic [family](LfzkV2/Joint/Backend.lean) accepts any nonempty ordered
+list of typed participants, including singletons and repeated field types.
+Each field retains its own arithmetic, masks and challenge coins. One
+explained tuple opening transfers all field checks to one fixed committed
+family. The [honest construction](LfzkV2/Joint/Honest.lean) proves that the
+actual response polynomials and a salted Merkle opening verify for every
+shared query set. It needs ordinary statement satisfaction, not a verifier
+acceptance hypothesis.
+
+The [causal replay](LfzkV2/Joint/Causality.lean) puts both frontends and their
+packing data before either backend challenge. Both statements are fixed at
+the first backend point; later roles recover that same statement data. Both
+field responses precede the single opening challenge. The shared-query
+residual charge is a sum, not a product: correlated failures contribute
+`925/2^128 + 459/2^128`. No field-independence assumption is used.
+
+The exact raw-proof bound is
+
+```text
+1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255
+  + adaptiveNumerator(5824,tA,L+(1+N))/2^256,  L <= 1204.
+```
+
+The all-budget certificate remains `(1+N+tA)/2^116`. It is a conservative
+bound, not an optimal-security claim. The geometry is still
+`(k,s,n,t)=(416,15,2912,86)` with candidate limits 25 and 33. The model targets
+this immutable commit; later sumcheck or MAC changes are outside its scope.
+The byte markers are `JPG1`, `LFV6`, and `MJP1`. Encoding, field arithmetic,
+concrete hash expansion/rejection sampling, and the six circuit MAC values
+remain explicit implementation correspondence obligations. Complete joint
+zero knowledge is not claimed.
+
+## Retained linear-terminal checkpoint
+
 The `LfzkV2.Linear` namespace models Rust snapshot `21cb029`: native affine
 sumcheck, binary input packing, linear-only Polygero, two Merkle commitments,
 and the affine MAC. Its complete authenticated raw-proof endpoint is

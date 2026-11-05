@@ -76,3 +76,7 @@ import LfzkV2.Linear.Sizes
 import LfzkV2.Linear.FrontendBound
 import LfzkV2.Linear.Runtime.ProfiledSide
 import LfzkV2.Linear.Runtime.RawRuntimeExtraction
+import LfzkV2.Joint.Potential
+import LfzkV2.Joint.Honest
+import LfzkV2.Joint.Causality
+import LfzkV2.Joint.RawRuntimeExtraction
