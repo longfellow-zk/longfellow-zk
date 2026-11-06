@@ -231,3 +231,7 @@ impl FsPrf {
         self.read_pointer = 0;
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/transcript_v1.rs"]
+mod tests;

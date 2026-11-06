@@ -51,13 +51,13 @@ mod crt;
 mod crt_fft;
 mod quadratic_extension_fft;
 mod scalar;
-pub(in crate::runtime::algebra) use binary::BinaryInterpolationPlan;
+pub(in crate::runtime) use binary::BinaryInterpolationPlan;
 pub use binary::BinaryInterpolatorFactory;
 #[cfg(any(test, feature = "tooling"))]
 pub use crt::CrtInterpolatorFactory;
-pub(in crate::runtime::algebra) use quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan;
+pub(in crate::runtime) use quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan;
 pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
-pub(in crate::runtime::algebra) use scalar::ScalarInterpolationPlan;
+pub(in crate::runtime) use scalar::ScalarInterpolationPlan;
 pub use scalar::ScalarInterpolatorFactory;
 
 /// An immutable plan for fixed source and destination ranges.
@@ -203,3 +203,6 @@ fn difference<F: AlgebraicField + SupportsU64Conversions>(a: usize, b: usize, f:
         f.neg(&f.u64_to_element((b - a) as u64))
     }
 }
+
+#[cfg(any(test, feature = "tooling"))]
+pub(in crate::runtime) use crt::CrtInterpolationPlan;

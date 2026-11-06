@@ -1,8 +1,8 @@
 # Sumcheck V2
 
-`runtime::sumcheck_v2` implements single-hand sumcheck over one or more circuits
+`runtime::v2::sumcheck_v2` implements single-hand sumcheck over one or more circuits
 using sparse quad fragments. The original
-`runtime::sumcheck_v1` module implements the legacy two-hand protocol. Import the
+`runtime::v1::sumcheck_v1` module implements the legacy two-hand protocol. Import the
 module for the desired entry point; there is no protocol selector or proof enum.
 Each runtime has its own copies of the sumcheck arithmetic and transcript code.
 Both use shared field and randomness modules; v2 consumes native LFC3 circuits.
@@ -30,13 +30,13 @@ adapter traits are needed. Dense binding and scalar extraction live in `dense.rs
 Ordinary tests live in private modules under `tests/`.
 `verifier.rs` is the explicit exception: it verifies with revealed pads
 for testing and is not used in production. Production verification uses
-`runtime::zk_v2::ZkVerifier` and Polygero.
+`runtime::v2::zk_v2::ZkVerifier` and Polygero.
 
 V2 uses `LayerProof.rounds`, a masked cross coefficient, and two final claims
 with independently sampled pads scaled by a fresh nonzero challenge.
 Legacy retains its two `hp` vectors. V2 proof
 geometry and committed-pad positions belong to `runtime::proto::sumcheck_v2`.
-Zero-knowledge proving uses `runtime::zk_v2`; see its [README](../zk-v2/README.md).
+Zero-knowledge proving uses `runtime::v2::zk_v2`; see its [README](../zk-v2/README.md).
 
 ## Circuit storage and execution
 
@@ -50,7 +50,7 @@ The split preserves repeated segment runs and borrows their token sequences.
 The prover builds it once for witness evaluation and reuses it for sumcheck,
 releasing each layer after proving it. The verifier constructs one layer at a time.
 Unit-coefficient arithmetic is confined to these eleven streams. See the
-[LFC3 format](../../core/proto/LFC3.md) for encoding and circuit identity.
+[LFC3 format](../../../core/proto/LFC3.md) for encoding and circuit identity.
 
 ## Quad fragments and global layer arrays
 
@@ -191,7 +191,7 @@ constrains each final product, combines the final claims, and records the input
 constraint. Pad terms refer to logical sumcheck positions by layer, round, and
 message slot. The final input constraint retains the dense input weights.
 
-`runtime::zk_v2::constraint_compiler` maps these logical pads to committed witness
+`runtime::v2::zk_v2::constraint_compiler` maps these logical pads to committed witness
 positions, substitutes public inputs, and emits sparse Polygero entries. Committed
 terminal cells enter affine rows; a fresh terminal challenge supplies the
 product check described below. Polygero enforces only linear constraints.
@@ -266,7 +266,7 @@ The independent `p_D` masks the cross coefficient, and excluding zero keeps
 both final evaluations masked. These local masking facts do not constitute
 a complete joint-view zero-knowledge proof.
 
-The [layered Lean composition](../../../formal/lfzk-v2/README.md) models
+The [layered Lean composition](../../../../formal/lfzk-v2/README.md) models
 quad-fragment traversal, shared inputs and circuits entering at different depths,
 including scalar outputs and zero-layer circuits. It connects the final input
 claim to authenticated packing and the joint commitment. Each nonempty output
@@ -291,7 +291,7 @@ traversal, quad fragments versus physically merged circuits, shared inputs, uneq
 depths and widths, zero-round and zero-layer circuits, and sparse constraint lowering.
 
 From `rust/`, run `cargo test --offline --release --features testonly` for the
-complete suite. Filter with `runtime::sumcheck_v1` or `runtime::sumcheck_v2` for
+complete suite. Filter with `runtime::v1::sumcheck_v1` or `runtime::v2::sumcheck_v2` for
 one protocol. Both paths use the existing Cargo feature gates.
 
 
@@ -304,9 +304,9 @@ the derived constraints through Polygero. Proof codecs, transcript operations,
 monomial weights, public tensor binding, and symbolic constraints are shared
 runtime code. Compile-time fields and circuit synthesis are used only by tests.
 
-The private prover and verifier modules in `runtime::zk_v2` are separately gated;
+The private prover and verifier modules in `runtime::v2::zk_v2` are separately gated;
 their `ZkProver` and `ZkVerifier` entry points are re-exported at the module root.
 Both use the same pure constraint compiler and neither imports the other.
 The legacy path has the same symbolic-constraint / constraint-compiler abstraction:
-`runtime::sumcheck_v1::symbolic` owns the constraints and
-`runtime::zk_v1::constraint_compiler` lowers them to Ligero constraints.
+`runtime::v1::sumcheck_v1::symbolic` owns the constraints and
+`runtime::v1::zk_v1::constraint_compiler` lowers them to Ligero constraints.

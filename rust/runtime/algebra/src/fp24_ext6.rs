@@ -29,7 +29,7 @@ use crate::{
     runtime::algebra::{
         field::{RuntimeSerializableField, SupportsSampling},
         poly::InterpolationField,
-        RuntimeField, RuntimeNat, SubfieldV1,
+        RuntimeField, RuntimeNat,
     },
 };
 
@@ -39,7 +39,7 @@ pub struct RuntimeElement {
 }
 
 impl RuntimeElement {
-    fn new(coefficients: [u32; EXTENSION_DEGREE]) -> Self {
+    pub(in crate::runtime) fn new(coefficients: [u32; EXTENSION_DEGREE]) -> Self {
         Self { coefficients }
     }
 
@@ -220,7 +220,7 @@ impl SupportsSampling for RuntimeFp24Ext6 {
 }
 
 /// Shared exact sampler for the prime coordinates, including the V1 codec.
-pub(in crate::runtime::algebra) fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
+pub(in crate::runtime) fn sample_base(mut rng: impl FnMut(usize) -> Vec<u8>) -> u32 {
     loop {
         let bytes = rng(3);
         assert_eq!(bytes.len(), 3);
@@ -238,46 +238,5 @@ impl InterpolationField<3> for RuntimeFp24Ext6 {
 
     fn newton_denominator(&self, _k: usize, i: usize) -> Self::E {
         self.u64_to_element(invert_base(i as u32) as u64)
-    }
-}
-
-pub struct RuntimeFp24SubfieldV1;
-
-impl SubfieldV1 for RuntimeFp24SubfieldV1 {
-    type E = RuntimeElement;
-
-    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
-        assert_eq!(dst.len(), BASE_SERIALIZED_SIZE);
-        assert!(self.contains(e), "element is not in the Fp24 base field");
-        dst.copy_from_slice(&e.coefficients[0].to_le_bytes()[..BASE_SERIALIZED_SIZE]);
-    }
-
-    fn contains(&self, e: &Self::E) -> bool {
-        e.coefficients[1..]
-            .iter()
-            .all(|&coefficient| coefficient == 0)
-    }
-
-    fn serialized_size_bytes(&self) -> usize {
-        BASE_SERIALIZED_SIZE
-    }
-
-    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
-        if bytes.len() != BASE_SERIALIZED_SIZE {
-            return Err("invalid Fp24 base-field element size".to_owned());
-        }
-        let value = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], 0]);
-        if value >= Q {
-            return Err("non-canonical Fp24 base-field element".to_owned());
-        }
-        let mut coefficients = [0; EXTENSION_DEGREE];
-        coefficients[0] = value;
-        Ok(RuntimeElement::new(coefficients))
-    }
-
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        let mut coefficients = [0; EXTENSION_DEGREE];
-        coefficients[0] = sample_base(&mut rng);
-        RuntimeElement::new(coefficients)
     }
 }

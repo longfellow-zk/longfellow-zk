@@ -86,12 +86,12 @@ harness = false
 
 [[bench]]
 name = "sumcheck_bench_v1"
-path = "runtime/sumcheck-v1/benches/sumcheck_bench_v1.rs"
+path = "runtime/v1/sumcheck-v1/benches/sumcheck_bench_v1.rs"
 harness = false
 
 [[bench]]
 name = "sumcheck_bench_v2"
-path = "runtime/sumcheck-v2/benches/sumcheck_bench_v2.rs"
+path = "runtime/v2/sumcheck-v2/benches/sumcheck_bench_v2.rs"
 harness = false
 required-features = ["prover"]
 
@@ -115,7 +115,7 @@ required-features = ["tooling"]
 
 [[bench]]
 name = "polygero_bench"
-path = "runtime/polygero/benches/polygero_bench.rs"
+path = "runtime/v2/polygero/benches/polygero_bench.rs"
 harness = false
 required-features = ["testonly"]
 

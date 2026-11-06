@@ -14,7 +14,7 @@
 
 use sha2::{Digest as ShaDigest, Sha256};
 
-use super::{heap::verify_proof, Digest, MerkleError};
+use crate::runtime::merkle::{heap::verify_proof, Digest, MerkleError};
 use crate::runtime::proto::MerkleProof;
 
 /// Verifies that the opened column data (hashed via `update_leaf_hash`) matches
@@ -148,3 +148,7 @@ cfg_prover! {
         MerkleProof { nonce, path }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/merkle.rs"]
+mod tests;

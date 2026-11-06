@@ -90,34 +90,8 @@ pub mod core {
     pub mod proto;
 }
 
-#[path = "../runtime"]
-pub mod runtime {
-    #[path = "algebra/src/lib.rs"]
-    pub mod algebra;
-    #[path = "dual-packing/src/lib.rs"]
-    pub mod dual_packing;
-    #[path = "ligero-v1/src/lib.rs"]
-    pub mod ligero_v1;
-    #[path = "merkle/src/lib.rs"]
-    pub mod merkle;
-    #[path = "polygero/src/lib.rs"]
-    pub mod polygero;
-    #[path = "proto/src/lib.rs"]
-    pub mod proto;
-    #[path = "random/src/lib.rs"]
-    pub mod random;
-    #[path = "sumcheck-v1/src/lib.rs"]
-    pub mod sumcheck_v1;
-    #[path = "sumcheck-v2/src/lib.rs"]
-    pub mod sumcheck_v2;
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    #[path = "witness-selection/src/lib.rs"]
-    pub mod witness_selection;
-    #[path = "zk-v1/src/lib.rs"]
-    pub mod zk_v1;
-    #[path = "zk-v2/src/lib.rs"]
-    pub mod zk_v2;
-}
+#[path = "../runtime/mod.rs"]
+pub mod runtime;
 
 cfg_compiler! {
     #[path = "../compile"]

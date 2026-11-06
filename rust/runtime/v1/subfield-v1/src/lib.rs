@@ -240,8 +240,8 @@ impl SubfieldV1 for BinarySubfieldV1 {
 }
 
 /// V1-only compact-row interpolation; ordinary plans do not require this capability.
-pub trait InterpolationPlanV1<const W: usize, F: super::RuntimeField<W>>:
-    super::InterpolationPlan<W, F>
+pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>:
+    crate::runtime::algebra::InterpolationPlan<W, F>
 {
     /// A public layout hint that all source values belong to `subfield`.
     /// The default implementation works without subfield specialization.
@@ -254,18 +254,39 @@ pub trait InterpolationPlanV1<const W: usize, F: super::RuntimeField<W>>:
     }
 }
 
-impl<const W: usize, F: super::RuntimeBinaryField<W, E = Gf2_128>> InterpolationPlanV1<W, F>
-    for super::range_interpolation::BinaryInterpolationPlan<'_, W, F>
-{
-}
-impl<const W: usize, F: super::RuntimeField<W> + crate::core::algebra::SupportsU64Conversions>
-    InterpolationPlanV1<W, F> for super::range_interpolation::ScalarInterpolationPlan<'_, W, F>
+impl<const W: usize, F: crate::runtime::algebra::RuntimeBinaryField<W, E = Gf2_128>>
+    InterpolationPlanV1<W, F>
+    for crate::runtime::algebra::range_interpolation::BinaryInterpolationPlan<'_, W, F>
 {
 }
 impl<
         const W: usize,
-        F: super::SupportsQuadraticExtension<W> + crate::core::algebra::SupportsU64Conversions,
+        F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SupportsU64Conversions,
     > InterpolationPlanV1<W, F>
-    for super::range_interpolation::QuadraticExtensionFftInterpolationPlan<'_, W, F>
+    for crate::runtime::algebra::range_interpolation::ScalarInterpolationPlan<'_, W, F>
 {
 }
+impl<
+        const W: usize,
+        F: crate::runtime::algebra::SupportsQuadraticExtension<W>
+            + crate::core::algebra::SupportsU64Conversions,
+    > InterpolationPlanV1<W, F>
+    for crate::runtime::algebra::range_interpolation::QuadraticExtensionFftInterpolationPlan<
+        '_,
+        W,
+        F,
+    >
+{
+}
+
+mod p256;
+pub use p256::P256SubfieldV1;
+
+#[cfg(any(test, feature = "tooling"))]
+mod fp24;
+#[cfg(any(test, feature = "tooling"))]
+pub use fp24::RuntimeFp24SubfieldV1;
+
+#[cfg(test)]
+#[path = "../tests/subfield.rs"]
+mod tests;

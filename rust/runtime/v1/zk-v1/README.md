@@ -1,6 +1,6 @@
 # Longfellow v1 ZK
 
-`runtime::zk_v1` combines the legacy two-hand `runtime::sumcheck_v1` protocol
+`runtime::v1::zk_v1` combines the legacy two-hand `runtime::v1::sumcheck_v1` protocol
 with Ligero commitments. Prover and verifier orchestration have separate modules;
 both use the shared constraint compiler and the v1 proof codec.
 
@@ -10,7 +10,7 @@ logical constraints. `constraint_compiler::compile` maps logical pads
 to committed witness positions, binds public inputs, and emits sparse Ligero
 entries. All coefficients are retained, including zeros, along with each row's constant.
 `product_constraints` enforces the committed endpoint-pad products. All sumcheck
-algebra, challenge derivation, and pad sampling belong to `runtime::sumcheck_v1`.
+algebra, challenge derivation, and pad sampling belong to `runtime::v1::sumcheck_v1`.
 
 Verification independently derives data in sumcheck v1, constructs the same
 relations, and checks their compiled constraints with Ligero. Data and relations

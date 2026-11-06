@@ -1,7 +1,7 @@
 # Sumcheck v1
 
-`runtime::sumcheck_v1` implements the historical round-major, two-hand protocol.
-`runtime::sumcheck_v2` remains a separate single-hand implementation. Both now use
+`runtime::v1::sumcheck_v1` implements the historical round-major, two-hand protocol.
+`runtime::v2::sumcheck_v2` remains a separate single-hand implementation. Both now use
 independent verifier-data, symbolic-verifier, and ZK constraint-compiler modules.
 
 The numerical prover advances the main transcript and returns the proof plus
@@ -16,7 +16,7 @@ and transcript. Success validates shape and derives data; it does not establish
 proof validity. `symbolic::verify` is pure and constructs constraints over
 logical sumcheck pads and inputs. It knows no transcript, circuit, commitment
 coordinates, or Ligero types. The numerical verifier evaluates these relations
-with revealed inputs and pads. `runtime::zk_v1::constraint_compiler` lowers the same
+with revealed inputs and pads. `runtime::v1::zk_v1::constraint_compiler` lowers the same
 relations to sparse Ligero constraints and endpoint-pad product constraints.
 Protocol codecs and pad geometry live in `runtime::proto::sumcheck_v1`.
 
