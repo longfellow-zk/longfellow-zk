@@ -22,7 +22,7 @@ excluding the final seal (492/499 for two/four attributes). Query repetitions
 receive the same complete answer and may be arbitrarily numerous but finite.
 There is no positive-query premise. Probability is over the ideal oracles and
 the adversary's private randomness.
-The selected joint boundary belongs to zk-v2;
+The selected joint boundary belongs to `runtime::v2::zk`;
 mdoc supplies its prime-field handoff and generated binary adapter. The canonical
 source constructor uses the actual shared Merkle cut oracle and projected
 committed lists. The checked binary/prime witness-list caps are
@@ -61,12 +61,12 @@ and `Quot.sound`. Earlier checkpoint proof files remain unchanged.
 
 ### Concrete verifier components and Rust conformance
 
-The Rust source checkpoint for this audit is `1b87968`.
+The Rust source checkpoint for this audit is `1077bc6`.
 
 `Current.FrontendBody` decodes the actual side-specific proof arrays and rejects
 missing, extra or wrong-width stages. `FrontendBodyVerifier` constructs the
 frontend, affine constraints and replay together. `FrontendTranscript` matches
-the writes in `runtime/sumcheck-v2/src/transcript.rs`: two round coefficients,
+the writes in `runtime/v2/sumcheck/src/transcript.rs`: two round coefficients,
 one terminal cross coefficient and two combine claims. Entries and explicit
 assertions extend one layer answer; input entries extend the last combine
 answer, as in `reduction.rs` and `fragments.rs`. `ReplayBlocks` and
@@ -450,13 +450,13 @@ the linear-terminal endpoint additionally bounds hash/signature layers by
 - The declared Merkle codec and role decoders, and enough finite answer
   tape for the bounded execution: `TM ≥ tA + 11648`.
 
-The runtime's [`polygero/src/hash.rs`](../rust/runtime/polygero/src/hash.rs)
+The runtime's [`polygero/src/hash.rs`](../rust/runtime/v2/polygero/src/hash.rs)
 prefixes leaves with `polygero/root/original-leaf/v1` and internal nodes
 with `polygero/root/node/v1`. Each leaf includes the context, its column
 index as a little-endian `u64`, the salt, and canonical column bytes.
-[`verifier.rs`](../rust/runtime/polygero/src/verifier.rs) hashes each opened
+[`verifier.rs`](../rust/runtime/v2/polygero/src/verifier.rs) hashes each opened
 column with its sampled index before verifying the Merkle paths;
-[`transcript.rs`](../rust/runtime/polygero/src/transcript.rs) samples
+[`transcript.rs`](../rust/runtime/v2/polygero/src/transcript.rs) samples
 distinct indices. Thus repeated column values do not identify leaf
 preimages at different positions. `OpeningClaim.DistinctLeafInputs` is the
 explicit codec correspondence premise for the stronger 87-query lemma;

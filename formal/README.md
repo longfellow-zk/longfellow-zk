@@ -30,7 +30,7 @@ query bytes, the actual Merkle encoding, requested-public readback and the
 first-context extractor are connected in the theorem. Oracle answers use the
 explicit ideal-sampler model. A reduction from full SHAKE byte streams and
 machine verification of Rust are outside this result.
-Zk-v2 owns the selected joint boundary; mdoc supplies its frontend reductions.
+`runtime::v2::zk` owns the selected joint boundary; mdoc supplies its frontend reductions.
 
 **The retained layered-sumcheck Longfellow V2 checkpoint has a 116-bit
 work-normalized extraction bound.** Sparse quad fragments share one wire

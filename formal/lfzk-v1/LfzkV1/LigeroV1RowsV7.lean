@@ -3,10 +3,10 @@ import LfzkV1.LigeroV1Rows
 /-!
 # Certified round-by-round Ligero V1 rows at the deployed v7 geometries
 
-The registry (`rust/applications/mdoc_zk/runtime/src/zk_spec.rs`, `ZK_SPECS`)
+The registry (`rust/applications/mdoc_zk/runtime/src/v1/zk_spec.rs`, `ZK_SPECS`)
 lists version 7 with `ligero_config(rateinv 7, nreq 132,
 block_enc)`: hash `block_enc` 4151 / 4265 / 4307 / 4415 for 1 / 2 / 3 / 4 attributes and signature
-`block_enc` 4096.  The Ligero parameter code (`rust/runtime/ligero/src/param.rs`,
+`block_enc` 4096.  The Ligero parameter code (`rust/runtime/v1/ligero/src/param.rs`,
 `lib/ligero/ligero_param.h`) sets `block = (block_enc + 1) / (2 + rateinv)`,
 `dblock = 2·block − 1` and `block_ext = block_enc − dblock`; a row's `k` is `block` and its `n` is
 `block_ext`, the columns the verifier opens:

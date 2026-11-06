@@ -50,7 +50,7 @@ One layer of a ZK proof.
 * `wc0`, `wc1` — the masked witness evaluations `W_hat[L,C]`, `W_hat[R,C]` (`LayerProof::wc`).
 * `alpha` — the first of the pair `begin_layer` draws before any of the layer's messages
   (`let (alpha, beta) = transcript.begin_layer(f)`,
-  `rust/runtime/zk/src/symbolic_sumcheck_verifier.rs:L73`); it combines the two inherited
+  `rust/runtime/v1/sumcheck/src/verifier.rs:derive_verifier_data`); it combines the two inherited
   claims.  The second, `beta`, is *not* stored here: it is `betas ly` of the run's beta
   schedule, since it is a challenge indexed by layer rather than data the prover supplies.
   It reaches the verifier's arithmetic through `bind_quad`'s call to `HQuad::bind_g`.

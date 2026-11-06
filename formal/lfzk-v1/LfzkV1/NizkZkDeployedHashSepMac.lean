@@ -9,7 +9,7 @@ zero-knowledge sides through MAC rows `hrow₁`, `hrow₂` that share the **priv
 across the two circuits; its MAC slot's bad event is the multiplier vanishing,
 `aP κ + decode c = 0`, which does not mention the candidates.  Rust gives the two circuits the
 same public tags `proof.macs` and the same challenge `av`
-(`rust/applications/mdoc_zk/runtime/src/verifier.rs`), but **each circuit has its own private MAC
+(`rust/applications/mdoc_zk/runtime/src/v1/verifier.rs`), but **each circuit has its own private MAC
 witness**: per-block blinds in v8 (`tag = av·msg + ap`),
 per-block multiplier shares in v7 (`tag = (av + ap)·msg`, `push_legacy_macs`, `mac_circuit.h`).
 With separate private witnesses the shared-blind argument fails

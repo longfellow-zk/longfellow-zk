@@ -5,7 +5,10 @@
 // IDs recomputed from the parsed circuits, the runtime's own `decompress_circuits`). Build with
 // the adjacent Cargo manifest; each structural condition is checked before returning success.
 use core_algebra::field::AlgebraicField;
-use core_proto::{archive::compute_combined_id, circuit::compute_id, reader::CircuitReader};
+use core_proto::{
+    archive::compute_combined_id,
+    v1::{compute_id, CircuitReader},
+};
 use longfellow_zk::{
     core::{algebra as core_algebra, proto as core_proto},
     mdoc::v1 as mdoc_zk_runtime,
@@ -102,11 +105,11 @@ fn main() {
 fn report<F: core_algebra::SerializableField + AlgebraicField>(
     component: &str,
     attributes: usize,
-    raw: &core_proto::circuit::RawCircuit<F>,
+    raw: &core_proto::v1::RawCircuit<F>,
     f: &F,
 ) {
     let nl = raw.layers.len();
-    let terms: Vec<Vec<core_proto::circuit::Term<F>>> =
+    let terms: Vec<Vec<core_proto::v1::Term<F>>> =
         raw.layers.iter().map(|l| l.terms(&raw.constants)).collect();
     let mut assert_wires: Vec<HashSet<u32>> = vec![HashSet::new(); nl + 1];
     let mut per_layer = Vec::new();

@@ -1,7 +1,7 @@
 # Masked witness selection
 
 This component analyzes the protocol implemented by
-[`runtime::witness_selection`](../../rust/runtime/witness-selection/README.md).
+[`runtime::v2::witness_selection`](../../rust/runtime/v2/witness-selection/README.md).
 It treats a fixed committed list of candidate frontend cell vectors, each with
 two dedicated mask cells. Polygero's internal hiding rows are outside that
 projection. Different backend candidates may project to the same frontend

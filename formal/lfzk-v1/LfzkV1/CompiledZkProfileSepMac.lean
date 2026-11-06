@@ -8,7 +8,7 @@ import LfzkV1.TwoFieldSepMacRows
 `LfzkV1.CompiledZkProfileRows.v7P256Sha{1,2,3,4}_zk_circuit_tsec` take MAC rows `hrow₁`, `hrow₂` with
 the **same** multiplier share `aP` and the **same private blind** `keyB` on both sides.  The
 deployed prover and verifier share only the public tags `proof.macs` and the challenge `av`
-(`rust/applications/mdoc_zk/runtime/src/verifier.rs`); each circuit has its own private MAC
+(`rust/applications/mdoc_zk/runtime/src/v1/verifier.rs`); each circuit has its own private MAC
 witness, and for v7 — the registered circuits, `mac.rs`'s `version < 8` branch — the MAC is
 
 ```text
