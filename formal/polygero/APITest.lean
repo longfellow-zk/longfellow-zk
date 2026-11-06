@@ -1,6 +1,7 @@
 import polygero
 import polygero.FiatShamir.Nonrecursive
 import polygero.FiatShamir.OutsideList
+import polygero.FiatShamir.CommittedComposition
 import Lean.Util.CollectAxioms
 import Lean.Util.FoldConsts
 
@@ -35,6 +36,8 @@ import Lean.Util.FoldConsts
 #guard_msgs (drop info) in #check RecursivePolygero.NonrecursiveFS.soundness_le
 #guard_msgs (drop info) in #check RecursivePolygero.NonrecursiveFS.extraction_failure_le
 #guard_msgs (drop info) in #check RecursivePolygero.NonrecursiveFS.decoded_outside_list_le
+#guard_msgs (drop info) in #check RecursivePolygero.NonrecursiveFS.projected_frontend_decomposition
+#guard_msgs (drop info) in #check RecursivePolygero.NonrecursiveFS.selected_frontend_ratio_le
 
 open Lean Elab Command
 

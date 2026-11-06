@@ -1,5 +1,163 @@
 # Formal security claims and audit
 
+## Current MAC-free mdoc protocol
+
+[`Current.IdealProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+proves, for the rate-1/7 profile `(349,12,2443,84)`, that for all integers
+`Q >= 0` and `Q_H >= 0`, any finite classical adaptive adversary making at most
+`Q` distinct transcript-oracle queries and at most `Q_H` Merkle-oracle calls
+satisfies
+
+```text
+Pr[verifier accepts and the paired extractor fails to recover
+   a witness satisfying the requested circuits]
+  <= 2Q / 2^128
+     + [4Q + 1 + Q_H(Q_H - 1)/2
+        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
+```
+
+The experiment uses the original prover's transcript-query budget `Q` and
+Merkle-query budget `Q_H`; `R` is the number of ordinary round boundaries,
+excluding the final seal (492/499 for two/four attributes). Query repetitions
+receive the same complete answer and may be arbitrarily numerous but finite.
+There is no positive-query premise. Probability is over the ideal oracles and
+the adversary's private randomness.
+The selected joint boundary belongs to zk-v2;
+mdoc supplies its prime-field handoff and generated binary adapter. The canonical
+source constructor uses the actual shared Merkle cut oracle and projected
+committed lists. The checked binary/prime witness-list caps are
+`21898356682154715916` and `451457457136012100305`. These large caps are part
+of the mathematical extraction bound; no timed efficient extractor is proved.
+Both fields and their complete
+responses use the same column sample and one Merkle explanation.
+
+The current proof derives the application failure cover, own-answer invariance,
+whole-answer counts and disjoint role maximum. Generated adapter coefficients
+are reconstructed only from strict earlier answers. The early paired extractor
+is identified with backend recovery, including every frontend pad and terminal
+cell. The final seal binds the complete canonical proof body. Replay queries
+enter only the digest-sized Merkle remainder. No assumed bad-query cover,
+local error budget or adversarial query-order premise replaces these proofs.
+
+The event parses arbitrary serialized proof bytes, rejects malformed or trailing
+bytes, and checks `RuntimeAdaptiveVerifier.verify` together with failed
+extraction. The theorem derives the decoded statements, application failure
+cover, local role counts, coding/list bounds and the shared Merkle explanation;
+no `Execution` or supplied correspondence record is a premise. Public inputs
+may be chosen adaptively; trusted circuit metadata and parser schemas remain
+fixed. The first context binds binary public bits but excludes later prime
+public values, which are parsed from the prime-start block. Canonical body and
+query parsers, their inverses and the joint byte-oracle probability transport
+are connected to the actual request replay. The requested-circuit corollary
+uses the same extracted pair and derives the exact requested public vectors.
+The common finite ideal answer and all sampler projections are constructed in
+`IdealSamples` and `IdealRuntime`; no balanced-sampler certificate is a caller
+premise. The ideal-sampler oracle model is explicit. The theorem is not machine
+verification of Rust, SHAKE256
+or SHA-256. A complete joint-view zero-knowledge theorem and a timed
+implementation of the extractor are separate.
+The API audit checks its endpoints for only `propext`, `Classical.choice`
+and `Quot.sound`. Earlier checkpoint proof files remain unchanged.
+
+### Concrete verifier components and Rust conformance
+
+The Rust source checkpoint for this audit is `1b87968`.
+
+`Current.FrontendBody` decodes the actual side-specific proof arrays and rejects
+missing, extra or wrong-width stages. `FrontendBodyVerifier` constructs the
+frontend, affine constraints and replay together. `FrontendTranscript` matches
+the writes in `runtime/sumcheck-v2/src/transcript.rs`: two round coefficients,
+one terminal cross coefficient and two combine claims. Entries and explicit
+assertions extend one layer answer; input entries extend the last combine
+answer, as in `reduction.rs` and `fragments.rs`. `ReplayBlocks` and
+`FrontendPrefix` prove logical message recovery from the actual chained inputs,
+including preservation under the later backend opening encoder.
+
+`Current.ApplicationSetup.decodeChecked` constructs both frontends and their
+full-cell layouts. The binary adapter is generated from the prime-field batched
+claim and conversion answers; `AdapterFragment.full_product_check` derives
+its equations from the generated circuit. `CellLayout` fixes private words,
+packing masks, sumcheck pads and the two final fingerprint masks. Prime-field shared
+inputs have no prime-field commitment address. Unused prime-field fingerprint slots
+have provably zero frontend and batched coefficients. `GeneratorChecks`
+derives primitive order from the exact nine runtime power checks and a checked
+prime factorization, rather than accepting an order certificate.
+
+`BackendVerifier.decodeBody_correspondence` decodes the complete binary/prime
+H/Z arrays and constructs late backend correspondence on a successful prefix
+decode. `OrderedOpening` retains the challenge-selected column order and salts;
+it reconstructs the opening set from replay, not from serialized query indices.
+
+`Current.RuntimeVerifier.verify` composes these components into a mathematical
+runtime verifier, with `verify_true_iff` exposing its actual decoder branches
+and acceptance checks. Hash and signature circuits are trusted public inputs.
+The verifier does not take an `Execution`, a decoded `System`, or a semantic
+acceptance checker from its caller. The adaptive runtime theorem derives its role-specific local views
+and failure cover directly from these checks.
+
+Prime-field row batching uses `BatchPacket`, which carries one actual row list and
+its sampler. It does not quantify a finite-alphabet sampler over arbitrary
+unbounded row lists. A concrete finite sampler instance is checked in
+`Current/Tests/BatchPacket.lean`. Authentication likewise uses the runtime's
+bounded serialized frontier count and exactly that many nodes; this gives a
+finite proof space without padded wire data.
+
+H/Z wire arrays are evaluations on the initial oracle nodes, not monomial
+coefficients. `BackendBody` now decodes them by Lagrange interpolation; the
+nontrivial-node regression in `Current/Tests/BackendBody.lean` distinguishes
+the two interpretations. Batching-polynomial sample interpolation and physical
+row reindexing are fixed in `BackendChallenges`: affine scalars come first,
+then row-major evaluations for `u`, `m` and witness rows, with the binary field
+completed before the prime field in the same answer. The sample-to-coin map
+is a bijection, so it preserves uniformity without an additional error term.
+Concrete byte consumption remains a codec conformance obligation; rejection
+sampling need not consume a fixed number of bytes per field draw.
+
+Canonical byte/XOF framing and concrete field arithmetic remain Rust audit
+obligations. `ChainedSupport` and `RuntimeAdaptiveSupport` support distinct transcript
+inputs with arbitrary repeated-call fuel. The normalization proofs preserve
+the original commitment cut, Merkle oracle, acceptance and extractor; the
+runtime theorem specializes these lemmas while preserving the original
+query budget and commitment cut.
+
+The runtime audit checked prime-field sumcheck, row batching, rescaling, the two
+conversion challenges in one reading phase, generated binary sumcheck,
+packing, joint backend batching and the shared opening. It also checked that
+fragment boundaries introduce no extra query, the physical tuple rows are
+`u`, `m`, witness, proximity, nonces follow the same column order, the frontier
+is consumed in descending heap order without trailing nodes, and complete
+verification checks the 32-byte final seal. Canonical framing, body headers,
+joint context and salt encodings, public readback and complete proof parsing
+are constructed in the mathematical model. The correspondence of Rust field
+arithmetic, serialization and public setup/metadata computations to those
+objects is checked by source audit. This is not a machine-checked Rust
+semantics or compiler-correctness theorem.
+
+The transcript oracle idealization is explicit: each fresh canonical input
+receives a uniform 32-byte link and the correctly distributed joint challenge
+block, with independent auxiliary randomness. Repeated inputs receive the same
+complete answer. Rust implements this using one direct SHAKE256 reader, link
+feedback and rejection sampling, but a formal byte-stream coupling is outside
+the accepted ideal-sampler model. The main bound has no cutoff term.
+
+Tagged Merkle SHA-256 is modeled as an independent 256-bit random oracle.
+The layout-context digest is fixed public setup in the theorem. Its actual
+SHA-256 computation uses the separate `polygero/joint/context/v1` domain;
+conditioning on this disjoint auxiliary restriction fixes the context while
+leaving Merkle answers uniform. The theorem does not verify the setup hash
+computation itself.
+
+SHA-256 also identifies the challenge-dependent generated adapter circuit.
+Its `LFC3-v2-three-streams-v2` input domain is disjoint from the tagged Merkle
+domains. The model treats that restriction as an independent auxiliary function
+fixed by conditioning; it is not a fixed setup hash or an independent hash
+function per call site. Domain separation and Rust conformance are part of the
+source audit. The trusted public circuits define the application statement;
+the theorem does not additionally prove high-level mdoc or hash/signature
+circuit correctness.
+
+## Retained layered checkpoint
+
 The layered-sumcheck chain targets the immutable Rust snapshot based on
 `12d5b8f`, SHA-256
 `29a9b61191f73d05dbd5b9e5c08843c51d713ca39baef0eb9876eaef07847f5a`.

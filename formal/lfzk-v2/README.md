@@ -1,5 +1,151 @@
 # Longfellow V2: extraction and soundness
 
+## Current MAC-free protocol
+
+[`IdealProofRate7.ratio_le`](LfzkV2/Current/IdealProofRate7.lean) proves
+Fiat–Shamir extractor soundness for the modeled runtime verifier with adaptive
+public requests, arbitrary serialized proof bytes, and the explicit ideal
+sampler oracle. For every pair of integers `Q >= 0` and `Q_H >= 0`, any finite
+classical adaptive adversary making at most `Q` distinct transcript-oracle
+queries and at most `Q_H` Merkle-oracle calls satisfies
+
+```text
+Pr[verifier accepts and the paired extractor fails to recover
+   a witness satisfying the requested circuits]
+  <= 2Q / 2^128
+     + [4Q + 1 + Q_H(Q_H - 1)/2
+        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
+```
+
+`R` counts ordinary round boundaries, excluding the final seal: 492 for two
+attributes and 499 for four. The bound includes `Q = 0` and arbitrary finite
+query repetitions, which return the same complete answer. There is no
+minimum-query premise. Probability is over the ideal oracles and the
+adversary's private randomness; the uniform bound for each fixed private
+choice also bounds their average. Verifier replay appears only in the
+squared-field remainder. For `q=2^128` the leading per-query charge is
+`2/q = 2^-127`; positive squared-field corrections remain explicit.
+
+The ordinary rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`. Its
+[exact Hahn certificate](LfzkV2/Current/Parameters/Rate7.lean) and list bounds
+are checked internally. The theorem derives verifier acceptance, application
+failure coverage, query charging, the role maximum, and one shared Merkle
+explanation. No `Execution`, semantic correspondence record, bad-event cover,
+sampler law or coding-error budget is a caller-supplied certificate.
+
+### Oracle and implementation boundary
+
+A fresh transcript-oracle input supplies one uniform 32-byte link and the
+correctly distributed joint challenge block. Independent auxiliary randomness
+may also be exposed to the prover. The common finite answer alphabet and all
+sampler projections are constructed in
+[`IdealSamples`](LfzkV2/Current/IdealSamples.lean) and
+[`IdealRuntime`](LfzkV2/Current/IdealRuntime.lean): full-field vectors, nonzero
+terminal/conversion scalars, both fields' fingerprints, joint backend samples,
+and ordered openings. The same input always returns the same answer.
+
+This is the **ideal-sampler oracle assumption**. Rust's direct SHAKE256 reader
+and rejection sampling are audited against it; a formal coupling to complete
+SHAKE output byte streams is outside the theorem. There is no runtime retry
+limit or extra sampling round.
+
+The tagged Merkle SHA-256 restriction is an independent 256-bit random oracle.
+Non-Merkle SHA-256 domains, including setup identifiers and the generated
+adapter's circuit identifier, are disjoint auxiliary restrictions of the same
+ideal SHA-256 function. Conditioning on that auxiliary function fixes the
+public setup and causal identifier computations while leaving Merkle answers
+uniform. The concrete verifier theorem quantifies those fixed public values;
+it does not prove SHA-256 or SHAKE cryptographic security.
+
+Hash/signature circuits, their public topology, field arithmetic and canonical
+scalar representations are trusted mathematical setup. Rust checkpoint
+`1b87968` is checked against the model by source audit, not a machine-checked
+Rust semantics/compiler proof.
+The theorem retains ordinary public geometry, capacity, address and length
+checks; these are not assumed soundness conclusions. See the
+[implementation audit](../AUDIT.md).
+
+### Runtime and transcript
+
+The selected joint boundary belongs to zk-v2, matching `runtime/zk-v2`.
+Witness selection and Polygero are sibling protocols underneath it. Mdoc
+provides the prime-field handoff and the generated binary adapter.
+
+| Boundary | Data bound before the challenge | Answer block |
+|---|---|---|
+| Witness selection | Joint root, field identities and layouts | Two independent full coefficient vectors per field |
+| Prime layered sumcheck | Public prime inputs and preceding masked messages | Shared assertion/entry coefficients, ordinary rounds, nonzero terminals and combine coefficients |
+| Prime row batching | All compiled rows and final input equation | One independent weight per row |
+| Rescaling | Complete derived prime linear claim | One nonzero prime scalar |
+| Conversion | Scaled shared coefficients and masked opening `mu` | Two nonzero prime scalars in one answer |
+| Binary layered sumcheck | Masked quotient advice and public statements | One shared sumcheck over all quad fragments |
+| Packing | Source claim and trace-zero vector `U` | One full-field vector; absent for degree one |
+| Joint Polygero batching | Both completed frontend prefixes and packing response `A` | Both fields' affine weights and polynomial samples |
+| Shared opening | Both complete `H/Z` response pairs | One ordered sample of 84 distinct columns |
+| Final seal | Chained prefix and complete canonical proof body | Separately domain-separated 32-byte seal |
+
+Each field commits two dedicated fingerprint masks before coefficient sampling.
+They are backend auxiliary cells, excluded from the original-cell coefficient
+vectors. All four masked responses are bound before either sumcheck. The prime
+commitment excludes the shared bit prefix: its inputs are reconstructed from
+the selected binary witness. Binary public bits are bound at the first boundary;
+prime public inputs are bound when the prime frontend starts. No future prime
+values are added to the earlier fingerprint key.
+
+One `begin_squeeze()` supplies one boundary answer, including every challenge
+read without an intervening prover message. Fragments add no boundaries or wire
+arrays. Components are ordered by decreasing depth, with original input index
+breaking ties, including duplicate circuit identifiers. Outputs are zero
+assertions at their own layer; entering outputs and explicit assertions share
+one answer. Input-only assertions extend the final combine answer.
+
+A frontend with layers has `sum(logw)+3*depth` boundaries. A frontend without
+layers has one input-assertion boundary. Besides both frontends there are six
+ordinary boundaries, one optional packing boundary, and the final seal. The
+measured two-/four-attribute presentations have respectively 492/499 ordinary
+boundaries, followed by one final-seal query. Binding source circuit identifiers
+adds no separate query. Current sizes and timings are in the
+[Rust README](../../rust/README.md#performance).
+
+### Checked encoding and acceptance
+
+[`ProofBodyCodec`](LfzkV2/Current/ProofBodyCodec.lean) models the canonical
+MDA6/JPG2 body, including the terminal authentication frontier.
+[`ProofOutput`](LfzkV2/Current/ProofOutput.lean) parses that body and its seal;
+malformed or trailing proof bytes are rejected inside the final event, without
+a parser-success premise. `H/Z` wire values are oracle-prefix evaluations and
+are interpolated by the backend decoder. The shared leaf order is binary then
+prime, each with physical rows `u`, `m`, witness rows and `fstar`; nonces follow
+the sampled-column order.
+
+[`QueryRuntime`](LfzkV2/Current/QueryRuntime.lean) reconstructs contexts and
+fresh-message caches from actual query bytes. Inconsistent logical aliases lie
+outside its canonical image.
+[`CanonicalVerifierAgreement`](LfzkV2/Current/CanonicalVerifierAgreement.lean)
+proves complete replay, decoding and verification depend only on that image.
+[`CanonicalOracle`](LfzkV2/Current/CanonicalOracle.lean) preserves the original
+first-context Merkle extractor when transporting the oracle program.
+[`MerkleWireCodec`](LfzkV2/Current/MerkleWireCodec.lean) constructs exact leaf/node
+preimages and their role decoders; injectivity is proved from their parsers.
+
+[`CanonicalRuntime.decoded_true_at_request`](LfzkV2/Current/CanonicalRuntime.lean)
+derives both circuit satisfactions at the actual requested public vectors from
+the same extracted pair. The binary conclusion covers the generated
+hash/adapter circuit; its adapter product semantics are proved. The prime
+conclusion covers the trusted signature circuit, with shared bits taken from
+the binary witness.
+
+The extractor is a mathematical finite search. No efficient enumeration bound
+is claimed for the worst-case binary/prime candidate caps
+`21898356682154715916` and `451457457136012100305`. The theorem establishes
+extractor soundness; complete V2 joint-view zero knowledge is separate.
+
+The default build checks the current tests and endpoint axioms, allowing only
+`propext`, `Classical.choice` and `Quot.sound`. Retained checkpoint and V1 proofs
+remain in their original namespaces.
+
+## Retained layered checkpoint
+
 The `LfzkV2.Layered` namespace models layered sumcheck with sparse quad
 fragments, one dense wire array per layer, and one shared input array. Its
 [authenticated extraction endpoint](LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)

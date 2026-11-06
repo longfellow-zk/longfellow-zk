@@ -89,6 +89,36 @@ proved in `truePolys_consistent`, `truePolys_degree`, and `truePolys_final`.
 
 ## Soundness and transcript boundary
 
+The [witness-selection adapter](SumcheckV2/WitnessSelection.lean) separates
+candidate selection from ordinary quadratic sumcheck. Two masked fingerprints
+first select a unique frontend witness outside a `choose(L,2)/q²` collision
+event. `selected_round_bad_card_le` then pays two roots, without a candidate-list
+multiplier. The selected witness includes frontend pads and terminal cells;
+it need not fix Polygero's internal hiding rows.
+
+[`Chained.failure_bound`](SumcheckV2/ChainedFiatShamir.lean) proves
+`2Q/q + (Q+1)/|Link|` against an arbitrary adaptive total-oracle query tree,
+under the typed [chain representation](../transcript-v2/README.md) and local
+algebraic reduction laws. `Q` bounds distinct queries, not accepted-proof rounds.
+One answer contains the link, the current field challenge and any unrelated
+challenge coordinates; the adversary sees all prior answers. Ancestor-dependent
+round data gives the required independence from the answer being counted.
+The chain theorem derives query charging rather than assuming it.
+
+The selection component separately costs `Q*choose(L,2)/q²`. Combining frontend
+bad events in the generic theorem charges the common chain exception once.
+The [current mdoc composition](../lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+derives the application reduction from actual adaptive runtime acceptance and
+includes the nonzero terminal corrections. Canonical query encoding and
+requested-public readback are checked. The explicit ideal-sampler oracle
+assumption and Rust source correspondence remain separate from these algebraic
+proofs. This component result alone is not an application's
+end-to-end security certificate.
+
+The retained per-execution tape theorems below continue to describe their own
+IOP/round schedules; they do not introduce an extra round-count multiplier into
+the adaptive total-oracle bound.
+
 `BadRoundEvent` means a false projective sum is repaired by the current
 challenge. Its bound comes from the roots of a nonzero quadratic difference.
 `BadCombineEvent` means at least one of `A,B` is wrong but `A + alpha*B` is
@@ -156,7 +186,8 @@ The remaining correspondence obligations are specific:
 - Relate the Rust sparse traversal, array layout, and tableau coordinates to
   `LfzkV2`'s circuit tensors and explicit input/pad coordinate maps.
 
-Serialization and concrete transcript encoding are also outside the model.
+This algebraic component omits serialization; the current runtime composition
+adds canonical proof-body and transcript-query codecs.
 The complete linear-terminal protocol composition is in `LfzkV2.Linear.Runtime`,
 including actual packed/direct rows, adaptive Fiat–Shamir, MAC, and both Merkle
 commitments. `LfzkV2.Packed` retains the earlier product-checked checkpoint.

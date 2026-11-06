@@ -1,5 +1,6 @@
 import polygero.FiatShamir.Nonrecursive
 import polygero.FiatShamir.OutsideList
+import polygero.FiatShamir.WitnessSelection
 
 /-! Composition with a frontend bound for a fixed committed witness list.
 All stages use the same adaptive oracle. The statement can be satisfiable;

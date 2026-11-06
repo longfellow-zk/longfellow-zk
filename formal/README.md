@@ -1,6 +1,38 @@
 # Formal verification
 
-**The modeled layered-sumcheck Longfellow V2 verifier has a 116-bit
+The current MAC-free mdoc composition has a Fiat--Shamir extractor theorem for
+the mathematical runtime verifier with adaptive public requests:
+[`IdealProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/IdealProofRate7.lean) proves
+for all integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
+adversary making at most `Q` distinct transcript-oracle queries and at most
+`Q_H` Merkle-oracle calls satisfies
+
+```text
+Pr[verifier accepts and the paired extractor fails to recover
+   a witness satisfying the requested circuits]
+  <= 2Q / 2^128
+     + [4Q + 1 + Q_H(Q_H - 1)/2
+        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
+```
+
+`R` counts ordinary round boundaries, excluding the final seal: 492 for two
+attributes and 499 for four. Repeated inputs receive the same complete answer;
+arbitrary finite repetitions and `Q = 0` are included. Probability is over the
+ideal oracles and the adversary's private randomness.
+Its checked rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`.
+It includes early witness selection,
+both fields, the cross-field adapter, packing, joint Polygero, one Merkle tree
+and the final seal. The [current model](lfzk-v2/README.md#current-mac-free-protocol)
+states its circuit/layout and ideal-sampler premises. Acceptance and the
+application/backend failure cover are derived from the modeled verifier;
+there is no supplied `Execution` or correspondence certificate. Canonical
+query bytes, the actual Merkle encoding, requested-public readback and the
+first-context extractor are connected in the theorem. Oracle answers use the
+explicit ideal-sampler model. A reduction from full SHAKE byte streams and
+machine verification of Rust are outside this result.
+Zk-v2 owns the selected joint boundary; mdoc supplies its frontend reductions.
+
+**The retained layered-sumcheck Longfellow V2 checkpoint has a 116-bit
 work-normalized extraction bound.** Sparse quad fragments share one wire
 array per layer and one input array. Circuits may have different depths,
 scalar outputs, or no layers. Binary packing, linear-only Polygero and the
@@ -14,6 +46,28 @@ exact finite bound. Circuit/layout, ideal sampler, MAC-row and codec
 premises remain explicit; see the [implementation boundary](AUDIT.md).
 The earlier `Joint` (`8943498`), `Linear` (`21cb029`), `Native`, `Packed`,
 and V1 proof modules remain unchanged.
+
+The current code also has a separate [witness-selection component](witness-selection/README.md).
+Its finite-field IOP analysis charges `choose(L,2)/q²` for two masked
+fingerprints. Its adaptive total-oracle component charges `Q*choose(L,2)/q²`;
+ordinary fixed-witness quadratic sumcheck charges `2Q/q`. The new
+[chained-transcript library](transcript-v2/README.md) proves the required
+query-order and charging lemmas with a common exception `(Q+1)/2^256` for
+32-byte links, under its typed full-parent preimage and local reduction laws.
+The Polygero adapter removes the frontend candidate-list multiplier while
+retaining backend extraction/outside-list errors. Rust encoding/sampler
+correspondence remains an explicit implementation boundary. The current
+composition uses these results without altering the retained certificates above.
+
+The separate [`LfzkV2.Current` model](lfzk-v2/README.md#current-mac-free-protocol)
+specifies the current MAC-free mdoc query schedule, typed messages and challenge
+blocks, shared opening set and body-binding final seal. It proves structural
+prefix/parent laws and counts all runtime boundary queries, including empty
+sample blocks and the final seal. Source identifiers are bound without a
+separate query. Its end-to-end theorem derives failure coverage and shared-query
+charging for typed runtime acceptance, with verifier replay appearing only
+in the digest-sized Merkle term.
+The schedule tests and foundational-axiom checks are default build targets.
 
 The prior product-checked snapshot `fcf8a3a` retains its separate
 [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
@@ -64,14 +118,15 @@ two sumcheck libraries:
   masked constraint equations, and challenge-tape bounds. These are component
   theorems; the `LfzkV1` security certificates above still use V1.
 
-[Longfellow V2](lfzk-v2/README.md), imported as `LfzkV2`, connects the native
-affine circuit, linear and quadratic assertions, honest prover, and actual
+The retained [Longfellow V2](lfzk-v2/README.md) checkpoints, imported as
+`LfzkV2`, connect the native affine circuit, linear and quadratic assertions,
+honest prover, and actual
 compiled rows. Its staged replay fixes the packing response `U` before an
 independent vector challenge and the scalar response `A` afterward. Packing
 and layer checks read the same authenticated cells. The degree-one signature
 path keeps its original source equation and has no packing challenge or cost.
 
-The packed hash and direct signature sides both use geometry
+In the retained layered checkpoint, the packed hash and direct signature sides use geometry
 `(n,k,s,t) = (2912,416,15,86)`, with certified candidate bounds 25 and 33.
 Before Merkle costs, the adaptive bound is
 `1384*N/2^128 + 19303/2^128 + 21661/2^255`; raw verification adds one transcript
@@ -102,7 +157,7 @@ trace-pairing coordinate recovery and the two native linear constraints for
 packing over arbitrary finite field extensions. Its fixed-commitment
 false-claim bound is `1 / |F|`, including arbitrary committed mask cells.
 The library and its binary and odd-characteristic regression cases are in
-the default build. The native compiler and staged Fiat–Shamir composition in
+the default build. The retained compiler and staged Fiat–Shamir composition in
 `LfzkV2.Linear.Runtime` and the joint transcript lift this fixed-claim bound to the authenticated endpoint above.
 
 From this directory:

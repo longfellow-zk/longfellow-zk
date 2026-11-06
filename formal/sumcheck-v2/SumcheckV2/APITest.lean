@@ -101,6 +101,29 @@ example [Fintype F] [DecidableEq F] (strategy : RoundStrategy F 2)
 
 end ArbitraryField
 
+#guard_msgs (drop info) in #check Chained.ofRoundReplay
+#guard_msgs (drop info) in #check Chained.failure_bound
+#guard_msgs (drop info) in #check selected_round_bad_card_le
+
+/--
+info: 'SumcheckV2.Chained.ofRoundReplay' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+set_option pp.fullNames true in
+#print axioms Chained.ofRoundReplay
+/--
+info: 'SumcheckV2.Chained.failure_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+set_option pp.fullNames true in
+#print axioms Chained.failure_bound
+/--
+info: 'SumcheckV2.selected_round_bad_card_le' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+set_option pp.fullNames true in
+#print axioms selected_round_bad_card_le
+
 -- Both protocol namespaces coexist; v1 still carries its interpolation premise.
 example {F : Type} [Field F] [DecidableEq F] [SumcheckV1.Interp F 2]
     (p : SumcheckV1.RoundPoly F 2) (z : F) :

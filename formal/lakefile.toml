@@ -1,7 +1,7 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "WitnessSelection.APITest", "TranscriptV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest", "LfzkV2.Current.Tests.APITest"]
 
 [leanOptions]
 autoImplicit = false
@@ -76,6 +76,16 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "DualPacking"
 srcDir = "dual-packing"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+[[lean_lib]]
+name = "WitnessSelection"
+srcDir = "witness-selection"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+[[lean_lib]]
+name = "TranscriptV2"
+srcDir = "transcript-v2"
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
