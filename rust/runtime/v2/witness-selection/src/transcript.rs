@@ -9,8 +9,10 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        proto::polygero::PolygeroCommitment,
-        random::transcript_v2::{Reading, RoundLabel, Transcript, Writing},
+        v2::{
+            proto::polygero::PolygeroCommitment,
+            transcript::{Reading, RoundLabel, Transcript, Writing},
+        },
     },
 };
 

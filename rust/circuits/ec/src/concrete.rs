@@ -15,13 +15,7 @@
 pub use crate::core::algebra::ec::*;
 
 cfg_compiler! {
-    use crate::{
-        circuits::ec::{Pt2 as WirePt2, Pt3 as WirePt3},
-        compile::{
-            algebra::field::{CompileField, SupportsNatConversions},
-            logic::Logic,
-        },
-    };
+    use crate::{circuits::ec::{Pt2 as WirePt2, Pt3 as WirePt3}, compile::{algebra::field::{CompileField, SupportsNatConversions}, logic::Logic}};
 
     pub fn evaluate_pt2<
         const W: usize,

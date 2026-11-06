@@ -30,8 +30,8 @@ use crate::{
             secp256r1::Secp256r1,
             SupportsFFT,
         },
-        random::{RandomEngine, Transcript},
-        zk_v1::ZkProver,
+        random::RandomEngine,
+        v1::{transcript::Transcript, zk::ZkProver},
     },
 };
 
@@ -104,7 +104,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
+    let sf_hash = crate::runtime::v1::subfield::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
@@ -133,7 +133,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash.commit(
         &witness_hash,
-        &crate::runtime::zk_v1::common::ZkContext {
+        &crate::runtime::v1::zk::common::ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,
         },
@@ -145,7 +145,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig.commit(
         &witness_sig,
-        &crate::runtime::zk_v1::common::ZkContext {
+        &crate::runtime::v1::zk::common::ZkContext {
             f: &p256,
             make_interpolator: &make_interpolator_sig,
         },
@@ -174,7 +174,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             witness_hash,
             &commit_hash,
             &mut tp,
-            &crate::runtime::zk_v1::common::ZkContext {
+            &crate::runtime::v1::zk::common::ZkContext {
                 f: &gf2,
                 make_interpolator: &make_interpolator_hash,
             },
@@ -190,7 +190,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             witness_sig,
             &commit_sig,
             &mut tp,
-            &crate::runtime::zk_v1::common::ZkContext {
+            &crate::runtime::v1::zk::common::ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
             },

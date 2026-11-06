@@ -7,9 +7,8 @@ use crate::{
     },
     runtime::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
-        polygero::PolygeroConfig,
-        random::{transcript_v2::Transcript, DeterministicRng},
-        zk_v2::ZkContext,
+        random::DeterministicRng,
+        v2::{polygero::PolygeroConfig, transcript::Transcript, zk::ZkContext},
     },
 };
 
@@ -137,7 +136,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     let eta = f.u64_to_element(19);
     let mu = reduction.masked_value(&eta, &f);
     let statement = part.finish(reduction.claim, &eta, &mu, &f).unwrap();
-    let residual = |a: &crate::runtime::polygero::LinearStatement<_>, w: &[_]| {
+    let residual = |a: &crate::runtime::v2::polygero::LinearStatement<_>, w: &[_]| {
         let mut x = a.b[0];
         for t in &a.a {
             f.fma(&mut x, &t.k, &w[t.w]);

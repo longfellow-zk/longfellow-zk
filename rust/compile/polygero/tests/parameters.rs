@@ -17,12 +17,15 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        polygero::{
-            JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
-            Participant, PolygeroParam,
-        },
         proto::Digest,
-        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
+        random::{DeterministicRng, RandomEngine},
+        v2::{
+            polygero::{
+                JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
+                Participant, PolygeroParam,
+            },
+            transcript::Transcript,
+        },
     },
 };
 

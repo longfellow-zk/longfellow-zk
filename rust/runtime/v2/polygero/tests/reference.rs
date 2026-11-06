@@ -16,7 +16,7 @@
 use super::*;
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::{merkle::MerkleHeap, polygero::joint::Participants, proto::Digest},
+    runtime::{merkle::MerkleHeap, proto::Digest, v2::polygero::joint::Participants},
 };
 
 /// Preserve private rows for independent polynomial/forgery checks after prove
@@ -27,7 +27,7 @@ pub(super) fn snapshot<E: Clone>(
     JointPolygeroProver {
         context: prover.context,
         states: prover.states.clone(),
-        oracle: crate::runtime::polygero::prover_commitment::ColumnOracle {
+        oracle: crate::runtime::v2::polygero::prover_commitment::ColumnOracle {
             tree: MerkleHeap {
                 num_leaves: prover.oracle.tree.num_leaves,
                 layers: prover.oracle.tree.layers.clone(),
@@ -58,7 +58,7 @@ pub(super) fn check_recommitted_wrong_witness<
     for value in &mut forged.states.0[param.data_start()] {
         f.add(value, &f.one());
     }
-    forged.oracle = crate::runtime::polygero::prover_commitment::ColumnOracle::new(
+    forged.oracle = crate::runtime::v2::polygero::prover_commitment::ColumnOracle::new(
         param.geom.n,
         &joint.context,
         &mut DeterministicRng::new(97),

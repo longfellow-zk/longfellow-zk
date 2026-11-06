@@ -95,7 +95,7 @@ impl<E: Clone> FieldEquation<E> {
         Ok(value)
     }
 }
-pub use crate::runtime::proto::dual_packing::PackingProof;
+pub use crate::runtime::v2::proto::dual_packing::PackingProof;
 /// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackingMasks<E> {

@@ -1,8 +1,8 @@
 # Witness selection
 
 `runtime::v2::witness_selection` wraps joint Polygero between commitment and frontend
-reduction. The zk-v2 joint wrapper invokes it for standalone proofs and for mdoc's
-GF128 and P256 participants. Applications use the zk-v2 wrapper. It contains no
+reduction. The v2 ZK joint wrapper invokes it for standalone proofs and for mdoc's
+GF128 and P256 participants. Applications use the v2 ZK wrapper. It contains no
 circuit, sumcheck, or packing implementation. `prover.rs` and `verifier.rs` own
 their respective role operations. `lib.rs` owns the shared layout and fingerprint
 equations; `transcript.rs` owns v2 framing, coefficient sampling and response binding.

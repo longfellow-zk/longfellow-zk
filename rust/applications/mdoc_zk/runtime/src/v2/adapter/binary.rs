@@ -8,11 +8,13 @@ use crate::{
             gf2_128::{Gf2_128 as E, Gf2_128Field as F},
             EvaluationDomain, PackingField,
         },
-        polygero::{PolygeroConfig, PolygeroParam},
-        proto::zk_v2::CircuitGeometry,
-        random::transcript_v2::Transcript,
-        sumcheck_v2::{self},
-        zk_v2::{joint::SelectedField, packing_commitment::PackingCommitment, ZkContext},
+        v2::{
+            polygero::{PolygeroConfig, PolygeroParam},
+            proto::zk::CircuitGeometry,
+            sumcheck,
+            transcript::Transcript,
+            zk::{joint::SelectedField, packing_commitment::PackingCommitment, ZkContext},
+        },
     },
 };
 pub(in crate::mdoc::runtime::v2) struct BinaryParticipant {
@@ -62,7 +64,7 @@ impl BinaryParticipant {
             c.raw.npublic_input,
             c.raw.ninput,
         )?;
-        let (geometry, param, backend) = crate::runtime::zk_v2::prepare_layout(
+        let (geometry, param, backend) = crate::runtime::v2::zk::prepare_layout(
             c,
             &[&template],
             config,
@@ -110,7 +112,7 @@ impl BinaryParticipant {
             self.ninput,
             values,
         )?;
-        let geometry = sumcheck_v2::circuit_geometry(&[c, &tree])?;
+        let geometry = sumcheck::circuit_geometry(&[c, &tree])?;
         if geometry != self.geometry.sc_geom {
             return Err("adapter instance geometry mismatch".into());
         }

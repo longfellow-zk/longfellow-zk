@@ -7,7 +7,7 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::packing::{AmbientElement as E, BaseElement, PackingExtension, PackingParameters},
-        random::transcript_v2::Transcript,
+        v2::transcript::Transcript,
     },
 };
 impl<E: Clone> PackingMasks<E> {

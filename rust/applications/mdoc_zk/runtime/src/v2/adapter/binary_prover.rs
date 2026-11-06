@@ -2,15 +2,17 @@
 use super::*;
 use crate::runtime::{
     algebra::PackingExtension,
-    polygero::LinearStatement,
-    proto::zk_v2::CircuitProof,
     random::RandomEngine,
-    sumcheck_v2::{SumcheckProof, TranscriptSumcheck},
-    zk_v2::{packing_commitment::PackingState, constraint_compiler::compile_packed},
+    v2::{
+        polygero::LinearStatement,
+        proto::zk::CircuitProof,
+        sumcheck::{SumcheckProof, TranscriptSumcheck},
+        zk::{constraint_compiler::compile_packed, packing_commitment::PackingState},
+    },
 };
 pub(in crate::mdoc::runtime::v2) struct BinaryState {
     id: [u8; 32],
-    config: crate::runtime::polygero::PolygeroConfig,
+    config: crate::runtime::v2::polygero::PolygeroConfig,
     pads: SumcheckProof<2, F>,
     packing: PackingState<E>,
 }
@@ -22,7 +24,7 @@ impl BinaryParticipant {
     ) -> Result<(BinaryState, Vec<E>), String> {
         let input = self.backend.prepare_inputs(private)?;
         let (pads, suffix) =
-            sumcheck_v2::sample_pads(&self.geometry.sc_geom, rng, self.backend.parameters.field());
+            sumcheck::sample_pads(&self.geometry.sc_geom, rng, self.backend.parameters.field());
         let (packing, witness) = self.backend.prepare(input, suffix, rng);
         Ok((
             BinaryState {
@@ -63,7 +65,7 @@ impl BinaryParticipant {
             t.write_sumcheck_statement(c, &public, ctx.f);
         }
         let (sumcheck_proof, constraints) =
-            sumcheck_v2::evaluate_and_prove_circuits(&[c, &tree], inputs, &state.pads, t, ctx.f)?;
+            sumcheck::evaluate_and_prove_circuits(&[c, &tree], inputs, &state.pads, t, ctx.f)?;
         let pads = self
             .geometry
             .sc_geom

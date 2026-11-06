@@ -26,7 +26,8 @@ use crate::{
             RangeInterpolatorFactory, RuntimeField, SupportsSampling,
         },
         proto::Digest,
-        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
+        random::{DeterministicRng, RandomEngine},
+        v2::transcript::Transcript,
     },
 };
 

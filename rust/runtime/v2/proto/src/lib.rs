@@ -3,13 +3,13 @@
 
 pub mod dual_packing;
 pub mod polygero;
-pub mod sumcheck_v2;
+pub mod sumcheck;
 pub mod witness_selection;
-pub mod zk_v2;
+pub mod zk;
 pub use crate::runtime::proto::{merkle, util, Digest, MerkleNonce, MerkleProof};
 
 #[cfg(test)]
-#[path = "../tests/proto_v2.rs"]
+#[path = "../tests/proto.rs"]
 mod tests;
 
 #[cfg(test)]

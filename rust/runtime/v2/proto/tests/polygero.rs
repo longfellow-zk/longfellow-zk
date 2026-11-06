@@ -3,10 +3,8 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
-        proto::{
-            polygero::{FieldProof, JointPolygeroProof, PolygeroGeometry},
-            Digest, MerkleNonce, MerkleProof,
-        },
+        proto::{Digest, MerkleNonce, MerkleProof},
+        v2::proto::polygero::{FieldProof, JointPolygeroProof, PolygeroGeometry},
     },
 };
 fn geometry() -> PolygeroGeometry {

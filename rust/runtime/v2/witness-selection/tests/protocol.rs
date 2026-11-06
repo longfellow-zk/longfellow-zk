@@ -9,11 +9,11 @@ use crate::{
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
             PackingField,
         },
-        polygero::LinearStatement,
-        proto::polygero::PolygeroCommitment,
-        random::{
-            transcript_v2::{RoundLabel, Transcript},
-            DeterministicRng, RandomEngine,
+        random::{DeterministicRng, RandomEngine},
+        v2::{
+            polygero::LinearStatement,
+            proto::polygero::PolygeroCommitment,
+            transcript::{RoundLabel, Transcript},
         },
     },
 };

@@ -1,8 +1,11 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::{
-    algebra::PackingExtension, polygero::LinearStatement, proto::zk_v2::CircuitProof,
-    sumcheck_v2::TranscriptSumcheck, zk_v2::constraint_compiler::compile_packed,
+    algebra::PackingExtension,
+    v2::{
+        polygero::LinearStatement, proto::zk::CircuitProof, sumcheck::TranscriptSumcheck,
+        zk::constraint_compiler::compile_packed,
+    },
 };
 impl BinaryParticipant {
     pub fn verify<D: EvaluationDomain<2, F>>(
@@ -27,7 +30,7 @@ impl BinaryParticipant {
         for c in [c, &tree] {
             t.write_sumcheck_statement(c, &public, ctx.f);
         }
-        let constraints = sumcheck_v2::derive_constraints_for_circuits(
+        let constraints = sumcheck::derive_constraints_for_circuits(
             &[c, &tree],
             &proof.sumcheck_proof,
             t,

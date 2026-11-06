@@ -91,7 +91,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
 
     let gf2_runtime = longfellow_zk::runtime::algebra::gf2_128::Gf2_128RuntimeField::new();
     let p256_runtime = longfellow_zk::runtime::algebra::p256::P256Field::new();
-    let subfield = longfellow_zk::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
+    let subfield = longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(
         &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2_runtime, subfield.basis());
@@ -141,8 +141,8 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
                 .sum::<usize>()
         );
         let (count_w_hash, total_q_hash) =
-            longfellow_zk::runtime::proto::zk_v1::witness_and_constraint_count(&c_hash);
-        let param_hash = longfellow_zk::runtime::ligero_v1::param::LigeroParam::try_new(
+            longfellow_zk::runtime::v1::proto::zk::witness_and_constraint_count(&c_hash);
+        let param_hash = longfellow_zk::runtime::v1::ligero::param::LigeroParam::try_new(
             count_w_hash,
             total_q_hash,
             config_hash,
@@ -179,8 +179,8 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
                 .sum::<usize>()
         );
         let (count_w_sig, total_q_sig) =
-            longfellow_zk::runtime::proto::zk_v1::witness_and_constraint_count(&c_sig);
-        let param_sig = longfellow_zk::runtime::ligero_v1::param::LigeroParam::try_new(
+            longfellow_zk::runtime::v1::proto::zk::witness_and_constraint_count(&c_sig);
+        let param_sig = longfellow_zk::runtime::v1::ligero::param::LigeroParam::try_new(
             count_w_sig,
             total_q_sig,
             config_sig,

@@ -24,7 +24,7 @@
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
 //! rows, `hash` defines column authentication, `joint` coordinates tuples, and
 //! `transcript` owns message framing and challenge rounds.
-//! Typed field bodies and the Merkle envelope live in runtime::proto::polygero.
+//! Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
 //! The caller supplies source-statement digests and derives A*w+b=0 locally;
 //! the digests must bind the statements independently of their sparse arrays.
 //! Parameter catalogs bound each field separately. With shared queries, use
@@ -47,7 +47,9 @@ pub use config::PolygeroLinearTerm;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use param::PolygeroParam;
 
-pub use crate::runtime::proto::polygero::{PolygeroCommitment, PolygeroConfig, PolygeroGeometry};
+pub use crate::runtime::v2::proto::polygero::{
+    PolygeroCommitment, PolygeroConfig, PolygeroGeometry,
+};
 cfg_prover! { mod prover_commitment; }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use joint::{JointPolygeroParam, LinearStatement, Participant};

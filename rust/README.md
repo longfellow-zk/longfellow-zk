@@ -97,7 +97,7 @@ by Matteo Frigo and abhi shelat.
 |---|---|---|
 | Status | Deployed | Under development |
 | Commitment protocol | Ligero | Nonrecursive Polygero |
-| Combined proof implementation | `runtime::v1::zk_v1` | `runtime::v2::zk_v2` |
+| Combined proof implementation | `runtime::v1::zk` | `runtime::v2::zk` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
 | mdoc circuits | Frozen versions 5–7 | NEXT, currently version 10 |
 
@@ -186,8 +186,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 138.7 ms | 82.0 ms | 137,615 | 42.61 MiB | 34.70 MiB |
-| 4 | 150.9 ms | 87.1 ms | 137,551 | 47.27 MiB | 37.75 MiB |
+| 2 | 149.8 ms | 86.9 ms | 137,615 | 42.61 MiB | 34.70 MiB |
+| 4 | 160.8 ms | 90.7 ms | 137,551 | 47.27 MiB | 37.75 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -311,7 +311,7 @@ verifier implementations also remain separate within each protocol.
 
 Circuit representations and codecs live in `core::proto::v1` and
 `core::proto::v2`. Their readers and writers accept their own formats only.
-The v1-only commitment implementation is named `runtime::v1::ligero_v1`; compact
+The v1-only commitment implementation is named `runtime::v1::ligero`; compact
 row sampling, interpolation hints, and element codecs have explicit v1 APIs.
 
 The circuit compiler shares its source frontend, simplification, copy rewriting,

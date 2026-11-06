@@ -1,0 +1,518 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! V2 streams must prove the same polynomial without a One wire.
+use crate::{
+    core::{
+        algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
+        proto::{
+            v2::{
+                compute_id, Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear,
+                Quadratic, RawCircuit, Stream,
+            },
+            FieldID,
+        },
+    },
+    runtime::{
+        algebra::{RuntimeField, SupportsSampling},
+        random::{DeterministicRng, RandomEngine},
+        v2::{
+            sumcheck::{
+                eval_circuit, prove, prover::sample_pads, verifier::verify, SumcheckProofGeometry,
+            },
+            transcript::Transcript,
+        },
+    },
+};
+
+fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(f: &F) {
+    // x*y + k*x + c - z = 0. No circuit input is a reserved constant.
+    let mut random = DeterministicRng::new(197);
+    let x = random.elt_field(f);
+    let y = random.elt_field(f);
+    let k = random.elt_field(f);
+    let constant = random.elt_field(f);
+    let mut z = f.mulf(&x, &y);
+    f.fma(&mut z, &k, &x);
+    f.add(&mut z, &constant);
+    let inputs = vec![x, y, z];
+
+    let layer = Layer::new(
+        3,
+        Stream::<Quadratic>::from_terms([Quadratic {
+            g: 0,
+            l: 0,
+            r: 1,
+            k: 1,
+        }]),
+        Stream::<Linear>::from_terms([
+            Linear { g: 0, l: 0, k: 3 },
+            Linear {
+                g: 0,
+                l: 2,
+                k: if f.is_binary() { 1 } else { 2 },
+            },
+        ]),
+        Stream::<Constant>::from_terms([Constant { g: 0, k: 4 }]),
+    );
+    let raw = RawCircuit {
+        ninput: 3,
+        npublic_input: 1,
+        noutput: 1,
+        logv: 0,
+        constants: vec![f.zero(), f.one(), f.mone(), k, constant],
+        layers: vec![layer],
+    };
+    let circuit = Circuit {
+        id: compute_id(f, &raw),
+        raw,
+    };
+    let bytes = CircuitWriter::new(f, FieldID::None).to_bytes(&circuit);
+    assert_eq!(&bytes[..4], b"LFC3");
+    let (circuit, tail) = CircuitReader::new(f, FieldID::None)
+        .from_bytes(&bytes, true)
+        .unwrap();
+    assert!(tail.is_empty());
+    assert_eq!(circuit.raw.layers[0].num_terms(), 4);
+    assert!(CircuitReader::new(f, FieldID::None)
+        .with_total_term_limit(3)
+        .from_bytes(&bytes, true)
+        .is_err());
+    for i in 0..bytes.len() {
+        assert!(CircuitReader::new(f, FieldID::None)
+            .from_bytes(&bytes[..i], true)
+            .is_err());
+    }
+    let mut rng = DeterministicRng::new(42);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&circuit), &mut rng, f);
+    let witnesses = eval_circuit(inputs.clone(), &circuit, f).unwrap();
+    let (proof, constraints) = prove(
+        witnesses,
+        &pads,
+        &circuit,
+        &mut Transcript::new(b"degrees"),
+        f,
+    );
+    assert!(constraints
+        .residuals(&inputs, &pads, f)
+        .unwrap()
+        .iter()
+        .all(|x| f.is_zero(x)));
+    verify(
+        inputs.clone(),
+        &pads,
+        &circuit,
+        &proof,
+        &mut Transcript::new(b"degrees"),
+        f,
+    )
+    .unwrap();
+    let mut bad = inputs.clone();
+    f.add(&mut bad[2], &f.one());
+    assert!(eval_circuit(bad.clone(), &circuit, f).is_err());
+    assert!(verify(
+        bad,
+        &pads,
+        &circuit,
+        &proof,
+        &mut Transcript::new(b"degrees"),
+        f
+    )
+    .is_err());
+    let mut corrupted = bytes.clone();
+    let last = corrupted.len() - 1;
+    corrupted[last] ^= 1;
+    assert!(CircuitReader::new(f, FieldID::None)
+        .from_bytes(&corrupted, true)
+        .is_err());
+}
+#[test]
+fn v2_streams_prime() {
+    check(&crate::runtime::algebra::p256::P256Field::new());
+}
+#[test]
+fn v2_streams_binary() {
+    check(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+}
+
+#[test]
+fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
+    use crate::{
+        compile::{
+            compiler::{compile_v2, segment_circuit_v2},
+            logic::{Logic, LogicIO},
+        },
+        runtime::algebra::p256::P256Field,
+    };
+    let cf = crate::compile::algebra::p256::P256Field::new();
+    let (c, geometry, _) = compile_v2(&cf, |logic| {
+        let x = logic.input(1);
+        let y = logic.input(2);
+        let expected = logic.input(3);
+        let shifted = logic.add(&logic.mul(&x, &y), &logic.one());
+        let square = logic.mul(&shifted, &shifted);
+        (logic.assert_eq("result", &square, &expected), 2)
+    });
+    assert_eq!(geometry.ninput, 3);
+    assert_eq!(geometry.npublic_input, 1);
+    assert_eq!(c.raw.layers.len(), geometry.nlayers);
+    let c = segment_circuit_v2(&cf, &c);
+    let f = P256Field::new();
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f, FieldID::P256)
+        .from_bytes(&bytes, true)
+        .unwrap();
+    let inputs = vec![
+        f.u64_to_element(2),
+        f.u64_to_element(3),
+        f.u64_to_element(49),
+    ];
+    let witnesses = eval_circuit(inputs.clone(), &c, &f).unwrap();
+    let mut rng = DeterministicRng::new(42);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, &f);
+    let (proof, _) = prove(
+        witnesses,
+        &pads,
+        &c,
+        &mut Transcript::new(b"v2-compiler"),
+        &f,
+    );
+    verify(
+        inputs,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"v2-compiler"),
+        &f,
+    )
+    .unwrap();
+}
+
+#[test]
+fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
+    use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
+    let f = P256Field::new();
+
+    let raw = RawCircuit {
+        ninput: 1,
+        npublic_input: 0,
+        noutput: 1,
+        logv: 0,
+        constants: vec![f.zero(), f.one(), f.mone(), f.u64_to_element(9)],
+        layers: vec![Layer::new(
+            1,
+            Stream::default(),
+            Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }]),
+            Stream::<Constant>::from_terms([Constant { g: 0, k: 3 }]),
+        )],
+    };
+    let c = Circuit {
+        id: compute_id(&f, &raw),
+        raw,
+    };
+    let inputs = vec![f.neg(&f.u64_to_element(9))];
+    let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
+    let mut rng = DeterministicRng::new(38);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, &f);
+    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"v2-scalar"), &f);
+    assert!(proof.layers[0].rounds.is_empty());
+    verify(
+        inputs,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"v2-scalar"),
+        &f,
+    )
+    .unwrap();
+}
+
+#[test]
+fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
+    use crate::core::proto::serialize_uleb128_max4;
+    let f = crate::runtime::algebra::p256::P256Field::new();
+    let reader = CircuitReader::new(&f, FieldID::P256);
+    for (g, l, k, valid) in [
+        (0, 0, 0, true),
+        (0, 0, 1, true),
+        (0, 0, 2, true),
+        (0, 3, 1, false),
+        (1, 0, 1, false),
+        (0, 0, 3, false),
+    ] {
+        let mut bytes = b"LFC3".to_vec();
+        for n in [FieldID::P256 as usize, 1, 1, 0, 3, 1, 3] {
+            serialize_uleb128_max4(&mut bytes, n);
+        }
+        for k in [f.zero(), f.one(), f.mone()] {
+            bytes.extend(f.to_bytes(&k));
+        }
+        for n in [2, 3, 0, 0, 0, 1, 2 * g, 2 * l, k, 1, 1, 0, 1, 0, 0, 0, 0] {
+            serialize_uleb128_max4(&mut bytes, n);
+        }
+        bytes.extend([0; 32]);
+        let decoded = reader.from_bytes(&bytes, false);
+        assert_eq!(decoded.is_ok(), valid, "g={g} l={l} k={k}");
+        if valid {
+            assert_eq!(
+                decoded.unwrap().0.raw.layers[0].assertion_counts(),
+                [0, usize::from(k == 0)]
+            );
+        }
+    }
+}
+
+#[test]
+fn binary_lfc3_classifies_both_signs_as_one() {
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    for k in [1, 2] {
+        let mut bytes = b"LFC3".to_vec();
+        for n in [FieldID::Gf2_128 as usize, 1, 1, 0, 1, 1, 3] {
+            crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
+        }
+        for k in [f.zero(), f.one(), f.mone()] {
+            bytes.extend(f.to_bytes(&k));
+        }
+        for n in [0, 1, 0, 0, 0, 1, 0, 0, k, 1, 1, 0, 1, 0, 0, 0, 0] {
+            crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
+        }
+        bytes.extend([0; 32]);
+        let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(&bytes, false);
+        let (c, _) = result.unwrap();
+        assert_eq!(c.raw.constants[1], c.raw.constants[2]);
+        assert_eq!(
+            crate::core::proto::v2::classify_constants(&f, &c.raw.constants)[k],
+            crate::core::proto::v2::CoefficientClass::One
+        );
+    }
+}
+
+fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
+where
+    FC: crate::compile::algebra::field::CompileField + SerializableField + Clone,
+    FR: RuntimeField<W> + SerializableField + SupportsSampling,
+{
+    use crate::compile::{
+        compiler::{compile_v2, segment_circuit_v2},
+        logic::{Logic, LogicIO},
+    };
+    let scalar = |n: u8| {
+        let mut bytes = vec![0; cf.serialized_size_bytes()];
+        bytes[0] = n;
+        cf.bytes_to_element(&bytes).unwrap()
+    };
+    let (c, _, _) = compile_v2(cf, |logic| {
+        let x = logic.input(1);
+        let y = logic.input(2);
+        let target = logic.input(3);
+        let aux = logic.input(4);
+        let xy = logic.quadratic(&scalar(7), &x, &y);
+        let linear = logic.mulk(&scalar(3), &x);
+        let shifted = logic.add(&logic.add(&xy, &linear), &logic.konst(&scalar(5)));
+        let value = logic.mul(&shifted, &shifted);
+        (
+            logic.assert_all(
+                "checks",
+                &[
+                    logic.assert_eq("value", &value, &target),
+                    logic.assert0("aux", &aux),
+                ],
+            ),
+            2,
+        )
+    });
+
+    let c = segment_circuit_v2(cf, &c);
+    let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes(&c);
+    assert_eq!(&bytes[..4], b"LFC3");
+    let (c, rest) = CircuitReader::new(f, FieldID::None)
+        .from_bytes(&bytes, true)
+        .unwrap();
+    assert!(rest.is_empty());
+    let scalar = |n: u8| {
+        let mut b = vec![0; f.serialized_size_bytes()];
+        b[0] = n;
+        f.bytes_to_element(&b).unwrap()
+    };
+    let x = scalar(2);
+    let y = scalar(11);
+    let mut value = f.mulf(&scalar(7), &f.mulf(&x, &y));
+    f.fma(&mut value, &scalar(3), &x);
+    f.add(&mut value, &scalar(5));
+    value = f.mulf(&value, &value);
+    let inputs = vec![x, y, value, f.zero()];
+    let w = eval_circuit(inputs.clone(), &c, f).unwrap();
+    let mut rng = DeterministicRng::new(93);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
+    let (proof, constraints) = prove(w, &pads, &c, &mut Transcript::new(b"coefficient-arrays"), f);
+    assert!(constraints
+        .residuals(&inputs, &pads, f)
+        .unwrap()
+        .iter()
+        .all(|e| f.is_zero(e)));
+    verify(
+        inputs.clone(),
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"coefficient-arrays"),
+        f,
+    )
+    .unwrap();
+    let mut bad = inputs.clone();
+    bad[3] = f.one();
+    assert!(eval_circuit(bad, &c, f).is_err());
+    let mut bad = inputs;
+    f.add(&mut bad[2], &f.one());
+    assert!(verify(
+        bad,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"coefficient-arrays"),
+        f
+    )
+    .is_err());
+    let terms = c.raw.layers.iter().map(|l| l.num_terms()).sum::<usize>();
+    assert!(CircuitReader::new(f, FieldID::None)
+        .with_total_term_limit(terms - 1)
+        .from_bytes(&bytes, true)
+        .is_err());
+    for n in 0..bytes.len() {
+        assert!(CircuitReader::new(f, FieldID::None)
+            .from_bytes(&bytes[..n], true)
+            .is_err());
+    }
+    let mut malformed = bytes;
+    let end = malformed.len() - 1;
+    malformed[end] ^= 1;
+    assert!(CircuitReader::new(f, FieldID::None)
+        .from_bytes(&malformed, true)
+        .is_err());
+}
+#[test]
+fn coefficient_arrays_binary() {
+    check_coefficients(
+        &crate::compile::algebra::gf2_128::Gf2_128Field::new(),
+        &crate::runtime::algebra::gf2_128::Gf2_128Field::new(),
+    );
+}
+#[test]
+fn coefficient_arrays_prime() {
+    check_coefficients(
+        &crate::compile::algebra::p256::P256Field::new(),
+        &crate::runtime::algebra::p256::P256Field::new(),
+    );
+}
+#[test]
+fn coefficient_arrays_sextic() {
+    check_coefficients(
+        &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
+        &crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new(),
+    );
+}
+
+#[test]
+fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
+    use crate::{
+        compile::{
+            compiler::{compile_v2, segment_circuit_v2},
+            logic::{Logic, LogicIO},
+        },
+        runtime::algebra::{p256::P256Field, AlgebraicField},
+    };
+    let cf = crate::compile::algebra::p256::P256Field::new();
+    let f = P256Field::new();
+    // The shallow product assertion must use its factors directly while another
+    // assertion keeps the circuit deep. Its product result is never materialized.
+    let (c, info, _) = compile_v2(&cf, |l| {
+        let a = l.input(1);
+        let b = l.input(2);
+        let c = l.input(3);
+        let product = l.mul(&a, &b);
+        let square = l.mul(&c, &c);
+        let fourth = l.mul(&square, &square);
+        (
+            l.assert_all(
+                "checks",
+                &[l.assert0("product", &product), l.assert0("fourth", &fourth)],
+            ),
+            1,
+        )
+    });
+    assert!(
+        info.nwires <= 3,
+        "product result or squared assertion was materialized"
+    );
+    let c = segment_circuit_v2(&cf, &c);
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f, FieldID::P256)
+        .from_bytes(&bytes, true)
+        .unwrap();
+    let counts = c.term_breakdown(&f);
+    assert_eq!(counts[0][0], 2);
+    assert_eq!(counts[1][0], 0);
+    let inputs = vec![f.zero(), f.u64_to_element(7), f.zero()];
+    let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
+    let mut rng = DeterministicRng::new(51);
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, &f);
+    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"assertion-kind"), &f);
+    verify(
+        inputs.clone(),
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"assertion-kind"),
+        &f,
+    )
+    .unwrap();
+    let mut bad = inputs;
+    bad[0] = f.one();
+    assert!(eval_circuit(bad.clone(), &c, &f).is_err());
+    assert!(verify(
+        bad,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"assertion-kind"),
+        &f
+    )
+    .is_err());
+    // With two linear assertions, wire zero being zero must not make a nonzero
+    // second wire look valid through an implicit multiplication by wire zero.
+    let (c, _, _) = compile_v2(&cf, |l| {
+        let a = l.input(1);
+        let b = l.input(2);
+        (
+            l.assert_all("zeros", &[l.assert0("a", &a), l.assert0("b", &b)]),
+            1,
+        )
+    });
+    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f, FieldID::P256)
+        .from_bytes(&bytes, true)
+        .unwrap();
+    assert_eq!(c.term_breakdown(&f)[0][0], 0);
+    assert_eq!(c.term_breakdown(&f)[1][0], 2);
+    let inputs = vec![f.zero(), f.zero()];
+    let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
+    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, &f);
+    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"linear-assertions"), &f);
+    verify(
+        inputs,
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"linear-assertions"),
+        &f,
+    )
+    .unwrap();
+    assert!(eval_circuit(vec![f.zero(), f.one()], &c, &f).is_err());
+    assert!(verify(
+        vec![f.zero(), f.one()],
+        &pads,
+        &c,
+        &proof,
+        &mut Transcript::new(b"linear-assertions"),
+        &f
+    )
+    .is_err());
+}

@@ -19,17 +19,19 @@ use std::{hint::black_box, ops::Range, time::Duration};
 use criterion::{criterion_group, criterion_main, Criterion};
 use longfellow_zk::{
     core::algebra::SupportsU64Conversions,
-    runtime::algebra::{
-        fp2::Fp2Field,
-        gf2_128::{Gf2_128, Gf2_128RuntimeField},
-        p256::P256Field,
-        q256::Q256Field,
-        range_interpolation::{
-            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            ScalarInterpolatorFactory,
+    runtime::{
+        algebra::{
+            fp2::Fp2Field,
+            gf2_128::{Gf2_128, Gf2_128RuntimeField},
+            p256::P256Field,
+            q256::Q256Field,
+            range_interpolation::{
+                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+                ScalarInterpolatorFactory,
+            },
+            InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
         },
-        subfield_v1::{BinarySubfieldV1, InterpolationPlanV1},
-        InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
+        v1::subfield::{BinarySubfieldV1, InterpolationPlanV1},
     },
 };
 
@@ -123,9 +125,9 @@ fn all_backends(c: &mut Criterion) {
     }
     #[cfg(any(test, feature = "tooling"))]
     {
-        use longfellow_zk::runtime::algebra::{
-            fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
-            range_interpolation::CrtInterpolatorFactory,
+        use longfellow_zk::runtime::{
+            algebra::{fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory},
+            v1::subfield::RuntimeFp24SubfieldV1,
         };
         let f = RuntimeFp24Ext6::new();
         let factory = CrtInterpolatorFactory;

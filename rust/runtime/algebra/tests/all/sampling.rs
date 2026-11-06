@@ -4,7 +4,10 @@ use std::collections::VecDeque;
 
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
-    runtime::algebra::{fp_generic::FpGenericField, SubfieldV1, SupportsSampling, LIMBS_PER_U64},
+    runtime::{
+        algebra::{fp_generic::FpGenericField, SupportsSampling, LIMBS_PER_U64},
+        v1::subfield::SubfieldV1,
+    },
 };
 
 struct Draws {
@@ -90,9 +93,9 @@ fn full_width_prime<F: SupportsSampling + SerializableField>(f: &F) {
 }
 #[test]
 fn p256_q256_and_v1_p256_sampling_keep_their_byte_contract() {
-    use crate::runtime::algebra::{
-        p256::{P256Field, P256SubfieldV1},
-        q256::Q256Field,
+    use crate::runtime::{
+        algebra::{p256::P256Field, q256::Q256Field},
+        v1::subfield::P256SubfieldV1,
     };
     let f = P256Field::new();
     full_width_prime(&f);
@@ -104,9 +107,9 @@ fn p256_q256_and_v1_p256_sampling_keep_their_byte_contract() {
 }
 #[test]
 fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
-    use crate::runtime::algebra::{
-        gf2_128::{Gf2_128, Gf2_128Field},
-        subfield_v1::BinarySubfieldV1,
+    use crate::runtime::{
+        algebra::gf2_128::{Gf2_128, Gf2_128Field},
+        v1::subfield::BinarySubfieldV1,
     };
     let mut draws = Draws::new([vec![0xff; 16]]);
     assert_eq!(
@@ -126,7 +129,10 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
 }
 #[test]
 fn sextic_sampling_reads_three_bytes_and_masks_23_bits_per_coordinate() {
-    use crate::runtime::algebra::fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1, Q};
+    use crate::runtime::{
+        algebra::fp24_ext6::{RuntimeFp24Ext6, Q},
+        v1::subfield::RuntimeFp24SubfieldV1,
+    };
     let f = RuntimeFp24Ext6;
     let mut draws =
         Draws::new([Q, 0x80_0001, 2, 3, 4, 5, Q - 1].map(|x| x.to_le_bytes()[..3].to_vec()));

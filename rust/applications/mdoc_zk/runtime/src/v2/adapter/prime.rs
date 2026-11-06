@@ -6,13 +6,14 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingField, ZkField},
-        polygero::{LinearStatement, PolygeroConfig},
-        proto::sumcheck_v2::SumcheckProof,
-        random::transcript_v2::Transcript,
-        zk_v2::{
-            joint::SelectedField,
-            prime::{self as prime_frontend, LinearClaim},
-            CircuitGeometry, ZkContext,
+        v2::{
+            polygero::{LinearStatement, PolygeroConfig},
+            proto::sumcheck::SumcheckProof,
+            transcript::Transcript,
+            zk::{
+                joint::SelectedField, prime as prime_frontend, prime::LinearClaim, CircuitGeometry,
+                ZkContext,
+            },
         },
     },
 };
@@ -43,7 +44,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
         if shared == 0 || shared > private {
             return Err("shared input prefix".into());
         }
-        let sc = crate::runtime::sumcheck_v2::circuit_geometry(&[circuit])?;
+        let sc = crate::runtime::v2::sumcheck::circuit_geometry(&[circuit])?;
         let count = private
             .checked_sub(shared)
             .and_then(|n| n.checked_add(1))
@@ -101,20 +102,20 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
         }
         let mut a = Vec::new();
         for (j, k) in claim.weights[self.shared..self.private].iter().enumerate() {
-            a.push(crate::runtime::polygero::PolygeroLinearTerm {
+            a.push(crate::runtime::v2::polygero::PolygeroLinearTerm {
                 c: 0,
                 w: j,
                 k: f.mulf(eta, k),
             });
         }
         let mask = self.private - self.shared;
-        a.push(crate::runtime::polygero::PolygeroLinearTerm {
+        a.push(crate::runtime::v2::polygero::PolygeroLinearTerm {
             c: 0,
             w: mask,
             k: f.mone(),
         });
         for (i, k) in claim.weights[self.private..].iter().enumerate() {
-            a.push(crate::runtime::polygero::PolygeroLinearTerm {
+            a.push(crate::runtime::v2::polygero::PolygeroLinearTerm {
                 c: 0,
                 w: mask + 1 + i,
                 k: f.mulf(eta, k),

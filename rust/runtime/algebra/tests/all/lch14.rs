@@ -17,9 +17,9 @@ use crate::runtime::algebra::{
     gf2_128::{Gf2_128, Gf2_128RuntimeField},
     lch14::*,
     range_interpolation::BinaryInterpolatorFactory,
-    subfield_v1::BinarySubfieldV1,
     InterpolationPlan, RangeInterpolatorFactory,
 };
+use crate::runtime::v1::subfield::BinarySubfieldV1;
 
 fn w_ref(f: &Gf2_128RuntimeField, subfield: &BinarySubfieldV1, i: usize, x: &Gf2_128) -> Gf2_128 {
     let mut prod = f.one();

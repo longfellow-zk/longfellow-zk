@@ -10,8 +10,8 @@ use crate::{
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
             Q256Field,
         },
-        polygero::{JointPolygeroProver, JointPolygeroVerifier},
         random::DeterministicRng,
+        v2::polygero::{JointPolygeroProver, JointPolygeroVerifier},
     },
 };
 fn config() -> PolygeroConfig {
@@ -265,7 +265,7 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     for x in &mut prover.states.0[z] {
         f.add(x, &f.one());
     }
-    prover.oracle = crate::runtime::polygero::prover_commitment::ColumnOracle::new(
+    prover.oracle = crate::runtime::v2::polygero::prover_commitment::ColumnOracle::new(
         g.n,
         &param.context,
         &mut DeterministicRng::new(12),

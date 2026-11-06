@@ -42,7 +42,7 @@ use crate::{
             SupportsFFT,
         },
         random::RandomEngine,
-        zk_v2::ZkContext,
+        v2::zk::ZkContext,
     },
 };
 
@@ -170,7 +170,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         &context_sig,
     )
     .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let param = crate::runtime::zk_v2::joint::JointParam::new((
+    let param = crate::runtime::v2::zk::joint::JointParam::new((
         prover_hash
             .participant(&context_hash)
             .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
@@ -233,9 +233,9 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let statement_sig = prover_sig
         .finish(reduced.claim, &e, &mu, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let proof_sig = crate::runtime::proto::zk_v2::CircuitProof {
+    let proof_sig = crate::runtime::v2::proto::zk::CircuitProof {
         sumcheck_proof: reduced.proof,
-        packing: crate::runtime::proto::dual_packing::PackingProof::Direct,
+        packing: crate::runtime::v2::proto::dual_packing::PackingProof::Direct,
     };
     let proof = joint
         .prove(&param, (statement_hash, (statement_sig, ())), &mut tp)

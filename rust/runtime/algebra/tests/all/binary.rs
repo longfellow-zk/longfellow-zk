@@ -14,7 +14,7 @@
 use super::*;
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::algebra::{gf2_128::Gf2_128RuntimeField, subfield_v1::BinarySubfieldV1},
+    runtime::{algebra::gf2_128::Gf2_128RuntimeField, v1::subfield::BinarySubfieldV1},
 };
 
 // Direct root products define the novel basis independently of either FFT.

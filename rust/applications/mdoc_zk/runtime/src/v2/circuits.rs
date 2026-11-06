@@ -111,8 +111,7 @@ pub fn proof_geometry(
             },
             SupportsFFT,
         },
-        zk_v2::joint::JointParam,
-        zk_v2::ZkContext,
+        v2::zk::{joint::JointParam, ZkContext},
     };
     let f = Gf2_128Field::new();
     let p = P256Field::new();

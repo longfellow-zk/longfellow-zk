@@ -35,7 +35,7 @@ use crate::{
             },
             SupportsFFT,
         },
-        zk_v2::ZkContext,
+        v2::zk::ZkContext,
     },
 };
 
@@ -50,7 +50,7 @@ pub fn run_mdoc_verifier_inner(
     now: &str,
     doc_type: &str,
     proof_bytes: &[u8],
-) -> Result<crate::runtime::random::transcript_v2::VerifiedProof, MdocVerifierErrorCode> {
+) -> Result<crate::runtime::v2::transcript::VerifiedProof, MdocVerifierErrorCode> {
     if !zk_spec.supports_version() {
         return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
     }
@@ -106,7 +106,7 @@ pub fn run_mdoc_verifier_inner(
         &context_sig,
     )
     .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let param = crate::runtime::zk_v2::joint::JointParam::new((
+    let param = crate::runtime::v2::zk::joint::JointParam::new((
         verifier_hash
             .participant(&context_hash)
             .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?,

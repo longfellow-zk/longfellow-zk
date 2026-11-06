@@ -7,7 +7,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
-        random::transcript_v2::Transcript,
+        v2::transcript::Transcript,
     },
 };
 /// Check response shape and traces, replay the challenges, and return the

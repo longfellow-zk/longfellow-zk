@@ -34,7 +34,7 @@ use crate::{
             },
             SupportsFFT,
         },
-        proto::polygero::PolygeroConfig,
+        v2::proto::polygero::PolygeroConfig,
     },
 };
 

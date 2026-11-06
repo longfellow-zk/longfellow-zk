@@ -13,7 +13,7 @@ fn rescalings_are_two_independent_nonzero_full_field_draws() {
     let mut t = Transcript::new(b"alphas");
     let mut literal = t.fork_for_test();
     let expected = literal.round(
-        crate::runtime::random::transcript_v2::RoundLabel::Conversion,
+        crate::runtime::v2::transcript::RoundLabel::Conversion,
         |mut w| {
             w.write_bytes(b"p256-adapter/two-independent-full-field-rescalings/v3");
             let mut r = w.begin_squeeze();
@@ -32,7 +32,7 @@ fn rescalings_are_two_independent_nonzero_full_field_draws() {
 
 #[test]
 fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
-    use crate::runtime::sumcheck_v2::{self, SumcheckProofGeometry};
+    use crate::runtime::v2::sumcheck::{self, SumcheckProofGeometry};
     let p = P256Field::new();
     let f = Gf2_128Field::new();
     let plan = Plan::new(vec![1, 256]).unwrap();
@@ -76,8 +76,8 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
         }
         inputs.extend(vec![f.one(); plan.advice_bits()]);
         let geometry = SumcheckProofGeometry::from_circuit(&c);
-        let (pads, _) = sumcheck_v2::sample_pads(&geometry, &mut DeterministicRng::new(91), &f);
-        let (proof, claim) = sumcheck_v2::evaluate_and_prove_circuits(
+        let (pads, _) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(91), &f);
+        let (proof, claim) = sumcheck::evaluate_and_prove_circuits(
             &[&c],
             inputs.clone(),
             &pads,
@@ -85,7 +85,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             &f,
         )
         .unwrap();
-        let check = sumcheck_v2::derive_constraints_for_circuits(
+        let check = sumcheck::derive_constraints_for_circuits(
             &[&c],
             &proof,
             &mut Transcript::new(b"tree-proof"),
@@ -109,7 +109,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             if index == 0 && p.is_zero(&weights[0]) {
                 continue;
             }
-            assert!(sumcheck_v2::evaluate_and_prove_circuits(
+            assert!(sumcheck::evaluate_and_prove_circuits(
                 &[&c],
                 bad,
                 &pads,

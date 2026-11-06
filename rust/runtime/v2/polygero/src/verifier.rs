@@ -11,7 +11,7 @@ use crate::runtime::{
         RuntimeField,
     },
     proto::Digest,
-    random::transcript_v2::Transcript,
+    v2::transcript::Transcript,
 };
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {
@@ -47,10 +47,10 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     pub fn verify(
         &self,
         root: &PolygeroCommitment,
-        proof: crate::runtime::random::transcript_v2::Unverified<'_, JointPolygeroProof<L::Bodies>>,
+        proof: crate::runtime::v2::transcript::Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
         mut transcript: Transcript,
-    ) -> Result<crate::runtime::random::transcript_v2::VerifiedProof, PolygeroError> {
+    ) -> Result<crate::runtime::v2::transcript::VerifiedProof, PolygeroError> {
         self.reduce(root, &proof, s, &mut transcript)?;
         proof
             .checked(transcript)
@@ -71,7 +71,11 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         )?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
-        crate::runtime::proto::polygero::validate_opening(&proof.opening, p.config.t, p.config.n)?;
+        crate::runtime::v2::proto::polygero::validate_opening(
+            &proof.opening,
+            p.config.t,
+            p.config.n,
+        )?;
         let c = p.challenges(s, t);
         let indices = p.queries(&proof.bodies, t);
         let leaves: Vec<_> = indices

@@ -187,3 +187,7 @@ pub mod mdoc {
 #[cfg(test)]
 #[path = "../tests/all/dependency_tests.rs"]
 mod module_dag_tests;
+
+#[cfg(test)]
+#[path = "../tests/all/runtime_compatibility.rs"]
+mod runtime_compatibility;

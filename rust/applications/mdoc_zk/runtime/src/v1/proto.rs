@@ -18,7 +18,7 @@ use crate::{
     core::proto::SerializableField,
     runtime::{
         algebra::{ElementOf, RuntimeField, SubfieldV1},
-        proto::zk_v1::{ZkProof, ZkProofGeometry},
+        v1::proto::zk::{ZkProof, ZkProofGeometry},
     },
 };
 
