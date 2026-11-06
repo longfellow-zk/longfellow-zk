@@ -2,7 +2,7 @@
 
 Lean proofs for the projective, single-hand protocol at Rust snapshot
 `21cb029`, with the earlier `fcf8a3a` terminal retained, in
-[`rust/runtime/sumcheck-v2`](../../rust/runtime/sumcheck-v2/README.md).
+[`rust/runtime/v2/sumcheck`](../../rust/runtime/v2/sumcheck/README.md).
 The library and namespace are `SumcheckV2`. From `formal/`, run:
 
 ```sh

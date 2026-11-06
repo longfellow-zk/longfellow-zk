@@ -9,14 +9,18 @@ the reparametrisation that the v7 zero-knowledge statement needs (`LfzkV1.Compil
 
 ## The two formulas
 
-`rust/applications/mdoc_zk/runtime/src/mac.rs` gates on `version >= 8`:
+The historical implementation at
+`de5f949:rust/applications/mdoc_zk/runtime/src/mac.rs` gates on `version >= 8`:
 
 ```text
 v8 (push_modern_macs):  tag j = av · msg j + ap j          -- `macTag av ap msg`
 v7 (push_legacy_macs):  tag j = (av + ap j) · msg j        -- `shiftTag av ap msg`
 ```
 
-over `GF(2^128)`, for the six 128-bit blocks `msg` of `(issuer_sig_e, device_pk.x, device_pk.y)`
+The current v1 counterpart is `push_macs` in
+`rust/applications/mdoc_zk/runtime/src/v1/mac.rs`; it uses the v7 formula.
+
+Both formulas operate over `GF(2^128)`, for the six 128-bit blocks `msg` of `(issuer_sig_e, device_pk.x, device_pk.y)`
 (low half first, `bytes[..16]`, `bytes[16..]` of the little-endian 32-byte encoding).  The v7
 formula is the C++ circuit's (`lib/circuits/mac/mac_circuit.h`, `assert_mac`: `key = av ⊕ ap`,
 `mac == key · x`).  Each circuit reads the public tags and `av`, and has **its own** private `ap`

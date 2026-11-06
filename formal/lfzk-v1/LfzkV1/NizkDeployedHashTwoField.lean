@@ -9,7 +9,7 @@ MAC-key share hashed from the two roots, at hash inputs that carry the raw earli
 hash inputs are the deployed ones and the challenge oracle is the total random oracle on them
 (`Bcs.TotalOracleCommit`), so `N` counts deployed hash queries over all three roles.
 
-## The deployed transcript (`rust/applications/mdoc_zk/runtime/src/prover.rs`)
+## The deployed transcript (`rust/applications/mdoc_zk/runtime/src/v1/prover.rs`)
 
 One running transcript: the first side's commitment and the second side's are absorbed, the
 MAC-key share `av` is drawn (`tp.u128()`), the first side is proved — its public inputs, which

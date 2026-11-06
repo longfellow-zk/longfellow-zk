@@ -4,7 +4,7 @@ import Mathlib.Tactic
 /-!
 # Committed witness layout
 
-`runtime/proto/src/sumcheck_v2.rs` allocates two pads per round, then the
+`runtime/v2/proto/src/sumcheck.rs` allocates two pads per round, then the
 two final-claim pads and their product. Layers follow the private-input prefix.
 The indices below are natural numbers; correspondence to machine arithmetic
 additionally requires that the total committed length fit in `usize`.

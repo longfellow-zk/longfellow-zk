@@ -3,7 +3,7 @@ import LfzkV2.Constraints
 /-!
 # Lowering V2 constraints to the committed witness
 
-This models `runtime/zk-v2/src/constraint_compiler.rs`. The backend's sparse
+This models `runtime/v2/zk/src/constraint_compiler.rs`. The backend's sparse
 linear equations are grouped into rows; term order, repeated coordinates, and
 zero coefficients are retained. The input row emits private-input terms before
 pad terms, and substitutes public inputs into the constant.

@@ -46,7 +46,7 @@ retained for comparison and adversarial regression cases.
 ## Runtime correspondence
 
 These are algebraic component proofs, not a source-level verification of the
-[Rust adapter](../../rust/runtime/dual-packing/src/lib.rs). Names below are in
+[Rust adapter](../../rust/runtime/v2/dual-packing/src/lib.rs). Names below are in
 `DualPacking.ArtinSchreier` unless prefixed with `DualPacking`.
 
 | Rust operation | Lean theorem or definition |

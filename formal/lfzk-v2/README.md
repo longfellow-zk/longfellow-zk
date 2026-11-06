@@ -59,7 +59,7 @@ it does not prove SHA-256 or SHAKE cryptographic security.
 
 Hash/signature circuits, their public topology, field arithmetic and canonical
 scalar representations are trusted mathematical setup. Rust checkpoint
-`1b87968` is checked against the model by source audit, not a machine-checked
+`1077bc6` is checked against the model by source audit, not a machine-checked
 Rust semantics/compiler proof.
 The theorem retains ordinary public geometry, capacity, address and length
 checks; these are not assumed soundness conclusions. See the
@@ -67,7 +67,7 @@ checks; these are not assumed soundness conclusions. See the
 
 ### Runtime and transcript
 
-The selected joint boundary belongs to zk-v2, matching `runtime/zk-v2`.
+The selected joint boundary belongs to `runtime::v2::zk`, in `runtime/v2/zk`.
 Witness selection and Polygero are sibling protocols underneath it. Mdoc
 provides the prime-field handoff and the generated binary adapter.
 

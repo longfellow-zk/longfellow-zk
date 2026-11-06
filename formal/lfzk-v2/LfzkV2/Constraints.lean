@@ -4,7 +4,7 @@ import SumcheckV2.Masked
 # V2 symbolic layer execution
 
 The layer order is from circuit outputs to inputs, as in
-`runtime/sumcheck-v2/src/symbolic.rs`. Round messages carry their logical pad
+`runtime/v2/sumcheck/src/symbolic.rs`. Round messages carry their logical pad
 identifiers. Product slots are separate committed coordinates: the symbolic
 builder records their affine residuals, while the backend must also check the
 pad products. Mismatched round/challenge counts are rejected.

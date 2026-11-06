@@ -15,11 +15,17 @@
 //     `dblock`, `block_enc`, `nreq`, `nrow`) and the sumcheck `logw_layers`, which must agree
 //     with the parsed layers.
 // The signature circuit is the same in all four archives (checked by ID) and is reported once.
-use core_proto::{archive::compute_combined_id, circuit::compute_id, reader::CircuitReader};
+use core_proto::{
+    archive::compute_combined_id,
+    v1::{compute_id, CircuitReader},
+};
 use longfellow_zk::{
     core::{algebra as core_algebra, proto as core_proto},
     mdoc::v1 as mdoc_zk_runtime,
-    runtime::{algebra as runtime_algebra, proto::zk_v1 as runtime_proto, zk_v1 as runtime_zk},
+    runtime::{
+        algebra as runtime_algebra,
+        v1::{proto::zk as runtime_proto, zk as runtime_zk},
+    },
 };
 use runtime_algebra::{
     gf2_128::Gf2_128Field,
@@ -46,8 +52,8 @@ fn main() {
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
     let gf2 = Gf2_128Field::new();
     let sf_hash =
-        runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
+        longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(&core_algebra::GF2_16_BASIS_V1);
+    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let mut sig_id: Option<[u8; 32]> = None;
     for attributes in 1..=4 {
@@ -155,7 +161,7 @@ fn main() {
 fn report<F: core_proto::SerializableField>(
     component: &str,
     attributes: usize,
-    raw: &core_proto::circuit::RawCircuit<F>,
+    raw: &core_proto::v1::RawCircuit<F>,
     id: &str,
 ) -> serde_json::Value {
     let logw: Vec<String> = raw.layers.iter().map(|l| l.logw().to_string()).collect();

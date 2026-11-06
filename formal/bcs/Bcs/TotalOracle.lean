@@ -6,7 +6,7 @@ import Bcs.RecomputedRbr
 `Bcs.TranscriptGrinding` and `Bcs.CtxGrinding` model a verifier whose round-`k` hash input carries
 the **raw answers of the earlier rounds**, so that "this transcript prefix is lost" is a function of
 the hash input alone and the bad event at a lazy-tape slot reads only the slots below it.  The
-deployed Longfellow transcript (`rust/runtime/random/src/transcript.rs`, `lib/random/transcript.h`)
+deployed Longfellow transcript (`rust/runtime/v1/transcript/src/lib.rs`, `lib/random/transcript.h`)
 does not do that: it is one SHA-256 running state, messages are absorbed, and a challenge is a PRF
 expansion of the current digest that is **not** re-absorbed.  Round `k`'s challenge is a function of
 the message prefix alone.  Translating a deployed adversary into the raw-answer model costs a factor

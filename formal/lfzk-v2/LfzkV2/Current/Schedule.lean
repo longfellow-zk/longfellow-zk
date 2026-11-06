@@ -11,7 +11,7 @@ inductive Side where
   | binary | prime
   deriving DecidableEq, Repr
 
-/-- The tags in `runtime/random/src/transcript_v2.rs`. Finalization has a separate domain. -/
+/-- The tags in `runtime/v2/transcript/src/lib.rs`. Finalization has a separate domain. -/
 inductive Domain where
   | output | assertions | sumcheck | terminal | combine | packing | statement
   | batching | opening | rescaling | conversion | rowBatching | fingerprint

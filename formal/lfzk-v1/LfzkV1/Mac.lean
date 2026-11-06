@@ -11,10 +11,11 @@ one keyed function on `Fin nblk → Fmac` and the two facts about it that Theore
 ## The construction
 
 The paper writes `MAC_{a,b}(x) = ax + b` for a single value `x`. This file models the
-multi-block additive-blind form used by the Rust v8 construction:
+multi-block additive-blind form used by the historical Rust v8 construction
+at snapshot `de5f949`. The circuit paths in this paragraph refer to that snapshot:
 
 ```
-tag j = a * msg j + b j          -- `rust/circuits/mac/src/concrete.rs:41`
+tag j = a * msg j + b j          -- `de5f949:rust/circuits/mac/src/concrete.rs`
 ```
 
 **one multiplier shared across the blocks, one blind per block.**  `mac_av : u128` and
@@ -30,7 +31,7 @@ of messages and blinds is `1/|Fmac|` for **every** `nblk` — `2^-128` at the de
 Giving each block its own blind is what makes the hiding step *perfect*: the tag is a
 translate of the blind (`macBlindEquiv`), so it is uniform and independent of the message.
 
-**Deployment boundary:** the Rust v8 circuits have separate private `mac_ap` witnesses. The honest
+**Historical v8 boundary:** those circuits have separate private `mac_ap` witnesses. The honest
 prover uses equal blinds, but verifier acceptance does not establish their equality by itself.
 The existing `LfzkV1.TwoField` composition assumes a shared blind and uses the zero-multiplier bad
 event. Instantiating it for Rust requires a different composition argument for fixed pre-challenge
@@ -76,7 +77,8 @@ namespace LfzkV1.Mac
 variable {Fmac : Type} [Field Fmac] {nblk : ℕ}
 
 /--
-**The MAC.**  `rust/circuits/mac/src/concrete.rs:41`: one multiplier `a` for every block, one
+**The retained v8 MAC.** `de5f949:rust/circuits/mac/src/concrete.rs`:
+one multiplier `a` for every block, one
 blind `b j` per block.
 -/
 def macTag (a : Fmac) (b msg : Fin nblk → Fmac) : Fin nblk → Fmac :=
