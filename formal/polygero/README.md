@@ -16,6 +16,38 @@ their names and contracts form a stable API until explicit further user order.
 [STABLE_API.md](STABLE_API.md) maps the paper results to the protected
 [Lean manifest](StableAPI.lean); the build checks their frozen signatures.
 
+The separate [masked witness-selection protocol](../witness-selection/README.md)
+wraps the nonrecursive backend for the current frontend composition. It changes
+the frontend accounting, not Polygero's verifier or the retained paper theorems.
+[`FiatShamir/WitnessSelection.lean`](FiatShamir/WitnessSelection.lean) supplies
+`selectionError + fixedWitnessError` as the frontend term in
+`committed_composition_le`. The projected list contains the original frontend
+cells and its two dedicated mask cells; duplicate projections are removed.
+Polygero's internal hiding rows can still have several lifts, so its extraction
+and outside-list errors are retained.
+
+For a commitment-fixed projected list of size `L`, selection costs
+`choose(L,2)/q²` in the IOP and `Q*choose(L,2)/q²` in the adaptive total-oracle
+model. The later fixed-witness frontend term has no candidate-list multiplier.
+The [chained-transcript theorem](../transcript-v2/README.md) supplies the
+common link/seal exception `(Q+1)/2^256` under its representation and local
+reduction laws. The [current mdoc theorem](../lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+derives the application, chain and joint-backend bounds from actual adaptive
+runtime acceptance, without a supplied `Execution`. Canonical query bytes,
+the complete joint Merkle encoding and the first-context extractor are
+connected by checked parsers and replay equalities. The ideal-sampler oracle
+assumption and Rust source correspondence are explicit implementation boundaries.
+
+The commitment-only candidate list depends on the committed rows, not on the
+later statement. Early fingerprints select a unique projected frontend witness
+from that list outside the collision event. This is distinct from actual
+transcript-assisted extraction: `scanRecoverAt` needs the statement to identify
+good columns. For a sumcheck frontend, that statement is reconstructed by
+replaying sumcheck verification, including its challenges. The extractor avoids
+the sumcheck prover's large table computations, but does not omit verifier
+replay. The formal noncomputable decoder specifications establish no extractor
+runtime bound.
+
 `Recursion/ProbabilityEvent.lean` contains the event and one-step identities;
 `Recursion/ProbabilityBound.lean` contains the single recursive induction and
 the paper-certificate transport. `Recursion/Probability.lean` retains the
