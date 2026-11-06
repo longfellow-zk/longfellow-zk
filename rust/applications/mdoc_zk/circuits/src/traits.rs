@@ -22,7 +22,8 @@ pub trait MdocHashRuntimeField:
 {
 }
 
-impl<F> MdocHashRuntimeField for F where F: Sized
+impl<F> MdocHashRuntimeField for F where
+    F: Sized
         + crate::runtime::algebra::field::RuntimeField<2>
         + crate::core::algebra::SerializableField
         + crate::core::algebra::HasLookupPoints
@@ -38,7 +39,8 @@ pub trait MdocSigRuntimeField:
     + crate::core::algebra::SupportsNatConversions<4>
     + crate::core::algebra::SupportsU64Conversions
     + crate::core::algebra::HasLookupPoints
-where <Self as crate::core::algebra::SupportsNatConversions<4>>::N: crate::core::algebra::Nat<4>
+where
+    <Self as crate::core::algebra::SupportsNatConversions<4>>::N: crate::core::algebra::Nat<4>,
 {
 }
 

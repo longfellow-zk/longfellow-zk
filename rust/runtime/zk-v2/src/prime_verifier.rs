@@ -8,16 +8,16 @@ pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + Su
     f: &F,
 ) -> Result<LinearClaim<F::E>, String> {
     if f.is_binary() {
-        return Err("native claim requires a prime field".into());
+        return Err("prime claim requires a prime field".into());
     }
     sumcheck_v2::circuit_geometry(&[circuit])?;
     proof
         .validate(&SumcheckProofGeometry::from_circuit(circuit))
         .map_err(|e| e.to_string())?;
     if public.len() != circuit.raw.npublic_input {
-        return Err("native frontend public input shape".into());
+        return Err("prime frontend public input shape".into());
     }
     transcript.write_sumcheck_statement(circuit, public, f);
     let constraints = sumcheck_v2::derive_constraints(circuit, proof, transcript, f)?;
-    batch(circuit, public, constraints, transcript, f)
+    row_batching::batch(circuit, public, constraints, transcript, f)
 }

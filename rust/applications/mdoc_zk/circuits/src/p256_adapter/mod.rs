@@ -97,7 +97,7 @@ impl Plan {
 
     /// Generate two independent power sequences and the honest quotients.
     /// Both challenges must be independent, nonzero, uniform FULL prime-field
-    /// samples after the root and complete native claim are fixed.
+    /// samples after the root and complete prime claim are fixed.
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub fn encode(
         &self,
@@ -182,7 +182,7 @@ impl Plan {
                     || q[1..].iter().any(|&x| x != 0)
                     || q[0] >= (1u64 << self.quotient_bits)
                 {
-                    return Err("P256 adapter unsatisfied native claim".into());
+                    return Err("P256 adapter unsatisfied prime claim".into());
                 }
                 out[tree] = q[0] as u32;
             }
@@ -226,8 +226,6 @@ fn pow<F: AlgebraicField>(f: &F, mut b: F::E, mut n: u128) -> F::E {
     x
 }
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod runtime;
 #[cfg(test)]
 #[path = "../../tests/p256_adapter.rs"]
 mod tests;

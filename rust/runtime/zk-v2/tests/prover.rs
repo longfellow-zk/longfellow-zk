@@ -19,12 +19,13 @@ use crate::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
         },
-        polygero::{
-            JointPolygeroParam, JointPolygeroVerifier, LinearStatement, Participant,
-            PolygeroConfig, PolygeroParam,
-        },
+        polygero::{LinearStatement, PolygeroConfig},
         random::{DeterministicRng, RandomEngine},
-        zk_v2::{constraint_compiler, transcript::statement_digest, ZkContext},
+        zk_v2::{
+            constraint_compiler,
+            joint::{JointParam, SelectedField},
+            ZkContext,
+        },
     },
 };
 
@@ -123,7 +124,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 
     // Input-shape errors must not consume random masks or transcript challenges.
     let mut rejected_ts = Transcript::new(seed);
-    let mut original_ts = rejected_ts.clone();
+    let mut original_ts = rejected_ts.fork_for_test();
     let mut rejected_rng = DeterministicRng::new(42);
     assert!(matches!(
         prover.commit(&[], &context, &mut rejected_ts, &mut rejected_rng),
@@ -145,7 +146,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let mut unchanged = transcript.clone();
+        let mut unchanged = transcript.fork_for_test();
         assert!(matches!(
             prover.prove(inputs, private, committed, &mut transcript, &context),
             Err(error) if error == expected_error
@@ -186,31 +187,39 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         )
         .unwrap();
 
-    let independent_param = PolygeroParam::try_new(
-        reference.participant.backend.layout.witness_count,
-        prover.config,
-        &domain,
-        &f,
-    )
-    .unwrap();
-    let mut independent_verifier = JointPolygeroVerifier::new(
-        JointPolygeroParam::new((
-            Participant::new(independent_param, &f, &domain).unwrap(),
-            (),
-        ))
+    let independent_param = JointParam::new((
+        SelectedField::new(
+            reference.participant.backend.layout.witness_count,
+            prover.config,
+            &f,
+            &domain,
+            crate::runtime::algebra::PackingField::packing_id(&f),
+        )
         .unwrap(),
-    );
+        (),
+    ))
+    .unwrap();
     reference
         .participant
         .backend
         .bind(&mut independent, &prover.circuit.id);
-    independent.write_bytes(b"layered-sumcheck/commitment-layout/v1");
-    independent.write_bytes(&0u64.to_le_bytes()); // No additional circuits.
-    independent.write_bytes(&(geometry.sc_geom.logw_layers.len() as u64).to_le_bytes());
-    for &width in &geometry.sc_geom.logw_layers {
-        independent.write_bytes(&(width as u64).to_le_bytes());
+    independent.bind(|w| {
+        w.write_bytes(b"layered-sumcheck/commitment-layout/v1");
+        w.write_bytes(&0u64.to_le_bytes());
+    }); // No additional circuits.
+    independent.bind(|w| {
+        w.write_bytes(&(geometry.circuit.sc_geom.logw_layers.len() as u64).to_le_bytes())
+    });
+    for &width in &geometry.circuit.sc_geom.logw_layers {
+        independent.bind(|w| w.write_bytes(&(width as u64).to_le_bytes()));
     }
-    independent_verifier.receive_commitment(&reference.commitment, &mut independent);
+    let independent_verifier = independent_param
+        .receive(
+            &reference.commitment,
+            (reference.fingerprints.clone(), ()),
+            &mut independent,
+        )
+        .unwrap();
     let public_elements: Vec<_> = public
         .iter()
         .map(|bit| if *bit { f.one() } else { f.zero() })
@@ -235,17 +244,13 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let verifier_constraints =
         sumcheck_v2::derive_constraints(&prover.circuit, &proof, &mut independent, &f).unwrap();
     assert_eq!(constraints, verifier_constraints);
-    let mut different_execution = numerical.clone();
-    different_execution.write_bytes(b"different sumcheck execution");
-    let mut binding_reference = numerical.clone();
-    let statement = statement_digest(&mut binding_reference);
-    let mut binding_verifier = independent.clone();
-    let verifier_statement = statement_digest(&mut binding_verifier);
-    assert_eq!(statement, verifier_statement);
-    assert_ne!(statement, statement_digest(&mut different_execution));
-    assert_ne!(statement.data, prover.circuit.id);
+    let mut different_execution = numerical.fork_for_test();
+    different_execution.bind(|w| w.write_bytes(b"different sumcheck execution"));
+    let state = numerical.fork_for_test().bytes(32);
+    assert_eq!(state, independent.fork_for_test().bytes(32));
+    assert_ne!(state, different_execution.bytes(32));
     let layout = reference.participant.backend.layout.clone();
-    let pads = geometry.sc_geom.pad_layout(layout.suffix_start);
+    let pads = geometry.circuit.sc_geom.pad_layout(layout.suffix_start);
     let source =
         constraint_compiler::compile_packed(constraints, &pads, &public_elements, &layout, &f)
             .unwrap();
@@ -260,7 +265,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(source.claim, verifier_source.claim);
     assert_eq!(source.a, verifier_source.a);
     assert_eq!(source.b, verifier_source.b);
-    let verifier_backend = crate::runtime::zk_v2::commitment::PackingCommitment::new(
+    let verifier_backend = crate::runtime::zk_v2::packing_commitment::PackingCommitment::new(
         f.clone(),
         layout,
         crate::runtime::algebra::packing::binary::Binary128Extension,
@@ -277,11 +282,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             &mut numerical,
         )
         .unwrap();
-    let joint = JointPolygeroParam::new((reference.participant.participant(&context).unwrap(), ()))
-        .unwrap();
+    let joint =
+        JointParam::new((reference.participant.participant(&context).unwrap(), ())).unwrap();
     let com_proof = reference
-        .polygero
-        .prove(&joint, &(native, ()), &mut numerical)
+        .joint
+        .prove(&joint, (native, ()), &mut numerical)
         .unwrap();
     let rows = crate::runtime::dual_packing::verifier::verify(
         &verifier_backend.parameters,
@@ -291,25 +296,33 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &mut independent,
     )
     .unwrap();
-    let verifier_statement = statement_digest(&mut independent);
+    let verifier_statement = crate::runtime::proto::Digest {
+        data: prover.circuit.id,
+    };
     let (verifier_a, verifier_b) = verifier_backend
         .authenticate::<2>(verifier_source, &rows)
         .unwrap();
     let expected = ZkProof {
         com: commitment,
+        fingerprints: reference.fingerprints,
         sumcheck_proof: proof,
         packing,
         com_proof,
     };
     assert_eq!(
-        actual.write(&geometry, &f).unwrap(),
-        expected.write(&geometry, &f).unwrap()
+        actual
+            .write(&geometry, &f, numerical.fork_for_test())
+            .unwrap()
+            .into_bytes(),
+        expected
+            .write(&geometry, &f, numerical.fork_for_test())
+            .unwrap()
+            .into_bytes()
     );
     independent_verifier
-        .verify(
-            &actual.com,
+        .authenticate(
             &actual.com_proof,
-            &(
+            (
                 LinearStatement {
                     a: verifier_a,
                     b: verifier_b,

@@ -197,7 +197,8 @@ impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
 
 impl<'a, const W: usize, F> RangeInterpolatorFactory<W, F>
     for QuadraticExtensionFftInterpolatorFactory<'a, W, F>
-where F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatConversions<W>
+where
+    F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatConversions<W>,
 {
     type Plan = QuadraticExtensionFftInterpolationPlan<'a, W, F>;
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
@@ -232,11 +233,12 @@ where F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatCon
 
 impl<const W: usize, F> crate::runtime::algebra::EvaluationDomain<W, F>
     for QuadraticExtensionFftInterpolatorFactory<'_, W, F>
-where F: crate::runtime::algebra::RuntimeField<W>
+where
+    F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
         + SupportsU64Conversions
         + SupportsNatConversions<W>
-        + SupportsQuadraticExtension<W>
+        + SupportsQuadraticExtension<W>,
 {
     fn domain_id(&self) -> Vec<u8> {
         super::arithmetic::evaluation_domain_id(self.f)

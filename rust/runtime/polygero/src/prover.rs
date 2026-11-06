@@ -1,13 +1,13 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Commitment and responses for a typed list of fields.
 use super::{
-    ensure, joint::*, prover_commitment::ColumnOracle, PolygeroCommitment, PolygeroError,
-    PolygeroParam,
+    constraints, ensure, joint::*, prover_commitment::ColumnOracle, PolygeroCommitment,
+    PolygeroError, PolygeroParam,
 };
 use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
     proto::Digest,
-    random::{RandomEngine, Transcript},
+    random::{transcript_v2::Transcript, RandomEngine},
 };
 pub struct JointPolygeroProver<S> {
     pub(super) context: Digest,
@@ -119,4 +119,33 @@ pub(super) fn primary_response<const W: usize, F: RuntimeField<W>, D: Evaluation
         blas::vaxpy(&mut h, &batching_values, &w[row][..dimension], f);
     }
     h
+}
+
+/// Form one field's responses before recursing to the next participant.
+/// The dense constraint matrix is released before the next field is processed.
+pub(super) fn respond<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+    param: &PolygeroParam,
+    w: &[Vec<F::E>],
+    statement: &LinearStatement<F::E>,
+    challenge: &FieldChallenges<F::E>,
+    domain: &D,
+    f: &F,
+) -> FieldProof<F::E> {
+    let h = primary_response(param, w, &challenge.batching_samples, domain, f);
+    let rows =
+        constraints::batch_constraints(param, &statement.b, &statement.a, &challenge.alpha, f);
+    let z = arithmetic_response(param, w, &rows, domain, f);
+    // Release this field's dense constraint matrix before processing the tail.
+    drop(rows);
+    FieldProof {
+        h,
+        z,
+        rows: Vec::with_capacity(param.geom.nrow() * param.geom.t),
+    }
+}
+
+pub(super) fn gather<E: Clone>(state: &[Vec<E>], body: &mut FieldProof<E>, indices: &[usize]) {
+    for row in state {
+        body.rows.extend(blas::gather(indices, row));
+    }
 }

@@ -141,10 +141,11 @@ impl<
 
 impl<const W: usize, F> crate::runtime::algebra::EvaluationDomain<W, F>
     for ScalarInterpolatorFactory<'_, W, F>
-where F: crate::runtime::algebra::RuntimeField<W>
+where
+    F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
         + SupportsU64Conversions
-        + SupportsNatConversions<W>
+        + SupportsNatConversions<W>,
 {
     fn domain_id(&self) -> Vec<u8> {
         super::arithmetic::evaluation_domain_id(self.field)

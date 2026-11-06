@@ -24,6 +24,8 @@ mod inputs;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod key;
 pub mod proto;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod transcript;
 pub mod zk_spec;
 #[cfg(test)]
 pub(in crate::mdoc::runtime) use attribute::{circuit_supports, same_namespace};

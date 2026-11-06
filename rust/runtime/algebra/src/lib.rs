@@ -52,8 +52,10 @@ pub trait ZkField<const W: usize>:
     InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
 {
 }
-impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
-{}
+impl<const W: usize, F> ZkField<W> for F where
+    F: InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
+{
+}
 
 #[cfg(any(test, feature = "tooling"))]
 pub mod fp24_ext6;

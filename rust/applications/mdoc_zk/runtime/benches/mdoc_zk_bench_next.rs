@@ -14,7 +14,7 @@
 
 //! Longfellow v2 / NEXT circuit end-to-end benchmark.
 
-//! Complete NEXT flow, including circuit loading, native preparation, commitments,
+//! Complete NEXT flow, including circuit loading, prime-field preparation, commitments,
 //! serialization and cleanup. Longfellow v2 uses the checked Polygero parameter family.
 use std::time::Instant;
 
@@ -65,7 +65,7 @@ fn main() {
     let offline = Instant::now();
     let (spec, circuits) = prepare_circuits(attrs.len());
     eprintln!(
-        "Longfellow v2 / NEXT v{}; parameters checked in the ideal-binding one-level FS model.",
+        "Longfellow v2 / NEXT v{}; parameters checked in the ideal-oracle extractor model.",
         longfellow_zk::mdoc::circuits::NEXT_VERSION
     );
     eprintln!(
@@ -246,7 +246,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
     assert_eq!(
         bytes.len(),
-        32 + proof.masked.len() + 36 + hash.len() + signature.len() + shared_bytes
+        32 + proof.masked.len() + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32
     );
     eprintln!(
         "  SHA/hash reduction: {} bytes; signature reduction: {} bytes",
@@ -254,6 +254,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
         signature.len()
     );
     eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier}, context+version=36)");
+    eprintln!("  Witness fingerprints: 96 bytes (binary=32, signature=64)");
     eprintln!(
         "  Adapter: {} bytes; version+commitment: 36 bytes",
         32 + proof.masked.len()

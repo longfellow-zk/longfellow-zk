@@ -1,27 +1,26 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Masked sumcheck without a field-specific commitment backend.
+//! Batch the complete masked sumcheck rows into one authenticated linear claim.
 //!
-//! This is a reduction, NOT a standalone proof or verifier. Its caller must
-//! authenticate every returned linear coefficient against the same pre-challenge
-//! witness. In particular, checking only the
-//! terminal input claim is insufficient. No native masks are disclosed here.
+//! Fresh independent weights cover every layer equation and the final input
+//! equation. All masked messages precede this round; the resulting claim is
+//! bound before the cross-field adapter samples its rescaling challenge.
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        random::{RandomEngine, Transcript},
-        sumcheck_v2::{
-            self, symbolic::Constraints, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck,
-        },
+        random::transcript_v2::Transcript,
+        sumcheck_v2::{self, symbolic::Constraints},
     },
 };
+
+mod transcript;
 
 pub(crate) struct LinearClaim<E> {
     pub weights: Vec<E>,
     pub target: E,
 }
 
-fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],
     constraints: Constraints<F::E>,
@@ -32,25 +31,22 @@ fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         .raw
         .ninput
         .checked_sub(circuit.raw.npublic_input)
-        .ok_or("native public prefix")?;
+        .ok_or("prime public prefix")?;
     if public.len() != circuit.raw.npublic_input
         || constraints.input_weights.len() != circuit.raw.ninput
     {
-        return Err("native frontend input shape".into());
+        return Err("prime frontend input shape".into());
     }
     let geometry = sumcheck_v2::circuit_geometry(&[circuit])?;
     if constraints.layers.len() != geometry.logw_layers.len() {
-        return Err("native layer count".into());
+        return Err("prime layer count".into());
     }
     let count = private
         .checked_add(geometry.pad_count()?)
-        .ok_or("native layout overflow")?;
+        .ok_or("prime layout overflow")?;
     let pads = geometry.pad_layout(private);
     let (a, b) = super::constraint_compiler::compile_layers(&constraints, &pads)?;
-    // All masked native messages have already been absorbed before these fresh
-    // row weights. Include every layer row AND the final input equation.
-    transcript.write_bytes(b"native-masked-sumcheck/all-linear-rows/v1");
-    let rho = transcript.elt_field_slice(b.len() + 1, f);
+    let rho = transcript::coefficients(b.len() + 1, transcript, f);
     let mut weights = vec![f.zero(); count];
     let mut constant = blas::dot(&rho[..b.len()], &b, f);
     for term in a {
@@ -73,13 +69,6 @@ fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         f.add(&mut weights[j], &f.mulf(last, &coefficient));
     }
     let target = f.neg(&constant);
-    // Explicitly fix the complete adapter statement before its rescaling alpha.
-    transcript.write_bytes(b"native-masked-sumcheck/fixed-linear-claim/v1");
-    transcript.write_bytes(&(weights.len() as u64).to_le_bytes());
-    transcript.write_elt_field_slice(&weights, f);
-    transcript.write_elt_field(&target, f);
+    transcript::bind_claim(&weights, &target, transcript, f);
     Ok(LinearClaim { weights, target })
 }
-
-cfg_prover! { #[path="native_prover.rs"] mod prover; pub(crate) use prover::{prepare, prove, Prepared}; }
-cfg_verifier! { #[path="native_verifier.rs"] mod verifier; pub(crate) use verifier::reduce; }

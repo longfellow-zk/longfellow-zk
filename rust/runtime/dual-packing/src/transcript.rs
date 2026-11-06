@@ -7,7 +7,7 @@ use crate::{
             packing::{AmbientElement as E, PackingExtension, PackingParameters},
             SupportsSampling,
         },
-        random::{RandomEngine, Transcript},
+        random::transcript_v2::Transcript,
     },
 };
 pub(super) fn begin<X: PackingExtension>(
@@ -19,22 +19,32 @@ pub(super) fn begin<X: PackingExtension>(
     X::Ambient: SerializableField,
 {
     if p.binary128_profile() {
-        ts.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
-        ts.write_bytes(context);
-        ts.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes());
+        ts.bind(|w| {
+            w.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
+            w.write_bytes(context);
+        });
+        ts.bind(|w| w.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes()));
     } else {
-        ts.write_bytes(b"longfellow/dual-packing/generic/trace-zero/v1");
-        ts.write_bytes(&p.descriptor());
-        ts.write_bytes(context);
+        ts.bind(|w| {
+            w.write_bytes(b"longfellow/dual-packing/generic/trace-zero/v1");
+            w.write_bytes(&p.descriptor());
+        });
+        ts.bind(|w| w.write_bytes(context));
     }
     let f = p.field();
-    ts.write_elt_field_slice(&c.weights, f);
-    ts.write_elt_field(&c.rhs.constant, f);
-    ts.write_bytes(&(c.auxiliary_count as u64).to_le_bytes());
-    ts.write_bytes(&(c.rhs.terms.len() as u64).to_le_bytes());
+    ts.bind(|w| {
+        w.write_elt_field_slice(&c.weights, f);
+        w.write_elt_field(&c.rhs.constant, f);
+    });
+    ts.bind(|w| {
+        w.write_bytes(&(c.auxiliary_count as u64).to_le_bytes());
+        w.write_bytes(&(c.rhs.terms.len() as u64).to_le_bytes());
+    });
     for (i, k) in &c.rhs.terms {
-        ts.write_bytes(&(*i as u64).to_le_bytes());
-        ts.write_elt_field(k, f);
+        ts.bind(|w| {
+            w.write_bytes(&(*i as u64).to_le_bytes());
+            w.write_elt_field(k, f);
+        });
     }
 }
 pub(super) fn challenges<X: PackingExtension>(
@@ -45,30 +55,27 @@ pub(super) fn challenges<X: PackingExtension>(
 where
     X::Ambient: SerializableField,
 {
-    // Bind the entire first response before drawing independent coordinates.
-    // Replacing delta by powers of one challenge would change the soundness bound.
-    ts.write_bytes(if p.binary128_profile() {
-        b"trace-zero128/U"
-    } else {
-        b"trace-zero/U"
-    });
-    ts.write_elt_field_slice(u, p.field());
-    ts.write_bytes(if p.binary128_profile() {
-        b"trace-zero128/independent-delta"
-    } else {
-        b"trace-zero/independent-delta"
-    });
-    (0..p.degree())
-        .map(|_| p.field().sample(|n| ts.bytes(n)))
-        .collect()
+    ts.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Packing,
+        |mut w| {
+            w.write_elt_field_slice(u, p.field());
+            let mut r = w.begin_squeeze();
+            let value = (0..p.degree())
+                .map(|_| p.field().sample(|n| r.bytes(n)))
+                .collect();
+            r.end_round(value)
+        },
+    )
 }
 pub(super) fn finish<X: PackingExtension>(p: &PackingParameters<X>, a: &E<X>, ts: &mut Transcript) {
     // A may depend on delta, but it must be fixed before the backend samples
     // challenges to authenticate the two resulting linear equations.
-    ts.write_bytes(if p.binary128_profile() {
-        b"trace-zero128/A"
-    } else {
-        b"trace-zero/A"
+    ts.bind(|w| {
+        w.write_bytes(if p.binary128_profile() {
+            b"trace-zero128/A"
+        } else {
+            b"trace-zero/A"
+        })
     });
-    ts.write_elt_field(a, p.field());
+    ts.bind(|w| w.write_elt_field(a, p.field()));
 }

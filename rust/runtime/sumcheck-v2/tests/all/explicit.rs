@@ -7,7 +7,7 @@ use crate::{
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        random::{DeterministicRng, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng},
         sumcheck_v2::{
             eval::eval_layer,
             eval_circuit, prove,

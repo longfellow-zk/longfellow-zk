@@ -22,7 +22,8 @@
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
-//! rows, `hash` defines column authentication, and `joint` coordinates tuples.
+//! rows, `hash` defines column authentication, `joint` coordinates tuples, and
+//! `transcript` owns message framing and challenge rounds.
 //! Typed field bodies and the Merkle envelope live in runtime::proto::polygero.
 //! The caller supplies source-statement digests and derives A*w+b=0 locally;
 //! the digests must bind the statements independently of their sparse arrays.

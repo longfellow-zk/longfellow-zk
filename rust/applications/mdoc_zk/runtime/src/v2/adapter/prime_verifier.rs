@@ -1,6 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
+impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
+    SharedParticipant<W, F>
+{
     pub fn reduce_verify(
         &self,
         circuit: &Circuit<F>,
@@ -12,6 +14,6 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
         if circuit.id != self.id {
             return Err("shared circuit mismatch".into());
         }
-        native_frontend::reduce(circuit, public, proof, t, f)
+        prime_frontend::reduce(circuit, public, proof, t, f)
     }
 }

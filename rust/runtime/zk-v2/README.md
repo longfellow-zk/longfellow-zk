@@ -3,16 +3,15 @@
 `runtime::zk_v2` composes projective sumcheck, authenticated input packing and
 nonrecursive Polygero. `runtime::zk_v1` retains the separate deployed protocol.
 `ZkProver`, `ZkVerifier`, `ZkContext` and `ZkProverCommitment` provide standalone
-proofs. `joint::CircuitParticipant` exposes the same reduction for applications
-that share one Polygero commitment across fields. Prover and verifier orchestration
+proofs. `joint::JointParam` owns early witness selection and the final joint
+authentication for standalone and application proofs. `joint::CircuitParticipant`
+supplies circuit reductions to that wrapper. Prover and verifier orchestration
 stay in separate files; layout and constraint arithmetic are shared.
 
-The [Lean development](../../../formal/lfzk-v2/README.md) proves authenticated
-extraction for the layered composition at checkpoint `de904b4`. Its mdoc
-model still uses the earlier MAC connection. The current MAC-free adapter
-requires a formal extension; complete joint-view zero knowledge also remains
-open. Circuit/layout, MAC, binding and ideal-sampler premises for the retained
-certificate are documented in the [audit](../../../formal/AUDIT.md).
+The [Lean development](../../../formal/lfzk-v2/README.md) proves extractor
+soundness for the current MAC-free mdoc composition in the ideal oracle model,
+with explicit circuit/layout, canonical-codec and ideal-sampler correspondences.
+Complete joint-view zero knowledge remains open.
 
 ## Commitment and field participants
 
@@ -22,17 +21,29 @@ Polygero parameters. `prepare` validates and packs typed private inputs, samples
 sumcheck pads and returns the witness and owned reduction state. Binary source
 inputs are Boolean; prime-field inputs remain field elements.
 
+`CircuitGeometry` contains the circuit reduction and commitment dimensions.
+The standalone `ZkProofGeometry` adds the context of its actual joint participant
+list; application envelopes supply their own joint context. Preparing a circuit
+still validates its selected field, without constructing a singleton context.
+
 Each participant binds its packing interpretation and circuit-composition layout
-before the shared root. Polygero uses recursive `(Participant, Tail)` tuples ending
-in `()`, preserving each field's types. All participants share `(k,s,n,t)`, one
+before the shared root. `JointParam` accepts recursive `(SelectedField, Tail)`
+tuples ending in `()`, preserving each field's types. It uses the sibling
+witness-selection protocol to append two fresh private masks per field,
+commit the augmented vectors, and bind all masked fingerprints before any
+frontend challenges. Circuit geometry includes those backend cells automatically;
+packing and logical circuit inputs retain their original layout.
+All participants share `(k,s,n,t)`, one
 salted tuple-column Merkle tree and one query set. A standalone proof uses the
-same backend with one participant. Shared queries do not imply independent
+same wrapper with one participant. Shared queries do not imply independent
 failure events; the per-field residual budgets add.
 
 After commitment, each participant runs its circuit and packing reduction.
 `prove` and `verify` return an affine `LinearStatement`. Returning that statement
-is not an acceptance decision: the caller must complete the joint Polygero
-opening against the root received before sumcheck. All statements are bound
+is not an acceptance decision: the caller must consume the opaque joint handle
+to authenticate the frontend and fingerprint equations together. Standalone
+verification receives the commitment and fingerprints internally before its
+circuit reduction. All statements are bound
 before backend batching challenges, and every field's responses precede the
 shared queries. The verifier checks the received root and commitment context.
 
@@ -81,6 +92,17 @@ constraints over logical inputs and pads. Each stage contributes one terminal
 constraint, followed by the final input claim. Deriving these constraints alone
 does not authenticate them.
 
+Components are ordered by decreasing depth, preserving their supplied order at
+equal depths. The protocol key is `(decreasing depth, increasing original
+index)` in the transcript-bound circuit list, including duplicate circuit IDs.
+Carried claim weights therefore extend in place as new outputs enter.
+Every circuit output is a zero assertion at its global layer. Its fresh
+coefficient shares that layer's assertion answer with the explicit quadratic
+and linear assertions. Fragments add no queries. Only the current layer's terms
+are contracted; the next layer receives the resulting dense claim weights.
+Input-only circuits extend the final combine answer with their assertion
+coefficients. A proof with no layers instead uses one input assertion block.
+
 `constraint_compiler::compile_packed` substitutes the main public inputs and
 maps logical pad positions into committed witness coordinates. It emits sparse
 terminal rows and the dense source claim for the packing adapter. The adapter
@@ -90,14 +112,12 @@ use `sum_w A[c,w]*w + b[c] = 0`; coefficients, explicit zeros, duplicate terms
 and constants are retained. The fresh sumcheck terminal scale makes the cross
 pad and product cell linear in these rows, without backend product-copy checks.
 
-After sumcheck and any packing exchange, each role appends
-`longfellow-v2/polygero-statement/v1` and samples a 32-byte statement identifier.
-Polygero binds that identifier before its scalar and polynomial challenges.
-It adds no proof bytes. The source circuit IDs, public values,
-commitment and reduction messages are already bound by the shared transcript;
-the identifier makes their handoff explicit. Sparse A/b encoding and term order
-are outside this binding. Standalone Polygero callers must bind their own source
-statement and ensure their A and b implement it.
+Polygero binds each source circuit ID before its scalar and polynomial
+challenges. The public inputs, commitment, sumcheck messages and packing
+responses already precede that boundary on the same transcript. This handoff
+adds no query or proof bytes. Sparse A/b encoding and term order are outside
+this binding: both roles derive these rows locally. Standalone Polygero callers
+must bind their own source statement and ensure their A and b implement it.
 
 `context.rs` derives layouts for both roles. The commitment context contains
 only backend dimensions and the ordered field domains, while circuit identities
@@ -113,21 +133,34 @@ The mdoc application exposes `mdoc::v2::run_mdoc_prover` and
 NEXT v10 connects the hash and signature fields through an application-owned
 P256 adapter. Its two product trees share the binary input array and layered
 sumcheck with the hash circuit. The application commits shared bits only on the
-binary side, while native inputs, one hiding scalar and pads stay in the prime
-field. It sequences the native reduction, conversion challenges, binary
-reduction and packing before one joint opening. V1 retains its frozen versions
+binary side, while prime-field inputs, one hiding scalar and pads stay in the prime
+field. The zk-v2 joint wrapper invokes the separate
+[witness-selection protocol](../witness-selection/README.md), binding both fields'
+masked fingerprints before either sumcheck. Mdoc then sequences the prime-field reduction,
+conversion challenges, binary reduction and packing before one joint opening.
+The zk-v2 wrapper automatically adds the fingerprint affine equations to the
+frontend statements. V1 retains its frozen versions
 5–7 and runtime MACs; the v2 frozen registry is empty.
 
-`native.rs` batches every native sumcheck layer equation and the final input
-claim into one linear claim. Its numerical and verifier entry points remain
-in separate files. The application adapter uses this staged handoff and the
+`prime.rs` runs the masked prime-field sumcheck, with prover and verifier entry
+points in separate files. `row_batching.rs` combines every layer equation and
+the final input equation into one linear claim in its own transcript round.
+The application adapter uses this staged handoff and the
 same packing/constraint primitives as `CircuitParticipant`; the fixed-circuit
 API retains its circuit-identity and typed-input checks.
 
+`packing_commitment.rs` connects the input-packing protocol to committed cells.
+The application-owned cross-field transcript lives under
+`mdoc/runtime/v2/adapter/transcript.rs`; circuit construction stays under
+`mdoc/circuits/p256_adapter`.
+
 Proof types and canonical codecs live in `runtime::proto`, with the application
-envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV7`, mdoc
-adapter proofs use `MDA4`, and the shared Polygero envelope uses `JPG1`.
+envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
+include the two masked fingerprint responses. Mdoc
+adapter proofs use `MDA6`, and the shared Polygero envelope uses `JPG2`.
 Serialization writes backend data directly into the containing proof buffer.
+V2 uses typed SHAKE256 transcript rounds and a mandatory final seal owned by
+the complete-proof encoder; nested circuit and backend bodies have no extra seals.
 V1 encodings and transcripts are unchanged.
 
 Tests under `tests/` cover single- and multiple-circuit proofs, binary packing and

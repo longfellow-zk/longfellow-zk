@@ -26,7 +26,7 @@ use crate::{
             RangeInterpolatorFactory, RuntimeField, SupportsSampling,
         },
         proto::Digest,
-        random::{DeterministicRng, RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
     },
 };
 
@@ -194,7 +194,7 @@ fn exercise<
         assert_eq!(vp.oracle_range(), k..k + config.n);
         let joint = JointPolygeroParam::new((Participant::new(p, f, d).unwrap(), ())).unwrap();
         let mut ts = Transcript::new(b"polygero/test");
-        let before = ts.clone();
+        let before = ts.fork_for_test();
         let (prover, com) =
             JointPolygeroProver::commit(&joint, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
         let mut a = Vec::new();
@@ -214,7 +214,7 @@ fn exercise<
             // A well-formed but unsatisfied statement is rejected by the verifier.
             let mut false_targets = b.clone();
             f.add(&mut false_targets[2], &f.one());
-            let mut false_ts = ts.clone();
+            let mut false_ts = ts.fork_for_test();
             let false_proof = reference::snapshot(&prover)
                 .prove(
                     &joint,
@@ -222,11 +222,11 @@ fn exercise<
                     &mut false_ts,
                 )
                 .unwrap();
-            let mut verifier_ts = before.clone();
+            let mut verifier_ts = before.fork_for_test();
             let mut verifier = JointPolygeroVerifier::new(joint.clone());
             verifier.receive_commitment(&com, &mut verifier_ts);
             let error = verifier
-                .verify(
+                .reduce(
                     &com,
                     &false_proof,
                     &(linear(&a, &false_targets, statement), ()),
@@ -238,7 +238,7 @@ fn exercise<
         // Invalid indices still fail before the prover advances the transcript.
         for (c, w) in [(b.len(), 0), (0, nw), (usize::MAX, 0), (0, usize::MAX)] {
             let invalid = [PolygeroLinearTerm { c, w, k: f.one() }];
-            let mut rejected_ts = ts.clone();
+            let mut rejected_ts = ts.fork_for_test();
             let error = reference::snapshot(&prover)
                 .prove(
                     &joint,
@@ -247,14 +247,14 @@ fn exercise<
                 )
                 .unwrap_err();
             assert_eq!(error.0, "linear constraint index out of bounds");
-            assert_eq!(rejected_ts.u128(), ts.clone().u128());
+            assert_eq!(rejected_ts.u128(), ts.fork_for_test().u128());
         }
         let counted = CountingDomain {
             inner: d,
             calls: std::cell::RefCell::default(),
         };
         let reference = reference::snapshot(&prover);
-        let before_prove = ts.clone();
+        let before_prove = ts.fork_for_test();
         let counted_param =
             JointPolygeroParam::new((Participant::new(vp.clone(), f, &counted).unwrap(), ()))
                 .unwrap();
@@ -274,9 +274,9 @@ fn exercise<
         );
         // A verifier must receive this root, even when handed a valid proof.
         let mut unbound = JointPolygeroVerifier::new(joint.clone());
-        let mut unbound_ts = before.clone();
+        let mut unbound_ts = before.fork_for_test();
         let missing_root_error = unbound
-            .verify(
+            .reduce(
                 &com,
                 &proof,
                 &(linear(&a, &b, statement), ()),
@@ -288,7 +288,7 @@ fn exercise<
         other.root.data[0] ^= 1;
         unbound.receive_commitment(&other, &mut unbound_ts);
         let mismatched_root_error = unbound
-            .verify(
+            .reduce(
                 &com,
                 &proof,
                 &(linear(&a, &b, statement), ()),
@@ -304,7 +304,7 @@ fn exercise<
                 &b,
                 &a,
                 &statement,
-                before.clone(),
+                before.fork_for_test(),
                 d,
                 f,
             );
@@ -322,7 +322,7 @@ fn exercise<
                     .unwrap();
             let mut v = JointPolygeroVerifier::new(verifier_param);
             v.receive_commitment(commitment, &mut verifier_ts);
-            v.verify(
+            v.reduce(
                 commitment,
                 candidate,
                 &(linear(constraints, targets, *hash), ()),
@@ -352,13 +352,16 @@ fn exercise<
             )
             .unwrap();
         assert_eq!(reordered_proof, proof);
-        assert_eq!(reordered_ts.bytes(32), ts.clone().bytes(32));
+        assert_eq!(reordered_ts.bytes(32), ts.fork_for_test().bytes(32));
 
-        let bytes = joint.write(&proof).unwrap();
+        let bytes = joint
+            .write(&proof, ts.fork_for_test())
+            .unwrap()
+            .into_bytes();
         let mut input = bytes.as_slice();
         let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
-        assert_eq!(decoded, proof);
+        assert_eq!(*decoded, proof);
         for which in 0..17 {
             let mut bad = proof.clone();
             match which {
@@ -460,7 +463,12 @@ fn exercise<
             bad[bytes.len() - 1] ^= 1;
             let result = joint.read(&mut bad.as_slice());
             if let Ok(decoded_bad) = result {
-                assert!(verify(&decoded_bad, &b, &a, &com, &statement).is_err());
+                let mut t = Transcript::new(b"polygero/test");
+                let mut v = JointPolygeroVerifier::new(joint.clone());
+                v.receive_commitment(&com, &mut t);
+                assert!(v
+                    .verify(&com, decoded_bad, &(linear(&a, &b, statement), ()), t)
+                    .is_err());
             }
             if !f.is_binary() {
                 let mut noncanonical = bytes.clone();
@@ -471,7 +479,7 @@ fn exercise<
         }
         {
             let mut oversized_frontier = bytes.clone();
-            let position = bytes.len() - proof.opening.path.len() * 32 - 4;
+            let position = bytes.len() - 32 - proof.opening.path.len() * 32 - 4;
             oversized_frontier[position..position + 4].fill(255);
             assert!(joint.read(&mut oversized_frontier.as_slice()).is_err());
         }
@@ -734,7 +742,7 @@ fn binary_profile_fits_exact_original_point_table() {
         JointPolygeroParam::new((Participant::new(param.clone(), &f, &domain).unwrap(), ()))
             .unwrap();
     let mut ts = Transcript::new(b"polygero/tight-table");
-    let before = ts.clone();
+    let before = ts.fork_for_test();
     let (prover, commitment) =
         JointPolygeroProver::commit(&joint, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
     let constraints = [PolygeroLinearTerm {
@@ -762,7 +770,7 @@ fn binary_profile_fits_exact_original_point_table() {
     let mut verifier = JointPolygeroVerifier::new(joint);
     verifier.receive_commitment(&commitment, &mut verifier_ts);
     verifier
-        .verify(
+        .reduce(
             &commitment,
             &proof,
             &(linear(&constraints, &b, statement), ()),

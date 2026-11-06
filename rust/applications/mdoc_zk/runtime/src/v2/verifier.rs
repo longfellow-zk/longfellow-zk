@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Shared-root mdoc verifier with a packed binary circuit and a native P256 circuit.
+//! Shared-root mdoc verifier with a packed binary circuit and a prime P256 circuit.
 
 use super::{
-    adapter::{BinaryParticipant, SharedParticipant},
+    adapter::{transcript as adapter, BinaryParticipant, SharedParticipant},
     inputs::{public_inputs_fit, push_input_hash, push_input_sig},
     ZkSpecStruct,
 };
 use crate::{
     core::algebra::Nat,
-    mdoc::{
-        circuits::p256_adapter::runtime as adapter,
-        runtime::v2::{
-            attribute::{circuit_supports, same_namespace},
-            key::parse_pk_coordinate,
-            MdocVerifierErrorCode, RequestedAttribute,
-        },
+    mdoc::runtime::v2::{
+        attribute::{circuit_supports, same_namespace},
+        key::parse_pk_coordinate,
+        MdocVerifierErrorCode, RequestedAttribute,
     },
     runtime::{
         algebra::{
@@ -38,7 +35,6 @@ use crate::{
             },
             SupportsFFT,
         },
-        random::transcript::Transcript,
         zk_v2::ZkContext,
     },
 };
@@ -54,7 +50,7 @@ pub fn run_mdoc_verifier_inner(
     now: &str,
     doc_type: &str,
     proof_bytes: &[u8],
-) -> Result<(), MdocVerifierErrorCode> {
+) -> Result<crate::runtime::random::transcript_v2::VerifiedProof, MdocVerifierErrorCode> {
     if !zk_spec.supports_version() {
         return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
     }
@@ -100,13 +96,17 @@ pub fn run_mdoc_verifier_inner(
         domain: &make_interpolator_sig,
     };
 
-    let plan = adapter::plan();
+    let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
     let verifier_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let verifier_sig =
-        SharedParticipant::new(&c_sig, adapter::SHARED_BITS, config_sig, &context_sig)
-            .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let param = crate::runtime::polygero::JointPolygeroParam::new((
+    let verifier_sig = SharedParticipant::new(
+        &c_sig,
+        crate::mdoc::circuits::p256_adapter::SHARED_BITS,
+        config_sig,
+        &context_sig,
+    )
+    .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let param = crate::runtime::zk_v2::joint::JointParam::new((
         verifier_hash
             .participant(&context_hash)
             .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?,
@@ -131,22 +131,22 @@ pub fn run_mdoc_verifier_inner(
     }
     let super::proto::MdocProof {
         commitment: root,
+        fingerprints,
         mu,
         masked,
         proof_hash,
         proof_sig,
         polygero: proof,
-    } = decoded;
-    let mut joint = crate::runtime::polygero::JointPolygeroVerifier::new(param);
-    let mut tp = Transcript::new(transcript);
-    tp.write_bytes(b"mdoc/adapter/statement/v1");
-    tp.write_bytes(&zk_spec.combined_hash);
+    } = &*decoded;
+    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    tp.write_bytes(&app_public.iter().map(|&b| u8::from(b)).collect::<Vec<_>>());
+    super::transcript::bind_public_inputs(&mut tp, &app_public);
     verifier_hash.bind(&mut tp);
     verifier_sig.bind(&mut tp);
-    joint.receive_commitment(&root, &mut tp);
+    let joint = param
+        .receive(&root, fingerprints.clone(), &mut tp)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
     let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
     let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val);
@@ -179,17 +179,14 @@ pub fn run_mdoc_verifier_inner(
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let statement_sig = verifier_sig
-        .finish(claim, &e, &mu, &mut tp, &p256)
+        .finish(claim, &e, &mu, &p256)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     joint
-        .verify(
-            &root,
-            &proof,
-            &(statement_hash, (statement_sig, ())),
-            &mut tp,
-        )
+        .authenticate(&proof, (statement_hash, (statement_sig, ())), &mut tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    Ok(())
+    decoded
+        .checked(tp)
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
 }
 
 pub use run_mdoc_verifier_inner as run_mdoc_verifier;

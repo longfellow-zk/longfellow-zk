@@ -1,3 +1,4 @@
+use crate::runtime::random::RandomEngine;
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 
@@ -166,13 +167,12 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
 }
 
 fn check_bindings<const W: usize, F>(f: &F)
-where F: crate::runtime::algebra::RuntimeField<W>
+where
+    F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling {
-    use crate::runtime::{
-        random::{DeterministicRng, RandomEngine},
-        sumcheck_v2::quad,
-    };
+        + crate::runtime::algebra::SupportsSampling,
+{
+    use crate::runtime::{random::DeterministicRng, sumcheck_v2::quad};
     let mut rng = DeterministicRng::new(318);
     let scalar = |n: u8| {
         let mut bytes = vec![0; f.serialized_size_bytes()];
@@ -300,16 +300,18 @@ fn split_bindings_match_three_stream_sextic() {
 }
 
 fn check_proof<const W: usize, F>(f: &F)
-where F: crate::runtime::algebra::RuntimeField<W>
+where
+    F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling {
+        + crate::runtime::algebra::SupportsSampling,
+{
     use crate::{
         core::proto::{
             v2::{compute_id, Circuit, CircuitWriter, RawCircuit},
             FieldID,
         },
         runtime::{
-            random::{DeterministicRng, RandomEngine, Transcript},
+            random::{transcript_v2::Transcript, DeterministicRng},
             sumcheck_v2::{self, prover::sample_pads, SumcheckProofGeometry, TranscriptSumcheck},
         },
     };

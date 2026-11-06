@@ -239,30 +239,44 @@ fn terminal_honesty_and_forged_product_roots() {
 
 #[test]
 fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() {
-    use crate::runtime::{
-        random::{RandomEngine, Transcript},
-        sumcheck_v2::transcript,
-    };
+    use crate::runtime::{random::transcript_v2::Transcript, sumcheck_v2::transcript};
     let f = P256Field::new();
     let cross = f.u64_to_element(13);
     let mut prover = Transcript::new(b"terminal-order");
-    let mut reference = prover.clone();
-    reference.write_bytes(b"single-hand-linear-terminal/v1");
-    reference.write_elt_field(&cross, &f);
-    let expected = reference.elt_field(&f);
+    let mut reference = prover.fork_for_test();
+    let expected = reference.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Terminal,
+        |mut w| {
+            w.write_elt_field(&cross, &f);
+            let mut r = w.begin_squeeze();
+            let x = r.elt_field(&f);
+            r.end_round(x)
+        },
+    );
     assert_ne!(expected, f.zero());
     let r = transcript::terminal_challenge(&cross, &mut prover, &f);
     assert_eq!(r, expected);
-    assert_eq!(prover.clone().bytes(32), reference.clone().bytes(32));
+    assert_eq!(
+        prover.fork_for_test().bytes(32),
+        reference.fork_for_test().bytes(32)
+    );
 
     let claims = [f.u64_to_element(17), f.u64_to_element(19)];
-    let mut changed = prover.clone();
-    reference.write_elt_field_slice(&claims, &f);
-    reference.write_bytes(b"single-hand-combine");
-    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover, &f);
-    assert_eq!(alpha, reference.elt_field(&f));
+    let mut changed = prover.fork_for_test();
+    let expected_alpha = reference.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Combine,
+        |mut w| {
+            w.write_elt_field_slice(&claims, &f);
+            let mut r = w.begin_squeeze();
+            let x = r.elt_field(&f);
+            r.end_round(x)
+        },
+    );
+    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover, &f, |_| {});
+    assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));
-    let changed_alpha = transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed, &f);
+    let changed_alpha =
+        transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed, &f, |_| {});
     assert_ne!(alpha, changed_alpha);
     let mut changed_cross = Transcript::new(b"terminal-order");
     assert_ne!(

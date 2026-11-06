@@ -1,5 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
+use crate::runtime::random::transcript_v2::Transcript;
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
@@ -9,10 +10,88 @@ use crate::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
-        polygero::{JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier},
-        random::{DeterministicRng, RandomEngine},
+        random::DeterministicRng,
     },
 };
+
+#[test]
+fn selected_joint_wrapper_supports_three_typed_fields() {
+    use crate::runtime::{
+        algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, PackingField},
+        polygero::{LinearStatement, PolygeroConfig},
+        proto::Digest,
+        random::transcript_v2::Transcript,
+        zk_v2::joint::{JointParam, SelectedField},
+    };
+    let f = Gf2_128Field::new();
+    let p = P256Field::new();
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    let pd = ScalarInterpolatorFactory::new(&p, 72);
+    let config = PolygeroConfig {
+        k: 8,
+        s: 2,
+        n: 64,
+        t: 2,
+    };
+    let a = SelectedField::new(2, config, &f, &d, f.packing_id()).unwrap();
+    assert_eq!(a.geometry().nw, 4);
+    let param = JointParam::new((
+        a,
+        (
+            SelectedField::new(1, config, &p, &pd, p.packing_id()).unwrap(),
+            (
+                SelectedField::new(0, config, &f, &d, f.packing_id()).unwrap(),
+                (),
+            ),
+        ),
+    ))
+    .unwrap();
+    let statements = || {
+        (
+            LinearStatement {
+                a: vec![],
+                b: vec![],
+                digest: Digest { data: [1; 32] },
+            },
+            (
+                LinearStatement {
+                    a: vec![],
+                    b: vec![],
+                    digest: Digest { data: [2; 32] },
+                },
+                (
+                    LinearStatement {
+                        a: vec![],
+                        b: vec![],
+                        digest: Digest { data: [3; 32] },
+                    },
+                    (),
+                ),
+            ),
+        )
+    };
+    let mut tp = Transcript::new(b"zk-v2/selected-three-fields");
+    let (prover, root, responses) = param
+        .commit(
+            (vec![f.one(), f.zero()], (vec![p.one()], (vec![], ()))),
+            &mut tp,
+            &mut DeterministicRng::new(91),
+        )
+        .unwrap();
+    let proof = prover.prove(&param, statements(), &mut tp).unwrap();
+    let verify = |responses| {
+        let mut tv = Transcript::new(b"zk-v2/selected-three-fields");
+        param
+            .clone()
+            .receive(&root, responses, &mut tv)
+            .unwrap()
+            .authenticate(&proof, statements(), &mut tv)
+    };
+    verify(responses.clone()).unwrap();
+    let mut altered = responses;
+    f.add(&mut altered.1 .1 .0.values[1], &f.one());
+    assert!(verify(altered).is_err());
+}
 fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     f: &F,
 ) -> (Circuit<F>, Circuit<F>) {
@@ -96,22 +175,27 @@ fn binary_circuits_authenticate_one_shared_input() {
         let (state, w) = p.prepare(&private, &mut rng).unwrap();
         // Circuit multiplicity changes pads, but never duplicates the packed input.
         assert_eq!(p.backend.layout.private_inputs, 3);
-        let param = JointPolygeroParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
+        let param =
+            crate::runtime::zk_v2::joint::JointParam::new((p.participant(&ctx).unwrap(), ()))
+                .unwrap();
         let mut t = Transcript::new(b"fragmented-pcs-test");
         p.bind(&mut t);
-        let (joint, root) = JointPolygeroProver::commit(&param, (w, ()), &mut t, &mut rng).unwrap();
+        let (joint, root, responses) = param.commit((w, ()), &mut t, &mut rng).unwrap();
         let (proof, statement) = p
             .prove_circuits(&main, &[true], private, state, &others, &mut t, &ctx)
             .unwrap();
-        let opening = joint.prove(&param, &(statement, ()), &mut t).unwrap();
+        let opening = joint.prove(&param, (statement, ()), &mut t).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let mut t = Transcript::new(b"fragmented-pcs-test");
             p.bind(&mut t);
-            let mut v = JointPolygeroVerifier::new(param.clone());
-            v.receive_commitment(&root, &mut t);
+            let v = param
+                .clone()
+                .receive(&root, responses.clone(), &mut t)
+                .unwrap();
             let statement =
                 p.verify_circuits(&main, &[public], candidate, &others, &mut t, &ctx)?;
-            v.verify(&root, &opening, &(statement, ()), &mut t)
+            v.authenticate(&opening, (statement, ()), &mut t)
+                .map(|_| ())
                 .map_err(|e| e.to_string())
         };
         verify(&proof, true).unwrap();
@@ -124,7 +208,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             wrong.raw.ninput += 1;
             let invalid = vec![&wrong; count];
             let mut t = Transcript::new(b"bad-shared-layout");
-            let before = t.clone().bytes(32);
+            let before = t.fork_for_test().bytes(32);
             assert!(p
                 .verify_circuits(&main, &[true], &proof, &invalid, &mut t, &ctx)
                 .is_err());
@@ -170,10 +254,11 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         w.len(),
         private.len() + p.geometry().sc_geom.pad_count().unwrap()
     );
-    let param = JointPolygeroParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
+    let param =
+        crate::runtime::zk_v2::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let mut t = Transcript::new(b"prime-fragmented-pcs-test");
     p.bind(&mut t);
-    let (joint, root) = JointPolygeroProver::commit(&param, (w, ()), &mut t, &mut rng).unwrap();
+    let (joint, root, responses) = param.commit((w, ()), &mut t, &mut rng).unwrap();
     let (proof, statement) = p
         .prove_circuits(&main, &public, private, state, &others, &mut t, &ctx)
         .unwrap();
@@ -181,13 +266,14 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         proof.packing,
         crate::runtime::proto::dual_packing::PackingProof::Direct
     ));
-    let opening = joint.prove(&param, &(statement, ()), &mut t).unwrap();
-    let mut v = JointPolygeroVerifier::new(param);
+    let opening = joint.prove(&param, (statement, ()), &mut t).unwrap();
     let mut t = Transcript::new(b"prime-fragmented-pcs-test");
     p.bind(&mut t);
-    v.receive_commitment(&root, &mut t);
+    let v = param.receive(&root, responses, &mut t).unwrap();
     let statement = p
         .verify_circuits(&main, &public, &proof, &others, &mut t, &ctx)
         .unwrap();
-    v.verify(&root, &opening, &(statement, ()), &mut t).unwrap();
+    v.authenticate(&opening, (statement, ()), &mut t)
+        .map(|_| ())
+        .unwrap();
 }

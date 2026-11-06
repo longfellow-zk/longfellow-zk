@@ -4,10 +4,10 @@ The adapter connects a P256 coordinate-field claim to Boolean inputs committed
 in GF(2^128). It uses the coordinate prime p, not the ECDSA scalar order.
 The application owns the protocol sequence in its prover and verifier.
 
-Native sumcheck first fixes all masked messages. Fresh random weights combine
+Prime-field sumcheck first fixes all masked messages. Fresh random weights combine
 all layer equations and the final input equation into one linear claim. Its
 shared-input contribution is hidden by a uniform, precommitted scalar R:
-mu = eta * <shared weights, shared bits> + R. The native opening checks the
+mu = eta * <shared weights, shared bits> + R. The prime-field opening checks the
 remaining inputs, R and pads. The binary source contains canonical bits for R
 and the shared digest/key values.
 

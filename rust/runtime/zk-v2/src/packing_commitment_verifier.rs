@@ -4,7 +4,7 @@ use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
     dual_packing::generic::PackingProof,
     polygero::LinearStatement,
-    random::Transcript,
+    random::transcript_v2::Transcript,
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub fn verify<const W: usize>(
@@ -24,9 +24,10 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             id,
             t,
         )?;
-        // Bind the same source prefix as the prover, before backend batching.
-        // The sparse rows below are derived locally rather than accepted as proof data.
-        let digest = super::super::transcript::statement_digest(t);
+        // Dynamic source messages are already bound to this same transcript.
+        // Identify the circuit without another query; sparse rows are derived
+        // locally rather than accepted as proof data.
+        let digest = crate::runtime::proto::Digest { data: *id };
         let (a, b) = self.authenticate::<W>(statement, &rows)?;
         Ok(LinearStatement { a, b, digest })
     }

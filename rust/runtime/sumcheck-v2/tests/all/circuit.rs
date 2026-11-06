@@ -13,7 +13,7 @@ use crate::{
     },
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        random::{DeterministicRng, RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
         sumcheck_v2::{
             eval_circuit, prove, prover::sample_pads, verifier::verify, SumcheckProofGeometry,
         },

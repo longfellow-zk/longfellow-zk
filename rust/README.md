@@ -64,13 +64,30 @@ behavior, and proof encoding.
 It introduces projective sumcheck and replaces Ligero with nonrecursive
 Polygero. A fresh challenge at each sumcheck terminal makes all commitment
 constraints linear, eliminating Polygero's product-copy rows. V1 remains supported.
-Fiat–Shamir challenges currently use a SHA-256
-transcript accumulator and an AES-256 pseudorandom generator.
+V1 retains its SHA-256 transcript accumulator and AES-256 challenge generator.
+V2 uses a direct SHAKE256 transcript with explicit message and challenge phases.
+Each round finalizes a private accumulator snapshot, absorbs the first 32 output
+bytes as a link, and draws challenges from the remaining output of that same
+SHAKE reader. Empty rounds also bind a round label and counter. Intermediate
+links stay internal; complete proofs end with a 32-byte seal over the chained
+transcript and actual canonical proof body, including terminal authentication.
+
+V2 callers receive separate writing and reading capabilities. `begin_squeeze` consumes
+the writer; closing the reader returns the round-completion token. Public
+cloning, resetting, raw-state access, and use as private prover randomness are
+unavailable. Complete-proof encoders own finalization, and decoding returns
+immutable unverified data. Only complete verification returns `VerifiedProof`
+evidence after checking the seal.
+
+The [witness-selection protocol](runtime/witness-selection/README.md) wraps the
+joint commitment before either mdoc sumcheck. Each field commits two dedicated
+mask cells, receives two independent full coefficient vectors, and sends two
+masked dot products. Its opaque state automatically adds both affine equations
+to the later Polygero statement. These cells are backend auxiliaries, not
+field-valued inputs to the binary circuit.
 
 In particular, the Fiat–Shamir transcript will change to conform to the CFRG
-[Fiat-Shamir Transformation specification](https://datatracker.ietf.org/doc/draft-irtf-cfrg-fiat-shamir/),
-currently `draft-irtf-cfrg-fiat-shamir-03` (an Internet-Draft, not yet a published
-RFC).
+[Fiat-Shamir Transformation specification](https://datatracker.ietf.org/doc/draft-irtf-cfrg-fiat-shamir/).
 
 Polygero is described in
 [Polygero: Proximity Testing From Polynomial Challenges](https://eprint.iacr.org/2026/2481)
@@ -95,40 +112,94 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 
 The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
 Fiat–Shamir T-security** for the modeled v7 composition, under its documented
-assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**116-bit extraction security** for the earlier MAC-based checkpoint
-`de904b4`, including quad fragments, packing and the shared opening.
-The current MAC-free P256 adapter requires its own formal extension; that
-certificate does not yet cover the complete current application.
-Circuit/layout correspondence and ideal-sampler premises remain explicit in the
-[audit](../formal/AUDIT.md). Shared-query failure budgets add across fields.
-Current parameter selection targets the same 116-bit work-normalized budget.
+assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) bounds
+extractor failure for the mathematical verifier of the MAC-free mdoc
+protocol, including witness selection, layered sumcheck, the P256 adapter,
+packing, joint Polygero and its single Merkle commitment. The typed theorem
+allows adaptive public requests while fixing trusted circuit metadata.
+The theorem uses an explicit ideal-sampler oracle and a domain-separated
+Merkle random oracle. Canonical query bytes and Merkle encodings are modeled;
+Rust conformance is checked by source audit. A reduction from full SHAKE byte
+streams is outside the theorem. The [audit](../formal/AUDIT.md) states this
+boundary. Both fields use one opening set and one active
+joint-label bound, while retaining their separate rank and outside-list terms.
+The ordinary-rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
+[checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
+bounds each complete backend query charge below `1.999999/q`, where `q=2^128`.
 [Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
-cover rank, Johnson list sizes, and the sum of both fields' query charges.
-The earlier 127-bit component certificates apply to the previous parameter
-profiles. Full formal integration of the current profile and adapter remains
-pending. Complete V2 joint-view zero knowledge is not yet proved.
+keep the implementation's geometry and complete local budgets aligned with it.
+The committed binary/prime candidate caps are respectively
+`21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`. They give a
+fingerprint-role charge of approximately `0.705/q`; efficient enumeration of
+these worst-case lists is not claimed.
+The [exact soundness theorem](../formal/lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+applies to every valid fixed public circuit/layout configuration of this profile.
+For every pair of integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
+adversary making at most `Q` distinct transcript-oracle queries and at most
+`Q_H` Merkle-oracle calls satisfies
+
+```text
+Pr[verifier accepts and the paired extractor fails to recover
+   a witness satisfying the requested circuits]
+  <= 2Q / 2^128
+     + [4Q + 1 + Q_H(Q_H - 1)/2
+        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
+```
+
+Here `R` is the number of ordinary transcript boundaries, excluding the final
+seal: 492 for the two-attribute layout and 499 for the four-attribute layout.
+Public requests may be chosen adaptively and proof bytes arbitrarily. The
+bound permits arbitrary finite repetitions of transcript queries and includes
+`Q = 0`; there is no minimum-query premise. Probability is over the ideal
+oracles and the adversary's private randomness. The squared-field correction
+includes chain guessing, nonzero sampling and one shared Merkle explanation.
+The leading per-query charge is `2/q = 2^-127`; the positive squared-field
+corrections remain explicit.
+Complete V2 joint-view zero knowledge is not yet proved.
+
+The intended transcript proof model treats one round-boundary oracle answer as
+the source of both the link and the entire challenge block. Later reads,
+including field rejection sampling, extend that same answer. The
+[typed oracle analysis](../formal/transcript-v2/README.md) proves that feedback
+pins the boundary-query order along an accepted path, except for guessed links
+or an unqueried final seal. Its common exception is `ε_chain=(Q+1)/2^256` for
+32-byte links. Branch exploration consumes additional queries. For ordinary
+fixed-witness quadratic sumcheck with uniform field challenges the bound is
+`2Q/q + ε_chain`, where `Q` bounds distinct adversarial oracle queries and `q`
+is the field size. The [witness-selection analysis](../formal/witness-selection/README.md)
+separately charges `choose(L,2)/q²` in the IOP and `Q*choose(L,2)/q²` in the
+adaptive oracle model. Outside that event the frontend witness is unique,
+removing its candidate-list multiplier. The complete composition includes
+Polygero's extraction/outside-list errors and nonzero-sampling corrections.
+The circuits and their public layouts are trusted. The oracle model supplies
+jointly uniform typed challenge blocks and independent auxiliary randomness;
+repeated queries receive the same answer. Rust's SHAKE and rejection sampling
+are audited against that model.
 
 ## Performance
 
-Complete NEXT v10 mdoc presentations, measured on 2026-11-05 with Rust 1.99.1
+Complete NEXT v10 mdoc presentations, measured on 2026-11-06 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
-Times are medians of 14 samples with warmups discarded; heap measurements use
+Times are medians of 32 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
 two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 129.7 ms | 74.4 ms | 139,487 | 42.30 MiB | 34.46 MiB |
-| 4 | 140.5 ms | 79.7 ms | 141,263 | 46.99 MiB | 37.51 MiB |
+| 2 | 143.2 ms | 83.9 ms | 137,615 | 42.61 MiB | 34.70 MiB |
+| 4 | 156.3 ms | 89.5 ms | 137,551 | 47.27 MiB | 37.75 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
 | 2 | 632,006 | 163,286 | 1.78 MiB |
 | 4 | 657,741 | 163,307 | 1.87 MiB |
 
-Both cases use `(k,s,n,t)=(384,13,2560,87)` for the hash and signature
-circuits. The combined hash/adapter has 20 layers; the signature has 11.
+Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
+circuits, with ordinary code rate `k/n=1/7`. The combined hash/adapter has 20
+layers; the signature has 11.
+Circuit outputs join the assertion block at their own layer. Components are
+ordered by decreasing depth, with original input index breaking ties, so the
+carried claim weights extend in place. Fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
@@ -139,10 +210,12 @@ circuits. The combined hash/adapter has 20 layers; the signature has 11.
 The binary circuit packs 128 private input bits per committed GF128 word.
 Its trace-zero packing response occupies 2,064 bytes. The adapter adds a
 32-byte masked prime-field claim and three bytes of masked quotient advice.
-The native signature side commits its remaining field inputs, one hiding
+The prime-field signature side commits its remaining field inputs, one hiding
 scalar and sumcheck pads. The 768 shared digest/key bits are committed only
-on the binary side. Proof sizes include the sampled Merkle frontier, whose
-size varies with the transcript.
+on the binary side. Proof sizes include the 32-byte final seal and
+the sampled Merkle frontier, whose size varies with the transcript.
+Witness selection adds two backend cells per field and 96 bytes of responses:
+32 bytes over GF128 and 64 bytes over P256. It adds no circuit wires or terms.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -174,8 +247,12 @@ participant keeps its field, interpolation domain, witness rows, and arithmetic
 responses. Participants with the same `(k,s,n,t)` share one salted column tree
 and one opening query set. All statements are bound before batching challenges,
 and all responses before queries. A single field uses the same protocol through
-`(participant, ())`. Shared-query failure bounds add across participants; they
-do not assume independence. The mdoc application combines its hash and signature fields in one tuple,
+`(participant, ())`. Field-specific rank and outside-list errors are combined
+against the shared opening set without assuming independence. The zk-v2 joint
+wrapper owns witness selection and
+authentication for standalone proofs and mdoc. Its opaque prover and verifier
+handles authenticate the fingerprint equations with the frontend statements.
+The mdoc application combines its hash and signature fields in one tuple,
 with one commitment and one opening. A P256-to-binary adapter connects the
 signature claim to the packed digest and device-key bits. V2 uses no MACs.
 
@@ -189,11 +266,11 @@ side combines the hash and adapter trees through this implementation.
 
 The application circuit library builds the product-tree topology directly,
 without invoking the compiler. Both proof roles instantiate its public
-coefficients from the masked native claim and two independent conversion
+coefficients from the masked prime-field claim and two independent conversion
 challenges. The leaves are ordinary linear expressions over the shared
 Boolean inputs; intermediate nodes multiply, and two final equations assert
 the rescaled prime-field claim. The application prover and verifier sequence
-native sumcheck, claim conversion, binary sumcheck, packing and the joint opening.
+prime-field sumcheck, claim conversion, binary sumcheck, packing and the joint opening.
 
 V2 binary circuits accept Boolean public and private inputs. Authenticated
 packing enforces their bit representation, so the Boolean layer omits bitness
@@ -239,7 +316,8 @@ lowering and scheduling; each stored operand denotes a real wire. The v1 backend
 historical Morton ordering and circuit IDs. V2 compiles directly to
 [LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
 separately with an explicit coefficient table. It removes the reserved One wire.
-V2 proof encoding uses canonical full-width elements throughout. Legacy
+V2 proof encoding uses canonical full-width elements throughout and requires
+the final transcript seal. Previous V2 proof envelopes are rejected. Legacy
 compact-row interfaces are explicitly named `SubfieldV1` in `subfield_v1`.
 V2 binary interpolation uses the ambient field's complete 128-vector Cantor
 basis, with transform preprocessing limited to the coordinates it needs.
@@ -283,8 +361,8 @@ For v2, the hash and signature circuits share the same
 | `T` | Number of opened columns and random prefix samples per row |
 
 Generic offline parameter selection lives in `compile::polygero`. The mdoc
-development provider uses one profile checked against the complete two-field
-budget. Specifications save these choices. Provers and verifiers derive the
+development provider uses one profile checked against both fields' backend
+budgets. Specifications save these choices. Provers and verifiers derive the
 remaining geometry deterministically; they do not tune parameters.
 
 ### Frozen circuits and NEXT

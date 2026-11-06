@@ -59,7 +59,9 @@ pub trait PackingExtension {
         values.iter().map(|value| self.embed(f, value)).collect()
     }
     fn native_dual_basis(&self, _: &Self::Ambient) -> Option<Vec<AmbientElement<Self>>>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         None
     }
     fn native_coefficients(
@@ -103,7 +105,9 @@ pub trait PackingExtension {
     /// Trace lies in the embedded base field. A fixed representation may
     /// override this orbit sum with its simpler coordinate formula.
     fn relative_trace(&self, f: &Self::Ambient, x: &AmbientElement<Self>) -> AmbientElement<Self>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut image = x.clone();
         let mut sum = image.clone();
         for _ in 1..self.degree() {
@@ -362,7 +366,9 @@ impl<X: PackingExtension> PackingParameters<X> {
         self.extension.binary128_profile() && self.inverse.is_none()
     }
     pub fn descriptor(&self) -> Vec<u8>
-    where X::Ambient: SerializableField {
+    where
+        X::Ambient: SerializableField,
+    {
         let mut bytes = b"longfellow/packing-extension/v1".to_vec();
         for part in [
             self.field.packing_id(),

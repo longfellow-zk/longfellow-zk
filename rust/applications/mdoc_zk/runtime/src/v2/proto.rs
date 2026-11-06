@@ -6,15 +6,15 @@ use crate::{
         algebra::RuntimeField,
         proto::{
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
-            zk_v2::{CircuitProof, ZkProofGeometry},
+            zk_v2::{CircuitGeometry, CircuitProof},
             Digest,
         },
     },
 };
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProofGeometry {
-    pub geom_hash: ZkProofGeometry,
-    pub geom_sig: ZkProofGeometry,
+    pub geom_hash: CircuitGeometry,
+    pub geom_sig: CircuitGeometry,
     pub joint_context: Digest,
     pub config: PolygeroConfig,
 }
@@ -23,6 +23,13 @@ pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
     pub mu: F2::E,
     pub masked: Vec<u8>,
     pub commitment: PolygeroCommitment,
+    pub fingerprints: (
+        crate::runtime::proto::witness_selection::FingerprintResponse<F1::E>,
+        (
+            crate::runtime::proto::witness_selection::FingerprintResponse<F2::E>,
+            (),
+        ),
+    ),
     pub proof_hash: CircuitProof<2, F1>,
     pub proof_sig: CircuitProof<4, F2>,
     pub polygero: JointPolygeroProof<(FieldProof<F1::E>, (FieldProof<F2::E>, ()))>,
@@ -30,12 +37,20 @@ pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
 impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
     MdocProof<F1, F2>
 {
-    pub fn write(&self, g: &MdocProofGeometry, f1: &F1, f2: &F2) -> Result<Vec<u8>, String> {
+    pub fn write(
+        &self,
+        g: &MdocProofGeometry,
+        f1: &F1,
+        f2: &F2,
+        transcript: crate::runtime::random::transcript_v2::Transcript,
+    ) -> Result<crate::runtime::random::transcript_v2::EncodedProof, String> {
         let mut out = Vec::new();
         let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
         plan.validate_advice(&self.masked)?;
-        out.extend_from_slice(b"MDA4");
+        out.extend_from_slice(b"MDA6");
         out.extend_from_slice(&self.commitment.root.data);
+        self.fingerprints.0.write(&mut out, f1);
+        self.fingerprints.1 .0.write(&mut out, f2);
         out.extend_from_slice(&f2.to_bytes(&self.mu));
         out.extend_from_slice(&self.masked);
         self.proof_hash
@@ -56,15 +71,21 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
                 },
             )
             .map_err(|e| e.to_string())?;
-        Ok(out)
+        Ok(transcript.append_final_seal(out))
     }
     pub fn read<'a>(
         bytes: &'a [u8],
         g: &MdocProofGeometry,
         f1: &F1,
         f2: &F2,
-    ) -> Result<(&'a [u8], Self), String> {
-        if bytes.get(..4) != Some(b"MDA4") {
+    ) -> Result<
+        (
+            &'a [u8],
+            crate::runtime::random::transcript_v2::Unverified<'a, Self>,
+        ),
+        String,
+    > {
+        if bytes.get(..4) != Some(b"MDA6") {
             return Err("mdoc adapter proof version or size".into());
         }
         let mut remaining = &bytes[4..];
@@ -74,6 +95,14 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
                     .map_err(|e| e.to_string())?,
             },
         };
+        use crate::runtime::proto::witness_selection::FingerprintResponse;
+        let fingerprints = (
+            FingerprintResponse::read(&mut remaining, f1).map_err(|e| e.to_string())?,
+            (
+                FingerprintResponse::read(&mut remaining, f2).map_err(|e| e.to_string())?,
+                (),
+            ),
+        );
         let size = f2.serialized_size_bytes();
         let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
         if remaining.len() < size + plan.advice_bytes() {
@@ -106,16 +135,18 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             },
         )
         .map_err(|e| e.to_string())?;
-        Ok((
-            remaining,
-            Self {
-                mu,
-                masked,
-                commitment,
-                proof_hash,
-                proof_sig,
-                polygero,
-            },
-        ))
+        let body = Self {
+            mu,
+            masked,
+            commitment,
+            fingerprints,
+            proof_hash,
+            proof_sig,
+            polygero,
+        };
+        let decoded =
+            crate::runtime::random::transcript_v2::Unverified::decoded(body, bytes, &mut remaining)
+                .map_err(|e| e.to_string())?;
+        Ok((remaining, decoded))
     }
 }

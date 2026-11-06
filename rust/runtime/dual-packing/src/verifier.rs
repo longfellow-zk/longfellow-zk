@@ -7,7 +7,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
-        random::Transcript,
+        random::transcript_v2::Transcript,
     },
 };
 /// Check response shape and traces, replay the challenges, and return the
@@ -18,7 +18,7 @@ pub fn verify<X: PackingExtension>(
     proof: &PackingProof<E<X>>,
     context: &[u8],
     ts: &mut Transcript,
-) -> Result<Vec<NativeEquation<E<X>>>, String>
+) -> Result<Vec<FieldEquation<E<X>>>, String>
 where
     X::Ambient: SerializableField,
 {

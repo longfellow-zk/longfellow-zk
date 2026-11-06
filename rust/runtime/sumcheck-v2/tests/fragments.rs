@@ -3,13 +3,118 @@ use super::*;
 use crate::{
     core::proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
     runtime::{
-        random::DeterministicRng,
+        algebra::SupportsSampling,
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
         sumcheck_v2::{
             derive_constraints_for_circuits as derive, evaluate_and_prove_circuits as prove,
             sample_pads, split::split_layers, SumcheckProof,
         },
     },
 };
+
+fn check_early_output_weights(short_has_layer: bool) {
+    use crate::core::algebra::AlgebraicField;
+    use crate::runtime::{algebra::gf2_128::Gf2_128Field, sumcheck_v2::LayerProof};
+    let f = Gf2_128Field::new();
+    let make = |layers| {
+        let raw = RawCircuit {
+            ninput: 1,
+            npublic_input: 0,
+            noutput: 1,
+            logv: 0,
+            constants: vec![f.zero(), f.one()],
+            layers,
+        };
+        Circuit {
+            id: v2::compute_id(&f, &raw),
+            raw,
+        }
+    };
+    let identity = || {
+        Layer::with_assertions(
+            1,
+            Stream::<Quadratic>::from_terms([]),
+            Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }]),
+            Stream::<Constant>::from_terms([]),
+            |k| k == 0,
+        )
+    };
+    // The first circuit has identically zero output. The shorter circuit
+    // asserts that their shared input is zero, which is false here. Include
+    // a nonzero-depth shorter circuit: the problem is not limited to inputs.
+    let mut long_layers = vec![Layer::with_assertions(
+        1,
+        Stream::<Quadratic>::from_terms([]),
+        Stream::<Linear>::from_terms([]),
+        Stream::<Constant>::from_terms([]),
+        |k| k == 0,
+    )];
+    if short_has_layer {
+        long_layers.push(identity());
+    }
+    let long = make(long_layers);
+    let short = make(if short_has_layer {
+        vec![identity()]
+    } else {
+        vec![]
+    });
+    let circuits = [&long, &short];
+    // The earlier claim can include a guessed future coefficient, but the
+    // real coefficient is drawn only after that claim is fixed.
+    let guessed_output = f.one();
+    // B=0 satisfies the first terminal product for every A. Its false A
+    // must nevertheless fail the freshly sampled later output assertion.
+    let mut proof = SumcheckProof {
+        layers: vec![LayerProof {
+            rounds: vec![],
+            cross: f.zero(),
+            claims: [f.addf(&f.one(), &guessed_output), f.zero()],
+        }],
+    };
+    if short_has_layer {
+        proof.layers.push(LayerProof {
+            rounds: vec![],
+            cross: f.zero(),
+            claims: [f.one(), f.addf(&f.one(), &guessed_output)],
+        });
+    }
+    let pads = SumcheckProof {
+        layers: vec![
+            LayerProof {
+                rounds: vec![],
+                cross: f.zero(),
+                claims: [f.zero(), f.zero()],
+            };
+            proof.layers.len()
+        ],
+    };
+    let constraints = derive(
+        &circuits,
+        &proof,
+        &mut Transcript::new(b"early-output-counterexample"),
+        &f,
+    )
+    .unwrap();
+    assert!(
+        constraints
+            .residuals(&[f.one()], &pads, &f)
+            .unwrap()
+            .iter()
+            .any(|x| !f.is_zero(x)),
+        "false output from a shorter circuit was accepted"
+    );
+}
+
+#[test]
+fn early_output_weights_cannot_hide_a_false_zero_layer_output() {
+    check_early_output_weights(false);
+}
+
+#[test]
+fn early_output_weights_cannot_hide_a_false_shorter_circuit_output() {
+    check_early_output_weights(true);
+}
+
 fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Circuit<F>; 4] {
     let layer = |nw, q, l, k| {
         Layer::with_assertions(
@@ -38,7 +143,12 @@ fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Ci
         vec![
             layer(
                 3,
-                vec![],
+                vec![Quadratic {
+                    g: 0,
+                    l: 2,
+                    r: 0,
+                    k: 0,
+                }],
                 vec![
                     Linear { g: 0, l: 0, k: 2 },
                     Linear { g: 0, l: 1, k: 1 },
@@ -127,15 +237,17 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         };
         let inputs = vec![f.mulf(&x, &y), x, y, f.zero()];
         let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
-        let (proof, c) = prove(
-            &circuits,
-            inputs.clone(),
-            &pads,
-            &mut Transcript::new(b"shared-wires"),
-            f,
-        )
-        .unwrap();
-        let d = derive(&circuits, &proof, &mut Transcript::new(b"shared-wires"), f).unwrap();
+        let mut tp = Transcript::new(b"shared-wires");
+        let mut tv = Transcript::new(b"shared-wires");
+        let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp, f).unwrap();
+        let d = derive(&circuits, &proof, &mut tv, f).unwrap();
+        let expected_flips = if schedule.layers.is_empty() {
+            1
+        } else {
+            schedule.geometry.logw_layers.iter().sum::<usize>() + 3 * schedule.layers.len()
+        };
+        assert_eq!(tp.round_count_for_test(), expected_flips as u64);
+        assert_eq!(tv.round_count_for_test(), expected_flips as u64);
         assert_eq!(c, d);
         assert_eq!(c.input_weights.len(), inputs.len());
         assert!(d
@@ -190,6 +302,30 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 fn shared_inputs_unequal_depths_widths_and_circuit_counts() {
     check(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
     check(&crate::runtime::algebra::p256::P256Field::new());
+}
+
+#[test]
+fn depth_order_uses_the_bound_input_index_for_ties_and_duplicates() {
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let all = fixture(&f);
+    // Original positions 1, 2 and 4 have equal depth; 1 and 4 are duplicates.
+    let circuits = [&all[1], &all[2], &all[0], &all[3], &all[2]];
+    let schedule = Schedule::new(&circuits).unwrap();
+    let order = |stage: usize| {
+        schedule.layers[stage]
+            .fragments
+            .iter()
+            .map(|s| s.circuit)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(order(0), [1, 2, 4]);
+    assert_eq!(order(1), [1, 2, 4, 0]);
+    assert_eq!(schedule.layers[0].output_assertions, 3);
+    assert_eq!(schedule.layers[1].output_assertions, 1);
+    assert_eq!(
+        schedule.layers[1].nv - schedule.layers[1].output_assertions,
+        schedule.layers[0].nw
+    );
 }
 
 // Materialize the same concatenation independently by shifting raw gate indices.
@@ -263,15 +399,21 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         super::super::eval::eval_circuits(inputs.clone(), &circuits, &splits, &schedule, f)
             .unwrap();
     let expected =
-        super::super::eval::eval_split_circuit(inputs, &merged, &merged_splits, f).unwrap();
+        super::super::eval::eval_split_circuit(inputs.clone(), &merged, &merged_splits, f).unwrap();
     assert_eq!(actual, expected);
+    let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
+    let mut fragmented_t = Transcript::new(b"same-global-circuit");
+    let mut merged_t = Transcript::new(b"same-global-circuit");
+    prove(&circuits, inputs.clone(), &pads, &mut fragmented_t, f).unwrap();
+    prove(&[&merged], inputs, &pads, &mut merged_t, f).unwrap();
+    assert_eq!(
+        fragmented_t.round_count_for_test(),
+        merged_t.round_count_for_test()
+    );
     for (stage, layout) in schedule.layers.iter().enumerate() {
         let a = rng.elt_field_slice(layout.nv, f);
         let point = rng.elt_field_slice(schedule.geometry.logw_layers[stage], f);
         let alpha = rng.elt_field(f);
-        // These fixtures have linear assertions only, so concatenating their
-        // challenges preserves the raw merged layer's assertion traversal.
-        let mut merged_assertions = Vec::new();
         let mut active = Vec::new();
         let mut q = vec![f.zero(); layout.nw];
         for s in &layout.fragments {
@@ -279,22 +421,62 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
                 &circuits[s.circuit].raw.layers[s.layer],
                 &crate::core::proto::v2::classify_constants(f, &circuits[s.circuit].raw.constants),
             );
-            let assertions = rng.elt_field_slice(split.assertion_counts().iter().sum(), f);
-            merged_assertions.extend_from_slice(&assertions);
+            active.push(SplitFragment::new(s, split));
+        }
+        let mut fragmented_t = Transcript::new(b"same-layer-assertions");
+        let mut merged_t = Transcript::new(b"same-layer-assertions");
+        let mut entering = Vec::new();
+        if stage > 0 {
+            entering.resize(layout.nv, f.zero());
+        }
+        schedule.start_layer(&mut entering, &mut active, stage, &mut fragmented_t, f);
+        let merged_schedule = Schedule::new(&[&merged]).unwrap();
+        let mut merged_active = vec![SplitFragment::new(
+            &merged_schedule.layers[stage].fragments[0],
+            SplitLayer::with_classes(
+                &merged.raw.layers[stage],
+                &crate::core::proto::v2::classify_constants(f, &merged.raw.constants),
+            ),
+        )];
+        let mut merged_entering = Vec::new();
+        if stage > 0 {
+            merged_entering.resize(layout.nv, f.zero());
+        }
+        merged_schedule.start_layer(
+            &mut merged_entering,
+            &mut merged_active,
+            stage,
+            &mut merged_t,
+            f,
+        );
+        assert_eq!(entering, merged_entering);
+        let merged_assertions = &merged_active[0].assertions;
+        let mut flattened = Vec::new();
+        for kind in 0..2 {
+            for a in &active {
+                let nq = a.layer.assertion_counts()[0];
+                flattened.extend_from_slice(if kind == 0 {
+                    &a.assertions[..nq]
+                } else {
+                    &a.assertions[nq..]
+                });
+            }
+        }
+        assert_eq!(&flattened, merged_assertions);
+        assert_eq!(fragmented_t.round_count_for_test(), 1);
+        assert_eq!(merged_t.round_count_for_test(), 1);
+        assert_eq!(fragmented_t.bytes(32), merged_t.bytes(32));
+        for fragment in &active {
+            let s = &fragment.fragment;
             super::super::quad::bind_r_into(
-                &split,
+                &fragment.layer,
                 &circuits[s.circuit].raw.constants,
                 &a[s.output_range.clone()],
-                &assertions,
+                &fragment.assertions,
                 &actual[stage][s.input_range.clone()],
                 &mut q[s.input_range.clone()],
                 f,
             );
-            active.push(SplitFragment {
-                fragment: s.clone(),
-                layer: split,
-                assertions,
-            });
         }
         let reference = super::super::quad::bind_r(
             &merged_splits[stage],

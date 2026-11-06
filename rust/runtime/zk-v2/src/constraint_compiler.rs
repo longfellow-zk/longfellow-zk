@@ -113,7 +113,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     public: &[F::E],
     layout: &crate::runtime::proto::zk_v2::PackingLayout,
     f: &F,
-) -> Result<super::commitment::CommitmentStatement<F::E>, String> {
+) -> Result<super::packing_commitment::CommitmentStatement<F::E>, String> {
     use crate::runtime::dual_packing::generic::{Affine, SourceClaim};
     validate(&constraints, pads, public.len())?;
     if constraints.input_weights.len() != public.len() + layout.private_inputs {
@@ -144,7 +144,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
         .into_iter()
         .skip(public.len())
         .collect();
-    Ok(super::commitment::CommitmentStatement {
+    Ok(super::packing_commitment::CommitmentStatement {
         claim: SourceClaim {
             weights,
             rhs: Affine { constant, terms },

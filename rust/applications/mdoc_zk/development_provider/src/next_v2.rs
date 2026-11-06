@@ -38,14 +38,14 @@ use crate::{
     },
 };
 
-// One geometry serves both fields. Smaller responses and fewer oracle columns
-// balance the full mdoc proof; the two fields' query errors must be added.
-// Exact rank, Johnson-list and shared-query budgets are checked in the tests.
+// One geometry serves both fields and all supported attribute counts, at an
+// ordinary code rate of 1/7. The checked Hahn bounds keep the shared opening
+// and parent charges within the same query budget as the frontend.
 const NEXT_PARAMETERS: PolygeroConfig = PolygeroConfig {
-    k: 384,
-    s: 13,
-    n: 2560,
-    t: 87,
+    k: 349,
+    s: 12,
+    n: 2443,
+    t: 84,
 };
 
 /// Compile the development circuit and return its matching specification.

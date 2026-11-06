@@ -25,6 +25,7 @@ pub mod subfield_v1;
 pub mod sumcheck_v1;
 pub mod sumcheck_v2;
 pub mod util;
+pub mod witness_selection;
 pub mod zk_v1;
 pub mod zk_v2;
 

@@ -560,7 +560,8 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
 
 impl<const W: usize, F> crate::runtime::algebra::EvaluationDomain<W, F>
     for BinaryInterpolatorFactory<'_, W, F>
-where F: RuntimeBinaryField<W, E = Gf2_128> + crate::core::algebra::SerializableField
+where
+    F: RuntimeBinaryField<W, E = Gf2_128> + crate::core::algebra::SerializableField,
 {
     fn domain_id(&self) -> Vec<u8> {
         let mut id = b"gf2_128/lch14-prefix/v1".to_vec();

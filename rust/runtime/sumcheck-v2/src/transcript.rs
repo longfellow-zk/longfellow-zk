@@ -15,26 +15,28 @@
 //! Bind the public statement and masked messages, then sample sumcheck challenges.
 //!
 //! The caller binds every trusted circuit ID and the shared public inputs.
-//! The shared schedule samples independent output weights when a circuit
-//! enters, including for scalar outputs. Each layer samples its assertion
+//! The shared schedule treats zero outputs as assertions where they enter,
+//! including scalar outputs. Each layer samples all its assertion
 //! coefficients before any rounds; each round absorbs both masked coefficients
 //! before sampling z. Bind the cross coefficient before sampling nonzero r,
 //! then `end_layer` absorbs the two masked virtual-circuit factors before sampling
 //! alpha, which combines them into one next-layer claim.
 
+use super::fragments::SplitFragment;
+
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
-        algebra::{ElementOf, RuntimeField, SupportsSampling},
-        random::{RandomEngine, Transcript},
+        algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
+        random::transcript_v2::{Reading, RoundLabel, Transcript},
         sumcheck_v2::RoundPoly,
     },
 };
 
 /// Bind the public sumcheck statement before sampling protocol challenges.
 pub(crate) trait TranscriptSumcheck {
-    /// Absorb the trusted circuit ID, its public inputs, the zero-output claim,
-    /// and protocol padding. The caller supplies exactly npublic_input values.
+    /// Absorb the trusted circuit ID, its public inputs, and the zero-output
+    /// claim. The caller supplies exactly npublic_input values.
     fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
         &mut self,
         circuit: &Circuit<F>,
@@ -57,44 +59,16 @@ impl TranscriptSumcheck for Transcript {
             circuit.raw.npublic_input,
             public_inputs.len()
         );
-        self.write_bytes(&circuit.id);
-
-        // The circuit ID binds the number of individually encoded public inputs.
-        for input in public_inputs {
-            self.write_elt_field(input, f);
-        }
-
-        // The circuit statement requires all outputs to be zero.
-        self.write_elt_field(&f.zero(), f);
-
-        // Transcript padding for correlation intractability: one zero byte per term.
-        let nterms = circuit
-            .raw
-            .layers
-            .iter()
-            .map(crate::core::proto::v2::Layer::num_terms)
-            .sum::<usize>();
-        self.write0(nterms);
+        self.bind(|w| {
+            w.write_bytes(&circuit.id);
+            // The circuit ID binds the number of individually encoded public inputs.
+            for input in public_inputs {
+                w.write_elt_field(input, f);
+            }
+            // The circuit statement requires all outputs to be zero.
+            w.write_elt_field(&f.zero(), f);
+        });
     }
-}
-
-/// Sample independent coefficients for quadratic, then linear zero markers.
-/// Both roles reuse this order. Each coefficient replaces the full output-
-/// weighted coefficient, so a zero output weight cannot erase an assertion.
-pub(super) fn assertion_weights<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
->(
-    layer: &super::split::SplitLayer<'_>,
-    layer_index: usize,
-    transcript: &mut Transcript,
-    f: &F,
-) -> Vec<F::E> {
-    transcript.write_bytes(b"single-hand-assertions");
-    transcript.write_bytes(&(layer_index as u64).to_le_bytes());
-    (0..layer.assertion_counts().iter().sum::<usize>())
-        .map(|_| transcript.elt_field(f))
-        .collect()
 }
 
 /// Absorb m = [c0-s0,c1-s1] before sampling the round challenge z.
@@ -108,14 +82,22 @@ pub(super) fn round_challenge<
     transcript: &mut Transcript,
     f: &F,
 ) -> ElementOf<F> {
-    for coefficient in &m.coefficients {
-        transcript.write_elt_field(coefficient, f);
-    }
-    transcript.elt_field(f)
+    transcript.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Sumcheck,
+        |mut w| {
+            for c in &m.coefficients {
+                w.write_elt_field(c, f);
+            }
+            let mut r = w.begin_squeeze();
+            let value = r.elt_field(f);
+            r.end_round(value)
+        },
+    )
 }
 
 /// Bind the masked final claims before sampling alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
+/// Input-level zero assertions extend this same answer after alpha is read.
 pub(super) fn end_layer<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -123,10 +105,18 @@ pub(super) fn end_layer<
     claims: &[F::E; 2],
     transcript: &mut Transcript,
     f: &F,
+    after_alpha: impl FnOnce(&mut crate::runtime::random::transcript_v2::Reading<'_>),
 ) -> F::E {
-    transcript.write_elt_field_slice(claims, f);
-    transcript.write_bytes(b"single-hand-combine");
-    transcript.elt_field(f)
+    transcript.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Combine,
+        |mut w| {
+            w.write_elt_field_slice(claims, f);
+            let mut r = w.begin_squeeze();
+            let value = r.elt_field(f);
+            after_alpha(&mut r);
+            r.end_round(value)
+        },
+    )
 }
 
 /// Fix d before sampling the nonzero mask scale r. The resulting equation
@@ -137,12 +127,127 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     transcript: &mut Transcript,
     f: &F,
 ) -> F::E {
-    transcript.write_bytes(b"single-hand-linear-terminal/v1");
-    transcript.write_elt_field(cross, f);
-    loop {
-        let r = transcript.elt_field(f);
-        if !f.is_zero(&r) {
-            return r;
+    transcript.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Terminal,
+        |mut w| {
+            w.write_elt_field(cross, f);
+            let mut r = w.begin_squeeze();
+            let value = loop {
+                let x = r.elt_field(f);
+                if !f.is_zero(&x) {
+                    break x;
+                }
+            };
+            r.end_round(value)
+        },
+    )
+}
+
+impl super::fragments::Schedule {
+    pub fn bind<F: SerializableField>(&self, circuits: &[&Circuit<F>], t: &mut Transcript) {
+        t.bind(|w| {
+            w.write_bytes(b"layered-sumcheck/circuits/v1");
+            w.write_bytes(&(circuits.len() as u64).to_le_bytes());
+        });
+        for c in circuits {
+            t.bind(|w| {
+                w.write_bytes(&c.id);
+                w.write_bytes(&(c.raw.layers.len() as u64).to_le_bytes());
+            });
+        }
+    }
+    /// Circuit outputs are zero assertions at the layer where they enter.
+    /// Draw their coefficients and all explicit assertion coefficients from
+    /// this one answer, after the preceding layer's claims have been bound.
+    pub fn start_layer<
+        const W: usize,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
+    >(
+        &self,
+        weights: &mut Vec<F::E>,
+        active: &mut [SplitFragment<'_, F::E>],
+        stage: usize,
+        t: &mut Transcript,
+        f: &F,
+    ) {
+        let layout = &self.layers[stage];
+        assert_eq!(weights.len(), layout.nv - layout.output_assertions);
+        t.round(RoundLabel::Assertions, |mut w| {
+            w.write_bytes(&(stage as u64).to_le_bytes());
+            let mut r = w.begin_squeeze();
+            weights.extend((0..layout.output_assertions).map(|_| r.elt_field(f)));
+            assertion_weights(active, &mut r, f);
+            r.end_round(())
+        });
+    }
+    /// Zero-layer circuits assert directly on the common input array. For a
+    /// layered proof these coefficients extend the last combine answer, after
+    /// both masked claims. No extra boundary or future coefficient is needed.
+    pub fn input_assertions<
+        const W: usize,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
+    >(
+        &self,
+        circuits: &[&Circuit<F>],
+        r: &mut Reading<'_>,
+        f: &F,
+    ) -> Vec<F::E> {
+        let mut weights = Vec::new();
+        for c in circuits {
+            if c.raw.layers.is_empty() {
+                if weights.is_empty() {
+                    weights.resize(self.ninput, f.zero());
+                }
+                for a in &mut weights {
+                    f.add(a, &r.elt_field(f));
+                }
+            }
+        }
+        weights
+    }
+    /// A proof with no layers still needs one fresh assertion block on its
+    /// inputs. Otherwise the input assertions already share the last combine.
+    pub fn finish_inputs<
+        const W: usize,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
+    >(
+        &self,
+        circuits: &[&Circuit<F>],
+        weights: &mut Vec<F::E>,
+        input_assertions: Vec<F::E>,
+        t: &mut Transcript,
+        f: &F,
+    ) {
+        if self.layers.is_empty() {
+            *weights = t.round(RoundLabel::Assertions, |mut w| {
+                w.write_bytes(&0u64.to_le_bytes());
+                let mut r = w.begin_squeeze();
+                let a = self.input_assertions(circuits, &mut r, f);
+                r.end_round(a)
+            });
+        } else if !input_assertions.is_empty() {
+            blas::add(weights, &input_assertions, f);
+        }
+        assert_eq!(weights.len(), self.ninput);
+    }
+}
+
+/// Read quadratic markers across all fragments, then linear markers, matching
+/// a physically concatenated quad stream. The layer's entering outputs have
+/// already been read from this same answer. Local slices serve only the sparse
+/// contractions; neither a fragment nor a marker class starts another round.
+pub(super) fn assertion_weights<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    active: &mut [SplitFragment<'_, F::E>],
+    r: &mut Reading<'_>,
+    f: &F,
+) {
+    for kind in 0..2 {
+        for a in active.iter_mut() {
+            a.assertions
+                .extend((0..a.layer.assertion_counts()[kind]).map(|_| r.elt_field(f)));
         }
     }
 }

@@ -8,15 +8,15 @@ use crate::{
             gf2_128::{Gf2_128 as E, Gf2_128Field as F},
             EvaluationDomain, PackingField,
         },
-        polygero::{JointPolygeroParam, Participant, PolygeroConfig, PolygeroParam},
-        proto::zk_v2::{PackingLayout, ZkProofGeometry},
-        random::Transcript,
+        polygero::{PolygeroConfig, PolygeroParam},
+        proto::zk_v2::CircuitGeometry,
+        random::transcript_v2::Transcript,
         sumcheck_v2::{self},
-        zk_v2::{commitment::PackingCommitment, ZkContext},
+        zk_v2::{joint::SelectedField, packing_commitment::PackingCommitment, ZkContext},
     },
 };
 pub(in crate::mdoc::runtime::v2) struct BinaryParticipant {
-    geometry: ZkProofGeometry,
+    geometry: CircuitGeometry,
     backend: PackingCommitment<F>,
     param: PolygeroParam,
     id: [u8; 32],
@@ -62,22 +62,13 @@ impl BinaryParticipant {
             c.raw.npublic_input,
             c.raw.ninput,
         )?;
-        let sc = sumcheck_v2::circuit_geometry(&[c, &template])?;
-        let layout = PackingLayout::new(c.raw.ninput - c.raw.npublic_input, sc.pad_count()?, 128)?;
-        let param = PolygeroParam::try_new(layout.witness_count, config, ctx.domain, ctx.f)
-            .map_err(|e| e.to_string())?;
-        let singleton = JointPolygeroParam::new((
-            Participant::new(param.clone(), ctx.f, ctx.domain).map_err(|e| e.to_string())?,
-            (),
-        ))
-        .map_err(|e| e.to_string())?;
-        let geometry = ZkProofGeometry {
-            sc_geom: sc,
-            com_geom: param.geometry(),
-            com_context: singleton.context(),
-            packing_degree: 128,
-        };
-        let backend = PackingCommitment::new(ctx.f.clone(), layout, ctx.f.packing_extension())?;
+        let (geometry, param, backend) = crate::runtime::zk_v2::prepare_layout(
+            c,
+            &[&template],
+            config,
+            ctx.f.packing_extension(),
+            ctx,
+        )?;
         Ok(Self {
             geometry,
             backend,
@@ -91,22 +82,18 @@ impl BinaryParticipant {
             ninput: c.raw.ninput,
         })
     }
-    pub fn geometry(&self) -> ZkProofGeometry {
+    pub fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
     }
     pub fn participant<'a, D: EvaluationDomain<2, F>>(
         &self,
         ctx: &ZkContext<'a, 2, F, D>,
-    ) -> Result<Participant<'a, 2, F, D>, String> {
-        Participant::new(self.param.clone(), ctx.f, ctx.domain).map_err(|e| e.to_string())
+    ) -> Result<SelectedField<'a, 2, F, D>, String> {
+        SelectedField::from_parameter(self.param.clone(), ctx.f, ctx.domain, ctx.f.packing_id())
     }
     pub fn bind(&self, t: &mut Transcript) {
         self.backend.bind(t, &self.id);
-        t.write_bytes(b"mdoc/adapter/shared-binary/v1");
-        t.write_bytes(&self.template_id);
-        for &w in &self.geometry.sc_geom.logw_layers {
-            t.write_bytes(&(w as u64).to_le_bytes());
-        }
+        super::transcript::bind_binary(t, &self.template_id, &self.geometry.sc_geom.logw_layers);
     }
     fn circuit(&self, c: &Circuit<F>, public: &[bool], values: &[E]) -> Result<Circuit<F>, String> {
         if c.id != self.id

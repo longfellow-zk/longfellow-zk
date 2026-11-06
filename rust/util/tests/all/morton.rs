@@ -61,7 +61,7 @@ fn test_morton_cmp() {
     let check_cmp = |x0: usize, x1: usize, y0: usize, y1: usize| -> std::cmp::Ordering {
         let encode = |h0: usize, h1: usize| -> u128 {
             let mut code = 0u128;
-            for i in 0..64 {
+            for i in 0..usize::BITS {
                 code |= (((h0 >> i) & 1) as u128) << (2 * i);
                 code |= (((h1 >> i) & 1) as u128) << (2 * i + 1);
             }

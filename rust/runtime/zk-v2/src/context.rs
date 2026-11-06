@@ -23,10 +23,10 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::EvaluationDomain,
-        polygero::{JointPolygeroParam, Participant, PolygeroConfig, PolygeroParam},
+        polygero::{PolygeroConfig, PolygeroParam},
         proto::zk_v2::PackingLayout,
-        zk_v2::commitment::PackingCommitment,
-        zk_v2::ZkProofGeometry,
+        zk_v2::packing_commitment::PackingCommitment,
+        zk_v2::CircuitGeometry,
     },
 };
 
@@ -50,7 +50,7 @@ pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
 
 /// Derive the common source layout and one input-aligned sumcheck pad suffix.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn prepare_circuit_layout<
+pub(crate) fn prepare_circuit_layout<
     const W: usize,
     F: ZkField<W> + crate::runtime::algebra::PackingField,
     D: EvaluationDomain<W, F>,
@@ -61,7 +61,7 @@ pub(super) fn prepare_circuit_layout<
     config: PolygeroConfig,
     extension: X,
     ctx: &ZkContext<'_, W, F, D>,
-) -> Result<(ZkProofGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
+) -> Result<(CircuitGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
     if ctx.f.is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
@@ -74,17 +74,18 @@ pub(super) fn prepare_circuit_layout<
     circuits.extend_from_slice(others);
     let sc_geom = crate::runtime::sumcheck_v2::circuit_geometry(&circuits)?;
     let layout = PackingLayout::new(private_inputs, sc_geom.pad_count()?, extension.degree())?;
-    let param = PolygeroParam::try_new(layout.witness_count, config, ctx.domain, ctx.f)
-        .map_err(|e| e.to_string())?;
-    let geometry = ZkProofGeometry {
+    let param = super::joint::prepare_parameter(layout.witness_count, config, ctx.f, ctx.domain)?;
+    // Keep the selected field's identity, mask-cell and backend/domain checks
+    // even when this circuit will join a larger participant list.
+    let selected = super::joint::SelectedField::from_parameter(
+        param.clone(),
+        ctx.f,
+        ctx.domain,
+        ctx.f.packing_id(),
+    )?;
+    let geometry = CircuitGeometry {
         sc_geom,
-        com_geom: param.geometry(),
-        com_context: JointPolygeroParam::new((
-            Participant::new(param.clone(), ctx.f, ctx.domain).map_err(|e| e.to_string())?,
-            (),
-        ))
-        .map_err(|e| e.to_string())?
-        .context(),
+        com_geom: selected.geometry(),
         packing_degree: layout.degree,
     };
     let backend = PackingCommitment::new(ctx.f.clone(), layout, extension)?;

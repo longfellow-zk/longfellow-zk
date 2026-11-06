@@ -9,12 +9,14 @@ use super::{
     PolygeroLinearTerm, PolygeroParam,
 };
 pub use crate::runtime::proto::polygero::{FieldProof, JointPolygeroProof};
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::random::RandomEngine;
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{blas, EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
         proto::Digest,
-        random::{RandomEngine, Transcript},
+        random::transcript_v2::{Reading, Transcript, Writing},
     },
 };
 
@@ -54,8 +56,10 @@ impl<
     }
 }
 /// The caller binds the source statement and compiles A*w+b=0 locally.
-/// `digest` must bind every input to that compilation. The verifier reconstructs
-/// `a` and `b`; hashing their source avoids depending on sparse term ordering.
+/// `digest` identifies the public source, such as a circuit ID. Every dynamic
+/// input to compilation must already be bound on the same transcript before
+/// batching. The verifier reconstructs `a` and `b`; the source binding does not
+/// depend on sparse term ordering and needs no separate transcript query.
 #[derive(Clone)]
 pub struct LinearStatement<E> {
     pub a: Vec<PolygeroLinearTerm<E>>,
@@ -86,9 +90,9 @@ pub trait Participants: sealed::Sealed {
     ) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
     // Statement digests bind the caller's source; sparse arrays are compiled locally.
-    fn bind_statements(&self, s: &Self::Statements, t: &mut Transcript);
-    fn challenges(&self, s: &Self::Statements, t: &mut Transcript) -> Self::Challenges;
-    fn bind_responses(&self, b: &Self::Bodies, t: &mut Transcript);
+    fn bind_statements(&self, s: &Self::Statements, t: &mut Writing<'_>);
+    fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
+    fn bind_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
     fn write_bodies(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
     fn read_bodies(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
@@ -130,9 +134,9 @@ impl Participants for () {
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn bind_statements(&self, _: &(), _: &mut Transcript) {}
-    fn challenges(&self, _: &(), _: &mut Transcript) {}
-    fn bind_responses(&self, _: &(), _: &mut Transcript) {}
+    fn bind_statements(&self, _: &(), _: &mut Writing<'_>) {}
+    fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
+    fn bind_responses(&self, _: &(), _: &mut Writing<'_>) {}
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
@@ -210,22 +214,18 @@ impl<
         constraints::validate(self.0.param.geom.nw, s.0.b.len(), &s.0.a)?;
         self.1.validate_statements(&s.1)
     }
-    fn bind_statements(&self, s: &Self::Statements, t: &mut Transcript) {
-        t.write_bytes(&s.0.digest.data);
-        t.write_bytes(&(s.0.b.len() as u64).to_le_bytes());
+    fn bind_statements(&self, s: &Self::Statements, t: &mut Writing<'_>) {
+        transcript::bind_statement(t, &s.0.digest, &self.0.param.context, s.0.b.len());
         self.1.bind_statements(&s.1, t);
     }
-    fn challenges(&self, s: &Self::Statements, t: &mut Transcript) -> Self::Challenges {
-        t.write_bytes(b"polygero/joint/field-challenges/v1");
-        t.write_bytes(&self.0.param.context.data);
+    fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges {
         (
-            transcript::challenges(t, &self.0.param, s.0.b.len(), &s.0.digest, self.0.f),
+            transcript::challenges(t, &self.0.param, s.0.b.len(), self.0.f),
             self.1.challenges(&s.1, t),
         )
     }
-    fn bind_responses(&self, b: &Self::Bodies, t: &mut Transcript) {
-        t.write_elt_field_slice(&b.0.h, self.0.f);
-        t.write_elt_field_slice(&b.0.z, self.0.f);
+    fn bind_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>) {
+        transcript::bind_response(t, &b.0, self.0.f);
         self.1.bind_responses(&b.1, t);
     }
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError> {
@@ -268,27 +268,14 @@ impl<
         s: &Self::Statements,
         c: &Self::Challenges,
     ) -> Self::Bodies {
-        let p = &self.0;
-        let h =
-            super::prover::primary_response(&p.param, &w.0, &c.0.batching_samples, p.domain, p.f);
-        let rows = constraints::batch_constraints(&p.param, &s.0.b, &s.0.a, &c.0.alpha, p.f);
-        let z = super::prover::arithmetic_response(&p.param, &w.0, &rows, p.domain, p.f);
-        // Release this field's dense constraint matrix before processing the tail.
-        drop(rows);
         (
-            FieldProof {
-                h,
-                z,
-                rows: Vec::with_capacity(p.param.geom.nrow() * p.param.geom.t),
-            },
+            super::prover::respond(&self.0.param, &w.0, &s.0, &c.0, self.0.domain, self.0.f),
             self.1.respond(&w.1, &s.1, &c.1),
         )
     }
     #[cfg(any(test, feature = "prover"))]
     fn gather(&self, w: &Self::States, b: &mut Self::Bodies, indices: &[usize]) {
-        for row in &w.0 {
-            b.0.rows.extend(blas::gather(indices, row));
-        }
+        super::prover::gather(&w.0, &mut b.0, indices);
         self.1.gather(&w.1, &mut b.1, indices);
     }
     #[cfg(any(test, feature = "verifier"))]
@@ -310,23 +297,15 @@ impl<
         c: &Self::Challenges,
         indices: &[usize],
     ) -> Result<(), PolygeroError> {
-        let p = &self.0;
-        super::verifier::verify_primary_response(
-            &p.param,
-            &b.0.h,
+        super::verifier::check_response(
+            &self.0.param,
+            &b.0,
+            &s.0,
+            &c.0,
             indices,
-            &c.0.batching_samples,
-            &b.0.rows,
-            p.domain,
-            p.f,
+            self.0.domain,
+            self.0.f,
         )?;
-        let rows = constraints::batch_constraints(&p.param, &s.0.b, &s.0.a, &c.0.alpha, p.f);
-        let tau = blas::dot(&c.0.alpha, &s.0.b, p.f);
-        super::verifier::verify_arithmetic(
-            &p.param, &b.0.z, indices, &rows, &b.0.rows, &tau, p.domain, p.f,
-        )?;
-        // Avoid retaining one dense matrix per participant during recursion.
-        drop(rows);
         self.1.check(&b.1, &s.1, &c.1, indices)
     }
 }
@@ -364,26 +343,11 @@ impl<L: Participants> JointPolygeroParam<L> {
             context: self.context,
         }
     }
-    pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) {
-        self.commitment_context().receive(root, t);
-    }
-    pub(super) fn challenges(&self, s: &L::Statements, t: &mut Transcript) -> L::Challenges {
-        // Complete the binding pass first: a later field's statement must not
-        // be chosen after seeing an earlier field's batching challenges.
-        t.write_bytes(b"polygero/joint/statements/v1");
-        self.participants.bind_statements(s, t);
-        self.participants.challenges(s, t)
-    }
-    pub(super) fn queries(&self, b: &L::Bodies, t: &mut Transcript) -> Vec<usize> {
-        // Fix all H/Z responses before sampling the single shared query set.
-        // Sharing queries correlates the field checks; it does not merge them.
-        t.write_bytes(b"polygero/joint/responses/v1");
-        self.participants.bind_responses(b, t);
-        let mut indices = vec![0; self.config.t];
-        t.choose(&mut indices, self.config.n, self.config.t);
-        indices
-    }
-    pub fn write(&self, p: &JointPolygeroProof<L::Bodies>) -> Result<Vec<u8>, PolygeroError> {
+    pub fn write(
+        &self,
+        p: &JointPolygeroProof<L::Bodies>,
+        transcript: Transcript,
+    ) -> Result<crate::runtime::random::transcript_v2::EncodedProof, PolygeroError> {
         let mut out = Vec::new();
         p.write_to_buf(
             &mut out,
@@ -392,23 +356,32 @@ impl<L: Participants> JointPolygeroParam<L> {
             self.config.n,
             |b, out| self.participants.write_bodies(b, out),
         )?;
-        Ok(out)
+        Ok(transcript.append_final_seal(out))
     }
-    pub fn read(&self, bytes: &mut &[u8]) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
-        JointPolygeroProof::read(
+    pub fn read<'a>(
+        &self,
+        bytes: &mut &'a [u8],
+    ) -> Result<
+        crate::runtime::random::transcript_v2::Unverified<'a, JointPolygeroProof<L::Bodies>>,
+        PolygeroError,
+    > {
+        let input = *bytes;
+        let body = JointPolygeroProof::read(
             bytes,
             &self.context,
             self.config.t,
             self.config.n,
             |bytes| self.participants.read_bodies(bytes),
-        )
+        )?;
+        crate::runtime::random::transcript_v2::Unverified::decoded(body, input, bytes)
+            .map_err(Into::into)
     }
 }
 /// An owned context lets callers receive the root before constructing the
 /// field/domain borrows used for the later arithmetic verification.
 #[derive(Clone)]
 pub struct JointCommitmentContext {
-    context: Digest,
+    pub(super) context: Digest,
 }
 /// Records the context and root already absorbed into the caller's transcript.
 /// Reattaching the arithmetic parameters must not absorb the root a second time.
@@ -417,17 +390,6 @@ pub struct JointCommitmentContext {
 pub struct ReceivedCommitment {
     pub(super) _context: Digest,
     pub(super) _root: PolygeroCommitment,
-}
-impl JointCommitmentContext {
-    pub fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) -> ReceivedCommitment {
-        t.write_bytes(b"polygero/joint/root/v1");
-        t.write_bytes(&self.context.data);
-        t.write_bytes(&root.root.data);
-        ReceivedCommitment {
-            _context: self.context,
-            _root: root.clone(),
-        }
-    }
 }
 #[cfg(test)]
 #[path = "../tests/joint.rs"]

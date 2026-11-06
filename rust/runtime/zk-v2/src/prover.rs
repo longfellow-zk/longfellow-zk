@@ -4,14 +4,15 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
-        polygero::{JointPolygeroParam, JointPolygeroProver, LinearStatement, PolygeroConfig},
+        polygero::{LinearStatement, PolygeroConfig},
         proto::polygero::PolygeroCommitment,
-        random::{RandomEngine, Transcript},
+        proto::witness_selection::{FingerprintResponse, FINGERPRINTS},
+        random::{transcript_v2::Transcript, RandomEngine},
         sumcheck_v2::{self, SumcheckProof, TranscriptSumcheck},
         zk_v2::{
-            commitment::PackingState,
             context::private_input_count,
-            joint::{CircuitParticipant, CircuitProof},
+            joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
+            packing_commitment::PackingState,
             CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
         },
     },
@@ -135,8 +136,13 @@ pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
 pub struct ZkProverCommitment<const W: usize, F: ZkField<W> + PackingField> {
     state: CircuitState<W, F>,
     participant: CircuitParticipant<W, F>,
-    polygero: JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
+    joint: JointProver<
+        (Vec<Vec<F::E>>, ()),
+        ([Vec<F::E>; FINGERPRINTS], ()),
+        (FingerprintResponse<F::E>, ()),
+    >,
     commitment: PolygeroCommitment,
+    fingerprints: FingerprintResponse<F::E>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig) -> Self {
@@ -154,18 +160,20 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         }
         let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
         let (state, witness) = participant.prepare(private, rng)?;
-        let joint = JointPolygeroParam::new((participant.participant(ctx)?, ()))
-            .map_err(|e| e.to_string())?;
+        let param = JointParam::new((participant.participant(ctx)?, ()))?;
         participant.bind(t);
-        let (polygero, commitment) = JointPolygeroProver::commit(&joint, (witness, ()), t, rng)
-            .map_err(|e| e.to_string())?;
-        let geometry = participant.geometry();
+        let (joint, commitment, (fingerprints, ())) = param.commit((witness, ()), t, rng)?;
+        let geometry = ZkProofGeometry {
+            circuit: participant.geometry(),
+            joint_context: param.context(),
+        };
         Ok((
             ZkProverCommitment {
                 state,
                 participant,
-                polygero,
+                joint,
                 commitment,
+                fingerprints,
             },
             geometry,
         ))
@@ -185,14 +193,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             committed
                 .participant
                 .prove(&self.circuit, public, private, committed.state, t, ctx)?;
-        let joint = JointPolygeroParam::new((committed.participant.participant(ctx)?, ()))
-            .map_err(|e| e.to_string())?;
-        let com_proof = committed
-            .polygero
-            .prove(&joint, &(statement, ()), t)
-            .map_err(|e| e.to_string())?;
+        let param = JointParam::new((committed.participant.participant(ctx)?, ()))?;
+        let com_proof = committed.joint.prove(&param, (statement, ()), t)?;
         Ok(ZkProof {
             com: committed.commitment,
+            fingerprints: committed.fingerprints,
             sumcheck_proof: circuit.sumcheck_proof,
             packing: circuit.packing,
             com_proof,

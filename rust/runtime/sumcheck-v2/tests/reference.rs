@@ -131,41 +131,45 @@ pub(super) fn prove_core<
     witnesses: Vec<Vec<F::E>>,
     pads: &crate::runtime::sumcheck_v2::SumcheckProof<W, F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
-    t: &mut crate::runtime::random::Transcript,
+    t: &mut crate::runtime::random::transcript_v2::Transcript,
     f: &F,
 ) -> (
     crate::runtime::sumcheck_v2::SumcheckProof<W, F>,
     crate::runtime::sumcheck_v2::symbolic::Constraints<F::E>,
 ) {
-    use crate::runtime::{
-        random::RandomEngine,
-        sumcheck_v2::{prover, symbolic},
-    };
-    t.write_bytes(b"layered-sumcheck/circuits/v1");
-    t.write_bytes(&1u64.to_le_bytes());
-    t.write_bytes(&circuit.id);
-    t.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
-    t.write_bytes(b"layered-sumcheck/enter-circuit/v1");
-    t.write_bytes(&0u64.to_le_bytes());
-    let mut a = t.elt_field_slice(circuit.raw.noutput, f);
+    use crate::runtime::sumcheck_v2::{prover, symbolic};
+    t.bind(|w| {
+        w.write_bytes(b"layered-sumcheck/circuits/v1");
+        w.write_bytes(&1u64.to_le_bytes());
+    });
+    t.bind(|w| {
+        w.write_bytes(&circuit.id);
+        w.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
+    });
+    let mut a = Vec::new();
     let mut claim = f.zero();
     let mut layers = Vec::new();
     let mut challenges = Vec::new();
     for (index, w) in witnesses.into_iter().enumerate() {
         let layer = &circuit.raw.layers[index];
         let constants = &circuit.raw.constants;
-        t.write_bytes(b"layered-sumcheck/assertions/v1");
-        t.write_bytes(&0u64.to_le_bytes());
-        t.write_bytes(b"single-hand-assertions");
-        t.write_bytes(&(index as u64).to_le_bytes());
-        let rho: Vec<_> = (0..layer.assertion_counts().iter().sum::<usize>())
-            .map(|_| t.elt_field(f))
-            .collect();
+        let rho = t.round(
+            crate::runtime::random::transcript_v2::RoundLabel::Assertions,
+            |mut w| {
+                w.write_bytes(&(index as u64).to_le_bytes());
+                let mut r = w.begin_squeeze();
+                if index == 0 {
+                    a = r.elt_field_slice(circuit.raw.noutput, f);
+                }
+                let rho = r.elt_field_slice(layer.assertion_counts().iter().sum(), f);
+                r.end_round(rho)
+            },
+        );
         let q = bind_r(layer, constants, &a, &rho, &w, f);
         let constant = affine_constant(layer, constants, &a, f);
         let claim0 = f.subf(&claim, &constant);
         let (proof, mut c, mut next) =
-            prover::prove_dot_product(w, q, &pads.layers[index], claim0, t, f);
+            prover::prove_dot_product(w, q, &pads.layers[index], claim0, t, f, |_| {});
         let (weights, linear) =
             weights_next_affine(layer, constants, &a, &rho, &c.point_l, &c.alpha, f);
         f.fnms(&mut next, &c.alpha, &linear);

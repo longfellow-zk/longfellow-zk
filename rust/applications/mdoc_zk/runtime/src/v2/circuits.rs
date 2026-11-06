@@ -111,7 +111,7 @@ pub fn proof_geometry(
             },
             SupportsFFT,
         },
-        polygero::JointPolygeroParam,
+        zk_v2::joint::JointParam,
         zk_v2::ZkContext,
     };
     let f = Gf2_128Field::new();
@@ -130,7 +130,7 @@ pub fn proof_geometry(
         s,
         &sc,
     )?;
-    let joint = JointPolygeroParam::new((h.participant(&hc)?, (s.participant(&sc)?, ())))
+    let joint = JointParam::new((h.participant(&hc)?, (s.participant(&sc)?, ())))
         .map_err(|e| e.to_string())?;
     Ok(super::MdocProofGeometry {
         geom_hash: h.geometry(),
