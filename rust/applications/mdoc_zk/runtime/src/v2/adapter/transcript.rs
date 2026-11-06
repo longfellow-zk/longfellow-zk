@@ -8,7 +8,7 @@ use crate::{
             gf2_128::Gf2_128,
             p256::{P256Element, P256Field},
         },
-        random::transcript_v2::Transcript,
+        v2::transcript::Transcript,
     },
 };
 
@@ -32,7 +32,7 @@ pub(super) fn bind_binary(t: &mut Transcript, template_id: &[u8; 32], logw_layer
 
 pub(crate) fn eta(t: &mut Transcript, p: &P256Field) -> P256Element {
     t.round(
-        crate::runtime::random::transcript_v2::RoundLabel::Rescaling,
+        crate::runtime::v2::transcript::RoundLabel::Rescaling,
         |mut w| {
             w.write_bytes(b"native-shared-prefix/nonzero-rescaling/v2");
             let mut r = w.begin_squeeze();
@@ -67,7 +67,7 @@ pub(crate) fn weights(
 }
 pub(crate) fn alphas(t: &mut Transcript, p: &P256Field) -> [P256Element; 2] {
     t.round(
-        crate::runtime::random::transcript_v2::RoundLabel::Conversion,
+        crate::runtime::v2::transcript::RoundLabel::Conversion,
         |mut w| {
             w.write_bytes(b"p256-adapter/two-independent-full-field-rescalings/v3");
             let mut r = w.begin_squeeze();

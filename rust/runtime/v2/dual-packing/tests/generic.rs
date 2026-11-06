@@ -10,7 +10,8 @@ use crate::{
             },
             SupportsSampling,
         },
-        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
+        random::{DeterministicRng, RandomEngine},
+        v2::transcript::Transcript,
     },
 };
 
@@ -532,11 +533,11 @@ fn authenticate<
         + SerializableField,
 {
     use crate::runtime::{
-        polygero::{
+        proto::Digest,
+        v2::polygero::{
             JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
             Participant, PolygeroConfig, PolygeroLinearTerm, PolygeroParam,
         },
-        proto::Digest,
     };
     let f = p.field();
     let mut rng = DeterministicRng::new(99876);

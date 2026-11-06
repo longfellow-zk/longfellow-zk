@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 application statement framing shared by the mdoc proof roles.
-use crate::runtime::random::transcript_v2::Transcript;
+use crate::runtime::v2::transcript::Transcript;
 
 pub(super) fn new(context: &[u8], combined_hash: &[u8; 32]) -> Transcript {
     let mut transcript = Transcript::new(context);

@@ -1059,7 +1059,7 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         extension.omega_order(),
     );
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f, false).unwrap();
-    let expected = crate::runtime::proto::polygero::PolygeroConfig {
+    let expected = crate::runtime::v2::proto::polygero::PolygeroConfig {
         k: 349,
         s: 12,
         n: 2443,

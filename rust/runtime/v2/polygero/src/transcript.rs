@@ -33,8 +33,11 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::SupportsSampling,
-        proto::{polygero::FieldProof, Digest},
-        random::transcript_v2::{Reading, RoundLabel, Transcript, Writing},
+        proto::Digest,
+        v2::{
+            proto::polygero::FieldProof,
+            transcript::{Reading, RoundLabel, Transcript, Writing},
+        },
     },
 };
 

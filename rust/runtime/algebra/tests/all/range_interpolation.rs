@@ -16,17 +16,19 @@ use std::ops::Range;
 
 use crate::{
     core::algebra::{AlgebraicField, SupportsU64Conversions},
-    runtime::algebra::{
-        fp2::Fp2Field,
-        gf2_128::{Gf2_128, Gf2_128RuntimeField},
-        p256::P256Field,
-        q256::Q256Field,
-        range_interpolation::{
-            interpolate_range, BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            ScalarInterpolatorFactory,
+    runtime::{
+        algebra::{
+            fp2::Fp2Field,
+            gf2_128::{Gf2_128, Gf2_128RuntimeField},
+            p256::P256Field,
+            q256::Q256Field,
+            range_interpolation::{
+                interpolate_range, BinaryInterpolatorFactory,
+                QuadraticExtensionFftInterpolatorFactory, ScalarInterpolatorFactory,
+            },
+            InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
         },
-        subfield_v1::{BinarySubfieldV1, InterpolationPlanV1},
-        InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
+        v1::subfield::{BinarySubfieldV1, InterpolationPlanV1},
     },
 };
 
@@ -306,9 +308,9 @@ fn scalar_range_interpolation() {
 
 #[test]
 fn crt_range_interpolation() {
-    use crate::runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
-        range_interpolation::CrtInterpolatorFactory,
+    use crate::runtime::{
+        algebra::{fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory},
+        v1::subfield::RuntimeFp24SubfieldV1,
     };
     let f = RuntimeFp24Ext6::new();
     let factory = CrtInterpolatorFactory;

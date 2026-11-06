@@ -26,7 +26,8 @@ use longfellow_zk::{
     core::algebra::Nat,
     mdoc::{
         circuits::parse_test_data,
-        v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner},
+        v2 as runtime,
+        v2::{req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner},
     },
     runtime::random::DeterministicRng,
 };

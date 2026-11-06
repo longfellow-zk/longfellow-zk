@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{
-    field::{AlgebraicField, RuntimeField},
-    gf2_128::{Gf2_128, Gf2_128RuntimeField},
-    lch14::*,
-    range_interpolation::BinaryInterpolatorFactory,
-    subfield_v1::BinarySubfieldV1,
-    InterpolationPlan, RangeInterpolatorFactory,
+use crate::runtime::{
+    algebra::{
+        field::{AlgebraicField, RuntimeField},
+        gf2_128::{Gf2_128, Gf2_128RuntimeField},
+        lch14::*,
+        range_interpolation::BinaryInterpolatorFactory,
+        InterpolationPlan, RangeInterpolatorFactory,
+    },
+    v1::subfield::BinarySubfieldV1,
 };
 
 fn w_ref(f: &Gf2_128RuntimeField, subfield: &BinarySubfieldV1, i: usize, x: &Gf2_128) -> Gf2_128 {

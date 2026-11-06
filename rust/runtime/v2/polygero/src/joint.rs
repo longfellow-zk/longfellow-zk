@@ -8,15 +8,15 @@ use super::{
     constraints, ensure, transcript, PolygeroCommitment, PolygeroConfig, PolygeroError,
     PolygeroLinearTerm, PolygeroParam,
 };
-pub use crate::runtime::proto::polygero::{FieldProof, JointPolygeroProof};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::RandomEngine;
+pub use crate::runtime::v2::proto::polygero::{FieldProof, JointPolygeroProof};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
         proto::Digest,
-        random::transcript_v2::{Reading, Transcript, Writing},
+        v2::transcript::{Reading, Transcript, Writing},
     },
 };
 
@@ -347,7 +347,7 @@ impl<L: Participants> JointPolygeroParam<L> {
         &self,
         p: &JointPolygeroProof<L::Bodies>,
         transcript: Transcript,
-    ) -> Result<crate::runtime::random::transcript_v2::EncodedProof, PolygeroError> {
+    ) -> Result<crate::runtime::v2::transcript::EncodedProof, PolygeroError> {
         let mut out = Vec::new();
         p.write_to_buf(
             &mut out,
@@ -362,7 +362,7 @@ impl<L: Participants> JointPolygeroParam<L> {
         &self,
         bytes: &mut &'a [u8],
     ) -> Result<
-        crate::runtime::random::transcript_v2::Unverified<'a, JointPolygeroProof<L::Bodies>>,
+        crate::runtime::v2::transcript::Unverified<'a, JointPolygeroProof<L::Bodies>>,
         PolygeroError,
     > {
         let input = *bytes;
@@ -373,8 +373,7 @@ impl<L: Participants> JointPolygeroParam<L> {
             self.config.n,
             |bytes| self.participants.read_bodies(bytes),
         )?;
-        crate::runtime::random::transcript_v2::Unverified::decoded(body, input, bytes)
-            .map_err(Into::into)
+        crate::runtime::v2::transcript::Unverified::decoded(body, input, bytes).map_err(Into::into)
     }
 }
 /// An owned context lets callers receive the root before constructing the

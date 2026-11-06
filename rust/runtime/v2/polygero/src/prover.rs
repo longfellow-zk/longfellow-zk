@@ -7,7 +7,8 @@ use super::{
 use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
     proto::Digest,
-    random::{transcript_v2::Transcript, RandomEngine},
+    random::RandomEngine,
+    v2::transcript::Transcript,
 };
 pub struct JointPolygeroProver<S> {
     pub(super) context: Digest,

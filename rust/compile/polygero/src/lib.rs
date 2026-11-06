@@ -24,7 +24,7 @@ pub mod profiles;
 
 use profiles::*;
 
-use crate::runtime::proto::polygero::{PolygeroConfig, PolygeroGeometry};
+use crate::runtime::v2::proto::polygero::{PolygeroConfig, PolygeroGeometry};
 
 /// Minimize a conservative wire-size estimate within an audited family.
 /// The caller must use a field of cardinality at least 2^128. Every profile

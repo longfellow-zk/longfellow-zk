@@ -1,9 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::{
-    polygero::JointPolygeroProver,
-    proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    random::{transcript_v2::Transcript, RandomEngine},
+    random::RandomEngine,
+    v2::{
+        polygero::JointPolygeroProver,
+        proto::polygero::{JointPolygeroProof, PolygeroCommitment},
+        transcript::Transcript,
+    },
 };
 
 /// Private-witness operations belong to the prover role; shared field lists

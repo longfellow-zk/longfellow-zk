@@ -151,7 +151,7 @@ fn test_serialization() {
     let bytes = field.to_bytes(&one);
     assert_eq!(bytes.len(), field.serialized_size_bytes());
 
-    let sf = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let sub_bytes = sf.to_bytes(&one);

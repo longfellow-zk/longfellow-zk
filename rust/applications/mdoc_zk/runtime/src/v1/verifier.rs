@@ -34,8 +34,8 @@ use crate::{
             },
             SupportsFFT,
         },
-        random::{transcript_v1::Transcript, RandomEngine},
-        zk_v1::ZkVerifier,
+        random::RandomEngine,
+        v1::{transcript::Transcript, zk::ZkVerifier},
     },
 };
 
@@ -95,7 +95,7 @@ pub fn run_mdoc_verifier_inner(
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::algebra::subfield_v1::BinarySubfieldV1::new(
+    let sf_hash = crate::runtime::v1::subfield::BinarySubfieldV1::new(
         &crate::core::algebra::proto::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
@@ -104,13 +104,13 @@ pub fn run_mdoc_verifier_inner(
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
     let verifier_hash = ZkVerifier::<2, _>::new(c_hash, config_hash);
-    let geom_hash = verifier_hash.geometry(&crate::runtime::zk_v1::common::ZkContext {
+    let geom_hash = verifier_hash.geometry(&crate::runtime::v1::zk::common::ZkContext {
         f: &gf2,
         make_interpolator: &make_interpolator_hash,
     });
 
     let verifier_sig = ZkVerifier::<4, _>::new(c_sig, config_sig);
-    let geom_sig = verifier_sig.geometry(&crate::runtime::zk_v1::common::ZkContext {
+    let geom_sig = verifier_sig.geometry(&crate::runtime::v1::zk::common::ZkContext {
         f: &p256,
         make_interpolator: &make_interpolator_sig,
     });
@@ -133,7 +133,7 @@ pub fn run_mdoc_verifier_inner(
     verifier_hash.recv_commitment(
         &proof.proof_hash,
         &mut tp,
-        &crate::runtime::zk_v1::common::ZkContext {
+        &crate::runtime::v1::zk::common::ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,
         },
@@ -141,7 +141,7 @@ pub fn run_mdoc_verifier_inner(
     verifier_sig.recv_commitment(
         &proof.proof_sig,
         &mut tp,
-        &crate::runtime::zk_v1::common::ZkContext {
+        &crate::runtime::v1::zk::common::ZkContext {
             f: &p256,
             make_interpolator: &make_interpolator_sig,
         },
@@ -162,7 +162,7 @@ pub fn run_mdoc_verifier_inner(
             pub_inputs_hash,
             &proof.proof_hash,
             &mut tp,
-            &crate::runtime::zk_v1::common::ZkContext {
+            &crate::runtime::v1::zk::common::ZkContext {
                 f: &gf2,
                 make_interpolator: &make_interpolator_hash,
             },
@@ -188,7 +188,7 @@ pub fn run_mdoc_verifier_inner(
             pub_inputs_sig,
             &proof.proof_sig,
             &mut tp,
-            &crate::runtime::zk_v1::common::ZkContext {
+            &crate::runtime::v1::zk::common::ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
             },

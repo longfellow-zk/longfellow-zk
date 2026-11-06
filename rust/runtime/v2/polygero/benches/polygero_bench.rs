@@ -19,9 +19,9 @@ use longfellow_zk::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        polygero::*,
         proto::Digest,
-        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
+        random::{DeterministicRng, RandomEngine},
+        v2::{polygero::*, transcript::Transcript},
     },
 };
 fn run<
@@ -52,7 +52,7 @@ fn run<
     // determines the benchmark statement independently of sparse term storage.
     // Frozen fixture derivation, independent of the v2 protocol transcript.
     let mut fixture =
-        longfellow_zk::runtime::random::Transcript::new(b"polygero/kernel/fixture/v1");
+        longfellow_zk::runtime::v1::transcript::Transcript::new(b"polygero/kernel/fixture/v1");
     fixture.write_bytes(name.as_bytes());
     fixture.write_bytes(&(nw as u64).to_le_bytes());
     fixture.write_bytes(&42u64.to_le_bytes());

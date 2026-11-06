@@ -1,9 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::runtime::{
+use crate::runtime::v2::{
     polygero::{joint::ReceivedCommitment, JointPolygeroVerifier},
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    random::transcript_v2::Transcript,
+    transcript::Transcript,
 };
 
 /// Evidence that the fingerprint and frontend equations were authenticated.

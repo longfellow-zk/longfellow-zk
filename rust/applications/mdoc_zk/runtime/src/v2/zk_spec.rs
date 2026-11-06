@@ -17,7 +17,7 @@
 //! Proving and verification take an explicit spec. Registry lookup discovers only
 //! published circuits; development specs are supplied with their compiled archive.
 
-use crate::runtime::polygero::PolygeroConfig;
+use crate::runtime::v2::polygero::PolygeroConfig;
 pub const SYSTEM_ID: &str = "longfellow-libzk-v2";
 pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[crate::mdoc::circuits::NEXT_VERSION];
 

@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V1-only compact-row randomness.
-use crate::runtime::{algebra::SubfieldV1, random::RandomEngine};
+use crate::runtime::{random::RandomEngine, v1::subfield::SubfieldV1};
 
 pub trait RandomEngineV1: RandomEngine {
     /// Generates a random subfield element.

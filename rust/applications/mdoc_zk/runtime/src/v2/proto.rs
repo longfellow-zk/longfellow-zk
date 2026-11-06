@@ -4,10 +4,10 @@ use crate::{
     core::proto::SerializableField,
     runtime::{
         algebra::RuntimeField,
-        proto::{
+        proto::Digest,
+        v2::proto::{
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
-            zk_v2::{CircuitGeometry, CircuitProof},
-            Digest,
+            zk::{CircuitGeometry, CircuitProof},
         },
     },
 };
@@ -24,9 +24,9 @@ pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
     pub masked: Vec<u8>,
     pub commitment: PolygeroCommitment,
     pub fingerprints: (
-        crate::runtime::proto::witness_selection::FingerprintResponse<F1::E>,
+        crate::runtime::v2::proto::witness_selection::FingerprintResponse<F1::E>,
         (
-            crate::runtime::proto::witness_selection::FingerprintResponse<F2::E>,
+            crate::runtime::v2::proto::witness_selection::FingerprintResponse<F2::E>,
             (),
         ),
     ),
@@ -42,8 +42,8 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         g: &MdocProofGeometry,
         f1: &F1,
         f2: &F2,
-        transcript: crate::runtime::random::transcript_v2::Transcript,
-    ) -> Result<crate::runtime::random::transcript_v2::EncodedProof, String> {
+        transcript: crate::runtime::v2::transcript::Transcript,
+    ) -> Result<crate::runtime::v2::transcript::EncodedProof, String> {
         let mut out = Vec::new();
         let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
         plan.validate_advice(&self.masked)?;
@@ -81,7 +81,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     ) -> Result<
         (
             &'a [u8],
-            crate::runtime::random::transcript_v2::Unverified<'a, Self>,
+            crate::runtime::v2::transcript::Unverified<'a, Self>,
         ),
         String,
     > {
@@ -95,7 +95,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
                     .map_err(|e| e.to_string())?,
             },
         };
-        use crate::runtime::proto::witness_selection::FingerprintResponse;
+        use crate::runtime::v2::proto::witness_selection::FingerprintResponse;
         let fingerprints = (
             FingerprintResponse::read(&mut remaining, f1).map_err(|e| e.to_string())?,
             (
@@ -145,7 +145,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             polygero,
         };
         let decoded =
-            crate::runtime::random::transcript_v2::Unverified::decoded(body, bytes, &mut remaining)
+            crate::runtime::v2::transcript::Unverified::decoded(body, bytes, &mut remaining)
                 .map_err(|e| e.to_string())?;
         Ok((remaining, decoded))
     }

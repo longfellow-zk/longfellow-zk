@@ -14,7 +14,7 @@
 
 //! Longfellow v1 zk spec.
 
-use crate::runtime::ligero_v1::param::LigeroConfig;
+use crate::runtime::v1::ligero::param::LigeroConfig;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ZkSpecStruct {

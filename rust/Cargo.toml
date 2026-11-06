@@ -86,12 +86,12 @@ harness = false
 
 [[bench]]
 name = "sumcheck_bench_v1"
-path = "runtime/v1/sumcheck-v1/benches/sumcheck_bench_v1.rs"
+path = "runtime/v1/sumcheck/benches/sumcheck_bench.rs"
 harness = false
 
 [[bench]]
 name = "sumcheck_bench_v2"
-path = "runtime/v2/sumcheck-v2/benches/sumcheck_bench_v2.rs"
+path = "runtime/v2/sumcheck/benches/sumcheck_bench.rs"
 harness = false
 required-features = ["prover"]
 

@@ -34,9 +34,9 @@ fn fp2_has_no_sampling_or_packing_capability() {
     // Either added capability would make its inferred marker ambiguous.
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousSampling<_>>::check;
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousPacking<_>>::check;
-    let _: crate::runtime::zk_v2::CircuitInput<crate::runtime::algebra::gf2_128::Gf2_128Field> =
+    let _: crate::runtime::v2::zk::CircuitInput<crate::runtime::algebra::gf2_128::Gf2_128Field> =
         false;
-    let _: crate::runtime::zk_v2::CircuitInput<P256Field> = P256Field::new().one();
+    let _: crate::runtime::v2::zk::CircuitInput<P256Field> = P256Field::new().one();
 }
 
 #[test]

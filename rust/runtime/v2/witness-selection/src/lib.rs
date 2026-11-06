@@ -8,17 +8,20 @@
 //! the fingerprint equations when authenticating the later frontend statements.
 //! The early responses fix targets; only the final backend check authenticates
 //! them. Complete-proof sealing remains the enclosing protocol's responsibility.
-pub use crate::runtime::proto::witness_selection::{FingerprintResponse, FINGERPRINTS};
+pub use crate::runtime::v2::proto::witness_selection::{FingerprintResponse, FINGERPRINTS};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        polygero::{
-            joint::Participants as BackendParticipants, JointPolygeroParam, Participant,
-            PolygeroLinearTerm, PolygeroParam,
+        proto::Digest,
+        v2::{
+            polygero::{
+                joint::Participants as BackendParticipants, JointPolygeroParam, Participant,
+                PolygeroLinearTerm, PolygeroParam,
+            },
+            proto::polygero::PolygeroConfig,
+            transcript::{Reading, Writing},
         },
-        proto::{polygero::PolygeroConfig, Digest},
-        random::transcript_v2::{Reading, Writing},
     },
 };
 mod transcript;
@@ -223,7 +226,9 @@ impl<L: Fields> Param<L> {
     pub fn config(&self) -> PolygeroConfig {
         self.backend.config()
     }
-    pub fn commitment_context(&self) -> crate::runtime::polygero::joint::JointCommitmentContext {
+    pub fn commitment_context(
+        &self,
+    ) -> crate::runtime::v2::polygero::joint::JointCommitmentContext {
         self.backend.commitment_context()
     }
 }

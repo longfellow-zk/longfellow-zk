@@ -7,7 +7,7 @@ use crate::{
             packing::{AmbientElement as E, PackingExtension, PackingParameters},
             SupportsSampling,
         },
-        random::transcript_v2::Transcript,
+        v2::transcript::Transcript,
     },
 };
 pub(super) fn begin<X: PackingExtension>(
@@ -56,7 +56,7 @@ where
     X::Ambient: SerializableField,
 {
     ts.round(
-        crate::runtime::random::transcript_v2::RoundLabel::Packing,
+        crate::runtime::v2::transcript::RoundLabel::Packing,
         |mut w| {
             w.write_elt_field_slice(u, p.field());
             let mut r = w.begin_squeeze();
