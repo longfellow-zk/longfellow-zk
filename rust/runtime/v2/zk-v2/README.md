@@ -1,14 +1,14 @@
 # ZK V2
 
-`runtime::zk_v2` composes projective sumcheck, authenticated input packing and
-nonrecursive Polygero. `runtime::zk_v1` retains the separate deployed protocol.
+`runtime::v2::zk_v2` composes projective sumcheck, authenticated input packing and
+nonrecursive Polygero. `runtime::v1::zk_v1` retains the separate deployed protocol.
 `ZkProver`, `ZkVerifier`, `ZkContext` and `ZkProverCommitment` provide standalone
 proofs. `joint::JointParam` owns early witness selection and the final joint
 authentication for standalone and application proofs. `joint::CircuitParticipant`
 supplies circuit reductions to that wrapper. Prover and verifier orchestration
 stay in separate files; layout and constraint arithmetic are shared.
 
-The [Lean development](../../../formal/lfzk-v2/README.md) proves extractor
+The [Lean development](../../../../formal/lfzk-v2/README.md) proves extractor
 soundness for the current MAC-free mdoc composition in the ideal oracle model,
 with explicit circuit/layout, canonical-codec and ideal-sampler correspondences.
 Complete joint-view zero knowledge remains open.
@@ -86,7 +86,7 @@ contract are unchanged.
 
 ## Symbolic constraints and packing
 
-Sumcheck algebra belongs to `runtime::sumcheck_v2::symbolic`. Numerical proving
+Sumcheck algebra belongs to `runtime::v2::sumcheck_v2::symbolic`. Numerical proving
 and public reconstruction use the same symbolic builder, returning affine
 constraints over logical inputs and pads. Each stage contributes one terminal
 constraint, followed by the final input claim. Deriving these constraints alone

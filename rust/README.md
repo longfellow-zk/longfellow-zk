@@ -79,7 +79,7 @@ unavailable. Complete-proof encoders own finalization, and decoding returns
 immutable unverified data. Only complete verification returns `VerifiedProof`
 evidence after checking the seal.
 
-The [witness-selection protocol](runtime/witness-selection/README.md) wraps the
+The [witness-selection protocol](runtime/v2/witness-selection/README.md) wraps the
 joint commitment before either mdoc sumcheck. Each field commits two dedicated
 mask cells, receives two independent full coefficient vectors, and sends two
 masked dot products. Its opaque state automatically adds both affine equations
@@ -97,7 +97,7 @@ by Matteo Frigo and abhi shelat.
 |---|---|---|
 | Status | Deployed | Under development |
 | Commitment protocol | Ligero | Nonrecursive Polygero |
-| Combined proof implementation | `runtime::zk_v1` | `runtime::zk_v2` |
+| Combined proof implementation | `runtime::v1::zk_v1` | `runtime::v2::zk_v2` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
 | mdoc circuits | Frozen versions 5–7 | NEXT, currently version 10 |
 
@@ -186,8 +186,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 143.2 ms | 83.9 ms | 137,615 | 42.61 MiB | 34.70 MiB |
-| 4 | 156.3 ms | 89.5 ms | 137,551 | 47.27 MiB | 37.75 MiB |
+| 2 | 138.7 ms | 82.0 ms | 137,615 | 42.61 MiB | 34.70 MiB |
+| 4 | 150.9 ms | 87.1 ms | 137,551 | 47.27 MiB | 37.75 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -240,7 +240,10 @@ compiler. Proving and verification do not require the `compiler` feature.
 V1 and v2 implementations occupy separate directories and have their own
 application types, specifications, transcripts, and proof codecs. They share
 basic infrastructure such as arithmetic, interpolation, randomness, and
-Merkle trees.
+Merkle trees. Shared implementations live directly under `runtime/`; protocol
+implementations live under `runtime/v1/` and `runtime/v2/`. The versions have
+no implementation dependency on each other. Compatibility reexports retain
+the existing public v1 paths and refer to the same types and functions.
 
 Polygero uses recursive `(Participant, Tail)` tuples ending in `()`. Each
 participant keeps its field, interpolation domain, witness rows, and arithmetic
@@ -294,7 +297,9 @@ they are not separate crates.
 |---|---|
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
 | `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
-| `runtime/` | Concrete arithmetic, interpolation, proof protocols, and proof serialization |
+| `runtime/algebra/`, `runtime/random/`, `runtime/merkle/`, `runtime/proto/` | Shared arithmetic, private randomness, tree primitives, and basic encodings |
+| `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, and proof codecs |
+| `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, and proof codecs |
 | `circuits/` | Reusable circuits and native witness generation |
 | `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
 | `tools/` | Rust commands for parameter auditing and specification generation |
@@ -306,7 +311,7 @@ verifier implementations also remain separate within each protocol.
 
 Circuit representations and codecs live in `core::proto::v1` and
 `core::proto::v2`. Their readers and writers accept their own formats only.
-The v1-only commitment implementation is named `runtime::ligero_v1`; compact
+The v1-only commitment implementation is named `runtime::v1::ligero_v1`; compact
 row sampling, interpolation hints, and element codecs have explicit v1 APIs.
 
 The circuit compiler shares its source frontend, simplification, copy rewriting,

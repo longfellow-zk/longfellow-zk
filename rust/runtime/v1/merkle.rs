@@ -14,8 +14,10 @@
 
 use sha2::{Digest as ShaDigest, Sha256};
 
-use super::{heap::verify_proof, Digest, MerkleError};
-use crate::runtime::proto::MerkleProof;
+use crate::runtime::{
+    merkle::{heap::verify_proof, Digest, MerkleError},
+    proto::MerkleProof,
+};
 
 /// Verifies that the opened column data (hashed via `update_leaf_hash`) matches
 /// the commitment root at the queried leaf positions `opened_indices`.
@@ -148,3 +150,7 @@ cfg_prover! {
         MerkleProof { nonce, path }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/merkle.rs"]
+mod tests;

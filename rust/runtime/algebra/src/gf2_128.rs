@@ -35,7 +35,7 @@ impl Gf2_128 {
     }
 
     #[inline(always)]
-    pub(in crate::runtime::algebra) fn add(&mut self, other: &Self) {
+    pub(in crate::runtime) fn add(&mut self, other: &Self) {
         self.xor_in_place(other);
     }
 }

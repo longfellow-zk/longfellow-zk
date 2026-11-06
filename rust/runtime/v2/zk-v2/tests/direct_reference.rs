@@ -5,7 +5,7 @@ use crate::runtime::algebra::ElementOf;
 /// Emit one equation per circuit layer and one final input equation, in that order.
 /// Preserve all terms, including zero coefficients; repeated terms remain additive.
 /// Equations and their constants remain even when every variable coefficient vanishes.
-pub(in crate::runtime::zk_v2) fn compile<const W: usize, F: RuntimeField<W>>(
+pub(in crate::runtime::v2::zk_v2) fn compile<const W: usize, F: RuntimeField<W>>(
     constraints: &Constraints<ElementOf<F>>,
     pads: &CircuitPadLayout,
     public_inputs: &[ElementOf<F>],

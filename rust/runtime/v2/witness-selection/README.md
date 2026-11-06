@@ -1,6 +1,6 @@
 # Witness selection
 
-`runtime::witness_selection` wraps joint Polygero between commitment and frontend
+`runtime::v2::witness_selection` wraps joint Polygero between commitment and frontend
 reduction. The zk-v2 joint wrapper invokes it for standalone proofs and for mdoc's
 GF128 and P256 participants. Applications use the zk-v2 wrapper. It contains no
 circuit, sumcheck, or packing implementation. `prover.rs` and `verifier.rs` own
@@ -45,11 +45,11 @@ later backend check authenticates them. The enclosing complete-proof encoder
 owns the mandatory final transcript seal, including these responses and the
 terminal authentication data.
 
-The [formal module](../../../formal/witness-selection/README.md) separates the
+The [formal module](../../../../formal/witness-selection/README.md) separates the
 fingerprint collision charge from fixed-witness frontend soundness and the
 remaining Polygero extraction errors. The
-[typed chain analysis](../../../formal/transcript-v2/README.md) proves adaptive
+[typed chain analysis](../../../../formal/transcript-v2/README.md) proves adaptive
 query charging with a common `(Q+1)/2^256` link/seal exception. Correspondence
 between the Rust encoding and samplers and the formal ideal model remains an
-explicit obligation. The [current mdoc composition](../../../formal/lfzk-v2/README.md)
+explicit obligation. The [current mdoc composition](../../../../formal/lfzk-v2/README.md)
 combines this selection analysis with both frontend reductions and joint Polygero.

@@ -155,16 +155,16 @@ fn production_after_test_items_is_checked() {
         use crate::runtime::algebra;
         #[cfg ( test )]
         #[path = "test_support.rs"] mod support;
-        use crate::runtime::zk_v2;
+        use crate::runtime::v2::zk_v2;
         #[cfg(test)] mod tests { fn sample() { let _ = "}"; } }
-        use crate::runtime::sumcheck_v1;
+        use crate::runtime::v1::sumcheck_v1;
     "##;
     assert_eq!(
         extract_crate_deps(&production_code(source)),
         BTreeSet::from([
             "runtime::algebra".to_owned(),
-            "runtime::zk_v2".to_owned(),
-            "runtime::sumcheck_v1".to_owned(),
+            "runtime::v2::zk_v2".to_owned(),
+            "runtime::v1::sumcheck_v1".to_owned(),
         ])
     );
 }
@@ -210,56 +210,181 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
 /// `crate::runtime::proto`, `crate::runtime::{merkle::..., proto::...}`, or
 /// `crate::{circuits::ec::..., compile::{algebra::..., logic::...}}`) and records every
 /// referenced `<layer>::<submodule>` (or `util`) into `deps`.
-fn parse_crate_tree(raw: &str, layer_prefix: Option<&str>, deps: &mut BTreeSet<String>) {
+fn parse_crate_tree(raw: &str, prefix: Option<&str>, deps: &mut BTreeSet<String>) {
     let s = raw.trim_start();
     if let Some(inner) = s.strip_prefix('{') {
         let mut depth = 1usize;
-        let mut item_start = 0;
-        for (idx, ch) in inner.char_indices() {
+        let mut start = 0;
+        for (index, ch) in inner.char_indices() {
             match ch {
                 '{' => depth += 1,
                 '}' => {
                     depth -= 1;
                     if depth == 0 {
-                        parse_crate_tree(&inner[item_start..idx], layer_prefix, deps);
+                        parse_crate_tree(&inner[start..index], prefix, deps);
                         break;
                     }
                 }
                 ',' if depth == 1 => {
-                    parse_crate_tree(&inner[item_start..idx], layer_prefix, deps);
-                    item_start = idx + 1;
+                    parse_crate_tree(&inner[start..index], prefix, deps);
+                    start = index + 1;
                 }
                 _ => {}
             }
         }
         return;
     }
-
     let ident: String = s
         .chars()
-        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
         .collect();
     if ident.is_empty() {
-        return;
-    }
-    let rest = &s[ident.len()..];
-    match layer_prefix {
-        None => {
-            if ident == "util" {
-                deps.insert("util".to_string());
-            } else if matches!(
-                ident.as_str(),
-                "core" | "runtime" | "compile" | "circuits" | "mdoc" | "tools"
-            ) {
-                if let Some(after_colons) = rest.strip_prefix("::") {
-                    parse_crate_tree(after_colons, Some(&ident), deps);
-                }
+        if s.starts_with('*') {
+            if let Some(prefix) = prefix {
+                deps.insert(dependency_module(prefix));
             }
         }
-        Some(layer) => {
-            if ident != "self" {
-                deps.insert(format!("{layer}::{ident}"));
+        return;
+    }
+    let path = match prefix {
+        Some(prefix) if ident == "self" => prefix.to_owned(),
+        Some(prefix) => format!("{prefix}::{ident}"),
+        None => ident.clone(),
+    };
+    let rest = &s[ident.len()..];
+    if let Some(rest) = rest.strip_prefix("::") {
+        parse_crate_tree(rest, Some(&path), deps);
+    } else if matches!(
+        path.split("::").next(),
+        Some("util" | "core" | "runtime" | "compile" | "circuits" | "mdoc" | "tools")
+    ) {
+        if path == "util" || path.contains("::") {
+            deps.insert(dependency_module(&path));
+        }
+    }
+}
+
+/// Compatibility paths resolve to the implementation that owns them. This
+/// keeps old public imports from concealing cross-version dependencies, while
+/// shared field/RNG/Merkle imports still refer to their common implementations.
+fn dependency_module(path: &str) -> String {
+    let parts: Vec<_> = path.split("::").collect();
+    if parts[0] == "util" {
+        return "util".to_owned();
+    }
+    if parts[0] != "runtime" || parts.len() < 2 {
+        return parts[..parts.len().min(2)].join("::");
+    }
+    if matches!(parts[1], "v1" | "v2") {
+        return parts[..parts.len().min(3)].join("::");
+    }
+    let owned = match parts[1] {
+        "sumcheck_v1" | "ligero_v1" | "zk_v1" => Some(("v1", parts[1])),
+        "sumcheck_v2" | "polygero" | "zk_v2" | "dual_packing" | "witness_selection" => {
+            Some(("v2", parts[1]))
+        }
+        "proto" => match parts.get(2).copied() {
+            Some("sumcheck_v1" | "ligero_v1" | "zk_v1" | "subfield_v1") => Some(("v1", "proto")),
+            Some("sumcheck_v2" | "polygero" | "zk_v2" | "dual_packing" | "witness_selection") => {
+                Some(("v2", "proto"))
             }
+            _ => None,
+        },
+        "random" => match parts.get(2).copied() {
+            Some("v1") => Some(("v1", "random")),
+            Some("Transcript" | "transcript_v1") => Some(("v1", "transcript_v1")),
+            Some("transcript_v2") => Some(("v2", "transcript_v2")),
+            _ => None,
+        },
+        "algebra"
+            if parts.iter().any(|part| {
+                matches!(
+                    *part,
+                    "subfield_v1"
+                        | "SubfieldV1"
+                        | "BinarySubfieldV1"
+                        | "P256SubfieldV1"
+                        | "RuntimeFp24SubfieldV1"
+                )
+            }) =>
+        {
+            Some(("v1", "subfield_v1"))
+        }
+        "merkle"
+            if parts.iter().any(|part| {
+                matches!(
+                    *part,
+                    "commitment" | "commit" | "open" | "verify" | "MerkleCommitment"
+                )
+            }) =>
+        {
+            Some(("v1", "merkle"))
+        }
+        _ => None,
+    };
+    match owned {
+        Some((version, module)) => format!("runtime::{version}::{module}"),
+        None => parts[..2].join("::"),
+    }
+}
+
+#[test]
+fn runtime_compatibility_paths_resolve_to_their_owners() {
+    for (source, expected) in [
+        (
+            "use crate::runtime::sumcheck_v1::RoundPoly;",
+            "runtime::v1::sumcheck_v1",
+        ),
+        (
+            "use crate::runtime::v1::sumcheck_v1::RoundPoly;",
+            "runtime::v1::sumcheck_v1",
+        ),
+        (
+            "use crate::runtime::{proto::{zk_v2::ZkProof}};",
+            "runtime::v2::proto",
+        ),
+        (
+            "use crate::runtime::random::{transcript_v2::Transcript};",
+            "runtime::v2::transcript_v2",
+        ),
+        (
+            "use crate::runtime::algebra::p256::P256SubfieldV1;",
+            "runtime::v1::subfield_v1",
+        ),
+        (
+            "use crate::runtime::merkle::commitment::commit;",
+            "runtime::v1::merkle",
+        ),
+        (
+            "use crate::runtime::merkle::heap::verify_proof;",
+            "runtime::merkle",
+        ),
+    ] {
+        assert_eq!(
+            extract_crate_deps(source),
+            BTreeSet::from([expected.to_owned()])
+        );
+    }
+    assert_eq!(
+        extract_crate_deps("use crate::runtime::{algebra::p256::{P256Field, P256SubfieldV1}, random::{RandomEngine, Transcript}};"),
+        BTreeSet::from(["runtime::algebra", "runtime::random", "runtime::v1::subfield_v1", "runtime::v1::transcript_v1"].map(str::to_owned))
+    );
+}
+
+/// Namespace compatibility must remain a reexport, never a second implementation.
+#[test]
+fn runtime_namespace_contains_only_declarations_and_reexports() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for file in ["runtime/mod.rs", "runtime/v1/mod.rs", "runtime/v2/mod.rs"] {
+        let source = production_code(&fs::read_to_string(root.join(file)).unwrap());
+        for word in source.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_') {
+            assert!(
+                !matches!(
+                    word,
+                    "fn" | "impl" | "struct" | "enum" | "trait" | "const" | "static" | "include"
+                ),
+                "implementation in runtime namespace {file}: {word}"
+            );
         }
     }
 }
@@ -345,17 +470,24 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::proto", "runtime/proto/src"),
         ("runtime::random", "runtime/random/src"),
         ("runtime::merkle", "runtime/merkle/src"),
-        ("runtime::sumcheck_v1", "runtime/sumcheck-v1/src"),
-        ("runtime::sumcheck_v2", "runtime/sumcheck-v2/src"),
-        ("runtime::zk_v2", "runtime/zk-v2/src"),
-        ("runtime::ligero_v1", "runtime/ligero-v1/src"),
-        ("runtime::polygero", "runtime/polygero/src"),
+        ("runtime::v1::sumcheck_v1", "runtime/v1/sumcheck-v1/src"),
+        ("runtime::v2::sumcheck_v2", "runtime/v2/sumcheck-v2/src"),
+        ("runtime::v2::zk_v2", "runtime/v2/zk-v2/src"),
+        ("runtime::v1::ligero_v1", "runtime/v1/ligero-v1/src"),
+        ("runtime::v2::polygero", "runtime/v2/polygero/src"),
         (
-            "runtime::witness_selection",
-            "runtime/witness-selection/src",
+            "runtime::v2::witness_selection",
+            "runtime/v2/witness-selection/src",
         ),
-        ("runtime::dual_packing", "runtime/dual-packing/src"),
-        ("runtime::zk_v1", "runtime/zk-v1/src"),
+        ("runtime::v2::dual_packing", "runtime/v2/dual-packing/src"),
+        ("runtime::v1::zk_v1", "runtime/v1/zk-v1/src"),
+        ("runtime::v1::proto", "runtime/v1/proto/src"),
+        ("runtime::v1::subfield_v1", "runtime/v1/subfield-v1/src"),
+        ("runtime::v1::random", "runtime/v1/random.rs"),
+        ("runtime::v1::merkle", "runtime/v1/merkle.rs"),
+        ("runtime::v1::transcript_v1", "runtime/v1/transcript-v1/src"),
+        ("runtime::v2::proto", "runtime/v2/proto/src"),
+        ("runtime::v2::transcript_v2", "runtime/v2/transcript-v2/src"),
         ("compile::algebra", "compile/algebra/src"),
         ("compile::proto", "compile/proto/src"),
         ("compile::logic", "compile/logic/src"),
@@ -415,14 +547,51 @@ fn test_module_dependency_dag_and_layer_boundaries() {
     };
 
     let mut graph: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut registered_sources = BTreeSet::new();
     for (mod_name, rel_dir) in modules {
         let mut files = Vec::new();
-        collect_rs_files(&root.join(rel_dir), &mut files);
+        let source = root.join(rel_dir);
+        if source.is_file() {
+            files.push(source);
+        } else {
+            collect_rs_files(&source, &mut files);
+        }
         let mut deps = BTreeSet::new();
         for f in files {
+            registered_sources.insert(f.clone());
             let content = fs::read_to_string(&f).expect("read rs file");
             // Keep production after test-only items; ignore comments and literals.
             let prod_content = production_code(&content);
+            if matches!(
+                mod_name,
+                "runtime::algebra" | "runtime::proto" | "runtime::random" | "runtime::merkle"
+            ) {
+                for word in prod_content.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                {
+                    assert!(
+                        !matches!(
+                            word,
+                            "v1" | "v2"
+                                | "Transcript"
+                                | "RandomEngineV1"
+                                | "InterpolationPlanV1"
+                                | "sumcheck_v1"
+                                | "sumcheck_v2"
+                                | "zk_v1"
+                                | "zk_v2"
+                                | "ligero_v1"
+                                | "polygero"
+                                | "dual_packing"
+                                | "witness_selection"
+                                | "subfield_v1"
+                                | "transcript_v1"
+                                | "transcript_v2"
+                        ) && !word.ends_with("SubfieldV1"),
+                        "Versioned capability in shared implementation {}: {word}",
+                        f.display()
+                    );
+                }
+            }
             if mod_name == "mdoc::circuits" {
                 assert!(
                     !prod_content
@@ -432,7 +601,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                     f.display()
                 );
             }
-            if matches!(mod_name, "runtime::zk_v2" | "mdoc::runtime") {
+            if matches!(mod_name, "runtime::v2::zk_v2" | "mdoc::runtime") {
                 for word in prod_content.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
                 {
                     assert!(
@@ -448,7 +617,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
             for dep in extract_crate_deps(&prod_content) {
                 if dep != mod_name {
                     assert!(
-                        !(mod_name == "mdoc::runtime" && dep == "runtime::witness_selection"),
+                        !(mod_name == "mdoc::runtime" && dep == "runtime::v2::witness_selection"),
                         "mdoc must compose selection through zk-v2: {}",
                         f.display()
                     );
@@ -462,11 +631,45 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                         "Layer violation: {mod_name} ({}) imports higher-layer module {dep}",
                         f.display()
                     );
+                    for (version, other) in [("v1", "v2"), ("v2", "v1")] {
+                        assert!(
+                            !(mod_name.starts_with(&format!("runtime::{version}::"))
+                                && dep.starts_with(&format!("runtime::{other}::"))),
+                            "Runtime version boundary: {mod_name} ({}) imports {dep}",
+                            f.display()
+                        );
+                    }
+                    if matches!(
+                        mod_name,
+                        "runtime::algebra"
+                            | "runtime::proto"
+                            | "runtime::random"
+                            | "runtime::merkle"
+                    ) {
+                        assert!(
+                            !dep.starts_with("runtime::v1::") && !dep.starts_with("runtime::v2::"),
+                            "Versioned protocol in shared implementation {}: {dep}",
+                            f.display()
+                        );
+                    }
                     deps.insert(dep);
                 }
             }
         }
         graph.insert(mod_name.to_string(), deps);
+    }
+
+    let mut runtime_sources = Vec::new();
+    collect_rs_files(&root.join("runtime"), &mut runtime_sources);
+    for source in runtime_sources {
+        let relative = source.strip_prefix(root).unwrap();
+        if relative.components().any(|part| part.as_os_str() == "src") {
+            assert!(
+                registered_sources.contains(&source),
+                "Unregistered runtime source: {}",
+                source.display()
+            );
+        }
     }
 
     let mut visiting = BTreeSet::new();
@@ -485,13 +688,13 @@ fn test_module_dependency_dag_and_layer_boundaries() {
 fn test_sumcheck_protocol_dependencies() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for version in ["v1", "v2"] {
-        let module = format!("runtime::sumcheck_{version}");
+        let module = format!("runtime::{version}::sumcheck_{version}");
         let mut files = Vec::new();
         collect_rs_files(
-            &root.join(format!("runtime/sumcheck-{version}/src")),
+            &root.join(format!("runtime/{version}/sumcheck-{version}/src")),
             &mut files,
         );
-        files.push(root.join(format!("runtime/proto/src/sumcheck_{version}.rs")));
+        files.push(root.join(format!("runtime/{version}/proto/src/sumcheck_{version}.rs")));
         for file in files {
             let source = fs::read_to_string(&file).expect("read sumcheck dependency source");
             let production = production_code(&source);
@@ -510,7 +713,19 @@ fn test_sumcheck_protocol_dependencies() {
 /// aliases and higher-level proof types hidden beneath the shared proto module.
 fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<String> {
     for dependency in extract_crate_deps(production) {
+        let version = if module.contains("::v1::") {
+            "v1"
+        } else {
+            "v2"
+        };
+        let local = [
+            format!("runtime::{version}::proto"),
+            format!("runtime::{version}::transcript_{version}"),
+            format!("runtime::{version}::random"),
+            format!("runtime::{version}::subfield_{version}"),
+        ];
         if dependency != module
+            && !local.contains(&dependency)
             && !matches!(
                 dependency.as_str(),
                 "core::algebra"
@@ -524,7 +739,7 @@ fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<Strin
             return Some(dependency);
         }
     }
-    let other = if module == "runtime::sumcheck_v1" {
+    let other = if module == "runtime::v1::sumcheck_v1" {
         "sumcheck_v2"
     } else {
         "sumcheck_v1"
@@ -545,19 +760,19 @@ fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<Strin
 
 #[test]
 fn sumcheck_dependency_checks_cover_import_forms_and_features() {
-    for module in ["runtime::sumcheck_v1", "runtime::sumcheck_v2"] {
+    for module in ["runtime::v1::sumcheck_v1", "runtime::v2::sumcheck_v2"] {
         for source in [
-            "use crate::runtime::polygero::PolygeroParam;",
+            "use crate::runtime::v2::polygero::PolygeroParam;",
             "use crate::{runtime::{zk_v1::ZkProver, algebra::RuntimeField}};",
-            "use longfellow_zk::runtime::zk_v2::ZkVerifier;",
+            "use longfellow_zk::runtime::v2::zk_v2::ZkVerifier;",
             "use super::super::polygero as commitment;",
             "use crate::runtime as rt; use rt::{zk_v2 as system};",
             "use crate::runtime::proto::{polygero as proof};",
             "use crate::runtime::proto::zk_v2::ZkProof;",
             "use crate::runtime::proto::{ZkProof as Proof};",
             "use super::super::ligero_v1::LigeroProver;",
-            "#[cfg(feature = \"prover\")] use crate::runtime::zk_v2;",
-            "#[cfg(test)] mod tests {} use crate::runtime::polygero;",
+            "#[cfg(feature = \"prover\")] use crate::runtime::v2::zk_v2;",
+            "#[cfg(test)] mod tests {} use crate::runtime::v2::polygero;",
         ] {
             assert!(
                 sumcheck_dependency_violation(module, &production_code(source)).is_some(),
@@ -567,12 +782,20 @@ fn sumcheck_dependency_checks_cover_import_forms_and_features() {
         let allowed = r#"
             use crate::{core::{algebra::SerializableField, proto::v1::Circuit},
                 runtime::{algebra::ZkField, random::Transcript}, util};
-            // Production verification is provided by crate::runtime::zk_v2.
+            // Production verification is provided by crate::runtime::v2::zk_v2.
             const NOTE: &str = "Polygero and ZkVerifier";
-            #[cfg(test)] mod tests { use crate::runtime::zk_v2; }
+            #[cfg(test)] mod tests { use crate::runtime::v2::zk_v2; }
         "#;
+        let allowed = allowed.replace(
+            "random::Transcript",
+            if module.contains("::v1::") {
+                "v1::transcript_v1::Transcript"
+            } else {
+                "v2::transcript_v2::Transcript"
+            },
+        );
         assert_eq!(
-            sumcheck_dependency_violation(module, &production_code(allowed)),
+            sumcheck_dependency_violation(module, &production_code(&allowed)),
             None
         );
     }
@@ -628,16 +851,16 @@ fn test_interpolation_dependencies() {
 fn test_v2_role_and_shared_module_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for (relative_path, forbidden) in [
-        ("runtime/sumcheck-v2/src/prover.rs", "verifier"),
-        ("runtime/sumcheck-v2/src/dense.rs", "verifier"),
-        ("runtime/sumcheck-v2/src/eval.rs", "verifier"),
-        ("runtime/sumcheck-v2/src/verifier.rs", "prover"),
-        ("runtime/sumcheck-v2/src/reduction.rs", "prover"),
-        ("runtime/zk-v2/src/prover.rs", "verifier"),
-        ("runtime/zk-v2/src/joint_prover.rs", "verifier"),
-        ("runtime/zk-v2/src/joint_verifier.rs", "prover"),
-        ("runtime/zk-v2/src/prime_prover.rs", "verifier"),
-        ("runtime/zk-v2/src/prime_verifier.rs", "prover"),
+        ("runtime/v2/sumcheck-v2/src/prover.rs", "verifier"),
+        ("runtime/v2/sumcheck-v2/src/dense.rs", "verifier"),
+        ("runtime/v2/sumcheck-v2/src/eval.rs", "verifier"),
+        ("runtime/v2/sumcheck-v2/src/verifier.rs", "prover"),
+        ("runtime/v2/sumcheck-v2/src/reduction.rs", "prover"),
+        ("runtime/v2/zk-v2/src/prover.rs", "verifier"),
+        ("runtime/v2/zk-v2/src/joint_prover.rs", "verifier"),
+        ("runtime/v2/zk-v2/src/joint_verifier.rs", "prover"),
+        ("runtime/v2/zk-v2/src/prime_prover.rs", "verifier"),
+        ("runtime/v2/zk-v2/src/prime_verifier.rs", "prover"),
         (
             "applications/mdoc_zk/runtime/src/v2/adapter/prime_prover.rs",
             "verifier",
@@ -654,18 +877,21 @@ fn test_v2_role_and_shared_module_boundaries() {
             "applications/mdoc_zk/runtime/src/v2/adapter/binary_verifier.rs",
             "prover",
         ),
-        ("runtime/zk-v2/src/verifier.rs", "prover"),
-        ("runtime/witness-selection/src/prover.rs", "verifier"),
-        ("runtime/witness-selection/src/verifier.rs", "prover"),
-        ("runtime/polygero/src/prover.rs", "verifier"),
-        ("runtime/polygero/src/prover_commitment.rs", "verifier"),
-        ("runtime/polygero/src/verifier.rs", "prover"),
-        ("runtime/sumcheck-v2/src/monomial.rs", "shared_sumcheck"),
-        ("runtime/sumcheck-v2/src/fragments.rs", "shared_sumcheck"),
-        ("runtime/sumcheck-v2/src/quad.rs", "shared_sumcheck"),
-        ("runtime/sumcheck-v2/src/split.rs", "shared_sumcheck"),
-        ("runtime/sumcheck-v2/src/symbolic.rs", "shared_sumcheck"),
-        ("runtime/sumcheck-v2/src/transcript.rs", "shared_sumcheck"),
+        ("runtime/v2/zk-v2/src/verifier.rs", "prover"),
+        ("runtime/v2/witness-selection/src/prover.rs", "verifier"),
+        ("runtime/v2/witness-selection/src/verifier.rs", "prover"),
+        ("runtime/v2/polygero/src/prover.rs", "verifier"),
+        ("runtime/v2/polygero/src/prover_commitment.rs", "verifier"),
+        ("runtime/v2/polygero/src/verifier.rs", "prover"),
+        ("runtime/v2/sumcheck-v2/src/monomial.rs", "shared_sumcheck"),
+        ("runtime/v2/sumcheck-v2/src/fragments.rs", "shared_sumcheck"),
+        ("runtime/v2/sumcheck-v2/src/quad.rs", "shared_sumcheck"),
+        ("runtime/v2/sumcheck-v2/src/split.rs", "shared_sumcheck"),
+        ("runtime/v2/sumcheck-v2/src/symbolic.rs", "shared_sumcheck"),
+        (
+            "runtime/v2/sumcheck-v2/src/transcript.rs",
+            "shared_sumcheck",
+        ),
     ] {
         let file = root.join(relative_path);
         let source = fs::read_to_string(&file).expect("read registered V2 source");
@@ -715,8 +941,8 @@ fn test_v2_role_and_shared_module_boundaries() {
         for dep in extract_crate_deps(&production) {
             assert!(
                 !dep.starts_with("compile::")
-                    && dep != "runtime::sumcheck_v1"
-                    && dep != "runtime::zk_v1",
+                    && dep != "runtime::v1::sumcheck_v1"
+                    && dep != "runtime::v1::zk_v1",
                 "V2 phase or legacy dependency in {}: {dep}",
                 file.display()
             );
@@ -730,7 +956,7 @@ fn test_v2_role_and_shared_module_boundaries() {
         "constraints",
         "transcript",
     ] {
-        let file = root.join(format!("runtime/polygero/src/{name}.rs"));
+        let file = root.join(format!("runtime/v2/polygero/src/{name}.rs"));
         let source = fs::read_to_string(&file).unwrap();
         let production = production_code(&source);
         assert!(
@@ -765,10 +991,10 @@ fn test_phase_boundaries() {
             "compile",
         ),
         ("runtime/algebra/src/range_interpolation", "compile"),
-        ("runtime/sumcheck-v2/src", "compile"),
-        ("runtime/zk-v2/src", "compile"),
-        ("runtime/polygero/src/prover_commitment.rs", "compile"),
-        ("runtime/polygero/src", "compile"),
+        ("runtime/v2/sumcheck-v2/src", "compile"),
+        ("runtime/v2/zk-v2/src", "compile"),
+        ("runtime/v2/polygero/src/prover_commitment.rs", "compile"),
+        ("runtime/v2/polygero/src", "compile"),
         ("compile/algebra/src/fp24_ext6.rs", "runtime"),
         ("compile/compiler/src/v1", "runtime"),
         ("compile/compiler/src/v2", "runtime"),
@@ -805,12 +1031,18 @@ fn test_phase_boundaries() {
 fn test_polygero_protocol_and_phase_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for (relative_path, forbidden) in [
-        ("runtime/polygero/src", "runtime::ligero_v1"),
-        ("runtime/ligero-v1/src", "runtime::polygero"),
-        ("runtime/proto/src/polygero.rs", "runtime::proto::ligero_v1"),
-        ("runtime/proto/src/ligero_v1.rs", "runtime::proto::polygero"),
-        ("runtime/proto/src/zk_v2.rs", "runtime::proto::ligero_v1"),
-        ("runtime/zk-v2/src", "runtime::ligero_v1"),
+        ("runtime/v2/polygero/src", "runtime::v1::ligero_v1"),
+        ("runtime/v1/ligero-v1/src", "runtime::v2::polygero"),
+        (
+            "runtime/v2/proto/src/polygero.rs",
+            "runtime::proto::ligero_v1",
+        ),
+        (
+            "runtime/v1/proto/src/ligero_v1.rs",
+            "runtime::proto::polygero",
+        ),
+        ("runtime/v2/proto/src/zk_v2.rs", "runtime::proto::ligero_v1"),
+        ("runtime/v2/zk-v2/src", "runtime::v1::ligero_v1"),
     ] {
         let path = root.join(relative_path);
         let mut files = Vec::new();
@@ -1008,7 +1240,7 @@ fn test_polygero_compiler_boundaries() {
             assert!(
                 matches!(
                     dependency.as_str(),
-                    "compile::polygero" | "core::algebra" | "runtime::proto"
+                    "compile::polygero" | "core::algebra" | "runtime::proto" | "runtime::v2::proto"
                 ),
                 "Parameter selection dependency in {}: {dependency}",
                 file.display()
@@ -1095,7 +1327,7 @@ fn test_development_provider_boundaries() {
 /// Sumcheck v2 has separate proving and derivation paths, with private tests.
 #[test]
 fn test_sumcheck_v2_source_layout_and_test_privacy() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/sumcheck-v2");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/v2/sumcheck-v2");
     for (subdirectory, expected_files) in [
         (
             "src",
@@ -1159,7 +1391,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
 /// Polygero owns only protocol code. Search policy and test bodies stay outside src.
 #[test]
 fn test_polygero_source_layout_and_test_privacy() {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/polygero/src");
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/v2/polygero/src");
     let mut files = Vec::new();
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = [
@@ -1207,7 +1439,7 @@ fn test_polygero_source_layout_and_test_privacy() {
 /// ZK v2 keeps role orchestration separate and its compiler tests outside src.
 #[test]
 fn test_zk_v2_source_layout_and_test_privacy() {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/zk-v2/src");
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/v2/zk-v2/src");
     let mut files = Vec::new();
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = [
@@ -1256,12 +1488,14 @@ fn test_packing_dependencies_and_role_separation() {
             &["core::algebra", "core::bits", "runtime::algebra"][..],
         ),
         (
-            "runtime/dual-packing/src",
+            "runtime/v2/dual-packing/src",
             &[
                 "core::algebra",
                 "runtime::algebra",
                 "runtime::random",
                 "runtime::proto",
+                "runtime::v2::proto",
+                "runtime::v2::transcript_v2",
             ][..],
         ),
     ] {
@@ -1298,7 +1532,7 @@ fn test_v1_test_layout_and_privacy() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for module in ["sumcheck-v1", "ligero-v1", "zk-v1"] {
         let mut files = Vec::new();
-        collect_rs_files(&root.join(format!("runtime/{module}/src")), &mut files);
+        collect_rs_files(&root.join(format!("runtime/v1/{module}/src")), &mut files);
         for file in files {
             let source = fs::read_to_string(&file).unwrap();
             assert!(
@@ -1313,7 +1547,7 @@ fn test_v1_test_layout_and_privacy() {
             );
         }
     }
-    let directory = root.join("runtime/zk-v1/tests");
+    let directory = root.join("runtime/v1/zk-v1/tests");
     let mut files = Vec::new();
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = ["constraint_compiler.rs", "prover.rs", "zk.rs"]
@@ -1334,14 +1568,25 @@ fn test_v1_v2_implementation_isolation() {
             format!("applications/mdoc_zk/runtime/src/{version}"),
             format!("compile/compiler/src/{version}"),
             format!("core/proto/src/{version}"),
-            format!("runtime/sumcheck-{version}/src"),
-            format!("runtime/zk-{version}/src"),
+            format!("runtime/{version}/sumcheck-{version}/src"),
+            format!("runtime/{version}/zk-{version}/src"),
         ] {
             collect_rs_files(&root.join(directory), &mut files);
         }
         for name in ["sumcheck", "zk"] {
-            files.push(root.join(format!("runtime/proto/src/{name}_{version}.rs")));
+            files.push(root.join(format!("runtime/{version}/proto/src/{name}_{version}.rs")));
         }
+        let runtime = root.join(format!("runtime/{version}"));
+        let mut all_runtime = Vec::new();
+        collect_rs_files(&runtime, &mut all_runtime);
+        files.extend(all_runtime.into_iter().filter(|file| {
+            file.parent() == Some(runtime.as_path())
+                || file
+                    .strip_prefix(&runtime)
+                    .unwrap()
+                    .components()
+                    .any(|part| part.as_os_str() == "src")
+        }));
         let forbidden = [
             opposite.to_owned(),
             format!("sumcheck_{opposite}"),
@@ -1464,7 +1709,7 @@ fn test_hahn_certificate_sources() {
             protocol.join("TunedProfiles.lean"),
         ])
     );
-    assert!(!root.join("runtime/polygero/theory").exists());
+    assert!(!root.join("runtime/v2/polygero/theory").exists());
     let bridge = fs::read_to_string(protocol.join("PolygeroRustHahn.lean")).unwrap();
     assert!(bridge
         .lines()
@@ -1495,9 +1740,9 @@ fn test_v2_excludes_legacy_subfield_interfaces() {
         "compile/compiler/src/v2",
         "compile/polygero/src",
         "core/proto/src/v2",
-        "runtime/sumcheck-v2/src",
-        "runtime/zk-v2/src",
-        "runtime/polygero/src",
+        "runtime/v2/sumcheck-v2/src",
+        "runtime/v2/zk-v2/src",
+        "runtime/v2/polygero/src",
         "applications/mdoc_zk/compile/src",
         "applications/mdoc_zk/runtime/src/v2",
     ] {
@@ -1508,9 +1753,9 @@ fn test_v2_excludes_legacy_subfield_interfaces() {
         "core/proto/src/v2/reader/lfc3.rs",
         "core/proto/src/v2/writer/lfc3.rs",
         "compile/compiler/src/v2_segment.rs",
-        "runtime/proto/src/polygero.rs",
-        "runtime/proto/src/zk_v2.rs",
-        "runtime/proto/src/sumcheck_v2.rs",
+        "runtime/v2/proto/src/polygero.rs",
+        "runtime/v2/proto/src/zk_v2.rs",
+        "runtime/v2/proto/src/sumcheck_v2.rs",
         "applications/mdoc_zk/development_provider/src/next_v2.rs",
     ] {
         files.push(root.join(file));
@@ -1595,12 +1840,12 @@ fn test_shared_primitives_exclude_versioned_capabilities() {
 fn test_v2_transcript_and_final_seal_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     for directory in [
-        "runtime/sumcheck-v2/src",
-        "runtime/zk-v2/src",
-        "runtime/polygero/src",
-        "runtime/dual-packing/src",
-        "runtime/witness-selection/src",
-        "runtime/zk-v2/src/row_batching",
+        "runtime/v2/sumcheck-v2/src",
+        "runtime/v2/zk-v2/src",
+        "runtime/v2/polygero/src",
+        "runtime/v2/dual-packing/src",
+        "runtime/v2/witness-selection/src",
+        "runtime/v2/zk-v2/src/row_batching",
         "applications/mdoc_zk/runtime/src/v2",
         "applications/mdoc_zk/runtime/src/v2/adapter",
     ] {
@@ -1611,25 +1856,25 @@ fn test_v2_transcript_and_final_seal_boundaries() {
     }
     let mut files = Vec::new();
     for directory in [
-        "runtime/sumcheck-v2/src",
-        "runtime/zk-v2/src",
-        "runtime/polygero/src",
-        "runtime/dual-packing/src",
-        "runtime/witness-selection/src",
+        "runtime/v2/sumcheck-v2/src",
+        "runtime/v2/zk-v2/src",
+        "runtime/v2/polygero/src",
+        "runtime/v2/dual-packing/src",
+        "runtime/v2/witness-selection/src",
         "applications/mdoc_zk/runtime/src/v2",
         "applications/mdoc_zk/circuits/src/p256_adapter",
     ] {
         collect_rs_files(&root.join(directory), &mut files);
     }
-    files.push(root.join("runtime/proto/src/zk_v2.rs"));
+    files.push(root.join("runtime/v2/proto/src/zk_v2.rs"));
     let codecs = [
-        "runtime/polygero/src/joint.rs",
-        "runtime/proto/src/zk_v2.rs",
+        "runtime/v2/polygero/src/joint.rs",
+        "runtime/v2/proto/src/zk_v2.rs",
         "applications/mdoc_zk/runtime/src/v2/proto.rs",
     ];
     let verifiers = [
-        "runtime/polygero/src/verifier.rs",
-        "runtime/zk-v2/src/verifier.rs",
+        "runtime/v2/polygero/src/verifier.rs",
+        "runtime/v2/zk-v2/src/verifier.rs",
         "applications/mdoc_zk/runtime/src/v2/verifier.rs",
     ];
     for file in files {
@@ -1680,7 +1925,7 @@ fn test_v2_transcript_and_final_seal_boundaries() {
 /// code. Its shared module contains no role orchestration or inline tests.
 #[test]
 fn test_witness_selection_protocol_boundaries() {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/witness-selection/src");
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/v2/witness-selection/src");
     let mut files = Vec::new();
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = ["lib.rs", "prover.rs", "verifier.rs", "transcript.rs"]
@@ -1697,11 +1942,13 @@ fn test_witness_selection_protocol_boundaries() {
             assert!(
                 matches!(
                     dependency.as_str(),
-                    "runtime::witness_selection"
-                        | "runtime::polygero"
+                    "runtime::v2::witness_selection"
+                        | "runtime::v2::polygero"
                         | "runtime::algebra"
                         | "runtime::proto"
                         | "runtime::random"
+                        | "runtime::v2::proto"
+                        | "runtime::v2::transcript_v2"
                         | "core::algebra"
                 ),
                 "witness selection dependency {dependency}"

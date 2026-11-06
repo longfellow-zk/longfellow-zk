@@ -28,10 +28,7 @@ use crate::{
         fp24::{add_base, invert_base, mul_base, sub_base, Q},
         AlgebraicField, BareField, SupportsU64Conversions,
     },
-    runtime::algebra::{
-        fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, EXTENSION_DEGREE},
-        SubfieldV1,
-    },
+    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, EXTENSION_DEGREE},
 };
 
 /// Experimental interpolation using exact componentwise CRT convolution.
@@ -161,7 +158,7 @@ impl CrtInterpolationPlan {
     }
 
     /// Apply independent exact convolutions to the requested extension components.
-    fn apply_components(
+    pub(in crate::runtime) fn apply_components(
         &self,
         source: &[RuntimeElement],
         components: usize,
@@ -190,26 +187,6 @@ impl CrtInterpolationPlan {
 impl InterpolationPlan<3, RuntimeFp24Ext6> for CrtInterpolationPlan {
     fn apply(&self, source: &[RuntimeElement]) -> Vec<RuntimeElement> {
         self.apply_components(source, EXTENSION_DEGREE)
-    }
-}
-impl crate::runtime::algebra::subfield_v1::InterpolationPlanV1<3, RuntimeFp24Ext6>
-    for CrtInterpolationPlan
-{
-    fn apply_subfield_v1<SF: SubfieldV1<E = RuntimeElement>>(
-        &self,
-        source: &[RuntimeElement],
-        sf: &SF,
-    ) -> Vec<RuntimeElement> {
-        if sf.serialized_size_bytes() != 3 {
-            return self.apply(source);
-        }
-        assert!(
-            source
-                .iter()
-                .all(|x| x.coefficients()[1..].iter().all(|&c| c == 0)),
-            "invalid base-subfield interpolation hint"
-        );
-        self.apply_components(source, 1)
     }
 }
 impl RangeInterpolatorFactory<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {
