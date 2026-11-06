@@ -2,14 +2,16 @@
 //! Authenticate the shared columns, then check each field's equations.
 use sha2::Digest as _;
 
-use super::{ensure, hash, joint::*, PolygeroCommitment, PolygeroError, PolygeroParam};
+use super::{
+    constraints, ensure, hash, joint::*, PolygeroCommitment, PolygeroError, PolygeroParam,
+};
 use crate::runtime::{
     algebra::{
         blas, range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
         RuntimeField,
     },
     proto::Digest,
-    random::Transcript,
+    random::transcript_v2::Transcript,
 };
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {
@@ -41,7 +43,20 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         self.param.receive(root, t);
         self.commitment = Some(root.clone());
     }
+    /// Complete standalone verification, including the mandatory final seal.
     pub fn verify(
+        &self,
+        root: &PolygeroCommitment,
+        proof: crate::runtime::random::transcript_v2::Unverified<'_, JointPolygeroProof<L::Bodies>>,
+        s: &L::Statements,
+        mut transcript: Transcript,
+    ) -> Result<crate::runtime::random::transcript_v2::VerifiedProof, PolygeroError> {
+        self.reduce(root, &proof, s, &mut transcript)?;
+        proof
+            .checked(transcript)
+            .map_err(|e| PolygeroError(e.into()))
+    }
+    pub(crate) fn reduce(
         &self,
         root: &PolygeroCommitment,
         proof: &JointPolygeroProof<L::Bodies>,
@@ -168,4 +183,32 @@ pub(super) fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDo
 pub(super) fn opened_row<'a, E>(param: &PolygeroParam, rows: &'a [E], row: usize) -> &'a [E] {
     let t = param.geom.t;
     &rows[row * t..(row + 1) * t]
+}
+
+/// Check one participant using the common opening positions and its own field.
+pub(super) fn check_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+    param: &PolygeroParam,
+    body: &FieldProof<F::E>,
+    statement: &LinearStatement<F::E>,
+    challenge: &FieldChallenges<F::E>,
+    indices: &[usize],
+    domain: &D,
+    f: &F,
+) -> Result<(), PolygeroError> {
+    verify_primary_response(
+        param,
+        &body.h,
+        indices,
+        &challenge.batching_samples,
+        &body.rows,
+        domain,
+        f,
+    )?;
+    let rows =
+        constraints::batch_constraints(param, &statement.b, &statement.a, &challenge.alpha, f);
+    let tau = blas::dot(&challenge.alpha, &statement.b, f);
+    verify_arithmetic(param, &body.z, indices, &rows, &body.rows, &tau, domain, f)?;
+    // Avoid retaining one dense matrix per participant during recursion.
+    drop(rows);
+    Ok(())
 }

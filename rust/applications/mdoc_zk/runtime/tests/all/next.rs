@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[..4], b"MDA4");
+    assert_eq!(&zkproof[..4], b"MDA6");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -861,7 +861,7 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
             doc_type,
             &extended
         ),
-        Err(crate::mdoc::v2::MdocVerifierErrorCode::GeneralFailure),
+        Err(crate::mdoc::v2::MdocVerifierErrorCode::HashParsingFailure),
         "Verifier should reject proof with trailing garbage"
     );
 }
@@ -1037,7 +1037,7 @@ fn test_all_next_zk() {
     run_namespace_mixup(&test_circuits);
 }
 
-/// Check the development parameters against the rate-1/7 selector.
+/// Check the shared development profile and its compiled circuit geometry.
 fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8]) {
     use crate::runtime::algebra::{
         fp2::Fp2Field,
@@ -1060,10 +1060,10 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
     );
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f, false).unwrap();
     let expected = crate::runtime::proto::polygero::PolygeroConfig {
-        k: 384,
-        s: 13,
-        n: 2560,
-        t: 87,
+        k: 349,
+        s: 12,
+        n: 2443,
+        t: 84,
     };
     assert_eq!(spec.configs(), (expected, expected));
     assert!(expected.can_interpolate(&d));

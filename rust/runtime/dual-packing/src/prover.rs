@@ -7,7 +7,7 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::packing::{AmbientElement as E, BaseElement, PackingExtension, PackingParameters},
-        random::Transcript,
+        random::transcript_v2::Transcript,
     },
 };
 impl<E: Clone> PackingMasks<E> {
@@ -40,7 +40,7 @@ pub fn prove<X: PackingExtension>(
     masks: PackingMasks<E<X>>,
     context: &[u8],
     ts: &mut Transcript,
-) -> Result<(PackingProof<E<X>>, Vec<NativeEquation<E<X>>>), String>
+) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
 where
     X::Ambient: SerializableField,
 {
@@ -62,7 +62,7 @@ pub fn prove_packed<X: PackingExtension>(
     masks: PackingMasks<E<X>>,
     context: &[u8],
     ts: &mut Transcript,
-) -> Result<(PackingProof<E<X>>, Vec<NativeEquation<E<X>>>), String>
+) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
 where
     X::Ambient: SerializableField,
 {

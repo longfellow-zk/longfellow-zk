@@ -54,7 +54,7 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
     ] {
         let p = proof(&g, &f);
         let bytes = write(&p, &g, &f).unwrap();
-        assert_eq!(&bytes[..4], b"JPG1");
+        assert_eq!(&bytes[..4], b"JPG2");
         let offset = 36 + (p.bodies.0.h.len() + p.bodies.0.z.len()) * 16;
         let expected = p
             .bodies
@@ -161,7 +161,7 @@ fn read<F: SerializableField>(
 
 #[test]
 fn oversized_opening_counts_reject_without_allocation() {
-    let mut bytes = b"JPG1".to_vec();
+    let mut bytes = b"JPG2".to_vec();
     bytes.extend_from_slice(&[0; 32]);
     for (t, n) in [(1 << 28, 1 << 28), (usize::MAX, usize::MAX), (0, 0)] {
         let result = JointPolygeroProof::<()>::read::<std::io::Error>(

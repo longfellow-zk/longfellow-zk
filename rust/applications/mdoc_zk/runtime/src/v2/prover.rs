@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Shared-root mdoc prover with a packed binary circuit and a native P256 circuit.
+//! Shared-root mdoc prover with a packed binary circuit and a prime P256 circuit.
 
 use super::{
-    adapter::{BinaryParticipant, SharedParticipant},
+    adapter::{transcript as adapter, BinaryParticipant, SharedParticipant},
     inputs::{
         public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash, push_witness_sig,
     },
@@ -24,10 +24,7 @@ use super::{
 use crate::{
     core::algebra::SerializableField,
     mdoc::{
-        circuits::{
-            cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
-            p256_adapter::runtime as adapter,
-        },
+        circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
         runtime::v2::{
             attribute::{circuit_supports, same_namespace},
             key::parse_pk_coordinate,
@@ -44,7 +41,7 @@ use crate::{
             secp256r1::Secp256r1,
             SupportsFFT,
         },
-        random::{RandomEngine, Transcript},
+        random::RandomEngine,
         zk_v2::ZkContext,
     },
 };
@@ -114,14 +111,12 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         parse_pk_coordinate(pky, &p256).map_err(|_| MdocProverErrorCode::InvalidInput)?,
     );
 
-    let plan = crate::mdoc::circuits::p256_adapter::runtime::plan();
+    let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
     let mask = rng.elt_field(&p256);
     let mask_bytes = p256.to_bytes(&mask);
     let otp = rng.bytes(plan.advice_bytes());
 
-    let mut tp = Transcript::new(transcript);
-    tp.write_bytes(b"mdoc/adapter/statement/v1");
-    tp.write_bytes(&zk_spec.combined_hash);
+    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
     let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -168,9 +163,14 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
 
     let prover_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let prover_sig = SharedParticipant::new(&c_sig, adapter::SHARED_BITS, config_sig, &context_sig)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let param = crate::runtime::polygero::JointPolygeroParam::new((
+    let prover_sig = SharedParticipant::new(
+        &c_sig,
+        crate::mdoc::circuits::p256_adapter::SHARED_BITS,
+        config_sig,
+        &context_sig,
+    )
+    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let param = crate::runtime::zk_v2::joint::JointParam::new((
         prover_hash
             .participant(&context_hash)
             .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
@@ -182,7 +182,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         ),
     ))
     .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    tp.write_bytes(&app_public.iter().map(|&b| u8::from(b)).collect::<Vec<_>>());
+    super::transcript::bind_public_inputs(&mut tp, &app_public);
     prover_hash.bind(&mut tp);
     prover_sig.bind(&mut tp);
     let (state_hash, w_hash) = prover_hash
@@ -191,13 +191,9 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let (state_sig, w_sig) = prover_sig
         .prepare(&c_sig, witness_sig, mask, rng, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let (joint, root) = crate::runtime::polygero::JointPolygeroProver::commit(
-        &param,
-        (w_hash, (w_sig, ())),
-        &mut tp,
-        rng,
-    )
-    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let (joint, root, fingerprints) = param
+        .commit((w_hash, (w_sig, ())), &mut tp, rng)
+        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let sig_pub_inputs = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
     let reduced = prover_sig
         .reduce(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &p256)
@@ -235,17 +231,18 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         )
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let statement_sig = prover_sig
-        .finish(reduced.claim, &e, &mu, &mut tp, &p256)
+        .finish(reduced.claim, &e, &mu, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let proof_sig = crate::runtime::proto::zk_v2::CircuitProof {
         sumcheck_proof: reduced.proof,
         packing: crate::runtime::proto::dual_packing::PackingProof::Direct,
     };
     let proof = joint
-        .prove(&param, &(statement_hash, (statement_sig, ())), &mut tp)
+        .prove(&param, (statement_hash, (statement_sig, ())), &mut tp)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     super::proto::MdocProof {
         commitment: root,
+        fingerprints,
         mu,
         masked,
         proof_hash,
@@ -261,6 +258,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         },
         &gf2,
         &p256,
+        tp,
     )
+    .map(|p| p.into_bytes())
     .map_err(|_| MdocProverErrorCode::GeneralFailure)
 }

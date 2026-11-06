@@ -72,7 +72,7 @@ where
             samples: 0,
         };
         let mut ts = Transcript::new(b"rejected-mask-test");
-        let mut original = ts.clone();
+        let mut original = ts.fork_for_test();
         assert!(JointPolygeroProver::commit(
             &JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap(),
             (invalid, ()),
@@ -148,7 +148,10 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
                 .iter()
                 .any(|value| *value != field.zero() && *value != field.one())
         );
-        let bytes = joint.write(&proof).unwrap();
+        let bytes = joint
+            .write(&proof, prover_ts.fork_for_test())
+            .unwrap()
+            .into_bytes();
         let mut input = bytes.as_slice();
         let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
@@ -156,7 +159,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let mut verifier = JointPolygeroVerifier::new(joint);
         verifier.receive_commitment(&commitment, &mut verifier_ts);
         verifier
-            .verify(
+            .reduce(
                 &commitment,
                 &decoded,
                 &(linear(&[], &[], statement), ()),

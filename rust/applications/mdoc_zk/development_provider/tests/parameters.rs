@@ -1,10 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Exact numerical charges for the shared mdoc profile. This checks parameter
-//! arithmetic; it does not extend the earlier full application Lean certificate.
+//! Exact charges for the shared mdoc profile. The Hahn family bounds are
+//! kernel-checked in Current/Parameters/Rate7.lean; these checks keep their
+//! geometry and complete shared-query budgets aligned with the provider.
 use num_bigint::BigUint;
 
 use super::NEXT_PARAMETERS;
-use crate::runtime::proto::polygero::PolygeroConfig;
 
 fn choose(n: usize, k: usize) -> BigUint {
     if k > n {
@@ -13,89 +13,59 @@ fn choose(n: usize, k: usize) -> BigUint {
     (0..k.min(n - k)).fold(1u32.into(), |x: BigUint, i| x * (n - i) / (i + 1))
 }
 
-/// The interleaved Johnson bound for agreement c and pairwise overlap d-1.
-/// These are analysis cutoffs, not parameters transmitted in the protocol.
-fn list_bound(n: usize, c: usize, d: usize) -> usize {
-    assert!(c <= n && d <= c);
-    let denominator = c * c - n * (d - 1);
-    assert!(denominator > 0);
-    n * (c - d + 1) / denominator
+fn natural(decimal: &[u8]) -> BigUint {
+    BigUint::parse_bytes(decimal, 10).unwrap()
 }
 
-fn rank_ok(p: PolygeroConfig) -> bool {
-    let q: BigUint = BigUint::from(1u32) << 128usize;
-    4u32 * choose(p.n, p.k + 2 * p.s + 1) <= q.pow(p.s as u32)
-}
-
-fn charges(p: PolygeroConfig) -> (BigUint, BigUint) {
-    let (hash_cutoff, native_cutoff, threshold) = (1015, 994, 1025);
+#[test]
+fn shared_profile_fits_one_query_budget() {
+    let p = NEXT_PARAMETERS;
+    assert_eq!((p.k, p.s, p.n, p.t), (349, 12, 2443, 84));
+    assert_eq!(p.n, 7 * p.k);
+    let (hash_cutoff, prime_cutoff, threshold) = (865, 863, 867);
     assert!(threshold >= (p.k + 2 * p.s + 1).max(2 * p.k + p.s));
-    let hash_candidates = list_bound(p.n, hash_cutoff, p.k);
-    let native_candidates = list_bound(p.n, native_cutoff, p.k);
-    let capacity = list_bound(p.n, threshold, p.k + 2 * p.s);
-    assert_eq!(
-        (hash_candidates, native_candidates, capacity),
-        (32, 207, 439)
-    );
+    let hash_candidates = natural(b"21898356682154715916");
+    let prime_candidates = natural(b"451457457136012100305");
+    let capacity = natural(b"1272737905242889781956743699885451");
     let q: BigUint = BigUint::from(1u32) << 128usize;
+    let prime_order = (BigUint::from(1u32) << 256usize) - (BigUint::from(1u32) << 224usize)
+        + (BigUint::from(1u32) << 192usize)
+        + (BigUint::from(1u32) << 96usize)
+        - 1u32;
     let denominator = choose(p.n, p.t);
-    let query_units = |cutoff: usize| -> BigUint {
-        let numerator = &q * choose((threshold - 1).max(cutoff + p.s - 1), p.t);
-        (numerator + &denominator - 1u32) / &denominator
-    };
-    // One query set serves both fields. A union bound adds these tails; neither
-    // independence nor the smaller of the two failure probabilities is used.
-    let shared_query = query_units(hash_cutoff) + query_units(native_cutoff);
-    let coefficient = shared_query
-        .clone()
-        .max(BigUint::from(capacity + 1))
-        .max(BigUint::from(2 * hash_candidates + 1))
-        + 1u32;
-    // Binary frontend: at most 593 ordinary units, 20 nonzero terminal scales,
-    // and one packing check. 2*20*q/(q-1)<41 gives 635 units per candidate.
-    // One further unit covers the P256 terms, even after multiplying by the
-    // two committed-list sizes, and the two-rescaling conversion error.
-    let constant = BigUint::from(635 * hash_candidates + capacity + 1) + shared_query + 1u32;
-    // The native candidate family and all native challenges use q>=2^255.
-    // Their conservative 2^24/q charge is less than one binary-field unit.
-    assert!(hash_candidates * native_candidates < 1 << 14);
-    assert!(2 * hash_candidates * native_candidates * (593 + 40 + 4) < 1 << 24);
-    assert!((BigUint::from(1u32) << 25) * &q < (BigUint::from(1u32) << 255));
-    // For fixed false source bits, the integer difference after one scaling
-    // lies in an interval of length at most 2048*p. Its multiples of 2^128-1
-    // give a per-scaling bound below 8192/(2^128-1). The two scalings form one
-    // challenge block: no message is sent between them. Their squared bound,
-    // unioned over both committed lists, consumes less than half a field unit.
+    let active = choose(threshold - 1, p.t);
+    let overlap = choose(p.k + 2 * p.s - 1, p.t);
+    assert!(capacity <= q);
+    // The u=1 discrete threshold condition for the actual active family.
+    assert!(&capacity * overlap <= 2u32 * &active);
+
+    // One shared opening pays one active threshold and both outside-list tails.
+    let tails = &active + choose(hash_cutoff + p.s - 1, p.t) + choose(prime_cutoff + p.s - 1, p.t);
+    assert!(1_000_000u32 * &q * tails <= 1_999_999u32 * &denominator);
+
+    // The parent pays both rank terms and one joint active-family mass.
+    // Clear denominators after scaling the complete charge by q.
+    let rank_rows = choose(p.n, p.k + 2 * p.s + 1);
+    let q_rank = q.pow(p.s as u32);
+    let prime_rank = prime_order.pow((p.s + 1) as u32);
+    let mass = &denominator + (&capacity - 1u32) * &active;
+    let parent_denominator = &q_rank * &prime_rank * &prime_order * &denominator;
+    let parent_numerator = &rank_rows * &prime_rank * &prime_order * &denominator
+        + &q * &rank_rows * &q_rank * &prime_order * &denominator
+        + (&prime_order + &q) * mass * &q_rank * &prime_rank;
+    assert!(1_000_000u32 * parent_numerator <= 1_999_999u32 * parent_denominator);
+
+    // These large committed-list caps spend part of the fingerprint role's
+    // leading budget. They are not an efficient candidate-enumeration claim.
+    let q_squared = q.pow(2);
+    let native_squared = prime_order.pow(2);
+    let fingerprint_numerator = &hash_candidates * (&hash_candidates - 1u32) * &native_squared
+        + &prime_candidates * (&prime_candidates - 1u32) * &q_squared;
+    let fingerprint_denominator = 2u32 * &q_squared * &native_squared;
+    assert!((&q - 1u32) * fingerprint_numerator <= 2u32 * fingerprint_denominator);
+    assert!(p.t > 0 && 2 * p.t < p.k);
+    // Keep the formal adapter's 1024-bit source and 10-bit quotient bounds
+    // tied to the circuit plan used by the development provider.
     let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
     assert_eq!((plan.bits, plan.quotient_bits), (1024, 10));
-    let group_order = &q - 1u32;
-    let conversion = BigUint::from(hash_candidates * native_candidates) << 26usize;
-    assert!(2u32 * &q * conversion < &group_order * &group_order);
-    (coefficient, constant)
-}
-
-#[test]
-fn shared_profile_retains_the_work_normalized_numerical_budget() {
-    assert!(NEXT_PARAMETERS.t > 0 && 2 * NEXT_PARAMETERS.t < NEXT_PARAMETERS.k);
-    assert!(rank_ok(NEXT_PARAMETERS));
-    let (coefficient, constant) = charges(NEXT_PARAMETERS);
-    assert_eq!(coefficient, 1918u32.into());
-    assert_eq!(constant, 22678u32.into());
-    // In units of 2^-128, a 116-bit work coefficient is 4096. With at least 8
-    // Merkle queries, the startup allowance is 9*4096. Strict slack covers the
-    // one-tree SHA256 term for n <= 8192 and at most 1204 protocol slots.
-    assert!(coefficient < 4096u32.into());
-    assert!(coefficient + constant < (9u32 * 4096 - 1).into());
-    assert!(2 * NEXT_PARAMETERS.n <= 16384);
-}
-
-#[test]
-fn one_fewer_query_or_masking_degree_exceeds_the_budget() {
-    let mut p = NEXT_PARAMETERS;
-    p.t -= 1;
-    let (coefficient, constant) = charges(p);
-    assert!(coefficient >= 4096u32.into() || coefficient + constant >= (9u32 * 4096 - 1).into());
-    p = NEXT_PARAMETERS;
-    p.s -= 1;
-    assert!(!rank_ok(p));
 }

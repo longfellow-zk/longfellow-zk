@@ -7,10 +7,9 @@ use crate::runtime::{
         packing::{PackingExtension, PackingField, PackingParameters},
         ZkField,
     },
-    dual_packing::generic::{NativeEquation, SourceClaim},
+    dual_packing::generic::{FieldEquation, SourceClaim},
     polygero::PolygeroLinearTerm,
     proto::zk_v2::PackingLayout,
-    random::Transcript,
 };
 /// Backend handoff: one logical input claim and physical sumcheck linear rows.
 pub(crate) struct CommitmentStatement<E> {
@@ -32,24 +31,12 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             layout,
         })
     }
-    pub fn bind(&self, t: &mut Transcript, id: &[u8; 32])
-    where F: crate::core::algebra::SerializableField {
-        if self.layout.degree == 1 {
-            return;
-        }
-        t.write_bytes(b"longfellow/v2/packing-commitment/v1");
-        t.write_bytes(id);
-        t.write_bytes(&self.parameters.descriptor());
-        for n in [self.layout.private_inputs, self.layout.pad_cells] {
-            t.write_bytes(&(n as u64).to_le_bytes());
-        }
-    }
 }
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub fn authenticate<const W: usize>(
         &self,
         statement: CommitmentStatement<F::E>,
-        rows: &[NativeEquation<F::E>],
+        rows: &[FieldEquation<F::E>],
     ) -> Result<(Vec<PolygeroLinearTerm<F::E>>, Vec<F::E>), String>
     where
         F: ZkField<W>,
@@ -67,7 +54,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
                         .any(|(i, _)| *i >= self.layout.pad_cells)
             })
         {
-            return Err("packing native equation shape".into());
+            return Err("packing field equation shape".into());
         }
         let CommitmentStatement {
             claim,
@@ -103,5 +90,5 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         Ok((a, b))
     }
 }
-cfg_prover! { #[path="commitment_prover.rs"]mod prover;pub(crate) use prover::PackingState; }
-cfg_verifier! { #[path="commitment_verifier.rs"]mod verifier; }
+cfg_prover! { #[path="packing_commitment_prover.rs"]mod prover;pub(crate) use prover::PackingState; }
+cfg_verifier! { #[path="packing_commitment_verifier.rs"]mod verifier; }

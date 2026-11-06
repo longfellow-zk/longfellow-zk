@@ -23,7 +23,7 @@ use crate::{
             RuntimeField,
         },
         polygero::PolygeroConfig,
-        random::{RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, RandomEngine},
         zk_v2::{ZkProof, ZkProver, ZkVerifier},
     },
 };
@@ -184,8 +184,11 @@ fn test_zk_prover_verifier_end_to_end() {
         )
         .expect("Failed to prove");
     // 5. Serialize / deserialize proof roundtrip
-    let serialized = zkp.write(&geom, &f).expect("Failed to serialize ZkProof");
-    let mut verifier = ZkVerifier::new(
+    let serialized = zkp
+        .write(&geom, &f, ts_prover.fork_for_test())
+        .expect("Failed to serialize ZkProof")
+        .into_bytes();
+    let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -200,15 +203,14 @@ fn test_zk_prover_verifier_end_to_end() {
         ZkProof::read(&mut r_slice, &v_geom, &f).expect("Failed to deserialize ZkProof");
     assert!(r_slice.is_empty());
     assert_eq!(
-        zkp, deserialized,
+        zkp, *deserialized,
         "Deserialized proof is not equal to original proof!"
     );
 
     // 6. Verifier verify
     let mut ts_verifier = Transcript::new(b"test_zk");
-    verifier.receive_commitment(&deserialized, &mut ts_verifier);
 
-    let verify_res = verifier.verify(
+    let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &deserialized,
         &mut ts_verifier,
@@ -358,7 +360,10 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                         &context,
                     )
                     .unwrap();
-                let proof_bytes = proof.write(&geometry, &f).unwrap();
+                let proof_bytes = proof
+                    .write(&geometry, &f, prover_ts.fork_for_test())
+                    .unwrap()
+                    .into_bytes();
                 if let Some(expected) = &expected_proof {
                     assert_eq!(&proof_bytes, expected);
                 } else {
@@ -367,17 +372,16 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 // Proving must not change storage, segmentation, or ID.
                 assert_eq!(prover.circuit.id, native_id);
                 assert_eq!(native_writer.to_bytes(&prover.circuit), native_bytes);
-                let mut verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
+                let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
                 let verifier_geometry = verifier.geometry();
                 assert_eq!(geometry, verifier_geometry);
                 let mut remaining = proof_bytes.as_slice();
                 let decoded_proof = ZkProof::read(&mut remaining, &verifier_geometry, &f).unwrap();
                 assert!(remaining.is_empty());
-                assert_eq!(proof, decoded_proof);
+                assert_eq!(proof, *decoded_proof);
                 let mut verifier_ts = Transcript::new(b"lexicographic-zk");
-                verifier.receive_commitment(&decoded_proof, &mut verifier_ts);
                 verifier
-                    .verify(
+                    .reduce(
                         &witness_inputs[..1],
                         &decoded_proof,
                         &mut verifier_ts,
@@ -391,9 +395,8 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     let claims = &mut tampered_claim.sumcheck_proof.layers[0].claims;
                     f.add(&mut claims[slot], &f.one());
                     let mut bad_ts = Transcript::new(b"lexicographic-zk");
-                    verifier.receive_commitment(&tampered_claim, &mut bad_ts);
                     assert!(verifier
-                        .verify(&witness_inputs[..1], &tampered_claim, &mut bad_ts, &context)
+                        .reduce(&witness_inputs[..1], &tampered_claim, &mut bad_ts, &context)
                         .is_err());
                 }
                 // Reject either protocol's malformed messages before consuming
@@ -404,20 +407,18 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 bad_polygero.com_proof.bodies.0.h.pop();
                 for malformed in [&bad_sumcheck, &bad_polygero] {
                     let mut bad_ts = Transcript::new(b"lexicographic-zk");
-                    verifier.receive_commitment(malformed, &mut bad_ts);
-                    let mut unchanged = bad_ts.clone();
+                    let mut unchanged = bad_ts.fork_for_test();
                     assert!(verifier
-                        .verify(&witness_inputs[..1], malformed, &mut bad_ts, &context)
+                        .reduce(&witness_inputs[..1], malformed, &mut bad_ts, &context)
                         .is_err());
                     assert_eq!(bad_ts.bytes(64), unchanged.bytes(64));
                 }
-                let mut tampered = decoded_proof;
+                let mut tampered = (*decoded_proof).clone();
                 let value = &mut tampered.sumcheck_proof.layers[0].rounds[0].coefficients[0];
                 f.add(value, &f.one());
                 let mut bad_ts = Transcript::new(b"lexicographic-zk");
-                verifier.receive_commitment(&tampered, &mut bad_ts);
                 assert!(verifier
-                    .verify(&witness_inputs[..1], &tampered, &mut bad_ts, &context)
+                    .reduce(&witness_inputs[..1], &tampered, &mut bad_ts, &context)
                     .is_err());
             }
         }
@@ -480,7 +481,7 @@ fn test_zk_triple_zero_zero_zero() {
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
-    let mut verifier = ZkVerifier::new(
+    let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -490,9 +491,8 @@ fn test_zk_triple_zero_zero_zero() {
     )
     .unwrap();
     let mut ts_verifier = Transcript::new(b"test_zk_zero");
-    verifier.receive_commitment(&zkp, &mut ts_verifier);
 
-    let verify_res = verifier.verify(
+    let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &zkp,
         &mut ts_verifier,
@@ -623,7 +623,7 @@ fn test_zk_intermediate_zero_logw() {
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
-    let mut verifier = ZkVerifier::new(
+    let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
         &crate::runtime::zk_v2::ZkContext {
@@ -633,9 +633,8 @@ fn test_zk_intermediate_zero_logw() {
     )
     .unwrap();
     let mut ts_verifier = Transcript::new(b"test_zk_interm");
-    verifier.receive_commitment(&zkp, &mut ts_verifier);
 
-    let verify_res = verifier.verify(
+    let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &zkp,
         &mut ts_verifier,
@@ -726,7 +725,7 @@ fn test_zk_zero_layers() {
             );
             let zkp = prove_res.unwrap();
 
-            let mut verifier = ZkVerifier::new(
+            let verifier = ZkVerifier::new(
                 prover_inst.circuit,
                 config,
                 &crate::runtime::zk_v2::ZkContext {
@@ -736,9 +735,8 @@ fn test_zk_zero_layers() {
             )
             .unwrap();
             let mut ts_verifier = Transcript::new(b"test_zk_zero_layers");
-            verifier.receive_commitment(&zkp, &mut ts_verifier);
 
-            let verify_res = verifier.verify(
+            let verify_res = verifier.reduce(
                 &w0[..2],
                 &zkp,
                 &mut ts_verifier,

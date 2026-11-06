@@ -8,7 +8,7 @@ use crate::{
     runtime::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
         polygero::PolygeroConfig,
-        random::{DeterministicRng, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng},
         zk_v2::ZkContext,
     },
 };
@@ -127,7 +127,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
         2 + part.geometry().sc_geom.pad_count().unwrap()
     );
     let mut tp = Transcript::new(b"native-rows");
-    let mut tv = tp.clone();
+    let mut tv = tp.fork_for_test();
     let reduction = part.reduce(&c, &[f.one()], state, &mut tp, &f).unwrap();
     let checked = part
         .reduce_verify(&c, &[f.one()], &reduction.proof, &mut tv, &f)
@@ -136,9 +136,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     assert_eq!(reduction.claim.target, checked.target);
     let eta = f.u64_to_element(19);
     let mu = reduction.masked_value(&eta, &f);
-    let statement = part
-        .finish(reduction.claim, &eta, &mu, &mut tp, &f)
-        .unwrap();
+    let statement = part.finish(reduction.claim, &eta, &mu, &f).unwrap();
     let residual = |a: &crate::runtime::polygero::LinearStatement<_>, w: &[_]| {
         let mut x = a.b[0];
         for t in &a.a {
@@ -163,6 +161,6 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
         .reduce_verify(&c, &[f.one()], &forged, &mut t, &f)
         .unwrap();
     let mu = f.addf(&f.mulf(&eta, &f.mulf(&claim.weights[0], &source)), &mask);
-    let statement = part.finish(claim, &eta, &mu, &mut t, &f).unwrap();
+    let statement = part.finish(claim, &eta, &mu, &f).unwrap();
     assert!(!f.is_zero(&residual(&statement, &witness)));
 }

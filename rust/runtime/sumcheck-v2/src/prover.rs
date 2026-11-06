@@ -52,7 +52,10 @@ use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        random::{RandomEngine, Transcript},
+        random::{
+            transcript_v2::{Reading, Transcript},
+            RandomEngine,
+        },
     },
 };
 
@@ -110,6 +113,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
     assert_eq!(witnesses.len(), schedule.layers.len());
     let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
     schedule.bind(circuits, t);
+    let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     let mut claim = f.zero();
     let mut proof_layers = Vec::with_capacity(pads.layers.len());
@@ -117,19 +121,12 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
     for ((stage, w), pp) in witnesses.into_iter().enumerate().zip(&pads.layers) {
         let layout = &schedule.layers[stage];
         assert_eq!(w.len(), layout.nw);
-        schedule.enter(circuits, &mut weights, stage, t, f);
-        let active: Vec<_> = layout
+        let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .map(|s| {
-                SplitFragment::new(
-                    s,
-                    layers[s.circuit].next().expect("scheduled fragment"),
-                    t,
-                    f,
-                )
-            })
+            .map(|s| SplitFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
             .collect();
+        schedule.start_layer(&mut weights, &mut active, stage, t, f);
         // Every fragment accumulates into its slice of one q_l. At the shared
         // input boundary those slices overlap intentionally, combining the gates.
         let mut q = vec![f.zero(); layout.nw];
@@ -146,7 +143,12 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
             );
         }
         let constant = fragments::constant(circuits, &weights, &active, f);
-        let (proof, mut c, mut next) = prove_dot_product(w, q, pp, f.subf(&claim, &constant), t, f);
+        let (proof, mut c, mut next) =
+            prove_dot_product(w, q, pp, f.subf(&claim, &constant), t, f, |r| {
+                if stage + 1 == schedule.layers.len() {
+                    input_assertions = schedule.input_assertions(circuits, r, f);
+                }
+            });
         let (next_weights, linear) = fragments::transition(
             circuits, &weights, &active, layout.nw, &c.point_l, &c.alpha, f,
         );
@@ -158,7 +160,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
         proof_layers.push(proof);
         challenges.push(c);
     }
-    schedule.enter(circuits, &mut weights, pads.layers.len(), t, f);
+    schedule.finish_inputs(circuits, &mut weights, input_assertions, t, f);
     let proof = SumcheckProof {
         layers: proof_layers,
     };
@@ -170,7 +172,8 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
 /// Each round binds one bit of `l` in both arrays; `point_l` is the final `u`.
 /// The final scalars A = W(u), B = q_l(u) must multiply to the last round claim.
 /// Return this layer's masked messages, sampled challenges, and the unmasked
-/// combined claim A + alpha*B for the next layer.
+/// combined claim A + alpha*B for the next layer. The caller may extend the
+/// same combine answer with input assertion coefficients, using only a reader.
 pub(super) fn prove_dot_product<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -181,6 +184,7 @@ pub(super) fn prove_dot_product<
     initial_claim: F::E,
     transcript: &mut Transcript,
     f: &F,
+    after_alpha: impl FnOnce(&mut Reading<'_>),
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
     let mut claim = initial_claim;
     let mut rounds = Vec::with_capacity(pads.rounds.len());
@@ -191,7 +195,17 @@ pub(super) fn prove_dot_product<
         rounds.push(m);
         point_l.push(z);
     }
-    finish_dot_product(&w, &q_l, pads, claim, rounds, point_l, transcript, f)
+    finish_dot_product(
+        &w,
+        &q_l,
+        pads,
+        claim,
+        rounds,
+        point_l,
+        transcript,
+        f,
+        after_alpha,
+    )
 }
 #[allow(clippy::too_many_arguments)]
 fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
@@ -203,6 +217,7 @@ fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + S
     point_l: Vec<F::E>,
     transcript: &mut Transcript,
     f: &F,
+    after_alpha: impl FnOnce(&mut Reading<'_>),
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
     let claims = [as_scalar::<W, F>(w), as_scalar::<W, F>(q_l)];
@@ -218,7 +233,7 @@ fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + S
     let mut masked = claims.clone();
     blas::axpy(&mut masked, &terminal, &pads.claims, f);
     // Bind both masked claims before drawing their combination challenge.
-    let alpha = end_layer(&masked, transcript, f);
+    let alpha = end_layer(&masked, transcript, f, after_alpha);
     claim = claims[0].clone();
     f.fma(&mut claim, &alpha, &claims[1]);
     (

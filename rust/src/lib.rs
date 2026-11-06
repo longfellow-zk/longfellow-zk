@@ -110,6 +110,9 @@ pub mod runtime {
     pub mod sumcheck_v1;
     #[path = "sumcheck-v2/src/lib.rs"]
     pub mod sumcheck_v2;
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    #[path = "witness-selection/src/lib.rs"]
+    pub mod witness_selection;
     #[path = "zk-v1/src/lib.rs"]
     pub mod zk_v1;
     #[path = "zk-v2/src/lib.rs"]
@@ -141,8 +144,6 @@ cfg_compiler! {
 pub mod circuits {
     #[path = "analog_decoder/src/lib.rs"]
     pub mod analog_decoder;
-    #[path = "bit_plucker/src/lib.rs"]
-    pub mod bit_plucker;
 
     cfg_prover_or_compiler! {
         #[path = "ec/src/lib.rs"]

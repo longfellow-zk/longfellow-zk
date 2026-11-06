@@ -56,19 +56,24 @@ impl PackingLayout {
         })
     }
 }
+/// Circuit reduction dimensions, independent of its enclosing participant list.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ZkProofGeometry {
+pub struct CircuitGeometry {
     pub sc_geom: SumcheckProofGeometry,
     pub com_geom: PolygeroGeometry,
-    /// Context for this circuit as a singleton participant. Joint applications
-    /// derive a separate ordered tuple context for their shared envelope.
-    pub com_context: super::Digest,
     pub packing_degree: usize,
+}
+/// Complete standalone proof geometry, including its selected joint commitment.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ZkProofGeometry {
+    pub circuit: CircuitGeometry,
+    pub joint_context: super::Digest,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkProof<const W: usize, F: SerializableField> {
     pub sumcheck_proof: SumcheckProof<W, F>,
     pub com: PolygeroCommitment,
+    pub fingerprints: super::witness_selection::FingerprintResponse<ElementOf<F>>,
     pub packing: PackingProof<ElementOf<F>>,
     pub com_proof: JointPolygeroProof<(FieldProof<ElementOf<F>>, ())>,
 }
@@ -83,7 +88,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         sumcheck: &SumcheckProof<W, F>,
         packing: &PackingProof<F::E>,
         buf: &mut Vec<u8>,
-        g: &ZkProofGeometry,
+        g: &CircuitGeometry,
         f: &F,
     ) -> std::io::Result<()> {
         use std::io::{Error, ErrorKind};
@@ -104,17 +109,17 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
     pub fn write_to_buf(
         &self,
         buf: &mut Vec<u8>,
-        g: &ZkProofGeometry,
+        g: &CircuitGeometry,
         f: &F,
     ) -> std::io::Result<()> {
         Self::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)
     }
-    pub fn write(&self, g: &ZkProofGeometry, f: &F) -> std::io::Result<Vec<u8>> {
+    pub fn write(&self, g: &CircuitGeometry, f: &F) -> std::io::Result<Vec<u8>> {
         let mut out = Vec::new();
         self.write_to_buf(&mut out, g, f)?;
         Ok(out)
     }
-    pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
+    pub fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
         let sumcheck_proof = SumcheckProof::read(b, &g.sc_geom, f)?;
         let packing = if g.packing_degree == 1 {
@@ -160,28 +165,37 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
     }
 }
 impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
-    pub fn write_to_buf(
+    fn write_body(&self, buf: &mut Vec<u8>, g: &ZkProofGeometry, f: &F) -> std::io::Result<()> {
+        buf.extend_from_slice(b"LFV9");
+        buf.extend_from_slice(&self.com.root.data);
+        self.fingerprints.write(buf, f);
+        CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, &g.circuit, f)?;
+        self.com_proof.write_to_buf(
+            buf,
+            &g.joint_context,
+            g.circuit.com_geom.t,
+            g.circuit.com_geom.n,
+            |b, out| b.0.write(out, &g.circuit.com_geom, f),
+        )
+    }
+    pub fn write(
         &self,
-        buf: &mut Vec<u8>,
         g: &ZkProofGeometry,
         f: &F,
-    ) -> std::io::Result<()> {
-        buf.extend_from_slice(b"LFV7");
-        buf.extend_from_slice(&self.com.root.data);
-        CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)?;
-        self.com_proof
-            .write_to_buf(buf, &g.com_context, g.com_geom.t, g.com_geom.n, |b, out| {
-                b.0.write(out, &g.com_geom, f)
-            })
-    }
-    pub fn write(&self, g: &ZkProofGeometry, f: &F) -> std::io::Result<Vec<u8>> {
+        transcript: crate::runtime::random::transcript_v2::Transcript,
+    ) -> std::io::Result<crate::runtime::random::transcript_v2::EncodedProof> {
         let mut b = Vec::new();
-        self.write_to_buf(&mut b, g, f)?;
-        Ok(b)
+        self.write_body(&mut b, g, f)?;
+        Ok(transcript.append_final_seal(b))
     }
-    pub fn read(b: &mut &[u8], g: &ZkProofGeometry, f: &F) -> std::io::Result<Self> {
+    pub fn read<'a>(
+        b: &mut &'a [u8],
+        g: &ZkProofGeometry,
+        f: &F,
+    ) -> std::io::Result<crate::runtime::random::transcript_v2::Unverified<'a, Self>> {
+        let input = *b;
         use std::io::{Error, ErrorKind};
-        if b.get(..4) != Some(b"LFV7") {
+        if b.get(..4) != Some(b"LFV9") {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "Longfellow v2 version marker",
@@ -193,23 +207,26 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
                 data: super::util::read_bytes_32(b)?,
             },
         };
+        let fingerprints = super::witness_selection::FingerprintResponse::read(b, f)?;
         let CircuitProof {
             sumcheck_proof,
             packing,
-        } = CircuitProof::read(b, g, f)?;
+        } = CircuitProof::read(b, &g.circuit, f)?;
         let com_proof = JointPolygeroProof::read::<std::io::Error>(
             b,
-            &g.com_context,
-            g.com_geom.t,
-            g.com_geom.n,
-            |b| Ok((FieldProof::read(b, &g.com_geom, f)?, ())),
+            &g.joint_context,
+            g.circuit.com_geom.t,
+            g.circuit.com_geom.n,
+            |b| Ok((FieldProof::read(b, &g.circuit.com_geom, f)?, ())),
         )?;
-        Ok(Self {
+        let body = Self {
             sumcheck_proof,
             com,
+            fingerprints,
             packing,
             com_proof,
-        })
+        };
+        crate::runtime::random::transcript_v2::Unverified::decoded(body, input, b)
     }
 }
 pub fn packing_layout<F: SerializableField + PackingField>(
@@ -243,5 +260,11 @@ pub fn commitment_layout<F: SerializableField + PackingField>(
     f: &F,
 ) -> (SumcheckProofGeometry, usize) {
     let (layout, geometry) = packing_layout(c, f).expect("valid commitment layout");
-    (geometry, layout.witness_count)
+    (
+        geometry,
+        layout
+            .witness_count
+            .checked_add(super::witness_selection::FINGERPRINTS)
+            .expect("valid selected commitment layout"),
+    )
 }

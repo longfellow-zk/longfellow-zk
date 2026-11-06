@@ -42,7 +42,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
-        random::Transcript,
+        random::transcript_v2::Transcript,
         sumcheck_v2::{
             derive_constraints, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck,
         },

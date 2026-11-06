@@ -1,7 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::random::RandomEngine;
-impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
+impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
+    SharedParticipant<W, F>
+{
     pub fn prepare(
         &self,
         circuit: &Circuit<F>,
@@ -13,7 +15,7 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
         if circuit.id != self.id {
             return Err("shared circuit mismatch".into());
         }
-        let prepared = native_frontend::prepare(circuit, private, rng, f)?;
+        let prepared = prime_frontend::prepare(circuit, private, rng, f)?;
         let mut witness = prepared.values[self.shared..self.private].to_vec();
         witness.push(mask.clone());
         witness.extend_from_slice(&prepared.values[self.private..]);
@@ -40,7 +42,7 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
             return Err("shared state ownership".into());
         }
         let values = state.prepared.values[..self.shared].to_vec();
-        let (proof, claim) = native_frontend::prove(circuit, public, state.prepared, t, f)?;
+        let (proof, claim) = prime_frontend::prove(circuit, public, state.prepared, t, f)?;
         Ok(SharedReduction {
             proof,
             claim,
@@ -51,7 +53,7 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
 }
 
 pub(in crate::mdoc::runtime::v2) struct SharedState<const W: usize, F: ZkField<W>> {
-    prepared: native_frontend::Prepared<W, F>,
+    prepared: prime_frontend::Prepared<W, F>,
     mask: F::E,
     shared: usize,
     id: [u8; 32],

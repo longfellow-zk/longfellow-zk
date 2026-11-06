@@ -67,14 +67,14 @@ pub(super) fn check_recommitted_wrong_witness<
     let commitment = PolygeroCommitment {
         root: forged.oracle.root(),
     };
-    let mut verifier_ts = ts.clone();
+    let mut verifier_ts = ts.fork_for_test();
     joint.receive(&commitment, &mut ts);
     let statements = (linear(a, b, *statement), ());
     let proof = forged.prove(joint, &statements, &mut ts).unwrap();
     let mut verifier = JointPolygeroVerifier::new(joint.clone());
     verifier.receive_commitment(&commitment, &mut verifier_ts);
     let error = verifier
-        .verify(&commitment, &proof, &statements, &mut verifier_ts)
+        .reduce(&commitment, &proof, &statements, &mut verifier_ts)
         .unwrap_err();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
     let _ = domain;
@@ -161,15 +161,11 @@ pub(super) fn check<
     };
     let mut verifier = JointPolygeroVerifier::new(joint.clone());
     verifier.receive_commitment(&commitment, &mut ts);
-    let mut verifier_ts = ts.clone();
+    let mut verifier_ts = ts.fork_for_test();
     let g = p.geom;
     let omega: Vec<_> = (0..g.k).map(|i| domain.point(i)).collect();
     let nodes: Vec<_> = p.oracle_range().map(|i| domain.point(i)).collect();
-    ts.write_bytes(b"polygero/joint/statements/v1");
-    joint.participants.bind_statements(&statements, &mut ts);
-    ts.write_bytes(b"polygero/joint/field-challenges/v1");
-    ts.write_bytes(&p.context.data);
-    let challenge = transcript::challenges(&mut ts, p, b.len(), statement, f);
+    let challenge = joint.challenges(&statements, &mut ts).0;
     let fstar = g.nrow() - 1;
     let rows: Vec<_> = prover
         .states
@@ -238,7 +234,7 @@ pub(super) fn check<
             .collect::<Vec<_>>()
     );
     // All committed rows are transmitted in row order at the sampled columns.
-    let indices = joint.queries(&envelope.bodies, &mut ts.clone());
+    let indices = joint.queries(&envelope.bodies, &mut ts.fork_for_test());
     assert_eq!(proof.rows.len(), g.nrow() * g.t);
     for row in 0..g.nrow() {
         for query in 0..indices.len() {
@@ -276,7 +272,7 @@ pub(super) fn check<
         opening: prover.oracle.open(&indices),
     };
     let error = verifier
-        .verify(&commitment, &forged, &statements, &mut verifier_ts)
+        .reduce(&commitment, &forged, &statements, &mut verifier_ts)
         .unwrap_err();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }

@@ -25,13 +25,16 @@
 //! the caller derives A and b, independently of their sparse representation.
 use sha2::{Digest as _, Sha256};
 
-use super::{PolygeroGeometry, PolygeroParam};
+use super::{
+    joint::{JointCommitmentContext, JointPolygeroParam, Participants, ReceivedCommitment},
+    PolygeroCommitment, PolygeroGeometry, PolygeroParam,
+};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::SupportsSampling,
-        proto::Digest,
-        random::{RandomEngine, Transcript},
+        proto::{polygero::FieldProof, Digest},
+        random::transcript_v2::{Reading, RoundLabel, Transcript, Writing},
     },
 };
 
@@ -43,20 +46,16 @@ pub struct Challenges<E> {
     /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
     pub(super) batching_samples: Vec<Vec<E>>,
 }
-/// Bind the source statement, then sample challenges for its compiled equations.
-/// The caller supplies the same digest to both roles and guarantees that A and b
-/// implement that statement. Term ordering and explicit zeros are not hashed.
+/// Sample after the joint binding pass has fixed every participant statement.
+/// A reading capability cannot absorb another message or open another round.
 pub(super) fn challenges<F: SupportsSampling + SerializableField>(
-    ts: &mut Transcript,
+    ts: &mut Reading<'_>,
     param: &PolygeroParam,
     nconstraints: usize,
-    statement: &Digest,
     f: &F,
 ) -> Challenges<F::E> {
     // Evaluation on any distinct s+1 points is a bijection on degree-at-most-s
     // polynomials, so oracle-prefix samples give the same uniform challenge.
-    ts.write_bytes(b"polygero/root/challenges/oracle-basis/v6");
-    ts.write_bytes(&statement.data);
 
     let alpha = ts.elt_field_slice(nconstraints, f);
     let batching_samples = param
@@ -80,5 +79,67 @@ pub(super) fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Diges
     }
     Digest {
         data: hash.finalize().into(),
+    }
+}
+
+// Tuple traversal lives in joint; all transcript framing and round transitions
+// live here, shared by both roles. Binding completes before squeezing begins.
+pub(super) fn bind_statement(
+    t: &mut Writing<'_>,
+    digest: &Digest,
+    context: &Digest,
+    nconstraints: usize,
+) {
+    t.write_bytes(&digest.data);
+    t.write_bytes(&context.data);
+    t.write_bytes(&(nconstraints as u64).to_le_bytes());
+}
+
+pub(super) fn bind_response<F: SerializableField>(
+    t: &mut Writing<'_>,
+    body: &FieldProof<F::E>,
+    f: &F,
+) {
+    t.write_elt_field_slice(&body.h, f);
+    t.write_elt_field_slice(&body.z, f);
+}
+
+impl<L: Participants> JointPolygeroParam<L> {
+    pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) {
+        self.commitment_context().receive(root, t);
+    }
+    pub(super) fn challenges(&self, s: &L::Statements, t: &mut Transcript) -> L::Challenges {
+        // Complete the binding pass first: a later field's statement must not
+        // be chosen after seeing an earlier field's batching challenges.
+        t.round(RoundLabel::Batching, |mut w| {
+            self.participants.bind_statements(s, &mut w);
+            let mut r = w.begin_squeeze();
+            let challenges = self.participants.challenges(s, &mut r);
+            r.end_round(challenges)
+        })
+    }
+    pub(super) fn queries(&self, b: &L::Bodies, t: &mut Transcript) -> Vec<usize> {
+        // Fix all H/Z responses before sampling the single shared query set.
+        // Sharing queries correlates the field checks; it does not merge them.
+        t.round(RoundLabel::Opening, |mut w| {
+            self.participants.bind_responses(b, &mut w);
+            let mut r = w.begin_squeeze();
+            let mut indices = vec![0; self.config.t];
+            r.choose(&mut indices, self.config.n, self.config.t);
+            r.end_round(indices)
+        })
+    }
+}
+impl JointCommitmentContext {
+    pub fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) -> ReceivedCommitment {
+        t.bind(|w| {
+            w.write_bytes(b"polygero/joint/root/v1");
+            w.write_bytes(&self.context.data);
+        });
+        t.bind(|w| w.write_bytes(&root.root.data));
+        ReceivedCommitment {
+            _context: self.context,
+            _root: root.clone(),
+        }
     }
 }

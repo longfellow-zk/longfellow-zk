@@ -4,7 +4,7 @@ use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
     dual_packing::generic::{PackingMasks, PackingProof},
     polygero::LinearStatement,
-    random::{RandomEngine, Transcript},
+    random::{transcript_v2::Transcript, RandomEngine},
 };
 pub(crate) struct PreparedInputs<E> {
     packed: Vec<E>,
@@ -73,9 +73,10 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         )?;
         drop(state.words);
         drop(state.suffix);
-        // This prefix binds the circuit, public inputs, sumcheck and packing
-        // messages from which both roles reconstruct the affine statement.
-        let digest = super::super::transcript::statement_digest(t);
+        // The continuing transcript already binds the public inputs, sumcheck
+        // and packing messages. The circuit ID identifies their source without
+        // introducing a query between the frontend and joint batching.
+        let digest = crate::runtime::proto::Digest { data: *id };
         let (a, b) = self.authenticate::<W>(statement, &rows)?;
         Ok((packing, LinearStatement { a, b, digest }))
     }

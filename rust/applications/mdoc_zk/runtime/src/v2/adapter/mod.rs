@@ -1,7 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Application composition of the native claim, binary trees and shared opening.
-mod native;
-pub(super) use native::SharedParticipant;
+//! Application composition of the prime claim, binary trees and shared opening.
+mod prime;
+pub(super) mod transcript;
+pub(super) use prime::SharedParticipant;
 mod binary;
 pub(super) use binary::BinaryParticipant;
 

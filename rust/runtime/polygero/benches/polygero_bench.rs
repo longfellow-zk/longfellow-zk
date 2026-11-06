@@ -21,7 +21,7 @@ use longfellow_zk::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
         polygero::*,
         proto::Digest,
-        random::{DeterministicRng, RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
     },
 };
 fn run<
@@ -50,7 +50,9 @@ fn run<
         .collect();
     // The public fixture recipe (backend, size, seed and generator version)
     // determines the benchmark statement independently of sparse term storage.
-    let mut fixture = Transcript::new(b"polygero/kernel/fixture/v1");
+    // Frozen fixture derivation, independent of the v2 protocol transcript.
+    let mut fixture =
+        longfellow_zk::runtime::random::Transcript::new(b"polygero/kernel/fixture/v1");
     fixture.write_bytes(name.as_bytes());
     fixture.write_bytes(&(nw as u64).to_le_bytes());
     fixture.write_bytes(&42u64.to_le_bytes());
@@ -79,7 +81,7 @@ fn run<
         let prove_start = Instant::now();
         let proof = prover.prove(&param, &statements, &mut ts).unwrap();
         let prove = prove_start.elapsed();
-        let bytes = param.write(&proof).unwrap();
+        let bytes = param.write(&proof, ts).unwrap().into_bytes();
         (com, bytes, commit, prove)
     };
     let verify_start = Instant::now();
@@ -88,7 +90,7 @@ fn run<
     let mut verifier = JointPolygeroVerifier::new(param);
     verifier.receive_commitment(&com, &mut verifier_ts);
     verifier
-        .verify(&com, &decoded_proof, &statements, &mut verifier_ts)
+        .verify(&com, decoded_proof, &statements, verifier_ts)
         .unwrap();
     let verify = verify_start.elapsed();
     eprintln!("{name}: config={config:?}, witnesses={nw}, preprocessing(two parties)={:.3} ms, commit={:.3} ms, prove={:.3} ms, decode+verify={:.3} ms, proof={} bytes",preprocessing.as_secs_f64()*1000.0,commit.as_secs_f64()*1000.0,prove.as_secs_f64()*1000.0,verify.as_secs_f64()*1000.0,bytes.len());

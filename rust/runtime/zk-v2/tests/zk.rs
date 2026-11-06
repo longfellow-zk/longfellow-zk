@@ -21,7 +21,7 @@ use crate::{
     runtime::{
         algebra::{EvaluationDomain, RangeInterpolatorFactory, RuntimeField, ZkField},
         polygero::PolygeroConfig,
-        random::{DeterministicRng, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng},
     },
 };
 
@@ -135,30 +135,68 @@ pub(crate) fn exercise<
     let mut tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
     let (committed, prover_geometry) = p.commit(&witness, &context, &mut tp, &mut rng).unwrap();
+    let source = crate::runtime::proto::zk_v2::packing_layout(&circuit(f), f)
+        .unwrap()
+        .0;
+    assert_eq!(
+        prover_geometry.circuit.com_geom.nw,
+        source.witness_count + 2
+    );
     let proof = p
         .prove(&public, witness.clone(), committed, &mut tp, &context)
         .unwrap();
-    let bytes = proof.write(&prover_geometry, f).unwrap();
-    assert_eq!(&bytes[..4], b"LFV7");
-    for old_marker in [b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
+    let bytes = proof
+        .write(&prover_geometry, f, tp.fork_for_test())
+        .unwrap()
+        .into_bytes();
+    assert_eq!(&bytes[..4], b"LFV9");
+    for old_marker in [b"LFV8", b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
         assert!(ZkProof::read(&mut obsolete.as_slice(), &prover_geometry, f).is_err());
     }
 
     // Independently reconstruct the circuit, geometry, and decoded verifier proof.
-    let mut v = ZkVerifier::new(circuit(f), config, &context).unwrap();
+    let v = ZkVerifier::new(circuit(f), config, &context).unwrap();
     let geometry = v.geometry();
+    assert_eq!(geometry, prover_geometry);
+    let mut wrong_context = geometry.clone();
+    wrong_context.joint_context.data[0] ^= 1;
+    assert!(ZkProof::read(&mut bytes.as_slice(), &wrong_context, f).is_err());
     let mut input = bytes.as_slice();
     let decoded = ZkProof::read(&mut input, &geometry, f).unwrap();
     assert!(input.is_empty());
-    let mut verify = |inputs: Vec<crate::runtime::zk_v2::CircuitInput<F>>,
-                      candidate: &ZkProof<W, F>| {
+    let complete = |encoded: &[u8]| -> Result<(), String> {
+        let parsed =
+            ZkProof::read(&mut encoded.as_ref(), &geometry, f).map_err(|e| e.to_string())?;
+        let session = Transcript::new(b"longfellow/v2/test");
+        let verifier = ZkVerifier::new(circuit(f), config, &context).map_err(|e| e.to_string())?;
+        verifier
+            .verify(&public, parsed, session, &context)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    };
+    complete(&bytes).unwrap();
+    for offset in [4, bytes.len() / 2, bytes.len() - 1] {
+        let mut changed = bytes.clone();
+        changed[offset] ^= 1;
+        assert!(complete(&changed).is_err());
+    }
+    assert!(complete(&bytes[..bytes.len() - 32]).is_err());
+    let mut trailing = bytes.clone();
+    trailing.push(0);
+    assert!(complete(&trailing).is_err());
+    let verify = |inputs: Vec<crate::runtime::zk_v2::CircuitInput<F>>,
+                  candidate: &ZkProof<W, F>| {
         let mut tv = Transcript::new(b"longfellow/v2/test");
-        v.receive_commitment(candidate, &mut tv);
-        v.verify(&inputs, candidate, &mut tv, &context)
+        v.reduce(&inputs, candidate, &mut tv, &context)
     };
     verify(public.clone(), &decoded).unwrap();
+    for coordinate in 0..2 {
+        let mut changed = (*decoded).clone();
+        f.add(&mut changed.fingerprints.values[coordinate], &f.one());
+        assert!(verify(public.clone(), &changed).is_err());
+    }
     {
         // The same witness/layout has the same commitment under a different
         // trusted circuit ID. Sumcheck still binds the ID and prevents replay.
@@ -182,34 +220,41 @@ pub(crate) fn exercise<
 
         let mut other_circuit = circuit(f);
         other_circuit.id[0] ^= 1;
-        let mut other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
+        let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
         let mut other_ts = Transcript::new(b"longfellow/v2/test");
-        other_verifier.receive_commitment(&other_proof, &mut other_ts);
         other_verifier
-            .verify(&public, &other_proof, &mut other_ts, &context)
+            .reduce(&public, &other_proof, &mut other_ts, &context)
             .unwrap();
     }
     let bad_public = vec![base.zero()];
     assert!(verify(bad_public, &decoded).is_err());
     assert!(verify(vec![], &decoded).is_err());
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+            .unwrap()
+            .clone();
         f.add(&mut bad.com_proof.bodies.0.h[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+            .unwrap()
+            .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+            .unwrap()
+            .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].cross, &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     if let crate::runtime::proto::dual_packing::PackingProof::TraceZero { .. } = &decoded.packing {
         for change_first_response in [true, false] {
-            let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f).unwrap();
+            let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+                .unwrap()
+                .clone();
             let crate::runtime::proto::dual_packing::PackingProof::TraceZero { u, a } =
                 &mut bad.packing
             else {

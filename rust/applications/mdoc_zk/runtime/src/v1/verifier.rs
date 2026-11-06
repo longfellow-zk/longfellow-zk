@@ -34,7 +34,7 @@ use crate::{
             },
             SupportsFFT,
         },
-        random::{transcript::Transcript, RandomEngine},
+        random::{transcript_v1::Transcript, RandomEngine},
         zk_v1::ZkVerifier,
     },
 };

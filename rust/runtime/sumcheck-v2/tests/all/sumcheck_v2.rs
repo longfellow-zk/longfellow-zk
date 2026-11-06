@@ -27,7 +27,7 @@ use crate::{
             p256::P256Field as RuntimeP256,
             AlgebraicField,
         },
-        random::{RandomEngine, Transcript},
+        random::transcript_v2::Transcript,
         sumcheck_v2::{eval_circuit, prove, verifier::verify, RoundPoly, SumcheckProof},
     },
 };

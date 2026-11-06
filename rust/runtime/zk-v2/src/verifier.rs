@@ -6,14 +6,12 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
-        polygero::{
-            joint::{JointCommitmentContext, ReceivedCommitment},
-            JointPolygeroParam, JointPolygeroVerifier, LinearStatement, PolygeroConfig,
-        },
-        random::Transcript,
+        polygero::{LinearStatement, PolygeroConfig},
+        proto::Digest,
+        random::transcript_v2::Transcript,
         sumcheck_v2::{self, TranscriptSumcheck},
         zk_v2::{
-            joint::{CircuitParticipant, CircuitProof},
+            joint::{CircuitParticipant, CircuitProof, JointParam},
             CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
         },
     },
@@ -103,8 +101,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
     circuit: Circuit<F>,
     participant: CircuitParticipant<W, F>,
-    context: JointCommitmentContext,
-    received: Option<ReceivedCommitment>,
+    joint_context: Digest,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
@@ -114,31 +111,41 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&circuit, config, ctx)
             .map_err(ZkVerificationError::PolygeroVerification)?;
-        let joint = JointPolygeroParam::new((
+        let param = JointParam::new((
             participant
                 .participant(ctx)
                 .map_err(ZkVerificationError::PolygeroVerification)?,
             (),
         ))
-        .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+        .map_err(ZkVerificationError::PolygeroVerification)?;
         Ok(Self {
             circuit,
             participant,
-            context: joint.commitment_context(),
-            received: None,
+            joint_context: param.context(),
         })
     }
     pub fn geometry(&self) -> ZkProofGeometry {
-        self.participant.geometry()
+        ZkProofGeometry {
+            circuit: self.participant.geometry(),
+            joint_context: self.joint_context,
+        }
     }
     pub(crate) fn public_input_count(&self) -> usize {
         self.circuit.raw.npublic_input
     }
-    pub fn receive_commitment(&mut self, proof: &ZkProof<W, F>, t: &mut Transcript) {
-        self.participant.bind(t);
-        self.received = Some(self.context.receive(&proof.com, t));
-    }
     pub fn verify<D: EvaluationDomain<W, F>>(
+        &self,
+        public: &[CircuitInput<F>],
+        proof: crate::runtime::random::transcript_v2::Unverified<'_, ZkProof<W, F>>,
+        mut transcript: Transcript,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<crate::runtime::random::transcript_v2::VerifiedProof, ZkVerificationError> {
+        self.reduce(public, &proof, &mut transcript, ctx)?;
+        proof
+            .checked(transcript)
+            .map_err(|e| ZkVerificationError::InvalidSumcheck(e.into()))
+    }
+    pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
         &self,
         public: &[CircuitInput<F>],
         proof: &ZkProof<W, F>,
@@ -151,6 +158,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 actual: public.len(),
             });
         }
+        proof
+            .sumcheck_proof
+            .validate(&self.participant.geometry.sc_geom)
+            .map_err(|e| ZkVerificationError::InvalidSumcheck(e.to_string()))?;
         // Reject malformed opening shapes before replaying the circuit transcript.
         // The joint backend also validates them for callers that use it directly.
         proof
@@ -165,6 +176,17 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             self.participant.geometry.com_geom.n,
         )
         .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+        self.participant.bind(t);
+        let param = JointParam::new((
+            self.participant
+                .participant(ctx)
+                .map_err(ZkVerificationError::PolygeroVerification)?,
+            (),
+        ))
+        .map_err(ZkVerificationError::PolygeroVerification)?;
+        let verifier = param
+            .receive(&proof.com, (proof.fingerprints.clone(), ()), t)
+            .map_err(ZkVerificationError::PolygeroVerification)?;
         let statement = self
             .participant
             .verify_parts(
@@ -177,21 +199,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 ctx,
             )
             .map_err(ZkVerificationError::InvalidSumcheck)?;
-        let joint = JointPolygeroParam::new((
-            self.participant
-                .participant(ctx)
-                .map_err(ZkVerificationError::PolygeroVerification)?,
-            (),
-        ))
-        .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        let received = self.received.as_ref().ok_or_else(|| {
-            ZkVerificationError::PolygeroVerification("commitment was not received".into())
-        })?;
-        let verifier = JointPolygeroVerifier::from_received(joint, received)
-            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
         verifier
-            .verify(&proof.com, &proof.com_proof, &(statement, ()), t)
-            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))
+            .authenticate(&proof.com_proof, (statement, ()), t)
+            .map(|_| ())
+            .map_err(ZkVerificationError::PolygeroVerification)
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

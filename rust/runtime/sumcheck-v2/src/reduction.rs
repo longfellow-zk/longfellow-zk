@@ -14,8 +14,8 @@
 //!
 //! Each round message precedes its challenge. The cross message precedes the
 //! nonzero terminal scale, and both masked factors precede the single alpha.
-//! Newly entering circuits receive weights on their zero outputs before their
-//! assertion challenges. Only the current stage's split metadata is retained.
+//! Zero outputs receive fresh assertion coefficients at their own layer.
+//! Only the current stage's split metadata is retained.
 //!
 //! This derives affine constraints, not an acceptance decision. The caller must
 //! authenticate every stage equation and the final shared-input claim against
@@ -34,7 +34,7 @@ use crate::{
     },
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        random::Transcript,
+        random::transcript_v2::Transcript,
     },
 };
 
@@ -71,13 +71,13 @@ pub(crate) fn derive_constraints_for_circuits<
         .map(|c| classify_constants(f, &c.raw.constants))
         .collect();
     schedule.bind(circuits, t);
+    let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     let mut challenges = Vec::with_capacity(proof.layers.len());
     for (stage, p) in proof.layers.iter().enumerate() {
-        schedule.enter(circuits, &mut weights, stage, t, f);
         let layout = &schedule.layers[stage];
         // Only sparse fragment metadata is local; all dense arrays are global.
-        let active: Vec<_> = layout
+        let mut active: Vec<_> = layout
             .fragments
             .iter()
             .map(|s| {
@@ -87,14 +87,17 @@ pub(crate) fn derive_constraints_for_circuits<
                         &circuits[s.circuit].raw.layers[s.layer],
                         &classes[s.circuit],
                     ),
-                    t,
-                    f,
                 )
             })
             .collect();
+        schedule.start_layer(&mut weights, &mut active, stage, t, f);
         let point_l: Vec<_> = p.rounds.iter().map(|m| round_challenge(m, t, f)).collect();
         let terminal = terminal_challenge(&p.cross, t, f);
-        let alpha = end_layer(&p.claims, t, f);
+        let alpha = end_layer(&p.claims, t, f, |r| {
+            if stage + 1 == schedule.layers.len() {
+                input_assertions = schedule.input_assertions(circuits, r, f);
+            }
+        });
         let constant = fragments::constant(circuits, &weights, &active, f);
         let (next_weights, linear) =
             fragments::transition(circuits, &weights, &active, layout.nw, &point_l, &alpha, f);
@@ -107,6 +110,6 @@ pub(crate) fn derive_constraints_for_circuits<
             linear,
         });
     }
-    schedule.enter(circuits, &mut weights, proof.layers.len(), t, f);
+    schedule.finish_inputs(circuits, &mut weights, input_assertions, t, f);
     Ok(build_constraints(proof, challenges, weights, f))
 }

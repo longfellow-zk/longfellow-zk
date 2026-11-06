@@ -14,9 +14,9 @@
 
 use crate::runtime::algebra::SupportsSampling;
 
-pub mod transcript;
+pub mod transcript_v1;
 pub mod v1;
-pub use transcript::Transcript;
+pub use transcript_v1::Transcript;
 
 /// Trait defining operations for seedable/pseudorandom challenge engines.
 pub trait RandomEngine {
@@ -104,5 +104,8 @@ cfg_testonly! {
 }
 
 #[cfg(test)]
-#[path = "../tests/transcript.rs"]
-mod tests_transcript;
+#[path = "../tests/transcript_v1.rs"]
+mod tests_transcript_v1;
+
+/// Explicit-round v2 transcripts; the legacy transcript remains unchanged.
+pub mod transcript_v2;

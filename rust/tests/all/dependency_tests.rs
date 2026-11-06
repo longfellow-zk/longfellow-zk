@@ -350,6 +350,10 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::zk_v2", "runtime/zk-v2/src"),
         ("runtime::ligero_v1", "runtime/ligero-v1/src"),
         ("runtime::polygero", "runtime/polygero/src"),
+        (
+            "runtime::witness_selection",
+            "runtime/witness-selection/src",
+        ),
         ("runtime::dual_packing", "runtime/dual-packing/src"),
         ("runtime::zk_v1", "runtime/zk-v1/src"),
         ("compile::algebra", "compile/algebra/src"),
@@ -362,7 +366,6 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("circuits::analog_decoder", "circuits/analog_decoder/src"),
         ("circuits::arithmetic", "circuits/arithmetic/src"),
         ("circuits::bitvec", "circuits/bitvec/src"),
-        ("circuits::bit_plucker", "circuits/bit_plucker/src"),
         ("circuits::bignum", "circuits/bignum/src"),
         ("circuits::big_bitvec", "circuits/big_bitvec/src"),
         ("circuits::boolean", "circuits/boolean/src"),
@@ -420,8 +423,35 @@ fn test_module_dependency_dag_and_layer_boundaries() {
             let content = fs::read_to_string(&f).expect("read rs file");
             // Keep production after test-only items; ignore comments and literals.
             let prod_content = production_code(&content);
+            if mod_name == "mdoc::circuits" {
+                assert!(
+                    !prod_content
+                        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                        .any(|word| word == "transcript_v2"),
+                    "protocol transcript in circuit construction: {}",
+                    f.display()
+                );
+            }
+            if matches!(mod_name, "runtime::zk_v2" | "mdoc::runtime") {
+                for word in prod_content.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                {
+                    assert!(
+                        !matches!(
+                            word,
+                            "JointPolygeroParam" | "JointPolygeroProver" | "JointPolygeroVerifier"
+                        ),
+                        "selected zk-v2 composition bypass in {}: {word}",
+                        f.display()
+                    );
+                }
+            }
             for dep in extract_crate_deps(&prod_content) {
                 if dep != mod_name {
+                    assert!(
+                        !(mod_name == "mdoc::runtime" && dep == "runtime::witness_selection"),
+                        "mdoc must compose selection through zk-v2: {}",
+                        f.display()
+                    );
                     assert!(
                         modules.iter().any(|&(name, _)| name == dep),
                         "Unregistered dependency: {mod_name} ({}) imports {dep}",
@@ -604,14 +634,16 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/sumcheck-v2/src/verifier.rs", "prover"),
         ("runtime/sumcheck-v2/src/reduction.rs", "prover"),
         ("runtime/zk-v2/src/prover.rs", "verifier"),
-        ("runtime/zk-v2/src/native_prover.rs", "verifier"),
-        ("runtime/zk-v2/src/native_verifier.rs", "prover"),
+        ("runtime/zk-v2/src/joint_prover.rs", "verifier"),
+        ("runtime/zk-v2/src/joint_verifier.rs", "prover"),
+        ("runtime/zk-v2/src/prime_prover.rs", "verifier"),
+        ("runtime/zk-v2/src/prime_verifier.rs", "prover"),
         (
-            "applications/mdoc_zk/runtime/src/v2/adapter/native_prover.rs",
+            "applications/mdoc_zk/runtime/src/v2/adapter/prime_prover.rs",
             "verifier",
         ),
         (
-            "applications/mdoc_zk/runtime/src/v2/adapter/native_verifier.rs",
+            "applications/mdoc_zk/runtime/src/v2/adapter/prime_verifier.rs",
             "prover",
         ),
         (
@@ -623,6 +655,8 @@ fn test_v2_role_and_shared_module_boundaries() {
             "prover",
         ),
         ("runtime/zk-v2/src/verifier.rs", "prover"),
+        ("runtime/witness-selection/src/prover.rs", "verifier"),
+        ("runtime/witness-selection/src/verifier.rs", "prover"),
         ("runtime/polygero/src/prover.rs", "verifier"),
         ("runtime/polygero/src/prover_commitment.rs", "verifier"),
         ("runtime/polygero/src/verifier.rs", "prover"),
@@ -829,6 +863,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v2_circuits.rs",
         "v2_inputs.rs",
         "v2_adapter.rs",
+        "v2_adapter_transcript.rs",
         "v2_attributes.rs",
         "specs.rs",
         "v1_provider.rs",
@@ -888,10 +923,12 @@ fn test_tooling_and_system_source_boundaries() {
         .filter(|f| version == "v1" || *f != "mac.rs")
         .chain(if version == "v2" {
             vec![
+                "transcript.rs",
                 "adapter/mod.rs",
-                "adapter/native.rs",
-                "adapter/native_prover.rs",
-                "adapter/native_verifier.rs",
+                "adapter/transcript.rs",
+                "adapter/prime.rs",
+                "adapter/prime_prover.rs",
+                "adapter/prime_verifier.rs",
                 "adapter/binary.rs",
                 "adapter/binary_prover.rs",
                 "adapter/binary_verifier.rs",
@@ -1176,15 +1213,19 @@ fn test_zk_v2_source_layout_and_test_privacy() {
     let expected: BTreeSet<_> = [
         "lib.rs",
         "joint.rs",
-        "native.rs",
-        "native_prover.rs",
-        "native_verifier.rs",
+        "joint_prover.rs",
+        "joint_verifier.rs",
+        "prime.rs",
+        "prime_prover.rs",
+        "prime_verifier.rs",
+        "row_batching.rs",
+        "row_batching/transcript.rs",
+        "transcript.rs",
         "context.rs",
         "constraint_compiler.rs",
-        "transcript.rs",
-        "commitment.rs",
-        "commitment_prover.rs",
-        "commitment_verifier.rs",
+        "packing_commitment.rs",
+        "packing_commitment_prover.rs",
+        "packing_commitment_verifier.rs",
         "prover.rs",
         "verifier.rs",
     ]
@@ -1545,4 +1586,126 @@ fn test_shared_primitives_exclude_versioned_capabilities() {
     }
     let source = fs::read_to_string(root.join("runtime/random/src/lib.rs")).unwrap();
     assert!(!production_code(&source).contains("SubfieldV1"));
+}
+
+/// V2 protocol modules cannot fall back to the unrestricted legacy transcript.
+/// Raw finalization belongs to complete-proof codecs; acceptance belongs to
+/// complete verifiers. Intermediate reductions cannot mint the final token.
+#[test]
+fn test_v2_transcript_and_final_seal_boundaries() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for directory in [
+        "runtime/sumcheck-v2/src",
+        "runtime/zk-v2/src",
+        "runtime/polygero/src",
+        "runtime/dual-packing/src",
+        "runtime/witness-selection/src",
+        "runtime/zk-v2/src/row_batching",
+        "applications/mdoc_zk/runtime/src/v2",
+        "applications/mdoc_zk/runtime/src/v2/adapter",
+    ] {
+        assert!(
+            root.join(directory).join("transcript.rs").is_file(),
+            "missing protocol transcript: {directory}"
+        );
+    }
+    let mut files = Vec::new();
+    for directory in [
+        "runtime/sumcheck-v2/src",
+        "runtime/zk-v2/src",
+        "runtime/polygero/src",
+        "runtime/dual-packing/src",
+        "runtime/witness-selection/src",
+        "applications/mdoc_zk/runtime/src/v2",
+        "applications/mdoc_zk/circuits/src/p256_adapter",
+    ] {
+        collect_rs_files(&root.join(directory), &mut files);
+    }
+    files.push(root.join("runtime/proto/src/zk_v2.rs"));
+    let codecs = [
+        "runtime/polygero/src/joint.rs",
+        "runtime/proto/src/zk_v2.rs",
+        "applications/mdoc_zk/runtime/src/v2/proto.rs",
+    ];
+    let verifiers = [
+        "runtime/polygero/src/verifier.rs",
+        "runtime/zk-v2/src/verifier.rs",
+        "applications/mdoc_zk/runtime/src/v2/verifier.rs",
+    ];
+    for file in files {
+        let relative = file.strip_prefix(root).unwrap().to_str().unwrap();
+        let code = production_code(&fs::read_to_string(&file).unwrap());
+        let compact: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+        if file.file_name().and_then(|name| name.to_str()) != Some("transcript.rs") {
+            for operation in [
+                ".begin_squeeze(",
+                ".write_bytes(",
+                ".write_elt_field(",
+                ".write_elt_field_slice(",
+            ] {
+                assert!(
+                    !compact.contains(operation),
+                    "transcript framing outside transcript module: {relative}"
+                );
+            }
+        }
+        for forbidden in [
+            "random::Transcript",
+            "random::transcript_v1::Transcript",
+            "random::{Transcript",
+            "random::{RandomEngine,Transcript",
+        ] {
+            assert!(
+                !compact.contains(forbidden),
+                "legacy transcript in {relative}"
+            );
+        }
+        if compact.contains(".append_final_seal(") {
+            assert!(codecs.contains(&relative), "raw sealing in {relative}");
+        }
+        if compact.contains(".checked(") {
+            assert!(
+                verifiers.contains(&relative),
+                "complete acceptance in {relative}"
+            );
+        }
+        assert!(
+            !compact.contains(".verify_final_seal("),
+            "raw final seal verification in {relative}"
+        );
+    }
+}
+
+/// Witness selection wraps the backend without importing frontend or circuit
+/// code. Its shared module contains no role orchestration or inline tests.
+#[test]
+fn test_witness_selection_protocol_boundaries() {
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("runtime/witness-selection/src");
+    let mut files = Vec::new();
+    collect_rs_files(&directory, &mut files);
+    let expected: BTreeSet<_> = ["lib.rs", "prover.rs", "verifier.rs", "transcript.rs"]
+        .map(|name| directory.join(name))
+        .into_iter()
+        .collect();
+    assert_eq!(files.iter().cloned().collect::<BTreeSet<_>>(), expected);
+    let shared = production_code(&fs::read_to_string(directory.join("lib.rs")).unwrap());
+    assert!(!shared.contains("RandomEngine") && !shared.contains("PackingField"));
+    for file in files {
+        let source = fs::read_to_string(&file).unwrap();
+        assert!(!source.lines().any(|line| line.trim() == "#[test]"));
+        for dependency in extract_crate_deps(&production_code(&source)) {
+            assert!(
+                matches!(
+                    dependency.as_str(),
+                    "runtime::witness_selection"
+                        | "runtime::polygero"
+                        | "runtime::algebra"
+                        | "runtime::proto"
+                        | "runtime::random"
+                        | "core::algebra"
+                ),
+                "witness selection dependency {dependency}"
+            );
+        }
+    }
 }

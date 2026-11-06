@@ -10,7 +10,7 @@ use crate::{
             },
             SupportsSampling,
         },
-        random::{DeterministicRng, RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
     },
 };
 
@@ -243,7 +243,7 @@ fn roundtrip<X: PackingExtension>(
     let masks = PackingMasks::sample(p, &mut sample);
     let cells = masks.cells().to_vec();
     let mut tp = Transcript::new(b"generic/test");
-    let mut tv = tp.clone();
+    let mut tv = tp.fork_for_test();
     let (proof, rows) = prove(
         p,
         &claim,
@@ -267,16 +267,16 @@ fn roundtrip<X: PackingExtension>(
     }
     let bytes = proof.write(p).unwrap();
     let mut rest = bytes.as_slice();
-    let decoded = p.read_proof(&mut rest).unwrap();
+    let decoded = PackingProof::read(&p, &mut rest).unwrap();
     assert_eq!(decoded, proof);
     assert!(rest.is_empty());
     for len in 0..bytes.len() {
-        assert!(p.read_proof(&mut &bytes[..len]).is_err());
+        assert!(PackingProof::read(&p, &mut &bytes[..len]).is_err());
     }
     if !bytes.is_empty() {
         let mut wrong = bytes.clone();
         wrong[0] ^= 1;
-        assert!(p.read_proof(&mut wrong.as_slice()).is_err());
+        assert!(PackingProof::read(&p, &mut wrong.as_slice()).is_err());
         let mut bad = proof.clone();
         let PackingProof::TraceZero { u, .. } = &mut bad else {
             unreachable!()
@@ -349,7 +349,7 @@ fn identity_has_no_masks_messages_or_challenges() {
         auxiliary_count: 0,
     };
     let mut ts = Transcript::new(b"identity");
-    let mut before = ts.clone();
+    let mut before = ts.fork_for_test();
     let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts).unwrap();
     assert_eq!(proof, PackingProof::Direct);
     assert_eq!(rows.len(), 1);
@@ -370,7 +370,7 @@ fn identity_has_no_masks_messages_or_challenges() {
     let embedded = extension.into_input_elements(p.field(), values);
     assert_eq!(pointer, embedded.as_ptr());
     let mut verifier = Transcript::new(b"identity");
-    let mut unchanged = verifier.clone();
+    let mut unchanged = verifier.fork_for_test();
     assert_eq!(
         verify(&p, &c, &proof, b"ignored", &mut verifier).unwrap(),
         rows
@@ -561,7 +561,7 @@ fn authenticate<
     let param = JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap();
     let mut verifier = JointPolygeroVerifier::new(param.clone());
     let mut tp = Transcript::new(b"generic/backend");
-    let mut tv = tp.clone();
+    let mut tv = tp.fork_for_test();
     let (prover, root) =
         JointPolygeroProver::commit(&param, (witness, ()), &mut tp, &mut rng).unwrap();
     verifier.receive_commitment(&root, &mut tv);
@@ -625,7 +625,7 @@ fn authenticate<
     );
     let backend = prover.prove(&param, &statements, &mut tp).unwrap();
     verifier
-        .verify(&root, &backend, &statements, &mut tv)
+        .reduce(&root, &backend, &statements, &mut tv)
         .unwrap();
 }
 #[test]

@@ -22,14 +22,46 @@ use crate::{
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        random::{RandomEngine, Transcript},
+        random::transcript_v2::Transcript,
         sumcheck_v2::{
+            fragments::{QuadFragment, SplitFragment},
             monomial,
             quad::{bind_l, bind_r},
+            split::SplitLayer,
             transcript::assertion_weights,
         },
     },
 };
+
+fn sample_assertions<
+    'a,
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    layer: SplitLayer<'a>,
+    stage: usize,
+    transcript: &mut Transcript,
+    f: &F,
+) -> (SplitLayer<'a>, Vec<F::E>) {
+    let fragment = QuadFragment {
+        circuit: 0,
+        layer: stage,
+        input_range: 0..layer.nw,
+        output_range: 0..0,
+    };
+    let mut active = [SplitFragment::new(&fragment, layer)];
+    transcript.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Assertions,
+        |mut w| {
+            w.write_bytes(&(stage as u64).to_le_bytes());
+            let mut r = w.begin_squeeze();
+            assertion_weights(&mut active, &mut r, f);
+            r.end_round(())
+        },
+    );
+    let [sampled] = active;
+    (sampled.layer, sampled.assertions)
+}
 
 fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
@@ -59,7 +91,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     let layer = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_layer);
     let a = [element(7), f.zero()];
     let mut transcript = Transcript::new(b"assertion-independence");
-    let rho = assertion_weights(&layer, 0, &mut transcript, f);
+    let (layer, rho) = sample_assertions(layer, 0, &mut transcript, f);
     assert_eq!(rho.len(), 1);
     assert_ne!(rho[0], f.zero());
     let w = [element(2), element(5), element(11)];
@@ -111,11 +143,17 @@ fn check_repeated_output<
         crate::core::proto::v2::quadratic_layer_fixture(repeated_output, &constants, f);
     let repeated_output = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_repeated_output);
     // Repeated output indices still receive independent replacement coefficients.
-    let mut expected = transcript.clone();
-    expected.write_bytes(b"single-hand-assertions");
-    expected.write_bytes(&1u64.to_le_bytes());
-    let expected_rho = expected.elt_field_slice(2, f);
-    let rho = assertion_weights(&repeated_output, 1, &mut transcript, f);
+    let mut expected = transcript.fork_for_test();
+    let expected_rho = expected.round(
+        crate::runtime::random::transcript_v2::RoundLabel::Assertions,
+        |mut w| {
+            w.write_bytes(&1u64.to_le_bytes());
+            let mut r = w.begin_squeeze();
+            let rho = r.elt_field_slice(2, f);
+            r.end_round(rho)
+        },
+    );
+    let (repeated_output, rho) = sample_assertions(repeated_output, 1, &mut transcript, f);
     assert_eq!(rho, expected_rho);
     assert_eq!(transcript.bytes(32), expected.bytes(32));
     let q_l = bind_r(
@@ -166,7 +204,7 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     );
     let raw_reordered = crate::core::proto::v2::quadratic_layer_fixture(reordered, &constants, f);
     let reordered = crate::runtime::sumcheck_v2::split::SplitLayer::new(&raw_reordered);
-    let rho = assertion_weights(&reordered, 2, &mut transcript, f);
+    let (reordered, rho) = sample_assertions(reordered, 2, &mut transcript, f);
     assert_eq!(rho.len(), 2);
     let q_l = bind_r(&reordered, &constants, &a, &rho, &w, f);
     assert_eq!(
@@ -218,11 +256,18 @@ fn check_output_sampling<
         let mut actual = Transcript::new(b"v2-output-challenges");
         let schedule = crate::runtime::sumcheck_v2::fragments::Schedule::new(&[&circuit]).unwrap();
         let mut weights = Vec::new();
-        schedule.enter(&[&circuit], &mut weights, 0, &mut actual, f);
+        schedule.finish_inputs(&[&circuit], &mut weights, Vec::new(), &mut actual, f);
         let mut expected = Transcript::new(b"v2-output-challenges");
-        expected.write_bytes(b"layered-sumcheck/enter-circuit/v1");
-        expected.write_bytes(&0u64.to_le_bytes());
-        assert_eq!(weights, expected.elt_field_slice(noutput, f));
+        let expected_weights = expected.round(
+            crate::runtime::random::transcript_v2::RoundLabel::Assertions,
+            |mut w| {
+                w.write_bytes(&0u64.to_le_bytes());
+                let mut r = w.begin_squeeze();
+                let weights = r.elt_field_slice(noutput, f);
+                r.end_round(weights)
+            },
+        );
+        assert_eq!(weights, expected_weights);
         assert_eq!(actual.bytes(32), expected.bytes(32), "logv={logv}");
     }
 }

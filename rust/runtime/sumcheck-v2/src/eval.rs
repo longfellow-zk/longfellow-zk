@@ -123,25 +123,16 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
                 &circuits[s.circuit].raw.constants, &mut out[s.output_range.clone()], f)
                 .map_err(|e| format!("Witness does not satisfy circuit constraints at stage {stage}, circuit {}: {e}", s.circuit))?;
         }
-        let mut next = 0;
-        for s in &layout.fragments {
-            if s.layer == 0 {
-                if out[s.output_range.clone()].iter().any(|v| !f.is_zero(v)) {
-                    return Err(format!(
-                        "Circuit output in circuit {} is not zero",
-                        s.circuit
-                    ));
-                }
-            } else {
-                if next != s.output_range.start {
-                    for (j, old) in s.output_range.clone().enumerate() {
-                        out[next + j] = out[old].clone();
-                    }
-                }
-                next += s.output_range.len();
-            }
+        // Depth ordering places the completed circuits' outputs at the tail.
+        // Check every one, then retain the preceding global array in place.
+        let carried = layout.nv - layout.output_assertions;
+        if let Some(g) = out[carried..].iter().position(|v| !f.is_zero(v)) {
+            return Err(format!(
+                "Circuit output at index {} is not zero",
+                carried + g
+            ));
         }
-        out.truncate(next);
+        out.truncate(carried);
         saved.push(w);
         w = out;
     }

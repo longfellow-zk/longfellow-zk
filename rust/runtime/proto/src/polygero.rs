@@ -214,7 +214,7 @@ impl<B> JointPolygeroProof<B> {
             return Err(invalid("joint proof context mismatch").into());
         }
         validate_opening(&self.opening, t, n)?;
-        out.extend_from_slice(b"JPG1");
+        out.extend_from_slice(b"JPG2");
         out.extend_from_slice(&context.data);
         write_bodies(&self.bodies, out)?;
         self.opening.write_nonces(out);
@@ -231,7 +231,7 @@ impl<B> JointPolygeroProof<B> {
         if t == 0 || t > n || n > (1 << 28) {
             return Err(invalid("joint opening geometry").into());
         }
-        if bytes.get(..4) != Some(b"JPG1") || bytes.get(4..36) != Some(context.data.as_slice()) {
+        if bytes.get(..4) != Some(b"JPG2") || bytes.get(4..36) != Some(context.data.as_slice()) {
             return Err(invalid("joint proof version or context").into());
         }
         *bytes = &bytes[36..];

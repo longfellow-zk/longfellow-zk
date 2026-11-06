@@ -2,7 +2,7 @@
 //! Trace-zero packing over a finite extension F/K.
 //!
 //! The commitment precedes this protocol. Authenticate **both** returned equations
-//! against that same commitment. The native fixed-commitment error is 1/|F|;
+//! against that same commitment. The algebraic fixed-commitment error is 1/|F|;
 //! this module does not assert joint zero knowledge or a composed FS bound.
 //!
 //! Write beta for the packing basis and alpha for its trace-dual basis. Every
@@ -58,13 +58,13 @@ impl<E> SourceClaim<E> {
 }
 /// constant + dot(words,packed) + dot(auxiliary,aux) + dot(masks,cells) = 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NativeEquation<E> {
+pub struct FieldEquation<E> {
     pub constant: E,
     pub words: Vec<E>,
     pub auxiliary: Vec<(usize, E)>,
     pub masks: Vec<E>,
 }
-impl<E: Clone> NativeEquation<E> {
+impl<E: Clone> FieldEquation<E> {
     pub fn residual<F: AlgebraicField<E = E>>(
         &self,
         words: &[E],
@@ -141,7 +141,7 @@ pub(crate) fn eliminate_dependent<F: AlgebraicField>(
         .collect()
 }
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn native_equations<F: AlgebraicField>(
+pub(crate) fn field_equations<F: AlgebraicField>(
     f: &F,
     basis: &[F::E],
     dual: &[F::E],
@@ -152,7 +152,7 @@ pub(crate) fn native_equations<F: AlgebraicField>(
     gamma: &[F::E],
     sigma_a: &F::E,
     words: Vec<F::E>,
-) -> [NativeEquation<F::E>; 2] {
+) -> [FieldEquation<F::E>; 2] {
     // First row: -A + r + sum_k delta_k*t_k = 0.
     let mut first = eliminate_dependent(f, basis, delta);
     first.extend([f.one(), f.zero()]);
@@ -171,13 +171,13 @@ pub(crate) fn native_equations<F: AlgebraicField>(
     }
     f.sub(&mut constant, &f.mulf(&eta, &rhs.constant));
     [
-        NativeEquation {
+        FieldEquation {
             constant: f.neg(a),
             words: Vec::new(),
             auxiliary: Vec::new(),
             masks: first,
         },
-        NativeEquation {
+        FieldEquation {
             constant,
             words,
             auxiliary: rhs
@@ -193,9 +193,9 @@ pub(crate) fn native_equations<F: AlgebraicField>(
 pub(super) fn direct<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
-) -> NativeEquation<E<X>> {
+) -> FieldEquation<E<X>> {
     let f = p.field();
-    NativeEquation {
+    FieldEquation {
         constant: c.rhs.constant.clone(),
         words: c.weights.iter().map(|r| f.neg(r)).collect(),
         auxiliary: c.rhs.terms.clone(),
@@ -249,7 +249,7 @@ pub(super) fn validate_proof<X: PackingExtension>(
         _ => Err("packing response shape".into()),
     }
 }
-/// Native verifier for explicit independent uniform challenges. Useful for
+/// Algebraic verifier for explicit independent uniform challenges. Useful for
 /// composition and exhaustive algebra tests; callers must sample after all of U.
 /// A successful reconstruction is not authentication: both rows must still be
 /// enforced against the commitment fixed before the challenge.
@@ -258,7 +258,7 @@ pub fn reconstruct<X: PackingExtension>(
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,
     delta: &[E<X>],
-) -> Result<Vec<NativeEquation<E<X>>>, String> {
+) -> Result<Vec<FieldEquation<E<X>>>, String> {
     validate_proof(p, c, proof)?;
     reconstruct_validated(p, c, proof, delta)
 }
@@ -267,7 +267,7 @@ pub(super) fn reconstruct_validated<X: PackingExtension>(
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,
     delta: &[E<X>],
-) -> Result<Vec<NativeEquation<E<X>>>, String> {
+) -> Result<Vec<FieldEquation<E<X>>>, String> {
     if p.degree() == 1 {
         if !delta.is_empty() {
             return Err("identity packing has no challenges".into());
@@ -293,7 +293,7 @@ pub(super) fn reconstruct_validated<X: PackingExtension>(
             w
         })
         .collect();
-    Ok(native_equations(
+    Ok(field_equations(
         f,
         p.basis(),
         p.dual(),

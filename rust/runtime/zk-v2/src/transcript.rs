@@ -1,36 +1,45 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Bind the completed sumcheck execution as Polygero's source statement.
-//!
-//! Both roles sample this identifier after the final sumcheck challenge and
-//! before compiling constraints. The transcript already binds circuit identity,
-//! public inputs, commitments and masked sumcheck messages. Its fixed sampling
-//! schedule determines the challenges used to derive those constraints.
-//!
-//! Polygero absorbs the identifier before its batching challenges. This makes
-//! the handoff explicit without hashing sparse term order, zero coefficients or
-//! compiled coordinates. The identifier is derived locally and is not serialized.
-
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! V2 circuit and packing layouts bound before the selected joint commitment.
+//! Sumcheck, packing and witness selection own their respective rounds.
+use super::{joint::CircuitParticipant, packing_commitment::PackingCommitment};
 use crate::runtime::{
-    proto::Digest,
-    random::{RandomEngine, Transcript},
+    algebra::{PackingExtension, PackingField, ZkField},
+    random::transcript_v2::Transcript,
 };
 
-pub(crate) fn statement_digest(transcript: &mut Transcript) -> Digest {
-    transcript.write_bytes(b"longfellow-v2/polygero-statement/v1");
-    Digest {
-        data: transcript.bytes(32).try_into().unwrap(),
+impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
+    pub fn bind(&self, t: &mut Transcript, id: &[u8; 32])
+    where F: crate::core::algebra::SerializableField {
+        if self.layout.degree == 1 {
+            return;
+        }
+        t.bind(|w| {
+            w.write_bytes(b"longfellow/v2/packing-commitment/v1");
+            w.write_bytes(id);
+        });
+        t.bind(|w| w.write_bytes(&self.parameters.descriptor()));
+        for n in [self.layout.private_inputs, self.layout.pad_cells] {
+            t.bind(|w| w.write_bytes(&(n as u64).to_le_bytes()));
+        }
+    }
+}
+
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// Bind packing and composed-circuit layout before receiving the shared
+    /// root. Degree-one layouts add only composition metadata here; sumcheck
+    /// binds the main circuit statement before its challenges.
+    pub fn bind(&self, t: &mut Transcript) {
+        self.backend.bind(t, &self.id);
+        t.bind(|w| {
+            w.write_bytes(b"layered-sumcheck/commitment-layout/v1");
+            w.write_bytes(&(self.additional_ids.len() as u64).to_le_bytes());
+        });
+        for id in &self.additional_ids {
+            t.bind(|w| w.write_bytes(id));
+        }
+        t.bind(|w| w.write_bytes(&(self.geometry.sc_geom.logw_layers.len() as u64).to_le_bytes()));
+        for &width in &self.geometry.sc_geom.logw_layers {
+            t.bind(|w| w.write_bytes(&(width as u64).to_le_bytes()));
+        }
     }
 }

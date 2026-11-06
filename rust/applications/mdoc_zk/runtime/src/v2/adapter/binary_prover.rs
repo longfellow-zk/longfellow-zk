@@ -6,7 +6,7 @@ use crate::runtime::{
     proto::zk_v2::CircuitProof,
     random::RandomEngine,
     sumcheck_v2::{SumcheckProof, TranscriptSumcheck},
-    zk_v2::{commitment::PackingState, constraint_compiler::compile_packed},
+    zk_v2::{packing_commitment::PackingState, constraint_compiler::compile_packed},
 };
 pub(in crate::mdoc::runtime::v2) struct BinaryState {
     id: [u8; 32],

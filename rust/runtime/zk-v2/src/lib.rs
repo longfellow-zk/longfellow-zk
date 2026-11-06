@@ -15,11 +15,13 @@
 //! Longfellow v2 composes projective sumcheck with nonrecursive Polygero.
 //!
 //! Commit the packed private inputs, packing masks, sumcheck pads, and terminal cells.
-//! Then run sumcheck on the same transcript with the public inputs bound. Its
+//! The joint wrapper adds two fresh private fingerprint masks per field and
+//! fixes the selected witness before frontend challenges. Then run sumcheck
+//! on the same transcript with the public inputs bound. Its
 //! symbolic constraints describe the checks on those hidden values. Reduce the
 //! input claim to two packing equations (one direct equation for degree one),
-//! then sample a statement identifier from the completed transcript and pass
-//! all constraints and that identifier to Polygero. The runtime
+//! then pass all constraints and the circuit ID to Polygero on the same
+//! transcript, whose prefix already binds every source message. The runtime
 //! constraint compiler substitutes public inputs and maps pads to committed
 //! positions, producing sparse A and b for Polygero's A*w+b=0 check.
 //!
@@ -27,19 +29,23 @@
 //! from the messages. Both use the same constraint compiler and codec layout.
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod commitment;
 mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
-#[cfg(all(feature = "mdoc", any(test, feature = "prover", feature = "verifier")))]
-pub(crate) mod native;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod packing_commitment;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod prime;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod row_batching;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod transcript;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) use context::prepare_circuit_layout as prepare_layout;
 pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod transcript;
-pub use crate::runtime::proto::zk_v2::{ZkProof, ZkProofGeometry};
+pub use crate::runtime::proto::zk_v2::{CircuitGeometry, ZkProof, ZkProofGeometry};
 cfg_prover! { mod prover; pub use prover::{ZkProver, ZkProverCommitment}; }
 cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}; }
 

@@ -1,31 +1,31 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Masked native sumcheck with an uncommitted shared input prefix.
+//! Masked prime sumcheck with an uncommitted shared input prefix.
 //! The prefix is authenticated by the caller's cross-field adapter. Only the
-//! remaining native inputs, one hiding scalar, and sumcheck pads enter this PCS.
+//! remaining prime inputs, one hiding scalar, and sumcheck pads enter this PCS.
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{EvaluationDomain, ZkField},
-        polygero::{LinearStatement, Participant, PolygeroConfig, PolygeroParam},
+        algebra::{EvaluationDomain, PackingField, ZkField},
+        polygero::{LinearStatement, PolygeroConfig},
         proto::sumcheck_v2::SumcheckProof,
-        random::Transcript,
+        random::transcript_v2::Transcript,
         zk_v2::{
-            native::{self as native_frontend, LinearClaim},
-            ZkContext, ZkProofGeometry,
+            joint::SelectedField,
+            prime::{self as prime_frontend, LinearClaim},
+            CircuitGeometry, ZkContext,
         },
     },
 };
-pub(crate) struct SharedParticipant<const W: usize, F: ZkField<W>> {
-    param: PolygeroParam,
-    geometry: ZkProofGeometry,
+pub(crate) struct SharedParticipant<const W: usize, F: ZkField<W> + PackingField> {
+    cells: usize,
+    geometry: CircuitGeometry,
     shared: usize,
     private: usize,
     id: [u8; 32],
-    #[cfg(any(test, feature = "prover"))]
     config: PolygeroConfig,
     _f: std::marker::PhantomData<F>,
 }
-impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
+impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
         circuit: &Circuit<F>,
         shared: usize,
@@ -33,7 +33,7 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
         if ctx.f.is_binary() {
-            return Err("shared native prefix requires a prime field".into());
+            return Err("shared prime prefix requires a prime field".into());
         }
         let private = circuit
             .raw
@@ -49,60 +49,55 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
             .and_then(|n| n.checked_add(1))
             .and_then(|n| n.checked_add(sc.pad_count().ok()?))
             .ok_or("shared layout overflow")?;
-        let param =
-            PolygeroParam::try_new(count, config, ctx.domain, ctx.f).map_err(|e| e.to_string())?;
+        let participant = SelectedField::new(count, config, ctx.f, ctx.domain, ctx.f.packing_id())?;
+        let com_geom = participant.geometry();
         Ok(Self {
-            geometry: ZkProofGeometry {
+            geometry: CircuitGeometry {
                 sc_geom: sc,
-                com_context: crate::runtime::polygero::JointPolygeroParam::new((
-                    Participant::new(param.clone(), ctx.f, ctx.domain)
-                        .map_err(|e| e.to_string())?,
-                    (),
-                ))
-                .map_err(|e| e.to_string())?
-                .context(),
-                com_geom: param.geometry(),
+                com_geom,
                 packing_degree: 1,
             },
-            param,
+            cells: count,
             shared,
             private,
             id: circuit.id,
-            #[cfg(any(test, feature = "prover"))]
             config,
             _f: std::marker::PhantomData,
         })
     }
-    pub fn geometry(&self) -> ZkProofGeometry {
+    pub fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
     }
     pub fn participant<'a, D: EvaluationDomain<W, F>>(
         &self,
         ctx: &ZkContext<'a, W, F, D>,
-    ) -> Result<Participant<'a, W, F, D>, String> {
-        Participant::new(self.param.clone(), ctx.f, ctx.domain).map_err(|e| e.to_string())
+    ) -> Result<SelectedField<'a, W, F, D>, String> {
+        SelectedField::new(
+            self.cells,
+            self.config,
+            ctx.f,
+            ctx.domain,
+            ctx.f.packing_id(),
+        )
     }
     pub fn bind(&self, t: &mut Transcript) {
-        t.write_bytes(b"native-shared-prefix/joint/v1");
-        t.write_bytes(&self.id);
-        t.write_bytes(&(self.shared as u64).to_le_bytes());
+        super::transcript::bind_prime(t, &self.id, self.shared);
     }
-    /// Authenticate eta*other - R + eta*pads + mu - eta*target = 0 natively.
+    /// Authenticate eta*other - R + eta*pads + mu - eta*target = 0 in the prime field.
     /// The adapter authenticates mu = eta*shared + R against the binary bits.
     pub fn finish(
         &self,
         claim: LinearClaim<F::E>,
         eta: &F::E,
         mu: &F::E,
-        t: &mut Transcript,
         f: &F,
     ) -> Result<LinearStatement<F::E>, String> {
         let count = self
             .private
             .checked_add(self.geometry.sc_geom.pad_count()?)
-            .ok_or("native layout overflow")?;
+            .ok_or("prime layout overflow")?;
         if f.is_zero(eta) || claim.weights.len() != count {
-            return Err("native shared claim shape or zero challenge".into());
+            return Err("prime shared claim shape or zero challenge".into());
         }
         let mut a = Vec::new();
         for (j, k) in claim.weights[self.shared..self.private].iter().enumerate() {
@@ -128,10 +123,12 @@ impl<const W: usize, F: ZkField<W>> SharedParticipant<W, F> {
         Ok(LinearStatement {
             a,
             b: vec![f.subf(mu, &f.mulf(eta, &claim.target))],
-            digest: crate::runtime::zk_v2::transcript::statement_digest(t),
+            // The frontend and adapter messages already precede joint batching
+            // on the shared transcript. This identifier names the source only.
+            digest: crate::runtime::proto::Digest { data: self.id },
         })
     }
 }
 
-cfg_prover! { #[path="native_prover.rs"] mod prover; }
-cfg_verifier! { #[path="native_verifier.rs"] mod verifier; }
+cfg_prover! { #[path="prime_prover.rs"] mod prover; }
+cfg_verifier! { #[path="prime_verifier.rs"] mod verifier; }

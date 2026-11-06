@@ -3,7 +3,7 @@
 use super::generic::PackingProof;
 use crate::{
     core::algebra::SerializableField,
-    runtime::algebra::packing::{AmbientElement, PackingExtension, PackingParameters},
+    runtime::algebra::packing::{PackingExtension, PackingParameters},
 };
 impl<E: Clone> PackingProof<E> {
     pub fn write<X: PackingExtension>(&self, p: &PackingParameters<X>) -> Result<Vec<u8>, String>
@@ -27,15 +27,19 @@ impl<E: Clone> PackingProof<E> {
         }
     }
 }
-impl<X: PackingExtension> PackingParameters<X>
-where X::Ambient: SerializableField
-{
-    pub fn read_proof(&self, bytes: &mut &[u8]) -> Result<PackingProof<AmbientElement<X>>, String> {
-        if self.degree() == 1 {
+impl<E: Clone> PackingProof<E> {
+    pub fn read<X: PackingExtension>(
+        p: &PackingParameters<X>,
+        bytes: &mut &[u8],
+    ) -> Result<Self, String>
+    where
+        X::Ambient: SerializableField<E = E>,
+    {
+        if p.degree() == 1 {
             return Ok(PackingProof::Direct);
         }
-        let descriptor = self.descriptor();
-        let legacy = self.binary128_profile();
+        let descriptor = p.descriptor();
+        let legacy = p.binary128_profile();
         let header = if legacy {
             0
         } else {
@@ -43,14 +47,11 @@ where X::Ambient: SerializableField
                 .checked_add(descriptor.len())
                 .ok_or("packing codec overflow")?
         };
-        let width = self.field().serialized_size_bytes();
+        let width = p.field().serialized_size_bytes();
         if width == 0 {
             return Err("packing field width".into());
         }
-        let count = self
-            .degree()
-            .checked_add(1)
-            .ok_or("packing codec overflow")?;
+        let count = p.degree().checked_add(1).ok_or("packing codec overflow")?;
         let end = count
             .checked_mul(width)
             .and_then(|n| n.checked_add(header))
@@ -66,8 +67,8 @@ where X::Ambient: SerializableField
         let mut fields = b[header..]
             .chunks_exact(width)
             .map(|raw| {
-                let x = self.field().bytes_to_element(raw)?;
-                if self.field().to_bytes(&x) != raw {
+                let x = p.field().bytes_to_element(raw)?;
+                if p.field().to_bytes(&x) != raw {
                     return Err("noncanonical packing field element".into());
                 }
                 Ok(x)

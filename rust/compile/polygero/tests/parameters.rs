@@ -22,7 +22,7 @@ use crate::{
             Participant, PolygeroParam,
         },
         proto::Digest,
-        random::{DeterministicRng, RandomEngine, Transcript},
+        random::{transcript_v2::Transcript, DeterministicRng, RandomEngine},
     },
 };
 
@@ -192,15 +192,13 @@ fn roundtrip_profiles<
             (),
         );
         let proof = prover.prove(&param, &statements, &mut ts).unwrap();
-        let bytes = param.write(&proof).unwrap();
+        let bytes = param.write(&proof, ts).unwrap().into_bytes();
         let mut remaining = bytes.as_slice();
         let decoded = param.read(&mut remaining).unwrap();
         assert!(remaining.is_empty());
         let mut tv = Transcript::new(b"polygero/admitted");
         let mut verifier = JointPolygeroVerifier::new(param);
         verifier.receive_commitment(&com, &mut tv);
-        verifier
-            .verify(&com, &decoded, &statements, &mut tv)
-            .unwrap();
+        verifier.verify(&com, decoded, &statements, tv).unwrap();
     }
 }
