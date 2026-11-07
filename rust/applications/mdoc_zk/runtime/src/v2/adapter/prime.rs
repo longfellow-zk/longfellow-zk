@@ -9,7 +9,7 @@ use crate::{
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             proto::sumcheck::SumcheckProof,
-            transcript::Transcript,
+            transcript::TranscriptRef,
             zk::{
                 joint::SelectedField, prime as prime_frontend, prime::LinearClaim, CircuitGeometry,
                 ZkContext,
@@ -33,7 +33,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
-        if ctx.f.is_binary() {
+        if ctx.field().is_binary() {
             return Err("shared prime prefix requires a prime field".into());
         }
         let private = circuit
@@ -50,7 +50,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
             .and_then(|n| n.checked_add(1))
             .and_then(|n| n.checked_add(sc.pad_count().ok()?))
             .ok_or("shared layout overflow")?;
-        let participant = SelectedField::new(count, config, ctx.f, ctx.domain, ctx.f.packing_id())?;
+        let participant = SelectedField::new(count, config, ctx.domain, ctx.field().packing_id())?;
         let com_geom = participant.geometry();
         Ok(Self {
             geometry: CircuitGeometry {
@@ -76,12 +76,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
         SelectedField::new(
             self.cells,
             self.config,
-            ctx.f,
             ctx.domain,
-            ctx.f.packing_id(),
+            ctx.field().packing_id(),
         )
     }
-    pub fn bind(&self, t: &mut Transcript) {
+    pub fn bind(&self, t: &mut TranscriptRef<'_>) {
         super::transcript::bind_prime(t, &self.id, self.shared);
     }
     /// Authenticate eta*other - R + eta*pads + mu - eta*target = 0 in the prime field.

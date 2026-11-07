@@ -7,17 +7,17 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
-        v2::transcript::Transcript,
+        v2::transcript::TranscriptRef,
     },
 };
 /// Check response shape and traces, replay the challenges, and return the
 /// equations to authenticate. This function alone does not verify a commitment.
-pub fn verify<X: PackingExtension>(
+pub fn reduce<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,
     context: &[u8],
-    ts: &mut Transcript,
+    ts: &mut TranscriptRef<'_>,
 ) -> Result<Vec<FieldEquation<E<X>>>, String>
 where
     X::Ambient: SerializableField,

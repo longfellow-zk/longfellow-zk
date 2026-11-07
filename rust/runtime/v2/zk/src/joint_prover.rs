@@ -6,7 +6,7 @@ use crate::runtime::{
     v2::{
         polygero::joint::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::Transcript,
+        transcript::{Transcript, TranscriptRef},
         witness_selection,
     },
 };
@@ -19,7 +19,7 @@ impl<L: Fields> JointParam<L> {
     pub fn commit(
         &self,
         witnesses: Witnesses<L>,
-        transcript: &mut Transcript,
+        transcript: Transcript,
         rng: &mut impl RandomEngine,
     ) -> Result<
         (
@@ -43,17 +43,18 @@ impl<L: Fields> JointParam<L> {
     }
 }
 impl<S, C, R> JointProver<S, C, R> {
+    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+        self.selection.transcript()
+    }
     pub fn prove<L: Fields>(
         self,
         param: &JointParam<L>,
         statements: Statements<L>,
-        transcript: &mut Transcript,
-    ) -> Result<JointPolygeroProof<Bodies<L>>, String>
+    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
         <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
     {
-        self.selection
-            .prove(&param.selection, statements, transcript)
+        self.selection.prove(&param.selection, statements)
     }
 }

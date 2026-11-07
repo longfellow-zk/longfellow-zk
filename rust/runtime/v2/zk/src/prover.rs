@@ -12,7 +12,7 @@ use crate::{
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
             },
             sumcheck::{self, SumcheckProof, TranscriptSumcheck},
-            transcript::Transcript,
+            transcript::{Transcript, TranscriptRef},
             zk::{
                 context::private_input_count,
                 joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
@@ -64,7 +64,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         public: &[CircuitInput<F>],
         private: Vec<CircuitInput<F>>,
         state: CircuitState<W, F>,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
         self.prove_circuits(circuit, public, private, state, &[], t, ctx)
@@ -79,7 +79,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         private: Vec<CircuitInput<F>>,
         state: CircuitState<W, F>,
         others: &[&Circuit<F>],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
         if public.len() != circuit.raw.npublic_input {
@@ -100,16 +100,16 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;
         let extension = self.backend.parameters.extension();
-        let public = extension.input_elements(ctx.f, public);
-        let private = extension.into_input_elements(ctx.f, private);
+        let public = extension.input_elements(ctx.field(), public);
+        let private = extension.into_input_elements(ctx.field(), private);
         let inputs = prepare_inputs(&public, private);
         let mut circuits = vec![circuit];
         circuits.extend_from_slice(others);
         for c in &circuits {
-            t.write_sumcheck_statement(c, &public, ctx.f);
+            t.write_sumcheck_statement(c, &public, ctx.field());
         }
         let (sumcheck_proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(&circuits, inputs, &state.pads, t, ctx.f)?;
+            sumcheck::evaluate_and_prove_circuits(&circuits, inputs, &state.pads, t, ctx.field())?;
         let pad_layout = self
             .geometry
             .sc_geom
@@ -119,7 +119,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &pad_layout,
             &public,
             &self.backend.layout,
-            ctx.f,
+            ctx.field(),
         )?;
         let (packing, statement) =
             self.backend
@@ -157,7 +157,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         &self,
         private: &[CircuitInput<F>],
         ctx: &ZkContext<'_, W, F, D>,
-        t: &mut Transcript,
+        mut t: Transcript,
         rng: &mut R,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
         if private.len() != private_input_count(&self.circuit) {
@@ -166,7 +166,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
         let (state, witness) = participant.prepare(private, rng)?;
         let param = JointParam::new((participant.participant(ctx)?, ()))?;
-        participant.bind(t);
+        participant.bind(&mut t.borrow());
         let (joint, commitment, (fingerprints, ())) = param.commit((witness, ()), t, rng)?;
         let geometry = ZkProofGeometry {
             circuit: participant.geometry(),
@@ -187,26 +187,32 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         &self,
         public: &[CircuitInput<F>],
         private: Vec<CircuitInput<F>>,
-        committed: ZkProverCommitment<W, F>,
-        t: &mut Transcript,
+        mut committed: ZkProverCommitment<W, F>,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<ZkProof<W, F>, String> {
+    ) -> Result<(ZkProof<W, F>, Transcript), String> {
         if committed.participant.config != self.config {
             return Err("commitment belongs to another circuit or configuration".into());
         }
-        let (circuit, statement) =
-            committed
-                .participant
-                .prove(&self.circuit, public, private, committed.state, t, ctx)?;
+        let (circuit, statement) = committed.participant.prove(
+            &self.circuit,
+            public,
+            private,
+            committed.state,
+            &mut committed.joint.transcript(),
+            ctx,
+        )?;
         let param = JointParam::new((committed.participant.participant(ctx)?, ()))?;
-        let com_proof = committed.joint.prove(&param, (statement, ()), t)?;
-        Ok(ZkProof {
-            com: committed.commitment,
-            fingerprints: committed.fingerprints,
-            sumcheck_proof: circuit.sumcheck_proof,
-            packing: circuit.packing,
-            com_proof,
-        })
+        let (com_proof, transcript) = committed.joint.prove(&param, (statement, ()))?;
+        Ok((
+            ZkProof {
+                com: committed.commitment,
+                fingerprints: committed.fingerprints,
+                sumcheck_proof: circuit.sumcheck_proof,
+                packing: circuit.packing,
+                com_proof,
+            },
+            transcript,
+        ))
     }
 }
 fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>) -> Vec<E> {

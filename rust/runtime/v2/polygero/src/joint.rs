@@ -5,8 +5,8 @@ use sha2::{Digest as _, Sha256};
 #[doc(hidden)]
 pub use super::transcript::Challenges as FieldChallenges;
 use super::{
-    constraints, ensure, transcript, PolygeroCommitment, PolygeroConfig, PolygeroError,
-    PolygeroLinearTerm, PolygeroParam,
+    constraints, ensure, transcript, PolygeroConfig, PolygeroError, PolygeroLinearTerm,
+    PolygeroParam,
 };
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::RandomEngine;
@@ -42,15 +42,30 @@ impl<
         D: EvaluationDomain<W, F>,
     > Participant<'a, W, F, D>
 {
-    pub fn new(param: PolygeroParam, f: &'a F, domain: &'a D) -> Result<Self, PolygeroError> {
+    pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, PolygeroError> {
+        let f = domain.field();
         ensure(
             param.domain_id == domain.domain_id(),
             "joint interpolation domain mismatch",
         )?;
         param.geom.validate()?;
+        let g = param.geom;
+        // Identity fixes the field and point order, not the implementation's
+        // capacity. Reattaching to another backend must validate its ranges.
         ensure(
-            f.serialized_size_bytes() > 0,
-            "zero joint field encoding width",
+            PolygeroConfig {
+                k: g.k,
+                s: g.s,
+                n: g.n,
+                t: g.t,
+            }
+            .can_interpolate(domain),
+            "interpolation capacity exceeded",
+        )?;
+        ensure(
+            (1..=crate::runtime::v2::transcript::MAX_FIELD_BYTES)
+                .contains(&f.serialized_size_bytes()),
+            "unsupported joint field encoding width",
         )?;
         Ok(Self { param, f, domain })
     }
@@ -61,6 +76,7 @@ impl<
 /// batching. The verifier reconstructs `a` and `b`; the source binding does not
 /// depend on sparse term ordering and needs no separate transcript query.
 #[derive(Clone)]
+#[must_use = "The derived statement must be authenticated by the commitment backend."]
 pub struct LinearStatement<E> {
     pub a: Vec<PolygeroLinearTerm<E>>,
     pub b: Vec<E>,
@@ -338,11 +354,6 @@ impl<L: Participants> JointPolygeroParam<L> {
     pub fn config(&self) -> PolygeroConfig {
         self.config
     }
-    pub fn commitment_context(&self) -> JointCommitmentContext {
-        JointCommitmentContext {
-            context: self.context,
-        }
-    }
     pub fn write(
         &self,
         p: &JointPolygeroProof<L::Bodies>,
@@ -376,20 +387,9 @@ impl<L: Participants> JointPolygeroParam<L> {
         crate::runtime::v2::transcript::Unverified::decoded(body, input, bytes).map_err(Into::into)
     }
 }
-/// An owned context lets callers receive the root before constructing the
-/// field/domain borrows used for the later arithmetic verification.
-#[derive(Clone)]
-pub struct JointCommitmentContext {
-    pub(super) context: Digest,
-}
-/// Records the context and root already absorbed into the caller's transcript.
-/// Reattaching the arithmetic parameters must not absorb the root a second time.
-/// The caller must continue the same transcript; this token does not own it.
-#[derive(Clone)]
-pub struct ReceivedCommitment {
-    pub(super) _context: Digest,
-    pub(super) _root: PolygeroCommitment,
-}
+#[cfg(test)]
+#[path = "../tests/participant.rs"]
+mod participant_tests;
 #[cfg(test)]
 #[path = "../tests/joint.rs"]
 mod tests;

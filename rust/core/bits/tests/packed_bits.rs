@@ -16,7 +16,7 @@ fn logical_coordinates_cross_word_boundaries_and_pad_only_the_final_word() {
             assert_eq!(bits.word128(block), expected);
         }
         assert!(bits.slice(len..len + 1).is_err());
-        assert!(bits.slice(1..0).is_err());
+        assert!(bits.slice(std::ops::Range { start: 1, end: 0 }).is_err());
     }
 }
 #[test]

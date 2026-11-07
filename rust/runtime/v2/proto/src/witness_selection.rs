@@ -15,19 +15,8 @@ impl<E> FingerprintResponse<E> {
         }
     }
     pub fn read<F: SerializableField<E = E>>(input: &mut &[u8], f: &F) -> std::io::Result<Self> {
-        let mut read = || {
-            let before = *input;
-            let value = super::util::read_elt_field(input, f)?;
-            if f.to_bytes(&value) != before[..f.serialized_size_bytes()] {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "noncanonical fingerprint response",
-                ));
-            }
-            Ok(value)
-        };
         Ok(Self {
-            values: [read()?, read()?],
+            values: [super::read_field(input, f)?, super::read_field(input, f)?],
         })
     }
 }

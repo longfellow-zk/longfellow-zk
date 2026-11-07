@@ -25,10 +25,7 @@ pub const K_TAG32: [u8; 2] = [0x58, 0x20];
 
 pub const K_DOCTYPE_HEADER_CHECK_CBOR: [u8; 8] = [0x67, b'd', b'o', b'c', b'T', b'y', b'p', b'e'];
 
-pub const K_NAMESPACE_CHECK_CBOR: [u8; 17] = [
-    b'o', b'r', b'g', b'.', b'i', b's', b'o', b'.', b'1', b'8', b'0', b'1', b'3', b'.', b'5', b'.',
-    b'1',
-];
+pub const K_NAMESPACE_CHECK_CBOR: [u8; 17] = *b"org.iso.18013.5.1";
 
 pub const K_VALID_FROM_LEN: usize = 12;
 pub const K_VALID_FROM_CHECK_CBOR: [u8; 12] = [

@@ -6,7 +6,7 @@ use crate::runtime::{
     v2::{
         dual_packing::generic::{PackingMasks, PackingProof},
         polygero::LinearStatement,
-        transcript::Transcript,
+        transcript::TranscriptRef,
     },
 };
 pub(crate) struct PreparedInputs<E> {
@@ -60,7 +60,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
         id: &[u8; 32],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
     ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
     where
         F: ZkField<W>,
@@ -80,7 +80,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // and packing messages. The circuit ID identifies their source without
         // introducing a query between the frontend and joint batching.
         let digest = crate::runtime::proto::Digest { data: *id };
-        let (a, b) = self.authenticate::<W>(statement, &rows)?;
+        let (a, b) = self.append_equations::<W>(statement, &rows)?;
         Ok((packing, LinearStatement { a, b, digest }))
     }
 }

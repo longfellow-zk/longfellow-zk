@@ -397,11 +397,16 @@ where F: crate::runtime::algebra::RuntimeField<W>
     let mut rng = DeterministicRng::new(44);
     let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&circuit), &mut rng, f);
     let mut actual = Transcript::new(b"private-layer-split");
-    actual.write_sumcheck_statement(&circuit, &inputs[..1], f);
+    actual
+        .borrow()
+        .write_sumcheck_statement(&circuit, &inputs[..1], f);
     let got =
-        sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual, f).unwrap();
+        sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
+            .unwrap();
     let mut expected = Transcript::new(b"private-layer-split");
-    expected.write_sumcheck_statement(&circuit, &inputs[..1], f);
+    expected
+        .borrow()
+        .write_sumcheck_statement(&circuit, &inputs[..1], f);
     let reference = super::reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);
     let geometry = SumcheckProofGeometry::from_circuit(&circuit);
     assert_eq!(
@@ -412,7 +417,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
     assert_eq!(actual.bytes(64), expected.bytes(64));
     assert_eq!(circuit.id, id_before);
     assert_eq!(writer.to_bytes(&circuit), bytes_before);
-    sumcheck::verifier::verify(
+    sumcheck::diagnostic::verify(
         inputs.clone(),
         &pads,
         &circuit,
@@ -461,15 +466,18 @@ where F: crate::runtime::algebra::RuntimeField<W>
         CoefficientClass::General
     );
     let mut transcript = Transcript::new(b"private-layer-split");
-    transcript.write_sumcheck_statement(&decoded, &inputs[..1], f);
+    transcript
+        .borrow()
+        .write_sumcheck_statement(&decoded, &inputs[..1], f);
     let reindexed_proof =
-        sumcheck::evaluate_and_prove(inputs.clone(), &pads, &decoded, &mut transcript, f).unwrap();
+        sumcheck::evaluate_and_prove(inputs.clone(), &pads, &decoded, &mut transcript.borrow(), f)
+            .unwrap();
     assert_eq!(
         reindexed_proof.0.write(&geometry, f).unwrap(),
         got.0.write(&geometry, f).unwrap()
     );
     assert_eq!(reindexed_proof.1, got.1);
-    sumcheck::verifier::verify(
+    sumcheck::diagnostic::verify(
         inputs.clone(),
         &pads,
         &decoded,

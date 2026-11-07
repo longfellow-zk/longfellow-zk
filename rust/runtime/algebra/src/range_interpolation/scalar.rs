@@ -146,6 +146,9 @@ where F: crate::runtime::algebra::RuntimeField<W>
         + SupportsU64Conversions
         + SupportsNatConversions<W>
 {
+    fn field(&self) -> &F {
+        self.field
+    }
     fn domain_id(&self) -> Vec<u8> {
         super::arithmetic::evaluation_domain_id(self.field)
     }

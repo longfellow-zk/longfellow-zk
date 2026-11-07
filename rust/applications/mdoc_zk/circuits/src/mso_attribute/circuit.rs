@@ -292,7 +292,6 @@ where L::F: FieldWrappingSum
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn assert_item_slot_key_value<const N: usize>(
         &self,
         slot: usize,

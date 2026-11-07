@@ -17,6 +17,8 @@
 use std::{hint::black_box, ops::Range, time::Duration};
 
 use criterion::{criterion_group, criterion_main, Criterion};
+#[cfg(feature = "tooling")]
+use longfellow_zk::runtime::v1::subfield::InterpolationPlanV1;
 use longfellow_zk::{
     core::algebra::SupportsU64Conversions,
     runtime::{
@@ -31,7 +33,7 @@ use longfellow_zk::{
             },
             InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
         },
-        v1::subfield::{BinarySubfieldV1, InterpolationPlanV1},
+        v1::subfield::BinarySubfieldV1,
     },
 };
 
@@ -123,7 +125,7 @@ fn all_backends(c: &mut Criterion) {
         let values: Vec<_> = (0..32).map(|i| f.u64_to_element(i * i + 1)).collect();
         benchmark(c, "range/scalar", &factory, 3..35, 128..256, &values);
     }
-    #[cfg(any(test, feature = "tooling"))]
+    #[cfg(feature = "tooling")]
     {
         use longfellow_zk::runtime::{
             algebra::{fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory},

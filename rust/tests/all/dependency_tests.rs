@@ -257,10 +257,9 @@ fn parse_crate_tree(raw: &str, prefix: Option<&str>, deps: &mut BTreeSet<String>
     } else if matches!(
         path.split("::").next(),
         Some("util" | "core" | "runtime" | "compile" | "circuits" | "mdoc" | "tools")
-    ) {
-        if path == "util" || path.contains("::") {
-            deps.insert(dependency_module(&path));
-        }
+    ) && (path == "util" || path.contains("::"))
+    {
+        deps.insert(dependency_module(&path));
     }
 }
 
@@ -854,7 +853,6 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/v2/sumcheck/src/dense.rs", "verifier"),
         ("runtime/v2/sumcheck/src/eval.rs", "verifier"),
         ("runtime/v2/sumcheck/src/verifier.rs", "prover"),
-        ("runtime/v2/sumcheck/src/reduction.rs", "prover"),
         ("runtime/v2/zk/src/prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_verifier.rs", "prover"),
@@ -1162,7 +1160,6 @@ fn test_tooling_and_system_source_boundaries() {
             vec![]
         })
         .map(|f| directory.join(f))
-        .into_iter()
         .collect();
         assert_eq!(
             actual.into_iter().collect::<BTreeSet<_>>(),
@@ -1334,7 +1331,6 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "verifier.rs",
                 "symbolic.rs",
                 "transcript.rs",
-                "reduction.rs",
                 "fragments.rs",
                 "split.rs",
             ][..],
@@ -1354,6 +1350,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "fixtures.rs",
                 "prover_fixtures.rs",
                 "quad_fixtures.rs",
+                "diagnostic.rs",
                 "eval_fixtures.rs",
                 "fragments.rs",
             ][..],
@@ -1874,6 +1871,28 @@ fn test_v2_transcript_and_final_seal_boundaries() {
         let relative = file.strip_prefix(root).unwrap().to_str().unwrap();
         let code = production_code(&fs::read_to_string(&file).unwrap());
         let compact: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+        // Frontends may borrow only the operation facade. A raw owner borrow
+        // would allow replacing the session while retaining its commitment.
+        let normalized = code.replace("crate::runtime::v2::transcript::Transcript", "Transcript");
+        let tokens: Vec<_> = normalized
+            .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .filter(|token| !token.is_empty())
+            .collect();
+        assert!(
+            !tokens.windows(2).any(|pair| pair == ["mut", "Transcript"]),
+            "raw transcript owner borrow in {relative}"
+        );
+        for detached in [
+            "ReceivedCommitment",
+            "JointCommitmentContext",
+            "from_received",
+            "receive_commitment",
+        ] {
+            assert!(
+                !tokens.contains(&detached),
+                "detached commitment API in {relative}"
+            );
+        }
         if file.file_name().and_then(|name| name.to_str()) != Some("transcript.rs") {
             for operation in [
                 ".begin_squeeze(",

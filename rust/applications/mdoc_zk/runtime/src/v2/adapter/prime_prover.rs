@@ -30,12 +30,12 @@ impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
             witness,
         ))
     }
-    pub fn reduce(
+    pub fn prove(
         &self,
         circuit: &Circuit<F>,
         public: &[F::E],
         state: SharedState<W, F>,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         f: &F,
     ) -> Result<SharedReduction<W, F>, String> {
         if state.id != self.id || state.config != self.config || state.shared != self.shared {

@@ -214,6 +214,9 @@ impl RangeInterpolatorFactory<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {
 }
 
 impl crate::runtime::algebra::EvaluationDomain<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {
+    fn field(&self) -> &RuntimeFp24Ext6 {
+        &RuntimeFp24Ext6
+    }
     fn domain_id(&self) -> Vec<u8> {
         b"fp24/ext6/beta7/arithmetic-prefix/v1".to_vec()
     }

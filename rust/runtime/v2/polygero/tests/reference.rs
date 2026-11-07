@@ -34,6 +34,7 @@ pub(super) fn snapshot<E: Clone>(
             },
             salts: prover.oracle.salts.clone(),
         },
+        transcript: prover.transcript.fork_for_test(),
     }
 }
 
@@ -50,7 +51,6 @@ pub(super) fn check_recommitted_wrong_witness<
     a: &[PolygeroLinearTerm<F::E>],
     statement: &Digest,
     mut ts: Transcript,
-    domain: &D,
     f: &F,
 ) {
     let mut forged = snapshot(prover);
@@ -67,17 +67,14 @@ pub(super) fn check_recommitted_wrong_witness<
     let commitment = PolygeroCommitment {
         root: forged.oracle.root(),
     };
-    let mut verifier_ts = ts.fork_for_test();
-    joint.receive(&commitment, &mut ts);
+    let verifier_ts = ts.fork_for_test();
+    joint.receive(&commitment, &mut ts.borrow());
+    forged.replace_transcript_for_test(ts);
     let statements = (linear(a, b, *statement), ());
-    let proof = forged.prove(joint, &statements, &mut ts).unwrap();
-    let mut verifier = JointPolygeroVerifier::new(joint.clone());
-    verifier.receive_commitment(&commitment, &mut verifier_ts);
-    let error = verifier
-        .reduce(&commitment, &proof, &statements, &mut verifier_ts)
-        .unwrap_err();
+    let (proof, _) = forged.prove(joint, &statements).unwrap();
+    let verifier = JointPolygeroVerifier::new(joint.clone(), &commitment, verifier_ts);
+    let error = verifier.reduce(&proof, &statements).err().unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
-    let _ = domain;
 }
 
 fn add<F: AlgebraicField>(a: &mut Vec<F::E>, b: &[F::E], f: &F) {
@@ -149,7 +146,7 @@ pub(super) fn check<
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
     statement: &Digest,
-    mut ts: Transcript,
+    ts: Transcript,
     domain: &D,
     f: &F,
 ) {
@@ -159,13 +156,12 @@ pub(super) fn check<
     let commitment = PolygeroCommitment {
         root: prover.oracle.root(),
     };
-    let mut verifier = JointPolygeroVerifier::new(joint.clone());
-    verifier.receive_commitment(&commitment, &mut ts);
-    let mut verifier_ts = ts.fork_for_test();
+    let mut verifier = JointPolygeroVerifier::new(joint.clone(), &commitment, ts);
+    let mut ts = verifier.transcript().fork_for_test();
     let g = p.geom;
     let omega: Vec<_> = (0..g.k).map(|i| domain.point(i)).collect();
     let nodes: Vec<_> = p.oracle_range().map(|i| domain.point(i)).collect();
-    let challenge = joint.challenges(&statements, &mut ts).0;
+    let challenge = joint.challenges(&statements, &mut ts.borrow()).0;
     let fstar = g.nrow() - 1;
     let rows: Vec<_> = prover
         .states
@@ -179,7 +175,7 @@ pub(super) fn check<
         .collect();
     assert_eq!(challenge.batching_samples.len(), fstar);
     let mut h = rows[fstar].clone();
-    for row in 0..fstar {
+    for (row, values) in rows.iter().enumerate().take(fstar) {
         let samples = &challenge.batching_samples[row];
         // Recover actual coefficients independently on the physical nodes.
         // Treating samples as monomial coefficients would give a different H.
@@ -188,7 +184,7 @@ pub(super) fn check<
             .map(|i| domain.point(i))
             .collect();
         let poly = interpolate(&batch_nodes, samples, f);
-        add(&mut h, &mul(&rows[row], &poly, f), f);
+        add(&mut h, &mul(values, &poly, f), f);
     }
     let mut coefficients = vec![vec![f.zero(); g.k]; g.data_rows()];
     for term in a {
@@ -234,14 +230,11 @@ pub(super) fn check<
             .collect::<Vec<_>>()
     );
     // All committed rows are transmitted in row order at the sampled columns.
-    let indices = joint.queries(&envelope.bodies, &mut ts.fork_for_test());
+    let indices = joint.queries(&envelope.bodies, &mut ts.fork_for_test().borrow());
     assert_eq!(proof.rows.len(), g.nrow() * g.t);
     for row in 0..g.nrow() {
-        for query in 0..indices.len() {
-            assert_eq!(
-                proof.rows[row * g.t + query],
-                prover.states.0[row][indices[query]]
-            );
+        for (query, &index) in indices.iter().enumerate() {
+            assert_eq!(proof.rows[row * g.t + query], prover.states.0[row][index]);
         }
     }
     // Reopen genuine columns after changing the response: authentication must
@@ -262,7 +255,7 @@ pub(super) fn check<
         },
         (),
     );
-    let indices = joint.queries(&bodies, &mut ts);
+    let indices = joint.queries(&bodies, &mut ts.borrow());
     joint
         .participants
         .gather(&prover.states, &mut bodies, &indices);
@@ -271,8 +264,6 @@ pub(super) fn check<
         bodies,
         opening: prover.oracle.open(&indices),
     };
-    let error = verifier
-        .reduce(&commitment, &forged, &statements, &mut verifier_ts)
-        .unwrap_err();
+    let error = verifier.reduce(&forged, &statements).err().unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }

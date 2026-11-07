@@ -35,7 +35,9 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
     }
 }
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn authenticate<const W: usize>(
+    /// Append the packing equations to the existing affine statement. The
+    /// returned rows still require authentication by the joint backend.
+    pub fn append_equations<const W: usize>(
         &self,
         statement: CommitmentStatement<F::E>,
         rows: &[FieldEquation<F::E>],

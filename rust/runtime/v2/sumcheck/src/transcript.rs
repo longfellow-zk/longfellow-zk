@@ -29,7 +29,7 @@ use crate::{
         algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::RoundPoly,
-            transcript::{Reading, RoundLabel, Transcript},
+            transcript::{Reading, RoundLabel, TranscriptRef},
         },
     },
 };
@@ -46,7 +46,7 @@ pub(crate) trait TranscriptSumcheck {
     );
 }
 
-impl TranscriptSumcheck for Transcript {
+impl TranscriptSumcheck for TranscriptRef<'_> {
     fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
         &mut self,
         circuit: &Circuit<F>,
@@ -80,7 +80,7 @@ pub(super) fn round_challenge<
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     m: &RoundPoly<W, F>,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> ElementOf<F> {
     transcript.round(
@@ -104,7 +104,7 @@ pub(super) fn end_layer<
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     claims: &[F::E; 2],
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
     after_alpha: impl FnOnce(&mut crate::runtime::v2::transcript::Reading<'_>),
 ) -> F::E {
@@ -125,7 +125,7 @@ pub(super) fn end_layer<
 /// cells once the masked factors are messages. Excluding zero keeps both masked.
 pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     cross: &F::E,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> F::E {
     transcript.round(
@@ -145,7 +145,7 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
 }
 
 impl super::fragments::Schedule {
-    pub fn bind<F: SerializableField>(&self, circuits: &[&Circuit<F>], t: &mut Transcript) {
+    pub fn bind<F: SerializableField>(&self, circuits: &[&Circuit<F>], t: &mut TranscriptRef<'_>) {
         t.bind(|w| {
             w.write_bytes(b"layered-sumcheck/circuits/v1");
             w.write_bytes(&(circuits.len() as u64).to_le_bytes());
@@ -168,7 +168,7 @@ impl super::fragments::Schedule {
         weights: &mut Vec<F::E>,
         active: &mut [SplitFragment<'_, F::E>],
         stage: usize,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         f: &F,
     ) {
         let layout = &self.layers[stage];
@@ -216,7 +216,7 @@ impl super::fragments::Schedule {
         circuits: &[&Circuit<F>],
         weights: &mut Vec<F::E>,
         input_assertions: Vec<F::E>,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         f: &F,
     ) {
         if self.layers.is_empty() {

@@ -8,11 +8,11 @@ use crate::{
             gf2_128::Gf2_128,
             p256::{P256Element, P256Field},
         },
-        v2::transcript::Transcript,
+        v2::transcript::TranscriptRef,
     },
 };
 
-pub(super) fn bind_prime(t: &mut Transcript, circuit_id: &[u8; 32], shared: usize) {
+pub(super) fn bind_prime(t: &mut TranscriptRef<'_>, circuit_id: &[u8; 32], shared: usize) {
     t.bind(|w| {
         w.write_bytes(b"native-shared-prefix/joint/v1");
         w.write_bytes(circuit_id);
@@ -20,7 +20,11 @@ pub(super) fn bind_prime(t: &mut Transcript, circuit_id: &[u8; 32], shared: usiz
     t.bind(|w| w.write_bytes(&(shared as u64).to_le_bytes()));
 }
 
-pub(super) fn bind_binary(t: &mut Transcript, template_id: &[u8; 32], logw_layers: &[usize]) {
+pub(super) fn bind_binary(
+    t: &mut TranscriptRef<'_>,
+    template_id: &[u8; 32],
+    logw_layers: &[usize],
+) {
     t.bind(|w| {
         w.write_bytes(b"mdoc/adapter/shared-binary/v1");
         w.write_bytes(template_id);
@@ -30,7 +34,7 @@ pub(super) fn bind_binary(t: &mut Transcript, template_id: &[u8; 32], logw_layer
     }
 }
 
-pub(crate) fn eta(t: &mut Transcript, p: &P256Field) -> P256Element {
+pub(crate) fn eta(t: &mut TranscriptRef<'_>, p: &P256Field) -> P256Element {
     t.round(
         crate::runtime::v2::transcript::RoundLabel::Rescaling,
         |mut w| {
@@ -50,7 +54,7 @@ pub(crate) fn weights(
     a: &[P256Element],
     eta: &P256Element,
     mu: &P256Element,
-    t: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     p: &P256Field,
 ) -> Result<Vec<P256Element>, String> {
     if a.len() < SHARED_BITS {
@@ -65,7 +69,7 @@ pub(crate) fn weights(
     t.bind(|w| w.write_elt_field(mu, p));
     Ok(weights)
 }
-pub(crate) fn alphas(t: &mut Transcript, p: &P256Field) -> [P256Element; 2] {
+pub(crate) fn alphas(t: &mut TranscriptRef<'_>, p: &P256Field) -> [P256Element; 2] {
     t.round(
         crate::runtime::v2::transcript::RoundLabel::Conversion,
         |mut w| {
@@ -85,7 +89,7 @@ pub(crate) fn public(
     plan: &Plan,
     encoded: Encoded,
     masked: &[u8],
-    t: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
 ) -> Result<Vec<Gf2_128>, String> {
     plan.validate_advice(masked)?;
     t.bind(|w| {

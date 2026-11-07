@@ -140,19 +140,20 @@ pub(crate) fn eliminate_dependent<F: AlgebraicField>(
         .map(|(w, beta)| f.addf(w, &f.mulf(&weights[0], beta)))
         .collect()
 }
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn field_equations<F: AlgebraicField>(
-    f: &F,
-    basis: &[F::E],
-    dual: &[F::E],
-    rhs: &Affine<F::E>,
-    u: &[F::E],
-    a: &F::E,
-    delta: &[F::E],
-    gamma: &[F::E],
-    sigma_a: &F::E,
-    words: Vec<F::E>,
-) -> [FieldEquation<F::E>; 2] {
+fn field_equations<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<E<X>>,
+    u: &[E<X>],
+    a: &E<X>,
+    delta: &[E<X>],
+    gamma: &[E<X>],
+    words: Vec<E<X>>,
+) -> [FieldEquation<E<X>>; 2] {
+    let f = p.field();
+    let basis = p.basis();
+    let dual = p.dual();
+    let rhs = &c.rhs;
+    let sigma_a = p.frobenius(a);
     // First row: -A + r + sum_k delta_k*t_k = 0.
     let mut first = eliminate_dependent(f, basis, delta);
     first.extend([f.one(), f.zero()]);
@@ -160,7 +161,7 @@ pub(crate) fn field_equations<F: AlgebraicField>(
     let mut second = eliminate_dependent(f, basis, &negative_gamma);
     second.extend([f.zero(), f.mone()]);
     let mut eta = f.zero();
-    let mut constant = sigma_a.clone();
+    let mut constant = sigma_a;
     // Second row: sigma(A) - b - sum_k gamma_k*(U_k+t_k)
     //             + sum_i word_coeff_i*word_i - eta*rhs(aux) = 0,
     // where gamma_k=sigma(delta_k) and eta=sum_k gamma_k*alpha_k.
@@ -293,17 +294,5 @@ pub(super) fn reconstruct_validated<X: PackingExtension>(
             w
         })
         .collect();
-    Ok(field_equations(
-        f,
-        p.basis(),
-        p.dual(),
-        &c.rhs,
-        u,
-        a,
-        delta,
-        &gamma,
-        &p.frobenius(a),
-        words,
-    )
-    .into())
+    Ok(field_equations(p, c, u, a, delta, &gamma, words).into())
 }

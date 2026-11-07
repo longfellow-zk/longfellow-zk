@@ -6,6 +6,7 @@ use crate::{
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field},
         random::DeterministicRng,
+        v2::transcript::Transcript,
     },
 };
 
@@ -28,7 +29,7 @@ fn rescalings_are_two_independent_nonzero_full_field_draws() {
             r.end_round(a)
         },
     );
-    assert_eq!(alphas(&mut t, &p), expected);
+    assert_eq!(alphas(&mut t.borrow(), &p), expected);
     assert_eq!(literal.u128(), t.u128());
 }
 
@@ -62,7 +63,13 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
                 ^ 1)
                 << (r % 8);
         }
-        let public = public(&plan, encoded, &masked, &mut Transcript::new(b"tree")).unwrap();
+        let public = public(
+            &plan,
+            encoded,
+            &masked,
+            &mut Transcript::new(b"tree").borrow(),
+        )
+        .unwrap();
         let c = tree::program(&plan, &sources, 0, ninput, &public).unwrap();
         let template = tree::template(&plan, &sources, 0, ninput).unwrap();
         assert_eq!(
@@ -83,14 +90,14 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             &[&c],
             inputs.clone(),
             &pads,
-            &mut Transcript::new(b"tree-proof"),
+            &mut Transcript::new(b"tree-proof").borrow(),
             &f,
         )
         .unwrap();
         let check = sumcheck::derive_constraints_for_circuits(
             &[&c],
             &proof,
-            &mut Transcript::new(b"tree-proof"),
+            &mut Transcript::new(b"tree-proof").borrow(),
             &f,
         )
         .unwrap();
@@ -115,7 +122,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
                 &[&c],
                 bad,
                 &pads,
-                &mut Transcript::new(b"tree-proof"),
+                &mut Transcript::new(b"tree-proof").borrow(),
                 &f
             )
             .is_err());

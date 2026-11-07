@@ -119,8 +119,8 @@ pub fn proof_geometry(
     let hd = BinaryInterpolatorFactory::full_field(&f);
     let sd =
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    let hc = ZkContext { f: &f, domain: &hd };
-    let sc = ZkContext { f: &p, domain: &sd };
+    let hc = ZkContext::new(&hd);
+    let sc = ZkContext::new(&sd);
     let (h, s) = spec.configs();
     let h = super::adapter::BinaryParticipant::new(hash, h, &hc)?;
     let s = super::adapter::SharedParticipant::new(

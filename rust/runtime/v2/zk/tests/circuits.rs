@@ -35,14 +35,14 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         n: 64,
         t: 2,
     };
-    let a = SelectedField::new(2, config, &f, &d, f.packing_id()).unwrap();
+    let a = SelectedField::new(2, config, &d, f.packing_id()).unwrap();
     assert_eq!(a.geometry().nw, 4);
     let param = JointParam::new((
         a,
         (
-            SelectedField::new(1, config, &p, &pd, p.packing_id()).unwrap(),
+            SelectedField::new(1, config, &pd, p.packing_id()).unwrap(),
             (
-                SelectedField::new(0, config, &f, &d, f.packing_id()).unwrap(),
+                SelectedField::new(0, config, &d, f.packing_id()).unwrap(),
                 (),
             ),
         ),
@@ -72,24 +72,24 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
             ),
         )
     };
-    let mut tp = Transcript::new(b"zk-v2/selected-three-fields");
+    let tp = Transcript::new(b"zk-v2/selected-three-fields");
     let (prover, root, responses) = param
         .commit(
             (vec![f.one(), f.zero()], (vec![p.one()], (vec![], ()))),
-            &mut tp,
+            tp,
             &mut DeterministicRng::new(91),
         )
         .unwrap();
-    let proof = prover.prove(&param, statements(), &mut tp).unwrap();
+    let (proof, mut tp) = prover.prove(&param, statements()).unwrap();
     let verify = |responses| {
-        let mut tv = Transcript::new(b"zk-v2/selected-three-fields");
+        let tv = Transcript::new(b"zk-v2/selected-three-fields");
         param
             .clone()
-            .receive(&root, responses, &mut tv)
-            .unwrap()
-            .authenticate(&proof, statements(), &mut tv)
+            .receive(&root, responses, tv)
+            .authenticate(&proof, statements())
     };
-    verify(responses.clone()).unwrap();
+    let mut tv = verify(responses.clone()).unwrap().into_transcript();
+    assert_eq!(tp.bytes(32), tv.bytes(32));
     let mut altered = responses;
     f.add(&mut altered.1 .1 .0.values[1], &f.one());
     assert!(verify(altered).is_err());
@@ -158,10 +158,7 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
 fn binary_circuits_authenticate_one_shared_input() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext {
-        f: &f,
-        domain: &domain,
-    };
+    let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
     let config = PolygeroConfig {
         k: 64,
@@ -181,22 +178,33 @@ fn binary_circuits_authenticate_one_shared_input() {
             crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ()))
                 .unwrap();
         let mut t = Transcript::new(b"fragmented-pcs-test");
-        p.bind(&mut t);
-        let (joint, root, responses) = param.commit((w, ()), &mut t, &mut rng).unwrap();
+        p.bind(&mut t.borrow());
+        let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
         let (proof, statement) = p
-            .prove_circuits(&main, &[true], private, state, &others, &mut t, &ctx)
+            .prove_circuits(
+                &main,
+                &[true],
+                private,
+                state,
+                &others,
+                &mut joint.transcript(),
+                &ctx,
+            )
             .unwrap();
-        let opening = joint.prove(&param, (statement, ()), &mut t).unwrap();
+        let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let mut t = Transcript::new(b"fragmented-pcs-test");
-            p.bind(&mut t);
-            let v = param
-                .clone()
-                .receive(&root, responses.clone(), &mut t)
-                .unwrap();
-            let statement =
-                p.verify_circuits(&main, &[public], candidate, &others, &mut t, &ctx)?;
-            v.authenticate(&opening, (statement, ()), &mut t)
+            p.bind(&mut t.borrow());
+            let mut v = param.clone().receive(&root, responses.clone(), t);
+            let statement = p.reduce_circuits(
+                &main,
+                &[public],
+                candidate,
+                &others,
+                &mut v.transcript(),
+                &ctx,
+            )?;
+            v.authenticate(&opening, (statement, ()))
                 .map(|_| ())
                 .map_err(|e| e.to_string())
         };
@@ -212,7 +220,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             let mut t = Transcript::new(b"bad-shared-layout");
             let before = t.fork_for_test().bytes(32);
             assert!(p
-                .verify_circuits(&main, &[true], &proof, &invalid, &mut t, &ctx)
+                .reduce_circuits(&main, &[true], &proof, &invalid, &mut t.borrow(), &ctx)
                 .is_err());
             assert_eq!(before, t.bytes(32));
             assert!(CircuitParticipant::with_circuits(&main, &invalid, config, &ctx).is_err());
@@ -229,10 +237,7 @@ fn prime_circuits_keep_degree_one_packing_direct() {
     let f2 = Fp2Field::new(&f);
     let domain =
         QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
-    let ctx = ZkContext {
-        f: &f,
-        domain: &domain,
-    };
+    let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
     let others = [&side, &main];
     let p = CircuitParticipant::with_circuits(
@@ -259,23 +264,33 @@ fn prime_circuits_keep_degree_one_packing_direct() {
     let param =
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let mut t = Transcript::new(b"prime-fragmented-pcs-test");
-    p.bind(&mut t);
-    let (joint, root, responses) = param.commit((w, ()), &mut t, &mut rng).unwrap();
+    p.bind(&mut t.borrow());
+    let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = p
-        .prove_circuits(&main, &public, private, state, &others, &mut t, &ctx)
+        .prove_circuits(
+            &main,
+            &public,
+            private,
+            state,
+            &others,
+            &mut joint.transcript(),
+            &ctx,
+        )
         .unwrap();
     assert!(matches!(
         proof.packing,
         crate::runtime::v2::proto::dual_packing::PackingProof::Direct
     ));
-    let opening = joint.prove(&param, (statement, ()), &mut t).unwrap();
+    let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
     let mut t = Transcript::new(b"prime-fragmented-pcs-test");
-    p.bind(&mut t);
-    let v = param.receive(&root, responses, &mut t).unwrap();
+    p.bind(&mut t.borrow());
+    let mut v = param.receive(&root, responses, t);
     let statement = p
-        .verify_circuits(&main, &public, &proof, &others, &mut t, &ctx)
+        .reduce_circuits(&main, &public, &proof, &others, &mut v.transcript(), &ctx)
         .unwrap();
-    v.authenticate(&opening, (statement, ()), &mut t)
-        .map(|_| ())
-        .unwrap();
+    let mut tv = v
+        .authenticate(&opening, (statement, ()))
+        .unwrap()
+        .into_transcript();
+    assert_eq!(tp.bytes(32), tv.bytes(32));
 }

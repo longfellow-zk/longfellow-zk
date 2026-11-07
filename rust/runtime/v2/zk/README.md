@@ -9,13 +9,20 @@ supplies circuit reductions to that wrapper. Prover and verifier orchestration
 stay in separate files; layout and constraint arithmetic are shared.
 
 The [Lean development](../../../../formal/lfzk-v2/README.md) proves extractor
-soundness for the current MAC-free mdoc composition in the ideal oracle model,
-with explicit circuit/layout, canonical-codec and ideal-sampler correspondences.
+soundness for the current MAC-free mdoc composition under its stated trusted
+circuit/arithmetic setup and ideal-oracle assumptions. Canonical proof and query
+encodings are modeled; Rust correspondence is checked by source audit.
 Complete joint-view zero knowledge remains open.
 
 ## Commitment and field participants
 
-`ZkContext` borrows the field and its ordered interpolation domain.
+`ZkContext::new(domain)` obtains its field directly from the ordered interpolation
+domain. Parameters and participants use that same field; no separate arithmetic
+instance can be attached. Joint protocol handles own the commitment and transcript
+through receipt, frontend reductions and authentication. Their `transcript()`
+accessor exposes only `TranscriptRef`, which permits protocol operations without
+replacing, resetting or finalizing the owned session. Successful completion
+returns the original transcript for the complete-proof seal.
 `CircuitParticipant::new` derives immutable proof geometry, witness layout and
 Polygero parameters. `prepare` validates and packs typed private inputs, samples
 sumcheck pads and returns the witness and owned reduction state. Binary source
@@ -39,7 +46,7 @@ same wrapper with one participant. Shared queries do not imply independent
 failure events; the per-field residual budgets add.
 
 After commitment, each participant runs its circuit and packing reduction.
-`prove` and `verify` return an affine `LinearStatement`. Returning that statement
+`prove` and `reduce` return an affine `LinearStatement`. Returning that statement
 is not an acceptance decision: the caller must consume the opaque joint handle
 to authenticate the frontend and fingerprint equations together. Standalone
 verification receives the commitment and fingerprints internally before its
@@ -60,12 +67,13 @@ sums them. T controls both openings and row masks.
 
 `CircuitParticipant::with_circuits` combines the supplied circuits in one
 layered sumcheck. All must have the same input width and public/private ordering.
-`prove_circuits` and `verify_circuits` take that ordered circuit list and the
+`prove_circuits` and `reduce_circuits` take that ordered circuit list and the
 same public inputs. The prover supplies one private source vector, packed and
 committed once. All circuit IDs and the common public values bind before sumcheck.
 
 The input array is shared. Intermediate layers concatenate each active
-circuit's wires in list order, without padding between circuits. Sparse
+circuit's wires in decreasing depth order, breaking ties by the original
+list index, without padding between circuits. Sparse
 quadratic, linear and constant streams retain local indices; their slices of
 the global arrays supply the offsets. At the input boundary every fragment's
 input offset is zero, so their contributions accumulate into the same input
@@ -154,7 +162,7 @@ The application-owned cross-field transcript lives under
 `mdoc/runtime/v2/adapter/transcript.rs`; circuit construction stays under
 `mdoc/circuits/p256_adapter`.
 
-Proof types and canonical codecs live in `runtime::proto`, with the application
+Proof types and canonical codecs live in `runtime::v2::proto`, with the application
 envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
 adapter proofs use `MDA6`, and the shared Polygero envelope uses `JPG2`.

@@ -362,17 +362,15 @@ fn r2hc_ii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     r.sub(&mut a[idx + 2 * s], &z0_val);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn hc2hc_f_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     a: &mut [F::E],
     idx_r: usize,
     idx_i: usize,
     s: usize,
-    tw1: &Fp2Element<W, F>,
-    tw2: &Fp2Element<W, F>,
-    tw3: &Fp2Element<W, F>,
+    twiddles: [&Fp2Element<W, F>; 3],
     r: &F,
 ) {
+    let [tw1, tw2, tw3] = twiddles;
     let x0r = a[idx_r].clone();
     let x0i = a[idx_i].clone();
     let mut x1r = a[idx_r + s].clone();
@@ -506,17 +504,15 @@ fn hc2r_iii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // hc2hcb_4(): the main complex->complex backward butterfly.
-#[allow(clippy::too_many_arguments)]
 fn hc2hc_b_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     a: &mut [F::E],
     idx_r: usize,
     idx_i: usize,
     s: usize,
-    tw1: &Fp2Element<W, F>,
-    tw2: &Fp2Element<W, F>,
-    tw3: &Fp2Element<W, F>,
+    twiddles: [&Fp2Element<W, F>; 3],
     r: &F,
 ) {
+    let [tw1, tw2, tw3] = twiddles;
     let mut x0r = a[idx_r].clone();
     let mut x0i = a[idx_i].clone();
     let mut x1r = a[idx_r + s].clone();
@@ -609,11 +605,11 @@ pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
         }
 
         if m == 2 {
-            for chunk in a.chunks_exact_mut(2) {
+            for chunk in a.as_chunks_mut::<2>().0 {
                 r2hc_i_2(chunk, 0, 1, r);
             }
         } else {
-            for chunk in a.chunks_exact_mut(4) {
+            for chunk in a.as_chunks_mut::<4>().0 {
                 r2hc_i_4(chunk, 0, 1, r);
             }
         }
@@ -630,9 +626,7 @@ pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
                         j,
                         current_m - j,
                         current_m,
-                        &roots.w[j * ws],
-                        &roots.w[2 * j * ws],
-                        &roots.w[3 * j * ws],
+                        [&roots.w[j * ws], &roots.w[2 * j * ws], &roots.w[3 * j * ws]],
                         r,
                     );
                 }
@@ -687,9 +681,7 @@ pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
                         j,
                         m - j,
                         m,
-                        &roots.w[j * ws],
-                        &roots.w[2 * j * ws],
-                        &roots.w[3 * j * ws],
+                        [&roots.w[j * ws], &roots.w[2 * j * ws], &roots.w[3 * j * ws]],
                         r,
                     );
                 }
@@ -699,11 +691,11 @@ pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
         }
 
         if m == 2 {
-            for chunk in a.chunks_exact_mut(2) {
+            for chunk in a.as_chunks_mut::<2>().0 {
                 hc2r_i_2(chunk, 0, 1, r);
             }
         } else {
-            for chunk in a.chunks_exact_mut(4) {
+            for chunk in a.as_chunks_mut::<4>().0 {
                 hc2r_i_4(chunk, 0, 1, r);
             }
         }

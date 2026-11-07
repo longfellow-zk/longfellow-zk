@@ -8,18 +8,19 @@ use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
     proto::Digest,
     random::RandomEngine,
-    v2::transcript::Transcript,
+    v2::transcript::{Transcript, TranscriptRef},
 };
 pub struct JointPolygeroProver<S> {
     pub(super) context: Digest,
     pub(super) states: S,
     pub(super) oracle: ColumnOracle,
+    pub(super) transcript: Transcript,
 }
 impl<S> JointPolygeroProver<S> {
     pub fn commit<L: Participants<States = S>>(
         param: &JointPolygeroParam<L>,
         witnesses: L::Witnesses,
-        t: &mut Transcript,
+        mut t: Transcript,
         rng: &mut impl RandomEngine,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
         param.participants.validate_witnesses(&witnesses)?;
@@ -30,36 +31,43 @@ impl<S> JointPolygeroProver<S> {
         let com = PolygeroCommitment {
             root: oracle.root(),
         };
-        param.receive(&com, t);
+        param.receive(&com, &mut t.borrow());
         Ok((
             Self {
                 context: param.context,
                 states,
                 oracle,
+                transcript: t,
             },
             com,
         ))
     }
+    /// Continue the frontend on the session that received this commitment.
+    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+        self.transcript.borrow()
+    }
     pub fn prove<L: Participants<States = S>>(
-        self,
+        mut self,
         param: &JointPolygeroParam<L>,
         s: &L::Statements,
-        t: &mut Transcript,
-    ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
+    ) -> Result<(JointPolygeroProof<L::Bodies>, Transcript), PolygeroError> {
         let p = param;
         ensure(self.context == p.context, "joint prover parameter mismatch")?;
         p.participants.validate_statements(s)?;
-        let c = p.challenges(s, t);
+        let c = p.challenges(s, &mut self.transcript.borrow());
         let mut bodies = p.participants.respond(&self.states, s, &c);
         // Challenge polynomials are no longer needed while collecting openings.
         drop(c);
-        let indices = p.queries(&bodies, t);
+        let indices = p.queries(&bodies, &mut self.transcript.borrow());
         p.participants.gather(&self.states, &mut bodies, &indices);
-        Ok(JointPolygeroProof {
-            context: p.context,
-            bodies,
-            opening: self.oracle.open(&indices),
-        })
+        Ok((
+            JointPolygeroProof {
+                context: p.context,
+                bodies,
+                opening: self.oracle.open(&indices),
+            },
+            self.transcript,
+        ))
     }
 }
 /// Form the masked arithmetic response directly on the first 2k oracle

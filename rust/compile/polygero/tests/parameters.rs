@@ -180,12 +180,12 @@ fn roundtrip_profiles<
     let witness = rng.elt_field_slice(1000, f);
     for config in profiles {
         let statement = Digest::default();
-        let param = PolygeroParam::try_new(witness.len(), config, d, f).unwrap();
-        let param = JointPolygeroParam::new((Participant::new(param, f, d).unwrap(), ())).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, d).unwrap();
+        let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
 
-        let mut ts = Transcript::new(b"polygero/admitted");
+        let ts = Transcript::new(b"polygero/admitted");
         let (prover, com) =
-            JointPolygeroProver::commit(&param, (witness.clone(), ()), &mut ts, &mut rng).unwrap();
+            JointPolygeroProver::commit(&param, (witness.clone(), ()), ts, &mut rng).unwrap();
         let statements = (
             LinearStatement {
                 a: vec![],
@@ -194,14 +194,13 @@ fn roundtrip_profiles<
             },
             (),
         );
-        let proof = prover.prove(&param, &statements, &mut ts).unwrap();
+        let (proof, ts) = prover.prove(&param, &statements).unwrap();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         let mut remaining = bytes.as_slice();
         let decoded = param.read(&mut remaining).unwrap();
         assert!(remaining.is_empty());
-        let mut tv = Transcript::new(b"polygero/admitted");
-        let mut verifier = JointPolygeroVerifier::new(param);
-        verifier.receive_commitment(&com, &mut tv);
-        verifier.verify(&com, decoded, &statements, tv).unwrap();
+        let tv = Transcript::new(b"polygero/admitted");
+        let verifier = JointPolygeroVerifier::new(param, &com, tv);
+        verifier.verify(decoded, &statements).unwrap();
     }
 }

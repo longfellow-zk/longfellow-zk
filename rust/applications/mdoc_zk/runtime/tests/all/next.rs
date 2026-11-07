@@ -1075,7 +1075,7 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
     let native = &geometry.geom_sig.sc_geom;
     assert!(2 * binary.logw_layers.iter().sum::<usize>() + 2 * binary.logw_layers.len() + 2 <= 593);
     assert!(binary.logw_layers.len() <= 20);
-    assert!(2 * native.logw_layers.iter().sum::<usize>() + 2 * native.logw_layers.len() + 1 <= 593);
+    assert!(2 * native.logw_layers.iter().sum::<usize>() + 2 * native.logw_layers.len() < 593);
     assert!(native.logw_layers.len() <= 20);
     assert!(
         binary.logw_layers.iter().sum::<usize>()

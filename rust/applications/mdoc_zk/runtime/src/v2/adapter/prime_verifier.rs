@@ -3,12 +3,12 @@ use super::*;
 impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
     SharedParticipant<W, F>
 {
-    pub fn reduce_verify(
+    pub fn reduce(
         &self,
         circuit: &Circuit<F>,
         public: &[F::E],
         proof: &SumcheckProof<W, F>,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         f: &F,
     ) -> Result<LinearClaim<F::E>, String> {
         if circuit.id != self.id {

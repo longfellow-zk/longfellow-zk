@@ -17,7 +17,7 @@
 //! `prover` sends masked messages while reducing an ordered set of same-field
 //! circuits from outputs to inputs. `fragments` aligns their input depths and
 //! supplies shared weight updates; the single-circuit case uses that same path.
-//! Layers have independent quadratic, linear and constant streams. `reduction`
+//! Layers have independent quadratic, linear and constant streams. `verifier`
 //! reconstructs the public challenges and input weights from
 //! those messages. Both use `symbolic` to form the same sparse pad constraints,
 //! with dense weights for the final input claim. The ZK v2 constraint compiler
@@ -25,9 +25,8 @@
 //!
 //! `eval` and `dense` handle witness evaluation and binding for the prover.
 //! `quad`, `monomial`, and `transcript` supply the tensor bindings, monomial weights,
-//! and challenge rules shared by both roles. `verifier` evaluates the constraints
-//! with revealed inputs and pads for diagnostics; production verification is
-//! performed by [`crate::runtime::v2::zk::ZkVerifier`].
+//! and challenge rules shared by both roles. Revealed-input diagnostics live in
+//! tests; complete verification is performed by [`crate::runtime::v2::zk::ZkVerifier`].
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod fragments;
@@ -73,12 +72,14 @@ pub(crate) use prover::prove;
 pub(crate) use prover::prove_core;
 
 cfg_verifier! {
-    mod reduction;
-    pub(crate) use reduction::{derive_constraints, derive_constraints_for_circuits};
-
-    pub mod verifier;
+    mod verifier;
+    pub(crate) use verifier::{derive_constraints, derive_constraints_for_circuits};
 }
 
 #[cfg(test)]
 #[path = "../tests/all/mod.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/diagnostic.rs"]
+mod diagnostic;

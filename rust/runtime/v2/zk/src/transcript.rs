@@ -4,11 +4,11 @@
 use super::{joint::CircuitParticipant, packing_commitment::PackingCommitment};
 use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
-    v2::transcript::Transcript,
+    v2::transcript::TranscriptRef,
 };
 
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn bind(&self, t: &mut Transcript, id: &[u8; 32])
+    pub fn bind(&self, t: &mut TranscriptRef<'_>, id: &[u8; 32])
     where F: crate::core::algebra::SerializableField {
         if self.layout.degree == 1 {
             return;
@@ -28,7 +28,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Bind packing and composed-circuit layout before receiving the shared
     /// root. Degree-one layouts add only composition metadata here; sumcheck
     /// binds the main circuit statement before its challenges.
-    pub fn bind(&self, t: &mut Transcript) {
+    pub fn bind(&self, t: &mut TranscriptRef<'_>) {
         self.backend.bind(t, &self.id);
         t.bind(|w| {
             w.write_bytes(b"layered-sumcheck/commitment-layout/v1");

@@ -5,7 +5,7 @@ use crate::runtime::{
     v2::{
         polygero::JointPolygeroProver,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::Transcript,
+        transcript::{Transcript, TranscriptRef},
     },
 };
 
@@ -88,7 +88,7 @@ pub struct Prover<S, C, R> {
 pub fn commit<L: ProverFields>(
     param: &Param<L>,
     mut witnesses: Witnesses<L>,
-    t: &mut Transcript,
+    t: Transcript,
     rng: &mut impl RandomEngine,
 ) -> Result<
     (
@@ -105,11 +105,12 @@ where
     param.fields.append_masks(&mut witnesses, rng);
     // Retain the original cells only through this early exchange. The backend
     // consumes its copy while encoding; no raw witness is retained by Prover.
-    let (backend, root) = JointPolygeroProver::commit(&param.backend, witnesses.clone(), t, rng)
-        .map_err(|e| e.to_string())?;
-    let coefficients = param.challenges(&root, t);
+    let (mut backend, root) =
+        JointPolygeroProver::commit(&param.backend, witnesses.clone(), t, rng)
+            .map_err(|e| e.to_string())?;
+    let coefficients = param.challenges(&root, &mut backend.transcript());
     let responses = param.fields.responses(&witnesses, &coefficients);
-    param.bind_responses(&responses, t);
+    param.bind_responses(&responses, &mut backend.transcript());
     Ok((
         Prover {
             backend,
@@ -122,12 +123,14 @@ where
     ))
 }
 impl<S, C, R> Prover<S, C, R> {
+    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+        self.backend.transcript()
+    }
     pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
         self,
         param: &Param<L>,
         statements: Statements<L>,
-        t: &mut Transcript,
-    ) -> Result<JointPolygeroProof<Bodies<L>>, String>
+    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Backend: BackendParticipants<States = S>,
     {
@@ -139,7 +142,7 @@ impl<S, C, R> Prover<S, C, R> {
                 .fields
                 .authenticate(statements, self.coefficients, &self.responses)?;
         self.backend
-            .prove(&param.backend, &statements, t)
+            .prove(&param.backend, &statements)
             .map_err(|e| e.to_string())
     }
 }

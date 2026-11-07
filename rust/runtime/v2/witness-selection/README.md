@@ -27,7 +27,9 @@ All responses bind before control returns to the frontend. In mdoc this precedes
 the prime-field sumcheck as well as the binary sumcheck. Responses occupy
 96 bytes across those two fields; masks and coefficients are not serialized.
 
-The returned prover and verifier states retain private backend handles. When
+The returned prover and verifier states retain private backend handles and own
+the original transcript. Frontends borrow only its `TranscriptRef` capability;
+later proof/authentication calls accept no replacement transcript or root. When
 given the frontend's later affine statements, they automatically append
 `dot(aⱼ,w) + mⱼ - tⱼ = 0` before invoking Polygero. Frontend equations cannot
 address the dedicated mask cells. Consuming statements avoids copying their

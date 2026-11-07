@@ -117,8 +117,8 @@ impl Plan {
         let x = f.u128_to_element(2);
         assert!(ORDER_FACTORS
             .iter()
-            .all(|q| pow(f, x.clone(), u128::MAX / q) != f.one()));
-        let g = pow(f, x.clone(), u128::MAX - (1u128 << 64));
+            .all(|q| pow(f, x, u128::MAX / q) != f.one()));
+        let g = pow(f, x, u128::MAX - (1u128 << 64));
         // Owned 16-byte-position fixed-base table, about 64 KiB.
         let mut base = g;
         let tables: Vec<Vec<Gf2_128>> = (0..16)
@@ -126,7 +126,7 @@ impl Plan {
                 let mut value = f.one();
                 let table = (0..256)
                     .map(|_| {
-                        let out = value.clone();
+                        let out = value;
                         f.mul(&mut value, &base);
                         out
                     })

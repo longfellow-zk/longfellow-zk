@@ -13,6 +13,22 @@
 // limitations under the License.
 
 use super::{ZkContext, ZkProof, ZkProver, ZkVerifier};
+
+#[test]
+fn context_uses_its_domains_runtime_modulus() {
+    use crate::runtime::algebra::{
+        fp_generic::FpGenericField, range_interpolation::ScalarInterpolatorFactory, LIMBS_PER_U64,
+    };
+    type Prime = FpGenericField<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }>;
+    let f17 = Prime::new_generic([17]);
+    let f19 = Prime::new_generic([19]);
+    let d17 = ScalarInterpolatorFactory::new(&f17, 16);
+    let d19 = ScalarInterpolatorFactory::new(&f19, 16);
+    let context17 = ZkContext::new(&d17);
+    let context19 = ZkContext::new(&d19);
+    assert!(std::ptr::eq(context17.field(), &f17));
+    assert!(std::ptr::eq(context19.field(), &f19));
+}
 use crate::{
     core::{
         algebra::SerializableField,
@@ -63,6 +79,9 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
 impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDomain<W, F>
     for BoundedDomain<'_, D>
 {
+    fn field(&self) -> &F {
+        self.inner.field()
+    }
     fn domain_id(&self) -> Vec<u8> {
         self.inner.domain_id()
     }
@@ -122,19 +141,16 @@ pub(crate) fn exercise<
         inner: domain,
         limit: config.k + config.n,
     };
-    let context = ZkContext {
-        f,
-        domain: &bounded,
-    };
+    let context = ZkContext::new(&bounded);
     use crate::runtime::algebra::{AlgebraicField, PackingExtension};
     let extension = f.packing_extension();
     let base = extension.base();
     let public = vec![base.one()];
     let witness = vec![base.one(), base.one()];
     let p = ZkProver::new(circuit(f), config);
-    let mut tp = Transcript::new(b"longfellow/v2/test");
+    let tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
-    let (committed, prover_geometry) = p.commit(&witness, &context, &mut tp, &mut rng).unwrap();
+    let (committed, prover_geometry) = p.commit(&witness, &context, tp, &mut rng).unwrap();
     let source = crate::runtime::v2::proto::zk::packing_layout(&circuit(f), f)
         .unwrap()
         .0;
@@ -142,8 +158,8 @@ pub(crate) fn exercise<
         prover_geometry.circuit.com_geom.nw,
         source.witness_count + 2
     );
-    let proof = p
-        .prove(&public, witness.clone(), committed, &mut tp, &context)
+    let (proof, tp) = p
+        .prove(&public, witness.clone(), committed, &context)
         .unwrap();
     let bytes = proof
         .write(&prover_geometry, f, tp.fork_for_test())
@@ -166,9 +182,8 @@ pub(crate) fn exercise<
     let mut input = bytes.as_slice();
     let decoded = ZkProof::read(&mut input, &geometry, f).unwrap();
     assert!(input.is_empty());
-    let complete = |encoded: &[u8]| -> Result<(), String> {
-        let parsed =
-            ZkProof::read(&mut encoded.as_ref(), &geometry, f).map_err(|e| e.to_string())?;
+    let complete = |mut encoded: &[u8]| -> Result<(), String> {
+        let parsed = ZkProof::read(&mut encoded, &geometry, f).map_err(|e| e.to_string())?;
         let session = Transcript::new(b"longfellow/v2/test");
         let verifier = ZkVerifier::new(circuit(f), config, &context).map_err(|e| e.to_string())?;
         verifier
@@ -188,8 +203,8 @@ pub(crate) fn exercise<
     assert!(complete(&trailing).is_err());
     let verify = |inputs: Vec<crate::runtime::v2::zk::CircuitInput<F>>,
                   candidate: &ZkProof<W, F>| {
-        let mut tv = Transcript::new(b"longfellow/v2/test");
-        v.reduce(&inputs, candidate, &mut tv, &context)
+        let tv = Transcript::new(b"longfellow/v2/test");
+        v.reduce(&inputs, candidate, tv, &context)
     };
     verify(public.clone(), &decoded).unwrap();
     for coordinate in 0..2 {
@@ -203,17 +218,12 @@ pub(crate) fn exercise<
         let mut other_circuit = circuit(f);
         other_circuit.id[0] ^= 1;
         let other_prover = ZkProver::new(other_circuit, config);
-        let mut other_ts = Transcript::new(b"longfellow/v2/test");
+        let other_ts = Transcript::new(b"longfellow/v2/test");
         let (committed, _) = other_prover
-            .commit(
-                &witness,
-                &context,
-                &mut other_ts,
-                &mut DeterministicRng::new(42),
-            )
+            .commit(&witness, &context, other_ts, &mut DeterministicRng::new(42))
             .unwrap();
-        let other_proof = other_prover
-            .prove(&public, witness.clone(), committed, &mut other_ts, &context)
+        let (other_proof, _) = other_prover
+            .prove(&public, witness.clone(), committed, &context)
             .unwrap();
         assert_eq!(other_proof.com, proof.com);
         assert!(verify(public.clone(), &other_proof).is_err());
@@ -221,9 +231,9 @@ pub(crate) fn exercise<
         let mut other_circuit = circuit(f);
         other_circuit.id[0] ^= 1;
         let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
-        let mut other_ts = Transcript::new(b"longfellow/v2/test");
+        let other_ts = Transcript::new(b"longfellow/v2/test");
         other_verifier
-            .reduce(&public, &other_proof, &mut other_ts, &context)
+            .reduce(&public, &other_proof, other_ts, &context)
             .unwrap();
     }
     let bad_public = vec![base.zero()];

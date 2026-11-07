@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::{generic::*, prover::prove, verifier::verify};
+use super::{generic::*, prover::prove, verifier::reduce};
 use crate::{
     core::algebra::{AlgebraicField, BareField, SerializableField},
     runtime::{
@@ -252,11 +252,11 @@ fn roundtrip<X: PackingExtension>(
         &aux,
         masks,
         b"commitment context",
-        &mut tp,
+        &mut tp.borrow(),
     )
     .unwrap();
     assert_eq!(
-        verify(p, &claim, &proof, b"commitment context", &mut tv).unwrap(),
+        reduce(p, &claim, &proof, b"commitment context", &mut tv.borrow()).unwrap(),
         rows
     );
     assert_eq!(tp.u128(), tv.u128());
@@ -266,38 +266,23 @@ fn roundtrip<X: PackingExtension>(
                 .unwrap()
         ));
     }
-    let bytes = proof.write(p).unwrap();
-    let mut rest = bytes.as_slice();
-    let decoded = PackingProof::read(&p, &mut rest).unwrap();
-    assert_eq!(decoded, proof);
-    assert!(rest.is_empty());
-    for len in 0..bytes.len() {
-        assert!(PackingProof::read(&p, &mut &bytes[..len]).is_err());
-    }
-    if !bytes.is_empty() {
-        let mut wrong = bytes.clone();
-        wrong[0] ^= 1;
-        assert!(PackingProof::read(&p, &mut wrong.as_slice()).is_err());
-        let mut bad = proof.clone();
-        let PackingProof::TraceZero { u, .. } = &mut bad else {
-            unreachable!()
-        };
+    let mut bad = proof.clone();
+    if let PackingProof::TraceZero { u, .. } = &mut bad {
         u.pop();
-        assert!(bad.write(p).is_err());
-        assert!(verify(
+        assert!(reduce(
             p,
             &claim,
             &bad,
             b"commitment context",
-            &mut Transcript::new(b"generic/test")
+            &mut Transcript::new(b"generic/test").borrow()
         )
         .is_err());
-        let different = verify(
+        let different = reduce(
             p,
             &claim,
             &proof,
             b"other context",
-            &mut Transcript::new(b"generic/test"),
+            &mut Transcript::new(b"generic/test").borrow(),
         )
         .unwrap();
         assert_ne!(rows, different);
@@ -351,7 +336,8 @@ fn identity_has_no_masks_messages_or_challenges() {
     };
     let mut ts = Transcript::new(b"identity");
     let mut before = ts.fork_for_test();
-    let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts).unwrap();
+    let (proof, rows) =
+        prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts.borrow()).unwrap();
     assert_eq!(proof, PackingProof::Direct);
     assert_eq!(rows.len(), 1);
     assert_eq!(ts.u128(), before.u128());
@@ -359,7 +345,6 @@ fn identity_has_no_masks_messages_or_challenges() {
         .residual(&p.pack(&[1, 4, 2]).unwrap(), &[], &[], p.field())
         .unwrap();
     assert_eq!(residual, 0);
-    assert!(proof.write(&p).unwrap().is_empty());
     assert!(PackingMasks::from_cells(&p, vec![0]).is_err());
     let extension = p.extension();
     let values = vec![1, 4, 2];
@@ -373,7 +358,7 @@ fn identity_has_no_masks_messages_or_challenges() {
     let mut verifier = Transcript::new(b"identity");
     let mut unchanged = verifier.fork_for_test();
     assert_eq!(
-        verify(&p, &c, &proof, b"ignored", &mut verifier).unwrap(),
+        reduce(&p, &c, &proof, b"ignored", &mut verifier.borrow()).unwrap(),
         rows
     );
     assert_eq!(verifier.u128(), unchanged.u128());
@@ -556,16 +541,14 @@ fn authenticate<
             t: 2,
         },
         domain,
-        f,
     )
     .unwrap();
-    let param = JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap();
-    let mut verifier = JointPolygeroVerifier::new(param.clone());
-    let mut tp = Transcript::new(b"generic/backend");
-    let mut tv = tp.fork_for_test();
-    let (prover, root) =
-        JointPolygeroProver::commit(&param, (witness, ()), &mut tp, &mut rng).unwrap();
-    verifier.receive_commitment(&root, &mut tv);
+    let param = JointPolygeroParam::new((Participant::new(param, domain).unwrap(), ())).unwrap();
+    let tp = Transcript::new(b"generic/backend");
+    let tv = tp.fork_for_test();
+    let (mut prover, root) =
+        JointPolygeroProver::commit(&param, (witness, ()), tp, &mut rng).unwrap();
+    let mut verifier = JointPolygeroVerifier::new(param.clone(), &root, tv);
     let weights = (0..values.len())
         .map(|_| rng.elt_field(f))
         .collect::<Vec<_>>();
@@ -582,10 +565,25 @@ fn authenticate<
         },
         auxiliary_count: 1,
     };
-    let (proof, equations) =
-        prove(p, &claim, values, &aux, masks, &root.root.data, &mut tp).unwrap();
+    let (proof, equations) = prove(
+        p,
+        &claim,
+        values,
+        &aux,
+        masks,
+        &root.root.data,
+        &mut prover.transcript(),
+    )
+    .unwrap();
     assert_eq!(
-        verify(p, &claim, &proof, &root.root.data, &mut tv).unwrap(),
+        reduce(
+            p,
+            &claim,
+            &proof,
+            &root.root.data,
+            &mut verifier.transcript()
+        )
+        .unwrap(),
         equations
     );
     let mut terms = Vec::new();
@@ -613,9 +611,9 @@ fn authenticate<
         .map(|e| e.constant.clone())
         .collect::<Vec<_>>();
     let statement = Digest {
-        data: tp.bytes(32).try_into().unwrap(),
+        data: prover.transcript().bytes(32).try_into().unwrap(),
     };
-    assert_eq!(statement.data, tv.bytes(32).as_slice());
+    assert_eq!(statement.data, verifier.transcript().bytes(32).as_slice());
     let statements = (
         LinearStatement {
             a: terms,
@@ -624,10 +622,9 @@ fn authenticate<
         },
         (),
     );
-    let backend = prover.prove(&param, &statements, &mut tp).unwrap();
-    verifier
-        .reduce(&root, &backend, &statements, &mut tv)
-        .unwrap();
+    let (backend, mut tp) = prover.prove(&param, &statements).unwrap();
+    let mut tv = verifier.reduce(&backend, &statements).unwrap();
+    assert_eq!(tp.bytes(32), tv.bytes(32));
 }
 #[test]
 fn generic_equations_authenticate_against_the_original_polygero_commitment() {

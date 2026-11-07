@@ -5,13 +5,13 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::SupportsSampling,
-        v2::transcript::{RoundLabel, Transcript},
+        v2::transcript::{RoundLabel, TranscriptRef},
     },
 };
 
 pub(super) fn coefficients<F: SupportsSampling>(
     count: usize,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Vec<F::E> {
     // All masked prime messages have already been absorbed before these fresh
@@ -28,7 +28,7 @@ pub(super) fn coefficients<F: SupportsSampling>(
 pub(super) fn bind_claim<F: SerializableField>(
     weights: &[F::E],
     target: &F::E,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) {
     // Explicitly fix the complete adapter statement before its rescaling alpha.

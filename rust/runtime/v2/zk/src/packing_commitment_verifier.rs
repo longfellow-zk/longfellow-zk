@@ -2,20 +2,22 @@
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
-    v2::{dual_packing::generic::PackingProof, polygero::LinearStatement, transcript::Transcript},
+    v2::{
+        dual_packing::generic::PackingProof, polygero::LinearStatement, transcript::TranscriptRef,
+    },
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn verify<const W: usize>(
+    pub fn reduce<const W: usize>(
         &self,
         statement: CommitmentStatement<F::E>,
         packing: &PackingProof<F::E>,
         id: &[u8; 32],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
     ) -> Result<LinearStatement<F::E>, String>
     where
         F: ZkField<W>,
     {
-        let rows = crate::runtime::v2::dual_packing::verifier::verify(
+        let rows = crate::runtime::v2::dual_packing::verifier::reduce(
             &self.parameters,
             &statement.claim,
             packing,
@@ -26,7 +28,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // Identify the circuit without another query; sparse rows are derived
         // locally rather than accepted as proof data.
         let digest = crate::runtime::proto::Digest { data: *id };
-        let (a, b) = self.authenticate::<W>(statement, &rows)?;
+        let (a, b) = self.append_equations::<W>(statement, &rows)?;
         Ok(LinearStatement { a, b, digest })
     }
 }

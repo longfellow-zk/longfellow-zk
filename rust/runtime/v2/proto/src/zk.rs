@@ -136,23 +136,11 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
             if g.packing_degree == 0 || width == 0 {
                 return Err(Error::new(ErrorKind::InvalidData, "packing geometry"));
             }
-            let raw = b
+            let mut raw = b
                 .get(..size)
                 .ok_or_else(|| Error::new(ErrorKind::UnexpectedEof, "packing response"))?;
-            let mut v = raw
-                .chunks_exact(width)
-                .map(|x| {
-                    let e = f
-                        .bytes_to_element(x)
-                        .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                    if f.to_bytes(&e) != x {
-                        return Err(Error::new(
-                            ErrorKind::InvalidData,
-                            "noncanonical packing response",
-                        ));
-                    }
-                    Ok(e)
-                })
+            let mut v = (0..count)
+                .map(|_| super::read_field(&mut raw, f))
                 .collect::<std::io::Result<Vec<_>>>()?;
             *b = &b[size..];
             let a = v.pop().unwrap();

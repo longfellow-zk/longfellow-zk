@@ -32,8 +32,7 @@ fn field<'a, const W: usize, F: RuntimeField<W> + PackingField, D: EvaluationDom
     d: &'a D,
 ) -> Field<'a, W, F, D> {
     Field::new(
-        PolygeroParam::try_new(witness_count(n).unwrap(), config(), d, f).unwrap(),
-        f,
+        PolygeroParam::try_new(witness_count(n).unwrap(), config(), d).unwrap(),
         d,
         f.packing_id(),
     )
@@ -84,15 +83,14 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
             t: 1,
         },
         &sd,
-        &small,
     )
     .unwrap();
-    let generic = Field::new(small_param, &small, &sd, b"test/prime17/canonical".to_vec()).unwrap();
+    let generic = Field::new(small_param, &sd, b"test/prime17/canonical".to_vec()).unwrap();
     let generic = Param::new((generic, ())).unwrap();
     let root = PolygeroCommitment {
         root: Digest { data: [3; 32] },
     };
-    let a = generic.challenges(&root, &mut Transcript::new(b"generic-sampling"));
+    let a = generic.challenges(&root, &mut Transcript::new(b"generic-sampling").borrow());
     assert_eq!(a.0[0].len(), 3);
 
     let f = Gf2_128Field::new();
@@ -109,46 +107,34 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
         rng.elt_field_slice(3, &f),
         (rng.elt_field_slice(2, &p), (vec![], ())),
     );
-    let mut tp = Transcript::new(b"three-fields");
-    let (prover, root, responses) = commit(&param, witnesses, &mut tp, &mut rng).unwrap();
-    let mut tv = Transcript::new(b"three-fields");
-    let verifier = Verifier::receive(param.clone(), &root, responses, &mut tv).unwrap();
-    let proof = prover
-        .prove(
-            &param,
-            (statement(), (statement(), (statement(), ()))),
-            &mut tp,
-        )
+    let tp = Transcript::new(b"three-fields");
+    let (prover, root, responses) = commit(&param, witnesses, tp, &mut rng).unwrap();
+    let tv = Transcript::new(b"three-fields");
+    let verifier = Verifier::receive(param.clone(), &root, responses, tv);
+    let (proof, mut tp) = prover
+        .prove(&param, (statement(), (statement(), (statement(), ()))))
         .unwrap();
-    verifier
-        .authenticate(
-            &proof,
-            (statement(), (statement(), (statement(), ()))),
-            &mut tv,
-        )
-        .unwrap();
+    let mut tv = verifier
+        .authenticate(&proof, (statement(), (statement(), (statement(), ()))))
+        .unwrap()
+        .into_transcript();
     assert_eq!(tp.u128(), tv.u128());
 }
 
 #[test]
-fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_advance_transcript() {
+fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_masks() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
     let param = Param::new((field(3, &f, &d), ())).unwrap();
+    let t = Transcript::new(b"shape");
+    let mut rng = DeterministicRng::new(1);
+    assert!(commit(&param, (vec![f.one(); 5], ()), t, &mut rng).is_err());
+    assert_eq!(rng.bytes(32), DeterministicRng::new(1).bytes(32));
     let mut t = Transcript::new(b"shape");
-    let mut reference = t.fork_for_test();
-    assert!(commit(
-        &param,
-        (vec![f.one(); 5], ()),
-        &mut t,
-        &mut DeterministicRng::new(1)
-    )
-    .is_err());
-    assert_eq!(t.u128(), reference.u128());
     let root = PolygeroCommitment {
         root: Digest { data: [3; 32] },
     };
-    let a = param.challenges(&root, &mut t);
+    let a = param.challenges(&root, &mut t.borrow());
     let mut s = statement();
     s.b.push(f.zero());
     s.a.push(PolygeroLinearTerm {
@@ -201,7 +187,7 @@ fn both_characteristics_cover_every_cell_and_have_dedicated_masks() {
     let root = PolygeroCommitment {
         root: Digest { data: [9; 32] },
     };
-    let a = param.challenges(&root, &mut Transcript::new(b"cell-coverage"));
+    let a = param.challenges(&root, &mut Transcript::new(b"cell-coverage").borrow());
     assert_ne!(a.0[0], a.0[1]);
     assert_ne!(a.1 .0[0], a.1 .0[1]);
     let responses = fields.responses(&witnesses, &a);
@@ -254,9 +240,9 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
             rng.elt_field_slice(17, &f),
             (rng.elt_field_slice(13, &p), ()),
         );
-        let mut tp = Transcript::new(b"selection/backend");
-        let (prover, root, mut responses) = commit(&param, witnesses, &mut tp, &mut rng).unwrap();
-        let mut tv = Transcript::new(b"selection/backend");
+        let tp = Transcript::new(b"selection/backend");
+        let (mut prover, root, mut responses) = commit(&param, witnesses, tp, &mut rng).unwrap();
+        let tv = Transcript::new(b"selection/backend");
         if forged > 0 {
             // Rebind the forged response on BOTH sides. Arithmetic rejection is
             // required even when the transcript prefix and final seal agree.
@@ -266,24 +252,27 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
                 p.add(&mut responses.1 .0.values[forged - 3], &p.one());
             }
         }
-        let verifier = Verifier::receive(param.clone(), &root, responses.clone(), &mut tv).unwrap();
+        let mut verifier = Verifier::receive(param.clone(), &root, responses.clone(), tv);
         if forged == 0 {
-            assert_eq!(tp.u128(), tv.u128());
+            assert_eq!(prover.transcript().u128(), verifier.transcript().u128());
             // Sampling this extra common round is deliberate and symmetric.
         } else {
             // Retain the original committed oracle but authenticate a false row.
-            tp = tv.fork_for_test();
+            prover
+                .backend
+                .replace_transcript_for_test(verifier.transcript().fork_for_test());
         }
         let prover = Prover {
             responses,
             ..prover
         };
-        let proof = prover
-            .prove(&param, (statement(), (statement(), ())), &mut tp)
+        let (proof, mut tp) = prover
+            .prove(&param, (statement(), (statement(), ())))
             .unwrap();
-        let result = verifier.authenticate(&proof, (statement(), (statement(), ())), &mut tv);
+        let result = verifier.authenticate(&proof, (statement(), (statement(), ())));
         assert_eq!(result.is_ok(), forged == 0);
         if forged == 0 {
+            let mut tv = result.unwrap().into_transcript();
             assert_eq!(tp.u128(), tv.u128());
         }
     }
@@ -300,24 +289,26 @@ fn layouts_roots_contexts_and_reader_segmentation_are_bound() {
     let other = PolygeroCommitment {
         root: Digest { data: [2; 32] },
     };
-    let a = param.challenges(&root, &mut Transcript::new(b"layout"));
+    let a = param.challenges(&root, &mut Transcript::new(b"layout").borrow());
     let mut changed_identity = param.clone();
     changed_identity.fields.0.field_id.push(0);
     assert_ne!(
         a.0,
         changed_identity
-            .challenges(&root, &mut Transcript::new(b"layout"))
+            .challenges(&root, &mut Transcript::new(b"layout").borrow())
             .0
     );
     assert_ne!(
         a.0,
-        param.challenges(&other, &mut Transcript::new(b"layout")).0
+        param
+            .challenges(&other, &mut Transcript::new(b"layout").borrow())
+            .0
     );
     let different = Param::new((field(18, &f, &d), ())).unwrap();
     assert_ne!(
         a.0[0],
         different
-            .challenges(&root, &mut Transcript::new(b"layout"))
+            .challenges(&root, &mut Transcript::new(b"layout").borrow())
             .0[0]
     );
     let mut t = Transcript::new(b"layout");
@@ -332,9 +323,42 @@ fn layouts_roots_contexts_and_reader_segmentation_are_bound() {
         r.end_round(bytes)
     });
     let expected: Vec<_> = raw
-        .chunks_exact(16)
+        .as_chunks::<16>()
+        .0
+        .iter()
         .map(|x| f.bytes_to_element(x).unwrap())
         .collect();
     assert_eq!(a.0[0], expected[..17]);
     assert_eq!(a.0[1], expected[17..]);
+}
+
+#[test]
+fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
+    let f = Gf2_128Field::new();
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    let param = Param::new((field(17, &f, &d), ())).unwrap();
+    let root = PolygeroCommitment {
+        root: Digest { data: [7; 32] },
+    };
+    let responses = (
+        FingerprintResponse {
+            values: [f.zero(), f.one()],
+        },
+        (),
+    );
+    let actual = Transcript::new(b"selection/root-binding");
+    let mut verifier = Verifier::receive(param.clone(), &root, responses.clone(), actual);
+
+    // Preserve the existing root framing and order while removing the detached
+    // receipt API: the first challenge round must see exactly this prefix.
+    let mut expected = Transcript::new(b"selection/root-binding");
+    expected.bind(|w| {
+        w.write_bytes(b"polygero/joint/root/v1");
+        w.write_bytes(&param.context().data);
+    });
+    expected.bind(|w| w.write_bytes(&root.root.data));
+    let _coefficients = param.challenges(&root, &mut expected.borrow());
+    param.bind_responses(&responses, &mut expected.borrow());
+    assert_eq!(verifier.transcript().round_count_for_test(), 1);
+    assert_eq!(verifier.transcript().bytes(32), expected.bytes(32));
 }

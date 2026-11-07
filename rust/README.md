@@ -78,6 +78,9 @@ cloning, resetting, raw-state access, and use as private prover randomness are
 unavailable. Complete-proof encoders own finalization, and decoding returns
 immutable unverified data. Only complete verification returns `VerifiedProof`
 evidence after checking the seal.
+Commitment sessions own the transcript through authentication. Frontends borrow
+a restricted `TranscriptRef` that cannot replace or finalize that session;
+successful authentication releases it for the complete-proof seal.
 
 The [witness-selection protocol](runtime/v2/witness-selection/README.md) wraps the
 joint commitment before either mdoc sumcheck. Each field commits two dedicated
@@ -180,14 +183,14 @@ are audited against that model.
 
 Complete NEXT v10 mdoc presentations, measured on 2026-11-06 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
-Times are medians of 32 samples with warmups discarded; heap measurements use
+Times are medians of 64 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
 two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 149.8 ms | 86.9 ms | 137,615 | 42.61 MiB | 34.70 MiB |
-| 4 | 160.8 ms | 90.7 ms | 137,551 | 47.27 MiB | 37.75 MiB |
+| 2 | 135.1 ms | 80.8 ms | 137,615 | 42.61 MiB | 34.70 MiB |
+| 4 | 146.3 ms | 85.9 ms | 137,551 | 47.27 MiB | 37.75 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -247,7 +250,11 @@ the existing public v1 paths and refer to the same types and functions.
 
 Polygero uses recursive `(Participant, Tail)` tuples ending in `()`. Each
 participant keeps its field, interpolation domain, witness rows, and arithmetic
-responses. Participants with the same `(k,s,n,t)` share one salted column tree
+responses. Attaching a participant validates both its domain identity and the
+interpolation capacity of the supplied backend. The domain supplies the
+arithmetic field, keeping runtime moduli consistent with interpolation.
+Participants with the same
+`(k,s,n,t)` share one salted column tree
 and one opening query set. All statements are bound before batching challenges,
 and all responses before queries. A single field uses the same protocol through
 `(participant, ())`. Field-specific rank and outside-list errors are combined
@@ -283,6 +290,10 @@ Nonbinary circuits retain field-element inputs and Boolean input assertions.
 Compilation rejects unused input declarations. Adapter pads in the shared
 source layout are consumed by the tree. The application compiler and circuit
 tests use the same input allocator and witness ordering.
+
+Frontend `reduce` methods return equations awaiting authentication; complete
+`verify` methods authenticate them and check the final seal. Revealed-pad
+sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. The top-level dependency checker enforces these boundaries,
@@ -321,9 +332,9 @@ lowering and scheduling; each stored operand denotes a real wire. The v1 backend
 historical Morton ordering and circuit IDs. V2 compiles directly to
 [LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
 separately with an explicit coefficient table. It removes the reserved One wire.
-V2 proof encoding uses canonical full-width elements throughout and requires
-the final transcript seal. Previous V2 proof envelopes are rejected. Legacy
-compact-row interfaces are explicitly named `SubfieldV1` in `subfield_v1`.
+V2 proof decoding checks canonical full-width elements through one shared
+reader and requires the final transcript seal. Previous V2 proof envelopes are
+rejected. Legacy compact-row interfaces are explicitly named `SubfieldV1` in `runtime::v1::subfield`.
 V2 binary interpolation uses the ambient field's complete 128-vector Cantor
 basis, with transform preprocessing limited to the coordinates it needs.
 The prover reuses one eleven-way execution split for evaluation and sumcheck;

@@ -34,7 +34,8 @@ impl PackedBits {
         if bytes.len() != bit_len.div_ceil(8) {
             return Err("logical bit byte length mismatch".into());
         }
-        if bit_len % 8 != 0 && bytes.last().is_some_and(|last| last >> (bit_len % 8) != 0) {
+        if !bit_len.is_multiple_of(8) && bytes.last().is_some_and(|last| last >> (bit_len % 8) != 0)
+        {
             return Err("noncanonical logical bit padding".into());
         }
         let mut result = Self::with_capacity(bit_len);

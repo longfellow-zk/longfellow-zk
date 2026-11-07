@@ -33,7 +33,7 @@ where
         for value in &mut witness[..fixed_prefix] {
             *value = f.one();
         }
-        let param = PolygeroParam::try_new(witness.len(), config, domain, f).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, domain).unwrap();
         let geometry = param.geometry();
         let mut mask_rng = MaskRng {
             inner: DeterministicRng::new(42),
@@ -63,25 +63,23 @@ where
                 .iter()
                 .any(|v| *v != f.zero() && *v != f.one()));
         }
-        // Invalid witness lengths fail before consuming randomness or transcript.
-        let param = PolygeroParam::try_new(witness.len(), config, domain, f).unwrap();
+        // Invalid witness lengths fail before consuming private randomness.
+        let param = PolygeroParam::try_new(witness.len(), config, domain).unwrap();
         let mut invalid = witness;
         invalid.pop();
         let mut rejected_rng = MaskRng {
             inner: DeterministicRng::new(42),
             samples: 0,
         };
-        let mut ts = Transcript::new(b"rejected-mask-test");
-        let mut original = ts.fork_for_test();
+        let ts = Transcript::new(b"rejected-mask-test");
         assert!(JointPolygeroProver::commit(
-            &JointPolygeroParam::new((Participant::new(param, f, domain).unwrap(), ())).unwrap(),
+            &JointPolygeroParam::new((Participant::new(param, domain).unwrap(), ())).unwrap(),
             (invalid, ()),
-            &mut ts,
+            ts,
             &mut rejected_rng
         )
         .is_err());
         assert_eq!(rejected_rng.samples, 0);
-        assert_eq!(ts.bytes(32), original.bytes(32));
     }
 
     // Six witness changes and two fixed oracle openings determine a degree < 8
@@ -127,21 +125,20 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
             n: 64,
             t,
         };
-        let param = PolygeroParam::try_new(witness.len(), config, &domain, &field).unwrap();
+        let param = PolygeroParam::try_new(witness.len(), config, &domain).unwrap();
         let geometry = param.geometry();
         let joint =
-            JointPolygeroParam::new((Participant::new(param, &field, &domain).unwrap(), ()))
-                .unwrap();
-        let mut prover_ts = Transcript::new(b"polygero/ordinary-only");
+            JointPolygeroParam::new((Participant::new(param, &domain).unwrap(), ())).unwrap();
+        let prover_ts = Transcript::new(b"polygero/ordinary-only");
         let (prover, commitment) = JointPolygeroProver::commit(
             &joint,
             (witness.clone(), ()),
-            &mut prover_ts,
+            prover_ts,
             &mut DeterministicRng::new(879),
         )
         .unwrap();
-        let proof = prover
-            .prove(&joint, &(linear(&[], &[], statement), ()), &mut prover_ts)
+        let (proof, prover_ts) = prover
+            .prove(&joint, &(linear(&[], &[], statement), ()))
             .unwrap();
         assert!(
             proof.bodies.0.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
@@ -155,16 +152,13 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let mut input = bytes.as_slice();
         let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
-        let mut verifier_ts = Transcript::new(b"polygero/ordinary-only");
-        let mut verifier = JointPolygeroVerifier::new(joint);
-        verifier.receive_commitment(&commitment, &mut verifier_ts);
+        let verifier = JointPolygeroVerifier::new(
+            joint,
+            &commitment,
+            Transcript::new(b"polygero/ordinary-only"),
+        );
         verifier
-            .reduce(
-                &commitment,
-                &decoded,
-                &(linear(&[], &[], statement), ()),
-                &mut verifier_ts,
-            )
+            .reduce(&decoded, &(linear(&[], &[], statement), ()))
             .unwrap();
     }
 }

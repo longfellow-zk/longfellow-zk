@@ -39,7 +39,7 @@ pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     circuit: &Circuit<F>,
     public: &[F::E],
     state: Prepared<W, F>,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, LinearClaim<F::E>), String> {
     if state.circuit_id != circuit.id || public.len() != circuit.raw.npublic_input {

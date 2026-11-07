@@ -53,7 +53,7 @@ use crate::{
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         random::RandomEngine,
-        v2::transcript::{Reading, Transcript},
+        v2::transcript::{Reading, TranscriptRef},
     },
 };
 
@@ -65,7 +65,7 @@ pub(crate) fn evaluate_and_prove<
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
     circuit: &Circuit<F>,
-    t: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
     evaluate_and_prove_circuits(&[circuit], inputs, pads, t, f)
@@ -81,7 +81,7 @@ pub(crate) fn evaluate_and_prove_circuits<
     circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
-    t: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
     let schedule = Schedule::new(circuits)?;
@@ -102,7 +102,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
     witnesses: Vec<Vec<F::E>>,
     pads: &SumcheckProof<W, F>,
     schedule: Schedule,
-    t: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
     pads.validate(&schedule.geometry)
@@ -180,7 +180,7 @@ pub(super) fn prove_dot_product<
     mut q_l: Vec<F::E>,
     pads: &LayerProof<W, F>,
     initial_claim: F::E,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
     after_alpha: impl FnOnce(&mut Reading<'_>),
 ) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
@@ -193,32 +193,8 @@ pub(super) fn prove_dot_product<
         rounds.push(m);
         point_l.push(z);
     }
-    finish_dot_product(
-        &w,
-        &q_l,
-        pads,
-        claim,
-        rounds,
-        point_l,
-        transcript,
-        f,
-        after_alpha,
-    )
-}
-#[allow(clippy::too_many_arguments)]
-fn finish_dot_product<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    w: &[F::E],
-    q_l: &[F::E],
-    pads: &LayerProof<W, F>,
-    mut claim: F::E,
-    rounds: Vec<RoundPoly<W, F>>,
-    point_l: Vec<F::E>,
-    transcript: &mut Transcript,
-    f: &F,
-    after_alpha: impl FnOnce(&mut Reading<'_>),
-) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
-    let claims = [as_scalar::<W, F>(w), as_scalar::<W, F>(q_l)];
+    let claims = [as_scalar::<W, F>(&w), as_scalar::<W, F>(&q_l)];
     assert!(
         claim == f.mulf(&claims[0], &claims[1]),
         "single-hand terminal product mismatch"
@@ -267,7 +243,7 @@ fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     q_l: &mut Vec<F::E>,
     pads: &RoundPoly<W, F>,
     claim: F::E,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> (RoundPoly<W, F>, F::E, F::E) {
     let p = quad_round_poly(q_l, w, &claim, f);
@@ -284,7 +260,7 @@ pub(super) fn mask_round<
     p: RoundPoly<W, F>,
     pads: &RoundPoly<W, F>,
     claim: F::E,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> (RoundPoly<W, F>, F::E, F::E) {
     let mut m = p.clone();

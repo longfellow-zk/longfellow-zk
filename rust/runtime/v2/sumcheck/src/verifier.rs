@@ -1,173 +1,115 @@
-// Copyright 2026 Google LLC.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Revealed-pad sumcheck v2 verifier for testing and protocol diagnostics.
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Reconstruct ordinary sumcheck over a circuit described by sparse quad fragments.
 //!
-//! Reconstruct the public challenges and symbolic constraints from the masked
-//! proof, then substitute the supplied input vector and secret pads. Each
-//! constraint becomes a field residual that must be zero.
+//! The wire arrays are global: common inputs at the bottom and concatenated
+//! intermediate wires above. Quad fragment offsets affect sparse tensor traversal,
+//! not the sumcheck rounds or terminal algebra. At point u, each fragment reads
+//! the corresponding slice of one monomial array m(u). Accumulate all public
+//! contractions into one q_r, then form a_next=m(u)+alpha*q_r with one BLAS call.
 //!
-//! For a layer's final round claim C, a cross message d precedes the nonzero
-//! challenge r and the two masked values m_A,m_B:
+//! The terminal factors are A=<m(u),W> and B=<q_r,W>+L(u), so subtract alpha*L(u)
+//! when combining them. Constants K are removed before the rounds; linear terms
+//! and assertions use the same path in every fragment. No witness values are
+//! needed to derive these public corrections or the final input weights.
 //!
-//! ```text
-//! layer_residual = C + r*(d+p_D) + r^2*p_AB - m_A*m_B.
-//! ```
+//! Each round message precedes its challenge. The cross message precedes the
+//! nonzero terminal scale, and both masked factors precede the single alpha.
+//! Zero outputs receive fresh assertion coefficients at their own layer.
+//! Only the current stage's split metadata is retained.
 //!
-//! This diagnostic uses honest p_AB=p_A*p_B. The production backend accepts
-//! arbitrary committed p_AB and authenticates the same affine equation;
-//! soundness comes from the fresh r, as explained in `symbolic`. After the last layer,
-//! also check input_residual = input_claim - sum_i input_weights[i]*inputs[i].
-//!
-//! This diagnostic verifier requires complete inputs and pads and is not used
-//! in production. [`crate::runtime::v2::zk::ZkVerifier`] compiles the same symbolic
-//! constraints and checks them through Polygero while keeping those values hidden.
-
+//! This derives affine constraints, not an acceptance decision. The caller must
+//! authenticate every stage equation and the final shared-input claim against
+//! the commitment received before sumcheck.
 use super::{
-    symbolic::{Constraints, Pad, PadExpression},
-    RoundPoly,
+    fragments::{self, Schedule, SplitFragment},
+    split::SplitLayer,
+    symbolic::{build_constraints, Constraints, LayerChallenges},
+    transcript::{end_layer, round_challenge, terminal_challenge},
+    SumcheckProof,
 };
 use crate::{
-    core::algebra::SerializableField,
+    core::{
+        algebra::SerializableField,
+        proto::v2::{classify_constants, Circuit},
+    },
     runtime::{
-        algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
-        v2::{
-            sumcheck::{
-                derive_constraints, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck,
-            },
-            transcript::Transcript,
-        },
+        algebra::{RuntimeField, SupportsSampling},
+        v2::transcript::TranscriptRef,
     },
 };
 
-/// Bind the circuit ID and public-input prefix, then check with revealed pads.
-/// `inputs` contains the complete circuit input vector in circuit wire order;
-/// `pads` has the proof's shape and stores the secret pads instead of messages.
-pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    inputs: Vec<ElementOf<F>>,
-    pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+pub(crate) fn derive_constraints<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(), String> {
-    if inputs.len() < circuit.raw.npublic_input {
-        return Err("public input length mismatch".into());
-    }
-    transcript.write_sumcheck_statement(circuit, &inputs[..circuit.raw.npublic_input], f);
-    verify_core(inputs, pads, circuit, proof, transcript, f)
+) -> Result<Constraints<F::E>, String> {
+    derive_constraints_for_circuits(&[circuit], proof, t, f)
 }
 
-/// Check sumcheck numerically after the caller has bound the public statement.
-/// Reconstruct constraints from the masked transcript, substitute the inputs
-/// and pads, then check the layer residuals followed by the final input residual.
-pub fn verify_core<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    inputs: Vec<ElementOf<F>>,
-    pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+/// Validate all message counts before advancing the transcript. Circuit metadata
+/// is trusted, as in the single-circuit entry point; shared public inputs must
+/// already have been bound by the caller.
+pub(crate) fn derive_constraints_for_circuits<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[&Circuit<F>],
     proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
+    t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(), String> {
-    pads.validate(&SumcheckProofGeometry::from_circuit(circuit))
+) -> Result<Constraints<F::E>, String> {
+    let schedule = Schedule::new(circuits)?;
+    proof
+        .validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
-    if inputs.len() != circuit.raw.ninput {
-        return Err("single-hand input width mismatch".into());
+    let classes: Vec<_> = circuits
+        .iter()
+        .map(|c| classify_constants(f, &c.raw.constants))
+        .collect();
+    schedule.bind(circuits, t);
+    let mut input_assertions = Vec::new();
+    let mut weights = Vec::new();
+    let mut challenges = Vec::with_capacity(proof.layers.len());
+    for (stage, p) in proof.layers.iter().enumerate() {
+        let layout = &schedule.layers[stage];
+        // Only sparse fragment metadata is local; all dense arrays are global.
+        let mut active: Vec<_> = layout
+            .fragments
+            .iter()
+            .map(|s| {
+                SplitFragment::new(
+                    s,
+                    SplitLayer::with_classes(
+                        &circuits[s.circuit].raw.layers[s.layer],
+                        &classes[s.circuit],
+                    ),
+                )
+            })
+            .collect();
+        schedule.start_layer(&mut weights, &mut active, stage, t, f);
+        let point_l: Vec<_> = p.rounds.iter().map(|m| round_challenge(m, t, f)).collect();
+        let terminal = terminal_challenge(&p.cross, t, f);
+        let alpha = end_layer(&p.claims, t, f, |r| {
+            if stage + 1 == schedule.layers.len() {
+                input_assertions = schedule.input_assertions(circuits, r, f);
+            }
+        });
+        let constant = fragments::constant(circuits, &weights, &active, f);
+        let (next_weights, linear) =
+            fragments::transition(circuits, &weights, &active, layout.nw, &point_l, &alpha, f);
+        weights = next_weights;
+        challenges.push(LayerChallenges {
+            point_l,
+            terminal,
+            alpha,
+            constant,
+            linear,
+        });
     }
-    let constraints = derive_constraints(circuit, proof, transcript, f)?;
-    let residuals = constraints.residuals(&inputs, pads, f)?;
-    let (input_residual, layer_residuals) = residuals
-        .split_last()
-        .expect("input constraint always exists");
-    if !blas::equal0(layer_residuals, f) {
-        return Err("single-hand terminal product mismatch".into());
-    }
-    if !f.is_zero(input_residual) {
-        return Err("single-hand input claim mismatch".into());
-    }
-    Ok(())
-}
-
-impl<E: Clone> Constraints<E> {
-    /// Return the numerical residuals in circuit output-to-input order.
-    /// Each layer contributes C - A*B; the last residual connects the final
-    /// symbolic claim to the weighted circuit inputs. This order also matches
-    /// the linear constraints produced by the ZK constraint compiler.
-    pub(crate) fn residuals<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
-        &self,
-        inputs: &[E],
-        pads: &SumcheckProof<W, F>,
-        f: &F,
-    ) -> Result<Vec<E>, String> {
-        if pads.layers.len() != self.layers.len() || inputs.len() != self.input_weights.len() {
-            return Err("sumcheck constraint input shape mismatch".into());
-        }
-        let mut residuals = Vec::with_capacity(self.layers.len() + 1);
-        for expression in &self.layers {
-            residuals.push(expression.evaluate(pads, f)?);
-        }
-        // input_claim - sum_i input_weights[i]*inputs[i] = 0.
-        let mut input_residual = self.input_claim.evaluate(pads, f)?;
-        f.sub(
-            &mut input_residual,
-            &blas::dot(&self.input_weights, inputs, f),
-        );
-        residuals.push(input_residual);
-        Ok(residuals)
-    }
-}
-
-impl<E: Clone> PadExpression<E> {
-    /// Substitute pads into the sparse affine expression
-    /// constant + sum_{(pad,k) in terms} k*pad_value(pad).
-    fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
-        &self,
-        pads: &SumcheckProof<W, F>,
-        f: &F,
-    ) -> Result<E, String> {
-        let mut value = self.constant.clone();
-        for (pad, k) in &self.terms {
-            f.fma(&mut value, k, &pad_value(*pad, pads, f)?);
-        }
-        Ok(value)
-    }
-}
-
-/// Resolve a symbolic pad coordinate in the revealed proof-shaped pad array.
-/// Round slots 0,1 hold the pads for c0,c1; claim slots 0,1 hold p_A,p_B.
-fn pad_value<const W: usize, F: RuntimeField<W> + SerializableField>(
-    pad: Pad,
-    pads: &SumcheckProof<W, F>,
-    f: &F,
-) -> Result<F::E, String> {
-    match pad {
-        Pad::Product { layer } => pads
-            .layers
-            .get(layer)
-            .map(|p| f.mulf(&p.claims[0], &p.claims[1])),
-        Pad::Cross { layer } => pads.layers.get(layer).map(|p| p.cross.clone()),
-        Pad::Round { layer, round, slot } => pads
-            .layers
-            .get(layer)
-            .and_then(|layer_pads| layer_pads.rounds.get(round))
-            .and_then(|RoundPoly { coefficients }| coefficients.get(slot))
-            .cloned(),
-        Pad::Claim { layer, slot } => pads
-            .layers
-            .get(layer)
-            .and_then(|layer_pads| layer_pads.claims.get(slot))
-            .cloned(),
-    }
-    .ok_or_else(|| "sumcheck constraint pad shape mismatch".into())
+    schedule.finish_inputs(circuits, &mut weights, input_assertions, t, f);
+    Ok(build_constraints(proof, challenges, weights, f))
 }

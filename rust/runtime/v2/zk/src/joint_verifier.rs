@@ -3,7 +3,7 @@
 use super::{Bodies, Fields, JointParam, Responses, Statements};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::Transcript,
+    transcript::{Transcript, TranscriptRef},
     witness_selection,
 };
 
@@ -11,7 +11,14 @@ use crate::runtime::v2::{
 pub struct Authenticated {
     _selection: witness_selection::Authenticated,
 }
+impl Authenticated {
+    pub fn into_transcript(self) -> Transcript {
+        self._selection.into_transcript()
+    }
+}
 
+/// Own the selected commitment and its session through frontend reduction
+/// and final authentication. Late stages cannot supply a different transcript.
 pub struct JointVerifier<L: Fields> {
     selection: witness_selection::Verifier<L::Selection>,
 }
@@ -20,27 +27,29 @@ impl<L: Fields> JointParam<L> {
         self,
         root: &PolygeroCommitment,
         responses: Responses<L>,
-        transcript: &mut Transcript,
-    ) -> Result<JointVerifier<L>, String> {
-        Ok(JointVerifier {
+        transcript: Transcript,
+    ) -> JointVerifier<L> {
+        JointVerifier {
             selection: witness_selection::Verifier::receive(
                 self.selection,
                 root,
                 responses,
                 transcript,
-            )?,
-        })
+            ),
+        }
     }
 }
 impl<L: Fields> JointVerifier<L> {
+    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+        self.selection.transcript()
+    }
     pub fn authenticate(
         self,
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
-        transcript: &mut Transcript,
     ) -> Result<Authenticated, String> {
         Ok(Authenticated {
-            _selection: self.selection.authenticate(proof, statements, transcript)?,
+            _selection: self.selection.authenticate(proof, statements)?,
         })
     }
 }

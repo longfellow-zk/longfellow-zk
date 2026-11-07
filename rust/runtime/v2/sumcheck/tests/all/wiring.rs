@@ -259,7 +259,13 @@ fn check_output_sampling<
         let mut actual = Transcript::new(b"v2-output-challenges");
         let schedule = crate::runtime::v2::sumcheck::fragments::Schedule::new(&[&circuit]).unwrap();
         let mut weights = Vec::new();
-        schedule.finish_inputs(&[&circuit], &mut weights, Vec::new(), &mut actual, f);
+        schedule.finish_inputs(
+            &[&circuit],
+            &mut weights,
+            Vec::new(),
+            &mut actual.borrow(),
+            f,
+        );
         let mut expected = Transcript::new(b"v2-output-challenges");
         let expected_weights = expected.round(
             crate::runtime::v2::transcript::RoundLabel::Assertions,

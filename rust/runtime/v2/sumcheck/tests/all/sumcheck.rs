@@ -28,7 +28,7 @@ use crate::{
             AlgebraicField,
         },
         v2::{
-            sumcheck::{eval_circuit, prove, verifier::verify, RoundPoly, SumcheckProof},
+            sumcheck::{diagnostic::verify, eval_circuit, prove, RoundPoly, SumcheckProof},
             transcript::Transcript,
         },
     },
@@ -284,7 +284,7 @@ fn test_sumcheck_core_single_hand_permutations() {
         core::proto::v2::{compute_id, Stream},
         runtime::v2::{
             proto::sumcheck::SumcheckProofGeometry,
-            sumcheck::{prove_core, verifier::verify_core},
+            sumcheck::{diagnostic::verify_core, prove_core},
         },
     };
 
@@ -357,12 +357,12 @@ fn test_sumcheck_core_single_hand_permutations() {
         // Layered sumcheck binds each actual circuit ID before sampling.
         circuit.id = [42; 32];
         let mut pt = Transcript::new(b"fixed-layout-comparison");
-        let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt, &f);
+        let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt.borrow(), &f);
         let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");
         let derived = crate::runtime::v2::sumcheck::derive_constraints(
             &circuit,
             &proof,
-            &mut verifier_transcript,
+            &mut verifier_transcript.borrow(),
             &f,
         )
         .unwrap();

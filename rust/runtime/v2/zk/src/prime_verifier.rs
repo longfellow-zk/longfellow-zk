@@ -4,7 +4,7 @@ pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + Su
     circuit: &Circuit<F>,
     public: &[F::E],
     proof: &SumcheckProof<W, F>,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<LinearClaim<F::E>, String> {
     if f.is_binary() {

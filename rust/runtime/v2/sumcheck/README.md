@@ -17,8 +17,8 @@ Paths below are relative to `runtime/`.
 | Numerical prover | `v1/sumcheck/src/prover.rs` | `v2/sumcheck/src/prover.rs` |
 | Symbolic constraint construction | `v1/sumcheck/src/symbolic.rs` | `v2/sumcheck/src/symbolic.rs` |
 | Commitment constraint compiler | `v1/zk/src/constraint_compiler.rs` | `v2/zk/src/constraint_compiler.rs` |
-| Constraints from public messages | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/src/reduction.rs` |
-| Revealed-pad verification | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/src/verifier.rs` |
+| Constraints from public messages | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/src/verifier.rs` |
+| Revealed-pad verification | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/tests/diagnostic.rs` |
 | Quad binding | `v1/sumcheck/src/hquad.rs` | `v2/sumcheck/src/quad.rs` |
 | Multilinear weights | `v1/sumcheck/src/eq.rs` | `v2/sumcheck/src/monomial.rs` |
 | Circuit evaluation | `v1/sumcheck/src/eval.rs` | `v2/sumcheck/src/eval.rs` |
@@ -30,8 +30,8 @@ Protocol rounds, pad sampling, and construction of
 the two transmitted round coefficients live together in `prover.rs`; no polynomial
 adapter traits are needed. Dense binding and scalar extraction live in `dense.rs`.
 Ordinary tests live in private modules under `tests/`.
-`verifier.rs` is the explicit exception: it verifies with revealed pads
-for testing and is not used in production. Production verification uses
+`verifier.rs` reconstructs the public constraints; `tests/diagnostic.rs`
+evaluates them with revealed pads for tests. Complete verification uses
 `runtime::v2::zk::ZkVerifier` and Polygero.
 
 V2 uses `LayerProof.rounds`, a masked cross coefficient, and two final claims
@@ -208,8 +208,8 @@ Numerical verification with revealed inputs and pads evaluates those constraints
 directly. Both parties reconstruct the challenges, input weights, and constraints
 from the circuit and transcript.
 
-Each fragment samples its assertion challenges once and reuses them in both
-quad bindings. Across a complete layer the prover forms `q_l` once, folds both
+One layer answer supplies every fragment's assertion coefficients, which are
+reused in both quad bindings. Across a complete layer the prover forms `q_l` once, folds both
 arrays once, expands `m_l[i]` once, and forms `q_r` once. Intermediate arrays
 live within their layer; only the final combined input weights survive.
 Polygero continues on the advanced main transcript without replay.
@@ -220,8 +220,8 @@ serialized layers at 40 rounds, regardless of host index width; circuit
 execution also checks its index capacity.
 
 The transcript binds ordered circuit IDs and depths under
-`layered-sumcheck/circuits/v1`. Circuit entry and assertion sampling have
-separate domains. `transcript::end_layer` binds the two final claims before the
+`layered-sumcheck/circuits/v1`. Entering circuit outputs and explicit assertions
+share the same assertion answer. `transcript::end_layer` binds the two final claims before the
 ordinary alpha challenge. Prover and verifier share the fragment layout and
 public transition arithmetic; legacy transcript operations are unchanged.
 
@@ -268,14 +268,15 @@ The independent `p_D` masks the cross coefficient, and excluding zero keeps
 both final evaluations masked. These local masking facts do not constitute
 a complete joint-view zero-knowledge proof.
 
-The [layered Lean composition](../../../../formal/lfzk-v2/README.md) models
+The [current Lean composition](../../../../formal/lfzk-v2/README.md) models
 quad-fragment traversal, shared inputs and circuits entering at different depths,
 including scalar outputs and zero-layer circuits. It connects the final input
-claim to authenticated packing and the joint commitment. Each nonempty output
-entry block contributes at most `1/q`; the modeled mdoc geometry retains the
-116-bit extraction bound. Circuit/layout correspondence and ideal-sampler
-premises remain explicit. The current MAC-free mdoc adapter requires its own
-formal composition extension.
+claim to authenticated packing and the joint commitment, including the MAC-free
+mdoc adapter and early witness selection. Its current rate-1/7 theorem has
+leading Fiat–Shamir charge `2Q/2^128`, with explicit corrections over `2^256`,
+for every distinct-query budget `Q >= 0`. Trusted circuit/arithmetic setup and
+the ideal-sampler model remain explicit; Rust correspondence is source-audited.
+Earlier checkpoint bounds remain in their separate formal namespaces.
 
 ## Compiler selection and testing
 
@@ -301,7 +302,8 @@ one protocol. Both paths use the existing Cargo feature gates.
 
 `prover` enables dense binding, pad sampling, witness evaluation, round-polynomial
 construction, and numerical proving. `verifier` enables public constraint
-derivation and the revealed-pad diagnostic verifier. The production ZK path uses
+derivation; the revealed-pad diagnostic verifier is compiled only for tests.
+The production ZK path uses
 the derived constraints through Polygero. Proof codecs, transcript operations,
 monomial weights, public tensor binding, and symbolic constraints are shared
 runtime code. Compile-time fields and circuit synthesis are used only by tests.

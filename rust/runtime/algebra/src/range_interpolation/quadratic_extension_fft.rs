@@ -238,6 +238,9 @@ where F: crate::runtime::algebra::RuntimeField<W>
         + SupportsNatConversions<W>
         + SupportsQuadraticExtension<W>
 {
+    fn field(&self) -> &F {
+        self.f
+    }
     fn domain_id(&self) -> Vec<u8> {
         super::arithmetic::evaluation_domain_id(self.f)
     }

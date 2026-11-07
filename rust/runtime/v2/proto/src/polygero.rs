@@ -20,7 +20,7 @@
 //! All responses and opened rows use canonical full-width field elements.
 use std::io::{Error, ErrorKind, Result};
 
-use super::{Digest, MerkleProof};
+use super::{read_field, Digest, MerkleProof};
 use crate::core::algebra::SerializableField;
 
 /// Public dimensions of a nonrecursive invocation, selected by the caller.
@@ -170,22 +170,6 @@ impl<E> FieldProof<E> {
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidData, message)
 }
-/// Reject aliases of the field's canonical encoding.
-fn read_field<F: SerializableField>(bytes: &mut &[u8], field: &F) -> Result<F::E> {
-    let width = field.serialized_size_bytes();
-    let raw = bytes
-        .get(..width)
-        .ok_or_else(|| Error::new(ErrorKind::UnexpectedEof, "Polygero field element"))?;
-    let value = field
-        .bytes_to_element(raw)
-        .map_err(|_| invalid("invalid field element"))?;
-    if field.to_bytes(&value) != raw {
-        return Err(invalid("noncanonical field element"));
-    }
-    *bytes = &bytes[width..];
-    Ok(value)
-}
-
 /// Validate the shared authentication shape before reading or hashing columns.
 pub(crate) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
     if t == 0

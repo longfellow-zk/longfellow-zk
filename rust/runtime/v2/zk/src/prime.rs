@@ -12,7 +12,7 @@ use crate::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{self, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck},
-            transcript::Transcript,
+            transcript::TranscriptRef,
         },
     },
 };

@@ -10,11 +10,11 @@ use crate::{
         random::DeterministicRng,
         v2::{
             sumcheck::{
+                diagnostic::verify,
                 eval::eval_layer,
                 eval_circuit, prove,
                 prover::sample_pads,
                 quad::{bind_l, bind_r, weights_next_affine},
-                verifier::verify,
                 SumcheckProofGeometry,
             },
             transcript::Transcript,

@@ -10,7 +10,7 @@ use crate::{
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             sumcheck::{self, TranscriptSumcheck},
-            transcript::Transcript,
+            transcript::{Transcript, TranscriptRef},
             zk::{
                 joint::{CircuitParticipant, CircuitProof, JointParam},
                 CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
@@ -21,15 +21,15 @@ use crate::{
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Returns constraints, not an acceptance decision: the caller must verify
     /// their joint Polygero proof against the root received before sumcheck.
-    pub fn verify<D: EvaluationDomain<W, F>>(
+    pub fn reduce<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
         proof: &CircuitProof<W, F>,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
-        self.verify_parts(
+        self.reduce_parts(
             circuit,
             public,
             &proof.sumcheck_proof,
@@ -39,14 +39,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             ctx,
         )
     }
-    fn verify_parts<D: EvaluationDomain<W, F>>(
+    fn reduce_parts<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
         sumcheck: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
         packing: &crate::runtime::v2::proto::dual_packing::PackingProof<F::E>,
         others: &[&Circuit<F>],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
         self.validate_circuits(circuit, public.len(), others)?;
@@ -57,13 +57,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .backend
             .parameters
             .extension()
-            .input_elements(ctx.f, public);
+            .input_elements(ctx.field(), public);
         let mut circuits = vec![circuit];
         circuits.extend_from_slice(others);
         for c in &circuits {
-            t.write_sumcheck_statement(c, &public, ctx.f);
+            t.write_sumcheck_statement(c, &public, ctx.field());
         }
-        let constraints = sumcheck::derive_constraints_for_circuits(&circuits, sumcheck, t, ctx.f)?;
+        let constraints =
+            sumcheck::derive_constraints_for_circuits(&circuits, sumcheck, t, ctx.field())?;
         let pads = self
             .geometry
             .sc_geom
@@ -73,22 +74,22 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &pads,
             &public,
             &self.backend.layout,
-            ctx.f,
+            ctx.field(),
         )?;
-        self.backend.verify::<W>(statement, packing, &self.id, t)
+        self.backend.reduce::<W>(statement, packing, &self.id, t)
     }
-    /// Reduce all circuit statements to authenticated affine equations. The
+    /// Reduce all circuit statements to affine equations awaiting authentication. The
     /// caller must still complete the shared Polygero verification.
-    pub fn verify_circuits<D: EvaluationDomain<W, F>>(
+    pub fn reduce_circuits<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
         proof: &CircuitProof<W, F>,
         others: &[&Circuit<F>],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
-        self.verify_parts(
+        self.reduce_parts(
             circuit,
             public,
             &proof.sumcheck_proof,
@@ -138,10 +139,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         &self,
         public: &[CircuitInput<F>],
         proof: crate::runtime::v2::transcript::Unverified<'_, ZkProof<W, F>>,
-        mut transcript: Transcript,
+        transcript: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<crate::runtime::v2::transcript::VerifiedProof, ZkVerificationError> {
-        self.reduce(public, &proof, &mut transcript, ctx)?;
+        let transcript = self.reduce(public, &proof, transcript, ctx)?;
         proof
             .checked(transcript)
             .map_err(|e| ZkVerificationError::InvalidSumcheck(e.into()))
@@ -150,9 +151,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         &self,
         public: &[CircuitInput<F>],
         proof: &ZkProof<W, F>,
-        t: &mut Transcript,
+        mut t: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(), ZkVerificationError> {
+    ) -> Result<Transcript, ZkVerificationError> {
         if public.len() != self.public_input_count() {
             return Err(ZkVerificationError::PublicInputLengthMismatch {
                 expected: self.public_input_count(),
@@ -177,7 +178,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             self.participant.geometry.com_geom.n,
         )
         .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        self.participant.bind(t);
+        self.participant.bind(&mut t.borrow());
         let param = JointParam::new((
             self.participant
                 .participant(ctx)
@@ -185,24 +186,22 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             (),
         ))
         .map_err(ZkVerificationError::PolygeroVerification)?;
-        let verifier = param
-            .receive(&proof.com, (proof.fingerprints.clone(), ()), t)
-            .map_err(ZkVerificationError::PolygeroVerification)?;
+        let mut verifier = param.receive(&proof.com, (proof.fingerprints.clone(), ()), t);
         let statement = self
             .participant
-            .verify_parts(
+            .reduce_parts(
                 &self.circuit,
                 public,
                 &proof.sumcheck_proof,
                 &proof.packing,
                 &[],
-                t,
+                &mut verifier.transcript(),
                 ctx,
             )
             .map_err(ZkVerificationError::InvalidSumcheck)?;
         verifier
-            .authenticate(&proof.com_proof, (statement, ()), t)
-            .map(|_| ())
+            .authenticate(&proof.com_proof, (statement, ()))
+            .map(|authenticated| authenticated.into_transcript())
             .map_err(ZkVerificationError::PolygeroVerification)
     }
 }

@@ -28,7 +28,7 @@ impl<const W: usize, F: ZkField<W>, D> Clone for SelectedField<'_, W, F, D> {
     fn clone(&self) -> Self {
         Self {
             selection: self.selection.clone(),
-            geometry: self.geometry.clone(),
+            geometry: self.geometry,
         }
     }
 }
@@ -37,41 +37,33 @@ impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField
     pub fn new(
         cells: usize,
         config: PolygeroConfig,
-        f: &'a F,
         domain: &'a D,
         field_id: Vec<u8>,
     ) -> Result<Self, String> {
-        Self::from_parameter(
-            prepare_parameter(cells, config, f, domain)?,
-            f,
-            domain,
-            field_id,
-        )
+        Self::from_parameter(prepare_parameter(cells, config, domain)?, domain, field_id)
     }
     pub(crate) fn from_parameter(
         param: PolygeroParam,
-        f: &'a F,
         domain: &'a D,
         field_id: Vec<u8>,
     ) -> Result<Self, String> {
         let geometry = param.geometry();
         Ok(Self {
-            selection: witness_selection::Field::new(param, f, domain, field_id)?,
+            selection: witness_selection::Field::new(param, domain, field_id)?,
             geometry,
         })
     }
     pub fn geometry(&self) -> PolygeroGeometry {
-        self.geometry.clone()
+        self.geometry
     }
 }
 
 pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
     cells: usize,
     config: PolygeroConfig,
-    f: &F,
     domain: &D,
 ) -> Result<PolygeroParam, String> {
-    PolygeroParam::try_new(witness_selection::witness_count(cells)?, config, domain, f)
+    PolygeroParam::try_new(witness_selection::witness_count(cells)?, config, domain)
         .map_err(|e| e.to_string())
 }
 
@@ -158,8 +150,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
-        let (geometry, param, backend) =
-            prepare_circuit_layout(circuit, others, config, ctx.f.packing_extension(), ctx)?;
+        let (geometry, param, backend) = prepare_circuit_layout(
+            circuit,
+            others,
+            config,
+            ctx.field().packing_extension(),
+            ctx,
+        )?;
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]
@@ -199,7 +196,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         ctx: &ZkContext<'a, W, F, D>,
     ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), ctx.f, ctx.domain, ctx.f.packing_id())
+        SelectedField::from_parameter(self.param.clone(), ctx.domain, ctx.field().packing_id())
     }
 }
 

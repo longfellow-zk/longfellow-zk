@@ -43,6 +43,8 @@ impl PolygeroParam {
     /// The statement derived later is supplied separately to prove/verify.
     /// This validates operational geometry, not a security target. Applications
     /// select certified parameters separately; small test configurations are valid here.
+    /// Participants obtain their arithmetic field from the same domain, so a
+    /// runtime-configured modulus cannot differ from the interpolation field.
     pub fn try_new<
         const W: usize,
         F: RuntimeField<W> + SerializableField,
@@ -51,7 +53,6 @@ impl PolygeroParam {
         nw: usize,
         config: PolygeroConfig,
         domain: &D,
-        _f: &F,
     ) -> Result<Self, PolygeroError> {
         let PolygeroConfig { k, s, n, t } = config;
         let geom = PolygeroGeometry { nw, k, s, n, t };

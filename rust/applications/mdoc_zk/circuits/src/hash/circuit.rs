@@ -391,7 +391,6 @@ where L::F: MdocHashCompileField
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn shift_preimage(
         &self,
         offset: &HashIndex<L>,

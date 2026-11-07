@@ -43,7 +43,7 @@ impl BinaryParticipant {
         private: Vec<bool>,
         state: BinaryState,
         values: &[E],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, 2, F, D>,
     ) -> Result<(CircuitProof<2, F>, LinearStatement<E>), String> {
         let tree = self.circuit(c, public, values)?;
@@ -58,19 +58,30 @@ impl BinaryParticipant {
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;
         let extension = self.backend.parameters.extension();
-        let public = extension.input_elements(ctx.f, public);
+        let public = extension.input_elements(ctx.field(), public);
         let mut inputs = public.to_vec();
-        inputs.extend(extension.into_input_elements(ctx.f, private));
+        inputs.extend(extension.into_input_elements(ctx.field(), private));
         for c in [c, &tree] {
-            t.write_sumcheck_statement(c, &public, ctx.f);
+            t.write_sumcheck_statement(c, &public, ctx.field());
         }
-        let (sumcheck_proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(&[c, &tree], inputs, &state.pads, t, ctx.f)?;
+        let (sumcheck_proof, constraints) = sumcheck::evaluate_and_prove_circuits(
+            &[c, &tree],
+            inputs,
+            &state.pads,
+            t,
+            ctx.field(),
+        )?;
         let pads = self
             .geometry
             .sc_geom
             .pad_layout(self.backend.layout.suffix_start);
-        let statement = compile_packed(constraints, &pads, &public, &self.backend.layout, ctx.f)?;
+        let statement = compile_packed(
+            constraints,
+            &pads,
+            &public,
+            &self.backend.layout,
+            ctx.field(),
+        )?;
         let (packing, statement) =
             self.backend
                 .prove::<2>(state.packing, statement, &self.id, t)?;

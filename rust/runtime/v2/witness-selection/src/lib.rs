@@ -67,12 +67,7 @@ impl<
     /// two cells. Frontends obtain its count with witness_count(original_count).
     /// The trusted caller supplies the canonical field representation identity,
     /// including its modulus; arithmetic fields need no packing capability.
-    pub fn new(
-        param: PolygeroParam,
-        f: &'a F,
-        domain: &'a D,
-        field_id: Vec<u8>,
-    ) -> Result<Self, String> {
+    pub fn new(param: PolygeroParam, domain: &'a D, field_id: Vec<u8>) -> Result<Self, String> {
         if field_id.is_empty() {
             return Err("empty fingerprint field identity".into());
         }
@@ -82,8 +77,8 @@ impl<
             .checked_sub(FINGERPRINTS)
             .ok_or("missing fingerprint mask cells")?;
         Ok(Self {
-            backend: Participant::new(param, f, domain).map_err(|e| e.to_string())?,
-            f,
+            backend: Participant::new(param, domain).map_err(|e| e.to_string())?,
+            f: domain.field(),
             field_id,
             cells,
         })
@@ -225,11 +220,6 @@ impl<L: Fields> Param<L> {
     }
     pub fn config(&self) -> PolygeroConfig {
         self.backend.config()
-    }
-    pub fn commitment_context(
-        &self,
-    ) -> crate::runtime::v2::polygero::joint::JointCommitmentContext {
-        self.backend.commitment_context()
     }
 }
 cfg_prover! { mod prover; pub use prover::{commit, Prover, ProverFields}; }

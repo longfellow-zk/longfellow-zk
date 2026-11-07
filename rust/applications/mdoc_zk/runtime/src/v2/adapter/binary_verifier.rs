@@ -8,13 +8,13 @@ use crate::runtime::{
     },
 };
 impl BinaryParticipant {
-    pub fn verify<D: EvaluationDomain<2, F>>(
+    pub fn reduce<D: EvaluationDomain<2, F>>(
         &self,
         c: &Circuit<F>,
         public: &[bool],
         proof: &CircuitProof<2, F>,
         values: &[E],
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, 2, F, D>,
     ) -> Result<LinearStatement<E>, String> {
         let tree = self.circuit(c, public, values)?;
@@ -26,23 +26,28 @@ impl BinaryParticipant {
             .backend
             .parameters
             .extension()
-            .input_elements(ctx.f, public);
+            .input_elements(ctx.field(), public);
         for c in [c, &tree] {
-            t.write_sumcheck_statement(c, &public, ctx.f);
+            t.write_sumcheck_statement(c, &public, ctx.field());
         }
         let constraints = sumcheck::derive_constraints_for_circuits(
             &[c, &tree],
             &proof.sumcheck_proof,
             t,
-            ctx.f,
+            ctx.field(),
         )?;
         let pads = self
             .geometry
             .sc_geom
             .pad_layout(self.backend.layout.suffix_start);
-        let statement =
-            compile_packed::<2, F>(constraints, &pads, &public, &self.backend.layout, ctx.f)?;
+        let statement = compile_packed::<2, F>(
+            constraints,
+            &pads,
+            &public,
+            &self.backend.layout,
+            ctx.field(),
+        )?;
         self.backend
-            .verify::<2>(statement, &proof.packing, &self.id, t)
+            .reduce::<2>(statement, &proof.packing, &self.id, t)
     }
 }

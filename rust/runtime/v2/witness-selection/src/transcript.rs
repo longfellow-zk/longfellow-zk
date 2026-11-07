@@ -11,7 +11,7 @@ use crate::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
             proto::polygero::PolygeroCommitment,
-            transcript::{Reading, RoundLabel, Transcript, Writing},
+            transcript::{Reading, RoundLabel, TranscriptRef, Writing},
         },
     },
 };
@@ -58,7 +58,7 @@ impl<L: Fields> Param<L> {
     pub(super) fn challenges(
         &self,
         root: &PolygeroCommitment,
-        t: &mut Transcript,
+        t: &mut TranscriptRef<'_>,
     ) -> L::Coefficients {
         t.round(RoundLabel::Fingerprint, |mut w| {
             w.write_bytes(b"longfellow/witness-selection/v1");
@@ -72,7 +72,7 @@ impl<L: Fields> Param<L> {
         })
     }
 
-    pub(super) fn bind_responses(&self, responses: &L::Responses, t: &mut Transcript) {
+    pub(super) fn bind_responses(&self, responses: &L::Responses, t: &mut TranscriptRef<'_>) {
         t.bind(|w| {
             w.write_bytes(b"longfellow/witness-selection/responses/v1");
             self.fields.bind_responses(responses, w);

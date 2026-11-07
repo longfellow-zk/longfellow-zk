@@ -14,6 +14,9 @@ use crate::{
     runtime::algebra::SupportsSampling,
 };
 
+/// Joint participant construction rejects field encodings wider than this stack buffer.
+pub(crate) const MAX_FIELD_BYTES: usize = 128;
+
 /// Closed protocol roles; these labels are part of the v2 transcript format.
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -44,6 +47,11 @@ struct Core {
 /// A ready session. It never implements RandomEngine or Clone.
 pub struct Transcript {
     core: Core,
+}
+/// Borrowed protocol operations on one owned session. This capability cannot
+/// expose, replace, reset or finalize its owner's transcript.
+pub struct TranscriptRef<'a> {
+    core: &'a mut Core,
 }
 #[doc = include_str!("../tests/compile_fail.md")]
 /// Exclusive permission to bind messages before the round query.
@@ -77,27 +85,25 @@ impl Transcript {
         });
         t
     }
+    pub fn borrow(&mut self) -> TranscriptRef<'_> {
+        TranscriptRef {
+            core: &mut self.core,
+        }
+    }
     /// Bind setup or terminal messages without sampling. The borrowed writer
     /// cannot be consumed to begin_squeeze; only round grants that capability.
     pub(crate) fn bind<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
-        f(&mut Writing {
-            core: &mut self.core,
-            label: RoundLabel::Statement,
-        })
+        self.borrow().bind(f)
     }
     /// The higher-ranked closure must close the exact round it was given.
     /// Dropping or forgetting its capability cannot manufacture a RoundEnd.
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    #[cfg(test)]
     pub(crate) fn round<T>(
         &mut self,
         label: RoundLabel,
         f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
     ) -> T {
-        let end = f(Writing {
-            core: &mut self.core,
-            label,
-        });
-        end._value
+        self.borrow().round(label, f)
     }
     fn compute_final_seal(mut self, body: &[u8]) -> [u8; 32] {
         let rounds = self.core.rounds;
@@ -110,6 +116,26 @@ impl Transcript {
         let mut final_seal = [0; 32];
         reader.read(&mut final_seal);
         final_seal
+    }
+}
+impl TranscriptRef<'_> {
+    pub(crate) fn bind<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
+        f(&mut Writing {
+            core: self.core,
+            label: RoundLabel::Statement,
+        })
+    }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn round<T>(
+        &mut self,
+        label: RoundLabel,
+        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
+    ) -> T {
+        f(Writing {
+            core: self.core,
+            label,
+        })
+        ._value
     }
 }
 impl Writing<'_> {
@@ -130,7 +156,7 @@ impl Writing<'_> {
         }
     }
     fn field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
-        let mut buf = [0u8; 128];
+        let mut buf = [0u8; MAX_FIELD_BYTES];
         let n = f.serialized_size_bytes();
         f.to_bytes_into(e, &mut buf[..n]);
         self.core.hash.update(&buf[..n]);

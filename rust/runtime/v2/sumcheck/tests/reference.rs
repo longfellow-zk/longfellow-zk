@@ -168,8 +168,15 @@ pub(super) fn prove_core<
         let q = bind_r(layer, constants, &a, &rho, &w, f);
         let constant = affine_constant(layer, constants, &a, f);
         let claim0 = f.subf(&claim, &constant);
-        let (proof, mut c, mut next) =
-            prover::prove_dot_product(w, q, &pads.layers[index], claim0, t, f, |_| {});
+        let (proof, mut c, mut next) = prover::prove_dot_product(
+            w,
+            q,
+            &pads.layers[index],
+            claim0,
+            &mut t.borrow(),
+            f,
+            |_| {},
+        );
         let (weights, linear) =
             weights_next_affine(layer, constants, &a, &rho, &c.point_l, &c.alpha, f);
         f.fnms(&mut next, &c.alpha, &linear);

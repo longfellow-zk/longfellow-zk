@@ -254,7 +254,7 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
         },
     );
     assert_ne!(expected, f.zero());
-    let r = transcript::terminal_challenge(&cross, &mut prover, &f);
+    let r = transcript::terminal_challenge(&cross, &mut prover.borrow(), &f);
     assert_eq!(r, expected);
     assert_eq!(
         prover.fork_for_test().bytes(32),
@@ -272,15 +272,15 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
             r.end_round(x)
         },
     );
-    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover, &f, |_| {});
+    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover.borrow(), &f, |_| {});
     assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));
     let changed_alpha =
-        transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed, &f, |_| {});
+        transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed.borrow(), &f, |_| {});
     assert_ne!(alpha, changed_alpha);
     let mut changed_cross = Transcript::new(b"terminal-order");
     assert_ne!(
         r,
-        transcript::terminal_challenge(&f.one(), &mut changed_cross, &f)
+        transcript::terminal_challenge(&f.one(), &mut changed_cross.borrow(), &f)
     );
 }

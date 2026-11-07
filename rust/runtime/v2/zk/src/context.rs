@@ -17,24 +17,32 @@
 //! The caller supplies an interpolation domain with a stable ordered point set.
 //! The prover and verifier use that same domain and field. Circuit metadata
 //! determines the witness and pad layout passed to Polygero.
-use crate::runtime::algebra::ZkField;
+use crate::runtime::algebra::{EvaluationDomain, ZkField};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
     core::proto::v2::Circuit,
-    runtime::{
-        algebra::EvaluationDomain,
-        v2::{
-            polygero::{PolygeroConfig, PolygeroParam},
-            proto::zk::PackingLayout,
-            zk::{packing_commitment::PackingCommitment, CircuitGeometry},
-        },
+    runtime::v2::{
+        polygero::{PolygeroConfig, PolygeroParam},
+        proto::zk::PackingLayout,
+        zk::{packing_commitment::PackingCommitment, CircuitGeometry},
     },
 };
 
-/// Borrow the field implementation and ordered interpolation domain for an invocation.
-pub struct ZkContext<'a, const W: usize, F: ZkField<W>, D> {
-    pub f: &'a F,
+/// Borrow an interpolation domain together with its own arithmetic field.
+pub struct ZkContext<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> {
     pub domain: &'a D,
+    _field: std::marker::PhantomData<&'a F>,
+}
+impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> ZkContext<'a, W, F, D> {
+    pub fn new(domain: &'a D) -> Self {
+        Self {
+            domain,
+            _field: std::marker::PhantomData,
+        }
+    }
+    pub fn field(&self) -> &'a F {
+        self.domain.field()
+    }
 }
 
 /// Count private inputs from the trusted circuit metadata.
@@ -63,7 +71,7 @@ pub(crate) fn prepare_circuit_layout<
     extension: X,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<(CircuitGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
-    if ctx.f.is_binary() && !extension.binary128_profile() {
+    if ctx.field().is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
     let private_inputs = circuit
@@ -75,21 +83,20 @@ pub(crate) fn prepare_circuit_layout<
     circuits.extend_from_slice(others);
     let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
     let layout = PackingLayout::new(private_inputs, sc_geom.pad_count()?, extension.degree())?;
-    let param = super::joint::prepare_parameter(layout.witness_count, config, ctx.f, ctx.domain)?;
+    let param = super::joint::prepare_parameter(layout.witness_count, config, ctx.domain)?;
     // Keep the selected field's identity, mask-cell and backend/domain checks
     // even when this circuit will join a larger participant list.
     let selected = super::joint::SelectedField::from_parameter(
         param.clone(),
-        ctx.f,
         ctx.domain,
-        ctx.f.packing_id(),
+        ctx.field().packing_id(),
     )?;
     let geometry = CircuitGeometry {
         sc_geom,
         com_geom: selected.geometry(),
         packing_degree: layout.degree,
     };
-    let backend = PackingCommitment::new(ctx.f.clone(), layout, extension)?;
+    let backend = PackingCommitment::new(ctx.field().clone(), layout, extension)?;
     Ok((geometry, param, backend))
 }
 

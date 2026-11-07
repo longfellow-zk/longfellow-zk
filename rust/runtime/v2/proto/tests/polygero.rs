@@ -1,4 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use super::fixtures::Aliased;
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
@@ -101,32 +102,6 @@ fn malformed_geometry_frontier_versions_and_every_truncation_are_rejected() {
     let n = invalid_frontier.len();
     invalid_frontier[n - 4..].copy_from_slice(&u32::MAX.to_le_bytes());
     assert!(read(&mut invalid_frontier.as_slice(), &g, &f).is_err());
-}
-// An ambient codec accepting aliases must still be checked canonically.
-struct Aliased(Gf2_128Field);
-impl crate::core::algebra::BareField for Aliased {
-    type E = Gf2_128;
-}
-impl SerializableField for Aliased {
-    fn is_binary(&self) -> bool {
-        true
-    }
-    fn serialized_size_bytes(&self) -> usize {
-        16
-    }
-    fn to_bytes_into(&self, x: &Gf2_128, dst: &mut [u8]) {
-        self.0.to_bytes_into(x, dst)
-    }
-    fn bytes_to_element(&self, b: &[u8]) -> Result<Gf2_128, String> {
-        if b == [0xff; 16] {
-            Ok(self.0.zero())
-        } else {
-            self.0.bytes_to_element(b)
-        }
-    }
-    fn serialized_mone(&self) -> Vec<u8> {
-        self.0.serialized_mone()
-    }
 }
 #[test]
 fn noncanonical_ambient_elements_are_rejected() {

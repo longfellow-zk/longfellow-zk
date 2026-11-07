@@ -42,8 +42,7 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
     for layer in 0..proof.layers.len() {
         let messages = &proof.layers[layer];
         let pads = &pad_values.layers[layer];
-        for round in 0..messages.rounds.len() {
-            let message = &messages.rounds[round];
+        for (round, message) in messages.rounds.iter().enumerate() {
             let pad = &pads.rounds[round];
             let c0 = f.addf(&message.coefficients[0], &pad.coefficients[0]);
             let c1 = f.addf(&message.coefficients[1], &pad.coefficients[1]);

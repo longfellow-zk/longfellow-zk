@@ -151,7 +151,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
 
     let mut rng = SimpleRng { state: 42 };
-    let mut ts_prover = Transcript::new(b"test_zk");
+    let ts_prover = Transcript::new(b"test_zk");
 
     let config = PolygeroConfig {
         k: 16,
@@ -164,26 +164,19 @@ fn test_zk_prover_verifier_end_to_end() {
     let (prover, geom) = prover_inst
         .commit(
             &w0[prover_inst.circuit.raw.npublic_input..],
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
-            &mut ts_prover,
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            ts_prover,
             &mut rng,
         )
         .unwrap();
 
     // 4. Prover prove
-    let zkp = prover_inst
+    let (zkp, ts_prover) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             prover,
-            &mut ts_prover,
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove");
     // 5. Serialize / deserialize proof roundtrip
@@ -194,10 +187,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     )
     .unwrap();
     let v_geom = verifier.geometry();
@@ -211,19 +201,20 @@ fn test_zk_prover_verifier_end_to_end() {
     );
 
     // 6. Verifier verify
-    let mut ts_verifier = Transcript::new(b"test_zk");
+    let ts_verifier = Transcript::new(b"test_zk");
 
     let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &deserialized,
-        &mut ts_verifier,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        ts_verifier,
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     );
 
-    assert!(verify_res.is_ok(), "ZK Verification failed: {verify_res:?}");
+    assert!(
+        verify_res.is_ok(),
+        "ZK Verification failed: {:?}",
+        verify_res.err()
+    );
 }
 
 #[test]
@@ -235,10 +226,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
 
     let f = Gf2_128Field::new();
     let interpolation = BinaryInterpolatorFactory::full_field(&f);
-    let context = crate::runtime::v2::zk::ZkContext {
-        f: &f,
-        domain: &interpolation,
-    };
+    let context = crate::runtime::v2::zk::ZkContext::new(&interpolation);
     // A non-power-of-two width exercises several sumcheck rounds and input pairs
     // (0,3)/(2,2), whose Morton and lexicographic orders differ.
     let inputs: Vec<_> = (1..=7).map(|v| v % 3 != 0).collect();
@@ -350,16 +338,15 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let native_bytes = native_writer.to_bytes(&decoded);
                 let prover = ZkProver::new(decoded, config);
                 let mut rng = SimpleRng { state: 42 };
-                let mut prover_ts = Transcript::new(b"lexicographic-zk");
+                let prover_ts = Transcript::new(b"lexicographic-zk");
                 let (commitment, geometry) = prover
-                    .commit(&witness_inputs[1..], &context, &mut prover_ts, &mut rng)
+                    .commit(&witness_inputs[1..], &context, prover_ts, &mut rng)
                     .unwrap();
-                let proof = prover
+                let (proof, mut prover_ts) = prover
                     .prove(
                         &witness_inputs[..1],
                         witness_inputs[1..].to_vec(),
                         commitment,
-                        &mut prover_ts,
                         &context,
                     )
                     .unwrap();
@@ -382,14 +369,9 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let decoded_proof = ZkProof::read(&mut remaining, &verifier_geometry, &f).unwrap();
                 assert!(remaining.is_empty());
                 assert_eq!(proof, *decoded_proof);
-                let mut verifier_ts = Transcript::new(b"lexicographic-zk");
-                verifier
-                    .reduce(
-                        &witness_inputs[..1],
-                        &decoded_proof,
-                        &mut verifier_ts,
-                        &context,
-                    )
+                let verifier_ts = Transcript::new(b"lexicographic-zk");
+                let mut verifier_ts = verifier
+                    .reduce(&witness_inputs[..1], &decoded_proof, verifier_ts, &context)
                     .unwrap();
                 assert_eq!(prover_ts.bytes(64), verifier_ts.bytes(64));
 
@@ -397,31 +379,29 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     let mut tampered_claim = decoded_proof.clone();
                     let claims = &mut tampered_claim.sumcheck_proof.layers[0].claims;
                     f.add(&mut claims[slot], &f.one());
-                    let mut bad_ts = Transcript::new(b"lexicographic-zk");
+                    let bad_ts = Transcript::new(b"lexicographic-zk");
                     assert!(verifier
-                        .reduce(&witness_inputs[..1], &tampered_claim, &mut bad_ts, &context)
+                        .reduce(&witness_inputs[..1], &tampered_claim, bad_ts, &context)
                         .is_err());
                 }
-                // Reject either protocol's malformed messages before consuming
-                // any sumcheck challenges, even after receiving the root.
+                // A malformed proof fails the owned session; it cannot return
+                // a continuation that a caller could use after the error.
                 let mut bad_sumcheck = decoded_proof.clone();
                 bad_sumcheck.sumcheck_proof.layers[0].rounds.pop();
                 let mut bad_polygero = decoded_proof.clone();
                 bad_polygero.com_proof.bodies.0.h.pop();
                 for malformed in [&bad_sumcheck, &bad_polygero] {
-                    let mut bad_ts = Transcript::new(b"lexicographic-zk");
-                    let mut unchanged = bad_ts.fork_for_test();
+                    let bad_ts = Transcript::new(b"lexicographic-zk");
                     assert!(verifier
-                        .reduce(&witness_inputs[..1], malformed, &mut bad_ts, &context)
+                        .reduce(&witness_inputs[..1], malformed, bad_ts, &context)
                         .is_err());
-                    assert_eq!(bad_ts.bytes(64), unchanged.bytes(64));
                 }
                 let mut tampered = (*decoded_proof).clone();
                 let value = &mut tampered.sumcheck_proof.layers[0].rounds[0].coefficients[0];
                 f.add(value, &f.one());
-                let mut bad_ts = Transcript::new(b"lexicographic-zk");
+                let bad_ts = Transcript::new(b"lexicographic-zk");
                 assert!(verifier
-                    .reduce(&witness_inputs[..1], &tampered, &mut bad_ts, &context)
+                    .reduce(&witness_inputs[..1], &tampered, bad_ts, &context)
                     .is_err());
             }
         }
@@ -449,7 +429,7 @@ fn test_zk_triple_zero_zero_zero() {
 
     let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let mut rng = SimpleRng { state: 42 };
-    let mut ts_prover = Transcript::new(b"test_zk_zero");
+    let ts_prover = Transcript::new(b"test_zk_zero");
 
     let config = PolygeroConfig {
         k: 16,
@@ -462,47 +442,34 @@ fn test_zk_triple_zero_zero_zero() {
     let (commit_res, _geom) = prover_inst
         .commit(
             &w0[prover_inst.circuit.raw.npublic_input..],
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
-            &mut ts_prover,
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            ts_prover,
             &mut rng,
         )
         .unwrap();
 
-    let zkp = prover_inst
+    let (zkp, _) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
-            &mut ts_prover,
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     )
     .unwrap();
-    let mut ts_verifier = Transcript::new(b"test_zk_zero");
+    let ts_verifier = Transcript::new(b"test_zk_zero");
 
     let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &zkp,
-        &mut ts_verifier,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        ts_verifier,
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     );
 
     assert!(
@@ -572,7 +539,7 @@ fn test_zk_intermediate_zero_logw() {
     let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // The three bit inputs sum to zero in characteristic two.
-    let w0 = vec![true, true, false, true];
+    let w0 = [true, true, false, true];
 
     // Check that plain evaluation succeeds (sum is 0, squared twice is 0)
     let eval_res = crate::runtime::v2::sumcheck::eval_circuit(
@@ -591,7 +558,7 @@ fn test_zk_intermediate_zero_logw() {
     // Now test ZK proof generation and verification
     let make_interpolator = BinaryInterpolatorFactory::full_field(&f);
     let mut rng = SimpleRng { state: 9999 };
-    let mut ts_prover = Transcript::new(b"test_zk_interm");
+    let ts_prover = Transcript::new(b"test_zk_interm");
 
     let config = PolygeroConfig {
         k: 16,
@@ -604,47 +571,34 @@ fn test_zk_intermediate_zero_logw() {
     let (commit_res, _geom) = prover_inst
         .commit(
             &w0[prover_inst.circuit.raw.npublic_input..],
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
-            &mut ts_prover,
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            ts_prover,
             &mut rng,
         )
         .unwrap();
 
-    let zkp = prover_inst
+    let (zkp, _) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
-            &mut ts_prover,
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     )
     .unwrap();
-    let mut ts_verifier = Transcript::new(b"test_zk_interm");
+    let ts_verifier = Transcript::new(b"test_zk_interm");
 
     let verify_res = verifier.reduce(
         &w0[..verifier.public_input_count()],
         &zkp,
-        &mut ts_verifier,
-        &crate::runtime::v2::zk::ZkContext {
-            f: &f,
-            domain: &make_interpolator,
-        },
+        ts_verifier,
+        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
     );
 
     assert!(
@@ -671,7 +625,7 @@ fn test_zk_zero_layers() {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
         let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
-        let mut w0 = vec![false; 4];
+        let mut w0 = [false; 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {
             if (mask & (1 << i)) != 0 {
                 *elem = true; // non-zero
@@ -689,17 +643,14 @@ fn test_zk_zero_layers() {
         let mut rng = SimpleRng {
             state: 9999 + mask as u64,
         };
-        let mut ts_prover = Transcript::new(b"test_zk_zero_layers");
+        let ts_prover = Transcript::new(b"test_zk_zero_layers");
 
         let prover_inst = ZkProver::new(circ, config);
         let (commit_res, _geom) = prover_inst
             .commit(
                 &w0[2..],
-                &crate::runtime::v2::zk::ZkContext {
-                    f: &f,
-                    domain: &make_interpolator,
-                },
-                &mut ts_prover,
+                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+                ts_prover,
                 &mut rng,
             )
             .unwrap();
@@ -708,11 +659,7 @@ fn test_zk_zero_layers() {
             &w0[..2],
             w0[2..].to_vec(),
             commit_res,
-            &mut ts_prover,
-            &crate::runtime::v2::zk::ZkContext {
-                f: &f,
-                domain: &make_interpolator,
-            },
+            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         );
 
         if mask == 0 {
@@ -726,27 +673,21 @@ fn test_zk_zero_layers() {
                 "prove failed for all zero inputs: {:?}",
                 prove_res.err()
             );
-            let zkp = prove_res.unwrap();
+            let (zkp, _) = prove_res.unwrap();
 
             let verifier = ZkVerifier::new(
                 prover_inst.circuit,
                 config,
-                &crate::runtime::v2::zk::ZkContext {
-                    f: &f,
-                    domain: &make_interpolator,
-                },
+                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
             )
             .unwrap();
-            let mut ts_verifier = Transcript::new(b"test_zk_zero_layers");
+            let ts_verifier = Transcript::new(b"test_zk_zero_layers");
 
             let verify_res = verifier.reduce(
                 &w0[..2],
                 &zkp,
-                &mut ts_verifier,
-                &crate::runtime::v2::zk::ZkContext {
-                    f: &f,
-                    domain: &make_interpolator,
-                },
+                ts_verifier,
+                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
             );
             assert!(
                 verify_res.is_ok(),
@@ -763,7 +704,7 @@ fn test_zk_zero_layers() {
                 "eval_circuit failed at the wrong check for input mask {mask}"
             );
             assert_eq!(
-                prove_res.unwrap_err(),
+                prove_res.err().expect("invalid output must fail proving"),
                 format!("eval_circuit failed: {expected_eval_error}"),
                 "prove failed at the wrong check for input mask {mask}"
             );

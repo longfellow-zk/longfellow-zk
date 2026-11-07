@@ -16,7 +16,7 @@ use crate::{
         random::{DeterministicRng, RandomEngine},
         v2::{
             sumcheck::{
-                eval_circuit, prove, prover::sample_pads, verifier::verify, SumcheckProofGeometry,
+                diagnostic::verify, eval_circuit, prove, prover::sample_pads, SumcheckProofGeometry,
             },
             transcript::Transcript,
         },

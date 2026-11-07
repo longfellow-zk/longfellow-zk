@@ -10,7 +10,7 @@ use crate::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{self, symbolic::Constraints},
-            transcript::Transcript,
+            transcript::TranscriptRef,
         },
     },
 };
@@ -26,7 +26,7 @@ pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     circuit: &Circuit<F>,
     public: &[F::E],
     constraints: Constraints<F::E>,
-    transcript: &mut Transcript,
+    transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<LinearClaim<F::E>, String> {
     let private = circuit

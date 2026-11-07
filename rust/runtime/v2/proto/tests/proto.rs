@@ -123,3 +123,65 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
     };
     assert!(too_many.write(&too_many.geometry(), &f).is_err());
 }
+
+#[test]
+fn sumcheck_rejects_aliases_in_every_field_position() {
+    use super::fixtures::Aliased;
+    use crate::runtime::algebra::gf2_128::Gf2_128Field;
+
+    let f = Aliased(Gf2_128Field::new());
+    // Include round coefficients, the cross coefficient and terminal claims,
+    // both in an ordinary layer and a layer with no rounds.
+    let geometry = SumcheckProofGeometry::new(vec![2, 0]);
+    let count = geometry.serialized_elements().unwrap();
+    let bytes: Vec<_> = (0..count).flat_map(|i| (i as u128).to_le_bytes()).collect();
+    let mut remaining = bytes.as_slice();
+    let proof = SumcheckProof::<2, _>::read(&mut remaining, &geometry, &f).unwrap();
+    assert!(remaining.is_empty());
+    assert_eq!(proof.write(&geometry, &f).unwrap(), bytes);
+
+    for i in 0..count {
+        let mut alias = bytes.clone();
+        alias[16 * i..16 * (i + 1)].fill(0xff);
+        assert!(
+            SumcheckProof::<2, _>::read(&mut alias.as_slice(), &geometry, &f).is_err(),
+            "alias at field position {i}"
+        );
+    }
+}
+
+#[test]
+fn canonical_field_reader_rejects_without_consuming_input() {
+    use std::io::ErrorKind;
+
+    use super::{fixtures::Aliased, read_field};
+    use crate::{
+        core::algebra::SerializableField,
+        runtime::algebra::gf2_128::{Gf2_128, Gf2_128Field},
+    };
+
+    let f = Aliased(Gf2_128Field::new());
+    let value = Gf2_128::from(42u128);
+    let mut encoded = f.to_bytes(&value);
+    encoded.extend_from_slice(&[7, 8, 9]);
+    let mut remaining = encoded.as_slice();
+    assert_eq!(read_field(&mut remaining, &f).unwrap(), value);
+    assert_eq!(remaining, &[7, 8, 9]);
+
+    for len in 0..16 {
+        let input = &encoded[..len];
+        let mut remaining = input;
+        assert_eq!(
+            read_field(&mut remaining, &f).unwrap_err().kind(),
+            ErrorKind::UnexpectedEof
+        );
+        assert_eq!(remaining, input);
+    }
+    let alias = [0xff; 16];
+    let mut remaining = alias.as_slice();
+    assert_eq!(
+        read_field(&mut remaining, &f).unwrap_err().kind(),
+        ErrorKind::InvalidData
+    );
+    assert_eq!(remaining, alias);
+}

@@ -12,7 +12,7 @@ use crate::{
             polygero::{PolygeroConfig, PolygeroParam},
             proto::zk::CircuitGeometry,
             sumcheck,
-            transcript::Transcript,
+            transcript::TranscriptRef,
             zk::{joint::SelectedField, packing_commitment::PackingCommitment, ZkContext},
         },
     },
@@ -68,7 +68,7 @@ impl BinaryParticipant {
             c,
             &[&template],
             config,
-            ctx.f.packing_extension(),
+            ctx.field().packing_extension(),
             ctx,
         )?;
         Ok(Self {
@@ -91,9 +91,9 @@ impl BinaryParticipant {
         &self,
         ctx: &ZkContext<'a, 2, F, D>,
     ) -> Result<SelectedField<'a, 2, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), ctx.f, ctx.domain, ctx.f.packing_id())
+        SelectedField::from_parameter(self.param.clone(), ctx.domain, ctx.field().packing_id())
     }
-    pub fn bind(&self, t: &mut Transcript) {
+    pub fn bind(&self, t: &mut TranscriptRef<'_>) {
         self.backend.bind(t, &self.id);
         super::transcript::bind_binary(t, &self.template_id, &self.geometry.sc_geom.logw_layers);
     }

@@ -7,14 +7,14 @@ use crate::{
             packing::{AmbientElement as E, PackingExtension, PackingParameters},
             SupportsSampling,
         },
-        v2::transcript::Transcript,
+        v2::transcript::TranscriptRef,
     },
 };
 pub(super) fn begin<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     context: &[u8],
-    ts: &mut Transcript,
+    ts: &mut TranscriptRef<'_>,
 ) where
     X::Ambient: SerializableField,
 {
@@ -50,7 +50,7 @@ pub(super) fn begin<X: PackingExtension>(
 pub(super) fn challenges<X: PackingExtension>(
     p: &PackingParameters<X>,
     u: &[E<X>],
-    ts: &mut Transcript,
+    ts: &mut TranscriptRef<'_>,
 ) -> Vec<E<X>>
 where
     X::Ambient: SerializableField,
@@ -67,7 +67,11 @@ where
         },
     )
 }
-pub(super) fn finish<X: PackingExtension>(p: &PackingParameters<X>, a: &E<X>, ts: &mut Transcript) {
+pub(super) fn finish<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    a: &E<X>,
+    ts: &mut TranscriptRef<'_>,
+) {
     // A may depend on delta, but it must be fixed before the backend samples
     // challenges to authenticate the two resulting linear equations.
     ts.bind(|w| {

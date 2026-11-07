@@ -74,10 +74,7 @@ fn binary_source_positions_match_native_shared_inputs() {
 fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext {
-        f: &f,
-        domain: &domain,
-    };
+    let ctx = ZkContext::new(&domain);
     let raw = RawCircuit {
         ninput: 3,
         npublic_input: 1,
@@ -127,9 +124,11 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     );
     let mut tp = Transcript::new(b"native-rows");
     let mut tv = tp.fork_for_test();
-    let reduction = part.reduce(&c, &[f.one()], state, &mut tp, &f).unwrap();
+    let reduction = part
+        .prove(&c, &[f.one()], state, &mut tp.borrow(), &f)
+        .unwrap();
     let checked = part
-        .reduce_verify(&c, &[f.one()], &reduction.proof, &mut tv, &f)
+        .reduce(&c, &[f.one()], &reduction.proof, &mut tv.borrow(), &f)
         .unwrap();
     assert_eq!(reduction.claim.weights, checked.weights);
     assert_eq!(reduction.claim.target, checked.target);
@@ -157,7 +156,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     f.add(&mut forged.layers[0].cross, &f.one());
     let mut t = Transcript::new(b"native-rows");
     let claim = part
-        .reduce_verify(&c, &[f.one()], &forged, &mut t, &f)
+        .reduce(&c, &[f.one()], &forged, &mut t.borrow(), &f)
         .unwrap();
     let mu = f.addf(&f.mulf(&eta, &f.mulf(&claim.weights[0], &source)), &mask);
     let statement = part.finish(claim, &eta, &mu, &f).unwrap();

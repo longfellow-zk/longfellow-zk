@@ -105,12 +105,19 @@ impl<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F> + ?Si
 pub trait EvaluationDomain<const W: usize, F: RuntimeField<W>>:
     RangeInterpolatorFactory<W, F>
 {
+    /// The arithmetic instance used by this domain's interpolation plans.
+    /// Protocol callers derive their field from here, so runtime-configured
+    /// moduli cannot accidentally disagree between interpolation and checks.
+    fn field(&self) -> &F;
     fn domain_id(&self) -> Vec<u8>;
 }
 
 impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F> + ?Sized> EvaluationDomain<W, F>
     for &D
 {
+    fn field(&self) -> &F {
+        (**self).field()
+    }
     fn domain_id(&self) -> Vec<u8> {
         (**self).domain_id()
     }

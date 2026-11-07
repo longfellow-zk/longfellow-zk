@@ -15,9 +15,10 @@
 //! Longfellow v2 sumcheck proof types and wire encoding.
 
 //! Single-hand messages, codec, and committed-pad positions.
+use super::read_field;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
-    runtime::proto::util::{read_elt_field, write_elt_field},
+    runtime::proto::util::write_elt_field,
 };
 
 /// Maximum rounds in one serialized v2 layer. This wire-format limit is
@@ -181,13 +182,13 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
             let mut rounds = Vec::with_capacity(logw);
             for _ in 0..logw {
                 rounds.push(RoundPoly {
-                    coefficients: [read_elt_field(bytes, f)?, read_elt_field(bytes, f)?],
+                    coefficients: [read_field(bytes, f)?, read_field(bytes, f)?],
                 });
             }
             layers.push(LayerProof {
                 rounds,
-                cross: read_elt_field(bytes, f)?,
-                claims: [read_elt_field(bytes, f)?, read_elt_field(bytes, f)?],
+                cross: read_field(bytes, f)?,
+                claims: [read_field(bytes, f)?, read_field(bytes, f)?],
             });
         }
         Ok(Self { layers })

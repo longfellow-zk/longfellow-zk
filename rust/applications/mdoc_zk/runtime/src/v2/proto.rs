@@ -108,13 +108,8 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         if remaining.len() < size + plan.advice_bytes() {
             return Err("truncated adapter proof".into());
         }
-        let mu = f2
-            .bytes_to_element(&remaining[..size])
-            .map_err(|e| e.to_string())?;
-        if f2.to_bytes(&mu) != remaining[..size] {
-            return Err("noncanonical adapter scalar".into());
-        }
-        remaining = &remaining[size..];
+        let mu =
+            crate::runtime::v2::proto::read_field(&mut remaining, f2).map_err(|e| e.to_string())?;
         let masked = remaining[..plan.advice_bytes()].to_vec();
         plan.validate_advice(&masked)?;
         remaining = &remaining[plan.advice_bytes()..];

@@ -87,14 +87,8 @@ pub fn run_mdoc_verifier_inner(
     let (c_sig, c_hash) = super::circuits::for_spec(zk_spec, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
-    let context_hash = ZkContext {
-        f: &gf2,
-        domain: &make_interpolator_hash,
-    };
-    let context_sig = ZkContext {
-        f: &p256,
-        domain: &make_interpolator_sig,
-    };
+    let context_hash = ZkContext::new(&make_interpolator_hash);
+    let context_sig = ZkContext::new(&make_interpolator_sig);
 
     let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
     let verifier_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
@@ -141,17 +135,16 @@ pub fn run_mdoc_verifier_inner(
     let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    super::transcript::bind_public_inputs(&mut tp, &app_public);
-    verifier_hash.bind(&mut tp);
-    verifier_sig.bind(&mut tp);
-    let joint = param
-        .receive(&root, fingerprints.clone(), &mut tp)
-        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    super::transcript::bind_public_inputs(&mut tp.borrow(), &app_public);
+    verifier_hash.bind(&mut tp.borrow());
+    verifier_sig.bind(&mut tp.borrow());
+    let mut joint = param.receive(root, fingerprints.clone(), tp);
+    let mut tp = joint.transcript();
     let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
     let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
     let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val);
     let claim = verifier_sig
-        .reduce_verify(
+        .reduce(
             &c_sig,
             &pub_inputs_sig,
             &proof_sig.sumcheck_proof,
@@ -160,30 +153,31 @@ pub fn run_mdoc_verifier_inner(
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let e = adapter::eta(&mut tp, &p256);
-    let weights = adapter::weights(&claim.weights, &e, &mu, &mut tp, &p256)
+    let weights = adapter::weights(&claim.weights, &e, mu, &mut tp, &p256)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let alpha = adapter::alphas(&mut tp, &p256);
     let encoded = plan
-        .encode(&weights, &mu, &alpha, None, &p256, &gf2)
+        .encode(&weights, mu, &alpha, None, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    let pub_inputs_hash = adapter::public(&plan, encoded, &masked, &mut tp)
+    let pub_inputs_hash = adapter::public(&plan, encoded, masked, &mut tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let statement_hash = verifier_hash
-        .verify(
+        .reduce(
             &c_hash,
             &app_public,
-            &proof_hash,
+            proof_hash,
             &pub_inputs_hash,
             &mut tp,
             &context_hash,
         )
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
     let statement_sig = verifier_sig
-        .finish(claim, &e, &mu, &p256)
+        .finish(claim, &e, mu, &p256)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
-    joint
-        .authenticate(&proof, (statement_hash, (statement_sig, ())), &mut tp)
-        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?;
+    let tp = joint
+        .authenticate(proof, (statement_hash, (statement_sig, ())))
+        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)?
+        .into_transcript();
     decoded
         .checked(tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)

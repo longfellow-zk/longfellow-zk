@@ -26,7 +26,7 @@
 use sha2::{Digest as _, Sha256};
 
 use super::{
-    joint::{JointCommitmentContext, JointPolygeroParam, Participants, ReceivedCommitment},
+    joint::{JointPolygeroParam, Participants},
     PolygeroCommitment, PolygeroGeometry, PolygeroParam,
 };
 use crate::{
@@ -36,7 +36,7 @@ use crate::{
         proto::Digest,
         v2::{
             proto::polygero::FieldProof,
-            transcript::{Reading, RoundLabel, Transcript, Writing},
+            transcript::{Reading, RoundLabel, TranscriptRef, Writing},
         },
     },
 };
@@ -108,10 +108,14 @@ pub(super) fn bind_response<F: SerializableField>(
 }
 
 impl<L: Participants> JointPolygeroParam<L> {
-    pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) {
-        self.commitment_context().receive(root, t);
+    pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut TranscriptRef<'_>) {
+        t.bind(|w| {
+            w.write_bytes(b"polygero/joint/root/v1");
+            w.write_bytes(&self.context.data);
+        });
+        t.bind(|w| w.write_bytes(&root.root.data));
     }
-    pub(super) fn challenges(&self, s: &L::Statements, t: &mut Transcript) -> L::Challenges {
+    pub(super) fn challenges(&self, s: &L::Statements, t: &mut TranscriptRef<'_>) -> L::Challenges {
         // Complete the binding pass first: a later field's statement must not
         // be chosen after seeing an earlier field's batching challenges.
         t.round(RoundLabel::Batching, |mut w| {
@@ -121,7 +125,7 @@ impl<L: Participants> JointPolygeroParam<L> {
             r.end_round(challenges)
         })
     }
-    pub(super) fn queries(&self, b: &L::Bodies, t: &mut Transcript) -> Vec<usize> {
+    pub(super) fn queries(&self, b: &L::Bodies, t: &mut TranscriptRef<'_>) -> Vec<usize> {
         // Fix all H/Z responses before sampling the single shared query set.
         // Sharing queries correlates the field checks; it does not merge them.
         t.round(RoundLabel::Opening, |mut w| {
@@ -131,18 +135,5 @@ impl<L: Participants> JointPolygeroParam<L> {
             r.choose(&mut indices, self.config.n, self.config.t);
             r.end_round(indices)
         })
-    }
-}
-impl JointCommitmentContext {
-    pub fn receive(&self, root: &PolygeroCommitment, t: &mut Transcript) -> ReceivedCommitment {
-        t.bind(|w| {
-            w.write_bytes(b"polygero/joint/root/v1");
-            w.write_bytes(&self.context.data);
-        });
-        t.bind(|w| w.write_bytes(&root.root.data));
-        ReceivedCommitment {
-            _context: self.context,
-            _root: root.clone(),
-        }
     }
 }

@@ -96,7 +96,7 @@ fn check_early_output_weights(short_has_layer: bool) {
     let constraints = derive(
         &circuits,
         &proof,
-        &mut Transcript::new(b"early-output-counterexample"),
+        &mut Transcript::new(b"early-output-counterexample").borrow(),
         &f,
     )
     .unwrap();
@@ -244,8 +244,8 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
         let mut tp = Transcript::new(b"shared-wires");
         let mut tv = Transcript::new(b"shared-wires");
-        let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp, f).unwrap();
-        let d = derive(&circuits, &proof, &mut tv, f).unwrap();
+        let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp.borrow(), f).unwrap();
+        let d = derive(&circuits, &proof, &mut tv.borrow(), f).unwrap();
         let expected_flips = if schedule.layers.is_empty() {
             1
         } else {
@@ -268,7 +268,13 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         if !proof.layers.is_empty() {
             let mut forged = decoded;
             f.add(&mut forged.layers[0].claims[1], &f.one());
-            let d = derive(&circuits, &forged, &mut Transcript::new(b"shared-wires"), f).unwrap();
+            let d = derive(
+                &circuits,
+                &forged,
+                &mut Transcript::new(b"shared-wires").borrow(),
+                f,
+            )
+            .unwrap();
             assert!(d
                 .residuals(&inputs, &pads, f)
                 .unwrap()
@@ -281,7 +287,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
             &circuits,
             bad,
             &pads,
-            &mut Transcript::new(b"shared-wires"),
+            &mut Transcript::new(b"shared-wires").borrow(),
             f
         )
         .is_err());
@@ -409,8 +415,15 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
     let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
     let mut fragmented_t = Transcript::new(b"same-global-circuit");
     let mut merged_t = Transcript::new(b"same-global-circuit");
-    prove(&circuits, inputs.clone(), &pads, &mut fragmented_t, f).unwrap();
-    prove(&[&merged], inputs, &pads, &mut merged_t, f).unwrap();
+    prove(
+        &circuits,
+        inputs.clone(),
+        &pads,
+        &mut fragmented_t.borrow(),
+        f,
+    )
+    .unwrap();
+    prove(&[&merged], inputs, &pads, &mut merged_t.borrow(), f).unwrap();
     assert_eq!(
         fragmented_t.round_count_for_test(),
         merged_t.round_count_for_test()
@@ -434,7 +447,13 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         if stage > 0 {
             entering.resize(layout.nv, f.zero());
         }
-        schedule.start_layer(&mut entering, &mut active, stage, &mut fragmented_t, f);
+        schedule.start_layer(
+            &mut entering,
+            &mut active,
+            stage,
+            &mut fragmented_t.borrow(),
+            f,
+        );
         let merged_schedule = Schedule::new(&[&merged]).unwrap();
         let mut merged_active = vec![SplitFragment::new(
             &merged_schedule.layers[stage].fragments[0],
@@ -451,7 +470,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             &mut merged_entering,
             &mut merged_active,
             stage,
-            &mut merged_t,
+            &mut merged_t.borrow(),
             f,
         );
         assert_eq!(entering, merged_entering);
@@ -487,7 +506,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             &merged_splits[stage],
             &merged.raw.constants,
             &a,
-            &merged_assertions,
+            merged_assertions,
             &actual[stage],
             f,
         );
@@ -497,7 +516,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             &merged_splits[stage],
             &merged.raw.constants,
             &a,
-            &merged_assertions,
+            merged_assertions,
             &point,
             &alpha,
             f,

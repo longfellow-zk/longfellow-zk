@@ -24,6 +24,29 @@ impl Transcript {
         u128::from_le_bytes(self.bytes(16).try_into().unwrap())
     }
 }
+impl TranscriptRef<'_> {
+    pub(crate) fn round_count_for_test(&self) -> u64 {
+        self.core.rounds
+    }
+    pub(crate) fn fork_for_test(&self) -> Transcript {
+        Transcript {
+            core: Core {
+                hash: self.core.hash.clone(),
+                rounds: self.core.rounds,
+            },
+        }
+    }
+    pub(crate) fn bytes(&mut self, n: usize) -> Vec<u8> {
+        self.round(RoundLabel::Statement, |w| {
+            let mut reader = w.begin_squeeze();
+            let bytes = reader.bytes(n);
+            reader.end_round(bytes)
+        })
+    }
+    pub(crate) fn u128(&mut self) -> u128 {
+        u128::from_le_bytes(self.bytes(16).try_into().unwrap())
+    }
+}
 #[test]
 fn empty_rounds_are_distinct_and_reproducible() {
     let mut a = Transcript::new(b"rounds");

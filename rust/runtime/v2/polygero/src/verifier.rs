@@ -11,64 +11,50 @@ use crate::runtime::{
         RuntimeField,
     },
     proto::Digest,
-    v2::transcript::Transcript,
+    v2::transcript::{Transcript, TranscriptRef},
 };
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {
     param: JointPolygeroParam<L>,
-    commitment: Option<PolygeroCommitment>,
+    commitment: PolygeroCommitment,
+    transcript: Transcript,
 }
 #[cfg(any(test, feature = "verifier"))]
 impl<L: Participants> JointPolygeroVerifier<L> {
-    pub fn new(param: JointPolygeroParam<L>) -> Self {
+    pub fn new(
+        param: JointPolygeroParam<L>,
+        root: &PolygeroCommitment,
+        mut transcript: Transcript,
+    ) -> Self {
+        param.receive(root, &mut transcript.borrow());
         Self {
             param,
-            commitment: None,
+            commitment: root.clone(),
+            transcript,
         }
     }
-    pub fn from_received(
-        param: JointPolygeroParam<L>,
-        received: &ReceivedCommitment,
-    ) -> Result<Self, PolygeroError> {
-        ensure(
-            param.context == received._context,
-            "joint received context mismatch",
-        )?;
-        Ok(Self {
-            param,
-            commitment: Some(received._root.clone()),
-        })
-    }
-    pub fn receive_commitment(&mut self, root: &PolygeroCommitment, t: &mut Transcript) {
-        self.param.receive(root, t);
-        self.commitment = Some(root.clone());
+    /// Continue the frontend on the session that received this commitment.
+    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+        self.transcript.borrow()
     }
     /// Complete standalone verification, including the mandatory final seal.
     pub fn verify(
-        &self,
-        root: &PolygeroCommitment,
+        self,
         proof: crate::runtime::v2::transcript::Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
-        mut transcript: Transcript,
     ) -> Result<crate::runtime::v2::transcript::VerifiedProof, PolygeroError> {
-        self.reduce(root, &proof, s, &mut transcript)?;
+        let transcript = self.reduce(&proof, s)?;
         proof
             .checked(transcript)
             .map_err(|e| PolygeroError(e.into()))
     }
     pub(crate) fn reduce(
-        &self,
-        root: &PolygeroCommitment,
+        mut self,
         proof: &JointPolygeroProof<L::Bodies>,
         s: &L::Statements,
-        t: &mut Transcript,
-    ) -> Result<(), PolygeroError> {
+    ) -> Result<Transcript, PolygeroError> {
         let p = &self.param;
         ensure(proof.context == p.context, "joint proof context mismatch")?;
-        ensure(
-            self.commitment.as_ref() == Some(root),
-            "joint commitment was not received",
-        )?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         crate::runtime::v2::proto::polygero::validate_opening(
@@ -76,8 +62,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             p.config.t,
             p.config.n,
         )?;
-        let c = p.challenges(s, t);
-        let indices = p.queries(&proof.bodies, t);
+        let c = p.challenges(s, &mut self.transcript.borrow());
+        let indices = p.queries(&proof.bodies, &mut self.transcript.borrow());
         let leaves: Vec<_> = indices
             .iter()
             .enumerate()
@@ -95,7 +81,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             .collect();
         crate::runtime::merkle::heap::verify_proof_with_hash(
             p.config.n,
-            &root.root,
+            &self.commitment.root,
             &proof.opening.path,
             &leaves,
             |l, r| hash::node(&p.context, l, r),
@@ -103,7 +89,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         .map_err(|e| PolygeroError(e.to_string()))?;
         // The one opening authenticates every field's column values. Each field
         // still needs its own low-degree and affine-equation checks.
-        p.participants.check(&proof.bodies, s, &c, &indices)
+        p.participants.check(&proof.bodies, s, &c, &indices)?;
+        Ok(self.transcript)
     }
 }
 #[cfg(any(test, feature = "verifier"))]
@@ -174,8 +161,8 @@ pub(super) fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDo
     let g = param.geom;
     let encoder = domain.make_range(0..g.k, param.oracle_range());
     let mut sum = vec![f.zero(); indices.len()];
-    for row in 0..rows.len() {
-        let extended = encoder.apply(&rows[row]);
+    for (row, values) in rows.iter().enumerate() {
+        let extended = encoder.apply(values);
         let row_values = blas::gather(indices, &extended);
         let w = opened_row(param, opened, param.data_start() + row);
         blas::vaxpy(&mut sum, &row_values, w, f);

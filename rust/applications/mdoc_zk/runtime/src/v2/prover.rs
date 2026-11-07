@@ -152,14 +152,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     // Public presentation bits are fixed before the shared commitment.
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
     witness_hash.extend((0..plan.advice_bits()).map(|r| ((otp[r / 8] >> (r % 8)) & 1) != 0));
-    let context_hash = ZkContext {
-        f: &gf2,
-        domain: &make_interpolator_hash,
-    };
-    let context_sig = ZkContext {
-        f: &p256,
-        domain: &make_interpolator_sig,
-    };
+    let context_hash = ZkContext::new(&make_interpolator_hash);
+    let context_sig = ZkContext::new(&make_interpolator_sig);
 
     let prover_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
@@ -182,21 +176,22 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         ),
     ))
     .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    super::transcript::bind_public_inputs(&mut tp, &app_public);
-    prover_hash.bind(&mut tp);
-    prover_sig.bind(&mut tp);
+    super::transcript::bind_public_inputs(&mut tp.borrow(), &app_public);
+    prover_hash.bind(&mut tp.borrow());
+    prover_sig.bind(&mut tp.borrow());
     let (state_hash, w_hash) = prover_hash
         .prepare(&witness_hash, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let (state_sig, w_sig) = prover_sig
         .prepare(&c_sig, witness_sig, mask, rng, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let (joint, root, fingerprints) = param
-        .commit((w_hash, (w_sig, ())), &mut tp, rng)
+    let (mut joint, root, fingerprints) = param
+        .commit((w_hash, (w_sig, ())), tp, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let mut tp = joint.transcript();
     let sig_pub_inputs = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
     let reduced = prover_sig
-        .reduce(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &p256)
+        .prove(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &p256)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     let e = adapter::eta(&mut tp, &p256);
     let mu = reduced.masked_value(&e, &p256);
@@ -237,8 +232,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         sumcheck_proof: reduced.proof,
         packing: crate::runtime::v2::proto::dual_packing::PackingProof::Direct,
     };
-    let proof = joint
-        .prove(&param, (statement_hash, (statement_sig, ())), &mut tp)
+    let (proof, tp) = joint
+        .prove(&param, (statement_hash, (statement_sig, ())))
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
     super::proto::MdocProof {
         commitment: root,
