@@ -1,0 +1,10 @@
+import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
+
+namespace LfzkV2.Current.Tests.ZeroKnowledgeCanonicalPublic
+
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.publicConfig_countBinary
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.publicConfig_countPrime
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.publicConfig_binaryField
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.publicConfig_primeField
+
+end LfzkV2.Current.Tests.ZeroKnowledgeCanonicalPublic

@@ -1,0 +1,8 @@
+import LfzkV2.Current.ZeroKnowledge.OracleCanonicalAncestors
+
+namespace LfzkV2.Current.Tests.ZeroKnowledgeOracleCanonicalAncestors
+
+#print axioms LfzkV2.Current.ZeroKnowledge.OracleCanonicalAncestors.canonical_parent
+#print axioms LfzkV2.Current.ZeroKnowledge.OracleCanonicalAncestors.canonical_priorPoints
+
+end LfzkV2.Current.Tests.ZeroKnowledgeOracleCanonicalAncestors

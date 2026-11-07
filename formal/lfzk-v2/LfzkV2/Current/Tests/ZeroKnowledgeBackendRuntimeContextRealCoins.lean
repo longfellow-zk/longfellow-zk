@@ -1,0 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextRealCoins
+
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextReal.honestTape_privateCoin
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextReal.privateCoinEquiv

@@ -2,10 +2,10 @@
 
 The current MAC-free mdoc composition has a Fiat--Shamir extractor theorem for
 the mathematical runtime verifier with adaptive public requests:
-[`IdealProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/IdealProofRate7.lean) proves
+[`MdocSharedSHASoundness.ratio_le`](lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean) proves
 for all integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
 adversary making at most `Q` distinct transcript-oracle queries and at most
-`Q_H` Merkle-oracle calls satisfies
+`Q_H` SHA-256-oracle calls satisfies
 
 ```text
 Pr[verifier accepts and the paired extractor fails to recover
@@ -27,10 +27,121 @@ states its circuit/layout and ideal-sampler premises. Acceptance and the
 application/backend failure cover are derived from the modeled verifier;
 there is no supplied `Execution` or correspondence certificate. Canonical
 query bytes, the actual Merkle encoding, requested-public readback and the
-first-context extractor are connected in the theorem. Oracle answers use the
-explicit ideal-sampler model. A reduction from full SHAKE byte streams and
-machine verification of Rust are outside this result.
+first-context extractor are connected in the theorem. The current mdoc
+specialization constructs the advice decoder, backend coordinates, transcript
+metadata and circuit plans from canonical scalar representations and trusted
+sparse circuit descriptions. Oracle answers use the explicit ideal-sampler
+model. A reduction from full SHAKE byte streams and machine verification of Rust
+are outside this result.
+One SHA function supplies setup and generated-circuit identifiers, the
+adversary's raw SHA answers and Merkle verification. Its Merkle restriction
+uses a uniform lazy tape; every independent finite auxiliary SHA marginal
+is averaged without an extra error term. `Q_H` conservatively bounds all
+SHA calls in the original adversarial program, including auxiliary inputs.
 `runtime::v2::zk` owns the selected joint boundary; mdoc supplies its frontend reductions.
+
+The complete mdoc model also has a statistical zero-knowledge theorem:
+[`MdocZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean).
+One witness-free simulator produces the complete proof and the observer's
+view, including arbitrary retained private state and both raw oracle traces.
+At rate 1/7 its distinguishing error is at most
+`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+The [precise scope](lfzk-v2/README.md#complete-mdoc-zero-knowledge) states the
+fixed-witness, trusted-circuit and ideal-oracle assumptions. This theorem
+combines the frontend, adapter, packing, joint backend and Merkle simulation;
+it is separate from extraction soundness.
+
+## Assumptions and remaining correspondence obligations
+
+These are the premises and limits of the current mathematical results. A
+successful kernel check establishes the stated implications; it does not
+establish that a cryptographic implementation satisfies their premises.
+
+- **Classical ideal oracles.** SHA-256 is a 256-bit random oracle. The
+  transcript uses an independent ideal whole-answer oracle: one answer
+  contains the 32-byte link and the entire jointly distributed challenge
+  block, and repeated inputs return the same answer. Sampling is uniform,
+  including rejection sampling, nonzero scalars and openings without
+  replacement. This is a joint oracle assumption, stronger than uniform
+  marginal field samples. The proofs do not couple the observer's complete
+  raw SHAKE output, rejected bytes or unused XOF tails to that answer. There
+  is no quantum-oracle result or proof of SHA-256/SHAKE256 security.
+- **Fresh private randomness.** Prover masks, pads, commitment nonces and
+  the other private coins are independent and uniform. The normal Rust mdoc
+  entry point obtains randomness from the operating system. APIs accepting
+  a caller-supplied generator require the same randomness property. Merkle
+  nonces have 256 bits; they are not assumed collision-free.
+- **Fields and representations.** The modeled fields satisfy their field
+  laws; bases and scalar representations have their declared cardinality,
+  canonical encoding and injectivity properties. The ZK specialization
+  explicitly requires binary basis coordinate zero equal to one and a
+  successful primitive-generator check.
+  Rust limb arithmetic, finite-machine operations and compiler correctness
+  are source-correspondence obligations, not additional Lean theorems.
+- **Trusted application circuits and archives.** Extraction returns a
+  witness satisfying the supplied circuits, not an independently formalized
+  ISO mdoc/CBOR specification. Privacy additionally requires signature
+  satisfaction and `MdocWitness.HashValid`: ordinary hash assertions must
+  remain valid for every reserved mask/OTP suffix and every generated-adapter
+  parameter. This noninterference premise is stronger than one satisfying
+  assignment. Rust's normal `for_spec` loader checks archive metadata but
+  does not recompute semantic payload IDs. Consequently, trust includes
+  the actual supplied archive bytes, not merely their advertised IDs.
+- **Public setup and resource bounds.** Trusted sparse topology, canonical
+  scalar codecs, capacity/address/serialization bounds and the concrete
+  hash-depth restriction are explicit. Current parameter certificates,
+  sampler projections, advice decoding, generated adapter equations,
+  authenticated row layouts and failure coverage are constructed and
+  proved; no caller-supplied execution or soundness certificate replaces
+  those proofs.
+- **Adversary and witness scope.** The adversary is classical and makes
+  finitely many calls within the stated budgets; extraction counts distinct
+  transcript inputs. Privacy permits arbitrary retained private context
+  and adaptive public requests, but uses a fixed witness map per request,
+  independent of oracle answers. Validity is required only at requests
+  reachable in actual consistent executions. This does not prove privacy
+  for arbitrary adaptive selection of a new witness after oracle answers.
+- **Efficiency and implementation.** Extraction uses mathematical finite
+  search; no polynomial-time extractor bound is proved. The explicit public
+  simulator has no witness argument, but its running time is not formally
+  bounded. Rust correspondence is reviewed and tested, rather than a
+  mechanized refinement. A complete Rust-to-Lean verifier replay vector and
+  a separate end-to-end honest-acceptance theorem remain absent. No timing,
+  memory-observation or other implementation side-channel theorem is claimed.
+
+**Shared SHA composition.** The original
+[`MdocProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/MdocProofRate7.lean)
+is the conditioned endpoint with a fixed auxiliary identifier-hash function.
+The shared-SHA theorem above derives the public setup from the actual SHA
+function, preserves the serialized proof and verifier decision, and identifies
+the exact first-context extractor trace with the Merkle-domain projection of
+the original execution prefix. Its transcript-query premise refers only to
+the original program with its actual SHA-derived public values. Domain
+separation and averaging preserve the bound; no observed-trace independence
+or oracle-correspondence certificate is a premise. The intermediate identities
+are checked in
+[`MdocSHAExperiment`](lfzk-v2/LfzkV2/Current/MdocSHAExperiment.lean).
+
+The common finite-table split, inclusion and extension maps live in
+[`SHAProbability`](lfzk-v2/LfzkV2/Current/SHAProbability.lean). Soundness and
+statistical privacy reuse those maps; soundness does not import the privacy
+composition proofs. The canonical verifier is constructed once, and its
+auxiliary-domain invariance holds for every decoded proof. The generic lazy
+execution identities need no default transcript challenge, including when
+the transcript-query alphabet is empty.
+
+The application-circuit audit also found namespace/CBOR-path binding,
+docType-length and selected-field range issues, including a malformed-input
+case reading SHA padding as a timestamp. These remain outside the protocol
+proof's trusted application relation. A protocol extraction theorem does not
+repair them or imply correctness of the intended document semantics.
+
+The broad axiom audit checks new public and private declarations against
+`propext`, `Classical.choice` and `Quot.sound`. These foundational axioms do
+not discharge any implementation or oracle premise above. Retained V1
+certificates keep their separately documented native-evaluation allowance.
+
+## Retained results and component libraries
 
 **The retained layered-sumcheck Longfellow V2 checkpoint has a 116-bit
 work-normalized extraction bound.** Sparse quad fragments share one wire
@@ -140,8 +251,9 @@ common messages. Exact startup and small-Merkle bounds yield the all-budget
 field-normalized theorem retains the exact nonzero denominator. The older
 product-checked and unpacked compositions remain separate models.
 
-Backend response/opening simulation and affine-MAC privacy remain component
-results: complete joint frontend/backend/Merkle zero knowledge is not proved.
+The retained checkpoints' backend response/opening simulation and affine-MAC
+privacy remain component results. The complete privacy theorem above concerns
+the current MAC-free mdoc model.
 API and axiom checks are in the default build. Rust arithmetic, concrete
 layouts, parsing and byte-level transcript correspondence remain implementation
 obligations.

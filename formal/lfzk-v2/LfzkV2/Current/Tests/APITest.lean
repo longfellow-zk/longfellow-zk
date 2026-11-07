@@ -1,5 +1,6 @@
 import LfzkV2.Current
 import LfzkV2.Current.Tests.Algebra
+import LfzkV2.Current.Tests.SharedSHA
 import LfzkV2.Current.Tests.Joint
 import LfzkV2.Current.Tests.EarlyOutputs
 import LfzkV2.Current.Tests.FrontendReplay
@@ -15,10 +16,107 @@ import LfzkV2.Current.Tests.BackendChallenges
 import LfzkV2.Current.Tests.BatchPacket
 import LfzkV2.Current.Tests.ByteCodecs
 import LfzkV2.Current.Tests.ProofBodyCodec
+import LfzkV2.Current.Tests.MdocAdvice
+import LfzkV2.Current.Tests.ConcreteSetup
+import LfzkV2.Current.Tests.ConcreteMetadata
+import LfzkV2.Current.Tests.MdocIdentifiers
+import LfzkV2.Current.Tests.MdocDefaults
 import LfzkV2.Current.Tests.QueryCodec
 import LfzkV2.Current.Tests.QueryRuntime
 import LfzkV2.Current.Tests.WireBlocks
 import LfzkV2.Current.Tests.OpeningSampling
+import LfzkV2.Current.Tests.ReplayCongruence
+import LfzkV2.Current.Tests.Tightness
+import LfzkV2.Current.Tests.ZeroKnowledgeBackend
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendCells
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendStatement
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendCompiled
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntime
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeEncoding
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeReal
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeSatisfaction
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeSimulator
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeMixed
+import LfzkV2.Current.Tests.ZeroKnowledgeCanonicalPublic
+import LfzkV2.Current.Tests.ZeroKnowledgeCanonicalCompletion
+import LfzkV2.Current.Tests.ZeroKnowledgeCompleteBody
+import LfzkV2.Current.Tests.ZeroKnowledgeCompleteSimulator
+import LfzkV2.Current.Tests.ZeroKnowledgeCompleteVerifier
+import LfzkV2.Current.Tests.ZeroKnowledgeFrontend
+import LfzkV2.Current.Tests.ZeroKnowledgeFrontendAdapter
+import LfzkV2.Current.Tests.ZeroKnowledgePacking
+import LfzkV2.Current.Tests.ZeroKnowledgePackingCells
+import LfzkV2.Current.Tests.ZeroKnowledgeGlobalCoins
+import LfzkV2.Current.Tests.ZeroKnowledgeHash
+import LfzkV2.Current.Tests.ZeroKnowledgeFrontendPrefix
+import LfzkV2.Current.Tests.ZeroKnowledgeFrontendComplete
+import LfzkV2.Current.Tests.ZeroKnowledgeFrontendSetup
+import LfzkV2.Current.Tests.ZeroKnowledgeProbabilityInstances
+import LfzkV2.Current.Tests.ZeroKnowledgeHonestTranscript
+import LfzkV2.Current.Tests.ZeroKnowledgeHonestTranscriptMdoc
+import LfzkV2.Current.Tests.ZeroKnowledgeHonestTranscriptRecording
+import LfzkV2.Current.Tests.ZeroKnowledgeHonestRunRows
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocWitness
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocSHAWindow
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocRawSHAWindow
+import LfzkV2.Current.Tests.ZeroKnowledgeSHASetup
+import LfzkV2.Current.Tests.ZeroKnowledgeSHAComplement
+import LfzkV2.Current.Tests.ZeroKnowledgeSHAGlobalWindow
+import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserver
+import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserverExperiment
+import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserverTrace
+import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptOracleProbability
+import LfzkV2.Current.Tests.ZeroKnowledgeRequestedSimulator
+import LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle
+import LfzkV2.Current.Tests.ZeroKnowledgeError
+import LfzkV2.Current.Tests.ZeroKnowledgeCommonLabels
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleBytes
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleCanonicalAncestors
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleHonest
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleNormalization
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleWindow
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleProgramming
+import LfzkV2.Current.Tests.ZeroKnowledgeOraclePrimaryFreshness
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleRefresh
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleRuntime
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleView
+import LfzkV2.Current.Tests.ZeroKnowledgeTerminalOpening
+import LfzkV2.Current.Tests.ZeroKnowledgeObserver
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkle
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleOracleWindow
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleRuntimeTransport
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleBackend
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCache
+import LfzkV2.Current.Tests.ZeroKnowledgeMerklePrequery
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleRefresh
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitRefresh
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitLabels
+import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitPrepared
+import LfzkV2.Current.Tests.ZeroKnowledgeMerklePreparation
+import LfzkV2.Current.Tests.ZeroKnowledgeMerklePreparationLabels
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContext
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextEncoding
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextGlobal
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextReal
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextRealCoins
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextRealProgrammed
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextRealView
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeContextSimulator
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeReachable
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRealCoins
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRefreshCoins
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRefreshedKey
+import LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRegroup
+import LfzkV2.Current.Tests.ZeroKnowledgeContextRefresh
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocOracleWindows
+import LfzkV2.Current.Tests.ZeroKnowledgeObserverStateful
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleHonestRefreshResult
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleMarginals
+import LfzkV2.Current.Tests.ZeroKnowledgeOracleRefreshObservation
+import LfzkV2.Current.Tests.ZeroKnowledgeRequestedContext
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocContextPrivacy
+import LfzkV2.Current.Tests.ZeroKnowledgeMdocZeroKnowledge
 import TranscriptV2.Tests.Framing
 import LfzkV2.Current.EntryChallenges
 import TranscriptV2.SharedCharging
@@ -212,6 +310,14 @@ run_cmd do
       ``LfzkV2.Current.CanonicalRate7.ratio_le,
       ``LfzkV2.Current.IdealRate7.ratio_le,
       ``LfzkV2.Current.IdealProofRate7.ratio_le,
+      ``LfzkV2.Current.MdocProofRate7.ratio_le,
+      ``LfzkV2.Current.MdocRuntime.quotient_base,
+      ``LfzkV2.Current.MdocIdentifiers.setup,
+      ``LfzkV2.Current.MdocIdentifiers.parameters,
+      ``LfzkV2.Current.ConcreteMetadata.primeData_readback,
+      ``LfzkV2.Current.MdocAdvice.read_encode,
+      ``LfzkV2.Current.MdocAdvice.decode_total,
+      ``LfzkV2.Current.MdocAdvice.decode_three_iff,
       ``LfzkV2.Current.ProofOutput.read_encode,
       ``LfzkV2.Current.ProofOutput.read_canonical,
       ``LfzkV2.Current.ProofOutput.seen_map,
@@ -438,7 +544,16 @@ run_cmd do
       ``TranscriptV2.feedback_sum,
       ``TranscriptV2.Chain.recompute_result,
       ``TranscriptV2.SharedReduction.failure_ratio_le,
-      ``TranscriptV2.shared_queried_sum_le] do
+      ``TranscriptV2.shared_queried_sum_le,
+      ``LfzkV2.Current.SHARouting.cut_run,
+      ``LfzkV2.Current.SHALazy.setup_cut_run,
+      ``LfzkV2.Current.MdocSHAExperiment.original_output,
+      ``LfzkV2.Current.MdocSHAExperiment.setup_same,
+      ``LfzkV2.Current.MdocSHAExperiment.metadata_same,
+      ``LfzkV2.Current.MdocSHAExperiment.cut_preserved,
+      ``LfzkV2.Current.MdocSHAExperiment.verify_merge,
+      ``LfzkV2.Current.MdocSHAExperiment.event_iff,
+      ``LfzkV2.Current.MdocSharedSHASoundness.ratio_le] do
     for ax in ← collectAxioms endpoint do
       unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do
         throwError "Unexpected axiom {ax} in {endpoint}"

@@ -2,10 +2,10 @@
 
 ## Current MAC-free mdoc protocol
 
-[`Current.IdealProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+[`Current.MdocSharedSHASoundness.ratio_le`](lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean)
 proves, for the rate-1/7 profile `(349,12,2443,84)`, that for all integers
 `Q >= 0` and `Q_H >= 0`, any finite classical adaptive adversary making at most
-`Q` distinct transcript-oracle queries and at most `Q_H` Merkle-oracle calls
+`Q` distinct transcript-oracle queries and at most `Q_H` SHA-256-oracle calls
 satisfies
 
 ```text
@@ -17,7 +17,7 @@ Pr[verifier accepts and the paired extractor fails to recover
 ```
 
 The experiment uses the original prover's transcript-query budget `Q` and
-Merkle-query budget `Q_H`; `R` is the number of ordinary round boundaries,
+SHA-query budget `Q_H`; `R` is the number of ordinary round boundaries,
 excluding the final seal (492/499 for two/four attributes). Query repetitions
 receive the same complete answer and may be arbitrarily numerous but finite.
 There is no positive-query premise. Probability is over the ideal oracles and
@@ -53,15 +53,60 @@ uses the same extracted pair and derives the exact requested public vectors.
 The common finite ideal answer and all sampler projections are constructed in
 `IdealSamples` and `IdealRuntime`; no balanced-sampler certificate is a caller
 premise. The ideal-sampler oracle model is explicit. The theorem is not machine
-verification of Rust, SHAKE256
-or SHA-256. A complete joint-view zero-knowledge theorem and a timed
-implementation of the extractor are separate.
+verification of Rust, SHAKE256 or SHA-256. Complete mdoc privacy is proved
+separately by
+[`MdocZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean);
+a timed implementation of the extractor is outside these results.
 The API audit checks its endpoints for only `propext`, `Classical.choice`
 and `Quot.sound`. Earlier checkpoint proof files remain unchanged.
 
+The [consolidated assumption list](README.md#assumptions-and-remaining-correspondence-obligations)
+states the ideal-sampler and trusted-implementation boundary. The conditioned
+[`MdocProofRate7`](lfzk-v2/LfzkV2/Current/MdocProofRate7.lean) result is lifted
+to one shared SHA function by
+[`MdocSHAExperiment`](lfzk-v2/LfzkV2/Current/MdocSHAExperiment.lean) and the
+endpoint above. The original serialized output, verifier decision and exact
+first-context Merkle trace are preserved. The query budget refers to the
+original program with its actual SHA-derived setup, and a fixed finite
+auxiliary SHA marginal is averaged without an additional error term.
+`Q_H` conservatively includes auxiliary SHA calls; no new transcript query
+is introduced. The strict, retained conditioned endpoint remains available.
+
+The shared finite-table transformations have one implementation in
+[`SHAProbability`](lfzk-v2/LfzkV2/Current/SHAProbability.lean); soundness
+does not depend on the ZK statistical-distance composition layer. One
+canonical verifier construction is used for both oracle views, with domain
+invariance proved for every decoded proof. The
+[shared-SHA regressions](lfzk-v2/LfzkV2/Current/Tests/SharedSHA.lean) cover
+interleaved auxiliary calls, repeated transcript inputs, equal digests in
+different domains and an empty challenge alphabet for a phase with no
+transcript calls.
+
 ### Concrete verifier components and Rust conformance
 
-The Rust source checkpoint for this audit is `1077bc6`.
+The Rust source checkpoint for the original audit is `1077bc6`. The current
+hardening also checks canonical v2 field decoding, participant capacity validation
+and the separation between partial constraint reduction and complete verification.
+The domain supplies its arithmetic field, and commitment sessions retain their
+transcript through authentication; borrowed frontend operations cannot replace it.
+
+`Current.MdocProofRate7` specializes the generic arbitrary-proof endpoint.
+`MdocAdvice` fixes the three-byte word, twenty little-endian quotient bits and
+rejection of nonzero unused high bits. `ConcreteSetup` fixes degree-128 packing,
+cell counts, row rounding, physical addresses and rate-1/7 evaluation nodes.
+`ConcreteTopology` and `ConcreteAdapterTopology` construct frontend plans from
+sparse fragments and output addresses. The concrete mdoc topology requires the
+hash component to be strictly deeper than the adapter (20 versus 12 currently);
+the general layered model supports other depth orders and ties.
+`ConcreteMetadata` derives the prime
+claim, packing source and generated adapter from the causal prefix;
+`ConcreteMetadataReadback` proves successful prime decoding reconstructs that
+same record. `MdocIdentifiers` constructs the field/domain identities, packing
+descriptor, template identifier and individual/joint backend contexts with the
+runtime's exact framing. Their final identifier hash remains an explicit
+auxiliary function, as allowed by the oracle model below. The endpoint retains
+only ordinary public size bounds, trusted circuit/field representations and the
+adversary's query budget, without a supplied protocol-correctness certificate.
 
 `Current.FrontendBody` decodes the actual side-specific proof arrays and rejects
 missing, extra or wrong-width stages. `FrontendBodyVerifier` constructs the
@@ -69,7 +114,7 @@ frontend, affine constraints and replay together. `FrontendTranscript` matches
 the writes in `runtime/v2/sumcheck/src/transcript.rs`: two round coefficients,
 one terminal cross coefficient and two combine claims. Entries and explicit
 assertions extend one layer answer; input entries extend the last combine
-answer, as in `reduction.rs` and `fragments.rs`. `ReplayBlocks` and
+answer, as in `runtime/v2/sumcheck/src/verifier.rs` and `fragments.rs`. `ReplayBlocks` and
 `FrontendPrefix` prove logical message recovery from the actual chained inputs,
 including preservation under the later backend opening encoder.
 
@@ -132,6 +177,10 @@ are constructed in the mathematical model. The correspondence of Rust field
 arithmetic, serialization and public setup/metadata computations to those
 objects is checked by source audit. This is not a machine-checked Rust
 semantics or compiler-correctness theorem.
+The current composition also has no end-to-end honest-acceptance theorem or
+complete captured Rust-to-Lean verifier replay vector. Its component round trips
+and source audit validate implementation correspondence; they do not constitute
+a mechanized refinement or completeness proof.
 
 The transcript oracle idealization is explicit: each fresh canonical input
 receives a uniform 32-byte link and the correctly distributed joint challenge
@@ -140,19 +189,20 @@ complete answer. Rust implements this using one direct SHAKE256 reader, link
 feedback and rejection sampling, but a formal byte-stream coupling is outside
 the accepted ideal-sampler model. The main bound has no cutoff term.
 
-Tagged Merkle SHA-256 is modeled as an independent 256-bit random oracle.
-The layout-context digest is fixed public setup in the theorem. Its actual
+Tagged Merkle SHA-256 is modeled as a uniform 256-bit oracle restriction.
+The layout-context digest is fixed public setup in the conditioned theorem. Its actual
 SHA-256 computation uses the separate `polygero/joint/context/v1` domain;
 conditioning on this disjoint auxiliary restriction fixes the context while
-leaving Merkle answers uniform. The theorem does not verify the setup hash
-computation itself.
+leaving Merkle answers uniform. The shared-SHA corollary constructs these
+setup hashes from that same oracle and averages the auxiliary restriction.
+It does not verify the concrete SHA-256 implementation.
 
 SHA-256 also identifies the challenge-dependent generated adapter circuit.
 Its `LFC3-v2-three-streams-v2` input domain is disjoint from the tagged Merkle
 domains. The model treats that restriction as an independent auxiliary function
 fixed by conditioning; it is not a fixed setup hash or an independent hash
-function per call site. Domain separation and Rust conformance are part of the
-source audit. The trusted public circuits define the application statement;
+function per call site. The literal domains and routing/averaging laws are
+proved; Rust conformance is checked by source audit. The trusted public circuits define the application statement;
 the theorem does not additionally prove high-level mdoc or hash/signature
 circuit correctness.
 
@@ -346,6 +396,7 @@ sampling, and arithmetic remain correspondence obligations.
 
 | Claim | Theorem or build target | Scope |
 |---|---|---|
+| Current mdoc V2 extraction with one SHA oracle | [`MdocSharedSHASoundness.ratio_le`](lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean) | `2Q/2^128` plus the explicit squared-field remainder; original query budget, adaptive requests, canonical proof bytes and exact first-context extraction. |
 | Joint-commitment V2 authenticated extraction, all budgets | [`Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Joint/RawRuntimeExtraction.lean) | `(1+N+tA)/2^116`, for `8943498`; one tree, shared queries, exact finite bound. |
 | Linear-terminal V2 authenticated extraction, all budgets | [`Linear.Runtime.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean) | `(1+N+tA)/2^116`, for snapshot `21cb029`; exact finite bound also proved. |
 | Retained product-checked V2 extraction, all budgets | [`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean) | `(1+N+tA)/2^117`, under the model premises below. |
@@ -353,7 +404,8 @@ sampling, and arithmetic remain correspondence obligations.
 | Earlier unpacked V2 authenticated composition | [`RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/RawRuntimeExtraction.lean) | Retained separate model, with earlier hash geometry and frontend budgets. Its numbered-leaf and annotated-proof variants are not needed by the packed endpoint. |
 | Retained standalone Polygero profiles | [`Profile.fs_extraction_failure_127`](parameters/polygero/PolygeroRustHahn.lean) | `(N+1)/2^127`, including satisfiable transcript-dependent statements, in the ideal-binding, uniform-sampler model. Frontend, packing, MAC, and Merkle costs are excluded from this component result. |
 | V1 combined extraction and false-statement soundness, all four v7 hash profiles | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | `(1+N+tA)/2^116`, under V1's documented circuit, sampler, transcript, and MAC-key coherence premises. |
-| V2 privacy components | [`PolygeroZk`](lfzk-v2/LfzkV2/PolygeroZk.lean), [`BackendEncoding`](lfzk-v2/LfzkV2/BackendEncoding.lean), [`Mac`](lfzk-v2/LfzkV2/Mac.lean) | Backend response/opening simulation and affine-tag uniformity. A complete joint frontend/backend/Merkle zero-knowledge theorem is not established. |
+| Current mdoc statistical zero knowledge | [`MdocZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean) | Complete witness-free simulation, arbitrary private observer state and raw traces, one shared SHA oracle; explicit rate-1/7 error and ideal-sampler/trusted-application premises. |
+| Retained V2 privacy components | [`PolygeroZk`](lfzk-v2/LfzkV2/PolygeroZk.lean), [`BackendEncoding`](lfzk-v2/LfzkV2/BackendEncoding.lean), [`Mac`](lfzk-v2/LfzkV2/Mac.lean) | Backend response/opening simulation and affine-tag uniformity for the older models. |
 | Dual-packing adapter | [`Instance.linear_native_soundness_probability`](dual-packing/DualPacking/ArtinSchreierBackend.lean) | At most `1/|F|` for a false fixed claim, with arbitrary committed cells and an independent uniform vector challenge. `LfzkV2.Packed` composes it with the native frontend, backend and Fiat–Shamir analysis. |
 
 ## Retained product-checked theorem chain
@@ -478,10 +530,21 @@ The retained `LfzkV2.Packed` checkpoint describes `fcf8a3a`; the separate
 `LfzkV2.Linear.Runtime` theorem chain describes `21cb029`. Later runtime
 changes require their own correspondence and cost audit.
 
-V2 joint-view zero knowledge still needs the frontend's causal transmission
-and commitment-dependent pads combined with the backend simulator and
-Merkle-hiding/oracle-programming hybrids. The documentation makes no full
-V2 privacy claim.
+The current MAC-free mdoc privacy theorem combines causal frontend
+transmission, commitment-dependent pads, cross-field conversion, packing,
+the joint backend, Merkle hiding, and transcript programming. For any event
+in the complete real or simulated observer view, its probability difference
+is at most
+`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+The private observer context and both original raw traces are retained.
+The witness map is fixed per public request, and valid only at actual reachable
+requests. Trusted ordinary hash assertions must be independent of the reserved
+mask/OTP suffix and generated adapter parameters; signature correctness is
+also trusted. Public representation bounds and generator/basis checks remain
+explicit. Private randomness is uniform, and the ideal whole-answer transcript
+sampler is the approved abstraction: full rejected SHAKE streams and machine
+execution are not proved. The [precise theorem scope](lfzk-v2/README.md#complete-mdoc-zero-knowledge)
+and axiom tests document this boundary.
 
 ## Reproduce the audit
 
@@ -504,7 +567,8 @@ concurrency. There is no separate certificate build requirement.
 The Rust source scanner strips nested Lean comments and strings before
 rejecting unchecked proof constructs. It also validates local Markdown
 links in the formal and Rust documentation. The Lean audit inspects every
-imported declaration owned by the V1/V2, sumcheck, dual-packing, BCS, Merkle, Polygero,
+imported declaration owned by the V1/V2, sumcheck, dual-packing, witness-selection,
+chained-transcript, BCS, Merkle, Polygero,
 runtime-Hahn, and runtime-profile modules, including private helpers.
 V2 and the other audited non-V1 modules permit only `propext`,
 `Classical.choice`, and `Quot.sound`. V1 numerical rows retain the documented

@@ -1,0 +1,8 @@
+import LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding
+
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.heap_value
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.committed_root
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.heap_opening
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.observer_output
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.runView_output
+#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextEncoding.dummy_root

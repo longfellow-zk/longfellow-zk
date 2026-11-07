@@ -1,0 +1,6 @@
+import LfzkV2.Current.ZeroKnowledge.TranscriptObserverExperiment
+
+#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverExperiment.experiment_view
+#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverExperiment.statClose
+#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverExperiment.normalize_oracle
+#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverExperiment.program_raw

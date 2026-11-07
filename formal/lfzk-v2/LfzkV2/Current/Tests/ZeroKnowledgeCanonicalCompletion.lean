@@ -1,0 +1,9 @@
+import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalCompletion
+
+namespace LfzkV2.Current.Tests.ZeroKnowledgeCanonicalCompletion
+
+#print axioms ZeroKnowledge.CompleteVerifier.frontier_capacity
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.complete
+#print axioms ZeroKnowledge.CompleteCanonicalVerifier.simulate
+
+end LfzkV2.Current.Tests.ZeroKnowledgeCanonicalCompletion

@@ -10,3 +10,4 @@ import SumcheckV2.WitnessSelection
 import SumcheckV2.ChainedFiatShamir
 import SumcheckV2.LinearTerminal
 import SumcheckV2.LinearTerminalMasking
+import SumcheckV2.AdaptiveTerminalMasking

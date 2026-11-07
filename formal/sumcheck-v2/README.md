@@ -188,8 +188,10 @@ The remaining correspondence obligations are specific:
 
 This algebraic component omits serialization; the current runtime composition
 adds canonical proof-body and transcript-query codecs.
-The complete linear-terminal protocol composition is in `LfzkV2.Linear.Runtime`,
-including actual packed/direct rows, adaptive Fiat–Shamir, MAC, and both Merkle
-commitments. `LfzkV2.Packed` retains the earlier product-checked checkpoint.
+The retained linear-terminal checkpoint is in `LfzkV2.Linear.Runtime`,
+including its packed/direct rows, adaptive Fiat–Shamir, MAC, and two Merkle
+commitments. The current MAC-free runtime and its shared commitment are modeled
+separately in [`LfzkV2.Current`](../lfzk-v2/README.md#current-mac-free-protocol).
+`LfzkV2.Packed` retains the earlier product-checked checkpoint.
 Neither this component library nor the complete soundness composition asserts
 full joint zero knowledge. Existing V1 proofs and certificates remain unchanged.

@@ -15,17 +15,21 @@ It is named after the bridge outside the Google Cambridge office.
 
 # Security
 
-This project has completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://longfellow-zk.github.io/longfellow-zk/docs/reviews/) page.
+Earlier versions of this project have completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://longfellow-zk.github.io/longfellow-zk/docs/reviews/) page; those reviews do not cover all subsequent Rust V2 changes.
 
 The [Lean development](formal/README.md) proves conditional security bounds
-for mathematical models of both protocol versions: 116-bit T-security for
-V1 and a 117-bit extraction bound for V2, including the two-field
-MAC and Merkle reduction. For all query budgets the V2 bound is
-`Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`. The
-[formal audit](formal/AUDIT.md) states the assumptions, theorem chain, and
+for mathematical models of both protocol versions. V1 retains its 116-bit
+T-security result. The current MAC-free V2 protocol has a Fiat–Shamir
+extraction bound with leading term `2Q/2^128`, plus explicit terms over
+`2^256`, for every transcript-query budget `Q >= 0`. The
+[exact theorem and oracle assumptions](formal/lfzk-v2/README.md#current-mac-free-protocol)
+cover the rate-1/7 profile, adaptive public requests, both fields, packing,
+the cross-field adapter and one shared Merkle commitment. The
+[formal audit](formal/AUDIT.md) states the implementation boundary and
 verification commands. These results do not constitute source-level
-verification of the Rust or C++ implementation; full V2 joint-view zero
-knowledge remains open.
+verification of Rust or C++. The complete V2 mdoc model also has a
+[statistical zero-knowledge theorem](formal/lfzk-v2/README.md#complete-mdoc-zero-knowledge)
+with an explicit witness-free simulator and query-dependent hiding error.
 
 # Specifications
 This repository contains [the working files](https://github.com/longfellow-zk/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.

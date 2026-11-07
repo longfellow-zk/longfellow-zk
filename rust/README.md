@@ -121,10 +121,13 @@ protocol, including witness selection, layered sumcheck, the P256 adapter,
 packing, joint Polygero and its single Merkle commitment. The typed theorem
 allows adaptive public requests while fixing trusted circuit metadata.
 The theorem uses an explicit ideal-sampler oracle and a domain-separated
-Merkle random oracle. Canonical query bytes and Merkle encodings are modeled;
-Rust conformance is checked by source audit. A reduction from full SHAKE byte
-streams is outside the theorem. The [audit](../formal/AUDIT.md) states this
-boundary. Both fields use one opening set and one active
+Merkle random oracle. Canonical query bytes and Merkle encodings are modeled.
+The mdoc theorem constructs the quotient-advice decoder, backend layout,
+transcript plans and derived metadata from trusted circuit topology and
+canonical field representations. Rust is checked against this mathematical
+verifier by source audit. A reduction from full SHAKE byte streams is outside
+the theorem. The
+[audit](../formal/AUDIT.md) states this boundary. Both fields use one opening set and one active
 joint-label bound, while retaining their separate rank and outside-list terms.
 The ordinary-rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
 [checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
@@ -135,11 +138,11 @@ The committed binary/prime candidate caps are respectively
 `21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`. They give a
 fingerprint-role charge of approximately `0.705/q`; efficient enumeration of
 these worst-case lists is not claimed.
-The [exact soundness theorem](../formal/lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+The [exact soundness theorem](../formal/lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean)
 applies to every valid fixed public circuit/layout configuration of this profile.
 For every pair of integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
 adversary making at most `Q` distinct transcript-oracle queries and at most
-`Q_H` Merkle-oracle calls satisfies
+`Q_H` SHA-256-oracle calls satisfies
 
 ```text
 Pr[verifier accepts and the paired extractor fails to recover
@@ -149,7 +152,10 @@ Pr[verifier accepts and the paired extractor fails to recover
         + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
 ```
 
-Here `R` is the number of ordinary transcript boundaries, excluding the final
+The theorem uses one SHA function for context/circuit identifiers, adversary
+queries and Merkle verification. `Q_H` conservatively includes auxiliary SHA
+calls; domain splitting adds no error term. Here `R` is the number of ordinary
+transcript boundaries, excluding the final
 seal: 492 for the two-attribute layout and 499 for the four-attribute layout.
 Public requests may be chosen adaptively and proof bytes arbitrarily. The
 bound permits arbitrary finite repetitions of transcript queries and includes
@@ -158,7 +164,14 @@ oracles and the adversary's private randomness. The squared-field correction
 includes chain guessing, nonzero sampling and one shared Merkle explanation.
 The leading per-query charge is `2/q = 2^-127`; the positive squared-field
 corrections remain explicit.
-Complete V2 joint-view zero knowledge is not yet proved.
+The [complete mdoc model's zero-knowledge theorem](../formal/lfzk-v2/README.md#complete-mdoc-zero-knowledge)
+gives a witness-free simulator with distinguishing error at most
+`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+Here `Mpre` and `Mpost` bound the observer's SHA queries before and after
+the proof, and `Tpre` bounds its earlier transcript queries. It covers
+the complete proof and retained observer state under the ideal-oracle and
+uniform-sampler model, for fixed valid witnesses per public request.
+The trusted application relations and Rust correspondence boundary remain explicit.
 
 The intended transcript proof model treats one round-boundary oracle answer as
 the source of both the link and the entire challenge block. Later reads,

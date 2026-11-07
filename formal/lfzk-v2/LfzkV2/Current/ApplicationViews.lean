@@ -379,7 +379,7 @@ def primeInputs (s : BinaryPublic B shared maskBits adviceBits)
   circuitInputs n.inputIndex n.publicInputs (CellLayout.Prime.input shared n.remaining n.pads)
     (primeFullValues s n w)
 
-private theorem buildFrom_length {F Pad : Type} [Field F] (claim : PadExpression Pad F)
+theorem buildFrom_length {F Pad : Type} [Field F] (claim : PadExpression Pad F)
     (transcripts : List (Linear.LayerTranscript Pad F)) (constraints : Linear.Constraints Pad F)
     (h : Linear.buildFrom claim transcripts = some constraints) :
     constraints.layers.length = transcripts.length := by
@@ -396,7 +396,7 @@ private theorem buildFrom_length {F Pad : Type} [Field F] (claim : PadExpression
               cases Option.some.inj h
               exact congrArg (·+1) (ih _ rest ht)
 
-private theorem circuit_proof_length {F Pad : Type} [Field F] {out input : ℕ}
+theorem circuit_proof_length {F Pad : Type} [Field F] {out input : ℕ}
     (circuit : Layered.Circuit F out input) (messages : Layered.Circuit.Messages Pad circuit)
     (weights : Cube out → F) : (circuit.proof messages weights).length = circuit.layers := by
   induction circuit with

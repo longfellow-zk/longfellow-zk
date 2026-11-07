@@ -1,2 +1,4 @@
 import LfzkV2.Current.IdealProofRate7
+import LfzkV2.Current.MdocProofRate7
+import LfzkV2.Current.MdocSharedSHASoundness
 import LfzkV2.Current.OpeningFisherYates

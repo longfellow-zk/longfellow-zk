@@ -1,0 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.OracleRefreshObservation
+
+#print axioms LfzkV2.Current.ZeroKnowledge.OracleRefreshObservation.totalize_map_selected
+#print axioms LfzkV2.Current.ZeroKnowledge.OracleRefreshObservation.totalize_map

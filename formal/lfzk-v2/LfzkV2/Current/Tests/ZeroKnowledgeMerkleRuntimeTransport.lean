@@ -1,0 +1,14 @@
+import LfzkV2.Current.ZeroKnowledge.MerkleRuntimeTransport
+
+namespace LfzkV2.Current.Tests.ZeroKnowledgeMerkleRuntimeTransport
+open ZeroKnowledge
+
+#print axioms MerkleRuntimeTransport.commitLabels_of_inputs
+#print axioms MerkleRuntimeTransport.pass_run_of_encodings
+#print axioms MerkleRuntimeTransport.pass_value_of_inputs
+#print axioms MerkleRuntimeTransport.pass_root_of_inputs
+#print axioms MerkleRuntimeTransport.pass_opening_of_inputs
+#print axioms MerkleRuntimeTransport.commitLabels_eq
+#print axioms MerkleRuntimeTransport.commitPass_run
+
+end LfzkV2.Current.Tests.ZeroKnowledgeMerkleRuntimeTransport

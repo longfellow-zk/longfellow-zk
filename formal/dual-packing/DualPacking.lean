@@ -1,4 +1,5 @@
 import DualPacking.ArtinSchreierBackend
+import DualPacking.ArtinSchreierMasking
 import DualPacking.BinarySpecialization
 import DualPacking.AuditCases
 import DualPacking.FiniteFieldCases

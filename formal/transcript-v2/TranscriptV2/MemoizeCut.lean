@@ -226,7 +226,7 @@ private theorem actual_continuation (dR : A) (l : ℕ) {r : ℕ}
   | query q next ih => simpa only [liftRightAt,fixRight,Tree.run_query,tapeAt,Nat.not_lt_zero,↓reduceDIte] using ih dR _
 
 omit [DecidableEq QL] in
-private theorem actual_bind (H : P → A) (dR : A) {l r continuation : ℕ}
+theorem actual_bind (H : P → A) (dR : A) {l r continuation : ℕ}
     (tree : TwoOracleTree QL DL P A Out l r) (rec : Out → Tree P A Result continuation)
     (seen : List P) :
     fixRight (Fin.elim0 : Fin 0 → A) dR ((answerRight H tree).bindRight rec) seen =

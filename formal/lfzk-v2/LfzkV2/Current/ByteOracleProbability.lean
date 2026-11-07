@@ -9,7 +9,8 @@ namespace LfzkV2.Current.ByteOracleTransport
 open Finset
 open scoped Classical
 
-private theorem ratio_equiv {X Y : Type} [Fintype X] [Fintype Y]
+/-- Reindexing preserves a finite uniform probability exactly. -/
+theorem ratio_equiv {X Y : Type} [Fintype X] [Fintype Y]
     (e : X ≃ Y) (event : Y → Prop) :
     ((univ.filter fun x => event (e x)).card : ℚ)/Fintype.card X =
       ((univ.filter event).card : ℚ)/Fintype.card Y := by
@@ -17,7 +18,8 @@ private theorem ratio_equiv {X Y : Type} [Fintype X] [Fintype Y]
     Finset.card_equiv e (fun _ => by simp)
   rw [hc,Fintype.card_congr e]
 
-private theorem product_ratio_le {X Y : Type} [Fintype X] [Fintype Y] [Nonempty X] [Nonempty Y]
+/-- A bound uniform in independent auxiliary coins also bounds their average. -/
+theorem product_ratio_le {X Y : Type} [Fintype X] [Fintype Y] [Nonempty X] [Nonempty Y]
     (event : X × Y → Prop) (bound : ℚ)
     (h : ∀ y, ((univ.filter fun x => event (x,y)).card : ℚ)/Fintype.card X ≤ bound) :
     ((univ.filter event).card : ℚ)/Fintype.card (X × Y) ≤ bound := by

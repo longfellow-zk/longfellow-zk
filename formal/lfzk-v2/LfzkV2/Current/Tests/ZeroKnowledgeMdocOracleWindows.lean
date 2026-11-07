@@ -1,0 +1,14 @@
+import LfzkV2.Current.ZeroKnowledge.MdocOracleWindows
+
+namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocOracleWindows
+
+#print axioms ZeroKnowledge.MdocOracleWindows.transcript_covers
+#print axioms ZeroKnowledge.MdocOracleWindows.transcript_observer_subset
+#print axioms ZeroKnowledge.MdocOracleWindows.merkle_contains_actual
+#print axioms ZeroKnowledge.MdocOracleWindows.backend_window_contains
+
+#print axioms ZeroKnowledge.MdocOracleWindows.merkle_domain
+#print axioms ZeroKnowledge.MdocOracleWindows.merkle_merge_extend
+#print axioms ZeroKnowledge.MdocOracleWindows.values_extend
+
+end LfzkV2.Current.Tests.ZeroKnowledgeMdocOracleWindows

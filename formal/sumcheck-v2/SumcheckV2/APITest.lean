@@ -1,6 +1,7 @@
 import SumcheckV2
 import SumcheckV1
 import Mathlib.Data.ZMod.Basic
+import SumcheckV2.Tests.AdaptiveTerminalMasking
 
 /-!
 API checks for both libraries together, the projective convention, scalar layers,
