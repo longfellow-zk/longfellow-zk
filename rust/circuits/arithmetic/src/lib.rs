@@ -17,3 +17,7 @@ pub use circuit::Arithmetic;
 
 #[cfg(test)]
 test_compilers!("../tests/arithmetic.rs");
+
+#[cfg(test)]
+#[path = "../tests/carry_save.rs"]
+mod tests_carry_save;

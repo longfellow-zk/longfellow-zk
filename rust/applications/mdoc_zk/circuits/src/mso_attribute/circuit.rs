@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_adder::FieldWrappingSum;
-use crate::circuits::bitvec::{Bitvec, BitvecLogic, V256, V8};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::routing::Routing;
-use crate::compile::logic::{Logic, LogicIO};
-
 use super::constants::{
     K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX,
     K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
 };
-use crate::mdoc::circuits::cbor_decoder::CborByteDecoder;
+use crate::{
+    circuits::{
+        analog_adder::FieldWrappingSum,
+        bitvec::{Bitvec, BitvecLogic, V256, V8},
+        boolean::Boolean,
+        routing::Routing,
+    },
+    compile::logic::{Logic, LogicIO},
+    mdoc::circuits::cbor_decoder::CborByteDecoder,
+};
 
 pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;
 
-pub type AttrSlice<L, const N: usize> = crate::circuits::bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;
+#[cfg(test)]
+#[path = "../../tests/attribute_types.rs"]
+mod tests;
+
+pub type AttrSlice<L, const N: usize> =
+    crate::circuits::bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;
 
 /// Represents a disclosed attribute name, its value, and
 /// their verified lengths.  These are concrete values, not indices in
@@ -318,6 +326,12 @@ where L::F: FieldWrappingSum
             "assert_item_slot_key_value",
             &[
                 overflow_assertion,
+                self.boolean.assert_true(
+                    "public_length",
+                    &self
+                        .bv
+                        .leq(&str_val.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(N as u64)),
+                ),
                 self.assert_prefix_equal(max_len, &got, &want, &expected_slice_len),
                 self.assert_len_eq(&slice.len, &expected_slice_len),
             ],
@@ -352,6 +366,16 @@ where L::F: FieldWrappingSum
             "assert_item_slot_key_only",
             &[
                 self.assert_bytes_at(key_id.len(), &got[0..key_id.len()], key_id),
+                // The general CBOR helper classifies lengths for many types;
+                // these two schema slots require unsigned IDs and byte salts.
+                self.boolean.assert_true(
+                    "major_type",
+                    &self.bv.eqmask(
+                        &got[key_id.len()],
+                        if is_unsigned { 0x00 } else { 0x40 },
+                        0xe0,
+                    ),
+                ),
                 self.assert_cbor_length(&got, &slice.len, key_id.len(), is_unsigned),
             ],
         )

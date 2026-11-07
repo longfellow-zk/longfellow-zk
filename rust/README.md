@@ -102,10 +102,10 @@ by Matteo Frigo and abhi shelat.
 | Commitment protocol | Ligero | Nonrecursive Polygero |
 | Combined proof implementation | `runtime::v1::zk` | `runtime::v2::zk` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 10 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 11 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v10 uses Longfellow v2.
+while NEXT circuit v11 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
@@ -194,7 +194,7 @@ are audited against that model.
 
 ## Performance
 
-Complete NEXT v10 mdoc presentations, measured on 2026-11-06 with Rust 1.99.1
+Complete NEXT v11 mdoc presentations, measured on 2026-11-07 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
 Times are medians of 64 samples with warmups discarded; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
@@ -202,13 +202,13 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 135.1 ms | 80.8 ms | 137,615 | 42.61 MiB | 34.70 MiB |
-| 4 | 146.3 ms | 85.9 ms | 137,551 | 47.27 MiB | 37.75 MiB |
+| 2 | 141.4 ms | 83.2 ms | 137,455 | 42.82 MiB | 34.79 MiB |
+| 4 | 155.9 ms | 89.4 ms | 138,287 | 47.43 MiB | 37.84 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 632,006 | 163,286 | 1.78 MiB |
-| 4 | 657,741 | 163,307 | 1.87 MiB |
+| 2 | 648,572 | 168,315 | 1.84 MiB |
+| 4 | 674,569 | 169,161 | 1.93 MiB |
 
 Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
 circuits, with ordinary code rate `k/n=1/7`. The combined hash/adapter has 20
@@ -219,8 +219,8 @@ carried claim weights extend in place. Fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash + adapter, 2 attributes | 284,979 | 2,060,975 | 4,183,379 | 267 |
-| Hash + adapter, 4 attributes | 312,383 | 2,319,775 | 4,699,279 | 274 |
+| Hash + adapter, 2 attributes | 284,979 | 2,062,792 | 4,186,464 | 267 |
+| Hash + adapter, 4 attributes | 312,383 | 2,322,018 | 4,703,084 | 274 |
 | Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
@@ -303,6 +303,15 @@ Nonbinary circuits retain field-element inputs and Boolean input assertions.
 Compilation rejects unused input declarations. Adapter pads in the shared
 source layout are consumed by the tree. The application compiler and circuit
 tests use the same input allocator and witness ordering.
+
+The hash circuit checks that every selected field ends within the unpadded
+signed message. The docType check requires the exact CBOR text type, encoded
+length and value, with explicit suppression retained. Signature1 and tag-24
+wrapper lengths are checked against the signed preimage. IssuerSignedItem
+slots require unsigned digest IDs and byte-string salts, and public slice
+lengths are bounded by their arrays. Carry-save arithmetic lives in the
+arithmetic module and is exposed through bitvec; the existing sum-checking
+primitive checks the wrapper lengths. These checks add no circuit inputs.
 
 Frontend `reduce` methods return equations awaiting authentication; complete
 `verify` methods authenticate them and check the final seal. Revealed-pad
@@ -404,7 +413,7 @@ requests to the runtime providers and compiles only an explicit NEXT
 request. The result contains the circuit archive and its matching v2
 specification.
 
-NEXT currently denotes circuit version 10. It is under development and is
+NEXT currently denotes circuit version 11. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
 
@@ -478,7 +487,7 @@ circuit-file options.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v10 and two attributes.
+# V2 with NEXT v11 and two attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 ```
 
@@ -519,11 +528,17 @@ assumptions; they do not certify the complete Rust implementation.
 
 The tools are written in Rust. Python is not required.
 
-## Known limitation
+## Known limitations
 
 NEXT mdoc checks that requested namespace IDs agree with each other,
 but the circuit does not authenticate those namespace IDs. Changing all
 requested namespace IDs can leave a proof valid. This remains unresolved.
+
+Private field offsets are checked for matching bytes and complete read bounds,
+but the circuit does not establish their CBOR ancestry. It does not prove that
+selected digests belong to the requested namespace map. Timestamp comparisons
+are lexicographic over the existing 20-byte representation; calendar and format
+validation are not part of the circuit.
 
 ## License
 

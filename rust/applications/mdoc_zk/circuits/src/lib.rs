@@ -22,7 +22,7 @@ pub use traits::*;
 
 pub use crate::mdoc::proto::config;
 
-pub const NEXT_VERSION: usize = 10;
+pub const NEXT_VERSION: usize = 11;
 
 cfg_compiler! {
     pub mod cbor_decoder;

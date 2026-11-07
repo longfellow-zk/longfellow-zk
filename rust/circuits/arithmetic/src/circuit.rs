@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{Eltw, Logic};
-use crate::util::array::{init, map, map2, map3, tree_fold, tree_fold2};
+use crate::{
+    circuits::boolean::{Bitw, Boolean},
+    compile::{
+        algebra::field::CompileField,
+        logic::{Eltw, Logic},
+    },
+    util::array::{init, map, map2, map3, tree_fold, tree_fold2},
+};
 
 type PrefixOp<'a, L> = dyn Fn(&(Bitw<L>, Bitw<L>), &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) + 'a;
 
@@ -106,6 +110,33 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
     }
 
     // Adders and Subtractors
+    /// Compress three equally wide words without propagating carries.
+    /// As integers, a+b+c = sum+carry+overflow*2^n. The carry word is already
+    /// shifted left; adding the two result words can produce another carry.
+    #[must_use = "carry_save returns an overflow bit that must be checked or accounted for"]
+    pub fn carry_save(
+        &self,
+        a: &[Bitw<L>],
+        b: &[Bitw<L>],
+        c: &[Bitw<L>],
+    ) -> (Vec<Bitw<L>>, Vec<Bitw<L>>, Bitw<L>) {
+        assert_eq!(a.len(), b.len(), "carry_save: slice lengths must match");
+        assert_eq!(a.len(), c.len(), "carry_save: slice lengths must match");
+        let sum = self.xor3(a, b, c);
+        let majority = self.maj(a, b, c);
+        let carry = init(a.len(), |i| {
+            if i == 0 {
+                self.boolean.falseb()
+            } else {
+                self.boolean.b(&majority[i - 1])
+            }
+        });
+        let overflow = majority
+            .last()
+            .map_or_else(|| self.boolean.falseb(), |bit| self.boolean.b(bit));
+        (sum, carry, overflow)
+    }
+
     /// Sklansky's parallel prefix scan algorithm on tuples.
     fn sklansky(
         &self,

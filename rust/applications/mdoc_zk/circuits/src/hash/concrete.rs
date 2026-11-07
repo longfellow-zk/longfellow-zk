@@ -91,10 +91,20 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
         super::constants::K_MAX_SHA_BLOCKS,
     )
     .unwrap();
-    let signed_bytes = cose_sha_wit.padded_preimage.clone();
+    let signed_bytes = cose_sha_wit.padded_preimage;
     let nblocks = cose_sha_wit.nblocks;
 
-    let preimage_base_offset = (super::constants::K_COSE1_PREFIX_LEN + 7) as u16;
+    // These raw compiler/test helpers retain their existing panic contract for
+    // invalid inputs, but must never silently narrow or wrap an input offset.
+    let preimage_base_offset = super::constants::K_COSE1_PREFIX_LEN + 7;
+    let offset = |relative: usize| {
+        u16::try_from(
+            relative
+                .checked_add(preimage_base_offset)
+                .expect("MSO offset overflow"),
+        )
+        .expect("MSO offset exceeds its wire width")
+    };
 
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
     for a in &hash_input.attrs {
@@ -109,29 +119,23 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
             expected_cbor_value: a.expected_cbor_value.clone(),
             padded_preimage: attr_sha_wit.padded_preimage,
             unpadded_preimage_len: a.cbor_issuer_signed_item.len(),
-            mso_digest_offset_in_preimage: (preimage_base_offset
-                + a.mso_digest_offset_in_preimage as u16)
-                as usize,
+            mso_digest_offset_in_preimage: usize::from(offset(a.mso_digest_offset_in_preimage)),
             field_locator: a.field_locator,
         });
     }
 
-    let mut signed_bytes_arr = [0u8; K_MSO_PREIMAGE_LEN];
-    let slen = std::cmp::min(signed_bytes.len(), K_MSO_PREIMAGE_LEN);
-    signed_bytes_arr[..slen].copy_from_slice(&signed_bytes[..slen]);
     let preimage = MsoPreimageBytes {
-        value: signed_bytes_arr,
-        len: hash_input.cbor_mso.len() as u16,
+        value: signed_bytes
+            .try_into()
+            .expect("MSO padding capacity mismatch"),
+        len: u16::try_from(hash_input.cbor_mso.len()).expect("MSO length exceeds its wire width"),
     };
 
-    let doc_type_offset_in_preimage = preimage_base_offset + hash_input.doc_type_offset as u16;
-    let valid_from_offset_in_preimage = preimage_base_offset + hash_input.valid_from_offset as u16;
-    let valid_until_offset_in_preimage =
-        preimage_base_offset + hash_input.valid_until_offset as u16;
-    let dev_key_info_offset_in_preimage =
-        preimage_base_offset + hash_input.dev_key_info_offset as u16;
-    let value_digests_offset_in_preimage =
-        preimage_base_offset + hash_input.value_digests_offset as u16;
+    let doc_type_offset_in_preimage = offset(hash_input.doc_type_offset);
+    let valid_from_offset_in_preimage = offset(hash_input.valid_from_offset);
+    let valid_until_offset_in_preimage = offset(hash_input.valid_until_offset);
+    let dev_key_info_offset_in_preimage = offset(hash_input.dev_key_info_offset);
+    let value_digests_offset_in_preimage = offset(hash_input.value_digests_offset);
 
     ConcreteGiven {
         hash_input,

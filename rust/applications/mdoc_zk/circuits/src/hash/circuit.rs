@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use super::constants::{
-    K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS,
-    K_MSO_PREIMAGE_LEN, K_TAG32, K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN,
-    K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
+    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR,
+    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_TAG32, K_VALID_FROM_CHECK_CBOR,
+    K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
 };
 use crate::{
     circuits::{
@@ -27,7 +27,10 @@ use crate::{
     },
     compile::logic::{Logic, LogicIO},
     mdoc::circuits::{
-        mso_attribute::{circuit::AttributeVerifier, constants::K_ATTR_PREIMAGE_LEN},
+        mso_attribute::{
+            circuit::AttributeVerifier,
+            constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
+        },
         traits::MdocHashCompileField,
     },
 };
@@ -39,6 +42,10 @@ pub struct HashBytes<L: Logic, const N: usize> {
     pub value: [V8<L>; N],
     pub len: HashIndex<L>,
 }
+
+#[cfg(test)]
+#[path = "../../tests/hash_bounds.rs"]
+mod tests;
 
 pub type AttrPreimageBytes<L> =
     crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
@@ -117,12 +124,18 @@ where L::F: MdocHashCompileField
             derived.attribute_derived.len(),
             "Mismatched number of disclosed attributes and attribute derived structures"
         );
+        assert_eq!(
+            given.attribute_given.len(),
+            given.disclosed_attributes.len(),
+            "Mismatched number of attribute witnesses and disclosed attributes"
+        );
         let preimage = given.preimage.value.to_vec();
 
         self.logic.assert_all(
             "assert_valid_presentation",
             &[
                 self.assert_mso_sha256_hash(given, derived, &preimage),
+                self.assert_mso_envelope(given, &preimage),
                 self.assert_mso_doc_type(given, &preimage),
                 self.assert_mso_validity(given, &preimage),
                 self.assert_mso_device_key(given, &preimage),
@@ -156,11 +169,11 @@ where L::F: MdocHashCompileField
 
     fn assert_mso_doc_type(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
         let zz = self.bv.zero::<8>();
-
-        let (doc_type_shifted, shift_assertions) = self.shift_preimage(
-            &given.doc_type_offset_in_preimage,
-            &given.preimage.len,
+        // Lookahead covers both supported text headers. Only the bytes consumed
+        // by the selected header and value must be inside the signed message.
+        let doc_type_shifted = self.routing.shift_bitvec(
             7,
+            &given.doc_type_offset_in_preimage,
             K_DOCTYPE_HEADER_CHECK_CBOR.len() + 35,
             preimage,
             &zz,
@@ -179,16 +192,87 @@ where L::F: MdocHashCompileField
 
         let head_byte = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len()];
         let is_two_byte_header = self.bv.eqb(head_byte, &self.bv.of_u8(0x78));
+        let (short_length, _): (Bitvec<L, 5>, Bitvec<L, 3>) = self.bv.split(head_byte);
+        let short_text = self.boolean.andb(
+            &self.bv.eqmask(head_byte, 0x60, 0xe0),
+            &self.bv.lt(&short_length, &self.bv.of_u64::<5>(24)),
+        );
+        let text_header = self.boolean.orb(&short_text, &is_two_byte_header);
+        let signed_length = self.bv.select(
+            &is_two_byte_header,
+            &self.bv.zext::<8, K_ATTR_INDEX_BITS>(
+                &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1],
+            ),
+            &self.bv.zext::<5, K_ATTR_INDEX_BITS>(&short_length),
+        );
+        let enabled = self.boolean.notb(&given.suppress_doc_type_check);
+        let matching_length = self.boolean.andb(
+            &self.bv.eqb(&signed_length, &given.expected_doc_type.len),
+            &self
+                .boolean
+                .notb(&self.bv.is_zero(&given.expected_doc_type.len)),
+        );
+        let length_check = self.boolean.assert_true(
+            "text_length",
+            &self
+                .boolean
+                .impliesb(&enabled, &self.boolean.andb(&text_header, &matching_length)),
+        );
+        let capacity_check = self.boolean.assert_true(
+            "public_length",
+            &self.bv.leq(
+                &given.expected_doc_type.len,
+                &self.bv.of_u64::<K_ATTR_INDEX_BITS>(32),
+            ),
+        );
+        // Check both header sizes in parallel. Selecting the header before
+        // propagating carries would put routing, two additions and comparison
+        // on one path. Carry-save reduction needs only one final carry chain.
+        // The 17-bit words hold a 16-bit offset, the 10-bit public length
+        // and either fixed prefix without integer wrap.
+        let fits = |header_bytes: u64, name: &str| {
+            let offset = self.bv.zext::<16, 17>(&given.doc_type_offset_in_preimage);
+            let length = self
+                .bv
+                .zext::<K_ATTR_INDEX_BITS, 17>(&given.expected_doc_type.len);
+            let prefix = self.bv.of_u64::<17>(header_bytes);
+            let (sum, carry, overflow) = self.bv.carry_save(&offset, &length, &prefix);
+            let carry_check = self.boolean.assert_false("carry_overflow", &overflow);
+            let (end, sum_check) = self.bv.checked_add(&sum, &carry);
+            (
+                self.bv
+                    .leq(&end, &self.bv.zext::<16, 17>(&given.preimage.len)),
+                self.logic.assert_all(name, &[carry_check, sum_check]),
+            )
+        };
+        let (short_fits, short_arithmetic) = fits(
+            (K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1) as u64,
+            "short_header",
+        );
+        let (long_fits, long_arithmetic) = fits(
+            (K_DOCTYPE_HEADER_CHECK_CBOR.len() + 2) as u64,
+            "long_header",
+        );
+        let end_fits = self.boolean.impliesb(
+            &enabled,
+            &self
+                .boolean
+                .muxb(&is_two_byte_header, &long_fits, &short_fits),
+        );
+        // Suppression keeps the existing valid-start requirement, without
+        // imposing a value length or text header on the suppressed field.
+        let shift_assertions = self.assert_preimage_bounds(
+            &given.doc_type_offset_in_preimage,
+            &given.preimage.len,
+            &end_fits,
+            self.logic
+                .assert_all("header_ranges", &[short_arithmetic, long_arithmetic]),
+        );
 
         let value_check = self.logic.assert_mapi("value_bytes", 0..32, |i| {
-            let i_wire = self.bv.of_u64::<{
-                crate::mdoc::circuits::mso_attribute::constants::K_ATTR_INDEX_BITS
-            }>(i as u64);
+            let i_wire = self.bv.of_u64::<K_ATTR_INDEX_BITS>(i as u64);
             let in_bounds = self.bv.lt(&i_wire, &given.expected_doc_type.len);
-            let active = self.boolean.andb(
-                &self.boolean.notb(&given.suppress_doc_type_check),
-                &in_bounds,
-            );
+            let active = self.boolean.andb(&enabled, &in_bounds);
 
             let byte_if_1 = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1 + i];
             let byte_if_2 = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 2 + i];
@@ -204,7 +288,59 @@ where L::F: MdocHashCompileField
 
         self.logic.assert_all(
             "assert_mso_doc_type",
-            &[shift_assertions, header_check, value_check],
+            &[
+                shift_assertions,
+                header_check,
+                length_check,
+                capacity_check,
+                value_check,
+            ],
+        )
+    }
+
+    /// Check the supported Signature1 / tagged-byte-string envelope. This binds
+    /// the lengths of the signed payload; it does not establish CBOR ancestry.
+    fn assert_mso_envelope(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
+        let outer_length = self
+            .bv
+            .from_fn::<16, _>(|i| preimage[K_COSE1_PREFIX_LEN + 1 - i / 8][i % 8].clone());
+        let inner_length = self
+            .bv
+            .from_fn::<16, _>(|i| preimage[K_COSE1_PREFIX_LEN + 6 - i / 8][i % 8].clone());
+        // The expected total length is already a wire. Check each sum directly
+        // with the same primitive used by SHA-256, rather than computing carries.
+        // Seventeen bits hold every u16 length plus either fixed prefix, so the
+        // wrapping-sum equations here are exact integer equalities.
+        let length = self.bv.zext::<16, 17>(&given.preimage.len);
+        let adder = crate::circuits::analog_adder::AnalogAdder::new(self.logic);
+        let outer_check = adder.assert_wrapping_sum(
+            &length,
+            &[&[
+                self.bv.zext::<16, 17>(&outer_length),
+                self.bv.of_u64::<17>((K_COSE1_PREFIX_LEN + 2) as u64),
+            ]],
+        );
+        let inner_check = adder.assert_wrapping_sum(
+            &length,
+            &[&[
+                self.bv.zext::<16, 17>(&inner_length),
+                self.bv.of_u64::<17>((K_COSE1_PREFIX_LEN + 7) as u64),
+            ]],
+        );
+        self.logic.assert_all(
+            "assert_mso_envelope",
+            &[
+                self.assert_bytes_at(K_COSE1_PREFIX_LEN, preimage, &K_COSE1_PREFIX),
+                self.assert_bytes_at(3, &preimage[K_COSE1_PREFIX_LEN + 2..], &[0xd8, 0x18, 0x59]),
+                self.logic.assert_all("outer_length", &[outer_check]),
+                self.logic.assert_all("inner_length", &[inner_check]),
+                self.boolean.assert_true(
+                    "map_type",
+                    &self
+                        .bv
+                        .eqmask(&preimage[K_COSE1_PREFIX_LEN + 7], 0xa0, 0xe0),
+                ),
+            ],
         )
     }
 
@@ -400,23 +536,53 @@ where L::F: MdocHashCompileField
         preimage: &[V8<L>],
         zz: &V8<L>,
     ) -> (Vec<V8<L>>, L::Assertions) {
-        let five = self.bv.of_u64::<16>(5);
-        let ge_five = self.bv.leq(&five, offset);
-        let lt = self.bv.lt(offset, preimage_length_bytes);
-
-        let assertions = self.logic.assert_all(
-            "shift_preimage_bounds",
-            &[
-                self.boolean.assert_true("ge_five", &ge_five),
-                self.boolean.assert_true("lt", &lt),
-            ],
+        let assertions = self.assert_preimage_range(
+            offset,
+            preimage_length_bytes,
+            &self.bv.of_u64::<K_HASH_INDEX_BITS>(len_bytes as u64),
         );
-
         let shifted = self
             .routing
             .shift_bitvec(shift_base_bits, offset, len_bytes, preimage, zz);
-
         (shifted, assertions)
+    }
+
+    fn assert_preimage_range(
+        &self,
+        offset: &HashIndex<L>,
+        preimage_length_bytes: &HashIndex<L>,
+        consumed: &HashIndex<L>,
+    ) -> L::Assertions {
+        // Routing can read the entire padded buffer. Authenticate the complete
+        // consumed range, not just its start, before accepting those bytes.
+        let (end, carry) = self.bv.checked_add(
+            &self.bv.zext::<16, 17>(offset),
+            &self.bv.zext::<16, 17>(consumed),
+        );
+        let end_fits = self
+            .bv
+            .leq(&end, &self.bv.zext::<16, 17>(preimage_length_bytes));
+        self.assert_preimage_bounds(offset, preimage_length_bytes, &end_fits, carry)
+    }
+
+    fn assert_preimage_bounds(
+        &self,
+        offset: &HashIndex<L>,
+        preimage_length_bytes: &HashIndex<L>,
+        end_fits: &crate::circuits::boolean::Bitw<L>,
+        arithmetic: L::Assertions,
+    ) -> L::Assertions {
+        self.logic.assert_all(
+            "shift_preimage_bounds",
+            &[
+                self.boolean
+                    .assert_true("ge_five", &self.bv.leq(&self.bv.of_u64::<16>(5), offset)),
+                self.boolean
+                    .assert_true("lt", &self.bv.lt(offset, preimage_length_bytes)),
+                arithmetic,
+                self.boolean.assert_true("end", end_fits),
+            ],
+        )
     }
 
     fn assert_bytes_at(&self, len: usize, buf: &[V8<L>], want: &[u8]) -> L::Assertions {

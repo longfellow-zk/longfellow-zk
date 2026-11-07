@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::arithmetic::Arithmetic;
-use crate::circuits::boolean::{Bitw, Boolean, BooleanIO};
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{Eltw, Logic};
-use crate::util::array::{init, map, map2, map3};
+use crate::{
+    circuits::{
+        arithmetic::Arithmetic,
+        boolean::{Bitw, Boolean, BooleanIO},
+    },
+    compile::{
+        algebra::field::CompileField,
+        logic::{Eltw, Logic},
+    },
+    util::array::{init, map, map2, map3},
+};
 
 pub struct Bitvec<L: Logic, const N: usize> {
     bits: Vec<Bitw<L>>,
@@ -258,6 +264,19 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     ) -> (Bitvec<L, N>, Bitw<L>) {
         let (c, carry) = self.arith.unchecked_add(&a.bits, &b.bits);
         (Bitvec { bits: c }, carry)
+    }
+
+    /// Three-word carry-save compression, including the bit shifted out of
+    /// the carry word. Both returned words have the original width.
+    #[must_use = "carry_save returns an overflow bit that must be checked or accounted for"]
+    pub fn carry_save<const N: usize>(
+        &self,
+        a: &Bitvec<L, N>,
+        b: &Bitvec<L, N>,
+        c: &Bitvec<L, N>,
+    ) -> (Bitvec<L, N>, Bitvec<L, N>, Bitw<L>) {
+        let (sum, carry, overflow) = self.arith.carry_save(&a.bits, &b.bits, &c.bits);
+        (Bitvec { bits: sum }, Bitvec { bits: carry }, overflow)
     }
 
     #[must_use = "unchecked_sub returns a borrow bit that must be checked or propagated to prevent silent underflow/overflow"]
