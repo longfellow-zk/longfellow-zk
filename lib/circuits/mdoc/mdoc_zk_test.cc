@@ -504,6 +504,15 @@ TEST_F(MdocZKTest, attr_mismatch) {
     EXPECT_EQ(ret, MDOC_PROVER_SUCCESS);
   }
   {
+    // Smallest transcript whose cbor framing used to abort the verifier.
+    std::vector<uint8_t> big_tr(65483, 0);
+    MdocVerifierErrorCode ret = run_mdoc_verifier(
+        circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
+        big_tr.data(), big_tr.size(), attrs, num_attrs, (const char*)test->now,
+        zkproof, proof_len, kDefaultDocType, &zk_spec_2);
+    EXPECT_EQ(ret, MDOC_VERIFIER_INVALID_INPUT);
+  }
+  {
     MdocVerifierErrorCode ret = run_mdoc_verifier(
         circuit2_, circuit_len2_, test->pkx.as_pointer, test->pky.as_pointer,
         test->transcript, test->transcript_size, attrs, num_attrs - 1,
