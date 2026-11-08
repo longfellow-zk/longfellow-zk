@@ -35,7 +35,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -255,7 +255,7 @@ def observerContextForTrees
       (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
         MerkleCompiler.Leaf N (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0))
     (_labels : Fin (2*2443-1) → Digest)
-    (opening : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates Digest Digest) :
+    (opening : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates MerkleNonce Digest) :
     Merkle.RandomOracle.Tree {raw // raw ∈ windowContextForTrees binary prime primePlan binaryNodes repr shape setup cfg trees}
       Digest (Observer.View Bytes Digest Point (Digest × C) Context (Option Output) Observed) postM :=
   let completed := CompleteObserver.complete binary.description prime binaryNodes ConcreteSetup.primeNodes
@@ -309,7 +309,7 @@ def observerForTrees
       (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
         MerkleCompiler.Leaf N (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0))
     (_labels : Fin (2*2443-1) → Digest)
-    (opening : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates Digest Digest) :
+    (opening : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates MerkleNonce Digest) :
     Merkle.RandomOracle.Tree {raw // raw ∈ windowForTrees binary prime primePlan binaryNodes repr shape setup cfg trees}
       Digest (Observer.View Bytes Digest Point (Digest × C) Request (Option Output) Observed) postM :=
   observerContextForTrees binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata H answer id trees
@@ -342,12 +342,12 @@ local instance genericBackendMasksFintype (bw nw s : ℕ) : Fintype
       (bw := bw) (nw := nw) (s := s)) := Fintype.ofFinite _
 
 local instance merkleCoinsFintype : Fintype (MerklePreparation.Coins
-    (Salt := Digest) (Digest := Digest)
+    (Salt := MerkleNonce) (Digest := Digest)
     (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside}) 2443) := inferInstance
 
 local instance coinsFintype : Fintype (BackendCompiled.Coins
     (FrontCoin := CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
-    (Nonce := Digest) (D := Digest)
+    (Nonce := MerkleNonce) (D := Digest)
     (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside})
     (Backend.profileGeometry binaryNodes) (Backend.profileGeometry ConcreteSetup.primeNodes)
     (bw := rows binary.description.cells)
@@ -360,8 +360,8 @@ theorem backend_hiding
         coins priorState labels).1.Satisfies (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup original remaining coins priorState).1) ∧
       (statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining H
         coins priorState labels).2.Satisfies (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup original remaining coins priorState).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
       (real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside original remaining H draw answer)
       (simulatedBackend binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside original remaining H draw answer) := by
   have codecInj := SHAObserverWindow.finiteCodec_inj SHAOracle.merkleDomain outside
@@ -511,7 +511,7 @@ def simulatedPublic := simulatedPublicForTrees binary prime primePlan binaryNode
 
 abbrev Shared := CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads) ×
-    MerklePreparation.Coins (Salt := Digest) (Digest := Digest)
+    MerklePreparation.Coins (Salt := MerkleNonce) (Digest := Digest)
       (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside}) 2443
 
 def priorStateOf (shared : Shared binary prime primePlan binaryNodes repr shape setup cfg prior after outside) : Prefix :=
@@ -530,13 +530,13 @@ def fiber (shared : Shared binary prime primePlan binaryNodes repr shape setup c
     (dummyLabels binary prime primePlan binaryNodes repr shape setup cfg prior after outside H shared)
 
 abbrev PrivateCoins := BackendCompiled.Coins (FrontCoin := CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
-  (Nonce := Digest) (D := Digest)
+  (Nonce := MerkleNonce) (D := Digest)
   (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside})
   (Backend.profileGeometry binaryNodes) (Backend.profileGeometry ConcreteSetup.primeNodes)
   (bw := rows binary.description.cells) (nw := rows (CellLayout.Prime.cells prime.remaining prime.pads)) (s := 12)
 
 abbrev PublicCoins := BackendCompiled.Coins (FrontCoin := CompleteSimulation.Coins binary prime)
-  (Nonce := Digest) (D := Digest)
+  (Nonce := MerkleNonce) (D := Digest)
   (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside})
   (Backend.profileGeometry binaryNodes) (Backend.profileGeometry ConcreteSetup.primeNodes)
   (bw := rows binary.description.cells) (nw := rows (CellLayout.Prime.cells prime.remaining prime.pads)) (s := 12)
@@ -617,8 +617,8 @@ theorem simulator_statClose
         coins priorState labels).1.Satisfies (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup original remaining coins priorState).1) ∧
       (statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining H
         coins priorState labels).2.Satisfies (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup original remaining coins priorState).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
       (real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside original remaining H draw answer)
       (simulatedPublic binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside H draw answer) := by
   have backend := backend_hiding binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount

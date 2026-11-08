@@ -104,16 +104,17 @@ private def wire : Bytes :=
     [74,80,71,50] ++ List.replicate 32 2 ++
     blocks 16 [30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49] ++
     blocks 32 [60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79] ++
-    List.replicate 32 3 ++ List.replicate 32 4 ++ [2,0,0,0] ++ List.replicate 32 5 ++ List.replicate 32 6
+    List.replicate merkleNonceBytes 3 ++ List.replicate merkleNonceBytes 4 ++
+    [2,0,0,0] ++ List.replicate 32 5 ++ List.replicate 32 6
 
 private theorem encode_wire : (Current.ProofBodyCodec.codec repr geometry).encode body = wire := by decide +kernel
 
 -- The full body has no final seal and no implicit padding.
-example : wire.length = 1615 := by decide +kernel
+example : wire.length = 1631 := by decide +kernel
 
 -- The public maximum allows the full frontier, without changing actual
 -- serialization. It also discharges final framing uniformly for all bodies.
-example : ProofBodyBounds.bodyBound repr geometry = 1807 := by decide +kernel
+example : ProofBodyBounds.bodyBound repr geometry = 1823 := by decide +kernel
 example : ((Current.ProofBodyCodec.codec repr geometry).encode body).length ≤
     CanonicalPrefix.maxLength :=
   ProofBodyBounds.final_fits repr geometry (by decide +kernel) body

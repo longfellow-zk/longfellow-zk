@@ -25,7 +25,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)

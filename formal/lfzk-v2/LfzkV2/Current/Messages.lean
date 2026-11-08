@@ -8,6 +8,10 @@ particular finite seed or a replacement generator. All coordinates in one
 namespace LfzkV2.Current
 
 abbrev Digest := Fin 32 → Fin 256
+
+/-- Matches the v2 runtime's `NONCE_LEN`; SHA-256 digests remain 32 bytes. -/
+def merkleNonceBytes : ℕ := 40
+abbrev MerkleNonce := Fin merkleNonceBytes → Fin 256
 abbrev Fields := Side → Type
 
 abbrev Fingerprints (F : Fields) := (F .binary × F .binary) × (F .prime × F .prime)

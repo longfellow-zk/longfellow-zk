@@ -18,7 +18,7 @@ structure Frame where
   core : PolygeroCoreMasking.Tape B 84 (ConcreteSetup.rows binary.description.cells) 0
   masks : PolygeroMasking.Tape (Backend.profileGeometry nodes).code (PolygeroZk.sumFunctional B 265)
   prime : Backend.ProfileTape ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
-  nonces : Fin 2443 → Digest
+  nonces : Fin 2443 → MerkleNonce
 
 def assemble (frame : Frame binary prime nodes) (sample : Fin 361 → B) : HonestRuntime.Tape binary prime nodes where
   frontend := frame.frontend

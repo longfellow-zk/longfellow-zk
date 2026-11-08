@@ -23,7 +23,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -77,7 +77,7 @@ theorem responses (request : Request)
 theorem complete (request : Request) (indices : Fin 84 ↪ Fin 2443) (frontend : Body)
     (responses : JointResponse.Response (First).participant (Second).participant)
     (columns : ↥(OrderedOpening.query indices).coordinates → Leaf)
-    (opening : OpeningView 2443 (OrderedOpening.query indices).coordinates Digest Digest)
+    (opening : OpeningView 2443 (OrderedOpening.query indices).coordinates MerkleNonce Digest)
     (H : Point → Digest × C) (answer : Digest × C) :
     let b := RequestedSimulator.requestedBinary binary prime primePlan shape request
     let p := RequestedSimulator.requestedPrime binary prime primePlan shape primeCount request

@@ -19,7 +19,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   binary.description prime (ConcreteSetup.backend binaryNodes binary.description.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
-  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × Digest))
+  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 local notation "P" => ConcreteSetup.backend binaryNodes binary.description.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
 local notation "First" => RuntimeVerifier.first binary.description prime P R cfg

@@ -31,7 +31,7 @@ variable (binary : fields .binary ≃ P.Carrier) (prime : fields .prime ≃ R.Ca
 variable (context : Digest) (fits : n ≤ 2^64)
 
 /-- Pull back the actual runtime byte codec to the pair used by the backend
-coupling. The public index and 32-byte nonce retain their literal encoding. -/
+coupling. The public index and 40-byte nonce retain their literal encoding. -/
 def codec : Codec (MerkleWireCodec.Salt n)
     (MerkleCompiler.Leaf P.Carrier P.backend.nw 0 × MerkleCompiler.Leaf R.Carrier R.backend.nw 0)
     Digest Bytes where
@@ -52,7 +52,7 @@ theorem codec_inj : (codec P R repr binary prime context fits).Inj := by
     rfl
   · exact (MerkleWireCodec.codec_inj P R repr binary prime context fits).node
 
-@[simp] theorem leaf_bytes (column : Fin n) (nonce : Digest)
+@[simp] theorem leaf_bytes (column : Fin n) (nonce : MerkleNonce)
     (leaf : MerkleCompiler.Leaf P.Carrier P.backend.nw 0 × MerkleCompiler.Leaf R.Carrier R.backend.nw 0) :
     (codec P R repr binary prime context fits).leafEnc ((column,nonce),leaf) =
       (MerkleWireCodec.codec P R repr binary prime context fits).leafEnc

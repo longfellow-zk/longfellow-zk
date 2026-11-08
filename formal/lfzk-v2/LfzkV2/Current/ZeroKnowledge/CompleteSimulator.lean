@@ -35,7 +35,7 @@ variable (cfg : RuntimeVerifier.Public
   (ConcreteSetup.backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -50,13 +50,13 @@ structure Tape where
   frontend : CompleteSimulation.Coins binary prime
   backend : CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
     (CellLayout.Prime.cells prime.remaining prime.pads)
-  nonces : Fin 2443 → Digest
+  nonces : Fin 2443 → MerkleNonce
   answer : Digest × C
 
 def tapeEquiv : Tape (C := C) binary prime binaryNodes ≃
     CompleteSimulation.Coins binary prime ×
       (CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
-        (CellLayout.Prime.cells prime.remaining prime.pads) × ((Fin 2443 → Digest) × (Digest × C))) where
+        (CellLayout.Prime.cells prime.remaining prime.pads) × ((Fin 2443 → MerkleNonce) × (Digest × C))) where
   toFun tape := (tape.frontend,tape.backend,tape.nonces,tape.answer)
   invFun coin := ⟨coin.1,coin.2.1,coin.2.2.1,coin.2.2.2⟩
   left_inv _ := rfl

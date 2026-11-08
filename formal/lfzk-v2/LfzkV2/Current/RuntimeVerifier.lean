@@ -67,7 +67,7 @@ structure Public where
   initialLink : Digest
   root : Key → Digest
   authenticationContext : Key → Digest
-  bindSalt : Key → Fin n → Digest → Salt
+  bindSalt : Key → Fin n → MerkleNonce → Salt
   sample : C → (Fin t ↪ Fin n)
 
 variable (cfg : Public (g := g) binary prime P R (fields := fields) (Advice := Advice)

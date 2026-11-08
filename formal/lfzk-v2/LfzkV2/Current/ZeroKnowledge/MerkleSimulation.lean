@@ -1,7 +1,7 @@
 import LfzkV2.Current.MerkleWireCodec
 import Merkle.Hiding
 
-/-! The runtime hashes a public column index and a fresh 32-byte nonce in
+/-! The runtime hashes a public column index and a fresh 40-byte nonce in
 each leaf.  Only the nonce is random.  For the hiding theorem we therefore
 regard the column index as part of the message, rather than silently treating
 the pair `(index,nonce)` as uniform randomness.  This is a change of analysis
@@ -101,15 +101,15 @@ variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (binary : fields .binary ≃ P.Carrier) (prime : fields .prime ≃ R.Carrier)
 variable (context : Digest) (fits : n ≤ 2^64)
 
-def runtimeCodec : Codec Digest (Fin n × (Joint.Pair.family P R).Leaf) Digest Bytes :=
+def runtimeCodec : Codec MerkleNonce (Fin n × (Joint.Pair.family P R).Leaf) Digest Bytes :=
   nonceCodec (MerkleWireCodec.codec P R repr binary prime context fits)
 
 theorem runtimeCodec_inj : (runtimeCodec P R repr binary prime context fits).Inj :=
   nonceCodec_inj _ (MerkleWireCodec.codec_inj P R repr binary prime context fits)
 
-/-- This is literally the same wire preimage, with exactly 32 random nonce
+/-- This is literally the same wire preimage, with exactly 40 random nonce
 bytes. No uniformly sampled column index is introduced in the probability space. -/
-theorem runtime_leaf_bytes (column : Fin n) (nonce : Digest)
+theorem runtime_leaf_bytes (column : Fin n) (nonce : MerkleNonce)
     (leaf : (Joint.Pair.family P R).Leaf) :
     (runtimeCodec P R repr binary prime context fits).leafEnc (nonce,(column,leaf)) =
       (MerkleWireCodec.codec P R repr binary prime context fits).leafEnc ((column,nonce),leaf) := rfl

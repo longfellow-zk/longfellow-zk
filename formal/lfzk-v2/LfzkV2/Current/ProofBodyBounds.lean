@@ -98,6 +98,11 @@ theorem digest_length (value : Digest) : (ProofBodyCodec.digest.encode value).le
   by simpa only [ProofBodyCodec.digest,Nat.mul_one] using vector_length PrefixCodec.byte 1
       (fun value => by simp only [PrefixCodec.byte_encode,List.length_singleton]) 32 value
 
+theorem nonce_length (value : MerkleNonce) :
+    (ProofBodyCodec.nonce.encode value).length = merkleNonceBytes :=
+  by simpa only [ProofBodyCodec.nonce,Nat.mul_one] using vector_length PrefixCodec.byte 1
+      (fun value => by simp only [PrefixCodec.byte_encode,List.length_singleton]) merkleNonceBytes value
+
 theorem frontier_length (g : Geometry) (value : ProofBodyCodec.Frontier g) :
     ((ProofBodyCodec.frontier g).encode value).length = 4+32*value.1.val := by
   change (TranscriptV2.Framing.encodeLE 4 value.1.val ++
@@ -114,7 +119,7 @@ def bodyBound {fields : Fields} {Advice : Type} (repr : ProofBodyCodec.Represent
     frontendCells g.prime*32 +
     (3*g.rowDimension+g.maskingDegree+(g.dataRows .binary+3)*g.openings)*16 +
     (3*g.rowDimension+g.maskingDegree+(g.dataRows .prime+3)*g.openings)*32 +
-    32*g.openings+32*OpeningBody.frontierCapacity g
+    merkleNonceBytes*g.openings+32*OpeningBody.frontierCapacity g
 
 theorem encode_length_le {fields : Fields} {Advice : Type}
     (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry)
@@ -128,10 +133,10 @@ theorem encode_length_le {fields : Fields} {Advice : Type}
     packing_length (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
     fieldBody_length .binary (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
     fieldBody_length .prime (PrefixCodec.field repr.prime) 32 (by intro v; exact (repr.prime.length v).trans repr.primeWidth),
-    vector_length _ 32 digest_length,frontier_length,ProofBodyCodec.mda6,ProofBodyCodec.jpg2,
-    List.length_cons,List.length_nil]
+    vector_length _ merkleNonceBytes nonce_length,frontier_length,ProofBodyCodec.mda6,ProofBodyCodec.jpg2,
+    List.length_cons,List.length_nil,merkleNonceBytes]
   have hfrontier := value.authentication.frontierLength.isLt
-  unfold bodyBound
+  unfold bodyBound merkleNonceBytes
   omega
 
 /-- A public numerical check discharges the final bytes-operation bound

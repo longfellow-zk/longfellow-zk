@@ -24,7 +24,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) (C := C)
-  (Salt := Fin 2443 × Digest))
+  (Salt := Fin 2443 × MerkleNonce))
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
 local notation "Data" => Σ A : RuntimeVerifier.System binary prime (C := C), StatementData A First Second

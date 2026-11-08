@@ -30,7 +30,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -110,7 +110,7 @@ theorem real_at (first second : Bytes → Digest)
     (HM : Bytes → Digest) (H : Point → Digest × C) (answer : Digest × C)
     (frontend : FrontCoins)
     (backend : CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells (CellLayout.Prime.cells prime.remaining prime.pads))
-    (nonces : Fin 2443 → Digest) (labels : Fin (2*2443-1) → Digest) :
+    (nonces : Fin 2443 → MerkleNonce) (labels : Fin (2*2443-1) → Digest) :
     BackendRuntimeContext.real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after first draw original remaining H answer
       ((frontend,backend),((fun raw => HM raw.val),(nonces,labels))) =
     BackendRuntimeContext.real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after second draw original remaining H answer
@@ -128,7 +128,7 @@ theorem simulatedPublic_at (first second : Bytes → Digest)
     (HM : Bytes → Digest) (H : Point → Digest × C) (answer : Digest × C)
     (frontend : CompleteSimulation.Coins binary prime)
     (backend : CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells (CellLayout.Prime.cells prime.remaining prime.pads))
-    (nonces : Fin 2443 → Digest) (labels : Fin (2*2443-1) → Digest) :
+    (nonces : Fin 2443 → MerkleNonce) (labels : Fin (2*2443-1) → Digest) :
     BackendRuntimeContext.simulatedPublic binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after first draw H answer
       ((frontend,backend),((fun raw => HM raw.val),(nonces,labels))) =
     BackendRuntimeContext.simulatedPublic binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after second draw H answer

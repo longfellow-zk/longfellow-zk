@@ -7,7 +7,8 @@ namespace LfzkV2.Current.Tests.ZeroKnowledgeMerklePreparation
 
 open ZeroKnowledge.MerklePreparation
 
-example : error (2^256) (2^256) 2443 0 = 23865668/(2:ℚ)^256 := by
+example : error (2^320) (2^256) 2443 0 =
+    11936498/(2:ℚ)^320 + 11929170/(2:ℚ)^256 := by
   simpa only [Nat.cast_zero,mul_zero,add_zero,zero_div] using rate7_error 0
 
 #print axioms numerator_ratio_le

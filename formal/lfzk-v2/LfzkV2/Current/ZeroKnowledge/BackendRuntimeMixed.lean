@@ -36,7 +36,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -142,14 +142,14 @@ theorem statClose
         coins earlier labels).1.Satisfies (Backend.logical (BackendRuntime.cells binary prime primePlan binaryNodes repr shape setup original remaining coins earlier).1) ∧
       (BackendRuntime.statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining H
         coins earlier labels).2.Satisfies (Backend.logical (BackendRuntime.cells binary prime primePlan binaryNodes repr shape setup original remaining coins earlier).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
       (real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside draw original remaining)
       (simulate binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside draw) := by
-  have nonnegative := error_nonnegative (Fintype.card Digest) (Fintype.card Digest) 2443 84 preM postM
+  have nonnegative := error_nonnegative (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 84 preM postM
   have each (oracle : OracleCoins (C := C) binary prime primePlan repr shape setup) :
-      StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-        MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+      StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+        MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
         (realAt binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside draw original remaining oracle)
         (simulateAt binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata prior after outside draw oracle) := by
     unfold realAt simulateAt

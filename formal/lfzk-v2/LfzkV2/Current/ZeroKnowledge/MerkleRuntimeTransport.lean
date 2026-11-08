@@ -126,7 +126,7 @@ variable {fields : Fields} {Advice : Type}
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (binary : fields .binary ≃ P.Carrier) (prime : fields .prime ≃ R.Carrier)
 variable (context : Digest) (fits : n ≤ 2^64)
-variable (H : Bytes → Digest) (nonce : Fin n → Fin n × Digest)
+variable (H : Bytes → Digest) (nonce : Fin n → Fin n × MerkleNonce)
 variable (columns : Fin n → MerkleCompiler.Leaf P.Carrier P.backend.nw 0 ×
   MerkleCompiler.Leaf R.Carrier R.backend.nw 0)
 

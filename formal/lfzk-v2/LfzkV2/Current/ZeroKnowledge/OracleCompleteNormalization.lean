@@ -28,7 +28,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
@@ -100,7 +100,7 @@ abbrev CompletionEq (first second : Option (Output × (Point → Digest × C))) 
     {point | QueryRuntime.Runtime.Canonical repr shape setup binary.nPublic point} first second
 
 include agree bodyFits in
-theorem simulate_eq (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+theorem simulate_eq (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)
     (frontend : Body) (answer : Digest × C) :
@@ -114,7 +114,7 @@ theorem simulate_eq (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (non
   exact ⟨congrArg (fun proof => (⟨request,proof⟩ : Output)) normalized.1,normalized.2⟩
 
 include agree bodyFits in
-theorem complete_eq (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+theorem complete_eq (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))
     (frontend : Body) (answer : Digest × C) :
     CompletionEq binary repr shape setup

@@ -67,7 +67,7 @@ theorem verifies (Q : QuerySet 2443 84)
 variable {Enc : Type}
 variable [Inhabited (Joint.Pair.family (first binaryNodes binaryCells countB).participant
   (second primeNodes primeCells countN).participant).Leaf]
-variable (scheme : Scheme (Fin 2443 × Digest)
+variable (scheme : Scheme (Fin 2443 × MerkleNonce)
   (Joint.Pair.family (first binaryNodes binaryCells countB).participant
     (second primeNodes primeCells countN).participant).Leaf Digest Enc)
 
@@ -76,7 +76,7 @@ theorem compiled_verifies (indices : Fin 84 ↪ Fin 2443)
       (second primeNodes primeCells countN).participant)
     (coin : JointResponse.Coin (first binaryNodes binaryCells countB).participant
       (second primeNodes primeCells countN).participant)
-    (tape : Masks binaryNodes primeNodes binaryCells primeCells) (nonces : Fin 2443 → Digest) :
+    (tape : Masks binaryNodes primeNodes binaryCells primeCells) (nonces : Fin 2443 → MerkleNonce) :
     let family := Joint.Pair.family (first binaryNodes binaryCells countB).participant
       (second primeNodes primeCells countN).participant
     let W := familyOracle binaryNodes primeNodes binaryCells primeCells countB countN tape

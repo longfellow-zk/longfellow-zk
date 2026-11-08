@@ -32,7 +32,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -170,8 +170,8 @@ theorem statClose
         (Backend.logical (BackendRuntimeContext.cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).1) ∧
       (BackendRuntimeContext.statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf original remaining H coins earlier labels).2.Satisfies
         (Backend.logical (BackendRuntimeContext.cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
       (honest binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw original remaining large)
       (simulate binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw large) := by
   have first := opening_refresh binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside

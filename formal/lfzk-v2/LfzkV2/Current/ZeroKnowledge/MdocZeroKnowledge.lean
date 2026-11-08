@@ -114,8 +114,8 @@ private def exchangeTables {Prover First Second : Type} :
 
 local notation "V" => MdocOracleWindows.merkleWindow binary prime cantor scalars bounds priorFamily afterFamily
 local notation "Epsilon" =>
-  2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-    MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest)
+  2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+    MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest)
       2443 (2443-84) postM + (preT:ℚ)/(2:ℚ)^46208
 
 variable (pivotOne : binary.basis 0 = 1)
@@ -179,7 +179,8 @@ theorem statClose (additionalSHA : Finset Bytes) (fallback : Bytes → Digest)
         (priorFamily (MdocSetupFamily.values binary prime cantor scalars ids bounds outside)) outside request →
       MdocContextPrivacy.ValidWitness binary prime bounds original remaining request) :
     StatClose
-      ((95462672+4886*(preM:ℚ)+4718*(postM:ℚ))/(2:ℚ)^256 +
+      ((47745992+4886*(preM:ℚ)+4718*(postM:ℚ))/(2:ℚ)^320 +
+        47716680/(2:ℚ)^256 +
         4884*(preM:ℚ)/(2:ℚ)^512 + (preT:ℚ)/(2:ℚ)^46208)
       (fun coin : HonestCoins binary prime cantor scalars ids bounds priorFamily afterFamily fits ×
           ({raw // raw ∈ V ∪ additionalSHA} → Digest) =>
@@ -190,7 +191,7 @@ theorem statClose (additionalSHA : Finset Bytes) (fallback : Bytes → Digest)
         simulate binary prime cantor scalars ids bounds requestOf priorFamily afterFamily fits
           coin.1 (OracleWindow.extend (V ∪ additionalSHA) coin.2 fallback)) := by
   have nonnegative : 0 ≤ Epsilon := by
-    have merkle := Error.nonnegative (Fintype.card Digest) (Fintype.card Digest) 2 2443 84 preM postM 0
+    have merkle := Error.nonnegative (Fintype.card MerkleNonce) (Fintype.card Digest) 2 2443 84 preM postM 0
     simp only [Error.bound,Nat.cast_zero,zero_div,add_zero] at merkle
     exact add_nonneg merkle (by positivity)
   have law := SHAOracleWindowProbability.window_statClose V (V ∪ additionalSHA)
@@ -201,5 +202,30 @@ theorem statClose (additionalSHA : Finset Bytes) (fallback : Bytes → Digest)
       original remaining pivotOne primitive bodyFits outside (valid outside))
   rw [Error.rate7_protocol] at law
   exact Probability.changeFintype law
+
+include pivotOne primitive bodyFits in
+/-- The complete ideal-oracle privacy theorem at the concrete 2^128-query
+budget, including both earlier and later SHA queries and the transcript term. -/
+theorem statClose_at_query_budget (additionalSHA : Finset Bytes) (fallback : Bytes → Digest)
+    (valid : ∀ (outside : Bytes → Digest) request,
+      MdocContextPrivacy.RawReachable binary prime cantor bounds requestOf
+        (priorFamily (MdocSetupFamily.values binary prime cantor scalars ids bounds outside)) outside request →
+      MdocContextPrivacy.ValidWitness binary prime bounds original remaining request)
+    (merkleQueries : preM+postM ≤ 2^128) (transcriptQueries : preT ≤ 2^128) :
+    StatClose
+      (1/(2:ℚ)^179)
+      (fun coin : HonestCoins binary prime cantor scalars ids bounds priorFamily afterFamily fits ×
+          ({raw // raw ∈ V ∪ additionalSHA} → Digest) =>
+        honest binary prime cantor scalars ids bounds requestOf priorFamily afterFamily fits original remaining
+          coin.1 (OracleWindow.extend (V ∪ additionalSHA) coin.2 fallback))
+      (fun coin : SimulatorCoins binary prime cantor scalars ids bounds priorFamily afterFamily fits ×
+          ({raw // raw ∈ V ∪ additionalSHA} → Digest) =>
+        simulate binary prime cantor scalars ids bounds requestOf priorFamily afterFamily fits
+          coin.1 (OracleWindow.extend (V ∪ additionalSHA) coin.2 fallback)) := by
+  apply StatClose.mono _ (statClose binary prime cantor scalars ids bounds requestOf
+    priorFamily afterFamily fits original remaining pivotOne primitive bodyFits additionalSHA fallback valid)
+  have budget := Error.rate7_at_query_budget preM postM preT merkleQueries transcriptQueries
+  rw [Error.rate7] at budget
+  exact budget.le
 
 end LfzkV2.Current.ZeroKnowledge.MdocZeroKnowledge

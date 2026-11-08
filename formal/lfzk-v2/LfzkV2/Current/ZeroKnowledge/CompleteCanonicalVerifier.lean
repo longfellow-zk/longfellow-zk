@@ -33,7 +33,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
@@ -58,7 +58,7 @@ variable (draw : C → RuntimeVerifier.RawSamples binary prime
   (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg))
 
 theorem filled_batchingPoint (request : CanonicalRequest.Request shape binary.nPublic)
-    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)
@@ -82,7 +82,7 @@ theorem filled_batchingPoint (request : CanonicalRequest.Request shape binary.nP
     _ _ H g.batchingIndex.val (by rw [g.openingIndex_val]; omega)
 
 theorem accepts (request : CanonicalRequest.Request shape binary.nPublic)
-    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)
@@ -124,7 +124,7 @@ theorem accepts (request : CanonicalRequest.Request shape binary.nPublic)
 accepted. Parser failure is represented explicitly by `none`, rather than
 hidden in a supplied application or backend correctness certificate. -/
 theorem complete_success_accepts (request : CanonicalRequest.Request shape binary.nPublic)
-    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (frontend : Body) (H : Point → Digest × C) (answer : Digest × C)

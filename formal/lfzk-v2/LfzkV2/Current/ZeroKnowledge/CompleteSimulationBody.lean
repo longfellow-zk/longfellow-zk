@@ -27,11 +27,11 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × Digest))
+  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
 local notation "Family" => RuntimeVerifier.Family binary prime P R cfg
-variable (codec : Codec (Fin 2443 × Digest) (RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg).Leaf Digest Enc)
+variable (codec : Codec (Fin 2443 × MerkleNonce) (RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg).Leaf Digest Enc)
 
 def dummyColumns (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
     (CellLayout.Prime.cells prime.remaining prime.pads)) :
@@ -46,7 +46,7 @@ def wireResponses (response : JointResponse.Response (First).participant (Second
     (RuntimeVerifier.productFits binary prime P R cfg)).symm response
 
 theorem frontier_capacity (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads)) :
     (CompleteBody.frontier (First).participant (Second).participant (codec.withOracle HM) indices nonces
@@ -63,7 +63,7 @@ theorem frontier_capacity (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
 honest opening of the dummy zero-cell commitment. All private randomness
 is supplied by the backend mask/nonce tapes; no witness is an input. -/
 def simulatedBody (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (statement : JointResponse.Statement (First).participant (Second).participant)

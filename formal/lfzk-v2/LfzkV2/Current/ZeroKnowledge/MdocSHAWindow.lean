@@ -37,14 +37,14 @@ abbrev Leaf :=
 /-- The Merkle layout needs only the two fixed backend participants, their
 field representations and a context digest. It does not inspect transcript
 sampling, public setup hashes or the runtime's other callbacks. -/
-def codec (context : Digest) : Merkle.MH.Codec (Fin 2443 × Digest) (Leaf binary prime) Digest Bytes :=
+def codec (context : Digest) : Merkle.MH.Codec (Fin 2443 × MerkleNonce) (Leaf binary prime) Digest Bytes :=
   MerkleRuntime.codec First Second (MdocRuntime.representations scalars)
     (Equiv.refl B) (Equiv.refl (ZMod Current.Adapter.Mdoc.primeOrder)) context (by decide)
 
 /-- This boundary is checked once against the literal runtime constructor.
 Higher-level window proofs can then use the static codec without unfolding
 the complete verifier configuration. -/
-def runtimeCodec (SHA : Bytes → Digest) : Merkle.MH.Codec (Fin 2443 × Digest) (Leaf binary prime) Digest Bytes :=
+def runtimeCodec (SHA : Bytes → Digest) : Merkle.MH.Codec (Fin 2443 × MerkleNonce) (Leaf binary prime) Digest Bytes :=
   let nodes := ConcreteSetup.binaryNodes cantor
   let P := backend nodes binary.description.cells
   let R := backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.description.remaining prime.description.pads)

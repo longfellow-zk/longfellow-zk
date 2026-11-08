@@ -55,8 +55,8 @@ def primeRows (indices : Fin t ↪ Fin n) (columns : Fin n → (Joint.Pair.famil
     ((piFinTwoEquiv _ (columns (indices (Fin.cast hopenings query)))).2) row
 
 variable {Enc : Type}
-variable (scheme : Scheme (Fin n × Digest) (Joint.Pair.family P R).Leaf Digest Enc)
-variable (indices : Fin t ↪ Fin n) (nonces : Fin n → Digest)
+variable (scheme : Scheme (Fin n × MerkleNonce) (Joint.Pair.family P R).Leaf Digest Enc)
+variable (indices : Fin t ↪ Fin n) (nonces : Fin n → MerkleNonce)
 variable (columns : Fin n → (Joint.Pair.family P R).Leaf)
 
 def frontier : List Digest :=

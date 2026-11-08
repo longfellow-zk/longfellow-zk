@@ -77,6 +77,8 @@ def fieldBody (side : Side) (field : PrefixCodec (fields side)) (g : Geometry) :
 
 def digest : PrefixCodec Digest := PrefixCodec.vector PrefixCodec.byte 32
 
+def nonce : PrefixCodec MerkleNonce := PrefixCodec.vector PrefixCodec.byte merkleNonceBytes
+
 abbrev Frontier (g : Geometry) :=
   (length : Fin (OpeningBody.frontierCapacity g+1)) × (Fin length.val → Digest)
 
@@ -94,7 +96,7 @@ private abbrev PrefixData (g : Geometry) (fields : Fields) (Advice : Type) :=
     PackingPayload (fields .binary) g.packingDegree × FrontendPayload (fields .prime) g.prime
 
 private abbrev JointData (g : Geometry) (fields : Fields) :=
-  Digest × FieldBody g fields .binary × FieldBody g fields .prime × (Fin g.openings → Digest) × Frontier g
+  Digest × FieldBody g fields .binary × FieldBody g fields .prime × (Fin g.openings → MerkleNonce) × Frontier g
 
 private def bodyData (g : Geometry) (fields : Fields) (Advice : Type) :
     (PrefixData g fields Advice × JointData g fields) ≃
@@ -130,7 +132,7 @@ private def joint (repr : Representations fields Advice) (g : Geometry) :
     PrefixCodec (JointData g fields) :=
   (digest.pair ((fieldBody .binary (PrefixCodec.field repr.binary) g).pair
     ((fieldBody .prime (PrefixCodec.field repr.prime) g).pair
-      ((PrefixCodec.vector digest g.openings).pair (frontier g))))).prefixed jpg2
+      ((PrefixCodec.vector nonce g.openings).pair (frontier g))))).prefixed jpg2
 
 /-- Root, fingerprint responses, mu, advice, binary frontend and packing,
 prime frontend, JPG2/context, binary and prime field bodies, then the one
@@ -156,7 +158,7 @@ theorem codec_encode (repr : Representations fields Advice) (g : Geometry)
       jpg2 ++ digest.encode value.authentication.context ++
       (fieldBody .binary (PrefixCodec.field repr.binary) g).encode value.binaryBackend ++
       (fieldBody .prime (PrefixCodec.field repr.prime) g).encode value.primeBackend ++
-      (PrefixCodec.vector digest g.openings).encode value.authentication.nonce ++
+      (PrefixCodec.vector nonce g.openings).encode value.authentication.nonce ++
       (frontier g).encode ⟨value.authentication.frontierLength,value.authentication.frontier⟩ := by
   simp only [codec,initial,joint,PrefixCodec.prefixed,PrefixCodec.equiv,PrefixCodec.pair,
     PrefixCodec.marker,bodyData,PrefixCodec.field,Equiv.coe_fn_symm_mk,List.append_assoc]

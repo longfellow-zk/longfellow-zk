@@ -83,7 +83,7 @@ length, with no padding. Its public parser bound makes the proof space finite.
 The context is checked against the public joint commitment context. -/
 structure Authentication (g : Geometry) where
   context : Digest
-  nonce : Fin g.openings → Digest
+  nonce : Fin g.openings → MerkleNonce
   frontierLength : Fin (frontierCapacity g+1)
   frontier : Fin frontierLength.val → Digest
 
@@ -114,7 +114,7 @@ def raw (P R : Joint.Participant k s n t)
     (hB : g.dataRows .binary = P.backend.nw) (hN : g.dataRows .prime = R.backend.nw)
     (hopenings : g.openings = t)
     (proof : Proof g fields Advice (Authentication g)) :
-    OrderedOpening.Raw t Digest (Joint.Pair.family P R).Leaf Digest where
+    OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest where
   values j := (piFinTwoEquiv _).symm
     (participantLeaf P .binary binary hB (fun i => proof.body.binaryBackend.rows i (Fin.cast hopenings.symm j)),
      participantLeaf R .prime prime hN (fun i => proof.body.primeBackend.rows i (Fin.cast hopenings.symm j)))

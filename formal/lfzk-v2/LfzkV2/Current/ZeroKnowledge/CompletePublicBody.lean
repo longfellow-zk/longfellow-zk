@@ -18,7 +18,7 @@ variable (hopenings : g.openings = t)
 
 def fill (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))
-    (raw : OrderedOpening.Raw t Digest (Joint.Pair.family P R).Leaf Digest)
+    (raw : OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest)
     (context : Digest) (capacity : raw.frontier.length ≤ OpeningBody.frontierCapacity g) :
     Body g fields Advice (OpeningBody.Authentication g) :=
   { body with
@@ -35,8 +35,8 @@ def fill (body : Body g fields Advice (OpeningBody.Authentication g))
       frontier := fun i => raw.frontier[i.val] } }
 
 theorem fill_honest {Enc : Type}
-    (scheme : Scheme (Fin n × Digest) (Joint.Pair.family P R).Leaf Digest Enc)
-    (indices : Fin t ↪ Fin n) (nonces : Fin n → Digest)
+    (scheme : Scheme (Fin n × MerkleNonce) (Joint.Pair.family P R).Leaf Digest Enc)
+    (indices : Fin t ↪ Fin n) (nonces : Fin n → MerkleNonce)
     (columns : Fin n → (Joint.Pair.family P R).Leaf)
     (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))
@@ -49,8 +49,8 @@ theorem fill_honest {Enc : Type}
 
 def raw (indices : Fin t ↪ Fin n)
     (columns : ↥(OrderedOpening.query indices).coordinates → (Joint.Pair.family P R).Leaf)
-    (opening : OpeningView n (OrderedOpening.query indices).coordinates Digest Digest) :
-    OrderedOpening.Raw t Digest (Joint.Pair.family P R).Leaf Digest where
+    (opening : OpeningView n (OrderedOpening.query indices).coordinates MerkleNonce Digest) :
+    OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest where
   values i := columns (OrderedOpening.order indices i)
   nonce i := opening.proof.nonce (OrderedOpening.order indices i)
   frontier := List.ofFn fun i : Fin (Heap.frontierList n (OrderedOpening.query indices).coordinates).length =>
@@ -59,14 +59,14 @@ def raw (indices : Fin t ↪ Fin n)
 
 theorem raw_frontier_bound (indices : Fin t ↪ Fin n)
     (columns : ↥(OrderedOpening.query indices).coordinates → (Joint.Pair.family P R).Leaf)
-    (opening : OpeningView n (OrderedOpening.query indices).coordinates Digest Digest) :
+    (opening : OpeningView n (OrderedOpening.query indices).coordinates MerkleNonce Digest) :
     (raw P R indices columns opening).frontier.length ≤ t*(Heap.heapDepth n+1) := by
   have bound := Heap.frontier_card_le n (OrderedOpening.query indices).coordinates
   simpa only [raw,List.length_ofFn,Heap.frontierList_length,QuerySet.card_coordinates] using bound
 
 theorem raw_honest {Enc : Type}
-    (scheme : Scheme (Fin n × Digest) (Joint.Pair.family P R).Leaf Digest Enc)
-    (indices : Fin t ↪ Fin n) (nonces : Fin n → Digest)
+    (scheme : Scheme (Fin n × MerkleNonce) (Joint.Pair.family P R).Leaf Digest Enc)
+    (indices : Fin t ↪ Fin n) (nonces : Fin n → MerkleNonce)
     (columns : Fin n → (Joint.Pair.family P R).Leaf) :
     raw P R indices (fun i => columns i.val)
         ⟨root scheme n (fun i => (i,nonces i)) columns,
@@ -87,8 +87,8 @@ theorem raw_honest {Enc : Type}
 /-- Combining the public opening encoder with the honest opening gives
 the identical complete body, including its exact unpadded frontier. -/
 theorem fill_raw_honest {Enc : Type}
-    (scheme : Scheme (Fin n × Digest) (Joint.Pair.family P R).Leaf Digest Enc)
-    (indices : Fin t ↪ Fin n) (nonces : Fin n → Digest)
+    (scheme : Scheme (Fin n × MerkleNonce) (Joint.Pair.family P R).Leaf Digest Enc)
+    (indices : Fin t ↪ Fin n) (nonces : Fin n → MerkleNonce)
     (columns : Fin n → (Joint.Pair.family P R).Leaf)
     (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))

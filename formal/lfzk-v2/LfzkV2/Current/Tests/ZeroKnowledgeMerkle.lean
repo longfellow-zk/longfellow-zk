@@ -17,8 +17,8 @@ example {Index Nonce Leaf D Enc : Type} (C : Merkle.MH.Codec (Index × Nonce) Le
 example : Fintype.card Digest = 2^256 := digest_card
 
 example (queries : ℕ) :
-    openingError (2^256) (2^256) 2443 (2443-84) queries =
-      (47731336+4718*(queries:ℚ))/(2:ℚ)^256 := rate7_openingError queries
+    openingError (2^320) (2^256) 2443 (2443-84) queries =
+      (23872996+4718*(queries:ℚ))/(2:ℚ)^320 + 23858340/(2:ℚ)^256 := rate7_openingError queries
 
 #print axioms commit_labels
 #print axioms check_values

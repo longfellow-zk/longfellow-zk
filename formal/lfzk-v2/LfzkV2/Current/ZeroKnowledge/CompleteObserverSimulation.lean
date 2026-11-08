@@ -34,7 +34,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
@@ -60,7 +60,7 @@ theorem batching_body (request : CanonicalRequest.Request shape binary.nPublic)
     (indices : Fin 84 ↪ Fin 2443) (frontend : Body)
     (response : JointResponse.Response (First).participant (Second).participant)
     (columns : ↥(OrderedOpening.query indices).coordinates → Leaf)
-    (opened : OpeningView 2443 (OrderedOpening.query indices).coordinates Digest Digest)
+    (opened : OpeningView 2443 (OrderedOpening.query indices).coordinates MerkleNonce Digest)
     (H : Point → Digest × C) :
     CompleteCanonicalVerifier.batchingPoint binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata request
       (CompleteObserver.body binary prime binaryNodes primeNodes repr shape setup cfg indices frontend response columns opened) H =
@@ -79,7 +79,7 @@ theorem statementAt_body (request : CanonicalRequest.Request shape binary.nPubli
     (indices : Fin 84 ↪ Fin 2443) (frontend : Body)
     (response : JointResponse.Response (First).participant (Second).participant)
     (columns : ↥(OrderedOpening.query indices).coordinates → Leaf)
-    (opened : OpeningView 2443 (OrderedOpening.query indices).coordinates Digest Digest)
+    (opened : OpeningView 2443 (OrderedOpening.query indices).coordinates MerkleNonce Digest)
     (H : Point → Digest × C) :
     CompleteCanonicalVerifier.statementAt binary prime binaryNodes primeNodes repr shape setup cfg binaryCount primeCount metadata request
       (CompleteObserver.body binary prime binaryNodes primeNodes repr shape setup cfg indices frontend response columns opened) H =
@@ -89,8 +89,8 @@ theorem statementAt_body (request : CanonicalRequest.Request shape binary.nPubli
   rw [batching_body binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata]
 
 def opening (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest) (columns : Fin 2443 → Leaf) :
-    OpeningView 2443 (OrderedOpening.query indices).coordinates Digest Digest :=
+    (nonces : Fin 2443 → MerkleNonce) (columns : Fin 2443 → Leaf) :
+    OpeningView 2443 (OrderedOpening.query indices).coordinates MerkleNonce Digest :=
   let scheme := (CompleteCanonicalVerifier.merkleCodec binary prime binaryNodes primeNodes repr shape setup cfg).withOracle HM
   let values := fun i => MerkleRuntime.tupleLeaf (First).participant (Second).participant (columns i)
   ⟨root scheme 2443 (fun i => (i,nonces i)) values,
@@ -98,7 +98,7 @@ def opening (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443)
       frontierValue := fun vertex => commitLabels scheme 2443 (fun i => (i,nonces i)) values vertex.val }⟩
 
 theorem body_honest (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest) (columns : Fin 2443 → Leaf)
+    (nonces : Fin 2443 → MerkleNonce) (columns : Fin 2443 → Leaf)
     (frontend : Body) (response : JointResponse.Response (First).participant (Second).participant) :
     CompleteObserver.body binary prime binaryNodes primeNodes repr shape setup cfg indices frontend response
         (fun i => columns i.val) (opening binary prime binaryNodes primeNodes repr shape setup cfg HM indices nonces columns) =
@@ -123,7 +123,7 @@ theorem body_honest (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443)
     _ _ setup.jointContext _
 
 theorem body_dummy (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (statement : JointResponse.Statement (First).participant (Second).participant)

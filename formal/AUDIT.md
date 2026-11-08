@@ -538,7 +538,7 @@ transmission, commitment-dependent pads, cross-field conversion, packing,
 the joint backend, Merkle hiding, and transcript programming. For any event
 in the complete real or simulated observer view, its probability difference
 is at most
-`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+`(47745992+4886*Mpre+4718*Mpost)/2^320 + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
 The private observer context and both original raw traces are retained.
 The witness map is fixed per public request, and valid only at actual reachable
 requests. Trusted ordinary hash assertions must be independent of the reserved

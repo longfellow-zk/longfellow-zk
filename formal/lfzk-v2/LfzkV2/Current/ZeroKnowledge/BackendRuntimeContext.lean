@@ -31,7 +31,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -139,17 +139,17 @@ def simulatedPublic := BackendRuntime.simulatedPublicContextForTrees binary prim
 
 abbrev Shared := CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads) ×
-    MerklePreparation.Coins (Salt := Digest) (Digest := Digest)
+    MerklePreparation.Coins (Salt := MerkleNonce) (Digest := Digest)
       (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside}) 2443
 
 abbrev PrivateCoins := BackendCompiled.Coins (FrontCoin := CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
-  (Nonce := Digest) (D := Digest)
+  (Nonce := MerkleNonce) (D := Digest)
   (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside})
   (Backend.profileGeometry binaryNodes) (Backend.profileGeometry ConcreteSetup.primeNodes)
   (bw := rows binary.description.cells) (nw := rows (CellLayout.Prime.cells prime.remaining prime.pads)) (s := 12)
 
 abbrev PublicCoins := BackendCompiled.Coins (FrontCoin := CompleteSimulation.Coins binary prime)
-  (Nonce := Digest) (D := Digest)
+  (Nonce := MerkleNonce) (D := Digest)
   (Enc := {raw // raw ∈ window binary prime primePlan binaryNodes repr shape setup cfg prior after outside})
   (Backend.profileGeometry binaryNodes) (Backend.profileGeometry ConcreteSetup.primeNodes)
   (bw := rows binary.description.cells) (nw := rows (CellLayout.Prime.cells prime.remaining prime.pads)) (s := 12)
@@ -204,8 +204,8 @@ theorem backend_hiding
         (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).1) ∧
       (statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf original remaining H coins earlier labels).2.Satisfies
         (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
       (real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw original remaining H answer)
       (simulatedBackend binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw original remaining H answer) := by
   have codecInj := SHAObserverWindow.finiteCodec_inj SHAOracle.merkleDomain outside
@@ -298,8 +298,8 @@ theorem simulator_statClose
         (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).1) ∧
       (statements binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf original remaining H coins earlier labels).2.Satisfies
         (Backend.logical (cells binary prime primePlan binaryNodes repr shape setup requestOf original remaining coins earlier).2)) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM)
       (real binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw original remaining H answer)
       (simulatedPublic binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside draw H answer) := by
   have backend := backend_hiding binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside

@@ -28,7 +28,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 
 def basePublic := { cfg with bindSalt := MerkleWireCodec.bindSalt }
 

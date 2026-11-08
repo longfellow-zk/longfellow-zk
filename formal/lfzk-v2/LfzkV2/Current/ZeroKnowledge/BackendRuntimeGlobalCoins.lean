@@ -28,7 +28,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -40,12 +40,12 @@ local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.des
 abbrev PrivateRest :=
   ((CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)) ×
     CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
-      (CellLayout.Prime.cells prime.remaining prime.pads)) × HidingSample 2443 (2*2443-1) Digest Digest
+      (CellLayout.Prime.cells prime.remaining prime.pads)) × HidingSample 2443 (2*2443-1) MerkleNonce Digest
 
 abbrev PublicRest :=
   (CompleteSimulation.Coins binary prime ×
     CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
-      (CellLayout.Prime.cells prime.remaining prime.pads)) × HidingSample 2443 (2*2443-1) Digest Digest
+      (CellLayout.Prime.cells prime.remaining prime.pads)) × HidingSample 2443 (2*2443-1) MerkleNonce Digest
 
 abbrev PrivateProver := (Digest × C) × PrivateRest binary prime binaryNodes
 abbrev PublicProver := (Digest × C) × PublicRest binary prime binaryNodes

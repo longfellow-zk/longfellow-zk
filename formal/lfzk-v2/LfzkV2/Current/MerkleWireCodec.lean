@@ -4,8 +4,8 @@ import Merkle.Extraction
 
 /-! Concrete preimages of the current joint SHA-256 column tree. The joint
 layout digest is a fixed public parameter. Leaf and node inputs use the raw
-concatenations in `polygero/hash.rs`; transcript-operation tags are not part
-of these hash inputs. Executable role inverses are constructed from the
+concatenations in `rust/runtime/v2/merkle/src/hash.rs`; transcript-operation
+tags are not part of these hash inputs. Executable role inverses are constructed from the
 canonical scalar representations, rather than supplied as assumptions. -/
 noncomputable section
 namespace LfzkV2.Current.MerkleWireCodec
@@ -13,7 +13,7 @@ open Merkle Merkle.MH
 open TranscriptV2.Framing (FieldCodec encodeLE)
 open scoped Classical
 
-abbrev Salt (columns : ℕ) := Fin columns × Digest
+abbrev Salt (columns : ℕ) := Fin columns × MerkleNonce
 
 def leafDomain : Bytes := CanonicalPrefix.utf8 "polygero/joint/leaf/v1"
 def nodeDomain : Bytes := CanonicalPrefix.utf8 "polygero/joint/node/v1"
@@ -54,7 +54,7 @@ def physical : PrefixCodec
 
 def leaf : PrefixCodec (Salt n × (Joint.Pair.family P R).Leaf) :=
   (((PrefixCodec.unsigned 8 n (by simpa only [show 256^8 = 2^64 by decide] using columnsFit)).pair
-    ProofBodyCodec.digest).pair ((physical P R repr binary prime).equiv (physicalLeafEquiv P R))).prefixed
+    ProofBodyCodec.nonce).pair ((physical P R repr binary prime).equiv (physicalLeafEquiv P R))).prefixed
       (leafDomain ++ List.ofFn context)
 
 def node (context : Digest) : PrefixCodec (Digest × Digest) :=
@@ -78,15 +78,15 @@ theorem codec_inj : (codec P R repr binary prime context columnsFit).Inj :=
   (decoders P R repr binary prime context columnsFit).inj
 
 /-- The public heap coordinate is included in the salted leaf input. The
-wire opening itself still stores only its existing 32-byte nonce. -/
-def bindSalt {Key : Type} (_key : Key) (column : Fin n) (nonce : Digest) : Salt n := (column,nonce)
+wire opening itself still stores only its existing 40-byte nonce. -/
+def bindSalt {Key : Type} (_key : Key) (column : Fin n) (nonce : MerkleNonce) : Salt n := (column,nonce)
 
 theorem leaf_encode (value : Salt n × (Joint.Pair.family P R).Leaf) :
     (codec P R repr binary prime context columnsFit).leafEnc value =
       leafDomain ++ List.ofFn context ++ encodeLE 8 value.1.1.val ++ List.ofFn value.1.2 ++
         (physical P R repr binary prime).encode ((physicalLeafEquiv P R).symm value.2) := by
   simp only [codec,leaf,PrefixCodec.prefixed,PrefixCodec.equiv,PrefixCodec.pair,PrefixCodec.marker,
-    PrefixCodec.unsigned,Equiv.coe_fn_symm_mk,ProofBodyCodec.digest,PrefixCodec.bytes_encode,List.append_assoc]
+    PrefixCodec.unsigned,Equiv.coe_fn_symm_mk,ProofBodyCodec.nonce,PrefixCodec.bytes_encode,List.append_assoc]
 
 theorem node_encode (value : Digest × Digest) :
     (codec P R repr binary prime context columnsFit).nodeEnc value =
@@ -96,7 +96,7 @@ theorem node_encode (value : Digest × Digest) :
 
 /-- The actual raw scalar traversal is binary before prime, without
 separators between fixed-width rows. No row is omitted from the tuple. -/
-theorem leaf_encode_physical (column : Fin n) (nonce : Digest)
+theorem leaf_encode_physical (column : Fin n) (nonce : MerkleNonce)
     (binaryRows : Fin (P.backend.nw+3) → P.Carrier)
     (primeRows : Fin (R.backend.nw+3) → R.Carrier) :
     (codec P R repr binary prime context columnsFit).leafEnc

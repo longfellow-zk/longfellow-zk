@@ -129,8 +129,8 @@ theorem typed (complement : Bytes → Digest × Answer) (large : Finset Bytes)
       ((MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).program complement prior)
       (fun context proof => (MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).program complement (after context proof)) outside ⊆ large)
     (onlyMerkle : ∀ raw ∈ large, SHAOracle.merkleDomain raw) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
       (BackendRuntimeContextGlobal.honest binary prime.description prime.plan Nodes Repr Sh (Setup outside) (Cfg outside) bCount pCount (Meta outside)
         requestOf ((MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).program complement prior)
         (fun context proof => (MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).program complement (after context proof))
@@ -167,8 +167,8 @@ theorem raw (large transcript : Finset Bytes)
     (covers : ∀ point : {point : QueryRuntime.Runtime.Point Repr Sh (Setup outside) binary.nPublic //
       QueryRuntime.Runtime.Canonical Repr Sh (Setup outside) binary.nPublic point},
       (MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).encode point ∈ transcript) :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
       (fun coin : (BackendRuntimeGlobalCoins.PrivateProver (C := Answer) binary prime.description Nodes ×
           ({raw // raw ∈ large} → Digest)) × ({raw // raw ∈ transcript} → Digest × Answer) =>
         RequestedContextExperiment.rawHonest binary prime.description prime.plan Nodes Repr Sh (Setup outside) (Cfg outside) bCount pCount (Meta outside)
@@ -187,9 +187,9 @@ theorem raw (large transcript : Finset Bytes)
           (OracleWindow.extend transcript coin.2 (fun _ => MdocProofRate7.defaultAnswer binary prime cantor))) := by
   letI : Nonempty Answer := ⟨(MdocProofRate7.defaultAnswer binary prime cantor).2⟩
   have positive : 0 ≤ (preT : ℚ)/(2 : ℚ)^46208 := div_nonneg (Nat.cast_nonneg _) (by positivity)
-  have nonnegative' : 0 ≤ 2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208 := by
-    have old := Error.nonnegative (Fintype.card Digest) (Fintype.card Digest) 2 2443 84 preM postM 0
+  have nonnegative' : 0 ≤ 2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208 := by
+    have old := Error.nonnegative (Fintype.card MerkleNonce) (Fintype.card Digest) 2 2443 84 preM postM 0
     simp only [Error.bound,Nat.cast_zero,zero_div,add_zero] at old
     exact add_nonneg old positive
   refine RequestedContextProbability.window_statClose binary prime.description prime.plan Nodes Repr Sh (Setup outside) (Cfg outside) bCount pCount (Meta outside)
@@ -273,8 +273,8 @@ simulator. Both oracle marginals and private-context enumeration are
 constructed here; no coverage, backend or simulator certificate is an
 argument. The original private context is retained in the final view. -/
 theorem family :
-    StatClose (2*MerklePreparation.error (Fintype.card Digest) (Fintype.card Digest) 2443 preM +
-      MerkleSimulation.openingError (Fintype.card Digest) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
+    StatClose (2*MerklePreparation.error (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 preM +
+      MerkleSimulation.openingError (Fintype.card MerkleNonce) (Fintype.card Digest) 2443 (2443-84) postM + (preT : ℚ)/(2 : ℚ)^46208)
       (fun coin : (BackendRuntimeGlobalCoins.PrivateProver (C := Answer) binary prime.description Nodes ×
           ({raw // raw ∈ V} → Digest)) × ({raw // raw ∈ W} → Digest × Answer) =>
         RequestedContextExperiment.rawHonest binary prime.description prime.plan Nodes Repr Sh (Setup outside) (Cfg outside) bCount pCount (Meta outside)

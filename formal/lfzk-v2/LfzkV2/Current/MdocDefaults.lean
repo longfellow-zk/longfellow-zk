@@ -25,7 +25,7 @@ def packing {F : Type} [Zero F] (degree : ℕ) : PackingPayload F degree := by
 
 def authentication (g : Geometry) : OpeningBody.Authentication g where
   context := digest
-  nonce := fun _ => digest
+  nonce := fun _ _ => 0
   frontierLength := ⟨0,Nat.zero_lt_succ _⟩
   frontier := Fin.elim0
 

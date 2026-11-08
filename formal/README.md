@@ -51,11 +51,19 @@ The complete mdoc model also has a statistical zero-knowledge theorem:
 One witness-free simulator produces the complete proof and the observer's
 view, including arbitrary retained private state and both raw oracle traces.
 At rate 1/7 its distinguishing error is at most
-`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+`(47745992+4886*Mpre+4718*Mpost)/2^320 + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
 The [precise scope](lfzk-v2/README.md#complete-mdoc-zero-knowledge) states the
 fixed-witness, trusted-circuit and ideal-oracle assumptions. This theorem
 combines the frontend, adapter, packing, joint backend and Merkle simulation;
-it is separate from extraction soundness.
+it is separate from extraction soundness. The 40-byte nonce profile gives
+error below `2^-179` when `Mpre + Mpost <= 2^128` and `Tpre <= 2^128`,
+including all terms above, conditional on the ideal-oracle model.
+
+At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
+becomes itself questionable. The bound above should therefore not be interpreted
+as 179 bits of hiding for the concrete implementation. The parameters put
+the bottleneck in SHA-256 itself, rather than the rest of the protocol. There
+is no proven numerical SHA-256-to-random-oracle error term.
 
 ## Assumptions and remaining correspondence obligations
 
@@ -76,7 +84,7 @@ establish that a cryptographic implementation satisfies their premises.
   the other private coins are independent and uniform. The normal Rust mdoc
   entry point obtains randomness from the operating system. APIs accepting
   a caller-supplied generator require the same randomness property. Merkle
-  nonces have 256 bits; they are not assumed collision-free.
+  nonces have 320 bits; they are not assumed collision-free.
 - **Fields and representations.** The modeled fields satisfy their field
   laws; bases and scalar representations have their declared cardinality,
   canonical encoding and injectivity properties. The ZK specialization

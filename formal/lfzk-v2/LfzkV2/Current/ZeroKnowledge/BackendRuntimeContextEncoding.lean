@@ -29,7 +29,7 @@ variable (cfg : RuntimeVerifier.Public (g := CompleteSimulation.geometry binary 
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
   (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -85,7 +85,7 @@ private theorem finite_node_hash
 omit [DecidableEq Observed] in
 theorem heap_value
     (HM : {raw // raw ∈ BackendRuntimeContext.window binary prime primePlan binaryNodes repr shape setup cfg prior after outside} → Digest)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (columns : Fin 2443 → (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
       MerkleCompiler.Leaf Adapter.Mdoc.P (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0))
     (vertex : ℕ) (positive : 0 < vertex) :
@@ -110,7 +110,7 @@ theorem heap_value
 omit [DecidableEq Observed] in
 theorem committed_root
     (HM : {raw // raw ∈ BackendRuntimeContext.window binary prime primePlan binaryNodes repr shape setup cfg prior after outside} → Digest)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (columns : Fin 2443 → (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
       MerkleCompiler.Leaf Adapter.Mdoc.P (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0)) :
     MerklePreparation.actualLabels
@@ -127,13 +127,13 @@ theorem committed_root
 omit [DecidableEq Observed] in
 theorem heap_opening
     (HM : {raw // raw ∈ BackendRuntimeContext.window binary prime primePlan binaryNodes repr shape setup cfg prior after outside} → Digest)
-    (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (columns : Fin 2443 → (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
       MerkleCompiler.Leaf Adapter.Mdoc.P (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0)) :
     (let values := ((commitPass (MerkleSimulation.nonceCodec (BackendRuntimeContext.finiteCodec binary prime primePlan binaryNodes repr shape setup cfg prior after outside))
       2443 nonces (fun i => (i,columns i)) (2*2443-1) (fun _ => default)).run HM).1
     (⟨values 1,{ nonce := fun i => nonces i.val,frontierValue := fun vertex => values vertex.val }⟩ :
-      OpeningView 2443 (OrderedOpening.query indices).coordinates Digest Digest)) =
+      OpeningView 2443 (OrderedOpening.query indices).coordinates MerkleNonce Digest)) =
       CompleteObserverSimulation.opening binary.description prime binaryNodes ConcreteSetup.primeNodes repr shape setup cfg
         (BackendRuntimeContext.expanded binary prime primePlan binaryNodes repr shape setup cfg prior after outside HM) indices nonces columns := by
   exact MerkleRuntimeTransport.openingView_eq_of_labels 2443 (OrderedOpening.query indices).coordinates nonces
@@ -161,7 +161,7 @@ theorem observer_output
       (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
         MerkleCompiler.Leaf Adapter.Mdoc.P (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0))
     (labels : Fin (2*2443-1) → Digest)
-    (opened : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates Digest Digest) :
+    (opened : OpeningView 2443 (OrderedOpening.query (cfg.sample answer.2)).coordinates MerkleNonce Digest) :
     ((BackendRuntimeContext.observer binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata
       requestOf prior after outside H answer priorState publicView columns labels opened).run HM).1 =
       observeCompletion binary prime primePlan repr shape setup after priorState.1 priorState.2
@@ -192,7 +192,7 @@ theorem runView_output
     (publicView : Body × JointResponse.Response (First).participant (Second).participant)
     (columns : Fin 2443 → (MerkleCompiler.Leaf B (rows binary.description.cells) 0 ×
       MerkleCompiler.Leaf Adapter.Mdoc.P (rows (CellLayout.Prime.cells prime.remaining prime.pads)) 0))
-    (nonces : Fin 2443 → Digest) (labels : Fin (2*2443-1) → Digest) :
+    (nonces : Fin 2443 → MerkleNonce) (labels : Fin (2*2443-1) → Digest) :
     BackendCompiled.runView (BackendRuntimeContext.finiteCodec binary prime primePlan binaryNodes repr shape setup cfg prior after outside)
       postM (OrderedOpening.query (cfg.sample answer.2)) id
       (BackendRuntimeContext.observer binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata requestOf prior after outside H answer)

@@ -199,8 +199,8 @@ For every bounded classical observer and every distinguishing event `E`,
 
 ```text
 |Pr[real view ∈ E] - Pr[simulated view ∈ E]|
-  <= (95462672 + 4886*Mpre + 4718*Mpost)/2^256
-     + 4884*Mpre/2^512 + Tpre/2^46208.
+  <= (47745992 + 4886*Mpre + 4718*Mpost)/2^320
+     + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208.
 ```
 
 `Mpre` and `Mpost` bound the observer's SHA queries before and after the
@@ -209,6 +209,22 @@ The observer may retain arbitrary private state and make arbitrary malformed
 or repeated raw input queries. Its complete proof, private state, final output,
 and both ordered raw query/answer traces form the compared view. Later
 transcript queries have any finite bound and add no separate error term.
+
+The runtime uses independent 40-byte leaf nonces (`merkleNonceBytes` in the
+model, `NONCE_LEN` in Rust); SHA-256 digests remain 32 bytes. With
+`Mpre + Mpost <= 2^128` and `Tpre <= 2^128`, the complete error is strictly
+below `2^-179` (approximately `2^-179.746` at the worst Merkle-query split).
+[`Error.rate7_at_query_budget`](LfzkV2/Current/ZeroKnowledge/Error.lean)
+checks this budget;
+[`MdocZeroKnowledge.statClose_at_query_budget`](LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean)
+applies it to the complete real and simulated views. Relative to 32-byte
+nonces, the 84 opened columns add exactly 672 nonce bytes to the proof. These are ideal-oracle statistical bounds.
+
+At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
+becomes itself questionable. The bound above should therefore not be interpreted
+as 179 bits of hiding for the concrete implementation. The parameters put
+the bottleneck in SHA-256 itself, rather than the rest of the protocol. No
+numerical SHA-256-to-random-oracle error is asserted.
 
 The explicit `MdocZeroKnowledge.simulate` has no witness argument. It calls
 the public frontend/backend simulator, constructs ordered authentication data,

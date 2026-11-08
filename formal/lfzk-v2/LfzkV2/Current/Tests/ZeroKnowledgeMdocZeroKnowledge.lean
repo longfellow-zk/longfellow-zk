@@ -9,5 +9,6 @@ namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocZeroKnowledge
 #check @ZeroKnowledge.MdocZeroKnowledge.statClose
 #print axioms ZeroKnowledge.MdocZeroKnowledge.fixedComplement
 #print axioms ZeroKnowledge.MdocZeroKnowledge.statClose
+#print axioms ZeroKnowledge.MdocZeroKnowledge.statClose_at_query_budget
 
 end LfzkV2.Current.Tests.ZeroKnowledgeMdocZeroKnowledge

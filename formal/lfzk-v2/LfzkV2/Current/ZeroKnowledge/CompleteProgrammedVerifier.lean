@@ -24,7 +24,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × Digest))
+  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
 local notation "Data" => Σ A : RuntimeVerifier.System binary prime (C := C), StatementData A First Second
@@ -38,7 +38,7 @@ variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg)
-variable (codec : Codec (Fin 2443 × Digest) (RuntimeVerifier.Family binary prime
+variable (codec : Codec (Fin 2443 × MerkleNonce) (RuntimeVerifier.Family binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg).Leaf Digest Enc)
 variable [Inhabited (RuntimeVerifier.Family binary prime
@@ -62,7 +62,7 @@ theorem accepts
       (Authentication := OpeningBody.Authentication g) (Context := Key)
       (Block := Base × ProtocolWrites.Fresh g fields Advice) (C := C))
     (encoded : RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier request = e.encoding)
-    (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)

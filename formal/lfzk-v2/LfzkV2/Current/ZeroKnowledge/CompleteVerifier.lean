@@ -30,7 +30,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × Digest))
+  (Base := Base) (Key := Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
 local notation "Family" => RuntimeVerifier.Family binary prime P R cfg
@@ -45,10 +45,10 @@ variable (earlier : Request → Replay.Encoding g fields Advice (OpeningBody.Aut
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg)
-variable (codec : Codec (Fin 2443 × Digest) (RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg).Leaf Digest Enc)
+variable (codec : Codec (Fin 2443 × MerkleNonce) (RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) cfg).Leaf Digest Enc)
 
 theorem simulatedBody_responses (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (statement : JointResponse.Statement (First).participant (Second).participant)
@@ -63,7 +63,7 @@ theorem simulatedBody_responses (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 
     CompleteBody.fill, wireResponses, Prod.eta, Equiv.apply_symm_apply]
 
 theorem simulatedBody_raw (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (statement : JointResponse.Statement (First).participant (Second).participant)
@@ -84,7 +84,7 @@ theorem acceptance_of_encoded_simulation
     (output : Output)
     (H : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C)
     (HM : Enc → Digest) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → Digest)
+    (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data)

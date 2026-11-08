@@ -31,7 +31,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × Digest))
+  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
@@ -51,7 +51,7 @@ local notation "Data" => Σ A : RuntimeVerifier.System binary prime (C := C), St
 local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
 
-def body (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+def body (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)
@@ -61,7 +61,7 @@ def body (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2
     HM indices nonces tape data.2.statement coin frontend setup.jointContext
 
 def simulate (request : CanonicalRequest.Request shape binary.nPublic)
-    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (data : Data) (coin : JointResponse.Coin (First).participant (Second).participant)
@@ -80,7 +80,7 @@ variable (draw : C → RuntimeVerifier.RawSamples binary prime
 
 /-- Commit the zero-cell backend before any frontend challenge. Terminal
 fields here are placeholders; they do not enter the batching prefix. -/
-def committedFrontend (HM : Bytes → Digest) (nonces : Fin 2443 → Digest)
+def committedFrontend (HM : Bytes → Digest) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads)) (frontend : Body) : Body :=
   { frontend with commitment :=
@@ -112,7 +112,7 @@ public parser. It has no statement/correctness argument. Invalid frontend
 encodings return `none`; the frontend correctness proof rules that out for
 the complete public simulator. -/
 def complete (request : CanonicalRequest.Request shape binary.nPublic)
-    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → Digest)
+    (HM : Bytes → Digest) (indices : Fin 84 ↪ Fin 2443) (nonces : Fin 2443 → MerkleNonce)
     (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (frontend : Body) (H : Point → Digest × C) (answer : Digest × C) :
