@@ -15,7 +15,7 @@ impl<E: Clone> PackingMasks<E> {
     /// product constraint for this relation. If b is dishonest, sigma(r)-b is
     /// still a fixed offset before delta; the Lean linear soundness theorem
     /// counts solutions to that affine equation with the same 1/|F| bound.
-    pub fn sample<X: PackingExtension>(
+    pub(in crate::runtime::v2) fn sample<X: PackingExtension>(
         p: &PackingParameters<X>,
         mut sample: impl FnMut() -> E,
     ) -> Self
@@ -35,7 +35,7 @@ impl<E: Clone> PackingMasks<E> {
 /// Reduce the ZK input claim using the originally committed words. Identity
 /// uses no words. `statement` identifies a claim already determined by the
 /// preceding transcript; both returned rows still require authentication.
-pub(crate) fn prove_packed<X: PackingExtension>(
+pub(in crate::runtime::v2) fn prove_packed<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     words: &[E<X>],

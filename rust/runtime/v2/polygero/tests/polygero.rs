@@ -25,9 +25,8 @@ use crate::{
             range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
             RangeInterpolatorFactory, RuntimeField, SupportsSampling,
         },
-        proto::Digest,
         random::{DeterministicRng, RandomEngine},
-        v2::transcript::Transcript,
+        v2::{proto::Digest, transcript::Transcript},
     },
 };
 
@@ -577,7 +576,7 @@ fn reject_invalid_geometry_and_backend_contracts() {
 }
 #[test]
 fn merkle_codecs_bind_role_index_context_and_salt() {
-    use crate::runtime::{algebra::gf2_128::Gf2_128Field, proto::MerkleNonce};
+    use crate::runtime::{algebra::gf2_128::Gf2_128Field, v2::proto::MerkleNonce};
     let f = Gf2_128Field::new();
     let context = Digest::default();
     let other = Digest { data: [1; 32] };
@@ -608,7 +607,7 @@ fn merkle_codecs_bind_role_index_context_and_salt() {
 
 #[test]
 fn duplicate_opening_indices_reject_with_polygero_node_hash() {
-    use crate::runtime::merkle::{heap::verify_proof_with_hash, MerkleError, MerkleHeap};
+    use crate::runtime::v2::merkle::{verify_proof_with_hash, MerkleError, MerkleHeap};
     let context = Digest::default();
     let leaves = [Digest { data: [1; 32] }, Digest { data: [2; 32] }];
     let tree = MerkleHeap::new_with_hash(&leaves, |l, r| super::hash::node(&context, l, r));

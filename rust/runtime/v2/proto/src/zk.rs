@@ -1,15 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Shared v2 proof envelope and deterministic commitment layout.
+//! V2 proof messages, public geometry and complete-proof encoding.
 use crate::{
-    core::{
-        algebra::{ElementOf, SerializableField},
-        proto::v2::Circuit,
-    },
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{
-            packing::{PackingExtension, PackingField},
-            RuntimeField,
-        },
+        algebra::RuntimeField,
         v2::proto::{
             dual_packing::PackingProof,
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
@@ -18,44 +12,6 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PackingLayout {
-    pub private_inputs: usize,
-    pub packed_words: usize,
-    pub masks: usize,
-    pub suffix_start: usize,
-    pub pad_cells: usize,
-    pub witness_count: usize,
-    pub degree: usize,
-}
-impl PackingLayout {
-    pub fn new(private_inputs: usize, pad_cells: usize, degree: usize) -> Result<Self, String> {
-        if degree == 0 {
-            return Err("zero packing degree".into());
-        }
-        let packed_words = private_inputs.div_ceil(degree);
-        let masks = if degree == 1 {
-            0
-        } else {
-            degree.checked_add(1).ok_or("packing layout overflow")?
-        };
-        let suffix_start = packed_words
-            .checked_add(masks)
-            .ok_or("packing layout overflow")?;
-        let witness_count = suffix_start
-            .checked_add(pad_cells)
-            .ok_or("packing layout overflow")?;
-        Ok(Self {
-            private_inputs,
-            packed_words,
-            masks,
-            suffix_start,
-            pad_cells,
-            witness_count,
-            degree,
-        })
-    }
-}
 /// Circuit reduction dimensions, independent of its enclosing participant list.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitGeometry {
@@ -216,43 +172,4 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         };
         crate::runtime::v2::transcript::Unverified::decoded(body, input, b)
     }
-}
-pub fn packing_layout<F: SerializableField + PackingField>(
-    c: &Circuit<F>,
-    f: &F,
-) -> Result<(PackingLayout, SumcheckProofGeometry), String> {
-    packing_layout_with_degree(c, f.packing_extension().degree())
-}
-pub fn packing_layout_with_degree<F: SerializableField>(
-    c: &Circuit<F>,
-    degree: usize,
-) -> Result<(PackingLayout, SumcheckProofGeometry), String> {
-    let sc = SumcheckProofGeometry::from_circuit(c);
-    sc.serialized_elements().map_err(|e| e.to_string())?;
-    let pads = sc.logw_layers.iter().try_fold(0usize, |n, &l| {
-        n.checked_add(super::sumcheck::pad_count(l))
-            .ok_or("packing layout overflow")
-    })?;
-    let layout = PackingLayout::new(
-        c.raw
-            .ninput
-            .checked_sub(c.raw.npublic_input)
-            .ok_or("public prefix")?,
-        pads,
-        degree,
-    )?;
-    Ok((layout, sc))
-}
-pub fn commitment_layout<F: SerializableField + PackingField>(
-    c: &Circuit<F>,
-    f: &F,
-) -> (SumcheckProofGeometry, usize) {
-    let (layout, geometry) = packing_layout(c, f).expect("valid commitment layout");
-    (
-        geometry,
-        layout
-            .witness_count
-            .checked_add(super::witness_selection::FINGERPRINTS)
-            .expect("valid selected commitment layout"),
-    )
 }

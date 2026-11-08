@@ -10,9 +10,52 @@ use crate::runtime::{
     v2::{
         dual_packing::generic::{FieldEquation, SourceClaim},
         polygero::PolygeroLinearTerm,
-        proto::zk::PackingLayout,
     },
 };
+/// Physical witness positions belong to ZK composition, rather than the
+/// proof codec. Both roles derive them before the commitment is processed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PackingLayout {
+    pub(crate) private_inputs: usize,
+    pub(crate) packed_words: usize,
+    pub(crate) masks: usize,
+    pub(crate) suffix_start: usize,
+    pub(crate) pad_cells: usize,
+    pub(crate) witness_count: usize,
+    pub(crate) degree: usize,
+}
+impl PackingLayout {
+    pub(crate) fn new(
+        private_inputs: usize,
+        pad_cells: usize,
+        degree: usize,
+    ) -> Result<Self, String> {
+        if degree == 0 {
+            return Err("zero packing degree".into());
+        }
+        let packed_words = private_inputs.div_ceil(degree);
+        let masks = if degree == 1 {
+            0
+        } else {
+            degree.checked_add(1).ok_or("packing layout overflow")?
+        };
+        let suffix_start = packed_words
+            .checked_add(masks)
+            .ok_or("packing layout overflow")?;
+        let witness_count = suffix_start
+            .checked_add(pad_cells)
+            .ok_or("packing layout overflow")?;
+        Ok(Self {
+            private_inputs,
+            packed_words,
+            masks,
+            suffix_start,
+            pad_cells,
+            witness_count,
+            degree,
+        })
+    }
+}
 /// Backend handoff: one logical input claim and physical sumcheck linear rows.
 #[must_use = "The source claim and linear rows require commitment authentication."]
 pub(crate) struct CommitmentStatement<E> {
@@ -24,11 +67,11 @@ pub(crate) struct PackingCommitment<
     F: PackingField,
     X: PackingExtension<Ambient = F> = <F as PackingField>::Packing,
 > {
-    pub parameters: PackingParameters<X>,
-    pub layout: PackingLayout,
+    pub(crate) parameters: PackingParameters<X>,
+    pub(crate) layout: PackingLayout,
 }
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn new(f: F, layout: PackingLayout, extension: X) -> Result<Self, String> {
+    pub(crate) fn new(f: F, layout: PackingLayout, extension: X) -> Result<Self, String> {
         Ok(Self {
             parameters: PackingParameters::new(f, extension)?,
             layout,

@@ -20,17 +20,15 @@ use crate::{
     core::algebra::{AlgebraicField, SupportsU64Conversions},
     runtime::{
         algebra::p256::P256Field,
-        proto::{
+        v1::proto::{
+            ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
             merkle::{Digest, MerkleNonce, MerkleProof},
+            subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
+            sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
             util::{
                 read_elt_field, read_size_4bytes, write_elt_field, write_size_4bytes,
                 zero_field_element,
             },
-        },
-        v1::proto::{
-            ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
-            subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
-            sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
             zk::{ZkProof, ZkProofGeometry},
         },
     },

@@ -113,7 +113,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     constraints: Constraints<F::E>,
     pads: &CircuitPadLayout,
     public: &[F::E],
-    layout: &crate::runtime::v2::proto::zk::PackingLayout,
+    layout: &crate::runtime::v2::zk::packing_commitment::PackingLayout,
     f: &F,
 ) -> Result<super::packing_commitment::CommitmentStatement<F::E>, String> {
     use crate::runtime::v2::dual_packing::generic::{Affine, SourceClaim};

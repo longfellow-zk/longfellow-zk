@@ -240,10 +240,12 @@ fn parse_crate_tree(raw: &str, prefix: Option<&str>, deps: &mut BTreeSet<String>
         .collect();
     if ident.is_empty() {
         if s.starts_with('*') {
-            if let Some(prefix) = prefix {
-                deps.insert(dependency_module(prefix));
-            }
+            deps.insert(prefix.map_or_else(|| "crate".to_owned(), dependency_module));
         }
+        return;
+    }
+    if prefix.is_none() && ident == "self" {
+        deps.insert("crate".to_owned());
         return;
     }
     let path = match prefix {
@@ -257,15 +259,14 @@ fn parse_crate_tree(raw: &str, prefix: Option<&str>, deps: &mut BTreeSet<String>
     } else if matches!(
         path.split("::").next(),
         Some("util" | "core" | "runtime" | "compile" | "circuits" | "mdoc" | "tools")
-    ) && (path == "util" || path.contains("::"))
-    {
+    ) {
         deps.insert(dependency_module(&path));
     }
 }
 
 /// Compatibility paths resolve to the implementation that owns them. This
 /// keeps old public imports from concealing cross-version dependencies, while
-/// shared field/RNG/Merkle imports still refer to their common implementations.
+/// shared field/RNG imports still refer to their common implementations.
 fn dependency_module(path: &str) -> String {
     let parts: Vec<_> = path.split("::").collect();
     if parts[0] == "util" {
@@ -286,7 +287,7 @@ fn dependency_module(path: &str) -> String {
             Some("sumcheck_v2" | "polygero" | "zk_v2" | "dual_packing" | "witness_selection") => {
                 return parts[..3].join("::")
             }
-            _ => None,
+            _ => Some(("v1", "proto")),
         },
         "random" => match parts.get(2).copied() {
             Some("v1") => Some(("v1", "random")),
@@ -308,16 +309,7 @@ fn dependency_module(path: &str) -> String {
         {
             Some(("v1", "subfield"))
         }
-        "merkle"
-            if parts.iter().any(|part| {
-                matches!(
-                    *part,
-                    "commitment" | "commit" | "open" | "verify" | "MerkleCommitment"
-                )
-            }) =>
-        {
-            Some(("v1", "merkle"))
-        }
+        "merkle" => Some(("v1", "merkle")),
         _ => None,
     };
     match owned {
@@ -355,7 +347,7 @@ fn runtime_compatibility_paths_resolve_to_their_owners() {
         ),
         (
             "use crate::runtime::merkle::heap::verify_proof;",
-            "runtime::merkle",
+            "runtime::v1::merkle",
         ),
     ] {
         assert_eq!(
@@ -367,6 +359,179 @@ fn runtime_compatibility_paths_resolve_to_their_owners() {
         extract_crate_deps("use crate::runtime::{algebra::p256::{P256Field, P256SubfieldV1}, random::{RandomEngine, Transcript}};"),
         BTreeSet::from(["runtime::algebra", "runtime::random", "runtime::v1::subfield", "runtime::v1::transcript"].map(str::to_owned))
     );
+}
+
+/// Merkle operations consume proof data and private randomness. Proof data
+/// and codecs never depend on commitment/prover/verifier implementations.
+fn runtime_storage_dependency_allowed(module: &str, dependency: &str) -> bool {
+    let parts: Vec<_> = module.split("::").collect();
+    if parts.len() != 3 || parts[0] != "runtime" || !matches!(parts[1], "v1" | "v2") {
+        return true;
+    }
+    match parts[2] {
+        "merkle" => {
+            dependency == module
+                || dependency == format!("runtime::{}::proto", parts[1])
+                || matches!(dependency, "runtime::random" | "util")
+        }
+        "proto" => {
+            dependency == module
+                || matches!(
+                    dependency,
+                    "core::algebra" | "core::proto" | "runtime::algebra" | "util"
+                )
+                || (parts[1] == "v1" && dependency == "runtime::v1::subfield")
+                || (parts[1] == "v2" && dependency == "runtime::v2::transcript")
+        }
+        _ => true,
+    }
+}
+
+#[test]
+fn runtime_storage_checks_resolve_legacy_aliases_and_reject_upward_dependencies() {
+    for (module, source) in [
+        ("runtime::v2::merkle", "use crate::runtime::proto::Digest;"),
+        (
+            "runtime::v2::merkle",
+            "use crate::runtime::{merkle::heap::MerkleHeap};",
+        ),
+        (
+            "runtime::v2::merkle",
+            "use crate::runtime::v2::polygero::Participant;",
+        ),
+        (
+            "runtime::v1::merkle",
+            "use crate::runtime::v2::proto::Digest;",
+        ),
+        (
+            "runtime::v1::proto",
+            "use crate::runtime::v1::ligero::LigeroProver;",
+        ),
+        (
+            "runtime::v2::proto",
+            "use crate::runtime::v2::zk::ZkVerifier;",
+        ),
+        ("runtime::v2::proto", "use crate::runtime as rt;"),
+    ] {
+        let dependencies = extract_crate_deps(source);
+        assert!(!dependencies.is_empty(), "untracked import: {source}");
+        assert!(
+            dependencies
+                .iter()
+                .any(|dep| !runtime_storage_dependency_allowed(module, dep)),
+            "missed {module} dependency in {source}"
+        );
+    }
+    for module in ["runtime::v1::merkle", "runtime::v2::merkle"] {
+        let version = module.split("::").nth(1).unwrap();
+        for dependency in [
+            module.to_owned(),
+            format!("runtime::{version}::proto"),
+            "runtime::random".into(),
+        ] {
+            assert!(runtime_storage_dependency_allowed(module, &dependency));
+        }
+    }
+    for (source, expected) in [
+        ("use crate::runtime::proto::Digest;", "runtime::v1::proto"),
+        (
+            "use crate::runtime::proto::{util, MerkleProof};",
+            "runtime::v1::proto",
+        ),
+        (
+            "use crate::runtime::v2::proto::Digest;",
+            "runtime::v2::proto",
+        ),
+    ] {
+        assert_eq!(
+            extract_crate_deps(source),
+            BTreeSet::from([expected.to_owned()])
+        );
+    }
+}
+
+#[test]
+fn runtime_ownership_and_visibility_boundaries_are_explicit() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert!(!root.join("runtime/merkle").join("src/lib.rs").exists());
+    assert!(!root.join("runtime/proto").join("src/lib.rs").exists());
+    for (version, expected) in [
+        ("v1", BTreeSet::from(["commitment.rs", "heap.rs", "lib.rs"])),
+        ("v2", BTreeSet::from(["hash.rs", "heap.rs", "lib.rs"])),
+    ] {
+        let directory = root.join(format!("runtime/{version}/merkle/src"));
+        let files: BTreeSet<_> = fs::read_dir(&directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(files, expected.into_iter().map(str::to_owned).collect());
+    }
+    let namespace = fs::read_to_string(root.join("runtime/mod.rs")).unwrap();
+    assert!(namespace.contains("#![deny(unreachable_pub, private_interfaces)]"));
+    let mut files = Vec::new();
+    collect_rs_files(&root.join("runtime"), &mut files);
+    for file in files {
+        let source = production_code(&fs::read_to_string(&file).unwrap());
+        let compact: String = source.chars().filter(|ch| !ch.is_whitespace()).collect();
+        for suppression in [
+            "allow(unreachable_pub)",
+            "expect(unreachable_pub)",
+            "allow(private_interfaces)",
+            "expect(private_interfaces)",
+        ] {
+            assert!(
+                !compact.contains(suppression),
+                "visibility suppression in {}",
+                file.display()
+            );
+        }
+    }
+    assert_eq!(
+        extract_crate_deps(
+            "pub(in crate::runtime::v2) struct X; use crate::runtime::v2::proto::Digest;"
+        ),
+        BTreeSet::from(["runtime::v2::proto".to_owned()])
+    );
+}
+
+#[test]
+fn runtime_dependencies_cannot_hide_behind_parent_or_crate_aliases() {
+    for source in [
+        "use crate as root;",
+        "use longfellow_zk as root;",
+        "use crate::*;",
+        "use crate::{util, self as root};",
+    ] {
+        assert!(
+            extract_crate_deps(source).contains("crate"),
+            "untracked root alias: {source}"
+        );
+    }
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for component in ["algebra", "random", "v1", "v2"] {
+        let mut files = Vec::new();
+        collect_rs_files(&root.join(format!("runtime/{component}")), &mut files);
+        for file in files {
+            let relative = file.strip_prefix(root).unwrap();
+            if !relative.components().any(|part| part.as_os_str() == "src") {
+                continue;
+            }
+            let source = production_code(&fs::read_to_string(&file).unwrap());
+            let compact: String = source.chars().filter(|ch| !ch.is_whitespace()).collect();
+            assert!(
+                !compact.contains("super::super::"),
+                "cross-component paths must name their owner explicitly: {}",
+                file.display()
+            );
+            if file.file_name().is_some_and(|name| name == "lib.rs") {
+                assert!(
+                    !compact.contains("super::"),
+                    "component roots must name external dependencies explicitly: {}",
+                    file.display()
+                );
+            }
+        }
+    }
 }
 
 /// Namespace compatibility must remain a reexport, never a second implementation.
@@ -393,6 +558,16 @@ fn extract_crate_deps(source: &str) -> BTreeSet<String> {
     let normalized = source.replace("longfellow_zk::", "crate::");
     let src = normalized.as_str();
     let mut deps = BTreeSet::new();
+    let tokens: Vec<_> = src
+        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+        .filter(|token| !token.is_empty())
+        .collect();
+    if tokens
+        .windows(3)
+        .any(|words| words == ["use", "crate", "as"] || words == ["use", "longfellow_zk", "as"])
+    {
+        deps.insert("crate".to_owned());
+    }
     let bytes = src.as_bytes();
     let needle = b"crate::";
     let mut i = 0;
@@ -400,8 +575,15 @@ fn extract_crate_deps(source: &str) -> BTreeSet<String> {
         if &bytes[i..i + needle.len()] == needle
             && (i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_'))
         {
+            // A visibility restriction names an ancestor, not a dependency.
+            // Keep parent-namespace imports visible to the checker, though.
+            let visibility = src[..i].rsplit_once('(').is_some_and(|(before, after)| {
+                before.trim_end().ends_with("pub") && after.trim() == "in"
+            });
             let rest = &src[i + needle.len()..];
-            parse_crate_tree(rest, None, &mut deps);
+            if !visibility {
+                parse_crate_tree(rest, None, &mut deps);
+            }
             i += needle.len();
         } else {
             i += 1;
@@ -465,9 +647,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("core::bits", "core/bits/src"),
         ("core::proto", "core/proto/src"),
         ("runtime::algebra", "runtime/algebra/src"),
-        ("runtime::proto", "runtime/proto/src"),
         ("runtime::random", "runtime/random/src"),
-        ("runtime::merkle", "runtime/merkle/src"),
         ("runtime::v1::sumcheck", "runtime/v1/sumcheck/src"),
         ("runtime::v2::sumcheck", "runtime/v2/sumcheck/src"),
         ("runtime::v2::zk", "runtime/v2/zk/src"),
@@ -482,7 +662,8 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::v1::proto", "runtime/v1/proto/src"),
         ("runtime::v1::subfield", "runtime/v1/subfield/src"),
         ("runtime::v1::random", "runtime/v1/random.rs"),
-        ("runtime::v1::merkle", "runtime/v1/merkle.rs"),
+        ("runtime::v1::merkle", "runtime/v1/merkle/src"),
+        ("runtime::v2::merkle", "runtime/v2/merkle/src"),
         ("runtime::v1::transcript", "runtime/v1/transcript/src"),
         ("runtime::v2::proto", "runtime/v2/proto/src"),
         ("runtime::v2::transcript", "runtime/v2/transcript/src"),
@@ -560,10 +741,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
             let content = fs::read_to_string(&f).expect("read rs file");
             // Keep production after test-only items; ignore comments and literals.
             let prod_content = production_code(&content);
-            if matches!(
-                mod_name,
-                "runtime::algebra" | "runtime::proto" | "runtime::random" | "runtime::merkle"
-            ) {
+            if matches!(mod_name, "runtime::algebra" | "runtime::random") {
                 for word in prod_content.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
                 {
                     assert!(
@@ -615,6 +793,11 @@ fn test_module_dependency_dag_and_layer_boundaries() {
             for dep in extract_crate_deps(&prod_content) {
                 if dep != mod_name {
                     assert!(
+                        runtime_storage_dependency_allowed(mod_name, &dep),
+                        "Proof/Merkle boundary: {mod_name} ({}) imports {dep}",
+                        f.display()
+                    );
+                    assert!(
                         !(mod_name == "mdoc::runtime" && dep == "runtime::v2::witness_selection"),
                         "mdoc must compose selection through zk-v2: {}",
                         f.display()
@@ -642,13 +825,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                             f.display()
                         );
                     }
-                    if matches!(
-                        mod_name,
-                        "runtime::algebra"
-                            | "runtime::proto"
-                            | "runtime::random"
-                            | "runtime::merkle"
-                    ) {
+                    if matches!(mod_name, "runtime::algebra" | "runtime::random") {
                         assert!(
                             !dep.starts_with("runtime::v1::") && !dep.starts_with("runtime::v2::"),
                             "Versioned protocol in shared implementation {}: {dep}",
@@ -731,12 +908,7 @@ fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<Strin
             && !local.contains(&dependency)
             && !matches!(
                 dependency.as_str(),
-                "core::algebra"
-                    | "core::proto"
-                    | "runtime::algebra"
-                    | "runtime::proto"
-                    | "runtime::random"
-                    | "util"
+                "core::algebra" | "core::proto" | "runtime::algebra" | "runtime::random" | "util"
             )
         {
             return Some(dependency);
@@ -949,7 +1121,6 @@ fn test_v2_role_and_shared_module_boundaries() {
     }
     for name in [
         "config",
-        "hash",
         "param",
         "polynomials",
         "constraints",
@@ -1235,7 +1406,7 @@ fn test_polygero_compiler_boundaries() {
             assert!(
                 matches!(
                     dependency.as_str(),
-                    "compile::polygero" | "core::algebra" | "runtime::proto" | "runtime::v2::proto"
+                    "compile::polygero" | "core::algebra" | "runtime::v2::proto"
                 ),
                 "Parameter selection dependency in {}: {dependency}",
                 file.display()
@@ -1391,7 +1562,6 @@ fn test_polygero_source_layout_and_test_privacy() {
     collect_rs_files(&directory, &mut files);
     let expected: BTreeSet<_> = [
         "lib.rs",
-        "hash.rs",
         "joint.rs",
         "constraints.rs",
         "config.rs",
@@ -1488,7 +1658,6 @@ fn test_packing_dependencies_and_role_separation() {
                 "core::algebra",
                 "runtime::algebra",
                 "runtime::random",
-                "runtime::proto",
                 "runtime::v2::proto",
                 "runtime::v2::transcript",
             ][..],
@@ -1810,7 +1979,6 @@ fn test_shared_primitives_exclude_versioned_capabilities() {
         "compile/compiler/src/scheduling.rs",
         "compile/compiler/src/graph.rs",
         "compile/compiler/src/segment.rs",
-        "runtime/proto/src/util.rs",
         "runtime/algebra/src/range_interpolation/mod.rs",
     ] {
         let source = fs::read_to_string(root.join(relative)).unwrap();
@@ -1962,7 +2130,6 @@ fn test_witness_selection_protocol_boundaries() {
                     "runtime::v2::witness_selection"
                         | "runtime::v2::polygero"
                         | "runtime::algebra"
-                        | "runtime::proto"
                         | "runtime::random"
                         | "runtime::v2::proto"
                         | "runtime::v2::transcript"

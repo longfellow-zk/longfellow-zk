@@ -194,16 +194,16 @@ are audited against that model.
 
 ## Performance
 
-Complete NEXT v11 mdoc presentations, measured on 2026-11-07 with Rust 1.99.1
-on a Ryzen 9 9950X, single-threaded with boost and AVX disabled.
-Times are medians of 64 samples with warmups discarded; heap measurements use
+Complete NEXT v11 mdoc presentations, measured on 2026-11-08 with Rust 1.99.1
+on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
+Times are medians of 16 samples after one warmup; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
 two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 140.1 ms | 77.9 ms | 137,967 | 42.82 MiB | 34.79 MiB |
-| 4 | 151.0 ms | 81.5 ms | 138,063 | 47.43 MiB | 37.84 MiB |
+| 2 | 130.7 ms | 74.9 ms | 137,967 | 42.82 MiB | 34.79 MiB |
+| 4 | 141.6 ms | 78.8 ms | 138,063 | 47.43 MiB | 37.84 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -255,11 +255,15 @@ compiler. Proving and verification do not require the `compiler` feature.
 
 V1 and v2 implementations occupy separate directories and have their own
 application types, specifications, transcripts, and proof codecs. They share
-basic infrastructure such as arithmetic, interpolation, randomness, and
-Merkle trees. Shared implementations live directly under `runtime/`; protocol
+arithmetic, interpolation and private randomness. Each version owns its Merkle
+tree, hashing, nonce/proof types and wire codecs. Shared implementations live
+directly under `runtime/`; protocol
 implementations live under `runtime/v1/` and `runtime/v2/`. The versions have
 no implementation dependency on each other. Compatibility reexports retain
 the existing public v1 paths and refer to the same types and functions.
+In particular, `runtime::merkle` and `runtime::proto` are aliases to v1.
+V2 uses distinct digest types, internal Merkle operations and canonical field
+decoding; its nonce types and authentication envelope remain internal.
 
 Polygero uses recursive `(Participant, Tail)` tuples ending in `()`. Each
 participant keeps its field, interpolation domain, witness rows, and arithmetic
@@ -330,9 +334,9 @@ they are not separate crates.
 |---|---|
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
 | `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
-| `runtime/algebra/`, `runtime/random/`, `runtime/merkle/`, `runtime/proto/` | Shared arithmetic, private randomness, tree primitives, and basic encodings |
-| `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, and proof codecs |
-| `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, and proof codecs |
+| `runtime/algebra/`, `runtime/random/` | Shared arithmetic, interpolation and private randomness |
+| `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, Merkle tree and proof codecs |
+| `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, Merkle tree and proof codecs |
 | `circuits/` | Reusable circuits and native witness generation |
 | `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
 | `tools/` | Rust commands for parameter auditing and specification generation |

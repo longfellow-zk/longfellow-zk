@@ -21,7 +21,7 @@ pub mod gf2_128;
 pub mod lch14;
 pub mod limb;
 pub mod nat;
-pub mod p256;
+pub(in crate::runtime::algebra) mod p256;
 pub mod packing;
 pub(in crate::runtime::algebra) mod permutations;
 pub mod poly;
@@ -54,7 +54,7 @@ impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + crate:
 {}
 
 #[cfg(any(test, feature = "tooling"))]
-pub mod fp24_ext6;
+pub(in crate::runtime::algebra) mod fp24_ext6;
 
 #[cfg(test)]
 #[path = "../tests/all/mod.rs"]

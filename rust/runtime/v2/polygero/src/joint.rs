@@ -15,8 +15,10 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        proto::Digest,
-        v2::transcript::{Reading, Transcript, Writing},
+        v2::{
+            proto::Digest,
+            transcript::{Reading, Transcript, Writing},
+        },
     },
 };
 

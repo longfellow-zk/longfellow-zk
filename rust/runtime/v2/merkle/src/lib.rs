@@ -12,21 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod heap;
+pub(in crate::runtime::v2) mod hash;
+mod heap;
 
 use std::fmt;
 
-pub use heap::{merkle_heap_len, verify_proof, MerkleHeap};
+#[cfg(any(test, feature = "verifier"))]
+pub(in crate::runtime::v2) use heap::verify_proof_with_hash;
+#[cfg(any(test, feature = "prover"))]
+pub(in crate::runtime::v2) use heap::MerkleHeap;
 
-pub use crate::runtime::proto::{Digest, MerkleNonce, MerkleProof};
+use crate::runtime::v2::proto::Digest;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MerkleError {
-    InvalidNonceLength { expected: usize, found: usize },
-    DuplicateLeafIndex { index: usize },
-    LeafIndexOutOfBounds { index: usize, num_leaves: usize },
-    ProofLengthMismatch { expected: usize, found: usize },
-    RootMismatch { expected: Digest, found: Digest },
+pub(in crate::runtime::v2) enum MerkleError {
+    DuplicateLeafIndex {
+        index: usize,
+    },
+    LeafIndexOutOfBounds {
+        index: usize,
+        num_leaves: usize,
+    },
+    #[cfg(any(test, feature = "verifier"))]
+    ProofLengthMismatch {
+        expected: usize,
+        found: usize,
+    },
+    #[cfg(any(test, feature = "verifier"))]
+    RootMismatch {
+        expected: Digest,
+        found: Digest,
+    },
     EmptyLeaves,
     LeafIndexNotOnPath,
 }
@@ -34,10 +50,6 @@ pub enum MerkleError {
 impl fmt::Display for MerkleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidNonceLength { expected, found } => write!(
-                f,
-                "invalid nonce length in proof: expected {expected}, found {found}"
-            ),
             Self::DuplicateLeafIndex { index } => {
                 write!(f, "duplicate leaf index requested: {index}")
             }
@@ -45,10 +57,12 @@ impl fmt::Display for MerkleError {
                 f,
                 "leaf index {index} out of bounds (tree has {num_leaves} leaves)"
             ),
+            #[cfg(any(test, feature = "verifier"))]
             Self::ProofLengthMismatch { expected, found } => write!(
                 f,
                 "proof length mismatch: expected {expected}, found {found}"
             ),
+            #[cfg(any(test, feature = "verifier"))]
             Self::RootMismatch { expected, found } => write!(
                 f,
                 "root mismatch: expected root {:?}, computed root {:?}",

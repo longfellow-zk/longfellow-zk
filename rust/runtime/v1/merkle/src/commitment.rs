@@ -14,7 +14,7 @@
 
 use sha2::{Digest as ShaDigest, Sha256};
 
-use crate::runtime::{
+use crate::runtime::v1::{
     merkle::{heap::verify_proof, Digest, MerkleError},
     proto::MerkleProof,
 };
@@ -58,8 +58,8 @@ where
 
 cfg_prover! {
     use crate::runtime::{
-        merkle::heap::MerkleHeap,
-        proto::MerkleNonce,
+        v1::merkle::heap::MerkleHeap,
+        v1::proto::MerkleNonce,
         random::RandomEngine,
     };
 
@@ -152,5 +152,5 @@ cfg_prover! {
 }
 
 #[cfg(test)]
-#[path = "tests/merkle.rs"]
+#[path = "../tests/commitment.rs"]
 mod tests;

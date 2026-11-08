@@ -13,13 +13,12 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        proto::Digest,
         v2::{
             polygero::{
                 joint::Participants as BackendParticipants, JointPolygeroParam, Participant,
                 PolygeroLinearTerm, PolygeroParam,
             },
-            proto::polygero::PolygeroConfig,
+            proto::{polygero::PolygeroConfig, Digest},
             transcript::{Reading, Writing},
         },
     },
@@ -32,7 +31,7 @@ pub type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
 
 /// The first `cells` positions belong to the frontend. The trailing two masks
 /// are owned by this protocol and never become field-valued circuit inputs.
-pub fn witness_count(cells: usize) -> Result<usize, String> {
+pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, String> {
     cells
         .checked_add(FINGERPRINTS)
         .ok_or_else(|| "fingerprint witness layout overflow".into())

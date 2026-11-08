@@ -16,7 +16,7 @@
 
 use crate::runtime::{
     algebra::{RangeInterpolatorFactory, ZkField},
-    proto::Digest,
+    v1::proto::Digest,
 };
 
 /// Bundles the field implementation and the interpolator factory.

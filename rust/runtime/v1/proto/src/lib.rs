@@ -2,10 +2,12 @@
 //! V1 proof declarations and their unchanged wire encoding.
 
 pub mod ligero;
+pub mod merkle;
 pub mod subfield;
 pub mod sumcheck;
+pub mod util;
 pub mod zk;
-pub use crate::runtime::proto::{merkle, util, Digest, MerkleNonce, MerkleProof};
+pub use merkle::{Digest, MerkleNonce, MerkleProof, DIGEST_LEN, NONCE_LEN};
 
 #[cfg(test)]
 #[path = "../tests/proto.rs"]

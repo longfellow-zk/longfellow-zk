@@ -78,9 +78,9 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         f: &F,
         sf: &SF,
     ) -> Result<Self> {
-        let root_bytes = crate::runtime::proto::util::read_bytes_32(bytes)?;
+        let root_bytes = crate::runtime::v1::proto::util::read_bytes_32(bytes)?;
         let com = LigeroCommitment {
-            root: crate::runtime::proto::Digest { data: root_bytes },
+            root: crate::runtime::v1::proto::Digest { data: root_bytes },
         };
 
         let sumcheck_proof = SumcheckProof::read(bytes, &geom.sc_geom, f)?;

@@ -22,19 +22,19 @@
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
-//! rows, `hash` defines column authentication, `joint` coordinates tuples, and
-//! `transcript` owns message framing and challenge rounds.
+//! rows, `joint` coordinates tuples, and `transcript` owns message framing and
+//! challenge rounds. V2 Merkle owns the column authentication codecs and tree.
 //! Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
 //! The caller supplies source-statement digests and derives A*w+b=0 locally;
 //! the digests must bind the statements independently of their sparse arrays.
-//! Parameter catalogs bound each field separately. With shared queries, use
-//! the sum of the per-field failure bounds, without assuming independence.
-//! The former single-field API and PLG9 format have been removed.
+//! Parameter catalogs bound each field separately. With shared queries, use //! the sum of the
+//! per-field failure bounds, without assuming independence. The former single-field API and PLG9
+//! format have been removed.
 mod config;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraints;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod hash;
+use crate::runtime::v2::merkle::hash;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

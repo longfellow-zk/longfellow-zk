@@ -20,13 +20,13 @@ use crate::runtime::algebra::{
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        merkle::{Digest, MerkleError},
         random::RandomEngine,
         v1::{
             ligero::{
                 LigeroCommitment, LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam,
                 LigeroProof, LigeroProver, LigeroQuadraticConstraint, LigeroVerifier,
             },
+            merkle::{Digest, MerkleError},
             subfield::BinarySubfieldV1,
             transcript::Transcript,
         },
@@ -780,7 +780,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let mut w = Vec::with_capacity(nw);
     for _ in 0..nw {
         let mut slice = &data[offset..];
-        let val = crate::runtime::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         w.push(val);
     }
@@ -789,7 +789,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let mut a = Vec::with_capacity(nw);
     for _ in 0..nw {
         let mut slice = &data[offset..];
-        let val = crate::runtime::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         a.push(val);
     }
@@ -810,7 +810,7 @@ fn test_cpp_roundtrip_gf2_128() {
         let c = read_u64(data, &mut offset);
         let w_idx = read_u64(data, &mut offset);
         let mut slice = &data[offset..];
-        let val = crate::runtime::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         llterm.push(LigeroLinearConstraint {
             c,
@@ -823,7 +823,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let mut b = Vec::with_capacity(nl);
     for _ in 0..nl {
         let mut slice = &data[offset..];
-        let val = crate::runtime::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         b.push(val);
     }

@@ -20,8 +20,10 @@
 //! specifications depend on the existing search order and tie handling.
 use crate::runtime::{
     algebra::{field::RuntimeField, RangeInterpolatorFactory},
-    proto::{DIGEST_LEN, NONCE_LEN},
-    v1::ligero::param::{LigeroConfig, LigeroParam},
+    v1::{
+        ligero::param::{LigeroConfig, LigeroParam},
+        proto::{DIGEST_LEN, NONCE_LEN},
+    },
 };
 
 /// Computes total digests inside the Merkle path.

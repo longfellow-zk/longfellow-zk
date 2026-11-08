@@ -8,7 +8,7 @@ use crate::runtime::{
 };
 
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn bind(&self, t: &mut TranscriptRef<'_>, id: &[u8; 32])
+    pub(crate) fn bind(&self, t: &mut TranscriptRef<'_>, id: &[u8; 32])
     where F: crate::core::algebra::SerializableField {
         if self.layout.degree == 1 {
             return;

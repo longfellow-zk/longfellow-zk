@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Version-neutral scalar and fixed-byte I/O; no proof layout or transcript rules.
+//! V1 scalar and fixed-byte I/O.
 
 use std::io::{Error, ErrorKind, Result};
 

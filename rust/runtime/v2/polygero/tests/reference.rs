@@ -16,7 +16,7 @@
 use super::*;
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::{merkle::MerkleHeap, proto::Digest, v2::polygero::joint::Participants},
+    runtime::v2::{polygero::joint::Participants, proto::Digest},
 };
 
 /// Preserve private rows for independent polynomial/forgery checks after prove
@@ -28,10 +28,7 @@ pub(super) fn snapshot<E: Clone>(
         context: prover.context,
         states: prover.states.clone(),
         oracle: crate::runtime::v2::polygero::prover_commitment::ColumnOracle {
-            tree: MerkleHeap {
-                num_leaves: prover.oracle.tree.num_leaves,
-                layers: prover.oracle.tree.layers.clone(),
-            },
+            tree: prover.oracle.tree.clone(),
             salts: prover.oracle.salts.clone(),
         },
         transcript: prover.transcript.fork_for_test(),

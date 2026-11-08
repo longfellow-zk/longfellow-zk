@@ -31,7 +31,7 @@ impl AlgebraicField for Prime24 {
         crate::core::algebra::fp24::invert_base(*a)
     }
 }
-impl super::super::SupportsSampling for Prime24 {
+impl crate::runtime::algebra::SupportsSampling for Prime24 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> u32 {
         crate::runtime::algebra::fp24_ext6::sample_base(rng)
     }

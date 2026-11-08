@@ -9,10 +9,9 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingField, ZkField},
-        proto::Digest,
         v2::{
             polygero::{PolygeroConfig, PolygeroParam},
-            proto::polygero::PolygeroGeometry,
+            proto::{polygero::PolygeroGeometry, Digest},
             witness_selection,
         },
     },

@@ -604,12 +604,12 @@ fn authenticate<
         + crate::runtime::algebra::SupportsSampling
         + SerializableField,
 {
-    use crate::runtime::{
-        proto::Digest,
-        v2::polygero::{
+    use crate::runtime::v2::{
+        polygero::{
             JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
             Participant, PolygeroConfig, PolygeroLinearTerm, PolygeroParam,
         },
+        proto::Digest,
     };
     let f = p.field();
     let mut rng = DeterministicRng::new(99876);

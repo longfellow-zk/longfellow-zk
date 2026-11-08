@@ -7,10 +7,25 @@
 //! ```compile_fail
 //! use longfellow_zk::runtime::v2::dual_packing::verifier::reduce;
 //! ```
+//! V2 authentication is internal to its proof protocols.
+//! ```compile_fail
+//! use longfellow_zk::runtime::v2::merkle::MerkleHeap;
+//! ```
+//! ```compile_fail
+//! use longfellow_zk::runtime::v2::proto::MerkleProof;
+//! ```
+//! V1 and v2 digests are distinct protocol types.
+//! ```compile_fail
+//! let old = longfellow_zk::runtime::proto::Digest::default();
+//! let _: longfellow_zk::runtime::v2::proto::Digest = old;
+//! ```
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[path = "dual-packing/src/lib.rs"]
 pub(crate) mod dual_packing;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[path = "merkle/src/lib.rs"]
+pub(super) mod merkle;
 #[path = "polygero/src/lib.rs"]
 pub mod polygero;
 #[path = "proto/src/lib.rs"]

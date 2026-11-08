@@ -21,7 +21,7 @@
 
 use crate::{
     core::algebra::{ElementOf, SerializableField},
-    runtime::proto::util::{read_elt_field, write_elt_field},
+    runtime::v1::proto::util::{read_elt_field, write_elt_field},
 };
 
 #[derive(Debug, Eq, PartialEq)]

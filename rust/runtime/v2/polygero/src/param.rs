@@ -27,7 +27,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField},
-        proto::Digest,
+        v2::proto::Digest,
     },
 };
 

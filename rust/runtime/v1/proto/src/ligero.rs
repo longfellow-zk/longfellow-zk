@@ -16,14 +16,14 @@ use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::{field::RuntimeField, SubfieldV1},
-        proto::{
+        v1::proto::{
+            subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
             util::{
                 read_bytes_32, read_elt_field, read_size_4bytes, read_vec_field, write_elt_field,
                 write_size_4bytes,
             },
             Digest, MerkleNonce, MerkleProof,
         },
-        v1::proto::subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
     },
 };
 

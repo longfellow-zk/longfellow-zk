@@ -19,9 +19,8 @@ use longfellow_zk::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        proto::Digest,
         random::{DeterministicRng, RandomEngine},
-        v2::{polygero::*, transcript::Transcript},
+        v2::{polygero::*, proto::Digest, transcript::Transcript},
     },
 };
 fn run<
@@ -140,7 +139,7 @@ fn main() {
             30,
         );
     }
-    #[cfg(any(test, feature = "tooling"))]
+    #[cfg(feature = "tooling")]
     {
         use longfellow_zk::runtime::algebra::{
             fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,

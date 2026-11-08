@@ -1,3 +1,4 @@
+#![deny(unreachable_pub, private_interfaces)]
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Shared arithmetic and primitives, with independent protocol implementations.
 //! The reexports below preserve public v1 paths without duplicating state
@@ -25,23 +26,16 @@ pub mod algebra {
     }
 }
 
+/// Legacy Merkle paths retain the deployed implementation and types.
 pub mod merkle {
-    #[path = "src/lib.rs"]
-    mod shared;
-    pub use commitment::verify;
-    pub use shared::*;
-
-    pub use super::v1::merkle as commitment;
-    cfg_prover! { pub use commitment::{commit, open, MerkleCommitment}; }
+    pub use super::v1::merkle::*;
 }
 
+/// Legacy proof paths retain the deployed wire encoding.
 pub mod proto {
-    #[path = "src/lib.rs"]
-    mod shared;
-    pub use shared::*;
-
     pub use super::v1::proto::{
-        ligero as ligero_v1, subfield as subfield_v1, sumcheck as sumcheck_v1, zk as zk_v1,
+        ligero as ligero_v1, merkle, subfield as subfield_v1, sumcheck as sumcheck_v1, util,
+        zk as zk_v1, Digest, MerkleNonce, MerkleProof, DIGEST_LEN, NONCE_LEN,
     };
 }
 

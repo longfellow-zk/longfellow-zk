@@ -52,7 +52,7 @@ cfg_verifier! {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LigeroError {
     InvalidProof(String),
-    MerkleCheckFailed(crate::runtime::merkle::MerkleError),
+    MerkleCheckFailed(crate::runtime::v1::merkle::MerkleError),
     LowDegreeCheckFailed,
     DotCheckFailed,
     LinearInnerProductMismatch,

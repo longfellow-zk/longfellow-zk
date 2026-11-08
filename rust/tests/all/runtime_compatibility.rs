@@ -34,3 +34,32 @@ fn legacy_runtime_paths_preserve_types_and_transcript_bytes() {
     canonical.write_bytes(b"message");
     assert_eq!(legacy.bytes(4096), canonical.bytes(4096));
 }
+
+#[test]
+fn merkle_compatibility_paths_are_v1_and_v2_types_are_independent() {
+    use std::any::TypeId;
+    assert_eq!(
+        TypeId::of::<crate::runtime::proto::Digest>(),
+        TypeId::of::<v1::proto::Digest>()
+    );
+    assert_eq!(
+        TypeId::of::<crate::runtime::proto::MerkleNonce>(),
+        TypeId::of::<v1::proto::MerkleNonce>()
+    );
+    assert_eq!(
+        TypeId::of::<crate::runtime::proto::MerkleProof>(),
+        TypeId::of::<v1::proto::MerkleProof>()
+    );
+    assert_eq!(
+        TypeId::of::<crate::runtime::merkle::MerkleHeap>(),
+        TypeId::of::<v1::merkle::MerkleHeap>()
+    );
+    assert_eq!(
+        TypeId::of::<crate::runtime::merkle::MerkleError>(),
+        TypeId::of::<v1::merkle::MerkleError>()
+    );
+    assert_ne!(
+        TypeId::of::<v1::proto::Digest>(),
+        TypeId::of::<crate::runtime::v2::proto::Digest>()
+    );
+}

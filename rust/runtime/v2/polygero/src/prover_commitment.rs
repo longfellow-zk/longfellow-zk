@@ -131,8 +131,8 @@ use sha2::{Digest as _, Sha256};
 
 use super::hash::{leaf, node};
 use crate::runtime::{
-    merkle::MerkleHeap,
-    proto::{Digest, MerkleNonce, MerkleProof},
+    v2::merkle::MerkleHeap,
+    v2::proto::{Digest, MerkleNonce, MerkleProof, NONCE_LEN},
 };
 pub(super) struct ColumnOracle {
     pub(super) tree: MerkleHeap,
@@ -141,7 +141,7 @@ pub(super) struct ColumnOracle {
 impl ColumnOracle {
     /// `append` streams every participant's column into one leaf hash. Field
     /// arithmetic stays in the participant traversal; this tree only sees bytes.
-    pub fn new(
+    pub(super) fn new(
         n: usize,
         context: &Digest,
         rng: &mut impl RandomEngine,
@@ -149,7 +149,7 @@ impl ColumnOracle {
     ) -> Self {
         let salts: Vec<_> = (0..n)
             .map(|_| MerkleNonce {
-                bytes: rng.bytes(32).try_into().unwrap(),
+                bytes: rng.bytes(NONCE_LEN).try_into().unwrap(),
             })
             .collect();
         let leaves: Vec<_> = (0..n)
@@ -166,10 +166,10 @@ impl ColumnOracle {
             salts,
         }
     }
-    pub fn root(&self) -> Digest {
+    pub(super) fn root(&self) -> Digest {
         self.tree.root()
     }
-    pub fn open(&self, indices: &[usize]) -> MerkleProof {
+    pub(super) fn open(&self, indices: &[usize]) -> MerkleProof {
         // Nonces follow query order, just like the opened values in each field.
         // MerkleHeap separately defines the canonical authentication frontier.
         MerkleProof {

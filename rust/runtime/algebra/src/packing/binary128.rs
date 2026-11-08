@@ -42,7 +42,7 @@ pub(super) fn dual_basis(f: &F) -> Vec<E> {
 /// Reversing the coefficient indices before transposition packs these four
 /// terms as u ^ (u>>121) ^ (u>>126) ^ (u>>127). The common denominator
 /// dual_127=1/(x^6+1) can be applied once after a whole field sum.
-pub(crate) fn dual_coordinate_numerators(row: &[E]) -> [E; 128] {
+pub(super) fn dual_coordinate_numerators(row: &[E]) -> [E; 128] {
     assert!(row.len() <= 128);
     let mut coordinates = [0u128; 128];
     for (j, coefficient) in row.iter().enumerate() {

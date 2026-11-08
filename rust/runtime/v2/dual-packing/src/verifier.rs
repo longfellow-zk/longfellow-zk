@@ -14,7 +14,7 @@ use crate::{
 /// equations to authenticate. This function alone does not verify a commitment.
 /// `c` must be the claim derived by ZK on this same transcript; `statement`
 /// identifies its source without reabsorbing the derived coefficients.
-pub(crate) fn reduce<X: PackingExtension>(
+pub(in crate::runtime::v2) fn reduce<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,

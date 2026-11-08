@@ -10,7 +10,7 @@ use crate::runtime::{
         blas, range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
         RuntimeField,
     },
-    proto::Digest,
+    v2::proto::Digest,
     v2::transcript::{Transcript, TranscriptRef},
 };
 #[cfg(any(test, feature = "verifier"))]
@@ -79,7 +79,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
                 )
             })
             .collect();
-        crate::runtime::merkle::heap::verify_proof_with_hash(
+        crate::runtime::v2::merkle::verify_proof_with_hash(
             p.config.n,
             &self.commitment.root,
             &proof.opening.path,

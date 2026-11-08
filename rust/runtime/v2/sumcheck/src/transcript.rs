@@ -145,7 +145,11 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
 }
 
 impl super::fragments::Schedule {
-    pub fn bind<F: SerializableField>(&self, circuits: &[&Circuit<F>], t: &mut TranscriptRef<'_>) {
+    pub(super) fn bind<F: SerializableField>(
+        &self,
+        circuits: &[&Circuit<F>],
+        t: &mut TranscriptRef<'_>,
+    ) {
         t.bind(|w| {
             w.write_bytes(b"layered-sumcheck/circuits/v1");
             w.write_bytes(&(circuits.len() as u64).to_le_bytes());
@@ -160,7 +164,7 @@ impl super::fragments::Schedule {
     /// Circuit outputs are zero assertions at the layer where they enter.
     /// Draw their coefficients and all explicit assertion coefficients from
     /// this one answer, after the preceding layer's claims have been bound.
-    pub fn start_layer<
+    pub(super) fn start_layer<
         const W: usize,
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
@@ -184,7 +188,7 @@ impl super::fragments::Schedule {
     /// Zero-layer circuits assert directly on the common input array. For a
     /// layered proof these coefficients extend the last combine answer, after
     /// both masked claims. No extra boundary or future coefficient is needed.
-    pub fn input_assertions<
+    pub(super) fn input_assertions<
         const W: usize,
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
@@ -208,7 +212,7 @@ impl super::fragments::Schedule {
     }
     /// A proof with no layers still needs one fresh assertion block on its
     /// inputs. Otherwise the input assertions already share the last combine.
-    pub fn finish_inputs<
+    pub(super) fn finish_inputs<
         const W: usize,
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(

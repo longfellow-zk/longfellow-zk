@@ -19,13 +19,17 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Affine<E> {
-    pub constant: E,
-    pub terms: Vec<(usize, E)>,
+pub(in crate::runtime::v2) struct Affine<E> {
+    pub(in crate::runtime::v2) constant: E,
+    pub(in crate::runtime::v2) terms: Vec<(usize, E)>,
 }
 #[cfg(any(test, feature = "prover"))]
 impl<E: Clone> Affine<E> {
-    pub fn evaluate<F: AlgebraicField<E = E>>(&self, values: &[E], f: &F) -> Result<E, String> {
+    pub(in crate::runtime::v2) fn evaluate<F: AlgebraicField<E = E>>(
+        &self,
+        values: &[E],
+        f: &F,
+    ) -> Result<E, String> {
         let mut result = self.constant.clone();
         for (i, k) in &self.terms {
             f.add(
@@ -41,13 +45,13 @@ impl<E: Clone> Affine<E> {
 /// The statement identifier names that source; it does not bind arbitrary
 /// caller-chosen coefficients independently of the earlier protocol.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SourceClaim<E> {
-    pub weights: Vec<E>,
-    pub rhs: Affine<E>,
-    pub auxiliary_count: usize,
+pub(in crate::runtime::v2) struct SourceClaim<E> {
+    pub(in crate::runtime::v2) weights: Vec<E>,
+    pub(in crate::runtime::v2) rhs: Affine<E>,
+    pub(in crate::runtime::v2) auxiliary_count: usize,
 }
 impl<E> SourceClaim<E> {
-    pub fn validate(&self) -> Result<(), String> {
+    pub(in crate::runtime::v2) fn validate(&self) -> Result<(), String> {
         if self
             .rhs
             .terms
@@ -62,27 +66,27 @@ impl<E> SourceClaim<E> {
 }
 /// constant + dot(words,packed) + dot(auxiliary,aux) + dot(masks,cells) = 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FieldEquation<E> {
-    pub constant: E,
-    pub words: Vec<E>,
-    pub auxiliary: Vec<(usize, E)>,
-    pub masks: Vec<E>,
+pub(in crate::runtime::v2) struct FieldEquation<E> {
+    pub(in crate::runtime::v2) constant: E,
+    pub(in crate::runtime::v2) words: Vec<E>,
+    pub(in crate::runtime::v2) auxiliary: Vec<(usize, E)>,
+    pub(in crate::runtime::v2) masks: Vec<E>,
 }
-pub use crate::runtime::v2::proto::dual_packing::PackingProof;
+pub(in crate::runtime::v2) use crate::runtime::v2::proto::dual_packing::PackingProof;
 /// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
 #[cfg(any(test, feature = "prover"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PackingMasks<E> {
+pub(in crate::runtime::v2) struct PackingMasks<E> {
     pub(super) cells: Vec<E>,
 }
 #[cfg(any(test, feature = "prover"))]
 impl<E: Clone> PackingMasks<E> {
-    pub fn cells(&self) -> &[E] {
+    pub(in crate::runtime::v2) fn cells(&self) -> &[E] {
         &self.cells
     }
 }
 #[cfg(any(test, feature = "prover"))]
-pub fn mask_cell_count(degree: usize) -> usize {
+pub(in crate::runtime::v2) fn mask_cell_count(degree: usize) -> usize {
     if degree == 1 {
         0
     } else {

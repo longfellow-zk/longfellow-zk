@@ -125,7 +125,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
             b: vec![f.subf(mu, &f.mulf(eta, &claim.target))],
             // The frontend and adapter messages already precede joint batching
             // on the shared transcript. This identifier names the source only.
-            digest: crate::runtime::proto::Digest { data: self.id },
+            digest: crate::runtime::v2::proto::Digest { data: self.id },
         })
     }
 }

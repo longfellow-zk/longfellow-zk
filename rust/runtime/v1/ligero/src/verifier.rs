@@ -76,7 +76,7 @@ impl<'a> LigeroVerifier<'a> {
         commitment: &LigeroCommitment,
         proof: &LigeroProof<W, F>,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::merkle::Digest,
+        hash_of_ligero_statement: &crate::runtime::v1::merkle::Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,
@@ -240,7 +240,7 @@ impl<'a> LigeroVerifier<'a> {
         commitment: &LigeroCommitment,
         proof: &LigeroProof<W, F>,
         f: &F,
-    ) -> Result<(), crate::runtime::merkle::MerkleError> {
+    ) -> Result<(), crate::runtime::v1::merkle::MerkleError> {
         let len = f.serialized_size_bytes();
         let mut updhash = |r: usize, _col_idx: usize, sha: &mut sha2::Sha256| {
             let mut buf = [0u8; 128];

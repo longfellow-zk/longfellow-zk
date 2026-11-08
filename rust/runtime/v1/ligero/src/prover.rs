@@ -135,7 +135,7 @@ impl<
         linear_evals: &[ElementOf<F>],
         ts: &mut Transcript,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::merkle::Digest,
+        hash_of_ligero_statement: &crate::runtime::v1::merkle::Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,

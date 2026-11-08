@@ -32,7 +32,7 @@ impl AlgebraicField for Gf2 {
         true
     }
 }
-impl super::super::SupportsSampling for Gf2 {
+impl crate::runtime::algebra::SupportsSampling for Gf2 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> bool {
         let bytes = rng(1);
         assert_eq!(
@@ -234,7 +234,7 @@ impl AlgebraicField for Gf256 {
         Gf256Element(self.field.invert(&a.0))
     }
 }
-impl super::super::SupportsSampling for Gf256 {
+impl crate::runtime::algebra::SupportsSampling for Gf256 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let bytes = rng(1);
         assert_eq!(

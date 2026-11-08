@@ -20,7 +20,7 @@
 //! All responses and opened rows use canonical full-width field elements.
 use std::io::{Error, ErrorKind, Result};
 
-use super::{read_field, Digest, MerkleProof};
+use super::{read_field, Digest, MerkleProof, NONCE_LEN};
 use crate::core::algebra::SerializableField;
 
 /// Public dimensions of a nonrecursive invocation, selected by the caller.
@@ -101,7 +101,7 @@ pub struct FieldProof<E> {
 pub struct JointPolygeroProof<B> {
     pub(crate) context: Digest,
     pub(crate) bodies: B,
-    pub(crate) opening: MerkleProof,
+    pub(in crate::runtime::v2) opening: MerkleProof,
 }
 impl<B> JointPolygeroProof<B> {
     /// Typed field bodies; no arithmetic is erased at the wire boundary.
@@ -171,7 +171,7 @@ fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidData, message)
 }
 /// Validate the shared authentication shape before reading or hashing columns.
-pub(crate) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
+pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
     if t == 0
         || t > n
         || n > (1 << 28)
@@ -222,7 +222,7 @@ impl<B> JointPolygeroProof<B> {
         let bodies = read_bodies(bytes)?;
         // Check all nonce bytes and the frontier length before allocation.
         let nonce_bytes = t
-            .checked_mul(32)
+            .checked_mul(NONCE_LEN)
             .and_then(|len| len.checked_add(4))
             .ok_or_else(|| invalid("joint opening size overflow"))?;
         if bytes.len() < nonce_bytes {

@@ -188,7 +188,7 @@ impl LigeroParam {
             block_enc: config.block_enc,
             nrow,
             nreq: config.nreq,
-            mc_pathlen: crate::runtime::merkle::merkle_heap_len(config.block_enc - dblock),
+            mc_pathlen: crate::runtime::v1::merkle::merkle_heap_len(config.block_enc - dblock),
         };
 
         Some(Self {
@@ -218,7 +218,7 @@ impl LigeroParam {
         assert_eq!(self.geom.nrow, self.iw + self.nwqrow);
         assert_eq!(
             self.geom.mc_pathlen,
-            crate::runtime::merkle::merkle_heap_len(self.geom.block_enc - self.geom.dblock)
+            crate::runtime::v1::merkle::merkle_heap_len(self.geom.block_enc - self.geom.dblock)
         );
     }
 }

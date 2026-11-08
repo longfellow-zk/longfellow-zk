@@ -23,14 +23,16 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::v2::{
         polygero::{PolygeroConfig, PolygeroParam},
-        proto::zk::PackingLayout,
-        zk::{packing_commitment::PackingCommitment, CircuitGeometry},
+        zk::{
+            packing_commitment::{PackingCommitment, PackingLayout},
+            CircuitGeometry,
+        },
     },
 };
 
 /// Borrow an interpolation domain together with its own arithmetic field.
 pub struct ZkContext<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> {
-    pub domain: &'a D,
+    pub(crate) domain: &'a D,
     _field: std::marker::PhantomData<&'a F>,
 }
 impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> ZkContext<'a, W, F, D> {

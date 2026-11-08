@@ -18,7 +18,7 @@
 use super::read_field;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
-    runtime::proto::util::write_elt_field,
+    runtime::v2::proto::util::write_elt_field,
 };
 
 /// Maximum rounds in one serialized v2 layer. This wire-format limit is
@@ -66,16 +66,18 @@ pub struct SumcheckProof<const W: usize, F: SerializableField> {
 pub struct SumcheckProofGeometry {
     pub logw_layers: Vec<usize>,
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[derive(Clone, Debug)]
-pub struct LayerPadLayout {
-    pub rounds: Vec<[usize; 2]>,
-    pub claims: [usize; 2],
-    pub product: usize,
-    pub cross: usize,
+pub(crate) struct LayerPadLayout {
+    pub(crate) rounds: Vec<[usize; 2]>,
+    pub(crate) claims: [usize; 2],
+    pub(crate) product: usize,
+    pub(crate) cross: usize,
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[derive(Clone, Debug)]
-pub struct CircuitPadLayout {
-    pub layers: Vec<LayerPadLayout>,
+pub(crate) struct CircuitPadLayout {
+    pub(crate) layers: Vec<LayerPadLayout>,
 }
 
 /// Two pads per round, two terminal pads, p_AB, and an independent cross pad.
@@ -121,7 +123,8 @@ impl SumcheckProofGeometry {
                 .ok_or_else(|| invalid("sumcheck size overflow"))
         })
     }
-    pub fn pad_layout(&self, base: usize) -> CircuitPadLayout {
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn pad_layout(&self, base: usize) -> CircuitPadLayout {
         base.checked_add(self.pad_count().expect("valid sumcheck geometry"))
             .expect("sumcheck pad layout overflow");
         let layers: Vec<_> = self

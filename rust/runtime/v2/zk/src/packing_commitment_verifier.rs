@@ -7,7 +7,7 @@ use crate::runtime::{
     },
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn reduce<const W: usize>(
+    pub(crate) fn reduce<const W: usize>(
         &self,
         statement: CommitmentStatement<F::E>,
         packing: &PackingProof<F::E>,
@@ -27,7 +27,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // Dynamic source messages are already bound to this same transcript.
         // Identify the circuit without another query; sparse rows are derived
         // locally rather than accepted as proof data.
-        let digest = crate::runtime::proto::Digest { data: *id };
+        let digest = crate::runtime::v2::proto::Digest { data: *id };
         let (a, b) = self.append_equations::<W>(statement, &rows)?;
         Ok(LinearStatement { a, b, digest })
     }

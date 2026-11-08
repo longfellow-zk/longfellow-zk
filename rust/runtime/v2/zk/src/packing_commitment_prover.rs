@@ -18,7 +18,7 @@ pub(crate) struct PackingState<E> {
     masks: PackingMasks<E>,
 }
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub fn prepare_inputs(
+    pub(crate) fn prepare_inputs(
         &self,
         logical: &[crate::runtime::algebra::packing::BaseElement<X>],
     ) -> Result<PreparedInputs<F::E>, String> {
@@ -29,7 +29,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             packed: self.parameters.pack(logical)?,
         })
     }
-    pub fn prepare(
+    pub(crate) fn prepare(
         &self,
         inputs: PreparedInputs<F::E>,
         suffix: Vec<F::E>,
@@ -55,7 +55,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             witness,
         )
     }
-    pub fn prove<const W: usize>(
+    pub(crate) fn prove<const W: usize>(
         &self,
         state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
@@ -79,7 +79,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // The continuing transcript already binds the public inputs, sumcheck
         // and packing messages. The circuit ID identifies their source without
         // introducing a query between the frontend and joint batching.
-        let digest = crate::runtime::proto::Digest { data: *id };
+        let digest = crate::runtime::v2::proto::Digest { data: *id };
         let (a, b) = self.append_equations::<W>(statement, &rows)?;
         Ok((packing, LinearStatement { a, b, digest }))
     }

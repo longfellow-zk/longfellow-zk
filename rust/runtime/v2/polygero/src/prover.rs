@@ -6,7 +6,7 @@ use super::{
 };
 use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
-    proto::Digest,
+    v2::proto::Digest,
     random::RandomEngine,
     v2::transcript::{Transcript, TranscriptRef},
 };

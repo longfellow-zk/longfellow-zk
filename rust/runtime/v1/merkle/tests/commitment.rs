@@ -15,9 +15,8 @@
 use sha2::Digest as ShaDigest;
 
 use crate::runtime::{
-    merkle::{verify_proof, Digest, MerkleError, MerkleHeap},
     random::RandomEngine,
-    v1::merkle::{commit, open, verify},
+    v1::merkle::{commit, open, verify, verify_proof, Digest, MerkleError, MerkleHeap},
 };
 
 struct FakeRng {

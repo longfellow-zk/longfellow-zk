@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Version-neutral Merkle messages shared by the standalone commitment schemes.
-//! Their layout depends only on the Merkle tree, never on a Longfellow system.
+//! V2 Merkle proof messages and their wire encoding.
 
-pub const DIGEST_LEN: usize = 32;
-pub const NONCE_LEN: usize = 32;
+const DIGEST_LEN: usize = 32;
+pub(in crate::runtime::v2) const NONCE_LEN: usize = 32;
 
 /// A 32-byte cryptographic hash digest.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -27,8 +26,8 @@ pub struct Digest {
 /// A 32-byte salt value generated randomly per leaf/column to make the
 /// commitment zero-knowledge (hiding).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MerkleNonce {
-    pub bytes: [u8; NONCE_LEN],
+pub(in crate::runtime::v2) struct MerkleNonce {
+    pub(in crate::runtime::v2) bytes: [u8; NONCE_LEN],
 }
 
 /// A Merkle proof of opening for a subset of leaves.
@@ -37,28 +36,28 @@ pub struct MerkleNonce {
 ///   the leaf hashes.
 /// - `path`: Sibling digests along the paths from the opened leaves to the root.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct MerkleProof {
-    pub nonce: Vec<MerkleNonce>,
-    pub path: Vec<Digest>,
+pub(in crate::runtime::v2) struct MerkleProof {
+    pub(in crate::runtime::v2) nonce: Vec<MerkleNonce>,
+    pub(in crate::runtime::v2) path: Vec<Digest>,
 }
 
 impl MerkleProof {
     /// Writes the nonces to a byte buffer (raw bytes of each nonce, no length
     /// prefix).
-    pub fn write_nonces(&self, buf: &mut Vec<u8>) {
+    pub(in crate::runtime::v2) fn write_nonces(&self, buf: &mut Vec<u8>) {
         for n in &self.nonce {
             buf.extend_from_slice(&n.bytes);
         }
     }
 
     /// Reads `num_queries` nonces from the byte buffer.
-    pub fn read_nonces(
+    pub(in crate::runtime::v2) fn read_nonces(
         bytes: &mut &[u8],
         num_queries: usize,
     ) -> Result<Vec<MerkleNonce>, std::io::Error> {
         let mut nonce = Vec::with_capacity(num_queries);
         for _ in 0..num_queries {
-            let n_bytes = crate::runtime::proto::util::read_bytes_32(bytes)?;
+            let n_bytes = crate::runtime::v2::proto::util::read_bytes_32(bytes)?;
             nonce.push(MerkleNonce { bytes: n_bytes });
         }
         Ok(nonce)
@@ -66,7 +65,7 @@ impl MerkleProof {
 
     /// Writes the path to a byte buffer (4-byte little-endian length prefix,
     /// followed by raw digests).
-    pub fn write_path(&self, buf: &mut Vec<u8>) {
+    pub(in crate::runtime::v2) fn write_path(&self, buf: &mut Vec<u8>) {
         let len = self.path.len() as u32;
         buf.extend_from_slice(&len.to_le_bytes());
         for d in &self.path {
@@ -75,12 +74,12 @@ impl MerkleProof {
     }
 
     /// Reads the path from the byte buffer.
-    pub fn read_path(
+    pub(in crate::runtime::v2) fn read_path(
         bytes: &mut &[u8],
         num_queries: usize,
         mc_pathlen: usize,
     ) -> Result<Vec<Digest>, std::io::Error> {
-        let path_len = crate::runtime::proto::util::read_size_4bytes(bytes)?;
+        let path_len = crate::runtime::v2::proto::util::read_size_4bytes(bytes)?;
         let max_sz = num_queries.checked_mul(mc_pathlen).ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -96,7 +95,7 @@ impl MerkleProof {
 
         let mut path = Vec::with_capacity(path_len);
         for _ in 0..path_len {
-            let p_bytes = crate::runtime::proto::util::read_bytes_32(bytes)?;
+            let p_bytes = crate::runtime::v2::proto::util::read_bytes_32(bytes)?;
             path.push(Digest { data: p_bytes });
         }
         Ok(path)

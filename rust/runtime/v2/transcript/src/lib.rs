@@ -4,24 +4,29 @@
 //! The session is exclusively borrowed throughout, including on error paths.
 //! Complete-proof encoders append a final seal over the chained transcript and
 //! canonical proof body; complete verification must check that final seal.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use sha3::Shake256Reader;
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
-    Shake256, Shake256Reader,
+    Shake256,
 };
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::algebra::SupportsSampling,
 };
 
 /// Joint participant construction rejects field encodings wider than this stack buffer.
-pub(crate) const MAX_FIELD_BYTES: usize = 128;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(in crate::runtime::v2) const MAX_FIELD_BYTES: usize = 128;
 
 /// Closed protocol roles; these labels are part of the v2 transcript format.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[derive(Clone, Copy)]
 #[repr(u8)]
-pub enum RoundLabel {
-    Output = 0,
+pub(crate) enum RoundLabel {
+    // Tag 0 is reserved; circuit outputs join their layer's assertion round.
     Assertions = 1,
     Sumcheck = 2,
     Terminal = 3,
@@ -35,6 +40,7 @@ pub enum RoundLabel {
     RowBatching = 11,
     Fingerprint = 12,
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl RoundLabel {
     fn tag(self) -> u8 {
         self as u8
@@ -53,19 +59,22 @@ pub struct Transcript {
 pub struct TranscriptRef<'a> {
     core: &'a mut Core,
 }
-#[doc = include_str!("../tests/compile_fail.md")]
+#[cfg_attr(any(test, feature = "prover", feature = "verifier"), doc = include_str!("../tests/compile_fail.md"))]
 /// Exclusive permission to bind messages before the round query.
 pub struct Writing<'a> {
     core: &'a mut Core,
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     label: RoundLabel,
 }
 /// Exclusive permission to squeeze challenges from the boundary answer.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub struct Reading<'a> {
     core: &'a mut Core,
     reader: Shake256Reader,
 }
 /// Only end_round constructs this token; round consumes it before releasing
 /// the session. Its borrow cannot escape through the round's return value.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[must_use]
 pub struct RoundEnd<'a, T> {
     _core: &'a mut Core,
@@ -85,7 +94,7 @@ impl Transcript {
         });
         t
     }
-    pub fn borrow(&mut self) -> TranscriptRef<'_> {
+    pub(crate) fn borrow(&mut self) -> TranscriptRef<'_> {
         TranscriptRef {
             core: &mut self.core,
         }
@@ -122,6 +131,7 @@ impl TranscriptRef<'_> {
     pub(crate) fn bind<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
         f(&mut Writing {
             core: self.core,
+            #[cfg(any(test, feature = "prover", feature = "verifier"))]
             label: RoundLabel::Statement,
         })
     }
@@ -144,6 +154,9 @@ impl Writing<'_> {
         self.core.hash.update(&(bytes.len() as u64).to_le_bytes());
         self.core.hash.update(bytes);
     }
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl Writing<'_> {
     pub fn write_elt_field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
         self.core.hash.update(&[1]);
         self.field(e, f);
@@ -162,6 +175,7 @@ impl Writing<'_> {
         self.core.hash.update(&buf[..n]);
     }
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<'a> Writing<'a> {
     pub fn begin_squeeze(mut self) -> Reading<'a> {
         self.write_bytes(b"longfellow/transcript/v2/round");
@@ -186,6 +200,7 @@ impl<'a> Writing<'a> {
         }
     }
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<'a> Reading<'a> {
     /// Close the reading phase and return a value to the round caller.
     /// The returned value is not absorbed into the transcript.

@@ -4,10 +4,10 @@ use crate::{
     core::proto::SerializableField,
     runtime::{
         algebra::RuntimeField,
-        proto::Digest,
         v2::proto::{
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
             zk::{CircuitGeometry, CircuitProof},
+            Digest,
         },
     },
 };
@@ -91,7 +91,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         let mut remaining = &bytes[4..];
         let commitment = PolygeroCommitment {
             root: Digest {
-                data: crate::runtime::proto::util::read_bytes_32(&mut remaining)
+                data: crate::runtime::v2::proto::util::read_bytes_32(&mut remaining)
                     .map_err(|e| e.to_string())?,
             },
         };

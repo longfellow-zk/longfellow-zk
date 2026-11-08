@@ -44,7 +44,7 @@ pub(super) struct Schedule {
     pub ninput: usize,
 }
 impl Schedule {
-    pub fn new<F: SerializableField>(circuits: &[&Circuit<F>]) -> Result<Self, String> {
+    pub(super) fn new<F: SerializableField>(circuits: &[&Circuit<F>]) -> Result<Self, String> {
         let first = circuits.first().ok_or("empty circuit list")?;
         let ninput = first.raw.ninput;
         let npublic = first.raw.npublic_input;
@@ -153,7 +153,7 @@ pub(super) struct SplitFragment<'a, E> {
     pub assertions: Vec<E>,
 }
 impl<'a, E> SplitFragment<'a, E> {
-    pub fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
+    pub(super) fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
         assert_eq!(layer.nw, fragment.input_range.len());
         let assertions = Vec::with_capacity(layer.assertion_counts().iter().sum());
         Self {

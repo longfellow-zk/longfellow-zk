@@ -17,7 +17,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        proto::Digest,
+        v2::proto::Digest,
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{

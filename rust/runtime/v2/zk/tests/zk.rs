@@ -151,9 +151,15 @@ pub(crate) fn exercise<
     let tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
     let (committed, prover_geometry) = p.commit(&witness, &context, tp, &mut rng).unwrap();
-    let source = crate::runtime::v2::proto::zk::packing_layout(&circuit(f), f)
-        .unwrap()
-        .0;
+    let source_circuit = circuit(f);
+    let source_geometry =
+        crate::runtime::v2::proto::sumcheck::SumcheckProofGeometry::from_circuit(&source_circuit);
+    let source = super::packing_commitment::PackingLayout::new(
+        source_circuit.raw.ninput - source_circuit.raw.npublic_input,
+        source_geometry.pad_count().unwrap(),
+        extension.degree(),
+    )
+    .unwrap();
     assert_eq!(
         prover_geometry.circuit.com_geom.nw,
         source.witness_count + 2
@@ -320,8 +326,15 @@ fn extension_zk_comparison() {
     let f = RuntimeFp24Ext6::new();
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
-    use crate::runtime::v2::proto::zk::commitment_layout;
-    let (_, nw) = commitment_layout(&c, &f);
+    use crate::runtime::algebra::{PackingExtension, PackingField};
+    let geometry = crate::runtime::v2::proto::sumcheck::SumcheckProofGeometry::from_circuit(&c);
+    let source = super::packing_commitment::PackingLayout::new(
+        c.raw.ninput - c.raw.npublic_input,
+        geometry.pad_count().unwrap(),
+        f.packing_extension().degree(),
+    )
+    .unwrap();
+    let nw = source.witness_count + crate::runtime::v2::proto::witness_selection::FINGERPRINTS;
     let select = |filter: fn(PolygeroConfig) -> bool| {
         crate::compile::polygero::tune_large_field_at_rate(
             4,

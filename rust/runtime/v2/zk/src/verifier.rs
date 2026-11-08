@@ -6,7 +6,7 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
-        proto::Digest,
+        v2::proto::Digest,
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             sumcheck::{self, TranscriptSumcheck},

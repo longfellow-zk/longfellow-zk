@@ -4,6 +4,7 @@
 
 #[path = "ligero/src/lib.rs"]
 pub mod ligero;
+#[path = "merkle/src/lib.rs"]
 pub mod merkle;
 #[path = "proto/src/lib.rs"]
 pub mod proto;

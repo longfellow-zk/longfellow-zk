@@ -22,10 +22,10 @@ use crate::{
     core::algebra::ElementOf,
     runtime::{
         algebra::SupportsSampling,
-        proto::Digest,
         random::RandomEngine,
         v1::{
             ligero::param::{LigeroCommitment, LigeroParam},
+            proto::Digest,
             transcript::Transcript,
         },
     },

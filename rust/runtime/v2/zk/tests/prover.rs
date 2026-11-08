@@ -285,7 +285,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &mut independent,
     )
     .unwrap();
-    let verifier_statement = crate::runtime::proto::Digest {
+    let verifier_statement = crate::runtime::v2::proto::Digest {
         data: prover.circuit.id,
     };
     let (verifier_a, verifier_b) = verifier_backend
