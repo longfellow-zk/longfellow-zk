@@ -333,7 +333,7 @@ theorem setup_extend (large : Finset Bytes) (onlyMerkle : ∀ raw ∈ large, SHA
   rw [merged] at same
   exact same
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem metadata_extend (large : Finset Bytes) (onlyMerkle : ∀ raw ∈ large, SHAOracle.merkleDomain raw)
     (table : {raw // raw ∈ large} → Digest) :
     (Meta (OracleWindow.extend large table outside)) = (Meta outside) := by

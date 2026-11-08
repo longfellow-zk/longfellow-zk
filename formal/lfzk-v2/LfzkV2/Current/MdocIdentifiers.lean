@@ -132,8 +132,7 @@ def parameters (ids : Identifiers) (bounds : Bounds binary prime) :
   primeCount := rfl
   primeInputs := rfl
   sharedBits := rfl
-  packingWeights := rfl
-  packingTerms := rfl
+  packingInputs := rfl
   binary128 := rfl
   binaryPadsFit := bounds.padsFit
   primeDepthFit := bounds.primeDepthFit

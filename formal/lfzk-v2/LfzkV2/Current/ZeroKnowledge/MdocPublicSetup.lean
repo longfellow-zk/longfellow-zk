@@ -59,7 +59,7 @@ theorem setup_merge (outside inside : Bytes → Digest) :
   unfold setup MdocIdentifiers.setup MdocIdentifiers.templateId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
   simp only [SHAOracle.adapter_identifier,SHAOracle.context_hash,SHAOracle.joint_context_hash]
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 set_option maxHeartbeats 600000 in
 theorem metadata_merge (outside inside : Bytes → Digest) :
     metadata binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =

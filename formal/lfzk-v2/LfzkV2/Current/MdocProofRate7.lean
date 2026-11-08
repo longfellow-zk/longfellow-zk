@@ -40,7 +40,7 @@ local notation "parameters" => MdocIdentifiers.parameters binary prime cantor sc
 def metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := Answer) shape binary.nPublic :=
   ConcreteMetadata.metadata (g := Geom) (fields := MdocRuntime.fields B)
     (Advice := MdocAdvice.Value) (C := Answer) bp pp shape
-    (MdocRuntime.samples bp pp binary.plan prime.plan nodes) (Equiv.refl B) (Equiv.refl MdocRuntime.Prime)
+    (MdocRuntime.samples bp pp binary.plan prime.plan nodes) (Equiv.refl MdocRuntime.Prime)
     parameters setup scalars.binary.encode (MdocRuntime.generator binary.basis) MdocAdvice.decode
 
 abbrev RawOutput := CanonicalRuntime.Request bp shape × Bytes

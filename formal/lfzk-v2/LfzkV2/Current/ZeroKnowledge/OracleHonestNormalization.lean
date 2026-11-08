@@ -63,7 +63,7 @@ theorem queryLog_canonical (sample : Fin 361 → B) (pivotOne : binary.basis 0 =
         binaryCount metadata request
         (OracleHonestRuntime.frontend binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).body H) := by
     unfold CompleteCanonicalVerifier.batchingPoint
-    rw [BackendPath.parent_point]
+    rw [BackendPath.parent_point, OracleHonestCanonical.verifier_encoding]
     exact OracleBytes.replay_canonical repr shape setup binary.description.nPublic binaryRequest metadata bodyFits request cfg.initialLink
       (OracleHonestRuntime.frontend binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample)
       H (G).batchingIndex.val (Nat.le_of_lt (G).batchingIndex.isLt)

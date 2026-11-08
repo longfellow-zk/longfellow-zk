@@ -611,6 +611,27 @@ def readPackingPacket (s : BinaryPublic B shared maskBits adviceBits) (n : Prime
     values := binaryValues s n
     U := fun i => binaryField (U (Fin.cast hdegree.symm i)) }
 
+omit [DecidableEq B] [Fintype C] in
+/-- The entire packing source (including its coefficients and affine RHS)
+is fixed while varying this boundary's oracle answer. It is reconstructed
+from the bound message prefix and strict earlier answers, not serialized
+again or chosen through a caller-supplied binding certificate. The actual
+accepted-path readback is `readPackingPacket_of_readBinaryPacket`. -/
+theorem readPackingPacket_off (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic N shared)
+    (generator : Bˣ) (hdegree : g.packingDegree = s.degree)
+    (binaryField : fields .binary → B) (primeField : fields .prime → N)
+    (decode : C → ℕ → B) (nonzero : C → Linear.TerminalSampling.Nonzero B)
+    (primeDecode : C → ℕ → N) (primeNonzero : C → Linear.TerminalSampling.Nonzero N)
+    (convert : C → Fin 2 → Linear.TerminalSampling.Nonzero N)
+    (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
+    (fallback : C) (point : Point) (H H' : Point → Digest × C)
+    (h : Bcs.TotalOracle.AgreeOff point H H') :
+    readPackingPacket s n generator hdegree binaryField primeField decode nonzero
+        primeDecode primeNonzero convert advice fallback point (point.priorAnswers H) =
+      readPackingPacket s n generator hdegree binaryField primeField decode nonzero
+        primeDecode primeNonzero convert advice fallback point (point.priorAnswers H') := by
+  rw [point.priorAnswers_off h]
+
 def binaryViewOfPayload (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic N shared)
     (generator : Bˣ) (packet : AdapterPacket s n C)
     (shape : FrontendSchedule.Plan B (packet.setup generator).circuit) (capacity : ℕ)

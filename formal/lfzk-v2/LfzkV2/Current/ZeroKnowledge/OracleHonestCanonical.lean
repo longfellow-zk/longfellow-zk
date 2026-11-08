@@ -62,6 +62,56 @@ variable (H : QueryRuntime.Runtime.Point repr shape setup binary.description.nPu
 def result (sample : Fin 361 → B) := HonestRuntime.frontendResult binary prime primePlan binaryNodes repr shape setup cfg
   binaryCount metadata original remaining request HM H (OracleHonestRuntime.tapeAt binary prime binaryNodes tape sample)
 
+omit [DecidableEq B] in
+/-- Keep the commitment root and private frontend tape abstract while
+checking the runtime wrapper. Instantiation must not evaluate either one. -/
+private theorem frontendAtRoot_run (commitment : Digest)
+    (frontendTape : CompleteHonest.Tape binary prime) (selectors : CompleteHonest.Masks (B := B)) :
+    HonestRuntime.frontendAtRoot binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata
+      original remaining request commitment H frontendTape selectors =
+      CompleteHonest.run binary prime primePlan
+        (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+        (CompleteSimulator.base binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata request commitment)
+        H (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
+        (FingerprintPrefix.context request commitment) original remaining frontendTape selectors := rfl
+
+/-- Identify the frontend computation before projecting any of its fields.
+Rewriting this equality avoids reducing the full honest execution while
+checking ranks, histories or the coupling. -/
+theorem result_run (sample : Fin 361 → B) :
+    result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample =
+      CompleteHonest.run binary prime primePlan
+        (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+        (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample)
+        H (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
+        (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+        original remaining tape.frontend tape.selectors := by
+  exact frontendAtRoot_run binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata
+    original remaining request H
+    (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample)
+    tape.frontend tape.selectors
+
+/-- Expose only the body of the honest frontend. Query proofs use this
+small interface instead of reducing the commitment and frontend generators. -/
+theorem frontend_body (sample : Fin 361 → B) :
+    (OracleHonestRuntime.frontend binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata
+      original remaining tape request HM H sample).body =
+      CompleteFrontendBody.rawBody binary prime primePlan
+        (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample)
+        (result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample) := rfl
+
+omit [DecidableEq B] in
+/-- The verifier wrapper uses exactly the ordinary canonical request encoder.
+Keep this definitional conversion at one boundary, not in every query proof. -/
+theorem verifier_encoding :
+    (CompleteCanonicalVerifier.encoding binary.description prime binaryNodes ConcreteSetup.primeNodes repr shape setup cfg
+      binaryCount metadata request).encoding =
+      CanonicalRequest.encoding repr shape setup binary.description.nPublic
+        (CanonicalRuntime.binaryRequest binary.description prime (backend binaryNodes binary.description.cells)
+          (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+          (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes repr shape setup cfg) binaryCount)
+        metadata request := rfl
+
 theorem result_rank (sample : Fin 361 → B) :
     (result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).state.rank.val =
       (G).batchingIndex.val := by
@@ -72,19 +122,57 @@ theorem result_rank (sample : Fin 361 → B) :
     (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
     original remaining tape.frontend tape.selectors H
   rw [HonestTranscript.Mdoc.program_output] at counted
+  rw [result_run]
   exact counted
 
 theorem result_good (sample : Fin 361 → B) :
     History.Good
       (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample) H
       (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
-      (result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).state :=
-  HonestTranscript.Mdoc.run_good binary prime primePlan
+      (result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).state := by
+  rw [result_run]
+  exact HonestTranscript.Mdoc.run_good binary prime primePlan
+      (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+      (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample)
+      (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
+      (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+      original remaining tape.frontend tape.selectors H
+
+/-- The honest frontend and its coupled simulator have the same complete
+state. Prove this conversion once; query lemmas below transport this opaque
+equality instead of reconstructing the coupling at each boundary. -/
+def simulationCoins (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
+    (hash : ∀ responses coin converted, FullCoupling.hashChecks binary prime primePlan
+      (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+      (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample) H
+      (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+      original responses coin converted) : CompleteSimulation.Coins binary prime :=
+  FullCoupling.coupling binary prime primePlan
     (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
     (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample)
-    (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
-    (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
-    original remaining tape.frontend tape.selectors H
+    H (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+    original remaining pivotOne hash (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
+    (tape.frontend,tape.selectors)
+
+theorem result_eq_simulate (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
+    (hash : ∀ responses coin converted, FullCoupling.hashChecks binary prime primePlan
+      (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+      (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample) H
+      (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+      original responses coin converted) :
+    result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample =
+      (CompleteSimulation.simulate binary prime primePlan
+        (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+        (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample)
+        H (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+        (simulationCoins binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample pivotOne hash)).raw := by
+  rw [result_run]
+  exact FullCoupling.coupling_view binary prime primePlan
+      (CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg)
+      (writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample)
+      H (FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample))
+      original remaining pivotOne hash (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
+      tape.frontend tape.selectors
 
 theorem batching_query (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
     (hash : ∀ responses coin converted, FullCoupling.hashChecks binary prime primePlan
@@ -104,15 +192,14 @@ theorem batching_query (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
   let samplers := CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg
   let base := writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample
   let context := FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample)
-  let coefficients := fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer)
-  let coins := FullCoupling.coupling binary prime primePlan samplers base H context original remaining pivotOne hash coefficients
-    (tape.frontend,tape.selectors)
+  let coins := simulationCoins binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample pivotOne hash
   have same : result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample =
       (CompleteSimulation.simulate binary prime primePlan samplers base H context coins).raw :=
-    FullCoupling.coupling_view binary prime primePlan samplers base H context original remaining pivotOne hash coefficients tape.frontend tape.selectors
+    result_eq_simulate binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample pivotOne hash
   dsimp only
+  rw [frontend_body]
   unfold CompleteCanonicalVerifier.batchingPoint
-  rw [BackendPath.parent_point]
+  rw [BackendPath.parent_point, verifier_encoding]
   change CompleteTranscript.query base
       (result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).state _ =
     ((CanonicalRequest.encoding repr shape setup binary.description.nPublic
@@ -153,7 +240,7 @@ def openingState (sample : Fin 361 → B)
 theorem opening_rank (sample : Fin 361 → B) (responses : Response G B × Response G N) :
     (openingState binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample responses).rank.val =
       (G).openingIndex.val := by
-  change (CompleteTranscript.step _ H _).2.rank.val = _
+  dsimp only [openingState, CompleteTranscript.bind]
   rw [SimulationWrites.step_rank, result_rank, Nat.min_eq_right (Nat.le_of_lt (G).batchingIndex_next)]
   exact (G).openingIndex_val.symm
 
@@ -178,12 +265,10 @@ theorem opening_query (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
   let samplers := CompleteSimulator.samples binary prime primePlan binaryNodes repr shape setup cfg
   let base := writer binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM sample
   let context := FingerprintPrefix.context request (root binary prime primePlan binaryNodes repr shape setup cfg original remaining tape HM sample)
-  let coefficients := fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer)
-  let coins := FullCoupling.coupling binary prime primePlan samplers base H context original remaining pivotOne hash coefficients
-    (tape.frontend,tape.selectors)
+  let coins := simulationCoins binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample pivotOne hash
   have same : result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample =
       (CompleteSimulation.simulate binary prime primePlan samplers base H context coins).raw :=
-    FullCoupling.coupling_view binary prime primePlan samplers base H context original remaining pivotOne hash coefficients tape.frontend tape.selectors
+    result_eq_simulate binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample pivotOne hash
   let after := fun (raw : CompleteSimulation.RawResult binary prime primePlan
       (FingerprintPrefix.Key binary.description.nPublic) (CanonicalRequest.Base repr shape setup binary.description.nPublic) C) =>
     CompleteTranscript.bind (CompleteTranscript.step base H raw.state).2
@@ -202,6 +287,7 @@ theorem opening_query (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
       (openingState binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample responses) _ =
       CompleteTranscript.query (Authentication := OpeningBody.Authentication G) base
         (after (CompleteSimulation.simulate binary prime primePlan samplers base H context coins).raw) next from querySame]
+  rw [frontend_body, verifier_encoding]
   change _ = ((CanonicalRequest.encoding repr shape setup binary.description.nPublic
     (CanonicalRuntime.binaryRequest binary.description prime (backend binaryNodes binary.description.cells)
       (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup

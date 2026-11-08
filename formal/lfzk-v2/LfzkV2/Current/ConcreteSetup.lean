@@ -144,8 +144,8 @@ def geometry (binaryFrontend primeFrontend : Frontend) : Geometry where
   norm_num
 
 /-- Only ordinary machine-size bounds remain: these are public allocation
-limits. The final packed claim has at most two pad terms, so its count is
-encoded in `Fin 3`, with exactly the runtime's eight-byte count framing. -/
+limits. Packing writes its input and auxiliary cell counts with the runtime's
+eight-byte count framing, while its derived coefficients stay local. -/
 def shape {fields : Fields} (binaryFrontend primeFrontend : Frontend)
     (binaryField : fields .binary ≃ B)
     (primeField : fields .prime ≃ ZMod Adapter.Mdoc.primeOrder)
@@ -158,9 +158,7 @@ def shape {fields : Fields} (binaryFrontend primeFrontend : Frontend)
   primePublic := prime.nPublic
   primeInputs := shared+prime.remaining+prime.pads
   sharedBits := shared
-  packingWeights := binary.nPrivate
-  packingTermBound := 3
-  packingTermFits := by decide
+  packingInputs := binary.nPrivate
   binary128Packing := true
   zero := fun side => match side with
     | .binary => binaryField.symm 0

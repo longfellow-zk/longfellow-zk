@@ -126,7 +126,7 @@ inductive Binding where
   | primeClaim
   | maskedOpening
   | adapterAdvice
-  | packingSource
+  | packingStatement
   | packingResponse
   deriving DecidableEq, Repr
 
@@ -174,7 +174,7 @@ def Geometry.batchedRows (g : Geometry) (side : Side) : ℕ := g.dataRows side +
 
 def packingActions (degree : ℕ) : List Action :=
   if degree = 1 then [] else
-    [.bind .packingSource, .query .packing, .bind .packingResponse]
+    [.bind .packingStatement, .query .packing, .bind .packingResponse]
 
 @[simp] theorem packingActions_one : packingActions 1 = [] := rfl
 

@@ -18,10 +18,7 @@ instance packingHeaderFintype : Fintype (PackingHeader shape) := by
   unfold PackingHeader
   split <;> infer_instance
 
-instance packingTermsFintype {F : Type} [Fintype F] (bound : ℕ) : Fintype (PackingTerms F bound) :=
-  inferInstance
-
-instance packingSourceFintype : Fintype (PackingSource g fields shape) := inferInstance
+instance packingStatementFintype : Fintype (PackingStatement shape) := inferInstance
 
 instance packingAFintype : Fintype (PackingA g fields) := by
   unfold PackingA
@@ -34,8 +31,8 @@ instance dataFintype (i : Fin g.roles.length) : Fintype (Data (Advice := Advice)
 
 variable (repr : ProofBodyCodec.Representations fields Advice)
 
-/-- A finite maximum over the actual public packet representation. Dynamic
-RHS term counts, metadata bytes and both fields are included in this maximum;
+/-- A finite maximum over the actual public packet representation. Statement
+bytes, public cell counts and both fields are included in this maximum;
 no unused padding is appended to any encoded block. -/
 def blockBound : ℕ :=
   Finset.univ.sup fun i : Fin g.roles.length =>

@@ -2,8 +2,8 @@ import LfzkV2.Current.WireBlockRequest
 import LfzkV2.Current.WireBlockBounds
 
 /-! Transcript-operation vectors and rejection tests. In particular two
-sumcheck scalars, one combine slice, u32 packing metadata and a framed RHS
-term count have different wire shapes. -/
+sumcheck scalars, one combine slice, u32 packing metadata and framed cell
+counts have different wire shapes. -/
 namespace LfzkV2.Current.Tests.WireBlocks
 open TranscriptV2.Framing (Byte FieldCodec encodeLE)
 open Current.WireBlocks CanonicalPrefix
@@ -69,9 +69,7 @@ private def shape : Shape geometry fields where
   primePublic := 2
   primeInputs := 3
   sharedBits := 2
-  packingWeights := 2
-  packingTermBound := 4
-  packingTermFits := by decide
+  packingInputs := 2
   binary128Packing := true
   zero side := match side with | .binary => fun _ => 0 | .prime => fun _ => 0
   sliceFits := by decide
@@ -96,8 +94,10 @@ example : (packingHeader shape).encode ⟨[17,19],by decide⟩ =
     frame (utf8 "longfellow/dual-packing128/trace-zero/v1") ++
       frame [17,19] ++ frame [2,0,0,0] := by decide
 
-example : (packingTerms repr shape).encode ⟨⟨1,by decide⟩,fun _ => (7,b 9)⟩ =
-    frame (encodeLE 8 1) ++ frame (encodeLE 8 7) ++ [1] ++ List.replicate 16 9 := by decide
+-- Empty caller statements are valid. No coefficients or RHS appear here.
+example : (packingStatement shape).encode (⟨[],by decide⟩,2,7) =
+    frame (utf8 "longfellow/dual-packing128/trace-zero/v1") ++ frame [] ++ frame [2,0,0,0] ++
+      frame (encodeLE 8 2) ++ frame (encodeLE 8 7) := by decide
 
 example (i : Fin geometry.roles.length) (value : Data (Advice := Fin 3 → Byte) shape i) :
     parse repr shape i ((codec repr shape i).encode value ++ [255]) = none := by

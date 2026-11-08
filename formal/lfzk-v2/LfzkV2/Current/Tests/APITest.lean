@@ -286,6 +286,7 @@ run_cmd do
       ``LfzkV2.Current.ApplicationViewReplay.readAdapter_from_late,
       ``LfzkV2.Current.ApplicationViewReplay.readBinaryPacket_from_late,
       ``LfzkV2.Current.ApplicationViewReplay.readPackingPacket_of_readBinaryPacket,
+      ``LfzkV2.Current.ApplicationViews.readPackingPacket_off,
       ``LfzkV2.Current.ApplicationViews.primeView_from_late,
       ``LfzkV2.Current.ApplicationViews.binaryView_from_late,
       ``LfzkV2.Current.RuntimeRoles.prime_single,

@@ -39,6 +39,12 @@ uses a uniform lazy tape; every independent finite auxiliary SHA marginal
 is averaged without an extra error term. `Q_H` conservatively bounds all
 SHA calls in the original adversarial program, including auxiliary inputs.
 `runtime::v2::zk` owns the selected joint boundary; mdoc supplies its frontend reductions.
+Packing is internal to ZK and binds its statement bytes, profile and cell
+counts. Its source coefficients and affine RHS are reconstructed from the
+preceding bound messages and oracle answers, without absorbing them again.
+The local source is independent of the current packing answer, and the
+accepted-path replay recovers the same frontend claim. No new statement-binding
+certificate or oracle assumption is introduced by this omission.
 
 The complete mdoc model also has a statistical zero-knowledge theorem:
 [`MdocZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean).

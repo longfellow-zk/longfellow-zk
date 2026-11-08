@@ -37,6 +37,14 @@ coefficients on the original free mask cells. This trace-zero protocol uses
 degree `m`. The Rust degree-one path instead checks the original linear
 equation directly, with no packing masks, messages, or challenges.
 
+The Rust reduction is internal to ZK. Its source equation is derived from
+preceding sumcheck messages and oracle answers on the same transcript. It
+binds arbitrary caller-supplied statement bytes, the packing profile and
+public cell counts; it does not absorb the derived coefficients or RHS.
+The [current composition](../lfzk-v2/README.md#current-mac-free-protocol)
+proves that the source is fixed before the packing answer and is the source
+recovered at the later backend. U and A retain their existing round ordering.
+
 The main verifier is `Instance.nativeLinearVerify`. It does not check
 `b = sigma(r)`: arbitrary committed `b` contributes a fixed affine offset,
 which preserves the `1 / |F|` bound. Honest initialization uses that equality

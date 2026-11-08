@@ -108,7 +108,7 @@ coefficients, mu, U/A and H/Z are deliberately absent from this type. -/
 def RoleMetadata : Role → Type
   | .rescaling => (Fin shape.primeInputs → fields .prime) × fields .prime
   | .conversion => Fin (shape.sharedBits+1) → fields .prime
-  | .packing => PackingSource g fields shape
+  | .packing => PackingStatement shape
   | .batching => SourceStatement × SourceStatement
   | _ => Unit
 

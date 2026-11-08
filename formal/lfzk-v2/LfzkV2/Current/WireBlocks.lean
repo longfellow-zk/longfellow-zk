@@ -16,18 +16,16 @@ open scoped Classical
 abbrev Word := Fin (2^64)
 
 /-- Counts are fixed by the public circuit/layout. They are not redundant
-lengths in the proof. A packing RHS retains its actual bounded term count. -/
+lengths in the proof. Packing binds its cell counts, not its derived coefficients. -/
 structure Shape (g : Geometry) (fields : Fields) where
   binaryPublic : ℕ
   primePublic : ℕ
   primeInputs : ℕ
   sharedBits : ℕ
-  packingWeights : ℕ
-  packingTermBound : ℕ
-  packingTermFits : packingTermBound ≤ 2^64
+  packingInputs : ℕ
   binary128Packing : Bool
   zero : (side : Side) → fields side
-  sliceFits : ∀ count ∈ [primeInputs,sharedBits+1,packingWeights,g.packingDegree,
+  sliceFits : ∀ count ∈ [primeInputs,sharedBits+1,packingInputs,g.packingDegree,
       g.rowDimension+g.maskingDegree,2*g.rowDimension], count < 2^64
 
 private def followed {A : Type} (codec : PrefixCodec A) (suffix : Bytes) : PrefixCodec A :=
@@ -138,7 +136,7 @@ def PackingHeader : Type :=
   if shape.binary128Packing then BoundedBytes maxLength else BoundedBytes maxLength × BoundedBytes maxLength
 
 /-- The optimized binary profile writes a four-byte basis ID (`u32`),
-whereas the generic profile writes its descriptor before the context. -/
+whereas the generic profile writes its descriptor before the statement. -/
 def packingHeader : PrefixCodec (PackingHeader shape) :=
   if h : shape.binary128Packing then by
     simpa [PackingHeader,h] using
@@ -149,22 +147,13 @@ def packingHeader : PrefixCodec (PackingHeader shape) :=
       (CanonicalPrefix.bytes.pair CanonicalPrefix.bytes).prefixed
         (bytesDomain "longfellow/dual-packing/generic/trace-zero/v1")
 
-abbrev PackingTerms (F : Type) (bound : ℕ) :=
-  (count : Fin bound) × (Fin count.val → Word × F)
+/-- Caller-supplied statement bytes and the logical input/auxiliary cell counts.
+The source coefficients and RHS are reconstructed from the earlier frontend
+messages and oracle answers; they are not additional transcript writes. -/
+abbrev PackingStatement (shape : Shape g fields) := PackingHeader shape × (Word × Word)
 
-def packingTerms : PrefixCodec (PackingTerms (fields .binary) shape.packingTermBound) :=
-  (PrefixCodec.counted 8 shape.packingTermBound (by simpa only [show 256^8 = 2^64 by decide] using shape.packingTermFits)
-    (fun count => Fin count.val → Word × fields .binary)
-    (fun count => PrefixCodec.vector (word.pair (scalar repr.binary)) count.val)).prefixed
-      ([0] ++ encodeLE 8 8)
-
-abbrev PackingSource (g : Geometry) (fields : Fields) (shape : Shape g fields) :=
-  PackingHeader shape × ((Fin shape.packingWeights → fields .binary) ×
-    (fields .binary × (Word × PackingTerms (fields .binary) shape.packingTermBound)))
-
-def packingSource : PrefixCodec (PackingSource g fields shape) :=
-  (packingHeader shape).pair ((slice repr.binary shape.packingWeights).pair
-    ((scalar repr.binary).pair (word.pair (packingTerms repr shape))))
+def packingStatement : PrefixCodec (PackingStatement shape) :=
+  (packingHeader shape).pair (word.pair word)
 
 abbrev SourceStatement := Digest × (Digest × Word)
 
@@ -189,7 +178,7 @@ def RoleData : Role → Type
   | .rowBatching => Unit
   | .rescaling => (Fin shape.primeInputs → fields .prime) × fields .prime
   | .conversion => (Fin (shape.sharedBits+1) → fields .prime) × fields .prime
-  | .packing => PackingSource g fields shape × (Fin g.packingDegree → fields .binary)
+  | .packing => PackingStatement shape × (Fin g.packingDegree → fields .binary)
   | .batching => PackingA g fields × (SourceStatement × SourceStatement)
   | .opening => Response g (fields .binary) × Response g (fields .prime)
 
@@ -217,7 +206,7 @@ def roleCodec : (role : Role) → PrefixCodec (RoleData shape role)
       (((slice repr.prime (shape.sharedBits+1)).pair (scalar repr.prime)).prefixed
         (bytesDomain "native-shared-prefix/fixed-masked-opening/v1"))
       (bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3")
-  | .packing => (packingSource repr shape).pair (slice repr.binary g.packingDegree)
+  | .packing => (packingStatement shape).pair (slice repr.binary g.packingDegree)
   | .batching => (packingA repr shape).pair (sourceStatement.pair sourceStatement)
   | .opening => (response repr .binary).pair (response repr .prime)
 

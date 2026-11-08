@@ -37,8 +37,15 @@ The mdoc specialization fixes the canonical three-byte quotient-advice parser,
 degree-128 binary packing, committed-cell layout, rate-1/7 backend geometry,
 evaluation-node order and scalar challenge readers. Sparse circuit topology
 constructs both the algebraic verifier and its transcript plan. Derived prime
-claims, packing-source expressions, generated adapter identifiers and backend
-contexts are computed from the actual earlier messages and answers. The generic
+claims, generated adapter identifiers and backend contexts are computed from
+the actual earlier messages and answers. Packing writes its caller-supplied
+statement and public cell counts, not the derived coefficients or affine RHS.
+The source is reconstructed from earlier bound messages and answers on the
+same oracle history; the statement bytes alone need not determine it.
+[`readPackingPacket_off`](LfzkV2/Current/ApplicationViews.lean) proves that
+varying the current packing answer cannot change this source. Accepted-path
+readback identifies it with the frontend's actual input claim. U is still
+bound before the packing query, and A before joint backend challenges. The generic
 [`IdealProofRate7`](LfzkV2/Current/IdealProofRate7.lean) theorem remains available
 for other trusted setups; the mdoc endpoint takes no independent advice decoder,
 metadata callback, transcript plan or backend-layout certificate.
