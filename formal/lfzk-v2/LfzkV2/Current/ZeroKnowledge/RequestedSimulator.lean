@@ -106,6 +106,21 @@ def tape (request : Request) (coins : CompleteSimulator.Tape (C := C) binary pri
   nonces := coins.nonces
   answer := coins.answer
 
+/-- The partial body generated for a request, before backend responses and
+terminal authentication are filled. Its public topology is unchanged. -/
+def frontendBody (request : Request) (HM : Bytes → Digest)
+    (H : QueryRuntime.Runtime.Point repr shape setup binary.description.nPublic → Digest × C)
+    (coins : CompleteSimulator.Tape (C := C) binary prime binaryNodes) :
+    Current.Body (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B)
+      MdocAdvice.Value (OpeningBody.Authentication (CompleteSimulation.geometry binary prime primePlan)) :=
+  let b := requestedBinary binary prime primePlan shape request
+  let p := requestedPrime binary prime primePlan shape primeCount request
+  let config := configuration binary prime primePlan binaryNodes repr shape setup cfg primeCount request
+  let source := tape binary prime primePlan binaryNodes shape primeCount request coins
+  CompleteFrontendBody.body b p primePlan
+    (CompleteSimulator.commitment b p primePlan binaryNodes repr shape setup config HM source)
+    (CompleteSimulator.frontendResult b p primePlan binaryNodes repr shape setup config binaryCount metadata request HM H source)
+
 def tapeEquiv (request : Request) : CompleteSimulator.Tape (C := C) binary prime binaryNodes ≃
     CompleteSimulator.Tape (C := C) (requestedBinary binary prime primePlan shape request)
       (requestedPrime binary prime primePlan shape primeCount request) binaryNodes where

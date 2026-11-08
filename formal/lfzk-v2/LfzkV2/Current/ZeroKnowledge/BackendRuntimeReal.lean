@@ -127,16 +127,11 @@ theorem front_result (H : Point → Digest × C)
     let request := earlier.1
     let HM := expanded binary prime primePlan binaryNodes repr shape setup cfg prior after outside coin.2.1
     let tape := honestTape binary prime primePlan binaryNodes repr shape setup cfg prior after outside coin
-    let b := RequestedSimulator.requestedBinary binary prime primePlan shape request
-    let p := RequestedSimulator.requestedPrime binary prime primePlan shape primeCount request
-    let config := RequestedSimulator.configuration binary prime primePlan binaryNodes repr shape setup cfg primeCount request
-    let source := RequestedExperiment.honestTape binary prime primePlan binaryNodes shape primeCount request tape
     BackendRuntime.front binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining H
       coin.1.1 earlier labels =
-      CompleteFrontendBody.rawBody b p primePlan
-        (HonestRuntime.commitment b p primePlan binaryNodes repr shape setup config (original request) (remaining request) HM source)
-        (HonestRuntime.frontendResult b p primePlan binaryNodes repr shape setup config binaryCount metadata
-          (original request) (remaining request) request HM H source) := by
+      RequestedExperiment.frontendBody binary prime primePlan binaryNodes repr shape setup cfg
+        binaryCount primeCount metadata request (original request) (remaining request) tape HM H := by
+  dsimp only [RequestedExperiment.frontendBody]
   let earlier := BackendRuntime.priorStateOf binary prime primePlan binaryNodes repr shape setup cfg prior after outside H (coin.1.2,coin.2)
   let request := earlier.1
   let tape := honestTape binary prime primePlan binaryNodes repr shape setup cfg prior after outside coin

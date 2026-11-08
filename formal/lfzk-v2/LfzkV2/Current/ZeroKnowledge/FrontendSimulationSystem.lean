@@ -65,7 +65,7 @@ theorem binary_handoff_values (primeData : PrimeData prime C)
       (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero
       samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) = some data) :
     data.eta = (native).eta.val ∧ data.mu = coins.mu := by
-  have spec := ApplicationPrefix.readBinary_spec binary.description primeData (MdocRuntime.generator binary.basis)
+  have spec := ApplicationPrefix.readBinary_spec (g := G) (fields := MdocRuntime.fields B) binary.description primeData (MdocRuntime.generator binary.basis)
     (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero
     samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) data parsed
   simp only [Option.map_id] at spec
@@ -91,7 +91,7 @@ theorem decoded_rows (system)
       system.primeRows = [(native).claim.row (native).eta.val coins.mu] ∧
       system.binaryLayout = CellLayout.selected binary.description.cells ∧
       system.primeLayout = CellLayout.Prime.layout prime.remaining prime.pads := by
-  obtain ⟨primeData,data,parsedPrime,parsedBinary,checked⟩ := ApplicationPrefix.decodeChecked_spec binary.description prime
+  obtain ⟨primeData,data,parsedPrime,parsedBinary,checked⟩ := ApplicationPrefix.decodeChecked_spec (g := G) (fields := MdocRuntime.fields B) binary.description prime
     (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound
     (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero samples.prime
     samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) system decoded

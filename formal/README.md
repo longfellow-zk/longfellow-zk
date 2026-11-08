@@ -147,7 +147,12 @@ Canonical query capacities are structural bounds on public vector counts,
 fixed codec widths and framing overhead. They do not enumerate field-valued
 packets or append padding. Generic codec-length, sampler-projection and runtime
 wrapper lemmas keep these representation details separate from the soundness
-and privacy arguments.
+and privacy arguments. Evaluation and interpolation are linked by a proved
+bijection with an explicit equality to Lagrange interpolation. Abstract history
+transitions, partial frontend bodies and public-request invariance lemmas let
+backend proofs reuse their checked interfaces without unfolding full frontend
+executions. These interfaces preserve the verifier, probability bounds and
+assumptions stated above.
 
 The broad axiom audit checks new public and private declarations against
 `propext`, `Classical.choice` and `Quot.sound`. These foundational axioms do

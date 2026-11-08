@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.RequestedBackend
 import LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextRealCoins
 
 noncomputable section
@@ -170,6 +171,20 @@ theorem realCompletion_assembled (H : Point → Digest × C) (answer : Digest ×
   have changed := congrArg complete frontendEq
   have core := complete_pending b p primePlan binaryNodes repr shape setup config binaryCount primeCount metadata draw
     (original request) (remaining request) source sample request fullHM H answer
+  let privateTape := OracleHonestRuntime.tapeAt b p binaryNodes source sample
+  have logicalEq : HonestRuntime.logical b p binaryNodes (original request) (remaining request) source = logical := rfl
+  have backendEq : privateTape.backend = tape.backend := rfl
+  have noncesEq : privateTape.nonces = tape.nonces := rfl
+  dsimp only at core
+  erw [logicalEq,backendEq,noncesEq] at core
+  dsimp only [OracleHonestRuntime.statement,OracleHonestRuntime.statementAt,OracleHonestRuntime.zeroStatement] at core
+  erw [RequestedBackend.statement binary prime primePlan binaryNodes repr shape setup cfg
+    binaryCount primeCount metadata request] at core
+  erw [RequestedBackend.batching binary prime primePlan binaryNodes repr shape setup cfg
+    binaryCount primeCount metadata draw request] at core
+  erw [RequestedBackend.responses binary prime primePlan binaryNodes repr shape setup cfg primeCount request] at core
+  erw [RequestedBackend.complete binary prime primePlan binaryNodes repr shape setup cfg
+    binaryCount primeCount metadata request] at core
   exact originalEq.trans (changed.trans core)
 
 end LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextReal

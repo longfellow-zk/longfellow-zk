@@ -45,6 +45,22 @@ def honestTape (request : Request) (coins : HonestRuntime.Tape binary prime bina
   backend := coins.backend
   nonces := coins.nonces
 
+/-- The honest partial body at the selected public request. Backend arrays
+and authentication are filled only after this frontend has completed. -/
+def frontendBody (request : Request) (original : Fin binary.nPrivate → Bool)
+    (remaining : Fin prime.remaining → Adapter.Mdoc.P) (coins : HonestRuntime.Tape binary prime binaryNodes)
+    (HM : Bytes → Digest) (H : Point → Digest × C) :
+    Current.Body (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B)
+      MdocAdvice.Value (OpeningBody.Authentication (CompleteSimulation.geometry binary prime primePlan)) :=
+  let b := RequestedSimulator.requestedBinary binary prime primePlan shape request
+  let p := RequestedSimulator.requestedPrime binary prime primePlan shape primeCount request
+  let config := RequestedSimulator.configuration binary prime primePlan binaryNodes repr shape setup cfg primeCount request
+  let source := honestTape binary prime primePlan binaryNodes shape primeCount request coins
+  CompleteFrontendBody.rawBody b p primePlan
+    (HonestRuntime.commitment b p primePlan binaryNodes repr shape setup config original remaining HM source)
+    (HonestRuntime.frontendResult b p primePlan binaryNodes repr shape setup config binaryCount metadata
+      original remaining request HM H source)
+
 def honestTapeEquiv (request : Request) : HonestRuntime.Tape binary prime binaryNodes ≃
     HonestRuntime.Tape (RequestedSimulator.requestedBinary binary prime primePlan shape request)
       (RequestedSimulator.requestedPrime binary prime primePlan shape primeCount request) binaryNodes where

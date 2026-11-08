@@ -91,11 +91,13 @@ theorem success
       point past = some system := by
     rw [RequestedApplication.application_eq _ _ _ _ _ _ _ point past request.publicBits inputs hbits hinputs]
     exact hdecoded
-  obtain ⟨native,data,_,_,checked⟩ := ApplicationPrefix.decodeChecked_spec
+  -- Fix the structural reader and its field maps before using the parse equation.
+  have readerSpec := ApplicationPrefix.decodeChecked_spec
     (RuntimeAdaptive.binaryWithBits binary.description request.publicBits) (RuntimeAdaptive.primeWithInputs prime inputs)
     (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound
     (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero samples.prime samples.primeNonzero
-    samples.conversion MdocAdvice.decode samples.fallback point past system hdecoded
+    samples.conversion MdocAdvice.decode samples.fallback point past system
+  obtain ⟨native,data,_,_,checked⟩ := readerSpec hdecoded
   let layout := BackendStatement.addresses (cellsB := binary.description.cells) (remaining := prime.remaining) (padsN := prime.pads)
     binaryNodes ConcreteSetup.primeNodes
   let fingerprint := (H (((E).chain (RuntimeVerifier.Public.initialLink Cfg)).point proof H 0)).2

@@ -127,11 +127,13 @@ theorem openingPrefix_rank
     (respond : Result → C → (Response G B × Response G P)) (H : Point → Digest × C) :
     ((openingPrefix binary prime primePlan samples base coefficients context original remaining tape masks respond).run H).1.state.rank.val =
       (G).openingIndex.val := by
-  unfold openingPrefix
-  rw [Tree.run_bind,Tree.run_map]
+  rw [openingPrefix_output]
+  have counted := program_rank binary prime primePlan samples base coefficients context original remaining tape masks H
+  rw [program_output] at counted
   have next := step_counter base
-    ((program binary prime primePlan samples base coefficients context original remaining tape masks).run H).1.state H
-  simp only [Counter,program_rank] at next
+    (CompleteHonest.run binary prime primePlan samples base H coefficients context original remaining tape masks).state H
+  rw [step_output] at next
+  simp only [Counter,counted] at next
   rw [← (G).openingIndex_val,Nat.min_eq_right (Nat.le_of_lt (G).openingIndex.isLt)] at next
   exact next
 
