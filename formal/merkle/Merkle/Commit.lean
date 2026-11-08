@@ -4,7 +4,7 @@ import Merkle.Heap
 # Deterministic core of the Merkle-heap commitment
 
 This file models the mathematical core of
-`rust/runtime/v1/merkle.rs` and `rust/runtime/merkle/src/heap.rs`. Wire-format list parsing and
+`rust/runtime/v1/merkle/src/commitment.rs` and `rust/runtime/v1/merkle/src/heap.rs`. Wire-format list parsing and
 `MerkleError` branches are refined separately in `Wire.lean`.
 
 Leaf and internal inputs are encoded into one common type `Enc`. No

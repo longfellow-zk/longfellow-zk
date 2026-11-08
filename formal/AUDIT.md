@@ -502,10 +502,13 @@ the linear-terminal endpoint additionally bounds hash/signature layers by
 - The declared Merkle codec and role decoders, and enough finite answer
   tape for the bounded execution: `TM ≥ tA + 11648`.
 
-The runtime's [`polygero/src/hash.rs`](../rust/runtime/v2/polygero/src/hash.rs)
-prefixes leaves with `polygero/root/original-leaf/v1` and internal nodes
-with `polygero/root/node/v1`. Each leaf includes the context, its column
-index as a little-endian `u64`, the salt, and canonical column bytes.
+The retained checkpoint used `polygero/root/original-leaf/v1` for leaves
+and `polygero/root/node/v1` for internal nodes. The current runtime's
+[`merkle/src/hash.rs`](../rust/runtime/v2/merkle/src/hash.rs) uses
+`polygero/joint/leaf/v1` and `polygero/joint/node/v1`; these are also the
+[current model's domains](lfzk-v2/LfzkV2/Current/MerkleWireCodec.lean).
+Both layouts include the context, column index as a little-endian `u64`,
+salt and canonical column bytes in each leaf.
 [`verifier.rs`](../rust/runtime/v2/polygero/src/verifier.rs) hashes each opened
 column with its sampled index before verifying the Merkle paths;
 [`transcript.rs`](../rust/runtime/v2/polygero/src/transcript.rs) samples
