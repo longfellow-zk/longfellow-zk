@@ -620,6 +620,11 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                         f.display()
                     );
                     assert!(
+                        dep != "runtime::v2::dual_packing" || mod_name == "runtime::v2::zk",
+                        "packing reductions must be composed through zk: {}",
+                        f.display()
+                    );
+                    assert!(
                         modules.iter().any(|&(name, _)| name == dep),
                         "Unregistered dependency: {mod_name} ({}) imports {dep}",
                         f.display()

@@ -12,11 +12,13 @@ use crate::{
 };
 /// Check response shape and traces, replay the challenges, and return the
 /// equations to authenticate. This function alone does not verify a commitment.
-pub fn reduce<X: PackingExtension>(
+/// `c` must be the claim derived by ZK on this same transcript; `statement`
+/// identifies its source without reabsorbing the derived coefficients.
+pub(crate) fn reduce<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,
-    context: &[u8],
+    statement: &[u8],
     ts: &mut TranscriptRef<'_>,
 ) -> Result<Vec<FieldEquation<E<X>>>, String>
 where
@@ -29,7 +31,7 @@ where
     let PackingProof::TraceZero { u, a } = proof else {
         unreachable!()
     };
-    begin(p, c, context, ts);
+    begin(p, statement, c.weights.len(), c.auxiliary_count, ts);
     let delta = challenges(p, u, ts);
     finish(p, a, ts);
     reconstruct_validated(p, c, proof, &delta)

@@ -6,7 +6,7 @@ use super::{
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
-        algebra::packing::{AmbientElement as E, BaseElement, PackingExtension, PackingParameters},
+        algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
         v2::transcript::TranscriptRef,
     },
 };
@@ -32,35 +32,16 @@ impl<E: Clone> PackingMasks<E> {
         Self { cells }
     }
 }
-pub fn prove<X: PackingExtension>(
-    p: &PackingParameters<X>,
-    c: &SourceClaim<E<X>>,
-    values: &[BaseElement<X>],
-    aux: &[E<X>],
-    masks: PackingMasks<E<X>>,
-    context: &[u8],
-    ts: &mut TranscriptRef<'_>,
-) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
-where
-    X::Ambient: SerializableField,
-{
-    if values.len() != c.weights.len() {
-        return Err("packing witness shape".into());
-    }
-    if p.degree() == 1 {
-        return prove_packed(p, c, &[], aux, masks, context, ts);
-    }
-    let words = p.pack(values)?;
-    prove_packed(p, c, &words, aux, masks, context, ts)
-}
-/// Prove directly from the originally committed words. Identity uses no words.
-pub fn prove_packed<X: PackingExtension>(
+/// Reduce the ZK input claim using the originally committed words. Identity
+/// uses no words. `statement` identifies a claim already determined by the
+/// preceding transcript; both returned rows still require authentication.
+pub(crate) fn prove_packed<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
     words: &[E<X>],
     aux: &[E<X>],
     masks: PackingMasks<E<X>>,
-    context: &[u8],
+    statement: &[u8],
     ts: &mut TranscriptRef<'_>,
 ) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
 where
@@ -106,7 +87,7 @@ where
         })
         .collect::<Vec<_>>();
     validate_u(p, &u)?;
-    begin(p, c, context, ts);
+    begin(p, statement, c.weights.len(), c.auxiliary_count, ts);
     let delta = challenges(p, &u, ts);
     let mut a = masks.cells[m - 1].clone();
     for (d, mask) in delta.iter().zip(&t) {

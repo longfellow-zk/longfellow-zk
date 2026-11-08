@@ -1,5 +1,4 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::generic::*;
 use crate::{
     core::algebra::SerializableField,
     runtime::{
@@ -12,8 +11,9 @@ use crate::{
 };
 pub(super) fn begin<X: PackingExtension>(
     p: &PackingParameters<X>,
-    c: &SourceClaim<E<X>>,
-    context: &[u8],
+    statement: &[u8],
+    inputs: usize,
+    auxiliary: usize,
     ts: &mut TranscriptRef<'_>,
 ) where
     X::Ambient: SerializableField,
@@ -21,7 +21,7 @@ pub(super) fn begin<X: PackingExtension>(
     if p.binary128_profile() {
         ts.bind(|w| {
             w.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
-            w.write_bytes(context);
+            w.write_bytes(statement);
         });
         ts.bind(|w| w.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes()));
     } else {
@@ -29,23 +29,17 @@ pub(super) fn begin<X: PackingExtension>(
             w.write_bytes(b"longfellow/dual-packing/generic/trace-zero/v1");
             w.write_bytes(&p.descriptor());
         });
-        ts.bind(|w| w.write_bytes(context));
+        ts.bind(|w| w.write_bytes(statement));
     }
-    let f = p.field();
+    // The caller identifies the source with arbitrary, canonically framed
+    // bytes (possibly empty). ZK derives the coefficients and affine RHS from
+    // earlier messages and challenges on this same transcript. Reabsorbing
+    // those values would repeat a linear-size deterministic computation.
+    // Keep the public cell counts, field/basis profile and statement binding.
     ts.bind(|w| {
-        w.write_elt_field_slice(&c.weights, f);
-        w.write_elt_field(&c.rhs.constant, f);
+        w.write_bytes(&(inputs as u64).to_le_bytes());
+        w.write_bytes(&(auxiliary as u64).to_le_bytes());
     });
-    ts.bind(|w| {
-        w.write_bytes(&(c.auxiliary_count as u64).to_le_bytes());
-        w.write_bytes(&(c.rhs.terms.len() as u64).to_le_bytes());
-    });
-    for (i, k) in &c.rhs.terms {
-        ts.bind(|w| {
-            w.write_bytes(&(*i as u64).to_le_bytes());
-            w.write_elt_field(k, f);
-        });
-    }
 }
 pub(super) fn challenges<X: PackingExtension>(
     p: &PackingParameters<X>,

@@ -14,10 +14,11 @@ use crate::runtime::{
     },
 };
 /// Backend handoff: one logical input claim and physical sumcheck linear rows.
+#[must_use = "The source claim and linear rows require commitment authentication."]
 pub(crate) struct CommitmentStatement<E> {
-    pub claim: SourceClaim<E>,
-    pub a: Vec<PolygeroLinearTerm<E>>,
-    pub b: Vec<E>,
+    pub(super) claim: SourceClaim<E>,
+    pub(super) a: Vec<PolygeroLinearTerm<E>>,
+    pub(super) b: Vec<E>,
 }
 pub(crate) struct PackingCommitment<
     F: PackingField,
@@ -37,7 +38,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     /// Append the packing equations to the existing affine statement. The
     /// returned rows still require authentication by the joint backend.
-    pub fn append_equations<const W: usize>(
+    pub(super) fn append_equations<const W: usize>(
         &self,
         statement: CommitmentStatement<F::E>,
         rows: &[FieldEquation<F::E>],

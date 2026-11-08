@@ -1,9 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The selected-witness protocol, using explicit transcript rounds, packing,
 //! layered sumcheck and one joint Polygero commitment.
+//!
+//! Packing reductions are internal to ZK; their source coefficients come from
+//! the preceding sumcheck on the same transcript.
+//! ```compile_fail
+//! use longfellow_zk::runtime::v2::dual_packing::verifier::reduce;
+//! ```
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[path = "dual-packing/src/lib.rs"]
-pub mod dual_packing;
+pub(crate) mod dual_packing;
 #[path = "polygero/src/lib.rs"]
 pub mod polygero;
 #[path = "proto/src/lib.rs"]

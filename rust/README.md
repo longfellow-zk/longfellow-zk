@@ -202,8 +202,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 141.4 ms | 83.2 ms | 137,455 | 42.82 MiB | 34.79 MiB |
-| 4 | 155.9 ms | 89.4 ms | 138,287 | 47.43 MiB | 37.84 MiB |
+| 2 | 140.1 ms | 77.9 ms | 137,967 | 42.82 MiB | 34.79 MiB |
+| 4 | 151.0 ms | 81.5 ms | 138,063 | 47.43 MiB | 37.84 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -368,8 +368,13 @@ and rejects out-of-range values. Its parameters are precomputed at field
 construction. Existing GF128/P256 sampling byte contracts are preserved.
 Packing arithmetic is opt-in: adapters provide their base field, basis,
 coordinates, and relative Frobenius. Fp2 supports neither packing nor sampling.
-The trace-zero packing prover and verifier return two linear equations that
-Polygero authenticates against the original committed words and masks.
+Packing is internal to ZK. Its prover and verifier return two linear equations
+that Polygero authenticates against the original committed words and masks.
+Its transcript binds a caller-supplied statement, packing profile and cell
+counts. The coefficients and affine RHS are derived from the preceding
+sumcheck on the same transcript and are not absorbed again. The U vector
+precedes the packing challenge; the scalar A precedes backend challenges.
+Degree-one packing performs no transcript operations.
 For GF128, trace uses two polynomial-coordinate bits and the trace-dual basis
 uses the modulus's closed formula. Frobenius remains ordinary field squaring.
 Auxiliary sextic arithmetic, available to tests and tooling,

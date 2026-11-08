@@ -1,6 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Trace-zero packing reductions. Both returned linear equations must be
-//! authenticated against the original commitment to words, auxiliaries and masks.
+//! Internal trace-zero reduction for ZK. The source claim is reconstructed
+//! from the preceding sumcheck on the same transcript, never supplied as an
+//! independent statement. Both returned equations require backend authentication.
 pub mod generic;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
@@ -11,3 +12,6 @@ cfg_verifier! { pub mod verifier; }
 #[cfg(test)]
 #[path = "../tests/generic.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "../tests/transcript.rs"]
+mod transcript_tests;

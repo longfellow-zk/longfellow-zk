@@ -23,6 +23,7 @@ pub struct Affine<E> {
     pub constant: E,
     pub terms: Vec<(usize, E)>,
 }
+#[cfg(any(test, feature = "prover"))]
 impl<E: Clone> Affine<E> {
     pub fn evaluate<F: AlgebraicField<E = E>>(&self, values: &[E], f: &F) -> Result<E, String> {
         let mut result = self.constant.clone();
@@ -36,6 +37,9 @@ impl<E: Clone> Affine<E> {
     }
 }
 /// sum weights[j]*embed(x[j]) = rhs(aux), where x[j] is in K.
+/// ZK constructs this from the preceding sumcheck on the same transcript.
+/// The statement identifier names that source; it does not bind arbitrary
+/// caller-chosen coefficients independently of the earlier protocol.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceClaim<E> {
     pub weights: Vec<E>,
@@ -64,60 +68,20 @@ pub struct FieldEquation<E> {
     pub auxiliary: Vec<(usize, E)>,
     pub masks: Vec<E>,
 }
-impl<E: Clone> FieldEquation<E> {
-    pub fn residual<F: AlgebraicField<E = E>>(
-        &self,
-        words: &[E],
-        aux: &[E],
-        cells: &[E],
-        f: &F,
-    ) -> Result<E, String> {
-        if (!self.words.is_empty() && words.len() != self.words.len())
-            || cells.len() != self.masks.len()
-        {
-            return Err("packing native witness shape".into());
-        }
-        let mut value = self.constant.clone();
-        for (a, x) in self
-            .words
-            .iter()
-            .zip(words)
-            .chain(self.masks.iter().zip(cells))
-        {
-            f.add(&mut value, &f.mulf(a, x));
-        }
-        for (i, a) in &self.auxiliary {
-            f.add(
-                &mut value,
-                &f.mulf(a, aux.get(*i).ok_or("packing auxiliary index")?),
-            );
-        }
-        Ok(value)
-    }
-}
 pub use crate::runtime::v2::proto::dual_packing::PackingProof;
 /// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
+#[cfg(any(test, feature = "prover"))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackingMasks<E> {
     pub(super) cells: Vec<E>,
 }
+#[cfg(any(test, feature = "prover"))]
 impl<E: Clone> PackingMasks<E> {
     pub fn cells(&self) -> &[E] {
         &self.cells
     }
-    pub fn from_cells<X: PackingExtension>(
-        p: &PackingParameters<X>,
-        cells: Vec<E>,
-    ) -> Result<Self, String>
-    where
-        X::Ambient: AlgebraicField<E = E>,
-    {
-        if cells.len() != mask_cell_count(p.degree()) {
-            return Err("packing mask shape".into());
-        }
-        Ok(Self { cells })
-    }
 }
+#[cfg(any(test, feature = "prover"))]
 pub fn mask_cell_count(degree: usize) -> usize {
     if degree == 1 {
         0
@@ -128,7 +92,7 @@ pub fn mask_cell_count(degree: usize) -> usize {
 
 /// Substitute t_0 = sum_(k>0) beta_k*t_k. This leaves coefficients only on
 /// committed cells, as in the Lean `Instance.contract_mask` identity.
-pub(crate) fn eliminate_dependent<F: AlgebraicField>(
+pub(super) fn eliminate_dependent<F: AlgebraicField>(
     f: &F,
     basis: &[F::E],
     weights: &[F::E],
@@ -238,6 +202,7 @@ pub(super) fn validate_u<X: PackingExtension>(
     }
     Ok(())
 }
+#[cfg(any(test, feature = "verifier"))]
 pub(super) fn validate_proof<X: PackingExtension>(
     p: &PackingParameters<X>,
     c: &SourceClaim<E<X>>,
@@ -249,19 +214,6 @@ pub(super) fn validate_proof<X: PackingExtension>(
         PackingProof::TraceZero { u, .. } if p.degree() > 1 => validate_u(p, u),
         _ => Err("packing response shape".into()),
     }
-}
-/// Algebraic verifier for explicit independent uniform challenges. Useful for
-/// composition and exhaustive algebra tests; callers must sample after all of U.
-/// A successful reconstruction is not authentication: both rows must still be
-/// enforced against the commitment fixed before the challenge.
-pub fn reconstruct<X: PackingExtension>(
-    p: &PackingParameters<X>,
-    c: &SourceClaim<E<X>>,
-    proof: &PackingProof<E<X>>,
-    delta: &[E<X>],
-) -> Result<Vec<FieldEquation<E<X>>>, String> {
-    validate_proof(p, c, proof)?;
-    reconstruct_validated(p, c, proof, delta)
 }
 pub(super) fn reconstruct_validated<X: PackingExtension>(
     p: &PackingParameters<X>,

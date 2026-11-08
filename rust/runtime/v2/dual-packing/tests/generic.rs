@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::{generic::*, prover::prove, verifier::reduce};
+use super::{generic::*, prover::prove_packed, verifier::reduce};
 use crate::{
     core::algebra::{AlgebraicField, BareField, SerializableField},
     runtime::{
@@ -11,9 +11,96 @@ use crate::{
             SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
-        v2::transcript::Transcript,
+        v2::transcript::{Transcript, TranscriptRef},
     },
 };
+
+impl<E: Clone> FieldEquation<E> {
+    fn residual<F: AlgebraicField<E = E>>(
+        &self,
+        words: &[E],
+        aux: &[E],
+        cells: &[E],
+        f: &F,
+    ) -> Result<E, String> {
+        if (!self.words.is_empty() && words.len() != self.words.len())
+            || cells.len() != self.masks.len()
+        {
+            return Err("packing native witness shape".into());
+        }
+        let mut value = self.constant.clone();
+        for (a, x) in self
+            .words
+            .iter()
+            .zip(words)
+            .chain(self.masks.iter().zip(cells))
+        {
+            f.add(&mut value, &f.mulf(a, x));
+        }
+        for (i, a) in &self.auxiliary {
+            f.add(
+                &mut value,
+                &f.mulf(a, aux.get(*i).ok_or("packing auxiliary index")?),
+            );
+        }
+        Ok(value)
+    }
+}
+impl<E: Clone> PackingMasks<E> {
+    fn from_cells<X: PackingExtension>(
+        p: &PackingParameters<X>,
+        cells: Vec<E>,
+    ) -> Result<Self, String>
+    where
+        X::Ambient: AlgebraicField<E = E>,
+    {
+        if cells.len() != mask_cell_count(p.degree()) {
+            return Err("packing mask shape".into());
+        }
+        Ok(Self { cells })
+    }
+}
+
+/// Algebraic verifier for explicit independent uniform challenges. Useful for
+/// composition and exhaustive algebra tests; callers must sample after all of U.
+/// A successful reconstruction is not authentication: both rows must still be
+/// enforced against the commitment fixed before the challenge.
+fn reconstruct<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<AmbientElement<X>>,
+    proof: &PackingProof<AmbientElement<X>>,
+    delta: &[AmbientElement<X>],
+) -> Result<Vec<FieldEquation<AmbientElement<X>>>, String> {
+    validate_proof(p, c, proof)?;
+    reconstruct_validated(p, c, proof, delta)
+}
+fn prove<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<AmbientElement<X>>,
+    values: &[BaseElement<X>],
+    aux: &[AmbientElement<X>],
+    masks: PackingMasks<AmbientElement<X>>,
+    statement: &[u8],
+    ts: &mut TranscriptRef<'_>,
+) -> Result<
+    (
+        PackingProof<AmbientElement<X>>,
+        Vec<FieldEquation<AmbientElement<X>>>,
+    ),
+    String,
+>
+where
+    X::Ambient: SerializableField,
+{
+    if values.len() != c.weights.len() {
+        return Err("packing witness shape".into());
+    }
+    if p.degree() == 1 {
+        return prove_packed(p, c, &[], aux, masks, statement, ts);
+    }
+    let words = p.pack(values)?;
+    prove_packed(p, c, &words, aux, masks, statement, ts)
+}
 
 #[derive(Clone, Copy)]
 struct Prime<const P: u8>;
@@ -532,7 +619,7 @@ fn authenticate<
     let mut witness = packed.clone();
     witness.extend_from_slice(&aux);
     witness.extend_from_slice(masks.cells());
-    let param = PolygeroParam::try_new(
+    let field_param = PolygeroParam::try_new(
         witness.len(),
         PolygeroConfig {
             k: 8,
@@ -543,12 +630,13 @@ fn authenticate<
         domain,
     )
     .unwrap();
-    let param = JointPolygeroParam::new((Participant::new(param, domain).unwrap(), ())).unwrap();
-    let tp = Transcript::new(b"generic/backend");
-    let tv = tp.fork_for_test();
+    let param =
+        JointPolygeroParam::new((Participant::new(field_param, domain).unwrap(), ())).unwrap();
+    let initial_prover = Transcript::new(b"generic/backend");
+    let initial_verifier = initial_prover.fork_for_test();
     let (mut prover, root) =
-        JointPolygeroProver::commit(&param, (witness, ()), tp, &mut rng).unwrap();
-    let mut verifier = JointPolygeroVerifier::new(param.clone(), &root, tv);
+        JointPolygeroProver::commit(&param, (witness, ()), initial_prover, &mut rng).unwrap();
+    let mut verifier = JointPolygeroVerifier::new(param.clone(), &root, initial_verifier);
     let weights = (0..values.len())
         .map(|_| rng.elt_field(f))
         .collect::<Vec<_>>();
