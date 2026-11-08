@@ -10,3 +10,31 @@ rustdocflags = ["-C", "target-feature=+aes,+sha2"]
 linker = "i686-linux-gnu-gcc"
 rustflags = []
 rustdocflags = []
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+rustflags = [
+    "-C", "target-cpu=generic",
+    # Keep the default build compatible with CPUs without NEON. Opt into the
+    # assembly backend with cargo build-armv7-neon; no runtime dispatch is used.
+    "-C", "target-feature=+crt-static",
+    "-C", "relocation-model=static",
+]
+# Runnable doctests need the same static linking as the ARM test binaries.
+rustdocflags = [
+    "-C", "target-cpu=generic",
+    "-C", "target-feature=+crt-static",
+    "-C", "relocation-model=static",
+]
+
+[alias]
+# These aliases add NEON to the target flags above, retaining static linking.
+build-armv7-neon = [
+    "build", "--target", "armv7-unknown-linux-gnueabihf", "--features", "arm-neon",
+    "--config", 'target.armv7-unknown-linux-gnueabihf.rustflags=["-C", "target-feature=+neon"]',
+]
+test-armv7-neon = [
+    "test", "--target", "armv7-unknown-linux-gnueabihf", "--features", "arm-neon",
+    "--config", 'target.armv7-unknown-linux-gnueabihf.rustflags=["-C", "target-feature=+neon"]',
+    "--config", 'target.armv7-unknown-linux-gnueabihf.rustdocflags=["-C", "target-feature=+neon"]',
+]

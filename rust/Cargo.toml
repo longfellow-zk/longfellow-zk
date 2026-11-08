@@ -24,6 +24,10 @@ testonly = ["verifier", "prover", "compiler"]
 force-32bit-limbs = []
 limb32 = ["force-32bit-limbs"]
 force-generic-arch = []
+# Build-time selection for 32-bit ARM Linux. Also enable -C target-feature=+neon;
+# cargo build-armv7-neon supplies both and requires a NEON-capable CPU.
+# Stable Rust does not expose ARM NEON through cfg(target_feature).
+arm-neon = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
 # Offline audits and specification generation; never a proof-role dependency.

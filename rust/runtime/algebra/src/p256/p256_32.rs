@@ -31,7 +31,10 @@ pub(in crate::runtime::algebra) fn p256_reduction_step(a: &mut [Limb; 10]) {
 }
 
 impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::LIMBS_PER_U64 }> for P256Strategy {
-    #[inline(always)]
+    // Sharing this kernel avoids excessive RFFT code size and register
+    // pressure on 32-bit ARM. Keep the existing policy on other targets.
+    #[cfg_attr(target_arch = "arm", inline(never))]
+    #[cfg_attr(not(target_arch = "arm"), inline(always))]
     fn montgomery_mul(
         a: &mut [Limb; 8],
         b: &[Limb; 8],

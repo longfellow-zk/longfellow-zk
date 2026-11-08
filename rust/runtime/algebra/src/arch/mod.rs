@@ -56,11 +56,16 @@ arch_select! {
     }
     if #[cfg(all(
         target_arch = "arm",
-        target_feature = "neon"
+        target_os = "linux",
+        target_endian = "little"
     ))] {
-        mod arm_neon;
+        mod arm;
     }
     else {
         mod generic;
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/arch.rs"]
+mod tests;

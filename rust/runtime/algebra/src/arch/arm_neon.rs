@@ -12,15 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(target_arch = "aarch64")]
-use core::arch::aarch64::*;
-#[cfg(target_arch = "arm")]
-use core::arch::arm::*;
+// ARMv7 NEON intrinsics are unstable in Rust. Inline assembly keeps this
+// backend usable on stable. The arm-neon Cargo feature selects it at build
+// time; the build must also enable -C target-feature=+neon. No runtime dispatch.
+// Without that feature (or with force-generic-arch), ARM uses scalar code.
+use core::arch::asm;
+
+// Register audit (qN aliases d(2N), d(2N+1)):
+//   q0: product/result; q1-q3: multiplication/reduction scratch;
+//   q4-q5: low/high Karatsuba products; d16-d21: operands/shuffle scratch;
+//   q11-q12: inputs, preserved by products_in_registers!;
+//   q6-q7 and q13-q15: untouched.
+// Every written D register is an output/clobber below. In particular d8-d11
+// are callee-saved, so LLVM must preserve them at function boundaries.
+// Memory kernels use byte loads/stores with no extra alignment assertion,
+// declare memory effects, and use early inout operands for writeback pointers.
+// The arithmetic has fixed instruction counts and no secret-indexed memory.
+// Enable NEON through the compiler flags, not a local .fpu directive: inline
+// assembly must leave the surrounding assembler state unchanged.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(transparent)]
 pub struct Gf2_128(pub u128);
 
+// Karatsuba coefficients: t0 + X^64 * (t1 ^ t0 ^ t2) + X^128 * t2.
+// Reduction accepts arbitrary coefficients, including bit 127 of each.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Gf2_128Accum(pub [Gf2_128; 3]);
 
@@ -51,198 +67,235 @@ impl Gf2_128 {
     }
 }
 
-#[cfg(target_arch = "arm")]
-#[inline(always)]
-unsafe fn unzip_p8(a: poly8x16_t, b: poly8x16_t) -> (poly8x16_t, poly8x16_t) {
-    let res = vuzpq_p8(a, b);
-    (res.0, res.1)
+// 64-bit carry-less multiplication: d16 * d17 -> q0. q3 must be zero;
+// d0-d5 and d18-d21 are scratch. The diagonal byte-product algorithm
+// matches lib/gf2k/sysdep.h. Each 64-bit product uses 15 VMULL.P8s.
+macro_rules! pmul64_in_registers {
+    () => {
+        concat!(
+            "vext.8 d18, d16, d6, #1\n",
+            "vext.8 d19, d17, d6, #1\n",
+            "vmull.p8 q0, d16, d17\n",
+            "vmull.p8 q1, d18, d17\n",
+            "vmull.p8 q2, d16, d19\n",
+            "veor q1, q1, q2\n",
+            "vext.8 d20, d6, d16, #7\n",
+            "vext.8 d21, d6, d17, #7\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q0, q0, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q0, q0, q2\n",
+            "vext.8 d18, d18, d6, #1\n",
+            "vext.8 d19, d19, d6, #1\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q1, q1, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q1, q1, q2\n",
+            "vext.8 d20, d6, d20, #7\n",
+            "vext.8 d21, d6, d21, #7\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q0, q0, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q0, q0, q2\n",
+            "vext.8 d18, d18, d6, #1\n",
+            "vext.8 d19, d19, d6, #1\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q1, q1, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q1, q1, q2\n",
+            "vext.8 d20, d6, d20, #7\n",
+            "vext.8 d21, d6, d21, #7\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q0, q0, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q0, q0, q2\n",
+            "vext.8 d18, d18, d6, #1\n",
+            "vext.8 d19, d19, d6, #1\n",
+            "vmull.p8 q2, d20, d19\n",
+            "veor q1, q1, q2\n",
+            "vmull.p8 q2, d18, d21\n",
+            "veor q1, q1, q2\n",
+            "vext.8 q2, q3, q1, #15\n",
+            "veor q0, q0, q2\n",
+        )
+    };
 }
 
-#[cfg(target_arch = "aarch64")]
-#[inline(always)]
-unsafe fn unzip_p8(a: poly8x16_t, b: poly8x16_t) -> (poly8x16_t, poly8x16_t) {
-    (vuzp1q_p8(a, b), vuzp2q_p8(a, b))
+// Reduce q0 + X^64 * q1; return q0 and clobber q2, q3, and d16.
+macro_rules! reduce_in_registers {
+    () => {
+        concat!(
+            "veor q2, q2, q2\n",
+            "vext.8 q3, q2, q1, #8\n",
+            "veor q0, q0, q3\n",
+            "vmov.i8 d16, #0x87\n",
+            "vmull.p8 q3, d3, d16\n",
+            "vuzp.8 q3, q2\n",
+            "vext.8 q2, q2, q2, #15\n",
+            "veor q0, q0, q3\n",
+            "veor q0, q0, q2\n",
+        )
+    };
 }
 
-#[inline(always)]
-unsafe fn xor_p8(a: poly8x16_t, b: poly8x16_t) -> poly8x16_t {
-    vreinterpretq_p8_u8(veorq_u8(vreinterpretq_u8_p8(a), vreinterpretq_u8_p8(b)))
+// Karatsuba products for q11 * q12: low -> q4, high -> q5, and the
+// product of XORed halves -> q0. Inputs q11/q12 survive; d0-d11 and
+// d16-d21 are scratch. Keeping all three products live avoids stack spills.
+macro_rules! products_in_registers {
+    () => {
+        concat!(
+            "veor q3, q3, q3\n",
+            "vmov d16, d22\n",
+            "vmov d17, d24\n",
+            pmul64_in_registers!(),
+            "vmov q4, q0\n",
+            "vmov d16, d23\n",
+            "vmov d17, d25\n",
+            pmul64_in_registers!(),
+            "vmov q5, q0\n",
+            "veor d16, d22, d23\n",
+            "veor d17, d24, d25\n",
+            pmul64_in_registers!(),
+        )
+    };
 }
 
-#[inline(always)]
-unsafe fn ext_p8<const N: i32>(a: poly8x16_t, b: poly8x16_t) -> poly8x16_t {
-    vreinterpretq_p8_u8(vextq_u8::<N>(
-        vreinterpretq_u8_p8(a),
-        vreinterpretq_u8_p8(b),
-    ))
+// Combine the Karatsuba products and reduce twice, returning q0.
+macro_rules! finish_in_registers {
+    () => {
+        concat!(
+            "veor q0, q0, q4\n",
+            "veor q0, q0, q5\n",
+            "vmov q1, q5\n",
+            reduce_in_registers!(),
+            "vmov q1, q0\n",
+            "vmov q0, q4\n",
+            reduce_in_registers!(),
+        )
+    };
 }
 
-#[inline(always)]
-unsafe fn dup_p8(val: u8) -> poly8x8_t {
-    vreinterpret_p8_u8(vdup_n_u8(val))
-}
-
-#[inline(always)]
-unsafe fn dupq_p8(val: u8) -> poly8x16_t {
-    vreinterpretq_p8_u8(vdupq_n_u8(val))
-}
-
-#[inline(always)]
-unsafe fn mull_p8(a: poly8x8_t, b: poly8x8_t) -> poly8x16_t {
-    vreinterpretq_p8_p16(vmull_p8(a, b))
-}
-
-#[inline(always)]
-unsafe fn pmac64x8(cin: poly8x16_t, x: poly8x8_t, y: u8) -> (poly8x16_t, poly8x16_t) {
-    let zero = dupq_p8(0);
-    let prod = mull_p8(x, dup_p8(y));
-    let (mut uzp0, uzp1) = unzip_p8(prod, zero);
-    uzp0 = xor_p8(uzp0, cin);
-    (uzp0, uzp1)
-}
-
-#[inline(always)]
-unsafe fn pmul64x8(x: poly8x8_t, y: u8) -> poly8x16_t {
-    let zero = dupq_p8(0);
-    let prod = mull_p8(x, dup_p8(y));
-    let (uzp0, uzp1) = unzip_p8(prod, zero);
-    xor_p8(uzp0, ext_p8::<15>(uzp1, uzp1))
-}
-
-#[inline(always)]
-unsafe fn u64_to_poly8x8(v: u64) -> poly8x8_t {
-    core::mem::transmute::<[u8; 8], poly8x8_t>(v.to_le_bytes())
-}
-
-#[inline(always)]
-unsafe fn poly8x16_to_u128(v: poly8x16_t) -> u128 {
-    let bytes: [u8; 16] = core::mem::transmute(v);
-    u128::from_le_bytes(bytes)
-}
-
-#[inline(always)]
-unsafe fn pmul64x64(x: poly8x8_t, y: poly8x8_t) -> poly8x16_t {
-    let y_bytes: [u8; 8] = core::mem::transmute(y);
-    let mut r = dupq_p8(0);
-
-    let mut prod = pmac64x8(r, x, y_bytes[0]);
-    r = prod.0;
-
-    prod = pmac64x8(prod.1, x, y_bytes[1]);
-    r = xor_p8(r, ext_p8::<15>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[2]);
-    r = xor_p8(r, ext_p8::<14>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[3]);
-    r = xor_p8(r, ext_p8::<13>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[4]);
-    r = xor_p8(r, ext_p8::<12>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[5]);
-    r = xor_p8(r, ext_p8::<11>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[6]);
-    r = xor_p8(r, ext_p8::<10>(prod.0, prod.0));
-
-    prod = pmac64x8(prod.1, x, y_bytes[7]);
-    r = xor_p8(r, ext_p8::<9>(prod.0, prod.0));
-    r = xor_p8(r, ext_p8::<8>(prod.1, prod.1));
-
-    r
-}
-
-#[inline(always)]
-unsafe fn reduce_128(mut z0: u128, mut z12: u128, z3: u128) -> Gf2_128 {
-    let z3_hi: poly8x8_t = u64_to_poly8x8((z3 >> 64) as u64);
-    let p3: u128 = poly8x16_to_u128(pmul64x8(z3_hi, 0x87));
-    z12 ^= (z3 << 64) ^ p3;
-
-    let z12_hi: poly8x8_t = u64_to_poly8x8((z12 >> 64) as u64);
-    let p12: u128 = poly8x16_to_u128(pmul64x8(z12_hi, 0x87));
-    z0 ^= (z12 << 64) ^ p12;
-
-    Gf2_128(z0)
-}
-
+// SAFETY: the CPU must support NEON. All three Karatsuba products and both
+// reductions stay in registers. Integer operands in D registers avoid
+// memory clobbers, letting LLVM reuse surrounding loads and XORs. The
+// arm-neon build feature makes NEON a requirement for the whole binary.
 #[inline(always)]
 pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
+    let lo: u64;
+    let hi: u64;
     unsafe {
-        let x0: poly8x8_t = u64_to_poly8x8(x.0 as u64);
-        let x1: poly8x8_t = u64_to_poly8x8((x.0 >> 64) as u64);
-        let y0: poly8x8_t = u64_to_poly8x8(y.0 as u64);
-        let y1: poly8x8_t = u64_to_poly8x8((y.0 >> 64) as u64);
-
-        let z0: u128 = poly8x16_to_u128(pmul64x64(x0, y0));
-        let z1: u128 = poly8x16_to_u128(pmul64x64(x0, y1));
-        let z2: u128 = poly8x16_to_u128(pmul64x64(x1, y0));
-        let z3: u128 = poly8x16_to_u128(pmul64x64(x1, y1));
-
-        reduce_128(z0, z1 ^ z2, z3)
+        asm!(
+            products_in_registers!(),
+            finish_in_registers!(),
+            in("d22") x.0 as u64,
+            in("d23") (x.0 >> 64) as u64,
+            in("d24") y.0 as u64,
+            in("d25") (y.0 >> 64) as u64,
+            lateout("d0") lo,
+            lateout("d1") hi,
+            out("d2") _,
+            out("d3") _,
+            out("d4") _,
+            out("d5") _,
+            out("d6") _,
+            out("d7") _,
+            out("d8") _,
+            out("d9") _,
+            out("d10") _,
+            out("d11") _,
+            out("d16") _,
+            out("d17") _,
+            out("d18") _,
+            out("d19") _,
+            out("d20") _,
+            out("d21") _,
+            options(pure, nomem, nostack, preserves_flags),
+        );
     }
+    Gf2_128(lo as u128 | ((hi as u128) << 64))
 }
 
 #[inline(always)]
 pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
+    // SAFETY: arm-neon requires NEON. The three complete accumulator elements
+    // are read and written in bounds; references cannot alias acc.
     unsafe {
-        let x0: poly8x8_t = u64_to_poly8x8(x.0 as u64);
-        let x1: poly8x8_t = u64_to_poly8x8((x.0 >> 64) as u64);
-        let y0: poly8x8_t = u64_to_poly8x8(y.0 as u64);
-        let y1: poly8x8_t = u64_to_poly8x8((y.0 >> 64) as u64);
-
-        let z0: u128 = poly8x16_to_u128(pmul64x64(x0, y0));
-        let z1: u128 = poly8x16_to_u128(pmul64x64(x0, y1));
-        let z2: u128 = poly8x16_to_u128(pmul64x64(x1, y0));
-        let z3: u128 = poly8x16_to_u128(pmul64x64(x1, y1));
-
-        acc.0[0].0 ^= z0;
-        acc.0[1].0 ^= z1 ^ z2;
-        acc.0[2].0 ^= z3;
+        asm!(
+            "vld1.8 {{d22-d23}}, [{x}]",
+            "vld1.8 {{d24-d25}}, [{y}]",
+            products_in_registers!(),
+            "vld1.8 {{d2-d3}}, [{acc}]",
+            "veor q4, q4, q1",
+            "vst1.8 {{d8-d9}}, [{acc}]!",
+            "vld1.8 {{d2-d3}}, [{acc}]",
+            "veor q0, q0, q1",
+            "vst1.8 {{d0-d1}}, [{acc}]!",
+            "vld1.8 {{d2-d3}}, [{acc}]",
+            "veor q5, q5, q1",
+            "vst1.8 {{d10-d11}}, [{acc}]",
+            x = in(reg) x,
+            y = in(reg) y,
+            acc = inout(reg) acc.0.as_mut_ptr() => _,
+            out("d0") _,
+            out("d1") _,
+            out("d2") _,
+            out("d3") _,
+            out("d4") _,
+            out("d5") _,
+            out("d6") _,
+            out("d7") _,
+            out("d8") _,
+            out("d9") _,
+            out("d10") _,
+            out("d11") _,
+            out("d16") _,
+            out("d17") _,
+            out("d18") _,
+            out("d19") _,
+            out("d20") _,
+            out("d21") _,
+            out("d22") _,
+            out("d23") _,
+            out("d24") _,
+            out("d25") _,
+            options(nostack, preserves_flags),
+        );
     }
 }
 
 #[inline(always)]
 pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
-    unsafe { reduce_128(acc.0[0].0, acc.0[1].0, acc.0[2].0) }
-}
-
-#[inline(always)]
-pub fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
-    for i in 0..N {
-        let mut ai = a[i];
-        let bi = b[i];
-        unsafe {
-            core::arch::asm!(
-                "cmp {x}, {y}",
-                "csel {a}, {a}, {b}, eq",
-                x = in(reg) x,
-                y = in(reg) y,
-                a = inout(reg) ai,
-                b = in(reg) bi,
-                options(pure, nomem, nostack)
-            );
-        }
-        a[i] = ai;
+    let mut result = core::mem::MaybeUninit::<Gf2_128>::uninit();
+    // SAFETY: arm-neon requires NEON. The accumulator has three initialized
+    // elements, and asm completely initializes the output element.
+    unsafe {
+        asm!(
+            "vld1.8 {{d8-d9}}, [{acc}]!",
+            "vld1.8 {{d0-d1}}, [{acc}]!",
+            "vld1.8 {{d10-d11}}, [{acc}]",
+            finish_in_registers!(),
+            "vst1.8 {{d0-d1}}, [{result}]",
+            acc = inout(reg) acc.0.as_ptr() => _,
+            result = in(reg) result.as_mut_ptr(),
+            out("d0") _,
+            out("d1") _,
+            out("d2") _,
+            out("d3") _,
+            out("d4") _,
+            out("d5") _,
+            out("d6") _,
+            out("d7") _,
+            out("d8") _,
+            out("d9") _,
+            out("d10") _,
+            out("d11") _,
+            out("d16") _,
+            options(nostack, preserves_flags),
+        );
+        result.assume_init()
     }
 }
 
-#[inline(always)]
-pub fn cmovnz<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    nz: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
-    cmovne(a, nz, 0, b);
-}
-pub use cmovnz as cmovzn;
-
-#[inline(always)]
-pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
-    0 as crate::runtime::algebra::limb::Limb
-}
+#[cfg(test)]
+#[path = "../../tests/arm_neon.rs"]
+mod tests;

@@ -210,14 +210,14 @@ are audited against that model.
 
 Complete NEXT v12 mdoc presentations, measured on 2026-11-08 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
-Times are medians of eight samples after one warmup; heap measurements use
-separate allocation-tracking runs. The four-slot case repeats the fixture's
-two disclosures.
+Times are medians of sixteen samples across two runs, each after one warmup;
+heap measurements use separate allocation-tracking runs. The four-slot case
+repeats the fixture's two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 130.5 ms | 74.5 ms | 138,191 | 43.06 MiB | 34.73 MiB |
-| 4 | 141.1 ms | 79.5 ms | 138,735 | 47.65 MiB | 37.78 MiB |
+| 2 | 138.1 ms | 77.4 ms | 138,191 | 43.06 MiB | 34.73 MiB |
+| 4 | 149.2 ms | 84.1 ms | 138,735 | 47.65 MiB | 37.78 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -463,6 +463,7 @@ compiler. The default features are `verifier`, `prover`, `compiler`, and
 | `mdoc` | mdoc application and circuit-archive support |
 | `testonly` | Test fixtures and deterministic randomness; also enables both proof roles and the compiler |
 | `tooling` | Offline Rust tools, including compiler and auxiliary-arithmetic dependencies |
+| `arm-neon` | ARMv7 NEON field arithmetic; also requires the compiler's NEON target flag |
 | `bench-memory` | Benchmark allocation tracking |
 
 The `tooling` feature is not enabled by default and does not enable proving or
@@ -508,6 +509,15 @@ cover successful proofs, rejected statements, and malformed proofs.
 Standalone `prover_only` and `verifier_only` programs demonstrate v1 mdoc
 execution with separate feature builds. Run either with `--help` for
 circuit-file options.
+
+ARMv7 Linux builds use ARM integer arithmetic and scalar binary-field arithmetic
+by default. `cargo build-armv7-neon --release` selects the NEON field backend and
+sets the required compiler flag; the resulting binary requires a NEON-capable
+CPU. Selection happens at build time. `force-generic-arch` overrides either
+backend. Cross builds require `arm-linux-gnueabihf-gcc`.
+`cargo test-armv7-neon --features testonly` runs the NEON tests on ARM hardware
+or through a locally configured Cargo runner. Rust emits an unstable-feature
+warning for the `+neon` compiler flag; the backend uses stable inline assembly.
 
 ## Benchmarks
 

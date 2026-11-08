@@ -120,33 +120,48 @@ pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     acc.0
 }
 
-#[inline(always)]
-pub fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
-    let mask = (x != y) as u64;
-    let mask = (0u64.wrapping_sub(mask)) as crate::runtime::algebra::limb::Limb;
-    for i in 0..N {
-        a[i] = (a[i] & !mask) | (b[i] & mask);
+// The ARM scalar backend reuses only the field operations above; its integer
+// helpers are implemented in ARM assembly. Keep these generic helpers available
+// only when this module supplies the complete architecture backend.
+#[cfg(any(
+    feature = "force-generic-arch",
+    not(all(target_arch = "arm", target_os = "linux", target_endian = "little"))
+))]
+pub use integer::*;
+
+#[cfg(any(
+    feature = "force-generic-arch",
+    not(all(target_arch = "arm", target_os = "linux", target_endian = "little"))
+))]
+mod integer {
+    #[inline(always)]
+    pub fn cmovne<const N: usize>(
+        a: &mut [crate::runtime::algebra::limb::Limb; N],
+        x: crate::runtime::algebra::limb::Limb,
+        y: crate::runtime::algebra::limb::Limb,
+        b: &[crate::runtime::algebra::limb::Limb; N],
+    ) {
+        let mask = (x != y) as u64;
+        let mask = (0u64.wrapping_sub(mask)) as crate::runtime::algebra::limb::Limb;
+        for i in 0..N {
+            a[i] = (a[i] & !mask) | (b[i] & mask);
+        }
     }
-}
 
-#[inline(always)]
-pub fn cmovnz<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    nz: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
-    cmovne(a, nz, 0, b);
-}
-pub use cmovnz as cmovzn;
+    #[inline(always)]
+    pub fn cmovnz<const N: usize>(
+        a: &mut [crate::runtime::algebra::limb::Limb; N],
+        nz: crate::runtime::algebra::limb::Limb,
+        b: &[crate::runtime::algebra::limb::Limb; N],
+    ) {
+        cmovne(a, nz, 0, b);
+    }
+    pub use cmovnz as cmovzn;
 
-#[inline(always)]
-pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
-    // Retain the optimizer barrier used by carry propagation on other targets.
-    // This is not a guarantee of constant-time machine code.
-    core::hint::black_box(0 as crate::runtime::algebra::limb::Limb)
+    #[inline(always)]
+    pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
+        // Retain the optimizer barrier used by carry propagation on other targets.
+        // This is not a guarantee of constant-time machine code.
+        core::hint::black_box(0 as crate::runtime::algebra::limb::Limb)
+    }
 }
