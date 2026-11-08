@@ -15,7 +15,6 @@ theorem fresh_eq (body terminal : Body g fields Advice (OpeningBody.Authenticati
   simp only [ProtocolWrites.fresh,CompleteTerminal.fill,ProtocolWrites.packingPair,
     ProtocolWrites.frontendMessages,Body.frontend,binary,prime]
 
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)
@@ -25,7 +24,6 @@ local notation "Output" => CanonicalRequest.Output (g := g) (fields := fields) (
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup publicCount
 local notation "e" => CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request
 
-omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 private theorem role_eq (body terminal : Body g fields Advice (OpeningBody.Authentication g))
     (binary : terminal.binaryBackend.response = body.binaryBackend.response)
     (prime : terminal.primeBackend.response = body.primeBackend.response)

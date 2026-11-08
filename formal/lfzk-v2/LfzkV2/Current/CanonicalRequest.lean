@@ -12,7 +12,6 @@ open CanonicalPrefix QueryRuntime
 open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice C : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
@@ -95,7 +94,6 @@ theorem block_zero_independent_of_prime (request : Request shape publicCount)
     block_zero repr shape setup publicCount binaryRequest metadata request proof i hi past]
   rfl
 
-omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 private theorem fresh_zero (body : Current.Body g fields Advice (OpeningBody.Authentication g))
     (i : Fin g.roles.length) (hi : i.val = 0) : ProtocolWrites.fresh body i = {} := by
   have hp : i.val ≠ g.primeStart := by simp only [hi,Geometry.primeStart]; omega

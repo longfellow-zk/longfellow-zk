@@ -86,6 +86,7 @@ theorem frontend_eq (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
       original remaining tape request HM H bodyFits sample pivotOne hash point member)).symm)
   have same := congrArg Prod.fst run
   rw [HonestTranscript.Mdoc.program_output,HonestTranscript.Mdoc.program_output] at same
+  rw [OracleHonestCanonical.result_run, OracleHonestCanonical.result_run]
   exact same.symm
 
 end LfzkV2.Current.ZeroKnowledge.OracleHonestNormalization

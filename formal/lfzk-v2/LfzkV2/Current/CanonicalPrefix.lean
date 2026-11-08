@@ -10,6 +10,9 @@ open scoped Classical
 /-- The runtime writes one tag, one unsigned u64 byte count, and the payload. -/
 def frame (payload : Bytes) : Bytes := [0] ++ encodeLE 8 payload.length ++ payload
 
+@[simp] theorem frame_length (payload : Bytes) : (frame payload).length = 9+payload.length := by
+  simp only [frame,List.length_append,List.length_singleton,TranscriptV2.Framing.encodeLE_length]
+
 def maxLength : ℕ := 2^64-1
 
 private abbrev NoFields (_ : Empty) := PEmpty
@@ -41,6 +44,10 @@ theorem bytes_encode (value : BoundedBytes maxLength) : bytes.encode value = fra
     TranscriptV2.Framing.encodeValues,TranscriptV2.Framing.encode,frame,List.append_nil,
     List.cons_append,List.nil_append]
 
+theorem bytes_length (value : BoundedBytes maxLength) :
+    (bytes.encode value).length = 9+value.bytes.length := by
+  rw [bytes_encode,frame_length]
+
 /-- UTF-8 is used only for the literal ASCII domain strings below. -/
 def utf8 (text : String) : Bytes := text.toUTF8.data.toList.map fun value =>
   ⟨value.toNat,UInt8.toNat_lt _⟩
@@ -67,6 +74,9 @@ theorem framedDigest_encode (value : Digest) : framedDigest.encode value = frame
     PrefixCodec.marker,Equiv.coe_fn_symm_mk,ProofBodyCodec.digest,PrefixCodec.bytes_encode,
     frame,List.length_ofFn,List.append_assoc]
 
+theorem framedDigest_length (value : Digest) : (framedDigest.encode value).length = 41 := by
+  rw [framedDigest_encode,frame_length,List.length_ofFn]
+
 def feedback : PrefixCodec Digest := framedDigest.prefixed (frame feedbackDomain)
 
 theorem feedback_encode (value : Digest) : feedback.encode value =
@@ -81,6 +91,12 @@ theorem feedback_nonempty (value : Digest) : feedback.encode value ≠ [] := by
 
 /-- Session initialization precedes all bind-only and round operations. -/
 def session : PrefixCodec (BoundedBytes maxLength) := bytes.prefixed (frame sessionDomain)
+
+theorem session_length (value : BoundedBytes maxLength) :
+    (session.encode value).length = (frame sessionDomain).length+9+value.bytes.length := by
+  change ((frame sessionDomain) ++ bytes.encode value).length = _
+  rw [List.length_append,bytes_length]
+  omega
 
 
 section Payload

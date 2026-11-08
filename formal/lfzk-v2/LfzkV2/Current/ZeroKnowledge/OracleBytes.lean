@@ -19,7 +19,6 @@ set_option maxRecDepth 4096
 set_option maxHeartbeats 800000
 
 variable {g : Geometry} {fields : Fields} {Advice C : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 variable (fits : g.roles.length < 2^64)

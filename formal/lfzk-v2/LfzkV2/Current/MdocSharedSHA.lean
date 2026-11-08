@@ -52,9 +52,8 @@ theorem window_subset (outside : Bytes → Digest) :
   intro raw member
   apply mem_biUnion.mpr
   refine ⟨visible,mem_univ _,?_⟩
-  rcases mem_union.mp member with member | member
-  · exact mem_union_left _ (SHARouting.queries_subset SHAOracle.merkleDomain outside (body visible) member)
-  · exact mem_union_right _ member
+  exact SHARouting.window_subset SHAOracle.merkleDomain outside
+    (MdocSetupFamily.codec binary prime cantor scalars ids bounds fits visible) (body visible) member
 
 omit [Fintype B] [DecidableEq B] in
 /-- The hypothesis bounds the ORIGINAL program on total SHA/transcript

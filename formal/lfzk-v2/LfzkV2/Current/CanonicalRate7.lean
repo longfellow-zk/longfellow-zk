@@ -17,7 +17,8 @@ attribute [local instance] Classical.propDecidable
 
 variable {g : Geometry} {fields : Fields} {Advice C B : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
+variable [finiteFields : ∀ side, Fintype (fields side)] [finiteAdvice : Fintype Advice]
+omit finiteFields finiteAdvice
 variable [Fintype C] [Nonempty C] [DecidableEq C]
 variable {shared maskBits adviceBits calls tA Q TM : ℕ}
 variable (binary : BinaryPublic B shared maskBits adviceBits)
@@ -99,10 +100,42 @@ variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
 variable (binaryGeometry : binaryTemplate.frontend = g.binary)
 variable (binaryFits : binaryTemplate.capacity ≤ samplers.binaryCapacity)
 
+omit [Fintype C] [Nonempty C] [DecidableEq C] in
+/-- The source factory exposes its fixed coin projection without
+reducing the program, Merkle decoder or canonical query representation. -/
+private theorem source_coins (outside : Bytes → Digest × C) :
+    (source binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout (TM := TM) outside).coins =
+      fun answer => ((wirePublic binary prime P R repr shape setup cfg).fingerprintBinary answer,
+        (wirePublic binary prime P R repr shape setup cfg).fingerprintPrime answer) :=
+  RuntimeAdaptiveCommitment.source_coins FixedRate.Rate7.certificate binary prime P R
+    (wirePublic binary prime P R repr shape setup cfg)
+    (earlier binary prime P R repr shape setup cfg binaryCount metadata)
+    (merkleCodec binary prime P R repr shape setup cfg) (merkleDecoders binary prime P R repr shape setup cfg)
+    dflt (typedBody binary repr shape setup fits body outside) layout (fun _ : Fin TM => 0)
+
 def samplingAt (outside : Bytes → Digest × C) : RuntimeCover.SamplerLaws binary prime P R
     (wirePublic binary prime P R repr shape setup cfg)
     (source binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout (TM := TM) outside) :=
-  samplers.retarget _ (by rfl)
+  samplers.retarget _ ((source_coins binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout
+    (TM := TM) (fun _ => dflt)).trans
+      (source_coins binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout (TM := TM) outside).symm)
+
+omit [Nonempty C] [DecidableEq C] in
+/-- Retargeting changes the recovered selection oracle, not either
+frontend's public challenge capacity. Consumers use these projections without
+unfolding the full source and commitment reduction. -/
+private theorem samplingAt_primeCapacity (outside : Bytes → Digest × C) :
+    (samplingAt binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout samplers outside).primeCapacity =
+      samplers.primeCapacity := by
+  unfold samplingAt
+  exact RuntimeCover.SamplerLaws.retarget_primeCapacity samplers _ _
+
+omit [Nonempty C] [DecidableEq C] in
+private theorem samplingAt_binaryCapacity (outside : Bytes → Digest × C) :
+    (samplingAt binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout samplers outside).binaryCapacity =
+      samplers.binaryCapacity := by
+  unfold samplingAt
+  exact RuntimeCover.SamplerLaws.retarget_binaryCapacity samplers _ _
 
 def accepted (outside : Bytes → Digest × C) (mt : Fin TM → Digest)
     (H : Point binary repr shape setup → Digest × C) : Prop :=
@@ -248,7 +281,7 @@ theorem extractionFailure_iff (outside : Bytes → Digest × C) (mt : Fin TM →
 
 end Agreement
 
-include hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
+include finiteFields finiteAdvice hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
 /-- Conditioning only the outside byte answers preserves the same
 distinct-query bound. All profile and candidate-list costs are internal. -/
 theorem typed_ratio_le (outside : Bytes → Digest × C)
@@ -267,13 +300,21 @@ theorem typed_ratio_le (outside : Bytes → Digest × C)
         ((4*Q+1+Bcs.AdaptiveCommit.adaptiveNumerator 4886 tA (1+g.roles.length+Q) : ℕ) : ℚ) /
           (Adapter.Mdoc.binaryOrder : ℚ)^2 := by
   letI := leafInhabited binary prime P R repr shape setup cfg
+  have primeFitsAt : primePlan.capacity ≤
+      (samplingAt binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout samplers outside).primeCapacity := by
+    rw [samplingAt_primeCapacity]
+    exact primeFits
+  have binaryFitsAt : binaryTemplate.capacity ≤
+      (samplingAt binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout samplers outside).binaryCapacity := by
+    rw [samplingAt_binaryCapacity]
+    exact binaryFits
   have result := RuntimeAdaptiveRate7.ratio_le binary prime P R (wirePublic binary prime P R repr shape setup cfg)
     (earlier binary prime P R repr shape setup cfg binaryCount metadata)
     (CanonicalRequest.hashPublic binary.nPublic) (decodePublic binary prime P R repr shape setup cfg primeCount) draw
     (merkleCodec binary prime P R repr shape setup cfg) (merkleDecoders binary prime P R repr shape setup cfg)
     dflt (typedBody binary repr shape setup fits body outside) layout hlayout
     (samplingAt binary prime P R repr shape setup cfg binaryCount metadata fits body dflt layout samplers outside)
-    primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits rawSampler hraw querySampler hquery
+    primePlan primeGeometry primeFitsAt binaryTemplate binaryGeometry binaryFitsAt rawSampler hraw querySampler hquery
     (fun mt H => ((byteCodec binary repr shape setup fits).program_seen_card_le outside H mt default body []).trans
       (hsupport mt ((byteCodec binary repr shape setup fits).oracle outside H))) hspace
   simpa only [accepted,extractionFailure,Fintype.card_prod,Fintype.card_fun,Fintype.card_fin,
@@ -329,7 +370,7 @@ theorem raw_event_oracle (outside : Bytes → Digest × C) (mt : Fin TM → Dige
     (accepted_iff binary prime P R repr shape setup cfg binaryCount primeCount metadata fits body dflt draw bodyFits outside mt norm H agree)
     (extractionFailure_iff binary prime P R repr shape setup cfg binaryCount primeCount metadata fits body dflt draw bodyFits outside mt norm H agree))
 
-include bodyFits hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
+include finiteFields finiteAdvice bodyFits hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
 /-- The actual raw event under a fixed outside-image oracle. Oracle
 normalization preserves the selected extractor and introduces no factor. -/
 theorem conditioned_ratio_le (outside : Bytes → Digest × C)
@@ -352,7 +393,7 @@ theorem conditioned_ratio_le (outside : Bytes → Digest × C)
     outside rawSampler hraw querySampler hquery hsupport hspace
   simpa only [raw_event_oracle binary prime P R repr shape setup cfg binaryCount primeCount metadata fits body dflt draw bodyFits] using result
 
-include bodyFits hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
+include finiteFields finiteAdvice bodyFits hlayout samplers primePlan primeGeometry primeFits binaryTemplate binaryGeometry binaryFits in
 /-- The current 84-opening rate-1/7 bound for actual canonical byte query
 inputs and finite ideal decoded answers. All verifier replay and extraction
 correspondence is derived; coupling to SHAKE output bytes is outside this model. -/

@@ -99,7 +99,7 @@ def RawReachable (request : Request) : Prop :=
 
 variable (fits : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length < 2^64)
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem reachable_raw (complement : Bytes → Digest × Answer) (request : Request)
     (reachable : BackendRuntimeContext.RequestReachable binary prime.description prime.plan Repr Sh (Setup outside)
       requestOf ((MdocOracleWindows.byteCodec binary prime cantor scalars ids bounds fits outside).program complement prior) outside request) :

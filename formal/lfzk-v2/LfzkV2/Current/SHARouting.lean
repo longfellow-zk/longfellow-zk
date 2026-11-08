@@ -77,6 +77,16 @@ theorem queries_subset {left right : ℕ} (body : TwoOracleTree Raw D QT AT Out 
       simp only [SHAOracle.route,ByteOracleTransport.Codec.allQueries]
       exact Finset.insert_subset_insert query (Finset.biUnion_mono fun answer _ => ih answer)
 
+/-- Routing can remove program queries, while the canonical verifier image
+in the finite oracle window stays unchanged. Keep the codec abstract here so
+applications need not unfold its complete finite image to prove inclusion. -/
+theorem window_subset {Point : Type} {valid : Point → Prop}
+    [Fintype {point // valid point}]
+    (codec : ByteOracleTransport.Codec Point QT valid)
+    {left right : ℕ} (body : TwoOracleTree Raw D QT AT Out left right) :
+    codec.window (SHAOracle.route domain outside body) ⊆ codec.window body :=
+  Finset.union_subset_union (queries_subset domain outside body) (Finset.Subset.refl _)
+
 end Queries
 
 variable [DecidableEq QT]

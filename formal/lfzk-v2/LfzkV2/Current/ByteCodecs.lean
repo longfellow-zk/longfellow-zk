@@ -113,6 +113,17 @@ theorem vector_encode (codec : PrefixCodec A) (length : ℕ) (value : Fin length
       change codec.encode (value 0) ++ (vector codec length).encode (fun i => value i.succ) = _
       rw [ih,List.ofFn_succ,List.flatMap_cons]
 
+theorem vector_length (codec : PrefixCodec A) (width : ℕ)
+    (hlen : ∀ value, (codec.encode value).length = width) (count : ℕ)
+    (value : Fin count → A) : ((PrefixCodec.vector codec count).encode value).length = count*width := by
+  induction count with
+  | zero => simp only [PrefixCodec.vector,PrefixCodec.equiv,PrefixCodec.unit,List.length_nil,Nat.zero_mul]
+  | succ count ih =>
+      change (codec.encode (value 0) ++
+        (PrefixCodec.vector codec count).encode (fun i => value i.succ)).length = (count+1)*width
+      rw [List.length_append,hlen,ih]
+      ring
+
 theorem bytes_encode (length : ℕ) (value : Fin length → Byte) :
     (vector byte length).encode value = List.ofFn value := by
   rw [vector_encode]

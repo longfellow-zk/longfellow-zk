@@ -70,7 +70,7 @@ def originalProgram (outside : Bytes → Digest) (HT : Bytes → Digest × Answe
     (ProofOutput.normalize Repr (MdocDefaults.proof Geom B)
       (body (MdocSetupFamily.values binary prime cantor scalars ids bounds outside))) HT
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem program_routing (outside : Bytes → Digest) (HT : Bytes → Digest × Answer) :
     SHAOracle.route SHAOracle.merkleDomain outside
       (originalProgram binary prime cantor scalars ids bounds body fits outside HT) =

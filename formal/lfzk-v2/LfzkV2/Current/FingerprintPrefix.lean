@@ -159,16 +159,31 @@ theorem context_independent_of_prime {publicCount primeCount : ℕ} {Prime : Typ
     (request : Request publicCount primeCount Prime) (inputs : Fin primeCount → Prime) (root : Digest) :
     context {request with primeInputs := inputs} root = context request root := rfl
 
-/-- The finite packet space supplies a common whole-block capacity. This
-bound includes framing and metadata; the u64 limit applies to each payload,
-not to the complete concatenation. No padding is serialized. -/
+/-- Structural capacity for the complete initial block. Session bytes are
+bounded once; public counts and fixed metadata determine every other size.
+The bound is only an ambient type size, and appends no bytes to the transcript. -/
 def blockBound (setup : Setup) (publicCount : ℕ) : ℕ :=
-  Finset.univ.sup (fun key : Key publicCount => ((codec setup publicCount).encode key).length)
+  (frame CanonicalPrefix.sessionDomain).length+9+CanonicalPrefix.maxLength +
+    (beforePublic setup).length+9+publicCount +
+    (beforeRoot setup).length+41 + (beforeRepeatedRoot setup).length+41 + (afterRoot setup).length
+
+private theorem bits_length (count : ℕ) (value : Fin count → Bool) :
+    ((bits count).encode value).length = 9+count := by
+  change (([0] ++ encodeLE 8 count) ++ (PrefixCodec.vector bit count).encode value).length = _
+  rw [List.length_append,PrefixCodec.vector_length bit 1 (by
+    intro v
+    change (encodeLE 1 _).length = 1
+    exact TranscriptV2.Framing.encodeLE_length _ _)]
+  simp only [List.length_append,List.length_singleton,TranscriptV2.Framing.encodeLE_length,Nat.mul_one]
 
 theorem encode_length_le (setup : Setup) (publicCount : ℕ) (key : Key publicCount) :
     ((codec setup publicCount).encode key).length ≤ blockBound setup publicCount := by
-  exact Finset.le_sup (f := fun key : Key publicCount => ((codec setup publicCount).encode key).length)
-    (Finset.mem_univ key)
+  rw [codec_encode]
+  simp only [List.length_append,CanonicalPrefix.session_length,bits_length,
+    CanonicalPrefix.framedDigest_length]
+  have h := key.session.bound
+  unfold blockBound
+  omega
 
 def blockBytes (setup : Setup) (publicCount : ℕ) (key : Key publicCount) :
     BoundedBytes (blockBound setup publicCount) :=

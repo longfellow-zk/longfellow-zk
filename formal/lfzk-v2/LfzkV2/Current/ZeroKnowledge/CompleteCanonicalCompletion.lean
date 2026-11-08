@@ -17,7 +17,6 @@ set_option maxRecDepth 4096
 
 variable {g : Geometry} {fields : Fields} {Advice C B : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable {shared maskBits adviceBits : ℕ}
 variable (binary : BinaryPublic B shared maskBits adviceBits)
 local notation "N" => ZMod Adapter.Mdoc.primeOrder

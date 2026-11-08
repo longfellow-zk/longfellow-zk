@@ -126,17 +126,17 @@ variable (H : QueryRuntime.Runtime.Point repr shape setup binary.description.nPu
 theorem frontend_output (sample : Fin 361 → B) :
     ((tree binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining tape request HM draw sample).run H).1.frontend =
       OracleHonestCanonical.result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample := by
+  rw [OracleHonestCanonical.result_run]
   unfold tree
   rw [HonestTranscript.Mdoc.openingPrefix_output]
-  rfl
 
 theorem batch_output (sample : Fin 361 → B) :
     ((tree binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining tape request HM draw sample).run H).1.batch =
       (CompleteTranscript.step (baseAt sample) H
         (OracleHonestCanonical.result binary prime primePlan binaryNodes repr shape setup cfg binaryCount metadata original remaining tape request HM H sample).state).1 := by
+  rw [OracleHonestCanonical.result_run]
   unfold tree
   rw [HonestTranscript.Mdoc.openingPrefix_output]
-  rfl
 
 theorem internal_fresh (sample : Fin 361 → B) :
     MerklePrequery.fresh
@@ -224,8 +224,7 @@ theorem state_output (sample : Fin 361 → B) :
           ((tree binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining tape request HM draw sample).run H).1.frontend
           ((tree binary prime primePlan binaryNodes repr shape setup cfg binaryCount primeCount metadata original remaining tape request HM draw sample).run H).1.batch) := by
   unfold tree OracleHonestCanonical.openingState
-  rw [HonestTranscript.Mdoc.openingPrefix_output]
-  rfl
+  rw [HonestTranscript.Mdoc.openingPrefix_output, OracleHonestCanonical.result_run]
 
 theorem input_output (sample : Fin 361 → B) (pivotOne : binary.basis 0 = 1)
     (hash : ∀ responses coin converted, FullCoupling.hashChecks binary prime primePlan

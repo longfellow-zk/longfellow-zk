@@ -136,11 +136,18 @@ auxiliary-domain invariance holds for every decoded proof. The generic lazy
 execution identities need no default transcript challenge, including when
 the transcript-query alphabet is empty.
 
-The application-circuit audit also found namespace/CBOR-path binding,
-docType-length and selected-field range issues, including a malformed-input
-case reading SHA padding as a timestamp. These remain outside the protocol
-proof's trusted application relation. A protocol extraction theorem does not
-repair them or imply correctness of the intended document semantics.
+The application-circuit audit found namespace/CBOR-path binding and selected-field
+range issues. Rust now rejects reads into SHA padding, incomplete docType matches,
+inconsistent wrapper lengths and wrong attribute CBOR types. A bounded CBOR parser,
+namespace/path binding and timestamp semantics remain deferred. The protocol proof
+continues to trust the supplied application relation; extraction alone does not
+establish the intended document semantics.
+
+Canonical query capacities are structural bounds on public vector counts,
+fixed codec widths and framing overhead. They do not enumerate field-valued
+packets or append padding. Generic codec-length, sampler-projection and runtime
+wrapper lemmas keep these representation details separate from the soundness
+and privacy arguments.
 
 The broad axiom audit checks new public and private declarations against
 `propext`, `Classical.choice` and `Quot.sound`. These foundational axioms do

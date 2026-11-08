@@ -9,7 +9,6 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.CanonicalState
 
 open scoped Classical
 variable {g : Geometry} {fields : Fields} {Advice C : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (shape : WireBlocks.Shape g fields) (defaultAdvice : Advice)
 variable (repr : ProofBodyCodec.Representations fields Advice) (setup : FingerprintPrefix.Setup)
 variable (publicCount : ℕ)

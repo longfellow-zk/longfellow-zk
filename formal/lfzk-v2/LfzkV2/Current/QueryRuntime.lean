@@ -207,12 +207,11 @@ end Generic
 
 namespace Runtime
 variable {g : Geometry} {fields : Fields} {Advice : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
-/-- The finite public packet spaces determine the capacity. This maximum
-affects only a logical type; it adds no padding or serialized length. -/
+/-- Structural bounds for the initial and ordinary packets determine the
+capacity. This affects only a logical type, adding no padding or serialized length. -/
 def capacity : ℕ :=
   max (FingerprintPrefix.blockBound setup publicCount) (WireBlocks.blockBound shape repr)
 

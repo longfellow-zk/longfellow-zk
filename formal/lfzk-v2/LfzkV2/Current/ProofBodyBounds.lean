@@ -8,16 +8,7 @@ capacity certificate or padding. -/
 namespace LfzkV2.Current.ProofBodyBounds
 open Finset
 
-private theorem vector_length {A : Type} (codec : PrefixCodec A) (width : ℕ)
-    (hlen : ∀ value, (codec.encode value).length = width) (count : ℕ)
-    (value : Fin count → A) : ((PrefixCodec.vector codec count).encode value).length = count*width := by
-  induction count with
-  | zero => simp only [PrefixCodec.vector,PrefixCodec.equiv,PrefixCodec.unit,List.length_nil,Nat.zero_mul]
-  | succ count ih =>
-      change (codec.encode (value 0) ++
-        (PrefixCodec.vector codec count).encode (fun i => value i.succ)).length = (count+1)*width
-      rw [List.length_append,hlen,ih]
-      ring
+open PrefixCodec (vector_length)
 
 private theorem dependent_length (count : ℕ) (A : Fin count → Type)
     (codecs : ∀ i, PrefixCodec (A i)) (width : Fin count → ℕ)

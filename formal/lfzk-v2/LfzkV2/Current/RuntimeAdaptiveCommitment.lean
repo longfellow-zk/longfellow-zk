@@ -78,6 +78,13 @@ def source (mt : Fin TM → Digest) :=
     (cutOracle c binary prime P R cfg earlier codec dec dflt body mt)
     (cutOracle_off c binary prime P R cfg earlier codec dec dflt body mt)
 
+omit [Fintype C] [Nonempty C] [DecidableEq C] [Fintype Key] [Fintype Base] [Fintype Advice] [∀ side, Fintype (fields side)] in
+/-- The fingerprint decoder is public setup data. Recovering a commitment
+oracle or changing the prover program cannot change this projection. -/
+theorem source_coins (mt : Fin TM → Digest) :
+    (source c binary prime P R cfg earlier codec dec dflt body layout mt).coins =
+      fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer) := rfl
+
 variable (samplers : RuntimeCover.SamplerLaws binary prime P R cfg
   (source c binary prime P R cfg earlier codec dec dflt body layout (fun _ : Fin TM => 0)))
 variable (primePlan : FrontendSchedule.Plan (ZMod Adapter.Mdoc.primeOrder) prime.circuit)

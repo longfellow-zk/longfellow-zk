@@ -12,7 +12,7 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
 theorem quotient_bound : 2^10 ≤ Current.Adapter.Mdoc.quotientBound := by decide
-variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+variable {B C : Type} [Field B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
@@ -32,7 +32,7 @@ local notation "point" => TranscriptV2.Chain.point (Replay.Encoding.chain E init
 local notation "past" => Input.priorAnswers
   (TranscriptV2.Chain.point (Replay.Encoding.chain E initial) proof H (Fin.val (Geometry.batchingIndex G))) H
 
-omit [Fintype B] [DecidableEq B] in
+omit [DecidableEq B] in
 theorem positions :
     ApplicationPrefix.rowBatchingIndex (G) < (G).batchingIndex.val ∧
       ApplicationPrefix.rescalingIndex (G) < (G).batchingIndex.val ∧
@@ -45,13 +45,13 @@ theorem positions :
     List.length_append,List.length_cons,List.length_nil,show (128 : ℕ) ≠ 1 by decide,if_false]
   repeat' constructor <;> omega
 
-omit [Fintype B] [DecidableEq B] in
+omit [DecidableEq B] in
 theorem prime_window : (G).primeStart+FrontendReplay.slots prime.circuit ≤ (G).batchingIndex.val := by
   rw [primePlan.slots_eq_roles_length .prime]
   change (G).primeStart+((G).prime.roles .prime).length ≤ _
   exact (positions binary prime primePlan).1.le
 
-omit [Fintype B] [DecidableEq B] in
+omit [DecidableEq B] in
 theorem binary_window {out input : ℕ} (circuit : Layered.Circuit B out input)
     (plan : FrontendSchedule.Plan B circuit) (same : (G).binary = plan.frontend) :
     (G).binaryStart+FrontendReplay.slots circuit ≤ (G).batchingIndex.val := by
@@ -72,10 +72,10 @@ theorem prime_success : ∃ data,
   erw [if_pos (by erw [rank]; exact prime_window binary prime primePlan),messages,batch]
   exact ⟨_,rfl⟩
 
-omit [Fintype B] [DecidableEq B] in
+omit [DecidableEq B] in
 theorem packing_pair : ProtocolWrites.packingPair proof.body = some proof.body.packing := rfl
 
-omit [Fintype B] [DecidableEq B] in
+omit [DecidableEq B] in
 theorem packing_degree : (G).packingDegree = binary.description.degree := rfl
 
 omit [DecidableEq B] in
@@ -124,6 +124,8 @@ theorem binary_success (native : PrimeData prime C) (generator : Bˣ) : ∃ data
   simp only [Option.bind_some,Option.map_some]
   erw [if_pos (by erw [rank]; exact window),messages]
   exact ⟨_,rfl,rfl⟩
+
+variable [Fintype B]
 
 theorem decode_success
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)

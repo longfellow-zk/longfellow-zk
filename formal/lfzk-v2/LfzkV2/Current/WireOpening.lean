@@ -112,7 +112,6 @@ theorem fromRequest_opening (binaryInputs : Fin shape.binaryPublic → fields .b
   · exact roleFromBody_opening shape body _ g.get_openingIndex _ _
 
 section Bounded
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
 /-- This capacity bounds whole blocks and can exceed u64. The opening's

@@ -132,7 +132,6 @@ theorem fromFresh_body (body : Body g fields Advice Auth) (i : Fin g.roles.lengt
     (roleFromFresh_body shape body i metadata.2)
 
 section Canonical
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice) (setup : FingerprintPrefix.Setup)
 variable (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)

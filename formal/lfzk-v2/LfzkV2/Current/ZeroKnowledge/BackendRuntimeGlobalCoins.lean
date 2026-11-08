@@ -90,7 +90,7 @@ def refreshEquiv (TableSpace : Type) :
       BackendRuntimeRefreshCoins.Challenges (C := C) binary prime primePlan repr shape setup) :=
   (Equiv.prodCongr (outerEquiv binary prime primePlan binaryNodes repr shape setup) (Equiv.refl _)).trans tableOrder
 
-omit [Fintype C] [DecidableEq Observed] in
+omit [Fintype B] [Fintype C] [DecidableEq Observed] in
 theorem refreshEquiv_symm {TableSpace : Type}
     (frame : Frame binary prime binaryNodes) (table : TableSpace)
     (challenges : BackendRuntimeRefreshCoins.Challenges (C := C) binary prime primePlan repr shape setup) :

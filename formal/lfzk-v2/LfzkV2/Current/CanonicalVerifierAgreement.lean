@@ -11,7 +11,6 @@ open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice C B Salt Enc : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable {shared maskBits adviceBits k s n t : ℕ}
 local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)

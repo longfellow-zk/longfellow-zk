@@ -35,6 +35,9 @@ private def followed {A : Type} (codec : PrefixCodec A) (suffix : Bytes) : Prefi
     left_inv value := by rcases value with ⟨value,⟨⟩⟩; rfl
     right_inv _ := rfl }
 
+theorem followed_encode {A : Type} (codec : PrefixCodec A) (suffix : Bytes) (value : A) :
+    (followed codec suffix).encode value = codec.encode value ++ suffix := rfl
+
 def bytesDomain (text : String) : Bytes := frame (utf8 text)
 
 /-- `write_bytes(&word.to_le_bytes())`: the payload is eight bytes, not a

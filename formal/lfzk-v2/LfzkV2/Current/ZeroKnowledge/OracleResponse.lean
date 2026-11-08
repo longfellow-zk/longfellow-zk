@@ -29,7 +29,6 @@ theorem freshBoth_before (body : Body g fields Advice (OpeningBody.Authenticatio
   simp only [ProtocolWrites.fresh,notOpening,if_false,fillBoth,ProtocolWrites.packingPair,
     ProtocolWrites.frontendMessages,Body.frontend]
 
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)
@@ -43,7 +42,6 @@ local notation "e" => CanonicalRequest.encoding repr shape setup publicCount bin
 def proofBoth (pending : Output) (response : Response g (fields .binary) × Response g (fields .prime)) : Output :=
   { pending with body := fillBoth pending.body response }
 
-omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 private theorem role_before (body : Body g fields Advice (OpeningBody.Authentication g))
     (response : Response g (fields .binary) × Response g (fields .prime)) (role : Role) (valid : WireBlocks.ValidRole g role)
     (metadata : WireBlocks.RoleMetadata shape role) (notOpening : role ≠ .opening) :
@@ -137,7 +135,6 @@ def fill (body : Body g fields Advice (OpeningBody.Authentication g))
 def proof (pending : Output) (response : Response g (fields .binary)) : Output :=
   proofBoth pending (response,pending.body.primeBackend.response)
 
-omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 theorem fresh_before (body : Body g fields Advice (OpeningBody.Authentication g))
     (response : Response g (fields .binary)) (i : Fin g.roles.length) (before : i.val < g.openingIndex.val) :
     ProtocolWrites.fresh (fill body response) i = ProtocolWrites.fresh body i :=

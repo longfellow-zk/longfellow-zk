@@ -12,7 +12,6 @@ open CanonicalPrefix QueryRuntime
 open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice C : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)

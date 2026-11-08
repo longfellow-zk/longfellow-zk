@@ -40,4 +40,18 @@ def retarget (laws : SamplerLaws binary prime P R cfg S)
   primeSelection_agrees answer := (laws.primeSelection_agrees answer).trans (congrArg (fun f => (f answer).2) hcoins)
   bits_le := laws.bits_le
 
+/-- The source's recovered oracle is irrelevant to the public sampler
+dimensions. Expose those projections without unfolding a concrete source. -/
+theorem retarget_primeCapacity (laws : SamplerLaws binary prime P R cfg S)
+    (T : Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+      (Key := Key) (C := C) binary prime (Oracle := Oracle))
+    (hcoins : S.coins = T.coins) :
+    (laws.retarget T hcoins).primeCapacity = laws.primeCapacity := rfl
+
+theorem retarget_binaryCapacity (laws : SamplerLaws binary prime P R cfg S)
+    (T : Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+      (Key := Key) (C := C) binary prime (Oracle := Oracle))
+    (hcoins : S.coins = T.coins) :
+    (laws.retarget T hcoins).binaryCapacity = laws.binaryCapacity := rfl
+
 end LfzkV2.Current.RuntimeCover.SamplerLaws

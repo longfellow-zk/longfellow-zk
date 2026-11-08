@@ -154,7 +154,6 @@ private theorem prior_closed {roles : List Role} {Context Block Link Body : Type
 
 section Runtime
 variable {g : Geometry} {fields : Fields} {Advice : Type}
-variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
