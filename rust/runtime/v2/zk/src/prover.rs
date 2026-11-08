@@ -160,10 +160,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         mut t: Transcript,
         rng: &mut R,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
+        let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
         if private.len() != private_input_count(&self.circuit) {
             return Err("witness length mismatch".into());
         }
-        let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
         let (state, witness) = participant.prepare(private, rng)?;
         let param = JointParam::new((participant.participant(ctx)?, ()))?;
         participant.bind(&mut t.borrow());

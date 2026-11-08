@@ -80,3 +80,12 @@ fn archive_metadata_has_one_aggregate_limit() {
         .unwrap_err()
         .contains("metadata"));
 }
+
+#[test]
+fn truncated_declared_payloads_do_not_require_the_declared_memory() {
+    let mut data = prefix(1);
+    entry(&mut data, "sig", MAX_ARCHIVE_BYTES);
+    assert!(from_bytes(&data).unwrap_err().contains("Incomplete"));
+    let mut tiny = std::io::BufReader::with_capacity(1, data.as_slice());
+    assert!(from_stream(&mut tiny).unwrap_err().contains("Incomplete"));
+}

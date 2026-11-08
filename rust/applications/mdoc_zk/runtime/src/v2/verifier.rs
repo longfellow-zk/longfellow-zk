@@ -61,6 +61,11 @@ pub fn run_mdoc_verifier_inner(
     if !same_namespace(attrs) {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
+    // Keep the established predicate-failure code, but reject before loading
+    // circuits or parsing an otherwise irrelevant proof.
+    if doc_type.is_empty() {
+        return Err(MdocVerifierErrorCode::GeneralFailure);
+    }
     if !public_inputs_fit(attrs, now.as_bytes(), doc_type.as_bytes()) {
         return Err(MdocVerifierErrorCode::InvalidInput);
     }

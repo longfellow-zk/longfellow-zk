@@ -81,7 +81,12 @@ most three entries. The zstd window is bounded by the metadata limit.
 Structural validation always runs. Circuit-ID enforcement is optional for
 trusted application artifacts. `core::proto::v2::CircuitReader::from_bytes`
 and `core::proto::v2::CircuitWriter::to_bytes` select this LFC3 layout directly.
-V2 archive loading uses its own checked LFA2 reader. V1 readers, LFC1/LFC2
+V2 archive loading uses its own checked LFA2 reader. Slice readers check that
+the declared payload and circuit ID remain before allocating circuit arrays.
+Streaming arrays grow as records arrive, within the directory's fixed final
+counts. The archive loader likewise allocates only for bytes actually present.
+Compressed v2 archives contain exactly one zstd frame; additional frames and
+compressed trailing data are rejected. V1 readers, LFC1/LFC2
 encodings and frozen proofs remain unchanged.
 
 ## Circuit identity

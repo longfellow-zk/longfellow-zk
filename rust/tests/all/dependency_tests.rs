@@ -1261,6 +1261,7 @@ fn test_tooling_and_system_source_boundaries() {
         "all/next.rs",
         "v2_circuits.rs",
         "v2_inputs.rs",
+        "v2_document.rs",
         "v2_adapter.rs",
         "v2_adapter_transcript.rs",
         "v2_archive.rs",
@@ -1324,6 +1325,7 @@ fn test_tooling_and_system_source_boundaries() {
         .chain(if version == "v2" {
             vec![
                 "archive.rs",
+                "document.rs",
                 "transcript.rs",
                 "adapter/mod.rs",
                 "adapter/transcript.rs",

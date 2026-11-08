@@ -150,3 +150,16 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
         assert!(reader.from_bytes(&encoded[..end], true).is_err());
     }
 }
+
+#[test]
+fn truncated_large_payload_is_rejected_before_reserving_circuit_arrays() {
+    let f = Gf2_128Field::new();
+    let mut streams = [[0; 6]; 3];
+    streams[0] = [MAX_TOTAL_TERMS, 0, 0, 0, 0, MAX_ARCHIVE_BYTES];
+    let data = bytes(header(1), &[(1, streams)], &[], &[]);
+    reject(&data, "Incomplete LFC3 payload");
+    let mut input = std::io::BufReader::with_capacity(1, data.as_slice());
+    assert!(CircuitReader::new(&f, FieldID::Gf2_128)
+        .from_stream(&mut input, false)
+        .is_err());
+}

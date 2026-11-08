@@ -294,3 +294,78 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         .into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
 }
+
+#[test]
+fn malformed_public_prefix_is_an_error_before_sampling() {
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let raw = RawCircuit {
+        ninput: 0,
+        npublic_input: 1,
+        noutput: 1,
+        logv: 0,
+        constants: vec![],
+        layers: vec![],
+    };
+    let circuit = v2::Circuit { id: [0; 32], raw };
+    let prover = crate::runtime::v2::zk::ZkProver::new(
+        circuit,
+        PolygeroConfig {
+            k: 8,
+            s: 2,
+            n: 64,
+            t: 2,
+        },
+    );
+    let mut rng = DeterministicRng::new(42);
+    let result = prover.commit(
+        &[],
+        &ZkContext::new(&domain),
+        Transcript::new(b"invalid metadata"),
+        &mut rng,
+    );
+    assert!(matches!(result, Err(ref e) if e == "public prefix"));
+    assert_eq!(rng.state, 42);
+}
+
+#[test]
+fn final_seal_failure_has_its_own_verification_error() {
+    use crate::runtime::v2::zk::{ZkProof, ZkProver, ZkVerificationError, ZkVerifier};
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let context = ZkContext::new(&domain);
+    let (circuit, _) = circuits(&f);
+    let config = PolygeroConfig {
+        k: 64,
+        s: 4,
+        n: 448,
+        t: 24,
+    };
+    let prover = ZkProver::new(circuit, config);
+    let private = vec![false; 3];
+    let (committed, geometry) = prover
+        .commit(
+            &private,
+            &context,
+            Transcript::new(b"seal error"),
+            &mut DeterministicRng::new(45),
+        )
+        .unwrap();
+    let (proof, transcript) = prover
+        .prove(&[false], private, committed, &context)
+        .unwrap();
+    let mut bytes = proof.write(&geometry, &f, transcript).unwrap().into_bytes();
+    let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
+    let mut input = bytes.as_slice();
+    let decoded = ZkProof::read(&mut input, &geometry, &f).unwrap();
+    verifier
+        .verify(&[false], decoded, Transcript::new(b"seal error"), &context)
+        .unwrap();
+    *bytes.last_mut().unwrap() ^= 1;
+    let mut changed = bytes.as_slice();
+    let tampered = ZkProof::read(&mut changed, &geometry, &f).unwrap();
+    assert!(matches!(
+        verifier.verify(&[false], tampered, Transcript::new(b"seal error"), &context),
+        Err(ZkVerificationError::InvalidTranscriptSeal(_))
+    ));
+}

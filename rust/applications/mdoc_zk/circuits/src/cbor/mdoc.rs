@@ -187,6 +187,17 @@ pub fn parse_mdoc<N: Nat<4>>(
     transcript: &[u8],
     doc_type: &str,
 ) -> Result<ParsedMdoc<N>, MdocParseError> {
+    parse_mdoc_with_mso_check(mdoc, transcript, doc_type, |_| Ok(()))
+}
+
+/// Preserve legacy parsing while allowing v2 to validate the original MSO
+/// values before fixed-width integer conversion or witness construction.
+pub(in crate::mdoc) fn parse_mdoc_with_mso_check<N: Nat<4>, E: From<MdocParseError>>(
+    mdoc: &[u8],
+    transcript: &[u8],
+    doc_type: &str,
+    check_mso: impl FnOnce(&CborElement) -> Result<(), E>,
+) -> Result<ParsedMdoc<N>, E> {
     use sha2::{Digest, Sha256};
 
     let mut root_parser = CborParser::new(mdoc);
@@ -234,10 +245,10 @@ pub fn parse_mdoc<N: Nat<4>>(
         if let CborValue::Bytes(ref b) = bstr_el.value {
             b.clone()
         } else {
-            return Err(MdocParseError::UnexpectedType("tag-24 MSO payload"));
+            return Err(MdocParseError::UnexpectedType("tag-24 MSO payload").into());
         }
     } else {
-        return Err(MdocParseError::InvalidValue("MSO tag"));
+        return Err(MdocParseError::InvalidValue("MSO tag").into());
     };
 
     validate_mso_layout(&cbor_mso_wrapped, &cbor_mso_map_bytes)?;
@@ -255,6 +266,7 @@ pub fn parse_mdoc<N: Nat<4>>(
             context: "MSO map",
             message,
         })?;
+    check_mso(&mso_map)?;
     let dev_key_info_el = required_map_value(&mso_map, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
     let dev_key_el =
         required_map_value(&dev_key_info_el, "deviceKey", "MSO.deviceKeyInfo.deviceKey")?;
@@ -337,7 +349,7 @@ pub fn parse_mdoc<N: Nat<4>>(
     })
 }
 
-fn map_entry_unique<'a>(
+pub(in crate::mdoc) fn map_entry_unique<'a>(
     map: &'a CborElement,
     key: &str,
     path: &'static str,

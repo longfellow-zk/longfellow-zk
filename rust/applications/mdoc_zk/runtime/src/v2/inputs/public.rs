@@ -33,6 +33,24 @@ const ATTRIBUTE_ID_BYTES: usize = 32;
 const ATTRIBUTE_VALUE_BYTES: usize = 64;
 const DOC_TYPE_BYTES: usize = 32;
 
+/// Supported UTC spelling; T/t and Z/z have identical ordering semantics.
+pub(in crate::mdoc::runtime::v2) fn timestamp_digits(value: &[u8]) -> Option<[u8; 14]> {
+    if value.len() != K_TIMESTAMP_LEN
+        || value[4] != b'-'
+        || value[7] != b'-'
+        || !matches!(value[10], b'T' | b't')
+        || value[13] != b':'
+        || value[16] != b':'
+        || !matches!(value[19], b'Z' | b'z')
+        || K_TIMESTAMP_DIGITS
+            .iter()
+            .any(|&i| !value[i].is_ascii_digit())
+    {
+        return None;
+    }
+    Some(K_TIMESTAMP_DIGITS.map(|i| value[i]))
+}
+
 /// Reject caller data that would be truncated by the fixed public-input slots.
 /// Both roles check these bounds before allocating witnesses or decoding proofs.
 /// Attribute counts are checked separately against the selected specification.
@@ -41,7 +59,8 @@ pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
     now: &[u8],
     doc_type: &[u8],
 ) -> bool {
-    now.len() == K_TIMESTAMP_LEN
+    timestamp_digits(now).is_some()
+        && !doc_type.is_empty()
         && doc_type.len() <= DOC_TYPE_BYTES
         && attrs.first().is_some_and(|attribute| {
             !attribute.namespace_id.is_empty()

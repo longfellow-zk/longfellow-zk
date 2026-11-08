@@ -16,6 +16,8 @@
 
 mod builder;
 mod public;
+#[cfg(any(test, feature = "prover"))]
+pub(super) use public::timestamp_digits;
 pub(super) use public::{public_inputs_fit, push_input_hash, push_input_sig};
 
 cfg_prover! {

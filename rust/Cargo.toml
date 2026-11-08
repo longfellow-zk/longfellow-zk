@@ -43,10 +43,12 @@ zstd = { version = "0.13", optional = true }
 serde_json = { version = "1.0", features = ["arbitrary_precision"], optional = true }
 
 [dev-dependencies]
+bumpalo = "3.16.0"
 criterion = "0.5"
 hex = "0.4.3"
 num-bigint = "0.4"
 num-traits = "0.2"
+rustc-hash = "2.1.0"
 serde_json = "1.0"
 
 [[bin]]

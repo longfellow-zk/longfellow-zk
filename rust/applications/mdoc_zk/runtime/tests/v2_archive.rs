@@ -32,3 +32,23 @@ fn compressed_archive_checks_trailing_data_and_window_size() {
     large_window[5] = ((MAX_METADATA_BYTES.ilog2() + 1 - 10) * 8) as u8;
     assert!(read(&large_window).unwrap_err().contains("memory"));
 }
+
+#[test]
+fn compressed_archive_rejects_extra_frames_and_skippable_data() {
+    let archive = CircuitArchive::builder().build().to_bytes();
+    let compressed = zstd::encode_all(archive.as_slice(), 1).unwrap();
+    for extra in [
+        zstd::encode_all(&[][..], 1).unwrap(),
+        [
+            0x184d2a50u32.to_le_bytes().as_slice(),
+            &3u32.to_le_bytes(),
+            b"xyz",
+        ]
+        .concat(),
+        vec![0],
+    ] {
+        let mut changed = compressed.clone();
+        changed.extend(extra);
+        assert!(read(&changed).is_err());
+    }
+}

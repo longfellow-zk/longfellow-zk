@@ -234,3 +234,48 @@ fn private_hash_inputs_enforce_sha_capacity() {
         Err(MdocProverErrorCode::TaggedMsoTooBig),
     );
 }
+
+#[test]
+fn utc_public_input_syntax_is_checked_and_case_is_normalized() {
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let canonical = b"2026-10-23T00:00:00Z";
+    for (position, byte) in [
+        (4, b'/'),
+        (7, b'/'),
+        (10, b'X'),
+        (13, b'-'),
+        (16, b'-'),
+        (19, b'X'),
+        (0, b'x'),
+        (18, b'x'),
+    ] {
+        let mut bad = *canonical;
+        bad[position] = byte;
+        assert!(!super::public_inputs_fit(&attrs, &bad, b"doc"));
+    }
+    assert!(!super::public_inputs_fit(&attrs, canonical, b""));
+    let expected = super::timestamp_digits(canonical).unwrap();
+    for (t, z) in [(b'T', b'Z'), (b'T', b'z'), (b't', b'Z'), (b't', b'z')] {
+        let mut time = *canonical;
+        time[10] = t;
+        time[19] = z;
+        assert!(super::public_inputs_fit(&attrs, &time, b"doc"));
+        assert_eq!(super::timestamp_digits(&time).unwrap(), expected);
+    }
+}
+
+#[test]
+fn requested_values_must_match_before_building_sha_witnesses() {
+    use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
+    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let parsed =
+        parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
+    let attr = &parsed.attrs[0];
+    let mut value = attr.cbor_value.clone();
+    value[0] ^= 1;
+    let request = [req_attr("org.iso.18013.5.1", &attr.name, value)];
+    assert_eq!(
+        super::push_witness_hash(&request, &parsed),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+}

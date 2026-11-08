@@ -24,7 +24,7 @@ use super::{
 use crate::{
     core::algebra::SerializableField,
     mdoc::{
-        circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
+        circuits::cbor::mdoc::{MdocParseError, ParsedMdoc},
         runtime::v2::{
             attribute::{circuit_supports, same_namespace},
             key::parse_pk_coordinate,
@@ -112,11 +112,6 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     );
 
     let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
-    let mask = rng.elt_field(&p256);
-    let mask_bytes = p256.to_bytes(&mask);
-    let otp = rng.bytes(plan.advice_bytes());
-
-    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
     let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -133,10 +128,23 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
     let parsed: ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>> =
-        parse_mdoc(mdoc_bytes, transcript, doc_type).map_err(|err| match err {
-            MdocParseError::TooBig => MdocProverErrorCode::TaggedMsoTooBig,
-            _ => MdocProverErrorCode::MsoDecodingFailure,
+        super::document::parse(mdoc_bytes, transcript, doc_type, now, &p256).map_err(|err| {
+            match err {
+                super::document::Error::Encoding(MdocParseError::TooBig) => {
+                    MdocProverErrorCode::TaggedMsoTooBig
+                }
+                super::document::Error::Encoding(_) => MdocProverErrorCode::MsoDecodingFailure,
+                // Preserve the circuit's existing rejection code for well-formed
+                // documents that fail a presentation predicate.
+                super::document::Error::Predicate => MdocProverErrorCode::GeneralFailure,
+            }
         })?;
+
+    let mask = rng.elt_field(&p256);
+    let mask_bytes = p256.to_bytes(&mask);
+    let otp = rng.bytes(plan.advice_bytes());
+
+    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
     let mut witness_hash = push_witness_hash(attrs, &parsed)?;
     witness_hash.extend((0..256).map(|r| ((mask_bytes[r / 8] >> (r % 8)) & 1) != 0));

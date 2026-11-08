@@ -6,9 +6,9 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
-        v2::proto::Digest,
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
+            proto::Digest,
             sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
@@ -145,7 +145,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         let transcript = self.reduce(public, &proof, transcript, ctx)?;
         proof
             .checked(transcript)
-            .map_err(|e| ZkVerificationError::InvalidSumcheck(e.into()))
+            .map_err(|e| ZkVerificationError::InvalidTranscriptSeal(e.into()))
     }
     pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
         &self,
@@ -208,6 +208,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkVerificationError {
     InvalidSumcheck(String),
+    InvalidTranscriptSeal(String),
     PublicInputLengthMismatch { expected: usize, actual: usize },
     PolygeroVerification(String),
 }
@@ -216,6 +217,7 @@ impl fmt::Display for ZkVerificationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidSumcheck(message) => write!(f, "Invalid sumcheck: {message}"),
+            Self::InvalidTranscriptSeal(message) => write!(f, "Invalid transcript seal: {message}"),
             Self::PublicInputLengthMismatch { expected, actual } => {
                 write!(
                     f,

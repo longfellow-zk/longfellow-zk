@@ -45,9 +45,14 @@ pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     if state.circuit_id != circuit.id || public.len() != circuit.raw.npublic_input {
         return Err("prime frontend statement mismatch".into());
     }
-    let private = circuit.raw.ninput - public.len();
+    let private = circuit
+        .raw
+        .ninput
+        .checked_sub(public.len())
+        .ok_or("public prefix")?;
+    let private_values = state.values.get(..private).ok_or("prime witness length")?;
     let mut inputs = public.to_vec();
-    inputs.extend_from_slice(&state.values[..private]);
+    inputs.extend_from_slice(private_values);
     transcript.write_sumcheck_statement(circuit, public, f);
     let (proof, constraints) =
         sumcheck::evaluate_and_prove_circuits(&[circuit], inputs, &state.pads, transcript, f)?;

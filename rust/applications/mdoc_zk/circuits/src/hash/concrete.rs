@@ -208,12 +208,21 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
     let attrs = req_attr_ids
         .iter()
         .map(|&req_id| {
-            let a = parsed.get_attribute(req_id).unwrap_or_else(|| {
-                panic!(
-                    "Requested attribute {:?} not found in ParsedMdoc",
-                    std::str::from_utf8(req_id).unwrap_or("<binary>")
-                )
-            });
+            let a = parsed
+                .attrs
+                .iter()
+                .find(|attr| {
+                    attr.name == req_id
+                        && namespace
+                            .digest_range
+                            .contains(&attr.mso_digest_offset_in_preimage)
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Requested attribute {:?} not found in ParsedMdoc",
+                        std::str::from_utf8(req_id).unwrap_or("<binary>")
+                    )
+                });
             AttrInput {
                 expected_name: crate::mdoc::circuits::cbor::encode_cbor_string(&a.name),
                 expected_cbor_value: a.cbor_value.clone(),

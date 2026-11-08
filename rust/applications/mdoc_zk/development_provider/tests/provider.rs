@@ -103,3 +103,38 @@ fn next_cache_preserves_the_complete_spec() {
     legacy.extend_from_slice(provided.compressed());
     assert!(read_next(legacy.as_slice()).is_err());
 }
+
+#[test]
+fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
+    use crate::mdoc::runtime::v2::PolygeroParameters;
+    let mut builder = CircuitArchiveBuilder::new();
+    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.add_entry("sig", [1; 32], vec![1]);
+    builder.add_entry("hash", [2; 32], vec![2]);
+    let archive = builder.build();
+    // Small research/test parameters remain valid; geometry is not a certificate.
+    let parameters = PolygeroParameters {
+        k: 8,
+        n: 64,
+        s: 0,
+        t: 1,
+    };
+    let spec = v2::ZkSpecStruct {
+        combined_hash: archive.combined_id,
+        version: crate::mdoc::circuits::NEXT_VERSION,
+        num_attributes: 1,
+        polygero_hash: parameters,
+        polygero_sig: parameters,
+    };
+    let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
+    let provided = v2::provider::from_compressed(spec, compressed).unwrap();
+    let mut saved = Vec::new();
+    write_next(&mut saved, &provided).unwrap();
+    assert_eq!(read_next(saved.as_slice()).unwrap().spec(), &spec);
+    // Header: 9-byte marker, 32-byte ID, version/count, then k,n,s,t.
+    for (offset, value) in [(57, 0u64), (65, 1), (73, u64::MAX), (81, 8)] {
+        let mut changed = saved.clone();
+        changed[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+        assert!(read_next(changed.as_slice()).is_err());
+    }
+}

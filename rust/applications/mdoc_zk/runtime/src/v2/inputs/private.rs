@@ -128,6 +128,9 @@ fn push_witness_attrs(
             .iter()
             .find(|attribute| attribute.name == la.id)
             .ok_or(MdocProverErrorCode::AttributeNotFound)?;
+        if pa.cbor_value != la.cbor_value {
+            return Err(MdocProverErrorCode::GeneralFailure);
+        }
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }

@@ -232,7 +232,11 @@ impl<'a> Reading<'a> {
     }
     fn nat(&mut self, n: usize) -> usize {
         assert!(n > 0);
-        let bits = usize::BITS - n.leading_zeros();
+        if n == 1 {
+            return 0;
+        }
+        // Mask the largest admissible value. Powers of two need no rejection.
+        let bits = usize::BITS - (n - 1).leading_zeros();
         let len = bits.div_ceil(8) as usize;
         let mask = usize::MAX >> (usize::BITS - bits);
         loop {

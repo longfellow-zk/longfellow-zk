@@ -47,7 +47,18 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         enforce_circuit_id: bool,
     ) -> Result<(Circuit<F>, &'b [u8]), String> {
         let mut cursor = bytes;
-        let circuit = self.from_stream(&mut cursor, enforce_circuit_id)?;
+        let circuit = lfc3::from_stream(
+            self,
+            &mut cursor,
+            enforce_circuit_id,
+            |remaining, required| {
+                if remaining.len() < required {
+                    Err("Incomplete LFC3 payload".into())
+                } else {
+                    Ok(())
+                }
+            },
+        )?;
         Ok((circuit, cursor))
     }
     pub fn from_stream<R: std::io::BufRead>(
@@ -55,7 +66,7 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         stream: &mut R,
         enforce_circuit_id: bool,
     ) -> Result<Circuit<F>, String> {
-        lfc3::from_stream(self, stream, enforce_circuit_id)
+        lfc3::from_stream(self, stream, enforce_circuit_id, |_, _| Ok(()))
     }
 }
 #[cfg(test)]

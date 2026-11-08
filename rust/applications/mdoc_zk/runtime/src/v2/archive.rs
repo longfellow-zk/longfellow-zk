@@ -22,7 +22,9 @@ pub(super) fn read(compressed: &[u8]) -> Result<CircuitArchive, String> {
     if compressed.len() > MAX_ARCHIVE_BYTES {
         return Err("Excessive compressed v2 circuit archive".into());
     }
-    let mut decoder = zstd::stream::read::Decoder::new(compressed).map_err(|e| e.to_string())?;
+    let mut decoder = zstd::stream::read::Decoder::with_buffer(compressed)
+        .map_err(|e| e.to_string())?
+        .single_frame();
     decoder
         .window_log_max(MAX_METADATA_BYTES.ilog2())
         .map_err(|e| e.to_string())?;
@@ -30,6 +32,9 @@ pub(super) fn read(compressed: &[u8]) -> Result<CircuitArchive, String> {
     let result = archive::from_stream(&mut reader)?;
     if !reader.fill_buf().map_err(|e| e.to_string())?.is_empty() {
         return Err("Trailing data after circuit archive".into());
+    }
+    if !reader.into_inner().finish().is_empty() {
+        return Err("Trailing compressed circuit archive data".into());
     }
     Ok(result)
 }

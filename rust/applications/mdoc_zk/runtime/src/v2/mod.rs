@@ -19,6 +19,8 @@ mod adapter;
 pub(in crate::mdoc) mod archive;
 mod attribute;
 mod circuits;
+#[cfg(any(test, feature = "prover"))]
+mod document;
 mod error;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod inputs;

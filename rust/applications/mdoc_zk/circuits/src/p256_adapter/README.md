@@ -38,5 +38,6 @@ The tree has 4,150 wires excluding shared inputs and 8,288 terms.
 
 The trees and hash circuit use one global wire array per layer, ordinary
 layered sumcheck and one final packing reduction. One joint Polygero opening
-authenticates both fields. The current adapter composition is not yet covered
-by the earlier Lean mdoc certificate or a complete joint zero-knowledge proof.
+authenticates both fields. The adapter is included in the current v2 extraction
+and joint zero-knowledge analysis, under the oracle and trusted-circuit
+assumptions documented in the [formal v2 analysis](../../../../../../formal/lfzk-v2/README.md).

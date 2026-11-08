@@ -109,5 +109,17 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
     if spec.version != NEXT_VERSION || !(1..=4).contains(&spec.num_attributes) {
         return Err("Cache does not describe a supported NEXT circuit".into());
     }
+    let (hash, signature) = spec.configs();
+    for config in [hash, signature] {
+        crate::runtime::v2::proto::polygero::PolygeroGeometry {
+            nw: 0,
+            k: config.k,
+            s: config.s,
+            n: config.n,
+            t: config.t,
+        }
+        .validate()
+        .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }

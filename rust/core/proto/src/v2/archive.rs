@@ -22,16 +22,33 @@ fn array<T>(n: usize) -> Result<Vec<T>, String> {
         .map_err(|e| format!("V2 archive allocation failed: {e}"))?;
     Ok(out)
 }
+fn bytes<R: BufRead>(input: &mut R, n: usize) -> Result<Vec<u8>, String> {
+    // Grow only as bytes arrive. A short stream must not zero-fill the full
+    // declared payload before reporting EOF; directory limits still bound it.
+    let mut out = Vec::new();
+    while out.len() < n {
+        let available = input.fill_buf().map_err(|e| e.to_string())?;
+        let count = available.len().min(n - out.len());
+        if count == 0 {
+            return Err("Incomplete v2 archive payload".into());
+        }
+        if count > out.capacity() - out.len() {
+            let additional = out.capacity().max(count).min(n - out.len());
+            out.try_reserve_exact(additional)
+                .map_err(|e| format!("V2 archive allocation failed: {e}"))?;
+        }
+        out.extend_from_slice(&available[..count]);
+        input.consume(count);
+    }
+    Ok(out)
+}
 fn text<R: BufRead>(input: &mut R, total: &mut usize) -> Result<String, String> {
     let n = count(input, MAX_METADATA_BYTES, "metadata length")?;
     *total = total
         .checked_add(n)
         .filter(|&sum| sum <= MAX_METADATA_BYTES)
         .ok_or("V2 archive excessive metadata")?;
-    let mut bytes = array(n)?;
-    bytes.resize(n, 0);
-    input.read_exact(&mut bytes).map_err(|e| e.to_string())?;
-    String::from_utf8(bytes).map_err(|e| e.to_string())
+    String::from_utf8(bytes(input, n)?).map_err(|e| e.to_string())
 }
 pub fn from_bytes(bytes: &[u8]) -> Result<CircuitArchive, String> {
     let mut input = bytes;
@@ -88,9 +105,7 @@ pub fn from_stream<R: BufRead>(input: &mut R) -> Result<CircuitArchive, String> 
     // The complete entry directory has passed validation before payload allocation.
     let mut entries = array(n)?;
     for (name, circuit_id, size) in metadata {
-        let mut payload = array(size)?;
-        payload.resize(size, 0);
-        input.read_exact(&mut payload).map_err(|e| e.to_string())?;
+        let payload = bytes(input, size)?;
         entries.push(ArchiveEntry {
             name,
             circuit_id,

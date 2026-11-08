@@ -80,7 +80,7 @@ pub fn pad_sha256_message(
     assert_eq!(padded_preimage.len(), nblocks * 64);
     assert!(padded_preimage.len() <= max_blocks * 64);
     padded_preimage.resize(max_blocks * 64, 0);
-    let length_bytes = (preimage.len() as u64).to_le();
+    let length_bytes = preimage.len() as u64;
     Ok((nblocks, length_bytes, padded_preimage))
 }
 
@@ -189,4 +189,3 @@ cfg_testonly! {
         }
     }
 }
-

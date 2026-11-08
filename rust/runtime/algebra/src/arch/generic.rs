@@ -146,7 +146,7 @@ pub use cmovnz as cmovzn;
 
 #[inline(always)]
 pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
-    0 as crate::runtime::algebra::limb::Limb
+    // Retain the optimizer barrier used by carry propagation on other targets.
+    // This is not a guarantee of constant-time machine code.
+    core::hint::black_box(0 as crate::runtime::algebra::limb::Limb)
 }
-
-

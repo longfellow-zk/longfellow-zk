@@ -68,7 +68,10 @@ V1 retains its SHA-256 transcript accumulator and AES-256 challenge generator.
 V2 uses a direct SHAKE256 transcript with explicit message and challenge phases.
 Each round finalizes a private accumulator snapshot, absorbs the first 32 output
 bytes as a link, and draws challenges from the remaining output of that same
-SHAKE reader. Empty rounds also bind a round label and counter. Intermediate
+SHAKE reader. Index sampling uses the minimum bit width for values below its
+bound, so power-of-two bounds require no rejection and a singleton consumes
+no challenge bytes. Sampling without replacement updates that bound after
+each selected index. Empty rounds also bind a round label and counter. Intermediate
 links stay internal; complete proofs end with a 32-byte seal over the chained
 transcript and actual canonical proof body, including terminal authentication.
 
@@ -207,14 +210,14 @@ are audited against that model.
 
 Complete NEXT v12 mdoc presentations, measured on 2026-11-08 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
-Times are medians of 32 samples across two runs, each after one warmup; heap measurements use
+Times are medians of eight samples after one warmup; heap measurements use
 separate allocation-tracking runs. The four-slot case repeats the fixture's
 two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 140.0 ms | 78.2 ms | 138,191 | 43.06 MiB | 34.73 MiB |
-| 4 | 152.6 ms | 84.3 ms | 138,735 | 47.65 MiB | 37.78 MiB |
+| 2 | 130.5 ms | 74.5 ms | 138,191 | 43.06 MiB | 34.73 MiB |
+| 4 | 141.1 ms | 79.5 ms | 138,735 | 47.65 MiB | 37.78 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
@@ -472,7 +475,10 @@ Feature gates are placed high in the module tree. The `cfg_compiler!`,
 ## Building and testing
 
 Run commands from this directory. Normal builds use stable Rust.
-Repository formatting uses nightly Rust.
+Repository formatting uses nightly Rust. Native CPU flags are scoped to the
+local x86-64 Linux target; other cross targets do not inherit the host CPU.
+The local native build is intended for its build machine. Distributed binaries
+must select their deployment CPU features explicitly.
 
 ```sh
 # Default build.
@@ -566,9 +572,20 @@ selected digests belong to the requested namespace map. Namespace occurrence
 alone is not a proof of that membership.
 
 Validity comparisons select the fourteen `YYYYMMDDhhmmss` digits from the
-supported 20-byte UTC representation. Fixed separators, including `T/t` and
-`Z/z`, do not affect ordering. Well-formed calendar dates and the supported
-format remain assumptions; the circuit does not parse or validate dates.
+supported 20-byte UTC representation. V2 entry points check ASCII digits and
+`YYYY-MM-DD[Tt]hh:mm:ss[Zz]` syntax, and require a nonempty document type.
+The native prover checks the signed document type and inclusive validity window
+before witness construction. Calendar validity remains an assumption of the
+circuit; neither the syntax check nor the circuit validates calendar ranges.
+
+V2 validates device-key COSE type/curve metadata, exact 32-byte canonical
+coordinates and curve membership before fixed-width conversion. Requested
+attribute values are checked before constructing their SHA witnesses. These
+host checks give earlier rejection and do not replace circuit constraints.
+
+Native witness preparation and generic field inversion are variable time.
+The formal zero-knowledge theorem concerns protocol and oracle observations;
+it does not establish protection against local timing or cache observation.
 
 The signature circuit retains its affine precomputation layout. Exceptional
 signatures whose precomputed sums are points at infinity remain unsupported;

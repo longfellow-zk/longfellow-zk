@@ -181,3 +181,75 @@ fn field_rejection_keeps_one_round_and_preserves_the_xof_cursor() {
     }
     panic!("fixed test seeds must include a rejected field sample");
 }
+
+#[test]
+fn power_of_two_indices_consume_only_the_required_bytes() {
+    for bits in 0..usize::BITS {
+        let n = 1usize << bits;
+        let mut actual = Transcript::new(b"index bytes");
+        let mut reference = actual.fork_for_test();
+        let (expected, tail) = reference.round(RoundLabel::Opening, |w| {
+            let mut r = w.begin_squeeze();
+            let values: Vec<_> = (0..32)
+                .map(|_| {
+                    let mut bytes = [0; size_of::<usize>()];
+                    let len = bits.div_ceil(8) as usize;
+                    bytes[..len].copy_from_slice(&r.bytes(len));
+                    usize::from_le_bytes(bytes) & (n - 1)
+                })
+                .collect();
+            let tail = r.bytes(32);
+            r.end_round((values, tail))
+        });
+        let sampled = actual.round(RoundLabel::Opening, |w| {
+            let mut r = w.begin_squeeze();
+            let values: Vec<_> = (0..32).map(|_| r.nat(n)).collect();
+            let remaining = r.bytes(32);
+            r.end_round((values, remaining))
+        });
+        assert_eq!(sampled, (expected, tail), "bound {n}");
+        assert_eq!(actual.round_count_for_test(), 1);
+    }
+}
+
+#[test]
+fn index_rejection_matches_the_same_xof_stream() {
+    let mut saw_rejection = false;
+    for (n, mask, len) in [
+        (3, 3, 1),
+        (17, 31, 1),
+        (255, 255, 1),
+        (257, 511, 2),
+        (2443, 4095, 2),
+        (usize::MAX, usize::MAX, size_of::<usize>()),
+    ] {
+        let mut actual = Transcript::new(b"index rejection");
+        let mut reference = actual.fork_for_test();
+        let (expected, tail, rejected) = reference.round(RoundLabel::Opening, |w| {
+            let mut r = w.begin_squeeze();
+            let mut rejected = false;
+            let values: Vec<_> = (0..64)
+                .map(|_| loop {
+                    let mut bytes = [0; size_of::<usize>()];
+                    bytes[..len].copy_from_slice(&r.bytes(len));
+                    let value = usize::from_le_bytes(bytes) & mask;
+                    if value < n {
+                        break value;
+                    }
+                    rejected = true;
+                })
+                .collect();
+            let tail = r.bytes(32);
+            r.end_round((values, tail, rejected))
+        });
+        saw_rejection |= rejected;
+        let sampled = actual.round(RoundLabel::Opening, |w| {
+            let mut r = w.begin_squeeze();
+            let values: Vec<_> = (0..64).map(|_| r.nat(n)).collect();
+            let tail = r.bytes(32);
+            r.end_round((values, tail))
+        });
+        assert_eq!(sampled, (expected, tail), "bound {n}");
+    }
+    assert!(saw_rejection);
+}

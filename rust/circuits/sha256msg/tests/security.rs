@@ -163,3 +163,17 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
         }
     }
 }
+
+#[test]
+fn length_is_a_numeric_witness_and_padding_is_big_endian() {
+    for length in [0, 1, 55, 56, 63, 64, 256, 257] {
+        let message = vec![0x53; length];
+        let (blocks, bytes, padded) =
+            crate::circuits::sha256msg::pad_sha256_message(&message, 6).unwrap();
+        assert_eq!(bytes, length as u64);
+        assert_eq!(
+            &padded[blocks * 64 - 8..blocks * 64],
+            &((length as u64) * 8).to_be_bytes()
+        );
+    }
+}
