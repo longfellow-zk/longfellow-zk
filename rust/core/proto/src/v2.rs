@@ -6,8 +6,12 @@
 //! Quadratic and linear records whose coefficient is zero are assertions.
 use super::SerializableField;
 
+pub mod archive;
+mod directory;
 pub(crate) mod encoding;
+pub mod limits;
 pub mod reader;
+mod uleb;
 pub mod writer;
 pub use reader::CircuitReader;
 pub use writer::CircuitWriter;
@@ -50,7 +54,8 @@ pub struct Constant {
     pub k: u32,
 }
 
-pub use super::stream::Stream;
+mod stream;
+pub use stream::{Segments, Stream};
 
 impl Stream<Quadratic> {
     /// Delta-encode absolute terms and intern equal records in one run.
@@ -79,7 +84,7 @@ impl Stream<Quadratic> {
         }
         Self {
             deltas,
-            segments: vec![run],
+            segments: vec![run].into(),
             tokens: vec![0],
         }
     }
@@ -137,7 +142,7 @@ impl Stream<Linear> {
         }
         Self {
             deltas,
-            segments: vec![run],
+            segments: vec![run].into(),
             tokens: vec![0],
         }
     }
@@ -193,7 +198,7 @@ impl Stream<Constant> {
         }
         Self {
             deltas,
-            segments: vec![run],
+            segments: vec![run].into(),
             tokens: vec![0],
         }
     }

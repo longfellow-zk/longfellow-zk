@@ -173,6 +173,9 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
         geometry: &SumcheckProofGeometry,
         f: &F,
     ) -> std::io::Result<Self> {
+        if f.serialized_size_bytes() == 0 {
+            return Err(invalid("zero field encoding width"));
+        }
         let size = geometry
             .serialized_elements()?
             .checked_mul(f.serialized_size_bytes())

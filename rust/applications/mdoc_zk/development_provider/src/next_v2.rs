@@ -55,7 +55,7 @@ pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
         return Err("NEXT supports one to four attributes".into());
     }
     let bytes = compile::compile_circuits(num_attributes)?;
-    let archive = CircuitArchive::from_bytes(&bytes)?;
+    let archive = crate::core::proto::v2::archive::from_bytes(&bytes)?;
     let spec = specification(&archive, num_attributes)?;
     let compressed =
         zstd::encode_all(bytes.as_slice(), K_ZSTD_LEVEL).map_err(|error| error.to_string())?;

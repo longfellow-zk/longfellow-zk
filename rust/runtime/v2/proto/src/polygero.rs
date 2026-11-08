@@ -229,10 +229,6 @@ impl<B> JointPolygeroProof<B> {
             return Err(invalid("truncated joint opening").into());
         }
         let nonce = MerkleProof::read_nonces(bytes, t)?;
-        let count = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
-        if count > (bytes.len() - 4) / 32 {
-            return Err(invalid("truncated joint frontier").into());
-        }
         let path = MerkleProof::read_path(
             bytes,
             t,

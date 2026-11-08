@@ -39,7 +39,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
                     k: 1,
                 },
             ],
-            segments: vec![vec![0, 1, 2, 3], vec![], vec![4]],
+            segments: vec![vec![0, 1, 2, 3], vec![], vec![4]].into(),
             tokens: vec![0, 1, 2, 0],
         },
         Stream {
@@ -53,7 +53,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
                     k: 2,
                 },
             ],
-            segments: vec![vec![0, 1, 2], vec![3], vec![]],
+            segments: vec![vec![0, 1, 2], vec![3], vec![]].into(),
             tokens: vec![0, 2, 1, 0],
         },
         Stream {
@@ -62,7 +62,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
                 Constant { g: 1, k: 2 },
                 Constant { g: u32::MAX, k: 4 },
             ],
-            segments: vec![vec![0, 1], vec![2], vec![]],
+            segments: vec![vec![0, 1], vec![2], vec![]].into(),
             tokens: vec![0, 2, 1, 0],
         },
     );
@@ -211,13 +211,14 @@ where F: crate::runtime::algebra::RuntimeField<W>
         l.push(Linear { g: 0, l: 0, k: 1 });
         c.push(Constant { g: 0, k: 1 });
         fn segmented<T>(mut s: Stream<T>) -> Stream<T> {
-            let run = s.segments.pop().unwrap();
+            let run = &s.segments[0];
             s.segments = vec![
                 run[..9].to_vec(),
                 vec![],
                 run[9..21].to_vec(),
                 run[21..].to_vec(),
-            ];
+            ]
+            .into();
             s.tokens = vec![0, 1, 2, 3, 0, 1, 2, 3];
             s
         }

@@ -238,14 +238,18 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
         (1, 0, 1, false),
         (0, 0, 3, false),
     ] {
-        let mut bytes = b"LFC3".to_vec();
+        let mut bytes = b"LFC3DIR1".to_vec();
         for n in [FieldID::P256 as usize, 1, 1, 0, 3, 1, 3] {
             serialize_uleb128_max4(&mut bytes, n);
         }
-        for k in [f.zero(), f.one(), f.mone()] {
-            bytes.extend(f.to_bytes(&k));
+        // Layer width, three stream descriptors, then the linear segment end.
+        for n in [3, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 5, 0, 0, 0, 0, 0, 0, 1] {
+            serialize_uleb128_max4(&mut bytes, n);
         }
-        for n in [2, 3, 0, 0, 0, 1, 2 * g, 2 * l, k, 1, 1, 0, 1, 0, 0, 0, 0] {
+        for coefficient in [f.zero(), f.one(), f.mone()] {
+            bytes.extend(f.to_bytes(&coefficient));
+        }
+        for n in [2 * g, 2 * l, k, 0, 0] {
             serialize_uleb128_max4(&mut bytes, n);
         }
         bytes.extend([0; 32]);
@@ -264,14 +268,17 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
 fn binary_lfc3_classifies_both_signs_as_one() {
     let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     for k in [1, 2] {
-        let mut bytes = b"LFC3".to_vec();
+        let mut bytes = b"LFC3DIR1".to_vec();
         for n in [FieldID::Gf2_128 as usize, 1, 1, 0, 1, 1, 3] {
             crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
         }
-        for k in [f.zero(), f.one(), f.mone()] {
-            bytes.extend(f.to_bytes(&k));
+        for n in [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 5, 0, 0, 0, 0, 0, 0, 1] {
+            crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
         }
-        for n in [0, 1, 0, 0, 0, 1, 0, 0, k, 1, 1, 0, 1, 0, 0, 0, 0] {
+        for coefficient in [f.zero(), f.one(), f.mone()] {
+            bytes.extend(f.to_bytes(&coefficient));
+        }
+        for n in [0, 0, k, 0, 0] {
             crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
         }
         bytes.extend([0; 32]);

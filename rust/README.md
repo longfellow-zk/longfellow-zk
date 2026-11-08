@@ -213,13 +213,13 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 137.2 ms | 77.9 ms | 138,191 | 43.18 MiB | 34.84 MiB |
-| 4 | 150.9 ms | 84.3 ms | 138,735 | 47.77 MiB | 37.90 MiB |
+| 2 | 140.0 ms | 78.2 ms | 138,191 | 43.06 MiB | 34.73 MiB |
+| 4 | 152.6 ms | 84.3 ms | 138,735 | 47.65 MiB | 37.78 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 654,802 | 169,203 | 1.86 MiB |
-| 4 | 680,084 | 170,810 | 1.95 MiB |
+| 2 | 655,242 | 161,171 | 1.74 MiB |
+| 4 | 680,533 | 163,071 | 1.83 MiB |
 
 Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
 circuits, with ordinary code rate `k/n=1/7`. The combined hash/adapter has 20
@@ -368,7 +368,10 @@ V2 represents quadratic, linear, and constant terms explicitly throughout
 lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
 historical Morton ordering and circuit IDs. V2 compiles directly to
 [LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
-separately with an explicit coefficient table. It removes the reserved One wire.
+separately with an explicit coefficient table. Its `DIR1` directory declares
+all array sizes before the payload; segment contents use contiguous storage.
+Global limits bound layers, total wires, term data, and segment/token metadata.
+It removes the reserved One wire.
 V2 proof decoding checks canonical full-width elements through one shared
 reader and requires the final transcript seal. Previous V2 proof envelopes are
 rejected. Legacy compact-row interfaces are explicitly named `SubfieldV1` in `runtime::v1::subfield`.

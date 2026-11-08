@@ -13,12 +13,9 @@
 // limitations under the License.
 
 //! Longfellow v2 trusted circuit loading with opt-in payload ID enforcement.
-use std::io::BufRead;
-
 use super::ZkSpecStruct;
 use crate::{
     core::proto::{
-        archive::CircuitArchive,
         v2::{Circuit, CircuitReader},
         FieldID,
     },
@@ -56,13 +53,7 @@ fn load(
     spec: Option<&ZkSpecStruct>,
     enforce_circuit_id: bool,
 ) -> Result<DecodedCircuits, String> {
-    let decoder = zstd::stream::read::Decoder::new(compressed)
-        .map_err(|e| format!("Failed to initialize zstd decoder: {e}"))?;
-    let mut reader = std::io::BufReader::new(decoder);
-    let archive = CircuitArchive::from_stream(&mut reader)?;
-    if !reader.fill_buf().map_err(|e| e.to_string())?.is_empty() {
-        return Err("Trailing data after circuit archive".into());
-    }
+    let archive = super::archive::read(compressed)?;
     if archive.entries.len() != 2 {
         return Err("V2 archive must contain exactly the signature and hash circuits".into());
     }

@@ -14,10 +14,9 @@
 
 //! Longfellow v2 frozen circuit provider. Registry lookup never compiles circuits.
 
-use std::{io::BufRead, path::Path};
+use std::path::Path;
 
 use super::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
-use crate::core::proto::archive::CircuitArchive;
 
 /// A trusted v2 specification and its matching compressed archive.
 /// Construction checks container metadata; payload ID enforcement remains opt-in
@@ -73,7 +72,9 @@ pub fn materialize_from(
 
 fn load(directory: &Path, spec: &ZkSpecStruct) -> Result<ProvidedCircuit, MdocProverErrorCode> {
     let path = directory.join(format!("{}.lfa2", spec.combined_hash_hex()));
-    let compressed = std::fs::read(path).map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let file = std::fs::File::open(path).map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let compressed = super::archive::read_compressed(file)
+        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
     from_compressed(*spec, compressed)
 }
 
@@ -85,7 +86,8 @@ pub(in crate::mdoc) fn from_compressed(
     if !spec.supports_version() {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
-    let archive = read_archive(&compressed)?;
+    let archive = super::archive::read(&compressed)
+        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
     if archive.combined_id != spec.combined_hash || archive.circuit_version as usize != spec.version
     {
         return Err(MdocProverErrorCode::HashParsingFailure);
@@ -94,23 +96,6 @@ pub(in crate::mdoc) fn from_compressed(
         return Err(MdocProverErrorCode::CircuitParsingFailure);
     }
     Ok(ProvidedCircuit { spec, compressed })
-}
-
-/// Decode the container and reject trailing bytes; payload decoding belongs to circuit loading.
-fn read_archive(compressed: &[u8]) -> Result<CircuitArchive, MdocProverErrorCode> {
-    let decoder = zstd::stream::read::Decoder::new(compressed)
-        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
-    let mut reader = std::io::BufReader::new(decoder);
-    let archive = CircuitArchive::from_stream(&mut reader)
-        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
-    if !reader
-        .fill_buf()
-        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?
-        .is_empty()
-    {
-        return Err(MdocProverErrorCode::CircuitParsingFailure);
-    }
-    Ok(archive)
 }
 
 /// Enumerate only published, frozen specifications.

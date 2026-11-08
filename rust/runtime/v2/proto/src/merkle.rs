@@ -105,7 +105,16 @@ impl MerkleProof {
             ));
         }
 
-        let mut path = Vec::with_capacity(path_len);
+        if path_len > bytes.len() / DIGEST_LEN {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "Truncated Merkle frontier",
+            ));
+        }
+
+        let mut path = Vec::new();
+        path.try_reserve_exact(path_len)
+            .map_err(std::io::Error::other)?;
         for _ in 0..path_len {
             let p_bytes = crate::runtime::v2::proto::util::read_bytes_32(bytes)?;
             path.push(Digest { data: p_bytes });

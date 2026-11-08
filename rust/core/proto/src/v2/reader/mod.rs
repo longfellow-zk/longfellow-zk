@@ -16,7 +16,7 @@
 
 mod lfc3;
 use super::Circuit;
-use crate::core::proto::{reader::*, FieldID, SerializableField};
+use crate::core::proto::{FieldID, SerializableField};
 
 pub struct CircuitReader<'a, F> {
     pub(super) f: &'a F,
@@ -29,17 +29,15 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         Self {
             f,
             field_id,
-            max_total_terms: crate::core::proto::reader::MAX_TOTAL_TERMS,
+            max_total_terms: super::limits::MAX_TOTAL_TERMS,
         }
     }
 
-    /// Override the total expanded term budget for this reader. The default is
-    /// 20 million. Raising this limit increases the work allowed for a circuit;
-    /// use a larger budget only for trusted inputs or with an appropriate
-    /// external resource limit. All other reader limits remain in effect.
+    /// Lower the total expanded-term limit for this reader. The directory also
+    /// enforces every fixed v2 array limit before reading circuit payloads.
     #[must_use]
     pub fn with_total_term_limit(mut self, max_total_terms: usize) -> Self {
-        self.max_total_terms = max_total_terms;
+        self.max_total_terms = max_total_terms.min(super::limits::MAX_TOTAL_TERMS);
         self
     }
 
@@ -60,6 +58,9 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         lfc3::from_stream(self, stream, enforce_circuit_id)
     }
 }
+#[cfg(test)]
+#[path = "../../../tests/lfc3_directory.rs"]
+mod directory_tests;
 #[cfg(test)]
 #[path = "../../../tests/reader.rs"]
 mod tests;

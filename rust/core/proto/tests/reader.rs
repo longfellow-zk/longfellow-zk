@@ -1,16 +1,19 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 #[test]
-fn default_total_term_limit_is_unchanged() {
+fn default_total_term_limit_matches_v2_limit() {
     let field = crate::compile::algebra::p256::P256Field::new();
     let reader = super::CircuitReader::new(&field, crate::core::proto::FieldID::P256);
-    assert_eq!(reader.max_total_terms, 20_000_000);
+    assert_eq!(
+        reader.max_total_terms,
+        crate::core::proto::v2::limits::MAX_TOTAL_TERMS
+    );
 }
 
 #[test]
 fn lfc3_rejects_zero_outputs_without_panicking() {
     use crate::core::proto::{serialize_uleb128_max4, FieldID};
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    let mut bytes = b"LFC3".to_vec();
+    let mut bytes = b"LFC3DIR1".to_vec();
     for n in [FieldID::Gf2_128 as usize, 0, 1, 0, 0, 0, 0] {
         serialize_uleb128_max4(&mut bytes, n);
     }
@@ -66,7 +69,7 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
         raw,
     };
     let mut bytes = CircuitWriter::new(&field, FieldID::Gf2_128).to_bytes(&circuit);
-    let mut remaining = &bytes[4..];
+    let mut remaining = &bytes[8..];
     for _ in 0..7 {
         crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
     }

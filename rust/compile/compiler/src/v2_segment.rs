@@ -22,7 +22,12 @@ fn compress<T: Copy + Eq + Hash>(stream: &Stream<T>) -> Stream<T> {
             terms.push(index);
         }
     }
-    super::segment::segment_stream(&deltas, terms)
+    let compressed = super::segment::segment_stream(&deltas, terms);
+    Stream {
+        deltas: compressed.deltas,
+        segments: compressed.segments.into(),
+        tokens: compressed.tokens,
+    }
 }
 
 fn layer(layer: &Layer, classes: &[crate::core::proto::v2::CoefficientClass]) -> Layer {

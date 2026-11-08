@@ -1263,6 +1263,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v2_inputs.rs",
         "v2_adapter.rs",
         "v2_adapter_transcript.rs",
+        "v2_archive.rs",
         "v2_attributes.rs",
         "specs.rs",
         "v1_provider.rs",
@@ -1322,6 +1323,7 @@ fn test_tooling_and_system_source_boundaries() {
         .filter(|f| version == "v1" || *f != "mac.rs")
         .chain(if version == "v2" {
             vec![
+                "archive.rs",
                 "transcript.rs",
                 "adapter/mod.rs",
                 "adapter/transcript.rs",

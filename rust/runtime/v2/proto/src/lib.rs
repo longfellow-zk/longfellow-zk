@@ -26,3 +26,6 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/polygero.rs"]
 mod tests_polygero;
+#[cfg(test)]
+#[path = "../tests/readers.rs"]
+mod tests_readers;

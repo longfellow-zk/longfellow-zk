@@ -247,7 +247,7 @@ fn records_have_their_exact_arities_and_runs_retain_deltas() {
                 k: 7,
             },
         ],
-        segments: vec![vec![0, 1]],
+        segments: vec![vec![0, 1]].into(),
         tokens: vec![0, 0],
     };
     let mut actual = Vec::new();
@@ -380,7 +380,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
     // Unit coefficients are ordinary table entries. Changing a numeric value
     // is accepted without ID enforcement and rejected with ID enforcement.
     let mut corrupt = bytes.clone();
-    let mut tail = &corrupt[4..];
+    let mut tail = &corrupt[8..];
     let mut count = 0;
     for _ in 0..7 {
         count = crate::core::proto::read_uleb128_max4(&mut tail).unwrap();
@@ -392,7 +392,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
         .iter()
         .position(|k| *k == cf.u64_to_element(7))
         .unwrap();
-    let offset = corrupt.len() - tail.len() + index * cf.serialized_size_bytes();
+    let offset = lfc3_constants_offset(&corrupt) + index * cf.serialized_size_bytes();
     let minus = cf.serialized_mone();
     corrupt[offset..offset + minus.len()].copy_from_slice(&minus);
     assert!(CircuitReader::new(&f, FieldID::P256)
@@ -432,7 +432,7 @@ where
     let c = segment_circuit_v2(cf, &c);
     let expected: Vec<_> = c.raw.constants.iter().map(|k| cf.to_bytes(k)).collect();
     let bytes = crate::core::proto::v2::CircuitWriter::new(cf, FieldID::None).to_bytes(&c);
-    let mut header = &bytes[4..];
+    let mut header = &bytes[8..];
     for _ in 0..6 {
         crate::core::proto::read_uleb128_max4(&mut header).unwrap();
     }
@@ -510,4 +510,28 @@ fn explicit_units_extension() {
         &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
         &crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new(),
     );
+}
+
+// Locate the coefficient payload after all layer descriptors and segment ends.
+fn lfc3_constants_offset(bytes: &[u8]) -> usize {
+    let mut remaining = &bytes[8..];
+    let mut header = [0; 7];
+    for n in &mut header {
+        *n = crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+    }
+    let mut segments = 0;
+    for _ in 0..header[5] {
+        crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+        for _ in 0..3 {
+            let mut counts = [0; 6];
+            for n in &mut counts {
+                *n = crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+            }
+            segments += counts[1];
+        }
+    }
+    for _ in 0..segments {
+        crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+    }
+    bytes.len() - remaining.len()
 }

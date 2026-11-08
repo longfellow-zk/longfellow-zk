@@ -71,7 +71,7 @@ fn class_capacities<T>(
     coefficient: impl Fn(&T) -> u32,
 ) -> [usize; 4] {
     let mut counts = [0; 4];
-    for segment in &source.segments {
+    for segment in source.segments.iter() {
         for &index in segment {
             counts[class(coefficient(&source.deltas[index as usize]), classes)] += 1;
         }
@@ -95,7 +95,7 @@ fn split_quadratic<'a>(
     let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
     let mut zero = SplitStream::with_capacity(capacities[3], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
-    for segment in &source.segments {
+    for segment in source.segments.iter() {
         let starts = [
             general.records.len(),
             one.records.len(),
@@ -174,7 +174,7 @@ fn split_linear<'a>(
     let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
     let mut zero = SplitStream::with_capacity(capacities[3], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
-    for segment in &source.segments {
+    for segment in source.segments.iter() {
         let starts = [
             general.records.len(),
             one.records.len(),
@@ -245,7 +245,7 @@ fn split_constant<'a>(
     let mut one = SplitStream::with_capacity(capacities[1], source.segments.len());
     let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
-    for segment in &source.segments {
+    for segment in source.segments.iter() {
         let starts = [
             general.records.len(),
             one.records.len(),

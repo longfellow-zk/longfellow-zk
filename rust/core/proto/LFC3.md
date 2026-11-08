@@ -36,43 +36,53 @@ replacing streams so its derived metadata remains consistent.
 
 ## File encoding
 
-All integers use unsigned LEB128 with at most four bytes, except the final raw
-32-byte circuit ID. Coordinates use zigzag encoding of signed wrapping `u32`
-deltas. Coefficient indices are absolute, never delta-encoded.
+The file starts with `LFC3DIR1`. `DIR1` identifies the directory layout;
+LFC3 files without this revision marker are rejected. Lengths are unsigned
+LEB128 decoded into `u64` and converted to `usize` with overflow checking.
+Stream records, delta indices and tokens retain the specialized four-byte
+`u32` encoding. Coordinates use zigzag encoding of signed wrapping `u32`
+deltas. Coefficient indices are absolute.
 
-The header is:
+The header contains, in order: field ID, output wire count, copy count (always
+one), public input count, input count, layer count, and coefficient count.
 
-1. Four bytes `LFC3`.
-2. Field ID.
-3. Number of output wires.
-4. Number of copies, always 1.
-5. Number of public input wires.
-6. Number of input wires.
-7. Number of layers.
-8. Number of coefficients in the complete table.
-9. Those field elements, using the field's fixed-width little-endian encoding.
+The complete directory follows the header, before any coefficient or term data:
 
-Every coefficient is explicit, including zero, one, and minus one when used.
-There is no coefficient-policy byte.
+1. For every layer, from outputs toward inputs: its input width, then the
+   quadratic, linear and constant stream descriptors. Each descriptor contains
+   six counts: deltas, segments, stored delta indices, tokens, expanded terms,
+   and encoded payload bytes.
+2. For every stream in the same layer/stream order: every segment's length.
+   Their sum must equal the stream's declared stored-index count.
 
-Layers appear from circuit outputs toward inputs. Each layer stores `logw` and
-`nw`, with `nw > 0` and `logw = ceil(log2(nw))`, then the quadratic, linear and
-constant streams. Each stream stores:
+All array sizes are therefore known before the payload is allocated. The
+reader validates the complete directory, using checked arithmetic for its
+aggregate sizes. It then reads the full coefficient table, followed by each
+stream's delta records, flat delta-index array and token array. Each payload
+must consume exactly its declared byte length and produce exactly its declared
+expanded term count. The last field is the raw 32-byte circuit ID.
 
-1. Delta-dictionary length followed by its exact-arity records.
-2. Segment-dictionary length; each segment is a length followed by delta indices.
-3. Token count followed by segment indices.
+In memory, segment ends delimit slices of one flat `Vec<u32>`. Individual
+segments have no heap allocation. The layer logarithm is derived from its
+validated width rather than serialized separately. Coordinates accumulate
+across segment boundaries and repeated tokens; each stream starts at zero.
+The reader checks coefficient, dictionary and token indices and translated
+coordinate bounds without expanding repeated segments.
 
-Coordinates accumulate across all records of the expanded stream, including
-segment boundaries and repeated tokens. Each stream starts its coordinates at
-zero. Empty streams store three zero counts. Parsing validates coefficient,
-dictionary and token indices, translated coordinate bounds, dimensions, and
-per-layer/whole-circuit expanded-term limits without expanding repeated segments.
+Named global limits live in `v2/limits.rs`: 128 layers, 8,388,608 total wires
+including inputs and outputs, and 10 MiB of segment/token metadata including
+directory offsets and decoder summaries. There are no separate per-layer,
+per-stream, input or output caps. The global term ceiling is 16,777,216 for
+expanded terms and for stored coefficients/deltas/indices combined, so unused
+dictionary data remains bounded. A caller may lower the expanded-term ceiling.
+Container/file I/O also has a coarse 64 MiB ceiling; v2 archives contain at
+most three entries. The zstd window is bounded by the metadata limit.
 
-The final field is the circuit ID. The reader can enforce it independently of
-structural validation. `core::proto::v2::CircuitReader::from_bytes` and
-`core::proto::v2::CircuitWriter::to_bytes` select LFC3 directly. LFC1/LFC2 are rejected by the v2
-reader.
+Structural validation always runs. Circuit-ID enforcement is optional for
+trusted application artifacts. `core::proto::v2::CircuitReader::from_bytes`
+and `core::proto::v2::CircuitWriter::to_bytes` select this LFC3 layout directly.
+V2 archive loading uses its own checked LFA2 reader. V1 readers, LFC1/LFC2
+encodings and frozen proofs remain unchanged.
 
 ## Circuit identity
 

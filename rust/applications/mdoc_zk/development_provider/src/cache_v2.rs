@@ -100,10 +100,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
         },
     };
     validate(&spec)?;
-    let mut compressed = Vec::new();
-    reader
-        .read_to_end(&mut compressed)
-        .map_err(|error| error.to_string())?;
+    let compressed = crate::mdoc::runtime::v2::archive::read_compressed(reader)?;
     provider::from_compressed(spec, compressed)
         .map_err(|error| format!("Invalid NEXT circuit bundle: {error:?}"))
 }

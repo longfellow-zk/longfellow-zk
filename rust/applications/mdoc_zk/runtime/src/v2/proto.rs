@@ -105,7 +105,10 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         );
         let size = f2.serialized_size_bytes();
         let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
-        if remaining.len() < size + plan.advice_bytes() {
+        let adapter_size = size
+            .checked_add(plan.advice_bytes())
+            .ok_or("adapter size overflow")?;
+        if remaining.len() < adapter_size {
             return Err("truncated adapter proof".into());
         }
         let mu =
