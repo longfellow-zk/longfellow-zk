@@ -37,7 +37,7 @@ pub(super) fn read_size_4bytes(bytes: &mut &[u8]) -> Result<usize> {
     Ok(val as usize)
 }
 
-/// Helper to read exactly 32 bytes (for digests and nonces).
+/// Helper to read exactly 32 bytes (for digests).
 pub(crate) fn read_bytes_32(bytes: &mut &[u8]) -> Result<[u8; 32]> {
     if 32 > bytes.len() {
         return Err(Error::new(ErrorKind::UnexpectedEof, "EOF reading 32 bytes"));

@@ -111,7 +111,7 @@ impl<B> JointPolygeroProof<B> {
     /// Nonce bytes and frontier bytes, including the frontier length prefix.
     pub fn authentication_bytes(&self) -> (usize, usize) {
         (
-            32 * self.opening.nonce.len(),
+            NONCE_LEN * self.opening.nonce.len(),
             4 + 32 * self.opening.path.len(),
         )
     }

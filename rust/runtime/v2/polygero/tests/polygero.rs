@@ -576,12 +576,19 @@ fn reject_invalid_geometry_and_backend_contracts() {
 }
 #[test]
 fn merkle_codecs_bind_role_index_context_and_salt() {
-    use crate::runtime::{algebra::gf2_128::Gf2_128Field, v2::proto::MerkleNonce};
+    use crate::runtime::{
+        algebra::gf2_128::Gf2_128Field,
+        v2::proto::{MerkleNonce, NONCE_LEN},
+    };
     let f = Gf2_128Field::new();
     let context = Digest::default();
     let other = Digest { data: [1; 32] };
-    let salt = MerkleNonce { bytes: [7; 32] };
-    let other_salt = MerkleNonce { bytes: [8; 32] };
+    let salt = MerkleNonce {
+        bytes: [7; NONCE_LEN],
+    };
+    let other_salt = MerkleNonce {
+        bytes: [8; NONCE_LEN],
+    };
     let column = [f.one()];
     let leaf = |context: &Digest, index, salt: &_| {
         let mut h = super::hash::leaf(context, index, salt);
@@ -594,6 +601,9 @@ fn merkle_codecs_bind_role_index_context_and_salt() {
     assert_ne!(hash, leaf(&context, 1, &salt));
     assert_ne!(hash, leaf(&other, 0, &salt));
     assert_ne!(hash, leaf(&context, 0, &other_salt));
+    let mut changed_tail = salt;
+    changed_tail.bytes[NONCE_LEN - 1] ^= 1;
+    assert_ne!(hash, leaf(&context, 0, &changed_tail));
     assert_ne!(hash, super::hash::node(&context, &context, &other));
     assert_ne!(
         super::hash::node(&context, &hash, &other),

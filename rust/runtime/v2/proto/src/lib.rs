@@ -10,10 +10,10 @@ pub(crate) mod util;
 pub mod witness_selection;
 pub mod zk;
 pub(crate) use field::read_field;
-pub use merkle::Digest;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(in crate::runtime::v2) use merkle::MerkleNonce;
-pub(in crate::runtime::v2) use merkle::{MerkleProof, NONCE_LEN};
+pub(in crate::runtime::v2) use merkle::MerkleProof;
+pub use merkle::{Digest, NONCE_LEN};
 
 #[cfg(test)]
 #[path = "../tests/fixtures.rs"]

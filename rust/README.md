@@ -166,11 +166,22 @@ The leading per-query charge is `2/q = 2^-127`; the positive squared-field
 corrections remain explicit.
 The [complete mdoc model's zero-knowledge theorem](../formal/lfzk-v2/README.md#complete-mdoc-zero-knowledge)
 gives a witness-free simulator with distinguishing error at most
-`(95462672+4886*Mpre+4718*Mpost)/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
+`(47745992+4886*Mpre+4718*Mpost)/2^320 + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
 Here `Mpre` and `Mpost` bound the observer's SHA queries before and after
 the proof, and `Tpre` bounds its earlier transcript queries. It covers
 the complete proof and retained observer state under the ideal-oracle and
 uniform-sampler model, for fixed valid witnesses per public request.
+V2 uses a 40-byte nonce per committed column, with one `NONCE_LEN` constant
+shared by sampling, codecs and size estimates. At `Mpre + Mpost <= 2^128`
+and `Tpre <= 2^128`, the ideal-model error is below `2^-179`. The 84 opened
+columns add 672 nonce bytes relative to 32-byte salts; SHA-256 digests remain
+32 bytes.
+
+At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
+becomes itself questionable. The bound above should therefore not be interpreted
+as 179 bits of hiding for the concrete implementation. The parameters put
+the bottleneck in SHA-256 itself, rather than the rest of the protocol.
+
 The trusted application relations and Rust correspondence boundary remain explicit.
 
 The intended transcript proof model treats one round-boundary oracle answer as
@@ -202,8 +213,8 @@ two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 130.7 ms | 74.9 ms | 137,967 | 42.82 MiB | 34.79 MiB |
-| 4 | 141.6 ms | 78.8 ms | 138,063 | 47.43 MiB | 37.84 MiB |
+| 2 | 135.6 ms | 78.7 ms | 138,607 | 42.84 MiB | 34.79 MiB |
+| 4 | 149.0 ms | 84.4 ms | 138,511 | 47.45 MiB | 37.84 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|

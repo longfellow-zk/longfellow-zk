@@ -24,7 +24,10 @@ pub mod profiles;
 
 use profiles::*;
 
-use crate::runtime::v2::proto::polygero::{PolygeroConfig, PolygeroGeometry};
+use crate::runtime::v2::proto::{
+    polygero::{PolygeroConfig, PolygeroGeometry},
+    NONCE_LEN,
+};
 
 /// Minimize a conservative wire-size estimate within an audited family.
 /// The caller must use a field of cardinality at least 2^128. Every profile
@@ -110,7 +113,7 @@ fn tune_profiles(
                 + (1 << query_level)
                 - config.t;
             let bytes = responses * field_bytes as u128
-                + config.t as u128 * (column_bytes + 32)
+                + config.t as u128 * (column_bytes + NONCE_LEN as u128)
                 + 32 * frontier as u128;
             Some((config, bytes))
         })

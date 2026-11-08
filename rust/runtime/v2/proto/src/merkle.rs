@@ -15,7 +15,10 @@
 //! V2 Merkle proof messages and their wire encoding.
 
 const DIGEST_LEN: usize = 32;
-pub(in crate::runtime::v2) const NONCE_LEN: usize = 32;
+/// Salt bytes per v2 column, shared by commitment sampling and the proof codec.
+/// In the ideal-oracle model, the extra entropy keeps the statistical hiding
+/// error below 2^-179 with 2^128 observer queries at the current mdoc parameters.
+pub const NONCE_LEN: usize = 40;
 
 /// A 32-byte cryptographic hash digest.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -23,7 +26,7 @@ pub struct Digest {
     pub data: [u8; DIGEST_LEN],
 }
 
-/// A 32-byte salt value generated randomly per leaf/column to make the
+/// A salt value generated randomly per leaf/column to make the
 /// commitment zero-knowledge (hiding).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::runtime::v2) struct MerkleNonce {
@@ -55,9 +58,18 @@ impl MerkleProof {
         bytes: &mut &[u8],
         num_queries: usize,
     ) -> Result<Vec<MerkleNonce>, std::io::Error> {
+        use std::io::{Error, ErrorKind, Read};
+
+        if num_queries > bytes.len() / NONCE_LEN {
+            return Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                "Truncated Merkle nonces",
+            ));
+        }
         let mut nonce = Vec::with_capacity(num_queries);
         for _ in 0..num_queries {
-            let n_bytes = crate::runtime::v2::proto::util::read_bytes_32(bytes)?;
+            let mut n_bytes = [0; NONCE_LEN];
+            bytes.read_exact(&mut n_bytes)?;
             nonce.push(MerkleNonce { bytes: n_bytes });
         }
         Ok(nonce)

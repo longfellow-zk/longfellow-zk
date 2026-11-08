@@ -6,7 +6,7 @@ use crate::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
         v2::proto::{
             polygero::{FieldProof, JointPolygeroProof, PolygeroGeometry},
-            Digest, MerkleNonce, MerkleProof,
+            Digest, MerkleNonce, MerkleProof, NONCE_LEN,
         },
     },
 };
@@ -36,7 +36,12 @@ fn proof(
             (),
         ),
         opening: MerkleProof {
-            nonce: vec![MerkleNonce { bytes: [0x57; 32] }; g.t],
+            nonce: vec![
+                MerkleNonce {
+                    bytes: [0x57; NONCE_LEN]
+                };
+                g.t
+            ],
             path: vec![],
         },
     }
@@ -64,11 +69,11 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
             .iter()
             .flat_map(|x| f.to_bytes(x))
             .collect::<Vec<_>>();
-        assert_eq!(&bytes[offset..bytes.len() - 32 * g.t - 4], expected);
+        assert_eq!(&bytes[offset..bytes.len() - NONCE_LEN * g.t - 4], expected);
         assert_eq!(
             bytes.len(),
             36 + (p.bodies.0.h.len() + p.bodies.0.z.len() + p.bodies.0.rows.len()) * 16
-                + 32 * g.t
+                + NONCE_LEN * g.t
                 + 4
         );
         let mut concat = bytes.clone();
@@ -148,4 +153,43 @@ fn oversized_opening_counts_reject_without_allocation() {
         );
         assert!(result.is_err());
     }
+}
+
+#[test]
+fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
+    assert_eq!(NONCE_LEN, 40);
+    let nonces = vec![
+        MerkleNonce {
+            bytes: std::array::from_fn(|i| i as u8),
+        },
+        MerkleNonce {
+            bytes: [0xa7; NONCE_LEN],
+        },
+    ];
+    let p = MerkleProof {
+        nonce: nonces.clone(),
+        path: vec![Digest::default()],
+    };
+    let mut bytes = Vec::new();
+    p.write_nonces(&mut bytes);
+    assert_eq!(bytes.len(), NONCE_LEN * nonces.len());
+    p.write_path(&mut bytes);
+    let mut input = bytes.as_slice();
+    assert_eq!(
+        MerkleProof::read_nonces(&mut input, nonces.len()).unwrap(),
+        nonces
+    );
+    assert_eq!(MerkleProof::read_path(&mut input, 2, 4).unwrap(), p.path);
+    assert!(input.is_empty());
+    for count in [nonces.len(), usize::MAX] {
+        assert!(MerkleProof::read_nonces(&mut &bytes[..NONCE_LEN * 2 - 1], count).is_err());
+    }
+    let proof = JointPolygeroProof {
+        context: Digest::default(),
+        bodies: (),
+        opening: p,
+    };
+    assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 4 + 32));
+    // The mdoc profile opens 84 shared columns, each with eight more salt bytes.
+    assert_eq!(84 * (NONCE_LEN - 32), 672);
 }
