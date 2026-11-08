@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[path = "../security.rs"]
+mod security;
 mod sha256msg_compile;
 mod sha256msg_eval;
 mod test_support;

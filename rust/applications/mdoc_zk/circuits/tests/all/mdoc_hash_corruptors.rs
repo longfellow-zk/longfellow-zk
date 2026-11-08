@@ -27,6 +27,21 @@ pub struct MdocHashCorruptor {
 pub fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
     vec![
         MdocHashCorruptor {
+            name: "wrong_global_namespace".into(),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/value_bytes/value_bytes.0/text_byte".into(),
+            corrupt: Box::new(|g| { g.hash_input.expected_namespace[0] ^= 1; }),
+        },
+        MdocHashCorruptor {
+            name: "empty_global_namespace".into(),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/text_length".into(),
+            corrupt: Box::new(|g| { g.hash_input.expected_namespace.clear(); }),
+        },
+        MdocHashCorruptor {
+            name: "namespace_offset_before_signed_map".into(),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/shift_preimage_bounds/ge_five".into(),
+            corrupt: Box::new(|g| { g.namespace_offset_in_preimage = 0; }),
+        },
+        MdocHashCorruptor {
             name: "corrupt_issuer_sig_e".into(),
             expected_path:
                 "assert_valid_presentation/assert_message_hash/hash_eq/hash_eq.0/chunk_eq"

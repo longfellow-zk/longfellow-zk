@@ -17,7 +17,10 @@
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        proto::{config::K_ATTR_LEN_BITS, hash::constants::K_TIMESTAMP_LEN},
+        proto::{
+            config::K_ATTR_LEN_BITS,
+            hash::constants::{K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
+        },
         runtime::v2::{
             attribute::RequestedAttribute,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
@@ -40,6 +43,11 @@ pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
 ) -> bool {
     now.len() == K_TIMESTAMP_LEN
         && doc_type.len() <= DOC_TYPE_BYTES
+        && attrs.first().is_some_and(|attribute| {
+            !attribute.namespace_id.is_empty()
+                && attribute.namespace_id.len() <= K_NAMESPACE_BYTES
+                && std::str::from_utf8(&attribute.namespace_id).is_ok()
+        })
         && attrs.iter().all(|attribute| {
             attribute.id.len() <= ATTRIBUTE_ID_BYTES
                 && crate::mdoc::circuits::cbor::encode_cbor_string(&attribute.id).len()
@@ -70,7 +78,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     expected_doc_type: &[u8],
 ) -> Vec<bool> {
     let mut builder = BinaryAssignmentBuilder::new();
-    for i in 0..K_TIMESTAMP_LEN {
+    for i in K_TIMESTAMP_DIGITS {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
     }
 
@@ -81,6 +89,14 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
         builder.push_v8(*expected_doc_type.get(i).unwrap_or(&0));
     }
     builder.push_bits_len(expected_doc_type.len() as u64, K_ATTR_LEN_BITS);
+    let namespace = attrs
+        .first()
+        .map(|a| a.namespace_id.as_slice())
+        .unwrap_or_default();
+    for i in 0..K_NAMESPACE_BYTES {
+        builder.push_v8(*namespace.get(i).unwrap_or(&0));
+    }
+    builder.push_bits_len(namespace.len() as u64, K_ATTR_LEN_BITS);
 
     builder.into_inner()
 }

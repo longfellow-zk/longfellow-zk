@@ -61,6 +61,10 @@ pub fn allocate<L: LogicIO>(
         data: std::array::from_fn(|_| io.next::<8>(pos)),
         len: io.next::<K_ATTR_INDEX_BITS>(pos),
     };
+    let expected_namespace = AttrSlice {
+        data: std::array::from_fn(|_| io.next::<8>(pos)),
+        len: io.next::<K_ATTR_INDEX_BITS>(pos),
+    };
     let npublic = *pos;
     let issuer_sig_e = io.next::<256>(pos);
     let preimage = MsoPreimageBytes {
@@ -74,6 +78,7 @@ pub fn allocate<L: LogicIO>(
     let valid_until_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let dev_key_info_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let value_digests_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
+    let namespace_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
 
     let (attribute_given, attribute_derived) = (0..num_attrs)
         .map(|_| allocate_attribute(&bv, &io, pos))
@@ -85,6 +90,7 @@ pub fn allocate<L: LogicIO>(
             now,
             suppress_doc_type_check,
             expected_doc_type,
+            expected_namespace,
             preimage,
             nblocks,
             issuer_sig_e,
@@ -94,6 +100,7 @@ pub fn allocate<L: LogicIO>(
             valid_until_offset_in_preimage,
             dev_key_info_offset_in_preimage,
             value_digests_offset_in_preimage,
+            namespace_offset_in_preimage,
             attribute_given,
         },
         Derived {

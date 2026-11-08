@@ -16,8 +16,8 @@
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedAttribute {
-    /// Current NEXT checks consistency across requests but does not authenticate
-    /// this namespace in the circuit. The attribute name and value are bound.
+    /// All disclosures share this namespace. NEXT checks its exact text in the
+    /// signed MSO; structural membership of the selected digests is not proved.
     pub namespace_id: Vec<u8>,
     pub id: Vec<u8>,
     pub cbor_value: Vec<u8>,

@@ -67,6 +67,17 @@ pub struct ParsedMdoc<N> {
     pub cbor_mso: Vec<u8>,
 }
 
+/// Host-side namespace selection. This metadata is not a circuit proof of
+/// container membership; the circuit separately checks the selected text bytes.
+#[cfg(any(test, feature = "prover"))]
+pub(crate) struct MsoNamespace {
+    pub name: Vec<u8>,
+    /// Offsets are relative to the MSO map, like the parsed attribute digests.
+    /// The witness encoder adds the signed-message envelope separately.
+    pub key_offset: usize,
+    pub digest_range: std::ops::Range<usize>,
+}
+
 impl<N> ParsedMdoc<N> {
     pub fn all_attr_ids(&self) -> Vec<&[u8]> {
         self.attrs.iter().map(|a| a.name.as_slice()).collect()
@@ -74,6 +85,47 @@ impl<N> ParsedMdoc<N> {
 
     pub fn get_attribute(&self, name: &[u8]) -> Option<&ParsedAttr> {
         self.attrs.iter().find(|a| a.name == name)
+    }
+
+    /// Recover the namespace keys and their digest-map ranges without changing
+    /// the legacy parser or its attribute representation.
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn namespaces(&self) -> Result<Vec<MsoNamespace>, MdocParseError> {
+        let map_bytes = self
+            .cbor_mso
+            .get(K_COSE1_PREFIX_LEN + 7..)
+            .ok_or(MdocParseError::UnsupportedEncoding)?;
+        let map = CborParser::new(map_bytes)
+            .parse_exact()
+            .map_err(|message| MdocParseError::Cbor {
+                context: "MSO namespace map",
+                message,
+            })?;
+        let (_, digests) = map_entry_unique(&map, "valueDigests", "MSO.valueDigests")?;
+        let CborValue::Map(entries) = &digests.value else {
+            return Err(MdocParseError::UnexpectedType("MSO.valueDigests"));
+        };
+        let mut namespaces = Vec::with_capacity(entries.len());
+        for (key, value) in entries {
+            let CborValue::Text(name) = &key.value else {
+                return Err(MdocParseError::UnexpectedType("MSO namespace name"));
+            };
+            if !matches!(value.value, CborValue::Map(_)) {
+                return Err(MdocParseError::UnexpectedType("MSO namespace digests"));
+            }
+            if namespaces
+                .iter()
+                .any(|ns: &MsoNamespace| ns.name == name.as_bytes())
+            {
+                return Err(MdocParseError::DuplicateField("MSO namespace"));
+            }
+            namespaces.push(MsoNamespace {
+                name: name.as_bytes().to_vec(),
+                key_offset: key.start,
+                digest_range: value.start..value.end,
+            });
+        }
+        Ok(namespaces)
     }
 }
 

@@ -33,6 +33,10 @@ pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;
 #[path = "../../tests/attribute_types.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "../../tests/attribute_lengths.rs"]
+mod length_tests;
+
 pub type AttrSlice<L, const N: usize> =
     crate::circuits::bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;
 

@@ -71,7 +71,10 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         .collect();
 
     let now = std::array::from_fn(|i| {
-        let bit_val = get_byte(&given.hash_input.now, i);
+        let bit_val = get_byte(
+            &given.hash_input.now,
+            super::constants::K_TIMESTAMP_DIGITS[i],
+        );
         bv.of_u64::<8>(u64::from(bit_val))
     });
 
@@ -127,6 +130,8 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         bv.of_u64::<K_HASH_INDEX_BITS>(u64::from(given.dev_key_info_offset_in_preimage));
     let value_digests_offset_in_preimage =
         bv.of_u64::<K_HASH_INDEX_BITS>(u64::from(given.value_digests_offset_in_preimage));
+    let namespace_offset_in_preimage =
+        bv.of_u64::<K_HASH_INDEX_BITS>(u64::from(given.namespace_offset_in_preimage));
 
     let mut attribute_given = Vec::with_capacity(given.attribute_given.len());
     for a in &given.attribute_given {
@@ -163,12 +168,17 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         }),
         len: bv.of_u64::<K_ATTR_INDEX_BITS>(given.hash_input.expected_doc_type.len() as u64),
     };
+    let expected_namespace = MsoSlice {
+        data: std::array::from_fn(|i| bv.of_u8(get_byte(&given.hash_input.expected_namespace, i))),
+        len: bv.of_u64::<K_ATTR_INDEX_BITS>(given.hash_input.expected_namespace.len() as u64),
+    };
 
     WireGiven {
         disclosed_attributes,
         now,
         suppress_doc_type_check,
         expected_doc_type,
+        expected_namespace,
         preimage,
         nblocks,
         issuer_sig_e,
@@ -178,6 +188,7 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         valid_until_offset_in_preimage,
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
+        namespace_offset_in_preimage,
         attribute_given,
     }
 }

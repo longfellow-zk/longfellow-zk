@@ -22,6 +22,116 @@ use crate::{
 };
 
 #[test]
+fn namespace_capacity_and_encoding_are_checked_before_proving() {
+    use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
+    let spec = &crate::mdoc::runtime::tests_specs::v2_spec();
+    for namespace in [vec![], vec![b'n'; K_NAMESPACE_BYTES + 1], vec![0xff]] {
+        let attrs = [req_attr(namespace, "a", [0xf5])];
+        let mut rng = DeterministicRng::new(42);
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                &[],
+                &[],
+                "0",
+                "0",
+                b"inputs",
+                &attrs,
+                "2026-10-23T00:00:00Z",
+                "doc",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::InvalidInput)
+        );
+        assert_eq!(rng.state, 42);
+        assert_eq!(
+            run_mdoc_verifier(
+                spec,
+                &[],
+                "0",
+                "0",
+                b"inputs",
+                &attrs,
+                "2026-10-23T00:00:00Z",
+                "doc",
+                &[],
+            ),
+            Err(MdocVerifierErrorCode::InvalidInput)
+        );
+    }
+    assert!(super::public_inputs_fit(
+        &[req_attr(vec![b'n'; K_NAMESPACE_BYTES], "a", [0xf5])],
+        b"2026-10-23T00:00:00Z",
+        b"doc",
+    ));
+}
+
+#[test]
+fn global_namespace_scopes_the_honest_attribute_lookup() {
+    use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
+    let fixture = &crate::mdoc::testcases::vectors::DHS_COMPLIANCE_MDOC_10;
+    let parsed =
+        parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
+    let namespaces = parsed.namespaces().unwrap();
+    let attribute = &parsed.attrs[0];
+    let actual = namespaces
+        .iter()
+        .find(|namespace| {
+            namespace
+                .digest_range
+                .contains(&attribute.mso_digest_offset_in_preimage)
+        })
+        .unwrap();
+    assert_eq!(actual.name, b"org.iso.18013.5.1.aamva");
+    let request = [req_attr(
+        &actual.name,
+        &attribute.name,
+        &attribute.cbor_value,
+    )];
+    let expected = super::push_witness_hash(&request, &parsed).unwrap();
+    let other = namespaces
+        .iter()
+        .find(|namespace| namespace.name != actual.name)
+        .unwrap();
+    let mut duplicate = attribute.clone();
+    duplicate.mso_digest_offset_in_preimage = other.digest_range.start;
+    duplicate.cbor_issuer_signed_item[20] ^= 1;
+    let mut with_duplicate = parsed.clone();
+    with_duplicate.attrs.insert(0, duplicate);
+    assert_eq!(
+        super::push_witness_hash(&request, &with_duplicate).unwrap(),
+        expected,
+        "a matching name in a different namespace must not shadow the selected attribute"
+    );
+    let wrong = [req_attr(
+        "org.iso.18013.5.1",
+        &attribute.name,
+        &attribute.cbor_value,
+    )];
+    assert_eq!(
+        super::push_witness_hash(&wrong, &parsed),
+        Err(MdocProverErrorCode::AttributeNotFound)
+    );
+}
+
+#[test]
+fn zero_signature_is_a_witness_error() {
+    use crate::{
+        core::algebra::{AlgebraicField, Nat},
+        mdoc::circuits::cbor::mdoc::parse_mdoc,
+        runtime::algebra::RuntimeNat,
+    };
+    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let mut zero_signature =
+        parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
+    let f = crate::runtime::algebra::p256::P256Field::new();
+    let q = crate::runtime::algebra::Q256Field::new();
+    let curve = crate::runtime::algebra::secp256r1::Secp256r1::new(&f);
+    zero_signature.issuer_sig_s = RuntimeNat::<4>::from_u64(0);
+    assert!(super::push_witness_sig(&f, &q, &curve, &(f.one(), f.one()), &zero_signature).is_err());
+}
+
+#[test]
 fn rejects_invalid_public_inputs_before_loading_or_sampling() {
     let spec = &crate::mdoc::runtime::tests_specs::v2_spec();
     let valid = req_attr("namespace", "a", [0xf5]);

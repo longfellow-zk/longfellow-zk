@@ -15,6 +15,8 @@
 pub const K_MAX_SHA_BLOCKS: usize = 40;
 pub const K_MSO_PREIMAGE_LEN: usize = K_MAX_SHA_BLOCKS * 64;
 pub const K_HASH_INDEX_BITS: usize = 16;
+/// Maximum UTF-8 byte length of the one namespace shared by all disclosures.
+pub const K_NAMESPACE_BYTES: usize = 64;
 
 pub const K_COSE1_PREFIX: [u8; 18] = [
     0x84, 0x6A, b'S', b'i', b'g', b'n', b'a', b't', b'u', b'r', b'e', b'1', 0x43, 0xA1, 0x01, 0x26,
@@ -25,6 +27,7 @@ pub const K_TAG32: [u8; 2] = [0x58, 0x20];
 
 pub const K_DOCTYPE_HEADER_CHECK_CBOR: [u8; 8] = [0x67, b'd', b'o', b'c', b'T', b'y', b'p', b'e'];
 
+/// Legacy namespace constant. NEXT receives its expected namespace as public input.
 pub const K_NAMESPACE_CHECK_CBOR: [u8; 17] = *b"org.iso.18013.5.1";
 
 pub const K_VALID_FROM_LEN: usize = 12;
@@ -48,3 +51,6 @@ pub const K_VALUE_DIGESTS_CHECK_CBOR: [u8; 13] = [
 ];
 
 pub const K_TIMESTAMP_LEN: usize = 20;
+/// Positions of YYYYMMDDhhmmss in a well-formed 20-byte UTC timestamp.
+/// Only these bytes enter v2's public input; separators have no ordering meaning.
+pub const K_TIMESTAMP_DIGITS: [usize; 14] = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18];

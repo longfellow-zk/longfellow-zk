@@ -32,6 +32,7 @@ pub struct HashInput<N> {
     pub now: Vec<u8>,
     pub suppress_doc_type_check: bool,
     pub expected_doc_type: Vec<u8>,
+    pub expected_namespace: Vec<u8>,
     pub cbor_mso: Vec<u8>,
     pub issuer_sig_e: N,
     pub device_pk: (N, N),
@@ -40,6 +41,7 @@ pub struct HashInput<N> {
     pub valid_until_offset: usize,
     pub dev_key_info_offset: usize,
     pub value_digests_offset: usize,
+    pub namespace_offset: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -75,6 +77,7 @@ pub struct ConcreteGiven<N> {
     pub valid_until_offset_in_preimage: u16,
     pub dev_key_info_offset_in_preimage: u16,
     pub value_digests_offset_in_preimage: u16,
+    pub namespace_offset_in_preimage: u16,
     pub attribute_given: Vec<AttrGiven>,
 }
 
@@ -136,6 +139,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     let valid_until_offset_in_preimage = offset(hash_input.valid_until_offset);
     let dev_key_info_offset_in_preimage = offset(hash_input.dev_key_info_offset);
     let value_digests_offset_in_preimage = offset(hash_input.value_digests_offset);
+    let namespace_offset_in_preimage = offset(hash_input.namespace_offset);
 
     ConcreteGiven {
         hash_input,
@@ -146,6 +150,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
         valid_until_offset_in_preimage,
         dev_key_info_offset_in_preimage,
         value_digests_offset_in_preimage,
+        namespace_offset_in_preimage,
         attribute_given,
     }
 }
@@ -184,6 +189,22 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
     req_attr_ids: &[&[u8]],
     now: &str,
 ) -> HashInput<N> {
+    let namespace = parsed
+        .namespaces()
+        .expect("MSO namespace metadata")
+        .into_iter()
+        .find(|namespace| {
+            req_attr_ids.is_empty()
+                || req_attr_ids
+                    .first()
+                    .and_then(|name| parsed.get_attribute(name))
+                    .is_some_and(|attr| {
+                        namespace
+                            .digest_range
+                            .contains(&attr.mso_digest_offset_in_preimage)
+                    })
+        })
+        .expect("Requested attributes must have an MSO namespace");
     let attrs = req_attr_ids
         .iter()
         .map(|&req_id| {
@@ -208,6 +229,7 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
         now: now.as_bytes().to_vec(),
         suppress_doc_type_check: false,
         expected_doc_type: parsed.doc_type.as_bytes().to_vec(),
+        expected_namespace: namespace.name,
         cbor_mso: parsed.cbor_mso.clone(),
         issuer_sig_e: parsed.issuer_sig_digest.clone(),
         device_pk: parsed.device_pk.clone(),
@@ -216,5 +238,6 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
         valid_until_offset: parsed.valid_until_offset_in_mso,
         dev_key_info_offset: parsed.device_key_info_offset_in_mso,
         value_digests_offset: parsed.value_digests_offset_in_mso,
+        namespace_offset: namespace.key_offset,
     }
 }

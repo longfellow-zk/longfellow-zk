@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::{Curve, Nat},
     mdoc::{
-        circuits::cbor::mdoc::ParsedMdoc,
+        circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
             config::K_ATTR_LEN_BITS,
             hash::constants::{K_COSE1_PREFIX_LEN, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN},
@@ -50,6 +50,23 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
         K_MAX_SHA_BLOCKS,
     )
     .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
+    let requested = req_attrs.first().ok_or(MdocProverErrorCode::InvalidInput)?;
+    let namespace = parsed
+        .namespaces()
+        .map_err(|_| MdocProverErrorCode::MsoDecodingFailure)?
+        .into_iter()
+        .find(|namespace| namespace.name == requested.namespace_id)
+        .ok_or(MdocProverErrorCode::NamespacesMissing)?;
+    // Scope once to the global namespace. Attribute lookup below stays name-only.
+    let attributes: Vec<_> = parsed
+        .attrs
+        .iter()
+        .filter(|attribute| {
+            namespace
+                .digest_range
+                .contains(&attribute.mso_digest_offset_in_preimage)
+        })
+        .collect();
     let mso_sha_derived =
         crate::circuits::sha256msg::concrete::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
     let signed_bytes = &mso_sha_in.padded_preimage;
@@ -90,9 +107,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
         (preimage_base_offset + parsed.value_digests_offset_in_mso) as u64,
         16,
     );
+    builder.push_bits_len((preimage_base_offset + namespace.key_offset) as u64, 16);
 
     // 6. attribute_witnesses
-    push_witness_attrs(req_attrs, parsed, &mut builder)?;
+    push_witness_attrs(req_attrs, &attributes, &mut builder)?;
 
     // 7. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
@@ -100,14 +118,15 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     Ok(builder.into_inner())
 }
 
-fn push_witness_attrs<N: Nat<4>>(
+fn push_witness_attrs(
     req_attrs: &[RequestedAttribute],
-    parsed: &ParsedMdoc<N>,
+    attributes: &[&ParsedAttr],
     builder: &mut BinaryAssignmentBuilder,
 ) -> Result<(), MdocProverErrorCode> {
     for la in req_attrs {
-        let pa = parsed
-            .get_attribute(&la.id)
+        let pa = attributes
+            .iter()
+            .find(|attribute| attribute.name == la.id)
             .ok_or(MdocProverErrorCode::AttributeNotFound)?;
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
@@ -153,56 +172,37 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
     secp256r1: &C,
     issuer_pk: &(F::E, F::E),
     parsed: &ParsedMdoc<F::N>,
-) -> Result<Vec<F::E>, String>
+) -> Result<Vec<F::E>, &'static str>
 where
     F: crate::mdoc::circuits::MdocSigRuntimeField<E = P256Element>,
     Fn: RuntimeField<4> + crate::core::algebra::SupportsNatConversions<4, N = F::N>,
     C: Curve<4, F = F, N = F::N>,
     F::N: Nat<4>,
 {
-    let issuer_sig_given = crate::circuits::ecdsa2::concrete::given::<4, F, Fn, C>(
-        secp256r1,
-        &(issuer_pk.0, issuer_pk.1),
-        &parsed.issuer_sig_digest,
-        &parsed.issuer_sig_r,
-        &parsed.issuer_sig_s,
-        runtime_field,
-        q256,
-    );
-    let issuer_sig_derived = crate::circuits::ecdsa2::concrete::derived(
-        secp256r1,
-        &(issuer_pk.0, issuer_pk.1),
-        &parsed.issuer_sig_digest,
-        &parsed.issuer_sig_r,
-        &parsed.issuer_sig_s,
-        runtime_field,
-        q256,
-    );
+    let (issuer_sig_given, issuer_sig_derived) =
+        crate::circuits::ecdsa2::concrete::try_witness::<4, F, Fn, C>(
+            secp256r1,
+            issuer_pk,
+            &parsed.issuer_sig_digest,
+            &parsed.issuer_sig_r,
+            &parsed.issuer_sig_s,
+            runtime_field,
+            q256,
+        )?;
 
-    let device_sig_given = crate::circuits::ecdsa2::concrete::given::<4, F, Fn, C>(
-        secp256r1,
-        &(
-            runtime_field.reduce_nat(&parsed.device_pk.0),
-            runtime_field.reduce_nat(&parsed.device_pk.1),
-        ),
-        &parsed.device_sig_digest,
-        &parsed.device_sig_r,
-        &parsed.device_sig_s,
-        runtime_field,
-        q256,
-    );
-    let device_sig_derived = crate::circuits::ecdsa2::concrete::derived(
-        secp256r1,
-        &(
-            runtime_field.reduce_nat(&parsed.device_pk.0),
-            runtime_field.reduce_nat(&parsed.device_pk.1),
-        ),
-        &parsed.device_sig_digest,
-        &parsed.device_sig_r,
-        &parsed.device_sig_s,
-        runtime_field,
-        q256,
-    );
+    let (device_sig_given, device_sig_derived) =
+        crate::circuits::ecdsa2::concrete::try_witness::<4, F, Fn, C>(
+            secp256r1,
+            &(
+                runtime_field.reduce_nat(&parsed.device_pk.0),
+                runtime_field.reduce_nat(&parsed.device_pk.1),
+            ),
+            &parsed.device_sig_digest,
+            &parsed.device_sig_r,
+            &parsed.device_sig_s,
+            runtime_field,
+            q256,
+        )?;
 
     let mut builder = AssignmentBuilder::new(runtime_field);
 

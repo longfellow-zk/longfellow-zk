@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::ec::{
-    concrete::{self as ec_concrete},
-    Pt2, Pt3,
+use crate::{
+    circuits::ec::{
+        concrete::{self as ec_concrete},
+        Pt2, Pt3,
+    },
+    core::algebra::{BareField, Curve, Nat, NatOf, SupportsNatConversions},
 };
-use crate::core::algebra::{BareField, Curve, Nat, NatOf, SupportsNatConversions};
+
+#[cfg(test)]
+#[path = "../tests/fallible.rs"]
+mod tests;
 
 #[derive(Clone, Debug)]
 pub struct ConcreteSlicing<F: BareField> {
@@ -46,7 +52,9 @@ pub struct ConcreteDerived<F: BareField> {
 
 pub fn given<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField + SupportsNatConversions<W> + crate::core::algebra::HasLookupPoints,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
     Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
@@ -58,8 +66,30 @@ pub fn given<
     f: &F,
     fn_field: &Fn,
 ) -> ConcreteGiven<F> {
+    // Legacy callers retain their infallible API and witness representation.
+    try_given(curve, pkxy, e, r, s, f, fn_field).expect("Cannot invert zero")
+}
+
+/// Fallible construction for v2: malformed or unsupported signatures must not
+/// unwind while the application is preparing a witness.
+pub fn try_given<
+    const W: usize,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
+    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    C: Curve<W, F = F, N = F::N>,
+>(
+    curve: &C,
+    pkxy: &(F::E, F::E),
+    e: &NatOf<W, F>,
+    r: &NatOf<W, F>,
+    s: &NatOf<W, F>,
+    f: &F,
+    fn_field: &Fn,
+) -> Result<ConcreteGiven<F>, &'static str> {
     let s_fn = fn_field.reduce_nat(s);
-    let s_inv = fn_field.invert(&s_fn);
+    let s_inv = checked_inverse(fn_field, &s_fn)?;
     let e_fn = fn_field.reduce_nat(e);
     let r_fn = fn_field.reduce_nat(r);
     let te_s = fn_field.mulf(&e_fn, &s_inv);
@@ -76,7 +106,7 @@ pub fn given<
     let r_proj = ec_concrete::add(curve, f, &nes_g, &nrs_pk);
 
     let rx = f.reduce_nat(r);
-    let ry = f.mulf(&r_proj.1, &f.invert(&r_proj.2));
+    let ry = f.mulf(&r_proj.1, &checked_inverse(f, &r_proj.2)?);
 
     let order_neg_s = fn_field.neg(&s_fn);
     let nms_nat = fn_field.to_nat(&order_neg_s);
@@ -91,17 +121,19 @@ pub fn given<
         f.lookup_point(9, idx)
     });
 
-    ConcreteGiven {
+    Ok(ConcreteGiven {
         pkxy: pkxy.clone(),
         e: f.reduce_nat(e),
         rxy: (rx, ry),
         ers,
-    }
+    })
 }
 
 pub fn derived<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField + SupportsNatConversions<W> + crate::core::algebra::HasLookupPoints,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
     Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
@@ -113,41 +145,87 @@ pub fn derived<
     f: &F,
     fn_field: &Fn,
 ) -> ConcreteDerived<F> {
-    let s_fn = fn_field.reduce_nat(s);
-    let s_inv = fn_field.invert(&s_fn);
-    let e_fn = fn_field.reduce_nat(e);
-    let r_fn = fn_field.reduce_nat(r);
-    let te_s = fn_field.mulf(&e_fn, &s_inv);
-    let tr_s = fn_field.mulf(&r_fn, &s_inv);
-    let nes = fn_field.to_nat(&te_s);
-    let nrs = fn_field.to_nat(&tr_s);
+    try_derived(curve, pkxy, e, r, s, f, fn_field).expect("Cannot invert zero")
+}
 
+/// Keep the existing affine witness layout, but reject its exceptional points
+/// explicitly. In particular G+PK may be infinity even for a valid signature.
+pub fn try_derived<
+    const W: usize,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
+    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    C: Curve<W, F = F, N = F::N>,
+>(
+    curve: &C,
+    pkxy: &(F::E, F::E),
+    e: &NatOf<W, F>,
+    r: &NatOf<W, F>,
+    s: &NatOf<W, F>,
+    f: &F,
+    fn_field: &Fn,
+) -> Result<ConcreteDerived<F>, &'static str> {
+    let given = try_given(curve, pkxy, e, r, s, f, fn_field)?;
+    derived_from_given(curve, &given, e, r, s, f, fn_field)
+}
+
+/// Construct both parts together so the verification point is recovered once.
+/// Separate legacy constructors retain their APIs and serialized values.
+pub fn try_witness<
+    const W: usize,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
+    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    C: Curve<W, F = F, N = F::N>,
+>(
+    curve: &C,
+    pkxy: &(F::E, F::E),
+    e: &NatOf<W, F>,
+    r: &NatOf<W, F>,
+    s: &NatOf<W, F>,
+    f: &F,
+    fn_field: &Fn,
+) -> Result<(ConcreteGiven<F>, ConcreteDerived<F>), &'static str> {
+    let given = try_given(curve, pkxy, e, r, s, f, fn_field)?;
+    let derived = derived_from_given(curve, &given, e, r, s, f, fn_field)?;
+    Ok((given, derived))
+}
+
+fn derived_from_given<
+    const W: usize,
+    F: crate::core::algebra::AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints,
+    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    C: Curve<W, F = F, N = F::N>,
+>(
+    curve: &C,
+    given: &ConcreteGiven<F>,
+    e: &NatOf<W, F>,
+    r: &NatOf<W, F>,
+    s: &NatOf<W, F>,
+    f: &F,
+    fn_field: &Fn,
+) -> Result<ConcreteDerived<F>, &'static str> {
     let g = ec_concrete::projective(curve, f, curve.g());
-    let pk = ec_concrete::projective(curve, f, pkxy);
-
-    let nes_g = ec_concrete::scalar_mul(curve, f, 256, &nes, &g);
-    let nrs_pk = ec_concrete::scalar_mul(curve, f, 256, &nrs, &pk);
-
-    let r_proj = ec_concrete::add(curve, f, &nes_g, &nrs_pk);
-
-    let rx = f.reduce_nat(r);
-    let ry = f.mulf(&r_proj.1, &f.invert(&r_proj.2));
-
-    let r_pt = (rx.clone(), ry.clone(), f.one());
+    let pk = ec_concrete::projective(curve, f, &given.pkxy);
+    let r_pt = ec_concrete::projective(curve, f, &given.rxy);
 
     let g_pk_proj = ec_concrete::add(curve, f, &g, &pk);
     let g_r_proj = ec_concrete::add(curve, f, &g, &r_pt);
     let pk_r_proj = ec_concrete::add(curve, f, &pk, &r_pt);
 
-    let g_pk = ec_concrete::affine(f, &g_pk_proj);
-    let g_r = ec_concrete::affine(f, &g_r_proj);
-    let pk_r = ec_concrete::affine(f, &pk_r_proj);
+    let g_pk = checked_affine(f, &g_pk_proj)?;
+    let g_r = checked_affine(f, &g_r_proj)?;
+    let pk_r = checked_affine(f, &pk_r_proj)?;
 
     let pk_r_projective = ec_concrete::projective(curve, f, &pk_r);
     let g_pk_r_proj = ec_concrete::add(curve, f, &g, &pk_r_projective);
-    let g_pk_r = ec_concrete::affine(f, &g_pk_r_proj);
+    let g_pk_r = checked_affine(f, &g_pk_r_proj)?;
 
-    let order_neg_s = fn_field.neg(&s_fn);
+    let order_neg_s = fn_field.neg(&fn_field.reduce_nat(s));
     let nms_nat = fn_field.to_nat(&order_neg_s);
 
     let e_bits = e.to_bits(256);
@@ -176,13 +254,13 @@ pub fn derived<
         round[i] = p.clone();
     }
 
-    let pkxinv = f.invert(&pkxy.0);
-    let rxinv = f.invert(&rx);
+    let pkxinv = checked_inverse(f, &given.pkxy.0)?;
+    let rxinv = checked_inverse(f, &given.rxy.0)?;
     let nms_val = f.reduce_nat(&nms_nat);
-    let nmsinv = f.invert(&nms_val);
-    let yinv = f.invert(&p.1);
+    let nmsinv = checked_inverse(f, &nms_val)?;
+    let yinv = checked_inverse(f, &p.1)?;
 
-    ConcreteDerived {
+    Ok(ConcreteDerived {
         pkxinv,
         rxinv,
         nmsinv,
@@ -194,7 +272,26 @@ pub fn derived<
             g_pk_r,
             round,
         },
+    })
+}
+
+fn checked_inverse<F: crate::core::algebra::AlgebraicField>(
+    f: &F,
+    value: &F::E,
+) -> Result<F::E, &'static str> {
+    if f.is_zero(value) {
+        Err("Signature requires an unsupported zero inversion")
+    } else {
+        Ok(f.invert(value))
     }
+}
+
+fn checked_affine<F: crate::core::algebra::AlgebraicField>(
+    f: &F,
+    point: &Pt3<F::E>,
+) -> Result<Pt2<F::E>, &'static str> {
+    let inverse = checked_inverse(f, &point.2)?;
+    Ok((f.mulf(&point.0, &inverse), f.mulf(&point.1, &inverse)))
 }
 
 impl<F: BareField> ConcreteGiven<F> {

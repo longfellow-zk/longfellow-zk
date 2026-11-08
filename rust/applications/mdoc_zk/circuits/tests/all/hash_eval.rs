@@ -239,7 +239,7 @@ fn test_all_mdoc_cases() {
 }
 
 #[test]
-fn test_namespace_mixup_exploit() {
+fn test_doc_type_key_and_offset_tampering() {
     let f = Gf2_128Field::new();
 
     let (_, parsed, now) =
@@ -273,7 +273,7 @@ fn test_namespace_mixup_exploit() {
 
     assert!(
         res.is_err(),
-        "Expected tampered namespace/docType to fail circuit evaluation"
+        "Expected tampered docType key and offset to fail circuit evaluation"
     );
     res.assert_any_failed_at(
         "assert_valid_presentation/assert_mso_doc_type/cbor_header/cbor_header.0/header_byte",
@@ -361,7 +361,7 @@ fn test_check_doc_type_suppression() {
     let failed_all = res_wrong.failed_paths();
     println!("ALL FAILED PATHS: {:?}", failed_all);
     res_wrong.assert_any_failed_at(
-        "assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/doc_type_byte",
+        "assert_valid_presentation/assert_mso_doc_type/value_bytes/value_bytes.0/text_byte",
     );
 
     // 3. When suppress_doc_type_check is true, even with wrong expected_doc_type, evaluation

@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_adder::FieldWrappingSum;
-use crate::circuits::sha256msg::{concrete::given, Sha256Msg};
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::compile::compiler::CompilerLogic;
-use crate::compile::eval::FieldID;
-use crate::core::algebra::SerializableField;
-use crate::runtime::algebra::field::RuntimeField;
 use sha2::{Digest, Sha256 as Sha2Reference};
 
 use super::test_support;
+use crate::{
+    circuits::{
+        analog_adder::FieldWrappingSum,
+        sha256msg::{concrete::given, Sha256Msg},
+    },
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        compiler::CompilerLogic,
+        eval::FieldID,
+    },
+    core::algebra::SerializableField,
+    runtime::algebra::field::RuntimeField,
+};
 
 fn test_compile_sha256msg_for_field<
     'a,
@@ -38,7 +44,7 @@ fn test_compile_sha256msg_for_field<
 ) {
     let mut hasher = Sha2Reference::new();
     hasher.update(message);
-    let _reference_hash = hasher.finalize();
+    let reference_hash = hasher.finalize();
 
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
         let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
@@ -60,12 +66,17 @@ fn test_compile_sha256msg_for_field<
         )
     });
 
-    let given = given(
+    let mut given = given(
         message,
         &crate::circuits::sha256::constants::INITIAL,
         MAX_BLOCKS,
     )
     .unwrap();
+    let reference_words = std::array::from_fn(|i| {
+        u32::from_be_bytes(reference_hash[4 * i..4 * i + 4].try_into().unwrap())
+    });
+    assert_eq!(given.expected_hash, reference_words);
+    given.expected_hash = reference_words;
     let derived = crate::circuits::sha256msg::concrete::derived(&given, MAX_BLOCKS);
 
     crate::compile::compiler::dump_stats(name, &circuit, &stats);

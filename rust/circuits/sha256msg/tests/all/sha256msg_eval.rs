@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::sha256msg::{concrete::given, Given, Sha256Msg};
-use crate::compile::algebra::gf2_128::Gf2_128Field;
-use crate::compile::logic::eval::EvalLogic;
-
 use super::test_support;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::Boolean,
+        sha256msg::{concrete::given, Given, Sha256Msg},
+    },
+    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+};
 
-fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
+pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     f: &'a Gf2_128Field,
     tracker: &'a crate::compile::logic::scope::AssertionScope,
     message: &[u8],
@@ -34,7 +36,12 @@ fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
 
-    let mut given = given(message, &crate::circuits::sha256::constants::INITIAL, MAX_BLOCKS).unwrap();
+    let mut given = given(
+        message,
+        &crate::circuits::sha256::constants::INITIAL,
+        MAX_BLOCKS,
+    )
+    .unwrap();
     let mut derived = crate::circuits::sha256msg::concrete::derived(&given, MAX_BLOCKS);
 
     corrupt(&mut given, &mut derived);
@@ -55,7 +62,8 @@ fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
 
     let mut sha_derived = Vec::with_capacity(MAX_BLOCKS);
     for b in 0..MAX_BLOCKS {
-        let wit_wires = crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[b], &bv);
+        let wit_wires =
+            crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[b], &bv);
         sha_derived.push(wit_wires);
     }
 
@@ -117,7 +125,8 @@ fn test_exploit_nblocks_too_large() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires = crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[0], &bv);
+    let wit_wires =
+        crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[0], &bv);
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();
@@ -150,7 +159,8 @@ fn test_exploit_nblocks_zero() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires = crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[0], &bv);
+    let wit_wires =
+        crate::circuits::sha256::evaluate::evaluate_derived(&derived.sha_derived[0], &bv);
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();

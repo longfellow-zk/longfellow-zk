@@ -138,16 +138,10 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             _ => MdocProverErrorCode::MsoDecodingFailure,
         })?;
 
-    for req_attr in attrs {
-        if parsed.get_attribute(&req_attr.id).is_none() {
-            return Err(MdocProverErrorCode::AttributeNotFound);
-        }
-    }
-
     let mut witness_hash = push_witness_hash(attrs, &parsed)?;
     witness_hash.extend((0..256).map(|r| ((mask_bytes[r / 8] >> (r % 8)) & 1) != 0));
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
 
     // Public presentation bits are fixed before the shared commitment.
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());

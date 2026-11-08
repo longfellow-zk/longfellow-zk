@@ -14,8 +14,9 @@
 
 use super::constants::{
     K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR,
-    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_TAG32, K_VALID_FROM_CHECK_CBOR,
-    K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
+    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
+    K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN,
+    K_VALUE_DIGESTS_CHECK_CBOR,
 };
 use crate::{
     circuits::{
@@ -47,6 +48,10 @@ pub struct HashBytes<L: Logic, const N: usize> {
 #[path = "../../tests/hash_bounds.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "../../tests/hash_inputs.rs"]
+mod input_tests;
+
 pub type AttrPreimageBytes<L> =
     crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
 pub type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
@@ -58,7 +63,8 @@ pub struct AttrGiven<L: Logic> {
 }
 
 use crate::mdoc::circuits::{
-    hash::constants::K_TIMESTAMP_LEN, mso_attribute::circuit::DisclosedAttribute,
+    hash::constants::{K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
+    mso_attribute::circuit::DisclosedAttribute,
 };
 
 pub struct AttrDerived<L: Logic> {
@@ -67,9 +73,11 @@ pub struct AttrDerived<L: Logic> {
 
 pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
-    pub now: [V8<L>; K_TIMESTAMP_LEN],
+    pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
     pub suppress_doc_type_check: crate::circuits::boolean::Bitw<L>,
     pub expected_doc_type: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, 32>,
+    pub expected_namespace:
+        crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_NAMESPACE_BYTES>,
     pub preimage: MsoPreimageBytes<L>,
     pub nblocks: V8<L>,
     pub issuer_sig_e: V256<L>,
@@ -79,6 +87,7 @@ pub struct Given<L: LogicIO> {
     pub valid_until_offset_in_preimage: HashIndex<L>,
     pub dev_key_info_offset_in_preimage: HashIndex<L>,
     pub value_digests_offset_in_preimage: HashIndex<L>,
+    pub namespace_offset_in_preimage: HashIndex<L>,
     pub attribute_given: Vec<AttrGiven<L>>,
 }
 
@@ -137,6 +146,7 @@ where L::F: MdocHashCompileField
                 self.assert_mso_sha256_hash(given, derived, &preimage),
                 self.assert_mso_envelope(given, &preimage),
                 self.assert_mso_doc_type(given, &preimage),
+                self.assert_mso_namespace(given, &preimage),
                 self.assert_mso_validity(given, &preimage),
                 self.assert_mso_device_key(given, &preimage),
                 self.assert_mso_value_digests(given, &preimage),
@@ -168,29 +178,58 @@ where L::F: MdocHashCompileField
     }
 
     fn assert_mso_doc_type(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
+        self.logic.assert_all(
+            "assert_mso_doc_type",
+            &self.assert_mso_text(
+                &given.doc_type_offset_in_preimage,
+                &given.preimage.len,
+                &given.expected_doc_type,
+                &self.boolean.notb(&given.suppress_doc_type_check),
+                &K_DOCTYPE_HEADER_CHECK_CBOR,
+                preimage,
+            ),
+        )
+    }
+
+    fn assert_mso_namespace(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
+        // This proves the exact text occurs in the signed MSO. The private
+        // offset is not a proof of CBOR ancestry or digest-map membership.
+        self.logic.assert_all(
+            "assert_mso_namespace",
+            &self.assert_mso_text(
+                &given.namespace_offset_in_preimage,
+                &given.preimage.len,
+                &given.expected_namespace,
+                &self.boolean.trueb(),
+                &[],
+                preimage,
+            ),
+        )
+    }
+
+    fn assert_mso_text<const N: usize>(
+        &self,
+        offset: &HashIndex<L>,
+        preimage_len: &HashIndex<L>,
+        expected: &crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, N>,
+        enabled: &crate::circuits::boolean::Bitw<L>,
+        prefix: &[u8],
+        preimage: &[V8<L>],
+    ) -> [L::Assertions; 5] {
         let zz = self.bv.zero::<8>();
         // Lookahead covers both supported text headers. Only the bytes consumed
         // by the selected header and value must be inside the signed message.
-        let doc_type_shifted = self.routing.shift_bitvec(
-            7,
-            &given.doc_type_offset_in_preimage,
-            K_DOCTYPE_HEADER_CHECK_CBOR.len() + 35,
-            preimage,
-            &zz,
-        );
+        let shifted = self
+            .routing
+            .shift_bitvec(7, offset, prefix.len() + N + 2, preimage, &zz);
 
-        let header_check =
-            self.logic
-                .assert_mapi("cbor_header", 0..K_DOCTYPE_HEADER_CHECK_CBOR.len(), |i| {
-                    let eq_bit = self.bv.eqb(
-                        &doc_type_shifted[i],
-                        &self.bv.of_u8(K_DOCTYPE_HEADER_CHECK_CBOR[i]),
-                    );
-                    let cond_eq = self.boolean.orb(&given.suppress_doc_type_check, &eq_bit);
-                    self.boolean.assert_true("header_byte", &cond_eq)
-                });
+        let header_check = self.logic.assert_mapi("cbor_header", 0..prefix.len(), |i| {
+            let eq_bit = self.bv.eqb(&shifted[i], &self.bv.of_u8(prefix[i]));
+            let cond_eq = self.boolean.impliesb(enabled, &eq_bit);
+            self.boolean.assert_true("header_byte", &cond_eq)
+        });
 
-        let head_byte = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len()];
+        let head_byte = &shifted[prefix.len()];
         let is_two_byte_header = self.bv.eqb(head_byte, &self.bv.of_u8(0x78));
         let (short_length, _): (Bitvec<L, 5>, Bitvec<L, 3>) = self.bv.split(head_byte);
         let short_text = self.boolean.andb(
@@ -200,29 +239,26 @@ where L::F: MdocHashCompileField
         let text_header = self.boolean.orb(&short_text, &is_two_byte_header);
         let signed_length = self.bv.select(
             &is_two_byte_header,
-            &self.bv.zext::<8, K_ATTR_INDEX_BITS>(
-                &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1],
-            ),
+            &self
+                .bv
+                .zext::<8, K_ATTR_INDEX_BITS>(&shifted[prefix.len() + 1]),
             &self.bv.zext::<5, K_ATTR_INDEX_BITS>(&short_length),
         );
-        let enabled = self.boolean.notb(&given.suppress_doc_type_check);
         let matching_length = self.boolean.andb(
-            &self.bv.eqb(&signed_length, &given.expected_doc_type.len),
-            &self
-                .boolean
-                .notb(&self.bv.is_zero(&given.expected_doc_type.len)),
+            &self.bv.eqb(&signed_length, &expected.len),
+            &self.boolean.notb(&self.bv.is_zero(&expected.len)),
         );
         let length_check = self.boolean.assert_true(
             "text_length",
             &self
                 .boolean
-                .impliesb(&enabled, &self.boolean.andb(&text_header, &matching_length)),
+                .impliesb(enabled, &self.boolean.andb(&text_header, &matching_length)),
         );
         let capacity_check = self.boolean.assert_true(
             "public_length",
             &self.bv.leq(
-                &given.expected_doc_type.len,
-                &self.bv.of_u64::<K_ATTR_INDEX_BITS>(32),
+                &expected.len,
+                &self.bv.of_u64::<K_ATTR_INDEX_BITS>(N as u64),
             ),
         );
         // Check both header sizes in parallel. Selecting the header before
@@ -231,30 +267,21 @@ where L::F: MdocHashCompileField
         // The 17-bit words hold a 16-bit offset, the 10-bit public length
         // and either fixed prefix without integer wrap.
         let fits = |header_bytes: u64, name: &str| {
-            let offset = self.bv.zext::<16, 17>(&given.doc_type_offset_in_preimage);
-            let length = self
-                .bv
-                .zext::<K_ATTR_INDEX_BITS, 17>(&given.expected_doc_type.len);
-            let prefix = self.bv.of_u64::<17>(header_bytes);
-            let (sum, carry, overflow) = self.bv.carry_save(&offset, &length, &prefix);
+            let wide_offset = self.bv.zext::<16, 17>(offset);
+            let length = self.bv.zext::<K_ATTR_INDEX_BITS, 17>(&expected.len);
+            let header_length = self.bv.of_u64::<17>(header_bytes);
+            let (sum, carry, overflow) = self.bv.carry_save(&wide_offset, &length, &header_length);
             let carry_check = self.boolean.assert_false("carry_overflow", &overflow);
             let (end, sum_check) = self.bv.checked_add(&sum, &carry);
             (
-                self.bv
-                    .leq(&end, &self.bv.zext::<16, 17>(&given.preimage.len)),
+                self.bv.leq(&end, &self.bv.zext::<16, 17>(preimage_len)),
                 self.logic.assert_all(name, &[carry_check, sum_check]),
             )
         };
-        let (short_fits, short_arithmetic) = fits(
-            (K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1) as u64,
-            "short_header",
-        );
-        let (long_fits, long_arithmetic) = fits(
-            (K_DOCTYPE_HEADER_CHECK_CBOR.len() + 2) as u64,
-            "long_header",
-        );
+        let (short_fits, short_arithmetic) = fits((prefix.len() + 1) as u64, "short_header");
+        let (long_fits, long_arithmetic) = fits((prefix.len() + 2) as u64, "long_header");
         let end_fits = self.boolean.impliesb(
-            &enabled,
+            enabled,
             &self
                 .boolean
                 .muxb(&is_two_byte_header, &long_fits, &short_fits),
@@ -262,40 +289,37 @@ where L::F: MdocHashCompileField
         // Suppression keeps the existing valid-start requirement, without
         // imposing a value length or text header on the suppressed field.
         let shift_assertions = self.assert_preimage_bounds(
-            &given.doc_type_offset_in_preimage,
-            &given.preimage.len,
+            offset,
+            preimage_len,
             &end_fits,
             self.logic
                 .assert_all("header_ranges", &[short_arithmetic, long_arithmetic]),
         );
 
-        let value_check = self.logic.assert_mapi("value_bytes", 0..32, |i| {
+        let value_check = self.logic.assert_mapi("value_bytes", 0..N, |i| {
             let i_wire = self.bv.of_u64::<K_ATTR_INDEX_BITS>(i as u64);
-            let in_bounds = self.bv.lt(&i_wire, &given.expected_doc_type.len);
-            let active = self.boolean.andb(&enabled, &in_bounds);
+            let in_bounds = self.bv.lt(&i_wire, &expected.len);
+            let active = self.boolean.andb(enabled, &in_bounds);
 
-            let byte_if_1 = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 1 + i];
-            let byte_if_2 = &doc_type_shifted[K_DOCTYPE_HEADER_CHECK_CBOR.len() + 2 + i];
+            let byte_if_1 = &shifted[prefix.len() + 1 + i];
+            let byte_if_2 = &shifted[prefix.len() + 2 + i];
             let got = self
                 .bv
                 .select::<8>(&is_two_byte_header, byte_if_2, byte_if_1);
 
-            let want = &given.expected_doc_type.data[i];
+            let want = &expected.data[i];
             let eq_bit = self.bv.eqb(&got, want);
             let cond_eq = self.boolean.impliesb(&active, &eq_bit);
-            self.boolean.assert_true("doc_type_byte", &cond_eq)
+            self.boolean.assert_true("text_byte", &cond_eq)
         });
 
-        self.logic.assert_all(
-            "assert_mso_doc_type",
-            &[
-                shift_assertions,
-                header_check,
-                length_check,
-                capacity_check,
-                value_check,
-            ],
-        )
+        [
+            shift_assertions,
+            header_check,
+            length_check,
+            capacity_check,
+            value_check,
+        ]
     }
 
     /// Check the supported Signature1 / tagged-byte-string envelope. This binds
@@ -346,6 +370,9 @@ where L::F: MdocHashCompileField
 
     fn assert_mso_validity(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
         let zz = self.bv.zero::<8>();
+        // Well-formed 20-byte UTC dates sort by their digits. Separators have
+        // no ordering meaning, and RFC 3339 permits both T/t and Z/z.
+        let digits = |timestamp: &[V8<L>]| K_TIMESTAMP_DIGITS.map(|i| timestamp[i].clone());
 
         let (valid_from_shifted, from_assertions) = self.shift_preimage(
             &given.valid_from_offset_in_preimage,
@@ -356,7 +383,7 @@ where L::F: MdocHashCompileField
             &zz,
         );
         let cmp_from = self.cmp_helper.leq(
-            &valid_from_shifted[K_VALID_FROM_LEN..K_VALID_FROM_LEN + K_TIMESTAMP_LEN],
+            &digits(&valid_from_shifted[K_VALID_FROM_LEN..K_VALID_FROM_LEN + K_TIMESTAMP_LEN]),
             &given.now,
         );
 
@@ -370,7 +397,7 @@ where L::F: MdocHashCompileField
         );
         let cmp_until = self.cmp_helper.leq(
             &given.now,
-            &valid_until_shifted[K_VALID_UNTIL_LEN..K_VALID_UNTIL_LEN + K_TIMESTAMP_LEN],
+            &digits(&valid_until_shifted[K_VALID_UNTIL_LEN..K_VALID_UNTIL_LEN + K_TIMESTAMP_LEN]),
         );
 
         let from_assertion = self.logic.assert_all(

@@ -121,6 +121,40 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
         "Verification failed: {:?}",
         verify_res.err()
     );
+    let mut renamed = req_attrs.clone();
+    for attribute in &mut renamed {
+        attribute.namespace_id = b"unrelated.namespace".to_vec();
+    }
+    assert!(
+        run_mdoc_verifier_inner(
+            provided.spec(),
+            provided.compressed(),
+            &pubkey_x_string,
+            &pubkey_y_formatted,
+            transcript,
+            &renamed,
+            now,
+            doc_type,
+            &zkproof,
+        )
+        .is_err(),
+        "the same proof must not verify under a different namespace"
+    );
+    assert_eq!(
+        run_mdoc_prover_inner(
+            provided.spec(),
+            provided.compressed(),
+            mdoc_bytes,
+            &pubkey_x_string,
+            &pubkey_y_formatted,
+            transcript,
+            &renamed,
+            now,
+            doc_type,
+            &mut rng,
+        ),
+        Err(crate::mdoc::v2::MdocProverErrorCode::NamespacesMissing)
+    );
 }
 
 fn run_next_mdoc_subset_flow(test_circuits: &TestCircuits) {
@@ -183,6 +217,32 @@ fn run_next_mdoc_subset_flow(test_circuits: &TestCircuits) {
     );
 }
 
+// A document type does not determine the namespace: mDL fixtures can disclose
+// AAMVA attributes. Derive the request without skipping any disclosed attribute.
+fn requested_fixture_attributes(
+    parsed: &crate::mdoc::circuits::ParsedMdoc<CompileNat<4>>,
+    case_name: &str,
+) -> Vec<RequestedAttribute> {
+    let namespaces = parsed.namespaces().unwrap();
+    let namespace = namespaces
+        .iter()
+        .find(|namespace| {
+            parsed.attrs.iter().all(|attribute| {
+                namespace
+                    .digest_range
+                    .contains(&attribute.mso_digest_offset_in_preimage)
+            })
+        })
+        .unwrap_or_else(|| {
+            panic!("Fixture does not have one global disclosure namespace: {case_name}")
+        });
+    parsed
+        .attrs
+        .iter()
+        .map(|attribute| req_attr(&namespace.name, &attribute.name, &attribute.cbor_value))
+        .collect()
+}
+
 fn run_next_mdoc_all_positive_cases(test_circuits: &TestCircuits) {
     for case in crate::mdoc::testcases::vectors::ALL_TEST_CASES {
         if case.name.starts_with("fail-") {
@@ -193,17 +253,7 @@ fn run_next_mdoc_all_positive_cases(test_circuits: &TestCircuits) {
         if nattrs == 0 || nattrs > 4 {
             continue;
         }
-        let ns = if case.data.doc_type.starts_with("org.iso.18013.5.1") {
-            "org.iso.18013.5.1"
-        } else {
-            case.data.doc_type
-        };
-        let req_attrs: Vec<RequestedAttribute> = parsed
-            .attrs
-            .iter()
-            .take(nattrs)
-            .map(|a| req_attr(ns, &a.name, &a.cbor_value))
-            .collect();
+        let req_attrs = requested_fixture_attributes(&parsed, case.name);
 
         if !crate::mdoc::v2::same_namespace(&req_attrs) {
             continue;
@@ -275,17 +325,7 @@ fn run_next_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
             skipped_for_attribute_count.push(case.name);
             continue;
         }
-        let ns = if case.data.doc_type.starts_with("org.iso.18013.5.1") {
-            "org.iso.18013.5.1"
-        } else {
-            case.data.doc_type
-        };
-        let mut req_attrs: Vec<RequestedAttribute> = parsed
-            .attrs
-            .iter()
-            .take(nattrs)
-            .map(|a| req_attr(ns, &a.name, &a.cbor_value))
-            .collect();
+        let mut req_attrs = requested_fixture_attributes(&parsed, case.name);
 
         if case.name.contains("not_over_18") {
             for a in &mut req_attrs {

@@ -117,7 +117,7 @@ where
     FR: RuntimeField<W> + SupportsU128Conversions,
 {
     use crate::mdoc::circuits::{
-        hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_LEN},
+        hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS},
         mso_attribute::constants::K_ATTR_PREIMAGE_LEN,
     };
     const EXPECTED_NAME_LEN: usize = 32;
@@ -125,7 +125,9 @@ where
 
     let mut inputs = crate::compile::eval::initial_inputs(fr);
 
-    push_bytes(&mut inputs, &given.hash_input.now, K_TIMESTAMP_LEN, fr);
+    for i in K_TIMESTAMP_DIGITS {
+        push_bits(&mut inputs, u128::from(given.hash_input.now[i]), 8, fr);
+    }
 
     for attr in &given.hash_input.attrs {
         push_bytes(&mut inputs, &attr.expected_name, EXPECTED_NAME_LEN, fr);
@@ -157,6 +159,18 @@ where
         10,
         fr,
     );
+    push_bytes(
+        &mut inputs,
+        &given.hash_input.expected_namespace,
+        crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES,
+        fr,
+    );
+    push_bits(
+        &mut inputs,
+        given.hash_input.expected_namespace.len() as u128,
+        10,
+        fr,
+    );
 
     push_nat(&mut inputs, &given.hash_input.issuer_sig_e, 256, fr);
     push_bytes(&mut inputs, &given.preimage.value, K_MSO_PREIMAGE_LEN, fr);
@@ -171,6 +185,7 @@ where
         given.valid_until_offset_in_preimage,
         given.dev_key_info_offset_in_preimage,
         given.value_digests_offset_in_preimage,
+        given.namespace_offset_in_preimage,
     ] {
         push_bits(&mut inputs, u128::from(offset), 16, fr);
     }
@@ -301,8 +316,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        14, 246, 36, 95, 128, 142, 107, 88, 47, 85, 170, 170, 41, 48, 183, 156, 31, 56, 0, 106,
-        1, 103, 109, 73, 130, 25, 217, 18, 8, 138, 177, 43,
+        144, 40, 161, 81, 2, 41, 252, 139, 178, 118, 91, 90, 25, 225, 161, 19, 6, 170, 128, 31,
+        202, 207, 44, 161, 139, 72, 135, 32, 229, 7, 55, 166,
     ];
     assert_eq!(
         circuit.id, expected_id,
