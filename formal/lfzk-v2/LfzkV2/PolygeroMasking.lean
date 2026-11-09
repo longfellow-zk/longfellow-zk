@@ -144,27 +144,6 @@ theorem openMasks_adaptiveTranslate [Fintype F] [DecidableEq F]
     openMasks Q (adaptiveTranslate C M Q Λ delta masks) = openMasks Q masks :=
   openMasks_translate C M Q Λ _ masks
 
-/-- Exact joint privacy of the arithmetic response and both mask openings,
-including a response difference chosen from those same openings. -/
-theorem sameDistribution_adaptive [Fintype F] [DecidableEq F]
-    (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
-    (Q : QuerySet n r) (Λ : (Fin w → F) →ₗ[F] F)
-    (delta : MaskOpenings F Q → linearResponseKernel C Q.coordinates Λ)
-    (base : MaskOpenings F Q → EvaluationRow F r w n) :
-    SameDistribution
-      (fun masks : Tape C Λ => (openMasks Q masks,
-        base (openMasks Q masks) + response C M Λ masks + (delta (openMasks Q masks)).1))
-      (fun masks : Tape C Λ => (openMasks Q masks,
-        base (openMasks Q masks) + response C M Λ masks)) := by
-  apply sameDistribution_of_equiv (adaptiveTranslate C M Q Λ delta)
-  intro masks
-  apply Prod.ext
-  · exact (openMasks_adaptiveTranslate C M Q Λ delta masks).symm
-  · rw [openMasks_adaptiveTranslate]
-    change _ = base (openMasks Q masks) +
-      response C M Λ (translate C M Q Λ (delta (openMasks Q masks)) masks)
-    rw [translate_response, add_assoc]
-
 /-- Public witness values with the target in one logical coordinate. -/
 def publicValues (layout : ConstraintLayout F q w) (pivot : Fin q) (target : F) : Fin w → F :=
   fun i => if i = layout.logical pivot then target else 0

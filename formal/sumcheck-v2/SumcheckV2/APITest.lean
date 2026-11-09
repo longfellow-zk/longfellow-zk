@@ -84,22 +84,6 @@ example :
       ¬ (0 : F) = (0 + 1) * (0 + 1) := by
   simp [PadExpression.eval, PadExpression.subtractClaimProduct]
 
--- A round followed by a final-claim combination has budget 2 + 1, not 2 + 2.
-example [Fintype F] [DecidableEq F]
-    (strategy : LayerStrategy F ![ChallengeKind.round, ChallengeKind.combine])
-    (hvalid : ∀ i pref, (strategy i pref).Valid) :
-    (Finset.univ.filter fun cs : Fin 2 → F => layer_bad_event strategy cs).card ≤
-      3 * Fintype.card F := by
-  simpa [Fin.sum_univ_two, ChallengeKind.budget] using
-    layer_tape_card_le ![ChallengeKind.round, ChallengeKind.combine] strategy hvalid
-
--- Round-only callers use the same strategy data as mixed layer tapes.
-example [Fintype F] [DecidableEq F] (strategy : RoundStrategy F 2)
-    (hvalid : ∀ i pref, ChallengeData.Valid (strategy i pref)) :
-    (Finset.univ.filter fun cs : Fin 2 → F => layer_bad_event strategy cs).card ≤
-      4 * Fintype.card F := by
-  simpa using combinatorial_fiat_shamir strategy hvalid
-
 end ArbitraryField
 
 #guard_msgs (drop info) in #check Chained.ofRoundReplay
@@ -129,11 +113,5 @@ set_option pp.fullNames true in
 example {F : Type} [Field F] [DecidableEq F] [SumcheckV1.Interp F 2]
     (p : SumcheckV1.RoundPoly F 2) (z : F) :
     p.toPoly.eval z = p.eval_lagrange z := SumcheckV1.RoundPoly.eval_toPoly p z
-
--- Empty tapes have no bad events, including an execution with no circuit layers.
-example {F : Type} [Field F] (strategy : LayerStrategy F (n := 0) Fin.elim0)
-    (cs : Fin 0 → F) : ¬ layer_bad_event strategy cs := by
-  rintro ⟨i, _⟩
-  exact Fin.elim0 i
 
 end SumcheckV2.APITest

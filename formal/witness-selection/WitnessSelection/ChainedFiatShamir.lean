@@ -1,4 +1,4 @@
-import WitnessSelection.IOP
+import WitnessSelection.Collision
 import TranscriptV2.Charging
 
 /-! Witness-selection accounting against an arbitrary adaptive total-oracle

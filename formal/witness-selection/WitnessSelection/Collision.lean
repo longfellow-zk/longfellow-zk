@@ -1,6 +1,8 @@
 import WitnessSelection.Algebra
 import Mathlib.Data.Finset.Powerset
 
+/-! Collision counts and unique selection used by the Fiat–Shamir analysis. -/
+
 namespace WitnessSelection
 open Finset
 open scoped Classical
@@ -80,12 +82,6 @@ theorem list_collision_card_mul_le (s : Finset (Candidate F ι)) :
     _ = ∑ p ∈ s.powersetCard 2, (univ.filter (pairEvent p)).card * Fintype.card F ^ 2 := by rw [sum_mul]
     _ ≤ ∑ _p ∈ s.powersetCard 2, Fintype.card (Coins F ι) := sum_le_sum hlocal
     _ = s.card.choose 2 * Fintype.card (Coins F ι) := by simp
-
-theorem iop_collision_bound (s : Finset (Candidate F ι)) :
-    ((badCoins s).card : ℚ) / Fintype.card (Coins F ι) ≤
-      (s.card.choose 2 : ℚ) / (Fintype.card F : ℚ)^2 := by
-  apply (div_le_div_iff₀ (by positivity) (by positivity)).mpr
-  exact_mod_cast list_collision_card_mul_le s
 
 /-- Responses may be selected after both coefficient vectors. Outside the
 collision event, any response pair matches at most one committed candidate. -/

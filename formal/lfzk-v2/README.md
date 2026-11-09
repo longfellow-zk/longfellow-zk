@@ -1,5 +1,10 @@
 # Longfellow V2: extraction and soundness
 
+Security results use the Fiat–Shamir model, including the complete mdoc
+zero-knowledge theorem. Local counting and masking identities are mathematical
+foundations for that analysis. The separately protected Polygero paper results
+retain their original public-coin statements and signatures.
+
 ## Current MAC-free protocol
 
 [`MdocSharedSHASoundness.ratio_le`](LfzkV2/Current/MdocSharedSHASoundness.lean) proves
@@ -548,7 +553,7 @@ with this model remains an implementation correspondence task. Efficient
 recovery of witnesses from Rust proof bytes alone is outside the theorem.
 The [formal audit](../AUDIT.md) records the shared verification boundary.
 
-## Retained models and privacy
+## Retained Fiat–Shamir models and shared foundations
 
 The earlier `LfzkV2` quadratic/unpacked circuit model and its numerical
 certificates remain available in their original namespaces. Their hash
@@ -556,9 +561,9 @@ geometry is different, and they are not used as a semantic replacement for
 the native circuit. Shared round algebra, sparse rows, Polygero analysis,
 MAC collision bounds, and generic Merkle compilers are reused.
 
-The retained backend privacy components prove a joint response/opening
-simulation and affine-MAC tag uniformity for their older models. The complete
-mdoc privacy theorem above concerns the current MAC-free protocol.
+The backend's algebraic couplings preserve responses and opened rows under
+changes of private coins. They support the complete Fiat–Shamir mdoc privacy
+theorem above for the current MAC-free protocol.
 
 ## Reproduce the checks
 

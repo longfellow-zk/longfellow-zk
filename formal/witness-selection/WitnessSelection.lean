@@ -1,3 +1,3 @@
 import WitnessSelection.Algebra
-import WitnessSelection.IOP
+import WitnessSelection.Collision
 import WitnessSelection.ChainedFiatShamir

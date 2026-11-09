@@ -197,9 +197,9 @@ or an unqueried final seal. Its common exception is `ε_chain=(Q+1)/2^256` for
 fixed-witness quadratic sumcheck with uniform field challenges the bound is
 `2Q/q + ε_chain`, where `Q` bounds distinct adversarial oracle queries and `q`
 is the field size. The [witness-selection analysis](../formal/witness-selection/README.md)
-separately charges `choose(L,2)/q²` in the IOP and `Q*choose(L,2)/q²` in the
-adaptive oracle model. Outside that event the frontend witness is unique,
-removing its candidate-list multiplier. The complete composition includes
+separately charges `Q*choose(L,2)/q²` in the adaptive Fiat–Shamir oracle model.
+Outside that event the frontend witness is unique, removing its candidate-list
+multiplier. The complete composition includes
 Polygero's extraction/outside-list errors and nonzero-sampling corrections.
 The circuits and their public layouts are trusted. The oracle model supplies
 jointly uniform typed challenge blocks and independent auxiliary randomness;

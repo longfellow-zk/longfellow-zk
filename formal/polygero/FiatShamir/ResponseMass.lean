@@ -64,7 +64,7 @@ def failureFraction (I : Instance F) (σ : I.layer.Statement) (W : I.layer.Oracl
   if scanRecoverAt I σ W c a = none then fraction I σ W c a else 0
 
 /-- Extraction failure, including for a satisfiable backend statement. -/
-theorem extraction_iop_mean (I : Instance F) (p : HahnSystemCertificate I)
+theorem extraction_failure_mean_le (I : Instance F) (p : HahnSystemCertificate I)
     (σ : I.layer.Statement) (W : I.layer.Oracle)
     (response : I.layer.Coin → I.layer.Payload) :
     mean (fun c => failureFraction I σ W c (response c)) ≤ p.error := by
@@ -82,7 +82,7 @@ theorem extraction_iop_mean (I : Instance F) (p : HahnSystemCertificate I)
     (by norm_num) (by norm_num) (fun _ _ => False) (by intro g; simp [indicator])
   exact (mean_mono hlocal).trans (by simpa using hmean)
 
-theorem iop_mean (I : Instance F) (p : HahnSystemCertificate I)
+theorem response_mean_le (I : Instance F) (p : HahnSystemCertificate I)
     (σ : I.layer.Statement) (W : I.layer.Oracle)
     (hfalse : ∀ w, ¬ I.layer.satisfies σ w) (response : I.layer.Coin → I.layer.Payload) :
     mean (fun c => fraction I σ W c (response c)) ≤ p.error := by

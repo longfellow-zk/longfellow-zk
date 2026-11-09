@@ -1,4 +1,4 @@
-import SumcheckV2.FiatShamir
+import SumcheckV2.Challenges
 import TranscriptV2.Charging
 
 /-! Adaptive total-oracle accounting for ordinary quadratic sumcheck. The

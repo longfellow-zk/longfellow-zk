@@ -26,9 +26,9 @@ cells and its two dedicated mask cells; duplicate projections are removed.
 Polygero's internal hiding rows can still have several lifts, so its extraction
 and outside-list errors are retained.
 
-For a commitment-fixed projected list of size `L`, selection costs
-`choose(L,2)/q²` in the IOP and `Q*choose(L,2)/q²` in the adaptive total-oracle
-model. The later fixed-witness frontend term has no candidate-list multiplier.
+For a commitment-fixed projected list of size `L`, collision counting gives
+selection's adaptive Fiat–Shamir charge `Q*choose(L,2)/q²`. The later
+fixed-witness frontend term has no candidate-list multiplier.
 The [chained-transcript theorem](../transcript-v2/README.md) supplies the
 common link/seal exception `(Q+1)/2^256` under its representation and local
 reduction laws. The [current mdoc theorem](../lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)

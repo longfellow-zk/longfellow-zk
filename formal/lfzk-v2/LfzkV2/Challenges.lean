@@ -1,5 +1,5 @@
 import LfzkV2.Circuit
-import SumcheckV2.FiatShamir
+import SumcheckV2.Challenges
 
 /-!
 # Initial output and assertion challenges

@@ -52,7 +52,7 @@ theorem fixed_response_raw_le (payload : I.layer.Payload) :
   have hc := balanced_sum_le decodeCoin kCoin hcoin hkCoin
     (fun c => fraction I σ W c payload)
     (by intro c; unfold fraction; positivity)
-    p.error p.error_nonneg (iop_mean I p σ W hfalse (fun _ => payload))
+    p.error p.error_nonneg (response_mean_le I p σ W hfalse (fun _ => payload))
   calc
     _ ≤ ∑ a : C, Fintype.card C*fraction I σ W (decodeCoin a) payload :=
       sum_le_sum (fun a _ => query_raw_le I decodeQuery kQuery hquery hkQuery σ W (decodeCoin a) payload)

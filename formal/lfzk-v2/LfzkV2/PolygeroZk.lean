@@ -1,9 +1,8 @@
 import LfzkV2.PolygeroCoreMasking
-import LfzkV1.FromLigeroZKV1
 import polygero.Protocol.Verifier
 
 /-!
-# A joint Polygero response simulator
+# Algebraic coupling for the Fiat–Shamir backend simulator
 
 The change of variables acts on the complete prover tape: ordinary and
 product-input prefixes, the two checked arithmetic masks, and the additive
@@ -427,37 +426,6 @@ theorem adaptive_translate [Fintype F] (tape : Tape G nw nq s) :
         (oracle G 0 (adaptiveMap G Q pivot messages statements coins hcompatible tape)) Q)) _ = _
   rw [hopen]
   exact toSim_payload G Q pivot messages _ _ _ tape
-
-include hcompatible
-
-/-- Exact joint-distribution equality against every observer. The simulator
-uses the zero-message encoding and the public correction; it reads no witness.
-The outer Merkle-hiding and oracle-programming hybrids can be mixed over this
-fixed-query theorem using V1's existing finite-distribution machinery. -/
-theorem sameDistribution_adaptive [Fintype F] {View : Type} [DecidableEq View]
-    (observe : Polygero.Opening F nw nq n r Q → LigeroPayload F (r+w) s → View) :
-    SameDistribution
-      (fun tape : Tape G nw nq s => observe (Polygero.openOracle (oracle G messages tape) Q)
-        (adaptiveRealPayload G Q messages statements coins tape))
-      (fun tape : Tape G nw nq s => observe (Polygero.openOracle (oracle G 0 tape) Q)
-        (adaptiveSimPayload G Q pivot statements coins tape)) := by
-  apply sameDistribution_of_equiv (adaptiveEquiv G Q pivot messages statements coins hcompatible)
-  intro tape
-  obtain ⟨hopen, hresponse⟩ := adaptive_translate G Q pivot messages statements coins hcompatible tape
-  rw [hopen, hresponse]
-
-/-- The exact-distribution adapter in V1 places this backend simulation in
-the same `StatClose` interface as its existing compiled-protocol hybrids. -/
-theorem statClose_adaptive [Fintype F] {View : Type} [DecidableEq View]
-    (observe : Polygero.Opening F nw nq n r Q → LigeroPayload F (r+w) s → View) :
-    StatClose 0
-      (fun tape : Tape G nw nq s => observe (Polygero.openOracle (oracle G messages tape) Q)
-        (adaptiveRealPayload G Q messages statements coins tape))
-      (fun tape : Tape G nw nq s => observe (Polygero.openOracle (oracle G 0 tape) Q)
-        (adaptiveSimPayload G Q pivot statements coins tape)) := by
-  letI : Nonempty (Tape G nw nq s) := ⟨(0,0,0)⟩
-  exact LfzkV1.FromLigeroZK.statClose_zero_of_sameDistribution
-    (sameDistribution_adaptive G Q pivot messages statements coins hcompatible observe)
 
 end Adaptive
 

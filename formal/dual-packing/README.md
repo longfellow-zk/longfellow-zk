@@ -1,8 +1,10 @@
 # Trace-pairing dual packing
 
-`DualPacking` proves completeness and a `1 / |F|` false-claim bound for the
-packing adapter over any finite extension `F / K`. The committed field words
-have canonical `K`-coordinates in a supplied basis. For `K = ZMod 2`, every
+`DualPacking` supplies the local algebra, masking bijections and bad-answer
+counts used by the Fiat–Shamir packing analysis. Its fixed-claim count gives
+a `1 / |F|` bound for one uniform challenge over any finite extension `F / K`.
+Committed field words have canonical `K`-coordinates in a supplied basis.
+For `K = ZMod 2`, every
 coordinate is a bit; no separate bitness constraint is needed.
 
 From `formal/`:
@@ -101,7 +103,9 @@ proves `(1+N+tA)/2^117` for the native quadratic-backend model at commit
 `fcf8a3a`, under the circuit/layout, sampler, MAC-row and Merkle-codec premises
 in the [Longfellow V2 scope statement](../lfzk-v2/README.md).
 
-Rust field arithmetic, concrete array layouts, serialization and transcript
-encoding remain implementation correspondence obligations. Joint zero
-knowledge is not established by this development. The later linear-terminal
-backend is outside this formal checkpoint.
+The [current Fiat–Shamir composition](../lfzk-v2/README.md#current-mac-free-protocol)
+uses these local packing identities in its complete extraction and
+zero-knowledge theorems. Those theorems include transcript-query accounting,
+the joint backend and oracle composition. Rust field arithmetic, concrete
+array layouts, serialization and transcript encoding remain implementation
+correspondence obligations.

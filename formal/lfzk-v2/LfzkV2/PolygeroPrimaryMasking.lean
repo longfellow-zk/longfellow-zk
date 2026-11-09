@@ -71,23 +71,4 @@ theorem response_eval (hk : 0 < k) (B : Challenge F m s)
   change ((batch hk B rows : F[X]) + (mask : F[X])).eval x = _
   rw [eval_add, batch_eval]
 
-/-- Both the complete response and every primary-mask opening have the same
-joint distribution after changing the ordinary rows at a fixed query. -/
-theorem sameDistribution [Fintype F] [DecidableEq F]
-    (hk : 0 < k) (B : Challenge F m s) (source target : Fin m → DegreeLT F k)
-    (nodes : Fin n → F) (Q : QuerySet n t)
-    (hquery : ∀ i (j : ↥Q.coordinates),
-      (source i : F[X]).eval (nodes j.1) = (target i : F[X]).eval (nodes j.1)) :
-    SameDistribution
-      (fun mask : DegreeLT F (k+s) =>
-        (fun j : ↥Q.coordinates => (mask : F[X]).eval (nodes j.1), response hk B source mask))
-      (fun mask : DegreeLT F (k+s) =>
-        (fun j : ↥Q.coordinates => (mask : F[X]).eval (nodes j.1), response hk B target mask)) := by
-  apply sameDistribution_of_equiv (translate hk B source target)
-  intro mask
-  apply Prod.ext
-  · funext j
-    exact (translate_openings hk B source target mask nodes Q hquery j).symm
-  · exact (translate_response hk B source target mask).symm
-
 end LfzkV2.PolygeroPrimaryMasking

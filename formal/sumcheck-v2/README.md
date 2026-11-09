@@ -78,8 +78,8 @@ new verifier or soundness proof.
 | [Layer](SumcheckV2/Layer.lean) | `tensor_rebinding`, `nextWeights_correct`, and `layer_completeness` prove the single-hand transition. `layer_reduction` shows a false incoming claim reaching a true next claim must encounter a bad round or a bad final combination. `bad_combine_roots` bounds the latter by one challenge. |
 | [Affine](SumcheckV2/Affine.lean) | `affine_rebinding`, `affine_layer_completeness`, and `affine_layer_reduction` prove the native linear and constant corrections. They use the same quadratic round and linear combination bad events, without adding a constant-one input. |
 | [Masked](SumcheckV2/Masked.lean) | `PadExpression.eval_rounds` proves symbolic execution agrees with unmasked numerical execution. `lowered_terminal_iff` proves product-slot lowering with an explicit product-consistency premise. `eval_claimNext` proves claim combination; `input_constraint_eq` and `input_constraint_iff` prove the public/private input split and its signs. |
-| [FiatShamir](SumcheckV2/FiatShamir.lean) | `layer_tape_card_le` counts bad tapes with separate budgets of two per round and one per final-claim combination. `RoundStrategy` and `combinatorial_fiat_shamir` specialize the same data and bound to round-only tapes. |
-| [APITest](SumcheckV2/APITest.lean) | Kernel-checked uses over prime and characteristic-two fields, scalar tables, malformed round counts, false incoming claims, repeated pad identifiers, product-slot consistency, and mixed challenge budgets. Imports V1 and V2 together. |
+| [Challenges](SumcheckV2/Challenges.lean) | `challenge_bad_card_le` gives the local bounds of two roots per round and one per final-claim combination used by the Fiat–Shamir analysis. |
+| [APITest](SumcheckV2/APITest.lean) | Kernel-checked uses over prime and characteristic-two fields, scalar tables, malformed round counts, false incoming claims, repeated pad identifiers, product-slot consistency, and the chained Fiat–Shamir API. Imports V1 and V2 together. |
 
 `Cube n` is a low-bit-first coefficient table with `2^n` entries. Tables with
 non-power-of-two lengths can be represented by zero padding. The scalar case
@@ -115,34 +115,17 @@ assumption and Rust source correspondence remain separate from these algebraic
 proofs. This component result alone is not an application's
 end-to-end security certificate.
 
-The retained per-execution tape theorems below continue to describe their own
-IOP/round schedules; they do not introduce an extra round-count multiplier into
-the adaptive total-oracle bound.
-
 `BadRoundEvent` means a false projective sum is repaired by the current
 challenge. Its bound comes from the roots of a nonzero quadratic difference.
 `BadCombineEvent` means at least one of `A,B` is wrong but `A + alpha*B` is
 correct; there is at most one such `alpha`.
 
-Strategies are functions of the earlier challenge prefix. Their types do not
-permit access to the current or later challenges when choosing a message,
-incoming claim, or true polynomial. For the retained round/combination component, let `R` be the number of round
-slots and `L` the number of combining slots, with `N = R+L`. Its theorem
-bounds bad tapes by
-
-```text
-(2R + L) * |F|^(N-1).
-```
-
-Thus this component costs `(2R + L)/|F|`; the new protocol additionally
-charges `2L/(|F|-1)` for terminal scales. The complete replay accounts for
-these different challenge spaces and their committed candidate families. The Lean theorem is stated as a natural-number cardinality bound,
-including empty tapes. Over very small fields it can be trivial: the API
+The typed Fiat–Shamir strategies reconstruct each message from the preceding
+oracle answers. The current answer is absent from that reconstruction.
+`ChainedFiatShamir` lifts the local two-root bound to `2Q/|F|`, charging queries
+rather than rounds in an accepted proof. The complete replay separately accounts
+for nonzero terminal scales and committed candidate families. The local API
 checks exhibit two distinct bad challenges over `F₂`.
-
-The counting proof reuses the protocol-independent prefix/fiber lemmas in
-`SumcheckV1.Grinding`. V2 round algebra, table folds, and layer transitions
-are proved separately from V1's affine-endpoint protocol.
 
 ## Runtime correspondence and scope
 

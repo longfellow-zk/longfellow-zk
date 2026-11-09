@@ -169,6 +169,11 @@ certificates keep their separately documented native-evaluation allowance.
 
 ## Retained results and component libraries
 
+V2 security results use the Fiat–Shamir model. Local polynomial reductions,
+collision counts and masking bijections support those proofs. The separate
+protected Polygero paper development includes its original public-coin results;
+its precious declarations and contracts are unchanged.
+
 **The retained layered-sumcheck Longfellow V2 checkpoint has a 116-bit
 work-normalized extraction bound.** Sparse quad fragments share one wire
 array per layer and one input array. Circuits may have different depths,
@@ -182,11 +187,11 @@ transcript-query budgets `N` and Merkle-query budgets `tA`. The
 exact finite bound. Circuit/layout, ideal sampler, MAC-row and codec
 premises remain explicit; see the [implementation boundary](AUDIT.md).
 The earlier `Joint` (`8943498`), `Linear` (`21cb029`), `Native`, `Packed`,
-and V1 proof modules remain unchanged.
+and V1 security theorems retain their original bounds and premises.
 
 The current code also has a separate [witness-selection component](witness-selection/README.md).
-Its finite-field IOP analysis charges `choose(L,2)/q²` for two masked
-fingerprints. Its adaptive total-oracle component charges `Q*choose(L,2)/q²`;
+Its collision-counting lemmas give the adaptive Fiat–Shamir charge
+`Q*choose(L,2)/q²` for two masked fingerprints;
 ordinary fixed-witness quadratic sumcheck charges `2Q/q`. The new
 [chained-transcript library](transcript-v2/README.md) proves the required
 query-order and charging lemmas with a common exception `(Q+1)/2^256` for
@@ -277,9 +282,9 @@ common messages. Exact startup and small-Merkle bounds yield the all-budget
 field-normalized theorem retains the exact nonzero denominator. The older
 product-checked and unpacked compositions remain separate models.
 
-The retained checkpoints' backend response/opening simulation and affine-MAC
-privacy remain component results. The complete privacy theorem above concerns
-the current MAC-free mdoc model.
+The complete Fiat–Shamir privacy theorem above concerns the current MAC-free
+mdoc model. Its supporting algebraic couplings preserve backend responses and
+opened rows while changing the private masks.
 API and axiom checks are in the default build. Rust arithmetic, concrete
 layouts, parsing and byte-level transcript correspondence remain implementation
 obligations.

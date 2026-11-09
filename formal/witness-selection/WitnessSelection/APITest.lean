@@ -14,9 +14,9 @@ example (x y : Candidate (ZMod 101) (Fin 3)) (hne : x ≠ y) :
   simpa using pair_collision_card_mul_le x y hne
 
 example (s : Finset (Candidate (ZMod 2) (Fin 0))) :
-    ((badCoins s).card : ℚ) / Fintype.card (Coins (ZMod 2) (Fin 0)) ≤
-      (s.card.choose 2 : ℚ) / 2^2 := by
-  simpa using iop_collision_bound s
+    (badCoins s).card * 2^2 ≤
+      s.card.choose 2 * Fintype.card (Coins (ZMod 2) (Fin 0)) := by
+  simpa using list_collision_card_mul_le s
 
 -- With no original cells only the dedicated masks remain. Distinct masks
 -- cannot collide, so selection ambiguity is impossible, rather than 1/q².
@@ -45,11 +45,11 @@ info: 'WitnessSelection.affine_rows_iff' depends on axioms: [propext, Quot.sound
 set_option pp.fullNames true in
 #print axioms affine_rows_iff
 /--
-info: 'WitnessSelection.iop_collision_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'WitnessSelection.list_collision_card_mul_le' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms iop_collision_bound
+#print axioms list_collision_card_mul_le
 /--
 info: 'WitnessSelection.unique_matching_candidate' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/

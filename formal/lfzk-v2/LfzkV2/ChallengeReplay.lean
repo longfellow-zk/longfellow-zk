@@ -1,4 +1,5 @@
 import LfzkV2.Events
+import SumcheckV1.Grinding
 
 /-! Prefix-local replay of output folding and the selected assertion test. -/
 

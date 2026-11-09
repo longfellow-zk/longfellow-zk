@@ -11,9 +11,10 @@ For original cells `w`, masks `(m₁,m₂)` and independent uniform vectors `(a�
 the response is `(m₁+dot(a₁,w), m₂+dot(a₂,w))`. The mask cells do not occur among
 the random coefficient coordinates. Responses can be chosen after the vectors.
 
-## IOP
+## Collision counting
 
-`Algebra.lean` and `IOP.lean` establish:
+`Algebra.lean` and `Collision.lean` supply the local algebra and finite counts
+used by the Fiat–Shamir analysis:
 
 - A pair of distinct candidates collides with probability at most `1/q²`.
   If the original cells agree but a mask differs, collision is impossible.

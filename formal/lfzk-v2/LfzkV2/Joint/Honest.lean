@@ -1,7 +1,6 @@
 import LfzkV2.Joint.Backend
 import LfzkV2.PolygeroMasking
 import LfzkV2.PolygeroPrimaryMasking
-import LfzkV1.FromLigeroZKV1
 
 /-!
 # Honest linear-only responses

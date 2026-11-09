@@ -1,4 +1,4 @@
-import WitnessSelection.IOP
+import WitnessSelection.Collision
 
 /-! Refine frontendError in committed_composition_le. Backend extraction and
 outside-list errors remain. Selection concerns the projected frontend cells;

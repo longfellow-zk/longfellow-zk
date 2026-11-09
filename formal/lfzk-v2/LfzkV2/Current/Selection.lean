@@ -1,4 +1,4 @@
-import WitnessSelection.IOP
+import WitnessSelection.Collision
 
 /-! The early two-field extraction view. Selection takes the committed lists,
 fingerprint coefficients and responses. It neither runs sumcheck nor depends

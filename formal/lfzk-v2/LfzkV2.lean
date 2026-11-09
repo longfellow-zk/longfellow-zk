@@ -21,13 +21,10 @@ import LfzkV2.Transcript
 import LfzkV2.Backend
 import LfzkV2.Nizk
 import LfzkV2.ComposedFS
-import LfzkV2.Interactive
-import LfzkV2.Masking
 import LfzkV2.PolygeroMasking
 import LfzkV2.PolygeroPrimaryMasking
 import LfzkV2.PolygeroCoreMasking
 import LfzkV2.PolygeroZk
-import LfzkV2.BackendEncoding
 import LfzkV2.Replay
 import LfzkV2.Schedule
 import LfzkV2.SemanticReplay

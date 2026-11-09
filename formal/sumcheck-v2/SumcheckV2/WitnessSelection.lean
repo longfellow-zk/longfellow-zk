@@ -1,5 +1,5 @@
 import SumcheckV2.Round
-import WitnessSelection.IOP
+import WitnessSelection.Collision
 
 /-! Frontend bounds after early masked fingerprints. Backend mask rows need not
 be unique. ChainedFiatShamir handles adaptive total-oracle searches and feedback. -/
