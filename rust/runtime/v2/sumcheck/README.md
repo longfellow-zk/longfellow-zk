@@ -265,24 +265,26 @@ model. A claimed pair different from the genuine evaluations is handled by
 the following combination challenge and layer reduction. The cross message
 must precede `r`; allowing it to depend on `r` would defeat this argument.
 The independent `p_D` masks the cross coefficient, and excluding zero keeps
-both final evaluations masked. These local masking facts do not constitute
-a complete joint-view zero-knowledge proof.
+both final evaluations masked. The complete mdoc zero-knowledge proof composes
+these masking laws with the shared commitment and the other frontend/backend
+coin changes, preserving their joint view.
 
 The [current Lean composition](../../../../formal/lfzk-v2/README.md) models
 quad-fragment traversal, shared inputs and circuits entering at different depths,
 including scalar outputs and zero-layer circuits. It connects the final input
 claim to authenticated packing and the joint commitment, including the MAC-free
-mdoc adapter and early witness selection. Its current rate-1/7 theorem has
-leading Fiat–Shamir charge `2Q/2^128`, with explicit corrections over `2^256`,
-for every distinct-query budget `Q >= 0`. Trusted circuit/arithmetic setup and
-the ideal-sampler model remain explicit; Rust correspondence is source-audited.
-Earlier checkpoint bounds remain in their separate formal namespaces.
+mdoc adapter and early witness selection. Its current rate-1/7 soundness analysis
+gives the exact saturated bound for `Q < 2^127` and a convenient approximation
+for every distinct-query budget `Q >= 0`, as stated in the formal README.
+The joint-view zero-knowledge theorem retains complete proofs, failure outcomes
+and observer query traces. Trusted circuit/arithmetic setup and the ideal-oracle
+and sampling assumptions remain explicit; Rust correspondence is source-audited.
 
 ## Compiler selection and testing
 
 Both protocols are modules in the `longfellow-zk` crate. The compiler's existing
 `compile_v1` entry point preserves historical Morton ordering and circuit IDs.
-`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v10
+`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v12
 uses that representation; v5-v7 verification uses the stored legacy circuits.
 
 The circuit synthesis and tampering suites use the native v2 compiler. Dedicated

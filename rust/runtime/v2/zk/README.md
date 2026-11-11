@@ -8,11 +8,17 @@ authentication for standalone and application proofs. `joint::CircuitParticipant
 supplies circuit reductions to that wrapper. Prover and verifier orchestration
 stay in separate files; layout and constraint arithmetic are shared.
 
-The [Lean development](../../../../formal/lfzk-v2/README.md) proves extractor
-soundness for the current MAC-free mdoc composition under its stated trusted
-circuit/arithmetic setup and ideal-oracle assumptions. Canonical proof and query
-encodings are modeled; Rust correspondence is checked by source audit.
-Complete joint-view zero knowledge remains open.
+The [Lean development](../../../../formal/lfzk-v2/README.md) proves extraction
+soundness and complete joint-view statistical zero knowledge for the current
+MAC-free mdoc composition under its stated trusted circuit/arithmetic setup,
+sampling and ideal-oracle assumptions. The witness-free simulator covers public
+setup, the complete proof or failure, and both observer query traces, with error
+at most `(Qpre+Qpost)/2^256`. Its proof separates one statistical commitment-hiding
+step from an exact joint frontend/backend coin change. Canonical proof and query
+encodings are modeled; Rust correspondence is checked by source audit and tests.
+Soundness assumes the joint successful-sampling law for the physical role
+readers. Privacy preserves those readers and their failures without requiring
+uniform verifier challenges; it assumes independent uniform private coins.
 
 ## Commitment and field participants
 
@@ -138,7 +144,7 @@ serialized, and no intermediate dense input-weight vectors are cached.
 
 The mdoc application exposes `mdoc::v2::run_mdoc_prover` and
 `mdoc::v2::run_mdoc_verifier`, with corresponding deterministic inner entry points.
-NEXT v10 connects the hash and signature fields through an application-owned
+NEXT v12 connects the hash and signature fields through an application-owned
 P256 adapter. Its two product trees share the binary input array and layered
 sumcheck with the hash circuit. The application commits shared bits only on the
 binary side, while prime-field inputs, one hiding scalar and pads stay in the prime

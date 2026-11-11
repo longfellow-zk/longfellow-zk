@@ -50,9 +50,14 @@ terminal authentication data.
 The [formal module](../../../../formal/witness-selection/README.md) separates the
 fingerprint collision charge from fixed-witness frontend soundness and the
 remaining Polygero extraction errors. The
-[typed chain analysis](../../../../formal/transcript-v2/README.md) proves adaptive
-query charging with a common `(Q+1)/2^256` link/seal exception in the existing
-whole-answer oracle model. The SHA-256 strand implementation is not yet covered
-by that model; its PRF queries and byte-stream sampling need a new correspondence.
+[numbered-strand analysis](../../../../formal/transcript-v2/README.md) models
+the SHA-256 node and counter-indexed PRF queries, segmented byte reads and final
+seal. Its query accounting retains the original adversarial SHA log and
+commitment cut. Soundness assumes the stated joint successful-sampling law for
+the physical role readers; concrete Rust sampler refinement remains a separate
+implementation obligation.
 The [current mdoc composition](../../../../formal/lfzk-v2/README.md)
-combines this selection analysis with both frontend reductions and joint Polygero.
+combines selection with both frontend reductions and joint Polygero in its
+one-SHA extraction theorem. Its separate joint-view zero-knowledge theorem
+covers the complete proof or failure and both observer query traces, including
+the early fingerprint responses.

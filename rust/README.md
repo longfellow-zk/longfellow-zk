@@ -143,18 +143,43 @@ public requests and arbitrary complete serialized proofs. It includes witness
 selection, layered sumcheck, the cross-field adapter, packing, joint Polygero,
 its shared indexed Merkle commitment and the final seal.
 
-For every integer `Q >= 0`, any finite classical adaptive adversary making
-at most `Q` distinct original SHA queries satisfies
+Let $P_{\mathrm{fail}}$ be the probability that the verifier accepts and the
+paired extractor fails to recover a witness satisfying the requested circuits.
+For every integer $0\le Q<2^{127}$, any finite classical adaptive adversary
+making at most $Q$ distinct original SHA queries satisfies
 
-```text
-Pr[verifier accepts and the paired extractor fails to recover
-   a witness satisfying the requested circuits]
-  <= 2Q/(q - 1) + [Q(Q - 1)/2 + r + 15]/q^2,
-     q = 2^128.
-```
+$$
+\begin{aligned}
+P_{\mathrm{fail}}(Q)
+&\le \frac{cQ}{q}
+ + \left(1-\frac{c(q-1)}{2q}\right)
+   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
+&\quad + \frac{\binom Q2+r+15}{q^2},
+\qquad q=2^{128}.
+\end{aligned}
+$$
 
-Here `r` counts ordinary transcript boundaries. The final seal is accounted
-for separately. The same SHA function supplies public setup hashes,
+Here $c=1.0000012312149082441647508747\ldots$ is the exact parameter-dependent
+Polygero coefficient defined in the [formal README](../formal/README.md#v2-extraction-soundness).
+The full failure probability is **strictly less than 0.97** for $Q<2^{127}$.
+The leading shared-budget bound also holds for every $Q\ge0$:
+
+$$
+P_{\mathrm{fail}}(Q)\le
+\frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
+$$
+
+A convenient approximation for the mdoc circuit, valid for every $Q\ge0$, is
+
+$$
+P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
+$$
+
+The supported one-/two-/three-/four-attribute circuits have 488/492/497/500 rounds.
+
+Here `r` counts ordinary transcript boundaries, one per `begin_squeeze()`.
+The final seal's node hash and PRF hash are accounted for separately.
+The same SHA function supplies public setup hashes,
 adversarial answers, numbered strand nodes, indexed PRF blocks and indexed
 Merkle authentication. Repeated queries reuse answers. The query budget
 counts the original adversarial program. Verifier replay appears in the
@@ -162,7 +187,7 @@ explicit correction.
 
 The ordinary rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
 [checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
-bounds each complete backend query charge below `1.999999/q`.
+gives the exact joint backend allowance `c/q`, including both fields.
 [Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
 align the implementation geometry and local budgets. The committed
 binary/prime candidate caps are respectively
@@ -177,8 +202,10 @@ query budget. The public setup and complete verifier use the same oracle.
 The [audit](../formal/AUDIT.md) records the proof path and implementation scope.
 
 The cryptographic assumptions are a classical ideal SHA oracle and the
-approved ideal joint role-block sampler, including nonzero scalars and
-openings without replacement. Rejected sampler bytes are outside the analysis.
+stated joint successful-sampling law for the physical role readers, including
+nonzero scalars and openings without replacement. Failed samplers reject;
+proving that the concrete Rust rejection loops satisfy the joint sampling law
+remains a separate implementation obligation.
 The field codecs, circuit semantics and static public resource bounds are
 trusted model inputs. Rust correspondence is established through source audit
 and tests. Machine-level refinement and extractor running-time bounds remain
