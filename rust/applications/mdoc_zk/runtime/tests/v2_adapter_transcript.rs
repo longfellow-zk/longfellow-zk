@@ -16,7 +16,7 @@ fn rescalings_are_two_independent_nonzero_full_field_draws() {
     let mut t = Transcript::new(b"alphas");
     let mut literal = t.fork_for_test();
     let expected = literal.round(
-        crate::runtime::v2::transcript::RoundLabel::Conversion,
+        crate::runtime::v2::proto::RoundLabel::Conversion,
         |mut w| {
             w.write_bytes(b"p256-adapter/two-independent-full-field-rescalings/v3");
             let mut r = w.begin_squeeze();
@@ -73,7 +73,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
         let c = tree::program(&plan, &sources, 0, ninput, &public).unwrap();
         let template = tree::template(&plan, &sources, 0, ninput).unwrap();
         assert_eq!(
-            SumcheckProofGeometry::from_circuit(&c),
+            sumcheck::circuit_geometry(&[&c]).unwrap(),
             SumcheckProofGeometry::from_circuit(&template)
         );
         let mut inputs = Vec::new();
@@ -84,7 +84,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             );
         }
         inputs.extend(vec![f.one(); plan.advice_bits()]);
-        let geometry = SumcheckProofGeometry::from_circuit(&c);
+        let geometry = sumcheck::circuit_geometry(&[&c]).unwrap();
         let (pads, _) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(91), &f);
         let (proof, claim) = sumcheck::evaluate_and_prove_circuits(
             &[&c],
@@ -108,7 +108,7 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             .iter()
             .all(|x| f.is_zero(x)));
         let mut used = std::collections::BTreeSet::new();
-        c.raw.layers.last().unwrap().linear.for_each(|l| {
+        c.layers.last().unwrap().linear.for_each(|l| {
             used.insert(l.l as usize);
         });
         assert!((ninput - plan.advice_bits()..ninput).all(|i| used.contains(&i)));
@@ -128,4 +128,31 @@ fn tree_leaves_authenticate_shared_bits_and_masked_quotients() {
             .is_err());
         }
     }
+}
+
+#[test]
+fn conversion_binds_mu_but_not_derived_weights() {
+    let p = P256Field::new();
+    let a = vec![p.one(); SHARED_BITS];
+    let b = vec![p.u64_to_element(3); SHARED_BITS];
+    let mu = p.u64_to_element(19);
+    let mut first = Transcript::new(b"derived-weights");
+    let mut second = Transcript::new(b"derived-weights");
+    let left = weights(&a, &p.one(), &mu, &mut first.borrow(), &p).unwrap();
+    let right = weights(&b, &p.u64_to_element(7), &mu, &mut second.borrow(), &p).unwrap();
+    assert_ne!(left, right);
+    assert_eq!(first.bytes(32), second.bytes(32));
+
+    let mut first = Transcript::new(b"mu-binding");
+    let mut second = Transcript::new(b"mu-binding");
+    weights(&a, &p.one(), &mu, &mut first.borrow(), &p).unwrap();
+    weights(
+        &a,
+        &p.one(),
+        &p.u64_to_element(20),
+        &mut second.borrow(),
+        &p,
+    )
+    .unwrap();
+    assert_ne!(first.bytes(32), second.bytes(32));
 }

@@ -22,14 +22,15 @@
 //! then `end_layer` absorbs the two masked virtual-circuit factors before sampling
 //! alpha, which combines them into one next-layer claim.
 
-use super::fragments::SplitFragment;
+use super::{circuit::CircuitSource, fragments::SplitFragment};
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
         v2::{
+            proto::RoundLabel,
             sumcheck::RoundPoly,
-            transcript::{Reading, RoundLabel, TranscriptRef},
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
@@ -83,17 +84,14 @@ pub(super) fn round_challenge<
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> ElementOf<F> {
-    transcript.round(
-        crate::runtime::v2::transcript::RoundLabel::Sumcheck,
-        |mut w| {
-            for c in &m.coefficients {
-                w.write_elt_field(c, f);
-            }
-            let mut r = w.begin_squeeze();
-            let value = r.elt_field(f);
-            r.end_round(value)
-        },
-    )
+    transcript.round(RoundLabel::Sumcheck, |mut w| {
+        for c in &m.coefficients {
+            w.write_elt_field(c, f);
+        }
+        let mut r = w.begin_squeeze();
+        let value = r.elt_field(f);
+        r.end_round(value)
+    })
 }
 
 /// Bind the masked final claims before sampling alpha for A + alpha*B.
@@ -108,16 +106,13 @@ pub(super) fn end_layer<
     f: &F,
     after_alpha: impl FnOnce(&mut crate::runtime::v2::transcript::Reading<'_>),
 ) -> F::E {
-    transcript.round(
-        crate::runtime::v2::transcript::RoundLabel::Combine,
-        |mut w| {
-            w.write_elt_field_slice(claims, f);
-            let mut r = w.begin_squeeze();
-            let value = r.elt_field(f);
-            after_alpha(&mut r);
-            r.end_round(value)
-        },
-    )
+    transcript.round(RoundLabel::Combine, |mut w| {
+        w.write_elt_field_slice(claims, f);
+        let mut r = w.begin_squeeze();
+        let value = r.elt_field(f);
+        after_alpha(&mut r);
+        r.end_round(value)
+    })
 }
 
 /// Fix d before sampling the nonzero mask scale r. The resulting equation
@@ -128,26 +123,23 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> F::E {
-    transcript.round(
-        crate::runtime::v2::transcript::RoundLabel::Terminal,
-        |mut w| {
-            w.write_elt_field(cross, f);
-            let mut r = w.begin_squeeze();
-            let value = loop {
-                let x = r.elt_field(f);
-                if !f.is_zero(&x) {
-                    break x;
-                }
-            };
-            r.end_round(value)
-        },
-    )
+    transcript.round(RoundLabel::Terminal, |mut w| {
+        w.write_elt_field(cross, f);
+        let mut r = w.begin_squeeze();
+        let value = loop {
+            let x = r.elt_field(f);
+            if !f.is_zero(&x) {
+                break x;
+            }
+        };
+        r.end_round(value)
+    })
 }
 
 impl super::fragments::Schedule {
     pub(super) fn bind<F: SerializableField>(
         &self,
-        circuits: &[&Circuit<F>],
+        circuits: &[impl CircuitSource<F>],
         t: &mut TranscriptRef<'_>,
     ) {
         t.bind(|w| {
@@ -156,8 +148,11 @@ impl super::fragments::Schedule {
         });
         for c in circuits {
             t.bind(|w| {
-                w.write_bytes(&c.id);
-                w.write_bytes(&(c.raw.layers.len() as u64).to_le_bytes());
+                match c.source_id() {
+                    Some(id) => w.write_bytes(id),
+                    None => w.write_bytes(b"layered-sumcheck/derived-circuit/v1"),
+                }
+                w.write_bytes(&(c.raw().layers.len() as u64).to_le_bytes());
             });
         }
     }
@@ -193,13 +188,13 @@ impl super::fragments::Schedule {
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
         &self,
-        circuits: &[&Circuit<F>],
+        circuits: &[impl CircuitSource<F>],
         r: &mut Reading<'_>,
         f: &F,
     ) -> Vec<F::E> {
         let mut weights = Vec::new();
         for c in circuits {
-            if c.raw.layers.is_empty() {
+            if c.raw().layers.is_empty() {
                 if weights.is_empty() {
                     weights.resize(self.ninput, f.zero());
                 }
@@ -217,7 +212,7 @@ impl super::fragments::Schedule {
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
         &self,
-        circuits: &[&Circuit<F>],
+        circuits: &[impl CircuitSource<F>],
         weights: &mut Vec<F::E>,
         input_assertions: Vec<F::E>,
         t: &mut TranscriptRef<'_>,

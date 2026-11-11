@@ -21,15 +21,14 @@ abbrev P := Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 
-def geometry := ConcreteSetup.geometry binary.description prime binary.plan.frontend primePlan.frontend
 abbrev Fields := MdocRuntime.fields B
-abbrev State := CompleteTranscript.State (geometry binary prime primePlan) (Fields (B := B))
+abbrev State := CompleteTranscript.State (MdocRuntime.geometry binary.description prime binary.plan primePlan) (Fields (B := B))
   MdocAdvice.Value Key Base C
-abbrev Fresh := ProtocolWrites.Fresh (geometry binary prime primePlan) (Fields (B := B)) MdocAdvice.Value
-abbrev Point := CompleteTranscript.Point (g := geometry binary prime primePlan)
+abbrev Fresh := ProtocolWrites.Fresh (MdocRuntime.geometry binary.description prime binary.plan primePlan) (Fields (B := B)) MdocAdvice.Value
+abbrev Point := CompleteTranscript.Point (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   (fields := Fields (B := B)) (Advice := MdocAdvice.Value)
-  (Authentication := OpeningBody.Authentication (geometry binary prime primePlan)) (Key := Key) (Base := Base)
-abbrev BaseWriter := (i : Fin (geometry binary prime primePlan).roles.length) →
+  (Authentication := OpeningBody.Authentication (MdocRuntime.geometry binary.description prime binary.plan primePlan)) (Key := Key) (Base := Base)
+abbrev BaseWriter := (i : Fin (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) →
   (Fin (i.val+1) → Fresh binary prime primePlan) → (Fin i.val → C) → Base
 
 structure Coins (binary : BinaryCircuit B) (prime : PrimePublic P 768) where

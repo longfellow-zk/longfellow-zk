@@ -92,6 +92,14 @@ def schedule (count : ℕ) : PrefixCodec (CircuitSchedule count) :=
   (PrefixCodec.vector (framedDigest.pair word) count).prefixed
     (bytesDomain "layered-sumcheck/circuits/v1" ++ frame (encodeLE 8 count))
 
+/-- Generated instances have no circuit ID. Their trusted template and
+layout were bound before commitment; only fixed depths enter this schedule. -/
+abbrev DerivedSchedule (count : ℕ) := Fin count → Word
+
+def derivedSchedule (count : ℕ) : PrefixCodec (DerivedSchedule count) :=
+  (PrefixCodec.vector (word.prefixed (bytesDomain "layered-sumcheck/derived-circuit/v1")) count).prefixed
+    (bytesDomain "layered-sumcheck/circuits/v1" ++ frame (encodeLE 8 count))
+
 abbrev PrimeStart (fields : Fields) (publicCount : ℕ) :=
   Fingerprints fields × (CircuitStatement fields .prime publicCount × CircuitSchedule 1)
 
@@ -101,17 +109,14 @@ def primeStart : PrefixCodec (PrimeStart fields shape.primePublic) :=
       (bytesDomain "longfellow/witness-selection/responses/v1")
 
 abbrev BinaryStart (fields : Fields) (Advice : Type) (publicCount : ℕ) :=
-  Advice × (CircuitStatement fields .binary publicCount ×
-    (CircuitStatement fields .binary publicCount × CircuitSchedule 2))
+  Advice × (CircuitStatement fields .binary publicCount × DerivedSchedule 2)
 
-/-- Advice keeps its existing canonical representation inside one bytes
-frame. Both circuit statements bind the same public array at runtime; both
-copies remain visible here, so parsing never discards a bound byte. -/
+/-- Bind advice and the ordinary hash statement. The generated adapter
+has neither a separate instance ID nor a repeated public-input statement. -/
 def binaryStart : PrefixCodec (BinaryStart fields Advice shape.binaryPublic) :=
   (repr.advice.prefixed (bytesDomain "p256-adapter/masked-quotient-bits/v1" ++
     [0] ++ encodeLE 8 repr.adviceWidth)).pair
-      ((statement repr shape .binary shape.binaryPublic).pair
-        ((statement repr shape .binary shape.binaryPublic).pair (schedule 2)))
+      ((statement repr shape .binary shape.binaryPublic).pair (derivedSchedule 2))
 
 inductive Start where
   | none | prime | binary
@@ -179,8 +184,8 @@ def RoleData : Role → Type
   | .terminal side .. => fields side
   | .combine side .. => fields side × fields side
   | .rowBatching => Unit
-  | .rescaling => (Fin shape.primeInputs → fields .prime) × fields .prime
-  | .conversion => (Fin (shape.sharedBits+1) → fields .prime) × fields .prime
+  | .rescaling => Unit
+  | .conversion => fields .prime
   | .packing => PackingStatement shape × (Fin g.packingDegree → fields .binary)
   | .batching => PackingA g fields × (SourceStatement × SourceStatement)
   | .opening => Response g (fields .binary) × Response g (fields .prime)
@@ -201,13 +206,9 @@ def roleCodec : (role : Role) → PrefixCodec (RoleData shape role)
   | .combine side .. => pairSlice (fieldCodec repr side)
   | .rowBatching => PrefixCodec.marker
       (bytesDomain "native-masked-sumcheck/all-linear-rows/v1" ++ bytesDomain "all-linear-rows")
-  | .rescaling => followed
-      (((slice repr.prime shape.primeInputs).pair (scalar repr.prime)).prefixed
-        (bytesDomain "native-masked-sumcheck/fixed-linear-claim/v1" ++ frame (encodeLE 8 shape.primeInputs)))
-      (bytesDomain "native-shared-prefix/nonzero-rescaling/v2")
+  | .rescaling => PrefixCodec.marker (bytesDomain "native-shared-prefix/nonzero-rescaling/v2")
   | .conversion => followed
-      (((slice repr.prime (shape.sharedBits+1)).pair (scalar repr.prime)).prefixed
-        (bytesDomain "native-shared-prefix/fixed-masked-opening/v1"))
+      ((scalar repr.prime).prefixed (bytesDomain "native-shared-prefix/masked-opening/v2"))
       (bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3")
   | .packing => (packingStatement shape).pair (slice repr.binary g.packingDegree)
   | .batching => (packingA repr shape).pair (sourceStatement.pair sourceStatement)
@@ -221,7 +222,7 @@ def roleCache : (role : Role) → RoleData shape role → ProtocolWrites.Fresh g
   | .sumcheck side .., value => { frontend := Function.update (fun _ => .empty) side (.round ⟨value.1,value.2⟩) }
   | .terminal side .., value => { frontend := Function.update (fun _ => .empty) side (.cross value) }
   | .combine side .., value => { frontend := Function.update (fun _ => .empty) side (.claims value.1 value.2) }
-  | .conversion, value => { mu := some value.2 }
+  | .conversion, value => { mu := some value }
   | .packing, value => { packingU := some value.2 }
   | .batching, value => { packingA := packingACache value.1 }
   | .opening, value => { responses := some value }
@@ -234,7 +235,7 @@ def codec (i : Fin g.roles.length) : PrefixCodec (Data (Advice := Advice) shape 
   (startCodec repr shape (startAt g i)).pair (roleCodec repr shape (g.roles.get i))
 
 /-- The cache includes only writes observable at this actual role. Public
-metadata stays in the base bytes, including both copies of repeated IDs. -/
+metadata stays in the base bytes; derived instance IDs are absent. -/
 def cache (i : Fin g.roles.length) (value : Data (Advice := Advice) shape i) : ProtocolWrites.Fresh g fields Advice :=
   let start := startCache shape (startAt g i) value.1
   let role : ProtocolWrites.Fresh g fields Advice := roleCache shape (g.roles.get i) value.2

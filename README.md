@@ -17,19 +17,40 @@ It is named after the bridge outside the Google Cambridge office.
 
 Earlier versions of this project have completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://longfellow-zk.github.io/longfellow-zk/docs/reviews/) page; those reviews do not cover all subsequent Rust V2 changes.
 
-The [Lean development](formal/README.md) proves conditional security bounds
-for mathematical models of both protocol versions. V1 retains its 116-bit
-T-security result. The current MAC-free V2 protocol has a Fiat–Shamir
-extraction bound with leading term `2Q/2^128`, plus explicit terms over
-`2^256`, for every transcript-query budget `Q >= 0`. The
-[exact theorem and oracle assumptions](formal/lfzk-v2/README.md#current-mac-free-protocol)
-cover the rate-1/7 profile, adaptive public requests, both fields, packing,
-the cross-field adapter and one shared Merkle commitment. The
-[formal audit](formal/AUDIT.md) states the implementation boundary and
-verification commands. These results do not constitute source-level
-verification of Rust or C++. The complete V2 mdoc model also has a
-[statistical zero-knowledge theorem](formal/lfzk-v2/README.md#complete-mdoc-zero-knowledge)
-with an explicit witness-free simulator and query-dependent hiding error.
+The [Lean development](formal/README.md) proves security bounds for the
+mathematical protocol models. V1 retains its 116-bit T-security result.
+The current SHA-256 strand model of V2 has a checked Fiat–Shamir extraction
+bound for original raw-query budgets `0 <= Q < 2^127`. At rate 1/7, put
+$q=2^{128}$ and $c=1.0000012312149082441647508747\ldots$ (defined exactly
+in the formal README). The soundness failure probability satisfies
+
+$$
+P_{\mathrm{fail}}(Q)\le \frac{cQ}{q}
++\left(1-\frac{c(q-1)}{2q}\right)
+ \left[1-\left(1-\frac{2}{q-1}\right)^Q\right]
++\frac{\binom Q2+r+15}{q^2}.
+$$
+
+Here `r` counts rounds, one per `begin_squeeze()` call. For every `Q < 2^127`,
+the full failure probability is **strictly less than 0.97**, with the cap rounded
+up to two decimal places. A convenient approximation for the mdoc circuit,
+valid for every $Q\ge0$, is
+
+$$
+P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
+$$
+
+The largest supported mdoc circuit (four attributes) has 500 rounds, so
+`r+15 = 515 < 2^10`. The [exact theorem and assumptions](formal/lfzk-v2/README.md#current-mac-free-protocol)
+cover adaptive public requests, both fields, packing, the cross-field adapter,
+joint Polygero and its shared indexed Merkle commitment.
+
+The [formal audit](formal/AUDIT.md) describes source correspondence and the
+trusted field/circuit and ideal-oracle boundaries. Rust correspondence is
+reviewed and tested. The [complete numbered-strand statistical zero-knowledge
+theorem](formal/lfzk-v2/README.md#current-numbered-strand-zero-knowledge) covers
+shared-oracle public setup and complete observer views, with ideal-model error
+at most `(Qpre+Qpost)/2^256`.
 
 # Specifications
 This repository contains [the working files](https://github.com/longfellow-zk/longfellow-zk/tree/main/docs/specs) for a specification of Longfellow and its components.

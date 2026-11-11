@@ -13,7 +13,7 @@ variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (shape : Shape g fields)
 
 instance startDataFintype (start : Start) : Fintype (StartData (Advice := Advice) shape start) := by
-  cases start <;> simp only [StartData,PrimeStart,BinaryStart,CircuitStatement,CircuitSchedule] <;> infer_instance
+  cases start <;> simp only [StartData,PrimeStart,BinaryStart,CircuitStatement,CircuitSchedule,DerivedSchedule] <;> infer_instance
 
 instance packingHeaderFintype : Fintype (PackingHeader shape) := by
   unfold PackingHeader
@@ -91,8 +91,21 @@ private theorem schedule_length (count : ℕ) (value : CircuitSchedule count) :
   simp only [List.length_append,frame_length,TranscriptV2.Framing.encodeLE_length]
   omega
 
+private theorem derivedSchedule_length (count : ℕ) (value : DerivedSchedule count) :
+    ((derivedSchedule count).encode value).length =
+      (bytesDomain "layered-sumcheck/circuits/v1").length+17+
+      ((bytesDomain "layered-sumcheck/derived-circuit/v1").length+17)*count := by
+  change ((bytesDomain "layered-sumcheck/circuits/v1" ++ frame (TranscriptV2.Framing.encodeLE 8 count)) ++
+    (PrefixCodec.vector (word.prefixed (bytesDomain "layered-sumcheck/derived-circuit/v1")) count).encode value).length = _
+  rw [List.length_append,PrefixCodec.vector_length _ _ (by
+    intro v
+    change (bytesDomain "layered-sumcheck/derived-circuit/v1" ++ word.encode v).length = _
+    rw [List.length_append,word_length])]
+  simp only [List.length_append,frame_length,TranscriptV2.Framing.encodeLE_length]
+  ring
+
 /-- A start block carries either fingerprint responses and one prime circuit,
-or adapter advice and two binary circuit statements. Summing their lengths
+or adapter advice, one binary statement and a derived-circuit schedule. Summing their lengths
 bounds either case without inspecting any message value. -/
 def startBound : ℕ :=
   (bytesDomain "longfellow/witness-selection/responses/v1").length+41+73+
@@ -119,10 +132,10 @@ private theorem start_length_le (start : Start) (value : StartData (Advice := Ad
     change (((bytesDomain "p256-adapter/masked-quotient-bits/v1" ++
       [0] ++ TranscriptV2.Framing.encodeLE 8 repr.adviceWidth) ++ repr.advice.encode value.1) ++
       ((statement repr shape .binary shape.binaryPublic).encode value.2.1 ++
-      ((statement repr shape .binary shape.binaryPublic).encode value.2.2.1 ++
-      (schedule 2).encode value.2.2.2))).length ≤ _
-    simp only [List.length_append,repr.adviceLength,statement_length,schedule_length,
+      (derivedSchedule 2).encode value.2.2)).length ≤ _
+    simp only [List.length_append,repr.adviceLength,statement_length,derivedSchedule_length,
       fieldCodec,repr.binaryWidth,List.length_singleton,TranscriptV2.Framing.encodeLE_length]
+    have marker : (bytesDomain "layered-sumcheck/derived-circuit/v1").length = 44 := by decide
     unfold startBound
     omega
 
@@ -183,10 +196,9 @@ only actual canonical bytes are ever written or accepted. -/
 def roleBound : ℕ :=
   (9+2*32) +
   (bytesDomain "native-masked-sumcheck/all-linear-rows/v1").length+(bytesDomain "all-linear-rows").length +
-  ((bytesDomain "native-masked-sumcheck/fixed-linear-claim/v1").length+17+
-    (9+32*shape.primeInputs)+33+(bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length) +
-  ((bytesDomain "native-shared-prefix/fixed-masked-opening/v1").length+
-    (9+32*(shape.sharedBits+1))+33+(bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3").length) +
+  (bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length +
+  ((bytesDomain "native-shared-prefix/masked-opening/v2").length+
+    33+(bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3").length) +
   (packingHeaderBound shape+34+(9+16*g.packingDegree)) +
   ((bytesDomain (if shape.binary128Packing then "trace-zero128/A" else "trace-zero/A")).length+17+198) +
   (36+(3*g.rowDimension+g.maskingDegree)*48)
@@ -224,21 +236,14 @@ private theorem role_length_le (role : Role) (value : RoleData shape role) :
     unfold roleBound
     omega
   | rescaling =>
-    rw [roleCodec,followed_encode]
-    change (((bytesDomain "native-masked-sumcheck/fixed-linear-claim/v1" ++
-      frame (TranscriptV2.Framing.encodeLE 8 shape.primeInputs)) ++
-      ((slice repr.prime shape.primeInputs).encode value.1 ++ (scalar repr.prime).encode value.2)) ++
-      bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length ≤ _
-    simp only [List.length_append,frame_length,TranscriptV2.Framing.encodeLE_length,
-      slice_length,scalar_length,repr.primeWidth]
+    change (bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length ≤ _
     unfold roleBound
     omega
   | conversion =>
     rw [roleCodec,followed_encode]
-    change (((bytesDomain "native-shared-prefix/fixed-masked-opening/v1") ++
-      ((slice repr.prime (shape.sharedBits+1)).encode value.1 ++ (scalar repr.prime).encode value.2)) ++
+    change ((bytesDomain "native-shared-prefix/masked-opening/v2" ++ (scalar repr.prime).encode value) ++
       bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3").length ≤ _
-    simp only [List.length_append,slice_length,scalar_length,repr.primeWidth]
+    simp only [List.length_append,scalar_length,repr.primeWidth]
     unfold roleBound
     omega
   | packing =>

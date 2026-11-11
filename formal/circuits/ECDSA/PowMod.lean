@@ -1,6 +1,9 @@
 module
 
-public import Mathlib
+public import Mathlib.NumberTheory.LucasPrimality
+public import Mathlib.Tactic.NormNum
+public import Mathlib.Tactic.Ring
+public import Lean.Elab.Tactic.Omega
 
 /-!
 # Kernel-reducible modular exponentiation

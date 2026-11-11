@@ -1,4 +1,5 @@
 import DualPacking.AuditCases
+import Mathlib.Tactic.NormNum.Prime
 
 /-! # A genuine odd-characteristic extension exercises the complete native verifier
 

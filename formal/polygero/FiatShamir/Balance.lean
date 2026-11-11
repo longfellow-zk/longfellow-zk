@@ -1,4 +1,5 @@
 import polygero.Algebra.FiniteProbability
+import Mathlib.Tactic.Ring
 
 namespace RecursivePolygero.NonrecursiveFS.Balance
 open Finset

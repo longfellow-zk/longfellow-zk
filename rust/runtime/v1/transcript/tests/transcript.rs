@@ -21,6 +21,36 @@ use crate::{
 };
 
 #[test]
+fn power_of_two_sampling_preserves_legacy_extra_bit_and_byte_consumption() {
+    // Preserve the original RandomEngine::nat mask, including the bound's top bit,
+    // even for a power of two. Preserve both rejections and the byte cursor.
+    let mut saw_rejection = false;
+    for bits in 0..usize::BITS {
+        let bound = 1usize << bits;
+        let mut actual = Transcript::new(b"v1 power-of-two sampling");
+        let mut reference = actual.clone();
+        let len = (bits + 1).div_ceil(8) as usize;
+        let mask = usize::MAX >> (usize::BITS - bits - 1);
+        let expected = loop {
+            let mut bytes = [0u8; size_of::<usize>()];
+            bytes[..len].copy_from_slice(&reference.bytes(len));
+            let candidate = usize::from_le_bytes(bytes) & mask;
+            if candidate < bound {
+                break candidate;
+            }
+            saw_rejection = true;
+        };
+        assert_eq!(actual.nat(bound), expected, "bound {bound}");
+        assert_eq!(
+            actual.bytes(32),
+            reference.bytes(32),
+            "cursor at bound {bound}"
+        );
+    }
+    assert!(saw_rejection);
+}
+
+#[test]
 fn test_transcript_cpp_compatibility() {
     let expected_bytes = include_bytes!("transcript_test_vector.bin");
 

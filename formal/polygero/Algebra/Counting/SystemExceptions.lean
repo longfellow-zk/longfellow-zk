@@ -1,4 +1,5 @@
 import polygero.Algebra.FiniteProbability
+import Mathlib.Tactic.Linarith
 
 /-! Finite counting for the largest exceptional query fraction. System exceptions need
 only marginal bounds; no independence or bound on the number of sets is assumed. -/

@@ -1,8 +1,10 @@
 import LfzkV2.Current.ProofBodyReplay
 
-/-! Exact byte framing shared by every current query. Only bytes already
-bound at the boundary occur here. Round indices and domains are actual wire
-values; feedback contains the actual 32-byte answer prefix. -/
+/-! Canonical framing for the earlier whole-answer transcript model.
+Only bytes already bound at the boundary occur here. This model retains
+round indices and full-prefix feedback. The direct SHA-256 strand syntax,
+which omits those values, is modeled separately in TranscriptV2.Strand*;
+its end-to-end transport remains an explicit correspondence obligation. -/
 namespace LfzkV2.Current.CanonicalPrefix
 open TranscriptV2.Framing (Byte encodeLE)
 open scoped Classical
@@ -52,7 +54,7 @@ theorem bytes_length (value : BoundedBytes maxLength) :
 def utf8 (text : String) : Bytes := text.toUTF8.data.toList.map fun value =>
   ⟨value.toNat,UInt8.toNat_lt _⟩
 
-def sessionDomain : Bytes := utf8 "longfellow/transcript/v2"
+def sessionDomain : Bytes := utf8 "longfellow/transcript/v2/strands/v1"
 def roundDomain : Bytes := utf8 "longfellow/transcript/v2/round"
 def feedbackDomain : Bytes := utf8 "longfellow/transcript/v2/boundary-output"
 def finalDomain : Bytes := utf8 "longfellow/transcript/v2/final"

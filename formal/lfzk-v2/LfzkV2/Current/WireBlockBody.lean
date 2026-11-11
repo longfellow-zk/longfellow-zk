@@ -94,8 +94,7 @@ responses and masked advice are taken from the body by `startFromBody`. -/
 def StartMetadata : Start → Type
   | .none => Unit
   | .prime => CircuitStatement fields .prime shape.primePublic × CircuitSchedule 1
-  | .binary => CircuitStatement fields .binary shape.binaryPublic ×
-      (CircuitStatement fields .binary shape.binaryPublic × CircuitSchedule 2)
+  | .binary => CircuitStatement fields .binary shape.binaryPublic × DerivedSchedule 2
 
 def startFromBody (body : Body g fields Advice Auth) :
     (start : Start) → StartMetadata shape start → StartData (Advice := Advice) shape start
@@ -103,11 +102,9 @@ def startFromBody (body : Body g fields Advice Auth) :
   | .prime, metadata => (body.fingerprints,metadata)
   | .binary, metadata => (body.advice,metadata)
 
-/-- Derived affine claims and source identifiers are metadata. Polynomial
+/-- Only fixed source identifiers and layout are metadata. Polynomial
 coefficients, mu, U/A and H/Z are deliberately absent from this type. -/
 def RoleMetadata : Role → Type
-  | .rescaling => (Fin shape.primeInputs → fields .prime) × fields .prime
-  | .conversion => Fin (shape.sharedBits+1) → fields .prime
   | .packing => PackingStatement shape
   | .batching => SourceStatement × SourceStatement
   | _ => Unit
@@ -127,8 +124,8 @@ def roleFromBody (body : Body g fields Advice Auth) :
   | .terminal side stage, valid, _ => ((body.frontend side) ⟨stage,valid⟩).cross
   | .combine side stage _, valid, _ => ((body.frontend side) ⟨stage,valid⟩).claims
   | .rowBatching, _, _ => ()
-  | .rescaling, _, metadata => metadata
-  | .conversion, _, metadata => (metadata,body.mu)
+  | .rescaling, _, _ => ()
+  | .conversion, _, _ => body.mu
   | .packing, valid, metadata => (metadata,(packingValues body valid).1)
   | .batching, _, metadata => (if h : g.packingDegree = 1 then
       (by simpa only [PackingA,h,↓reduceIte] using ()) else

@@ -1,69 +1,223 @@
 # Formal verification
 
-The current MAC-free mdoc composition has a Fiat--Shamir extractor theorem for
-the mathematical runtime verifier with adaptive public requests:
-[`MdocSharedSHASoundness.ratio_le`](lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean) proves
-for all integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
-adversary making at most `Q` distinct transcript-oracle queries and at most
-`Q_H` SHA-256-oracle calls satisfies
+## V2 extraction soundness
 
-```text
-Pr[verifier accepts and the paired extractor fails to recover
-   a witness satisfying the requested circuits]
-  <= 2Q / 2^128
-     + [4Q + 1 + Q_H(Q_H - 1)/2
-        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
-```
+The numbered SHA-256 strand verifier has a checked Fiat–Shamir extraction
+bound at the current mdoc rate-1/7 parameters. For every integer `0 <= Q < 2^127`,
+consider any finite classical adaptive adversary making at most `Q` distinct
+original SHA queries.
 
-`R` counts ordinary round boundaries, excluding the final seal: 492 for two
-attributes and 499 for four. Repeated inputs receive the same complete answer;
-arbitrary finite repetitions and `Q = 0` are included. Probability is over the
-ideal oracles and the adversary's private randomness.
-Its checked rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`.
-It includes early witness selection,
-both fields, the cross-field adapter, packing, joint Polygero, one Merkle tree
-and the final seal. The [current model](lfzk-v2/README.md#current-mac-free-protocol)
-states its circuit/layout and ideal-sampler premises. Acceptance and the
-application/backend failure cover are derived from the modeled verifier;
-there is no supplied `Execution` or correspondence certificate. Canonical
-query bytes, the actual Merkle encoding, requested-public readback and the
-first-context extractor are connected in the theorem. The current mdoc
-specialization constructs the advice decoder, backend coordinates, transcript
-metadata and circuit plans from canonical scalar representations and trusted
-sparse circuit descriptions. Oracle answers use the explicit ideal-sampler
-model. A reduction from full SHAKE byte streams and machine verification of Rust
-are outside this result.
-One SHA function supplies setup and generated-circuit identifiers, the
-adversary's raw SHA answers and Merkle verification. Its Merkle restriction
-uses a uniform lazy tape; every independent finite auxiliary SHA marginal
-is averaged without an extra error term. `Q_H` conservatively bounds all
-SHA calls in the original adversarial program, including auxiliary inputs.
-`runtime::v2::zk` owns the selected joint boundary; mdoc supplies its frontend reductions.
-Packing is internal to ZK and binds its statement bytes, profile and cell
-counts. Its source coefficients and affine RHS are reconstructed from the
-preceding bound messages and oracle answers, without absorbing them again.
-The local source is independent of the current packing answer, and the
-accepted-path replay recovers the same frontend claim. No new statement-binding
-certificate or oracle assumption is introduced by this omission.
+Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
+and the paired extractor fails to recover a satisfying witness. Then
 
-The complete mdoc model also has a statistical zero-knowledge theorem:
-[`MdocZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean).
-One witness-free simulator produces the complete proof and the observer's
-view, including arbitrary retained private state and both raw oracle traces.
-At rate 1/7 its distinguishing error is at most
-`(47745992+4886*Mpre+4718*Mpost)/2^320 + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
-The [precise scope](lfzk-v2/README.md#complete-mdoc-zero-knowledge) states the
-fixed-witness, trusted-circuit and ideal-oracle assumptions. This theorem
-combines the frontend, adapter, packing, joint backend and Merkle simulation;
-it is separate from extraction soundness. The 40-byte nonce profile gives
-error below `2^-179` when `Mpre + Mpost <= 2^128` and `Tpre <= 2^128`,
-including all terms above, conditional on the ideal-oracle model.
+$$
+\begin{aligned}
+P_{\mathrm{fail}}(Q)
+&\le \frac{cQ}{q}
+ + \left(1-\frac{c(q-1)}{2q}\right)
+   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
+&\quad + \frac{\binom Q2+r+15}{q^2},
+\qquad q=2^{128}.
+\end{aligned}
+$$
 
-At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
-becomes itself questionable. The bound above should therefore not be interpreted
-as 179 bits of hiding for the concrete implementation. The parameters put
-the bottleneck in SHA-256 itself, rather than the rest of the protocol. There
-is no proven numerical SHA-256-to-random-oracle error term.
+For every `Q < 2^127`, the full soundness failure probability is
+**strictly less than 0.97**, with the cap rounded up to two decimal places.
+`MdocStrandOracle.averaged_nonvacuous` proves this strict conclusion. The primary
+`ratio_le` and `averaged_ratio_le` endpoints use the exact `Survival.Rate7.failureBound` above.
+
+The exact parameter-dependent Polygero coefficient is
+
+$$
+c=\frac{C}{q^{12}}+\frac{qC}{\ell^{13}}
+  +\left(1+\frac q\ell\right)\left(1+(L-1)T\right),
+$$
+
+where
+
+$$
+\begin{gathered}
+C=\binom{2443}{374},\qquad T=\frac{\binom{866}{84}}{\binom{2443}{84}},\\
+L=1272737905242889781956743699885451,\\
+\ell=2^{256}-2^{224}+2^{192}+2^{96}-1.
+\end{gathered}
+$$
+
+Thus $c=1.0000012312149082441647508747\ldots$, and Polygero is charged at exactly $c/q$. Lean defines this rational as
+`Survival.Rate7.polygeroConstant` and checks
+`1.00000123121490824416 < c < 1.00000123121490824417`.
+The complementary coefficient `1-c*(q-1)/(2*q)` follows from the shared-query
+survival argument.
+
+A convenient approximation for the mdoc circuit, valid for every $Q\ge0$, is
+
+$$
+P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
+$$
+
+The largest supported mdoc circuit (four attributes) has 500 rounds:
+`275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
+The proof rounds the constant correction up to $2^{-246}$.
+`MdocStrandOracle.averaged_mdoc_approximation` proves this all-budget consequence.
+
+The supported one-/two-/three-/four-attribute compiler shapes have respectively
+488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
+against the current Rust compiler. The approximation takes a supported-shape
+witness and derives the round bound internally.
+
+Here `r` is the number of rounds: one per `begin_squeeze()` call. The final seal
+is counted separately. The certified parameters are
+`(k,s,n,t)=(349,12,2443,84)`; the indexed Merkle heap has depth 12.
+The bound includes arbitrary query repetitions and `Q = 0`. Its exact
+`q - 1` denominator retains the nonzero-sampling correction.
+
+[`MdocStrandOracle.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+is the one-SHA endpoint. Arbitrary serialized proofs pass through the
+complete-proof parser. Public setup hashes, ordinary strand nodes, indexed
+PRF blocks, Merkle authentication and the final seal use the same byte
+oracle. Setup answers are in a disjoint complementary domain. The theorem
+holds for every fixed complementary slice and averages any independent
+finite distribution of those slices and adversarial private choices.
+
+The endpoint constructs the mdoc metadata, quotient-advice decoder, layout,
+frontend plans and rate certificate. `submitted_output`, `original_trace`,
+`verifier_actual`, `event_verified`, `setup_merge` and `parameters_merge`
+connect its event to the original submitted proof, original query log and
+complete runtime verifier. The extractor scans the original protocol-domain
+prefix at the commitment cut. Both fields use the same extracted tuple.
+Runtime acceptance, ordered query recovery, column agreement and algebraic
+failure coverage are proved internally.
+
+The [pencil-and-paper argument](survival/README.md) describes the complete assembly.
+
+The leading shared-budget theorem is also available for every $Q\ge0$:
+
+$$
+P_{\mathrm{fail}}(Q)\le
+\frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
+$$
+
+`MdocStrandOracle.averaged_linear_ratio_le` proves it directly from the same
+stopped search, common-witness cover and retained cost as the saturated bound.
+The generic linear theorem has no restriction $pQ\le1$; that restriction is
+needed only by the optional saturation argument. For $Q\ge2^{127}$ the
+concrete endpoint extends the linear bound using probability being at most one.
+
+The proof uses the following compositional boundaries. The application
+transport and recovered-path algebra live in
+[`Soundness.StrandTransport`](lfzk-v2/LfzkV2/Current/Soundness/StrandTransport.lean).
+[`Soundness.StrandStoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
+constructs the common retained cost and pointwise failure cover independently
+of saturation. `StrandProtocol` applies either query-budget estimate, then
+performs residual averaging and raw SHA realization. The generic `Survival`
+library has no V1 or V2 implementation dependencies.
+
+- [`StrandRecovery`](lfzk-v2/LfzkV2/Current/StrandRecovery.lean) recovers the
+  ordered path and opened columns, or charges an original hash query or
+  an explicit hash exception.
+- [`Survival.QueryStep`](survival/Survival/QueryStep.lean) supplies one common
+  transparent-test/opaque-step inequality for the chronological monitor.
+- [`StrandProtocol.recovered_stopped_charge`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
+  applies the local algebra on the stopped trace, keeping the original cut.
+- [`Survival.ChargeMonitor`](survival/Survival/ChargeMonitor.lean) combines the
+  original distinct-query budget, stopped costs and complete failure cover.
+- [`OracleDomain`](lfzk-v2/LfzkV2/Current/OracleDomain.lean) and
+  [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean) prove that
+  complete verifier replay uses the protocol domain.
+- [`SHAOracle`](lfzk-v2/LfzkV2/Current/SHAOracle.lean) and
+  [`StrandRoutedObserver`](lfzk-v2/LfzkV2/Current/StrandRoutedObserver.lean)
+  split one oracle and preserve the original output and filtered query trace.
+
+The original-query collision allowance is `Q(Q-1)/(2*2^256)`. Missing
+transcript nodes, an unqueried final seal and a fresh hit on one indexed
+Merkle path account for the remaining hash correction. Verifier replay
+does not enlarge the adversary's query budget. Transparent application/opening tests use chronological survival. Opaque
+Polygero and auxiliary hash costs spend disjoint slots of the stopped original
+query budget. Sampler residuals are averaged before the raw hash bound.
+
+The theorem assumes a classical ideal SHA oracle and the approved ideal
+joint role-block sampling law. Requested coordinates are uniform jointly,
+with the specified nonzero scalars and openings without replacement.
+Rejected sampler bytes are outside the requested analysis. Trusted fields,
+canonical scalar codecs, trusted application circuits and static public
+resource bounds are explicit model inputs. Rust correspondence is established
+through source review and tests; machine-level refinement and extractor
+running-time bounds remain open. The endpoint's axiom tests report only
+`propext`, `Classical.choice` and `Quot.sound`.
+
+## Zero knowledge
+
+[`MdocStrandZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+proves statistical zero knowledge for the complete numbered-strand mdoc
+runtime model, with public setup computed from the same SHA oracle used by
+the proof and observer. For every bounded classical observer and every
+observable event `E`,
+
+$$
+\left|\Pr[\mathrm{real\ view}\in E]-\Pr[\mathrm{simulated\ view}\in E]\right|
+\le \frac{Q_{\mathrm{pre}}+Q_{\mathrm{post}}}{2^{256}}.
+$$
+
+`Qpre` and `Qpost` bound the observer's raw calls before and after the proof,
+including repetitions. The view retains both query/answer traces, arbitrary
+private context, the adaptive public request, the canonical proof or failure,
+and the final seal. The simulator has no witness argument. Witness validity
+is required only for contexts reached by the prior observer, using setup
+derived from that same oracle. This validity, the separate static hash
+noninterference premise below, and the stated basis/generator checks derive
+backend truth; no execution or simulation certificate is assumed.
+
+The proof separates the three complete-view experiments:
+
+$$
+\mathrm{Real}_w \approx_{(Q_{\mathrm{pre}}+Q_{\mathrm{post}})/2^{256}}
+\mathrm{Ghost}_w \equiv \mathrm{Sim}.
+$$
+
+Independent leaf labels replace salted leaf hashes in the ghost experiment.
+[`StrandCanonicalExactSimulation.ghost_sameDistribution`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandCanonicalExactSimulation.lean)
+proves the exact second step using one joint frontend/backend coin bijection.
+[`StrandCanonicalCommitmentHiding.commitment_hiding`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandCanonicalCommitmentHiding.lean)
+proves the statistical first step. Honest execution lives separately in
+[`StrandCanonicalExecution`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandCanonicalExecution.lean),
+so completeness does not import the privacy assembly.
+
+Only disclosed leaf answers are installed;
+a prior-query conflict retains the original oracle and produces failure.
+Strand nodes, PRF blocks and the final seal are ordinary oracle evaluations.
+There is no digest-collision exception or second statistical hiding loss.
+
+A finite all-branch support is derived for setup, protocol, and both observers.
+Pointwise equalities prove that outside answers cannot affect either complete
+view. Public identifiers need not be independent: their actual hash evaluations
+are included, and setup is preserved while the leaf coordinates vary. No
+finite type of all byte strings, finite private-state type, or caller-supplied
+support certificate is assumed.
+
+[`MdocStrandVerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean)
+compares the actual runtime verifier's acceptance probabilities within the same
+bound. The verifier observer is proved equal to the indexed verifier, including
+sampler-failure rejection, tuple authentication and the final seal. Rejection
+and abort outcomes are retained; the theorem does not assume an always-accepting
+simulator.
+
+[`statClose_at_query_budget`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+checks that `Qpre + Qpost <= 2^128` gives ideal-model error at most `2^-128`.
+When verification is included as a later observer, its raw calls count in
+`Qpost`. All new endpoint axiom checks permit only `propext`, `Classical.choice`
+and `Quot.sound`.
+
+[`StrandHonestRuntime.rawReal_some_accepts`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandHonestRuntime.lean)
+proves that every proof returned by the actual honest experiment passes the
+runtime verifier. It derives parsing, backend truth, original-column
+authentication and final sealing from ordinary witness truth and execution.
+This is conditional on an actual successful output; sampler aborts remain
+possible outcomes of the partial-reader model.
+
+These are ideal-oracle bounds. No numerical SHA-256-to-random-oracle
+comparison is proved; the trusted circuit, field, representation and sampling
+premises remain explicit.
 
 ## Assumptions and remaining correspondence obligations
 
@@ -71,20 +225,23 @@ These are the premises and limits of the current mathematical results. A
 successful kernel check establishes the stated implications; it does not
 establish that a cryptographic implementation satisfies their premises.
 
-- **Classical ideal oracles.** SHA-256 is a 256-bit random oracle. The
-  transcript uses an independent ideal whole-answer oracle: one answer
-  contains the 32-byte link and the entire jointly distributed challenge
-  block, and repeated inputs return the same answer. Sampling is uniform,
-  including rejection sampling, nonzero scalars and openings without
-  replacement. This is a joint oracle assumption, stronger than uniform
-  marginal field samples. The proofs do not couple the observer's complete
-  raw SHAKE output, rejected bytes or unused XOF tails to that answer. There
-  is no quantum-oracle result or proof of SHA-256/SHAKE256 security.
-- **Fresh private randomness.** Prover masks, pads, commitment nonces and
+- **Classical ideal oracle and ideal sampling.** One SHA random oracle has
+  independent uniform 256-bit answers at distinct byte inputs and consistent
+  repeated answers. Canonical domain separation and the oracle-coordinate
+  split are proved. Requested role blocks have the approved joint uniform
+  law, including nonzero coordinates and sampling without replacement.
+  Rejected bytes are outside the requested analysis. Finite-decoder balance
+  is explicit in the conditional sampler lemmas. The current soundness
+  and numbered-strand privacy endpoints use this single-SHA model. The
+  numbered-strand privacy coupling preserves the supplied physical readers,
+  including their failure branches; it does not need a separate uniformity
+  hypothesis for field challenges. Concrete SHA-256 distinguishing bounds
+  and quantum-oracle security remain outside these results.
+- **Fresh private randomness for privacy.** Prover masks, pads, commitment nonces and
   the other private coins are independent and uniform. The normal Rust mdoc
   entry point obtains randomness from the operating system. APIs accepting
   a caller-supplied generator require the same randomness property. Merkle
-  nonces have 320 bits; they are not assumed collision-free.
+  nonces have 256 bits; they are not assumed collision-free.
 - **Fields and representations.** The modeled fields satisfy their field
   laws; bases and scalar representations have their declared cardinality,
   canonical encoding and injectivity properties. The ZK specialization
@@ -94,11 +251,14 @@ establish that a cryptographic implementation satisfies their premises.
   are source-correspondence obligations, not additional Lean theorems.
 - **Trusted application circuits and archives.** Extraction returns a
   witness satisfying the supplied circuits, not an independently formalized
-  ISO mdoc/CBOR specification. Privacy additionally requires signature
-  satisfaction and `MdocWitness.HashValid`: ordinary hash assertions must
-  remain valid for every reserved mask/OTP suffix and every generated-adapter
-  parameter. This noninterference premise is stronger than one satisfying
-  assignment. Rust's normal `for_spec` loader checks archive metadata but
+  ISO mdoc/CBOR specification. Privacy requires signature satisfaction and
+  ordinary hash-witness satisfaction, `MdocWitness.HashValid`, at reached
+  requests. The separate static circuit property
+  `MdocWitness.HashNoninterference` states that changing reserved masks,
+  OTP bits and generated-adapter parameters preserves the ordinary hash
+  checks, uniformly over public inputs and private values. This trusted-circuit
+  premise does not follow from one satisfying assignment. Rust's normal
+  `for_spec` loader checks archive metadata but
   does not recompute semantic payload IDs. Consequently, trust includes
   the actual supplied archive bytes, not merely their advertised IDs.
 - **Public setup and resource bounds.** Trusted sparse topology, canonical
@@ -110,204 +270,63 @@ establish that a cryptographic implementation satisfies their premises.
   those proofs.
 - **Adversary and witness scope.** The adversary is classical and makes
   finitely many calls within the stated budgets; extraction counts distinct
-  transcript inputs. Privacy permits arbitrary retained private context
+  original raw SHA inputs. Privacy permits arbitrary retained private context
   and adaptive public requests, but uses a fixed witness map per request,
-  independent of oracle answers. Validity is required only at requests
-  reachable in actual consistent executions. This does not prove privacy
-  for arbitrary adaptive selection of a new witness after oracle answers.
+  independent of oracle answers. The numbered-strand theorem requires valid
+  witnesses only for contexts actually reached by the prior observer under
+  setup computed from the same oracle; unreachable policy branches impose
+  no validity obligation. These
+  results do not prove privacy for arbitrary adaptive selection of a new
+  witness after oracle answers.
 - **Efficiency and implementation.** Extraction uses mathematical finite
   search; no polynomial-time extractor bound is proved. The explicit public
   simulator has no witness argument, but its running time is not formally
   bounded. Rust correspondence is reviewed and tested, rather than a
-  mechanized refinement. A complete Rust-to-Lean verifier replay vector and
-  a separate end-to-end honest-acceptance theorem remain absent. No timing,
+  mechanized refinement. A complete Rust-to-Lean verifier replay vector remains
+  absent. The separate honest-acceptance theorem covers every successfully
+  returned proof, including indexed authentication and the final seal. No timing,
   memory-observation or other implementation side-channel theorem is claimed.
 
-**Shared SHA composition.** The original
-[`MdocProofRate7.ratio_le`](lfzk-v2/LfzkV2/Current/MdocProofRate7.lean)
-is the conditioned endpoint with a fixed auxiliary identifier-hash function.
-The shared-SHA theorem above derives the public setup from the actual SHA
-function, preserves the serialized proof and verifier decision, and identifies
-the exact first-context extractor trace with the Merkle-domain projection of
-the original execution prefix. Its transcript-query premise refers only to
-the original program with its actual SHA-derived public values. Domain
-separation and averaging preserve the bound; no observed-trace independence
-or oracle-correspondence certificate is a premise. The intermediate identities
-are checked in
-[`MdocSHAExperiment`](lfzk-v2/LfzkV2/Current/MdocSHAExperiment.lean).
+## Component libraries and V1
 
-The common finite-table split, inclusion and extension maps live in
-[`SHAProbability`](lfzk-v2/LfzkV2/Current/SHAProbability.lean). Soundness and
-statistical privacy reuse those maps; soundness does not import the privacy
-composition proofs. The canonical verifier is constructed once, and its
-auxiliary-domain invariance holds for every decoded proof. The generic lazy
-execution identities need no default transcript challenge, including when
-the transcript-query alphabet is empty.
+The [recursive Polygero development](polygero/README.md) preserves its
+paper-facing public-coin extraction and false-statement soundness results,
+including the certified failure bound `1 - product(1 - epsilon_i)`. The
+protected declarations and their contracts are unchanged.
 
-The application-circuit audit found namespace/CBOR-path binding and selected-field
-range issues. Rust now rejects reads into SHA padding, incomplete docType matches,
-inconsistent wrapper lengths and wrong attribute CBOR types. A bounded CBOR parser,
-namespace/path binding and timestamp semantics remain deferred. The protocol proof
-continues to trust the supplied application relation; extraction alone does not
-establish the intended document semantics.
+The current V2 verifier uses the [sumcheck](sumcheck-v2/README.md),
+[witness-selection](witness-selection/README.md),
+[dual-packing](dual-packing/README.md), [Polygero](polygero/README.md) and
+[numbered-transcript](transcript-v2/README.md) libraries. Their component
+algebra, completeness, masking, query-accounting and sampling results remain
+available. Shared helpers keep their existing namespaces; obsolete V2
+implementation endpoints are no longer public or registered as current tests.
 
-Canonical query capacities are structural bounds on public vector counts,
-fixed codec widths and framing overhead. They do not enumerate field-valued
-packets or append padding. Generic codec-length, sampler-projection and runtime
-wrapper lemmas keep these representation details separate from the soundness
-and privacy arguments. Evaluation and interpolation are linked by a proved
-bijection with an explicit equality to Lagrange interpolation. Abstract history
-transitions, partial frontend bodies and public-request invariance lemmas let
-backend proofs reuse their checked interfaces without unfolding full frontend
-executions. These interfaces preserve the verifier, probability bounds and
-assumptions stated above.
+The extant V1 runtime retains its checked 116-bit extraction and false-statement
+soundness bounds. [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) checks the
+signature and SHA geometries for one through four attributes. The
+[V1 README](lfzk-v1/README.md) states their premises. V1's generic statistical
+couplings remain shared dependencies of current V2 privacy.
 
-The broad axiom audit checks new public and private declarations against
-`propext`, `Classical.choice` and `Quot.sound`. These foundational axioms do
-not discharge any implementation or oracle premise above. Retained V1
-certificates keep their separately documented native-evaluation allowance.
+The [Ligero development](ligero/README.md) contains Reed–Solomon distance,
+agreement/list bounds, Delsarte/Hahn certificates, response-assisted extraction,
+and Merkle/query bookkeeping. The [EC/ECDSA development](circuits) and both
+sumcheck libraries remain available. The V1 security certificates use
+[Sumcheck V1](sumcheck-v1/SumcheckV1/README.md); the current V2 construction uses
+[Sumcheck V2](sumcheck-v2/README.md).
 
-## Retained results and component libraries
-
-V2 security results use the Fiat–Shamir model. Local polynomial reductions,
-collision counts and masking bijections support those proofs. The separate
-protected Polygero paper development includes its original public-coin results;
-its precious declarations and contracts are unchanged.
-
-**The retained layered-sumcheck Longfellow V2 checkpoint has a 116-bit
-work-normalized extraction bound.** Sparse quad fragments share one wire
-array per layer and one input array. Circuits may have different depths,
-scalar outputs, or no layers. Binary packing, linear-only Polygero and the
-retained two-field MAC compose with one authenticated tuple tree and one
-shared set of column queries.
-[`LfzkV2.Layered.Joint.RawRuntimeExtraction.extraction_116`](lfzk-v2/LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)
-proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for all
-transcript-query budgets `N` and Merkle-query budgets `tA`. The
-[V2 README](lfzk-v2/README.md) identifies the immutable source snapshot and
-exact finite bound. Circuit/layout, ideal sampler, MAC-row and codec
-premises remain explicit; see the [implementation boundary](AUDIT.md).
-The earlier `Joint` (`8943498`), `Linear` (`21cb029`), `Native`, `Packed`,
-and V1 security theorems retain their original bounds and premises.
-
-The current code also has a separate [witness-selection component](witness-selection/README.md).
-Its collision-counting lemmas give the adaptive Fiat–Shamir charge
-`Q*choose(L,2)/q²` for two masked fingerprints;
-ordinary fixed-witness quadratic sumcheck charges `2Q/q`. The new
-[chained-transcript library](transcript-v2/README.md) proves the required
-query-order and charging lemmas with a common exception `(Q+1)/2^256` for
-32-byte links, under its typed full-parent preimage and local reduction laws.
-The Polygero adapter removes the frontend candidate-list multiplier while
-retaining backend extraction/outside-list errors. Rust encoding/sampler
-correspondence remains an explicit implementation boundary. The current
-composition uses these results without altering the retained certificates above.
-
-The separate [`LfzkV2.Current` model](lfzk-v2/README.md#current-mac-free-protocol)
-specifies the current MAC-free mdoc query schedule, typed messages and challenge
-blocks, shared opening set and body-binding final seal. It proves structural
-prefix/parent laws and counts all runtime boundary queries, including empty
-sample blocks and the final seal. Source identifiers are bound without a
-separate query. Its end-to-end theorem derives failure coverage and shared-query
-charging for typed runtime acceptance, with verifier replay appearing only
-in the digest-sized Merkle term.
-The schedule tests and foundational-axiom checks are default build targets.
-
-The prior product-checked snapshot `fcf8a3a` retains its separate
-[`Packed.RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
-certificate without changes. Its constants do not describe the randomized
-linear terminal.
-
-The earlier v7 verifier using Ligero V1 retains its 116-bit extraction and
-false-statement soundness bounds for signature and SHA circuits with one
-through four attributes. Its flat zero-query and graded positive-query
-proofs are checked by [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean).
-The [Longfellow V1 README](lfzk-v1/README.md) states their premises.
-
-Version 7 uses Ligero V1; version 8 uses Polygero. The
-[Ligero README](ligero/README.md) documents the component analysis.
-
-The default `lake build` includes all 16 retained Hahn/Delsarte certificate
-families: five runtime Polygero profiles, six v7 Ligero mask certificates, and
-five Polygero benchmark certificates. It also checks their numerical endpoints
-and an [axiom audit](parameters/hahn/RuntimeHahn/APITest.lean). The Hahn identities
-use exact integer checks and a proved polynomial interpolation theorem; no
-native-evaluation axiom is needed for the certificates.
-
-Run `lake build` or `scripts/build.sh` from this directory to build the default
-targets with Lean and Lake's default concurrency. The script also accepts individual Lake targets.
-
-The Ligero development proves:
-
-- Reed–Solomon code distance, affine triple-counting and selected-MCA bounds,
-  and JB agreement with checked η³ threshold parameters.
-- Delsarte's LP bound using Hahn kernels for uniform intersection families,
-  with Johnson as the degree-one case. It certifies the V1 unchecked-mask list
-  below the Johnson threshold.
-- Response-assisted scalar IOP extraction for Ligero V1, together
-  with response-uniform envelopes and false-statement soundness.
-- Merkle prefix binding and typed Fiat–Shamir query bookkeeping.
-- Exact IOP certificates for v7 signature and hash geometries, and local
-  challenge/query count certificates for the hash
-  geometries and V1 signatures.
-
-See the [Ligero README](ligero/README.md) for component theorem names and
-certificates. This package also contains the EC/ECDSA circuit development and
-two sumcheck libraries:
-
-- [Sumcheck V1](sumcheck-v1/SumcheckV1/README.md), imported as `SumcheckV1`,
-  contains the legacy round, chain, and challenge-tape proofs used by `LfzkV1`.
-- [Sumcheck V2](sumcheck-v2/README.md), imported as `SumcheckV2`, proves the
-  projective round update, honest table folding, single-hand layer reduction,
-  masked constraint equations, and challenge-tape bounds. These are component
-  theorems; the `LfzkV1` security certificates above still use V1.
-
-The retained [Longfellow V2](lfzk-v2/README.md) checkpoints, imported as
-`LfzkV2`, connect the native affine circuit, linear and quadratic assertions,
-honest prover, and actual
-compiled rows. Its staged replay fixes the packing response `U` before an
-independent vector challenge and the scalar response `A` afterward. Packing
-and layer checks read the same authenticated cells. The degree-one signature
-path keeps its original source equation and has no packing challenge or cost.
-
-In the retained layered checkpoint, the packed hash and direct signature sides use geometry
-`(n,k,s,t) = (2912,416,15,86)`, with certified candidate bounds 25 and 33.
-Before Merkle costs, the adaptive bound is
-`1384*N/2^128 + 19303/2^128 + 21661/2^255`; raw verification adds one transcript
-lookup. The coefficient includes both correlated shared-query residuals;
-the single tree contributes one Merkle explanation error. Both frontends and
-packing statements precede either backend challenge, and both responses
-precede the shared query. The authenticated extractor returns satisfying witnesses with equal
-common messages. Exact startup and small-Merkle bounds yield the all-budget
-116-bit endpoint above. This conservative numerical certificate includes
-`2/(|F|-1)` per layer, with 20 hash layers and 21 signature layers; the
-field-normalized theorem retains the exact nonzero denominator. The older
-product-checked and unpacked compositions remain separate models.
-
-The complete Fiat–Shamir privacy theorem above concerns the current MAC-free
-mdoc model. Its supporting algebraic couplings preserve backend responses and
-opened rows while changing the private masks.
-API and axiom checks are in the default build. Rust arithmetic, concrete
-layouts, parsing and byte-level transcript correspondence remain implementation
-obligations.
-
-The [recursive Polygero development](polygero/README.md) proves witness
-extraction for the transmitted recursive public-coin verifier, with failure
-bound `1 − ∏ᵢ(1 − εᵢ)` from certified local errors. False-statement soundness
-is derived from extraction validity and the same failure bound. It reuses
-the Ligero code and tableau infrastructure.
-
-[Dual packing](dual-packing/README.md), imported as `DualPacking`, proves
-trace-pairing coordinate recovery and the two native linear constraints for
-packing over arbitrary finite field extensions. Its fixed-commitment
-false-claim bound is `1 / |F|`, including arbitrary committed mask cells.
-The library and its binary and odd-characteristic regression cases are in
-the default build. The retained compiler and staged Fiat–Shamir composition in
-`LfzkV2.Linear.Runtime` and the joint transcript lift this fixed-claim bound to the authenticated endpoint above.
-
-From this directory:
-
-```sh
-lake build
-```
-
+The default build includes the exact [runtime Hahn certificates](parameters/hahn/RuntimeHahn/APITest.lean)
+and [Polygero parameter certificates](parameters/polygero). These use checked
+integer identities and proved interpolation, without a native-evaluation axiom.
 The package uses Lean 4.31.0 and the compatible Mathlib checkout at
 `../../mathlib4`, relative to `formal/`.
+
+## Bounded soundness checks
+
+`python3 scripts/check_soundness.py` checks the survival library and the current
+API aggregate, including the existing zero-knowledge tests. It checks local
+dependencies sequentially through Lake, with a 180-second deadline for each
+invocation. Lake workers use two Lean threads and an 8,192 MiB Lean memory cap;
+proof heartbeat limits are unchanged. Logs and timing JSON are written to
+`.lake/soundness-check/`. A focused check is
+`python3 scripts/check_soundness.py LfzkV2.Current.MdocStrandOracle`.

@@ -74,8 +74,9 @@ impl<
 }
 /// The caller binds the source statement and compiles A*w+b=0 locally.
 /// `digest` identifies the public source, such as a circuit ID. Every dynamic
-/// input to compilation must already be bound on the same transcript before
-/// batching. The verifier reconstructs `a` and `b`; the source binding does not
+/// prover input to compilation must already be bound on the same transcript.
+/// Challenge-derived coefficients are reconstructed locally and never absorbed.
+/// The verifier reconstructs `a` and `b`; the source binding does not
 /// depend on sparse term ordering and needs no separate transcript query.
 #[derive(Clone)]
 #[must_use = "The derived statement must be authenticated by the commitment backend."]

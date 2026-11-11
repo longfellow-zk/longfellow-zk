@@ -1,5 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
+use super::{
+    circuit::CircuitSource,
+    split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer},
+};
 use crate::{
     core::{
         algebra::SerializableField,
@@ -101,7 +104,7 @@ pub(super) use fixtures::{eval_layer, eval_split_circuit};
 /// have the next layer's ordering.
 pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
-    circuits: &[&crate::core::proto::v2::Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     layers: &[Vec<SplitLayer<'_>>],
     schedule: &super::fragments::Schedule,
     f: &F,
@@ -109,7 +112,7 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
     if w.len() != schedule.ninput {
         return Err("shared input width mismatch".into());
     }
-    if circuits.iter().any(|c| c.raw.layers.is_empty()) {
+    if circuits.iter().any(|c| c.raw().layers.is_empty()) {
         if let Some(g) = w.iter().position(|v| !f.is_zero(v)) {
             return Err(format!("Circuit output at index {g} is not zero"));
         }
@@ -120,7 +123,7 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
         let mut out = vec![f.zero(); layout.nv];
         for s in &layout.fragments {
             eval_layer_into(&w[s.input_range.clone()], &layers[s.circuit][s.layer],
-                &circuits[s.circuit].raw.constants, &mut out[s.output_range.clone()], f)
+                &circuits[s.circuit].raw().constants, &mut out[s.output_range.clone()], f)
                 .map_err(|e| format!("Witness does not satisfy circuit constraints at stage {stage}, circuit {}: {e}", s.circuit))?;
         }
         // Depth ordering places the completed circuits' outputs at the tail.

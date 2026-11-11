@@ -33,9 +33,9 @@ theorem stored_writes (root : Digest) (context : Key) (coins : CompleteSimulatio
   let desired := fun i : Fin result.state.rank.val => ProtocolWrites.fresh body
     ⟨i.val,by have := i.isLt; have := result.state.rank.isLt; omega⟩
   have reindex : List.ofFn desired = List.ofFn (fun i : Fin
-      (CompleteSimulation.geometry binary prime primePlan).batchingIndex.val =>
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.val =>
       ProtocolWrites.fresh body
-        ⟨i.val,i.isLt.trans (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt⟩) := by
+        ⟨i.val,i.isLt.trans (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt⟩) := by
     simpa only [desired,Fin.val_cast] using List.ofFn_congr properties.1 desired
   have same : result.state.writes = desired := List.ofFn_injective (logs.trans reindex.symm)
   exact fun i => congrFun same i
@@ -43,15 +43,15 @@ theorem stored_writes (root : Digest) (context : Key) (coins : CompleteSimulatio
 omit [DecidableEq B] in
 theorem pending_write (root : Digest) (context : Key) (coins : CompleteSimulation.Coins binary prime)
     (inside : (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state.rank.val <
-      (CompleteSimulation.geometry binary prime primePlan).roles.length) :
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) :
     let result := CompleteSimulation.simulate binary prime primePlan samples base H context coins
     result.state.pending = ProtocolWrites.fresh (CompleteFrontendBody.body binary prime primePlan root result)
       ⟨result.state.rank.val,inside⟩ := by
   let result := CompleteSimulation.simulate binary prime primePlan samples base H context coins
   have properties := SimulationWrites.simulate_properties binary prime primePlan samples base H context coins
   have index : (⟨result.state.rank.val,inside⟩ : Fin
-      (CompleteSimulation.geometry binary prime primePlan).roles.length) =
-      (CompleteSimulation.geometry binary prime primePlan).batchingIndex := Fin.ext properties.1
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) =
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex := Fin.ext properties.1
   dsimp only
   rw [index]
   exact properties.2.2.trans (BodyWrites.raw_pending binary prime primePlan root result.raw).symm

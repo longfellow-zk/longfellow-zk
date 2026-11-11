@@ -1,4 +1,10 @@
-import Mathlib
+import Mathlib.Algebra.Field.ZMod
+import Mathlib.Tactic.NormNum.Prime
+import Mathlib.Tactic.Ext
+import Mathlib.Tactic.LinearCombination
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Ring
+import Lean.Elab.Tactic.Omega
 import LfzkV1.WPoly
 import LfzkV1.Types
 import LfzkV1.Builder

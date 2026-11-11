@@ -14,8 +14,8 @@ packing or sumcheck randomness, and never become circuit inputs.
 
 After the joint commitment, one typed transcript round binds the commitment,
 ordered field identities, public cell layouts, and fingerprint domain. It draws
-two independent uniform vectors per field directly from the same SHAKE reader.
-There is no prover message between the vectors or fields. Prime-field rejection
+two independent uniform vectors per field from the same indexed SHA-256 PRF
+stream. There is no prover message between the vectors or fields. Prime-field rejection
 sampling extends that reader. The responses are
 
 ```
@@ -51,7 +51,8 @@ The [formal module](../../../../formal/witness-selection/README.md) separates th
 fingerprint collision charge from fixed-witness frontend soundness and the
 remaining Polygero extraction errors. The
 [typed chain analysis](../../../../formal/transcript-v2/README.md) proves adaptive
-query charging with a common `(Q+1)/2^256` link/seal exception. Correspondence
-between the Rust encoding and samplers and the formal ideal model remains an
-explicit obligation. The [current mdoc composition](../../../../formal/lfzk-v2/README.md)
+query charging with a common `(Q+1)/2^256` link/seal exception in the existing
+whole-answer oracle model. The SHA-256 strand implementation is not yet covered
+by that model; its PRF queries and byte-stream sampling need a new correspondence.
+The [current mdoc composition](../../../../formal/lfzk-v2/README.md)
 combines this selection analysis with both frontend reductions and joint Polygero.

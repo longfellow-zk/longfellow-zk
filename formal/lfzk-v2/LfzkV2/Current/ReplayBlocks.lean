@@ -21,13 +21,8 @@ variable {g : Geometry} {F : Fields} {Advice Authentication Context Block C : Ty
 def State.BlockBound (state : State g F Advice Authentication Context Block C)
     (e : Encoding g F Advice Authentication Context Block C)
     (proof : Output g F Advice Authentication) : Prop :=
-  ∀ i history block, (h : state.point = .round i history block) →
-    ∃ answers : Fin i.val → C, block = e.block proof i answers ∧
-      ∀ j, answers j = state.answers ⟨j.val, by
-        have hr := congrArg Input.rank h
-        change state.point.rank = i.val at hr
-        rw [hr]
-        exact j.isLt⟩
+  state.point.block = if h : state.point.rank < g.roles.length then
+    some (e.block proof ⟨state.point.rank,h⟩ state.answers) else none
 
 namespace Encoding
 variable (e : Encoding g F Advice Authentication Context Block C)
@@ -36,17 +31,11 @@ theorem stateAt_block (proof : Output g F Advice Authentication)
     (n : ℕ) (hn : n ≤ g.roles.length) (history : History Context Block Digest n)
     (answers : Fin n → C) : (e.stateAt proof n hn history answers).BlockBound e proof := by
   by_cases h : n < g.roles.length
-  · have hs : e.stateAt proof n hn history answers =
-        ⟨.round ⟨n,h⟩ history (e.block proof ⟨n,h⟩ answers), answers⟩ := dif_pos h
-    rw [hs]
-    intro i earlier block heq
-    cases heq
-    exact ⟨answers, rfl, fun _ => rfl⟩
+  · simp only [stateAt,dif_pos h]
+    simp only [State.BlockBound,Input.block,Input.rank,dif_pos h]
   · have he : n = g.roles.length := by omega
     subst n
-    intro i earlier block heq
-    simp only [stateAt, dif_neg h] at heq
-    cases heq
+    simp [stateAt,State.BlockBound,Input.block,Input.rank]
 
 theorem advance_block (proof : Output g F Advice Authentication)
     (state : State g F Advice Authentication Context Block C) (answer : Digest × C)
@@ -76,32 +65,23 @@ theorem point_block (initialLink : Digest) (proof : Output g F Advice Authentica
     ((e.chain initialLink).point proof H i.val).block =
       some (e.block proof i (fun j => (H ((e.chain initialLink).point proof H j.val)).2)) := by
   have hb := e.replay_block initialLink proof H i.val
-  have hc := e.replay_coherent initialLink proof H i.val
   have hr := (e.chain initialLink).point_rank proof H (show i.val ≤ g.roles.length by omega)
   change Input.rank _ = i.val at hr
-  cases heq : (e.chain initialLink).point proof H i.val with
-  | finalSeal history body =>
-      rw [heq] at hr
-      have hi := i.isLt
-      change g.roles.length = i.val at hr
-      omega
-  | round j history block =>
-      have hj : j = i := Fin.ext (by simpa only [heq, Input.rank] using hr)
-      subst j
-      obtain ⟨answers, hblock, ha⟩ := hb i history block heq
-      have hanswers : answers = fun j => (H ((e.chain initialLink).point proof H j.val)).2 := by
-        funext j
-        rw [ha j]
-        have hs := congrFun hc ⟨j.val, by
-          change j.val < ((e.chain initialLink).point proof H i.val).rank
-          rw [hr]
-          exact j.isLt⟩
-        change _ = (H (((e.chain initialLink).point proof H i.val).priorPoints _)).2 at hs
-        rw [hs]
-        exact congrArg (fun point => (H point).2)
-          (e.point_priorPoints initialLink proof H i.val (by omega) j)
-      rw [hanswers] at hblock
-      simpa only [heq, Input.block] using congrArg some hblock
+  have inside : ((e.chain initialLink).point proof H i.val).rank < g.roles.length := by
+    rw [hr]
+    exact i.isLt
+  have answers := funext (e.replay_answer initialLink proof H i.val (Nat.le_of_lt i.isLt))
+  change ((e.chain initialLink).point proof H i.val).block =
+    (if h : ((e.chain initialLink).point proof H i.val).rank < g.roles.length then
+      some (e.block proof ⟨_,h⟩ ((e.chain initialLink).replay proof H i.val).answers)
+    else none) at hb
+  rw [dif_pos inside,answers] at hb
+  let packet := fun j : Fin g.roles.length =>
+    e.block proof j (fun k => (H ((e.chain initialLink).point proof H k.val)).2)
+  change ((e.chain initialLink).point proof H i.val).block = some (packet ⟨_,inside⟩) at hb
+  have index : (⟨_,inside⟩ : Fin g.roles.length) = i := Fin.ext hr
+  rw [index] at hb
+  exact hb
 
 end Encoding
 end Replay

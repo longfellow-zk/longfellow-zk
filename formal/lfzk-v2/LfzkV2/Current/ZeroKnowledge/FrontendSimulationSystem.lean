@@ -17,7 +17,7 @@ local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 variable (samples : ConcreteMetadata.Samples B C)
-variable (shape : WireBlocks.Shape (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B))
+variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
 variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
 variable (setup : FingerprintPrefix.Setup) (defaultAdvice : MdocAdvice.Value) (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → B)
@@ -26,7 +26,7 @@ variable (request : CanonicalRequest.Request shape publicCount) (root : Digest)
 variable (H : CompleteSimulation.Point binary prime primePlan
   (Key := FingerprintPrefix.Key publicCount) (Base := CanonicalRequest.Base repr shape setup publicCount) → Digest × C)
 variable (initial : Digest) (coins : CompleteSimulation.Coins binary prime)
-local notation "G" => CompleteSimulation.geometry binary prime primePlan
+local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
 local notation "W" => CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
 local notation "selected" => CompleteSimulation.selectedState binary prime primePlan samples W H
   (FingerprintPrefix.context request root) coins.fingerprints

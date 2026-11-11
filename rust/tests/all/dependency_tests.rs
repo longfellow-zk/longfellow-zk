@@ -1503,6 +1503,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
             "src",
             &[
                 "lib.rs",
+                "circuit.rs",
                 "monomial.rs",
                 "dense.rs",
                 "quad.rs",

@@ -1,4 +1,5 @@
 import polygero.Algebra.Counting.DirectBinomial
+import Mathlib.Tactic.Ring
 
 namespace RecursivePolygero.DiscreteThreshold
 

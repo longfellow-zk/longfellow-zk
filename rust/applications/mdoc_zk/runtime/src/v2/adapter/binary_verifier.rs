@@ -27,11 +27,11 @@ impl BinaryParticipant {
             .parameters
             .extension()
             .input_elements(ctx.field(), public);
-        for c in [c, &tree] {
-            t.write_sumcheck_statement(c, &public, ctx.field());
-        }
+        // The tree is derived from the bound template, messages and challenges.
+        // Its raw terms have no instance ID to absorb.
+        t.write_sumcheck_statement(c, &public, ctx.field());
         let constraints = sumcheck::derive_constraints_for_circuits(
-            &[c, &tree],
+            &[&c.raw, &tree],
             &proof.sumcheck_proof,
             t,
             ctx.field(),

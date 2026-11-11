@@ -28,6 +28,43 @@ theorem encode_injective : Function.Injective codec.encode := by
   intro p q h
   exact Option.some.inj (by rw [← codec.decode_encode p,← codec.decode_encode q,h])
 
+/-- Retain auxiliary queries while exposing canonical queries to protocol
+lemmas. Unused noncanonical typed coordinates may be padded independently;
+the translated program never asks them. -/
+def tag (raw : Raw) : Point ⊕ Raw :=
+  match codec.decode raw with
+  | some point => .inl point.val
+  | none => .inr raw
+
+/-- Recover the original address from either branch. Noncanonical typed
+coordinates have no raw preimage and therefore contribute no trace entry. -/
+def untag : Point ⊕ Raw → Option Raw
+  | .inl point => if h : valid point then some (codec.encode ⟨point,h⟩) else none
+  | .inr raw => some raw
+
+theorem untag_tag (raw : Raw) : codec.untag (codec.tag raw) = some raw := by
+  cases found : codec.decode raw with
+  | none => simp only [tag,found,untag]
+  | some point =>
+      simp only [tag,found,untag,dif_pos point.property]
+      exact congrArg some (codec.encode_decode raw point found)
+
+theorem tag_injective : Function.Injective codec.tag := by
+  intro first second same
+  exact Option.some.inj ((codec.untag_tag first).symm.trans
+    ((congrArg codec.untag same).trans (codec.untag_tag second)))
+
+/-- Context labels are unchanged when canonical addresses become typed
+coordinates. Auxiliary names retain their original labels. -/
+theorem tag_label {Key : Type} (label : Point → Key) (rawLabel : Raw → Option Key)
+    (compatible : ∀ raw point, codec.decode raw = some point → rawLabel raw = some (label point.val))
+    (raw : Raw) :
+    Sum.elim (some ∘ label) rawLabel (codec.tag raw) = rawLabel raw := by
+  cases found : codec.decode raw with
+  | none => simp only [tag,found,Sum.elim_inr]
+  | some point =>
+      simpa only [tag,found,Sum.elim_inl,Function.comp_apply] using (compatible raw point found).symm
+
 def oracle (outside : Raw → A) (H : Point → A) (raw : Raw) : A :=
   match codec.decode raw with
   | some point => H point.val

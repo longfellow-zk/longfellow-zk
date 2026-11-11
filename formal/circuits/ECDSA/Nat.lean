@@ -16,7 +16,13 @@
 
 module
 
-public import Mathlib
+public import Mathlib.Algebra.Field.Basic
+public import Mathlib.Data.Nat.Bits
+public import Mathlib.Data.Nat.Size
+public import Mathlib.Data.List.Basic
+public import Mathlib.Tactic.Ring
+public import Lean.Elab.Tactic.NormCast
+public import Lean.Elab.Tactic.Omega
 
 
 /-!

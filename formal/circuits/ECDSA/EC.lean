@@ -16,7 +16,10 @@
 
 module
 
-public import Mathlib
+public import Mathlib.Algebra.Group.Action.Basic
+public import Mathlib.Tactic.Ext
+public import Mathlib.Tactic.Ring
+public import Mathlib.Tactic.Simps.Basic
 public import ECDSA.Nat
 
 /-!

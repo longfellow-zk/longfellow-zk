@@ -10,8 +10,8 @@ use crate::{
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
-            proto::polygero::PolygeroCommitment,
-            transcript::{Reading, RoundLabel, TranscriptRef, Writing},
+            proto::{polygero::PolygeroCommitment, RoundLabel},
+            transcript::{Reading, TranscriptRef, Writing},
         },
     },
 };

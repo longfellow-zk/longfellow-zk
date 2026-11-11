@@ -1,4 +1,5 @@
 import polygero.Recursion.Certificate
+import Mathlib.Analysis.Normed.Field.Lemmas
 
 /-! Canonical recursive error and its range; independent of the counting proof. -/
 

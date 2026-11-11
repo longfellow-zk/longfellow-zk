@@ -1,4 +1,15 @@
 import TranscriptV2
+import TranscriptV2.Tests.Strand
+import TranscriptV2.Tests.SharedFailure
+import TranscriptV2.Tests.DigestCollision
+import TranscriptV2.Tests.DigestReceiving
+import TranscriptV2.Tests.FreshRenaming
+import TranscriptV2.Tests.StrandCoupling
+import TranscriptV2.Tests.StrandReplay
+import TranscriptV2.Tests.StrandVerifier
+import TranscriptV2.Tests.Composition
+import TranscriptV2.Tests.Simulation
+import TranscriptV2.StrandCharging
 
 /-! A finite one-round transcript exercises the representation laws as well as
 the two exceptional cases. Its final input binds the body and actual link. -/

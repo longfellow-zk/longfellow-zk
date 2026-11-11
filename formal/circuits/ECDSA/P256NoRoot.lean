@@ -2,6 +2,7 @@ module
 
 public import ECDSA.NoRoot
 public import ECDSA.Pratt
+public import Mathlib.FieldTheory.Finite.Basic
 
 /-!
 # The P-256 cubic has no root in `F_p`

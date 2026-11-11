@@ -1,4 +1,5 @@
 import LfzkV2.Current.ConcreteMetadataReadback
+import Mathlib.Tactic.NormNum.NatLog
 
 namespace LfzkV2.Current.ConcreteMetadata.Tests
 open SumcheckV2 Layered MetadataIdentifiers Adapter.Circuit
@@ -83,13 +84,5 @@ example : (Prime.Claim.fromRow
 example {g : Geometry} {fields : Fields} {Advice C : Type} {index : ℕ}
     (history : Prefix g fields Advice C index) : history.answer index = history.fallback :=
   history.answer_current
-
--- The auxiliary masking scalar has coefficient one after eta rescales the
--- shared prefix. It is absent from the prime claim's original cell vector.
-example {shared : ℕ} (prime : ApplicationSetup.PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
-    {C : Type} (data : ApplicationSetup.PrimeData prime C) (eta : ZMod Adapter.Mdoc.primeOrder) :
-    conversionWeights prime data eta (Fin.last shared) = 1 := by
-  change conversionWeights prime data eta ((0 : Fin 1).natAdd shared) = 1
-  simp [conversionWeights]
 
 end LfzkV2.Current.ConcreteMetadata.Tests

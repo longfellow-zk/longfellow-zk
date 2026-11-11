@@ -1,4 +1,5 @@
 import polygero.Recursion.Chain
+import Mathlib.Data.Fintype.Prod
 
 /-! The Boolean recursive verifier on its complete finite verifier sequence. -/
 

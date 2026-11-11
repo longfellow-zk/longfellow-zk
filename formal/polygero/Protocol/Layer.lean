@@ -1,4 +1,4 @@
-import Mathlib.Tactic
+import Mathlib.Data.Fintype.Defs
 
 /-! One invocation: statement, witness, oracle, challenges, and verifier. -/
 

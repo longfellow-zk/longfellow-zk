@@ -157,7 +157,7 @@ fn oversized_opening_counts_reject_without_allocation() {
 
 #[test]
 fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
-    assert_eq!(NONCE_LEN, 40);
+    assert_eq!(NONCE_LEN, 32);
     let nonces = vec![
         MerkleNonce {
             bytes: std::array::from_fn(|i| i as u8),
@@ -190,6 +190,6 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
         opening: p,
     };
     assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 4 + 32));
-    // The mdoc profile opens 84 shared columns, each with eight more salt bytes.
-    assert_eq!(84 * (NONCE_LEN - 32), 672);
+    // The mdoc profile opens 84 shared columns with one 32-byte salt each.
+    assert_eq!(84 * NONCE_LEN, 2688);
 }

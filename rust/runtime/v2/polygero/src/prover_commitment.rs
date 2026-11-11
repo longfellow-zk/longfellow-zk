@@ -129,7 +129,7 @@ fn encode_arithmetic_masks<
 
 use sha2::{Digest as _, Sha256};
 
-use super::hash::{leaf, node};
+use super::hash::leaf;
 use crate::runtime::{
     v2::merkle::MerkleHeap,
     v2::proto::{Digest, MerkleNonce, MerkleProof, NONCE_LEN},
@@ -162,7 +162,7 @@ impl ColumnOracle {
             })
             .collect();
         Self {
-            tree: MerkleHeap::new_with_hash(&leaves, |l, r| node(context, l, r)),
+            tree: MerkleHeap::new(context, &leaves),
             salts,
         }
     }

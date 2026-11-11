@@ -29,6 +29,8 @@
 //! tests; complete verification is performed by [`crate::runtime::v2::zk::ZkVerifier`].
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod circuit;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod fragments;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) use fragments::geometry as circuit_geometry;

@@ -1,4 +1,5 @@
 import TranscriptV2.Queries
+import Mathlib.Tactic.FieldSimp
 
 namespace TranscriptV2
 open Finset Bcs.TotalOracle Merkle.RandomOracle

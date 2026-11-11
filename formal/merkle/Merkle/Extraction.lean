@@ -455,7 +455,7 @@ private theorem step_nonce_of_ne [DecidableEq D]
 
 omit [Inhabited D] in
 /-- Away from the leaf vertex `n + i`, a step leaves `message i` unchanged. -/
-private theorem step_message_of_ne [DecidableEq D]
+theorem step_message_of_ne [DecidableEq D]
     (dec : RoleDecoders C) (tr : List (Enc × D)) (n w : ℕ)
     (s : ExtractState n Salt D M) (i : Fin n) (hw : w ≠ n + i.val) :
     (ExtractState.step dec tr n w s).message i = s.message i := by

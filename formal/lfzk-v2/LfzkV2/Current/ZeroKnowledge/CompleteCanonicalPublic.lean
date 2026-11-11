@@ -1,6 +1,6 @@
 import LfzkV2.Current.CanonicalRuntime
 import LfzkV2.Current.ConcreteSetup
-import LfzkV2.Current.MerkleWireCodec
+import LfzkV2.Current.WholeAnswerMerkle
 
 /-! Public constructors shared by canonical execution and its simulation.
 The field maps, indexed backend participants and Merkle codec are independent
@@ -35,7 +35,7 @@ def basePublic := { cfg with bindSalt := MerkleWireCodec.bindSalt }
 def publicConfig := CanonicalRuntime.wirePublic binary prime P R repr shape setup
   (basePublic binary prime binaryNodes primeNodes repr shape setup cfg)
 
-def merkleCodec := MerkleWireCodec.codec
+def merkleCodec := WholeAnswerMerkle.codec
   (RuntimeVerifier.first binary prime P R (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg)).participant
   (RuntimeVerifier.second binary prime P R (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg)).participant
   repr cfg.binaryField cfg.primeField setup.jointContext (by decide)

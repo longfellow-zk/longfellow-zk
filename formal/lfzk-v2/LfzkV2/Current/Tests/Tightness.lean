@@ -1,7 +1,10 @@
 import LfzkV2.Current.MdocBudgets
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Data.Fintype.Card
-import Mathlib.Tactic
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.FieldSimp
+import Mathlib.Tactic.Ring
+import Mathlib.Tactic.Ext
 
 /-! Two limits of the current numerical analysis. A quadratic false-round
 residual can have two roots, so its local `2/q` estimate cannot generally be

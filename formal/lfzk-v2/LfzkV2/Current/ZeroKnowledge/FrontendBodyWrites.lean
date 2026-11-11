@@ -174,7 +174,7 @@ variable {B Key Base C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (Z
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
-local notation "G" => CompleteSimulation.geometry binary prime primePlan
+local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
 
 def rawWrites (result : CompleteSimulation.RawResult binary prime primePlan Key Base C) :
     List (CompleteSimulation.Fresh binary prime primePlan) :=
@@ -231,7 +231,7 @@ theorem raw_pending (root : Digest) (result : CompleteSimulation.RawResult binar
       { packingA := some result.packing.2 } := by
   have packing : binary.description.degree ≠ 1 := by change (128 : ℕ) ≠ 1; decide
   have counter : (G).batchingIndex.val = (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+5 := by
-    simp only [Geometry.batchingIndex,Geometry.backendPrefix,CompleteSimulation.geometry,ConcreteSetup.geometry,
+    simp only [Geometry.batchingIndex,Geometry.backendPrefix,MdocRuntime.geometry,ConcreteSetup.geometry,
       if_neg packing,List.length_append,List.length_cons,List.length_nil]
     omega
   have notPrime : (G).batchingIndex.val ≠ (G).primeStart := by rw [counter]; change _ ≠ 1; omega

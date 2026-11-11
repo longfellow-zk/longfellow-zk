@@ -79,12 +79,12 @@ impl<L: Participants> JointPolygeroVerifier<L> {
                 )
             })
             .collect();
-        crate::runtime::v2::merkle::verify_proof_with_hash(
+        crate::runtime::v2::merkle::verify_proof(
+            &p.context,
             p.config.n,
             &self.commitment.root,
             &proof.opening.path,
             &leaves,
-            |l, r| hash::node(&p.context, l, r),
         )
         .map_err(|e| PolygeroError(e.to_string()))?;
         // The one opening authenticates every field's column values. Each field

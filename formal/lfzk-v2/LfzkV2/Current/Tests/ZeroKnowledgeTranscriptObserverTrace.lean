@@ -1,4 +1,0 @@
-import LfzkV2.Current.ZeroKnowledge.TranscriptObserverTrace
-
-#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverTrace.program_run
-#print axioms LfzkV2.Current.ZeroKnowledge.TranscriptObserverTrace.restore_run

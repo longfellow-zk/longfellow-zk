@@ -1,4 +1,0 @@
-import LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextRealView
-
-#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextReal.real_output
-#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextReal.realCompletion_assembled

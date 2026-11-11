@@ -1,4 +1,5 @@
 import SumcheckV2.LinearTerminal
+import Mathlib.Tactic.FieldSimp
 
 /-!
 # The honest terminal masking bijection

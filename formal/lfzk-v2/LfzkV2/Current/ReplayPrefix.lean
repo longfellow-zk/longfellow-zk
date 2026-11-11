@@ -105,6 +105,19 @@ theorem point_atRank (initialLink : Digest) (proof : Output g F Advice Authentic
     subst j
     simp [Input.atRank, hr]
 
+/-- The verifier cache contains the answers at the actual earlier replay
+points. Consumers need only this projection, not equality of whole states. -/
+theorem replay_answer (initialLink : Digest) (proof : Output g F Advice Authentication)
+    (H : Point g F Advice Authentication Context Block → Digest × C)
+    (n : ℕ) (within : n ≤ g.roles.length)
+    (j : Fin ((e.chain initialLink).point proof H n).rank) :
+    ((e.chain initialLink).replay proof H n).answers j =
+      (H ((e.chain initialLink).point proof H j.val)).2 := by
+  have rank := (e.chain initialLink).point_rank proof H within
+  rw [e.replay_coherent initialLink proof H n]
+  exact congrArg (fun point => (H point).2)
+    (e.point_priorPoints initialLink proof H n within (Fin.cast rank j))
+
 theorem point_answersWith (initialLink : Digest) (proof : Output g F Advice Authentication)
     (H : Point g F Advice Authentication Context Block → Digest × C)
     (n j : ℕ) (hn : n ≤ g.roles.length) (hj : j ≤ n) (fallback : C) :

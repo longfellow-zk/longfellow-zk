@@ -16,7 +16,7 @@ local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 variable (samples : ConcreteMetadata.Samples B C)
-variable (shape : WireBlocks.Shape (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B))
+variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
 variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
 variable (setup : FingerprintPrefix.Setup) (defaultAdvice : MdocAdvice.Value)
 variable (publicCount : ℕ)
@@ -31,26 +31,26 @@ theorem batching_query (initialLink : Digest) (coins : CompleteSimulation.Coins 
     let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
     let result := CompleteSimulation.simulate binary prime primePlan samples base H
       (FingerprintPrefix.context request root) coins
-    let proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+    let proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
       (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value) :=
         ⟨CompleteFrontendBody.body binary prime primePlan root result,fun _ => 0⟩
-    let inside : result.state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+    let inside : result.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
       rw [(SimulationWrites.simulate_properties binary prime primePlan samples base H _ coins).1]
-      exact (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt
+      exact (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
     CompleteTranscript.query base result.state inside =
       ((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initialLink).point
-        proof H (CompleteSimulation.geometry binary prime primePlan).batchingIndex.val := by
+        proof H (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.val := by
   let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
   let result := CompleteSimulation.simulate binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
-  let proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+  let proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
       (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value) :=
     ⟨CompleteFrontendBody.body binary prime primePlan root result,fun _ => 0⟩
   have properties := SimulationWrites.simulate_properties binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
-  have inside : result.state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+  have inside : result.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
     rw [properties.1]
-    exact (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt
+    exact (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
   have good := SimulationHistory.simulate_good binary prime primePlan samples base H (FingerprintPrefix.context request root) coins
   have written := BodyState.stored_writes binary prime primePlan samples base H root (FingerprintPrefix.context request root) coins
   have pending := BodyState.pending_write binary prime primePlan samples base H root (FingerprintPrefix.context request root) coins inside
@@ -65,20 +65,20 @@ theorem batching_tape (initialLink : Digest) (coins : CompleteSimulation.Coins b
     let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
     let result := CompleteSimulation.simulate binary prime primePlan samples base H
       (FingerprintPrefix.context request root) coins
-    let proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+    let proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
       (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value) :=
         ⟨CompleteFrontendBody.body binary prime primePlan root result,fun _ => 0⟩
     AnswerTape.lookup samples.fallback result.state = AnswerTape.pointLookup H samples.fallback
       (((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initialLink).point
-        proof H (CompleteSimulation.geometry binary prime primePlan).batchingIndex.val) := by
+        proof H (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.val) := by
   let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
   let result := CompleteSimulation.simulate binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
   have properties := SimulationWrites.simulate_properties binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
-  have inside : result.state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+  have inside : result.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
     rw [properties.1]
-    exact (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt
+    exact (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
   have good := SimulationHistory.simulate_good binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
   have readback := AnswerTape.query_lookup base H samples.fallback
@@ -90,37 +90,37 @@ theorem batching_tape (initialLink : Digest) (coins : CompleteSimulation.Coins b
 omit [DecidableEq B] in
 set_option maxHeartbeats 600000 in
 theorem opening_query (initialLink : Digest) (coins : CompleteSimulation.Coins binary prime)
-    (responses : Response (CompleteSimulation.geometry binary prime primePlan) B ×
-      Response (CompleteSimulation.geometry binary prime primePlan) P) :
+    (responses : Response (MdocRuntime.geometry binary.description prime binary.plan primePlan) B ×
+      Response (MdocRuntime.geometry binary.description prime binary.plan primePlan) P) :
     let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
     let result := CompleteSimulation.simulate binary prime primePlan samples base H
       (FingerprintPrefix.context request root) coins
     let state := CompleteTranscript.bind (CompleteTranscript.step base H result.state).2
       (fun written => { written with responses := some responses })
-    let proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+    let proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
       (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value) :=
         ⟨OracleResponse.fillBoth (CompleteFrontendBody.body binary prime primePlan root result) responses,fun _ => 0⟩
-    let inside : state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+    let inside : state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
       change (CompleteTranscript.step base H result.state).2.rank.val < _
       rw [SimulationWrites.step_rank,
         (SimulationWrites.simulate_properties binary prime primePlan samples base H _ coins).1]
-      have := (CompleteSimulation.geometry binary prime primePlan).batchingIndex_next
+      have := (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex_next
       omega
     CompleteTranscript.query base state inside =
       ((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initialLink).point
-        proof H (CompleteSimulation.geometry binary prime primePlan).openingIndex.val := by
+        proof H (MdocRuntime.geometry binary.description prime binary.plan primePlan).openingIndex.val := by
   let base := CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
   let result := CompleteSimulation.simulate binary prime primePlan samples base H (FingerprintPrefix.context request root) coins
-  let proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+  let proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
       (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value) :=
     ⟨CompleteFrontendBody.body binary prime primePlan root result,fun _ => 0⟩
   have properties := SimulationWrites.simulate_properties binary prime primePlan samples base H
     (FingerprintPrefix.context request root) coins
-  have firstInside : result.state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length :=
-    properties.1.trans_lt (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt
-  have rank : result.state.rank.val+1 = (CompleteSimulation.geometry binary prime primePlan).openingIndex.val := by
+  have firstInside : result.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length :=
+    properties.1.trans_lt (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
+  have rank : result.state.rank.val+1 = (MdocRuntime.geometry binary.description prime binary.plan primePlan).openingIndex.val := by
     rw [properties.1]
-    exact (CompleteSimulation.geometry binary prime primePlan).openingIndex_val.symm
+    exact (MdocRuntime.geometry binary.description prime binary.plan primePlan).openingIndex_val.symm
   have opening := History.opening_properties result.state base H (FingerprintPrefix.context request root)
     proof.body responses rank
     (SimulationHistory.simulate_good binary prime primePlan samples base H _ coins)
@@ -128,8 +128,8 @@ theorem opening_query (initialLink : Digest) (coins : CompleteSimulation.Coins b
     (BodyState.pending_write binary prime primePlan samples base H root (FingerprintPrefix.context request root) coins firstInside)
   let next := CompleteTranscript.bind (CompleteTranscript.step base H result.state).2
     (fun writes => { writes with responses := some responses })
-  have inside : next.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length :=
-    opening.1.trans_lt (CompleteSimulation.geometry binary prime primePlan).openingIndex.isLt
+  have inside : next.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length :=
+    opening.1.trans_lt (MdocRuntime.geometry binary.description prime binary.plan primePlan).openingIndex.isLt
   have same := CanonicalState.query_eq shape defaultAdvice repr setup publicCount binaryRequest metadata request
     (OracleResponse.proofBoth proof responses) H initialLink next inside opening.2.1 opening.2.2.1 (opening.2.2.2 inside)
   exact same.trans (congrArg

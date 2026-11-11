@@ -1,9 +1,0 @@
-import LfzkV2.Current.ZeroKnowledge.BackendRuntimeRealCoins
-
-namespace LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRealCoins
-open ZeroKnowledge
-
-#print axioms BackendRuntimeReal.privateCoinEquiv
-#print axioms BackendRuntimeReal.honestTape_privateCoin
-
-end LfzkV2.Current.Tests.ZeroKnowledgeBackendRuntimeRealCoins

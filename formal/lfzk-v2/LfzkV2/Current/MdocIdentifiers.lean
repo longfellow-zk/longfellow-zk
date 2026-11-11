@@ -142,6 +142,5 @@ def parameters (ids : Identifiers) (bounds : Bounds binary prime) :
   hashDepth := ⟨hashDepth binary,bounds.hashDepthFit⟩
   binaryContext := binaryContext binary cantor scalars ids
   primeContext := primeContext prime scalars ids
-  identifierHash := ids.hash
 
 end LfzkV2.Current.MdocIdentifiers

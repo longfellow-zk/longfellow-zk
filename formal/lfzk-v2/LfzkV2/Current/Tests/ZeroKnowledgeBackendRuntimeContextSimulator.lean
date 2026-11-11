@@ -1,3 +1,0 @@
-import LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextSimulator
-
-#print axioms LfzkV2.Current.ZeroKnowledge.BackendRuntimeContextSimulator.simulatedPublic_eq

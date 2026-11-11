@@ -21,6 +21,7 @@
 //! authenticate every stage equation and the final shared-input claim against
 //! the commitment received before sumcheck.
 use super::{
+    circuit::CircuitSource,
     fragments::{self, Schedule, SplitFragment},
     split::SplitLayer,
     symbolic::{build_constraints, Constraints, LayerChallenges},
@@ -57,7 +58,7 @@ pub(crate) fn derive_constraints_for_circuits<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
@@ -68,7 +69,7 @@ pub(crate) fn derive_constraints_for_circuits<
         .map_err(|e| e.to_string())?;
     let classes: Vec<_> = circuits
         .iter()
-        .map(|c| classify_constants(f, &c.raw.constants))
+        .map(|c| classify_constants(f, &c.raw().constants))
         .collect();
     schedule.bind(circuits, t);
     let mut input_assertions = Vec::new();
@@ -84,7 +85,7 @@ pub(crate) fn derive_constraints_for_circuits<
                 SplitFragment::new(
                     s,
                     SplitLayer::with_classes(
-                        &circuits[s.circuit].raw.layers[s.layer],
+                        &circuits[s.circuit].raw().layers[s.layer],
                         &classes[s.circuit],
                     ),
                 )

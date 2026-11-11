@@ -43,8 +43,8 @@ def roleFromFresh (fresh : ProtocolWrites.Fresh g fields Advice) :
   | .terminal side .., _ => cross (shape.zero side) (fresh.frontend side)
   | .combine side .., _ => claims (shape.zero side) (fresh.frontend side)
   | .rowBatching, _ => ()
-  | .rescaling, metadata => metadata
-  | .conversion, metadata => (metadata,fresh.mu.getD (shape.zero .prime))
+  | .rescaling, _ => ()
+  | .conversion, _ => fresh.mu.getD (shape.zero .prime)
   | .packing, metadata => (metadata,fresh.packingU.getD (fun _ => shape.zero .binary))
   | .batching, metadata =>
       (if h : g.packingDegree = 1 then (by simpa only [WireBlocks.PackingA,h,↓reduceIte] using ())

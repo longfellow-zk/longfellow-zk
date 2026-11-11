@@ -5,7 +5,11 @@ import RuntimeHahn.Mldsa992
 import RuntimeHahn.Mldsa1024
 import RuntimeHahn.Mldsa960
 import polygero.FiatShamir.Nonrecursive
-import Mathlib.Tactic
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Positivity
+import Mathlib.Tactic.Ext
+import Lean.Elab.Tactic.NormCast
 import Lean.Util.CollectAxioms
 
 /-!

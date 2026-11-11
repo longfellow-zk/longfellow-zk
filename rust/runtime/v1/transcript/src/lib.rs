@@ -135,6 +135,57 @@ impl Transcript {
         f.to_bytes_into(e, &mut buf[..len]);
         self.write_untyped(&buf[..len]);
     }
+
+    /// Generates a random integer in `[0, n)`.
+    pub fn nat(&mut self, n: usize) -> usize {
+        assert!(n > 0, "nat(0) is undefined");
+        let mut nn = n;
+        let mut l = 0;
+        while nn != 0 {
+            nn >>= 8;
+            l += 1;
+        }
+        assert!(l <= std::mem::size_of::<usize>());
+
+        let msk = self.mask(n);
+
+        loop {
+            let buf = self.bytes(l);
+            let mut r = 0usize;
+            for i in (0..l).rev() {
+                r = (r << 8) | (buf[i] as usize);
+            }
+            r &= msk;
+            if r < n {
+                return r;
+            }
+        }
+    }
+
+    /// Chooses `k` unique indices from `[0, n)` randomly.
+    pub fn choose(&mut self, res: &mut [usize], n: usize, k: usize) {
+        if n == 0 || k == 0 {
+            return;
+        }
+        assert!(n >= k && res.len() >= k);
+        let mut a: Vec<usize> = (0..n).collect();
+        let res_slice = &mut res[..k];
+        let a_slice = &mut a[..n];
+        for i in 0..k {
+            let j = (i + self.nat(n - i)) % n;
+            a_slice.swap(i, j);
+            res_slice[i] = a_slice[i];
+        }
+    }
+
+    /// Computes the bit mask for a value `n`.
+    fn mask(&self, n: usize) -> usize {
+        let mut msk = 0usize;
+        while (n & msk) != n {
+            msk = (msk << 1) | 1;
+        }
+        msk
+    }
 }
 
 impl Clone for Transcript {

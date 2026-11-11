@@ -1,4 +1,5 @@
 import LfzkV2.FiatShamir
+import Mathlib.Tactic.FieldSimp
 
 /-!
 # A shared oracle answer space for frontend and backend challenges

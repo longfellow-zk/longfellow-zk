@@ -18,3 +18,5 @@ import Bcs.CtxGrinding
 import Bcs.AdaptiveCommit
 import Bcs.TotalOracle
 import Bcs.TotalOracleCommit
+import Bcs.ProbabilityBounds
+import Bcs.StatisticalDistance

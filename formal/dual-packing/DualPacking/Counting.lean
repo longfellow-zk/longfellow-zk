@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.Data.Fintype.BigOperators
+import Mathlib.Algebra.BigOperators.Field
 
 /-! # Exact finite counting for late independent linear batching -/
 

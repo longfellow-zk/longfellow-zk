@@ -171,6 +171,26 @@ theorem prepend_context {roles : List Role} (role : Role) (block : Block capacit
     (prepend role block link point).context = point.context := by
   cases point <;> exact prependHistory_context block link _ _
 
+/-- Prepending a boundary preserves every later predecessor. A point that
+was first now has precisely the newly inserted boundary as its parent. -/
+theorem parent_prepend {roles : List Role} (role : Role) (block : Block capacity Fresh)
+    (link : Digest) (point : Input roles Key (Block capacity Fresh) Digest Body) :
+    (prepend role block link point).parent =
+      match point.parent with
+      | none => some (.round ⟨0,by simp⟩ point.context block)
+      | some earlier => some (prepend role block link earlier) := by
+  have previous (n : ℕ) (hn : n ≤ roles.length)
+      (history : History Key (Block capacity Fresh) Digest n) :
+      Input.previous (roles := role::roles) (Body := Body) (n+1) (by simp only [List.length_cons]; omega)
+          (prependHistory block link n history) =
+        match Input.previous (roles := roles) (Body := Body) n hn history with
+        | none => some (.round ⟨0,by simp⟩ (Input.historyContext n history) block)
+        | some earlier => some (prepend role block link earlier) := by
+    cases n <;> rfl
+  cases point with
+  | round i history current => exact previous i.val (by omega) history
+  | finalSeal history body => exact previous roles.length (by rfl) history
+
 theorem embed_context (bodyCodec : PrefixCodec Body) (context : Key)
     (packets : List (Packet Fresh capacity))
     (value : QueryCodec.Value bodyCodec (packets.map Packet.queryBlock)) :
@@ -202,6 +222,13 @@ theorem bytes_reindex (bodyCodec : PrefixCodec Body) {first second : List Role}
 theorem reindex_context {first second : List Role} (h : first = second)
     (point : Input first Key (Block capacity Fresh) Digest Body) :
     (reindex h point).context = point.context := by cases h; rfl
+
+theorem reindex_parent {first second : List Role} (h : first = second)
+    (point : Input first Key (Block capacity Fresh) Digest Body) :
+    (reindex h point).parent = point.parent.map (reindex h) := by
+  cases h
+  change point.parent = point.parent.map id
+  simp only [Option.map_id,id_eq]
 
 end Generic
 

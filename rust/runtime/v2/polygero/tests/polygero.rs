@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sha2::Digest as _;
-
 use super::{
     joint::{FieldProof, JointPolygeroProof},
     *,
@@ -574,74 +572,6 @@ fn reject_invalid_geometry_and_backend_contracts() {
         assert!(PolygeroParam::try_new(2, bad, &domain).is_err());
     }
 }
-#[test]
-fn merkle_codecs_bind_role_index_context_and_salt() {
-    use crate::runtime::{
-        algebra::gf2_128::Gf2_128Field,
-        v2::proto::{MerkleNonce, NONCE_LEN},
-    };
-    let f = Gf2_128Field::new();
-    let context = Digest::default();
-    let other = Digest { data: [1; 32] };
-    let salt = MerkleNonce {
-        bytes: [7; NONCE_LEN],
-    };
-    let other_salt = MerkleNonce {
-        bytes: [8; NONCE_LEN],
-    };
-    let column = [f.one()];
-    let leaf = |context: &Digest, index, salt: &_| {
-        let mut h = super::hash::leaf(context, index, salt);
-        h.update(f.to_bytes(&column[0]));
-        Digest {
-            data: h.finalize().into(),
-        }
-    };
-    let hash = leaf(&context, 0, &salt);
-    assert_ne!(hash, leaf(&context, 1, &salt));
-    assert_ne!(hash, leaf(&other, 0, &salt));
-    assert_ne!(hash, leaf(&context, 0, &other_salt));
-    let mut changed_tail = salt;
-    changed_tail.bytes[NONCE_LEN - 1] ^= 1;
-    assert_ne!(hash, leaf(&context, 0, &changed_tail));
-    assert_ne!(hash, super::hash::node(&context, &context, &other));
-    assert_ne!(
-        super::hash::node(&context, &hash, &other),
-        super::hash::node(&context, &other, &hash)
-    );
-    assert_ne!(
-        super::hash::node(&context, &hash, &other),
-        super::hash::node(&other, &hash, &other)
-    );
-}
-
-#[test]
-fn duplicate_opening_indices_reject_with_polygero_node_hash() {
-    use crate::runtime::v2::merkle::{verify_proof_with_hash, MerkleError, MerkleHeap};
-    let context = Digest::default();
-    let leaves = [Digest { data: [1; 32] }, Digest { data: [2; 32] }];
-    let tree = MerkleHeap::new_with_hash(&leaves, |l, r| super::hash::node(&context, l, r));
-    let path = tree.generate_proof(&[0, 1]);
-    assert!(verify_proof_with_hash(
-        2,
-        &tree.root(),
-        &path,
-        &[(0, leaves[0]), (1, leaves[1])],
-        |l, r| super::hash::node(&context, l, r)
-    )
-    .is_ok());
-    assert_eq!(
-        verify_proof_with_hash(
-            2,
-            &tree.root(),
-            &path,
-            &[(0, leaves[0]), (0, leaves[0])],
-            |l, r| super::hash::node(&context, l, r)
-        ),
-        Err(MerkleError::DuplicateLeafIndex { index: 0 })
-    );
-}
-
 // A global translation of the point table leaves range interpolation unchanged:
 // the backend interpolates g(X)=f(X+shift). It need not preserve the obsolete
 // point(offset+i)=point(offset)+point(i) condition.

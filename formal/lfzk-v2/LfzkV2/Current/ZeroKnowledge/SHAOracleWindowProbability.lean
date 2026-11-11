@@ -20,14 +20,14 @@ include contains in
 /-- A uniform bound for every fixed complement holds for one uniform
 larger SHA table, including its public-setup and observer coordinates.
 Both experiments receive that same table throughout their execution. -/
-theorem window_statClose {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
+theorem window_statClose_of_extension {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
     (fallback : Raw → Answer)
     (real : R → (Raw → Answer) → View) (simulate : S → (Raw → Answer) → View)
-    (each : ∀ outside : Raw → Answer, StatClose epsilon
+    (each : ∀ table : {raw // raw ∈ large} → Answer, StatClose epsilon
       (fun coin : R × ({raw // raw ∈ small} → Answer) =>
-        real coin.1 (OracleWindow.extend small coin.2 outside))
+        real coin.1 (OracleWindow.extend small coin.2 (OracleWindow.extend large table fallback)))
       (fun coin : S × ({raw // raw ∈ small} → Answer) =>
-        simulate coin.1 (OracleWindow.extend small coin.2 outside))) :
+        simulate coin.1 (OracleWindow.extend small coin.2 (OracleWindow.extend large table fallback)))) :
     StatClose epsilon
       (fun coin : R × ({raw // raw ∈ large} → Answer) =>
         real coin.1 (OracleWindow.extend large coin.2 fallback))
@@ -45,7 +45,7 @@ theorem window_statClose {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
     let e := SHAProbability.inclusionEquiv small large contains
     let changeR := Equiv.prodCongr (Equiv.refl R) (Equiv.arrowCongr e (Equiv.refl Answer))
     let changeS := Equiv.prodCongr (Equiv.refl S) (Equiv.arrowCongr e (Equiv.refl Answer))
-    have law := each (OracleWindow.extend large (SHAProbability.outsideTable small large fallback outside) fallback)
+    have law := each (SHAProbability.outsideTable small large fallback outside)
     apply Probability.changeFintype (statClose_reindex changeR.symm changeS.symm ?_ ?_ law)
     · intro coin
       rw [SHAProbability.extend_split small large contains]
@@ -72,5 +72,25 @@ theorem window_statClose {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
       simulate coin.1 (OracleWindow.extend large
         ((SHAOracle.split predicate).symm ((SHAOracle.split predicate) coin.2)) fallback)
     rw [Equiv.symm_apply_apply]
+
+include contains in
+/-- A uniform bound for every fixed complement holds for one uniform
+larger SHA table, including its public-setup and observer coordinates.
+Both experiments receive that same table throughout their execution. -/
+theorem window_statClose {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
+    (fallback : Raw → Answer)
+    (real : R → (Raw → Answer) → View) (simulate : S → (Raw → Answer) → View)
+    (each : ∀ outside : Raw → Answer, StatClose epsilon
+      (fun coin : R × ({raw // raw ∈ small} → Answer) =>
+        real coin.1 (OracleWindow.extend small coin.2 outside))
+      (fun coin : S × ({raw // raw ∈ small} → Answer) =>
+        simulate coin.1 (OracleWindow.extend small coin.2 outside))) :
+    StatClose epsilon
+      (fun coin : R × ({raw // raw ∈ large} → Answer) =>
+        real coin.1 (OracleWindow.extend large coin.2 fallback))
+      (fun coin : S × ({raw // raw ∈ large} → Answer) =>
+        simulate coin.1 (OracleWindow.extend large coin.2 fallback)) := by
+  exact window_statClose_of_extension small large contains nonnegative fallback real simulate
+    (fun table => each (OracleWindow.extend large table fallback))
 
 end LfzkV2.Current.ZeroKnowledge.SHAOracleWindowProbability

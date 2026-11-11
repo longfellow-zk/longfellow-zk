@@ -1,7 +1,9 @@
 import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Data.Fintype.Card
 import Mathlib.Data.Fintype.Pi
-import Mathlib.Tactic
+import Mathlib.Data.Fintype.Prod
+import Mathlib.Tactic.LinearCombination
+import Mathlib.Tactic.Ring
 
 /-! Two independent masked linear fingerprints over an arbitrary finite field.
 The original cells and the two dedicated mask cells are separate coordinates. -/

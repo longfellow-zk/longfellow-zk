@@ -14,6 +14,19 @@ structure BalancedDecoder (Raw Sample : Type) [Fintype Raw] [Fintype Sample] whe
   fiber_bound : ∀ z, (univ.filter fun raw => decode raw = z).card ≤ fiber
   balanced : fiber * Fintype.card Sample = Fintype.card Raw
 
+/-- Equal fibers imply the total-cardinality law; callers need not supply
+that law separately. This also handles padded partial rejection samplers. -/
+def BalancedDecoder.of_fibers (decode : Raw → Sample) (fiber : ℕ)
+    (uniform : ∀ value, (univ.filter fun raw => decode raw = value).card = fiber) :
+    BalancedDecoder Raw Sample where
+  decode := decode
+  fiber := fiber
+  fiber_bound value := (uniform value).le
+  balanced := by
+    have total := card_eq_sum_card_fiberwise (s := (univ : Finset Raw))
+      (t := (univ : Finset Sample)) (f := decode) (fun _ _ => mem_univ _)
+    simpa only [uniform,sum_const,card_univ,nsmul_eq_mul,Nat.cast_id,mul_comm] using total.symm
+
 theorem BalancedDecoder.bad_card_mul_le (D : BalancedDecoder Raw Sample)
     (bad : Sample → Prop) (numerator denominator : ℕ)
     (hlocal : (univ.filter bad).card * denominator ≤ numerator * Fintype.card Sample) :

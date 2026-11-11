@@ -41,6 +41,7 @@
 //! Both K_a and L(u) are recorded for the shared symbolic builder's affine rows.
 //! The final dense input weights directly address the common authenticated inputs.
 use super::{
+    circuit::CircuitSource,
     dense::{as_scalar, bind},
     fragments::{self, Schedule, SplitFragment},
     proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
@@ -49,7 +50,7 @@ use super::{
     transcript::{end_layer, round_challenge},
 };
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::algebra::SerializableField,
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         random::RandomEngine,
@@ -64,7 +65,7 @@ pub(crate) fn evaluate_and_prove<
 >(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
-    circuit: &Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
@@ -78,7 +79,7 @@ pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
@@ -97,7 +98,7 @@ pub(crate) fn evaluate_and_prove_circuits<
 }
 
 fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     layers: Vec<Vec<SplitLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
     pads: &SumcheckProof<W, F>,
@@ -132,7 +133,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
             let s = &a.fragment;
             super::quad::bind_r_into(
                 &a.layer,
-                &circuits[s.circuit].raw.constants,
+                &circuits[s.circuit].raw().constants,
                 &weights[s.output_range.clone()],
                 &a.assertions,
                 &w[s.input_range.clone()],

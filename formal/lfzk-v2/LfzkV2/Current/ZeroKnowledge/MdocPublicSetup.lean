@@ -1,5 +1,5 @@
-import LfzkV2.Current.MdocProofRate7
-import LfzkV2.Current.ZeroKnowledge.SHASetupDomains
+import LfzkV2.Current.MdocIdentifiers
+import LfzkV2.Current.SHASetupDomains
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
 /-! The concrete rate-1/7 public runtime is constructed from the trusted
@@ -34,7 +34,15 @@ def configuration (SHA : Bytes → Digest) :=
     (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis)
 
 def metadata (SHA : Bytes → Digest) :=
-  MdocProofRate7.metadata binary prime cantor scalars (identifiers ids SHA) bounds
+  ConcreteMetadata.metadata
+    (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
+    (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
+    (C := MdocRuntime.Answer binary.description prime.description binary.plan prime.plan (ConcreteSetup.binaryNodes cantor))
+    binary.description prime.description
+    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
+      (by change 128 < 2^64; decide))
+    (MdocIdentifiers.parameters binary prime cantor scalars (identifiers ids SHA) bounds)
+    (setup binary prime cantor scalars ids bounds SHA)
 
 /-- The joint batching coefficients are the corresponding coordinates of
 the same ideal round answer. There is no independently supplied sampler. -/
@@ -60,17 +68,15 @@ theorem setup_merge (outside inside : Bytes → Digest) :
   simp only [SHAOracle.adapter_identifier,SHAOracle.context_hash,SHAOracle.joint_context_hash]
 
 omit [Fintype B] [DecidableEq B] in
-set_option maxHeartbeats 600000 in
 theorem metadata_merge (outside inside : Bytes → Digest) :
     metadata binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
       metadata binary prime cantor scalars ids bounds outside := by
   have sameSetup := setup_merge binary prime cantor scalars ids bounds outside inside
   dsimp only [setup,identifiers] at sameSetup
-  unfold metadata MdocProofRate7.metadata ConcreteMetadata.metadata
+  unfold metadata setup ConcreteMetadata.metadata
   funext request index writes past
   simp only [MdocIdentifiers.parameters,MdocIdentifiers.binaryContext,MdocIdentifiers.primeContext,identifiers,
-    SHAOracle.context_hash,sameSetup,ConcreteMetadata.Public.withInputs,
-    ConcreteMetadata.start,ConcreteMetadata.role,ConcreteMetadata.adapterId,SHAOracle.adapter_identifier]
-  rfl
+    SHAOracle.context_hash,sameSetup,
+    ConcreteMetadata.start,ConcreteMetadata.role]
 
 end LfzkV2.Current.ZeroKnowledge.MdocPublicSetup

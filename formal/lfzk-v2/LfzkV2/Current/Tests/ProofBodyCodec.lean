@@ -110,11 +110,11 @@ private def wire : Bytes :=
 private theorem encode_wire : (Current.ProofBodyCodec.codec repr geometry).encode body = wire := by decide +kernel
 
 -- The full body has no final seal and no implicit padding.
-example : wire.length = 1631 := by decide +kernel
+example : wire.length = 1615 := by decide +kernel
 
 -- The public maximum allows the full frontier, without changing actual
 -- serialization. It also discharges final framing uniformly for all bodies.
-example : ProofBodyBounds.bodyBound repr geometry = 1823 := by decide +kernel
+example : ProofBodyBounds.bodyBound repr geometry = 1807 := by decide +kernel
 example : ((Current.ProofBodyCodec.codec repr geometry).encode body).length ≤
     CanonicalPrefix.maxLength :=
   ProofBodyBounds.final_fits repr geometry (by decide +kernel) body

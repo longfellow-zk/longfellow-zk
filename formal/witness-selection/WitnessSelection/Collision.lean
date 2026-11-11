@@ -1,5 +1,6 @@
 import WitnessSelection.Algebra
 import Mathlib.Data.Finset.Powerset
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 
 /-! Collision counts and unique selection used by the Fiat–Shamir analysis. -/
 

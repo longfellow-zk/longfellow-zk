@@ -10,7 +10,7 @@ namespace LfzkV2.Current
 abbrev Digest := Fin 32 → Fin 256
 
 /-- Matches the v2 runtime's `NONCE_LEN`; SHA-256 digests remain 32 bytes. -/
-def merkleNonceBytes : ℕ := 40
+def merkleNonceBytes : ℕ := 32
 abbrev MerkleNonce := Fin merkleNonceBytes → Fin 256
 abbrev Fields := Side → Type
 

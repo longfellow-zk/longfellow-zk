@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.SHAOracle
+import LfzkV2.Current.SHAOracle
 import LfzkV2.Current.ByteOracleProbability
 
 /-! Common finite-oracle table algebra and one-sided probability bounds.
@@ -8,7 +8,7 @@ table cancel exactly. The complement is a whole function, never an
 adaptively observed trace. -/
 noncomputable section
 namespace LfzkV2.Current.SHAProbability
-open Finset ZeroKnowledge
+open Finset
 open scoped Classical
 
 /-- Uniform counting is independent of the chosen complete enumeration.

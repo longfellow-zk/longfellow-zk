@@ -1,8 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use sha3::{
-    digest::{ExtendableOutput, Update, XofReader},
-    Shake256,
-};
+use sha2::{Digest, Sha256};
 
 use super::transcript::{begin, challenges, finish};
 use crate::{
@@ -22,6 +19,15 @@ fn frame(bytes: &[u8], out: &mut Vec<u8>) {
     out.extend_from_slice(bytes);
 }
 
+fn prf_block(id: u64, parent: &[u8], counter: u64) -> [u8; 32] {
+    let mut h = Sha256::new();
+    h.update(0u32.to_le_bytes());
+    h.update(id.to_le_bytes());
+    h.update(parent);
+    h.update(counter.to_le_bytes());
+    h.finalize().into()
+}
+
 #[test]
 fn packing_statement_matches_canonical_bytes_without_source_coefficients() {
     let f = Gf2_128Field::new();
@@ -33,11 +39,14 @@ fn packing_statement_matches_canonical_bytes_without_source_coefficients() {
         let delta = challenges(&p, &vec![f.zero(); 128], &mut actual.borrow());
         assert_eq!(actual.round_count_for_test(), 1);
 
-        // Independently encode the same bytes as WireBlocks.packingStatement,
-        // followed by U and the round footer. There is no RHS or term stream.
+        // Independently encode the root, packing statement, U and round footer.
+        // The header binds the strand id; no RHS or source coefficients follow.
         let mut bytes = Vec::new();
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // STRAND
+        bytes.extend_from_slice(&0u64.to_le_bytes()); // root id
+        bytes.extend_from_slice(&0u32.to_le_bytes()); // no parents
         for value in [
-            &b"longfellow/transcript/v2"[..],
+            &b"longfellow/transcript/v2/strands/v1"[..],
             &b"packing-vector"[..],
             &b"longfellow/dual-packing128/trace-zero/v1"[..],
             statement,
@@ -52,17 +61,14 @@ fn packing_statement_matches_canonical_bytes_without_source_coefficients() {
         bytes.extend_from_slice(&[0; 128 * 16]);
         frame(b"longfellow/transcript/v2/round", &mut bytes);
         frame(&[5], &mut bytes); // Packing
-        frame(&0u64.to_le_bytes(), &mut bytes);
-        let mut hash = Shake256::default();
-        hash.update(&bytes);
-        let mut reader = hash.finalize_xof();
-        let mut link = [0; 32];
-        reader.read(&mut link);
-        let expected = (0..128)
-            .map(|_| {
-                let mut cell = [0; 16];
-                reader.read(&mut cell);
-                Gf2_128::from(u128::from_le_bytes(cell))
+        let parent = Sha256::digest(&bytes);
+        let expected = (0..64)
+            .flat_map(|counter| {
+                let block = prf_block(0, &parent, counter);
+                [
+                    Gf2_128::from(u128::from_le_bytes(block[..16].try_into().unwrap())),
+                    Gf2_128::from(u128::from_le_bytes(block[16..].try_into().unwrap())),
+                ]
             })
             .collect::<Vec<_>>();
         assert_eq!(delta, expected);
@@ -70,18 +76,17 @@ fn packing_statement_matches_canonical_bytes_without_source_coefficients() {
         // A is bound after delta, before the backend, without another round.
         finish(&p, &f.one(), &mut actual.borrow());
         assert_eq!(actual.round_count_for_test(), 1);
-        frame(b"longfellow/transcript/v2/boundary-output", &mut bytes);
-        frame(&link, &mut bytes);
+        bytes.clear();
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // STRAND
+        bytes.extend_from_slice(&1u64.to_le_bytes()); // continuation id
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // one parent
+        bytes.extend_from_slice(&parent);
         frame(b"trace-zero128/A", &mut bytes);
         bytes.push(1); // write_elt_field(A)
         bytes.extend_from_slice(&1u128.to_le_bytes());
         frame(b"longfellow/transcript/v2/final", &mut bytes);
-        frame(&1u64.to_le_bytes(), &mut bytes);
         frame(b"body", &mut bytes);
-        let mut final_hash = Shake256::default();
-        final_hash.update(&bytes);
-        let mut seal = [0; 32];
-        final_hash.finalize_xof().read(&mut seal);
+        let seal = prf_block(1, &Sha256::digest(&bytes), 0);
         let mut encoded = b"body".to_vec();
         encoded.extend_from_slice(&seal);
         assert_eq!(

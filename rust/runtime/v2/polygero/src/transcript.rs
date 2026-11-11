@@ -34,8 +34,8 @@ use crate::{
     runtime::{
         algebra::SupportsSampling,
         v2::{
-            proto::{polygero::FieldProof, Digest},
-            transcript::{Reading, RoundLabel, TranscriptRef, Writing},
+            proto::{polygero::FieldProof, Digest, RoundLabel},
+            transcript::{Reading, TranscriptRef, Writing},
         },
     },
 };

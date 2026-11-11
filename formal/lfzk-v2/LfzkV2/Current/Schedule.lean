@@ -1,5 +1,6 @@
 import Mathlib.Data.List.FinRange
-import Mathlib.Tactic
+import Mathlib.Algebra.BigOperators.Fin
+import Lean.Elab.Tactic.Omega
 
 /-! The query schedule of the current MAC-free mdoc verifier. This namespace is
 separate from the retained `Layered` checkpoint, whose adapter and transcript
@@ -11,7 +12,7 @@ inductive Side where
   | binary | prime
   deriving DecidableEq, Repr
 
-/-- The tags in `runtime/v2/transcript/src/lib.rs`. Finalization has a separate domain. -/
+/-- The tags in `runtime/v2/proto/src/rounds.rs`. Finalization has a separate domain. -/
 inductive Domain where
   | output | assertions | sumcheck | terminal | combine | packing | statement
   | batching | opening | rescaling | conversion | rowBatching | fingerprint
@@ -205,8 +206,8 @@ theorem Geometry.roles_eq (g : Geometry) :
   by_cases h : g.packingDegree = 1 <;>
     simp [roles, actions, packingActions, h, Action.queryRole, List.filterMap_map]
 
-/-- Six non-frontend boundaries, plus optional packing. The final seal is
-one additional query in its own domain and is deliberately counted separately. -/
+/-- Six non-frontend boundaries, plus optional packing. The final seal adds
+a strand-node hash and a PRF hash and is counted separately. -/
 theorem Geometry.roles_length (g : Geometry) :
     g.roles.length = (g.prime.roles .prime).length + (g.binary.roles .binary).length +
       (if g.packingDegree = 1 then 0 else 1) + 6 := by

@@ -3,7 +3,7 @@
 //!
 //! Fresh independent weights cover every layer equation and the final input
 //! equation. All masked messages precede this round; the resulting claim is
-//! bound before the cross-field adapter samples its rescaling challenge.
+//! reconstructed locally by both parties; derived coefficients are not absorbed.
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
@@ -71,6 +71,5 @@ pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         f.add(&mut weights[j], &f.mulf(last, &coefficient));
     }
     let target = f.neg(&constant);
-    transcript::bind_claim(&weights, &target, transcript, f);
     Ok(LinearClaim { weights, target })
 }

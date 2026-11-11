@@ -5,6 +5,8 @@ pub mod dual_packing;
 mod field;
 mod merkle;
 pub mod polygero;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod rounds;
 pub mod sumcheck;
 pub(crate) mod util;
 pub mod witness_selection;
@@ -14,6 +16,8 @@ pub(crate) use field::read_field;
 pub(in crate::runtime::v2) use merkle::MerkleNonce;
 pub(in crate::runtime::v2) use merkle::MerkleProof;
 pub use merkle::{Digest, NONCE_LEN};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) use rounds::RoundLabel;
 
 #[cfg(test)]
 #[path = "../tests/fixtures.rs"]

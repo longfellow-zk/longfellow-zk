@@ -1,3 +1,4 @@
+import LfzkV2.Current.ObserverWindow
 import LfzkV2.Current.ZeroKnowledge.SHAObserverWindow
 import LfzkV2.Current.ZeroKnowledge.SHAOracleProbability
 import LfzkV2.Current.ZeroKnowledge.TranscriptObserver
@@ -17,32 +18,32 @@ variable [Fintype D] [Fintype AT] [DecidableEq Raw]
 
 private theorem record_queries {left right : ℕ} (tree : TwoOracleTree Raw D QT AT Value left right)
     (past : List (Observer.Event (QM := Raw) (AM := D) (QT := QT) (AT := AT))) :
-    MerkleOracleWindow.mixedQueries (Observer.record past tree) = MerkleOracleWindow.mixedQueries tree := by
+    ObserverWindow.mixedQueries (Observer.record past tree) = ObserverWindow.mixedQueries tree := by
   induction tree generalizing past with
   | done value => rfl
-  | queryLeft query next ih => simp only [Observer.record,MerkleOracleWindow.mixedQueries,ih]
-  | queryRight query next ih => simp only [Observer.record,MerkleOracleWindow.mixedQueries,ih]
+  | queryLeft query next ih => simp only [Observer.record,ObserverWindow.mixedQueries,ih]
+  | queryRight query next ih => simp only [Observer.record,ObserverWindow.mixedQueries,ih]
 
 theorem route_queries (domain : Raw → Prop) (outside : Raw → D)
     {left right : ℕ} (tree : TwoOracleTree Raw D QT AT Value left right) :
-    MerkleOracleWindow.mixedQueries (SHAOracle.route domain outside tree) ⊆ MerkleOracleWindow.mixedQueries tree := by
+    ObserverWindow.mixedQueries (SHAOracle.route domain outside tree) ⊆ ObserverWindow.mixedQueries tree := by
   induction tree with
   | done value => exact empty_subset _
   | queryLeft query next ih =>
       by_cases member : domain query
-      · simp only [SHAOracle.route,if_pos member,MerkleOracleWindow.mixedQueries]
+      · simp only [SHAOracle.route,if_pos member,ObserverWindow.mixedQueries]
         apply insert_subset_insert
         exact biUnion_mono fun answer _ => ih answer
-      · simp only [SHAOracle.route,if_neg member,SHAOracle.queries_weakenLeft,MerkleOracleWindow.mixedQueries]
+      · simp only [SHAOracle.route,if_neg member,SHAOracle.queries_weakenLeft,ObserverWindow.mixedQueries]
         intro raw inside
         exact mem_insert_of_mem (mem_biUnion.mpr ⟨outside query,mem_univ _,ih (outside query) inside⟩)
   | queryRight query next ih =>
-      simp only [SHAOracle.route,MerkleOracleWindow.mixedQueries]
+      simp only [SHAOracle.route,ObserverWindow.mixedQueries]
       exact biUnion_mono fun answer _ => ih answer
 
 theorem observer_queries (domain : Raw → Prop) (outside : Raw → D)
     {left right : ℕ} (tree : TwoOracleTree Raw D QT AT Value left right) :
-    MerkleOracleWindow.mixedQueries (SHAOracle.observer domain outside tree) ⊆ MerkleOracleWindow.mixedQueries tree := by
+    ObserverWindow.mixedQueries (SHAOracle.observer domain outside tree) ⊆ ObserverWindow.mixedQueries tree := by
   exact (route_queries domain outside (Observer.record [] tree)).trans (record_queries tree []).subset
 
 variable [Fintype Context] [Fintype Salt] [Fintype Leaf]
@@ -71,8 +72,8 @@ variable {preM preT postM postT : ℕ}
 variable (prior : TwoOracleTree Raw D QT AT Request preM preT)
 variable (after : Request → Proof → TwoOracleTree Raw D QT AT Observed postM postT)
 
-def observerQueries : Finset Raw := MerkleOracleWindow.mixedQueries prior ∪
-  (univ.biUnion fun pair : Request × Proof => MerkleOracleWindow.mixedQueries (after pair.1 pair.2))
+def observerQueries : Finset Raw := ObserverWindow.mixedQueries prior ∪
+  (univ.biUnion fun pair : Request × Proof => ObserverWindow.mixedQueries (after pair.1 pair.2))
 
 theorem routed_window_subset (domain : Raw → Prop) (outside : Raw → D) (context : Context) :
     SHAObserverWindow.window domain outside (codecs context) prior after ⊆

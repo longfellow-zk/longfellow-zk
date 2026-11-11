@@ -1,42 +1,99 @@
-# Longfellow V2: extraction and soundness
+# Longfellow V2: extraction, soundness and zero knowledge
 
-Security results use the Fiat–Shamir model, including the complete mdoc
-zero-knowledge theorem. Local counting and masking identities are mathematical
-foundations for that analysis. The separately protected Polygero paper results
-retain their original public-coin statements and signatures.
+The current numbered-strand soundness endpoint is
+[`MdocStrandOracle.averaged_ratio_le`](LfzkV2/Current/MdocStrandOracle.lean).
+It connects one SHA oracle, the original raw adversarial query log, the
+complete serialized proof, the runtime verifier and the first-context
+paired extractor. The complete numbered-strand privacy endpoint is
+[`MdocStrandZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean).
+The [assumptions](../README.md#assumptions-and-remaining-correspondence-obligations)
+state the oracle, sampling and implementation boundaries.
+
+Security results use the Fiat–Shamir model. Local counting and masking
+identities support that analysis. The protected Polygero paper results retain
+their original public-coin statements and signatures.
 
 ## Current MAC-free protocol
 
-[`MdocSharedSHASoundness.ratio_le`](LfzkV2/Current/MdocSharedSHASoundness.lean) proves
-Fiat–Shamir extractor soundness for the modeled runtime verifier with adaptive
-public requests, arbitrary serialized proof bytes, and the explicit ideal
-sampler oracle. For every pair of integers `Q >= 0` and `Q_H >= 0`, any finite
-classical adaptive adversary making at most `Q` distinct transcript-oracle
-queries and at most `Q_H` SHA-256-oracle calls satisfies
+For every integer `0 <= Q < 2^127`, consider any finite classical adaptive adversary
+making at most `Q` distinct original SHA queries.
 
-```text
-Pr[verifier accepts and the paired extractor fails to recover
-   a witness satisfying the requested circuits]
-  <= 2Q / 2^128
-     + [4Q + 1 + Q_H(Q_H - 1)/2
-        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
-```
+Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
+and the paired extractor fails to recover a satisfying witness. Then
 
-`R` counts ordinary round boundaries, excluding the final seal: 492 for two
-attributes and 499 for four. The bound includes `Q = 0` and arbitrary finite
-query repetitions, which return the same complete answer. There is no
-minimum-query premise. Probability is over the ideal oracles and the
-adversary's private randomness; the uniform bound for each fixed private
-choice also bounds their average. Verifier replay appears only in the
-squared-field remainder. For `q=2^128` the leading per-query charge is
-`2/q = 2^-127`; positive squared-field corrections remain explicit.
+$$
+\begin{aligned}
+P_{\mathrm{fail}}(Q)
+&\le \frac{cQ}{q}
+ + \left(1-\frac{c(q-1)}{2q}\right)
+   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
+&\quad + \frac{\binom Q2+r+15}{q^2},
+\qquad q=2^{128}.
+\end{aligned}
+$$
+
+For every `Q < 2^127`, the full soundness failure probability is
+**strictly less than 0.97**, with the cap rounded up to two decimal places.
+`MdocStrandOracle.averaged_nonvacuous` proves this strict conclusion. The primary
+`ratio_le` and `averaged_ratio_le` endpoints use the exact `Survival.Rate7.failureBound` above.
+
+The exact parameter-dependent Polygero coefficient is
+
+$$
+c=\frac{C}{q^{12}}+\frac{qC}{\ell^{13}}
+  +\left(1+\frac q\ell\right)\left(1+(L-1)T\right),
+$$
+
+where
+
+$$
+\begin{gathered}
+C=\binom{2443}{374},\qquad T=\frac{\binom{866}{84}}{\binom{2443}{84}},\\
+L=1272737905242889781956743699885451,\\
+\ell=2^{256}-2^{224}+2^{192}+2^{96}-1.
+\end{gathered}
+$$
+
+Thus $c=1.0000012312149082441647508747\ldots$, and Polygero is charged at exactly $c/q$. Lean defines this rational as
+`Survival.Rate7.polygeroConstant` and checks
+`1.00000123121490824416 < c < 1.00000123121490824417`.
+The complementary coefficient `1-c*(q-1)/(2*q)` follows from the shared-query
+survival argument.
+
+A convenient approximation for the mdoc circuit, valid for every $Q\ge0$, is
+
+$$
+P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
+$$
+
+The largest supported mdoc circuit (four attributes) has 500 rounds:
+`275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
+The proof rounds the constant correction up to $2^{-246}$.
+`MdocStrandOracle.averaged_mdoc_approximation` proves this all-budget consequence.
+
+The supported one-/two-/three-/four-attribute compiler shapes have respectively
+488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
+against the current Rust compiler. The approximation takes a supported-shape
+witness and derives the round bound internally.
+
+`r` counts rounds: one per `begin_squeeze()` call, regardless of the number of challenge draws within that round. The final seal has its own two-query
+finalization. Proof bytes and public requests may be chosen adaptively.
+Repeated inputs receive the same answer. Probability covers the ideal SHA
+oracle and arbitrary finite private random choices.
+[`MdocStrandSoundness.ratio_le`](LfzkV2/Current/MdocStrandSoundness.lean)
+handles each fixed public setup.
+[`MdocStrandOracle`](LfzkV2/Current/MdocStrandOracle.lean) derives that setup
+from the complementary slice of the same SHA function and preserves the
+original output, protocol-domain query prefix and complete verifier replay.
 
 The ordinary rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`. Its
 [exact Hahn certificate](LfzkV2/Current/Parameters/Rate7.lean) and list bounds
 are checked internally. The theorem derives verifier acceptance, application
 failure coverage, query charging, the role maximum, and one shared Merkle
-explanation. No `Execution`, semantic correspondence record, bad-event cover,
-sampler law or coding-error budget is a caller-supplied certificate.
+explanation. The proof derives execution correspondence, failure coverage and coding-error
+budgets internally. The approved ideal joint sampling law remains an explicit
+assumption.
 
 The mdoc specialization fixes the canonical three-byte quotient-advice parser,
 degree-128 binary packing, committed-cell layout, rate-1/7 backend geometry,
@@ -51,8 +108,8 @@ same oracle history; the statement bytes alone need not determine it.
 varying the current packing answer cannot change this source. Accepted-path
 readback identifies it with the frontend's actual input claim. U is still
 bound before the packing query, and A before joint backend challenges. The generic
-[`IdealProofRate7`](LfzkV2/Current/IdealProofRate7.lean) theorem remains available
-for other trusted setups; the mdoc endpoint takes no independent advice decoder,
+[`StrandProtocol.soundness`](LfzkV2/Current/StrandProtocol.lean) theorem handles
+other trusted setups; the mdoc endpoint takes no independent advice decoder,
 metadata callback, transcript plan or backend-layout certificate.
 The concrete mdoc topology supports a hash component strictly deeper than its
 adapter; this ordinary depth restriction is explicit in its setup bounds.
@@ -61,61 +118,28 @@ layered-sumcheck model still supports components in either depth order and ties.
 
 ### Oracle and implementation boundary
 
-A fresh transcript-oracle input supplies one uniform 32-byte link and the
-correctly distributed joint challenge block. Independent auxiliary randomness
-may also be exposed to the prover. The common finite answer alphabet and all
-sampler projections are constructed in
-[`IdealSamples`](LfzkV2/Current/IdealSamples.lean) and
-[`IdealRuntime`](LfzkV2/Current/IdealRuntime.lean): full-field vectors, nonzero
-terminal/conversion scalars, both fields' fingerprints, joint backend samples,
-and ordered openings. The same input always returns the same answer.
+One classical ideal SHA oracle supplies setup hashes, strand nodes,
+counter-indexed PRF outputs, indexed Merkle hashes and the final seal.
+The node/PRF byte syntax and the literal Merkle/setup tags separate their
+domains. `StrandDomains` proves that complete verifier replay stays in the
+protocol domain. `setup_merge` and `parameters_merge` identify public
+metadata computed through that same oracle. Conditioning on complementary
+answers and averaging them adds zero error.
 
-This is the **ideal-sampler oracle assumption**. Rust's direct SHAKE256 reader
-and rejection sampling are audited against it; a formal coupling to complete
-SHAKE output byte streams is outside the theorem. There is no runtime retry
-limit or extra sampling round.
-
-The tagged Merkle SHA-256 restriction is an independent 256-bit random oracle.
-Non-Merkle SHA-256 domains, including setup identifiers and the generated
-adapter's circuit identifier, are disjoint auxiliary restrictions of the same
-ideal SHA-256 function. Conditioning on that auxiliary function fixes the
-public setup and causal identifier computations while leaving Merkle answers
-uniform. The conditioned theorem
-[`MdocProofRate7.ratio_le`](LfzkV2/Current/MdocProofRate7.lean)
-quantifies those fixed public values. The shared-SHA endpoint applies it at
-every complementary restriction, then averages an arbitrary independent
-finite auxiliary marginal. A common transcript window covers all public
-setup values and every possible program branch before sampling.
-[`MdocSHAExperiment`](LfzkV2/Current/MdocSHAExperiment.lean) proves setup and
-causal metadata equality, preservation of the original serialized output,
-the exact first-context Merkle prefix, and verifier/extraction-event equality.
-The original program's distinct transcript-query budget is preserved.
-`Q_H` conservatively counts all of its SHA calls, including auxiliary inputs;
-there is no extra domain-splitting error. Neither theorem proves SHA-256 or
-SHAKE cryptographic security.
+Requested role blocks satisfy the approved ideal joint sampling law.
+[`StrandRoleSampling`](LfzkV2/Current/StrandRoleSampling.lean) and
+[`StrandSampling`](LfzkV2/Current/StrandSampling.lean) retain all coordinates
+within one round together. Nonzero field elements and ordered openings have
+their specified distributions. Rejected bytes are outside the requested
+analysis. The scalar codecs, field laws, trusted circuits and public layout
+bounds are explicit. Source audit and tests connect Rust to this mathematical
+verifier; mechanized Rust refinement and extractor complexity remain open.
 
 The [shared finite-table algebra](LfzkV2/Current/SHAProbability.lean) owns
-oracle-coordinate splitting, window inclusion and finite extension. The ZK
-statistical-distance lifts and soundness counting bounds use the same maps.
-[`SHALazy`](LfzkV2/Current/SHALazy.lean) identifies lazy and functional
-executions directly, without an artificial default transcript challenge.
-[`MdocSHAExperiment.verify_merge`](LfzkV2/Current/MdocSHAExperiment.lean)
-uses one canonical verifier construction and proves its domain invariance
-for arbitrary decoded proofs and Merkle functions.
-
-Hash/signature circuits, their public topology, field arithmetic and canonical
-scalar representations are trusted mathematical setup. The original Rust
-source audit used checkpoint `1077bc6`; the current hardening also checks
-canonical v2 field decoding, participant capacity validation, domain-owned field
-selection and transcript ownership through commitment authentication. This remains
-a source audit, rather than a machine-checked Rust semantics/compiler proof.
-The theorem retains ordinary public geometry, capacity, address and length
-checks; these are not assumed soundness conclusions. See the
-[implementation audit](../AUDIT.md) and the consolidated
-[assumptions and remaining obligations](../README.md#assumptions-and-remaining-correspondence-obligations).
-The normal Rust mdoc loader trusts the actual archive payloads and skips
-semantic payload-ID recomputation; advertised identifiers alone do not
-establish that correspondence.
+oracle-coordinate splitting, window inclusion and finite extension. The
+current ZK statistical-distance lifts and soundness bounds reuse these maps.
+The original submitted proof, protocol-domain query prefix and complete
+verifier replay are preserved by the numbered-strand oracle transport.
 
 ### Runtime and transcript
 
@@ -128,10 +152,10 @@ provides the prime-field handoff and the generated binary adapter.
 | Witness selection | Joint root, field identities and layouts | Two independent full coefficient vectors per field |
 | Prime layered sumcheck | Public prime inputs and preceding masked messages | Shared assertion/entry coefficients, ordinary rounds, nonzero terminals and combine coefficients |
 | Prime row batching | All compiled rows and final input equation | One independent weight per row |
-| Rescaling | Complete derived prime linear claim | One nonzero prime scalar |
-| Conversion | Scaled shared coefficients and masked opening `mu` | Two nonzero prime scalars in one answer |
+| Rescaling | Preceding prime frontend messages and rescaling domain | One nonzero prime scalar |
+| Conversion | Masked opening `mu` and conversion domain | Two nonzero prime scalars in one answer |
 | Binary layered sumcheck | Masked quotient advice and public statements | One shared sumcheck over all quad fragments |
-| Packing | Source claim and trace-zero vector `U` | One full-field vector; absent for degree one |
+| Packing | Caller statement, public cell counts and trace-zero vector `U` | One full-field vector; absent for degree one |
 | Joint Polygero batching | Both completed frontend prefixes and packing response `A` | Both fields' affine weights and polynomial samples |
 | Shared opening | Both complete `H/Z` response pairs | One ordered sample of 84 distinct columns |
 | Final seal | Chained prefix and complete canonical proof body | Separately domain-separated 32-byte seal |
@@ -154,8 +178,8 @@ one answer. Input-only assertions extend the final combine answer.
 A frontend with layers has `sum(logw)+3*depth` boundaries. A frontend without
 layers has one input-assertion boundary. Besides both frontends there are six
 ordinary boundaries, one optional packing boundary, and the final seal. The
-measured two-/four-attribute presentations have respectively 492/499 ordinary
-boundaries, followed by one final-seal query. Binding source circuit identifiers
+measured two-/four-attribute presentations have respectively 492/500 ordinary
+boundaries, followed by finalization through a strand-node query and a seal PRF query. Binding source circuit identifiers
 adds no separate query. Current sizes and timings are in the
 [Rust README](../../rust/README.md#performance).
 
@@ -175,8 +199,8 @@ fresh-message caches from actual query bytes. Inconsistent logical aliases lie
 outside its canonical image.
 [`CanonicalVerifierAgreement`](LfzkV2/Current/CanonicalVerifierAgreement.lean)
 proves complete replay, decoding and verification depend only on that image.
-[`CanonicalOracle`](LfzkV2/Current/CanonicalOracle.lean) preserves the original
-first-context Merkle extractor when transporting the oracle program.
+[`StrandCutObservation`](LfzkV2/Current/StrandCutObservation.lean) preserves the
+original first-context Merkle extractor when transporting the oracle program.
 [`MerkleWireCodec`](LfzkV2/Current/MerkleWireCodec.lean) constructs exact leaf/node
 preimages and their role decoders; injectivity is proved from their parsers.
 
@@ -193,377 +217,70 @@ is claimed for the worst-case binary/prime candidate caps
 extractor soundness; the separate complete privacy theorem follows below.
 
 The default build checks the current tests and endpoint axioms, allowing only
-`propext`, `Classical.choice` and `Quot.sound`. Retained checkpoint and V1 proofs
-remain in their original namespaces.
+`propext`, `Classical.choice` and `Quot.sound`. V1 proofs and shared component
+algebra remain in their original namespaces.
 
-### Complete mdoc zero knowledge
+### Current numbered-strand zero knowledge
 
-[`MdocZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean)
-proves statistical zero knowledge for the complete rate-1/7 mdoc runtime model.
-For every bounded classical observer and every distinguishing event `E`,
+[`MdocStrandZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+proves that the complete real and witness-free simulated views under one SHA
+random oracle differ by at most `(Qpre+Qpost)/2^256`. Public setup, component
+contexts and metadata are computed from this same oracle. The compared views
+retain both raw query/answer traces, arbitrary private context, the adaptive
+request, the canonical proof or failure, and the final seal. The budgets count
+raw calls, including repetitions, before and after the proof.
 
-```text
-|Pr[real view ∈ E] - Pr[simulated view ∈ E]|
-  <= (47745992 + 4886*Mpre + 4718*Mpost)/2^320
-     + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208.
-```
+The module boundaries follow
+`Real ≈ Ghost ≡ Sim`. `StrandCanonicalExperiments` defines all three views;
+`StrandCanonicalExactSimulation.ghost_sameDistribution` proves the exact
+ghost/simulator equality, and `StrandCanonicalCommitmentHiding` supplies the
+single statistical commitment hop. `StrandCanonicalHiding` composes them.
+`StrandCanonicalExecution` contains the honest program shared with completeness,
+and `StrandCanonicalContext` supplies its public configuration and actual oracle.
+The analysis-only swap checks all actual leaves; the simulator's guard checks
+only disclosed leaf addresses. Both retain failure outcomes and full traces.
 
-`Mpre` and `Mpost` bound the observer's SHA queries before and after the
-proof; `Tpre` bounds earlier transcript queries. All budgets may be zero.
-The observer may retain arbitrary private state and make arbitrary malformed
-or repeated raw input queries. Its complete proof, private state, final output,
-and both ordered raw query/answer traces form the compared view. Later
-transcript queries have any finite bound and add no separate error term.
+The proof derives a fixed all-branch support for actual setup evaluation,
+protocol execution and both observers. Outside answers cannot affect either
+experiment. Only disclosed leaf answers are programmed; prior-query conflicts
+retain the original oracle. The simulator has no witness or execution
+certificate, and there is no digest-collision loss. The fixed witness map
+must satisfy ordinary `MdocWitness.HashValid` and the signature circuit only
+at contexts reached by the prior observer under setup derived from that same
+oracle; unreachable policy branches impose no validity obligation. The separate static
+`MdocWitness.HashNoninterference` circuit premise preserves ordinary hash
+checks under all reserved mask/OTP assignments and generated-adapter parameters,
+uniformly over public inputs and private values. The basis/generator checks,
+trusted circuits/fields/codecs, and independent uniform private coins remain
+explicit premises.
 
-The runtime uses independent 40-byte leaf nonces (`merkleNonceBytes` in the
-model, `NONCE_LEN` in Rust); SHA-256 digests remain 32 bytes. With
-`Mpre + Mpost <= 2^128` and `Tpre <= 2^128`, the complete error is strictly
-below `2^-179` (approximately `2^-179.746` at the worst Merkle-query split).
-[`Error.rate7_at_query_budget`](LfzkV2/Current/ZeroKnowledge/Error.lean)
-checks this budget;
-[`MdocZeroKnowledge.statClose_at_query_budget`](LfzkV2/Current/ZeroKnowledge/MdocZeroKnowledge.lean)
-applies it to the complete real and simulated views. Relative to 32-byte
-nonces, the 84 opened columns add exactly 672 nonce bytes to the proof. These are ideal-oracle statistical bounds.
+[`MdocStrandVerifierPrivacy.acceptance_probability`](LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean)
+specializes the comparison to the actual indexed runtime verifier. Its observer
+returns exactly the runtime decision, including sampling failures, tuple
+Merkle authentication and the final seal. Simulator aborts are rejecting
+outcomes, not excluded executions. Verification calls count in `Qpost` when
+this observer is used.
 
-At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
-becomes itself questionable. The bound above should therefore not be interpreted
-as 179 bits of hiding for the concrete implementation. The parameters put
-the bottleneck in SHA-256 itself, rather than the rest of the protocol. No
-numerical SHA-256-to-random-oracle error is asserted.
-
-The explicit `MdocZeroKnowledge.simulate` has no witness argument. It calls
-the public frontend/backend simulator, constructs ordered authentication data,
-and computes the final seal normally. The real and simulated experiments use
-the same SHA function for public setup, causal identifiers, Merkle hashing,
-and observer queries. The theorem samples one fixed finite SHA marginal,
-including any additional coordinates, and one fixed raw transcript marginal;
-it does not condition independence on an observed adaptive trace. Finite
-private-state support is derived internally from the observer's bounded
-program. No execution, layout, coverage or simulator certificate is a premise.
-
-The theorem holds for every fixed witness map per public request, with
-validity needed only for actually reachable requests. The trusted application
-premises are signature-circuit satisfaction and `MdocWitness.HashValid`:
-ordinary non-adapter hash assertions hold for the fixed document prefix
-uniformly over the reserved mask/OTP suffix and generated adapter parameters.
-Generated adapter equations and runtime/backend row satisfaction are proved.
-Ordinary public shape/serialization bounds, basis coordinate zero equal to one,
-and the executed primitive-generator check remain explicit setup conditions.
-
-Private coins are independent and uniform. SHA-256 is idealized as a random
-oracle with its literal domain tags. The transcript oracle supplies a whole
-link/challenge answer with ideal uniform rejection sampling, as described
-above. Raw input strings are modeled; a coupling to rejected SHAKE bytes or
-unused XOF output is outside this theorem. This is a theorem about the Lean
-runtime model, rather than machine verification of Rust or a formal running-time
-bound for the simulator. Its axiom audit permits only `propext`,
+[`statClose_at_query_budget`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+proves error at most `2^-128` when `Qpre+Qpost <= 2^128`. This is conditional on
+the ideal oracle and private-randomness model; it is not a numerical SHA-256
+security claim. Machine-level Rust refinement and formal running-time bounds
+are outside these results. All endpoint axiom guards permit only `propext`,
 `Classical.choice` and `Quot.sound`.
 
-## Retained layered checkpoint
+## Shared component results
 
-The `LfzkV2.Layered` namespace models layered sumcheck with sparse quad
-fragments, one dense wire array per layer, and one shared input array. Its
-[authenticated extraction endpoint](LfzkV2/Layered/Joint/RawRuntimeExtraction.lean)
-proves `Pr[accept and paired extraction fails] <= (1+N+tA)/2^116` for every
-transcript-query budget `N` and Merkle-query budget `tA`.
+The runtime reuses the generic sumcheck, dual-packing, witness-selection and
+Polygero libraries. The [paper-facing Polygero development](../polygero/README.md)
+and its public-coin extraction/soundness theorems are preserved. The generic
+[`PolygeroZk`](LfzkV2/PolygeroZk.lean) masking and distribution couplings and
+finite-query Merkle hiding/preparation theorems also remain available.
 
-The source checkpoint is the immutable Rust snapshot based on `12d5b8f`,
-SHA-256 `29a9b61191f73d05dbd5b9e5c08843c51d713ca39baef0eb9876eaef07847f5a`.
-It uses `JPG1`, `LFV7`, and `MJP2`. The bound covers the new layered frontend,
-its final packing reduction, both field checks, the retained affine MAC,
-and one authenticated tuple commitment with shared column queries.
-
-[Entries](LfzkV2/Layered/Entry.lean) add independently weighted zero outputs
-at any layer boundary, including scalar outputs and zero-layer circuits.
-Each nonempty entry block costs at most `1/q`; the proof does not assume
-that only one circuit is present. [Sparse layers](LfzkV2/Layered/SparseLayer.lean)
-translate local term indices into global coordinates and prove that fragment
-traversal evaluates the same tensors. Input ranges may overlap: their
-contributions add. Intermediate arrays concatenate actual widths; only the
-tail of the global array has implicit zero padding. There are no component
-index rounds, separate component terminal factors, or extra advice rows.
-
-The [soundness reduction](LfzkV2/Layered/Soundness.lean) and
-[causal replay](LfzkV2/Layered/CausalReplay.lean) cover arbitrary finite depth
-schedules. Each ordinary layer has one sumcheck, one randomized linear
-terminal check, and one combining challenge. Assertion coefficients are
-independent of output weights. The [packing bridge](LfzkV2/Layered/Packed.lean)
-proves the actual compiled rows authenticate the final shared-input claim;
-it never assumes arbitrary committed extension-field cells are bits.
-[Honest frontend construction](LfzkV2/Layered/Prover.lean) and
-[honest packing rows](LfzkV2/Layered/PackedProver.lean) compose with the retained
-[typed backend completeness theorem](LfzkV2/Joint/Honest.lean).
-
-For a circuit schedule, let `B` be the number of nonempty output-entry
-blocks, `R` the sum of global layer round counts, and `D` its depth. Its
-ordinary challenge numerator is at most `B + 2R + 2D`, divided by `q`; nonzero terminal scales
-add `2D/(q-1)`. The [adaptive frontend theorem](LfzkV2/Layered/FrontendBound.lean)
-counts every entry, assertion, round, terminal, and combining event. The mdoc
-fields remain singleton schedules: the ordinary numerators are at most 589
-and 563. The complete certificate conservatively retains the previous
-593 and 565 limits and hence the same exact finite bound:
-
-```text
-1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255
-  + adaptiveNumerator(5824,tA,L+(1+N))/2^256,  L <= 1204.
-```
-
-The geometry remains `(k,s,n,t)=(416,15,2912,86)`, with candidate limits 25
-and 33. The theorem's explicit premises cover correspondence of the trusted
-circuit schedule and layouts to Rust, balanced ideal challenge samplers,
-field sizes, compiler row placement, MAC identities and Merkle encoding.
-Concrete byte parsing, hash expansion/rejection sampling and Rust execution
-are not verified by Lean. Full joint zero knowledge is not claimed.
-
-## Retained joint-commitment checkpoint
-
-The `LfzkV2.Joint` namespace models Rust commit `8943498`: one typed Polygero
-column tree and one shared opening set for the hash and signature fields.
-[`Joint.RawRuntimeExtraction.extraction_116`](LfzkV2/Joint/RawRuntimeExtraction.lean)
-proves complete authenticated raw-proof extraction with the packed/direct
-frontends, randomized linear terminal, and retained affine MAC.
-
-The generic [family](LfzkV2/Joint/Backend.lean) accepts any nonempty ordered
-list of typed participants, including singletons and repeated field types.
-Each field retains its own arithmetic, masks and challenge coins. One
-explained tuple opening transfers all field checks to one fixed committed
-family. The [honest construction](LfzkV2/Joint/Honest.lean) proves that the
-actual response polynomials and a salted Merkle opening verify for every
-shared query set. It needs ordinary statement satisfaction, not a verifier
-acceptance hypothesis.
-
-The [causal replay](LfzkV2/Joint/Causality.lean) puts both frontends and their
-packing data before either backend challenge. Both statements are fixed at
-the first backend point; later roles recover that same statement data. Both
-field responses precede the single opening challenge. The shared-query
-residual charge is a sum, not a product: correlated failures contribute
-`925/2^128 + 459/2^128`. No field-independence assumption is used.
-
-The exact raw-proof bound is
-
-```text
-1384*(1+N)/2^128 + 19303/2^128 + 21661/2^255
-  + adaptiveNumerator(5824,tA,L+(1+N))/2^256,  L <= 1204.
-```
-
-The all-budget certificate remains `(1+N+tA)/2^116`. It is a conservative
-bound, not an optimal-security claim. The geometry is still
-`(k,s,n,t)=(416,15,2912,86)` with candidate limits 25 and 33. The model targets
-this immutable commit; later sumcheck or MAC changes are outside its scope.
-The byte markers are `JPG1`, `LFV6`, and `MJP1`. Encoding, field arithmetic,
-concrete hash expansion/rejection sampling, and the six circuit MAC values
-remain explicit implementation correspondence obligations. Complete joint
-zero knowledge is not claimed.
-
-## Retained linear-terminal checkpoint
-
-The `LfzkV2.Linear` namespace models Rust snapshot `21cb029`: native affine
-sumcheck, binary input packing, linear-only Polygero, two Merkle commitments,
-and the affine MAC. Its complete authenticated raw-proof endpoint is
-[`Linear.Runtime.RawRuntimeExtraction.extraction_116`](LfzkV2/Linear/Runtime/RawRuntimeExtraction.lean).
-The prior `LfzkV2.Native`/`LfzkV2.Packed` product-checked snapshot `fcf8a3a`
-and its 117-bit certificate are retained unchanged.
-
-## Randomized linear terminal
-
-Four ordinary pad cells `pA,pB,pAB,pD` are committed. After the rounds, the
-prover sends `d`, receives a nonzero scale `r`, sends `mA,mB`, then receives
-`alpha`. The verifier emits only the affine row
-
-```text
-C + r*(d+pD) + r²*pAB - mA*mB = 0
-```
-
-and carries `mA+alpha*mB-r*pA-alpha*r*pB-alpha*L(u)` to the next layer.
-Honest construction uses `pAB=pA*pB`; soundness allows arbitrary `pAB`.
-A false claim leaves a fixed nonzero quadratic in `r`, hence an additional
-`2/(|F|-1)` per layer. The round and combination losses are unchanged.
-The new frontend replay proves the required message order and causality.
-
-[`Linear.Runtime.CompiledFS`](LfzkV2/Linear/Runtime/CompiledFS.lean) proves
-both actual compiler transfers. Its instances have `nq=0`, reuse the shared
-Polygero analysis, and require no product-copy checks. The direct input path
-has no packing stage; the packed path uses the same trace check and two
-affine adapter rows. The complete authenticated bound, including the MAC and
-both Merkle terms, is proved in
-[`Linear.Runtime.RawExtraction`](LfzkV2/Linear/Runtime/RawExtraction.lean).
-
-For the geometry and candidate lists below, the conservative annotated cost
-is `(925*N+19303)/2^128+21661/2^255`. Raw replay replaces `N` with `N+1`.
-There are at most 1205 verifier challenge slots, with 20 hash layers and
-21 signature layers. The exact normalized cost retains the nonzero-field
-denominators; the rounded certificate uses `2/(q-1) <= 4/q`. The all-budget
-result is `(1+N+tA)/2^116`, rather than reusing the old numerical certificate.
-See the [audit](../AUDIT.md) for the exact finite bound and explicit premises.
-
-The sumcheck messages use `2*rounds+3*layers` field elements and the pad plan
-uses `2*rounds+4*layers`, proved in [`Linear.Sizes`](LfzkV2/Linear/Sizes.lean).
-The honest terminal masking bijection is proved for nonzero `r`; complete
-joint zero knowledge is not asserted.
-
-## Retained product-checked checkpoint
-
-The following detailed tables describe the unchanged `fcf8a3a` model.
-Shared native circuit semantics, packing identities, geometries, MAC, and
-Merkle results are also used by the linear-terminal composition above.
-
-The model separates protocol soundness from implementation correspondence.
-It proves extraction for the mathematical verifier under the explicit field,
-sampler, geometry, and circuit premises below; it does not verify Rust source
-execution or concrete hash implementations.
-
-## Native affine frontend
-
-The circuit has independent quadratic, linear, and constant streams, with
-separate linear and quadratic assertion occurrences. For effective streams
-`Q,L,K`, the prover binds `q = Q*W+L` and begins the rounds with `C-K`.
-The final claims are `A=W(u)` and `B=q(u)`. The next weights use `Q`, and the
-next claim is `A+alpha*(B-L(u))`. Both corrections are reconstructed from the
-trusted circuit and earlier challenges.
-
-| Result | Endpoint |
-|---|---|
-| Affine layer completeness and soundness over any field | [`SumcheckV2.affine_layer_completeness`, `affine_layer_reduction`](../sumcheck-v2/SumcheckV2/Affine.lean) |
-| Three-stream truth, including invalid assertions | [`Native.CircuitLayer.effective_truth`](LfzkV2/Native/Circuit.lean) |
-| Corrected builder, malformed-length rejection, fixed product slots, and sparse lowering | [`Native.buildConstraints_correct`, `compiled_iff_clear`](LfzkV2/Native/Constraints.lean) |
-| Circuit soundness and honest masked construction | [`Native.Circuit.soundness_reduction`](LfzkV2/Native/Soundness.lean), [`prove_complete`](LfzkV2/Native/Prover.lean) |
-| Challenge tests and sharp budget | [`Native.Circuit.tests_soundness`, `tests_budget_le_sharp`](LfzkV2/Native/Events.lean) |
-| Native prefix reconstruction and causal hash-point data | [`Native.Replay.semantic_bad_of_accepts`](LfzkV2/Native/SemanticReplay.lean), [`pointData_eq`](LfzkV2/Native/HashReplay.lean) |
-
-The projective round identity is `C=c0+c2`, followed by
-`z²*C+(1-z²)*c0+z*c1`. Its bad-event bound is two field values per round,
-one per final combination, and at most one per layer's assertion batch.
-The sharp frontend budget is
-`logv + sum_layers(min(1, assertions) + 2*logw + 1)`.
-The affine corrections add no challenge slots. Scalar layers, empty chains,
-and repeated assertion occurrences are included.
-
-The native replay reuses the earlier model's message geometry through
-`Circuit.shape`. This is only a schedule projection: all claims, true
-polynomials, corrections, and bad-event semantics use the native circuit.
-
-## Packed inputs and the compiled backend
-
-[Dual packing](../dual-packing/README.md) supplies the field-basis and
-trace-pairing identities. The adapter's source equation is the native
-frontend's final input claim, after subtracting the public-input contribution.
-Each committed packed word has canonical base-field coordinates. Over
-`GF(2)`, every extracted private coordinate is a bit, even for an adversarial
-committed word; unused trailing coordinates have coefficient zero.
-
-The verifier checks that each coordinate of `U` has zero trace. It then samples
-the packing vector challenge, receives the scalar response `A`, and supplies
-two affine equations to Polygero. `A` and the later backend response are absent
-from the packing challenge's prefix. A false source equation pays at most
-one field inverse per committed candidate. Degree-one inputs retain the
-original source row and add no packing challenge. Their unused scalar in the
-common abstract carrier is the constant-zero annotation of the direct codec;
-allowing other annotations in the theorem is conservative.
-
-| Result | Endpoint |
-|---|---|
-| Exact two-row lowering and backend extraction | [`Packed.Statement.rows_iff_native`, `satisfies_rows`](LfzkV2/Packed/Backend.lean) |
-| Source-claim equality, native frontend transfer, and binary coordinates | [`source_claim_iff`, `frontend_or_bad`, `unpack_binary_bit`](LfzkV2/Packed/Inputs.lean) |
-| Fixed-candidate and sampled candidate-family packing bounds | [`Packed.Statement.sampled_candidates_card_le`](LfzkV2/Packed/Counting.lean) |
-| Actual packed and direct compiler instances | [`Packed.Compiled.side`, `Packed.Direct.side`](LfzkV2/Packed/CompiledFS.lean) |
-| Instances with certified geometry and terminal potentials | [`profiledSide`](LfzkV2/Packed/ProfiledSide.lean) |
-
-The compiler transfer follows from the emitted rows and the native source
-identity; it is not a soundness premise supplied to the composed endpoint.
-Product consistency remains an independent backend constraint in this
-snapshot. The API checks include an assignment whose affine rows pass while
-its product check and clear verifier reject.
-
-## Authenticated extraction
-
-The composition uses one adaptive transcript oracle. Both commitment roots
-are fixed before the MAC challenge. The hash proof comes first, and the
-signature proof's context contains that complete transcript, including its
-packing and backend responses. Each adaptive query pays the maximum local
-budget across the MAC and both sides.
-
-The extractor searches the two fixed committed candidate lists. A returned
-pair satisfies both native circuit predicates and has equal common messages.
-The MAC row identities are checked separately for each side, so their private
-additive blinds need not agree.
-
-| Result | Endpoint |
-|---|---|
-| Native frontend, packing, and graded Polygero charge on one staged oracle | [`Packed.FiatShamir.event_soundness_le`](LfzkV2/Packed/FiatShamir.lean) |
-| Two-field paired extraction and shared adaptive-query bound | [`Packed.TwoFieldPotential.extract_valid`](LfzkV2/Packed/TwoFieldPotential.lean), [`TwoFieldFS.extraction_le`](LfzkV2/Packed/TwoFieldFS.lean) |
-| Both Merkle opening checks, common cut-trace extraction, and context invariance | [`Packed.TwoFieldCommitmentFS.extraction_le`](LfzkV2/Packed/TwoFieldCommitmentFS.lean) |
-| Verifier-recomputed MAC answer and raw acceptance probability | [`Packed.RawExtraction.key_coherent`, `probability_le`](LfzkV2/Packed/RawExtraction.lean) |
-| All-budget numerical extraction bound | [`Packed.RawRuntimeExtraction.extraction_117`](LfzkV2/Packed/RawRuntimeExtraction.lean) |
-
-The numerical endpoint bounds
-`Pr[accept and paired extraction fails] <= (1+N+tA)/2^117`, where `N` counts
-adversarial transcript queries and `tA` counts adversarial Merkle-hash queries.
-It allows arbitrary query order, recommitment, grinding, and adaptive proof
-selection. The raw acceptance event has no supplied-MAC-answer coherence
-premise: verifier replay derives the answer.
-
-## Geometry and numerical accounting
-
-| Side | `n` | `k` | `s` | Openings | Analysis cutoff | Candidate bound |
-|---|---:|---:|---:|---:|---:|---:|
-| Hash | 2912 | 416 | 15 | 86 | 1136 | 25 |
-| Signature | 2912 | 416 | 15 | 86 | 1127 | 33 |
-
-The list cutoffs are analysis choices, not protocol changes. The hash-side
-packing charge is `25/|F_hash|`; the shared MAC charge is at most
-`25*33/|F_mac|`. With the stated field sizes and frontend bounds, the exact
-normalized annotated field/MAC cost is at most
-
-```text
-(925*N + 17303)/2^128 + 18889/2^255.
-```
-
-Raw verifier replay replaces `N` by `N+1`. The numerical theorem also includes
-both Merkle explanation errors, with at most 1164 verifier challenge slots
-and 11648 Merkle checking queries. Eight adversarial Merkle queries cover the
-startup cost; below that threshold, authenticated acceptance already requires
-a digest guess. This small-budget argument needs no numbered-leaf assumption.
-
-The [profiles](LfzkV2/Packed/RuntimeProfiles.lean),
-[cost normalization](LfzkV2/Packed/RuntimeCost.lean), and
-[numerical comparison](LfzkV2/Packed/RuntimeSecurity.lean) are kernel checked.
-The source geometry bounds are exposed as premises rather than inferred from
-unverified Rust metadata.
-
-## Assumptions and implementation boundary
-
-The theorem retains explicit premises for:
-
-- The geometries above, distinct evaluation points, and the Polygero
-  decoder and column encodings.
-- Hash and MAC fields of size at least `2^128`, a signature field of size
-  at least `2^255`, and a Merkle digest alphabet of size exactly `2^256`.
-- Balanced samplers for frontend blocks, packing vectors, backend coins,
-  query sets, and the MAC key on one common ideal transcript alphabet.
-- Trusted native circuits, basis and input embeddings, pad and product
-  layouts, public inputs, and each circuit's MAC row identity.
-- Output dimensions at most 5 and 3, with frontend budgets at most 593 and
-  565; the checked round/layer bounds imply those budgets.
-- Merkle codecs, role decoders, and enough answer tape:
-  `TM >= tA+11648`.
-
-Identifying Rust circuit data, byte-level transcript encodings, parser behavior,
-field arithmetic, allocation bounds, and SHA/AES expansion or rejection sampling
-with this model remains an implementation correspondence task. Efficient
-recovery of witnesses from Rust proof bytes alone is outside the theorem.
-The [formal audit](../AUDIT.md) records the shared verification boundary.
-
-## Retained Fiat–Shamir models and shared foundations
-
-The earlier `LfzkV2` quadratic/unpacked circuit model and its numerical
-certificates remain available in their original namespaces. Their hash
-geometry is different, and they are not used as a semantic replacement for
-the native circuit. Shared round algebra, sparse rows, Polygero analysis,
-MAC collision bounds, and generic Merkle compilers are reused.
-
-The backend's algebraic couplings preserve responses and opened rows under
-changes of private coins. They support the complete Fiat–Shamir mdoc privacy
-theorem above for the current MAC-free protocol.
+Some shared algebra retains its existing `Native`, `Linear` or `Layered`
+namespace because the current verifier imports those definitions. The public
+V2 entrypoints and API audit cover the current numbered-strand implementation.
+Superseded implementation-specific transcript/extraction endpoints and the
+whole-answer mdoc simulator have been removed.
 
 ## Reproduce the checks
 
@@ -581,3 +298,20 @@ The endpoint audit and certificates are included in the default build.
 V2 proofs permit only Lean's standard `propext`, `Classical.choice`, and
 `Quot.sound` axioms. The API checks cover both affine corrections, scalar and
 empty proofs, malformed round counts, false assertions, and product consistency.
+
+The soundness implementation separates transport and recovered-path algebra
+in [`Soundness.StrandTransport`](LfzkV2/Current/Soundness/StrandTransport.lean)
+from the common stopped cost and deterministic cover in
+[`Soundness.StrandStoppedCosts`](LfzkV2/Current/Soundness/StrandStoppedCosts.lean).
+[`StrandProtocol`](LfzkV2/Current/StrandProtocol.lean) applies both the direct
+linear bound and the optional saturated bound, then averages residuals and
+transports back to raw SHA. Current parameter and
+runtime adapters live under `Current.Soundness`, while the generic `Survival`
+query-step calculus has no V1 or V2 implementation dependencies. Shared finite
+probability and statistical-distance arguments live in `Bcs`.
+
+`MdocStrandOracle.averaged_linear_ratio_le` gives the leading bound for all Q,
+using the same runtime stopped cost and failure cover as `averaged_ratio_le`.
+The generic `SharedBudget.linear_le` has no `p*Q ≤ 1` premise. Generic audit
+and count facts are in `ChronologicalAudit`, `History`, `QueryBudget` and
+`StoppedSearch`; the numerical W refinement is isolated in `Saturation`.

@@ -307,7 +307,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         .fragments
         .iter()
         .all(|s| s.input_range == (0..4)));
-    assert!(Schedule::new::<F>(&[]).is_err());
+    assert!(Schedule::new::<F>(&[] as &[&Circuit<F>]).is_err());
 }
 #[test]
 fn shared_inputs_unequal_depths_widths_and_circuit_counts() {
@@ -528,4 +528,27 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
 fn quad_fragments_match_a_physically_merged_circuit() {
     compare_merged(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
     compare_merged(&crate::runtime::algebra::p256::P256Field::new());
+}
+
+#[test]
+fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
+    use crate::{core::algebra::AlgebraicField, runtime::v2::transcript::Transcript};
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let first = fixture(&f);
+    let mut second = fixture(&f);
+    second[0].raw.constants.push(f.one());
+    second[0].id[0] ^= 1;
+    let mut a = Transcript::new(b"derived-schedule");
+    let mut b = Transcript::new(b"derived-schedule");
+    let schedule = Schedule::new(&[&first[0].raw]).unwrap();
+    schedule.bind(&[&first[0].raw], &mut a.borrow());
+    schedule.bind(&[&second[0].raw], &mut b.borrow());
+    assert_eq!(a.bytes(32), b.bytes(32));
+
+    // Independent circuit sources still bind their ordinary identity.
+    let mut a = Transcript::new(b"fixed-schedule");
+    let mut b = Transcript::new(b"fixed-schedule");
+    schedule.bind(&[&first[0]], &mut a.borrow());
+    schedule.bind(&[&second[0]], &mut b.borrow());
+    assert_ne!(a.bytes(32), b.bytes(32));
 }

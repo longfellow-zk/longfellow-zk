@@ -1,4 +1,5 @@
 import LfzkV2.Current.ByteOracleTransport
+import Mathlib.SetTheory.Cardinal.Finite
 
 /-! Uniform finite marginals of the byte oracle split into canonical query
 answers and independent outside-image answers. The final window theorem

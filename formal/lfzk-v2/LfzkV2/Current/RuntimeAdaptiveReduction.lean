@@ -70,23 +70,31 @@ variable (hlayout : StatementCompiler.addresses P R binary.cells prime.remaining
 variable (primeGeometry : primePlan.frontend = g.prime)
 variable (binaryGeometry : binaryTemplate.frontend = g.binary)
 
-/-- The failure cover is reconstructed from the accepted prefix. In
-particular no execution or local-coverage certificate is supplied. -/
-def reduction (epsilon : ℚ)
-    (codec : Merkle.MH.Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc) :
-    TranscriptV2.SharedReduction (M)
-      (fun parent : BackendQueries.Parent g.roles Key (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) Digest g.batchingIndex => parent.point)
-      (fun parent response => parent.child g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg) response)
-      (single laws readers (RuntimeVerifier.encodeResponses binary prime P R cfg)
-        (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
-        (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-        (RuntimeBackend.queryDecoder binary prime P R cfg) cutoff epsilon)
-      (pair («S» := S) (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
-        (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-        (RuntimeBackend.queryDecoder binary prime P R cfg) epsilon)
-      (Failure binary prime P R cfg earlier hashPublic decodePublic cutoff cutOracle draw codec) where
-  cover output H h := by
-    obtain ⟨_,decoded,hd,_,hverify,hfailure⟩ := h
+include hlayout primeGeometry binaryGeometry in
+/-- The algebraic cover uses the decoded application and the explained
+joint opening, independently of the transcript's final-seal construction.
+It reconstructs the common selected witness from the actual prefix. The
+transcript realization must separately supply query membership and order. -/
+theorem decoded_charge_cover (epsilon : ℚ) (output : Output) (H : Point → Digest × C)
+    (decoded : Decoded)
+    (hd : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output H = some decoded)
+    (hverify : let auth := RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded
+      JointResponse.Verify (First).participant (Second).participant auth.statement auth.oracle auth.coin auth.response decoded.query)
+    (hfailure : ¬ ∃ w, (RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded).context.extract =
+      some w ∧ decoded.application.True w) :
+    let charge := single laws readers (RuntimeVerifier.encodeResponses binary prime P R cfg)
+      (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
+      (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
+      (RuntimeBackend.queryDecoder binary prime P R cfg) cutoff epsilon
+    let pairCharge := pair («S» := S) (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
+      (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
+      (RuntimeBackend.queryDecoder binary prime P R cfg) epsilon
+    (∃ i < g.roles.length, 1 ≤ charge ((M).point output H i) H (H ((M).point output H i))) ∨
+      (∃ i < g.roles.length, ∃ parent response,
+        parent.point = (M).point output H i ∧
+        parent.child g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg) response = (M).point output H (i+1) ∧
+        1 ≤ pairCharge parent response H (H parent.point)
+          (H (parent.child g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg) response))) := by
     have hcover := RuntimeAdaptiveAccepted.decoded_failure_cover binary prime P R cfg earlier hashPublic decodePublic layout
       cutoff cutOracle cutOff laws primePlan primeFits binaryTemplate binaryFits hlayout primeGeometry binaryGeometry
       draw output H decoded hd hfailure
@@ -118,6 +126,28 @@ def reduction (epsilon : ℚ)
           rw [← ho]
           exact hb
     · exact Or.inl ⟨index,hindex,application_charged laws readers _ _ _ _ cutoff epsilon _ H _ hcharged⟩
+
+/-- The earlier whole-answer construction adds its seal check to the same
+algebraic cover. This wrapper does not constrain a strand realization to use
+the node digest as its seal. -/
+def reduction (epsilon : ℚ)
+    (codec : Merkle.MH.Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc) :
+    TranscriptV2.SharedReduction (M)
+      (fun parent : BackendQueries.Parent g.roles Key (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) Digest g.batchingIndex => parent.point)
+      (fun parent response => parent.child g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg) response)
+      (single laws readers (RuntimeVerifier.encodeResponses binary prime P R cfg)
+        (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
+        (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
+        (RuntimeBackend.queryDecoder binary prime P R cfg) cutoff epsilon)
+      (pair («S» := S) (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
+        (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
+        (RuntimeBackend.queryDecoder binary prime P R cfg) epsilon)
+      (Failure binary prime P R cfg earlier hashPublic decodePublic cutoff cutOracle draw codec) where
+  cover output H h := by
+    obtain ⟨_,decoded,hd,_,hverify,hfailure⟩ := h
+    exact decoded_charge_cover binary prime P R cfg earlier hashPublic decodePublic layout cutoff cutOracle cutOff
+      laws primePlan primeFits binaryTemplate binaryFits draw hlayout primeGeometry binaryGeometry
+      epsilon output H decoded hd hverify hfailure
   final_seal_valid output H h := by
     obtain ⟨_,_,_,hchecks,_,_⟩ := h
     exact hchecks.2.2.2

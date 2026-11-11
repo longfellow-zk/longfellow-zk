@@ -28,6 +28,13 @@ abbrev Metadata := (request : Request shape publicCount) → (i : Fin g.roles.le
   (Fin (i.val+1) → Fresh (g := g) (fields := fields) (Advice := Advice)) →
   (Fin i.val → C) → WireBlocks.Metadata shape i
 
+/-- Absorbed public metadata cannot depend on challenge values. Prover
+messages may depend on challenges when produced, but during verifier replay
+those messages are fixed by the submitted body. -/
+def ChallengeIndependent (metadata : Metadata (Advice := Advice) (C := C) shape publicCount) : Prop :=
+  ∀ request index writes first second,
+    metadata request index writes first = metadata request index writes second
+
 def writes (body : Current.Body g fields Advice (OpeningBody.Authentication g)) (i : Fin g.roles.length) :
     Fin (i.val+1) → Fresh (g := g) (fields := fields) (Advice := Advice) :=
   fun j => ProtocolWrites.fresh body ⟨j.val,by have := i.isLt; have := j.isLt; omega⟩
@@ -41,6 +48,15 @@ def ordinaryData (request : Request shape publicCount)
   WireBlocks.fromRequest shape (binaryRequest request.publicBits) request.primeInputs i body
     (metadata request i (writes body i) past)
 
+theorem ordinaryData_challengeIndependent
+    (independent : ChallengeIndependent shape publicCount metadata)
+    (request : Request shape publicCount) (body : Current.Body g fields Advice (OpeningBody.Authentication g))
+    (i : Fin g.roles.length) (first second : Fin i.val → C) :
+    ordinaryData shape publicCount binaryRequest metadata request body i first =
+      ordinaryData shape publicCount binaryRequest metadata request body i second := by
+  unfold ordinaryData
+  rw [independent request i (writes body i) first second]
+
 /-- Index zero uses the complete initial prefix. Every later block uses
 the actual role schema, with its byte base and cache constructed together. -/
 def block (request : Request shape publicCount) (proof : Output (g := g) (fields := fields) (Advice := Advice))
@@ -53,6 +69,20 @@ def block (request : Request shape publicCount) (proof : Output (g := g) (fields
   else
     (QueryRuntime.Runtime.ordinary repr shape setup publicCount i).block
       (ordinaryData shape publicCount binaryRequest metadata request proof.body i past)
+
+/-- For a fixed request and proof body, changing sampled challenge values
+cannot alter any absorbed packet. Parent digests are handled separately by
+strand continuation, rather than as absorbed challenge-derived metadata. -/
+theorem block_challengeIndependent
+    (independent : ChallengeIndependent shape publicCount metadata)
+    (request : Request shape publicCount) (proof : Output (g := g) (fields := fields) (Advice := Advice))
+    (i : Fin g.roles.length) (first second : Fin i.val → C) :
+    block repr shape setup publicCount binaryRequest metadata request proof i first =
+      block repr shape setup publicCount binaryRequest metadata request proof i second := by
+  unfold block
+  split_ifs
+  · rfl
+  · rw [ordinaryData_challengeIndependent shape publicCount binaryRequest metadata independent]
 
 def encoding (request : Request shape publicCount) :
     Replay.Encoding g fields Advice (OpeningBody.Authentication g) (Key publicCount)

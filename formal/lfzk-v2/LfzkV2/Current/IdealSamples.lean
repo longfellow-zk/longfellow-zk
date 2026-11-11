@@ -1,11 +1,12 @@
 import LfzkV2.Current.IdealProjections
 import LfzkV2.Current.FrontendCounting
 import WitnessSelection.Algebra
+import Mathlib.Tactic.DeriveFintype
 
 /-! One finite symbolic challenge alphabet for all runtime roles. Shared
 field-coordinate accessors use one vector per field; jointly sampled
 fingerprints, conversion scalars and backend responses each remain grouped.
-Unused factors are analysis randomness, never extra SHAKE calls or bytes. -/
+Unused factors are analysis randomness, never extra hash calls or bytes. -/
 noncomputable section
 namespace LfzkV2.Current.IdealSamples
 open scoped Classical

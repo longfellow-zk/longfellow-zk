@@ -16,7 +16,7 @@ def setPublic (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (start : Start) → StartMetadata shape start → StartMetadata shape start
   | .none, metadata => metadata
   | .prime, metadata => ((metadata.1.1,primeInputs),metadata.2)
-  | .binary, metadata => ((metadata.1.1,binaryInputs),((metadata.2.1.1,binaryInputs),metadata.2.2))
+  | .binary, metadata => ((metadata.1.1,binaryInputs),metadata.2)
 
 def requestMetadata (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (primeInputs : Fin shape.primePublic → fields .prime)
@@ -65,16 +65,16 @@ def binaryCodec (role : Role) :
     PrefixCodec (BinaryStart fields Advice shape.binaryPublic × RoleData shape role) :=
   (binaryStart repr shape).pair (roleCodec repr shape role)
 
-/-- Both statement copies remain observable. The reader checks the full
-block, including advice, schedule metadata and its first role payload. -/
+/-- Read the single ordinary public-input statement, checking the entire
+block including advice, fixed schedule and first role payload. -/
 def readBinaryPublic (role : Role) (bytes : Bytes) :
-    Option ((Fin shape.binaryPublic → fields .binary) × (Fin shape.binaryPublic → fields .binary)) :=
-  (readWhole (binaryCodec shape repr role) bytes).map fun value => (value.1.2.1.2,value.1.2.2.1.2)
+    Option (Fin shape.binaryPublic → fields .binary) :=
+  (readWhole (binaryCodec shape repr role) bytes).map fun value => value.1.2.1.2
 
 theorem readBinaryPublic_encode (role : Role) (startData : BinaryStart fields Advice shape.binaryPublic)
     (payload : RoleData shape role) :
     readBinaryPublic shape repr role ((binaryCodec shape repr role).encode (startData,payload)) =
-      some (startData.2.1.2,startData.2.2.1.2) := by
+      some startData.2.1.2 := by
   simp only [readBinaryPublic,readWhole_encode,Option.map_some]
 
 private theorem readBinaryPublic_start (binaryInputs : Fin shape.binaryPublic → fields .binary)
@@ -84,10 +84,10 @@ private theorem readBinaryPublic_start (binaryInputs : Fin shape.binaryPublic �
     readBinaryPublic shape repr role
       (((startCodec repr shape start).pair (roleCodec repr shape role)).encode
         (startFromBody shape body start (setPublic shape binaryInputs primeInputs start metadata),payload)) =
-      some (binaryInputs,binaryInputs) := by
+      some binaryInputs := by
   cases h
   exact readBinaryPublic_encode shape repr role
-    (body.advice,((metadata.1.1,binaryInputs),((metadata.2.1.1,binaryInputs),metadata.2.2))) payload
+    (body.advice,((metadata.1.1,binaryInputs),metadata.2)) payload
 
 theorem readBinaryPublic_fromRequest (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (primeInputs : Fin shape.primePublic → fields .prime)
@@ -95,7 +95,7 @@ theorem readBinaryPublic_fromRequest (binaryInputs : Fin shape.binaryPublic → 
     (body : Body g fields Advice Auth) (metadata : Metadata shape i) :
     readBinaryPublic shape repr (g.roles.get i)
       ((codec repr shape i).encode (fromRequest shape binaryInputs primeInputs i body metadata)) =
-      some (binaryInputs,binaryInputs) := by
+      some binaryInputs := by
   have hne : g.binaryStart ≠ g.primeStart := by
     dsimp only [Geometry.binaryStart,Geometry.primeStart]
     omega

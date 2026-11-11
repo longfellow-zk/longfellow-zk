@@ -1,5 +1,9 @@
 import LfzkV2.Current.PrefixCodec
 import TranscriptV2.FramingBounds
+import Mathlib.Data.Fintype.Pi
+import Mathlib.Data.Fin.Tuple.Basic
+import Mathlib.Tactic.Ring
+import Mathlib.Data.Fintype.Sigma
 
 /-! Concrete finite byte representations used by the canonical-prefix model.
 Bounds restrict the logical sample space; they do not add padding or bytes to

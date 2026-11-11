@@ -1,6 +1,7 @@
 import LfzkV2.Current.FrontendReplay
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic.NormNum
+import Mathlib.Algebra.Field.ZMod
 
 namespace LfzkV2.Current.Tests.FrontendReplay
 open SumcheckV2

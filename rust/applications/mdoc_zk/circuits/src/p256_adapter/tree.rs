@@ -19,7 +19,7 @@ pub(crate) fn program(
     npublic: usize,
     ninput: usize,
     public: &[E],
-) -> Result<Circuit<F>, String> {
+) -> Result<RawCircuit<F>, String> {
     let private = ninput.checked_sub(npublic).ok_or("adapter public prefix")?;
     if sources.len() != plan.bits
         || public.len() != plan.public_count()
@@ -152,17 +152,13 @@ pub(crate) fn program(
         |_| false,
     ));
     layers.reverse();
-    let raw = RawCircuit {
+    Ok(RawCircuit {
         ninput,
         npublic_input: npublic,
         noutput: 2,
         logv: 1,
         constants,
         layers,
-    };
-    Ok(Circuit {
-        id: v2::compute_id(&f, &raw),
-        raw,
     })
 }
 
@@ -178,5 +174,9 @@ pub(crate) fn template(
     let n = public.len();
     public[n - 2] = f.one();
     public[n - 1] = f.one();
-    program(plan, sources, npublic, ninput, &public)
+    let raw = program(plan, sources, npublic, ninput, &public)?;
+    Ok(Circuit {
+        id: v2::compute_id(&f, &raw),
+        raw,
+    })
 }

@@ -29,7 +29,7 @@ variable (setup : FingerprintPrefix.Setup)
 def configuration := MdocRuntime.configuration binary.description prime binary.plan primePlan binaryNodes scalars
   inputFits privateFits (degreeFits binary) setup (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis)
 
-local notation "G" => CompleteSimulation.geometry binary prime primePlan
+local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
 local notation "Shape" => MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)
 local notation "Repr" => MdocRuntime.representations scalars
 local notation "Cfg" => configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
@@ -48,7 +48,7 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) binary.nPublic)
 variable (request : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) binary.nPublic)
-variable (proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+variable (proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
 variable (H : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) setup binary.nPublic →

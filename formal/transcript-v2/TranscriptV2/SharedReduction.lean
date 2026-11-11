@@ -1,4 +1,5 @@
 import TranscriptV2.SharedCharging
+import TranscriptV2.SharedFailure
 
 /-! Accepted-path charging with both single-answer events and grouped
 parent/child events. Link feedback proves the order needed by the grouped
@@ -28,6 +29,28 @@ private theorem first_left_of_not_before {A : Type} {fuel : ℕ}
             intro h
             exact hbefore (by simp only [before, if_neg hp]; exact List.mem_cons_of_mem q h)
           simpa only [firstOfTwo, if_neg hp, if_neg hq] using ih (H q) ht hb
+
+/-- The whole-answer construction supplies the same accepted-path interface
+used by other transcript realizations. The final seal forces membership;
+parent feedback then supplies the order of adjacent queries. -/
+theorem Chain.accepted_path_queries (model : Chain P Link C Out R)
+    {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P → Link × C)
+    (good : ¬ChainException model tree H)
+    (sealValid : (H (model.finalSealPoint (tree.run H).1 H)).1 = model.finalSeal (tree.run H).1) :
+    (∀ i ≤ R, model.point (tree.run H).1 H i ∈ seen tree H) ∧
+      (∀ i < R, firstOfTwo tree H (model.point (tree.run H).1 H i)
+        (model.point (tree.run H).1 H (i+1)) = .left) := by
+  have links : ¬LinkGuess model.toLinks tree H := fun h => good (Or.inl h)
+  have finalSeal : ¬FinalSealGuess model tree H := fun h => good (Or.inr h)
+  have terminal : model.finalSealPoint (tree.run H).1 H ∈ seen tree H := by
+    by_contra missing
+    exact finalSeal ⟨model.finalSealPoint (tree.run H).1 H,rfl,missing,sealValid⟩
+  have queried := model.all_points_queried tree H _ links terminal
+  refine ⟨queried,?_⟩
+  intro i before
+  have child := queried (i+1) (by omega)
+  exact first_left_of_not_before tree H _ _ child
+    (model.parent_queried_before tree H _ links before child).2
 
 /-- The algebraic reduction names a failing boundary or an adjacent pair.
 The final seal is checked in both cases. Query membership and query order
@@ -69,17 +92,17 @@ theorem charges_nonneg {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P 
     · exact hp p r H _ _
     · exact le_rfl
 
-include D in
-theorem failure_charged {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P → Link × C)
+/-- The positive-charge argument needs only query membership and order on
+an accepted path. It does not depend on how the transcript encodes parents. -/
+theorem charges_of_cover {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P → Link × C)
+    (point : ℕ → P)
+    (hqueries : ∀ n, n ≤ R → point n ∈ seen tree H)
+    (horder : ∀ n, n < R → firstOfTwo tree H (point n) (point (n+1)) = .left)
     (hs : ∀ z H a, 0 ≤ single z H a) (hp : ∀ p r H a b, 0 ≤ pair p r H a b)
-    (hf : Failure (tree.run H).1 H) (hchain : ¬ ChainException M tree H) :
+    (hcover : (∃ n < R, 1 ≤ single (point n) H (H (point n))) ∨
+      (∃ n < R, ∃ p r, parent p = point n ∧ child p r = point (n+1) ∧
+        1 ≤ pair p r H (H (parent p)) (H (child p r)))) :
     1 ≤ charges (parent := parent) (child := child) (single := single) (pair := pair) tree H := by
-  have hlink : ¬ LinkGuess M.toLinks tree H := fun h => hchain (Or.inl h)
-  have hseal : ¬ FinalSealGuess M tree H := fun h => hchain (Or.inr h)
-  have hfinal : M.finalSealPoint (tree.run H).1 H ∈ seen tree H := by
-    by_contra hm
-    exact hseal ⟨M.finalSealPoint (tree.run H).1 H, rfl, hm, D.final_seal_valid _ _ hf⟩
-  have hall := M.all_points_queried tree H _ hlink hfinal
   let pairs := fun p => ∑ r, if firstOfTwo tree H (parent p) (child p r) = .left then
     pair p r H (H (parent p)) (H (child p r)) else 0
   have hpair p r : 0 ≤ (if firstOfTwo tree H (parent p) (child p r) = .left then
@@ -88,19 +111,25 @@ theorem failure_charged {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P
     · exact hp p r H _ _
     · exact le_rfl
   have hpairs p : 0 ≤ pairs p := sum_nonneg (fun r _ => hpair p r)
-  rcases D.cover _ _ hf with ⟨i,hi,hbad⟩ | ⟨i,hi,p,r,hpPoint,hcPoint,hbad⟩
-  · have hsum := single_le_sum (fun z _ => hs z H (H z)) (hall i (by omega))
+  rcases hcover with ⟨i,hi,hbad⟩ | ⟨i,hi,p,r,hpPoint,hcPoint,hbad⟩
+  · have hsum := single_le_sum (fun z _ => hs z H (H z)) (hqueries i (by omega))
     exact (hbad.trans hsum).trans (le_add_of_nonneg_right (sum_nonneg (fun p _ => hpairs p)))
-  · have hchild := hall (i+1) (by omega)
-    have horder := M.parent_queried_before tree H _ hlink hi hchild
-    have hfirst : firstOfTwo tree H (parent p) (child p r) = .left := by
+  · have hfirst : firstOfTwo tree H (parent p) (child p r) = .left := by
       rw [hpPoint, hcPoint]
-      exact first_left_of_not_before tree H _ _ hchild horder.2
+      exact horder i hi
     have hinner := single_le_sum (fun r _ => hpair p r) (mem_univ r)
     rw [if_pos hfirst] at hinner
     have houter := single_le_sum (fun p _ => hpairs p) (mem_univ p)
     exact ((hbad.trans hinner).trans houter).trans
       (le_add_of_nonneg_left (sum_nonneg (fun z _ => hs z H (H z))))
+
+include D in
+theorem failure_charged {fuel : ℕ} (tree : Tree P (Link × C) Out fuel) (H : P → Link × C)
+    (hs : ∀ z H a, 0 ≤ single z H a) (hp : ∀ p r H a b, 0 ≤ pair p r H a b)
+    (hf : Failure (tree.run H).1 H) (hchain : ¬ ChainException M tree H) :
+    1 ≤ charges (parent := parent) (child := child) (single := single) (pair := pair) tree H := by
+  obtain ⟨hall,horder⟩ := M.accepted_path_queries tree H hchain (D.final_seal_valid _ _ hf)
+  exact charges_of_cover tree H (M.point (tree.run H).1 H) hall horder hs hp (D.cover _ _ hf)
 
 include D in
 /-- One shared query budget and one chain exception for the full reduction.
@@ -127,31 +156,18 @@ theorem failure_ratio_le [Fintype P] [Fintype Link] [Nonempty Link] [DecidableEq
       (Fintype.card (Link × C) : ℚ)^Fintype.card P ≤
       (Q : ℚ)*epsilon + (Q+1 : ℚ)/Fintype.card Link := by
   let cost := charges (parent := parent) (child := child) (single := single) (pair := pair) tree
-  have hn (H : P → Link × C) : 0 ≤ cost H :=
-    charges_nonneg tree H hsingleNonneg hpairNonneg
-  have hcover (H : P → Link × C) :
-      (if Failure (tree.run H).1 H then (1 : ℚ) else 0) ≤
-        (if ChainException M tree H then 1 else 0) + cost H := by
-    by_cases hf : Failure (tree.run H).1 H
-    · by_cases hc : ChainException M tree H
-      · simpa only [if_pos hf, if_pos hc] using le_add_of_nonneg_right (hn H)
-      · simpa only [if_pos hf, if_neg hc, zero_add] using
-          D.failure_charged tree H hsingleNonneg hpairNonneg hf hc
-    · simp only [if_neg hf]
-      exact add_nonneg (by split_ifs <;> norm_num) (hn H)
-  have hcount : ((univ.filter fun H => Failure (tree.run H).1 H).card : ℚ) ≤
-      (univ.filter (ChainException M tree)).card + ∑ H, cost H := by
-    have h := sum_le_sum (s := (univ : Finset (P → Link × C))) (fun H _ => hcover H)
-    simpa [sum_add_distrib] using h
-  have hsum : (∑ H, cost H) ≤
-      (Q : ℚ)*epsilon*(Fintype.card (Link × C) : ℚ)^Fintype.card P :=
-    shared_queried_sum_le tree hqueries parent child hne single hsingleOff pair hpairOff
-      hpairNonneg singleBudget pairBudget epsilon he hsingle hpair hpoint
-  have hden : (0 : ℚ) < (Fintype.card (Link × C) : ℚ)^Fintype.card P := by positivity
-  have hratio := div_le_div_of_nonneg_right hcount hden.le
-  rw [add_div] at hratio
-  have hw := (div_le_iff₀ hden).mpr hsum
-  exact hratio.trans ((add_le_add (chain_exception_ratio_le M tree hqueries) hw).trans_eq (add_comm _ _))
+  have averaged := SharedFailure.failure_ratio_le
+    (fun H => Failure (tree.run H).1 H) (ChainException M tree) cost
+    (chargeBound := (Q : ℚ)*epsilon) (exceptionBound := (Q+1 : ℚ)/Fintype.card Link)
+    (fun H => charges_nonneg tree H hsingleNonneg hpairNonneg)
+    (fun H hf hc => D.failure_charged tree H hsingleNonneg hpairNonneg hf hc)
+    (by
+      simpa only [cost, charges, Fintype.card_fun, Nat.cast_pow] using
+        (shared_queried_sum_le tree hqueries parent child hne single hsingleOff pair hpairOff
+          hpairNonneg singleBudget pairBudget epsilon he hsingle hpair hpoint))
+    (by
+      simpa only [Fintype.card_fun, Nat.cast_pow] using chain_exception_ratio_le M tree hqueries)
+  simpa only [Fintype.card_fun, Nat.cast_pow] using averaged
 
 end SharedReduction
 end TranscriptV2

@@ -49,17 +49,14 @@ pub(super) fn challenges<X: PackingExtension>(
 where
     X::Ambient: SerializableField,
 {
-    ts.round(
-        crate::runtime::v2::transcript::RoundLabel::Packing,
-        |mut w| {
-            w.write_elt_field_slice(u, p.field());
-            let mut r = w.begin_squeeze();
-            let value = (0..p.degree())
-                .map(|_| p.field().sample(|n| r.bytes(n)))
-                .collect();
-            r.end_round(value)
-        },
-    )
+    ts.round(crate::runtime::v2::proto::RoundLabel::Packing, |mut w| {
+        w.write_elt_field_slice(u, p.field());
+        let mut r = w.begin_squeeze();
+        let value = (0..p.degree())
+            .map(|_| p.field().sample(|n| r.bytes(n)))
+            .collect();
+        r.end_round(value)
+    })
 }
 pub(super) fn finish<X: PackingExtension>(
     p: &PackingParameters<X>,

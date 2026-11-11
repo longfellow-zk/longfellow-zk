@@ -154,7 +154,7 @@ pub(super) fn prove_core<
         let layer = &circuit.raw.layers[index];
         let constants = &circuit.raw.constants;
         let rho = t.round(
-            crate::runtime::v2::transcript::RoundLabel::Assertions,
+            crate::runtime::v2::proto::RoundLabel::Assertions,
             |mut w| {
                 w.write_bytes(&(index as u64).to_le_bytes());
                 let mut r = w.begin_squeeze();

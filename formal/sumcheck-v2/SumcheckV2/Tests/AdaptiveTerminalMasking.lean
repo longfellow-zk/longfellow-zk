@@ -1,5 +1,6 @@
 import SumcheckV2.AdaptiveTerminalMasking
 import Mathlib.Data.ZMod.Basic
+import Mathlib.Algebra.Field.ZMod
 
 /-! The challenge really depends on the earlier message. Tests remain separate
 from the masking proof and audit the exact three-message distribution. -/

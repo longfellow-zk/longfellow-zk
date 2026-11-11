@@ -15,6 +15,7 @@
 -/
 
 import ECDSA.EcdsaSpec
+import Mathlib.Tactic.IntervalCases
 
 open Classical
 

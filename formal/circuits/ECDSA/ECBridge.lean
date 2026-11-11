@@ -16,7 +16,14 @@
 
 module
 
-public import Mathlib
+public import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Point
+public import Mathlib.Tactic.Abel
+public import Mathlib.Tactic.Ext
+public import Mathlib.Tactic.FinCases
+public import Mathlib.Tactic.LinearCombination
+public import Mathlib.Tactic.Ring
+public import Mathlib.Tactic.SplitIfs
+public import Lean.Elab.Tactic.Omega
 public import ECDSA.EC
 
 /-!

@@ -1,4 +1,3 @@
-import Mathlib
 import LfzkV1.WPoly
 import LfzkV1.Types
 

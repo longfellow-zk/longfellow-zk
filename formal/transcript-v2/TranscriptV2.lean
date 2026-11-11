@@ -2,3 +2,5 @@ import TranscriptV2.Charging
 import TranscriptV2.SharedCharging
 import TranscriptV2.SharedReduction
 import TranscriptV2.Recompute
+import TranscriptV2.Composition
+import TranscriptV2.Simulation

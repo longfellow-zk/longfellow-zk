@@ -18,7 +18,7 @@ mod heap;
 use std::fmt;
 
 #[cfg(any(test, feature = "verifier"))]
-pub(in crate::runtime::v2) use heap::verify_proof_with_hash;
+pub(in crate::runtime::v2) use heap::verify_proof;
 #[cfg(any(test, feature = "prover"))]
 pub(in crate::runtime::v2) use heap::MerkleHeap;
 
@@ -79,3 +79,7 @@ impl fmt::Display for MerkleError {
 }
 
 impl std::error::Error for MerkleError {}
+
+#[cfg(test)]
+#[path = "../tests/merkle.rs"]
+mod tests;

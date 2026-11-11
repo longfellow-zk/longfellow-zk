@@ -14,9 +14,9 @@
 
 //! Fixed Merkle heap with leaves at `n..2*n` and parents below `n`.
 //! Traversal and proof order also cover non-power-of-two leaf counts.
-//! Node hashing is supplied by the v2 authentication codec in `hash`.
+//! The v2 authentication codec binds each internal node to its heap position.
 
-use super::{Digest, MerkleError};
+use super::{hash, Digest, MerkleError};
 
 /// Returns a mask indicating which nodes in the heap lie on the path
 /// from the requested leaves (`leaf_indices`) to the root.
@@ -57,11 +57,8 @@ pub(in crate::runtime::v2) struct MerkleHeap {
 
 #[cfg(any(test, feature = "prover"))]
 impl MerkleHeap {
-    /// Build the same fixed heap with a caller-selected internal-node codec.
-    pub(in crate::runtime::v2) fn new_with_hash(
-        leaves: &[Digest],
-        hash: impl Fn(&Digest, &Digest) -> Digest,
-    ) -> Self {
+    /// Build the fixed heap, binding every internal node to its position.
+    pub(in crate::runtime::v2) fn new(context: &Digest, leaves: &[Digest]) -> Self {
         let num_leaves = leaves.len();
         assert!(num_leaves > 0, "Cannot construct an empty Merkle heap");
         let mut layers = vec![Digest::default(); 2 * num_leaves];
@@ -71,7 +68,7 @@ impl MerkleHeap {
 
         // Build parent nodes bottom-up
         for i in (1..num_leaves).rev() {
-            layers[i] = hash(&layers[2 * i], &layers[2 * i + 1]);
+            layers[i] = hash::node(context, i, &layers[2 * i], &layers[2 * i + 1]);
         }
 
         Self { num_leaves, layers }
@@ -110,15 +107,15 @@ impl MerkleHeap {
 /// Verifies that the opened leaf digests match the commitment root.
 ///
 /// Geometry fixes every leaf position. Opened indices must be distinct and
-/// in range, and the supplied frontier must be consumed exactly. The caller
-/// supplies the domain-separated node hash from the v2 authentication codec.
+/// in range, and the supplied frontier must be consumed exactly. Each internal
+/// node is hashed once, with its position supplied by this traversal.
 #[cfg(any(test, feature = "verifier"))]
-pub(in crate::runtime::v2) fn verify_proof_with_hash(
+pub(in crate::runtime::v2) fn verify_proof(
+    context: &Digest,
     num_leaves: usize,
     root: &Digest,
     proof: &[Digest],
     leaves: &[(usize, Digest)],
-    hash: impl Fn(&Digest, &Digest) -> Digest,
 ) -> Result<(), MerkleError> {
     let leaf_indices: Vec<usize> = leaves.iter().map(|(idx, _)| *idx).collect();
     // `None` means this node has not been supplied or derived.  Do not use a
@@ -173,7 +170,7 @@ pub(in crate::runtime::v2) fn verify_proof_with_hash(
     // 3. Reconstruct internal nodes bottom-up
     for i in (1..num_leaves).rev() {
         if let (Some(left), Some(right)) = (computed_nodes[2 * i], computed_nodes[2 * i + 1]) {
-            computed_nodes[i] = Some(hash(&left, &right));
+            computed_nodes[i] = Some(hash::node(context, i, &left, &right));
         }
     }
 

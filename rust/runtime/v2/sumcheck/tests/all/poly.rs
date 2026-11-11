@@ -244,15 +244,12 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
     let cross = f.u64_to_element(13);
     let mut prover = Transcript::new(b"terminal-order");
     let mut reference = prover.fork_for_test();
-    let expected = reference.round(
-        crate::runtime::v2::transcript::RoundLabel::Terminal,
-        |mut w| {
-            w.write_elt_field(&cross, &f);
-            let mut r = w.begin_squeeze();
-            let x = r.elt_field(&f);
-            r.end_round(x)
-        },
-    );
+    let expected = reference.round(crate::runtime::v2::proto::RoundLabel::Terminal, |mut w| {
+        w.write_elt_field(&cross, &f);
+        let mut r = w.begin_squeeze();
+        let x = r.elt_field(&f);
+        r.end_round(x)
+    });
     assert_ne!(expected, f.zero());
     let r = transcript::terminal_challenge(&cross, &mut prover.borrow(), &f);
     assert_eq!(r, expected);
@@ -263,15 +260,13 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
 
     let claims = [f.u64_to_element(17), f.u64_to_element(19)];
     let mut changed = prover.fork_for_test();
-    let expected_alpha = reference.round(
-        crate::runtime::v2::transcript::RoundLabel::Combine,
-        |mut w| {
+    let expected_alpha =
+        reference.round(crate::runtime::v2::proto::RoundLabel::Combine, |mut w| {
             w.write_elt_field_slice(&claims, &f);
             let mut r = w.begin_squeeze();
             let x = r.elt_field(&f);
             r.end_round(x)
-        },
-    );
+        });
     let alpha = transcript::end_layer::<4, _>(&claims, &mut prover.borrow(), &f, |_| {});
     assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));

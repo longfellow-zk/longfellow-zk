@@ -1,4 +1,6 @@
-import Mathlib
+import Mathlib.Tactic.Ext
+import Mathlib.Tactic.LinearCombination
+import Mathlib.Tactic.Ring
 import SumcheckV1.Counting
 
 /-!

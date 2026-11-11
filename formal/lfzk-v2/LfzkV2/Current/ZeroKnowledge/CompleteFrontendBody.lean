@@ -16,8 +16,8 @@ variable (primePlan : FrontendSchedule.Plan Adapter.Mdoc.P prime.circuit)
 
 def rawBody (commitment : Digest)
     (result : CompleteSimulation.RawResult binary prime primePlan Key Base C) :
-    Body (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B)
-      MdocAdvice.Value (OpeningBody.Authentication (CompleteSimulation.geometry binary prime primePlan)) where
+    Body (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B)
+      MdocAdvice.Value (OpeningBody.Authentication (MdocRuntime.geometry binary.description prime binary.plan primePlan)) where
   commitment := commitment
   fingerprints := result.fingerprints
   mu := result.mu
@@ -36,8 +36,8 @@ def rawBody (commitment : Digest)
 
 def body (commitment : Digest)
     (result : CompleteSimulation.Result binary prime primePlan Key Base C) :
-    Body (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B)
-      MdocAdvice.Value (OpeningBody.Authentication (CompleteSimulation.geometry binary prime primePlan)) :=
+    Body (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B)
+      MdocAdvice.Value (OpeningBody.Authentication (MdocRuntime.geometry binary.description prime binary.plan primePlan)) :=
   rawBody binary prime primePlan commitment result.raw
 
 omit [Fintype B] [DecidableEq B] in

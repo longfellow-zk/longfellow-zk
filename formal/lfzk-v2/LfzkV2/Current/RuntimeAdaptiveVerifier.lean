@@ -118,11 +118,11 @@ theorem decode_spec (output : Output (g := g) (fields := fields) (Advice := Advi
           cases Option.some.inj h
           exact ⟨hs,hc,rfl,rfl⟩
 
-/-- The same concrete runtime arithmetic, one tuple authentication and final
-seal are checked after the prefix-derived application has been built. -/
-def Checks (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
+/-- Common arithmetic and tuple authentication checks. The complete verifier
+supplies its recomputed seal, whose construction is transcript-specific. -/
+def ChecksWithSeal (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
     (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
-    (H : Point → Digest × C) (decoded : Decoded) : Prop :=
+    (decoded : Decoded) (computedSeal : Digest) : Prop :=
   let e := encodings binary prime P R cfg earlier output.request
   let key := e.context output.proof
   cfg.root key = output.proof.body.commitment ∧
@@ -132,7 +132,15 @@ def Checks (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Lea
     ((Joint.Pair.coinEquiv _ _).symm decoded.coin)
     ((Joint.Pair.responseEquiv _ _).symm (RuntimeVerifier.responses binary prime P R cfg output.proof))
     decoded.query decoded.claim ∧
-  (H ((chain binary prime P R cfg earlier).finalSealPoint output H)).1 = output.proof.finalSeal
+  computedSeal = output.proof.finalSeal
+
+/-- The earlier whole-answer transcript uses the final query's digest.
+SHA strands reuse `ChecksWithSeal` with their recomputed PRF-counter-zero seal. -/
+def Checks (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
+    (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
+    (H : Point → Digest × C) (decoded : Decoded) : Prop :=
+  ChecksWithSeal binary prime P R cfg earlier codec HM output decoded
+    (H ((chain binary prime P R cfg earlier).finalSealPoint output H)).1
 
 def verify (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
     (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))

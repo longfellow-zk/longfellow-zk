@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.SHAOracle
+import LfzkV2.Current.SHAOracle
 import LfzkV2.Current.ZeroKnowledge.ObserverWindow
 
 /-! A single finite Merkle-domain marginal of the original SHA observer.

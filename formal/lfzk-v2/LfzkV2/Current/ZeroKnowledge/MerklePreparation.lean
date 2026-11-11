@@ -298,15 +298,15 @@ theorem preparation_statClose [Fintype Enc] [Nonempty Salt]
 end Counting
 
 set_option exponentiation.threshold 1024 in
-/-- The current 2443-column profile uses a 320-bit nonce and 256-bit digest.
+/-- The current 2443-column profile uses a 256-bit nonce and 256-bit digest.
 Only the earlier observer queries enter this preparation term. -/
 theorem rate7_error (queries : ℕ) :
-    error (2^320) (2^256) 2443 queries =
-      (11936498+2443*(queries:ℚ))/(2:ℚ)^320 +
-        11929170/(2:ℚ)^256 +
+    error (2^256) (2^256) 2443 queries =
+      (23865668+2443*(queries:ℚ))/(2:ℚ)^256 +
         2442*(queries:ℚ)/(2:ℚ)^512 := by
   unfold error
   push_cast
   norm_num
+  ring
 
 end LfzkV2.Current.ZeroKnowledge.MerklePreparation

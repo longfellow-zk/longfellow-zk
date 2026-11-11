@@ -20,8 +20,9 @@ theorem impossible_unsatisfied : ¬∃ cells : Cells F 0 265, impossible.Satisfi
   simp [ConstraintSystem.linearValue,impossible] at heq
 
 /-- Knowing the sampled opening set permits the public simulator to hide
-an impossible statement's residual away from those openings. Fiat--Shamir
-simulation must therefore program that one set; this is not a prover attack. -/
+an impossible statement's residual away from those openings. This fixed-set
+test alone says nothing about producing a commitment before the openings
+are selected; it is not a prover attack. -/
 example (nodes : Fin 2792 ↪ F) (Q : QuerySet 2443 84)
     (coin : Polygero.Coin F (Fin 1) 0 0 12)
     (tape : Tape (profileGeometry nodes) 0 12) :

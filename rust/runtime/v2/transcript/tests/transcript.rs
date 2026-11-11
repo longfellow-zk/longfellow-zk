@@ -1,20 +1,20 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
+use crate::runtime::v2::proto::RoundLabel;
+const TEST_ROUND: u8 = 6;
 // Explicit test-only replay helpers; none are compiled into proof-role builds.
 impl Transcript {
     pub(crate) fn round_count_for_test(&self) -> u64 {
-        self.core.rounds
+        self._round_count.0
     }
     pub(crate) fn fork_for_test(&self) -> Self {
         Self {
-            core: Core {
-                hash: self.core.hash.clone(),
-                rounds: self.core.rounds,
-            },
+            strand: self.strand.clone_for_test(),
+            _round_count: RoundCount(self._round_count.0),
         }
     }
     pub(crate) fn bytes(&mut self, n: usize) -> Vec<u8> {
-        self.round(RoundLabel::Statement, |w| {
+        self.round(TEST_ROUND, |w| {
             let mut r = w.begin_squeeze();
             let x = r.bytes(n);
             r.end_round(x)
@@ -26,18 +26,16 @@ impl Transcript {
 }
 impl TranscriptRef<'_> {
     pub(crate) fn round_count_for_test(&self) -> u64 {
-        self.core.rounds
+        self.session._round_count.0
     }
     pub(crate) fn fork_for_test(&self) -> Transcript {
         Transcript {
-            core: Core {
-                hash: self.core.hash.clone(),
-                rounds: self.core.rounds,
-            },
+            strand: self.session.strand.clone_for_test(),
+            _round_count: RoundCount(self.session._round_count.0),
         }
     }
     pub(crate) fn bytes(&mut self, n: usize) -> Vec<u8> {
-        self.round(RoundLabel::Statement, |w| {
+        self.round(TEST_ROUND, |w| {
             let mut reader = w.begin_squeeze();
             let bytes = reader.bytes(n);
             reader.end_round(bytes)
@@ -58,7 +56,7 @@ fn empty_rounds_are_distinct_and_reproducible() {
     assert_eq!(y, b.bytes(32));
 }
 #[test]
-fn final_seal_binds_body_context_and_rounds() {
+fn final_seal_binds_body_context_and_parent_chain() {
     let mut a = Transcript::new(b"seal");
     a.bytes(1);
     let mut b = Transcript::new(b"seal");
@@ -76,7 +74,30 @@ fn final_seal_binds_body_context_and_rounds() {
 }
 
 #[test]
-fn independent_direct_shake256_vector_and_chunking() {
+fn final_seal_rejects_wrong_context_altered_seals_and_short_proofs() {
+    let encoded = Transcript::new(b"seal rejection")
+        .append_final_seal(vec![1, 2, 3])
+        .into_bytes();
+    assert!(Transcript::new(b"other context")
+        .verify_final_seal(&encoded)
+        .is_err());
+    for i in 3..encoded.len() {
+        let mut changed = encoded.clone();
+        changed[i] ^= 1;
+        assert!(Transcript::new(b"seal rejection")
+            .verify_final_seal(&changed)
+            .is_err());
+    }
+    for len in 0..32 {
+        assert_eq!(
+            Transcript::new(b"seal rejection").verify_final_seal(&encoded[..len]),
+            Err("missing final seal")
+        );
+    }
+}
+
+#[test]
+fn independent_sha256_strand_vector_and_chunking() {
     let mut t = Transcript::new(b"vector");
     let bytes = t.round(RoundLabel::Sumcheck, |mut w| {
         w.write_bytes(b"message");
@@ -85,11 +106,11 @@ fn independent_direct_shake256_vector_and_chunking() {
         bytes.extend(r.bytes(157));
         r.end_round(bytes)
     });
-    assert_eq!(hex::encode(bytes),"d4a691d93c48c8d9a5b7b0b1bd10059fa9adb266fdf720c6af9abd813e83c5320e47b37dedb6c5d02c0610e13fe2bdd37bb1f1d1d6c292d8651a3e02d65db57b368aff95a676c49cc5e99b6f741af9b3a44a4a5f232c83f6074172b46c47ba5a0d9b38ec91870f3036b999505b8c3b91419f4277bbbbc8a06ba4062d7b09827438fb853263ad988fedbc9b5ed1d28b02ae6bb36c5f115d2cdda3e2461c7317ac");
+    assert_eq!(hex::encode(bytes),"cc4be31d3e4ce600a56f63b0236f5bd211296be33e4834da3901ac4cf6a21917cea71d8ea3d647fcd070d43cd99882e7a0dbd2fa8ba63cbda4c02faa62ca0e75f64ac6bf13764a0c35b5ab88807bb6ccf4691cff1b290f394e1a73967547636cbb22bb613f288b3d81730ff2a766791935efbd9ea70229a36ec2f6047f5ea9d01b3e847e50a6f6d83102e05c3b8d7b056e8c727d3431027447e00f55ef7501cc");
     let sealed = t.append_final_seal(vec![1, 2, 3]).into_bytes();
     assert_eq!(
         hex::encode(&sealed[3..]),
-        "037b774106e001430e0d19cf138e646f66900fe683da81adcad7a9d3a8ff5062"
+        "bdd3990dff3dfdd410ab8ec8e2ffe1f2f738908e29fc83fe9054fd2e4d7ea44c"
     );
 }
 #[test]
@@ -108,20 +129,20 @@ fn distinct_labels_and_terminal_authentication_are_bound() {
 }
 
 #[test]
-fn feedback_and_round_number_match_independent_two_round_vector() {
+fn parent_chain_matches_independent_two_round_vector() {
     let mut t = Transcript::new(b"feedback");
     assert_eq!(
         hex::encode(t.bytes(32)),
-        "ec902d18d749e457c2920657ee43a4c0f29b6fc24fb16322999ef7999a096a32"
+        "0e5adbfa0ab03fef54b0925af4c171995fe070e0e024d6a23b64fc6758300dca"
     );
     assert_eq!(
         hex::encode(t.bytes(32)),
-        "8d37245124c02ea239e27bdb53d363577355659b31625a39109c2ebf6d0e2b04"
+        "b3a4f9b134d29d6110d15e195d477269e289dcf201cf39238cbdb626b014fe8d"
     );
-    assert_eq!(t.core.rounds, 2);
+    assert_eq!(t._round_count.0, 2);
 }
 #[test]
-fn large_blocks_extend_the_same_xof_answer() {
+fn large_reads_extend_the_same_prf_stream() {
     let mut a = Transcript::new(b"large");
     let mut b = a.fork_for_test();
     let whole = a.round(RoundLabel::Packing, |w| {
@@ -144,7 +165,7 @@ fn large_blocks_extend_the_same_xof_answer() {
     );
 }
 #[test]
-fn field_rejection_keeps_one_round_and_preserves_the_xof_cursor() {
+fn field_rejection_keeps_one_round_and_preserves_the_prf_cursor() {
     use crate::{
         core::algebra::SupportsU64Conversions,
         runtime::algebra::{fp_generic::FpGenericField, LIMBS_PER_U64},
@@ -170,12 +191,12 @@ fn field_rejection_keeps_one_round_and_preserves_the_xof_cursor() {
             let (value, remaining) = actual.round(RoundLabel::Conversion, |w| {
                 let mut r = w.begin_squeeze();
                 let value = r.elt_field(&f);
-                let tail = r.bytes(32);
-                r.end_round((value, tail))
+                let actual_tail = r.bytes(32);
+                r.end_round((value, actual_tail))
             });
             assert_eq!(value, expected);
             assert_eq!(remaining, tail);
-            assert_eq!(actual.core.rounds, 1);
+            assert_eq!(actual._round_count.0, 1);
             return;
         }
     }
@@ -213,7 +234,7 @@ fn power_of_two_indices_consume_only_the_required_bytes() {
 }
 
 #[test]
-fn index_rejection_matches_the_same_xof_stream() {
+fn index_rejection_matches_the_same_prf_stream() {
     let mut saw_rejection = false;
     for (n, mask, len) in [
         (3, 3, 1),
@@ -246,8 +267,8 @@ fn index_rejection_matches_the_same_xof_stream() {
         let sampled = actual.round(RoundLabel::Opening, |w| {
             let mut r = w.begin_squeeze();
             let values: Vec<_> = (0..64).map(|_| r.nat(n)).collect();
-            let tail = r.bytes(32);
-            r.end_round((values, tail))
+            let actual_tail = r.bytes(32);
+            r.end_round((values, actual_tail))
         });
         assert_eq!(sampled, (expected, tail), "bound {n}");
     }

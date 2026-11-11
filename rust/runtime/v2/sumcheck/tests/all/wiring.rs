@@ -53,7 +53,7 @@ fn sample_assertions<
     };
     let mut active = [SplitFragment::new(&fragment, layer)];
     transcript.round(
-        crate::runtime::v2::transcript::RoundLabel::Assertions,
+        crate::runtime::v2::proto::RoundLabel::Assertions,
         |mut w| {
             w.write_bytes(&(stage as u64).to_le_bytes());
             let mut r = w.begin_squeeze();
@@ -148,7 +148,7 @@ fn check_repeated_output<
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.fork_for_test();
     let expected_rho = expected.round(
-        crate::runtime::v2::transcript::RoundLabel::Assertions,
+        crate::runtime::v2::proto::RoundLabel::Assertions,
         |mut w| {
             w.write_bytes(&1u64.to_le_bytes());
             let mut r = w.begin_squeeze();
@@ -268,7 +268,7 @@ fn check_output_sampling<
         );
         let mut expected = Transcript::new(b"v2-output-challenges");
         let expected_weights = expected.round(
-            crate::runtime::v2::transcript::RoundLabel::Assertions,
+            crate::runtime::v2::proto::RoundLabel::Assertions,
             |mut w| {
                 w.write_bytes(&0u64.to_le_bytes());
                 let mut r = w.begin_squeeze();

@@ -1,5 +1,10 @@
 import Mathlib.Data.Rat.BigOperators
-import Mathlib.Tactic
+import Mathlib.Algebra.BigOperators.Field
+import Mathlib.Data.Fintype.BigOperators
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Positivity
+import Mathlib.Tactic.SplitIfs
+import Lean.Elab.Tactic.NormCast
 
 namespace RecursivePolygero
 open Finset

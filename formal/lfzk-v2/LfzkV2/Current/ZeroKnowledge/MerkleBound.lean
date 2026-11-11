@@ -110,18 +110,19 @@ theorem digest_card : Fintype.card Digest = 2^256 := by
   decide
 
 /-- Exactly the entropy sampled by the current runtime's nonce constant. -/
-theorem nonce_card : Fintype.card MerkleNonce = 2^320 := by
+theorem nonce_card : Fintype.card MerkleNonce = 2^256 := by
   rw [Fintype.card_fun,Fintype.card_fin,Fintype.card_fin]
-  change (2^8)^merkleNonceBytes = 2^320
+  change (2^8)^merkleNonceBytes = 2^256
   rw [← pow_mul]
-  exact congrArg (fun bits : ℕ => (2:ℕ)^bits) (by rfl : 8*merkleNonceBytes = 320)
+  exact congrArg (fun bits : ℕ => (2:ℕ)^bits) (by rfl : 8*merkleNonceBytes = 256)
 
 set_option exponentiation.threshold 1024 in
 theorem rate7_openingError (queries : ℕ) :
-    openingError (2^320) (2^256) 2443 (2443-84) queries =
-      (23872996+4718*(queries:ℚ))/(2:ℚ)^320 + 23858340/(2:ℚ)^256 := by
+    openingError (2^256) (2^256) 2443 (2443-84) queries =
+      (47731336+4718*(queries:ℚ))/(2:ℚ)^256 := by
   unfold openingError
   push_cast
   norm_num
+  ring
 
 end LfzkV2.Current.ZeroKnowledge.MerkleSimulation

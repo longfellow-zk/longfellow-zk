@@ -1,41 +1,34 @@
-import LfzkV2.Current.Prefix
+import LfzkV2.Current.ReplayTranscript
 import TranscriptV2.Replay
 
-/-! Replay of the current round schedule with actual link feedback. The state
-retains earlier challenge answers for deriving later statements, but only the
-link is absorbed into the logical query history. Boundary encodings may read
-earlier answers, never their own answer. Identifying these encodings with the
-canonical Rust messages remains an implementation correspondence obligation. -/
+/-! Verifier execution pairs transcript state with a challenge cache used
+for arithmetic. The general encoding interface can inspect earlier answers;
+canonical encoders prove that their written packets do not. `replay_transcript`
+then projects execution to the separate digest-only transcript replay. -/
 namespace LfzkV2.Current.Replay
 
 variable {g : Geometry} {F : Fields} {Advice Authentication Context Block C : Type}
 
-abbrev Output (g : Geometry) (F : Fields) (Advice Authentication : Type) :=
-  Proof g F Advice Authentication
-
-abbrev Point (g : Geometry) (F : Fields) (Advice Authentication Context Block : Type) :=
-  Input g.roles Context Block Digest (Body g F Advice Authentication)
-
-/-- The complete proof supplies messages; prior answers supply derived public
-data such as the adapter equation and the compiled affine rows. The
-complete body and its seal are deliberately not configurable here. -/
+/-- The complete proof owns its messages and terminal body. The current
+canonical builders ignore the general interface's earlier-answer argument;
+challenge-derived affine rows and adapter equations remain verifier-local. -/
 structure Encoding (g : Geometry) (F : Fields)
     (Advice Authentication Context Block C : Type) where
   context : Output g F Advice Authentication → Context
   block : Output g F Advice Authentication →
     (i : Fin g.roles.length) → (Fin i.val → C) → Block
 
+abbrev VerifierState (C : Type) (rounds : ℕ) := Fin rounds → C
+
+/-- The generic execution adapter pairs transcript and verifier states.
+`Transcript` supplies the separate digest-only transition system. -/
 structure State (g : Geometry) (F : Fields) (Advice Authentication Context Block C : Type) where
-  point : Point g F Advice Authentication Context Block
-  answers : Fin point.rank → C
+  point : TranscriptState g F Advice Authentication Context Block
+  answers : VerifierState C point.rank
 
 def State.Coherent (state : State g F Advice Authentication Context Block C)
     (H : Point g F Advice Authentication Context Block → Digest × C) : Prop :=
   state.answers = state.point.priorAnswers H
-
-def State.BodyBound (state : State g F Advice Authentication Context Block C)
-    (proof : Output g F Advice Authentication) : Prop :=
-  ∀ history body, state.point = .finalSeal history body → body = proof.body
 
 namespace Encoding
 variable (e : Encoding g F Advice Authentication Context Block C)
@@ -163,6 +156,64 @@ def chain (initialLink : Digest) : TranscriptV2.Chain
   advance_link proof i state answer h := e.advance_link proof i state answer h initialLink
   finalSeal := Proof.finalSeal
 
+/-- Freeze the written packets, discarding the verifier's cache. The
+independence law below proves that the chosen default does not affect them. -/
+def transcript (proof : Output g F Advice Authentication) (fallback : C) :
+    Transcript g F Advice Authentication Context Block where
+  context := e.context proof
+  block i := e.block proof i (fun _ => fallback)
+  body := proof.body
+
+variable (proof : Output g F Advice Authentication) (fallback : C)
+variable (independent : ∀ i first second, e.block proof i first = e.block proof i second)
+
+include independent in
+private theorem stateAt_transcript (n : ℕ) (hn : n ≤ g.roles.length)
+    (history : History Context Block Digest n) (answers : Fin n → C) :
+    (e.stateAt proof n hn history answers).point =
+      TranscriptState.atRound proof.body n hn history
+        (fun h => (e.transcript proof fallback).block ⟨n,h⟩) := by
+  by_cases h : n < g.roles.length
+  · simp only [stateAt,TranscriptState.atRound,dif_pos h,transcript]
+    rw [independent ⟨n,h⟩ answers (fun _ => fallback)]
+  · have he : n = g.roles.length := by omega
+    subst n
+    simp [stateAt,TranscriptState.atRound]
+
+include independent in
+/-- Transcript evolution is independent of the execution's challenge
+cache; only the digest component of the new answer crosses the boundary. -/
+theorem advance_transcript (state : State g F Advice Authentication Context Block C)
+    (answer : Digest × C) :
+    (e.advance proof state answer).point =
+      (e.transcript proof fallback).advance state.point answer.1 := by
+  rcases state with ⟨point,answers⟩
+  cases point with
+  | round i history block => exact e.stateAt_transcript proof fallback independent _ _ _ _
+  | finalSeal history body => rfl
+
+include independent in
+/-- The existing verifier execution projects exactly to the separate
+digest-only transcript. Arithmetic caches need not be compared. -/
+theorem replay_transcript (initialLink : Digest)
+    (H : Point g F Advice Authentication Context Block → Digest × C) (n : ℕ) :
+    (e.chain initialLink).point proof H n =
+      (e.transcript proof fallback).replay (fun point => (H point).1) n := by
+  induction n with
+  | zero => exact e.stateAt_transcript proof fallback independent _ _ _ _
+  | succ n ih =>
+      by_cases inside : n < g.roles.length
+      · simp only [TranscriptV2.Chain.point,TranscriptV2.Chain.replay,dif_pos inside]
+        change (e.advance proof ((e.chain initialLink).replay proof H n)
+          (H ((e.chain initialLink).point proof H n))).point = _
+        rw [e.advance_transcript proof fallback independent]
+        change (e.transcript proof fallback).advance
+          ((e.chain initialLink).point proof H n) (H ((e.chain initialLink).point proof H n)).1 = _
+        rw [ih]
+        exact (if_pos inside).symm
+      · simpa only [TranscriptV2.Chain.point,TranscriptV2.Chain.replay,dif_neg inside,
+          Transcript.replay,if_neg inside] using ih
+
 theorem stateAt_coherent (proof : Output g F Advice Authentication)
     (n : ℕ) (hn : n ≤ g.roles.length) (history : History Context Block Digest n)
     (answers : Fin n → C) (H : Point g F Advice Authentication Context Block → Digest × C)
@@ -231,9 +282,9 @@ theorem point_context (initialLink : Digest) (proof : Output g F Advice Authenti
 
 theorem stateAt_body (proof : Output g F Advice Authentication)
     (n : ℕ) (hn : n ≤ g.roles.length) (history : History Context Block Digest n)
-    (answers : Fin n → C) : (e.stateAt proof n hn history answers).BodyBound proof := by
+    (answers : Fin n → C) : (e.stateAt proof n hn history answers).point.BodyBound proof.body := by
   by_cases h : n < g.roles.length
-  · simp [stateAt, h, State.BodyBound]
+  · simp [stateAt, h, TranscriptState.BodyBound]
   · have he : n = g.roles.length := by omega
     subst n
     intro other body heq
@@ -241,7 +292,7 @@ theorem stateAt_body (proof : Output g F Advice Authentication)
 
 theorem advance_body (proof : Output g F Advice Authentication)
     (state : State g F Advice Authentication Context Block C) (answer : Digest × C)
-    (hs : state.BodyBound proof) : (e.advance proof state answer).BodyBound proof := by
+    (hs : state.point.BodyBound proof.body) : (e.advance proof state answer).point.BodyBound proof.body := by
   rcases state with ⟨point,answers⟩
   cases point with
   | round j history block => exact e.stateAt_body proof _ _ _ _
@@ -249,7 +300,7 @@ theorem advance_body (proof : Output g F Advice Authentication)
 
 theorem replay_body (initialLink : Digest) (proof : Output g F Advice Authentication)
     (H : Point g F Advice Authentication Context Block → Digest × C) (n : ℕ) :
-    ((e.chain initialLink).replay proof H n).BodyBound proof := by
+    TranscriptState.BodyBound ((e.chain initialLink).point proof H n) proof.body := by
   induction n with
   | zero => exact e.stateAt_body proof 0 (Nat.zero_le _) _ _
   | succ n ih =>
@@ -257,7 +308,7 @@ theorem replay_body (initialLink : Digest) (proof : Output g F Advice Authentica
       · simpa only [TranscriptV2.Chain.replay, TranscriptV2.Chain.point, dif_pos hn, chain] using
           e.advance_body proof ((e.chain initialLink).replay proof H n)
             (H ((e.chain initialLink).point proof H n)) ih
-      · simpa only [TranscriptV2.Chain.replay, dif_neg hn] using ih
+      · simpa only [TranscriptV2.Chain.point, TranscriptV2.Chain.replay, dif_neg hn] using ih
 
 /-- Final replay necessarily reaches the separately framed complete body.
 The earlier queries and the final seal are all covered by this same chain. -/

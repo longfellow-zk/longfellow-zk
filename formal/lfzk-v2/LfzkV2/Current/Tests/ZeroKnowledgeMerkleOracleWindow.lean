@@ -4,7 +4,7 @@ import LfzkV2.Current.ZeroKnowledge.MerkleOracleWindow
 Merkle window includes both codec images and every mixed observer branch. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeMerkleOracleWindow
 open Merkle Merkle.MH Merkle.RandomOracle
-open ZeroKnowledge.MerkleOracleWindow
+open ZeroKnowledge.MerkleOracleWindow Current.ObserverWindow
 
 private def exampleCodec : Codec Bool Bool Bool Nat where
   leafEnc value := 10+(if value.1 then 2 else 0)+(if value.2 then 1 else 0)

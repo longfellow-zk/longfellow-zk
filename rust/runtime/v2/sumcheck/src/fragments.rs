@@ -13,12 +13,15 @@
 use std::ops::Range;
 
 use super::{
+    circuit::CircuitSource,
     quad::{affine_constant, affine_linear, bind_l_into},
     split::SplitLayer,
     SumcheckProofGeometry,
 };
+#[cfg(test)]
+use crate::core::proto::v2::Circuit;
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::algebra::SerializableField,
     runtime::algebra::{blas, RuntimeField},
 };
 
@@ -44,30 +47,32 @@ pub(super) struct Schedule {
     pub ninput: usize,
 }
 impl Schedule {
-    pub(super) fn new<F: SerializableField>(circuits: &[&Circuit<F>]) -> Result<Self, String> {
+    pub(super) fn new<F: SerializableField>(
+        circuits: &[impl CircuitSource<F>],
+    ) -> Result<Self, String> {
         let first = circuits.first().ok_or("empty circuit list")?;
-        let ninput = first.raw.ninput;
-        let npublic = first.raw.npublic_input;
+        let ninput = first.raw().ninput;
+        let npublic = first.raw().npublic_input;
         if npublic > ninput
             || circuits.iter().any(|c| {
-                c.raw.ninput != ninput
-                    || c.raw.npublic_input != npublic
-                    || c.raw
+                c.raw().ninput != ninput
+                    || c.raw().npublic_input != npublic
+                    || c.raw()
                         .layers
                         .last()
-                        .map_or(c.raw.noutput != ninput, |l| l.nw != ninput)
+                        .map_or(c.raw().noutput != ninput, |l| l.nw != ninput)
             })
         {
             return Err("circuits must share one input layout".into());
         }
-        let depth = circuits.iter().map(|c| c.raw.layers.len()).max().unwrap();
+        let depth = circuits.iter().map(|c| c.raw().layers.len()).max().unwrap();
         // Once ordered by depth, entering circuits always append to the active
         // layout. The protocol can extend its carried weights in place, with
         // no first-layer branch, placeholder coefficients or weight shuffling.
         let mut order: Vec<_> = (0..circuits.len()).collect();
         // The supplied list is transcript-bound. Its index is the explicit
         // tie-breaker, including for repeated circuit IDs.
-        order.sort_by_key(|&i| (std::cmp::Reverse(circuits[i].raw.layers.len()), i));
+        order.sort_by_key(|&i| (std::cmp::Reverse(circuits[i].raw().layers.len()), i));
         let mut layers = Vec::with_capacity(depth);
         for stage in 0..depth {
             let shared_inputs = stage + 1 == depth;
@@ -76,16 +81,16 @@ impl Schedule {
             let mut output_assertions = 0usize;
             let mut fragments = Vec::new();
             for &circuit in &order {
-                let c = circuits[circuit];
-                if let Some(layer) = stage.checked_sub(depth - c.raw.layers.len()) {
-                    let width = c.raw.layers[layer].nw;
+                let c = &circuits[circuit];
+                if let Some(layer) = stage.checked_sub(depth - c.raw().layers.len()) {
+                    let width = c.raw().layers[layer].nw;
                     if width == 0 {
                         return Err("sumcheck layer must contain a wire".into());
                     }
                     let outputs = if layer == 0 {
-                        c.raw.noutput
+                        c.raw().noutput
                     } else {
-                        c.raw.layers[layer - 1].nw
+                        c.raw().layers[layer - 1].nw
                     };
                     let next_v = nv
                         .checked_add(outputs)
@@ -140,7 +145,7 @@ impl Schedule {
 }
 
 pub(crate) fn geometry<F: SerializableField>(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
 ) -> Result<SumcheckProofGeometry, String> {
     Ok(Schedule::new(circuits)?.geometry)
 }
@@ -165,7 +170,7 @@ impl<'a, E> SplitFragment<'a, E> {
 }
 
 pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     weights: &[F::E],
     active: &[SplitFragment<'_, F::E>],
     f: &F,
@@ -177,7 +182,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
             &mut constant,
             &affine_constant(
                 &a.layer,
-                &circuits[s.circuit].raw.constants,
+                &circuits[s.circuit].raw().constants,
                 &weights[s.output_range.clone()],
                 f,
             ),
@@ -190,7 +195,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// Accumulate Q into one global array; input-layer fragments deliberately overlap.
 /// Finally apply the ordinary a_next=m(u)+alpha*q_r update once over that array.
 pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>(
-    circuits: &[&Circuit<F>],
+    circuits: &[impl CircuitSource<F>],
     weights: &[F::E],
     active: &[SplitFragment<'_, F::E>],
     nw: usize,
@@ -203,7 +208,7 @@ pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>
     let mut linear = f.zero();
     for a in active {
         let s = &a.fragment;
-        let constants = &circuits[s.circuit].raw.constants;
+        let constants = &circuits[s.circuit].raw().constants;
         let output_weights = &weights[s.output_range.clone()];
         let input_weights = &m[s.input_range.clone()];
         bind_l_into(

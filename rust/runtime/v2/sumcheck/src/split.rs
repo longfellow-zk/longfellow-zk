@@ -7,12 +7,11 @@
 
 use std::ops::Range;
 
+#[cfg(any(test, feature = "prover"))]
+use super::circuit::CircuitSource;
 use crate::core::proto::v2::{CoefficientClass, Constant, Layer, Linear, Quadratic, Stream};
 #[cfg(any(test, feature = "prover"))]
-use crate::core::{
-    algebra::SerializableField,
-    proto::v2::{classify_constants, Circuit},
-};
+use crate::core::{algebra::SerializableField, proto::v2::classify_constants};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct QuadraticCoordinates {
@@ -51,12 +50,12 @@ fn class(k: u32, classes: &[CoefficientClass]) -> usize {
     classes[k as usize] as usize
 }
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn split_layers<'a, F: SerializableField>(
-    c: &'a Circuit<F>,
+pub(super) fn split_layers<'a, F: SerializableField + 'a>(
+    c: &'a impl CircuitSource<F>,
     f: &F,
 ) -> Vec<SplitLayer<'a>> {
-    let classes = classify_constants(f, &c.raw.constants);
-    c.raw
+    let classes = classify_constants(f, &c.raw().constants);
+    c.raw()
         .layers
         .iter()
         .map(|l| SplitLayer::with_classes(l, &classes))

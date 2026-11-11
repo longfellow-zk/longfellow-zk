@@ -43,6 +43,15 @@ example : Adapter.residual (Handoff.weights (fun _ : Fin 1 => (2 : ZMod 5)) 3)
     (Handoff.values (fun _ : Fin 1 => true) (fun _ : Fin 3 => true)) 3 = 0 := by
   decide
 
+-- Rescaling the shared-input term never rescales the hiding scalar. Even
+-- when eta is zero, the reconstructed mask retains coefficient one.
+example {p shared maskBits : ℕ} [Fact p.Prime]
+    (weights : Fin shared → ZMod p) (bits : Fin shared → Bool) (mask : Fin maskBits → Bool) :
+    Adapter.residual (Handoff.weights weights 0) (Handoff.values bits mask) 0 =
+      Handoff.binaryMask mask := by
+  rw [Handoff.residual_eq]
+  simp
+
 -- The modular product check really can accept a false field equation.
 -- For p=7, group order 5 and the false claim 1=0, alpha=5 and quotient=0 pass.
 example : Adapter.residual (fun _ : Fin 1 => (1 : ZMod 7)) (fun _ => true) 0 ≠ 0 := by

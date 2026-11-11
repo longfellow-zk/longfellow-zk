@@ -65,15 +65,35 @@ It introduces projective sumcheck and replaces Ligero with nonrecursive
 Polygero. A fresh challenge at each sumcheck terminal makes all commitment
 constraints linear, eliminating Polygero's product-copy rows. V1 remains supported.
 V1 retains its SHA-256 transcript accumulator and AES-256 challenge generator.
-V2 uses a direct SHAKE256 transcript with explicit message and challenge phases.
-Each round finalizes a private accumulator snapshot, absorbs the first 32 output
-bytes as a link, and draws challenges from the remaining output of that same
-SHAKE reader. Index sampling uses the minimum bit width for values below its
-bound, so power-of-two bounds require no rejection and a singleton consumes
-no challenge bytes. Sampling without replacement updates that bound after
-each selected index. Empty rounds also bind a round label and counter. Intermediate
-links stay internal; complete proofs end with a 32-byte seal over the chained
-transcript and actual canonical proof body, including terminal authentication.
+Its legacy index and opening samplers live on the v1 transcript, including
+the original extra-bit rejection behavior at power-of-two bounds. Shared
+`RandomEngine` contains no index sampler; its v1 extension is limited to
+legacy subfield sampling.
+V2 uses SHA-256 strands with explicit message and challenge phases. A root
+has id zero and no parents. Each round consumes its absorbing strand and returns
+a PRF and a fresh one-parent continuation with id `parent.id + 1`.
+The node hash binds `u32(STRAND) || u64(id) || u32(parent_count) || parent`
+before the message, and PRF blocks hash
+`u32(PRF) || u64(id) || digest || u64(counter)`. Integers are little endian;
+strand ids and PRF counters are checked against overflow. Distinct node and
+PRF positions therefore have distinct inputs even if digests collide. PRF
+reads do not affect the continuation. Separate executions can replay the same
+inputs. Round labels are protocol-format constants owned by
+`v2::proto`; the generic transcript binds their numeric tags. Finalized states
+stay private, and PRF block zero supplies the first challenge bytes.
+Index sampling uses the minimum bit width for values below its bound,
+so power-of-two bounds require no rejection and a singleton consumes no bytes.
+Sampling without replacement updates that bound after each selected index.
+Complete proofs end with a 32-byte final seal: a PRF challenge computed from
+the strand binding the complete canonical proof body, including terminal
+authentication data. Both parties compute it, and verification checks the
+value stored in the proof.
+
+The v2 Merkle codec separately tags leaves and internal nodes. Leaves bind
+their column index; internal nodes bind their heap index, with root 1 and
+children `2*i` and `2*i + 1`. The traversal supplies these indices, which are
+encoded as little-endian u64 values and require no proof bytes. Distinct tree
+positions have distinct hash inputs even when their child digests coincide.
 
 V2 callers receive separate writing and reading capabilities. `begin_squeeze` consumes
 the writer; closing the reader returns the round-completion token. Public
@@ -116,108 +136,96 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 
 ## Security bounds
 
-The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
-Fiat–Shamir T-security** for the modeled v7 composition, under its documented
-assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) bounds
-extractor failure for the mathematical verifier of the MAC-free mdoc
-protocol, including witness selection, layered sumcheck, the P256 adapter,
-packing, joint Polygero and its single Merkle commitment. The typed theorem
-allows adaptive public requests while fixing trusted circuit metadata.
-The theorem uses an explicit ideal-sampler oracle and a domain-separated
-Merkle random oracle. Canonical query bytes and Merkle encodings are modeled.
-The mdoc theorem constructs the quotient-advice decoder, backend layout,
-transcript plans and derived metadata from trusted circuit topology and
-canonical field representations. Rust is checked against this mathematical
-verifier by source audit. A reduction from full SHAKE byte streams is outside
-the theorem. The
-[audit](../formal/AUDIT.md) states this boundary. Both fields use one opening set and one active
-joint-label bound, while retaining their separate rank and outside-list terms.
-The ordinary-rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
-[checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
-bounds each complete backend query charge below `1.999999/q`, where `q=2^128`.
-[Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
-keep the implementation's geometry and complete local budgets aligned with it.
-The committed binary/prime candidate caps are respectively
-`21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`. They give a
-fingerprint-role charge of approximately `0.705/q`; efficient enumeration of
-these worst-case lists is not claimed.
-The [exact soundness theorem](../formal/lfzk-v2/LfzkV2/Current/MdocSharedSHASoundness.lean)
-applies to every valid fixed public circuit/layout configuration of this profile.
-For every pair of integers `Q >= 0` and `Q_H >= 0`, any finite classical adaptive
-adversary making at most `Q` distinct transcript-oracle queries and at most
-`Q_H` SHA-256-oracle calls satisfies
+The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes 116-bit
+Fiat–Shamir T-security for its modeled v7 composition. The current v2
+numbered-strand model has a checked one-SHA extraction theorem for adaptive
+public requests and arbitrary complete serialized proofs. It includes witness
+selection, layered sumcheck, the cross-field adapter, packing, joint Polygero,
+its shared indexed Merkle commitment and the final seal.
+
+For every integer `Q >= 0`, any finite classical adaptive adversary making
+at most `Q` distinct original SHA queries satisfies
 
 ```text
 Pr[verifier accepts and the paired extractor fails to recover
    a witness satisfying the requested circuits]
-  <= 2Q / 2^128
-     + [4Q + 1 + Q_H(Q_H - 1)/2
-        + (4886 + Q_H)(2Q_H + R + Q + 2)] / 2^256.
+  <= 2Q/(q - 1) + [Q(Q - 1)/2 + r + 15]/q^2,
+     q = 2^128.
 ```
 
-The theorem uses one SHA function for context/circuit identifiers, adversary
-queries and Merkle verification. `Q_H` conservatively includes auxiliary SHA
-calls; domain splitting adds no error term. Here `R` is the number of ordinary
-transcript boundaries, excluding the final
-seal: 492 for the two-attribute layout and 499 for the four-attribute layout.
-Public requests may be chosen adaptively and proof bytes arbitrarily. The
-bound permits arbitrary finite repetitions of transcript queries and includes
-`Q = 0`; there is no minimum-query premise. Probability is over the ideal
-oracles and the adversary's private randomness. The squared-field correction
-includes chain guessing, nonzero sampling and one shared Merkle explanation.
-The leading per-query charge is `2/q = 2^-127`; the positive squared-field
-corrections remain explicit.
-The [complete mdoc model's zero-knowledge theorem](../formal/lfzk-v2/README.md#complete-mdoc-zero-knowledge)
-gives a witness-free simulator with distinguishing error at most
-`(47745992+4886*Mpre+4718*Mpost)/2^320 + 47716680/2^256 + 4884*Mpre/2^512 + Tpre/2^46208`.
-Here `Mpre` and `Mpost` bound the observer's SHA queries before and after
-the proof, and `Tpre` bounds its earlier transcript queries. It covers
-the complete proof and retained observer state under the ideal-oracle and
-uniform-sampler model, for fixed valid witnesses per public request.
-V2 uses a 40-byte nonce per committed column, with one `NONCE_LEN` constant
-shared by sampling, codecs and size estimates. At `Mpre + Mpost <= 2^128`
-and `Tpre <= 2^128`, the ideal-model error is below `2^-179`. The 84 opened
-columns add 672 nonce bytes relative to 32-byte salts; SHA-256 digests remain
-32 bytes.
+Here `r` counts ordinary transcript boundaries. The final seal is accounted
+for separately. The same SHA function supplies public setup hashes,
+adversarial answers, numbered strand nodes, indexed PRF blocks and indexed
+Merkle authentication. Repeated queries reuse answers. The query budget
+counts the original adversarial program. Verifier replay appears in the
+explicit correction.
+
+The ordinary rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
+[checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
+bounds each complete backend query charge below `1.999999/q`.
+[Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
+align the implementation geometry and local budgets. The committed
+binary/prime candidate caps are respectively
+`21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`.
+They give a fingerprint-role charge of approximately `0.705/q`.
+
+The [exact endpoint](../formal/lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+constructs metadata, advice decoding, layouts and frontend plans from trusted
+circuit topology and canonical field representations. It derives ordered
+query recovery, agreement on opened columns, failure coverage and one shared
+query budget. The public setup and complete verifier use the same oracle.
+The [audit](../formal/AUDIT.md) records the proof path and implementation scope.
+
+The cryptographic assumptions are a classical ideal SHA oracle and the
+approved ideal joint role-block sampler, including nonzero scalars and
+openings without replacement. Rejected sampler bytes are outside the analysis.
+The field codecs, circuit semantics and static public resource bounds are
+trusted model inputs. Rust correspondence is established through source audit
+and tests. Machine-level refinement and extractor running-time bounds remain
+open. The exact `q-1` denominator retains the nonzero-sampling correction.
+
+The [complete numbered-strand zero-knowledge theorem](../formal/lfzk-v2/README.md#current-numbered-strand-zero-knowledge)
+gives a witness-free simulator with ideal-model distinguishing error at most
+`(Qpre+Qpost)/2^256`. Public setup and both observer traces use the same SHA
+oracle as the complete proof. `Qpre` and `Qpost` count raw calls before and
+after the proof, including repetitions and verification calls when the
+verifier is observed. The actual verifier's acceptance probabilities obey
+the same comparison, including rejection and simulator-abort outcomes.
+
+The theorem assumes independent uniform private coins, trusted
+fields/codecs/circuits and layout bounds, and a fixed witness policy valid
+at contexts reached using setup derived from the same oracle. Ordinary hash
+witness satisfaction and static hash-circuit noninterference are separate
+premises, alongside the basis/generator checks. V2 uses a
+32-byte nonce per committed column, with one `NONCE_LEN` constant shared by
+sampling, codecs and size estimates. At `Qpre+Qpost <= 2^128`, the ideal-model
+error is at most `2^-128`. The 84 opened columns carry 2688 nonce bytes;
+SHA-256 digests are also 32 bytes.
 
 At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
 becomes itself questionable. The bound above should therefore not be interpreted
-as 179 bits of hiding for the concrete implementation. The parameters put
+as 128 bits of hiding for the concrete implementation. The parameters put
 the bottleneck in SHA-256 itself, rather than the rest of the protocol.
 
-The trusted application relations and Rust correspondence boundary remain explicit.
-
-The intended transcript proof model treats one round-boundary oracle answer as
-the source of both the link and the entire challenge block. Later reads,
-including field rejection sampling, extend that same answer. The
-[typed oracle analysis](../formal/transcript-v2/README.md) proves that feedback
-pins the boundary-query order along an accepted path, except for guessed links
-or an unqueried final seal. Its common exception is `ε_chain=(Q+1)/2^256` for
-32-byte links. Branch exploration consumes additional queries. For ordinary
-fixed-witness quadratic sumcheck with uniform field challenges the bound is
-`2Q/q + ε_chain`, where `Q` bounds distinct adversarial oracle queries and `q`
-is the field size. The [witness-selection analysis](../formal/witness-selection/README.md)
-separately charges `Q*choose(L,2)/q²` in the adaptive Fiat–Shamir oracle model.
-Outside that event the frontend witness is unique, removing its candidate-list
-multiplier. The complete composition includes
-Polygero's extraction/outside-list errors and nonzero-sampling corrections.
-The circuits and their public layouts are trusted. The oracle model supplies
-jointly uniform typed challenge blocks and independent auxiliary randomness;
-repeated queries receive the same answer. Rust's SHAKE and rejection sampling
-are audited against that model.
+The [transcript analysis](../formal/transcript-v2/README.md) proves the logical
+query-accounting interface used by the raw SHA coupling. The soundness endpoint accounts
+for numbered SHA strand nodes and counter-indexed PRF queries directly.
+The [witness-selection analysis](../formal/witness-selection/README.md)
+charges `Q*choose(L,2)/q²` for candidate selection. The full composition
+retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 
 ## Performance
 
-Complete NEXT v12 mdoc presentations, measured on 2026-11-08 with Rust 1.99.1
+Complete NEXT v12 mdoc presentations, measured on 2026-11-10 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
-Times are medians of sixteen samples across two runs, each after one warmup;
+Times are medians of seven samples after one warmup;
 heap measurements use separate allocation-tracking runs. The four-slot case
 repeats the fixture's two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 138.1 ms | 77.4 ms | 138,191 | 43.06 MiB | 34.73 MiB |
-| 4 | 149.2 ms | 84.1 ms | 138,735 | 47.65 MiB | 37.78 MiB |
+| 2 | 140.2 ms | 75.5 ms | 138,575 | 43.06 MiB | 34.73 MiB |
+| 4 | 145.0 ms | 77.0 ms | 138,735 | 47.65 MiB | 37.78 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|

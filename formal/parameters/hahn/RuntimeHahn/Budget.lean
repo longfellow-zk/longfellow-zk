@@ -1,4 +1,8 @@
-import Mathlib.Tactic
+import Mathlib.Data.Nat.Choose.Basic
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Positivity
+import Lean.Elab.Tactic.NormCast
 
 /-! Field-aware per-query budgets, independent of either commitment protocol.
 MLDSA uses its actual sextic field size and reserves both the rank and scalar

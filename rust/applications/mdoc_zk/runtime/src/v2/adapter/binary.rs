@@ -97,7 +97,12 @@ impl BinaryParticipant {
         self.backend.bind(t, &self.id);
         super::transcript::bind_binary(t, &self.template_id, &self.geometry.sc_geom.logw_layers);
     }
-    fn circuit(&self, c: &Circuit<F>, public: &[bool], values: &[E]) -> Result<Circuit<F>, String> {
+    fn circuit(
+        &self,
+        c: &Circuit<F>,
+        public: &[bool],
+        values: &[E],
+    ) -> Result<crate::core::proto::v2::RawCircuit<F>, String> {
         if c.id != self.id
             || c.raw.ninput != self.ninput
             || c.raw.npublic_input != self.npublic
@@ -112,7 +117,7 @@ impl BinaryParticipant {
             self.ninput,
             values,
         )?;
-        let geometry = sumcheck::circuit_geometry(&[c, &tree])?;
+        let geometry = sumcheck::circuit_geometry(&[&c.raw, &tree])?;
         if geometry != self.geometry.sc_geom {
             return Err("adapter instance geometry mismatch".into());
         }

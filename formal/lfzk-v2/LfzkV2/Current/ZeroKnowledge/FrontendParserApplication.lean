@@ -16,14 +16,14 @@ variable {B C : Type} [Field B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
-local notation "G" => CompleteSimulation.geometry binary prime primePlan
+local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
 variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
-variable (shape : WireBlocks.Shape (CompleteSimulation.geometry binary prime primePlan) (MdocRuntime.fields B))
+variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
 variable (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → MdocRuntime.fields B .binary)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape publicCount)
 variable (request : CanonicalRequest.Request shape publicCount) (initial : Digest)
-variable (proof : CanonicalRequest.Output (g := CompleteSimulation.geometry binary prime primePlan)
+variable (proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
 variable (H : QueryRuntime.Runtime.Point repr shape setup publicCount → Digest × C)
 variable (samples : ConcreteMetadata.Samples B C)
@@ -41,7 +41,7 @@ theorem positions :
   simp only [ApplicationPrefix.rowBatchingIndex,ApplicationPrefix.rescalingIndex,
     ApplicationPrefix.conversionIndex,ApplicationPrefix.packingIndex,Geometry.primeStart,
     Geometry.binaryStart,Geometry.batchingIndex_val,Geometry.backendPrefix,
-    CompleteSimulation.geometry,ConcreteSetup.geometry,BinaryCircuit.description,
+    MdocRuntime.geometry,ConcreteSetup.geometry,BinaryCircuit.description,
     List.length_append,List.length_cons,List.length_nil,show (128 : ℕ) ≠ 1 by decide,if_false]
   repeat' constructor <;> omega
 

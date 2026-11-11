@@ -167,7 +167,7 @@ envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
 adapter proofs use `MDA6`, and the shared Polygero envelope uses `JPG2`.
 Serialization writes backend data directly into the containing proof buffer.
-V2 uses typed SHAKE256 transcript rounds and a mandatory final seal owned by
+V2 uses typed rounds over SHA-256 strands and a mandatory final seal owned by
 the complete-proof encoder; nested circuit and backend bodies have no extra seals.
 V1 encodings and transcripts are unchanged.
 

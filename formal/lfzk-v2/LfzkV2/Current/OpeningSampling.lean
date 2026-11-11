@@ -1,6 +1,7 @@
 import LfzkV2.Current.Opening
 import LfzkV2.Current.IdealProjections
 import Mathlib.Data.Fintype.CardEmbedding
+import Mathlib.Data.Fintype.Perm
 
 /-! Uniform ordered openings and their unordered query sets. The sampled
 order remains available as a permutation; forgetting it has exactly `t!`

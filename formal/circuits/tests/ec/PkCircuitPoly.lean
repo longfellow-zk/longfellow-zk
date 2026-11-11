@@ -15,7 +15,7 @@
 -/
 
 module
-public import Mathlib
+public import Mathlib.Algebra.MvPolynomial.Basic
 public import PkCircuit
 public import ECDSA.Curves
 

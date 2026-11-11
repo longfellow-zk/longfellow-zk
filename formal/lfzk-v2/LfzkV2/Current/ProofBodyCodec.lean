@@ -117,7 +117,7 @@ private def bodyData (g : Geometry) (fields : Fields) (Advice : Type) :
     rfl
   right_inv value := by cases value; rfl
 
-/-- Existing marker bytes; domain tags used by SHAKE are separate. -/
+/-- Proof-body marker bytes, distinct from numbered-strand domain tags. -/
 def mda6 : Bytes := [77,68,65,54]
 def jpg2 : Bytes := [74,80,71,50]
 

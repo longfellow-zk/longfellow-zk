@@ -2,16 +2,11 @@ import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ApplicationPrefix
 import LfzkV2.Current.MetadataIdentifiers
 
-/-! Bind-only writes reconstructed from the actual causal history. Prover
-messages remain the responsibility of `WireBlocks.fromRequest`. This module
-chooses the runtime's computations for the intervening affine claims and
-statement identifiers; a caller no longer chooses a function of the whole
-history that happens to have the right type.
-
-Unavailable messages and answers have fixed defaults solely to make the
-encoder total on malformed prefixes. The ordinary application decoder still
-rejects missing messages; no accepted branch is manufactured by those defaults.
--/
+/-! Fixed bind-only metadata for the current verifier. Actual prover
+messages and request public inputs are assigned by `WireBlocks.fromRequest`.
+Derived affine claims and generated adapter coefficients remain local and
+cannot enter the metadata constructor. Prefix helpers support the separate
+application readback proofs; they are not used to serialize metadata. -/
 noncomputable section
 namespace LfzkV2.Current.ConcreteMetadata
 open SumcheckV2 ApplicationSetup
@@ -69,9 +64,8 @@ structure Samples (B C : Type) [Field B] where
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)
 variable (shape : WireBlocks.Shape g fields)
 
-/-- Public size facts and static identifiers. None is a function of proof
-messages. The only auxiliary function hashes an already constructed byte string.
-The main hash circuit depth is trusted circuit-description data, just like its ID. -/
+/-- Public size facts and static identifiers. None depends on proof messages
+or oracle challenges. The hash depth is trusted circuit-description data. -/
 structure Public where
   binaryCount : shape.binaryPublic = binary.nPublic
   primeCount : shape.primePublic = prime.nPublic
@@ -87,7 +81,6 @@ structure Public where
   hashDepth : WireBlocks.Word
   binaryContext : Digest
   primeContext : Digest
-  identifierHash : Bytes → Digest
 
 variable (samples : Samples B C)
 variable (primeField : fields .prime ≃ N)
@@ -101,46 +94,10 @@ def primeData {index : ℕ} (history : Prefix g fields Advice C index) : PrimeDa
     answers := answers
     rho := fun i => samples.prime (history.answer (ApplicationPrefix.rowBatchingIndex g)) i.val }
 
-/-- Dense order is all private prime inputs, followed by the sumcheck pads.
-Dedicated fingerprint masks have no coordinate in this transmitted claim. -/
-def primeWeights (data : PrimeData prime C) : Fin (shared+prime.remaining+prime.pads) → N :=
-  Fin.append
-    (fun i => Sum.elim data.claim.sharedWeights data.claim.otherWeights
-      (CellLayout.Prime.input shared prime.remaining prime.pads i))
-    (fun i => data.claim.otherWeights (CellLayout.Prime.pad prime.remaining prime.pads i))
-
-def conversionWeights (data : PrimeData prime C) (eta : N) : Fin (shared+1) → N :=
-  Fin.append (fun i => eta*data.claim.sharedWeights i) (fun _ => 1)
-
-def rescaling {index : ℕ} (history : Prefix g fields Advice C index) : N :=
-  (samples.primeNonzero (history.answer (ApplicationPrefix.rescalingIndex g))).val
-
-def powers {index : ℕ} (generator : Bˣ) (data : PrimeData prime C)
-    (history : Prefix g fields Advice C index) : Fin 2 → Fin (shared+maskBits) → Bˣ :=
-  fun tree i => generator^((samples.conversion
-    (history.answer (ApplicationPrefix.conversionIndex g)) tree).val *
-      Handoff.weights data.claim.sharedWeights (rescaling samples history) i).val
-
-def targets {index : ℕ} (generator : Bˣ) (history : Prefix g fields Advice C index) : Fin 2 → Bˣ :=
-  let mu := primeField ((history.fresh (ApplicationPrefix.conversionIndex g)).mu.getD (primeField.symm 0))
-  fun tree => generator^((samples.conversion (history.answer (ApplicationPrefix.conversionIndex g)) tree).val*mu).val
-
-def masked {index : ℕ} (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
-    (history : Prefix g fields Advice C index) : Fin 2 → Fin adviceBits → Bool :=
-  (((history.fresh g.binaryStart).advice).bind advice).getD (fun _ _ => false)
-
 private def digestBytes (value : Digest) : BoundedBytes CanonicalPrefix.maxLength :=
   ⟨List.ofFn value,by simp [CanonicalPrefix.maxLength]⟩
 
 variable (params : Public binary prime shape)
-
-/-- Public values change no size, source ID or frontend address. -/
-def Public.withInputs (binaryInputs : Fin binary.nPublic → Bool) (primeInputs : Fin prime.nPublic → N) :
-    Public { binary with publicBits := binaryInputs } { prime with publicInputs := primeInputs } shape :=
-  ⟨params.binaryCount,params.primeCount,params.primeInputs,params.sharedBits,params.packingInputs,
-    params.binary128,params.binaryPadsFit,params.primeDepthFit,
-    params.adapterDepthFit,params.binaryRowsFit,params.primeRowsFit,params.hashDepth,
-    params.binaryContext,params.primeContext,params.identifierHash⟩
 
 /-- Packing identifies the already-derived source, retaining only its public
 cell counts in the byte transcript. The complete affine expression remains a
@@ -162,59 +119,43 @@ def adapterSources : Fin (shared+maskBits) → ℕ :=
 def adapterPads : Fin 2 → Fin adviceBits → ℕ :=
   fun tree i => binary.nPublic+(binary.advicePrivate tree i).val
 
-def adapterId {index : ℕ} (encode : B → Bytes) (generator : Bˣ) (data : PrimeData prime C)
-    (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
-    (history : Prefix g fields Advice C index) : Digest :=
-  MetadataIdentifiers.adapterId params.identifierHash encode binary.shape
-    (binary.nPublic+binary.nPrivate) binary.nPublic (adapterSources binary) (adapterPads binary)
-    (powers prime samples generator data history) (generator^(-(Adapter.Mdoc.primeOrder : ℤ)))
-    (masked advice history) (targets samples primeField generator history)
-
-def start {index : ℕ} (ids : FingerprintPrefix.Setup) (encode : B → Bytes) (generator : Bˣ)
-    (data : PrimeData prime C) (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
-    (history : Prefix g fields Advice C index) :
+/-- Metadata contains only fixed public identifiers, depths and counts.
+No oracle answer or challenge-derived coefficient can enter these packets. -/
+def start (ids : FingerprintPrefix.Setup) :
     (stage : WireBlocks.Start) → WireBlocks.StartMetadata shape stage
   | .none => ()
   | .prime => ((ids.primeCircuit,fun _ => shape.zero .prime),
       fun _ => (ids.primeCircuit,⟨prime.circuit.layers,params.primeDepthFit⟩))
-  | .binary =>
-      let generated := adapterId binary prime shape samples primeField params encode generator data advice history
-      ((ids.hashCircuit,fun _ => shape.zero .binary),
-        (generated,fun _ => shape.zero .binary),
-        Fin.cons (ids.hashCircuit,params.hashDepth)
-          (Fin.cons (generated,⟨(MetadataIdentifiers.reductions (F := B) binary.shape).length+2,
-            params.adapterDepthFit⟩) Fin.elim0))
+  | .binary => ((ids.hashCircuit,fun _ => shape.zero .binary),
+      Fin.cons params.hashDepth
+        (Fin.cons ⟨(MetadataIdentifiers.reductions (F := B) binary.shape).length+2,
+          params.adapterDepthFit⟩ Fin.elim0))
 
-def role {index : ℕ} (ids : FingerprintPrefix.Setup)
-    (data : PrimeData prime C)
-    (history : Prefix g fields Advice C index) :
+def role (ids : FingerprintPrefix.Setup) :
     (stage : Role) → WireBlocks.RoleMetadata shape stage
-  | .rescaling => (fun i => primeField.symm (primeWeights prime data (Fin.cast params.primeInputs i)),
-      primeField.symm data.claim.target)
-  | .conversion => fun i => primeField.symm
-      (conversionWeights prime data (rescaling samples history) (Fin.cast (congrArg (·+1) params.sharedBits) i))
   | .packing => packingStatement binary prime shape params ids.hashCircuit
   | .batching => ((ids.hashCircuit,params.binaryContext,⟨g.affineRows .binary,params.binaryRowsFit⟩),
       (ids.primeCircuit,params.primeContext,⟨g.affineRows .prime,params.primeRowsFit⟩))
   | .fingerprint | .inputAssertions .. | .assertions .. | .sumcheck .. |
-      .terminal .. | .combine .. | .rowBatching | .opening => ()
+      .terminal .. | .combine .. | .rowBatching | .rescaling | .conversion | .opening => ()
 
-/-- Instantiate the causal wire encoder. Both frontend compilers use the
-request's public values. Prime coefficients use the earlier messages and answers;
-packing writes only its statement identifier and public layout. -/
-def metadata (ids : FingerprintPrefix.Setup) (encode : B → Bytes) (generator : Bˣ)
-    (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool)) :
+/-- Fixed public metadata plus actual body messages are the only absorbed
+values. Request public inputs are installed separately by `fromRequest`.
+The history and challenge arguments of the general replay interface are
+intentionally ignored, rather than reconstructed and then reabsorbed. -/
+def metadata (ids : FingerprintPrefix.Setup) :
     CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic :=
-  fun request index writes past =>
-    let binary' : BinaryPublic B shared maskBits adviceBits := { binary with publicBits := request.publicBits }
-    let prime' : PrimePublic N shared :=
-      { prime with publicInputs := fun i => primeField (request.primeInputs (Fin.cast params.primeCount.symm i)) }
-    let params' : Public binary' prime' shape := params.withInputs binary prime shape request.publicBits prime'.publicInputs
-    let history : Prefix g fields Advice C index.val := ⟨writes,past,samples.fallback⟩
-    let data := primeData prime' samples primeField history
-    (start binary' prime' shape samples primeField params' ids encode generator data advice history
-        (WireBlocks.startAt g index),
-      role binary' prime' shape samples primeField params' ids data history
-        (g.roles.get index))
+  fun _ index _ _ =>
+    (start binary prime shape params ids (WireBlocks.startAt g index),
+      role binary prime shape params ids (g.roles.get index))
+
+omit [Fintype B] [DecidableEq B] in
+/-- The concrete encoder satisfies the absorption invariant for arbitrary
+challenge arrays, including malformed or adversarial answer histories. -/
+theorem metadata_challengeIndependent (ids : FingerprintPrefix.Setup) :
+    CanonicalRequest.ChallengeIndependent shape binary.nPublic
+      (metadata (Advice := Advice) (C := C) binary prime shape params ids) := by
+  intro request index writes first second
+  rfl
 
 end LfzkV2.Current.ConcreteMetadata

@@ -85,23 +85,13 @@ before the independent vector challenge. The scalar response may depend on the
 whole challenge. The theorem assumes exact fields, an actual basis, the
 relative Frobenius, and exact authentication of the two native equations.
 
-The fixed-commitment counting theorem is composed with the native affine
-frontend and Polygero in [`LfzkV2.Packed`](../lfzk-v2/README.md). The staged
-[Fiat–Shamir theorem](../lfzk-v2/LfzkV2/Packed/FiatShamir.lean) keeps the
-independent packing challenge between `U` and the scalar response `A`.
-[CompiledFS](../lfzk-v2/LfzkV2/Packed/CompiledFS.lean) constructs both actual
-row systems and proves their transfer to the frontend; its direct constructor
-has no packing challenge and zero packing budget.
-
-[Inputs](../lfzk-v2/LfzkV2/Packed/Inputs.lean) embeds active input positions
-into packed coordinates, with zero coefficients on the unused tail of the
-last word. [ProfiledSide](../lfzk-v2/LfzkV2/Packed/ProfiledSide.lean) chooses
-the certified candidate bounds before constructing those compiler instances.
-The authenticated endpoint
-[`LfzkV2.Packed.RawRuntimeExtraction.extraction_117`](../lfzk-v2/LfzkV2/Packed/RawRuntimeExtraction.lean)
-proves `(1+N+tA)/2^117` for the native quadratic-backend model at commit
-`fcf8a3a`, under the circuit/layout, sampler, MAC-row and Merkle-codec premises
-in the [Longfellow V2 scope statement](../lfzk-v2/README.md).
+The current staged Fiat–Shamir composition keeps the independent packing
+challenge between `U` and the scalar response `A`. Its query preimage binds
+`U`; the source equation is reconstructed from earlier transcript data.
+[`ApplicationViews`](../lfzk-v2/LfzkV2/Current/ApplicationViews.lean) proves
+that changing the current packing answer cannot change this source.
+[`StrandProtocol`](../lfzk-v2/LfzkV2/Current/StrandProtocol.lean) composes the
+component with the current frontend, joint backend and original query budget.
 
 The [current Fiat–Shamir composition](../lfzk-v2/README.md#current-mac-free-protocol)
 uses these local packing identities in its complete extraction and

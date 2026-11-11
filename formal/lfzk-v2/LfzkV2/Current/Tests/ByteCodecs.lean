@@ -1,4 +1,5 @@
 import LfzkV2.Current.ByteCodecs
+import Mathlib.LinearAlgebra.Matrix.Notation
 
 /-! Literal wire checks for raw proof-body primitives. Count words, field
 values and transcript-operation tags are distinct layers of serialization. -/

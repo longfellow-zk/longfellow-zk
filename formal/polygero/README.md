@@ -31,7 +31,7 @@ selection's adaptive Fiat–Shamir charge `Q*choose(L,2)/q²`. The later
 fixed-witness frontend term has no candidate-list multiplier.
 The [chained-transcript theorem](../transcript-v2/README.md) supplies the
 common link/seal exception `(Q+1)/2^256` under its representation and local
-reduction laws. The [current mdoc theorem](../lfzk-v2/LfzkV2/Current/IdealProofRate7.lean)
+reduction laws. The [current mdoc theorem](../lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
 derives the application, chain and joint-backend bounds from actual adaptive
 runtime acceptance, without a supplied `Execution`. Canonical query bytes,
 the complete joint Merkle encoding and the first-context extractor are

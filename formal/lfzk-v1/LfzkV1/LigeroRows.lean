@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.Tactic.LinearCombination
+import Mathlib.Tactic.Ring
 import LfzkV1.WPoly
 import LfzkV1.Types
 import LfzkV1.Circuit

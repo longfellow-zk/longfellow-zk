@@ -35,20 +35,17 @@ pub(super) fn bind_binary(
 }
 
 pub(crate) fn eta(t: &mut TranscriptRef<'_>, p: &P256Field) -> P256Element {
-    t.round(
-        crate::runtime::v2::transcript::RoundLabel::Rescaling,
-        |mut w| {
-            w.write_bytes(b"native-shared-prefix/nonzero-rescaling/v2");
-            let mut r = w.begin_squeeze();
-            let value = loop {
-                let x = r.elt_field(p);
-                if !p.is_zero(&x) {
-                    break x;
-                }
-            };
-            r.end_round(value)
-        },
-    )
+    t.round(crate::runtime::v2::proto::RoundLabel::Rescaling, |mut w| {
+        w.write_bytes(b"native-shared-prefix/nonzero-rescaling/v2");
+        let mut r = w.begin_squeeze();
+        let value = loop {
+            let x = r.elt_field(p);
+            if !p.is_zero(&x) {
+                break x;
+            }
+        };
+        r.end_round(value)
+    })
 }
 pub(crate) fn weights(
     a: &[P256Element],
@@ -63,15 +60,16 @@ pub(crate) fn weights(
     let mut weights: Vec<_> = a[..SHARED_BITS].iter().map(|a| p.mulf(eta, a)).collect();
     weights.push(p.one());
     t.bind(|w| {
-        w.write_bytes(b"native-shared-prefix/fixed-masked-opening/v1");
-        w.write_elt_field_slice(&weights, p);
+        // The weights are determined by the preceding messages and challenges.
+        // Only mu is a new prover message; bind it before conversion challenges.
+        w.write_bytes(b"native-shared-prefix/masked-opening/v2");
     });
     t.bind(|w| w.write_elt_field(mu, p));
     Ok(weights)
 }
 pub(crate) fn alphas(t: &mut TranscriptRef<'_>, p: &P256Field) -> [P256Element; 2] {
     t.round(
-        crate::runtime::v2::transcript::RoundLabel::Conversion,
+        crate::runtime::v2::proto::RoundLabel::Conversion,
         |mut w| {
             w.write_bytes(b"p256-adapter/two-independent-full-field-rescalings/v3");
             let mut r = w.begin_squeeze();

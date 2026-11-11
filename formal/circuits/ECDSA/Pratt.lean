@@ -16,6 +16,7 @@
 module
 
 public import ECDSA.PowMod
+public import Mathlib.Tactic.NormNum.Prime
 
 /-!
 # Pratt certificates for the two curve primes

@@ -1,5 +1,6 @@
 import LfzkV2.Current.Adapter
 import ECDSA.Pratt
+import Mathlib.Tactic.NormNum.GCD
 
 /-! Exact current mdoc adapter arithmetic. This is a component certificate,
 not the complete application or Polygero soundness certificate. -/

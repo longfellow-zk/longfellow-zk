@@ -61,11 +61,11 @@ impl BinaryParticipant {
         let public = extension.input_elements(ctx.field(), public);
         let mut inputs = public.to_vec();
         inputs.extend(extension.into_input_elements(ctx.field(), private));
-        for c in [c, &tree] {
-            t.write_sumcheck_statement(c, &public, ctx.field());
-        }
+        // The tree is derived from the bound template, messages and challenges.
+        // Its raw terms have no instance ID to absorb.
+        t.write_sumcheck_statement(c, &public, ctx.field());
         let (sumcheck_proof, constraints) = sumcheck::evaluate_and_prove_circuits(
-            &[c, &tree],
+            &[&c.raw, &tree],
             inputs,
             &state.pads,
             t,

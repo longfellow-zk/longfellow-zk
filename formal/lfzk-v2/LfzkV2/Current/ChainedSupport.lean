@@ -1,4 +1,5 @@
 import LfzkV2.Current.ChainedFS
+import TranscriptV2.Composition
 
 /-! The distinct-input version of the current chained bound. The program
 may make arbitrarily many repeated calls within its syntactic fuel. Only
@@ -46,10 +47,38 @@ theorem ratio_le_support
         (Fintype.card (Digest × C) : ℚ)^Fintype.card Point ≤
       2*queries/(Adapter.Mdoc.binaryOrder : ℚ) +
         (4*queries+1 : ℚ)/(Adapter.Mdoc.binaryOrder : ℚ)^2 := by
-  have h := reduction.failure_ratio_le (fixLeft mt default body [])
-    hqueries hne hsingleOff hsingleNonneg hpairOff hpairNonneg
-    singleBudget pairBudget (2/((Adapter.Mdoc.binaryOrder-1 : ℕ) : ℚ))
-    (by positivity) hsingle hpair hpoint
+  let algebra : Composition.LocalCharges Point Digest C Parent Response := {
+    parent := parent
+    child := child
+    distinct := hne
+    single := single
+    pair := pair
+    single_nonneg := hsingleNonneg
+    pair_nonneg := hpairNonneg
+    single_off := hsingleOff
+    pair_off := hpairOff
+    singleBudget := singleBudget
+    pairBudget := pairBudget
+    single_mean := hsingle
+    pair_mean := hpair }
+  let tree := fixLeft mt default body []
+  let realization := Composition.SoundnessRealization.ofChain M tree
+    (fun out H => (out,H)) (fun view => Failure view.1 view.2) reduction.final_seal_valid
+  have composed := realization.failure_ratio_le algebra (fun _ => True) (fun _ => True) (fun _ => False)
+    (2/((Adapter.Mdoc.binaryOrder-1 : ℕ) : ℚ)) ((queries+1 : ℚ)/Fintype.card Digest)
+    (by positivity) (by simpa only [Finset.filter_true] using hqueries)
+    (by intro point; simpa only [Composition.LocalCharges.budget,algebra,not_false_eq_true,and_self,if_true] using hpoint point)
+    (by simp only [realization,Composition.SoundnessRealization.ofChain,and_false,if_false,Finset.sum_const_zero,le_refl])
+    (by
+      simpa only [realization,Composition.SoundnessRealization.ofChain,
+        Bcs.FiniteProbability.density,Fintype.card_fun,Nat.cast_pow] using
+        chain_exception_ratio_le M tree hqueries)
+    (fun out H failed _ _ _ => reduction.cover out H failed)
+  have h : ((univ.filter fun H : Point → Digest × C => Failure (tree.run H).1 H).card : ℚ) /
+      (Fintype.card (Digest × C) : ℚ)^Fintype.card Point ≤
+      queries*(2/((Adapter.Mdoc.binaryOrder-1 : ℕ) : ℚ)) +
+        (queries+1 : ℚ)/Fintype.card Digest := by
+    simpa only [Bcs.FiniteProbability.density,and_true,Fintype.card_fun,Nat.cast_pow] using composed
   rw [digest_card, Nat.cast_pow] at h
   exact h.trans (mdoc_chained_budget queries)
 

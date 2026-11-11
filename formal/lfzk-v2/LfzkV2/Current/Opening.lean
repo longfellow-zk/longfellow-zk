@@ -85,10 +85,11 @@ theorem decode_values (bindSalt : Fin n → Nonce → Salt)
 section Replay
 variable {g : Geometry} {F : Fields} {Advice Auth Context Block C : Type}
 
-/-- Read an already sampled answer from verifier analysis state. The fallback
-only totalizes malformed states; a completed replay always takes the first arm. -/
-def openingAnswer (fallback : C) (state : Replay.State g F Advice Auth Context Block C) : C :=
-  if h : g.openingIndex.val < state.point.rank then state.answers ⟨g.openingIndex.val,h⟩ else fallback
+/-- Read the shared opening answer from the verifier cache. No transcript
+history is needed. The fallback only totalizes incomplete caches; a completed
+replay always contains this answer. -/
+def openingAnswer {count : ℕ} (fallback : C) (answers : Replay.VerifierState C count) : C :=
+  if h : g.openingIndex.val < count then answers ⟨g.openingIndex.val,h⟩ else fallback
 
 /-- The indexed claim is analysis data reconstructed after the ordinary
 rounds. The original proof and its final-seal body are never extended. -/
@@ -97,7 +98,7 @@ def read (bindSalt : Fin n → Nonce → Salt)
     (rawOf : Replay.Output g F Advice Auth → Raw t Nonce Leaf D)
     (annotated : MerkleReplay.Annotated g F Advice Auth Context Block C) :
     Option (OpeningClaim n Salt Leaf D) :=
-  decode bindSalt (sample (openingAnswer fallback annotated.2)) (rawOf annotated.1)
+  decode bindSalt (sample (openingAnswer (g := g) fallback annotated.2.answers)) (rawOf annotated.1)
 
 variable (e : Replay.Encoding g F Advice Auth Context Block C) (initialLink : Digest)
   (proof : Replay.Output g F Advice Auth)
@@ -105,7 +106,7 @@ variable (e : Replay.Encoding g F Advice Auth Context Block C) (initialLink : Di
 
 /-- Reconstruction uses exactly the one shared opening answer. -/
 theorem openingAnswer_replay (fallback : C) :
-    openingAnswer fallback ((e.chain initialLink).replay proof H g.roles.length) =
+    openingAnswer (g := g) fallback ((e.chain initialLink).replay proof H g.roles.length).answers =
       (H ((e.chain initialLink).point proof H g.openingIndex.val)).2 := by
   have hr := (e.chain initialLink).point_rank proof H (Nat.le_refl g.roles.length)
   change ((e.chain initialLink).replay proof H g.roles.length).point.rank = g.roles.length at hr
@@ -115,12 +116,7 @@ theorem openingAnswer_replay (fallback : C) :
     exact g.openingIndex.isLt
   unfold openingAnswer
   rw [dif_pos hlt]
-  have hc := e.replay_coherent initialLink proof H g.roles.length
-  change _ = _ at hc
-  rw [hc]
-  change (H (((e.chain initialLink).point proof H g.roles.length).priorPoints _)).2 = _
-  exact congrArg (fun point => (H point).2)
-    (e.point_priorPoints initialLink proof H g.roles.length (by rfl) g.openingIndex)
+  exact e.replay_answer initialLink proof H g.roles.length (by rfl) ⟨_,hlt⟩
 
 theorem read_replay (bindSalt : Fin n → Nonce → Salt)
     (sample : C → (Fin t ↪ Fin n)) (fallback : C)

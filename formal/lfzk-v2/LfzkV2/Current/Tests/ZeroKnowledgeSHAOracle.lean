@@ -1,6 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.SHAObserverWindow
 import LfzkV2.Current.ZeroKnowledge.SHAOracleProbability
-import LfzkV2.Current.ZeroKnowledge.SHASetupDomains
+import LfzkV2.Current.SHASetupDomains
 
 /-! The raw observer and internal identifier use the same SHA table. The
 finite-window laws retain outside-domain calls in the actual mixed trace;

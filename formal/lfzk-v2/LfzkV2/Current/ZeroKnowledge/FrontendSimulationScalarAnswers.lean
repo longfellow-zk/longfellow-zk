@@ -22,7 +22,7 @@ theorem first_values (context : Key) (coins : CompleteSimulation.Coins binary pr
     (CompleteTranscript.step base H (CompleteTranscript.initial context samples.fallback)).1 =
       lookup samples.fallback
         (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state 0 := by
-  have inside : 0 < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+  have inside : 0 < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
     rw [SimulationWrites.capacity]
     omega
   exact step_answer_into base H samples.fallback (CompleteTranscript.initial context samples.fallback)
@@ -33,7 +33,7 @@ theorem prime_values
     (state future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (payload : Layered.Replay.Payload prime.circuit)
     (fits : state.rank.val+HonestTranscript.circuitFuel primePlan false+2 ≤
-      (CompleteSimulation.geometry binary prime primePlan).roles.length)
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
     (extended : Extends samples.fallback
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state future) :
     let read := readSetup (CompleteTranscript.reader .prime (Equiv.refl P)
@@ -51,11 +51,11 @@ theorem prime_values
   have readRank : read.2.rank.val = state.rank.val+HonestTranscript.circuitFuel primePlan false := by
     rw [SimulationWrites.read_rank]
     exact Nat.min_eq_right (by omega)
-  have batchInside : read.2.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by omega
+  have batchInside : read.2.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by omega
   have batchRank : batched.2.rank.val = read.2.rank.val+1 := by
     rw [SimulationWrites.step_rank]
     exact Nat.min_eq_right (by omega)
-  have scaleInside : batched.2.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by omega
+  have scaleInside : batched.2.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by omega
   have batchFuture := (step_extends base H samples.fallback batched.2).trans extended
   have batchAnswer := step_answer_into base H samples.fallback read.2 future batchInside batchFuture
   have scaleAnswer := step_answer_into base H samples.fallback batched.2 future scaleInside extended
@@ -71,7 +71,7 @@ omit [Fintype B] [DecidableEq B] in
 theorem conversion_values
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C) (mu : P)
     (future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
-    (inside : native.state.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length)
+    (inside : native.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
     (extended : Extends samples.fallback
       (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).state future) :
     (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).alpha =
@@ -100,12 +100,12 @@ theorem packing_values (context : Key) (coins : CompleteSimulation.Coins binary 
   let pending := CompleteTranscript.bind read.2 fun writes => { writes with packingU := some (fun i => (packing.1 i).val) }
   let packed := CompleteTranscript.step base H pending
   have finalRank := (SimulationWrites.simulate_properties binary prime primePlan samples base H context coins).1
-  have inside : pending.rank.val < (CompleteSimulation.geometry binary prime primePlan).roles.length := by
+  have inside : pending.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
     by_contra outside
     have stopped : packed.2.rank.val = pending.rank.val := by
       simp only [packed,CompleteTranscript.step,dif_neg outside]
-    have done : packed.2.rank.val = (CompleteSimulation.geometry binary prime primePlan).batchingIndex.val := finalRank
-    have bound := (CompleteSimulation.geometry binary prime primePlan).batchingIndex.isLt
+    have done : packed.2.rank.val = (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.val := finalRank
+    have bound := (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
     omega
   have extended : Extends samples.fallback packed.2
       (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state :=

@@ -1,4 +1,4 @@
-import LfzkV1.ZkHiding
+import Bcs.StatisticalDistance
 
 /-! A finite uniform distribution depends on its set of coins, rather than
 the particular complete enumeration chosen by typeclass synthesis. Explicit

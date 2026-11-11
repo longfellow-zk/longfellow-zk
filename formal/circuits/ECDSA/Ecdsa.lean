@@ -18,6 +18,7 @@ import ECDSA.ECBridge
 import PkCircuit
 import ECDSA.EcdsaSpec
 import ECDSA.EcdsaCircuit
+import Mathlib.Algebra.Field.ZMod
 
 set_option linter.unusedVariables false
 set_option linter.unusedSimpArgs false

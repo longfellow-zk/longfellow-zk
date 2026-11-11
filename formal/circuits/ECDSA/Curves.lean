@@ -16,7 +16,9 @@
 
 module
 
-public import Mathlib
+public import Mathlib.Algebra.Field.ZMod
+public import Mathlib.Tactic.NormNum
+public import Lean.Elab.Tactic.NormCast
 public import ECDSA.ECBridge
 public import ECDSA.Pratt
 public import ECDSA.P256NoRoot

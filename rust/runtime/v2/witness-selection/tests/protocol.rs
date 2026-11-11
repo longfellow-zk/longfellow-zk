@@ -11,9 +11,8 @@ use crate::{
         },
         random::{DeterministicRng, RandomEngine},
         v2::{
-            polygero::LinearStatement,
-            proto::polygero::PolygeroCommitment,
-            transcript::{RoundLabel, Transcript},
+            polygero::LinearStatement, proto::polygero::PolygeroCommitment, proto::RoundLabel,
+            transcript::Transcript,
         },
     },
 };

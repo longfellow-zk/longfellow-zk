@@ -13,10 +13,13 @@ pub(in crate::runtime::v2) fn leaf(context: &Digest, j: usize, salt: &MerkleNonc
     h.update(salt.bytes);
     h
 }
-pub(in crate::runtime::v2) fn node(context: &Digest, l: &Digest, r: &Digest) -> Digest {
+pub(super) fn node(context: &Digest, index: usize, l: &Digest, r: &Digest) -> Digest {
     let mut h = Sha256::new();
     h.update(b"polygero/joint/node/v1");
     h.update(context.data);
+    // Heap positions start at one. Binding the position keeps hash inputs at
+    // different nodes distinct even when their ordered child digests coincide.
+    h.update((index as u64).to_le_bytes());
     h.update(l.data);
     h.update(r.data);
     Digest {

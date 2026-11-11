@@ -16,9 +16,9 @@
 
 const DIGEST_LEN: usize = 32;
 /// Salt bytes per v2 column, shared by commitment sampling and the proof codec.
-/// In the ideal-oracle model, the extra entropy keeps the statistical hiding
-/// error below 2^-179 with 2^128 observer queries at the current mdoc parameters.
-pub const NONCE_LEN: usize = 40;
+/// Independent 256-bit salts give indexed-leaf statistical hiding error at
+/// most (Qpre + Qpost)/2^256 in the ideal-oracle model.
+pub const NONCE_LEN: usize = 32;
 
 /// A 32-byte cryptographic hash digest.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

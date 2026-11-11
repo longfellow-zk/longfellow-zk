@@ -1,4 +1,5 @@
-import LfzkV2.Current.ZeroKnowledge.Observer
+import LfzkV2.Current.ObserverWindow
+import LfzkV2.Current.Observer
 import LfzkV2.Current.ZeroKnowledge.MerkleOracleWindow
 
 /-! Canonical transcript inputs can be used to execute an arbitrary raw
@@ -18,21 +19,21 @@ variable [Fintype AM] [Fintype AT] [DecidableEq QM]
 
 private theorem weakenRight_queries {left right : ℕ}
     (tree : TwoOracleTree QM AM Point AT Out left right) :
-    MerkleOracleWindow.mixedQueries (weakenRight tree) = MerkleOracleWindow.mixedQueries tree := by
+    ObserverWindow.mixedQueries (weakenRight tree) = ObserverWindow.mixedQueries tree := by
   induction tree with
   | done value => rfl
-  | queryLeft query next ih => simp only [weakenRight,MerkleOracleWindow.mixedQueries,ih]
-  | queryRight query next ih => simp only [weakenRight,MerkleOracleWindow.mixedQueries,ih]
+  | queryLeft query next ih => simp only [weakenRight,ObserverWindow.mixedQueries,ih]
+  | queryRight query next ih => simp only [weakenRight,ObserverWindow.mixedQueries,ih]
 
 /-- Decoding transcript inputs only removes locally answered transcript calls.
 It adds no SHA input, so the original observer's finite SHA window still covers
 every branch of the translated observer. -/
 theorem program_queries {left right : ℕ} (tree : TwoOracleTree QM AM Raw AT Out left right) :
-    MerkleOracleWindow.mixedQueries (codec.program outside tree) ⊆ MerkleOracleWindow.mixedQueries tree := by
+    ObserverWindow.mixedQueries (codec.program outside tree) ⊆ ObserverWindow.mixedQueries tree := by
   induction tree with
   | done value => exact Finset.empty_subset _
   | queryLeft query next ih =>
-      simp only [ByteOracleTransport.Codec.program,MerkleOracleWindow.mixedQueries]
+      simp only [ByteOracleTransport.Codec.program,ObserverWindow.mixedQueries]
       apply Finset.insert_subset_insert
       exact Finset.biUnion_mono fun answer _ => ih answer
   | queryRight query next ih =>
@@ -42,7 +43,7 @@ theorem program_queries {left right : ℕ} (tree : TwoOracleTree QM AM Raw AT Ou
           intro raw member
           exact Finset.mem_biUnion.mpr ⟨outside query,Finset.mem_univ _,ih (outside query) member⟩
       | some point =>
-          simp only [ByteOracleTransport.Codec.program,decoded,MerkleOracleWindow.mixedQueries]
+          simp only [ByteOracleTransport.Codec.program,decoded,ObserverWindow.mixedQueries]
           exact Finset.biUnion_mono fun answer _ => ih answer
 end Queries
 

@@ -39,15 +39,23 @@ private def emptyClaim : OpeningClaim n Salt (RuntimeVerifier.Family binary prim
   a := fun _ => default
   pf := { nonce := fun _ => default, frontierValue := fun _ => default }
 
-/-- The query set comes from replay, while rows/nonces/frontier come from
-this output's actual proof. The bound context supplies its canonical salts. -/
+/-- Reconstruct the opening from its three inputs: the proof payload, the
+bound public context and the opening answer. Transcript history and the other
+cached challenges play no part in this operation. -/
+def claim (proof : Replay.Output g fields Advice (RuntimeVerifier.Authentication (g := g)))
+    (context : Key) (opening : C) :
+    OpeningClaim n Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest :=
+  (OrderedOpening.decode (cfg.bindSalt context) (cfg.sample opening)
+    (OpeningBody.raw (First).participant (Second).participant cfg.binaryField cfg.primeField
+      cfg.binaryRows cfg.primeRows cfg.openings proof)).getD (emptyClaim binary prime P R cfg)
+
+/-- Adapter for the generic replay annotation. The default claim only
+totalizes failed decoding; acceptance still requires decoding to succeed. -/
 def claimOf (out : Annotated (g := g) (fields := fields) (Advice := Advice)
     (Base := Base) (Key := Key) (C := C) (Request := Request)) :
     OpeningClaim n Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest :=
-  (OrderedOpening.decode (cfg.bindSalt out.2.point.context)
-    (cfg.sample (OrderedOpening.openingAnswer cfg.fallback out.2))
-    (OpeningBody.raw (First).participant (Second).participant cfg.binaryField cfg.primeField
-      cfg.binaryRows cfg.primeRows cfg.openings out.1.proof)).getD (emptyClaim binary prime P R cfg)
+  claim binary prime P R cfg out.1.proof out.2.point.context
+    (OrderedOpening.openingAnswer (g := g) cfg.fallback out.2.answers)
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
@@ -57,14 +65,10 @@ theorem claimOf_replay (output : Output) (H : Point → Digest × C) (decoded : 
     (hd : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output H = some decoded) :
     claimOf binary prime P R cfg (output,(M).replay output H g.roles.length) = decoded.claim := by
   have hs := RuntimeAdaptiveVerifier.decode_spec binary prime P R cfg earlier hashPublic decodePublic draw output H decoded hd
-  let state : Replay.State g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
-      (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) C :=
-    (M).replay output H g.roles.length
-  have hstate : state = ((E output.request).chain cfg.initialLink).replay output.proof H g.roles.length :=
-    RuntimeAdaptive.replay_eq (E) cfg.initialLink output H g.roles.length
-  change claimOf binary prime P R cfg (output,state) = decoded.claim
-  rw [hstate]
-  unfold claimOf
+  change claimOf binary prime P R cfg
+    (output,(RuntimeAdaptive.chain (E) cfg.initialLink).replay output H g.roles.length) = _
+  rw [RuntimeAdaptive.replay_eq]
+  unfold claimOf claim
   rw [OrderedOpening.openingAnswer_replay]
   change (OrderedOpening.decode
     (cfg.bindSalt (((E output.request).chain cfg.initialLink).point output.proof H g.roles.length).context)

@@ -1,7 +1,9 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "WitnessSelection.APITest", "TranscriptV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest", "LfzkV2.Current.Tests.APITest"]
+# Bound each Lean worker without changing proof heartbeats or cache traces.
+weakLeanArgs = ["-j2", "-M8192"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "WitnessSelection.APITest", "TranscriptV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest", "LfzkV2.Current.Tests.APITest", "Survival", "Survival.Tests", "Survival.Axioms"]
 
 [leanOptions]
 autoImplicit = false
@@ -112,6 +114,12 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 name = "LfzkV1"
 srcDir = "lfzk-v1"
 leanOptions = { autoImplicit = true, relaxedAutoImplicit = true }
+
+# Chronological survival and stopped-charge composition for current soundness.
+[[lean_lib]]
+name = "Survival"
+srcDir = "survival"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "LfzkV2"

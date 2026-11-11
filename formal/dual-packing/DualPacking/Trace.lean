@@ -1,4 +1,5 @@
 import DualPacking.Coordinates
+import Mathlib.FieldTheory.Finite.Trace
 
 /-! # Relative traces and additive Hilbert 90 for arbitrary finite fields
 
@@ -69,6 +70,8 @@ theorem trace_pow_sum (x : F) :
   simpa [traceF, Nat.card_eq_fintype_card] using
     FiniteField.algebraMap_trace_eq_sum_pow K F x
 
+-- Preserve the existing public Fintype argument after narrowing imports.
+set_option linter.unusedSectionVars false in
 omit [Fintype K] in
 theorem trace_one : traceF K (1 : F) = (finrank K F : F) := by
   have h := Algebra.trace_algebraMap (R := K) (S := F) (1 : K)
