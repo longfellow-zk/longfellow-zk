@@ -15,7 +15,7 @@ run_cmd do
     let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
     let used := info.type.getUsedConstants
     unless used.contains ``MdocStrandZeroKnowledge.Reachable &&
-        used.contains ``MdocWitness.HashNoninterference && used.contains ``MdocWitness.HashValid do
+        used.contains ``MdocWitness.ReadDisjoint && used.contains ``MdocWitness.HashValid do
       throwError "Endpoint {endpoint} lost reached-witness or static-circuit premises"
     if used.contains ``MdocWitness.UniformHashValid then
       throwError "Endpoint {endpoint} exposes the derived uniform witness premise"

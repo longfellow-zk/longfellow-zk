@@ -8,7 +8,9 @@ consider any finite classical adaptive adversary making at most `Q` distinct
 original SHA queries.
 
 Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
-and the paired extractor fails to recover a satisfying witness. Then
+and the paired extractor fails to recover a witness satisfying the ordinary
+hash constraints and signature circuit at the actual requested public inputs.
+Both use the same selected pair. Then
 
 $$
 \begin{aligned}
@@ -23,7 +25,7 @@ $$
 
 For every `Q < 2^127`, the full soundness failure probability is
 **strictly less than 0.97**, with the cap rounded up to two decimal places.
-`MdocStrandOracle.averaged_nonvacuous` proves this strict conclusion. The primary
+`MdocSoundness.averaged_nonvacuous` proves this strict conclusion. The primary
 `ratio_le` and `averaged_ratio_le` endpoints use the exact `Survival.Rate7.failureBound` above.
 
 The exact parameter-dependent Polygero coefficient is
@@ -58,7 +60,7 @@ $$
 The largest supported mdoc circuit (four attributes) has 500 rounds:
 `275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
-`MdocStrandOracle.averaged_mdoc_approximation` proves this all-budget consequence.
+`MdocSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
@@ -72,7 +74,7 @@ is counted separately. The certified parameters are
 The bound includes arbitrary query repetitions and `Q = 0`. Its exact
 `q - 1` denominator retains the nonzero-sampling correction.
 
-[`MdocStrandOracle.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+[`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean)
 is the one-SHA endpoint. Arbitrary serialized proofs pass through the
 complete-proof parser. Public setup hashes, ordinary strand nodes, indexed
 PRF blocks, Merkle authentication and the final seal use the same byte
@@ -98,7 +100,7 @@ P_{\mathrm{fail}}(Q)\le
 \frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
 $$
 
-`MdocStrandOracle.averaged_linear_ratio_le` proves it directly from the same
+`MdocSoundness.averaged_linear_ratio_le` proves it directly from the same
 stopped search, common-witness cover and retained cost as the saturated bound.
 The generic linear theorem has no restriction $pQ\le1$; that restriction is
 needed only by the optional saturation argument. For $Q\ge2^{127}$ the
@@ -253,11 +255,11 @@ establish that a cryptographic implementation satisfies their premises.
   witness satisfying the supplied circuits, not an independently formalized
   ISO mdoc/CBOR specification. Privacy requires signature satisfaction and
   ordinary hash-witness satisfaction, `MdocWitness.HashValid`, at reached
-  requests. The separate static circuit property
-  `MdocWitness.HashNoninterference` states that changing reserved masks,
-  OTP bits and generated-adapter parameters preserves the ordinary hash
-  checks, uniformly over public inputs and private values. This trusted-circuit
-  premise does not follow from one satisfying assignment. The Rust compiler
+  requests. The static `MdocWitness.ReadDisjoint` certificate syntactically excludes ordinary
+  reads of reserved inputs and generated adapter wires, including assertions
+  and carried outputs. Lean derives `MdocWitness.HashNoninterference` from
+  this certificate, then composes extraction with request readback and ordinary
+  hash validity. A satisfying assignment alone does not prove separation. The Rust compiler
   appends the 256 mask and 20 OTP inputs after compiling the application;
   tests reject hash gates or assertions that read this suffix in any of the
   four compiled circuit shapes. Adapter parameters instantiate a separate
@@ -335,7 +337,7 @@ dependencies sequentially through Lake, with a 180-second deadline for each
 invocation. Lake workers use two Lean threads and an 8,192 MiB Lean memory cap;
 proof heartbeat limits are unchanged. Logs and timing JSON are written to
 `.lake/soundness-check/`. A focused check is
-`python3 scripts/check_soundness.py LfzkV2.Current.MdocStrandOracle`.
+`python3 scripts/check_soundness.py LfzkV2.Current.MdocSoundness`.
 
 Check import boundaries without building with
 `python3 scripts/check_soundness.py --imports-only`.

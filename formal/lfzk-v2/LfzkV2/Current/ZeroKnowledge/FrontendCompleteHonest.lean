@@ -25,12 +25,12 @@ structure Tape (binary : BinaryCircuit B) (prime : PrimePublic P 768) where
 abbrev Masks := Current.Fingerprints (CompleteSimulation.Fields (B := B))
 
 def privateBits (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime) : Fin binary.nPrivate → Bool :=
-  CompleteInputs.privateValues binary original (Adapter.canonicalMask Adapter.Mdoc.maskCapacity tape.mask)
+  WitnessInputs.privateValues binary original (Adapter.canonicalMask Adapter.Mdoc.maskCapacity tape.mask)
     (fun tree i => tape.otp.val.testBit (10*tree.val+i.val))
 
 def primeInputs (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P) : Cube prime.input → P :=
   circuitInputs prime.inputIndex prime.publicInputs id
-    (Fin.addCases (fun i => if CompleteInputs.shared binary original i then 1 else 0) remaining)
+    (Fin.addCases (fun i => if WitnessInputs.shared binary original i then 1 else 0) remaining)
 
 def binaryPads (tape : CircuitTape binary.description.template) : Fin binary.description.pads → B :=
   circuitPadValues binary.description.template tape ∘
@@ -147,13 +147,13 @@ def runSelected
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan (primeInputs binary prime original remaining) 0 selected tape.prime
   let native := CompleteSimulation.primePrefix binary prime primePlan samples base H selected primePayload
-  let mu := Adapter.Mdoc.offset native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val+tape.mask
+  let mu := Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask
   let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu
   let alpha := fun _ : P => converted.alpha
-  let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val alpha mu
+  let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val alpha mu
   let advice := AdapterBits.xorEquiv quotient (AdapterBits.rawOtpEquiv tape.otp).1
   let binaryPayload := binaryMessageEquiv binary prime primePlan samples base H native converted advice
-    (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (privateBits binary prime original tape)) tape.binary
+    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (privateBits binary prime original tape)) tape.binary
   let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice binaryPayload
   let inst := packingInstance binary prime primePlan samples base H native converted advice binaryPayload original tape
   let packingState := CompleteTranscript.bind read.2 fun writes => { writes with packingU := some inst.honestU }

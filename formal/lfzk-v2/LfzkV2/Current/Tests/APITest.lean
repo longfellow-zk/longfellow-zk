@@ -1,4 +1,5 @@
 import LfzkV2.Current.Tests.ZeroKnowledgeReachability
+import LfzkV2.Current.Tests.MdocSoundness
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandCompleteness
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandHonestRuntime
 import Survival.Axioms

@@ -19,7 +19,7 @@ variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 
 omit [Fintype B] [DecidableEq B] in
 theorem fieldBits_inputs (privateBits : Fin binary.nPrivate → Bool) :
-    Current.Adapter.Circuit.bitValue (F := B) ∘ CompleteInputs.bits binary privateBits =
+    Current.Adapter.Circuit.bitValue (F := B) ∘ WitnessInputs.bits binary privateBits =
       circuitInputs binary.description.inputIndex
         (Current.Adapter.Circuit.bitValue ∘ binary.publicBits) id
         (Current.Adapter.Circuit.bitValue ∘ privateBits) := by
@@ -33,7 +33,7 @@ theorem fieldBits_inputs (privateBits : Fin binary.nPrivate → Bool) :
       apply Fin.ext
       exact inputIndex_public _ _ _ _ i
     rw [← hq,circuitInputs,zeroExtend_apply]
-    simp only [Function.comp_apply,CompleteInputs.bits,inputIndex_public,dif_pos i.isLt]
+    simp only [Function.comp_apply,WitnessInputs.bits,inputIndex_public,dif_pos i.isLt]
     rfl
   · by_cases hv : (cubeIndex binary.input q).val-binary.nPublic < binary.nPrivate
     · let i : Fin binary.nPrivate := ⟨(cubeIndex binary.input q).val-binary.nPublic,hv⟩
@@ -47,7 +47,7 @@ theorem fieldBits_inputs (privateBits : Fin binary.nPrivate → Bool) :
         omega
       rw [← hq,circuitInputs,zeroExtend_apply,Function.comp_apply]
       exact congrArg (Current.Adapter.Circuit.bitValue (F := B))
-        (CompleteInputs.bits_private binary privateBits i)
+        (WitnessInputs.bits_private binary privateBits i)
     · have outside : ∀ i, inputIndex binary.nPublic binary.nPrivate binary.input binary.inputCapacity i ≠ q := by
         intro i eq
         have heq := congrArg (fun q => (cubeIndex binary.input q).val) eq
@@ -55,11 +55,11 @@ theorem fieldBits_inputs (privateBits : Fin binary.nPrivate → Bool) :
         | inl i => rw [inputIndex_public] at heq; exact hp (heq ▸ i.isLt)
         | inr i => rw [inputIndex_private] at heq; have := i.isLt; omega
       rw [circuitInputs,zeroExtend_outside _ _ _ outside]
-      simp [Function.comp_apply,CompleteInputs.bits,hp,hv,Current.Adapter.Circuit.bitValue]
+      simp [Function.comp_apply,WitnessInputs.bits,hp,hv,Current.Adapter.Circuit.bitValue]
 
 omit [Fintype B] [DecidableEq B] in
 theorem fieldBits_dot (privateBits : Fin binary.nPrivate → Bool) (weights : Cube binary.input → B) :
-    dot weights (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary privateBits) =
+    dot weights (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary privateBits) =
       dot (fun i => weights (binary.description.inputIndex (.inl i)))
         (Current.Adapter.Circuit.bitValue ∘ binary.publicBits) +
       dot (fun i => weights (binary.description.inputIndex (.inr i)))
@@ -136,10 +136,10 @@ theorem packingInstance_valid
     (advice : MdocAdvice.Value) (original : Fin binary.nPrivate → Bool)
     (tape : CompleteHonest.Tape binary prime)
     (valid : (CompleteSimulation.generatedCircuit binary prime primePlan native converted advice).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
         (CompleteHonest.privateBits binary prime original tape))) :
     let inputs := Current.Adapter.Circuit.bitValue (F := B) ∘
-      CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape)
+      WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)
     let payload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H
       native converted advice inputs tape.binary
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H

@@ -9,7 +9,7 @@ This is a semantic decomposition of the existing circuit. Hash correctness
 remains the explicitly trusted application-circuit relation; correctness of
 the two generated adapter assertions is proved by the adapter simulator. -/
 noncomputable section
-namespace LfzkV2.Current.ZeroKnowledge.Frontend.Hash
+namespace LfzkV2.Current.HashCircuit
 
 open SumcheckV2 Layered
 open Current.Adapter.Circuit Current.Adapter.Circuit.Fragment
@@ -82,4 +82,4 @@ theorem build_satisfies_iff (w : Cube input → F) :
     · rintro ⟨⟨_,hash⟩,adapter⟩
       exact ⟨adapter,hash⟩
 
-end LfzkV2.Current.ZeroKnowledge.Frontend.Hash
+end LfzkV2.Current.HashCircuit

@@ -17,7 +17,7 @@ omit [DecidableEq B] in
 theorem binary_inputs (original : Fin binary.nPrivate → Bool) (tape : CompleteHonest.Tape binary prime)
     (selection : Fin 2 → B) :
     binary.description.inputs (CompleteHonest.binaryCells binary prime original tape selection) =
-      Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape) := by
+      Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape) := by
   unfold BinaryPublic.inputs Packed.Statement.inputs
   refine (congrArg (circuitInputs binary.description.inputIndex
     (Current.Adapter.Circuit.bitValue ∘ binary.publicBits) id) ?_).trans
@@ -56,9 +56,9 @@ theorem binary_rows
     (advice : MdocAdvice.Value) (original : Fin binary.nPrivate → Bool)
     (tape : CompleteHonest.Tape binary prime) (selection : Fin 2 → B) (delta : Fin 128 → B)
     (valid : (CompleteSimulation.generatedCircuit binary prime primePlan native converted advice).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape))) :
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape))) :
     let payload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H native converted advice
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H native converted advice payload original tape
     (∀ i, DualPacking.ArtinSchreier.traceF (ZMod 2) (inst.honestU i) = 0) ∧
       RowsHold (binaryRows binary prime primePlan samples base H native converted advice payload inst.honestU delta (inst.honestA delta))
@@ -67,7 +67,7 @@ theorem binary_rows
   have holds := CompletePacking.binary_constraints binary prime primePlan samples base H native converted advice _ valid tape.binary
   unfold binaryRows
   let payload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H native converted advice
-    (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
   let circuit := CompleteSimulation.generatedCircuit binary prime primePlan native converted advice
   let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice payload
   let messages := messagesFromSetup circuit read.1
@@ -116,9 +116,9 @@ theorem binary_rows_selected
     (tape : CompleteHonest.Tape binary prime) (masks : B × B) (delta : Fin 128 → B)
     (coefficients : WitnessSelection.Coins B binary.description.Original)
     (valid : (CompleteSimulation.generatedCircuit binary prime primePlan native converted advice).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape))) :
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape))) :
     let payload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H native converted advice
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H native converted advice payload original tape
     RowsHold (binaryRows binary prime primePlan samples base H native converted advice payload inst.honestU delta (inst.honestA delta) ++
       FingerprintRows.rows

@@ -3,7 +3,7 @@
 ## Numbered-strand soundness
 
 The checked current endpoint is
-[`MdocStrandOracle.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean).
+[`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean).
 For every `0 <= Q < 2^127`, a finite classical adaptive adversary making at most
 `Q` distinct original SHA queries has accepted-extraction-failure probability
 
@@ -20,7 +20,7 @@ $$
 
 `c = q * Survival.Rate7.parentBudget` exactly; the [formal README](README.md)
 expands this rational in binomial coefficients and field orders.
-`MdocStrandOracle.averaged_nonvacuous` proves failure probability
+`MdocSoundness.averaged_nonvacuous` proves failure probability
 **strictly less than 0.97** for `Q < 2^127` (cap rounded up to two decimal places).
 The primary endpoint names replace the earlier linear theorems; the obsolete
 linear accounting chain is removed. No execution or charging certificate is
@@ -54,9 +54,15 @@ The proof path has the following checked boundaries.
    `event_verified` identify the original output, filtered original log
    and actual complete verifier. The complementary oracle marginal is
    averaged with zero additional error.
+8. `MdocSoundness` composes `CanonicalRuntime.decoded_true_at_request`
+   with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
+   ordinary hash constraints and the signature circuit at the actual request.
+   `HashSeparation` proves the required noninterference from the static
+   `MdocWitness.ReadDisjoint` sparse-read certificate. No simulator module is
+   imported by this endpoint, and no runtime separation check is added.
 
 The input includes trusted circuit descriptions, canonical field codecs,
-static capacity bounds and the approved ideal joint role sampler. Runtime
+static capacity and read-separation certificates, and the approved ideal joint role sampler. Runtime
 acceptance, query order, column agreement and the final failure cover are
 derived. Axiom checks on the endpoint and correspondence lemmas report only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -143,8 +149,8 @@ The public simulator has no witness or satisfaction-certificate argument.
 The theorem assumes ordinary hash/signature witness satisfaction only for
 contexts reached by the prior observer under setup derived from the same
 oracle. Unreachable policy branches impose no validity obligation. The separate static
-`MdocWitness.HashNoninterference` circuit premise preserves ordinary hash
-checks for every reserved mask/OTP assignment and generated-adapter parameter,
+`MdocWitness.ReadDisjoint` certificate derives ordinary hash noninterference
+for every reserved mask/OTP assignment and generated-adapter parameter,
 uniformly over public inputs and private values. These premises and the
 explicit basis/generator checks derive backend truth inside the coupling. The leaf-table
 permutation preserves actual earlier query/answer traces, including bad
@@ -210,8 +216,8 @@ is claimed. V1 proofs and generic paper-facing component theorems are preserved.
 
 | Result | Endpoint | Scope |
 | --- | --- | --- |
-| Current V2 extraction soundness | [`MdocStrandOracle.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean) | Exact parameter-dependent bound for the actual numbered-strand event. |
-| Current V2 uniform soundness cap | [`MdocStrandOracle.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean) | Strictly below 0.97 for `Q < 2^127`. |
+| Current V2 extraction soundness | [`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean) | Exact parameter-dependent bound for the actual numbered-strand event. |
+| Current V2 uniform soundness cap | [`MdocSoundness.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean) | Strictly below 0.97 for `Q < 2^127`. |
 | Current V2 statistical zero knowledge | [`MdocStrandZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean) | Complete current indexed runtime view, error `(Qpre+Qpost)/2^256`. |
 | Actual verifier privacy | [`MdocStrandVerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean) | The actual verifier decision, including rejection and abort. |
 | Extant V1 runtime | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | V1 signature/hash extraction and soundness certificates. |

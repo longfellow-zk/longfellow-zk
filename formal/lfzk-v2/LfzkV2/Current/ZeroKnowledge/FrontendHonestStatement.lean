@@ -47,11 +47,11 @@ theorem rows
       (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
       primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 selected tape.prime
     let front := CompleteSimulation.primePrefix binary prime primePlan samples base H selected primePayload
-    let mu := Adapter.Mdoc.offset front.claim.sharedWeights (CompleteInputs.shared binary original) front.eta.val+tape.mask
+    let mu := Adapter.Mdoc.offset front.claim.sharedWeights (WitnessInputs.shared binary original) front.eta.val+tape.mask
     let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H front mu
     let advice := HonestAdapter.advice binary prime primePlan samples base H front original tape
     let binaryPayload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H front converted advice
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H front converted advice binaryPayload original tape
     (∀ i, DualPacking.ArtinSchreier.traceF (ZMod 2) (inst.honestU i) = 0) ∧
       RowsHold (HonestRows.binaryRows binary prime primePlan samples base H front converted advice binaryPayload
@@ -71,7 +71,7 @@ theorem rows
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 selected tape.prime
   let front := CompleteSimulation.primePrefix binary prime primePlan samples base H selected payload
-  let mu := Adapter.Mdoc.offset front.claim.sharedWeights (CompleteInputs.shared binary original) front.eta.val+tape.mask
+  let mu := Adapter.Mdoc.offset front.claim.sharedWeights (WitnessInputs.shared binary original) front.eta.val+tape.mask
   let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H front mu
   let advice := HonestAdapter.advice binary prime primePlan samples base H front original tape
   have valid := HonestAdapter.generated_satisfies binary prime primePlan samples base H front original tape hash

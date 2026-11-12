@@ -16,7 +16,7 @@ run_cmd do
   let used := info.type.getUsedConstants
   unless used.contains ``StrandCanonicalHiding.rawReal &&
       used.contains ``StrandVerifier.verify &&
-      used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.HashNoninterference do
+      used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.ReadDisjoint do
     throwError "Honest runtime lost actual execution, actual verification or ordinary-witness premises"
   if used.contains ``CompleteCanonicalVerifier.statementAt ||
       used.contains ``MdocWitness.UniformHashValid then

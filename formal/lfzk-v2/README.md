@@ -1,10 +1,12 @@
 # Longfellow V2: extraction, soundness and zero knowledge
 
 The current numbered-strand soundness endpoint is
-[`MdocStrandOracle.averaged_ratio_le`](LfzkV2/Current/MdocStrandOracle.lean).
+[`MdocSoundness.averaged_ratio_le`](LfzkV2/Current/MdocSoundness.lean).
 It connects one SHA oracle, the original raw adversarial query log, the
 complete serialized proof, the runtime verifier and the first-context
-paired extractor. The complete numbered-strand privacy endpoint is
+paired extractor. Its conclusion is ordinary hash-witness validity and
+signature-circuit satisfaction at the submitted request's public inputs,
+using the same extracted pair. The complete numbered-strand privacy endpoint is
 [`MdocStrandZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean).
 The [assumptions](../README.md#assumptions-and-remaining-correspondence-obligations)
 state the oracle, sampling and implementation boundaries.
@@ -34,7 +36,7 @@ $$
 
 For every `Q < 2^127`, the full soundness failure probability is
 **strictly less than 0.97**, with the cap rounded up to two decimal places.
-`MdocStrandOracle.averaged_nonvacuous` proves this strict conclusion. The primary
+`MdocSoundness.averaged_nonvacuous` proves this strict conclusion. The primary
 `ratio_le` and `averaged_ratio_le` endpoints use the exact `Survival.Rate7.failureBound` above.
 
 The exact parameter-dependent Polygero coefficient is
@@ -69,7 +71,7 @@ $$
 The largest supported mdoc circuit (four attributes) has 500 rounds:
 `275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
-`MdocStrandOracle.averaged_mdoc_approximation` proves this all-budget consequence.
+`MdocSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
@@ -211,6 +213,18 @@ hash/adapter circuit; its adapter product semantics are proved. The prime
 conclusion covers the trusted signature circuit, with shared bits taken from
 the binary witness.
 
+[`MdocWitness.valid_at_request`](LfzkV2/Current/MdocWitnessRequest.lean)
+composes this readback with
+[`HashSeparation`](LfzkV2/Current/HashSeparation.lean): a static sparse-read
+certificate excludes the reserved mask/OTP suffix and generated adapter wires
+from ordinary hash gates, assertions and carried outputs. It implies
+`MdocWitness.HashNoninterference` and removes challenge dependence from the
+ordinary hash predicate. `MdocSoundness.event` states actual acceptance with
+failure of the original-cut extractor to produce an application-valid witness;
+its probability bounds use this bridge. The separation certificate is a Lean
+premise corresponding to the compiler's test-only separation checks, with no
+additional runtime work. Application-circuit correctness remains trusted.
+
 The extractor is a mathematical finite search. No efficient enumeration bound
 is claimed for the worst-case binary/prime candidate caps
 `21898356682154715916` and `451457457136012100305`. The theorem establishes
@@ -248,7 +262,7 @@ certificate, and there is no digest-collision loss. The fixed witness map
 must satisfy ordinary `MdocWitness.HashValid` and the signature circuit only
 at contexts reached by the prior observer under setup derived from that same
 oracle; unreachable policy branches impose no validity obligation. The separate static
-`MdocWitness.HashNoninterference` circuit premise preserves ordinary hash
+`MdocWitness.ReadDisjoint` certificate derives noninterference of ordinary hash
 checks under all reserved mask/OTP assignments and generated-adapter parameters,
 uniformly over public inputs and private values. The basis/generator checks,
 trusted circuits/fields/codecs, and independent uniform private coins remain
@@ -310,7 +324,7 @@ runtime adapters live under `Current.Soundness`, while the generic `Survival`
 query-step calculus has no V1 or V2 implementation dependencies. Shared finite
 probability and statistical-distance arguments live in `Bcs`.
 
-`MdocStrandOracle.averaged_linear_ratio_le` gives the leading bound for all Q,
+`MdocSoundness.averaged_linear_ratio_le` gives the leading bound for all Q,
 using the same runtime stopped cost and failure cover as `averaged_ratio_le`.
 The generic `SharedBudget.linear_le` has no `p*Q ≤ 1` premise. Generic audit
 and count facts are in `ChronologicalAudit`, `History`, `QueryBudget` and

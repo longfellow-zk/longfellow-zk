@@ -176,7 +176,7 @@ theorem simulate_extend (coins : SimulatorCoins) (SHA outside : Strand.Oracle) :
 
 variable (pivotOne : binary.basis 0 = 1)
 variable (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-variable (independent : MdocWitness.HashNoninterference binary)
+variable (separated : MdocWitness.ReadDisjoint binary)
 variable (valid : ∀ context, Reachable binary prime cantor scalars ids bounds before context → MdocWitness.HashValid
   (RequestedSimulator.requestedBinary binary prime.description prime.plan (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
     bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) (requestOf context))
@@ -189,7 +189,7 @@ variable (signature : ∀ context, Reachable binary prime cantor scalars ids bou
     (RuntimeStatement.prime_count binary prime.description prime.plan bounds.inputFits bounds.privateFits) (requestOf context)
   p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf context)) (remaining (requestOf context))))
 
-include pivotOne primitive independent valid signature in
+include pivotOne primitive separated valid signature in
 /-- Fixing the complement fixes setup, not the observer's protocol answers.
 Averaging all leaf coordinates for the chosen setup adds no privacy loss. -/
 theorem fixedComplement (outside : Strand.Oracle) :
@@ -233,7 +233,7 @@ theorem fixedComplement (outside : Strand.Oracle) :
         complement pivotOne primitive
       · intro table
         exact MdocWitness.uniformHashValid_of_valid
-          (independent.with_publicBits (requestOf ((before visible).run
+          ((MdocWitness.noninterference_of_readDisjoint binary separated).with_publicBits (requestOf ((before visible).run
             (StrandGhostMerkle.Swap.Slice.oracle encode complement table)).1).publicBits)
           _ (valid _ (reached table))
       · intro table
@@ -254,7 +254,7 @@ theorem fixedComplement (outside : Strand.Oracle) :
         (StrandMdocSetup.leafWindow_domain binary prime cantor scalars ids bounds) coin.2 outside]
     rfl
 
-include pivotOne primitive independent valid signature in
+include pivotOne primitive separated valid signature in
 /-- End-to-end mdoc statistical privacy under one shared SHA random oracle,
 including oracle-derived public setup, an adaptive request, both original raw
 observer traces, authentication, and the complete-proof final seal. -/
@@ -268,9 +268,9 @@ theorem statClose (additional : Finset Bytes) (fallback : Strand.Oracle) :
     (Finset.subset_union_left.trans Finset.subset_union_left)
     (div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)) fallback Real Sim
     (fun outside => fixedComplement binary prime cantor scalars ids bounds sample before requestOf after original remaining
-      pivotOne primitive independent valid signature outside))
+      pivotOne primitive separated valid signature outside))
 
-include pivotOne primitive independent valid signature in
+include pivotOne primitive separated valid signature in
 /-- With at most 2^128 raw observer calls in total, the complete ideal-oracle
 view has statistical distance at most 2^-128. This is a statement about the
 oracle model, not a numerical claim about concrete SHA-256. -/
@@ -282,7 +282,7 @@ theorem statClose_at_query_budget (additional : Finset Bytes) (fallback : Strand
       (fun coin : SimulatorCoins × ({raw // raw ∈ Window ∪ additional} → Digest) =>
         Sim coin.1 (OracleWindow.extend (Window ∪ additional) coin.2 fallback)) := by
   exact (statClose binary prime cantor scalars ids bounds sample before requestOf after original remaining
-    pivotOne primitive independent valid signature additional fallback).mono
+    pivotOne primitive separated valid signature additional fallback).mono
     (StrandPrivacyBudget.at_query_budget preQueries postQueries budget)
 
 end LfzkV2.Current.ZeroKnowledge.MdocStrandZeroKnowledge

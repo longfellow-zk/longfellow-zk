@@ -149,13 +149,13 @@ def program (coefficients : C →
     let selected := CompleteTranscript.bind first.2 fun writes => { writes with fingerprints := some fingerprints }
     (native binary prime primePlan samples base selected original remaining tape.prime).bind fun primeRead =>
       let native := primeRead.2
-      let mu := Adapter.Mdoc.offset native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val+tape.mask
+      let mu := Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask
       (conversion binary prime primePlan samples base native mu).bind fun converted =>
-        let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (CompleteInputs.shared binary original)
+        let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (WitnessInputs.shared binary original)
           native.eta.val (fun _ => converted.alpha) mu
         let advice := AdapterBits.xorEquiv quotient (AdapterBits.rawOtpEquiv tape.otp).1
         (binaryRead binary prime primePlan samples base native converted advice
-          (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary (CompleteHonest.privateBits binary prime original tape))
+          (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape))
           tape.binary).bind fun binaryRead =>
             let inst := CompleteHonest.packingInstanceFromRead binary prime primePlan native converted advice
               binaryRead.1 binaryRead.2.1 original tape
@@ -209,9 +209,9 @@ theorem program_progress (coefficients : C →
   exact (step_progress base
     (CompleteTranscript.bind read.2.2 fun writes => { writes with packingU := some (CompleteHonest.packingInstanceFromRead binary prime primePlan primeRead.2 converted
         (AdapterBits.xorEquiv
-          (Adapter.Mdoc.advice primeRead.2.claim.sharedWeights (CompleteInputs.shared binary original)
+          (Adapter.Mdoc.advice primeRead.2.claim.sharedWeights (WitnessInputs.shared binary original)
             primeRead.2.eta.val (fun _ => converted.alpha)
-            (Adapter.Mdoc.offset primeRead.2.claim.sharedWeights (CompleteInputs.shared binary original)
+            (Adapter.Mdoc.offset primeRead.2.claim.sharedWeights (WitnessInputs.shared binary original)
               primeRead.2.eta.val+tape.mask))
           (AdapterBits.rawOtpEquiv tape.otp).1) read.1 read.2.1 original tape).honestU }) H).rebase rfl rfl
 
@@ -244,7 +244,7 @@ theorem program_output (coefficients : C →
   simp only [Adapter.Mdoc.advice]
   try dsimp only
   generalize hconverted : CompleteSimulation.conversionPrefix binary prime primePlan samples base H native
-    (Adapter.Mdoc.offset native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val+tape.mask) = converted
+    (Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask) = converted
   try dsimp only
   rw [Tree.run_bind]
   rw [binaryRead_output]

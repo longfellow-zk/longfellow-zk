@@ -83,7 +83,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     (produced : (Raw (coins,(nonces,ghost)) SHA).2.1.1 = some output)
     (pivotOne : binary.basis 0 = 1)
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-    (independent : MdocWitness.HashNoninterference binary)
+    (separated : MdocWitness.ReadDisjoint binary)
     (valid : MdocWitness.HashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1))
       (original (requestOf (before.run SHA).1)))
@@ -119,7 +119,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
       metadata original remaining roundSampler batchingSamples before requestOf after coins nonces ghost SHA output produced
   obtain ⟨data,parsed,holds⟩ := StrandHonestFrontend.exists_satisfied binary prime primePlan binaryNodes scalars
     inputFits privateFits setup metadata original remaining roundSampler coins.1 request root SHA
-    pivotOne primitive independent valid signature
+    pivotOne primitive (MdocWitness.noninterference_of_readDisjoint binary separated) valid signature
   have truth : ∀ next,
       CompleteCanonicalVerifier.statementAt binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup
         Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits) pCount metadata request front

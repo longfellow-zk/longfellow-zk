@@ -1,7 +1,7 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendGlobalCoins
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteCoupling
 import LfzkV2.Current.ZeroKnowledge.FrontendCompletePacking
-import LfzkV2.Current.ZeroKnowledge.FrontendHash
+import LfzkV2.Current.HashCircuit
 
 /-! The whole frontend coin change follows the public order of messages.
 Later fibers are indexed by earlier public payloads, including both
@@ -40,7 +40,7 @@ def adapterStage (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape
     (P × Fin (2^24)) ≃ ((P × MdocAdvice.Value) × Fin 16) :=
   CompleteCoupling.adapterEquiv binary prime primePlan samples base H
     (nativePrefix binary prime primePlan samples base H context responses coin)
-    (CompleteInputs.shared binary original)
+    (WitnessInputs.shared binary original)
 
 def convertedPrefix (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape prime.circuit)
     (converted : (P × MdocAdvice.Value) × Fin 16) :
@@ -60,7 +60,7 @@ def binaryStage (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape 
   CompleteCoupling.binaryEquiv binary prime primePlan samples base H
     (nativePrefix binary prime primePlan samples base H context responses coin)
     (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2
-    (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
       (recoveredPrivate binary prime primePlan samples base H context original responses coin converted))
 
 /-- The source of a public prefix recovers the original pads, the common
@@ -98,7 +98,7 @@ theorem source_payload (responses : CompleteHonest.Masks (B := B)) (coin : Circu
     CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
         (recoveredPrivate binary prime primePlan samples base H context original responses coin converted))
       (source binary prime primePlan samples base H context original remaining responses coin converted binaryCoin).binary =
         simulateCircuit binary.description.template binaryCoin := by
@@ -123,14 +123,14 @@ theorem source_adapter (responses : CompleteHonest.Masks (B := B)) (coin : Circu
     (converted : (P × MdocAdvice.Value) × Fin 16) (binaryCoin : CircuitTape binary.description.template) :
     let tape := source binary prime primePlan samples base H context original remaining responses coin converted binaryCoin
     let native := nativePrefix binary prime primePlan samples base H context responses coin
-    let mu := Adapter.Mdoc.offset native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val+tape.mask
-    let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val
+    let mu := Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask
+    let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val
       (CompleteCoupling.alphas binary prime primePlan samples base H native) mu
     (mu,AdapterBits.xorEquiv quotient (AdapterBits.rawOtpEquiv tape.otp).1) = converted.1 := by
   let native := nativePrefix binary prime primePlan samples base H context responses coin
   exact Adapter.rawMuAdviceEquiv_inverse_response
-    (Adapter.Mdoc.offset native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val)
-    (Adapter.Mdoc.advice native.claim.sharedWeights (CompleteInputs.shared binary original) native.eta.val
+    (Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val)
+    (Adapter.Mdoc.advice native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val
       (CompleteCoupling.alphas binary prime primePlan samples base H native)) converted
 
 def packingBase (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape prime.circuit)
@@ -147,7 +147,7 @@ theorem packingBase_valid (responses : CompleteHonest.Masks (B := B)) (coin : Ci
     (valid : (CompleteSimulation.generatedCircuit binary prime primePlan
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
         (recoveredPrivate binary prime primePlan samples base H context original responses coin converted))) :
     let inst := packingBase binary prime primePlan samples base H context original remaining responses coin converted binaryCoin
     inst.target = inst.trueValue := by
@@ -156,12 +156,12 @@ theorem packingBase_valid (responses : CompleteHonest.Masks (B := B)) (coin : Ci
   have hv := Eq.mpr (congrArg (fun bits => (CompleteSimulation.generatedCircuit binary prime primePlan
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary bits)) hp) valid
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary bits)) hp) valid
   have h := CompletePacking.packingInstance_valid binary prime primePlan samples base H _ _ _ original recovered hv
   have hmessages := (congrArg (fun bits => CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary bits) recovered.binary) hp).trans
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary bits) recovered.binary) hp).trans
         (source_payload binary prime primePlan samples base H context original remaining responses coin converted binaryCoin)
   exact Eq.mp (congrArg (fun payload =>
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H
@@ -183,11 +183,11 @@ def hashChecks (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape p
     (converted : (P × MdocAdvice.Value) × Fin 16) : Prop :=
   let native := nativePrefix binary prime primePlan samples base H context responses coin
   let conversion := convertedPrefix binary prime primePlan samples base H context responses coin converted
-  Hash.Checks binary.description.layout binary.description.output binary.description.shape binary.description.others
+  HashCircuit.Checks binary.description.layout binary.description.output binary.description.shape binary.description.others
     binary.description.carry binary.description.above binary.description.sources binary.description.advice
     (CompleteSimulation.powers binary prime primePlan native conversion) (CompleteSimulation.generatorBase binary)
     (MdocAdvice.bits converted.1.2) (CompleteSimulation.targets binary prime primePlan conversion)
-    (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
       (recoveredPrivate binary prime primePlan samples base H context original responses coin converted))
 
 omit [Fintype B] [DecidableEq B] in
@@ -197,10 +197,10 @@ theorem generated_valid (responses : CompleteHonest.Masks (B := B)) (coin : Circ
     (CompleteSimulation.generatedCircuit binary prime primePlan
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2).Satisfies
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary
         (recoveredPrivate binary prime primePlan samples base H context original responses coin converted)) := by
   letI : CharP B 2 := charP_of_injective_algebraMap (algebraMap (ZMod 2) B).injective 2
-  apply (Hash.build_satisfies_iff _ _ _ _ _ _ _ _ _ _ _ _ _).mpr
+  apply (HashCircuit.build_satisfies_iff _ _ _ _ _ _ _ _ _ _ _ _ _).mpr
   refine ⟨hash,?_⟩
   let native := nativePrefix binary prime primePlan samples base H context responses coin
   exact CompleteInputs.recovered_adapter_satisfies binary original (MdocRuntime.generator binary.basis)
@@ -288,7 +288,7 @@ theorem inner_view (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTa
   have hb := (congrArg (fun bits => CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H
       (nativePrefix binary prime primePlan samples base H context responses coin)
       (convertedPrefix binary prime primePlan samples base H context responses coin converted) converted.1.2
-      (Current.Adapter.Circuit.bitValue ∘ CompleteInputs.bits binary bits)
+      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary bits)
       (source binary prime primePlan samples base H context original remaining responses coin converted binaryCoin).binary) hp).trans
         (source_payload binary prime primePlan samples base H context original remaining responses coin converted binaryCoin)
   have hpack := recovered_packing binary prime primePlan samples base H context original remaining pivotOne hash

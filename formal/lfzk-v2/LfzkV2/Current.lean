@@ -1,4 +1,4 @@
-import LfzkV2.Current.MdocStrandOracle
+import LfzkV2.Current.MdocSoundness
 import LfzkV2.Current.ZeroKnowledge.MdocStrandZeroKnowledge
 import LfzkV2.Current.ZeroKnowledge.MdocStrandVerifierPrivacy
 import LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
