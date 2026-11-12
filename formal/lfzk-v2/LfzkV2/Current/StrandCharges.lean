@@ -1,3 +1,5 @@
+import LfzkV2.Current.Protocol.PrefixState
+import Survival.CausalCharges
 import LfzkV2.Current.StrandBackendCharges
 import LfzkV2.Current.SurvivalPrefix
 import LfzkV2.Current.StrandCut
@@ -41,6 +43,21 @@ noncanonical logical coordinate has no raw input and supplies no entry. -/
 def trace {fuel : ℕ} (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
     (H : (Logical ⊕ StrandSearch.Name Raw T) → Digest × C) (target : Key) : List (Raw × Digest) :=
   (beforeLabel (label key context) (some target) tree H).filterMap (entry codec)
+
+/-- Recover the commitment cut directly from the recorded query prefix. -/
+def prefixTrace (past : List ((Logical ⊕ StrandSearch.Name Raw T) × (Digest × C)))
+    (target : Key) : List (Raw × Digest) :=
+  (Protocol.PrefixState.cut (label key context) (some target) past).filterMap (entry codec)
+
+theorem prefixTrace_eq_original {fuel : ℕ}
+    (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
+    (H : (Logical ⊕ StrandSearch.Name Raw T) → Digest × C)
+    (past rest : List ((Logical ⊕ StrandSearch.Name Raw T) × (Digest × C)))
+    (point : Logical) (answer : Digest × C)
+    (executed : (tree.run H).2 = past ++ (.inl point,answer)::rest) :
+    prefixTrace codec key context past (key point) = trace codec key context tree H (key point) := by
+  exact congrArg (List.filterMap (entry codec))
+    (Protocol.PrefixState.cut_eq_original (label key context) tree H past rest (.inl point) answer executed)
 
 theorem trace_off {fuel : ℕ} (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
     (H H' : (Logical ⊕ StrandSearch.Name Raw T) → Digest × C) (point : Logical)
@@ -169,6 +186,24 @@ def cutOracle {fuel : ℕ}
     (H : (Logical ⊕ StrandSearch.Name Raw T) → Digest × C) (target : Key) : JointResponse.Oracle binary prime :=
   Joint.Pair.oracleEquiv binary prime
     ((Joint.Pair.family binary prime).indexedOracle dec (root target) ((trace codec key context tree H target).map fun entry => (bytes entry.1,entry.2)))
+
+def prefixOracle (past : List ((Logical ⊕ StrandSearch.Name Raw T) × (Digest × C)))
+    (target : Key) : JointResponse.Oracle binary prime :=
+  Joint.Pair.oracleEquiv binary prime
+    ((Joint.Pair.family binary prime).indexedOracle dec (root target)
+      ((prefixTrace codec key context past target).map fun qa => (bytes qa.1,qa.2)))
+
+/-- The direct state retains the same paired oracle over both fields. -/
+theorem prefixOracle_eq_original {fuel : ℕ}
+    (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
+    (H : (Logical ⊕ StrandSearch.Name Raw T) → Digest × C)
+    (past rest : List ((Logical ⊕ StrandSearch.Name Raw T) × (Digest × C)))
+    (point : Logical) (answer : Digest × C)
+    (executed : (tree.run H).2 = past ++ (.inl point,answer)::rest) :
+    prefixOracle codec key context binary prime merkle dec root bytes past (key point) =
+      cutOracle codec key context binary prime merkle dec root bytes tree H (key point) := by
+  unfold prefixOracle cutOracle
+  rw [prefixTrace_eq_original codec key context tree H past rest point answer executed]
 
 theorem cutOracle_off {fuel : ℕ}
     (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
@@ -403,6 +438,54 @@ private theorem frozenPair_mean [Nonempty (IdealRuntime.Answer binary prime P R 
     exact c.active_list_le_field
   exact StrandBackendCharges.runtime_pair_sum binary prime P R countBinary countPrime binaryCapacity primeCapacity
     cfg derive c.threshold (source tuple) (pc) (rc).toProfileParameters le_rfl c.active_bound bound parent H fallback
+
+@[ext] structure CausalState (point : Point) where
+  committed : Tuple
+  prior : Fin point.rank → Answer
+
+/-- The local test reads only an explicit tuple and the named ancestor
+tape. A small tape representative adapts the existing readers; it neither
+replays the adversary nor completes the adversary's query-prefix cache. -/
+def stateCharge (fallback : Digest × Answer) (point : Point)
+    (state : CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point)
+    (answer : Digest × Answer) : ℚ :=
+  oneFrozen state.committed point (Protocol.PrefixState.tapeOracle fallback point state.prior)
+    (answer.1,normalize c binary prime P R countBinary countPrime binaryCapacity primeCapacity roleFits
+      fallback.2 answer.2 point)
+
+local notation "stateSingle" => stateCharge c binary prime P R countBinary countPrime binaryCapacity primeCapacity
+  cfg roleFits layout degreeFits rowsFit bitsFit hashPublic decodePublic
+  primeShape primeCapacityFits binaryShape binaryCapacityFits
+
+theorem stateCharge_nonneg (fallback : Digest × Answer) (point : Point)
+    (state : CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point)
+    (answer : Digest × Answer) : 0 ≤ stateSingle fallback point state answer := by
+  unfold stateCharge frozenSingle
+  exact RuntimeAdaptiveFS.single_nonneg ..
+
+include primeGeometry binaryGeometry in
+theorem stateCharge_mean (fallback : Digest × Answer) (point : Point)
+    (state : CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point) :
+    (∑ answer, stateSingle fallback point state answer) ≤
+      Fintype.card (Digest × Answer) *
+        singleBudget c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg point := by
+  exact frozenSingle_mean c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits
+    layout degreeFits rowsFit bitsFit hashPublic decodePublic
+    primeShape primeGeometry primeCapacityFits binaryShape binaryGeometry binaryCapacityFits
+    state.committed point fallback.2 (Protocol.PrefixState.tapeOracle fallback point state.prior)
+
+/-- This is the actual runtime local charge, with the same tuple and
+same challenge normalization, for every total oracle and every query. -/
+theorem stateCharge_eq_runtime (fallback : Digest × Answer) (tuple : Tuple)
+    (point : Point) (H : Point → Digest × Answer) (answer : Digest × Answer) :
+    stateSingle fallback point ⟨tuple,point.priorAnswers H⟩ answer =
+      oneFrozen tuple point H
+        (answer.1,normalize c binary prime P R countBinary countPrime binaryCapacity primeCapacity roleFits
+          fallback.2 answer.2 point) := by
+  unfold stateCharge
+  exact frozenSingle_prior c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout
+    degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
+    tuple point _ H (Protocol.PrefixState.tapeOracle_prior fallback point _) _
 
 variable {valid : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Prop}
 variable (names : ByteOracleTransport.Codec
@@ -703,6 +786,91 @@ theorem decoded_cover (fallback : Answer) (output : Output) (H : Tagged → Dige
 
 end Cover
 
+local notation "cutFrom" => prefixOracle names Input.context context First Second merkle dec root bytes
+local notation "norm" => normalize c binary prime P R countBinary countPrime binaryCapacity primeCapacity roleFits
+
+def stateFromPrefix (fallback : Digest × Answer) (point : Point)
+    (past : List (Tagged × (Digest × Answer))) :
+    CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point :=
+  ⟨cutFrom past point.context, fun i =>
+    norm fallback.2 (Protocol.PrefixState.lookup fallback past (.inl (point.priorPoints i))).2
+      (point.priorPoints i)⟩
+
+local notation "fromPrefix" => stateFromPrefix c binary prime P R countBinary countPrime binaryCapacity primeCapacity
+  roleFits names context merkle dec root bytes
+
+/-- The direct state contains the same original-cut paired tuple and every
+strict ancestor challenge used by the runtime. This proof does not construct
+a completed prefix oracle or replay the adversary on such a completion. -/
+theorem stateFromPrefix_eq {fuel : ℕ}
+    (tree : Tree Tagged (Digest × Answer) Out fuel) (H : Tagged → Digest × Answer)
+    (fallback : Digest × Answer) (point : Point)
+    (past rest : List (Tagged × (Digest × Answer))) (a : Digest × Answer)
+    (executed : (tree.run H).2 = past ++ (.inl point,a)::rest)
+    (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Tagged) ∈ past.map Prod.fst) :
+    fromPrefix fallback point past =
+      ⟨cutOracle names Input.context context First Second merkle dec root bytes tree H point.context,
+        point.priorAnswers
+          (logicalOracle c binary prime P R countBinary countPrime binaryCapacity primeCapacity
+            roleFits fallback.2 H)⟩ := by
+  apply CausalState.ext
+  · exact prefixOracle_eq_original names Input.context context First Second merkle dec root bytes
+      tree H past rest point a executed
+  · funext i
+    have known := Protocol.PrefixState.lookup_agrees fallback past H (fun qa member => by
+      apply Tree.trace_sound tree H qa
+      rw [executed]
+      exact List.mem_append_left _ member) (.inl (point.priorPoints i)) (ancestors i)
+    change norm fallback.2 (Protocol.PrefixState.lookup fallback past (.inl (point.priorPoints i))).2
+      (point.priorPoints i) = norm fallback.2 (H (.inl (point.priorPoints i))).2 (point.priorPoints i)
+    rw [known]
+
+theorem prefixCharge_eq_runtime {fuel : ℕ}
+    (tree : Tree Tagged (Digest × Answer) Out fuel) (H : Tagged → Digest × Answer)
+    (fallback : Digest × Answer) (point : Point)
+    (past rest : List (Tagged × (Digest × Answer))) (a : Digest × Answer)
+    (executed : (tree.run H).2 = past ++ (.inl point,a)::rest)
+    (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Tagged) ∈ past.map Prod.fst) :
+    stateSingle fallback point (fromPrefix fallback point past) a =
+      StrandCharges.single c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits
+        layout degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
+        names context merkle dec root bytes tree fallback.2 (.inl point) H a := by
+  rw [stateFromPrefix_eq c binary prime P R countBinary countPrime binaryCapacity primeCapacity roleFits
+    names context merkle dec root bytes tree H fallback point past rest a executed ancestors]
+  exact stateCharge_eq_runtime c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits
+    layout degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
+    fallback _ point _ a
+
+def CausalStateFor : Tagged → Type
+  | .inl point => CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point
+  | .inr _ => Unit
+
+include primeGeometry binaryGeometry in
+def causalCharges (fallback : Digest × Answer) :
+    Survival.CausalCharges Tagged (Digest × Answer)
+      (CausalStateFor c binary prime P R countBinary countPrime binaryCapacity primeCapacity) where
+  extract point past := match point with
+    | .inl p => fromPrefix fallback p past
+    | .inr _ => ()
+  single point state a := match point with
+    | .inl p => stateSingle fallback p state a
+    | .inr _ => 0
+  budget := taggedBudget c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
+  nonneg point state a := by
+    cases point with
+    | inl p =>
+        exact stateCharge_nonneg c binary prime P R countBinary countPrime binaryCapacity primeCapacity
+          cfg roleFits layout degreeFits rowsFit bitsFit hashPublic decodePublic
+          primeShape primeCapacityFits binaryShape binaryCapacityFits fallback p state a
+    | inr _ => exact le_rfl
+  mean point state := by
+    cases point with
+    | inl p =>
+        exact stateCharge_mean c binary prime P R countBinary countPrime binaryCapacity primeCapacity
+          cfg roleFits layout degreeFits rowsFit bitsFit hashPublic decodePublic
+          primeShape primeGeometry primeCapacityFits binaryShape binaryGeometry binaryCapacityFits fallback p state
+    | inr _ => simp only [sum_const_zero, taggedBudget, Sum.elim_inr, mul_zero, le_refl]
+
 variable [Fintype Key] [Fintype Base] [Fintype Advice] [∀ side, Fintype (fields side)]
 
 /-- The adjacent backend pair is charged at its parent together with the
@@ -780,6 +948,7 @@ theorem stopped_budget_le [budgetDecidable : DecidableEq Tagged] (fallback : Ans
             BackendOracle.parentOf_point, Option.isSome_some, if_true, Bool.not_false, Bool.and_true]
           rw [batching_budget_eq]
           exact parentBound
+
 
 end Runtime
 end LfzkV2.Current.StrandCharges

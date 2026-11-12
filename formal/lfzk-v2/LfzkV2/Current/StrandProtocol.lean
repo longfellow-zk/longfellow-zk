@@ -105,6 +105,9 @@ local notation "failsView" => extractionFails c binary prime P R countBinary cou
   cfg binaryCount metadata sample primeCount columnsFit
 variable (layoutCorrect : StatementCompiler.addresses P R binary.cells prime.remaining prime.pads = some layout)
 local notation "marked" => (LfzkV2.Current.Soundness.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
+local notation "causal" => causalProof c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
+  binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
+  binaryCount metadata fits sample primeCount columnsFit program layout bitsFit
 local notation "hashBad" => StrandRecovery.hashException binary prime P R repr shape setup (I) binaryCount metadata
   columnsFit physical primeCount draw
 local notation "costOf" => stoppedCost c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
@@ -147,7 +150,7 @@ theorem conditioned_linear_failure_le (residual : Tagged → Residual) (opaqueRa
   have localBudget := single_budget_le c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
     binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
     binaryCount metadata fits sample fiber uniform primeCount columnsFit program layout bitsFit residual
-  apply Survival.ChargeMonitor.linear_failure_le_support (charges residual) marked (default,cfg.fallback) (analysis residual)
+  apply Survival.CausalCharges.linear_failure_le_support (causal) marked (analysis residual)
     ordinaryRate opaqueRate (by norm_num [Adapter.Mdoc.binaryOrder]) atMostRate (fun point _ => localBudget point)
     (analysis_fresh c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
       binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
@@ -186,7 +189,7 @@ theorem conditioned_saturated_failure_le (residual : Tagged → Residual) (opaqu
   have localBudget := single_budget_le c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
     binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
     binaryCount metadata fits sample fiber uniform primeCount columnsFit program layout bitsFit residual
-  apply Survival.ChargeMonitor.failure_le_support (charges residual) marked (default,cfg.fallback) (analysis residual)
+  apply Survival.CausalCharges.failure_le_support (causal) marked (analysis residual)
     ordinaryRate opaqueFraction (by norm_num [Adapter.Mdoc.binaryOrder]) (by norm_num [Adapter.Mdoc.binaryOrder])
     nonnegative atMostOne (fun point _ => localBudget point) budget
     (analysis_fresh c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup

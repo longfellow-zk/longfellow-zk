@@ -131,14 +131,15 @@ library has no V1 or V2 implementation dependencies.
   transparent-test/opaque-step inequality for the chronological monitor.
 - [`StrandProtocol.recovered_stopped_charge`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
   applies the local algebra on the stopped trace, keeping the original cut.
-- [`Survival.ChargeMonitor`](survival/Survival/ChargeMonitor.lean) combines the
-  original distinct-query budget, stopped costs and complete failure cover.
 - [`Survival.CausalCharges`](survival/Survival/CausalCharges.lean) provides
   linear and saturated composition from explicit query-prefix state, retaining
   the original opaque charge functions. Its generic history bounds live in
   [`Survival.HistoryBounds`](survival/Survival/HistoryBounds.lean); neither module
-  imports the completed prefix cache. The application monitor is migrated
-  separately from this generic interface.
+  imports the completed prefix cache. The current application instantiates this
+  interface with its original-cut paired tuple and strict-ancestor challenge
+  tape. [`Protocol.PrefixState`](lfzk-v2/LfzkV2/Current/Protocol/PrefixState.lean)
+  reads that state directly from the recorded prefix, and the retained cost
+  still uses the original cut and two-answer charge functions.
 - [`OracleDomain`](lfzk-v2/LfzkV2/Current/OracleDomain.lean) and
   [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean) prove that
   complete verifier replay uses the protocol domain.

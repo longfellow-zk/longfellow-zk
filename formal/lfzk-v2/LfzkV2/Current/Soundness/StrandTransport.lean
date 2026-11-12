@@ -230,6 +230,15 @@ theorem cut_eq (residual : Tagged → Residual) (H : Tagged → Digest × Answer
 variable (layout : StatementCompiler.Addresses P R binary.cells prime.remaining prime.pads)
 variable (bitsFit : shared+maskBits ≤ Adapter.Mdoc.quotientBound)
 
+/-- Causal one-answer tests use the original prefix directly. Their state
+does not depend on a future query answer or on a completed prefix oracle. -/
+def causalProof :=
+  StrandCharges.causalCharges c binary prime P R countBinary countPrime binaryCapacity primeCapacity (W)
+    fitsRoles layout degreeFits rowsFit bitsFit hashPublic primePublic
+    primePlan primeGeometry primeFits binaryPlan binaryGeometry binaryFits
+    (names) context codec merkleDec FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
+    (default,cfg.fallback)
+
 /-- The current runtime's local algebraic proof on the actual transformed
 search. Both fields use the one tuple extracted from this search's cut. -/
 def localProof (residual : Tagged → Residual) :=

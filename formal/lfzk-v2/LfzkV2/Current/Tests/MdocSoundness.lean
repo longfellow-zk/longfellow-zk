@@ -31,8 +31,14 @@ run_cmd do
         pending := value.getUsedConstants.toList ++ pending
   for required in #[``CanonicalRuntime.decoded_true_at_request,
       ``MdocWitness.HashValid,``MdocWitness.extractedPrivate,
-      ``HashCircuit.checks_iff_of_readDisjoint] do
+      ``HashCircuit.checks_iff_of_readDisjoint,
+      ``Survival.CausalCharges.failure_le_support,
+      ``StrandCharges.prefixCharge_eq_runtime, ``StrandCharges.prefixOracle_eq_original] do
     unless visited.contains required do
       throwError "Application endpoint disconnected from {required}"
+  for forbidden in #[``Survival.PrefixCache.cache, ``Survival.PrefixCache.cut_cache,
+      ``Survival.PrefixCache.cut_agrees] do
+    if visited.contains forbidden then
+      throwError "Application endpoint still uses completed prefix cache {forbidden}"
 
 end LfzkV2.Current.Tests.MdocSoundness
