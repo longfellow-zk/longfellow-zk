@@ -561,6 +561,7 @@ fn extract_attrs(
             ));
         }
         let items_arr = required_array(ns_val, "namespace items")?;
+        let mut element_identifiers = std::collections::HashSet::new();
         for signed_item_el in items_arr {
             // Extracts the raw IssuerSignedItem bytes wrapped in Tag 24.
             let cbor_issuer_signed_item_wrapped = mdoc_bytes
@@ -587,6 +588,11 @@ fn extract_attrs(
             } else {
                 return Err(MdocParseError::UnexpectedType("elementIdentifier"));
             };
+            if !element_identifiers.insert(element_id.clone()) {
+                return Err(MdocParseError::DuplicateField(
+                    "namespace elementIdentifier",
+                ));
+            }
             let element_value_el = required_map_value(
                 &signed_item,
                 "elementValue",
@@ -1040,5 +1046,44 @@ mod tests {
             item_witness(&wide_key, false),
             Err(MdocParseError::UnsupportedEncoding)
         ));
+    }
+
+    #[test]
+    fn element_identifiers_are_unique_only_within_their_namespace() {
+        let payload = item_payload(&[1], &[0x41, 7]);
+        let mut item = vec![0xd8, 0x18, 0x58, payload.len() as u8];
+        item.extend_from_slice(&payload);
+        let mut digests = b"\xa2\x62ns\xa1\x01\x58\x20".to_vec();
+        digests.extend_from_slice(&[0; 32]);
+        digests.extend_from_slice(b"\x62ot\xa1\x01\x58\x20");
+        digests.extend_from_slice(&[0; 32]);
+        let digests = CborParser::new(&digests).parse_exact().unwrap();
+        for same_namespace in [true, false] {
+            let mut encoded = b"\xa1\x6anameSpaces".to_vec();
+            encoded.extend_from_slice(if same_namespace {
+                b"\xa1\x62ns\x82"
+            } else {
+                b"\xa2\x62ns\x81"
+            });
+            encoded.extend_from_slice(&item);
+            if !same_namespace {
+                encoded.extend_from_slice(b"\x62ot\x81");
+            }
+            encoded.extend_from_slice(&item);
+            let issuer = CborParser::new(&encoded).parse_exact().unwrap();
+            let result = super::extract_attrs(&issuer, &encoded, &digests);
+            if same_namespace {
+                assert!(matches!(
+                    result,
+                    Err(MdocParseError::DuplicateField(
+                        "namespace elementIdentifier"
+                    ))
+                ));
+            } else {
+                let attributes = result.unwrap();
+                assert_eq!(attributes.len(), 2);
+                assert_eq!(attributes[0].name, attributes[1].name);
+            }
+        }
     }
 }
