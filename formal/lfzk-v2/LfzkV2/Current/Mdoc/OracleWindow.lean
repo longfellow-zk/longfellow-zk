@@ -1,12 +1,13 @@
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteOracle
-import LfzkV2.Current.ZeroKnowledge.MdocSetupFamily
+import LfzkV2.Current.Mdoc.SetupFamily
 
 /-! Public setup is a function of complementary SHA coordinates. A single
 finite union of leaf domains covers every possible public setup, before any
 oracle is sampled. Overwriting this union preserves all public identifiers
 and metadata, including when the observer has queried their preimages. -/
 noncomputable section
-namespace LfzkV2.Current.ZeroKnowledge.StrandMdocSetup
+namespace LfzkV2.Current.Mdoc.OracleWindow
+open LfzkV2.Current.ZeroKnowledge
 open Application ApplicationSetup ConcreteSetup Frontend TranscriptV2
 open scoped Classical
 local instance : DecidableEq (Fin 2443) := fun a b => Classical.propDecidable (a = b)
@@ -19,16 +20,16 @@ variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Sca
 variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
 
 local notation "Nodes" => ConcreteSetup.binaryNodes cantor
-local notation "Setup" visible => MdocSetupFamily.setup binary prime cantor scalars ids bounds visible
+local notation "Setup" visible => Mdoc.SetupFamily.setup binary prime cantor scalars ids bounds visible
 local notation "Leaves" visible => StrandCanonicalHiding.leafWindow binary prime.description prime.plan Nodes scalars
   bounds.inputFits bounds.privateFits (Setup visible)
 
 def leafWindow : Finset Bytes := Finset.univ.biUnion fun visible => Leaves visible
 
-theorem leaves_subset (visible : MdocSetupFamily.Values) :
+theorem leaves_subset (visible : Mdoc.SetupFamily.Values) :
     (Leaves visible) ⊆ leafWindow binary prime cantor scalars ids bounds := by
   intro raw member
-  change raw ∈ Finset.univ.biUnion (fun visible : MdocSetupFamily.Values => Leaves visible)
+  change raw ∈ Finset.univ.biUnion (fun visible : Mdoc.SetupFamily.Values => Leaves visible)
   simp only [Finset.mem_biUnion,Finset.mem_univ,true_and]
   exact ⟨visible,member⟩
 
@@ -59,9 +60,9 @@ omit [Fintype B] [DecidableEq B] in
 theorem values_extend (window : Finset Bytes)
     (domain : ∀ raw ∈ window, SHAOracle.merkleDomain raw)
     (table : {raw // raw ∈ window} → Digest) (outside : Strand.Oracle) :
-    MdocSetupFamily.values binary prime cantor scalars ids bounds (OracleWindow.extend window table outside) =
-      MdocSetupFamily.values binary prime cantor scalars ids bounds outside := by
-  have law := MdocSetupFamily.values_merge binary prime cantor scalars ids bounds outside
+    Mdoc.SetupFamily.values binary prime cantor scalars ids bounds (OracleWindow.extend window table outside) =
+      Mdoc.SetupFamily.values binary prime cantor scalars ids bounds outside := by
+  have law := Mdoc.SetupFamily.values_merge binary prime cantor scalars ids bounds outside
     (OracleWindow.extend window table outside)
   rw [merge_extend window domain table outside] at law
   exact law
@@ -72,9 +73,9 @@ avoids enumerating the leaf embedding when reasoning about one actual oracle. -/
 theorem values_leafOracle {Leaf : Type} (encode : Leaf ↪ Bytes)
     (domain : ∀ leaf, SHAOracle.merkleDomain (encode leaf))
     (table : Leaf → Digest) (outside : Strand.Oracle) :
-    MdocSetupFamily.values binary prime cantor scalars ids bounds
+    Mdoc.SetupFamily.values binary prime cantor scalars ids bounds
         (StrandGhostMerkle.Swap.Slice.oracle encode outside table) =
-      MdocSetupFamily.values binary prime cantor scalars ids bounds outside := by
+      Mdoc.SetupFamily.values binary prime cantor scalars ids bounds outside := by
   have unchanged : SHAOracle.merge SHAOracle.merkleDomain outside
       (StrandGhostMerkle.Swap.Slice.oracle encode outside table) =
         StrandGhostMerkle.Swap.Slice.oracle encode outside table := by
@@ -86,7 +87,7 @@ theorem values_leafOracle {Leaf : Type} (encode : Leaf ↪ Bytes)
       apply StrandGhostMerkle.Swap.replace_off
       intro leaf same
       exact member (same ▸ domain leaf)
-  have law := MdocSetupFamily.values_merge binary prime cantor scalars ids bounds outside
+  have law := Mdoc.SetupFamily.values_merge binary prime cantor scalars ids bounds outside
     (StrandGhostMerkle.Swap.Slice.oracle encode outside table)
   rw [unchanged] at law
   exact law
@@ -95,11 +96,11 @@ omit [Fintype B] [DecidableEq B] in
 theorem metadata_extend (window : Finset Bytes)
     (domain : ∀ raw ∈ window, SHAOracle.merkleDomain raw)
     (table : {raw // raw ∈ window} → Digest) (outside : Strand.Oracle) :
-    MdocPublicSetup.metadata binary prime cantor scalars ids bounds (OracleWindow.extend window table outside) =
-      MdocPublicSetup.metadata binary prime cantor scalars ids bounds outside := by
-  have law := MdocPublicSetup.metadata_merge binary prime cantor scalars ids bounds outside
+    Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds (OracleWindow.extend window table outside) =
+      Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds outside := by
+  have law := Mdoc.PublicSetup.metadata_merge binary prime cantor scalars ids bounds outside
     (OracleWindow.extend window table outside)
   rw [merge_extend window domain table outside] at law
   exact law
 
-end LfzkV2.Current.ZeroKnowledge.StrandMdocSetup
+end LfzkV2.Current.Mdoc.OracleWindow

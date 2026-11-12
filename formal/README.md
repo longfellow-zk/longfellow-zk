@@ -25,7 +25,7 @@ $$
 
 For every `Q < 2^127`, the full soundness failure probability is
 **strictly less than 0.97**, with the cap rounded up to two decimal places.
-`MdocSoundness.averaged_nonvacuous` proves this strict conclusion. The primary
+`Mdoc.Soundness.averaged_nonvacuous` proves this strict conclusion. The primary
 `ratio_le` and `averaged_ratio_le` endpoints use the exact `LfzkV2.Current.Soundness.Rate7.failureBound` above.
 
 The exact parameter-dependent Polygero coefficient is
@@ -60,7 +60,7 @@ $$
 The largest supported mdoc circuit (four attributes) has 500 rounds:
 `275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
-`MdocSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
+`Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
@@ -78,7 +78,7 @@ shown above. The certified parameters are
 The bound includes arbitrary query repetitions and `Q = 0`. Its exact
 `q - 1` denominator retains the nonzero-sampling correction.
 
-[`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean)
+[`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean)
 is the one-SHA endpoint. Arbitrary serialized proofs pass through the
 complete-proof parser. Public setup hashes, ordinary strand nodes, indexed
 PRF blocks, Merkle authentication and the final seal use the same byte
@@ -109,7 +109,7 @@ P_{\mathrm{fail}}(Q)\le
 \frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
 $$
 
-`MdocSoundness.averaged_linear_ratio_le` proves it directly from the same
+`Mdoc.Soundness.averaged_linear_ratio_le` proves it directly from the same
 stopped search, common-witness cover and retained cost as the saturated bound.
 The generic linear theorem has no restriction $pQ\le1$; that restriction is
 needed only by the optional saturation argument. For $Q\ge2^{127}$ the
@@ -117,8 +117,8 @@ concrete endpoint extends the linear bound using probability being at most one.
 
 The proof uses the following compositional boundaries. The application
 transport and recovered-path algebra live in
-[`Soundness.StrandTransport`](lfzk-v2/LfzkV2/Current/Soundness/StrandTransport.lean).
-[`Soundness.StrandStoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
+[`Soundness.Transport`](lfzk-v2/LfzkV2/Current/Soundness/Transport.lean).
+[`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean)
 constructs the common retained cost and pointwise failure cover independently
 of saturation. [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean)
 applies either query-budget estimate, then
@@ -134,12 +134,12 @@ original/verifier trace observation and the original-query-bounded adversary.
 Soundness setup adds structural layout, framing and resource constraints;
 failure coverage and stopped-cost estimates are proved by the composition.
 
-- [`StrandRecovery`](lfzk-v2/LfzkV2/Current/StrandRecovery.lean) recovers the
+- [`Soundness.Recovery`](lfzk-v2/LfzkV2/Current/Soundness/Recovery.lean) recovers the
   ordered path and opened columns, or charges an original hash query or
   an explicit hash exception.
 - [`Survival.QueryStep`](survival/Survival/QueryStep.lean) supplies one common
   transparent-test/opaque-step inequality for the chronological monitor.
-- [`StrandProtocol.recovered_stopped_charge`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
+- [`Soundness.Runtime.recovered_stopped_charge`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean)
   applies the local algebra on the stopped trace, keeping the original cut.
 - [`Survival.CausalCharges`](survival/Survival/CausalCharges.lean) provides
   linear and saturated composition from explicit query-prefix state, retaining
@@ -176,7 +176,7 @@ running-time bounds remain open. The endpoint's axiom tests report only
 
 ## Zero knowledge
 
-[`MdocStrandZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+[`Mdoc.ZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean)
 proves statistical zero knowledge for the complete numbered-strand mdoc
 runtime model, with public setup computed from the same SHA oracle used by
 the proof and observer. For every bounded classical observer and every
@@ -223,20 +223,20 @@ are included, and setup is preserved while the leaf coordinates vary. No
 finite type of all byte strings, finite private-state type, or caller-supplied
 support certificate is assumed.
 
-[`MdocStrandVerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean)
+[`Mdoc.VerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/Mdoc/VerifierPrivacy.lean)
 compares the actual runtime verifier's acceptance probabilities within the same
 bound. The verifier observer is proved equal to the indexed verifier, including
 sampler-failure rejection, tuple authentication and the final seal. Rejection
 and abort outcomes are retained; the theorem does not assume an always-accepting
 simulator.
 
-[`statClose_at_query_budget`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+[`statClose_at_query_budget`](lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean)
 checks that `Qpre + Qpost <= 2^128` gives ideal-model error at most `2^-128`.
 When verification is included as a later observer, its raw calls count in
 `Qpost`. All new endpoint axiom checks permit only `propext`, `Classical.choice`
 and `Quot.sound`.
 
-[`StrandHonestRuntime.rawReal_some_accepts`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandHonestRuntime.lean)
+[`Mdoc.Completeness.rawReal_some_accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean)
 proves that every proof returned by the actual honest experiment passes the
 runtime verifier. It derives parsing, backend truth, original-column
 authentication and final sealing from ordinary witness truth and execution.
@@ -379,7 +379,7 @@ dependencies sequentially through Lake, with a 180-second deadline for each
 invocation. Lake workers use two Lean threads and an 8,192 MiB Lean memory cap;
 proof heartbeat limits are unchanged. Logs and timing JSON are written to
 `.lake/soundness-check/`. A focused check is
-`python3 scripts/check_soundness.py LfzkV2.Current.MdocSoundness`.
+`python3 scripts/check_soundness.py LfzkV2.Current.Mdoc.Soundness`.
 
 Check import boundaries without building with
 `python3 scripts/check_soundness.py --imports-only`.

@@ -1,12 +1,11 @@
 import LfzkV2.Current.GlobalCharges
 import LfzkV2.Current.RuntimeAdaptiveCharges
-import LfzkV2.Current.ChainedSupport
 
 /-! One shared local maximum for adaptively parsed application statements
 and the adjacent joint backend. Public values are fixed by each query's own
 prefix; no fixed-public probability union is used. -/
 noncomputable section
-namespace LfzkV2.Current.RuntimeAdaptiveFS
+namespace LfzkV2.Current.Soundness.RuntimeCharges
 open Application ApplicationSetup ApplicationOracle RecursivePolygero ProfileAnalysis Finset
 open scoped Classical
 
@@ -145,4 +144,4 @@ theorem point_budget_le (hencode : Function.Injective encode)
     (M := Adapter.Mdoc.groupOrder) (K := Adapter.Mdoc.quotientBound) (LB := LB) (LN := LN)
     (RuntimeVerifier.first binary prime P R cfg).participant (RuntimeVerifier.second binary prime P R cfg).participant encode hencode cutoff ε pc rc highBudget total happ hp ho ht point
 
-end LfzkV2.Current.RuntimeAdaptiveFS
+end LfzkV2.Current.Soundness.RuntimeCharges

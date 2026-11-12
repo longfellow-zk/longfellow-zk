@@ -3,7 +3,7 @@
 ## Numbered-strand soundness
 
 The checked current endpoint is
-[`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean).
+[`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean).
 For every `0 <= Q < 2^127`, a finite classical adaptive adversary making at most
 `Q` distinct original SHA queries has accepted-extraction-failure probability
 
@@ -20,7 +20,7 @@ $$
 
 `c = q * LfzkV2.Current.Soundness.Rate7.parentBudget` exactly; the [formal README](README.md)
 expands this rational in binomial coefficients and field orders.
-`MdocSoundness.averaged_nonvacuous` proves failure probability
+`Mdoc.Soundness.averaged_nonvacuous` proves failure probability
 **strictly less than 0.97** for `Q < 2^127` (cap rounded up to two decimal places).
 The primary endpoint names replace the earlier linear theorems; the obsolete
 linear accounting chain is removed. No execution or charging certificate is
@@ -32,23 +32,24 @@ one extracted tuple from the original commitment cut.
 
 The proof path has the following checked boundaries.
 
-1. `StrandRecovery.accepted_recovery_or_hash` recovers ordered strand
+1. `Soundness.Recovery.accepted_recovery_or_hash` recovers ordered strand
    queries, the actual PRF rows and agreement on opened columns, or charges
    a hash event.
-2. `StrandProtocol.accepted_decoded` transports successful physical role
+2. `Soundness.Runtime.accepted_decoded` transports successful physical role
    reads to the same normalized application and statement.
 3. `Joint.Family.verify_of_indexedAgreement` transfers all backend checks
    together to the tuple extracted from the original cut.
-4. `StrandCharges.localProof_single_cache` identifies actual accepted-path
-   tests with the chronological cache, including the original commitment cut.
+4. `Soundness.LocalCharges.prefixCharge_eq_runtime` identifies actual accepted-path
+   tests with explicit prefix state. `prefixOracle_eq_original` preserves the
+   paired original commitment cut; `Survival.QueryOrder` supplies strict ancestors.
    `Survival.QueryStep.step_le` bounds each transparent test or opaque step.
-5. `StrandProtocol.recovered_stopped_charge` retains the original Polygero
+5. `Soundness.Runtime.recovered_stopped_charge` retains the original Polygero
    weights on the stopped trace. `conditioned_cost_mean_le` assigns backend
    and auxiliary hash costs to disjoint opaque query slots. Residuals are
    averaged before applying the raw seal/Merkle exception bound.
-6. `MdocStrandSoundness.ratio_le` constructs the concrete rate profile,
+6. `Mdoc.RuntimeSoundness.ratio_le` constructs the concrete rate profile,
    metadata, layout, advice decoder and complete-proof parser.
-7. `MdocStrandOracle` uses the same SHA function for setup and execution.
+7. `Mdoc.OracleSoundness` uses the same SHA function for setup and execution.
    `setup_merge` and `parameters_merge` preserve public data.
    `submitted_output`, `original_trace`, `verifier_actual` and
    `event_verified` identify the original output, filtered original log
@@ -58,7 +59,7 @@ The proof path has the following checked boundaries.
    only of the fresh protocol-domain table. The original `Q` bound holds for
    every coin and every total byte oracle, counts distinct inputs in the full
    original trace, and is inherited by its protocol-domain restriction.
-8. `MdocSoundness` composes `CanonicalRuntime.decoded_true_at_request`
+8. `Mdoc.Soundness` composes `CanonicalRuntime.decoded_true_at_request`
    with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
    ordinary hash constraints and the signature circuit at the actual request.
    `HashSeparation` proves the required noninterference from the static
@@ -110,10 +111,9 @@ Application-specific soundness bridges use the `LfzkV2.Current.Soundness`
 namespace; `Survival` contains the reusable chronological bounds and their
 standalone tests. The retained Polygero benchmark table is kernel-checked too;
 native evaluation is allowed only for the documented V1 numerical rows.
-`WholeAnswerMerkle` names the earlier unindexed node syntax
-explicitly, sharing leaf encoding and physical row maps with the indexed
-codec. The current soundness endpoint imports neither this historical codec
-nor the ZK assembly. Numbered strand tests cover the current PRF keys.
+The unused unindexed runtime codec and its wrappers are removed. Generic
+nonce reindexing and Merkle hiding lemmas remain independently available.
+Soundness does not import ZK. Numbered strand tests cover the current PRF keys.
 The numerical composition bound uses the active certificate as its parameter
 source. Generic profile caps express the local role maximum directly; this
 interface cleanup does not tighten the production probability estimate, which
@@ -138,7 +138,7 @@ weaker algebraic predicate, preserving the paper-facing component contracts.
 
 ## Zero-knowledge boundary
 
-`MdocStrandZeroKnowledge.statClose` assembles the complete canonical-view
+`Mdoc.ZeroKnowledge.statClose` assembles the complete canonical-view
 privacy bound, including public setup derived from one shared uniform raw
 byte oracle. Independent oracle answers, fresh 256-bit nonces and honest
 private coins give statistical distance at most
@@ -213,12 +213,12 @@ decision, avoiding normalization of two different function-space enumerations.
 Finite supports are used through membership lemmas rather than expanding
 their exhaustive enumerations during theorem matching.
 
-`StrandMdocSetup` covers the leaf domains for every digest-selected public
+`Mdoc.OracleWindow` covers the leaf domains for every digest-selected public
 setup. Domain separation proves that varying these coordinates preserves
-setup and metadata. `StrandMdocSetupSupport.program_result` identifies the
+setup and metadata. `Mdoc.SetupSupport.program_result` identifies the
 four actual setup hash calls, including the joint-context preimage selected
 by earlier answers. Their finite support is included in the complete window.
-`MdocStrandZeroKnowledge.real_extend` and `simulate_extend` establish the
+`Mdoc.ZeroKnowledge.real_extend` and `simulate_extend` establish the
 pointwise support property for the setup-derived experiments themselves.
 Averaging the complementary coordinates adds no error. The concrete budget
 corollary proves error at most `2^-128` at `2^128` total raw observer calls.
@@ -226,7 +226,7 @@ corollary proves error at most `2^-128` at `2^128` total raw observer calls.
 `StrandVerifierObserver.observe_result` and `optional_result` identify a
 raw-query observer with the actual indexed runtime verifier. Metadata is
 reconstructed from the public setup values and proved equal to the actual
-metadata. `MdocStrandVerifierPrivacy.acceptance_probability` bounds the
+metadata. `Mdoc.VerifierPrivacy.acceptance_probability` bounds the
 difference in actual acceptance probabilities by the same privacy error;
 rejection and abort outcomes are retained. No successful-verifier or
 always-accepting-simulator premise is used.
@@ -244,10 +244,10 @@ is claimed. V1 proofs and generic paper-facing component theorems are preserved.
 
 | Result | Endpoint | Scope |
 | --- | --- | --- |
-| Current V2 extraction soundness | [`MdocSoundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean) | Exact parameter-dependent bound for the actual numbered-strand event. |
-| Current V2 uniform soundness cap | [`MdocSoundness.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/MdocSoundness.lean) | Strictly below 0.97 for `Q < 2^127`. |
-| Current V2 statistical zero knowledge | [`MdocStrandZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean) | Complete current indexed runtime view, error `(Qpre+Qpost)/2^256`. |
-| Actual verifier privacy | [`MdocStrandVerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean) | The actual verifier decision, including rejection and abort. |
+| Current V2 extraction soundness | [`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | Exact parameter-dependent bound for the actual numbered-strand event. |
+| Current V2 uniform soundness cap | [`Mdoc.Soundness.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | Strictly below 0.97 for `Q < 2^127`. |
+| Current V2 statistical zero knowledge | [`Mdoc.ZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean) | Complete current indexed runtime view, error `(Qpre+Qpost)/2^256`. |
+| Actual verifier privacy | [`Mdoc.VerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/Mdoc/VerifierPrivacy.lean) | The actual verifier decision, including rejection and abort. |
 | Extant V1 runtime | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | V1 signature/hash extraction and soundness certificates. |
 | Paper-facing Polygero | [Polygero component library](polygero/README.md) | Original public-coin extraction/soundness and generic algebra, preserved unchanged. |
 | Packing and witness selection | [Dual packing](dual-packing/README.md), [witness selection](witness-selection/README.md) | Current component reductions and shared algebra. |
@@ -327,10 +327,9 @@ check runs these checks as well. These restrictions add no runtime checks.
 Remaining placement issues are historical rather than runtime dependencies:
 shared masking/coupling algebra still has `LfzkV1.LigeroZk` module names, and
 `Bcs.StatisticalDistance` imports generic event-counting lemmas from
-`SumcheckV1.Counting`. Earlier whole-answer Merkle helpers under
-`Current.ZeroKnowledge` are outside the current soundness, privacy, and
-completeness endpoint closures; they should be checked for component and public
-API consumers before relocation or removal.
+`SumcheckV1.Counting`. Generic Merkle coupling helpers under
+`Current.ZeroKnowledge` remain outside the application endpoint closures;
+their obsolete runtime-codec instantiation is removed.
 
 `LfzkV1.ZkSim` also contains the `ZkExample` demonstration and a globally
 registered small-field instance. That example section belongs in a V1 test

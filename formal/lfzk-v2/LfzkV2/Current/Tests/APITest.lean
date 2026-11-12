@@ -1,3 +1,4 @@
+import LfzkV2.Current.Tests.ProofAudit
 import LfzkV2.Current.Tests.ZeroKnowledgeReachability
 import LfzkV2.Current.Tests.MdocSoundness
 import LfzkV2.Current.Tests.StrandLinearReplay

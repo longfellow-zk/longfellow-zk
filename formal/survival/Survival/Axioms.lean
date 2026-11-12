@@ -1,5 +1,6 @@
 import Survival.Tests
-import Survival.ChargeMonitor
+import Survival.CausalCharges
+import Survival.QueryOrder
 import Lean.Util.CollectAxioms
 
 open Lean Elab Command

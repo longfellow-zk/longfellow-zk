@@ -7,7 +7,7 @@ its paired extracted witness. The observation retains the whole verifier
 trace and the exact first-context cuts; no successful-execution or decoder
 correspondence certificate is supplied by the application. -/
 noncomputable section
-namespace LfzkV2.Current.StrandExecution
+namespace LfzkV2.Current.Protocol.Observation
 open Application ApplicationSetup CanonicalPrefix
 open Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2
 open Protocol.Execution
@@ -144,4 +144,4 @@ theorem decision_actual (output : Output) (SHA : Bytes → Digest)
     _ SHA rfl
 
 end Runtime
-end LfzkV2.Current.StrandExecution
+end LfzkV2.Current.Protocol.Observation

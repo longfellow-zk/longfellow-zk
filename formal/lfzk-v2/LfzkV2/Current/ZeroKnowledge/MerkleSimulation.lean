@@ -1,7 +1,7 @@
-import LfzkV2.Current.WholeAnswerMerkle
+import Merkle.Commit
 
-/-! The earlier whole-answer model hashes a public column index and a fresh 32-byte nonce in
-each leaf.  Only the nonce is random.  For the hiding theorem we therefore
+/-! A public column index can be included in a generic Merkle leaf message.
+Only its nonce is random.  For the hiding theorem we therefore
 regard the column index as part of the message, rather than silently treating
 the pair `(index,nonce)` as uniform randomness.  This is a change of analysis
 coordinates: every encoded byte, heap label and opening check is unchanged. -/
@@ -93,25 +93,4 @@ theorem accepts_iff (H : Enc → D) (n : ℕ) (I : Finset (Fin n))
 
 end Reindex
 
-section Runtime
-variable {k s n t : ℕ} (P R : Joint.Participant k s n t)
-variable {fields : Fields} {Advice : Type}
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (binary : fields .binary ≃ P.Carrier) (prime : fields .prime ≃ R.Carrier)
-variable (context : Digest) (fits : n ≤ 2^64)
-
-def runtimeCodec : Codec MerkleNonce (Fin n × (Joint.Pair.family P R).Leaf) Digest Bytes :=
-  nonceCodec (WholeAnswerMerkle.codec P R repr binary prime context fits)
-
-theorem runtimeCodec_inj : (runtimeCodec P R repr binary prime context fits).Inj :=
-  nonceCodec_inj _ (WholeAnswerMerkle.codec_inj P R repr binary prime context fits)
-
-/-- This is literally the same wire preimage, with exactly 32 random nonce
-bytes. No uniformly sampled column index is introduced in the probability space. -/
-theorem runtime_leaf_bytes (column : Fin n) (nonce : MerkleNonce)
-    (leaf : (Joint.Pair.family P R).Leaf) :
-    (runtimeCodec P R repr binary prime context fits).leafEnc (nonce,(column,leaf)) =
-      (WholeAnswerMerkle.codec P R repr binary prime context fits).leafEnc ((column,nonce),leaf) := rfl
-
-end Runtime
 end LfzkV2.Current.ZeroKnowledge.MerkleSimulation

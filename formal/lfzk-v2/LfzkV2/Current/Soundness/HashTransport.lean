@@ -1,4 +1,4 @@
-import LfzkV2.Current.StrandComposition
+import LfzkV2.Current.Soundness.Coordinates
 import LfzkV2.Current.ByteOracleTransport
 import TranscriptV2.StrandCharging
 
@@ -35,22 +35,22 @@ variable (encode : P → Q) (injective : Function.Injective encode)
 variable (split : Q → (Raw × Extra) ≃ Challenge × Residual) (residual : Q → Residual)
 variable {fuel : ℕ} (tree : Tree P (D × Raw) Out fuel)
 local notation "changed" => LfzkV2.Current.StrandSampling.reindex split residual
-  (mapQueries encode (LfzkV2.Current.StrandComposition.pad (Extra := Extra) tree))
+  (mapQueries encode (LfzkV2.Current.Soundness.Coordinates.pad (Extra := Extra) tree))
 local notation "restored" => Equiv.symm (LfzkV2.Current.StrandSampling.oracleEquiv (Link := D) split)
 
 include injective in
 theorem coordinates_receiving (receives : Q → Prop) (claims : Q → Finset D) (H : Q → D × Challenge) :
     DigestProjection.receivingCharge receives claims changed H =
       DigestProjection.receivingCharge (receives ∘ encode) (claims ∘ encode) tree
-        (LfzkV2.Current.StrandComposition.drop (restored (H,residual) ∘ encode)) := by
+        (LfzkV2.Current.Soundness.Coordinates.drop (restored (H,residual) ∘ encode)) := by
   have indexed := receiving_congr receives claims changed
-    (mapQueries encode (LfzkV2.Current.StrandComposition.pad (Extra := Extra) tree)) H (restored (H,residual))
+    (mapQueries encode (LfzkV2.Current.Soundness.Coordinates.pad (Extra := Extra) tree)) H (restored (H,residual))
     (LfzkV2.Current.StrandSampling.reindex_run split residual _ H).2 (fun _ => rfl)
   rw [indexed, DigestProjection.receivingCharge_mapQueries encode injective]
   exact receiving_congr (receives ∘ encode) (claims ∘ encode)
-    (LfzkV2.Current.StrandComposition.pad (Extra := Extra) tree) tree
-    (restored (H,residual) ∘ encode) (LfzkV2.Current.StrandComposition.drop (restored (H,residual) ∘ encode))
-    (LfzkV2.Current.StrandComposition.pad_run tree _).2 (fun _ => rfl)
+    (LfzkV2.Current.Soundness.Coordinates.pad (Extra := Extra) tree) tree
+    (restored (H,residual) ∘ encode) (LfzkV2.Current.Soundness.Coordinates.drop (restored (H,residual) ∘ encode))
+    (LfzkV2.Current.Soundness.Coordinates.pad_run tree _).2 (fun _ => rfl)
 end Coordinates
 
 section Lift

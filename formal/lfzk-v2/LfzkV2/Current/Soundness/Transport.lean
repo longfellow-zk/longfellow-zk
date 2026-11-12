@@ -1,17 +1,17 @@
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.Soundness.Setup
 import LfzkV2.Current.Protocol.Sampling
-import LfzkV2.Current.StrandCharges
+import LfzkV2.Current.Soundness.LocalCharges
 import LfzkV2.Current.StrandDecoder
-import LfzkV2.Current.StrandRecovery
+import LfzkV2.Current.Soundness.Recovery
 import LfzkV2.Current.Soundness.RuntimeFresh
 
 /-! Transport and recovered-path algebra for the numbered-strand runtime.
 The shared definitions in this module retain the original SHA execution,
 commitment cut and complete verifier decision. Stopped-cost assembly and the
-exported soundness theorem live in `Current.StrandProtocol`. -/
+exported soundness theorem live in `Current.Soundness.Runtime`. -/
 noncomputable section
-namespace LfzkV2.Current.StrandProtocol
+namespace LfzkV2.Current.Soundness.Runtime
 open Application ApplicationSetup CanonicalPrefix QueryRuntime RecursivePolygero
 open Finset Bcs.FiniteProbability Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2
 open Protocol.Sampling
@@ -34,7 +34,7 @@ omit [∀ side, Fintype (fields side)] [Fintype Advice]
   [Inhabited (Fin c.n × MerkleNonce)] leafDefault in
 theorem normalize_eq (fallback answer : E.Answer) (point : E.Point) :
     StrandSampling.normalize (E.factor point) fallback answer =
-      StrandCharges.normalize c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
+      Soundness.LocalCharges.normalize c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
         E.roleFits fallback answer point := by
   cases point with
   | round index history block => rfl
@@ -46,9 +46,9 @@ local instance runtimeLeafInhabited : Inhabited (RuntimeVerifier.Family E.binary
   change Inhabited (Joint.Pair.family (E.P.indexed E.countBinary).participant (E.R.indexed E.countPrime).participant).Leaf
   infer_instance
 
-local notation "names" => StrandRealization.queryCodec E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "names" => Soundness.OracleTransport.queryCodec E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
-local notation "Other" => StrandRealization.other E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+local notation "Other" => Soundness.OracleTransport.other E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
   D.execution.sample E.merkleCodec id prog.tree
 local notation "Node" => StrandWindow.Node (Other)
 local notation "Name" => StrandSearch.Name Node E.Value
@@ -75,12 +75,12 @@ def namedOracle (residual : Tagged → Residual) (H : Tagged → Digest × E.Ans
 local notation "namedH" => namedOracle E fits D L prog
 
 def shaOracle (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) : Strand.Oracle :=
-  StrandRealization.rawSHA E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree
-    (StrandRealization.completion E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree
+  Soundness.OracleTransport.rawSHA E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree
+    (Soundness.OracleTransport.completion E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree
       (namedH residual H))
 
 local notation "SHAof" => shaOracle E fits D L prog
-local notation "logical" => StrandCharges.logicalOracle c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
+local notation "logical" => Soundness.LocalCharges.logicalOracle c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
   E.roleFits E.cfg.fallback
 local notation "ordinary" => StrandVerifier.oracle E.binary E.prime E.P E.R (E.wire) E.bodyCodec D.execution.sample
 local notation "actualVerify" => StrandVerifier.verify E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample
@@ -91,7 +91,7 @@ omit [∀ side, Fintype (fields side)] [Fintype Advice]
 theorem normalizedOracle_eq {Raw T : Type} (fallback : E.Answer)
     (H : (E.Point ⊕ StrandSearch.Name Raw T) → Digest × E.Answer) :
     StrandDecoder.normalizedOracle E.factor fallback (fun point => H (.inl point)) =
-      StrandCharges.logicalOracle c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
+      Soundness.LocalCharges.logicalOracle c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
         E.roleFits fallback H := by
   funext point
   exact Prod.ext rfl (normalize_eq E fallback (H (.inl point)).2 point)
@@ -102,14 +102,14 @@ def searchTree :=
   StrandReplay.search (StrandRuntime.Runtime.schema E.repr E.shape E.fingerprint E.binary.nPublic)
     (StrandWindow.Node.bytes (other := Other))
     (mapQueries (StrandWindow.decode (Other)
-      (StrandRealization.fallback E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)) prog.tree)
+      (Soundness.OracleTransport.fallback E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)) prog.tree)
 
 local notation "search" => searchTree E fits D prog
 
 /-- At fixed residual randomness only the answer coordinates change; the
 underlying adversarial branches and query count remain the original ones. -/
 def analysisTree (residual : Tagged → Residual) :=
-  StrandSampling.reindex split residual (mapQueries (names).tag (StrandComposition.pad (Extra := E.Answer) (search)))
+  StrandSampling.reindex split residual (mapQueries (names).tag (Soundness.Coordinates.pad (Extra := E.Answer) (search)))
 
 local notation "analysis" => analysisTree E fits D L prog
 /-- Coordinate padding and role sampling retain the original search's
@@ -128,15 +128,15 @@ theorem analysis_fresh (residual : Tagged → Residual) :
 node digests. Independent sampler padding cannot add commitment evidence. -/
 theorem cut_eq (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer)
     (target : FingerprintPrefix.Key E.binary.nPublic) :
-    StrandCharges.trace (names) Input.context E.context (analysis residual) H target =
+    Soundness.LocalCharges.trace (names) Input.context E.context (analysis residual) H target =
       StrandCut.trace E.context (search) (namedH residual H) target := by
-  exact StrandCharges.trace_physical (names) Input.context E.context split residual (search) H target
-    (StrandRealization.queryCodec_label E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)
+  exact Soundness.LocalCharges.trace_physical (names) Input.context E.context split residual (search) H target
+    (Soundness.OracleTransport.queryCodec_label E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)
 
 /-- Causal one-answer tests use the original prefix directly. Their state
 does not depend on a future query answer or on a completed prefix oracle. -/
 def causalProof :=
-  StrandCharges.causalCharges c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  Soundness.LocalCharges.causalCharges c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeGeometry E.primeFits E.binaryPlan E.binaryGeometry E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -145,7 +145,7 @@ def causalProof :=
 /-- The current runtime's local algebraic proof on the actual transformed
 search. Both fields use the one tuple extracted from this search's cut. -/
 def localProof (residual : Tagged → Residual) :=
-  StrandCharges.localProof c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  Soundness.LocalCharges.localProof c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeGeometry E.primeFits E.binaryPlan E.binaryGeometry E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -158,7 +158,7 @@ protocol, including the adjacent joint-backend pair. -/
 theorem budget_le (residual : Tagged → Residual) (point : Tagged) :
     (charges residual).budget point ≤
       Sum.elim (fun _ => 2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ)) (fun _ => 0) point := by
-  have bound := StrandCharges.localProof_budget_le c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  have bound := Soundness.LocalCharges.localProof_budget_le c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeGeometry E.primeFits E.binaryPlan E.binaryGeometry E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -179,7 +179,7 @@ theorem single_budget_le (residual : Tagged → Residual) (point : Tagged) :
   | inl _ => exact bounded
   | inr _ => exact bounded.trans (by norm_num [Adapter.Mdoc.binaryOrder])
 
-local notation "tupleAt" => StrandCharges.cutOracle (names) Input.context E.context E.First E.Second E.merkleCodec E.merkleDecoders
+local notation "tupleAt" => Soundness.LocalCharges.cutOracle (names) Input.context E.context E.First E.Second E.merkleCodec E.merkleDecoders
   FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
 
 /-- The concrete extractor retains the original byte-valued Merkle codec.
@@ -189,12 +189,12 @@ theorem cutOracle_eq (residual : Tagged → Residual) (H : Tagged → Digest × 
     tupleAt (analysis residual) H target = Joint.Pair.oracleEquiv E.First E.Second
       ((Joint.Pair.family E.First E.Second).indexedOracle E.merkleDecoders target.root
         ((StrandCut.trace E.context (search) (namedH residual H) target).map fun entry => (entry.1.val.val,entry.2))) := by
-  unfold StrandCharges.cutOracle
+  unfold Soundness.LocalCharges.cutOracle
   rw [cut_eq]
 
 def authentication (residual : Tagged → Residual) (output : E.Output) (H : Tagged → Digest × E.Answer)
     (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire)) :=
-  StrandCharges.authentication c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  Soundness.LocalCharges.authentication c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
     (analysis residual) (E.earlier) output H decoded
 
@@ -202,16 +202,16 @@ local notation "auth" => authentication E fits D L prog
 
 local notation "View" => Protocol.Execution.View E.Output ((E.Output × Chain.State (E.chain)) × Digest)
   (FingerprintPrefix.Key E.binary.nPublic)
-local notation "decodeView" => StrandExecution.decoded E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample
+local notation "decodeView" => Protocol.Observation.decoded E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample
   E.hashPublic E.primePublic E.draw
-local notation "decision" => StrandExecution.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+local notation "decision" => Protocol.Observation.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
   E.hashPublic E.primePublic E.draw
-local notation "observe" => StrandRealization.observe E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "observe" => Soundness.OracleTransport.observe E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
 local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (search) K)) K
-local notation "recovered" => StrandRecovery.recovered E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "recovered" => Soundness.Recovery.recovered E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits E.columnsFit D.execution.sample E.primeCount E.draw prog.tree inputs.bodyFits
-local notation "sourcePath" => StrandRealization.path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "sourcePath" => Soundness.OracleTransport.path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   inputs.bodyFits fits D.execution.sample E.merkleCodec id prog.tree
 local notation "pathOf" => fun residual H index =>
   (Sum.inl (Chain.point (E.chain) (Prod.fst (Tree.run prog.tree (SHAof residual H)))
@@ -224,16 +224,16 @@ theorem observation_decoded (residual : Tagged → Residual) (H : Tagged → Dig
     decodeView (viewOf residual H) =
       RuntimeAdaptiveVerifier.decode E.binary E.prime E.P E.R (E.wire) (E.earlier) E.hashPublic E.primePublic E.draw
         (prog.tree.run (SHAof residual H)).1 (ordinary (SHAof residual H)) := by
-  refine (congrArg (decodeView) (StrandRealization.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+  refine (congrArg (decodeView) (Soundness.OracleTransport.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
     fits D.execution.sample E.merkleCodec id prog.tree (namedH residual H))).trans ?_
-  exact StrandExecution.decoded_actual E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+  exact Protocol.Observation.decoded_actual E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
     E.hashPublic E.primePublic E.draw _ _ _ _
 
 theorem observation_decision (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) :
     decision (viewOf residual H) = actualVerify (SHAof residual H) id (prog.tree.run (SHAof residual H)).1 := by
-  refine (congrArg (decision) (StrandRealization.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+  refine (congrArg (decision) (Soundness.OracleTransport.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
     fits D.execution.sample E.merkleCodec id prog.tree (namedH residual H))).trans ?_
-  exact StrandExecution.decision_actual E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+  exact Protocol.Observation.decision_actual E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
     E.hashPublic E.primePublic E.draw _ _ _ _
 
 include inputs in
@@ -260,10 +260,10 @@ theorem accepted_decoded (residual : Tagged → Residual) (H : Tagged → Digest
     E.bodyCodec D.execution.sample E.hashPublic E.primePublic E.draw E.merkleCodec SHA id output).mp accepted
   have rows i (within : i ≤ g.roles.length) := ready.2.1 i within
   have outputEq : (sourceView original).original.1 = output :=
-    congrArg (fun view : View => view.original.1) (StrandRealization.observe_actual E.binary E.prime E.P E.R
+    congrArg (fun view : View => view.original.1) (Soundness.OracleTransport.observe_actual E.binary E.prime E.P E.R
       E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree original)
   have tags i (within : i ≤ g.roles.length) :=
-    StrandRealization.tag_path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata inputs.bodyFits fits
+    Soundness.OracleTransport.tag_path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata inputs.bodyFits fits
       D.execution.sample E.merkleCodec id prog.tree ((search).run original).1 original i within
   have same := StrandDecoder.decode_and_path E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec E.factor D.sample L.fiber L.uniform
     E.hashPublic E.primePublic E.draw output SHA (fun point => H (.inl point)) (fun point => residual (.inl point))
@@ -298,7 +298,7 @@ local notation "keyOf" => fun (output : E.Output) => Replay.Encoding.context
 /-- Selection reads the original commitment cut of the observed proof. -/
 def viewAuthentication (view : View) (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire)) :=
   ZkJoint.authenticate decoded.statement
-    (StrandExecution.extracted E.First E.Second E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root view (keyOf view.original.1))
+    (Protocol.Observation.extracted E.First E.Second E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root view (keyOf view.original.1))
     decoded.coin (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) view.original.1.proof) c.cutoff
 
 local notation "viewAuth" => viewAuthentication E
@@ -314,9 +314,9 @@ theorem viewAuthentication_eq (residual : Tagged → Residual) (H : Tagged → D
     (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire)) :
     viewAuth (viewOf residual H) decoded = auth residual (prog.tree.run (SHAof residual H)).1 H decoded := by
   refine (congrArg (fun view : View => viewAuth view decoded)
-    (StrandRealization.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+    (Soundness.OracleTransport.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
       fits D.execution.sample E.merkleCodec id prog.tree (namedH residual H))).trans ?_
-  simp only [viewAuthentication,StrandExecution.extracted,authentication,StrandCharges.authentication]
+  simp only [viewAuthentication,Protocol.Observation.extracted,authentication,Soundness.LocalCharges.authentication]
   rw [cutOracle_eq]
   rfl
 
@@ -342,7 +342,7 @@ theorem authenticated (residual : Tagged → Residual) (H : Tagged → Digest ×
     refine ⟨decoded,found,column,opened,fun equal => different ?_⟩
     have same := congrArg (fun view : View => messages E.merkleDecoders (view.cuts (keyOf view.original.1))
       (keyOf view.original.1).root c.n column)
-      (StrandRealization.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+      (Soundness.OracleTransport.observe_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
         fits D.execution.sample E.merkleCodec id prog.tree (namedH residual H))
     exact same.symm.trans equal
   have verified := (Joint.Pair.family E.First E.Second).verify_of_indexedAgreement E.merkleDecoders (E.wire).openingPositive
@@ -368,7 +368,7 @@ theorem accepted_cover (residual : Tagged → Residual) (H : Tagged → Digest �
   have same : observed = decoded := Option.some.inj (read.symm.trans found)
   subst observed
   rw [viewAuthentication_eq] at failed
-  have covered := StrandCharges.decoded_cover c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
+  have covered := Soundness.LocalCharges.decoded_cover c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity
     (E.wire) E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeGeometry E.primeFits E.binaryPlan E.binaryGeometry E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -389,7 +389,7 @@ theorem accepted_cover (residual : Tagged → Residual) (H : Tagged → Digest �
 
 theorem analysis_seen (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) :
     seen (analysis residual) H = (seen (search) (namedH residual H)).image (names).tag :=
-  StrandComposition.coordinates_seen (names).tag split residual (search) H
+  Soundness.Coordinates.coordinates_seen (names).tag split residual (search) H
 
 include inputs in
 theorem analysis_path (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer)
@@ -399,7 +399,7 @@ theorem analysis_path (residual : Tagged → Residual) (H : Tagged → Digest ×
   let cut := ((search).run original).1
   have tags i (within : i ≤ g.roles.length) :
       (names).tag (sourcePath cut original i) = pathOf residual H i :=
-    StrandRealization.tag_path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata inputs.bodyFits fits
+    Soundness.OracleTransport.tag_path E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata inputs.bodyFits fits
       D.execution.sample E.merkleCodec id prog.tree cut original i within
   constructor
   · intro i within
@@ -408,9 +408,9 @@ theorem analysis_path (residual : Tagged → Residual) (H : Tagged → Digest ×
   · intro i within
     rw [← tags i within.le,← tags (i+1) (Nat.succ_le_of_lt within)]
     have same := StrandSampling.reindex_firstOfTwo split residual
-      (mapQueries (names).tag (StrandComposition.pad (Extra := E.Answer) (search))) H
+      (mapQueries (names).tag (Soundness.Coordinates.pad (Extra := E.Answer) (search))) H
       ((names).tag (sourcePath cut original i)) ((names).tag (sourcePath cut original (i+1)))
-    rw [Composition.firstOfTwo_mapQueries (names).tag (names).tag_injective,StrandComposition.pad_order] at same
+    rw [Composition.firstOfTwo_mapQueries (names).tag (names).tag_injective,Soundness.Coordinates.pad_order] at same
     exact same.trans (ready.1.ordered i within)
 
-end LfzkV2.Current.StrandProtocol
+end LfzkV2.Current.Soundness.Runtime

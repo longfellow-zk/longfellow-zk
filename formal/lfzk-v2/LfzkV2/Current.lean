@@ -1,4 +1,4 @@
-import LfzkV2.Current.MdocSoundness
-import LfzkV2.Current.ZeroKnowledge.MdocStrandZeroKnowledge
-import LfzkV2.Current.ZeroKnowledge.MdocStrandVerifierPrivacy
-import LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
+import LfzkV2.Current.Mdoc.Soundness
+import LfzkV2.Current.Mdoc.ZeroKnowledge
+import LfzkV2.Current.Mdoc.VerifierPrivacy
+import LfzkV2.Current.Mdoc.Completeness

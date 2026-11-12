@@ -86,10 +86,10 @@ fn imports(source: &str) -> Vec<String> {
 }
 
 const CURRENT_ENDPOINTS: &[&str] = &[
-    "LfzkV2.Current.MdocSoundness",
-    "LfzkV2.Current.ZeroKnowledge.MdocStrandZeroKnowledge",
-    "LfzkV2.Current.ZeroKnowledge.MdocStrandVerifierPrivacy",
-    "LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime",
+    "LfzkV2.Current.Mdoc.Soundness",
+    "LfzkV2.Current.Mdoc.ZeroKnowledge",
+    "LfzkV2.Current.Mdoc.VerifierPrivacy",
+    "LfzkV2.Current.Mdoc.Completeness",
 ];
 
 const HISTORICAL_CURRENT_IMPORTS: &[&str] = &[
@@ -98,11 +98,66 @@ const HISTORICAL_CURRENT_IMPORTS: &[&str] = &[
     "LfzkV2.Program",
     "LfzkV2.Soundness",
     "LfzkV2.Circuit",
+    "LfzkV2.Current.ChainedFS",
+    "LfzkV2.Current.ChainedSupport",
+    "LfzkV2.Current.RuntimeAdaptiveReduction",
+    "LfzkV2.Current.SurvivalPrefix",
+    "Survival.PrefixCache",
+    "Survival.ChargeMonitor",
+    "Survival.Saturation",
 ];
+
+fn violates_owner(root: &str, dependency: &str) -> bool {
+    let soundness = dependency.starts_with("LfzkV2.Current.Soundness.")
+        || [
+            "LfzkV2.Current.Mdoc.Soundness",
+            "LfzkV2.Current.Mdoc.RuntimeSoundness",
+            "LfzkV2.Current.Mdoc.OracleSoundness",
+        ]
+        .contains(&dependency);
+    let privacy = dependency.starts_with("LfzkV2.Current.ZeroKnowledge.")
+        || [
+            "LfzkV2.Current.Mdoc.ZeroKnowledge",
+            "LfzkV2.Current.Mdoc.VerifierPrivacy",
+        ]
+        .contains(&dependency);
+    if root.starts_with("LfzkV2.Current.Protocol.") {
+        soundness || privacy || dependency.starts_with("LfzkV2.Current.Mdoc.")
+    } else if root.starts_with("LfzkV2.Current.Soundness.") || root == CURRENT_ENDPOINTS[0] {
+        privacy
+    } else if root.starts_with("LfzkV2.Current.ZeroKnowledge.")
+        || [CURRENT_ENDPOINTS[1], CURRENT_ENDPOINTS[2]].contains(&root)
+    {
+        soundness
+    } else if root == CURRENT_ENDPOINTS[3] {
+        soundness
+            || [
+                CURRENT_ENDPOINTS[1],
+                CURRENT_ENDPOINTS[2],
+                "LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding",
+            ]
+            .contains(&dependency)
+    } else {
+        false
+    }
+}
 
 fn check_current_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usize {
     let mut failures = 0;
-    for &root in CURRENT_ENDPOINTS {
+    let roots: BTreeSet<&str> = CURRENT_ENDPOINTS
+        .iter()
+        .copied()
+        .chain(dependencies.keys().map(String::as_str).filter(|name| {
+            [
+                "LfzkV2.Current.Protocol.",
+                "LfzkV2.Current.Soundness.",
+                "LfzkV2.Current.ZeroKnowledge.",
+            ]
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+        }))
+        .collect();
+    for root in roots {
         if !dependencies.contains_key(root) {
             eprintln!("Missing current endpoint {root}");
             failures += 1;
@@ -114,12 +169,13 @@ fn check_current_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usi
             if !seen.insert(module.clone()) {
                 continue;
             }
-            if HISTORICAL_CURRENT_IMPORTS
-                .iter()
-                .any(|prefix| module == *prefix || module.starts_with(&format!("{prefix}.")))
+            if violates_owner(root, &module)
+                || HISTORICAL_CURRENT_IMPORTS
+                    .iter()
+                    .any(|prefix| module == *prefix || module.starts_with(&format!("{prefix}.")))
             {
                 eprintln!(
-                    "Historical model import in current endpoint: {}",
+                    "Proof ownership or retired-interface violation: {}",
                     path.join(" -> ")
                 );
                 failures += 1;
@@ -161,6 +217,25 @@ mod tests {
     fn only_actual_import_commands_are_followed() {
         let source = "/- import Fake -/\npublic import all Wanted\n-- import Fake\nprivate meta import AlsoWanted\n";
         assert_eq!(imports(&code(source)), ["Wanted", "AlsoWanted"]);
+    }
+
+    #[test]
+    fn proof_owners_remain_separate() {
+        assert!(violates_owner(
+            "LfzkV2.Current.Protocol.Setup",
+            "LfzkV2.Current.Soundness.Setup"
+        ));
+        assert!(violates_owner(CURRENT_ENDPOINTS[0], CURRENT_ENDPOINTS[1]));
+        assert!(violates_owner(CURRENT_ENDPOINTS[1], CURRENT_ENDPOINTS[0]));
+        assert!(violates_owner(CURRENT_ENDPOINTS[3], CURRENT_ENDPOINTS[1]));
+        assert!(!violates_owner(
+            CURRENT_ENDPOINTS[0],
+            "LfzkV2.Current.Protocol.Setup"
+        ));
+        assert!(!violates_owner(
+            CURRENT_ENDPOINTS[1],
+            "LfzkV2.Current.Mdoc.Runtime"
+        ));
     }
 }
 

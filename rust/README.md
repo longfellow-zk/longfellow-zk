@@ -194,7 +194,7 @@ binary/prime candidate caps are respectively
 `21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`.
 They give a fingerprint-role charge of approximately `0.705/q`.
 
-The [exact endpoint](../formal/lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+The [exact endpoint](../formal/lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean)
 constructs metadata, advice decoding, layouts and frontend plans from trusted
 circuit topology and canonical field representations. It derives ordered
 query recovery, agreement on opened columns, failure coverage and one shared

@@ -90,7 +90,7 @@ challenge between `U` and the scalar response `A`. Its query preimage binds
 `U`; the source equation is reconstructed from earlier transcript data.
 [`ApplicationViews`](../lfzk-v2/LfzkV2/Current/ApplicationViews.lean) proves
 that changing the current packing answer cannot change this source.
-[`StrandProtocol`](../lfzk-v2/LfzkV2/Current/StrandProtocol.lean) composes the
+[`Soundness.Runtime`](../lfzk-v2/LfzkV2/Current/Soundness/Runtime.lean) composes the
 component with the current frontend, joint backend and original query budget.
 
 The [current Fiat–Shamir composition](../lfzk-v2/README.md#current-mac-free-protocol)

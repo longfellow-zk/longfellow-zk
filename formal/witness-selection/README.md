@@ -82,7 +82,7 @@ uniform field challenges. Nonzero terminal scales and other protocol tests
 retain their own corrections. The typed oracle model proves adaptive charging
 and link/seal guessing bounds. Its full-parent preimage and local reduction
 laws are instantiated by the
-[current runtime composition](../lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean),
+[current runtime composition](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean),
 which derives its failure event from actual adaptive verifier acceptance.
 Rust source correspondence and the ideal-sampler oracle model remain explicit;
 the full application composition is not proved by this component alone. Charge the shared

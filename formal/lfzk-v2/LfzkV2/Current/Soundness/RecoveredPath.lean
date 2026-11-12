@@ -1,10 +1,10 @@
-import LfzkV2.Current.StrandRealization
+import LfzkV2.Current.Soundness.OracleTransport
 
 /-! Recover accepted logical paths from the common raw execution view.
 This layer proves order and challenge-row correspondence. Observation and
 probability transport do not depend on these path-recovery arguments. -/
 noncomputable section
-namespace LfzkV2.Current.StrandRealization
+namespace LfzkV2.Current.Soundness.OracleTransport
 open Application ApplicationSetup CanonicalPrefix QueryRuntime
 open Finset Merkle.RandomOracle TranscriptV2
 open scoped Classical
@@ -68,7 +68,7 @@ local notation "SHAof" => rawSHA binary prime P R repr shape setup cfg binaryCou
 local notation "rawObservation" => rawView binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "namedObservation" => observe binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "nodeOf" => locate binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-local notation "actualDecision" => StrandExecution.decision binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
+local notation "actualDecision" => Protocol.Observation.decision binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
   (CanonicalRequest.hashPublic binary.nPublic)
   (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
 
@@ -286,28 +286,4 @@ theorem full_cut_eq (H : Name → Answer)
   unfold StrandCut.trace
   rw [beforeLabel_bind_of_queried (StrandCut.label context) (some key) searchTree resumeTree H ⟨name,queried,label⟩]
 
-/-- A concrete physical realization of the actual runtime. The raw
-experiment uses its finite SHA marginal; the named experiment preserves the
-actual verifier decision, every extraction cut and the complete replay.
-The remaining exceptional event concerns only original collisions and missing
-original queries on a seal-valid path. -/
-def realization :
-    letI : Fintype Value := Fintype.ofInjective
-      (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-      (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
-    Composition.SoundnessRealization (rounds := g.roles.length) searchTree rawObservation namedObservation
-      (fun view => actualDecision view = true)
-      (path binary prime P R repr shape setup cfg binaryCount metadata bodyFits fits sample codec merkleInput program) := by
-  letI : Fintype Value := Fintype.ofInjective
-    (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-    (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
-  exact {
-    observation_law := observation_law binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-    exception := exception binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-    speculation := speculation binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-    speculation_nonneg := fun H => DigestProjection.charge_nonneg (StrandSearch.claims bytes) searchTree H
-    accepted_path := accepted_path_or_charge binary prime P R repr shape setup cfg binaryCount metadata bodyFits fits
-      sample primeCount draw codec merkleInput program }
-
-
-end LfzkV2.Current.StrandRealization
+end LfzkV2.Current.Soundness.OracleTransport

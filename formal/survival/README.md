@@ -2,7 +2,7 @@
 
 This is the pencil-and-paper assembly written before the Lean integration. It concerns the actual
 mathematical runtime verifier and extractor modeled by
-`LfzkV2.Current.MdocStrandOracle`, rather than a stand-alone sumcheck game.
+`LfzkV2.Current.Mdoc.Soundness`, rather than a stand-alone sumcheck game.
 The existing implementation-correspondence and ideal-sampling boundary is
 unchanged. The strengthened runtime endpoint is now checked in the upstream Lean development.
 
@@ -44,8 +44,8 @@ $$
 
 `SharedBudget.linear_le` proves this with no $pQ\le1$ restriction.
 It never conditions the backend charge on eventual transparent safety.
-`Saturation` separately improves the same accounting to $W(Q)$ when
-$pQ\le1$. Both runtime methods use the same `StrandProtocol.stoppedCost`,
+`Hybrid` separately improves the same accounting to $W(Q)$ when
+$pQ\le1$. Both runtime methods use the same `Soundness.Runtime.stoppedCost`,
 `stopped_failure_cover` and `conditioned_cost_mean_le`; neither method supplies
 an additional runtime certificate or changes the extractor.
 
@@ -57,16 +57,16 @@ graph TD
   A["ChronologicalAudit"] --> H["History and QueryBudget"]
   H --> S["StoppedSearch: J, K, escape mean"]
   S --> B
-  A --> W["Hybrid and Saturation: optional W refinement"]
-  T["StrandTransport: common-witness algebra and recovered path"] --> C["StrandStoppedCosts: actual cost and failure cover"]
+  A --> W["Hybrid: optional W refinement"]
+  T["Soundness.Transport: common-witness algebra and recovered path"] --> C["Soundness.StoppedCosts: actual cost and failure cover"]
   B --> C
-  C --> R["StrandProtocol: both bounds, residual and raw transport"]
+  C --> R["Soundness.Runtime: both bounds, residual and raw transport"]
   W --> R
-  R --> M["MdocStrandSoundness and MdocStrandOracle: profile and setup averaging"]
+  R --> M["Mdoc.RuntimeSoundness and Mdoc.OracleSoundness: profile and setup averaging"]
 ```
 
 `StoppedSearch` and `SharedBudget` have no import path to `Hybrid`,
-`Saturation`, V1 or V2. Application raw-to-named realization and recovery facts
+V1 or V2. Application raw-to-named realization and recovery facts
 are proved in their existing modules; they are used to derive the actual
 runtime cover before either probability estimate. Residuals are averaged
 before the raw hash exception is bounded; the complementary setup slice is
@@ -82,7 +82,7 @@ P_{\mathrm{fail}}(Q)\le
 \frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
 $$
 
-`MdocStrandOracle.averaged_linear_ratio_le` is the complete one-SHA endpoint
+`Mdoc.OracleSoundness.averaged_linear_ratio_le` is the complete one-SHA endpoint
 for this bound. The exact saturated theorem below remains the sharper
 conclusion in its intended range.
 
@@ -145,7 +145,7 @@ The supported one-/two-/three-/four-attribute compiler shapes have respectively
 per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
 against the current Rust compiler. The approximation takes a supported-shape
 witness and derives the round bound internally.
-`MdocStrandOracle.averaged_mdoc_approximation` proves this all-budget consequence.
+`Mdoc.OracleSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 For $Q\ge2^{127}$ the approximation follows from probability being at most 1.
 For smaller budgets, use the second-order survival estimate
@@ -206,7 +206,7 @@ fresh-seal guessing bound is not asserted separately for each residual.
 
 ## 2. Keep the original cut inside the local charges
 
-Instantiate the existing `StrandCharges.localProof` with the ORIGINAL tree
+Instantiate the existing `Soundness.LocalCharges.localProof` with the ORIGINAL tree
 `T_z`. Denote its single-answer charge by `s_x(H,a)` and its linked backend
 pair charges by `h_{u,v}(H,a,c)`. Their commitment tuple is exactly the one
 extracted from the original first-context cut.
@@ -228,96 +228,88 @@ originally used to define the weights' cut. The off-coordinate and local-mean
 proofs continue to refer to the original cut. We therefore do not invent a
 new commitment tuple after stopping.
 
-## 3. Define the chronological monitor by an explicit partial cache
+## 3. Define the chronological monitor from explicit prefix state
 
 Call the following query roles opaque:
 
 - the logical joint-backend batching node;
 - auxiliary names used by speculative-strand and receiving-Merkle charging.
 
-All other names are transparent. In particular, the backend opening node is
-transparent; its existing low-response/outside-list test is a single-answer
-test. This does not replace the high-response Polygero analysis by an RBR
-argument.
+All other names are transparent. The backend opening node is transparent;
+its low-response/outside-list check is a single-answer test. The high-response
+Polygero analysis still uses the original two-query charge.
 
-Maintain a table `C` containing all answers obtained so far in `T_z`, with
-one fixed fallback at other names. At a transparent query `x`, before revealing
-its answer `a`, the monitor fixes the test
+At a query `x`, extract a state $\sigma_x(\mathrm{past})$ directly from the
+strictly earlier recorded query/answer list. Its two components are the
+paired commitment tuple at the first query naming `x`'s context, and the tape
+of answers at `x`'s named strict ancestors. Missing off-path ancestors receive
+a fixed typed fallback. This construction never runs the adversary against
+a completed prefix oracle.
+
+For the local state charge $\ell_x$, the transparent escape test is
 
 $$
-\mathrm{escape}(C,x,a)\quad\Longleftrightarrow\quad s_x(C,a)\ge1.
+\mathrm{escape}(\mathrm{past},x,a)
+\quad\Longleftrightarrow\quad
+\ell_x(\sigma_x(\mathrm{past}),a)\ge1.
 \tag{3}
 $$
 
-At an opaque query the monitor never declares an escape. If a transparent
-answer does not escape, update the cache and continue. Stop the audit at the
-first escape. Let `E` be the escape event and let `K` count opaque queries
-encountered before the stop. The opaque query itself is counted when reached;
-an escaping query is transparent.
+Opaque queries never escape. The audit appends each reached query/answer to
+its prefix and stops at the first transparent escape. Let `E` be that event
+and `K` the number of opaque queries reached, counting an opaque query when
+it is reached.
 
-For every fixed cache, the existing local single-answer mean gives
+The existing local algebra proves nonnegativity and the mean bound for every
+state, including inconsistent off-path tuples and ancestor tapes. Hence
 
 $$
-\Pr_a[s_x(C,a)\ge1]\le p
+\Pr_a[\ell_x(\sigma,a)\ge1]\le p.
 \tag{4}
 $$
 
-by nonnegativity and the indicator/charge inequality. This uses the full joint
-role answer, not independent marginal challenges. At fingerprint and opening
-roles `s` can be a sum of indicators; Markov's elementary inequality still
-gives (4). The local theorem holds for EVERY completed cache, including a
-cache whose fallback causes malformed/unavailable packets or a different
-continuation of the original program.
+This is a mean over the full joint role answer; it does not replace joint
+uniformity with marginal uniformity. Fingerprint and opening charges may be
+sums of indicators. The same elementary indicator/charge bound applies.
+`Survival.CausalCharges` packages these facts and constructs the chronological
+monitor. It does not assume a failure cover or replay certificate.
 
-The monitor is chronological by construction. No global own-answer invariance
-is mistaken for chronological measurability. It need not reconstruct the
-eventual submitted proof or read future answers.
+## 4. Identify the prefix-state test on the recovered path
 
-## 4. Why the monitored test is the actual test on a recovered path
+Recovery supplies membership and first-occurrence order of the accepted
+logical path points `x_i`. `Survival.QueryOrder` puts every strict ancestor
+`x_j`, with `j<i`, before the actual query to `x_i`. Looking up those entries
+in the recorded prefix therefore gives their actual normalized answers.
 
-Only this accepted-path correspondence needs a causal proof. There is no
-need to show that every malformed or speculative off-path query has the
-eventual verifier's state.
+The first query naming `x_i`'s context is no later than `x_i`. Taking the
+prefix before that first name and retaining its original commitment entries
+gives exactly the original first-context cut. The paired tuple and candidate
+lists over both fields are unchanged. `Protocol.PrefixState` and
+`Soundness.LocalCharges.prefixOracle_eq_original` prove this without replaying
+the adversary.
 
-Suppose the execution is accepted and recovered, and consider its logical
-path point `x_i`. Recovery supplies membership and first-occurrence order of
-the path points. Transitivity of these first-occurrence inequalities puts
-every `x_j`, `j<i`, strictly before the query to `x_i`.
+The remaining data are causal by their definitions:
 
-At that query the cache agrees with the complete oracle on the entire earlier
-actual query prefix. Running the fixed original tree against this cache
-reproduces that prefix: induction on the prefix uses the same previously
-queried names and the same answers. In particular it reaches `x_i` unchanged.
+- Selection reads that tuple, the earlier fingerprint answer, and the response
+  bound in the current query preimage.
+- Frontend, packing and adapter readers consume the preimage and strict
+  ancestor tape, fixing their equations and generated circuit parameters.
+- An opening uses the batching parent's prior tape and earlier batching coin;
+  the complete response is bound in the current preimage.
+- The current answer is supplied explicitly to the charge.
 
-The first query bearing `x_i`'s context occurs no later than `x_i`. Therefore
-the original tree's `beforeLabel` cut for that context is the SAME under the
-cache and the complete oracle. Its tuple decoder and candidate lists agree.
-
-The remaining charge data agree directly from the runtime definitions:
-
-- `Input.priorPoints` at `x_i` are exactly earlier points on this same replay
-  path (`ReplayPrefix`/`Replay.point_priorPoints`). Thus `priorAnswers` agrees.
-- Selection uses that tuple, the earlier fingerprint answer, and responses
-  bound in the query preimage. It returns the same pair and the same pads.
-- Frontend and auxiliary packet readers take the fixed query preimage and its
-  strict prior-answer tape. Their payloads, generated circuit, packing source,
-  row equations, and conversion data therefore agree.
-- A backend opening's statement uses the batching parent's strict prior tape;
-  its batching coin is an earlier path answer. Its complete response is in
-  the current preimage. Hence its one-answer charge agrees as well.
-- The current answer is supplied explicitly in both tests. Missing future
-  messages/answers have the same typed fallback and cannot affect a local test.
-
-Consequently
+Consequently the constructed state charge is the actual runtime charge:
 
 $$
-s_{x_i}(C,H(x_i))=s_{x_i}(H,H(x_i))
+\ell_{x_i}(\sigma_{x_i}(\mathrm{past}),H(x_i))
+=s_{x_i}(H,H(x_i)).
 \tag{5}
 $$
 
-at every transparent recovered-path point. On an execution with no monitor
-escape, no such actual single charge is at least one. These are equalities
-of the actual existing charge definitions, not new soundness assumptions.
+`Soundness.LocalCharges.prefixCharge_eq_runtime` proves this identity. A run
+with no monitor escape therefore has no transparent recovered-path charge at
+least one. The correspondence and all-state mean are proved internally;
+neither becomes a new premise of the application theorem.
 
 ## 5. Apply the ad hoc backend theorem to the stopped tree
 
@@ -496,7 +488,7 @@ correction remains.
 ## 9. Return to the original single-SHA endpoint
 
 Use the same complete-proof parser and verifier event as
-`MdocStrandSoundness`, with the same extracted tuple at the original cut.
+`Mdoc.RuntimeSoundness`, with the same extracted tuple at the original cut.
 The existing setup-domain split identifies public setup and runtime values
 with complementary slices of one SHA function. It preserves the original
 submitted proof, original filtered log, actual verifier decision and request.
@@ -506,10 +498,15 @@ slice and any independent finite private choices without additional error.
 
 This produces the strengthened theorem for the actual modeled runtime, with
 the same model boundary as the original endpoint. Sections 4--6 are checked in
-`Current.StrandCharges` and `Current.StrandProtocol`; the complete averaged
-endpoint is `Current.MdocStrandOracle.averaged_ratio_le`, and the
+`Current.Soundness.LocalCharges` and `Current.Soundness.Runtime`; the complete averaged
+endpoint is `Current.Mdoc.Soundness.averaged_ratio_le`, and the
 uniform numerical cap is `averaged_nonvacuous`, stating the strict result below 0.97. The runtime
 obligations are derived facts, not additional hypotheses in these endpoints.
+`Mdoc.Soundness.decoded_valid` connects the decoded application to the actual
+request and ordinary hash/signature witness validity using the static read
+separation premise; the application event includes actual acceptance and
+failure of that extractor. Thus the endpoint bounds application extraction
+failure, not only an internal algebraic predicate.
 
 
 The audited Lean organization factors each fresh-answer step through

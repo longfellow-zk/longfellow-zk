@@ -1,8 +1,8 @@
-import LfzkV2.Current.RuntimeAdaptiveFS
+import LfzkV2.Current.Soundness.RuntimeCharges
 
 /-! Causal equalities for the actual runtime's local tests. Oracle values
 outside the strict ancestor tape may differ, provided the original committed
-tuple is the same. This is the accepted-path bridge for cached monitoring.
+tuple is the same. These identities justify evaluating local tests from explicit prefix state.
 -/
 noncomputable section
 namespace LfzkV2.Current
@@ -168,7 +168,7 @@ variable (coin : C → JointResponse.Coin P R) (query : C → LigeroFamily.Query
 variable (cutoff : ℕ × ℕ) (epsilon : ℚ)
 
 include injective in
-theorem backend_cached_eq (point : (LfzkV2.Current.Input roles Context Block Link Body)) (H H' : (LfzkV2.Current.Input roles Context Block Link Body) → Link × C)
+theorem single_prior (point : (LfzkV2.Current.Input roles Context Block Link Body)) (H H' : (LfzkV2.Current.Input roles Context Block Link Body) → Link × C)
     (_prior : point.priorAnswers H = point.priorAnswers H')
     (_committed : ∀ context, cut H context = cut H' context) (answer : Link × C) :
     LfzkV2.Current.BackendOracle.single (i := index) P R next encode derive cut coin query cutoff epsilon point H answer =

@@ -1,4 +1,4 @@
-import LfzkV2.Current.StrandExecution
+import LfzkV2.Current.Protocol.Observation
 
 /-! The actual runtime verifier is an ordinary raw-oracle observer. Its
 program records the complete physical replay before computing the decision
@@ -39,15 +39,15 @@ local notation "fullReplay" => StrandAuthentication.replay binary prime P R cfg 
 def observe (output : Output) : Tree Bytes Digest Bool (2+2*n+(blocks+1)*g.roles.length) :=
   (recordTrace (fullReplay output)).map fun recorded =>
     StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
-      (StrandExecution.complete recorded.2) merkleInput output
+      (Protocol.Observation.complete recorded.2) merkleInput output
 
 theorem observe_result (output : Output) (SHA : Bytes → Digest) :
     ((observe binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw output).run SHA).1 =
       StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput output := by
   rw [observe,Tree.run_map,run_recordTrace]
   exact (StrandAuthentication.verify_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
-    hashPublic decodePublic draw output SHA (StrandExecution.complete ((fullReplay output).run SHA).2)
-    (StrandExecution.complete_run_agrees (fullReplay output) SHA)).symm
+    hashPublic decodePublic draw output SHA (Protocol.Observation.complete ((fullReplay output).run SHA).2)
+    (Protocol.Observation.complete_run_agrees (fullReplay output) SHA)).symm
 
 /-- A missing proof is rejected, using the same budget as a supplied proof.
 This lets privacy compare actual acceptance even on simulator aborts. -/

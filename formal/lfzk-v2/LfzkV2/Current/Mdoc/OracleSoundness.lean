@@ -1,5 +1,5 @@
 import LfzkV2.Current.MdocRoundShape
-import LfzkV2.Current.MdocStrandSoundness
+import LfzkV2.Current.Mdoc.RuntimeSoundness
 import LfzkV2.Current.StrandRoutedObserver
 
 /-! Condition the one SHA oracle on its complementary public-setup slice.
@@ -21,7 +21,7 @@ these choices may be correlated with each other. That coin is independent of
 the fresh protocol-domain table `G`. Conditioning and averaging the fixed
 public setup slice adds no error term. -/
 noncomputable section
-namespace LfzkV2.Current.MdocStrandOracle
+namespace LfzkV2.Current.Mdoc.OracleSoundness
 open Application ApplicationSetup TranscriptV2 Merkle.RandomOracle Bcs.FiniteProbability OracleDomain
 open scoped Classical
 
@@ -50,7 +50,7 @@ theorem parameters_merge (outside inside : Bytes → Digest) :
   simp only [StrandDomains.context_merge]
 
 variable {fuel blocks Q : ℕ}
-variable (body : Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+variable (body : Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
 variable (outside : Bytes → Digest)
 
 def residualBody := (StrandRoutedObserver.routed StrandDomains.protocol outside body).map Prod.fst
@@ -87,26 +87,26 @@ theorem residual_budget (inside : Bytes → Digest) : (seen residual inside).car
   exact List.mem_toFinset.mpr (List.mem_map.mpr ⟨qa,(List.mem_filter.mp qaPresent).1,qaEq⟩)
 
 variable (fits : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length < 2^64)
-variable (sample : (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids outside) bounds) →
-  Tree Strand.Word Digest (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids outside) bounds point)) blocks)
-variable (fiber : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids outside) bounds → ℕ)
+variable (sample : (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids outside) bounds) →
+  Tree Strand.Word Digest (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids outside) bounds point)) blocks)
+variable (fiber : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids outside) bounds → ℕ)
 variable (uniform : ∀ point value, (Finset.univ.filter fun stream => ((sample point).run stream).1 = some value).card = fiber point)
 variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scalars)
   (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) ≤ CanonicalPrefix.maxLength)
 
-abbrev Raw := MdocStrandSoundness.Raw binary prime cantor scalars (identifiers ids outside) bounds residual fits sample
-local notation "Raw" => MdocStrandOracle.Raw binary prime cantor scalars ids bounds body outside fits sample
+abbrev Raw := Mdoc.RuntimeSoundness.Raw binary prime cantor scalars (identifiers ids outside) bounds residual fits sample
+local notation "Raw" => Mdoc.OracleSoundness.Raw binary prime cantor scalars ids bounds body outside fits sample
 
 def inside (G : Raw → Digest) : Bytes → Digest :=
-  MdocStrandSoundness.oracle binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
+  Mdoc.RuntimeSoundness.oracle binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
 
-local notation "inside" => MdocStrandOracle.inside binary prime cantor scalars ids bounds body outside fits sample
+local notation "inside" => Mdoc.OracleSoundness.inside binary prime cantor scalars ids bounds body outside fits sample
 
 def sha (G : Raw → Digest) : Bytes → Digest := SHAOracle.merge StrandDomains.protocol outside (inside G)
 local notation "SHA" => sha binary prime cantor scalars ids bounds body outside fits sample
 
 def observation (G : Raw → Digest) :=
-  MdocStrandSoundness.observation binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
+  Mdoc.RuntimeSoundness.observation binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
 
 local notation "view" => observation binary prime cantor scalars ids bounds body outside fits sample
 
@@ -114,56 +114,56 @@ theorem submitted_output (G : Raw → Digest) :
     (view G).original.1 = ProofOutput.decode (MdocRuntime.representations scalars)
       (MdocDefaults.proof (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) B)
       (body.run (SHA G)).1 := by
-  have original := congrArg Prod.fst (MdocStrandSoundness.observation_original binary prime cantor scalars
+  have original := congrArg Prod.fst (Mdoc.RuntimeSoundness.observation_original binary prime cantor scalars
     (identifiers ids outside) bounds residual fits sample G)
-  simp only [MdocStrandSoundness.program,Tree.run_map] at original
+  simp only [Mdoc.RuntimeSoundness.program,Tree.run_map] at original
   exact original.trans (congrArg _ (residual_output binary prime bounds body outside (inside G)))
 
 /-- The extractor's query table is precisely the original table restricted
 to the protocol domain. Answers on the fixed setup slice add no evidence. -/
 theorem original_trace (G : Raw → Digest) :
     (view G).original.2 = ((body.run (SHA G)).2.filter fun qa => decide (StrandDomains.protocol qa.1)) := by
-  have original := congrArg Prod.snd (MdocStrandSoundness.observation_original binary prime cantor scalars
+  have original := congrArg Prod.snd (Mdoc.RuntimeSoundness.observation_original binary prime cantor scalars
     (identifiers ids outside) bounds residual fits sample G)
-  simp only [MdocStrandSoundness.program,Tree.run_map] at original
+  simp only [Mdoc.RuntimeSoundness.program,Tree.run_map] at original
   exact original.trans (residual_trace binary prime bounds body outside (inside G))
 
 theorem verifier_actual (G : Raw → Digest) :
-    (view G).verifier = (MdocStrandSoundness.replay binary prime cantor scalars (identifiers ids outside) bounds
+    (view G).verifier = (Mdoc.RuntimeSoundness.replay binary prime cantor scalars (identifiers ids outside) bounds
       sample (view G).original.1).run (SHA G) := by
-  have original := congrArg Prod.fst (MdocStrandSoundness.observation_original binary prime cantor scalars
+  have original := congrArg Prod.fst (Mdoc.RuntimeSoundness.observation_original binary prime cantor scalars
     (identifiers ids outside) bounds residual fits sample G)
-  have actual := MdocStrandSoundness.observation_verifier binary prime cantor scalars
+  have actual := Mdoc.RuntimeSoundness.observation_verifier binary prime cantor scalars
     (identifiers ids outside) bounds residual fits sample G
-  have same := (MdocStrandSoundness.replay_domain binary prime cantor scalars (identifiers ids outside) bounds sample
+  have same := (Mdoc.RuntimeSoundness.replay_domain binary prime cantor scalars (identifiers ids outside) bounds sample
     (view G).original.1).run_eq (inside G) (SHA G)
       (fun raw member => SHAOracle.merge_inside StrandDomains.protocol outside (inside G) raw member)
-  have translated := congrArg (fun out => (MdocStrandSoundness.replay binary prime cantor scalars
+  have translated := congrArg (fun out => (Mdoc.RuntimeSoundness.replay binary prime cantor scalars
     (identifiers ids outside) bounds sample out).run (inside G)) original
   exact (actual.trans translated.symm).trans same.symm
 
 def event (G : Raw → Digest) : Prop :=
   (ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
     (MdocRuntime.representations scalars) (body.run (SHA G)).1.2).isSome ∧
-      MdocStrandSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)
+      Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)
 
 theorem event_eq (G : Raw → Digest) : event binary prime cantor scalars ids bounds body outside fits sample G ↔
-    MdocStrandSoundness.event binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G := by
-  unfold event MdocStrandSoundness.event
+    Mdoc.RuntimeSoundness.event binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G := by
+  unfold event Mdoc.RuntimeSoundness.event
   change
     ((ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
       (MdocRuntime.representations scalars) (body.run (SHA G)).1.2).isSome ∧
-        MdocStrandSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)) ↔
+        Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)) ↔
     ((ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
       (MdocRuntime.representations scalars) ((residual).run (inside G)).1.2).isSome ∧
-        MdocStrandSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G))
+        Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G))
   rw [residual_output binary prime bounds body outside (inside G)]
   rfl
 
 theorem event_verified (G : Raw → Digest) (accepted : event binary prime cantor scalars ids bounds body outside fits sample G) :
-    MdocStrandSoundness.verify binary prime cantor scalars (identifiers ids outside) bounds sample (SHA G)
+    Mdoc.RuntimeSoundness.verify binary prime cantor scalars (identifiers ids outside) bounds sample (SHA G)
       (view G).original.1 = true :=
-  MdocStrandSoundness.observation_verified binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
+  Mdoc.RuntimeSoundness.observation_verified binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G
     (SHA G) (verifier_actual binary prime cantor scalars ids bounds body outside fits sample G) accepted.2
 
 include queries bodyFits uniform in
@@ -172,7 +172,7 @@ theorem linear_ratio_le :
       LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   rw [density_congr (event_eq binary prime cantor scalars ids bounds body outside fits sample)]
-  exact MdocStrandSoundness.linear_ratio_le binary prime cantor scalars (identifiers ids outside) bounds
+  exact Mdoc.RuntimeSoundness.linear_ratio_le binary prime cantor scalars (identifiers ids outside) bounds
     residual fits sample bodyFits fiber uniform (residual_budget binary prime bounds body outside queries)
 
 include queries bodyFits uniform in
@@ -181,7 +181,7 @@ theorem ratio_le (budget : Q < 2^127) :
       LfzkV2.Current.Soundness.Rate7.failureBound Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   rw [density_congr (event_eq binary prime cantor scalars ids bounds body outside fits sample)]
-  exact MdocStrandSoundness.ratio_le binary prime cantor scalars (identifiers ids outside) bounds
+  exact Mdoc.RuntimeSoundness.ratio_le binary prime cantor scalars (identifiers ids outside) bounds
     residual fits sample bodyFits fiber uniform (residual_budget binary prime bounds body outside queries) budget
 
 include bodyFits in
@@ -189,13 +189,13 @@ include bodyFits in
 adversary choices, independent of the fresh protocol table, for every Q. -/
 theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
-    (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+    (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
-      (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
+      (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
       Tree Strand.Word Digest
-        (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
+        (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
     (sampleFiber : (coin : Omega) →
-      MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
+      Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
     (balanced : ∀ coin point value,
       (Finset.univ.filter fun stream => ((sampler coin point).run stream).1 = some value).card = sampleFiber coin point)
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) :
@@ -214,13 +214,13 @@ include bodyFits in
 choices, independent of the fresh protocol table. The runtime event and extractor are unchanged. -/
 theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
-    (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+    (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
-      (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
+      (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
       Tree Strand.Word Digest
-        (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
+        (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
     (sampleFiber : (coin : Omega) →
-      MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
+      Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
     (balanced : ∀ coin point value,
       (Finset.univ.filter fun stream => ((sampler coin point).run stream).1 = some value).card = sampleFiber coin point)
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) (budget : Q < 2^127) :
@@ -239,13 +239,13 @@ include bodyFits in
 choices, independent of the fresh protocol table. The runtime event and extractor are unchanged. -/
 theorem averaged_nonvacuous {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
-    (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+    (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
-      (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
+      (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
       Tree Strand.Word Digest
-        (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
+        (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
     (sampleFiber : (coin : Omega) →
-      MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
+      Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
     (balanced : ∀ coin point value,
       (Finset.univ.filter fun stream => ((sampler coin point).run stream).1 = some value).card = sampleFiber coin point)
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) (budget : Q < 2^127) :
@@ -261,13 +261,13 @@ include bodyFits in
 /-- A polynomial consequence for every query budget, including Q = 0. -/
 theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
-    (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+    (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
-      (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
+      (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
       Tree Strand.Word Digest
-        (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
+        (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
     (sampleFiber : (coin : Omega) →
-      MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
+      Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
     (balanced : ∀ coin point value,
       (Finset.univ.filter fun stream => ((sampler coin point).run stream).1 = some value).card = sampleFiber coin point)
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) :
@@ -300,13 +300,13 @@ include bodyFits in
 /-- Convenient approximation for every Q. The supported compiler shape derives the round bound. -/
 theorem averaged_mdoc_approximation {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
-    (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
+    (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
-      (point : MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
+      (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds) →
       Tree Strand.Word Digest
-        (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
+        (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars (identifiers ids (external coin)) bounds point)) blocks)
     (sampleFiber : (coin : Omega) →
-      MdocStrandSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
+      Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars (identifiers ids (external coin)) bounds → ℕ)
     (balanced : ∀ coin point value,
       (Finset.univ.filter fun stream => ((sampler coin point).run stream).1 = some value).card = sampleFiber coin point)
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q)
@@ -328,4 +328,4 @@ theorem averaged_mdoc_approximation {Omega : Type} [Fintype Omega] [Nonempty Ome
     norm_num [pow_succ]
     nlinarith only [rationalBound, sq_nonneg (Q : ℚ)]
 
-end LfzkV2.Current.MdocStrandOracle
+end LfzkV2.Current.Mdoc.OracleSoundness

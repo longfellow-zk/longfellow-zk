@@ -1,6 +1,6 @@
 import LfzkV2.Current.StrandMerkleBounds
 import LfzkV2.Current.StrandMerkleRealization
-import LfzkV2.Current.StrandRealizationPath
+import LfzkV2.Current.Soundness.RecoveredPath
 import LfzkV2.Current.StrandSearchBudget
 import LfzkV2.Current.ProtocolProbability
 
@@ -8,7 +8,7 @@ import LfzkV2.Current.ProtocolProbability
 authenticated columns or exhibits a hash event. Both arguments use the
 same original query log and the same extraction cut. -/
 noncomputable section
-namespace LfzkV2.Current.StrandRecovery
+namespace LfzkV2.Current.Soundness.Recovery
 open Application ApplicationSetup CanonicalPrefix QueryRuntime
 open Finset Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2 Bcs.FiniteProbability
 open StrandMerkleMissingQueries
@@ -60,27 +60,27 @@ local notation "history" => StrandRuntime.history bodyCodec
 local notation "ordinary" => StrandVerifier.oracle binary prime P R (W) bodyCodec sample
 local notation "hashPublic" => CanonicalRequest.hashPublic binary.nPublic
 local notation "primePublic" => CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount
-local notation "actualDecoded" => StrandExecution.decoded binary prime P R (W) (Earlier) bodyCodec sample
+local notation "actualDecoded" => Protocol.Observation.decoded binary prime P R (W) (Earlier) bodyCodec sample
   hashPublic primePublic draw
-local notation "decision" => StrandExecution.decision binary prime P R (W) (Earlier) bodyCodec sample (codec) id hashPublic primePublic draw
+local notation "decision" => Protocol.Observation.decision binary prime P R (W) (Earlier) bodyCodec sample (codec) id hashPublic primePublic draw
 local notation "contextOf" => fun (output : Output) => Replay.Encoding.context
   (E (RuntimeAdaptive.Output.request output)) (RuntimeAdaptive.Output.proof output)
 local notation "rootOf" => fun (output : Output) => RuntimeVerifier.Public.root (W) (contextOf output)
 variable {fuel : ℕ} (program : Tree Bytes Digest (CanonicalRuntime.Output (Advice := Advice) binary shape) fuel)
 
-local notation "O" => StrandRealization.other binary prime P R repr shape setup cfg binaryCount metadata
+local notation "O" => Soundness.OracleTransport.other binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 local notation "Raw" => StrandWindow.Point (O)
 local notation "Node" => StrandWindow.Node (O)
-local notation "fallbackNode" => StrandRealization.fallback binary prime P R repr shape setup cfg binaryCount metadata
+local notation "fallbackNode" => Soundness.OracleTransport.fallback binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 local notation "decodeRaw" => StrandWindow.decode (O) fallbackNode
 local notation "compiled" => mapQueries decodeRaw program
-local notation "SHAof" => StrandRealization.rawSHA binary prime P R repr shape setup cfg binaryCount metadata
+local notation "SHAof" => Soundness.OracleTransport.rawSHA binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
-local notation "rawView" => StrandRealization.rawView binary prime P R repr shape setup cfg binaryCount metadata
+local notation "rawView" => Soundness.OracleTransport.rawView binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
-local notation "rawException" => StrandRealization.rawException binary prime P R repr shape setup cfg binaryCount metadata
+local notation "rawException" => Soundness.OracleTransport.rawException binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 
 variable {Result : Type}
@@ -115,12 +115,12 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
       StrandMerkleBounds.freshHit binary prime P R repr shape setup cfg binaryCount metadata fits
         columnsFit sample program fallbackPath G := by
   let result := (compiled).run G
-  have actual := StrandRealization.original_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+  have actual := Soundness.OracleTransport.original_actual binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program G
   have outputEq : result.1 = (program.run (SHAof G)).1 := congrArg Prod.fst actual
   have traceEq : result.2.map (fun qa => (StrandWindow.encode qa.1,qa.2)) = (program.run (SHAof G)).2 :=
     congrArg Prod.snd actual
-  rw [StrandRealization.decision_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+  rw [Soundness.OracleTransport.decision_actual binary prime P R repr shape setup cfg binaryCount metadata fits
     sample primeCount draw (codec) id program G] at accepted
   obtain ⟨decoded,decodedAt,checks⟩ := (StrandVerifier.verify_true_iff binary prime P R (W) (Earlier)
     bodyCodec sample hashPublic primePublic draw (codec) (SHAof G) id _).mp accepted
@@ -131,7 +131,7 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
       (history ((M).point (program.run (SHAof G)).1 (ordinary (SHAof G)) i)).input.encode := by
     by_contra missing
     exact good ⟨checks.2.2.2.2.1,Or.inr missing⟩
-  have viewDecoded := (StrandRealization.decoded_actual binary prime P R repr shape setup cfg binaryCount metadata
+  have viewDecoded := (Soundness.OracleTransport.decoded_actual binary prime P R repr shape setup cfg binaryCount metadata
     fits sample primeCount draw (codec) id program G).trans decodedAt
   obtain ⟨other,otherAt,column,opened,wrong⟩ := different
   have same := Option.some.inj (otherAt.symm.trans viewDecoded)
@@ -160,13 +160,13 @@ local notation "searchTree" => StrandReplay.search (schema) bytes compiled
 local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic
 local notation "Name" => StrandSearch.Name Node Value
 local notation "Answer" => StrandCoupling.Sample Digest Strand.Word
-local notation "completed" => StrandRealization.completion binary prime P R repr shape setup cfg binaryCount metadata
+local notation "completed" => Soundness.OracleTransport.completion binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
-local notation "observe" => StrandRealization.observe binary prime P R repr shape setup cfg binaryCount metadata
+local notation "observe" => Soundness.OracleTransport.observe binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
-local notation "reached" => StrandRealization.path binary prime P R repr shape setup cfg binaryCount metadata
+local notation "reached" => Soundness.OracleTransport.path binary prime P R repr shape setup cfg binaryCount metadata
   bodyFits fits sample (codec) id program
-local notation "speculation" => StrandRealization.speculation binary prime P R repr shape setup cfg binaryCount metadata
+local notation "speculation" => Soundness.OracleTransport.speculation binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 
 /-- The algebraic proof uses the ordered path, its physical challenge rows,
@@ -203,17 +203,17 @@ theorem accepted_recovery_or_charge (H : Name → Answer)
   · exact Or.inr (Or.inr (Or.inr (Or.inl late)))
   by_cases different : disagrees (observe ((searchTree).run H).1 H)
   · exact Or.inr (Or.inr (Or.inr (Or.inr ⟨different,bad,late⟩)))
-  have path := (StrandRealization.accepted_path_or_charge binary prime P R repr shape setup cfg binaryCount
+  have path := (Soundness.OracleTransport.accepted_path_or_charge binary prime P R repr shape setup cfg binaryCount
     metadata bodyFits fits sample primeCount draw (codec) id program H accepted bad).resolve_right charged
-  have rows := StrandRealization.accepted_answers binary prime P R repr shape setup cfg binaryCount metadata
+  have rows := Soundness.OracleTransport.accepted_answers binary prime P R repr shape setup cfg binaryCount metadata
     bodyFits fits sample primeCount draw (codec) id program H accepted bad (lt_of_not_ge charged)
   have actual := congrArg (fun view => view.original.1)
-    (StrandRealization.observe_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+    (Soundness.OracleTransport.observe_actual binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program H)
   exact Or.inl ⟨path,fun i within => by rw [actual]; exact rows i within,different⟩
 
 local notation "observed" => fun H => observe (Prod.fst (Tree.run (searchTree) H)) H
-local notation "originalException" => StrandRealization.observedException
+local notation "originalException" => Soundness.OracleTransport.observedException
   binary prime P R repr shape setup cfg binaryCount metadata
 
 /-- The verifier-side exceptions are determined by the common execution
@@ -228,9 +228,9 @@ local notation "hashBad" => hashException binary prime P R repr shape setup cfg 
 
 private theorem rawException_view (G : Raw → Digest) :
     rawException G ↔ originalException (rawView G).original (rawView G).verifier.1 := by
-  rw [StrandRealization.rawView_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+  rw [Soundness.OracleTransport.rawView_actual binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program G]
-  exact StrandRealization.rawException_observed binary prime P R repr shape setup cfg binaryCount metadata fits
+  exact Soundness.OracleTransport.rawException_observed binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program G
 
 variable {Q : ℕ} (queries : ∀ SHA : Bytes → Digest, (seen program SHA).card ≤ Q)
@@ -245,13 +245,13 @@ theorem hashException_ratio_le :
     letI : Fintype Name := inferInstance
     letI : Fintype Answer := inferInstance
     density (fun H : Name → Answer => hashBad (observed H)) ≤
-      StrandRealizationBounds.delta Q g.roles.length + (Heap.heapDepth n+1 : ℚ)/2^256 := by
+      Soundness.OracleBounds.delta Q g.roles.length + (Heap.heapDepth n+1 : ℚ)/2^256 := by
   letI : Fintype Value := Fintype.ofInjective
     (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
     (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
   letI : Fintype Name := inferInstance
   letI : Fintype Answer := inferInstance
-  rw [← StrandRealization.observation_law binary prime P R repr shape setup cfg binaryCount metadata fits
+  rw [← Soundness.OracleTransport.observation_law binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program (hashBad)]
   let fresh := StrandMerkleBounds.freshHit binary prime P R repr shape setup cfg binaryCount metadata fits
     columnsFit sample program fallbackPath
@@ -271,7 +271,7 @@ theorem hashException_ratio_le :
       · exact ⟨1,by simpa only [if_neg (show (1 : Fin 2) ≠ 0 by decide)] using hit⟩)
   rw [Fin.sum_univ_two,if_pos rfl,if_neg (show (1 : Fin 2) ≠ 0 by decide)] at union
   exact union.trans (add_le_add
-    (StrandRealizationBounds.raw_exception_ratio_le binary prime P R repr shape setup cfg binaryCount metadata
+    (Soundness.OracleBounds.raw_exception_ratio_le binary prime P R repr shape setup cfg binaryCount metadata
       bodyFits fits independent sample (codec) id program queries)
     (StrandMerkleBounds.freshHit_ratio_le binary prime P R repr shape setup cfg binaryCount metadata fits
       columnsFit sample program fallbackPath))
@@ -290,7 +290,7 @@ theorem lateMerkleHit_charged (H : Name → Answer) (late : lateHit (observed H)
   let key := contextOf view.original.1
   obtain ⟨input,digest,present,absent,merkle,target⟩ := late
   have original : view.original = program.run SHA := congrArg Protocol.Execution.View.original
-    (StrandRealization.observe_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+    (Soundness.OracleTransport.observe_actual binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program H)
   have queried : (input,digest) ∈ (program.run SHA).2 := by rw [← original]; exact present
   have nonPrf : Strand.decodePrf input = none := by
@@ -300,13 +300,13 @@ theorem lateMerkleHit_charged (H : Name → Answer) (late : lateHit (observed H)
         setup.jointContext columnsFit leaf
     · rw [encoded]
       exact StrandMerkleRealization.node_nonPrf setup.jointContext index children
-  have observations := StrandRealization.original_node_observations binary prime P R repr shape setup cfg
+  have observations := Soundness.OracleTransport.original_node_observations binary prime P R repr shape setup cfg
     binaryCount metadata fits sample (codec) id program H
   obtain ⟨raw,logical,answer,entry,source⟩ := observations.2 (input,digest) queried nonPrf
   have receives : StrandMerkleRealization.receives (codec) bytes (.inl (raw,logical)) := by
     change IsMerkleInput (codec) (bytes raw)
     exact (congrArg (IsMerkleInput (codec)) (congrArg Prod.fst entry)).mpr merkle
-  have cutEq := StrandRealization.observe_cut binary prime P R repr shape setup cfg binaryCount metadata fits
+  have cutEq := Soundness.OracleTransport.observe_cut binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program H key
   apply StrandMerkleRealization.wire_late_query_charged (First) (Second) repr cfg.binaryField cfg.primeField
     setup.jointContext columnsFit (schema) bytes keyOf FingerprintPrefix.Key.root compiled H SHA
@@ -346,13 +346,13 @@ theorem accepted_recovery_or_hash (H : Name → Answer) (accepted : decision (ob
 include queries in
 theorem grouped_budget (H : Name → Answer) : (seen searchTree H).card ≤ Q := by
   have agreement := StrandReplay.original_matches (schema) bytes compiled _ H (completed H)
-    (StrandRealization.completion_matches binary prime P R repr shape setup cfg binaryCount metadata fits
+    (Soundness.OracleTransport.completion_matches binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program H)
   exact (StrandReplay.search_card_le (schema) bytes compiled H (completed H) agreement).trans
-    (StrandRealizationBounds.compiled_budget binary prime P R repr shape setup cfg binaryCount metadata fits
+    (Soundness.OracleBounds.compiled_budget binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program queries (completed H))
 
-local notation "names" => StrandRealization.queryCodec binary prime P R repr shape setup cfg binaryCount metadata fits
+local notation "names" => Soundness.OracleTransport.queryCodec binary prime P R repr shape setup cfg binaryCount metadata fits
   sample (codec) id program
 
 include queries in
@@ -373,8 +373,8 @@ theorem hashCharge_sum_le :
   letI : Fintype Answer := inferInstance
   exact StrandMerkleRealization.wire_hash_sum_le (First) (Second) repr cfg.binaryField cfg.primeField
     setup.jointContext columnsFit shape setup binary.nPublic fits
-    (StrandRealization.locate binary prime P R repr shape setup cfg binaryCount metadata fits sample (codec) id program)
-    bytes (StrandRealization.locate_bytes binary prime P R repr shape setup cfg binaryCount metadata fits
+    (Soundness.OracleTransport.locate binary prime P R repr shape setup cfg binaryCount metadata fits sample (codec) id program)
+    bytes (Soundness.OracleTransport.locate_bytes binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program) searchTree
     (grouped_budget binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program queries)
     keyOf FingerprintPrefix.Key.root
@@ -431,7 +431,7 @@ theorem recovery_failure_ratio_le :
     scaled (hashException_ratio_le binary prime P R repr shape setup cfg binaryCount metadata fits
       columnsFit sample primeCount draw program fallbackPath independent bindSalt bodyFits queries)
   apply bounded.trans_eq
-  dsimp only [rate,mean,StrandRealizationBounds.delta,hashCorrection]
+  dsimp only [rate,mean,Soundness.OracleBounds.delta,hashCorrection]
   ring
 
 local notation "valueFinite" => Fintype.ofInjective
@@ -484,9 +484,9 @@ theorem failure_ratio_le (rate : ℚ) (guessFits : (2*Q : ℚ)/2^256 ≤ rate)
   have hash : density (fun H : Name → Answer => decision (observed H) = true ∧ ¬recovers H) ≤
       rate*mean + hashCorrection Q g.roles.length n :=
     missed.trans (add_le_add (mul_le_mul_of_nonneg_right guessFits meanNonneg) le_rfl)
-  rw [StrandRealization.observation_law binary prime P R repr shape setup cfg binaryCount metadata fits
+  rw [Soundness.OracleTransport.observation_law binary prime P R repr shape setup cfg binaryCount metadata fits
     sample (codec) id program (fun view => decision view = true ∧ invalid view)]
   exact ProtocolProbability.density_shared_budget (fun H => decision (observed H) = true)
     (fun H => invalid (observed H)) (recovers) algebra hash
 
-end LfzkV2.Current.StrandRecovery
+end LfzkV2.Current.Soundness.Recovery

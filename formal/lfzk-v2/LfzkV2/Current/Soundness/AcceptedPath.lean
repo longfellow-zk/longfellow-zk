@@ -1,11 +1,11 @@
 import LfzkV2.Current.RuntimeAdaptive
-import Survival.PrefixCache
+import Survival.QueryOrder
 import TranscriptV2.Composition
 
 /-! The actual replay family supplies all strict ancestors on its recovered
 query path. These are exact preimages, including messages and digest links. -/
 noncomputable section
-namespace LfzkV2.Current.Soundness.RuntimePath
+namespace LfzkV2.Current.Soundness.AcceptedPath
 open Survival
 open LfzkV2.Current Merkle.RandomOracle TranscriptV2
 open scoped Classical
@@ -40,7 +40,7 @@ theorem ancestors_before {A : Type} [Fintype A] [queryDecidable : DecidableEq (P
     (Sum.inl (((M).point output H index).priorPoints j) : Point ⊕ Aux) ∈
       before tree G (.inl ((M).point output H index)) := by
   rw [family_priorPoints encodings initial output H index within j]
-  apply PrefixCache.earlier_path_before tree G (fun i => .inl ((M).point output H i))
+  apply QueryOrder.earlier_path_before tree G (fun i => .inl ((M).point output H i))
     path.queried path.ordered ?_ index within j.val ?_
   · intro i hi same
     have equal := congrArg Input.rank (Sum.inl.inj same)
@@ -55,4 +55,4 @@ theorem ancestors_before {A : Type} [Fintype A] [queryDecidable : DecidableEq (P
     have := j.isLt
     omega
 
-end LfzkV2.Current.Soundness.RuntimePath
+end LfzkV2.Current.Soundness.AcceptedPath

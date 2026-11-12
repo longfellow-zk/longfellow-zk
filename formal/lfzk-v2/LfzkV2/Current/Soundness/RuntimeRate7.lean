@@ -1,6 +1,6 @@
 import LfzkV2.Current.Soundness.Rate7
 import LfzkV2.Current.Parameters.Rate7
-import LfzkV2.Current.StrandRecovery
+import LfzkV2.Current.Soundness.Recovery
 
 /-! Attach the exact numerical certificates to the actual runtime profile
 and its existing hash correction, rather than a duplicate free parameter. -/
@@ -30,9 +30,9 @@ theorem auxiliary_budget (queries : ℕ) (bounded : queries < 2^127) :
   exact bound
 
 theorem correction_eq (queries rounds : ℕ) :
-    StrandRecovery.hashCorrection queries rounds (profile).n = Rate7.correction queries rounds := by
+    Soundness.Recovery.hashCorrection queries rounds (profile).n = Rate7.correction queries rounds := by
   have depth : Heap.heapDepth (profile).n = 12 := by decide +kernel
-  unfold StrandRecovery.hashCorrection Rate7.correction
+  unfold Soundness.Recovery.hashCorrection Rate7.correction
   rw [depth, Nat.choose_two_right]
   norm_num [Rate7.q, Adapter.Mdoc.binaryOrder]
   ring

@@ -1,4 +1,4 @@
-import LfzkV2.Current.StrandRealization
+import LfzkV2.Current.Soundness.OracleTransport
 import LfzkV2.Current.StrandOriginalSeal
 import TranscriptV2.StrandMissingQueries
 import TranscriptV2.DigestCollision
@@ -7,7 +7,7 @@ import TranscriptV2.DigestCollision
 collisions are charged once. A missing transcript node pays one fresh target
 per position; verifier replay is never added to the original query budget. -/
 noncomputable section
-namespace LfzkV2.Current.StrandRealizationBounds
+namespace LfzkV2.Current.Soundness.OracleBounds
 open Application ApplicationSetup CanonicalPrefix QueryRuntime
 open Finset Merkle.RandomOracle TranscriptV2 Bcs.FiniteProbability
 open scoped Classical
@@ -61,10 +61,10 @@ local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.
 local notation "history" => StrandRuntime.history bodyCodec
 local notation "beforeSeal" => TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M)
 local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
-local notation "O" => StrandRealization.other binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "O" => Soundness.OracleTransport.other binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "Node" => StrandWindow.Node (O)
 local notation "Raw" => StrandWindow.Point (O)
-local notation "fallbackNode" => StrandRealization.fallback binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "fallbackNode" => Soundness.OracleTransport.fallback binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "decodeRaw" => StrandWindow.decode (O) fallbackNode
 local notation "Name" => StrandSearch.Name Node Value
 local notation "Answer" => StrandCoupling.Sample Digest Strand.Word
@@ -72,12 +72,12 @@ local notation "compiled" => mapQueries decodeRaw program
 local notation "compiledReplay" => fun output : Output => mapQueries decodeRaw (fullReplay output)
 local notation "searchTree" => StrandReplay.search (schema) bytes compiled
 local notation "resumeTree" => StrandReplay.resume (schema) bytes compiledReplay
-local notation "completed" => StrandRealization.completion binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-local notation "SHAof" => StrandRealization.rawSHA binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "completed" => Soundness.OracleTransport.completion binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "SHAof" => Soundness.OracleTransport.rawSHA binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "messages" => fun output : Output =>
   StrandLinearReplay.packets bodyCodec (Earlier (RuntimeAdaptive.Output.request output)) cfg.fallback (RuntimeAdaptive.Output.proof output)
 local notation "ordinaryOracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
-local notation "rawException" => StrandRealization.rawException binary prime P R repr shape setup cfg
+local notation "rawException" => Soundness.OracleTransport.rawException binary prime P R repr shape setup cfg
   binaryCount metadata fits sample codec merkleInput program
 local notation "address" => StrandVerifier.finalSealAddress binary prime P R (W) (Earlier) bodyCodec sample
 
@@ -96,7 +96,7 @@ theorem linear_covered (output : Output) (G : Raw → Digest) (i : ℕ)
       (StrandLinear.replay (messages output) (SHAof G) i).input.encode := by
   let value := StrandAcceptedPath.value binary prime P R repr shape setup cfg binaryCount metadata
     bodyFits fits sample output (SHAof G) i
-  let node := StrandRealization.locate binary prime P R repr shape setup cfg binaryCount metadata
+  let node := Soundness.OracleTransport.locate binary prime P R repr shape setup cfg binaryCount metadata
     fits sample codec merkleInput program value
   have same : ((schema).encode value).input.encode =
       (StrandLinear.replay (messages output) (SHAof G) i).input.encode :=
@@ -113,7 +113,7 @@ theorem linear_covered (output : Output) (G : Raw → Digest) (i : ℕ)
 theorem rawTrace_original (G : Raw → Digest) :
     StrandMissingQueries.rawTrace StrandWindow.encode ((compiled).run G) =
       (program.run (SHAof G)).2 :=
-  congrArg Prod.snd (StrandRealization.original_actual binary prime P R repr shape setup cfg
+  congrArg Prod.snd (Soundness.OracleTransport.original_actual binary prime P R repr shape setup cfg
     binaryCount metadata fits sample codec merkleInput program G)
 
 /-- A collision in the original byte trace is already in the original
@@ -205,7 +205,7 @@ theorem missing_covered (G : Raw → Digest)
   have trace := rawTrace_original binary prime P R repr shape setup cfg binaryCount metadata fits
     sample codec merkleInput program G
   have outputEq : ((compiled).run G).1 = output :=
-    congrArg Prod.fst (StrandRealization.original_actual binary prime P R repr shape setup cfg
+    congrArg Prod.fst (Soundness.OracleTransport.original_actual binary prime P R repr shape setup cfg
       binaryCount metadata fits sample codec merkleInput program G)
   refine ⟨?_,?_,?_⟩
   · simpa only [trace] using bad.1
@@ -292,16 +292,16 @@ theorem exception_ratio_le :
       (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
     letI : Fintype Name := inferInstance
     letI : Fintype Answer := inferInstance
-    density (StrandRealization.exception binary prime P R repr shape setup cfg binaryCount metadata
+    density (Soundness.OracleTransport.exception binary prime P R repr shape setup cfg binaryCount metadata
       fits sample codec merkleInput program) ≤ delta Q g.roles.length := by
   letI : Fintype Value := Fintype.ofInjective
     (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
     (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
   letI : Fintype Name := inferInstance
   letI : Fintype Answer := inferInstance
-  rw [← StrandRealization.exception_law binary prime P R repr shape setup cfg binaryCount metadata fits
+  rw [← Soundness.OracleTransport.exception_law binary prime P R repr shape setup cfg binaryCount metadata fits
     sample codec merkleInput program]
   exact raw_exception_ratio_le binary prime P R repr shape setup cfg binaryCount metadata bodyFits fits
     independent sample codec merkleInput program queries
 
-end LfzkV2.Current.StrandRealizationBounds
+end LfzkV2.Current.Soundness.OracleBounds

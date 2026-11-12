@@ -1,14 +1,13 @@
 import LfzkV2.Current.Protocol.PrefixState
 import Survival.CausalCharges
 import LfzkV2.Current.StrandBackendCharges
-import LfzkV2.Current.SurvivalPrefix
+import LfzkV2.Current.Soundness.CausalReaders
 import LfzkV2.Current.StrandCut
 import LfzkV2.Joint.Indexed
 import LfzkV2.Current.ByteOracleTransport
 import LfzkV2.Current.RuntimeParameters
-import LfzkV2.Current.RuntimeAdaptiveReduction
-import LfzkV2.Current.StrandComposition
-import Survival.PrefixCache
+import LfzkV2.Current.Soundness.FailureCover
+import LfzkV2.Current.Soundness.Coordinates
 import LfzkV2.Current.Soundness.RuntimeRoles
 import Survival.StoppedCharges
 import LfzkV2.Current.Soundness.ProfileBudget
@@ -18,7 +17,7 @@ oracle is extracted from that execution's first-context cut, then held fixed
 while counting one current answer or the adjacent backend pair. Auxiliary
 addresses remain in the execution but receive no algebraic charge. -/
 noncomputable section
-namespace LfzkV2.Current.StrandCharges
+namespace LfzkV2.Current.Soundness.LocalCharges
 open Application ApplicationSetup ApplicationOracle RecursivePolygero ProfileAnalysis Finset
 open Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2 Bcs.TotalOracle
 open scoped Classical
@@ -92,24 +91,24 @@ theorem trace_tag {fuel : ℕ} (tree : Tree (StrandSearch.Name Raw T) (Digest ×
 theorem trace_pad {Extra : Type} {fuel : ℕ}
     (tree : Tree (Logical ⊕ StrandSearch.Name Raw T) (Digest × C) Out fuel)
     (H : (Logical ⊕ StrandSearch.Name Raw T) → Digest × (C × Extra)) (target : Key) :
-    trace codec key context (StrandComposition.pad tree) H target =
-      trace codec key context tree (StrandComposition.drop H) target := by
+    trace codec key context (Soundness.Coordinates.pad tree) H target =
+      trace codec key context tree (Soundness.Coordinates.drop H) target := by
   induction tree with
   | done _ => rfl
   | query point next ih =>
-      simp only [trace,StrandComposition.pad,beforeLabel]
+      simp only [trace,Soundness.Coordinates.pad,beforeLabel]
       split_ifs
       · rfl
       · simp only [List.filterMap_cons]
         have tail := ih ((H point).1,(H point).2.1)
         unfold trace at tail
-        rw [show StrandComposition.drop H point = ((H point).1,(H point).2.1) from rfl]
+        rw [show Soundness.Coordinates.drop H point = ((H point).1,(H point).2.1) from rfl]
         cases choice : codec.untag point with
         | none => simpa only [entry,choice,Option.bind_none] using tail
         | some name =>
             cases name with
             | inl pair =>
-                simpa only [entry,choice,Option.bind_some,namedEntry,StrandComposition.drop] using
+                simpa only [entry,choice,Option.bind_some,namedEntry,Soundness.Coordinates.drop] using
                   congrArg (List.cons (pair.1,(H point).1)) tail
             | inr digest => simpa only [entry,choice,Option.bind_some,namedEntry] using tail
 
@@ -141,12 +140,12 @@ theorem trace_reindex {Challenge Residual : Type} {fuel : ℕ}
 
 private theorem map_pad {Name Point D A Extra Result : Type} (rename : Name → Point) {fuel : ℕ}
     (tree : Tree Name (D × A) Result fuel) :
-    mapQueries rename (StrandComposition.pad (Extra := Extra) tree) =
-      StrandComposition.pad (mapQueries rename tree) := by
+    mapQueries rename (Soundness.Coordinates.pad (Extra := Extra) tree) =
+      Soundness.Coordinates.pad (mapQueries rename tree) := by
   induction tree with
   | done _ => rfl
   | query point next ih =>
-      simp only [mapQueries,StrandComposition.pad]
+      simp only [mapQueries,Soundness.Coordinates.pad]
       congr 1
       funext answer
       exact ih (answer.1,answer.2.1)
@@ -162,13 +161,13 @@ theorem trace_physical {Extra Challenge Residual : Type} {fuel : ℕ}
     (compatible : ∀ name point, codec.decode name = some point →
       StrandCut.label context name = some (key point.val)) :
     trace codec key context
-        (StrandSampling.reindex split residual (mapQueries codec.tag (StrandComposition.pad tree))) H target =
+        (StrandSampling.reindex split residual (mapQueries codec.tag (Soundness.Coordinates.pad tree))) H target =
       StrandCut.trace context tree
         (fun name => let answer := ((StrandSampling.oracleEquiv split).symm (H,residual)) (codec.tag name)
           (answer.1,answer.2.1)) target := by
   rw [trace_reindex,map_pad,trace_pad]
   apply (trace_tag codec key context tree
-    (StrandComposition.drop ((StrandSampling.oracleEquiv split).symm (H,residual))) target compatible).trans
+    (Soundness.Coordinates.drop ((StrandSampling.oracleEquiv split).symm (H,residual))) target compatible).trans
   unfold StrandCut.trace
   apply List.filterMap_congr
   intro qa member
@@ -332,7 +331,7 @@ local notation "readersOf" => readers c binary prime P R countBinary countPrime 
   degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
 
 def frozenSingle (tuple : Tuple) (point : Point) (H : Point → Digest × Answer) (answer : Digest × Answer) : ℚ :=
-  RuntimeAdaptiveFS.single (samplers tuple) (readersOf tuple) encode derive coin query c.cutoff c.threshold point H answer
+  Soundness.RuntimeCharges.single (samplers tuple) (readersOf tuple) encode derive coin query c.cutoff c.threshold point H answer
 
 /-- Both the application and the low-response backend test use only the
 strict ancestor tape once the original committed tuple is fixed. -/
@@ -344,18 +343,18 @@ theorem frozenSingle_prior (tuple : Tuple) (point : Point) (H H' : Point → Dig
     frozenSingle c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout
       degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
       tuple point H' answer := by
-  unfold frozenSingle RuntimeAdaptiveFS.single
+  unfold frozenSingle Soundness.RuntimeCharges.single
   rw [RuntimeAdaptiveCharges.single_prior (source tuple) (samplers tuple) (readersOf tuple)
     point H H' prior rfl answer]
   apply congrArg (fun value => RuntimeAdaptiveCharges.single (source tuple) (samplers tuple)
     (readersOf tuple) point H' answer + value)
-  exact BackendOracle.backend_cached_eq _ _ g.batchingIndex_next encode
+  exact BackendOracle.single_prior _ _ g.batchingIndex_next encode
     (RuntimeVerifier.encodeResponses_injective binary prime P R publicCfg) derive (source tuple).oracle
     coin query c.cutoff c.threshold point H H' prior (fun _ => rfl) answer
 
 def frozenPair (tuple : Tuple) (parent : Parent) (response : Response)
     (H : Point → Digest × Answer) (first second : Digest × Answer) : ℚ :=
-  RuntimeAdaptiveFS.pair (S := source tuple) derive coin query c.threshold parent response H first second
+  Soundness.RuntimeCharges.pair (S := source tuple) derive coin query c.threshold parent response H first second
 
 include cfg in
 private theorem binaryCard : Nat.card (First).Carrier = Adapter.Mdoc.binaryOrder := by
@@ -382,7 +381,7 @@ local notation "twoFrozen" => frozenPair c binary prime P R countBinary countPri
   hashPublic decodePublic
 
 def singleBudget (point : Point) : ℚ :=
-  RuntimeAdaptiveFS.budget (LB := c.binaryList) (LN := c.primeList) encode c.cutoff c.threshold
+  Soundness.RuntimeCharges.budget (LB := c.binaryList) (LN := c.primeList) encode c.cutoff c.threshold
     (pc).toProfileParameters (rc).toProfileParameters point
 
 def pairBudget : ℚ := JointResponse.activeHighBudget First Second (pc)
@@ -418,7 +417,7 @@ private theorem frozenSingle_mean (tuple : Tuple) (point : Point) (fallback : An
       let rawSampler := IdealRuntime.rawSampler binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
       let coinSampler := BackendChallenges.decoder P R countBinary countPrime
         (RuntimeVerifier.rowPositive binary prime P R publicCfg) rawSampler
-      exact RuntimeAdaptiveFS.single_sum (binary := binary) (prime := prime) (P := P) (R := R) (cfg := publicCfg)
+      exact Soundness.RuntimeCharges.single_sum (binary := binary) (prime := prime) (P := P) (R := R) (cfg := publicCfg)
         (samplers tuple) (readersOf tuple) encode derive coin query c.cutoff c.threshold
         (binaryListBound c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout tuple)
         (primeListBound c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout tuple)
@@ -461,7 +460,7 @@ theorem stateCharge_nonneg (fallback : Digest × Answer) (point : Point)
     (state : CausalState c binary prime P R countBinary countPrime binaryCapacity primeCapacity point)
     (answer : Digest × Answer) : 0 ≤ stateSingle fallback point state answer := by
   unfold stateCharge frozenSingle
-  exact RuntimeAdaptiveFS.single_nonneg ..
+  exact Soundness.RuntimeCharges.single_nonneg ..
 
 include primeGeometry binaryGeometry in
 theorem stateCharge_mean (fallback : Digest × Answer) (point : Point)
@@ -525,7 +524,7 @@ local notation "singleOf" => single c binary prime P R countBinary countPrime bi
 local notation "pairOf" => pair c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits layout
   hashPublic decodePublic names context merkle dec root bytes tree
 
-/-- Cached monitoring agrees with the actual local test whenever its
+/-- Local testing agrees with the actual runtime whenever its
 strict ancestor tape and original first-context cut agree. -/
 theorem single_prior (fallback : Answer) (point : Point) (H H' : Tagged → Digest × Answer)
     (tuple : tupleAt H point.context = tupleAt H' point.context)
@@ -538,40 +537,16 @@ theorem single_prior (fallback : Answer) (point : Point) (H H' : Tagged → Dige
     degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
     _ point _ _ prior _
 
-/-- At an actual query prefix, the chronological cache reconstructs the
-original context cut. Only ancestor membership needs the recovered-path order. -/
-theorem single_cache [cacheDecidable : DecidableEq Tagged] (fallback : Answer) (point : Point) (H : Tagged → Digest × Answer)
-    (cacheFallback : Digest × Answer) (past rest : List (Tagged × (Digest × Answer)))
-    (answer : Digest × Answer)
-    (executed : (tree.run H).2 = past ++ ((.inl point),answer)::rest)
-    (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Tagged) ∈ past.map Prod.fst) :
-    singleOf fallback (.inl point) (Survival.PrefixCache.cache cacheFallback past) answer =
-      singleOf fallback (.inl point) H answer := by
-  apply single_prior
-  · unfold cutOracle trace
-    have cut := Survival.PrefixCache.cut_cache (label Input.context context) tree H cacheFallback
-      past rest (.inl point) answer executed
-    change beforeLabel (label Input.context context) (some point.context) tree
-      (Survival.PrefixCache.cache cacheFallback past) =
-        beforeLabel (label Input.context context) (some point.context) tree H at cut
-    rw [cut]
-  · funext i
-    have agree := Survival.PrefixCache.cache_agrees cacheFallback past H (fun qa member => by
-      apply Merkle.RandomOracle.Tree.trace_sound tree H qa
-      rw [executed]
-      exact List.mem_append_left _ member) (.inl (point.priorPoints i)) (ancestors i)
-    simp only [Input.priorAnswers, logicalOracle, agree]
-
 theorem single_nonneg (fallback : Answer) (point : Tagged) (H : Tagged → Digest × Answer) (answer : Digest × Answer) :
     0 ≤ singleOf fallback point H answer := by
   cases point with
   | inr _ => exact le_rfl
-  | inl point => exact RuntimeAdaptiveFS.single_nonneg ..
+  | inl point => exact Soundness.RuntimeCharges.single_nonneg ..
 
 theorem pair_nonneg (fallback : Answer) (parent : Parent) (response : Response)
     (H : Tagged → Digest × Answer) (first second : Digest × Answer) :
     0 ≤ pairOf fallback parent response H first second :=
-  RuntimeAdaptiveFS.pair_nonneg ..
+  Soundness.RuntimeCharges.pair_nonneg ..
 
 /-- The cut itself is fixed by stopping before this context's first query.
 The old local off-answer lemma then applies to the frozen extracted tuple. -/
@@ -585,7 +560,7 @@ theorem single_off (fallback : Answer) (point : Tagged) (H H' : Tagged → Diges
       unfold single
       dsimp only
       rw [cut]
-      exact RuntimeAdaptiveFS.single_off (samplers (tupleAt H' point.context)) (readersOf (tupleAt H' point.context))
+      exact Soundness.RuntimeCharges.single_off (samplers (tupleAt H' point.context)) (readersOf (tupleAt H' point.context))
         encode derive coin query c.cutoff c.threshold
         (RuntimeVerifier.encodeResponses_injective binary prime P R publicCfg)
         point (typed fallback H) (typed fallback H')
@@ -613,7 +588,7 @@ theorem pair_off (fallback : Answer) (parent : Parent) (response : Response)
         (parent.child g.batchingIndex_next encode response) right)
   unfold pair
   rw [cut]
-  apply RuntimeAdaptiveFS.pair_off (binary := binary) (prime := prime) (P := P) (R := R) (cfg := publicCfg)
+  apply Soundness.RuntimeCharges.pair_off (binary := binary) (prime := prime) (P := P) (R := R) (cfg := publicCfg)
     (S := source (tupleAt H' (parent.point : Point).context))
     encode derive coin query c.threshold parent response (typed fallback H) (typed fallback H')
   · intro point notParent notChild
@@ -685,20 +660,6 @@ local notation "proofOf" => localProof c binary prime P R countBinary countPrime
   primeShape primeGeometry primeCapacityFits binaryShape binaryGeometry binaryCapacityFits
   names context merkle dec root bytes tree
 
-/-- The cache equality exposed directly at the composition interface avoids
-unfolding the complete charge record in the concrete runtime instantiation. -/
-theorem localProof_single_cache [cacheDecidable : DecidableEq Tagged] (fallback : Answer) (point : Point) (H : Tagged → Digest × Answer)
-    (cacheFallback : Digest × Answer) (past rest : List (Tagged × (Digest × Answer)))
-    (answer : Digest × Answer)
-    (executed : (tree.run H).2 = past ++ ((.inl point),answer)::rest)
-    (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Tagged) ∈ past.map Prod.fst) :
-    (proofOf fallback).single (.inl point) (Survival.PrefixCache.cache cacheFallback past) answer =
-      (proofOf fallback).single (.inl point) H answer :=
-  single_cache c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
-    roleFits layout degreeFits rowsFit bitsFit hashPublic decodePublic
-    primeShape primeCapacityFits binaryShape binaryCapacityFits
-    names context merkle dec root bytes tree fallback point H cacheFallback past rest answer executed ancestors
-
 section Cover
 local instance runtimeLeafInhabited : Inhabited (RuntimeVerifier.Family binary prime P R publicCfg).Leaf := by
   change Inhabited (Joint.Pair.family First Second).Leaf
@@ -744,7 +705,7 @@ theorem decoded_cover (fallback : Answer) (output : Output) (H : Tagged → Dige
       (fun index => .inl ((M).point output (typed fallback H) index)) H := by
   let logical := typed fallback H
   let tuple := tupleAt H ((encodings output.request).context output.proof)
-  have covered := RuntimeAdaptiveFS.decoded_charge_cover binary prime P R publicCfg earlier
+  have covered := Soundness.RuntimeCharges.decoded_charge_cover binary prime P R publicCfg earlier
     hashPublic decodePublic layout c.cutoff (fun _ _ => tuple) (fun _ _ _ _ => rfl)
     (samplers tuple) primeShape primeCapacityFits binaryShape binaryCapacityFits draw
     layoutCorrect primeGeometry binaryGeometry c.threshold output logical decoded decodedCorrect verified failed
@@ -832,7 +793,7 @@ theorem prefixCharge_eq_runtime {fuel : ℕ}
     (executed : (tree.run H).2 = past ++ (.inl point,a)::rest)
     (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Tagged) ∈ past.map Prod.fst) :
     stateSingle fallback point (fromPrefix fallback point past) a =
-      StrandCharges.single c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits
+      Soundness.LocalCharges.single c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits
         layout degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
         names context merkle dec root bytes tree fallback.2 (.inl point) H a := by
   rw [stateFromPrefix_eq c binary prime P R countBinary countPrime binaryCapacity primeCapacity roleFits
@@ -895,7 +856,7 @@ theorem localProof_budget_le (fallback : Answer) (point : Tagged) :
           c.cutoff c.threshold ≤ 2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) := by
         change ParameterBounds.openingBudget c.n c.s c.t c.activeCutoff c.binaryCutoff c.primeCutoff ≤ _
         exact c.opening_budget_le
-      exact RuntimeAdaptiveFS.point_budget_le (binary := binary) (prime := prime) (P := P) (R := R)
+      exact Soundness.RuntimeCharges.point_budget_le (binary := binary) (prime := prime) (P := P) (R := R)
         (cfg := publicCfg) (LB := c.binaryList) (LN := c.primeList)
         encode c.cutoff c.threshold (RuntimeVerifier.encodeResponses_injective binary prime P R publicCfg)
         (pc).toProfileParameters (rc).toProfileParameters
@@ -914,7 +875,7 @@ theorem batching_budget_eq [budgetDecidable : DecidableEq Tagged] (fallback : An
   have appZero : RuntimeAdaptiveCharges.budget (B := B) c.binaryList c.primeList (parent.point : Point) = 0 := by
     simp only [RuntimeAdaptiveCharges.budget, BackendQueries.Parent.point, Input.role,
       g.get_batchingIndex, ApplicationCharging.roundBudget]
-  unfold singleBudget RuntimeAdaptiveFS.budget
+  unfold singleBudget Soundness.RuntimeCharges.budget
   rw [appZero]
   simp only [BackendOracle.singleBudget, BackendOracle.parentOf_point, zero_add]
   exact LfzkV2.Current.Soundness.ProfileBudget.parameters_parent_eq c First Second
@@ -951,4 +912,4 @@ theorem stopped_budget_le [budgetDecidable : DecidableEq Tagged] (fallback : Ans
 
 
 end Runtime
-end LfzkV2.Current.StrandCharges
+end LfzkV2.Current.Soundness.LocalCharges

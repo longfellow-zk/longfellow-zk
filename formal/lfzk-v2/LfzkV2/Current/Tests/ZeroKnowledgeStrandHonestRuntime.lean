@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
+import LfzkV2.Current.Mdoc.Completeness
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandHonestFrontend
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandHonestExecution
 import Lean.Util.CollectAxioms
@@ -10,7 +10,7 @@ open ZeroKnowledge
 
 open Lean Elab Command in
 run_cmd do
-  let endpoint := ``StrandHonestRuntime.rawReal_some_accepts
+  let endpoint := ``Mdoc.Completeness.rawReal_some_accepts
   let env ← getEnv
   let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
   let used := info.type.getUsedConstants

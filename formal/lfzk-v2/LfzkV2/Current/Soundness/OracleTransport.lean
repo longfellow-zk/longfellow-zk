@@ -1,5 +1,5 @@
 import LfzkV2.Current.StrandReplay
-import LfzkV2.Current.StrandExecution
+import LfzkV2.Current.Protocol.Observation
 import LfzkV2.Current.StrandCutObservation
 import LfzkV2.Current.StrandWindow
 import LfzkV2.Current.StrandAcceptedPath
@@ -8,7 +8,7 @@ import LfzkV2.Current.StrandAcceptedPath
 answer is a digest and one whole counter row. Reindexing the used role block
 into ideal algebraic answers is separate from this exact execution transport. -/
 noncomputable section
-namespace LfzkV2.Current.StrandRealization
+namespace LfzkV2.Current.Soundness.OracleTransport
 open Application ApplicationSetup CanonicalPrefix QueryRuntime
 open Finset Merkle.RandomOracle TranscriptV2
 open scoped Classical
@@ -168,7 +168,7 @@ theorem replay_actual (G : Raw → Digest) :
       exact Prod.ext address rfl
     exact (List.map_congr_left names).trans (List.map_id _)
 
-local notation "actualDecision" => StrandExecution.decision binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
+local notation "actualDecision" => Protocol.Observation.decision binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
   (CanonicalRequest.hashPublic binary.nPublic)
   (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
 local notation "actualVerify" => StrandVerifier.verify binary prime P R (W) (Earlier) bodyCodec sample
@@ -182,7 +182,7 @@ theorem decision_actual (G : Raw → Digest) :
   unfold rawView viewMap
   rw [replay_actual binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G,
     compiled_output binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G]
-  exact StrandExecution.decision_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
+  exact Protocol.Observation.decision_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
     (CanonicalRequest.hashPublic binary.nPublic)
     (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw _ _ _ _
 
@@ -332,7 +332,7 @@ theorem observe_actual (H : Name → Answer) :
 /-- Decoding is a projection of the same execution that determines
 acceptance. The extraction proof need not re-establish this correspondence. -/
 theorem decoded_actual (G : Raw → Digest) :
-    StrandExecution.decoded binary prime P R (W) (Earlier) bodyCodec sample
+    Protocol.Observation.decoded binary prime P R (W) (Earlier) bodyCodec sample
         (CanonicalRequest.hashPublic binary.nPublic)
         (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
         (rawObservation G) =
@@ -341,7 +341,7 @@ theorem decoded_actual (G : Raw → Digest) :
         (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
         (program.run (SHAof G)).1 (ordinaryOracle (SHAof G)) := by
   rw [rawView_actual]
-  exact StrandExecution.decoded_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
+  exact Protocol.Observation.decoded_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
     (CanonicalRequest.hashPublic binary.nPublic)
     (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw _ _ _ _
 
@@ -554,4 +554,4 @@ theorem observation_law :
       sample codec merkleInput program view))
 
 
-end LfzkV2.Current.StrandRealization
+end LfzkV2.Current.Soundness.OracleTransport

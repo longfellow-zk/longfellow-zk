@@ -1,7 +1,7 @@
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.Soundness.Setup
-import LfzkV2.Current.Soundness.StrandTransport
-import LfzkV2.Current.Soundness.RuntimePath
+import LfzkV2.Current.Soundness.Transport
+import LfzkV2.Current.Soundness.AcceptedPath
 import LfzkV2.Current.Soundness.HashTransport
 import Survival.CausalCharges
 
@@ -10,7 +10,7 @@ Transport and recovered-path algebra come from `StrandTransport`. This module
 constructs the one retained cost, its unconditional mean, and the central
 pointwise failure indicator. It is independent of W and numeric parameters. -/
 noncomputable section
-namespace LfzkV2.Current.StrandProtocol
+namespace LfzkV2.Current.Soundness.Runtime
 open Application ApplicationSetup CanonicalPrefix QueryRuntime RecursivePolygero
 open Finset Bcs.FiniteProbability Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2
 open Protocol.Sampling
@@ -29,9 +29,9 @@ variable (inputs : Soundness.Inputs E)
 variable [Inhabited (Fin c.n × MerkleNonce)]
 variable [leafDefault : Inhabited (Joint.Pair.family E.First E.Second).Leaf]
 
-local notation "names" => StrandRealization.queryCodec E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "names" => Soundness.OracleTransport.queryCodec E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
-local notation "Other" => StrandRealization.other E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+local notation "Other" => Soundness.OracleTransport.other E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
   D.execution.sample E.merkleCodec id prog.tree
 local notation "Node" => StrandWindow.Node (Other)
 local notation "Name" => StrandSearch.Name Node E.Value
@@ -49,12 +49,12 @@ local notation "analysis" => analysisTree E fits D L prog
 local notation "charges" => localProof E fits D L prog inputs
 local notation "View" => Protocol.Execution.View E.Output ((E.Output × Chain.State (E.chain)) × Digest)
   (FingerprintPrefix.Key E.binary.nPublic)
-local notation "decision" => StrandExecution.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+local notation "decision" => Protocol.Observation.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
   E.hashPublic E.primePublic E.draw
-local notation "observe" => StrandRealization.observe E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "observe" => Soundness.OracleTransport.observe E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
 local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (search) K)) K
-local notation "recovered" => StrandRecovery.recovered E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "recovered" => Soundness.Recovery.recovered E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits E.columnsFit D.execution.sample E.primeCount E.draw prog.tree inputs.bodyFits
 local notation "pathOf" => fun residual H index =>
   (Sum.inl (Chain.point (E.chain) (Prod.fst (Tree.run prog.tree (SHAof residual H)))
@@ -89,17 +89,17 @@ theorem hashCost_nonneg [queryDecidable : DecidableEq Tagged] {X : Type} {steps 
 theorem stopped_hash_nonneg (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) :
     0 ≤ hashOf (auditTree residual) H :=
   hashCost_nonneg (queryDecidable := fun a b => Classical.propDecidable (a = b)) E fits D prog (auditTree residual) H
-local notation "hashBad" => StrandRecovery.hashException E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "hashBad" => Soundness.Recovery.hashException E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   E.columnsFit D.execution.sample E.primeCount E.draw
 
 /-- Lifting and changing sampling coordinates preserves the existing hash
 charge exactly, including receiving inputs outside the eventual opening. -/
 theorem hashCost_eq (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) :
     hashOf (analysis residual) H =
-      StrandRecovery.hashCharge E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+      Soundness.Recovery.hashCharge E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
         E.columnsFit D.execution.sample prog.tree (namedH residual H) := by
   unfold hashCost analysisTree
-  erw [StrandComposition.coordinates_charge (names).tag (names).tag_injective split residual (search),
+  erw [Soundness.Coordinates.coordinates_charge (names).tag (names).tag_injective split residual (search),
     LfzkV2.Current.Soundness.HashTransport.coordinates_receiving (names).tag (names).tag_injective split residual (search)]
   simp only [LfzkV2.Current.Soundness.HashTransport.liftClaims_tag, LfzkV2.Current.Soundness.HashTransport.liftPredicate_tag]
   rfl
@@ -109,7 +109,7 @@ hash cost is the same original recovery cost. -/
 theorem stopped_hashCost_eq (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer)
     (survived : ((auditTree residual).run H).1.1 = false) :
     hashOf (auditTree residual) H =
-      StrandRecovery.hashCharge E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+      Soundness.Recovery.hashCharge E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
         E.columnsFit D.execution.sample prog.tree (namedH residual H) := by
   have same := Survival.History.audit_trace (auditSafe residual) marked Survival.CausalCharges.advance []
     (analysis residual) H survived
@@ -127,7 +127,7 @@ theorem path_ancestors_before (residual : Tagged → Residual) (H : Tagged → D
     (Sum.inl (((E.chain).point (prog.tree.run (SHAof residual H)).1 (ordinary (SHAof residual H)) index).priorPoints j) : Tagged) ∈
       before (analysis residual) H (pathOf residual H index) := by
   have path := analysis_path E fits D L prog inputs residual H ready
-  exact LfzkV2.Current.Soundness.RuntimePath.ancestors_before (queryDecidable := fun a b => Classical.propDecidable (a = b))
+  exact LfzkV2.Current.Soundness.AcceptedPath.ancestors_before (queryDecidable := fun a b => Classical.propDecidable (a = b))
     (encodings) (E.wire).initialLink (analysis residual) H
     (prog.tree.run (SHAof residual H)).1 (ordinary (SHAof residual H)) path index within j
 
@@ -143,7 +143,7 @@ theorem path_single_causal (residual : Tagged → Residual) (H : Tagged → Dige
   have ancestors (j : Fin point.rank) : (Sum.inl (point.priorPoints j) : Tagged) ∈ past.map Prod.fst := by
     rw [pastNames]
     exact path_ancestors_before E fits D L prog inputs residual H ready index within j
-  exact StrandCharges.prefixCharge_eq_runtime c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  exact Soundness.LocalCharges.prefixCharge_eq_runtime c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeFits E.binaryPlan E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -200,7 +200,7 @@ include queries in
 theorem analysis_queries (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer) :
     (seen (analysis residual) H).card ≤ Q := by
   rw [analysis_seen, Finset.card_image_of_injective _ (names).tag_injective]
-  exact StrandRecovery.grouped_budget E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal)
+  exact Soundness.Recovery.grouped_budget E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal)
     E.binaryCount E.metadata fits E.columnsFit D.execution.sample prog.tree queries (namedH residual H)
 
 include queries in
@@ -232,8 +232,8 @@ theorem stopped_hash_sum_le (residual : Tagged → Residual) :
     apply StrandMerkleRealization.receives_auxiliary E.merkleCodec bytes (names) _ p received
     exact StrandMerkleRealization.wire_receives_disjoint E.First E.Second E.repr E.cfg.binaryField E.cfg.primeField
       E.fingerprint.jointContext E.columnsFit E.shape E.fingerprint E.binary.nPublic fits
-      (StrandRealization.locate E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)
-      bytes (StrandRealization.locate_bytes E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+      (Soundness.OracleTransport.locate E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)
+      bytes (Soundness.OracleTransport.locate_bytes E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
         D.execution.sample E.merkleCodec id prog.tree)
   have disjoint (p : Name) (received : receives p) : strand p = ∅ :=
     StrandMerkleRealization.receiving_claims_empty E.First E.Second E.repr E.cfg.binaryField E.cfg.primeField
@@ -264,7 +264,7 @@ theorem stopped_backend_budget_le (residual : Tagged → Residual) (opaqueRate :
     (point : Tagged) :
     (Survival.StoppedCharges.restrict (charges residual) marked).budget point ≤
       if marked point && !LfzkV2.Current.Soundness.RuntimeRoles.auxiliary point then opaqueRate else 0 := by
-  exact StrandCharges.stopped_budget_le (budgetDecidable := fun a b => Classical.propDecidable (a = b)) c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
+  exact Soundness.LocalCharges.stopped_budget_le (budgetDecidable := fun a b => Classical.propDecidable (a = b)) c E.binary E.prime E.P E.R E.countBinary E.countPrime E.binaryCapacity E.primeCapacity (E.wire)
     E.roleFits inputs.layout E.degreeFits E.rowsFit inputs.bitsFit E.hashPublic E.primePublic
     E.primePlan E.primeGeometry E.primeFits E.binaryPlan E.binaryGeometry E.binaryFits
     (names) E.context E.merkleCodec E.merkleDecoders FingerprintPrefix.Key.root (StrandWindow.Node.bytes (other := Other))
@@ -313,7 +313,7 @@ theorem stopped_failure_cover (residual : Tagged → Residual) (H : Tagged → D
   · exact Or.inl escapedNow
   · right
     have survived : ((auditTree residual).run H).1.1 = false := Bool.eq_false_iff.mpr escapedNow
-    rcases StrandRecovery.accepted_recovery_or_hash E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+    rcases Soundness.Recovery.accepted_recovery_or_hash E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
       fits E.columnsFit D.execution.sample E.primeCount E.draw prog.tree inputs.bodyFits (namedH residual H) failed.1 with ready | charged | exception
     · have paid := recovered_stopped_charge E fits D L prog inputs
         residual H failed.1 ready failed.2 survived
@@ -338,4 +338,4 @@ theorem stopped_failure_indicator (residual : Tagged → Residual) (H : Tagged �
     (stopped_failure_cover E fits D L prog inputs residual) H
   convert bound using 1 <;> split_ifs <;> rfl
 
-end LfzkV2.Current.StrandProtocol
+end LfzkV2.Current.Soundness.Runtime

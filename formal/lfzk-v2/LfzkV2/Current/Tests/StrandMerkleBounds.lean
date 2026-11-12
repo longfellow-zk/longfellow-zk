@@ -10,9 +10,9 @@ namespace LfzkV2.Current.Tests.StrandMerkleBounds
 #print axioms StrandMerkleBounds.merkle_fiber
 #print axioms StrandMerkleBounds.freshHit_ratio_le
 #print axioms StrandMerkleBounds.selected_spec
-#print axioms StrandRealization.observation_law
-#print axioms StrandRealization.rawView_actual
-#print axioms StrandRealization.observe_cut
+#print axioms Soundness.OracleTransport.observation_law
+#print axioms Soundness.OracleTransport.rawView_actual
+#print axioms Soundness.OracleTransport.observe_cut
 #print axioms StrandMerkleBounds.path_represented
 #print axioms StrandMerkleBounds.accepted_cover
 #print axioms StrandMerkleMissingQueries.disagreement_restricted_cover

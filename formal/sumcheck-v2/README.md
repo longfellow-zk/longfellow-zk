@@ -107,7 +107,7 @@ The chain theorem derives query charging rather than assuming it.
 
 The selection component separately costs `Q*choose(L,2)/q²`. Combining frontend
 bad events in the generic theorem charges the common chain exception once.
-The [current mdoc composition](../lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+The [current mdoc composition](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean)
 derives the application reduction from actual adaptive runtime acceptance and
 includes the nonzero terminal corrections. Canonical query encoding and
 requested-public readback are checked. The explicit ideal-sampler oracle

@@ -1,5 +1,5 @@
 import LfzkV2.Current.StrandReplay
-import LfzkV2.Current.StrandComposition
+import LfzkV2.Current.Soundness.Coordinates
 
 /-! Freshness of the exact runtime coordinate transports. No independent
 resampling of the accepted path or the commitment cut is introduced. -/
@@ -24,7 +24,7 @@ theorem mapQueries_fresh (rename : P → Q) (injective : Function.Injective rena
 theorem pad_fresh {D C Extra : Type} [DecidableEq P] {fuel : ℕ}
     (tree : Tree P (D × C) Out fuel) {known : P → Prop}
     (fresh : FreshOracle.FreshFrom known tree) :
-    FreshOracle.FreshFrom known (LfzkV2.Current.StrandComposition.pad (Extra := Extra) tree) := by
+    FreshOracle.FreshFrom known (LfzkV2.Current.Soundness.Coordinates.pad (Extra := Extra) tree) := by
   induction tree generalizing known with
   | done _ => trivial
   | query point next ih => exact ⟨fresh.1, fun answer => ih _ (fresh.2 (answer.1,answer.2.1))⟩

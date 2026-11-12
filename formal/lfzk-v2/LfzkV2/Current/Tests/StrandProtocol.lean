@@ -1,37 +1,8 @@
+import LfzkV2.Current.Tests.ProofAudit
 import LfzkV2.Current.Soundness.Composition
 import Lean.Util.CollectAxioms
 
 namespace LfzkV2.Current.Tests.StrandProtocol
-
-/--
-info: 'LfzkV2.Current.Soundness.Composition.soundness_linear' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms LfzkV2.Current.Soundness.Composition.soundness_linear
-
-/--
-info: 'LfzkV2.Current.StrandProtocol.accepted_decoded' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms LfzkV2.Current.StrandProtocol.accepted_decoded
-
-/--
-info: 'LfzkV2.Current.StrandProtocol.authenticated' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms LfzkV2.Current.StrandProtocol.authenticated
-
-/--
-info: 'LfzkV2.Current.StrandProtocol.recovered_failure_charge' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms LfzkV2.Current.StrandProtocol.recovered_failure_charge
-
-/--
-info: 'LfzkV2.Current.Soundness.Composition.soundness' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms LfzkV2.Current.Soundness.Composition.soundness
 
 /- The primary names expose the chronological envelope, rather than a
 retained linear theorem or a parallel experimental endpoint. -/
@@ -56,3 +27,10 @@ run_cmd do
       throwError "Composition {endpoint} must take setup, sampler and adversary records"
 
 end LfzkV2.Current.Tests.StrandProtocol
+
+run_cmd LfzkV2.Current.Tests.ProofAudit.standardAxioms #[
+  ``LfzkV2.Current.Soundness.Composition.soundness_linear,
+  ``LfzkV2.Current.Soundness.Runtime.accepted_decoded,
+  ``LfzkV2.Current.Soundness.Runtime.authenticated,
+  ``LfzkV2.Current.Soundness.Runtime.recovered_failure_charge,
+  ``LfzkV2.Current.Soundness.Composition.soundness]

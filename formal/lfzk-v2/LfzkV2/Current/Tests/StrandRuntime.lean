@@ -1,6 +1,7 @@
 import LfzkV2.Current.StrandRuntime
 import LfzkV2.Current.StrandSampling
-import LfzkV2.Current.RuntimeAdaptiveReduction
+import LfzkV2.Current.Soundness.FailureCover
+import LfzkV2.Current.Tests.ProofAudit
 
 namespace LfzkV2.Current.Tests.StrandRuntime
 open Finset
@@ -105,12 +106,7 @@ info: 'LfzkV2.Current.StrandRuntime.named_replay_length' depends on axioms: [pro
 set_option pp.fullNames true in
 #print axioms StrandRuntime.named_replay_length
 
-/--
-info: 'LfzkV2.Current.RuntimeAdaptiveFS.decoded_charge_cover' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms RuntimeAdaptiveFS.decoded_charge_cover
+run_cmd ProofAudit.standardAxioms #[``Soundness.RuntimeCharges.decoded_charge_cover]
 
 /--
 info: 'LfzkV2.Current.StrandSampling.oracle_law' depends on axioms: [propext, Classical.choice, Quot.sound]

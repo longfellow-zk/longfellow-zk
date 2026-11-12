@@ -1,6 +1,5 @@
 import LfzkV2.Current.SHASetupDomains
 import LfzkV2.Current.Mdoc.Setup
-import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
 /-! The concrete rate-1/7 public runtime is constructed from the trusted
 circuit descriptions and field codecs. All setup and generated-adapter
@@ -8,7 +7,7 @@ identifiers read the complementary slice of the same SHA oracle used by
 Merkle authentication. Varying Merkle coordinates changes neither setup
 nor the causal metadata computation. -/
 noncomputable section
-namespace LfzkV2.Current.ZeroKnowledge.MdocPublicSetup
+namespace LfzkV2.Current.Mdoc.PublicSetup
 open Application ApplicationSetup ConcreteSetup
 open scoped Classical
 set_option maxRecDepth 4096
@@ -64,4 +63,4 @@ theorem metadata_merge (outside inside : Bytes → Digest) :
     SHAOracle.context_hash,sameSetup,
     ConcreteMetadata.start,ConcreteMetadata.role]
 
-end LfzkV2.Current.ZeroKnowledge.MdocPublicSetup
+end LfzkV2.Current.Mdoc.PublicSetup

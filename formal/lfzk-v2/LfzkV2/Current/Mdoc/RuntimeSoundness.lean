@@ -9,7 +9,7 @@ The adversary submits arbitrary proof bytes. The complete-proof parser is
 a pure output map, so malformed proofs are rejected without spending an
 oracle query or changing the original query count. -/
 noncomputable section
-namespace LfzkV2.Current.MdocStrandSoundness
+namespace LfzkV2.Current.Mdoc.RuntimeSoundness
 open Application ApplicationSetup Bcs.FiniteProbability Merkle.RandomOracle TranscriptV2
 open scoped Classical
 
@@ -82,18 +82,18 @@ def program := body.map (ProofOutput.decode repr (MdocDefaults.proof g B))
 local notation "program" => program binary prime scalars bounds body
 local notation "prog" => (Protocol.Execution.Program.mk program : Protocol.Execution.Program (Protocol.Setup.Output (E)) fuel)
 
-abbrev Raw := StrandProtocol.Raw E fits D prog
+abbrev Raw := Soundness.Runtime.Raw E fits D prog
 
-local notation "Raw" => MdocStrandSoundness.Raw binary prime cantor scalars ids bounds body fits sample
-local notation "rawSHA" => StrandProtocol.rawOracle E fits D prog
-local notation "failure" => StrandProtocol.rawFailure E fits D prog
-def replay := StrandProtocol.verifierReplay E D
+local notation "Raw" => Mdoc.RuntimeSoundness.Raw binary prime cantor scalars ids bounds body fits sample
+local notation "rawSHA" => Soundness.Runtime.rawOracle E fits D prog
+local notation "failure" => Soundness.Runtime.rawFailure E fits D prog
+def replay := Soundness.Runtime.verifierReplay E D
 
-def observation (G : Raw → Digest) := StrandProtocol.rawObservation E fits D prog G
+def observation (G : Raw → Digest) := Soundness.Runtime.rawObservation E fits D prog G
 
-def selectedFailure := StrandProtocol.failure E D
+def selectedFailure := Soundness.Runtime.failure E D
 
-def verify := StrandProtocol.verify E D
+def verify := Soundness.Runtime.verify E D
 
 theorem observation_verified (G : Raw → Digest) (SHA : Bytes → Digest)
     (replayed : (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
@@ -103,20 +103,20 @@ theorem observation_verified (G : Raw → Digest) (SHA : Bytes → Digest)
       (observation binary prime cantor scalars ids bounds body fits sample G)) :
     verify binary prime cantor scalars ids bounds sample SHA
       (observation binary prime cantor scalars ids bounds body fits sample G).original.1 = true :=
-  StrandProtocol.failure_verified E D _ SHA replayed failed
+  Soundness.Runtime.failure_verified E D _ SHA replayed failed
 
 theorem observation_original (G : Raw → Digest) :
     (observation binary prime cantor scalars ids bounds body fits sample G).original = (program).run (rawSHA G) :=
-  StrandProtocol.rawObservation_original E fits D prog G
+  Soundness.Runtime.rawObservation_original E fits D prog G
 
 theorem observation_verifier (G : Raw → Digest) :
     (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
       (replay binary prime cantor scalars ids bounds sample ((program).run (rawSHA G)).1).run (rawSHA G) :=
-  StrandProtocol.rawObservation_verifier E fits D prog G
+  Soundness.Runtime.rawObservation_verifier E fits D prog G
 
 theorem replay_domain (output : CanonicalRuntime.Output (Advice := MdocAdvice.Value) bp shape) :
     OracleDomain.UsesOnly StrandDomains.protocol (replay binary prime cantor scalars ids bounds sample output) :=
-  StrandProtocol.verifierReplay_domain E D output
+  Soundness.Runtime.verifierReplay_domain E D output
 
 def oracle (G : Raw → Digest) : Bytes → Digest := rawSHA G
 
@@ -146,7 +146,7 @@ theorem fixed_setup_linear_ratio_le :
     (density_le_one (event binary prime cantor scalars ids bounds body fits sample))
   · intro budget
     have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
-      simpa only [MdocStrandSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
+      simpa only [Mdoc.RuntimeSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
     have bound := Soundness.Composition.soundness_linear S (Protocol.Sampler.mk D L)
       (Protocol.Execution.Adversary.mk prog support) (LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate)
       (mul_nonneg LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg LfzkV2.Current.Soundness.Rate7.rate_nonneg)
@@ -185,7 +185,7 @@ theorem fixed_setup_ratio_le (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds body fits sample) ≤
       LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length := by
   have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
-    simpa only [MdocStrandSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
+    simpa only [Mdoc.RuntimeSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
   have bound := Soundness.Composition.soundness S (Protocol.Sampler.mk D L)
       (Protocol.Execution.Adversary.mk prog support) LfzkV2.Current.Soundness.Rate7.polygeroFraction LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg
     (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num))
@@ -212,4 +212,4 @@ theorem nonvacuous (budget : Q < 2^127) :
       (LfzkV2.Current.Soundness.Rate7.failureBound_nonvacuous Q (g).roles.length (LfzkV2.Current.Soundness.RuntimeRate7.range Q budget) fits))
     (by norm_num)
 
-end LfzkV2.Current.MdocStrandSoundness
+end LfzkV2.Current.Mdoc.RuntimeSoundness

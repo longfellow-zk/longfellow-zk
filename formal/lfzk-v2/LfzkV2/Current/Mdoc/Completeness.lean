@@ -6,7 +6,8 @@ import LfzkV2.Current.ZeroKnowledge.StrandHonestCompletion
 /-! Every actual proof returned by the current indexed honest runtime is
 accepted, from ordinary witness truth and the static circuit premise. -/
 noncomputable section
-namespace LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
+namespace LfzkV2.Current.Mdoc.Completeness
+open LfzkV2.Current.ZeroKnowledge
 open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2 TranscriptV2
 open scoped Classical
 
@@ -130,4 +131,4 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
   simpa only [context,request,root,front,cells,StrandCanonicalHiding.columns,
     Equiv.symm_apply_apply] using accepted
 
-end LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
+end LfzkV2.Current.Mdoc.Completeness

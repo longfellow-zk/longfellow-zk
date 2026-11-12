@@ -1,9 +1,11 @@
 import LfzkV2.Current.ZeroKnowledge.MerkleSimulation
+import LfzkV2.Current.Messages
 import LfzkV1.ZkMerkle
 
-/-! A finite-query hiding bound for the current tuple tree.  The two fields
-are one leaf message and use one shared opening set.  The public column index
-is included in that message; only the nonce contributes random salt bits.
+/-! A generic finite-query Merkle hiding bound and the concrete digest/nonce
+cardinalities. A public column index may be included in the message; only the
+nonce contributes random salt bits. This module does not instantiate a
+historical runtime codec.
 
 This module transports the existing generic Merkle coupling and discharges
 its codec/entropy premises. It does not assume a compiled simulator's

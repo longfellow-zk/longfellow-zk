@@ -1,4 +1,3 @@
-import LfzkV2.Current.MdocBudgets
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Data.Fintype.Card
 import Mathlib.Tactic.NormNum

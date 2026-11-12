@@ -7,7 +7,7 @@ bijection then separates joint challenges from retained residual randomness.
 Conditioning on the latter preserves the whole verifier/extractor view; the
 final averaging identity returns to the original raw experiment. -/
 noncomputable section
-namespace LfzkV2.Current.StrandComposition
+namespace LfzkV2.Current.Soundness.Coordinates
 open Finset Merkle.RandomOracle TranscriptV2 TranscriptV2.Composition
 open Bcs.TotalOracle Bcs.FiniteProbability
 open scoped Classical
@@ -57,111 +57,8 @@ theorem pad_law (event : (P → D × C) → Prop) :
   let split := StrandSampling.oracleEquiv (Link := D) (fun _ : P => Equiv.refl (C × Extra))
   exact (density_equiv split (fun pair => event pair.1)).trans (density_first event)
 
-variable {RawCoin View : Type} [Fintype RawCoin] {fuel rounds : ℕ}
-variable {tree : Tree P (D × C) Out fuel} {raw : RawCoin → View}
-variable {observe : Out → (P → D × C) → View} {accepted : View → Prop}
-variable {path : Out → (P → D × C) → ℕ → P}
-
-/-- The original observation law and accepted-path proof remain valid
-after adding independent analysis coordinates to each answer. -/
-def padded (realization : SoundnessRealization (rounds := rounds) tree raw observe accepted path) :
-    SoundnessRealization (rounds := rounds) (pad (Extra := Extra) tree) raw
-      (fun out H => observe out (drop H)) accepted (fun out H => path out (drop H)) where
-  observation_law event := by
-    rw [realization.observation_law]
-    have same := pad_law (Extra := Extra) (fun H => event (observe (tree.run H).1 H))
-    apply same.symm.trans
-    apply density_congr
-    intro H
-    rw [(pad_run tree H).1]
-  exception H := realization.exception (drop H)
-  speculation H := realization.speculation (drop H)
-  speculation_nonneg H := realization.speculation_nonneg (drop H)
-  accepted_path H valid good := by
-    rw [(pad_run tree H).1] at valid ⊢
-    rcases realization.accepted_path (drop H) valid good with queried | paid
-    · left
-      constructor
-      · intro i bound
-        rw [pad_seen]
-        exact queried.queried i bound
-      · intro i bound
-        rw [pad_order]
-        exact queried.ordered i bound
-    · exact Or.inr paid
-
 end Padding
 
-section Coordinates
-variable {P D Raw Challenge Residual Out RawCoin View : Type}
-variable [Fintype P] [DecidableEq P] [Fintype D] [Fintype Raw]
-variable [Fintype Challenge] [Fintype Residual] [Nonempty Residual] [Nonempty D] [Nonempty Challenge]
-variable [Fintype RawCoin] {fuel rounds : ℕ}
-variable {tree : Tree P (D × Raw) Out fuel} {raw : RawCoin → View}
-variable {observe : Out → (P → D × Raw) → View} {accepted : View → Prop}
-variable {path : Out → (P → D × Raw) → ℕ → P}
-variable (split : P → Raw ≃ Challenge × Residual)
-
-/-- The retained view at fixed residual randomness. This is the original
-observation evaluated at the inverse coordinate map, not a weakened verifier. -/
-def conditionedView (residual : P → Residual) (H : P → D × Challenge) : View :=
-  let restored := (StrandSampling.oracleEquiv split).symm (H,residual)
-  observe (tree.run restored).1 restored
-
-/-- Each residual slice uses an ordinary adaptive tree over uniform
-challenges. The same raw path, exceptions and speculative charge apply. -/
-def atResidual (realization : SoundnessRealization (rounds := rounds) tree raw observe accepted path)
-    (residual : P → Residual) :
-    SoundnessRealization (rounds := rounds) (StrandSampling.reindex split residual tree)
-      (conditionedView (tree := tree) (observe := observe) split residual)
-      (fun out H => observe out ((StrandSampling.oracleEquiv split).symm (H,residual))) accepted
-      (fun out H => path out ((StrandSampling.oracleEquiv split).symm (H,residual))) where
-  observation_law event := by
-    apply density_congr
-    intro H
-    rw [(StrandSampling.reindex_run split residual tree H).1]
-    rfl
-  exception H := realization.exception ((StrandSampling.oracleEquiv split).symm (H,residual))
-  speculation H := realization.speculation ((StrandSampling.oracleEquiv split).symm (H,residual))
-  speculation_nonneg H := realization.speculation_nonneg _
-  accepted_path H valid good := by
-    rw [(StrandSampling.reindex_run split residual tree H).1] at valid ⊢
-    rcases realization.accepted_path _ valid good with queried | paid
-    · left
-      constructor
-      · intro i bound
-        rw [StrandSampling.reindex_seen]
-        exact queried.queried i bound
-      · intro i bound
-        rw [StrandSampling.reindex_firstOfTwo]
-        exact queried.ordered i bound
-    · exact Or.inr paid
-
-/-- Average the conditional experiments to recover the exact raw law.
-This applies to the full accepted-extraction-failure event as well as any
-other observation; no uniformity of the cut alone is substituted for it. -/
-theorem observation_average
-    (realization : SoundnessRealization (rounds := rounds) tree raw observe accepted path)
-    (event : View → Prop) :
-    density (fun coin => event (raw coin)) =
-      (∑ residual : P → Residual, density (fun H : P → D × Challenge =>
-        event (conditionedView (tree := tree) (observe := observe) split residual H))) /
-          Fintype.card (P → Residual) := by
-  rw [realization.observation_law]
-  have changed : density (fun H => event (observe (tree.run H).1 H)) =
-      density (fun pair : (P → D × Challenge) × (P → Residual) =>
-        event (conditionedView (tree := tree) (observe := observe) split pair.2 pair.1)) :=
-    (density_equiv (StrandSampling.oracleEquiv split).symm
-      (fun H => event (observe (tree.run H).1 H))).symm
-  have swapped := density_equiv
-    (Equiv.prodComm (P → D × Challenge) (P → Residual))
-    (fun pair => event (conditionedView (tree := tree) (observe := observe) split pair.1 pair.2))
-  have average := density_product_average
-    (fun (residual : P → Residual) (H : P → D × Challenge) =>
-      event (conditionedView (tree := tree) (observe := observe) split residual H))
-  exact changed.trans (swapped.trans average)
-
-end Coordinates
 section EventTransport
 variable {P Q D Raw Extra Challenge Residual : Type}
 variable [Fintype P] [DecidableEq P] [Fintype Q] [DecidableEq Q]
@@ -230,4 +127,4 @@ theorem coordinates_charge (claims : Q → Finset D) (H : Q → D × Challenge) 
     (pad_run tree _).2 (fun _ => rfl)
 
 end ChargeTransport
-end LfzkV2.Current.StrandComposition
+end LfzkV2.Current.Soundness.Coordinates

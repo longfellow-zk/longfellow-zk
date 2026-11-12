@@ -1,13 +1,13 @@
 # Longfellow V2: extraction, soundness and zero knowledge
 
 The current numbered-strand soundness endpoint is
-[`MdocSoundness.averaged_ratio_le`](LfzkV2/Current/MdocSoundness.lean).
+[`Mdoc.Soundness.averaged_ratio_le`](LfzkV2/Current/Mdoc/Soundness.lean).
 It connects one SHA oracle, the original raw adversarial query log, the
 complete serialized proof, the runtime verifier and the first-context
 paired extractor. Its conclusion is ordinary hash-witness validity and
 signature-circuit satisfaction at the submitted request's public inputs,
 using the same extracted pair. The complete numbered-strand privacy endpoint is
-[`MdocStrandZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean).
+[`Mdoc.ZeroKnowledge.statClose`](LfzkV2/Current/Mdoc/ZeroKnowledge.lean).
 The [assumptions](../README.md#assumptions-and-remaining-correspondence-obligations)
 state the oracle, sampling and implementation boundaries.
 
@@ -36,7 +36,7 @@ $$
 
 For every `Q < 2^127`, the full soundness failure probability is
 **strictly less than 0.97**, with the cap rounded up to two decimal places.
-`MdocSoundness.averaged_nonvacuous` proves this strict conclusion. The primary
+`Mdoc.Soundness.averaged_nonvacuous` proves this strict conclusion. The primary
 `ratio_le` and `averaged_ratio_le` endpoints use the exact `LfzkV2.Current.Soundness.Rate7.failureBound` above.
 
 The exact parameter-dependent Polygero coefficient is
@@ -71,7 +71,7 @@ $$
 The largest supported mdoc circuit (four attributes) has 500 rounds:
 `275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
-`MdocSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
+`Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
@@ -83,9 +83,9 @@ witness and derives the round bound internally.
 finalization. Proof bytes and public requests may be chosen adaptively.
 Repeated inputs receive the same answer. Probability covers the ideal SHA
 oracle and arbitrary finite private random choices.
-[`MdocStrandSoundness.ratio_le`](LfzkV2/Current/MdocStrandSoundness.lean)
+[`Mdoc.RuntimeSoundness.ratio_le`](LfzkV2/Current/Mdoc/RuntimeSoundness.lean)
 handles each fixed public setup.
-[`MdocStrandOracle`](LfzkV2/Current/MdocStrandOracle.lean) derives that setup
+[`Mdoc.OracleSoundness`](LfzkV2/Current/Mdoc/OracleSoundness.lean) derives that setup
 from the complementary slice of the same SHA function and preserves the
 original output, protocol-domain query prefix and complete verifier replay.
 `Q` is a worst-case bound on distinct inputs in the full original byte-oracle
@@ -230,7 +230,7 @@ composes this readback with
 certificate excludes the reserved mask/OTP suffix and generated adapter wires
 from ordinary hash gates, assertions and carried outputs. It implies
 `MdocWitness.HashNoninterference` and removes challenge dependence from the
-ordinary hash predicate. `MdocSoundness.event` states actual acceptance with
+ordinary hash predicate. `Mdoc.Soundness.event` states actual acceptance with
 failure of the original-cut extractor to produce an application-valid witness;
 its probability bounds use this bridge. The separation certificate is a Lean
 premise corresponding to the compiler's test-only separation checks, with no
@@ -247,7 +247,7 @@ algebra remain in their original namespaces.
 
 ### Current numbered-strand zero knowledge
 
-[`MdocStrandZeroKnowledge.statClose`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+[`Mdoc.ZeroKnowledge.statClose`](LfzkV2/Current/Mdoc/ZeroKnowledge.lean)
 proves that the complete real and witness-free simulated views under one SHA
 random oracle differ by at most `(Qpre+Qpost)/2^256`. Public setup, component
 contexts and metadata are computed from this same oracle. The compared views
@@ -280,14 +280,14 @@ uniformly over public inputs and private values. The basis/generator checks,
 trusted circuits/fields/codecs, and independent uniform private coins remain
 explicit premises.
 
-[`MdocStrandVerifierPrivacy.acceptance_probability`](LfzkV2/Current/ZeroKnowledge/MdocStrandVerifierPrivacy.lean)
+[`Mdoc.VerifierPrivacy.acceptance_probability`](LfzkV2/Current/Mdoc/VerifierPrivacy.lean)
 specializes the comparison to the actual indexed runtime verifier. Its observer
 returns exactly the runtime decision, including sampling failures, tuple
 Merkle authentication and the final seal. Simulator aborts are rejecting
 outcomes, not excluded executions. Verification calls count in `Qpost` when
 this observer is used.
 
-[`statClose_at_query_budget`](LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean)
+[`statClose_at_query_budget`](LfzkV2/Current/Mdoc/ZeroKnowledge.lean)
 proves error at most `2^-128` when `Qpre+Qpost <= 2^128`. This is conditional on
 the ideal oracle and private-randomness model; it is not a numerical SHA-256
 security claim. Machine-level Rust refinement and formal running-time bounds
@@ -338,18 +338,18 @@ V2 proofs permit only Lean's standard `propext`, `Classical.choice`, and
 empty proofs, malformed round counts, false assertions, and product consistency.
 
 The soundness implementation separates transport and recovered-path algebra
-in [`Soundness.StrandTransport`](LfzkV2/Current/Soundness/StrandTransport.lean)
+in [`Soundness.Transport`](LfzkV2/Current/Soundness/Transport.lean)
 from the common stopped cost and deterministic cover in
-[`Soundness.StrandStoppedCosts`](LfzkV2/Current/Soundness/StrandStoppedCosts.lean).
-[`StrandProtocol`](LfzkV2/Current/StrandProtocol.lean) applies both the direct
+[`Soundness.StoppedCosts`](LfzkV2/Current/Soundness/StoppedCosts.lean).
+[`Soundness.Runtime`](LfzkV2/Current/Soundness/Runtime.lean) applies both the direct
 linear bound and the optional saturated bound, then averages residuals and
 transports back to raw SHA. Current parameter and
 runtime adapters live under `Current.Soundness`, while the generic `Survival`
 query-step calculus has no V1 or V2 implementation dependencies. Shared finite
 probability and statistical-distance arguments live in `Bcs`.
 
-`MdocSoundness.averaged_linear_ratio_le` gives the leading bound for all Q,
+`Mdoc.Soundness.averaged_linear_ratio_le` gives the leading bound for all Q,
 using the same runtime stopped cost and failure cover as `averaged_ratio_le`.
 The generic `SharedBudget.linear_le` has no `p*Q ≤ 1` premise. Generic audit
 and count facts are in `ChronologicalAudit`, `History`, `QueryBudget` and
-`StoppedSearch`; the numerical W refinement is isolated in `Saturation`.
+`StoppedSearch`; the numerical W refinement is isolated in `Hybrid` and `HistoryBounds`.

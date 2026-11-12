@@ -1,5 +1,5 @@
 import LfzkV2.Current.StrandMerkleSelector
-import LfzkV2.Current.StrandRealizationBounds
+import LfzkV2.Current.Soundness.OracleBounds
 
 /-! Apply the one-column authentication bound to the actual canonical
 runtime. The selected column is read using the recorded transcript nodes
@@ -53,11 +53,11 @@ local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.
 local notation "context" => QueryRuntime.Runtime.key repr shape setup binary.nPublic
 variable {fuel : ℕ} (program : Merkle.RandomOracle.Tree Bytes Digest
   (CanonicalRuntime.Output (Advice := Advice) binary shape) fuel)
-local notation "O" => StrandRealization.other binary prime P R repr shape setup cfg binaryCount metadata
+local notation "O" => Soundness.OracleTransport.other binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 local notation "Node" => StrandWindow.Node (O)
 local notation "Raw" => StrandWindow.Point (O)
-local notation "fallbackNode" => StrandRealization.fallback binary prime P R repr shape setup cfg binaryCount metadata
+local notation "fallbackNode" => Soundness.OracleTransport.fallback binary prime P R repr shape setup cfg binaryCount metadata
   fits sample (codec) id program
 local notation "decodeRaw" => StrandWindow.decode (O) fallbackNode
 local notation "bytes" => StrandWindow.Node.bytes (other := O)
@@ -248,14 +248,14 @@ theorem path_represented (G : Raw → Digest)
   have inputEq := claim_pathInput_congr (codec) path.toOpeningClaim decoded.claim
     sameClaim path.column path.opened opened (G ∘ decodeRaw) (vertex path slot)
   simp only [Function.comp_id,id_eq,← inputEq] at visible
-  apply StrandRealization.input_represented binary prime P R repr shape setup cfg binaryCount metadata
+  apply Soundness.OracleTransport.input_represented binary prime P R repr shape setup cfg binaryCount metadata
     fits sample (codec) id program
   apply OracleWindow.trace_mem_queries (program.bind
     (StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample (codec) id))
     (G ∘ decodeRaw) (point (codec) path (G ∘ decodeRaw) slot,G (decodeRaw (point (codec) path (G ∘ decodeRaw) slot)))
   rw [Tree.run_bind]
   apply List.mem_append_right
-  have outputEq := congrArg Prod.fst (StrandRealization.original_actual binary prime P R repr shape setup cfg
+  have outputEq := congrArg Prod.fst (Soundness.OracleTransport.original_actual binary prime P R repr shape setup cfg
     binaryCount metadata fits sample (codec) id program G)
   change ((compiled).run G).1 = (program.run (G ∘ decodeRaw)).1 at outputEq
   rw [← outputEq]

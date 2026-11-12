@@ -1,11 +1,11 @@
 # V2 transcript and SHA-256 strands
 
 The numbered-strand soundness endpoint is
-[`MdocStrandOracle.averaged_ratio_le`](../lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean).
+[`Mdoc.OracleSoundness.averaged_ratio_le`](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean).
 It uses one SHA oracle for setup, original adversarial calls, transcript
 nodes, indexed PRF blocks, indexed Merkle authentication and the final seal.
 The complete indexed ZK endpoint is
-`MdocStrandZeroKnowledge.statClose`.
+`Mdoc.ZeroKnowledge.statClose`.
 The [security audit](../AUDIT.md) states the oracle and implementation scope.
 
 ## Composition interfaces
@@ -28,8 +28,8 @@ application. The current runtime uses the survival specialization below.
 
 The current runtime uses the saturated specialization in
 [`Survival.QueryStep`](../survival/Survival/QueryStep.lean) and
-[`Survival.ChargeMonitor`](../survival/Survival/ChargeMonitor.lean).
-Transparent local tests are fixed from a chronological cache. The audit stops
+[`Survival.CausalCharges`](../survival/Survival/CausalCharges.lean).
+Transparent local tests read explicit state from the strict query prefix. The audit stops
 at their first escape; Polygero and hash costs are paid by disjoint opaque
 slots reached before stopping. Their weights retain the original commitment
 cut. The final current endpoint replaces the linear query factor by
@@ -125,7 +125,7 @@ The application-specific modules live under `LfzkV2.Current`:
 | --- | --- |
 | [`StrandSearch`](../lfzk-v2/LfzkV2/Current/StrandSearch.lean), [`StrandPath`](../lfzk-v2/LfzkV2/Current/StrandPath.lean), [`StrandRecognition`](../lfzk-v2/LfzkV2/Current/StrandRecognition.lean) | Actual raw query names, logical path recovery and ordinary/speculative accounting. |
 | [`StrandRuntime`](../lfzk-v2/LfzkV2/Current/StrandRuntime.lean), [`StrandVerifier`](../lfzk-v2/LfzkV2/Current/StrandVerifier.lean), [`StrandAcceptedPath`](../lfzk-v2/LfzkV2/Current/StrandAcceptedPath.lean) | Canonical packets, existing arithmetic/authentication checks and acceptance with the actual PRF final seal. |
-| [`StrandAuthentication`](../lfzk-v2/LfzkV2/Current/StrandAuthentication.lean), [`StrandExecution`](../lfzk-v2/LfzkV2/Current/StrandExecution.lean) | Full verifier replay and its accepting decision reconstructed from that trace. |
+| [`StrandAuthentication`](../lfzk-v2/LfzkV2/Current/StrandAuthentication.lean), [`Protocol.Observation`](../lfzk-v2/LfzkV2/Current/Protocol/Observation.lean) | Full verifier replay and its accepting decision reconstructed from that trace. |
 | [`StrandCut`](../lfzk-v2/LfzkV2/Current/StrandCut.lean), [`StrandCutObservation`](../lfzk-v2/LfzkV2/Current/StrandCutObservation.lean) | Exactly the raw prefix before the first query naming a context, with the same joint observation law as the named execution. |
 | [`StrandCommitment`](../lfzk-v2/LfzkV2/Current/StrandCommitment.lean) | One cut and one extracted tuple for both fields; genuine Merkle target hits are separate from transcript-parent guesses. |
 | [`StrandWindow`](../lfzk-v2/LfzkV2/Current/StrandWindow.lean) | Finite supporting address sets and exact execution transport for arbitrary raw query trees. |
@@ -143,7 +143,7 @@ fingerprints and sumchecks, row batching, rescaling, conversion and packing.
 Its widths come from the circuit schedule. Joint Polygero single/pair
 normalization and the concrete accepted-extraction cover are also checked.
 The actual failure observation is connected to this cover by
-`StrandProtocol.recovered_failure_charge`. Original strand speculation and
+`Soundness.Runtime.recovered_failure_charge`. Original strand speculation and
 indexed Merkle receiving share an allowance of `2Q/2^256` per auxiliary
 query slot. The algebraic role bound is `2/(q-1)` per ordinary slot.
 `ProtocolProbability` combines these complementary slots of the original
@@ -159,7 +159,7 @@ $$
 \le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246},\qquad Q\ge0.
 $$
 
-`MdocStrandOracle` proves setup-domain independence, preservation of the
+`Mdoc.OracleSoundness` proves setup-domain independence, preservation of the
 original submitted output and filtered log, complete verifier replay under
 the same SHA function, and averaging over complementary SHA answers.
 
@@ -176,7 +176,7 @@ specializes this coupling to the physical mdoc responses and columns.
 The indexed Merkle coupling is proved in
 [`StrandGhostMerkleProbability`](../lfzk-v2/LfzkV2/Current/ZeroKnowledge/StrandGhostMerkleProbability.lean).
 Its byte-oracle transport and complete simulator are assembled in
-[`MdocStrandZeroKnowledge`](../lfzk-v2/LfzkV2/Current/ZeroKnowledge/MdocStrandZeroKnowledge.lean).
+[`Mdoc.ZeroKnowledge`](../lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean).
 The complete view includes shared-oracle public setup, both raw observer traces,
 the proof and actual verifier observations. With 32-byte nonces its statistical
 error is at most `(Qpre+Qpost)/2^256`.
@@ -310,7 +310,7 @@ summed response budget is preserved.
 ## Scope
 
 These are conditional ROM component theorems. The
-[current mdoc composition](../lfzk-v2/LfzkV2/Current/MdocStrandOracle.lean)
+[current mdoc composition](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean)
 instantiates the preimage laws, algebraic cover and shared query charges for
 actual adaptive runtime acceptance event, including nonzero-sampling and
 Polygero errors. Canonical input bytes and the first-context extractor are

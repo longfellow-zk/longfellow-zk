@@ -40,7 +40,7 @@ def imports(text):
 def check_import_boundaries(modules):
     """Keep runtime predicates and soundness separate from simulator assemblies."""
     rules = {
-        "LfzkV2.Current.MdocStrandOracle": (
+        "LfzkV2.Current.Mdoc.Soundness": (
             "LfzkV1", "LfzkV2.Current.ZeroKnowledge"),
         "LfzkV2.Joint.Pair.Basic": (
             "LfzkV2.Joint.Replay", "LfzkV2.Linear.Runtime"),

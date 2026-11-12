@@ -1,5 +1,5 @@
 import LfzkV2.Current.StrandLocalCharges
-import LfzkV2.Current.RuntimeAdaptiveFS
+import LfzkV2.Current.Soundness.RuntimeCharges
 
 /-! The physical joint-backend blocks retain exactly the coordinates read by
 the actual batching and opening decoders. Normalizing unused ideal factors
@@ -159,11 +159,11 @@ theorem runtime_single_normalize
     (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
       (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role))
     (fallback answer : Answer) (H : Point → Digest × Answer) (link : Digest) :
-    RuntimeAdaptiveFS.single laws readers encode derive coin query cutoff epsilon point H
+    Soundness.RuntimeCharges.single laws readers encode derive coin query cutoff epsilon point H
       (link,StrandSampling.normalize
         (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role) fits) fallback answer) =
-    RuntimeAdaptiveFS.single laws readers encode derive coin query cutoff epsilon point H (link,answer) := by
-  unfold RuntimeAdaptiveFS.single RuntimeAdaptiveCharges.single
+    Soundness.RuntimeCharges.single laws readers encode derive coin query cutoff epsilon point H (link,answer) := by
+  unfold Soundness.RuntimeCharges.single RuntimeAdaptiveCharges.single
   rw [current]
   exact congrArg₂ (·+·)
     (StrandLocalCharges.application_role_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
@@ -190,14 +190,14 @@ theorem runtime_single_sum
       (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role))
     (fallback : Answer) (H : Point → Digest × Answer) :
     (∑ answer : Digest × Answer,
-      RuntimeAdaptiveFS.single laws readers encode derive coin query cutoff epsilon point H
+      Soundness.RuntimeCharges.single laws readers encode derive coin query cutoff epsilon point H
         (answer.1,StrandSampling.normalize
           (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role) fits) fallback answer.2)) ≤
-      Fintype.card (Digest × Answer)*RuntimeAdaptiveFS.budget (LB := LB) (LN := LN) encode cutoff epsilon pc rc point := by
+      Fintype.card (Digest × Answer)*Soundness.RuntimeCharges.budget (LB := LB) (LN := LN) encode cutoff epsilon pc rc point := by
   simp_rw [runtime_single_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
     cfg derive cutoff epsilon S laws hashPublic decodePublic primeShape primeGeometry primeFits
     binaryShape binaryGeometry binaryFits coins role point current fits fallback]
-  exact RuntimeAdaptiveFS.single_sum laws readers encode derive coin query cutoff epsilon binaryListBound primeListBound
+  exact Soundness.RuntimeCharges.single_sum laws readers encode derive coin query cutoff epsilon binaryListBound primeListBound
     (coinSampler binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
     (IdealRuntime.querySampler binary prime P R countBinary countPrime binaryCapacity primeCapacity)
     (coinSampler_decode binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
@@ -213,7 +213,7 @@ theorem runtime_pair_sum [Nonempty (IdealRuntime.Answer binary prime P R countBi
     (bound : pc.listBound ≤ Nat.card (First).Carrier)
     (parent : Parent) (H : Point → Digest × Answer) (fallback : Answer) :
     (∑ response, ∑ first : Digest × Answer, ∑ second : Digest × Answer,
-      RuntimeAdaptiveFS.pair (S := S) derive coin query epsilon parent response H
+      Soundness.RuntimeCharges.pair (S := S) derive coin query epsilon parent response H
         (first.1,StrandSampling.normalize (factor .batching trivial) fallback first.2)
         (second.1,StrandSampling.normalize (factor .opening trivial) fallback second.2)) ≤
       (Fintype.card (Digest × Answer) : ℚ)^2*JointResponse.activeHighBudget First Second pc := by
@@ -223,7 +223,7 @@ theorem runtime_pair_sum [Nonempty (IdealRuntime.Answer binary prime P R countBi
       (second.1,StrandSampling.normalize (factor .opening trivial) fallback second.2)) ≤ _
   simp_rw [high_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
     cfg derive S.oracle epsilon parent _ H fallback]
-  exact RuntimeAdaptiveFS.pair_sum (binary := binary) (prime := prime) (P := P) (R := R)
+  exact Soundness.RuntimeCharges.pair_sum (binary := binary) (prime := prime) (P := P) (R := R)
     (cfg := publicCfg) (S := S) derive coin query epsilon
     (coinSampler binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
     (IdealRuntime.querySampler binary prime P R countBinary countPrime binaryCapacity primeCapacity)
