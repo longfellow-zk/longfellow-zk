@@ -72,18 +72,67 @@ impl<
         Ok(Self { param, f, domain })
     }
 }
-/// The caller binds the source statement and compiles A*w+b=0 locally.
-/// `digest` identifies the public source, such as a circuit ID. Every dynamic
-/// prover input to compilation must already be bound on the same transcript.
-/// Challenge-derived coefficients are reconstructed locally and never absorbed.
-/// The verifier reconstructs `a` and `b`; the source binding does not
-/// depend on sparse term ordering and needs no separate transcript query.
+/// An immutable affine statement. Standalone callers use [`Self::new`], which
+/// hashes the complete static statement. Internal frontends instead derive
+/// equations from their already absorbed source messages and challenges.
+///
+/// ```compile_fail
+/// use longfellow_zk::runtime::v2::{polygero::LinearStatement, proto::Digest};
+/// let statement: LinearStatement<u64> = LinearStatement {
+///     a: vec![], b: vec![], digest: Digest { data: [0; 32] },
+/// };
+/// ```
 #[derive(Clone)]
 #[must_use = "The derived statement must be authenticated by the commitment backend."]
 pub struct LinearStatement<E> {
-    pub a: Vec<PolygeroLinearTerm<E>>,
-    pub b: Vec<E>,
-    pub digest: Digest,
+    pub(crate) a: Vec<PolygeroLinearTerm<E>>,
+    pub(crate) b: Vec<E>,
+    pub(crate) digest: Digest,
+}
+impl<E> LinearStatement<E> {
+    /// Fix a standalone static system `A*w+b=0`, including every coefficient
+    /// and target. Term order is part of this source encoding. Use before any
+    /// proof challenges; frontend-derived systems are constructed internally.
+    pub fn new<F: SerializableField<E = E>>(
+        a: Vec<PolygeroLinearTerm<E>>,
+        b: Vec<E>,
+        f: &F,
+    ) -> Self {
+        let mut hash = Sha256::new();
+        hash.update(b"polygero/static-linear-statement/v1");
+        hash.update([u8::from(f.is_binary())]);
+        hash.update((f.serialized_size_bytes() as u64).to_le_bytes());
+        hash.update(f.serialized_mone());
+        hash.update((b.len() as u64).to_le_bytes());
+        hash.update((a.len() as u64).to_le_bytes());
+        let mut bytes = vec![0; f.serialized_size_bytes()];
+        for term in &a {
+            hash.update((term.c as u64).to_le_bytes());
+            hash.update((term.w as u64).to_le_bytes());
+            f.to_bytes_into(&term.k, &mut bytes);
+            hash.update(&bytes);
+        }
+        for target in &b {
+            f.to_bytes_into(target, &mut bytes);
+            hash.update(&bytes);
+        }
+        Self {
+            a,
+            b,
+            digest: Digest {
+                data: hash.finalize().into(),
+            },
+        }
+    }
+    pub fn terms(&self) -> &[PolygeroLinearTerm<E>] {
+        &self.a
+    }
+    pub fn targets(&self) -> &[E] {
+        &self.b
+    }
+    pub fn digest(&self) -> Digest {
+        self.digest
+    }
 }
 mod sealed {
     pub trait Sealed {}
@@ -109,9 +158,9 @@ pub trait Participants: sealed::Sealed {
     ) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
     // Statement digests bind the caller's source; sparse arrays are compiled locally.
-    fn bind_statements(&self, s: &Self::Statements, t: &mut Writing<'_>);
+    fn absorb_statements(&self, s: &Self::Statements, t: &mut Writing<'_>);
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
-    fn bind_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>);
+    fn absorb_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
     fn write_bodies(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
     fn read_bodies(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
@@ -153,9 +202,9 @@ impl Participants for () {
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn bind_statements(&self, _: &(), _: &mut Writing<'_>) {}
+    fn absorb_statements(&self, _: &(), _: &mut Writing<'_>) {}
     fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
-    fn bind_responses(&self, _: &(), _: &mut Writing<'_>) {}
+    fn absorb_responses(&self, _: &(), _: &mut Writing<'_>) {}
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
@@ -233,9 +282,9 @@ impl<
         constraints::validate(self.0.param.geom.nw, s.0.b.len(), &s.0.a)?;
         self.1.validate_statements(&s.1)
     }
-    fn bind_statements(&self, s: &Self::Statements, t: &mut Writing<'_>) {
-        transcript::bind_statement(t, &s.0.digest, &self.0.param.context, s.0.b.len());
-        self.1.bind_statements(&s.1, t);
+    fn absorb_statements(&self, s: &Self::Statements, t: &mut Writing<'_>) {
+        transcript::absorb_statement(t, &s.0.digest, &self.0.param.context, s.0.b.len());
+        self.1.absorb_statements(&s.1, t);
     }
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges {
         (
@@ -243,9 +292,9 @@ impl<
             self.1.challenges(&s.1, t),
         )
     }
-    fn bind_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>) {
-        transcript::bind_response(t, &b.0, self.0.f);
-        self.1.bind_responses(&b.1, t);
+    fn absorb_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>) {
+        transcript::absorb_response(t, &b.0, self.0.f);
+        self.1.absorb_responses(&b.1, t);
     }
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError> {
         b.0.validate(&self.0.param.geom)?;

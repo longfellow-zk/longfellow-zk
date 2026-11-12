@@ -88,7 +88,7 @@ Three review passes cover the current soundness path.
    transcript and adapter bind prover messages and static statements while
    retaining challenge-derived coefficients in verifier state.
 
-The endpoint tests and the 607 native Rust library tests pass. This is a
+The endpoint tests and the 610 native Rust library tests pass. This is a
 source-correspondence audit. The v2 test aggregate, including its preserved
 shared component libraries, builds successfully. Superseded implementation proof paths have been removed
 from its imports. `WholeAnswerMerkle` names the earlier unindexed node syntax
@@ -96,6 +96,12 @@ explicitly, sharing leaf encoding and physical row maps with the indexed
 codec. The current soundness endpoint imports neither this historical codec
 nor the ZK assembly. Numbered strand tests cover the current PRF keys.
 The numbered-strand privacy proof is separate from this soundness argument.
+
+The current indexed runtime also checks that each arithmetic response is
+zero on its logical mask prefix. `StrandVerifier.prefixZeros` includes this
+deterministic check for both fields; `BackendPrefix.payload_random` proves it
+for honest responses. Soundness retains the existing Polygero verifier as a
+weaker algebraic predicate, preserving the paper-facing component contracts.
 
 ## Zero-knowledge boundary
 

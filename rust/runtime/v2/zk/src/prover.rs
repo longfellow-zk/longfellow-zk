@@ -157,7 +157,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         &self,
         private: &[CircuitInput<F>],
         ctx: &ZkContext<'_, W, F, D>,
-        mut t: Transcript,
+        t: Transcript,
         rng: &mut R,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
         let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
@@ -166,7 +166,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         }
         let (state, witness) = participant.prepare(private, rng)?;
         let param = JointParam::new((participant.participant(ctx)?, ()))?;
-        participant.bind(&mut t.borrow());
         let (joint, commitment, (fingerprints, ())) = param.commit((witness, ()), t, rng)?;
         let geometry = ZkProofGeometry {
             circuit: participant.geometry(),

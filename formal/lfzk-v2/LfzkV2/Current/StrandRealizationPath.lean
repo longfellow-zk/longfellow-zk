@@ -222,7 +222,7 @@ theorem recovered_original (H : Name → Answer)
   have excluded : ¬(¬Merkle.MH.CollisionFree (program.run (SHAof (completed H))).2 ∨
       ¬∀ i ≤ g.roles.length, Merkle.QueryTable.Known (program.run (SHAof (completed H))).2
         (history ((M).point (program.run (SHAof (completed H))).1 (ordinaryOracle (SHAof (completed H))) i)).input.encode) :=
-    fun bad => good ⟨checks.2.2.2.2,bad⟩
+    fun bad => good ⟨checks.2.2.2.2.1,bad⟩
   exact ⟨not_not.mp (fun bad => excluded (Or.inl bad)),not_not.mp (fun bad => excluded (Or.inr bad))⟩
 
 theorem accepted_path_or_charge (H : Name → Answer)

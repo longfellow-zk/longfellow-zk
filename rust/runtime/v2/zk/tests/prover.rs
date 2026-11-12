@@ -195,16 +195,16 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     reference
         .participant
         .backend
-        .bind(&mut independent.borrow(), &prover.circuit.id);
-    independent.bind(|w| {
+        .absorb(&mut independent.borrow(), &prover.circuit.id);
+    independent.absorb(|w| {
         w.write_bytes(b"layered-sumcheck/commitment-layout/v1");
         w.write_bytes(&0u64.to_le_bytes());
     }); // No additional circuits.
-    independent.bind(|w| {
+    independent.absorb(|w| {
         w.write_bytes(&(geometry.circuit.sc_geom.logw_layers.len() as u64).to_le_bytes())
     });
     for &width in &geometry.circuit.sc_geom.logw_layers {
-        independent.bind(|w| w.write_bytes(&(width as u64).to_le_bytes()));
+        independent.absorb(|w| w.write_bytes(&(width as u64).to_le_bytes()));
     }
     let mut independent_verifier = independent_param.receive(
         &reference.commitment,
@@ -237,7 +237,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         sumcheck::derive_constraints(&prover.circuit, &proof, &mut independent, &f).unwrap();
     assert_eq!(constraints, verifier_constraints);
     let mut different_execution = numerical.fork_for_test();
-    different_execution.bind(|w| w.write_bytes(b"different sumcheck execution"));
+    different_execution.absorb(|w| w.write_bytes(b"different sumcheck execution"));
     let state = numerical.fork_for_test().bytes(32);
     assert_eq!(state, independent.fork_for_test().bytes(32));
     assert_ne!(state, different_execution.bytes(32));

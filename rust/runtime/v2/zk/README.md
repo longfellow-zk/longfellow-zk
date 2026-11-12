@@ -130,12 +130,16 @@ Polygero binds each source circuit ID before its scalar and polynomial
 challenges. The public inputs, commitment, sumcheck messages and packing
 responses already precede that boundary on the same transcript. This handoff
 adds no query or proof bytes. Sparse A/b encoding and term order are outside
-this binding: both roles derive these rows locally. Standalone Polygero callers
-must bind their own source statement and ensure their A and b implement it.
+this binding: both roles derive these rows locally. Standalone Polygero callers use `LinearStatement::new`, which hashes the
+complete static system and exposes immutable coefficients and targets. Internal
+frontends construct their derived rows from the already absorbed transcript;
+challenge-derived coefficients are never absorbed.
 
 `context.rs` derives layouts for both roles. The commitment context contains
 only backend dimensions and the ordered field domains, while circuit identities
-and packing/composition metadata bind in the surrounding transcript. Circuits
+and packing/composition metadata are absorbed internally by joint commit/receive
+before the fingerprint round. Participant construction carries this metadata;
+there is no separate frontend absorb call. Circuits
 are trusted immutable metadata: the runtime absorbs their IDs without rehashing
 them. Symbolic pad expressions end at constraint compilation. They are not
 serialized, and no intermediate dense input-weight vectors are cached.

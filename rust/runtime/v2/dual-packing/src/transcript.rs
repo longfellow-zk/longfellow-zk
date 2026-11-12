@@ -19,24 +19,24 @@ pub(super) fn begin<X: PackingExtension>(
     X::Ambient: SerializableField,
 {
     if p.binary128_profile() {
-        ts.bind(|w| {
+        ts.absorb(|w| {
             w.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
             w.write_bytes(statement);
         });
-        ts.bind(|w| w.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes()));
+        ts.absorb(|w| w.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes()));
     } else {
-        ts.bind(|w| {
+        ts.absorb(|w| {
             w.write_bytes(b"longfellow/dual-packing/generic/trace-zero/v1");
             w.write_bytes(&p.descriptor());
         });
-        ts.bind(|w| w.write_bytes(statement));
+        ts.absorb(|w| w.write_bytes(statement));
     }
     // The caller identifies the source with arbitrary, canonically framed
     // bytes (possibly empty). ZK derives the coefficients and affine RHS from
     // earlier messages and challenges on this same transcript. Reabsorbing
     // those values would repeat a linear-size deterministic computation.
     // Keep the public cell counts, field/basis profile and statement binding.
-    ts.bind(|w| {
+    ts.absorb(|w| {
         w.write_bytes(&(inputs as u64).to_le_bytes());
         w.write_bytes(&(auxiliary as u64).to_le_bytes());
     });
@@ -65,12 +65,12 @@ pub(super) fn finish<X: PackingExtension>(
 ) {
     // A may depend on delta, but it must be fixed before the backend samples
     // challenges to authenticate the two resulting linear equations.
-    ts.bind(|w| {
+    ts.absorb(|w| {
         w.write_bytes(if p.binary128_profile() {
             b"trace-zero128/A"
         } else {
             b"trace-zero/A"
         })
     });
-    ts.bind(|w| w.write_elt_field(a, p.field()));
+    ts.absorb(|w| w.write_elt_field(a, p.field()));
 }

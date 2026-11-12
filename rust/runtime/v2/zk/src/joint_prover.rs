@@ -19,7 +19,7 @@ impl<L: Fields> JointParam<L> {
     pub fn commit(
         &self,
         witnesses: Witnesses<L>,
-        transcript: Transcript,
+        mut transcript: Transcript,
         rng: &mut impl RandomEngine,
     ) -> Result<
         (
@@ -37,6 +37,7 @@ impl<L: Fields> JointParam<L> {
         L::Selection: witness_selection::ProverFields,
         Witnesses<L>: Clone,
     {
+        self.fields.absorb_layouts(&mut transcript.borrow());
         let (selection, root, responses) =
             witness_selection::commit(&self.selection, witnesses, transcript, rng)?;
         Ok((JointProver { selection }, root, responses))

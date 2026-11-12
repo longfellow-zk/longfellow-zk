@@ -1,6 +1,7 @@
 import LfzkV2.Current.RuntimeAdaptiveVerifier
 import LfzkV2.Current.StrandRuntime
 import Bcs.Indexed
+import LfzkV2.Current.BackendPrefix
 
 /-! The adaptive runtime verifier with SHA-strand finalization. Application
 decoding, affine statements and tuple authentication reuse the existing
@@ -79,6 +80,12 @@ variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 variable (codec : Merkle.Indexed.Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
 
+def prefixZeros (output : Output) : Prop :=
+  BackendPrefix.Zero (RuntimeVerifier.first binary prime P R cfg).participant
+    (RuntimeVerifier.responses binary prime P R cfg output.proof).1 ∧
+  BackendPrefix.Zero (RuntimeVerifier.second binary prime P R cfg).participant
+    (RuntimeVerifier.responses binary prime P R cfg output.proof).2
+
 def Checks (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
     (decoded : Decoded) : Prop :=
   let e := RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier output.request
@@ -92,7 +99,8 @@ def Checks (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Outp
     ((Joint.Pair.coinEquiv _ _).symm decoded.coin)
     ((Joint.Pair.responseEquiv _ _).symm (RuntimeVerifier.responses binary prime P R cfg output.proof))
     decoded.query decoded.claim ∧
-  finalSeal binary prime P R cfg earlier bodyCodec sample output SHA = output.proof.finalSeal
+  finalSeal binary prime P R cfg earlier bodyCodec sample output SHA = output.proof.finalSeal ∧
+  prefixZeros binary prime P R cfg output
 
 def verify (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output) : Bool :=
   match RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
@@ -120,7 +128,7 @@ theorem accepted_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (ou
   obtain ⟨decoded,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
   rw [TranscriptV2.StrandVerifier.sealValid_iff]
-  exact checks.2.2.2.2
+  exact checks.2.2.2.2.1
 
 theorem accepted_samples (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
     (accepted : verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
@@ -138,7 +146,7 @@ theorem reject_final_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes)
   intro accepted
   obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
-  exact wrong checks.2.2.2.2
+  exact wrong checks.2.2.2.2.1
 
 /-- Exhausting a physical sampler rejects even though mathematical replay
 uses a dummy value to finish constructing its path. -/

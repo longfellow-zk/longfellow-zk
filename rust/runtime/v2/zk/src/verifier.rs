@@ -120,10 +120,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             (),
         ))
         .map_err(ZkVerificationError::PolygeroVerification)?;
+        let joint_context = param.context();
         Ok(Self {
             circuit,
             participant,
-            joint_context: param.context(),
+            joint_context,
         })
     }
     pub fn geometry(&self) -> ZkProofGeometry {
@@ -151,7 +152,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         &self,
         public: &[CircuitInput<F>],
         proof: &ZkProof<W, F>,
-        mut t: Transcript,
+        t: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Transcript, ZkVerificationError> {
         if public.len() != self.public_input_count() {
@@ -178,7 +179,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             self.participant.geometry.com_geom.n,
         )
         .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        self.participant.bind(&mut t.borrow());
         let param = JointParam::new((
             self.participant
                 .participant(ctx)

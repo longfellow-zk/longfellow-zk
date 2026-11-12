@@ -351,13 +351,13 @@ fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
     // Preserve the existing root framing and order while removing the detached
     // receipt API: the first challenge round must see exactly this prefix.
     let mut expected = Transcript::new(b"selection/root-binding");
-    expected.bind(|w| {
+    expected.absorb(|w| {
         w.write_bytes(b"polygero/joint/root/v1");
         w.write_bytes(&param.context().data);
     });
-    expected.bind(|w| w.write_bytes(&root.root.data));
+    expected.absorb(|w| w.write_bytes(&root.root.data));
     let _coefficients = param.challenges(&root, &mut expected.borrow());
-    param.bind_responses(&responses, &mut expected.borrow());
+    param.absorb_responses(&responses, &mut expected.borrow());
     assert_eq!(verifier.transcript().round_count_for_test(), 1);
     assert_eq!(verifier.transcript().bytes(32), expected.bytes(32));
 }

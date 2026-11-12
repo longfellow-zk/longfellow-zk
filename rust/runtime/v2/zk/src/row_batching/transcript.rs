@@ -13,7 +13,7 @@ pub(super) fn coefficients<F: SupportsSampling>(
 ) -> Vec<F::E> {
     // All masked prime messages have already been absorbed before these fresh
     // row weights. Include every layer row AND the final input equation.
-    transcript.bind(|w| w.write_bytes(b"native-masked-sumcheck/all-linear-rows/v1"));
+    transcript.absorb(|w| w.write_bytes(b"native-masked-sumcheck/all-linear-rows/v1"));
     transcript.round(RoundLabel::RowBatching, |mut w| {
         w.write_bytes(b"all-linear-rows");
         let mut r = w.begin_squeeze();

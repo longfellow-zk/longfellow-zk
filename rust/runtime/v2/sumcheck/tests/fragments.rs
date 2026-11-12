@@ -538,14 +538,14 @@ fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
     let mut a = Transcript::new(b"derived-schedule");
     let mut b = Transcript::new(b"derived-schedule");
     let schedule = Schedule::new(&[&first[0].raw]).unwrap();
-    schedule.bind(&[&first[0].raw], &mut a.borrow());
-    schedule.bind(&[&second[0].raw], &mut b.borrow());
+    schedule.absorb(&[&first[0].raw], &mut a.borrow());
+    schedule.absorb(&[&second[0].raw], &mut b.borrow());
     assert_eq!(a.bytes(32), b.bytes(32));
 
     // Independent circuit sources still bind their ordinary identity.
     let mut a = Transcript::new(b"fixed-schedule");
     let mut b = Transcript::new(b"fixed-schedule");
-    schedule.bind(&[&first[0]], &mut a.borrow());
-    schedule.bind(&[&second[0]], &mut b.borrow());
+    schedule.absorb(&[&first[0]], &mut a.borrow());
+    schedule.absorb(&[&second[0]], &mut b.borrow());
     assert_ne!(a.bytes(32), b.bytes(32));
 }

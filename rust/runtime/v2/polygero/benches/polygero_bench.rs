@@ -20,7 +20,7 @@ use longfellow_zk::{
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
-        v2::{polygero::*, proto::Digest, transcript::Transcript},
+        v2::{polygero::*, transcript::Transcript},
     },
 };
 fn run<
@@ -47,29 +47,11 @@ fn run<
             PolygeroLinearTerm { c, w, k }
         })
         .collect();
-    // The public fixture recipe (backend, size, seed and generator version)
-    // determines the benchmark statement independently of sparse term storage.
-    // Frozen fixture derivation, independent of the v2 protocol transcript.
-    let mut fixture =
-        longfellow_zk::runtime::v1::transcript::Transcript::new(b"polygero/kernel/fixture/v1");
-    fixture.write_bytes(name.as_bytes());
-    fixture.write_bytes(&(nw as u64).to_le_bytes());
-    fixture.write_bytes(&42u64.to_le_bytes());
-    let statement = Digest {
-        data: fixture.bytes(32).try_into().unwrap(),
-    };
     let preprocessing_start = Instant::now();
     let param = PolygeroParam::try_new(nw, config, d).unwrap();
     let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
+    let statements = (LinearStatement::new(a, b, f), ());
     let preprocessing = preprocessing_start.elapsed();
-    let statements = (
-        LinearStatement {
-            a,
-            b,
-            digest: statement,
-        },
-        (),
-    );
     // Release the prover's rows and Merkle tree before timing verification.
     let (com, bytes, commit, prove) = {
         let ts = Transcript::new(b"polygero/kernel/bench");

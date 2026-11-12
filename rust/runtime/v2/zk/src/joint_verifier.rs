@@ -27,8 +27,9 @@ impl<L: Fields> JointParam<L> {
         self,
         root: &PolygeroCommitment,
         responses: Responses<L>,
-        transcript: Transcript,
+        mut transcript: Transcript,
     ) -> JointVerifier<L> {
+        self.fields.absorb_layouts(&mut transcript.borrow());
         JointVerifier {
             selection: witness_selection::Verifier::receive(
                 self.selection,

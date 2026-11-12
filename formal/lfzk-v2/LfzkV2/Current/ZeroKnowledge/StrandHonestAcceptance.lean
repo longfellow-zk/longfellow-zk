@@ -56,6 +56,8 @@ theorem finish_accepts
       ((Joint.Pair.responseEquiv ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant).symm response) (OrderedOpening.query indices))
     (selected : select binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
       roundSampler request frontend SHA response = some indices)
+    (prefixZero : BackendPrefix.Zero (ConcreteSetup.backend binaryNodes binary.cells).participant response.1 ∧
+      BackendPrefix.Zero (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)).participant response.2)
     (committed : frontend.commitment = Merkle.Indexed.root (((indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration)).withOracle SHA) 2443
       (fun i => (i,nonces i)) (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv W)) :
     let output := (finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices
@@ -153,7 +155,7 @@ theorem finish_accepts
     exact decodedEq
   · change StrandVerifier.samplersSucceeded binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g)
       roundSampler output SHA ∧ _
-    refine ⟨?_,?_,?_,?_,?_⟩
+    refine ⟨?_,?_,?_,?_,?_,?_⟩
     · intro i
       rw [RuntimeAdaptiveVerifier.point_eq,outputRequest,encoded]
       change TranscriptV2.StrandVerifier.sampled (StrandRuntime.history (ProofBodyCodec.codec repr g))
@@ -179,5 +181,9 @@ theorem finish_accepts
       exact accepted
     · exact finish_current_seal binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
         roundSampler request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i.val)) opening SHA
+
+    · unfold StrandVerifier.prefixZeros
+      rw [finish_responses]
+      exact prefixZero
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend

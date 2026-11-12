@@ -126,11 +126,11 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
     bodyCodec sample hashPublic primePublic draw (codec) (SHAof G) id _).mp accepted
   have free : MH.CollisionFree (program.run (SHAof G)).2 := by
     by_contra collision
-    exact good ⟨checks.2.2.2.2,Or.inl collision⟩
+    exact good ⟨checks.2.2.2.2.1,Or.inl collision⟩
   have known : ∀ i ≤ g.roles.length, QueryTable.Known (program.run (SHAof G)).2
       (history ((M).point (program.run (SHAof G)).1 (ordinary (SHAof G)) i)).input.encode := by
     by_contra missing
-    exact good ⟨checks.2.2.2.2,Or.inr missing⟩
+    exact good ⟨checks.2.2.2.2.1,Or.inr missing⟩
   have viewDecoded := (StrandRealization.decoded_actual binary prime P R repr shape setup cfg binaryCount metadata
     fits sample primeCount draw (codec) id program G).trans decodedAt
   obtain ⟨other,otherAt,column,opened,wrong⟩ := different

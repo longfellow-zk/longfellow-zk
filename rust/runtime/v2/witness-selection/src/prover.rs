@@ -110,7 +110,7 @@ where
             .map_err(|e| e.to_string())?;
     let coefficients = param.challenges(&root, &mut backend.transcript());
     let responses = param.fields.responses(&witnesses, &coefficients);
-    param.bind_responses(&responses, &mut backend.transcript());
+    param.absorb_responses(&responses, &mut backend.transcript());
     Ok((
         Prover {
             backend,

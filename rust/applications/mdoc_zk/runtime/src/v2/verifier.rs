@@ -140,9 +140,7 @@ pub fn run_mdoc_verifier_inner(
     let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    super::transcript::bind_public_inputs(&mut tp.borrow(), &app_public);
-    verifier_hash.bind(&mut tp.borrow());
-    verifier_sig.bind(&mut tp.borrow());
+    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
     let mut joint = param.receive(root, fingerprints.clone(), tp);
     let mut tp = joint.transcript();
     let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);

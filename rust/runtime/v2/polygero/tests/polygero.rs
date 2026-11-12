@@ -704,3 +704,49 @@ fn linear<E: Clone>(a: &[PolygeroLinearTerm<E>], b: &[E], digest: Digest) -> Lin
 }
 #[path = "reference.rs"]
 mod reference;
+
+#[test]
+fn standalone_statement_owns_its_source_digest() {
+    use crate::runtime::algebra::{
+        gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
+    };
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let config = PolygeroConfig {
+        k: 8,
+        s: 2,
+        n: 64,
+        t: 2,
+    };
+    let p = PolygeroParam::try_new(1, config, &domain).unwrap();
+    let param =
+        JointPolygeroParam::new((joint::Participant::new(p, &domain).unwrap(), ())).unwrap();
+    let statement = LinearStatement::new(
+        vec![PolygeroLinearTerm {
+            c: 0,
+            w: 0,
+            k: f.one(),
+        }],
+        vec![f.one()],
+        &f,
+    );
+    let altered = LinearStatement::new(statement.terms().to_vec(), vec![f.zero()], &f);
+    assert_ne!(statement.digest(), altered.digest());
+    let seed = b"static-linear-source";
+    let (prover, root) = JointPolygeroProver::commit(
+        &param,
+        (vec![f.one()], ()),
+        Transcript::new(seed),
+        &mut DeterministicRng::new(42),
+    )
+    .unwrap();
+    let (proof, _) = prover.prove(&param, &(statement.clone(), ())).unwrap();
+    JointPolygeroVerifier::new(param.clone(), &root, Transcript::new(seed))
+        .reduce(&proof, &(statement, ()))
+        .unwrap();
+    assert!(
+        JointPolygeroVerifier::new(param, &root, Transcript::new(seed))
+            .reduce(&proof, &(altered, ()))
+            .is_err()
+    );
+}

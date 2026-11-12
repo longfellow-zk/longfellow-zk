@@ -12,25 +12,25 @@ use crate::{
     },
 };
 
-pub(super) fn bind_prime(t: &mut TranscriptRef<'_>, circuit_id: &[u8; 32], shared: usize) {
-    t.bind(|w| {
+pub(super) fn absorb_prime(t: &mut TranscriptRef<'_>, circuit_id: &[u8; 32], shared: usize) {
+    t.absorb(|w| {
         w.write_bytes(b"native-shared-prefix/joint/v1");
         w.write_bytes(circuit_id);
     });
-    t.bind(|w| w.write_bytes(&(shared as u64).to_le_bytes()));
+    t.absorb(|w| w.write_bytes(&(shared as u64).to_le_bytes()));
 }
 
-pub(super) fn bind_binary(
+pub(super) fn absorb_binary(
     t: &mut TranscriptRef<'_>,
     template_id: &[u8; 32],
     logw_layers: &[usize],
 ) {
-    t.bind(|w| {
+    t.absorb(|w| {
         w.write_bytes(b"mdoc/adapter/shared-binary/v1");
         w.write_bytes(template_id);
     });
     for &width in logw_layers {
-        t.bind(|w| w.write_bytes(&(width as u64).to_le_bytes()));
+        t.absorb(|w| w.write_bytes(&(width as u64).to_le_bytes()));
     }
 }
 
@@ -59,12 +59,12 @@ pub(crate) fn weights(
     }
     let mut weights: Vec<_> = a[..SHARED_BITS].iter().map(|a| p.mulf(eta, a)).collect();
     weights.push(p.one());
-    t.bind(|w| {
+    t.absorb(|w| {
         // The weights are determined by the preceding messages and challenges.
         // Only mu is a new prover message; bind it before conversion challenges.
         w.write_bytes(b"native-shared-prefix/masked-opening/v2");
     });
-    t.bind(|w| w.write_elt_field(mu, p));
+    t.absorb(|w| w.write_elt_field(mu, p));
     Ok(weights)
 }
 pub(crate) fn alphas(t: &mut TranscriptRef<'_>, p: &P256Field) -> [P256Element; 2] {
@@ -90,7 +90,7 @@ pub(crate) fn public(
     t: &mut TranscriptRef<'_>,
 ) -> Result<Vec<Gf2_128>, String> {
     plan.validate_advice(masked)?;
-    t.bind(|w| {
+    t.absorb(|w| {
         w.write_bytes(b"p256-adapter/masked-quotient-bits/v1");
         w.write_bytes(masked);
     });

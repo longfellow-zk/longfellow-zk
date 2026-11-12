@@ -25,8 +25,9 @@
 //! rows, `joint` coordinates tuples, and `transcript` owns message framing and
 //! challenge rounds. V2 Merkle owns the column authentication codecs and tree.
 //! Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
-//! The caller supplies source-statement digests and derives A*w+b=0 locally;
-//! the digests must bind the statements independently of their sparse arrays.
+//! Standalone callers construct immutable static statements with `LinearStatement::new`,
+//! which hashes all coefficients and targets. Internal frontends derive A*w+b=0
+//! from their previously absorbed source messages and challenges.
 //! Parameter catalogs bound each field separately. With shared queries, use //! the sum of the
 //! per-field failure bounds, without assuming independence. The former single-field API and PLG9
 //! format have been removed.

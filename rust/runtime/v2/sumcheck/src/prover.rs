@@ -111,7 +111,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
     assert_eq!(layers.len(), circuits.len());
     assert_eq!(witnesses.len(), schedule.layers.len());
     let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
-    schedule.bind(circuits, t);
+    schedule.absorb(circuits, t);
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     let mut claim = f.zero();

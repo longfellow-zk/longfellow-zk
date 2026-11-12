@@ -71,7 +71,7 @@ pub(crate) fn derive_constraints_for_circuits<
         .iter()
         .map(|c| classify_constants(f, &c.raw().constants))
         .collect();
-    schedule.bind(circuits, t);
+    schedule.absorb(circuits, t);
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     let mut challenges = Vec::with_capacity(proof.layers.len());

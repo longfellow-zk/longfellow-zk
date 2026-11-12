@@ -146,7 +146,7 @@ theorem accepted_original_ratio_le :
   obtain ⟨_,_,checks⟩ := (StrandVerifier.verify_true_iff binary prime P R (W) (Earlier) bodyCodec
     sample hashPublic decodePublic draw codec (G ∘ encode) merkleInput (program.run (G ∘ encode)).1).mp
       accepted.1
-  exact checks.2.2.2.2
+  exact checks.2.2.2.2.1
 
 variable (params : ConcreteMetadata.Public binary prime shape)
 local notation "concrete" => ConcreteMetadata.metadata (Advice := Advice) (C := C) binary prime shape params setup

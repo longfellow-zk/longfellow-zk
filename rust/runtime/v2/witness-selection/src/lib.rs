@@ -100,7 +100,7 @@ pub trait Fields: sealed::Sealed + Clone {
     fn count(&self) -> usize;
     fn bind_layout(&self, w: &mut Writing<'_>);
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;
-    fn bind_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>);
+    fn absorb_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>);
     fn authenticate(
         &self,
         statements: Statements<Self>,
@@ -118,7 +118,7 @@ impl Fields for () {
     }
     fn bind_layout(&self, _: &mut Writing<'_>) {}
     fn coefficients(&self, _: &mut Reading<'_>) {}
-    fn bind_responses(&self, _: &(), _: &mut Writing<'_>) {}
+    fn absorb_responses(&self, _: &(), _: &mut Writing<'_>) {}
     fn authenticate(&self, _: (), _: (), _: &()) -> Result<(), String> {
         Ok(())
     }
@@ -141,7 +141,7 @@ impl<
         1 + self.1.count()
     }
     fn bind_layout(&self, w: &mut Writing<'_>) {
-        transcript::bind_field_layout(&self.0, w);
+        transcript::absorb_field_layout(&self.0, w);
         self.1.bind_layout(w);
     }
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients {
@@ -150,9 +150,9 @@ impl<
             self.1.coefficients(r),
         )
     }
-    fn bind_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>) {
-        transcript::bind_field_responses(&self.0, &responses.0, w);
-        self.1.bind_responses(&responses.1, w);
+    fn absorb_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>) {
+        transcript::absorb_field_responses(&self.0, &responses.0, w);
+        self.1.absorb_responses(&responses.1, w);
     }
     fn authenticate(
         &self,

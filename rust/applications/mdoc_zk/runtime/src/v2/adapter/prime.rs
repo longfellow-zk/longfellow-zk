@@ -70,18 +70,16 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
         self.geometry.clone()
     }
     pub fn participant<'a, D: EvaluationDomain<W, F>>(
-        &self,
+        &'a self,
         ctx: &ZkContext<'a, W, F, D>,
-    ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::new(
+    ) -> Result<SelectedField<'a, W, F, D, &'a Self>, String> {
+        Ok(SelectedField::new(
             self.cells,
             self.config,
             ctx.domain,
             ctx.field().packing_id(),
-        )
-    }
-    pub fn bind(&self, t: &mut TranscriptRef<'_>) {
-        super::transcript::bind_prime(t, &self.id, self.shared);
+        )?
+        .with_layout(self))
     }
     /// Authenticate eta*other - R + eta*pads + mu - eta*target = 0 in the prime field.
     /// The adapter authenticates mu = eta*shared + R against the binary bits.
@@ -132,3 +130,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
 
 cfg_prover! { #[path="prime_prover.rs"] mod prover; }
 cfg_verifier! { #[path="prime_verifier.rs"] mod verifier; }
+
+impl<const W: usize, F: ZkField<W> + PackingField> crate::runtime::v2::zk::joint::AbsorbLayout
+    for SharedParticipant<W, F>
+{
+    fn absorb_layout(&self, t: &mut TranscriptRef<'_>) {
+        super::transcript::absorb_prime(t, &self.id, self.shared);
+    }
+}

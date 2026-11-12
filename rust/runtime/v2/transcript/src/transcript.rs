@@ -61,7 +61,7 @@ impl Transcript {
             strand: Strand::new(),
             _round_count: Default::default(),
         };
-        t.bind(|w| {
+        t.absorb(|w| {
             w.write_bytes(b"longfellow/transcript/v2/strands/v1");
             w.write_bytes(context);
         });
@@ -72,8 +72,8 @@ impl Transcript {
     }
     /// Bind setup or terminal messages without sampling. The borrowed writer
     /// cannot be consumed to begin_squeeze; only round grants that capability.
-    pub(crate) fn bind<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
-        self.borrow().bind(f)
+    pub(crate) fn absorb<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
+        self.borrow().absorb(f)
     }
     /// The higher-ranked closure must close the exact round it was given.
     /// Dropping or forgetting its capability cannot manufacture a RoundEnd.
@@ -86,7 +86,7 @@ impl Transcript {
         self.borrow().round(label, f)
     }
     pub(super) fn compute_final_seal(mut self, body: &[u8]) -> [u8; 32] {
-        self.bind(|w| {
+        self.absorb(|w| {
             w.write_bytes(b"longfellow/transcript/v2/final");
             w.write_bytes(body);
         });
@@ -94,7 +94,7 @@ impl Transcript {
     }
 }
 impl TranscriptRef<'_> {
-    pub(crate) fn bind<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
+    pub(crate) fn absorb<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
         f(&mut Writing {
             session: self.session,
             #[cfg(any(test, feature = "prover", feature = "verifier"))]

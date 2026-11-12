@@ -138,11 +138,11 @@ pub(super) fn prove_core<
     crate::runtime::v2::sumcheck::symbolic::Constraints<F::E>,
 ) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
-    t.bind(|w| {
+    t.absorb(|w| {
         w.write_bytes(b"layered-sumcheck/circuits/v1");
         w.write_bytes(&1u64.to_le_bytes());
     });
-    t.bind(|w| {
+    t.absorb(|w| {
         w.write_bytes(&circuit.id);
         w.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
     });

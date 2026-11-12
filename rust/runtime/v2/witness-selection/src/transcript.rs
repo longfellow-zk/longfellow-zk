@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-pub(super) fn bind_field_layout<
+pub(super) fn absorb_field_layout<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D,
@@ -42,7 +42,7 @@ pub(super) fn field_coefficients<
     std::array::from_fn(|_| r.elt_field_slice(field.cells, field.f))
 }
 
-pub(super) fn bind_field_responses<
+pub(super) fn absorb_field_responses<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D,
@@ -72,10 +72,10 @@ impl<L: Fields> Param<L> {
         })
     }
 
-    pub(super) fn bind_responses(&self, responses: &L::Responses, t: &mut TranscriptRef<'_>) {
-        t.bind(|w| {
+    pub(super) fn absorb_responses(&self, responses: &L::Responses, t: &mut TranscriptRef<'_>) {
+        t.absorb(|w| {
             w.write_bytes(b"longfellow/witness-selection/responses/v1");
-            self.fields.bind_responses(responses, w);
+            self.fields.absorb_responses(responses, w);
         });
     }
 }

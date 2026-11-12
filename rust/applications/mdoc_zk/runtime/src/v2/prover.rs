@@ -178,9 +178,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         ),
     ))
     .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    super::transcript::bind_public_inputs(&mut tp.borrow(), &app_public);
-    prover_hash.bind(&mut tp.borrow());
-    prover_sig.bind(&mut tp.borrow());
+    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
     let (state_hash, w_hash) = prover_hash
         .prepare(&witness_hash, rng)
         .map_err(|_| MdocProverErrorCode::GeneralFailure)?;

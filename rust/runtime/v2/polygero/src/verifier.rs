@@ -136,6 +136,10 @@ pub(super) fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: Evaluatio
 ) -> Result<(), PolygeroError> {
     let g = param.geom;
     let z = interpolate_range(g.k, response, 0..g.k + g.n, domain);
+    ensure(
+        blas::equal0(&z[..g.t], f),
+        "Polygero arithmetic mask prefix is not zero",
+    )?;
     let sum = f.addf(&blas::dot1(&z[g.t..g.k], f), tau);
     ensure(f.is_zero(&sum), "Polygero global arithmetic sum failed")?;
     let actual = blas::gather(indices, &z[g.k..]);

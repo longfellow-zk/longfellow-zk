@@ -153,6 +153,7 @@ pub(super) fn check<
     let commitment = PolygeroCommitment {
         root: prover.oracle.root(),
     };
+    let original = ts.fork_for_test();
     let mut verifier = JointPolygeroVerifier::new(joint.clone(), &commitment, ts);
     let mut ts = verifier.transcript().fork_for_test();
     let g = p.geom;
@@ -236,31 +237,39 @@ pub(super) fn check<
     }
     // Reopen genuine columns after changing the response: authentication must
     // succeed, leaving the global logical sum as the reason for rejection.
-    let h = proof.h.clone();
-    let mut z = proof.z.clone();
-    let mut changes = vec![f.zero(); g.k];
-    changes[g.t] = f.one();
-    let delta = interpolate(&omega, &changes, f);
-    for (sample, i) in z.iter_mut().zip(p.oracle_prefix(2 * g.k)) {
-        f.add(sample, &eval(&delta, &domain.point(i), f));
+    for (logical, expected) in [
+        (0, "Polygero arithmetic mask prefix is not zero"),
+        (g.t, "Polygero global arithmetic sum failed"),
+    ] {
+        let h = proof.h.clone();
+        let mut z = proof.z.clone();
+        let mut changes = vec![f.zero(); g.k];
+        changes[logical] = f.one();
+        let delta = interpolate(&omega, &changes, f);
+        for (sample, i) in z.iter_mut().zip(p.oracle_prefix(2 * g.k)) {
+            f.add(sample, &eval(&delta, &domain.point(i), f));
+        }
+        let mut bodies = (
+            FieldProof {
+                h,
+                z,
+                rows: Vec::new(),
+            },
+            (),
+        );
+        let mut opening_transcript = ts.fork_for_test();
+        let indices = joint.queries(&bodies, &mut opening_transcript.borrow());
+        joint
+            .participants
+            .gather(&prover.states, &mut bodies, &indices);
+        let forged = JointPolygeroProof {
+            context: joint.context,
+            bodies,
+            opening: prover.oracle.open(&indices),
+        };
+        let verifier =
+            JointPolygeroVerifier::new(joint.clone(), &commitment, original.fork_for_test());
+        let error = verifier.reduce(&forged, &statements).err().unwrap();
+        assert_eq!(error.0, expected);
     }
-    let mut bodies = (
-        FieldProof {
-            h,
-            z,
-            rows: Vec::new(),
-        },
-        (),
-    );
-    let indices = joint.queries(&bodies, &mut ts.borrow());
-    joint
-        .participants
-        .gather(&prover.states, &mut bodies, &indices);
-    let forged = JointPolygeroProof {
-        context: joint.context,
-        bodies,
-        opening: prover.oracle.open(&indices),
-    };
-    let error = verifier.reduce(&forged, &statements).err().unwrap();
-    assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }

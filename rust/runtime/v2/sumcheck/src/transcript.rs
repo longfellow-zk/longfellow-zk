@@ -61,7 +61,7 @@ impl TranscriptSumcheck for TranscriptRef<'_> {
             circuit.raw.npublic_input,
             public_inputs.len()
         );
-        self.bind(|w| {
+        self.absorb(|w| {
             w.write_bytes(&circuit.id);
             // The circuit ID binds the number of individually encoded public inputs.
             for input in public_inputs {
@@ -137,17 +137,17 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
 }
 
 impl super::fragments::Schedule {
-    pub(super) fn bind<F: SerializableField>(
+    pub(super) fn absorb<F: SerializableField>(
         &self,
         circuits: &[impl CircuitSource<F>],
         t: &mut TranscriptRef<'_>,
     ) {
-        t.bind(|w| {
+        t.absorb(|w| {
             w.write_bytes(b"layered-sumcheck/circuits/v1");
             w.write_bytes(&(circuits.len() as u64).to_le_bytes());
         });
         for c in circuits {
-            t.bind(|w| {
+            t.absorb(|w| {
                 match c.source_id() {
                     Some(id) => w.write_bytes(id),
                     None => w.write_bytes(b"layered-sumcheck/derived-circuit/v1"),

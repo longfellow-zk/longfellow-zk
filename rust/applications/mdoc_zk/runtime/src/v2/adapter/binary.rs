@@ -88,14 +88,17 @@ impl BinaryParticipant {
         self.geometry.clone()
     }
     pub fn participant<'a, D: EvaluationDomain<2, F>>(
-        &self,
+        &'a self,
         ctx: &ZkContext<'a, 2, F, D>,
-    ) -> Result<SelectedField<'a, 2, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), ctx.domain, ctx.field().packing_id())
-    }
-    pub fn bind(&self, t: &mut TranscriptRef<'_>) {
-        self.backend.bind(t, &self.id);
-        super::transcript::bind_binary(t, &self.template_id, &self.geometry.sc_geom.logw_layers);
+    ) -> Result<SelectedField<'a, 2, F, D, &'a Self>, String> {
+        Ok(
+            SelectedField::from_parameter(
+                self.param.clone(),
+                ctx.domain,
+                ctx.field().packing_id(),
+            )?
+            .with_layout(self),
+        )
     }
     fn circuit(
         &self,
@@ -126,3 +129,10 @@ impl BinaryParticipant {
 }
 cfg_prover! {#[path="binary_prover.rs"]mod prover;}
 cfg_verifier! {#[path="binary_verifier.rs"]mod verifier;}
+
+impl crate::runtime::v2::zk::joint::AbsorbLayout for BinaryParticipant {
+    fn absorb_layout(&self, t: &mut TranscriptRef<'_>) {
+        self.backend.absorb(t, &self.id);
+        super::transcript::absorb_binary(t, &self.template_id, &self.geometry.sc_geom.logw_layers);
+    }
+}

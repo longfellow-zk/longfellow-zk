@@ -207,8 +207,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         let param =
             crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ()))
                 .unwrap();
-        let mut t = Transcript::new(b"fragmented-pcs-test");
-        p.bind(&mut t.borrow());
+        let t = Transcript::new(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
         let (proof, statement) = p
             .prove_circuits(
@@ -223,8 +222,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             .unwrap();
         let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
-            let mut t = Transcript::new(b"fragmented-pcs-test");
-            p.bind(&mut t.borrow());
+            let t = Transcript::new(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
             let statement = p.reduce_circuits(
                 &main,
@@ -296,8 +294,7 @@ fn prime_circuits_keep_degree_one_packing_direct() {
     );
     let param =
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
-    let mut t = Transcript::new(b"prime-fragmented-pcs-test");
-    p.bind(&mut t.borrow());
+    let t = Transcript::new(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = p
         .prove_circuits(
@@ -315,8 +312,7 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         crate::runtime::v2::proto::dual_packing::PackingProof::Direct
     ));
     let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
-    let mut t = Transcript::new(b"prime-fragmented-pcs-test");
-    p.bind(&mut t.borrow());
+    let t = Transcript::new(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = p
         .reduce_circuits(&main, &public, &proof, &others, &mut v.transcript(), &ctx)

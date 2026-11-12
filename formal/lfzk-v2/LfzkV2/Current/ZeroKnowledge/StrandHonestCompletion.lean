@@ -82,9 +82,21 @@ theorem respondHonest_accepts
       (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv (honestOracle binary prime binaryNodes primeNodes repr shape setup configuration cells tape)) := by
     rw [← honest_columns binary prime binaryNodes primeNodes repr shape setup configuration cells tape]
     exact committed
+  have prefixZero : BackendPrefix.Zero (ConcreteSetup.backend binaryNodes binary.cells).participant response.1 ∧
+      BackendPrefix.Zero (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)).participant response.2 := by
+    rw [responseEq]
+    constructor
+    · intro i
+      exact BackendPrefix.payload_random (Backend.profileGeometry binaryNodes)
+        (Backend.profileGeometry binaryNodes).positive data.2.statement.1
+        coin.1 (Backend.messages cells.1) tape.1 i
+    · intro i
+      exact BackendPrefix.payload_random (Backend.profileGeometry primeNodes)
+        (Backend.profileGeometry primeNodes).positive data.2.statement.2
+        coin.2 (Backend.messages cells.2) tape.2 i
   have accepted := finish_accepts binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
     roundSampler primeCount draw request frontend response indices nonces
-    (honestOracle binary prime binaryNodes primeNodes repr shape setup configuration cells tape) SHA data parsed backendResponse selected rootEq
+    (honestOracle binary prime binaryNodes primeNodes repr shape setup configuration cells tape) SHA data parsed backendResponse selected prefixZero rootEq
   rw [← honest_columns binary prime binaryNodes primeNodes repr shape setup configuration cells tape] at accepted
   simpa only [Equiv.symm_apply_apply] using accepted
 
