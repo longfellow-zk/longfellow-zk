@@ -21,8 +21,8 @@ use crate::{
         proto::{
             archive::{CircuitArchive, CircuitArchiveBuilder},
             v2::{
-                compute_id, Circuit, CircuitReader, CircuitWriter, Layer, Quadratic, RawCircuit,
-                Stream,
+                compute_id, Circuit, CircuitReader, CircuitWriter, Layer, Quadratic,
+                RawCircuitBuilder, Stream,
             },
             FieldID,
         },
@@ -31,7 +31,7 @@ use crate::{
 };
 
 fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 1,
         npublic_input: 1,
         noutput: 1,
@@ -49,11 +49,9 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
             Stream::default(),
             |_| false,
         )],
-    };
-    Circuit {
-        id: compute_id(f, &raw),
-        raw,
     }
+    .build();
+    Circuit::new(compute_id(f, &raw), raw)
 }
 fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
     let sig = tiny(p);
@@ -83,12 +81,14 @@ fn circuit_identifier_enforcement_is_opt_in() {
     let mut archive = fixture(&p, &f);
     decompress_circuits(&compressed(&archive), &p, &f, true).unwrap();
     let original = archive.combined_id;
-    let (mut circuit, _) = CircuitReader::new(&p, FieldID::P256)
+    let (circuit, _) = CircuitReader::new(&p, FieldID::P256)
         .from_bytes(&archive.entries[0].payload, true)
         .unwrap();
-    circuit.raw.constants[0] = p.zero();
     let stale_id = circuit.id;
-    circuit.id = compute_id(&p, &circuit.raw);
+    let mut raw = circuit.into_raw().into_builder();
+    raw.constants[0] = p.zero();
+    let raw = raw.build();
+    let circuit = Circuit::new(compute_id(&p, &raw), raw);
     let mut payload = CircuitWriter::new(&p, FieldID::P256).to_bytes(&circuit);
     let id_offset = payload.len() - stale_id.len();
     payload[id_offset..].copy_from_slice(&stale_id);

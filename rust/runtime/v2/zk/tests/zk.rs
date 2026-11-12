@@ -221,8 +221,10 @@ pub(crate) fn exercise<
     {
         // The same witness/layout has the same commitment under a different
         // trusted circuit ID. Sumcheck still binds the ID and prevents replay.
-        let mut other_circuit = circuit(f);
-        other_circuit.id[0] ^= 1;
+        let other_circuit = circuit(f);
+        let mut id = other_circuit.id;
+        id[0] ^= 1;
+        let other_circuit = crate::core::proto::v2::Circuit::new(id, other_circuit.into_raw());
         let other_prover = ZkProver::new(other_circuit, config);
         let other_ts = Transcript::new(b"longfellow/v2/test");
         let (committed, _) = other_prover
@@ -234,8 +236,10 @@ pub(crate) fn exercise<
         assert_eq!(other_proof.com, proof.com);
         assert!(verify(public.clone(), &other_proof).is_err());
 
-        let mut other_circuit = circuit(f);
-        other_circuit.id[0] ^= 1;
+        let other_circuit = circuit(f);
+        let mut id = other_circuit.id;
+        id[0] ^= 1;
+        let other_circuit = crate::core::proto::v2::Circuit::new(id, other_circuit.into_raw());
         let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
         let other_ts = Transcript::new(b"longfellow/v2/test");
         other_verifier

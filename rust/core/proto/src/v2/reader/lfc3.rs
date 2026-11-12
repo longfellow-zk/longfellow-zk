@@ -11,7 +11,7 @@ use crate::{
             directory::{self, LayerDirectory, StreamDirectory, REVISION},
             limits::*,
             uleb::read_size,
-            Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Segments, Stream,
+            Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Segments, Stream,
         },
         SerializableField,
     },
@@ -320,14 +320,15 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
             |k| classes[k as usize] == v2::CoefficientClass::Zero,
         ));
     }
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput,
         npublic_input,
         noutput,
         logv: ceil_log2(noutput),
         constants,
         layers,
-    };
+    }
+    .build();
     let mut id = [0; 32];
     input
         .read_exact(&mut id)
@@ -335,5 +336,5 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     if enforce_id && v2::compute_id(f, &raw) != id {
         return Err("LFC3 circuit ID verification failed".into());
     }
-    Ok(Circuit { raw, id })
+    Ok(Circuit::new(id, raw))
 }

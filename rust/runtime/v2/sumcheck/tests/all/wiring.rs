@@ -243,19 +243,20 @@ fn check_output_sampling<
 >(
     f: &F,
 ) {
-    use crate::core::proto::v2::{Circuit, RawCircuit};
+    use crate::core::proto::v2::{Circuit, RawCircuitBuilder};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
-        let circuit = Circuit {
-            id: [0; 32],
-            raw: RawCircuit {
+        let circuit = Circuit::new(
+            [0; 32],
+            RawCircuitBuilder {
                 ninput: noutput,
                 npublic_input: 0,
                 noutput,
                 logv,
                 constants: vec![],
                 layers: vec![],
-            },
-        };
+            }
+            .build(),
+        );
         let mut actual = Transcript::new(b"v2-output-challenges");
         let schedule = crate::runtime::v2::sumcheck::fragments::Schedule::new(&[&circuit]).unwrap();
         let mut weights = Vec::new();

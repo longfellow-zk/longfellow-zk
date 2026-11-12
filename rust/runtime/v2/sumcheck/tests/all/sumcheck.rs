@@ -306,9 +306,10 @@ fn test_sumcheck_core_single_hand_permutations() {
     let mut expected = None;
     let mut ids = Vec::new();
     for layout in 0..4 {
-        let (mut circuit, _) = reader.from_bytes(&bytes, true).unwrap();
-        let classes = crate::core::proto::v2::classify_constants(&f, &circuit.raw.constants);
-        for layer in &mut circuit.raw.layers {
+        let (circuit, _) = reader.from_bytes(&bytes, true).unwrap();
+        let mut raw = circuit.into_raw().into_builder();
+        let classes = crate::core::proto::v2::classify_constants(&f, &raw.constants);
+        for layer in &mut raw.layers {
             fn reorder<T: std::fmt::Debug>(terms: &mut [T], layout: usize) {
                 match layout {
                     0 => (),
@@ -342,7 +343,8 @@ fn test_sumcheck_core_single_hand_permutations() {
                 |k| classes[k as usize] == crate::core::proto::v2::CoefficientClass::Zero,
             );
         }
-        circuit.id = compute_id(&f, &circuit.raw);
+        let raw = raw.build();
+        let mut circuit = Circuit::new(compute_id(&f, &raw), raw);
         ids.push(circuit.id);
         let segmented = crate::compile::compiler::segment_circuit_v2(&f, &circuit);
         let encoded = writer.to_bytes(&segmented);
@@ -355,7 +357,7 @@ fn test_sumcheck_core_single_hand_permutations() {
         let pad = zero_proof(&circuit, &f);
         // Hold the trusted identity fixed only for this arithmetic-layout comparison.
         // Layered sumcheck binds each actual circuit ID before sampling.
-        circuit.id = [42; 32];
+        let circuit = Circuit::new([42; 32], circuit.into_raw());
         let mut pt = Transcript::new(b"fixed-layout-comparison");
         let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt.borrow(), &f);
         let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");

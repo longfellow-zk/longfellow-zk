@@ -84,18 +84,19 @@ pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: &Circuit<F>) -> Circui
             d.k = mapping[d.k as usize];
         }
     }
-    let raw = crate::core::proto::v2::RawCircuit {
+    let raw = crate::core::proto::v2::RawCircuitBuilder {
         ninput: c.raw.ninput,
         npublic_input: c.raw.npublic_input,
         noutput: c.raw.noutput,
         logv: c.raw.logv,
         constants,
         layers,
-    };
+    }
+    .build();
     assert_eq!(
         compute_id(f, &raw),
         c.id,
         "Circuit ID changed during compression!"
     );
-    Circuit { raw, id: c.id }
+    Circuit::new(c.id, raw)
 }

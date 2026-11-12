@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Test fixtures for tests that share hand-written quadratic tensors with v1.
-use super::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Stream};
+use super::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream};
 use crate::core::algebra::{AlgebraicField, SerializableField};
 
 pub(crate) fn quadratic_fixture<F: SerializableField + AlgebraicField>(
@@ -46,18 +46,16 @@ pub(crate) fn quadratic_fixture<F: SerializableField + AlgebraicField>(
             )
         })
         .collect();
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: c.raw.ninput,
         npublic_input: c.raw.npublic_input,
         noutput: c.raw.noutput,
         logv: c.raw.logv,
         constants,
         layers,
-    };
-    Circuit {
-        id: super::compute_id(f, &raw),
-        raw,
     }
+    .build();
+    Circuit::new(super::compute_id(f, &raw), raw)
 }
 pub(crate) fn quadratic_layer_fixture<F: SerializableField + AlgebraicField>(
     l: crate::core::proto::v1::Layer<F>,

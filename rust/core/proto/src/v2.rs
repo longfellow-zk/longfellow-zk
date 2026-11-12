@@ -22,18 +22,8 @@ pub use encoding::compute_id;
 #[cfg(test)]
 pub(crate) use fixtures::{quadratic_fixture, quadratic_layer_fixture};
 
-pub struct Circuit<F: SerializableField> {
-    pub raw: RawCircuit<F>,
-    pub id: super::DigestBytes,
-}
-pub struct RawCircuit<F: SerializableField> {
-    pub ninput: usize,
-    pub npublic_input: usize,
-    pub noutput: usize,
-    pub logv: usize,
-    pub constants: Vec<F::E>,
-    pub layers: Vec<Layer>,
-}
+mod circuit;
+pub use circuit::{Circuit, CircuitParts, RawCircuit, RawCircuitBuilder};
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
 pub struct Quadratic {

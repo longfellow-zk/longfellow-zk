@@ -400,17 +400,18 @@ pub(super) fn schedule<F: CompileField>(
     .into_iter()
     .rev()
     .collect();
-    let raw = crate::core::proto::v2::RawCircuit {
+    let raw = crate::core::proto::v2::RawCircuitBuilder {
         ninput: graph.info.ninput,
         npublic_input: graph.info.npublic_input,
         noutput: graph.info.noutput,
         logv: ceil_log2(graph.info.noutput),
         constants: graph.constants,
         layers,
-    };
+    }
+    .build();
     let id = crate::core::proto::v2::compute_id(f, &raw);
     (
-        crate::core::proto::v2::Circuit { raw, id },
+        crate::core::proto::v2::Circuit::new(id, raw),
         graph.info,
         graph.symbols,
     )

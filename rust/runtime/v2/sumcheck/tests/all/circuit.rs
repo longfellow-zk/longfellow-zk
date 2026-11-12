@@ -6,7 +6,7 @@ use crate::{
         proto::{
             v2::{
                 compute_id, Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear,
-                Quadratic, RawCircuit, Stream,
+                Quadratic, RawCircuitBuilder, Stream,
             },
             FieldID,
         },
@@ -53,18 +53,16 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         ]),
         Stream::<Constant>::from_terms([Constant { g: 0, k: 4 }]),
     );
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 3,
         npublic_input: 1,
         noutput: 1,
         logv: 0,
         constants: vec![f.zero(), f.one(), f.mone(), k, constant],
         layers: vec![layer],
-    };
-    let circuit = Circuit {
-        id: compute_id(f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let circuit = Circuit::new(compute_id(f, &raw), raw);
     let bytes = CircuitWriter::new(f, FieldID::None).to_bytes(&circuit);
     assert_eq!(&bytes[..4], b"LFC3");
     let (circuit, tail) = CircuitReader::new(f, FieldID::None)
@@ -191,7 +189,7 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
     use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
     let f = P256Field::new();
 
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 1,
         npublic_input: 0,
         noutput: 1,
@@ -203,11 +201,9 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
             Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }]),
             Stream::<Constant>::from_terms([Constant { g: 0, k: 3 }]),
         )],
-    };
-    let c = Circuit {
-        id: compute_id(&f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let c = Circuit::new(compute_id(&f, &raw), raw);
     let inputs = vec![f.neg(&f.u64_to_element(9))];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(38);

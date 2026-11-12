@@ -116,7 +116,7 @@ fn zero_term_limit_still_enforces_metadata_limits() {
 #[test]
 fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
     let f = Gf2_128Field::new();
-    let raw = v2::RawCircuit {
+    let raw = v2::RawCircuitBuilder {
         ninput: 1,
         npublic_input: 0,
         noutput: 1,
@@ -133,11 +133,9 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
             v2::Stream::default(),
             |_| false,
         )],
-    };
-    let c = v2::Circuit {
-        id: v2::compute_id(&f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let c = v2::Circuit::new(v2::compute_id(&f, &raw), raw);
     let writer = v2::CircuitWriter::new(&f, FieldID::Gf2_128);
     let encoded = writer.to_bytes(&c);
     let reader = CircuitReader::new(&f, FieldID::Gf2_128).with_total_term_limit(0);

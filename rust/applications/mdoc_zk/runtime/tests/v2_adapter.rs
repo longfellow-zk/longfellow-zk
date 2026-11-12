@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SupportsU64Conversions},
-        proto::v2::{self, Circuit, Layer, Linear, RawCircuit, Stream},
+        proto::v2::{self, Circuit, Layer, Linear, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
@@ -75,7 +75,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
     let ctx = ZkContext::new(&domain);
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 3,
         npublic_input: 1,
         noutput: 1,
@@ -88,11 +88,9 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
             Stream::default(),
             |_| true,
         )],
-    };
-    let c = Circuit {
-        id: v2::compute_id(&f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let c = Circuit::new(v2::compute_id(&f, &raw), raw);
     let part = SharedParticipant::new(
         &c,
         1,

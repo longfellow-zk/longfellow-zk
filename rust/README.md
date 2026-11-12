@@ -384,6 +384,15 @@ Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. The top-level dependency checker enforces these boundaries,
 including code behind inactive feature gates.
 
+V2 runtime circuits are read-only at the type level, including generated
+adapter instances. `RawCircuitBuilder` owns mutable construction data;
+`build()` transfers it into a `RawCircuit` without allocating or scanning.
+Finalized `Circuit` and `RawCircuit` expose only immutable field access, so
+their constants, gate streams, cached assertion counts, and identity cannot
+be mutated. Editing requires consuming the circuit back into a builder and
+constructing a new circuit. Trusted constructors remain responsible for
+consistent metadata; proving and verification add no validation work.
+
 ### Source layout
 
 This is one Cargo crate, `longfellow-zk`. The directories organize modules;

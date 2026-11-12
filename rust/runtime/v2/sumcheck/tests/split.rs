@@ -304,7 +304,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         + crate::runtime::algebra::SupportsSampling {
     use crate::{
         core::proto::{
-            v2::{compute_id, Circuit, CircuitWriter, RawCircuit},
+            v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
             FieldID,
         },
         runtime::{
@@ -331,7 +331,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
     f.fma(&mut value, &kl, &y);
     f.add(&mut value, &x);
     f.sub(&mut value, &y);
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 3,
         npublic_input: 1,
         noutput: 2,
@@ -381,11 +381,9 @@ where F: crate::runtime::algebra::RuntimeField<W>
                 Constant { g: 0, k: minus },
             ]),
         )],
-    };
-    let circuit = Circuit {
-        id: compute_id(f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let circuit = Circuit::new(compute_id(f, &raw), raw);
     let writer = CircuitWriter::new(f, FieldID::None);
     let bytes_before = writer.to_bytes(&circuit);
     let id_before = circuit.id;
@@ -436,11 +434,11 @@ where F: crate::runtime::algebra::RuntimeField<W>
     // Move every distinguished value away from its former reserved slot and
     // include duplicates. Classification depends on values, including zeros
     // used by independent quadratic and linear assertions.
-    let mut reindexed = circuit;
-    reindexed.raw.constants.extend([f.zero(), f.one()]);
-    let count = reindexed.raw.constants.len();
-    reindexed.raw.constants.rotate_left(3);
-    for layer in &mut reindexed.raw.layers {
+    let mut raw = circuit.into_raw().into_builder();
+    raw.constants.extend([f.zero(), f.one()]);
+    let count = raw.constants.len();
+    raw.constants.rotate_left(3);
+    for layer in &mut raw.layers {
         for term in &mut layer.quadratic.deltas {
             term.k = (term.k + count as u32 - 3) % count as u32;
             if term.k == 5 {
@@ -454,7 +452,9 @@ where F: crate::runtime::algebra::RuntimeField<W>
             term.k = (term.k + count as u32 - 3) % count as u32;
         }
     }
-    assert_eq!(compute_id(f, &reindexed.raw), id_before);
+    let raw = raw.build();
+    assert_eq!(compute_id(f, &raw), id_before);
+    let reindexed = Circuit::new(id_before, raw);
     let encoded = writer.to_bytes(&reindexed);
     assert_eq!(&encoded[..4], b"LFC3");
     let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(f, FieldID::None)

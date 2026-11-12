@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
+    core::proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     runtime::{
         algebra::SupportsSampling,
         random::{DeterministicRng, RandomEngine},
@@ -22,18 +22,16 @@ fn check_early_output_weights(short_has_layer: bool) {
     };
     let f = Gf2_128Field::new();
     let make = |layers| {
-        let raw = RawCircuit {
+        let raw = RawCircuitBuilder {
             ninput: 1,
             npublic_input: 0,
             noutput: 1,
             logv: 0,
             constants: vec![f.zero(), f.one()],
             layers,
-        };
-        Circuit {
-            id: v2::compute_id(&f, &raw),
-            raw,
         }
+        .build();
+        Circuit::new(v2::compute_id(&f, &raw), raw)
     };
     let identity = || {
         Layer::with_assertions(
@@ -131,18 +129,16 @@ fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Ci
         )
     };
     let circuit = |layers, noutput| {
-        let raw = RawCircuit {
+        let raw = RawCircuitBuilder {
             ninput: 4,
             npublic_input: 1,
             noutput,
             logv: crate::util::ceil_log2(noutput),
             constants: vec![f.zero(), f.one(), f.mone()],
             layers,
-        };
-        Circuit {
-            id: v2::compute_id(f, &raw),
-            raw,
         }
+        .build();
+        Circuit::new(v2::compute_id(f, &raw), raw)
     };
     let long = circuit(
         vec![
@@ -388,18 +384,16 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             |k| k == 0,
         ));
     }
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 4,
         npublic_input: 1,
         noutput: 3,
         logv: 2,
         constants: all[0].raw.constants.clone(),
         layers: merged_layers,
-    };
-    let merged = Circuit {
-        id: v2::compute_id(f, &raw),
-        raw,
-    };
+    }
+    .build();
+    let merged = Circuit::new(v2::compute_id(f, &raw), raw);
     let splits: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
     let merged_splits = split_layers(&merged, f);
     let mut rng = DeterministicRng::new(913);
@@ -535,9 +529,12 @@ fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
     use crate::{core::algebra::AlgebraicField, runtime::v2::transcript::Transcript};
     let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let first = fixture(&f);
-    let mut second = fixture(&f);
-    second[0].raw.constants.push(f.one());
-    second[0].id[0] ^= 1;
+    let [second0, second1, second2, second3] = fixture(&f);
+    let mut id = second0.id;
+    id[0] ^= 1;
+    let mut raw = second0.into_raw().into_builder();
+    raw.constants.push(f.one());
+    let second = [Circuit::new(id, raw.build()), second1, second2, second3];
     let mut a = Transcript::new(b"derived-schedule");
     let mut b = Transcript::new(b"derived-schedule");
     let schedule = Schedule::new(&[&first[0].raw]).unwrap();

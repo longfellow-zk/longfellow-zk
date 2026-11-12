@@ -3,7 +3,7 @@
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, Stream},
+        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
@@ -150,17 +150,18 @@ fn three_streams<
     assert!(eval_layer(&bad, &linear_split, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));
-    let mut c = Circuit {
-        id: [71; 32],
-        raw: RawCircuit {
+    let c = Circuit::new(
+        [71; 32],
+        RawCircuitBuilder {
             ninput: 3,
             npublic_input: 1,
             noutput: 2,
             logv: 1,
             constants,
             layers: vec![layer],
-        },
-    };
+        }
+        .build(),
+    );
     let mut rng = DeterministicRng::new(1234);
     let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
     let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
@@ -194,7 +195,7 @@ fn three_streams<
                 FieldID,
             },
         };
-        c.id = compute_id(f, &c.raw);
+        let c = Circuit::new(compute_id(f, &c.raw), c.into_raw());
         let compressed = segment_circuit_v2(f, &c);
         assert_eq!(c.id, compressed.id);
         let writer = crate::core::proto::v2::CircuitWriter::new(f, FieldID::None);

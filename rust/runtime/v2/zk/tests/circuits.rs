@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
-        proto::v2::{self, Layer, Linear, Quadratic, RawCircuit, Stream},
+        proto::v2::{self, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{
@@ -107,18 +107,16 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
         )
     };
     let circuit = |layers| {
-        let raw = RawCircuit {
+        let raw = RawCircuitBuilder {
             ninput: 4,
             npublic_input: 1,
             noutput: 1,
             logv: 0,
             constants: vec![f.zero(), f.one(), f.mone()],
             layers,
-        };
-        Circuit {
-            id: v2::compute_id(f, &raw),
-            raw,
         }
+        .build();
+        Circuit::new(v2::compute_id(f, &raw), raw)
     };
     (
         circuit(vec![layer(
@@ -214,8 +212,11 @@ fn binary_circuits_authenticate_one_shared_input() {
         f.add(&mut changed.sumcheck_proof.layers[0].claims[1], &f.one());
         assert!(verify(&changed, true).is_err());
         if count > 0 {
-            let (_, mut wrong) = circuits(&f);
-            wrong.raw.ninput += 1;
+            let (_, wrong) = circuits(&f);
+            let id = wrong.id;
+            let mut raw = wrong.into_raw().into_builder();
+            raw.ninput += 1;
+            let wrong = Circuit::new(id, raw.build());
             let invalid = vec![&wrong; count];
             let mut t = Transcript::new(b"bad-shared-layout");
             let before = t.fork_for_test().bytes(32);
@@ -299,15 +300,16 @@ fn prime_circuits_keep_degree_one_packing_direct() {
 fn malformed_public_prefix_is_an_error_before_sampling() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let raw = RawCircuit {
+    let raw = RawCircuitBuilder {
         ninput: 0,
         npublic_input: 1,
         noutput: 1,
         logv: 0,
         constants: vec![],
         layers: vec![],
-    };
-    let circuit = v2::Circuit { id: [0; 32], raw };
+    }
+    .build();
+    let circuit = v2::Circuit::new([0; 32], raw);
     let prover = crate::runtime::v2::zk::ZkProver::new(
         circuit,
         PolygeroConfig {

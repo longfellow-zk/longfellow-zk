@@ -56,18 +56,16 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
         proto::{v2, v2::CircuitWriter, FieldID},
     };
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    let raw = v2::RawCircuit {
+    let raw = v2::RawCircuitBuilder {
         ninput: 1,
         npublic_input: 1,
         noutput: 1,
         logv: 0,
         constants: vec![crate::runtime::algebra::gf2_128::Gf2_128::from(0)],
         layers: vec![],
-    };
-    let circuit = v2::Circuit {
-        id: v2::compute_id(&field, &raw),
-        raw,
-    };
+    }
+    .build();
+    let circuit = v2::Circuit::new(v2::compute_id(&field, &raw), raw);
     let mut bytes = CircuitWriter::new(&field, FieldID::Gf2_128).to_bytes(&circuit);
     let mut remaining = &bytes[8..];
     for _ in 0..7 {
