@@ -1,3 +1,4 @@
+import LfzkV2.Current.Mdoc.Runtime
 import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestExecution
 import LfzkV2.Current.ZeroKnowledge.StrandHonestCompletion
@@ -10,117 +11,106 @@ open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2 TranscriptV2
 open scoped Classical
 
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
-variable (binary : BinaryCircuit B) (prime : PrimePublic Adapter.Mdoc.P 768)
-variable (primePlan : FrontendSchedule.Plan Adapter.Mdoc.P prime.circuit)
-variable (binaryNodes : Fin 2792 ↪ B) (scalars : MdocRuntime.Scalars B)
-variable (inputFits : 768+prime.remaining+prime.pads < 2^64)
-variable (privateFits : binary.nPrivate < 2^64) (setup : FingerprintPrefix.Setup)
-local notation "Sh" => MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-  (RuntimeStatement.degreeFits binary)
-local notation "Repr" => MdocRuntime.representations scalars
-local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
-local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
-local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-  (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic)
+variable (runtime : Mdoc.Runtime B)
+local notation "Sh" => MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
+  (RuntimeStatement.degreeFits runtime.binary)
+local notation "Repr" => MdocRuntime.representations runtime.scalars
+local notation "Answer" => MdocRuntime.Answer runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.binaryNodes
+local notation "Request" => CanonicalRequest.Request Sh runtime.binary.nPublic
+local notation "pCount" => RuntimeStatement.prime_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits
 variable {Context Observed : Type} {preQueries postQueries : ℕ}
-variable (original : Context → Fin binary.nPrivate → Bool)
-variable (remaining : Context → Fin prime.remaining → Adapter.Mdoc.P)
+variable (original : Context → Fin runtime.binary.nPrivate → Bool)
+variable (remaining : Context → Fin runtime.prime.remaining → Adapter.Mdoc.P)
 variable {blocks : ℕ}
-variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) setup binary.nPublic →
-  Merkle.RandomOracle.Tree Strand.Word Strand.Digest
-    (Option (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)) blocks)
+variable (sampler : Protocol.ExecutionSampler runtime.protocol blocks)
+local notation "roundSampler" => sampler.sample
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars
-  inputFits privateFits setup
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
-  (CellLayout.Prime.cells prime.remaining prime.pads)
-local notation "HonestCoins" => (CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)) × BackendCoins
-local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
-local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
-variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes →
-  RuntimeVerifier.RawSamples binary.description prime
-    (backend binaryNodes binary.description.cells)
-    (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
-    (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-      (MdocRuntime.representations scalars)
-      (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-        (RuntimeStatement.degreeFits binary)) setup
-      (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+local notation "Public" => StrandCanonicalFullCoupling.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
+  runtime.inputFits runtime.privateFits runtime.fingerprint
+local notation "BackendCoins" => CompleteBackend.Masks runtime.binaryNodes ConcreteSetup.primeNodes runtime.binary.description.cells
+  (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)
+local notation "HonestCoins" => (CompleteHonest.Tape runtime.binary runtime.prime × CompleteHonest.Masks (B := B)) × BackendCoins
+local notation "Codec" => StrandCanonicalBackend.indexedCodec runtime.binary.description runtime.prime runtime.binaryNodes
+  ConcreteSetup.primeNodes Repr Sh runtime.fingerprint Public
+local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv runtime.binary.description runtime.prime runtime.binaryNodes
+  ConcreteSetup.primeNodes Repr Sh runtime.fingerprint Public
+variable (batchingSamples : MdocRuntime.Answer runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.binaryNodes →
+  RuntimeVerifier.RawSamples runtime.binary.description runtime.prime
+    (backend runtime.binaryNodes runtime.binary.description.cells)
+    (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads))
+    (CompleteCanonicalVerifier.publicConfig runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
+      (MdocRuntime.representations runtime.scalars)
+      (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
+        (RuntimeStatement.degreeFits runtime.binary)) runtime.fingerprint
+      (StrandCanonicalFullCoupling.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint)))
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (after : Context → Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary))) →
+  (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
+    (RuntimeStatement.degreeFits runtime.binary)) runtime.binary.nPublic)
+variable (after : Context → Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) runtime.binary.description
+  (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
+    (RuntimeStatement.degreeFits runtime.binary))) →
   Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-local notation "Columns" => StrandCanonicalHiding.columns binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Columns" => StrandCanonicalHiding.columns runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
   original remaining requestOf
-local notation "Front" => StrandCanonicalHiding.frontend binary prime primePlan binaryNodes scalars inputFits privateFits setup
-  metadata original remaining roundSampler
-local notation "Response" => StrandCanonicalHiding.response binary prime primePlan binaryNodes scalars inputFits privateFits setup
-  metadata original remaining roundSampler batchingSamples
-local notation "Raw" => StrandCanonicalHiding.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
-  metadata original remaining roundSampler batchingSamples before requestOf after
+local notation "Front" => StrandCanonicalHiding.frontend runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+  runtime.metadata original remaining roundSampler
+local notation "Response" => StrandCanonicalHiding.response runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+  runtime.metadata original remaining roundSampler batchingSamples
+local notation "Raw" => StrandCanonicalHiding.rawReal runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+  runtime.metadata original remaining roundSampler batchingSamples before requestOf after
 
 /-- End-to-end honest acceptance for a proof returned by the actual
 numbered-strand experiment. Parser, backend response, physical selector,
 indexed authentication and final-seal facts are all derived from execution. -/
 theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
     (ghost : Fin 2443 → Digest) (SHA : Strand.Oracle)
-    (output : CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh)
+    (output : CanonicalRuntime.Output (Advice := MdocAdvice.Value) runtime.binary.description Sh)
     (produced : (Raw (coins,(nonces,ghost)) SHA).2.1.1 = some output)
-    (pivotOne : binary.basis 0 = 1)
-    (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-    (separated : MdocWitness.ReadDisjoint binary)
+    (pivotOne : runtime.binary.basis 0 = 1)
+    (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX runtime.binary.basis) = true)
+    (separated : MdocWitness.ReadDisjoint runtime.binary)
     (valid : MdocWitness.HashValid
-      (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1))
+      (RequestedSimulator.requestedBinary runtime.binary runtime.prime runtime.primePlan Sh (requestOf (before.run SHA).1))
       (original ((before.run SHA).1)))
     (signature :
       let request := requestOf (before.run SHA).1
-      let b := RequestedSimulator.requestedBinary binary prime primePlan Sh request
-      let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount request
+      let b := RequestedSimulator.requestedBinary runtime.binary runtime.prime runtime.primePlan Sh request
+      let p := RequestedSimulator.requestedPrime runtime.binary runtime.prime runtime.primePlan Sh pCount request
       p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (before.run SHA).1) (remaining (before.run SHA).1))) :
-    StrandVerifier.verify binary.description prime
-      (backend binaryNodes binary.description.cells)
-      (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
-      (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-        Repr Sh setup Public)
-      (CompleteCanonicalVerifier.earlier binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup
-        Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits) metadata)
-      (ProofBodyCodec.codec Repr (MdocRuntime.geometry binary.description prime binary.plan primePlan)) roundSampler
-      (CanonicalRequest.hashPublic binary.description.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary.description prime
-        (backend binaryNodes binary.description.cells)
-        (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) Repr Sh setup
-        (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes
-          Repr Sh setup Public) pCount)
+    StrandVerifier.verify runtime.binary.description runtime.prime
+      (backend runtime.binaryNodes runtime.binary.description.cells)
+      (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads))
+      (CompleteCanonicalVerifier.publicConfig runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
+        Repr Sh runtime.fingerprint Public)
+      (CompleteCanonicalVerifier.earlier runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
+        Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata)
+      (ProofBodyCodec.codec Repr (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan)) roundSampler
+      (CanonicalRequest.hashPublic runtime.binary.description.nPublic)
+      (CanonicalRuntime.decodePrimePublic runtime.binary.description runtime.prime
+        (backend runtime.binaryNodes runtime.binary.description.cells)
+        (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)) Repr Sh runtime.fingerprint
+        (CompleteCanonicalVerifier.basePublic runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
+          Repr Sh runtime.fingerprint Public) pCount)
       batchingSamples Codec SHA id output = true := by
   let context := (before.run SHA).1
   let request := requestOf context
-  let root := StrandHonestExecution.committedRoot binary prime primePlan binaryNodes scalars inputFits privateFits setup
+  let root := StrandHonestExecution.committedRoot runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
     original remaining requestOf coins nonces context SHA
   let front := Front coins.1 context request root SHA
-  let cells := FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
+  let cells := FrontendCanonicalRows.cells runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits
     (fun _ => original context) (fun _ => remaining context) coins.1 request
   obtain ⟨responses,indices,opened,generated,finished⟩ :=
-    StrandHonestExecution.rawReal_some binary prime primePlan binaryNodes scalars inputFits privateFits setup
-      metadata original remaining roundSampler batchingSamples before requestOf after coins nonces ghost SHA output produced
-  obtain ⟨data,parsed,holds⟩ := StrandHonestFrontend.exists_satisfied binary prime primePlan binaryNodes scalars
-    inputFits privateFits setup metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
-    pivotOne primitive (MdocWitness.noninterference_of_readDisjoint binary separated) valid signature
+    StrandHonestExecution.rawReal_some runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+      runtime.metadata original remaining roundSampler batchingSamples before requestOf after coins nonces ghost SHA output produced
+  obtain ⟨data,parsed,holds⟩ := StrandHonestFrontend.exists_satisfied runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
+    runtime.inputFits runtime.privateFits runtime.fingerprint runtime.metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
+    pivotOne primitive (MdocWitness.noninterference_of_readDisjoint runtime.binary separated) valid signature
   have truth : ∀ next,
-      CompleteCanonicalVerifier.statementAt binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup
-        Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits) pCount metadata request front
-        (StrandCanonicalFullCoupling.actualOracle binary prime primePlan binaryNodes scalars
-          inputFits privateFits setup roundSampler SHA) = some next →
+      CompleteCanonicalVerifier.statementAt runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
+        Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) pCount runtime.metadata request front
+        (StrandCanonicalFullCoupling.actualOracle runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
+          runtime.inputFits runtime.privateFits runtime.fingerprint roundSampler SHA) = some next →
       next.2.statement.1.Satisfies (Backend.logical cells.1) ∧
         next.2.statement.2.Satisfies (Backend.logical cells.2) := by
     intro next nextParsed
@@ -129,12 +119,12 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     exact holds
   have committed : front.commitment = Merkle.Indexed.root ((Codec).withOracle SHA) 2443
       (fun index => (index,nonces index))
-      (fun index => ToLeaf (StrandCanonicalBackend.committedColumns binary.description prime binaryNodes
+      (fun index => ToLeaf (StrandCanonicalBackend.committedColumns runtime.binary.description runtime.prime runtime.binaryNodes
         ConcreteSetup.primeNodes cells coins.2 index)) := by
-    exact StrandHonestFrontend.frontend_commitment binary prime primePlan binaryNodes scalars inputFits privateFits
-      setup metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
-  have accepted := StrandCanonicalBackend.respondHonest_accepts binary.description prime binaryNodes ConcreteSetup.primeNodes
-    Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits) metadata roundSampler
+    exact StrandHonestFrontend.frontend_commitment runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits
+      runtime.fingerprint runtime.metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
+  have accepted := StrandCanonicalBackend.respondHonest_accepts runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
+    Repr Sh runtime.fingerprint Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata roundSampler
     pCount batchingSamples request front SHA cells coins.2 responses indices opened nonces truth generated committed
   rw [finished]
   simpa only [context,request,root,front,cells,StrandCanonicalHiding.columns,

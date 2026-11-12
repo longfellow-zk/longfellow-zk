@@ -1,4 +1,5 @@
 import LfzkV2.Current.SHASetupDomains
+import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
 /-! The concrete rate-1/7 public runtime is constructed from the trusted
@@ -26,11 +27,12 @@ def identifiers (SHA : Bytes → Digest) : MdocIdentifiers.Identifiers :=
 def setup (SHA : Bytes → Digest) :=
   MdocIdentifiers.setup binary prime cantor scalars (identifiers ids SHA) bounds
 
-def configuration (SHA : Bytes → Digest) :=
-  MdocRuntime.configuration binary.description prime.description binary.plan prime.plan
-    (ConcreteSetup.binaryNodes cantor) scalars bounds.inputFits bounds.privateFits
-    (by change 128 < 2^64; decide) (setup binary prime cantor scalars ids bounds SHA)
-    (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis)
+/-- Shared public protocol setup; no privacy-specific configuration is supplied. -/
+abbrev runtime (SHA : Bytes → Digest) :=
+  Mdoc.Setup.runtime binary prime cantor scalars (identifiers ids SHA) bounds
+
+abbrev protocol (SHA : Bytes → Digest) :=
+  (runtime binary prime cantor scalars ids bounds SHA).protocol
 
 def metadata (SHA : Bytes → Digest) :=
   ConcreteMetadata.metadata
@@ -42,22 +44,6 @@ def metadata (SHA : Bytes → Digest) :=
       (by change 128 < 2^64; decide))
     (MdocIdentifiers.parameters binary prime cantor scalars (identifiers ids SHA) bounds)
     (setup binary prime cantor scalars ids bounds SHA)
-
-/-- The joint batching coefficients are the corresponding coordinates of
-the same ideal round answer. There is no independently supplied sampler. -/
-def draw (SHA : Bytes → Digest) :
-    MdocRuntime.Answer binary.description prime.description binary.plan prime.plan (ConcreteSetup.binaryNodes cantor) →
-    RuntimeVerifier.RawSamples binary.description prime.description
-      (ConcreteSetup.backend (ConcreteSetup.binaryNodes cantor) binary.description.cells)
-      (ConcreteSetup.backend ConcreteSetup.primeNodes
-        (CellLayout.Prime.cells prime.description.remaining prime.description.pads))
-      (CompleteCanonicalVerifier.publicConfig binary.description prime.description (ConcreteSetup.binaryNodes cantor)
-        ConcreteSetup.primeNodes (MdocRuntime.representations scalars)
-        (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
-          (by change 128 < 2^64; decide))
-        (setup binary prime cantor scalars ids bounds SHA)
-        (configuration binary prime cantor scalars ids bounds SHA)) :=
-  fun answer => answer .batching
 
 omit [Fintype B] [DecidableEq B] in
 theorem setup_merge (outside inside : Bytes → Digest) :

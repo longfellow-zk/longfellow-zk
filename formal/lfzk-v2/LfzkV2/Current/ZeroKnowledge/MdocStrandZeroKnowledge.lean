@@ -1,3 +1,4 @@
+import LfzkV2.Current.Protocol.Execution
 import Bcs.OracleReachability
 import LfzkV2.Current.ZeroKnowledge.StrandMdocSetupSupport
 import LfzkV2.Current.ZeroKnowledge.StrandPrivacyBudget
@@ -40,15 +41,9 @@ local notation "Output" => CanonicalRuntime.Output (Advice := MdocAdvice.Value) 
 local notation "Metadata" => CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := Answer) Sh binary.nPublic
 
 variable {Context Observed : Type} {preQueries postQueries blocks : ℕ}
-local notation "PublicView" => (Context × List (Bytes × Digest)) × (Option Output × Observed) × List (Bytes × Digest)
+local notation "PublicView" => Protocol.Execution.PublicView Context Output Observed
 variable (sample : (visible : MdocSetupFamily.Values) →
-  QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
-      bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary))
-    (MdocSetupFamily.setup binary prime cantor scalars ids bounds visible) binary.nPublic →
-    Merkle.RandomOracle.Tree Strand.Word Digest
-      (Option (MdocRuntime.Answer binary.description prime.description binary.plan prime.plan
-        (ConcreteSetup.binaryNodes cantor))) blocks)
+  Protocol.ExecutionSampler (StrandMdocSetupSupport.protocol binary prime cantor scalars ids bounds visible) blocks)
 variable (before : MdocSetupFamily.Values → Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
@@ -62,13 +57,13 @@ variable (remaining : Context → Fin prime.description.remaining → Adapter.Md
 private def honestAt (visible : MdocSetupFamily.Values) (metadata : Metadata)
     (coins : HonestCoins) (SHA : Strand.Oracle) : PublicView :=
   StrandCanonicalHiding.rawReal binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
-    (Setup visible) metadata original remaining (sample visible) (fun (answer : Answer) => answer .batching)
+    (Setup visible) metadata original remaining (sample visible).sample (fun (answer : Answer) => answer .batching)
     (before visible) requestOf (after visible) coins SHA
 
 private def simulateAt (visible : MdocSetupFamily.Values) (metadata : Metadata)
     (coins : SimulatorCoins) (SHA : Strand.Oracle) : PublicView :=
   StrandCanonicalHiding.rawSimulate binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
-    (Setup visible) metadata (sample visible) (fun (answer : Answer) => answer .batching)
+    (Setup visible) metadata (sample visible).sample (fun (answer : Answer) => answer .batching)
     (before visible) requestOf (after visible) coins SHA
 
 /-- Literal honest execution, with public setup and metadata derived from
@@ -129,7 +124,7 @@ theorem real_congr (coins : HonestCoins) (first second : Strand.Oracle)
   rw [values,metadata]
   unfold honestAt
   apply StrandCanonicalByteSupport.rawReal_congr binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
-    (Setup (Values second)) (Meta second) original remaining (sample (Values second)) (fun (answer : Answer) => answer .batching)
+    (Setup (Values second)) (Meta second) original remaining (sample (Values second)).sample (fun (answer : Answer) => answer .batching)
     (before (Values second)) requestOf (after (Values second)) coins first second
   intro raw member
   apply same raw
@@ -149,7 +144,7 @@ theorem simulate_congr (coins : SimulatorCoins) (first second : Strand.Oracle)
   rw [values,metadata]
   unfold simulateAt
   apply StrandCanonicalByteSupport.rawSimulate_congr binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
-    (Setup (Values second)) (Meta second) (sample (Values second)) (fun (answer : Answer) => answer .batching)
+    (Setup (Values second)) (Meta second) (sample (Values second)).sample (fun (answer : Answer) => answer .batching)
     (before (Values second)) requestOf (after (Values second)) coins first second
   intro raw member
   apply same raw
@@ -224,7 +219,7 @@ theorem fixedComplement (outside : Strand.Oracle) :
           (MdocSetupFamily.values binary prime cantor scalars ids bounds) before
           (StrandGhostMerkle.Swap.Slice.oracle encode complement table) visible valuesEqual
       apply StrandCanonicalHiding.raw_fixedComplement binary prime.description prime.plan Nodes scalars
-        bounds.inputFits bounds.privateFits (Setup visible) (Meta outside) original remaining (sample visible)
+        bounds.inputFits bounds.privateFits (Setup visible) (Meta outside) original remaining (sample visible).sample
         (fun (answer : Answer) => answer .batching) (before visible) requestOf (after visible)
         complement pivotOne primitive
       · intro table

@@ -243,6 +243,14 @@ authentication and final sealing from ordinary witness truth and execution.
 This is conditional on an actual successful output; sampler aborts remain
 possible outcomes of the partial-reader model.
 
+[`Mdoc.Runtime`](lfzk-v2/LfzkV2/Current/Mdoc/Runtime.lean) supplies the same
+typed protocol setup to soundness, privacy and honest execution. The
+oracle-selected privacy setup is proved equal to that concrete setup.
+Privacy and conditional completeness use `Protocol.ExecutionSampler`, which
+contains only the executable callback; sampler balance is required separately
+by soundness. `Protocol.Execution.PublicView` names the proof, observer result
+and before/after traces without exposing private prover execution.
+
 These are ideal-oracle bounds. No numerical SHA-256-to-random-oracle
 comparison is proved; the trusted circuit, field, representation and sampling
 premises remain explicit.

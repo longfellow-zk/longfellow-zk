@@ -55,6 +55,23 @@ def metadata (visible : MdocSetupFamily.Values) : CanonicalRequest.Metadata (Adv
   ConcreteMetadata.metadata binary.description prime.description (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) params
     (MdocSetupFamily.setup binary prime cantor scalars ids bounds visible)
 
+/-- A digest-selected member of the same concrete runtime family used by
+soundness and honest execution. Only public identifiers and metadata vary. -/
+abbrev runtime (visible : MdocSetupFamily.Values) : Mdoc.Runtime B :=
+  { MdocPublicSetup.runtime binary prime cantor scalars ids bounds (fun _ => 0) with
+    fingerprint := MdocSetupFamily.setup binary prime cantor scalars ids bounds visible
+    metadata := metadata binary prime cantor scalars ids bounds visible }
+
+abbrev protocol (visible : MdocSetupFamily.Values) :=
+  (runtime binary prime cantor scalars ids bounds visible).protocol
+
+/-- The finite family selects exactly the setup built from the actual SHA
+oracle; it is not an independently assumed public configuration. -/
+theorem runtime_actual (SHA : Strand.Oracle) :
+    runtime binary prime cantor scalars ids bounds
+        (MdocSetupFamily.values binary prime cantor scalars ids bounds SHA) =
+      MdocPublicSetup.runtime binary prime cantor scalars ids bounds SHA := rfl
+
 omit [Fintype B] [DecidableEq B] in
 /-- The observer reconstructs exactly the metadata used by the prover;
 no independent identifier or verifier configuration is assumed. -/

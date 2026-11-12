@@ -21,6 +21,10 @@ run_cmd do
   if used.contains ``CompleteCanonicalVerifier.statementAt ||
       used.contains ``MdocWitness.UniformHashValid then
     throwError "Honest runtime exposes a derived parse or uniform witness certificate"
+  unless used.contains ``Mdoc.Runtime && used.contains ``Protocol.ExecutionSampler do
+    throwError "Honest runtime must share the public setup and executable sampler"
+  if used.contains ``Protocol.SamplerLaws then
+    throwError "Conditional honest acceptance must not require sampler balance"
   for ax in ← collectAxioms endpoint do
     unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do
       throwError "Unexpected axiom {ax} in {endpoint}"

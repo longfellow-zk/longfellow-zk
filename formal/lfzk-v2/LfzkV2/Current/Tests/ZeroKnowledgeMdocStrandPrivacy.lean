@@ -37,6 +37,23 @@ run_cmd do
       throwError "Endpoint {endpoint} lost reached-witness or static-circuit premises"
     if used.contains ``MdocWitness.UniformHashValid then
       throwError "Endpoint {endpoint} exposes the derived uniform witness premise"
+    unless used.contains ``Protocol.ExecutionSampler do
+      throwError "Endpoint {endpoint} does not use the shared executable sampler"
+    if used.contains ``Protocol.SamplerLaws then
+      throwError "Privacy must not assume the soundness sampling balance law"
+  for endpoint in #[``MdocStrandZeroKnowledge.simulate,
+      ``MdocStrandZeroKnowledge.honest] do
+    let some info := env.find? endpoint | throwError "Missing experiment {endpoint}"
+    unless info.type.getUsedConstants.contains ``Protocol.Execution.PublicView do
+      throwError "Experiment {endpoint} does not expose the shared public view"
+  let some simulator := env.find? ``MdocStrandZeroKnowledge.simulate |
+    throwError "Missing witness-free simulator"
+  liftTermElabM do
+    Meta.forallTelescope simulator.type fun binders _ => do
+      for binder in binders do
+        let name := (← binder.fvarId!.getDecl).userName
+        if #[`original,`remaining,`valid,`signature].contains name then
+          throwError "Simulator has a witness-dependent input {name}"
   for endpoint in #[``StrandMdocSetup.leaves_subset,
       ``StrandMdocSetup.leafWindow_domain,
       ``StrandMdocSetup.values_extend,
@@ -45,6 +62,7 @@ run_cmd do
       ``StrandMdocSetupSupport.program_result,
       ``StrandMdocSetupSupport.values_congr,
       ``StrandMdocSetupSupport.metadata_actual,
+      ``StrandMdocSetupSupport.runtime_actual,
       ``StrandMdocSetupSupport.metadata_congr,
       ``StrandPrivacyBudget.at_query_budget,
       ``MdocWitness.uniformHashValid_of_valid,

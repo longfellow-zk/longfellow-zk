@@ -4,8 +4,7 @@ import LfzkV2.Current.ZeroKnowledge.MdocPublicSetup
 generated adapter identifiers and Merkle authentication. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
 
-#check ZeroKnowledge.MdocPublicSetup.configuration
-#check ZeroKnowledge.MdocPublicSetup.draw
+#check ZeroKnowledge.MdocPublicSetup.protocol
 #print axioms ZeroKnowledge.MdocPublicSetup.setup_merge
 #print axioms ZeroKnowledge.MdocPublicSetup.metadata_merge
 

@@ -1,3 +1,4 @@
+import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExecution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalPrograms
 import LfzkV2.Current.ZeroKnowledge.StrandLeafOracle
@@ -104,8 +105,7 @@ def simulate (outside : Strand.Oracle) (coin : PublicCoins × OracleCoins) :=
     (after earlier.1) coin.2.2.2 coin.2.1 coin.1
 
 local notation "AuxiliaryCoins" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
-local notation "PublicView" => (Context × List (Bytes × Digest)) ×
-  (Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) × Observed) × List (Bytes × Digest)
+local notation "PublicView" => Protocol.Execution.PublicView Context (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) Observed
 
 def rawSimulate (coin : PublicCoins × AuxiliaryCoins) (SHA : Strand.Oracle) : PublicView :=
   let earlier := before.run SHA

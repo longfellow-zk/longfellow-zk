@@ -1,3 +1,4 @@
+import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteSupport
 
 /-! Lift the checked canonical privacy game to one uniformly sampled raw
@@ -70,8 +71,7 @@ attribute [local instance] StrandCanonicalHiding.columnFintype
   StrandCanonicalHiding.honestCoinsFintype StrandCanonicalHiding.publicCoinsFintype
 local notation "AuxiliaryCoins" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
 local notation "LeafInput" => (Fin 2443 × MerkleNonce) × Column
-local notation "PublicView" => (Context × List (Bytes × Digest)) ×
-  (Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) × Observed) × List (Bytes × Digest)
+local notation "PublicView" => Protocol.Execution.PublicView Context (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) Observed
 local notation "RawReal" => StrandCanonicalHiding.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples before requestOf after
 local notation "RawSimulate" => StrandCanonicalHiding.rawSimulate binary prime primePlan binaryNodes scalars inputFits privateFits setup

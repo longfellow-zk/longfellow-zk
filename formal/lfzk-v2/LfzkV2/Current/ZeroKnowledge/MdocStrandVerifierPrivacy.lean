@@ -36,13 +36,7 @@ local notation "Output" => CanonicalRuntime.Output (Advice := MdocAdvice.Value) 
 
 variable {Context : Type} {preQueries blocks : ℕ}
 variable (sample : (visible : MdocSetupFamily.Values) →
-  QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
-      bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary))
-    (MdocSetupFamily.setup binary prime cantor scalars ids bounds visible) binary.nPublic →
-    Merkle.RandomOracle.Tree Strand.Word Digest
-      (Option (MdocRuntime.Answer binary.description prime.description binary.plan prime.plan
-        (ConcreteSetup.binaryNodes cantor))) blocks)
+  Protocol.ExecutionSampler (StrandMdocSetupSupport.protocol binary prime cantor scalars ids bounds visible) blocks)
 variable (before : MdocSetupFamily.Values → Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
@@ -72,13 +66,13 @@ local notation "Budget" => 2+2*2443+(blocks+1)*List.length (Geometry.roles G)
 
 def verify (visible : MdocSetupFamily.Values) (SHA : Strand.Oracle) (output : Output) : Bool :=
   StrandVerifier.verify binary.description prime.description First Second (Wire visible) (Earlier visible)
-    (ProofBodyCodec.codec Repr G) (sample visible) (CanonicalRequest.hashPublic binary.nPublic)
+    (ProofBodyCodec.codec Repr G) (sample visible).sample (CanonicalRequest.hashPublic binary.nPublic)
     (PrimePublic visible) (fun (answer : Answer) => answer .batching) (Codec visible) SHA id output
 
 def afterVerifier (visible : MdocSetupFamily.Values) (_context : Context) (output : Option Output) :
     Merkle.RandomOracle.Tree Bytes Digest Bool Budget :=
   StrandVerifierObserver.optional binary.description prime.description First Second (Wire visible) (Earlier visible)
-    (ProofBodyCodec.codec Repr G) (sample visible) (Codec visible) id (CanonicalRequest.hashPublic binary.nPublic)
+    (ProofBodyCodec.codec Repr G) (sample visible).sample (Codec visible) id (CanonicalRequest.hashPublic binary.nPublic)
     (PrimePublic visible) (fun (answer : Answer) => answer .batching) output
 
 /-- Both accepted and rejected results are the literal runtime decision
@@ -88,7 +82,7 @@ theorem verifier_result (visible : MdocSetupFamily.Values) (context : Context)
     ((afterVerifier binary prime cantor scalars ids bounds sample visible context output).run SHA).1 =
       output.any (verify binary prime cantor scalars ids bounds sample visible SHA) :=
   StrandVerifierObserver.optional_result binary.description prime.description First Second (Wire visible) (Earlier visible)
-    (ProofBodyCodec.codec Repr G) (sample visible) (Codec visible) id (CanonicalRequest.hashPublic binary.nPublic)
+    (ProofBodyCodec.codec Repr G) (sample visible).sample (Codec visible) id (CanonicalRequest.hashPublic binary.nPublic)
     (PrimePublic visible) (fun (answer : Answer) => answer .batching) output SHA
 
 -- Probability transport uses the established view and support interfaces;

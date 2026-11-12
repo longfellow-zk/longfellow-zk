@@ -14,6 +14,20 @@ open scoped Classical
   verifier : Result × List (Bytes × Digest)
   cuts : Context → List (Bytes × Digest)
 
+/-- The external privacy observation contains the submitted proof and both
+observer traces. It excludes the prover's private execution and random tape. -/
+abbrev PublicView (Context Output Observed : Type) :=
+  (Context × List (Bytes × Digest)) × (Option Output × Observed) × List (Bytes × Digest)
+
+namespace PublicView
+variable {Context Output Observed : Type} (view : PublicView Context Output Observed)
+abbrev context : Context := view.1.1
+abbrev proof : Option Output := view.2.1.1
+abbrev result : Observed := view.2.1.2
+abbrev beforeQueries : List (Bytes × Digest) := view.1.2
+abbrev afterQueries : List (Bytes × Digest) := view.2.2
+end PublicView
+
 structure Program (Output : Type) (fuel : ℕ) where
   tree : Tree Bytes Digest Output fuel
 

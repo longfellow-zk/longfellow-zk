@@ -1,3 +1,4 @@
+import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext
 import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalSchedule
@@ -150,8 +151,7 @@ theorem stage_eq (coins : HonestCoins) (context : Context) (SHA : Strand.Oracle)
       Repr Sh setup Public bCount metadata roundSampler (requestOf context) _ _ _ SHA (after context) agree)
 
 local notation "AuxiliaryCoins" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
-local notation "PublicView" => (Context × List (Bytes × Digest)) ×
-  (Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) × Observed) × List (Bytes × Digest)
+local notation "PublicView" => Protocol.Execution.PublicView Context (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) Observed
 
 /-- The byte-oracle experiment receives one oracle. The auxiliary labels
 are unused on the real side, and make no change to its distribution. -/
