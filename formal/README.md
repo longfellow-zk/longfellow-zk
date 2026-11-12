@@ -83,8 +83,13 @@ is the one-SHA endpoint. Arbitrary serialized proofs pass through the
 complete-proof parser. Public setup hashes, ordinary strand nodes, indexed
 PRF blocks, Merkle authentication and the final seal use the same byte
 oracle. Setup answers are in a disjoint complementary domain. The theorem
-holds for every fixed complementary slice and averages any independent
-finite distribution of those slices and adversarial private choices.
+holds for every fixed complementary slice. The averaged API uses a finite coin
+that may jointly determine that slice and the adversary; these choices can be
+correlated with each other and are independent of the remaining fresh protocol
+oracle. `Q` bounds distinct inputs in the original adversary's full byte-oracle
+trace for every coin and every total byte oracle. It is a worst-case bound,
+including queries outside the protocol domain; repetitions count once.
+Conditioning on setup answers and filtering the trace introduce no extra loss.
 
 The endpoint constructs the mdoc metadata, quotient-advice decoder, layout,
 frontend plans and rate certificate. `submitted_output`, `original_trace`,

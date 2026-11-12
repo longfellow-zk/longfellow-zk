@@ -53,7 +53,11 @@ The proof path has the following checked boundaries.
    `submitted_output`, `original_trace`, `verifier_actual` and
    `event_verified` identify the original output, filtered original log
    and actual complete verifier. The complementary oracle marginal is
-   averaged with zero additional error.
+   averaged with zero additional error. The common finite coin may correlate
+   complementary setup answers with adversarial choices; it is independent
+   only of the fresh protocol-domain table. The original `Q` bound holds for
+   every coin and every total byte oracle, counts distinct inputs in the full
+   original trace, and is inherited by its protocol-domain restriction.
 8. `MdocSoundness` composes `CanonicalRuntime.decoded_true_at_request`
    with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
    ordinary hash constraints and the signature circuit at the actual request.

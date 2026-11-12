@@ -31,7 +31,9 @@ P_{\mathrm{fail}}(Q)\le \frac{cQ}{q}
 +\frac{\binom Q2+r+15}{q^2}.
 $$
 
-Here `r` counts rounds, one per `begin_squeeze()` call. For every `Q < 2^127`,
+Here `r` counts rounds, one per `begin_squeeze()` call. The original
+distinct-query bound `Q` holds for every adversarial coin and total byte oracle.
+For every `Q < 2^127`,
 the full failure probability is **strictly less than 0.97**, with the cap rounded
 up to two decimal places. A convenient approximation for the mdoc circuit,
 valid for every $Q\ge0$, is

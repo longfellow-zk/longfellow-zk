@@ -88,6 +88,12 @@ handles each fixed public setup.
 [`MdocStrandOracle`](LfzkV2/Current/MdocStrandOracle.lean) derives that setup
 from the complementary slice of the same SHA function and preserves the
 original output, protocol-domain query prefix and complete verifier replay.
+`Q` is a worst-case bound on distinct inputs in the full original byte-oracle
+trace, for every private coin and every total oracle; repetitions count once.
+The residual trace merely filters that log. The averaged API permits the same
+finite coin to choose both the complementary setup slice and the adversary,
+including correlation between them. This coin is independent of the fresh
+protocol-domain oracle. Setup conditioning adds no error term.
 
 `RuntimeVerifier.Public.polynomialX` is the polynomial-basis element encoded
 as integer 2, before the fixed adapter exponent is applied. Checked decoding

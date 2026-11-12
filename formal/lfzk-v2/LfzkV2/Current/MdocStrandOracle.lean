@@ -5,7 +5,21 @@ import LfzkV2.Current.StrandRoutedObserver
 /-! Condition the one SHA oracle on its complementary public-setup slice.
 The remaining strand and Merkle inputs retain independent uniform answers.
 Partial evaluation of the prover preserves its output and filters its
-original trace, so no new query budget is introduced. -/
+original trace, so no new query budget is introduced.
+
+`queries` and the averaged `queryBound` bound the number of distinct inputs in
+the original adversary's full byte-oracle trace, uniformly for every private
+coin and every total byte oracle. They are worst-case bounds, not expected
+counts, and repeated queries count once. Restricting to the protocol domain
+can only decrease this count.
+
+For each fixed `outside`, setup and parameter hashes are evaluated on that
+complementary slice. `sha` merges it with fresh protocol-domain answers from
+`G`; setup and execution therefore use one total byte oracle. The averaged
+APIs let the same finite coin jointly choose `external` and `adversary`, so
+these choices may be correlated with each other. That coin is independent of
+the fresh protocol-domain table `G`. Conditioning and averaging the fixed
+public setup slice adds no error term. -/
 noncomputable section
 namespace LfzkV2.Current.MdocStrandOracle
 open Application ApplicationSetup TranscriptV2 Merkle.RandomOracle Bcs.FiniteProbability OracleDomain
@@ -171,8 +185,8 @@ theorem ratio_le (budget : Q < 2^127) :
     residual fits sample bodyFits fiber uniform (residual_budget binary prime bounds body outside queries) budget
 
 include bodyFits in
-/-- Leading linear soundness after averaging the independent complementary
-SHA slice and adversary choices, for every Q and the existing extractor. -/
+/-- Leading linear soundness after averaging joint complementary-slice and
+adversary choices, independent of the fresh protocol table, for every Q. -/
 theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
@@ -196,8 +210,8 @@ theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (uniform := balanced coin) (bodyFits := bodyFits)
 
 include bodyFits in
-/-- Saturated soundness after averaging the independent complementary SHA
-slice and adversary choices. The event and extractor are the existing runtime ones. -/
+/-- Saturated soundness after averaging joint complementary-slice and adversary
+choices, independent of the fresh protocol table. The runtime event and extractor are unchanged. -/
 theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)
@@ -221,8 +235,8 @@ theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (uniform := balanced coin) (bodyFits := bodyFits) budget
 
 include bodyFits in
-/-- Saturated soundness after averaging the independent complementary SHA
-slice and adversary choices. The event and extractor are the existing runtime ones. -/
+/-- Saturated soundness after averaging joint complementary-slice and adversary
+choices, independent of the fresh protocol table. The runtime event and extractor are unchanged. -/
 theorem averaged_nonvacuous {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (MdocStrandSoundness.Request binary prime bounds × Bytes) fuel)

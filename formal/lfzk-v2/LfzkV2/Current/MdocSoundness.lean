@@ -4,7 +4,13 @@ import LfzkV2.Current.MdocWitnessRequest
 /-! Application soundness for the numbered-strand verifier: extraction at the
 original commitment cut yields the ordinary hash witness and signature-circuit
 witness at the actual request. Sampling, scalar representations and trusted
-circuit semantics retain their explicit interfaces. -/
+circuit semantics retain their explicit interfaces.
+
+The original query budget `Q` counts distinct byte queries in the worst case,
+for every adversarial coin and total oracle. Averaging uses a finite coin that
+may jointly determine the complementary setup slice and adversarial choices;
+only the remaining fresh protocol-domain oracle is independent of that coin.
+See `MdocStrandOracle` for the conditioning and filtered-trace identities. -/
 noncomputable section
 set_option maxRecDepth 4096
 set_option maxHeartbeats 200000
