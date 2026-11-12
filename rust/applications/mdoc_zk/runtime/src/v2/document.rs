@@ -41,6 +41,46 @@ fn text_entry<'a>(
 ) -> Result<&'a CborElement, MdocParseError> {
     Ok(map_entry_unique(map, name, path)?.1)
 }
+// These keys are literal byte prefixes in the application circuit.
+fn fixed_entry<'a>(
+    map: &'a CborElement,
+    name: &str,
+    path: &'static str,
+) -> Result<&'a CborElement, MdocParseError> {
+    let (key, value) = map_entry_unique(map, name, path)?;
+    if key.end.checked_sub(key.start) != Some(1 + name.len()) {
+        return Err(MdocParseError::UnsupportedEncoding);
+    }
+    Ok(value)
+}
+
+fn device_key_layout(info: &CborElement, key: &CborElement) -> Result<(), MdocParseError> {
+    let CborValue::Map(info_entries) = &info.value else {
+        return Err(MdocParseError::UnexpectedType("MSO.deviceKeyInfo"));
+    };
+    let CborValue::Map(key_entries) = &key.value else {
+        return Err(MdocParseError::UnexpectedType(
+            "MSO.deviceKeyInfo.deviceKey",
+        ));
+    };
+    if info_entries.len() != 1
+        || info_entries[0].0.start.checked_sub(info.start) != Some(1)
+        || key_entries.len() != 4
+        || key_entries[0].0.start.checked_sub(key.start) != Some(1)
+    {
+        return Err(MdocParseError::UnsupportedEncoding);
+    }
+    for ((encoded_key, value), expected) in key_entries.iter().zip([1, -1, -2, -3]) {
+        if !matches!(encoded_key.value, CborValue::Integer(n) if n == expected)
+            || encoded_key.end.checked_sub(encoded_key.start) != Some(1)
+            || (expected >= -1 && value.end.checked_sub(value.start) != Some(1))
+        {
+            return Err(MdocParseError::UnsupportedEncoding);
+        }
+    }
+    Ok(())
+}
+
 fn integer_entry(map: &CborElement, key: i128) -> Result<&CborElement, MdocParseError> {
     let CborValue::Map(pairs) = &map.value else {
         return Err(MdocParseError::UnexpectedType(
@@ -63,9 +103,13 @@ fn coordinate(
     index: i128,
     field: &P256Field,
 ) -> Result<crate::runtime::algebra::p256::P256Element, MdocParseError> {
-    let CborValue::Bytes(bytes) = &integer_entry(key, index)?.value else {
+    let value = integer_entry(key, index)?;
+    let CborValue::Bytes(bytes) = &value.value else {
         return Err(MdocParseError::UnexpectedType("device coordinate"));
     };
+    if value.end.checked_sub(value.start) != Some(34) {
+        return Err(MdocParseError::UnsupportedEncoding);
+    }
     let mut canonical: [u8; 32] =
         bytes
             .as_slice()
@@ -87,6 +131,10 @@ fn timestamp(value: &CborElement) -> Result<[u8; 14], MdocParseError> {
     let CborValue::Text(text) = &inner.value else {
         return Err(MdocParseError::UnexpectedType("validity timestamp"));
     };
+    // Exactly c0 74 followed by the twenty timestamp bytes.
+    if value.end.checked_sub(value.start) != Some(22) {
+        return Err(MdocParseError::UnsupportedEncoding);
+    }
     timestamp_digits(text.as_bytes()).ok_or(MdocParseError::InvalidValue("validity timestamp"))
 }
 fn validate_mso(
@@ -95,19 +143,20 @@ fn validate_mso(
     now: &str,
     field: &P256Field,
 ) -> Result<(), Error> {
-    let CborValue::Text(actual_doc_type) = &text_entry(mso, "docType", "MSO.docType")?.value else {
+    let CborValue::Text(actual_doc_type) = &fixed_entry(mso, "docType", "MSO.docType")?.value
+    else {
         return Err(MdocParseError::UnexpectedType("MSO.docType").into());
     };
     if actual_doc_type != doc_type {
         return Err(Error::Predicate);
     }
     let validity = text_entry(mso, "validityInfo", "MSO.validityInfo")?;
-    let from = timestamp(text_entry(
+    let from = timestamp(fixed_entry(
         validity,
         "validFrom",
         "MSO.validityInfo.validFrom",
     )?)?;
-    let until = timestamp(text_entry(
+    let until = timestamp(fixed_entry(
         validity,
         "validUntil",
         "MSO.validityInfo.validUntil",
@@ -116,8 +165,9 @@ fn validate_mso(
     if !(from <= current && current <= until) {
         return Err(Error::Predicate);
     }
-    let info = text_entry(mso, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
-    let key = text_entry(info, "deviceKey", "MSO.deviceKeyInfo.deviceKey")?;
+    let info = fixed_entry(mso, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
+    let key = fixed_entry(info, "deviceKey", "MSO.deviceKeyInfo.deviceKey")?;
+    device_key_layout(info, key)?;
     if !matches!(integer_entry(key, 1)?.value, CborValue::Integer(2))
         || !matches!(integer_entry(key, -1)?.value, CborValue::Integer(1))
     {

@@ -138,3 +138,68 @@ fn v2_document_preserves_structural_errors_and_predicate_failures() {
         Err(Error::Predicate)
     ));
 }
+
+#[test]
+fn v2_document_requires_the_circuit_timestamp_headers() {
+    use crate::mdoc::circuits::cbor::parse::CborParser;
+    for (prefix, accepted) in [
+        (&[0xc0, 0x74][..], true),
+        (&[0xc0, 0x78, 20][..], false),
+        (&[0xd8, 0, 0x74][..], false),
+    ] {
+        let mut encoded = prefix.to_vec();
+        encoded.extend_from_slice(b"2026-01-01T00:00:00Z");
+        let parsed = CborParser::new(&encoded).parse_exact().unwrap();
+        assert_eq!(timestamp(&parsed).is_ok(), accepted);
+    }
+}
+
+#[test]
+fn v2_document_requires_the_circuit_device_key_layout() {
+    let field = P256Field::new();
+    let check = |mso: &CborElement| validate_mso(mso, TEST_DATA.doc_type, TEST_DATA.now, &field);
+    check(&map()).unwrap();
+    for swap in [true, false] {
+        let mut mso = map();
+        let CborValue::Map(entries) =
+            &mut entry_mut(entry_mut(&mut mso, "deviceKeyInfo"), "deviceKey").value
+        else {
+            panic!("key map")
+        };
+        if swap {
+            entries.swap(0, 1);
+        } else {
+            entries.push(entries[0].clone());
+        }
+        assert!(matches!(
+            check(&mso),
+            Err(Error::Encoding(MdocParseError::UnsupportedEncoding))
+        ));
+    }
+    let mut extra_info = map();
+    let CborValue::Map(entries) = &mut entry_mut(&mut extra_info, "deviceKeyInfo").value else {
+        panic!("info map")
+    };
+    entries.push(entries[0].clone());
+    assert!(check(&extra_info).is_err());
+    let mut nonminimal = map();
+    key_mut(&mut nonminimal, -2).end += 1;
+    assert!(matches!(
+        check(&nonminimal),
+        Err(Error::Encoding(MdocParseError::UnsupportedEncoding))
+    ));
+    let mut nonminimal = map();
+    let CborValue::Map(entries) = &mut nonminimal.value else {
+        panic!("map")
+    };
+    entries
+        .iter_mut()
+        .find(|(k, _)| matches!(&k.value, CborValue::Text(s) if s == "deviceKeyInfo"))
+        .unwrap()
+        .0
+        .end += 1;
+    assert!(matches!(
+        check(&nonminimal),
+        Err(Error::Encoding(MdocParseError::UnsupportedEncoding))
+    ));
+}
