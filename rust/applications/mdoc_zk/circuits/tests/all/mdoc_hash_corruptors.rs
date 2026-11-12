@@ -38,8 +38,23 @@ pub(super) fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
         },
         MdocHashCorruptor {
             name: "namespace_offset_before_signed_map".into(),
-            expected_path: "assert_valid_presentation/assert_mso_namespace/shift_preimage_bounds/ge_five".into(),
-            corrupt: Box::new(|g| { g.namespace_offset_in_preimage = 0; }),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/shift_preimage_bounds/ge_mso".into(),
+            corrupt: Box::new(|g| { g.namespace_offset_in_preimage = 25; }),
+        },
+        MdocHashCorruptor {
+            name: "namespace_in_cose_framing".into(),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/shift_preimage_bounds/ge_mso".into(),
+            corrupt: Box::new(|g| { g.hash_input.expected_namespace = b"t".to_vec(); g.namespace_offset_in_preimage = 6; }),
+        },
+        MdocHashCorruptor {
+            name: "namespace_aliases_value_digests_header".into(),
+            expected_path: "assert_valid_presentation/assert_mso_namespace/after_value_digests".into(),
+            corrupt: Box::new(|g| { g.hash_input.expected_namespace = b"l".to_vec(); g.namespace_offset_in_preimage = g.value_digests_offset_in_preimage + 2; }),
+        },
+        MdocHashCorruptor {
+            name: "namespace_after_attribute_digest".into(),
+            expected_path: "assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/namespace_before_digest/lt".into(),
+            corrupt: Box::new(|g| { g.namespace_offset_in_preimage = g.attribute_given[0].mso_digest_offset_in_preimage as u16 + 34; }),
         },
         MdocHashCorruptor {
             name: "corrupt_issuer_sig_e".into(),

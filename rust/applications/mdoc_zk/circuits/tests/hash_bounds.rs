@@ -75,9 +75,9 @@ fn fixed_field_reads_fit_the_entire_unpadded_range() {
     let hash = MdocHash::new(&logic, 0);
     let preimage: Vec<_> = (0..160).map(|_| bits.of_u8(0)).collect();
     for count in [K_VALID_FROM_LEN + 20, K_VALID_UNTIL_LEN + 20, 100, 34, 13] {
-        let offset = bits.of_u64::<16>(25);
-        let end = bits.of_u64::<16>((25 + count) as u64);
-        let short = bits.of_u64::<16>((24 + count) as u64);
+        let offset = bits.of_u64::<16>(26);
+        let end = bits.of_u64::<16>((26 + count) as u64);
+        let short = bits.of_u64::<16>((25 + count) as u64);
         assert!(hash
             .shift_preimage(&offset, &end, 3, count, &preimage, &bits.of_u8(0))
             .1
@@ -180,8 +180,8 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
         )
     });
     for (offset, length, consumed, valid) in [
-        (25u16, 100u16, 75u16, true),
-        (25, 99, 75, false),
+        (26u16, 101u16, 75u16, true),
+        (26, 100, 75, false),
         (65530, 65535, 34, false),
     ] {
         let field = &f;
@@ -266,7 +266,7 @@ fn doc_type_checks_types_lengths_and_actual_read_end() {
         let mut witness = original.clone();
         witness.hash_input.expected_doc_type = expected.to_vec();
         witness.hash_input.suppress_doc_type_check = suppress;
-        let start = 25;
+        let start = 26;
         let mut bytes = K_DOCTYPE_HEADER_CHECK_CBOR.to_vec();
         bytes.extend_from_slice(header);
         bytes.extend_from_slice(content);
@@ -455,4 +455,24 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
     wires.attribute_given.pop();
     let _ = MdocHash::new(&logic, witness.hash_input.attrs.len())
         .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
+}
+
+#[test]
+fn namespace_text_must_precede_each_selected_digest_without_wrapping() {
+    let mut witness = fixture();
+    let f = Gf2_128Field::new();
+    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let logic = EvalLogic::new_with_tracker(&f, &tracker);
+    let bits = BitvecLogic::new(&logic);
+    for offset in [witness.namespace_offset_in_preimage, u16::MAX] {
+        witness.namespace_offset_in_preimage = offset;
+        let wires = evaluate_given(&logic, &bits, &witness);
+        let end = usize::from(offset) + witness.hash_input.expected_namespace.len();
+        for digest in [offset, (end as u16), (end + 1) as u16] {
+            let result = MdocHash::new(&logic, 0).assert_namespace_before_digest(
+                &wires, &bits.of_u64(u64::from(digest)),
+            );
+            assert_eq!(result.is_ok(), usize::from(digest) > end);
+        }
+    }
 }

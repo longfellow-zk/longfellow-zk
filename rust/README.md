@@ -292,6 +292,10 @@ commitment, proof encoding or decoding, and cleanup. Inputs are already
 memory-resident. Offline circuit compilation and parameter selection are
 excluded.
 
+The signed-MSO bounds and offset-ordering checks change the hash circuit ID.
+Regenerate V2 circuit archives and their matching specifications when upgrading;
+existing archives retain their original circuit checks.
+
 ## Architecture
 
 The ZK implementation coordinates commitment and sumcheck. Sumcheck reduces

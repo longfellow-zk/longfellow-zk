@@ -31,6 +31,7 @@ fn namespace_passes(expected: &[u8], encoded: &[u8], offset: u16, message_len: u
         std::array::from_fn(|i| bits.of_u8(*expected.get(i).unwrap_or(&0)));
     wires.expected_namespace.len = bits.of_u64(expected.len() as u64);
     wires.namespace_offset_in_preimage = bits.of_u64(u64::from(offset));
+    wires.value_digests_offset_in_preimage = bits.of_u64(26);
     wires.preimage.len = bits.of_u64(u64::from(message_len));
     let preimage: Vec<_> = (0..K_MSO_PREIMAGE_LEN)
         .map(|i| {
@@ -52,21 +53,21 @@ fn namespace_checks_exact_text_headers_lengths_and_read_bounds() {
     for len in [1, 17, 23, 24, 32, K_NAMESPACE_BYTES] {
         let namespace = vec![b'n'; len];
         let encoded = crate::mdoc::circuits::cbor::encode_cbor_string(&namespace);
-        let end = 25 + encoded.len() as u16;
-        assert!(namespace_passes(&namespace, &encoded, 25, end));
+        let end = 64 + encoded.len() as u16;
+        assert!(namespace_passes(&namespace, &encoded, 64, end));
         let mut different = namespace.clone();
         different[len - 1] ^= 1;
-        assert!(!namespace_passes(&different, &encoded, 25, end));
-        assert!(!namespace_passes(&namespace[..len - 1], &encoded, 25, end));
-        assert!(!namespace_passes(&namespace, &encoded, 25, end - 1));
+        assert!(!namespace_passes(&different, &encoded, 64, end));
+        assert!(!namespace_passes(&namespace[..len - 1], &encoded, 64, end));
+        assert!(!namespace_passes(&namespace, &encoded, 64, end - 1));
         let mut bytes_header = encoded.clone();
         bytes_header[0] -= 0x20; // Same length, but a byte string instead of text.
-        assert!(!namespace_passes(&namespace, &bytes_header, 25, end));
+        assert!(!namespace_passes(&namespace, &bytes_header, 64, end));
     }
     for len in [0, K_NAMESPACE_BYTES + 1] {
         let namespace = vec![b'n'; len];
         let encoded = crate::mdoc::circuits::cbor::encode_cbor_string(&namespace);
-        assert!(!namespace_passes(&namespace, &encoded, 25, 200));
+        assert!(!namespace_passes(&namespace, &encoded, 64, 200));
     }
     assert!(!namespace_passes(
         b"namespace",

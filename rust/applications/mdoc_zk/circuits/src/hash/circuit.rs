@@ -97,7 +97,8 @@ pub struct Derived<L: LogicIO> {
 }
 
 pub struct MdocHash<'a, L: LogicIO>
-where L::F: MdocHashCompileField
+where
+    L::F: MdocHashCompileField,
 {
     pub(in crate::mdoc::circuits) logic: &'a L,
     pub(in crate::mdoc::circuits) shamsg_mso: Sha256Msg<'a, L, K_MAX_SHA_BLOCKS>,
@@ -109,7 +110,8 @@ where L::F: MdocHashCompileField
 }
 
 impl<'a, L: LogicIO> MdocHash<'a, L>
-where L::F: MdocHashCompileField
+where
+    L::F: MdocHashCompileField,
 {
     pub fn new(logic: &'a L, _num_attrs: usize) -> Self {
         Self {
@@ -194,17 +196,33 @@ where L::F: MdocHashCompileField
     fn assert_mso_namespace(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
         // This proves the exact text occurs in the signed MSO. The private
         // offset is not a proof of CBOR ancestry or digest-map membership.
-        self.logic.assert_all(
-            "assert_mso_namespace",
-            &self.assert_mso_text(
+        let mut checks = self
+            .assert_mso_text(
                 &given.namespace_offset_in_preimage,
                 &given.preimage.len,
                 &given.expected_namespace,
                 &self.boolean.trueb(),
                 &[],
                 preimage,
+            )
+            .to_vec();
+        let (header_end, arithmetic) = self.bv.checked_add(
+            &self
+                .bv
+                .zext::<16, 17>(&given.value_digests_offset_in_preimage),
+            &self
+                .bv
+                .of_u64::<17>(K_VALUE_DIGESTS_CHECK_CBOR.len() as u64),
+        );
+        checks.push(arithmetic);
+        checks.push(self.boolean.assert_true(
+            "after_value_digests",
+            &self.bv.leq(
+                &header_end,
+                &self.bv.zext::<16, 17>(&given.namespace_offset_in_preimage),
             ),
-        )
+        ));
+        self.logic.assert_all("assert_mso_namespace", &checks)
     }
 
     fn assert_mso_text<const N: usize>(
@@ -547,10 +565,39 @@ where L::F: MdocHashCompileField
                     &[
                         shift_assertions,
                         tag32_header_assertion,
+                        self.assert_namespace_before_digest(
+                            given,
+                            &attr_given.mso_digest_offset_in_preimage,
+                        ),
                         attribute_verifier_assertions,
                     ],
                 )
             },
+        )
+    }
+
+    // These ordering checks exclude header aliases and backwards splices;
+    // they do not establish general CBOR map ancestry.
+    fn assert_namespace_before_digest(
+        &self,
+        given: &Given<L>,
+        digest: &HashIndex<L>,
+    ) -> L::Assertions {
+        let (text_end, arithmetic) = self.bv.checked_add(
+            &self.bv.zext::<16, 17>(&given.namespace_offset_in_preimage),
+            &self
+                .bv
+                .zext::<K_ATTR_INDEX_BITS, 17>(&given.expected_namespace.len),
+        );
+        self.logic.assert_all(
+            "namespace_before_digest",
+            &[
+                arithmetic,
+                self.boolean.assert_true(
+                    "lt",
+                    &self.bv.lt(&text_end, &self.bv.zext::<16, 17>(digest)),
+                ),
+            ],
         )
     }
 
@@ -602,8 +649,13 @@ where L::F: MdocHashCompileField
         self.logic.assert_all(
             "shift_preimage_bounds",
             &[
-                self.boolean
-                    .assert_true("ge_five", &self.bv.leq(&self.bv.of_u64::<16>(5), offset)),
+                self.boolean.assert_true(
+                    "ge_mso",
+                    &self.bv.leq(
+                        &self.bv.of_u64::<16>((K_COSE1_PREFIX_LEN + 8) as u64),
+                        offset,
+                    ),
+                ),
                 self.boolean
                     .assert_true("lt", &self.bv.lt(offset, preimage_length_bytes)),
                 arithmetic,
