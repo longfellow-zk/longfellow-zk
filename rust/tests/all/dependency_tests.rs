@@ -1874,10 +1874,25 @@ fn test_hahn_certificate_sources() {
     assert_eq!(
         protocol_files,
         BTreeSet::from([
+            protocol.join("MdocJointProfile.lean"),
             protocol.join("PolygeroRustHahn.lean"),
             protocol.join("TunedProfiles.lean"),
         ])
     );
+    for generic in ["PolygeroRustHahn.lean", "TunedProfiles.lean"] {
+        let source = fs::read_to_string(protocol.join(generic)).unwrap();
+        assert!(
+            !source
+                .lines()
+                .filter_map(|line| line.strip_prefix("import "))
+                .any(|module| module.starts_with("LfzkV2.")),
+            "application certificate belongs in the separate mdoc facade: {generic}"
+        );
+    }
+    assert!(fs::read_to_string(protocol.join("MdocJointProfile.lean"))
+        .unwrap()
+        .lines()
+        .any(|line| line == "import LfzkV2.Current.Parameters.Rate7"));
     assert!(!root.join("runtime/v2/polygero/theory").exists());
     let bridge = fs::read_to_string(protocol.join("PolygeroRustHahn.lean")).unwrap();
     assert!(bridge

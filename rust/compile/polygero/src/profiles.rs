@@ -14,6 +14,10 @@
 
 //! Candidate Polygero dimensions shared by compilation and the exact CLI audit.
 
+/// Production joint mdoc geometry `(k, s, n, t)`. Its shared two-field budget
+/// is certified separately from the universal single-field tuning catalog.
+pub const MDOC_JOINT_PROFILE: (usize, usize, usize, usize) = (349, 12, 2443, 84);
+
 /// Opening count shared by the variable-rate family.
 pub const TUNING_QUERIES: usize = 80;
 /// Variable-rate candidates (k, s, n), all using `TUNING_QUERIES` openings.

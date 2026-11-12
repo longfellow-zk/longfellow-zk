@@ -157,6 +157,6 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "RustPolygeroProfiles"
 srcDir = "parameters/polygero"
-roots = ["PolygeroRustHahn", "TunedProfiles"]
-globs = ["PolygeroRustHahn", "TunedProfiles"]
+roots = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
+globs = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }

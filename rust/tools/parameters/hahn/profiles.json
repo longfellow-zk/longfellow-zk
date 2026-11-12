@@ -273,5 +273,19 @@
         ]
       ]
     }
-  ]
+  ],
+  "mdoc_joint": {
+    "name": "MdocJoint",
+    "k": 349,
+    "s": 12,
+    "n": 2443,
+    "t": 84,
+    "active_cutoff": 867,
+    "active_list": 1272737905242889781956743699885451,
+    "binary_cutoff": 865,
+    "binary_list": 21898356682154715916,
+    "prime_cutoff": 863,
+    "prime_list": 451457457136012100305,
+    "certificate": "MdocJointProfile.profile"
+  }
 }

@@ -18,7 +18,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::Mutex,
+    time::{Duration, Instant},
 };
 
 use serde_json::json;
@@ -75,6 +75,22 @@ fn prepend(env: &mut Environment, paths: impl IntoIterator<Item = PathBuf>) -> R
     );
     Ok(())
 }
+fn run_lean(mut command: Command, description: &str) -> Result<std::process::ExitStatus> {
+    let mut process = command.spawn()?;
+    let started = Instant::now();
+    loop {
+        if let Some(status) = process.try_wait()? {
+            return Ok(status);
+        }
+        if started.elapsed() > Duration::from_secs(60) {
+            process.kill()?;
+            process.wait()?;
+            return Err(format!("Lean exceeded 60 seconds for {description}").into());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn compile(cache: &Path, relative: &Path, env: &Environment) -> Result<()> {
     let source = cache.join("modules").join(relative);
     let target = source.with_extension("olean");
@@ -84,9 +100,11 @@ fn compile(cache: &Path, relative: &Path, env: &Environment) -> Result<()> {
     let log = cache.join("logs").join(relative).with_extension("log");
     fs::create_dir_all(log.parent().unwrap())?;
     let stream = fs::File::create(&log)?;
-    let status = Command::new("lean")
+    let mut command = Command::new("lean");
+    command
         .args([
             "-j2",
+            "-M4096",
             "-DwarningAsError=true",
             "-DautoImplicit=false",
             "-DrelaxedAutoImplicit=false",
@@ -98,8 +116,11 @@ fn compile(cache: &Path, relative: &Path, env: &Environment) -> Result<()> {
         .arg(&source)
         .envs(env)
         .stdout(Stdio::from(stream.try_clone()?))
-        .stderr(Stdio::from(stream))
-        .status()?;
+        .stderr(Stdio::from(stream));
+    let status = run_lean(
+        command,
+        &format!("{}; inspect {}", relative.display(), log.display()),
+    )?;
     require(
         status.success(),
         format!(
@@ -157,37 +178,126 @@ fn stage_modules(
 /// Keep all generated modules in a private overlay of the formal library.
 fn environment(cache: &Path, formal: &Path) -> Result<Environment> {
     let mut env = library_environment(formal)?;
+    // Production mdoc certificates share the LfzkV2 module root with their
+    // application dependencies. Complete the private overlay before compiling
+    // staged leaves, without overwriting their owned source or object files.
+    for dependency in std::env::split_paths(env.get("LEAN_PATH").ok_or("missing LEAN_PATH")?) {
+        if dependency.is_dir() {
+            cache::overlay(&dependency, &cache.join("modules"))?;
+        }
+    }
     prepend(&mut env, [cache.join("modules")])?;
     cache::write_json(&cache.join("environment.json"), &json!(env))?;
     Ok(env)
 }
 
-/// Compile missing Gram leaves with a bounded pool; all failures reach the caller.
-fn compile_leaves(
+/// Compile every staged module in dependency order. Reuse is closed under
+/// staged dependencies, so a source change cannot retain a stale dependent.
+fn compile_inventory(
     cache: &Path,
     env: &Environment,
-    pending: Vec<PathBuf>,
+    files: &BTreeMap<PathBuf, PathBuf>,
+    ready: &BTreeSet<String>,
     jobs: usize,
 ) -> Result<()> {
-    let queue = Mutex::new(pending);
-    std::thread::scope(|scope| -> Result<()> {
-        let mut workers = Vec::new();
-        for _ in 0..jobs {
-            workers.push(scope.spawn(|| -> Result<()> {
-                loop {
-                    let job = queue.lock().map_err(|_| "poisoned job queue")?.pop();
-                    match job {
-                        Some(p) => compile(cache, &p, env)?,
-                        None => return Ok(()),
+    let names: BTreeMap<_, _> = files
+        .keys()
+        .map(|p| {
+            (
+                p.with_extension("").to_string_lossy().replace('/', "."),
+                p.clone(),
+            )
+        })
+        .collect();
+    let mut dependencies = BTreeMap::new();
+    for (relative, source) in files {
+        let text = fs::read_to_string(source)?;
+        // All staged files put their imports before the first declaration.
+        // Strip nested block and line comments before finding those imports.
+        let mut clean = String::new();
+        let mut bytes = text.bytes().peekable();
+        let mut depth = 0usize;
+        while let Some(byte) = bytes.next() {
+            if byte == b'/' && bytes.peek() == Some(&b'-') {
+                bytes.next();
+                depth += 1;
+            } else if depth > 0 && byte == b'-' && bytes.peek() == Some(&b'/') {
+                bytes.next();
+                depth -= 1;
+            } else if depth == 0 && byte == b'-' && bytes.peek() == Some(&b'-') {
+                for next in bytes.by_ref() {
+                    if next == b'\n' {
+                        break;
                     }
                 }
-            }));
+                clean.push('\n');
+            } else if depth == 0 || byte == b'\n' {
+                clean.push(char::from(byte));
+            }
         }
-        for worker in workers {
-            worker.join().map_err(|_| "Lean worker panicked")??;
+        let deps: BTreeSet<_> = clean
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("import "))
+            .flat_map(str::split_whitespace)
+            .filter_map(|name| names.get(name).cloned())
+            .collect();
+        dependencies.insert(relative.clone(), deps);
+    }
+    let mut checked = BTreeSet::new();
+    let mut reused = BTreeSet::new();
+    while checked.len() < files.len() {
+        let next: Vec<_> = files
+            .keys()
+            .filter(|path| {
+                !checked.contains(*path)
+                    && dependencies[*path].iter().all(|dep| checked.contains(dep))
+            })
+            .take(jobs)
+            .cloned()
+            .collect();
+        require(!next.is_empty(), "cyclic staged certificate imports")?;
+        let mut pending = Vec::new();
+        for relative in next {
+            if ready.contains(relative.to_str().ok_or("non-UTF8 module path")?)
+                && dependencies[&relative]
+                    .iter()
+                    .all(|dep| reused.contains(dep))
+            {
+                reused.insert(relative.clone());
+                checked.insert(relative);
+            } else {
+                pending.push(relative);
+            }
         }
-        Ok(())
-    })?;
+        std::thread::scope(|scope| -> Result<()> {
+            let workers: Vec<_> = pending
+                .iter()
+                .map(|path| scope.spawn(move || compile(cache, path, env)))
+                .collect();
+            for worker in workers {
+                worker
+                    .join()
+                    .map_err(|_| "Lean certificate worker panicked")??;
+            }
+            Ok(())
+        })?;
+        checked.extend(pending);
+    }
+    require(
+        files.keys().all(|relative| {
+            cache
+                .join("modules")
+                .join(relative)
+                .with_extension("olean")
+                .is_file()
+        }),
+        "certificate build left a staged module without an object",
+    )?;
+    println!(
+        "Checked {} certificate modules ({} source-identical cached modules reused).",
+        files.len(),
+        reused.len()
+    );
     Ok(())
 }
 
@@ -203,46 +313,24 @@ pub(crate) fn certify(args: &Args) -> Result<()> {
     for row in profiles::manifest()? {
         profiles::check_hahn(&row)?;
     }
+    profiles::check_joint(&profiles::joint_manifest()?)?;
     let files = cache::sources(&formal)?;
     let reuse = args.path("--reuse-checked-cache")?;
     let (hashes, ready) = stage_modules(&cache, &files, reuse.as_deref())?;
     let gero = environment(&cache, &formal)?;
-    for file in [
-        "RuntimeHahn/HahnPolynomial.lean",
-        "RuntimeHahn/Budget.lean",
-        "RuntimeHahn/Packing.lean",
-    ] {
-        compile(&cache, Path::new(file), &gero)?;
-    }
-    let pending: Vec<_> = files
-        .keys()
-        .filter(|p| {
-            p.file_name()
-                .unwrap()
-                .to_string_lossy()
-                .starts_with("Degree")
-                && !ready.contains(p.to_str().unwrap())
-        })
-        .cloned()
-        .collect();
-    compile_leaves(&cache, &gero, pending, jobs)?;
-    for file in files.keys().filter(|p| {
-        p.file_name()
-            .unwrap()
-            .to_string_lossy()
-            .starts_with("Kernels")
-    }) {
-        compile(&cache, file, &gero)?;
-    }
-    for name in ["Hash", "Signature"] {
-        compile(
-            &cache,
-            Path::new(&format!("RuntimeHahn/{name}.lean")),
-            &gero,
-        )?;
-    }
-    compile(&cache, Path::new("PolygeroRustHahn.lean"), &gero)?;
-    let status = "Lean checked: two packing bounds, the concrete FS bridge and axiom audits";
+    compile_inventory(&cache, &gero, &files, &ready, jobs)?;
+    let production = profiles::audit(Protocol::Polygero)?;
+    fs::write(
+        cache.join("modules/MdocJointCatalog.lean"),
+        numeric_source(
+            Protocol::Polygero,
+            &production,
+            &[profiles::joint_profile()],
+            &formal,
+        )?,
+    )?;
+    compile(&cache, Path::new("MdocJointCatalog.lean"), &gero)?;
+    let status = "Lean checked: universal packing bounds, production joint mdoc certificate, concrete FS bridge and axiom audits";
     cache::write_json(
         &cache.join("build-state.json"),
         &json!({"status":status,"source_sha256":hashes,"manifest_sha256":cache::digest(&root().join("tools/parameters/hahn/profiles.json"))?}),
@@ -271,14 +359,14 @@ fn numeric_source(
     let namespace = protocol.namespace();
     let bridge = format!("{namespace}RustHahn");
     let mut body = format!(
-        "import {bridge}\n{}\nnamespace {namespace}.RustProfiles\n",
+        "import {bridge}\nimport MdocJointProfile\n{}\nnamespace {namespace}.RustProfiles\n",
         fs::read_to_string(
             project.join(format!("parameters/{}/TunedProfiles.lean", protocol.name()))
         )?
     );
     let mut facts = BTreeSet::new();
     for &p in selected {
-        if !audit.hahn.contains_key(&p) {
+        if !audit.hahn.contains_key(&p) && p != profiles::joint_profile() {
             facts.extend(choices(p));
         }
     }
@@ -288,7 +376,32 @@ fn numeric_source(
     for &p in selected {
         let Profile { k, s, n, t } = p;
         let label = p.label();
-        if let Some(row) = audit.hahn.get(&p) {
+        if p == profiles::joint_profile() {
+            writeln!(
+                &mut body,
+                "def profile_{label} : LfzkV2.Current.CertifiedProfile := MdocJointProfile.profile"
+            )?;
+            for (field, value) in [("k", p.k), ("s", p.s), ("n", p.n), ("t", p.t)] {
+                writeln!(
+                    &mut body,
+                    "example : profile_{label}.{field} = {value} := by decide +kernel"
+                )?;
+            }
+            for (key, field) in [
+                ("active_cutoff", "activeCutoff"),
+                ("active_list", "activeList"),
+                ("binary_cutoff", "binaryCutoff"),
+                ("binary_list", "binaryList"),
+                ("prime_cutoff", "primeCutoff"),
+                ("prime_list", "primeList"),
+            ] {
+                let value = profiles::integer(&audit.joint[key])?;
+                writeln!(
+                    &mut body,
+                    "example : profile_{label}.{field} = {value} := by decide +kernel"
+                )?;
+            }
+        } else if let Some(row) = audit.hahn.get(&p) {
             let name = row["name"].as_str().ok_or("missing manifest name")?;
             writeln!(&mut body,"def profile_{label} : {namespace}.RustHahnProfiles.Profile {n} {k} {s} {t} .universal := {namespace}.RustHahnProfiles.{name}.profile")?;
         } else {
@@ -353,12 +466,16 @@ pub(crate) fn check_profiles(
         &proof,
         numeric_source(protocol, audit, &selected, &project_root)?,
     )?;
-    let status = Command::new("lean")
-        .args(["-j2", "-DwarningAsError=true"])
+    let mut command = Command::new("lean");
+    command
+        .args(["-j2", "-M4096", "-DwarningAsError=true"])
         .arg(proof)
-        .envs(env)
-        .status()?;
+        .envs(env);
+    let status = run_lean(command, "parameter records")?;
     require(status.success(), "Lean rejected numerical profiles")?;
-    println!("{} numeric records and the concrete FS endpoint checked by Lean; foundational axiom audit passed.",selected.len());
+    println!(
+        "{} parameter records checked by Lean; foundational axiom audit passed.",
+        selected.len()
+    );
     Ok(())
 }

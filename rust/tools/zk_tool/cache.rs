@@ -52,6 +52,21 @@ pub(crate) fn sources(project: &Path) -> Result<BTreeMap<PathBuf, PathBuf>> {
         "PolygeroRustHahn.lean".into(),
         project.join("parameters/polygero/PolygeroRustHahn.lean"),
     );
+    out.insert(
+        "MdocJointProfile.lean".into(),
+        project.join("parameters/polygero/MdocJointProfile.lean"),
+    );
+    for name in [
+        "ParameterBounds",
+        "CertifiedProfile",
+        "Parameters/Rate7",
+        "Parameters/Rate7/Active",
+        "Parameters/Rate7/Binary",
+        "Parameters/Rate7/Prime",
+    ] {
+        let relative = PathBuf::from(format!("LfzkV2/Current/{name}.lean"));
+        out.insert(relative.clone(), project.join("lfzk-v2").join(relative));
+    }
     Ok(out)
 }
 pub(crate) fn read_json(path: &Path) -> Result<Value> {
@@ -532,13 +547,14 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, "theorem fixture : True := trivial\n").unwrap();
         }
-        assert_eq!(
-            sources(&project.path).unwrap(),
-            BTreeMap::from([
-                (PathBuf::from("RuntimeHahn/Packing.lean"), packing),
-                (PathBuf::from("PolygeroRustHahn.lean"), bridge),
-            ])
-        );
+        let inventory = sources(&project.path).unwrap();
+        assert_eq!(inventory[Path::new("RuntimeHahn/Packing.lean")], packing);
+        assert_eq!(inventory[Path::new("PolygeroRustHahn.lean")], bridge);
+        assert!(inventory.contains_key(Path::new("MdocJointProfile.lean")));
+        assert!(inventory.contains_key(Path::new("LfzkV2/Current/Parameters/Rate7.lean")));
+        assert!(inventory
+            .values()
+            .all(|path| path.starts_with(&project.path)));
         assert!(sources(&project.path.join("missing")).is_err());
     }
     #[test]

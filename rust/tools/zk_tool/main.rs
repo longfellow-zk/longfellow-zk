@@ -105,7 +105,7 @@ fn run() -> Result<()> {
                 profiles::Protocol::parse(args.one("--protocol")?.ok_or("missing --protocol")?)?;
             let checked = profiles::audit(protocol)?;
             println!(
-                "{} {} profiles: exact budgets passed; {} Hahn manifests.",
+                "{} {} profiles: exact budgets passed; {} universal Hahn manifests and the joint mdoc budget.",
                 checked.profiles.len(),
                 protocol.name(),
                 checked.hahn.len()

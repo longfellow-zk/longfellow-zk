@@ -324,7 +324,15 @@ sumcheck libraries remain available. The V1 security certificates use
 [Sumcheck V2](sumcheck-v2/README.md).
 
 The default build includes the exact [runtime Hahn certificates](parameters/hahn/RuntimeHahn/APITest.lean)
-and [Polygero parameter certificates](parameters/polygero). These use checked
+and the [production joint mdoc profile](parameters/polygero/MdocJointProfile.lean).
+The latter re-exports the active `(k,s,n,t) = (349,12,2443,84)` certificate
+with both witness-selection list bounds and the joint active-family bound.
+The Rust parameter tool checks this profile's joint budget separately from
+its universal tuning catalog. Its Lean check binds the manifest's geometry,
+cutoffs and list caps to this certificate.
+
+The default build also includes the
+[Polygero parameter certificates](parameters/polygero). These use checked
 integer identities and proved interpolation, without a native-evaluation axiom.
 The package uses Lean 4.31.0 and the compatible Mathlib checkout at
 `../../mathlib4`, relative to `formal/`.

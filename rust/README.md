@@ -620,6 +620,19 @@ Formal checking reads proof sources from the selected formal project,
 normally `../formal`. Normal Rust builds, parameter selection, proving,
 and verification do not require the Lean toolchain.
 
+The catalog includes the production joint mdoc profile `(349, 12, 2443, 84)`.
+Its geometry is shared with the development provider through
+`MDOC_JOINT_PROFILE`. The exact checker checks its shared two-field parent,
+opening and fingerprint charges separately from the universal tuning profiles.
+`certify-hahn` checks the three mdoc Hahn bounds and binds the manifest's
+cutoffs and list caps to `MdocJointProfile.profile`. It checks every staged
+module in dependency order, using two workers by default, two Lean threads,
+a 4,096 MiB limit and a 60-second deadline per module. Source-identical cache
+reuse also requires reusable staged dependencies.
+
+After certification, select that profile for the Lean cross-check with
+`check-profiles --protocol polygero --check-lean ../formal --profile 349,12,2443,84`.
+
 Parameter certificates establish mathematical bounds under their stated
 assumptions; they do not certify the complete Rust implementation.
 

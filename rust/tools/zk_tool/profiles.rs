@@ -62,6 +62,7 @@ impl Profile {
 pub(crate) struct Audit {
     pub profiles: Vec<Profile>,
     pub hahn: BTreeMap<Profile, Value>,
+    pub joint: Value,
 }
 
 pub(crate) fn integer(value: &Value) -> Result<BigInt> {
@@ -255,6 +256,98 @@ pub(crate) fn manifest() -> Result<Vec<Value>> {
         .ok_or("missing profiles")?
         .clone())
 }
+
+pub(crate) fn joint_manifest() -> Result<Value> {
+    let value: Value = serde_json::from_slice(&fs::read(
+        root().join("tools/parameters/hahn/profiles.json"),
+    )?)?;
+    value
+        .get("mdoc_joint")
+        .cloned()
+        .ok_or_else(|| "missing joint mdoc profile".into())
+}
+
+pub(crate) fn joint_profile() -> Profile {
+    let (k, s, n, t) = gero::MDOC_JOINT_PROFILE;
+    Profile { k, s, n, t }
+}
+
+/// Audit the production two-field composition using its certified list caps.
+/// These are joint-query charges, not the universal tuning profile's 2^-130
+/// opening contract. `--check-lean` additionally binds these caps to Lean's
+/// production certificate; `certify-hahn` checks its three Hahn proofs.
+pub(crate) fn check_joint(row: &Value) -> Result<Profile> {
+    require(
+        row["name"] == "MdocJoint" && row["certificate"] == "MdocJointProfile.profile",
+        "unexpected production mdoc certificate reference",
+    )?;
+    let p = Profile {
+        k: small(row, "k")?,
+        s: small(row, "s")?,
+        n: small(row, "n")?,
+        t: small(row, "t")?,
+    };
+    require(
+        p == joint_profile(),
+        "joint mdoc geometry differs from production",
+    )?;
+    let active = small(row, "active_cutoff")?;
+    let binary = small(row, "binary_cutoff")?;
+    let prime = small(row, "prime_cutoff")?;
+    let active_list = integer(&row["active_list"])?;
+    let binary_list = integer(&row["binary_list"])?;
+    let prime_list = integer(&row["prime_list"])?;
+    let q = pow2(128);
+    let prime_order = pow2(256) - pow2(224) + pow2(192) + pow2(96) - 1;
+    require(
+        p.k > 2 * p.t && p.s > 0 && p.t > 0 && p.n == 7 * p.k,
+        "invalid joint mdoc profile",
+    )?;
+    require(
+        (p.k + 2 * p.s + 1).max(2 * p.k + p.s) <= active
+            && active <= p.n
+            && p.k <= binary
+            && binary <= p.n
+            && p.k <= prime
+            && prime <= p.n,
+        "invalid joint cutoffs",
+    )?;
+    require(
+        [&active_list, &binary_list, &prime_list]
+            .iter()
+            .all(|cap| **cap >= BigInt::one() && **cap <= q),
+        "invalid joint list caps",
+    )?;
+    let tail = |columns| Q::new(choose(columns, p.t), choose(p.n, p.t));
+    let ordinary = Q::new(2.into(), &q - 1);
+    require(
+        Q::new(active_list.clone(), 2.into()).mul(&tail(p.k + 2 * p.s - 1)) <= tail(active - 1),
+        "joint active threshold condition failed",
+    )?;
+    let opening = tail(active - 1)
+        .add(&tail(binary + p.s - 1))
+        .add(&tail(prime + p.s - 1));
+    require(opening <= ordinary, "joint opening budget failed")?;
+    let rows = choose(p.n, p.k + 2 * p.s + 1);
+    let rank = |field: &BigInt| Q::new(rows.clone(), field.pow((p.s + 1) as u32));
+    let mass = Q::int(1).add(&Q::int(&active_list - 1).mul(&tail(active - 1)));
+    let parent = rank(&q).add(&rank(&prime_order)).add(
+        &Q::new(1.into(), q.clone())
+            .add(&Q::new(1.into(), prime_order.clone()))
+            .mul(&mass),
+    );
+    require(parent < ordinary, "joint parent budget failed")?;
+    let fingerprint = Q::new(
+        &binary_list * (&binary_list - 1),
+        BigInt::from(2) * q.pow(2),
+    )
+    .add(&Q::new(
+        &prime_list * (&prime_list - 1),
+        BigInt::from(2) * prime_order.pow(2),
+    ));
+    require(fingerprint <= ordinary, "joint fingerprint budget failed")?;
+    Ok(p)
+}
 pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
     let (queries, fixed, r7, r4) = match protocol {
         Protocol::Polygero => (
@@ -281,6 +374,7 @@ pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
             t,
         }));
     }
+    out.push(joint_profile());
     out
 }
 fn baseline_budget(p: Profile) -> bool {
@@ -294,6 +388,8 @@ fn baseline_budget(p: Profile) -> bool {
 }
 pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
     let profiles = catalog(protocol);
+    let joint = joint_manifest()?;
+    let joint_geometry = check_joint(&joint)?;
     let rows = manifest()?;
     let mut hahn = BTreeMap::new();
     let names: BTreeSet<_> = rows
@@ -313,6 +409,9 @@ pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
         require(hahn.insert(p, row).is_none(), "duplicate manifest profile")?;
     }
     for &p in &profiles {
+        if p == joint_geometry {
+            continue;
+        }
         let Profile { k, s, n, t } = p;
         require(
             k > 2 * t && t > 0 && usize::max(k + 2 * s + 1, 2 * k + s) <= n,
@@ -340,7 +439,11 @@ pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
             }
         }
     }
-    Ok(Audit { profiles, hahn })
+    Ok(Audit {
+        profiles,
+        hahn,
+        joint,
+    })
 }
 
 #[cfg(test)]
@@ -349,8 +452,18 @@ mod tests {
     #[test]
     fn all_manifests_and_catalog() {
         let a = audit(Protocol::Polygero).unwrap();
-        assert_eq!(a.profiles.len(), 63);
+        assert_eq!(a.profiles.len(), 64);
         assert_eq!(a.hahn.len(), 2);
+        assert_eq!(check_joint(&a.joint).unwrap(), joint_profile());
+    }
+    #[test]
+    fn joint_profile_budget_changes_reject() {
+        let mut row = joint_manifest().unwrap();
+        row["active_list"] = serde_json::from_str(&pow2(128).to_string()).unwrap();
+        assert!(check_joint(&row).is_err());
+        let mut row = joint_manifest().unwrap();
+        row["t"] = Value::from(joint_profile().t - 1);
+        assert!(check_joint(&row).is_err());
     }
     #[test]
     fn fewer_openings_reject() {

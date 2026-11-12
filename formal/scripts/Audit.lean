@@ -27,6 +27,7 @@ import TranscriptV2.APITest
 import RuntimeHahn.APITest
 import PolygeroRustHahn
 import TunedProfiles
+import MdocJointProfile
 import polygero.APITest
 import Bcs.FirstPairCharge
 import Bcs.FirstPairCombined
@@ -51,7 +52,7 @@ set_option maxHeartbeats 20000000
 private def auditedModule (name : Name) : Bool :=
   #["LfzkV1", "LfzkV2", "SumcheckV1", "SumcheckV2", "DualPacking", "WitnessSelection",
     "TranscriptV2", "Bcs", "Merkle",
-    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles", "Survival",
+    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles", "MdocJointProfile", "Survival",
     "CodingTheory", "ReedSolomon", "AffineAgreement", "SelectedMCA", "LigeroFamily",
     "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "PkCircuitPoly", "LigeroLocalCounts"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
