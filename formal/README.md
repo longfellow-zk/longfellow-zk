@@ -69,7 +69,11 @@ against the current Rust compiler. The approximation takes a supported-shape
 witness and derives the round bound internally.
 
 Here `r` is the number of rounds: one per `begin_squeeze()` call. The final seal
-is counted separately. The certified parameters are
+is counted separately. The numerical composition bound reads its geometry,
+list capacities and field orders from the active certificate and parameter
+modules. The generic profile interface bounds local charges by the shared
+role maximum; the production theorem retains the exact Polygero coefficient
+shown above. The certified parameters are
 `(k,s,n,t)=(349,12,2443,84)`; the indexed Merkle heap has depth 12.
 The bound includes arbitrary query repetitions and `Q = 0`. Its exact
 `q - 1` denominator retains the nonzero-sampling correction.

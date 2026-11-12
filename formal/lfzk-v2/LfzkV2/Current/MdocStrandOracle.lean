@@ -271,7 +271,7 @@ theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Om
       (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget).trans
         (Survival.Rate7.failureBound_le_polynomial Q _)
     apply bound.trans_eq
-    norm_num [Survival.Rate7.q]
+    norm_num [Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
     ring
   · intro integerBound
     have rationalBound : (170141183460469231731687303715884105728 : ℚ) ≤ Q := by
@@ -279,7 +279,7 @@ theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Om
     have roundsNonnegative : (0 : ℚ) ≤
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length :=
       Nat.cast_nonneg _
-    norm_num [Survival.Rate7.q]
+    norm_num [Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
     nlinarith only [rationalBound, sq_nonneg (Q : ℚ), roundsNonnegative]
 
 include bodyFits in

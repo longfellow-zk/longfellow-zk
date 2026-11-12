@@ -168,7 +168,7 @@ theorem fixed_setup_linear_ratio_le :
     have castBound : (2^127 : ℚ) ≤ Q := by exact_mod_cast bounded
     have leading := mul_le_mul_of_nonneg_left castBound Survival.Rate7.rate_nonneg
     have atCutoff : (1 : ℚ) ≤ Survival.Rate7.rate*(2^127 : ℚ) := by
-      norm_num [Survival.Rate7.rate,Survival.Rate7.q]
+      norm_num [Survival.Rate7.rate,Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
     have correction : 0 ≤ Survival.Rate7.correction Q (g).roles.length := by
       unfold Survival.Rate7.correction
       positivity

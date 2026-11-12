@@ -717,16 +717,14 @@ theorem localProof_budget_le (fallback : Answer) (point : Tagged) :
         reduceCtorEq,↓reduceIte,sum_const_zero,add_zero,le_refl]
   | inl point =>
       simp only [Composition.LocalCharges.budget,localProof,taggedBudget,Sum.elim_inl,Sum.inl.injEq]
-      have margin : 1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ)) ≤
-          2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) := by norm_num [Adapter.Mdoc.binaryOrder]
       have parentBound : (pc).rankError+(rc).rankError+pairBudget c binary prime P R
           countBinary countPrime binaryCapacity primeCapacity cfg ≤
-          1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ)) :=
+          2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) :=
         c.parameters_parent_budget_le First Second
           (binaryCard c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
           (primeCard c R countPrime)
       have openingBound : GlobalCharges.openingBudget (s := c.s) (n := c.n) (t := c.t)
-          c.cutoff c.threshold ≤ 1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ)) := by
+          c.cutoff c.threshold ≤ 2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) := by
         change ParameterBounds.openingBudget c.n c.s c.t c.activeCutoff c.binaryCutoff c.primeCutoff ≤ _
         exact c.opening_budget_le
       exact RuntimeAdaptiveFS.point_budget_le (binary := binary) (prime := prime) (P := P) (R := R)
@@ -735,7 +733,7 @@ theorem localProof_budget_le (fallback : Answer) (point : Tagged) :
         (pc).toProfileParameters (rc).toProfileParameters
         (pairBudget c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
         (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
-        (c.round_budget_le cfg.card) (parentBound.trans margin) (openingBound.trans margin)
+        (c.round_budget_le cfg.card) parentBound openingBound
         (by norm_num [Adapter.Mdoc.binaryOrder]) point
 
 /-- The batching position retains the exact rank and high-response

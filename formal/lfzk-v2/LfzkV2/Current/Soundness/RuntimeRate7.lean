@@ -16,7 +16,7 @@ theorem parent_budget :
   exact Rate7.polygeroFraction_mul_rate.ge
 
 theorem range (queries : ℕ) (bounded : queries < 2^127) : queries < Rate7.q/2 := by
-  norm_num [Rate7.q]
+  norm_num [Rate7.q, Adapter.Mdoc.binaryOrder]
   exact bounded
 
 theorem query_budget (queries : ℕ) (bounded : queries < 2^127) :
@@ -34,7 +34,7 @@ theorem correction_eq (queries rounds : ℕ) :
   have depth : Heap.heapDepth (profile).n = 12 := by decide +kernel
   unfold StrandRecovery.hashCorrection Rate7.correction
   rw [depth, Nat.choose_two_right]
-  norm_num [Rate7.q]
+  norm_num [Rate7.q, Adapter.Mdoc.binaryOrder]
   ring
 
 end Survival.RuntimeRate7

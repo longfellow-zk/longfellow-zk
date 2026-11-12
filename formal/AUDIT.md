@@ -105,6 +105,11 @@ native evaluation is allowed only for the documented V1 numerical rows.
 explicitly, sharing leaf encoding and physical row maps with the indexed
 codec. The current soundness endpoint imports neither this historical codec
 nor the ZK assembly. Numbered strand tests cover the current PRF keys.
+The numerical composition bound uses the active certificate as its parameter
+source. Generic profile caps express the local role maximum directly; this
+interface cleanup does not tighten the production probability estimate, which
+already uses the exact joint parent budget. The runtime arithmetic bridge
+continues to identify the actual indexed hash correction with that estimate.
 The numbered-strand privacy proof is separate from this soundness argument.
 The active privacy and honest-runtime endpoints also exclude the historical
 codec. The Rust source audit checks their complete local import closures,

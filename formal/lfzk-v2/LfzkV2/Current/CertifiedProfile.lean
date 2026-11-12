@@ -41,9 +41,9 @@ structure CertifiedProfile where
   prime_rank_small : rankError n k s Adapter.Mdoc.primeOrder +
     1/(Adapter.Mdoc.primeOrder:ℚ) < 1
   parent_budget_le : parentBudget n k s t activeCutoff activeList ≤
-    1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ))
+    2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ)
   opening_budget_le : openingBudget n s t activeCutoff binaryCutoff primeCutoff ≤
-    1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ))
+    2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ)
   fingerprint_budget_le : (binaryList.choose 2:ℚ)/(Adapter.Mdoc.binaryOrder:ℚ)^2 +
     (primeList.choose 2:ℚ)/(Adapter.Mdoc.primeOrder:ℚ)^2 ≤
       2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ)
@@ -125,7 +125,7 @@ theorem parameters_parent_budget_le (P R : Joint.Participant c.k c.s c.n c.t)
     let pc := c.parameters P.backend P.columns P.dimension P.batching P.openings (Or.inl hP)
     let rc := c.parameters R.backend R.columns R.dimension R.batching R.openings (Or.inr hR)
     pc.rankError+rc.rankError+JointResponse.activeHighBudget P R pc ≤
-      1999999/(1000000*(Adapter.Mdoc.binaryOrder:ℚ)) := by
+      2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) := by
   intro pc rc
   rw [c.parameters_rankError P.backend P.columns P.dimension P.batching P.openings (Or.inl hP),
     c.parameters_rankError R.backend R.columns R.dimension R.batching R.openings (Or.inr hR), hP, hR]
