@@ -106,6 +106,9 @@ explicitly, sharing leaf encoding and physical row maps with the indexed
 codec. The current soundness endpoint imports neither this historical codec
 nor the ZK assembly. Numbered strand tests cover the current PRF keys.
 The numbered-strand privacy proof is separate from this soundness argument.
+The active privacy and honest-runtime endpoints also exclude the historical
+codec. The Rust source audit checks their complete local import closures,
+preventing an unused public helper from reintroducing that dependency.
 
 The current indexed runtime also checks that each arithmetic response is
 zero on its logical mask prefix. `StrandVerifier.prefixZeros` includes this
