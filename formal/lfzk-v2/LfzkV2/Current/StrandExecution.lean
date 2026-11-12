@@ -1,5 +1,6 @@
 import LfzkV2.Current.StrandAuthentication
 import LfzkV2.Joint.Indexed
+import LfzkV2.Current.Protocol.Execution
 
 /-! An actual shared-SHA execution determines its accepting decision and
 its paired extracted witness. The observation retains the whole verifier
@@ -9,16 +10,8 @@ noncomputable section
 namespace LfzkV2.Current.StrandExecution
 open Application ApplicationSetup CanonicalPrefix
 open Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2
+open Protocol.Execution
 open scoped Classical
-
-/-- One execution observation for both the physical and grouped oracle
-experiments. Every address at this boundary is an actual SHA input. The
-original table stays separate from verifier replay: only the former may
-supply commitment evidence or consume the adversary's query budget. -/
-@[ext] structure View (Output Result Context : Type) where
-  original : Output × List (Bytes × Digest)
-  verifier : Result × List (Bytes × Digest)
-  cuts : Context → List (Bytes × Digest)
 
 /-- Complete a recorded verifier trace with a fixed answer elsewhere.
 The unused coordinates cannot affect that verifier's decision. -/

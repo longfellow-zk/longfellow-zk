@@ -86,13 +86,13 @@ local notation "rawException" => StrandRealization.rawException binary prime P R
 variable {Result : Type}
 
 /-- Disagreement uses the actual decoded opening and the fixed original cut. -/
-def openingDisagrees (view : StrandExecution.View Output Result (FingerprintPrefix.Key binary.nPublic)) : Prop :=
+def openingDisagrees (view : Protocol.Execution.View Output Result (FingerprintPrefix.Key binary.nPublic)) : Prop :=
   ∃ decoded, actualDecoded view = some decoded ∧
     ∃ column ∈ decoded.claim.I, messages (dec) (view.cuts (contextOf view.original.1))
       (rootOf view.original.1) n column ≠ decoded.claim.a column
 
 /-- A prover query outside the cut hit the root or a child named in the cut. -/
-def lateMerkleHit {Result : Type} (view : StrandExecution.View Output Result (FingerprintPrefix.Key binary.nPublic)) : Prop :=
+def lateMerkleHit {Result : Type} (view : Protocol.Execution.View Output Result (FingerprintPrefix.Key binary.nPublic)) : Prop :=
   OriginalHit (codec) (dec) view.original.2 (view.cuts (contextOf view.original.1)) (rootOf view.original.1)
 
 local notation "disagrees" => openingDisagrees binary prime P R repr shape setup cfg binaryCount metadata
@@ -218,7 +218,7 @@ local notation "originalException" => StrandRealization.observedException
 
 /-- The verifier-side exceptions are determined by the common execution
 view. The fresh Merkle witness is used only to bound the disagreement event. -/
-def hashException (view : StrandExecution.View Output
+def hashException (view : Protocol.Execution.View Output
     ((Output × TranscriptV2.Chain.State (M)) × Digest) (FingerprintPrefix.Key binary.nPublic)) : Prop :=
   originalException view.original view.verifier.1 ∨
     (decision view = true ∧ disagrees view ∧ ¬lateHit view)
@@ -289,7 +289,7 @@ theorem lateMerkleHit_charged (H : Name → Answer) (late : lateHit (observed H)
   let SHA := SHAof (completed H)
   let key := contextOf view.original.1
   obtain ⟨input,digest,present,absent,merkle,target⟩ := late
-  have original : view.original = program.run SHA := congrArg StrandExecution.View.original
+  have original : view.original = program.run SHA := congrArg Protocol.Execution.View.original
     (StrandRealization.observe_actual binary prime P R repr shape setup cfg binaryCount metadata fits
       sample (codec) id program H)
   have queried : (input,digest) ∈ (program.run SHA).2 := by rw [← original]; exact present
@@ -447,7 +447,7 @@ def meanAuxiliary : ℚ :=
 local notation "mean" => meanAuxiliary binary prime P R repr shape setup cfg binaryCount metadata
   fits columnsFit sample program
 
-abbrev Observation := StrandExecution.View Output ((Output × Chain.State (M)) × Digest)
+abbrev Observation := Protocol.Execution.View Output ((Output × Chain.State (M)) × Digest)
   (FingerprintPrefix.Key binary.nPublic)
 
 variable (invalid : Observation binary prime P R repr shape setup cfg binaryCount metadata → Prop)

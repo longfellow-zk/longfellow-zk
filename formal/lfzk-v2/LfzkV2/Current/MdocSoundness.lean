@@ -1,3 +1,4 @@
+import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.MdocStrandOracle
 import LfzkV2.Current.MdocWitnessRequest
 
@@ -25,6 +26,7 @@ variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Sca
 variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
 variable (outside : Bytes → Digest)
 local notation "currentIds" => MdocStrandOracle.identifiers ids outside
+local notation "E" => Mdoc.Setup.protocol binary prime cantor scalars currentIds bounds
 local notation "c" => FixedRate.Rate7.certificate
 local notation "bp" => binary.description
 local notation "pp" => prime.description
@@ -51,7 +53,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => StrandProtocol.values c bp pp P R cb cp bc pc repr shape setup
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc repr shape setup
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 
@@ -100,15 +102,14 @@ variable (sample : (point : MdocStrandSoundness.RoundPoint binary prime cantor s
     (MdocStrandOracle.identifiers ids outside) bounds) →
   Tree Strand.Word Digest (Option (MdocStrandSoundness.RoundValue binary prime cantor scalars
     (MdocStrandOracle.identifiers ids outside) bounds point)) blocks)
-local notation "physical" => StrandProtocol.sampler c bp pp P R cb cp bc pc repr shape setup
+local notation "physical" => Protocol.Sampling.sampler c bp pp P R cb cp bc pc repr shape setup
   binary.plan prime.plan rfl rfl bf primeFits df rf cfg sample
 local notation "Raw" => MdocStrandOracle.Raw binary prime cantor scalars ids bounds body outside fits sample
 local notation "view" G => MdocStrandOracle.observation binary prime cantor scalars ids bounds body outside fits sample G
 local notation "SHA" G => MdocStrandOracle.sha binary prime cantor scalars ids bounds body outside fits sample G
 local notation "decodedView" => StrandExecution.decoded bp pp P R W earlier (ProofBodyCodec.codec repr g)
   physical (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw
-local notation "authentication" => StrandProtocol.viewAuthentication c bp pp P R cb cp bc pc repr shape setup
-  cfg rfl metadata (by decide)
+local notation "authentication" => StrandProtocol.viewAuthentication E
 
 /-- The existing first-commitment-cut extractor, with the decoded system
 used only to recover its authenticated statement and challenges. -/

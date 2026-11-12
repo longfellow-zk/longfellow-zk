@@ -1,4 +1,5 @@
-import LfzkV2.Current.StrandProtocol
+import LfzkV2.Current.Mdoc.Setup
+import LfzkV2.Current.Soundness.Composition
 import LfzkV2.Current.MdocDefaults
 import LfzkV2.Current.ProofOutput
 import LfzkV2.Current.Soundness.RuntimeRate7
@@ -42,7 +43,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => StrandProtocol.values c bp pp P R cb cp bc pc repr shape setup
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc repr shape setup
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 
@@ -73,29 +74,26 @@ variable (fits : (MdocRuntime.geometry binary.description prime.description bina
 variable (sample : (point : RoundPoint binary prime cantor scalars ids bounds) →
   Tree Strand.Word Digest (Option (RoundValue binary prime cantor scalars ids bounds point)) blocks)
 
+local notation "E" => Mdoc.Setup.protocol binary prime cantor scalars ids bounds
+local notation "D" => (Protocol.SamplerData.mk (S := E) sample : Protocol.SamplerData (E) blocks)
+
 def program := body.map (ProofOutput.decode repr (MdocDefaults.proof g B))
 
 local notation "program" => program binary prime scalars bounds body
+local notation "prog" => (Protocol.Execution.Program.mk program : Protocol.Execution.Program (Protocol.Setup.Output (E)) fuel)
 
-abbrev Raw := StrandProtocol.Raw c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-  rfl rfl bf primeFits df rf cfg rfl metadata fits sample (by decide) program
+abbrev Raw := StrandProtocol.Raw E fits D prog
 
 local notation "Raw" => MdocStrandSoundness.Raw binary prime cantor scalars ids bounds body fits sample
-local notation "rawSHA" => StrandProtocol.rawOracle c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata fits sample (by decide) program
-local notation "failure" => StrandProtocol.rawFailure c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata fits sample rfl (by decide) program
-def replay := StrandProtocol.verifierReplay c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata sample (by decide)
+local notation "rawSHA" => StrandProtocol.rawOracle E fits D prog
+local notation "failure" => StrandProtocol.rawFailure E fits D prog
+def replay := StrandProtocol.verifierReplay E D
 
-def observation (G : Raw → Digest) := StrandProtocol.rawObservation c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata fits sample (by decide) program G
+def observation (G : Raw → Digest) := StrandProtocol.rawObservation E fits D prog G
 
-def selectedFailure := StrandProtocol.failure c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata sample rfl (by decide)
+def selectedFailure := StrandProtocol.failure E D
 
-def verify := StrandProtocol.verify c bp pp P R cb cp bc pc repr shape setup
-  binary.plan prime.plan rfl rfl bf primeFits df rf cfg rfl metadata sample rfl (by decide)
+def verify := StrandProtocol.verify E D
 
 theorem observation_verified (G : Raw → Digest) (SHA : Bytes → Digest)
     (replayed : (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
@@ -105,24 +103,20 @@ theorem observation_verified (G : Raw → Digest) (SHA : Bytes → Digest)
       (observation binary prime cantor scalars ids bounds body fits sample G)) :
     verify binary prime cantor scalars ids bounds sample SHA
       (observation binary prime cantor scalars ids bounds body fits sample G).original.1 = true :=
-  StrandProtocol.failure_verified c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-    rfl rfl bf primeFits df rf cfg rfl metadata sample rfl (by decide) _ SHA replayed failed
+  StrandProtocol.failure_verified E D _ SHA replayed failed
 
 theorem observation_original (G : Raw → Digest) :
     (observation binary prime cantor scalars ids bounds body fits sample G).original = (program).run (rawSHA G) :=
-  StrandProtocol.rawObservation_original c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-    rfl rfl bf primeFits df rf cfg rfl metadata fits sample (by decide) program G
+  StrandProtocol.rawObservation_original E fits D prog G
 
 theorem observation_verifier (G : Raw → Digest) :
     (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
       (replay binary prime cantor scalars ids bounds sample ((program).run (rawSHA G)).1).run (rawSHA G) :=
-  StrandProtocol.rawObservation_verifier c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-    rfl rfl bf primeFits df rf cfg rfl metadata fits sample (by decide) program G
+  StrandProtocol.rawObservation_verifier E fits D prog G
 
 theorem replay_domain (output : CanonicalRuntime.Output (Advice := MdocAdvice.Value) bp shape) :
     OracleDomain.UsesOnly StrandDomains.protocol (replay binary prime cantor scalars ids bounds sample output) :=
-  StrandProtocol.verifierReplay_domain c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-    rfl rfl bf primeFits df rf cfg rfl metadata sample (by decide) output
+  StrandProtocol.verifierReplay_domain E D output
 
 def oracle (G : Raw → Digest) : Bytes → Digest := rawSHA G
 
@@ -133,6 +127,13 @@ variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scal
   (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) ≤ CanonicalPrefix.maxLength)
 variable (fiber : RoundPoint binary prime cantor scalars ids bounds → ℕ)
 variable (uniform : ∀ point value, (Finset.univ.filter fun stream => ((sample point).run stream).1 = some value).card = fiber point)
+local notation "L" => (Protocol.SamplerLaws.mk (data := D) fiber uniform : Protocol.SamplerLaws (D))
+local notation "inputs" => (Soundness.Inputs.mk (protocol := E)
+  (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes)
+  (by decide) (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) bodyFits : Soundness.Inputs (E))
+local notation "S" => (Soundness.Setup.mk (E) inputs fits
+  (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
+  (by intros; rfl) : Soundness.Setup c g (MdocRuntime.fields B) MdocAdvice.Value B)
 variable (queries : ∀ SHA : Bytes → Digest, (seen body SHA).card ≤ Q)
 
 include bodyFits uniform queries in
@@ -146,12 +147,8 @@ theorem fixed_setup_linear_ratio_le :
   · intro budget
     have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
       simpa only [MdocStrandSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
-    have bound := StrandProtocol.soundness_linear c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-      rfl rfl bf primeFits df rf cfg rfl metadata bodyFits fits sample fiber uniform rfl (by decide) program
-      (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes) (by decide)
-      (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) support
-      (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
-      (by intros; rfl) (LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate)
+    have bound := Soundness.Composition.soundness_linear S (Protocol.Sampler.mk D L)
+      (Protocol.Execution.Adversary.mk prog support) (LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate)
       (mul_nonneg LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg LfzkV2.Current.Soundness.Rate7.rate_nonneg)
       (by
         change LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate ≤ LfzkV2.Current.Soundness.Rate7.rate
@@ -189,12 +186,8 @@ theorem fixed_setup_ratio_le (budget : Q < 2^127) :
       LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length := by
   have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
     simpa only [MdocStrandSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
-  have bound := StrandProtocol.soundness c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
-    rfl rfl bf primeFits df rf cfg rfl metadata bodyFits fits sample fiber uniform rfl (by decide) program
-    (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes) (by decide)
-    (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) support
-    (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
-    (by intros; rfl) LfzkV2.Current.Soundness.Rate7.polygeroFraction LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg
+  have bound := Soundness.Composition.soundness S (Protocol.Sampler.mk D L)
+      (Protocol.Execution.Adversary.mk prog support) LfzkV2.Current.Soundness.Rate7.polygeroFraction LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg
     (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num))
     (LfzkV2.Current.Soundness.RuntimeRate7.query_budget Q budget) LfzkV2.Current.Soundness.RuntimeRate7.parent_budget
     (LfzkV2.Current.Soundness.RuntimeRate7.auxiliary_budget Q budget)

@@ -121,7 +121,7 @@ same oracle history; the statement bytes alone need not determine it.
 varying the current packing answer cannot change this source. Accepted-path
 readback identifies it with the frontend's actual input claim. U is still
 bound before the packing query, and A before joint backend challenges. The generic
-[`StrandProtocol.soundness`](LfzkV2/Current/StrandProtocol.lean) theorem handles
+[`Soundness.Composition.soundness`](LfzkV2/Current/Soundness/Composition.lean) theorem handles
 other trusted setups; the mdoc endpoint takes no independent advice decoder,
 metadata callback, transcript plan or backend-layout certificate.
 The concrete mdoc topology supports a hash component strictly deeper than its

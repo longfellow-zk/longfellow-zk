@@ -88,7 +88,7 @@ original table, all extraction cuts and the verifier trace use physical
 SHA inputs thereafter. No application proof needs a second view type. -/
 def viewMap {Result : Type} (view : (Output × List (Raw × Digest)) ×
     (Result × List (Raw × Digest))) :
-    StrandExecution.View Output Result (FingerprintPrefix.Key binary.nPublic) where
+    Protocol.Execution.View Output Result (FingerprintPrefix.Key binary.nPublic) where
   original := (view.1.1,view.1.2.map fun qa => (StrandWindow.encode qa.1,qa.2))
   verifier := (view.2.1,view.2.2.map fun qa => (StrandWindow.encode qa.1,qa.2))
   cuts key := StrandCutObservation.byteCut (schema) bytes context key view.1.2
@@ -301,7 +301,7 @@ theorem rawView_actual (G : Raw → Digest) :
       { original := program.run (SHAof G)
         verifier := (fullReplay (program.run (SHAof G)).1).run (SHAof G)
         cuts := (rawObservation G).cuts } := by
-  apply StrandExecution.View.ext
+  apply Protocol.Execution.View.ext
   · exact original_actual binary prime P R repr shape setup cfg binaryCount metadata fits
       sample codec merkleInput program G
   · exact replay_actual binary prime P R repr shape setup cfg binaryCount metadata fits

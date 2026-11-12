@@ -120,9 +120,19 @@ transport and recovered-path algebra live in
 [`Soundness.StrandTransport`](lfzk-v2/LfzkV2/Current/Soundness/StrandTransport.lean).
 [`Soundness.StrandStoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StrandStoppedCosts.lean)
 constructs the common retained cost and pointwise failure cover independently
-of saturation. `StrandProtocol` applies either query-budget estimate, then
+of saturation. [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean)
+applies either query-budget estimate, then
 performs residual averaging and raw SHA realization. The generic `Survival`
 library has no V1 or V2 implementation dependencies.
+
+The composition takes typed setup, sampler and adversary records. Shared
+[`Protocol.Setup`](lfzk-v2/LfzkV2/Current/Protocol/Setup.lean) owns public runtime
+data; [`Protocol.Sampling`](lfzk-v2/LfzkV2/Current/Protocol/Sampling.lean) separates
+executable sampling from its soundness balance law.
+[`Protocol.Execution`](lfzk-v2/LfzkV2/Current/Protocol/Execution.lean) owns the
+original/verifier trace observation and the original-query-bounded adversary.
+Soundness setup adds structural layout, framing and resource constraints;
+failure coverage and stopped-cost estimates are proved by the composition.
 
 - [`StrandRecovery`](lfzk-v2/LfzkV2/Current/StrandRecovery.lean) recovers the
   ordered path and opened columns, or charges an original hash query or
