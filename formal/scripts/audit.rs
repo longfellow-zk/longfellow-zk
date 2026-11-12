@@ -86,6 +86,30 @@ fn main() {
         .filter(|p| !p.is_empty() && Path::new(p).is_file())
         .collect();
     let (mut lean_count, mut link_count, mut failures) = (0, 0, 0);
+    // Every current test must be a direct aggregate import. A transitive
+    // dependency on a sibling test must not be its only build coverage.
+    let test_barrel =
+        code(&fs::read_to_string("formal/lfzk-v2/LfzkV2/Current/Tests/APITest.lean").unwrap());
+    let test_imports: BTreeSet<_> = test_barrel
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("import "))
+        .collect();
+    for name in &paths {
+        if name.starts_with("formal/lfzk-v2/LfzkV2/Current/Tests/")
+            && name.ends_with(".lean")
+            && !name.ends_with("/APITest.lean")
+        {
+            let module = name
+                .strip_prefix("formal/lfzk-v2/")
+                .unwrap()
+                .trim_end_matches(".lean")
+                .replace('/', ".");
+            if !test_imports.contains(module.as_str()) {
+                eprintln!("Current test {module} is missing from Tests.APITest");
+                failures += 1;
+            }
+        }
+    }
     for name in paths {
         let path = Path::new(name);
         if name.starts_with("formal/") && name.ends_with(".lean") {

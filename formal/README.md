@@ -347,6 +347,13 @@ For a full rebuild with bounded workers, use:
 lake env python3 scripts/rebuild_lean.py --jobs 2 --threads 2 --memory-mib 4096 --module-timeout 60
 ```
 
+This full-source command includes retained modules outside the default import
+closures and honors each library's declared compiler options, including V1's
+explicit implicit-variable compatibility settings. The declaration audit
+imports the default component roots, including survival and circuit libraries;
+it checks declarations and their transitive axiom dependencies. The source
+audit also requires every current test to be directly imported by its aggregate.
+
 The active rate-1/7 parameter certificate elaborates serially to stay within
 that worker memory cap. The rebuild writes per-module times and peak memory
 to its report under `.lake/`.

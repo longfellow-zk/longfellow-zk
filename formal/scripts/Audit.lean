@@ -2,6 +2,24 @@ import LfzkV2
 import LfzkV2.Current.Tests.APITest
 import LfzkV1
 import LfzkV1.FlatV7All
+import Survival
+import Survival.Tests
+import Survival.Axioms
+import Bcs
+import Merkle
+import ECDSA
+import PkCircuit
+import PkCircuitPoly
+import CodingTheory
+import ReedSolomon
+import AffineAgreement
+import SelectedMCA
+import LigeroFamily
+import Ligero.APITest
+import LigeroLocalCounts
+import JBAgreement
+import SumcheckV1
+import polygero.Benchmarks.HahnRateSixteenth
 import SumcheckV2.APITest
 import DualPacking
 import WitnessSelection.APITest
@@ -33,7 +51,9 @@ set_option maxHeartbeats 20000000
 private def auditedModule (name : Name) : Bool :=
   #["LfzkV1", "LfzkV2", "SumcheckV1", "SumcheckV2", "DualPacking", "WitnessSelection",
     "TranscriptV2", "Bcs", "Merkle",
-    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles"].any fun root =>
+    "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles", "Survival",
+    "CodingTheory", "ReedSolomon", "AffineAgreement", "SelectedMCA", "LigeroFamily",
+    "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "PkCircuitPoly", "LigeroLocalCounts"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
 
 run_cmd do

@@ -68,7 +68,7 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "SumcheckV1"
 srcDir = "sumcheck-v1"
-leanOptions = { autoImplicit = false, relaxedAutoImplicit = false }
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "SumcheckV2"
@@ -94,6 +94,7 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "Merkle"
 srcDir = "merkle"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
 [[lean_lib]]
@@ -129,12 +130,14 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "ECDSA"
 srcDir = "circuits"
-globs = ["ECDSA.+"]
+globs = ["ECDSA", "ECDSA.+"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
 roots = ["PkCircuit", "PkCircuitPoly"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "RecursivePolygero"

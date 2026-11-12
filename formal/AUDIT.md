@@ -94,10 +94,14 @@ Three review passes cover the current soundness path.
    transcript and adapter bind prover messages and static statements while
    retaining challenge-derived coefficients in verifier state.
 
-The endpoint tests and the 610 native Rust library tests pass. This is a
-source-correspondence audit. The v2 test aggregate, including its preserved
-shared component libraries, builds successfully. Superseded implementation proof paths have been removed
-from its imports. `WholeAnswerMerkle` names the earlier unindexed node syntax
+The endpoint tests and native Rust library tests are source-correspondence
+checks. The current test aggregate directly imports every current test module;
+the source audit rejects future omissions. `scripts/Audit.lean` imports the
+default component roots and audits their declarations, including generic
+survival, coding-theory, ECDSA and circuit components. Its axiom collection is
+transitive. The retained Polygero benchmark table is kernel-checked too;
+native evaluation is allowed only for the documented V1 numerical rows.
+`WholeAnswerMerkle` names the earlier unindexed node syntax
 explicitly, sharing leaf encoding and physical row maps with the indexed
 codec. The current soundness endpoint imports neither this historical codec
 nor the ZK assembly. Numbered strand tests cover the current PRF keys.
@@ -224,8 +228,12 @@ is claimed. V1 proofs and generic paper-facing component theorems are preserved.
 | Paper-facing Polygero | [Polygero component library](polygero/README.md) | Original public-coin extraction/soundness and generic algebra, preserved unchanged. |
 | Packing and witness selection | [Dual packing](dual-packing/README.md), [witness selection](witness-selection/README.md) | Current component reductions and shared algebra. |
 
-Implementation-specific V2 checkpoint endpoints and the earlier whole-answer
-mdoc simulator have been removed. Shared definitions required by current
+The default build checks current endpoints and selected component aggregates.
+Some retained standalone or historical modules are outside those import
+closures. The bounded full-source rebuild checks every local Lean source,
+including those modules, independently of whether a current endpoint uses it.
+Being outside the runtime closure is not by itself a reason to delete a
+standalone result. Shared definitions required by current
 verifier/decoder/completeness proofs remain in their existing namespaces.
 Generic Polygero, Merkle coupling, sumcheck, masking and parameter statements
 are preserved. Source correspondence and trusted field/circuit/sampling
@@ -280,8 +288,8 @@ do not participate in the trusted Lean proof chain.
 ## Import and abstraction boundaries
 
 The current runtime endpoints import `Joint.Pair.Basic`, containing the two-field
-family and coordinate equivalences. The `Joint.Pair` facade adds compiled-side
-replay adapters. Runtime prefix predicates live in `Current.BackendPrefix`;
+family and coordinate equivalences. Compiled-side replay adapters are separate
+modules. Runtime prefix predicates live in `Current.BackendPrefix`;
 the honest-payload lemma lives in `Current.ZeroKnowledge.BackendPrefix`.
 Exact finite-distribution lemmas are shared through `Bcs.SameDistribution`, with
 the existing declaration names and a V1 compatibility import preserved.
