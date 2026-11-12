@@ -10,10 +10,8 @@ pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + Su
     if f.is_binary() {
         return Err("prime claim requires a prime field".into());
     }
-    sumcheck::circuit_geometry(&[circuit])?;
-    proof
-        .validate(&SumcheckProofGeometry::from_circuit(circuit))
-        .map_err(|e| e.to_string())?;
+    let geometry = sumcheck::circuit_geometry(&[circuit])?;
+    proof.validate(&geometry).map_err(|e| e.to_string())?;
     if public.len() != circuit.raw.npublic_input {
         return Err("prime frontend public input shape".into());
     }

@@ -11,7 +11,7 @@ use crate::{
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
-            sumcheck::{self, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck},
+            sumcheck::{self, SumcheckProof, TranscriptSumcheck},
             transcript::TranscriptRef,
         },
     },

@@ -20,12 +20,11 @@ pub(crate) fn prepare<
     if f.is_binary() {
         return Err("prime claim requires a prime field".into());
     }
-    sumcheck::circuit_geometry(&[circuit])?;
+    let geometry = sumcheck::circuit_geometry(&[circuit])?;
     if private.len() != circuit.raw.ninput - circuit.raw.npublic_input {
         return Err("prime frontend private input shape".into());
     }
-    let (pads, suffix) =
-        sumcheck::sample_pads(&SumcheckProofGeometry::from_circuit(circuit), rng, f);
+    let (pads, suffix) = sumcheck::sample_pads(&geometry, rng, f);
     let mut values = private;
     values.extend(suffix);
     Ok(Prepared {

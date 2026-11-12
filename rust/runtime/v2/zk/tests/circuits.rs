@@ -153,6 +153,38 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     )
 }
 #[test]
+fn prime_frontend_uses_widths_instead_of_cached_logw() {
+    use crate::runtime::{
+        algebra::{blas, p256::P256Field},
+        v2::{sumcheck, zk::prime},
+    };
+    let f = P256Field::new();
+    for cached_logw in [0, 2, 41] {
+        let (circuit, _) = circuits(&f);
+        let mut raw = circuit.into_raw().into_builder();
+        raw.layers[0].logw = cached_logw;
+        let raw = raw.build();
+        let circuit = Circuit::new(v2::compute_id(&f, &raw), raw);
+        let geometry = sumcheck::circuit_geometry(&[&circuit]).unwrap();
+        assert_eq!(geometry.logw_layers, [2]);
+        // The fixture asserts x*y = public and its last private input = 0.
+        let public = [f.u64_to_element(6)];
+        let private = vec![f.u64_to_element(2), f.u64_to_element(3), f.zero()];
+        let state = prime::prepare(&circuit, private, &mut DeterministicRng::new(42), &f).unwrap();
+        assert_eq!(state.values.len(), 3 + geometry.pad_count().unwrap());
+        let witness = state.values.clone();
+        let mut tp = Transcript::new(b"prime-width-geometry");
+        let mut tv = tp.fork_for_test();
+        let (proof, claim) = prime::prove(&circuit, &public, state, &mut tp.borrow(), &f).unwrap();
+        let checked = prime::reduce(&circuit, &public, &proof, &mut tv.borrow(), &f).unwrap();
+        assert_eq!(claim.weights, checked.weights);
+        assert_eq!(claim.target, checked.target);
+        assert_eq!(blas::dot(&claim.weights, &witness, &f), claim.target);
+        assert_eq!(tp.bytes(32), tv.bytes(32));
+    }
+}
+
+#[test]
 fn binary_circuits_authenticate_one_shared_input() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
