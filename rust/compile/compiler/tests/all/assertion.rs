@@ -25,7 +25,7 @@ use crate::{
             ir::{AssertionItem, Expr, RewriteT},
         },
     },
-    core::algebra::{AlgebraicField, Nat},
+    core::algebra::Nat,
 };
 
 fn run_test<
@@ -66,7 +66,7 @@ fn test_rewrite_coalesces_algebraically_equal_assertions() {
     let source_arena = CompilerArena::new();
     let cse = Cse::new(&source_arena);
     let x = cse.input(1);
-    let linear_x = cse.linear(&f.one(), &x);
+    let linear_x = cse.linear(&f.u64_to_element(2), &x);
     let assertions = source_arena.alloc_slice(&[
         AssertionItem { id: aid1, expr: x },
         AssertionItem {

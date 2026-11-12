@@ -143,3 +143,23 @@ fn test_attached_assertion_keeps_its_path() {
     .unwrap();
     assert_eq!(failed.failed_paths(), vec!["slice"]);
 }
+
+#[test]
+fn test_root_assertion_simplifying_to_zero_after_stripping_does_not_panic() {
+    fn roots<L: LogicIO>(logic: &L) -> (L::Assertions, usize, usize) {
+        let witness = logic.input(1);
+        let computed = logic.input(2);
+        let sliced = logic.slicing("slice", &witness, &computed);
+        (logic.assert_eq("eq", &sliced, &witness), 1, 0)
+    }
+    let f = P256Field::new();
+    let (_, legacy_stats, _) = crate::compile::compiler::compile_v1(&f, |logic| roots(&logic));
+    assert_eq!(legacy_stats.nassertions, 1);
+    let (circuit, stats, symbols) = super::compile(&f, |logic| roots(&logic));
+    assert_eq!(stats.nassertions, 1);
+    let runtime = RuntimeP256Field::new();
+    eval_circuit_fc(&f, &runtime, &circuit, &symbols,
+        &[runtime.one(), runtime.one()], FieldID::P256).unwrap().assert_all_passed();
+    assert!(!eval_circuit_fc(&f, &runtime, &circuit, &symbols,
+        &[runtime.one(), runtime.zero()], FieldID::P256).unwrap().failed_paths().is_empty());
+}

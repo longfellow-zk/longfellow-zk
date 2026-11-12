@@ -357,14 +357,18 @@ pub fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
         }
     }
 
-    // Construct walked root assertions carrying IDs
-    let walked_list: Vec<AssertionItem<'b, F>> = assertions
-        .iter()
-        .map(|item| AssertionItem {
-            expr: cache[item.expr.id].unwrap(),
-            id: item.id,
-        })
-        .collect();
+    // Normalize retained roots just like nested assertions: stripping attached
+    // assertions can turn a root into zero or a scalar multiple of another root.
+    let mut seen = rustc_hash::FxHashSet::default();
+    let mut walked_list = Vec::new();
+    for item in assertions.iter() {
+        let walked = cache[item.expr.id].unwrap();
+        for &expr in rewriter.assert0(&walked) {
+            if seen.insert(expr.id) {
+                walked_list.push(AssertionItem { expr, id: item.id });
+            }
+        }
+    }
 
     arena.alloc_slice(&walked_list)
 }
