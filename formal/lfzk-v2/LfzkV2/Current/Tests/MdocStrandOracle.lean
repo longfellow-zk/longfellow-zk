@@ -45,7 +45,7 @@ run_cmd do
   let env ← Lean.getEnv
   for endpoint in #[``LfzkV2.Current.MdocStrandOracle.ratio_le, ``LfzkV2.Current.MdocStrandOracle.averaged_ratio_le] do
     let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
-    unless info.type.getUsedConstants.contains ``Survival.Rate7.failureBound do
+    unless info.type.getUsedConstants.contains ``LfzkV2.Current.Soundness.Rate7.failureBound do
       throwError "Primary endpoint {endpoint} does not use the exact c/q bound"
   for endpoint in #[``LfzkV2.Current.MdocStrandOracle.averaged_nonvacuous,
       ``LfzkV2.Current.MdocStrandOracle.averaged_polynomial_ratio_le,

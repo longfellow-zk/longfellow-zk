@@ -6,6 +6,11 @@ mathematical runtime verifier and extractor modeled by
 The existing implementation-correspondence and ideal-sampling boundary is
 unchanged. The strengthened runtime endpoint is now checked in the upstream Lean development.
 
+Generic chronological survival, stopped-search and saturation results remain
+in `Survival`. Runtime-specific bridges and production numerical bounds live
+in `LfzkV2.Current.Soundness`; this separation preserves standalone component
+results while keeping application parameters out of the generic library.
+
 ## Core argument and theorem dependencies
 
 Fix the witness pair selected from the original commitment cut. The common
@@ -121,7 +126,7 @@ where `C=binomial(2443,374)`, `T=binomial(866,84)/binomial(2443,84)`,
 `ell=2^256-2^224+2^192+2^96-1`. Its value is approximately
 `1.0000012312149082441647508747`; Lean checks the strict enclosure
 `1.00000123121490824416 < c < 1.00000123121490824417`.
-The exact rational is `Survival.Rate7.polygeroConstant`; no decimal is
+The exact rational is `LfzkV2.Current.Soundness.Rate7.polygeroConstant`; no decimal is
 substituted into the soundness formula. Internally the normalized share
 `theta` is named `opaqueFraction`. The symbol lambda is reserved for the
 security parameter.
@@ -329,7 +334,7 @@ $$
 $$
 
 Here the exact captured batching allowance (both rank terms plus joint high
-mass) is bounded by `b`. `Survival.RuntimeRate7.parent_budget` checks that inequality
+mass) is bounded by `b`. `LfzkV2.Current.Soundness.RuntimeRate7.parent_budget` checks that inequality
 with exact integer/rational arithmetic. The original looser numerical cap
 near `2/q` would be insufficient for this improvement; the actual batching
 allowance is approximately `1.0000012312/q`.
@@ -354,7 +359,7 @@ $$
 $$
 
 The last comparison holds throughout `Q<q/2` and is checked in
-`Survival.Rate7.auxiliary_exact_budget`. The batching and auxiliary domains are
+`LfzkV2.Current.Soundness.Rate7.auxiliary_exact_budget`. The batching and auxiliary domains are
 disjoint. Thus, with `C_z=B_z+G_z`,
 
 $$
@@ -363,7 +368,8 @@ $$
 $$
 
 The opening node is not charged another opaque allowance. Its low/outside
-budget is below `p`, checked by `Survival.Rate7.opening_budget`, and is already
+budget is at most `p`, checked by
+`FixedRate.Rate7.certificate.opening_budget_le`, and is already
 included in the transparent monitor. The joint high-response term is charged
 once, at batching. There is one shared opening set and one extracted tuple.
 
@@ -484,7 +490,7 @@ $$
 
 All these numerical comparisons, including the actual field orders and
 binomial tail parameters, are already checked in `Survival.Parameters` and
-`Survival.Rate7`. The `Q=0` case is included; only the conservative hash
+`LfzkV2.Current.Soundness.Rate7`. The `Q=0` case is included; only the conservative hash
 correction remains.
 
 ## 9. Return to the original single-SHA endpoint

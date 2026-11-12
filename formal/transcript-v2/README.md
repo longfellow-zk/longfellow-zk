@@ -39,7 +39,7 @@ $$
 \left[1-\left(1-\frac{2}{q-1}\right)^Q\right],\qquad q=2^{128}.
 $$
 
-Here `c=q*Survival.Rate7.parentBudget` is the exact current Polygero coefficient,
+Here `c=q*LfzkV2.Current.Soundness.Rate7.parentBudget` is the exact current Polygero coefficient,
 approximately `1.0000012312149082441647508747`. Including the hash correction,
 the full failure probability is **strictly less than 0.97** for `Q < 2^127`.
 The [formal README](../README.md) gives the exact coefficient and the convenient

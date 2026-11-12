@@ -2,7 +2,7 @@ import LfzkV2.Current.CertifiedProfile
 
 /-! Expose the exact existing backend coefficient before its loose public
 upper bound. No change to the profile certificate is needed. -/
-namespace Survival.ProfileBudget
+namespace LfzkV2.Current.Soundness.ProfileBudget
 open LfzkV2 LfzkV2.Current RecursivePolygero ProfileAnalysis ParameterBounds
 
 theorem parameters_parent_eq (c : CertifiedProfile) (P R : Joint.Participant c.k c.s c.n c.t)
@@ -18,4 +18,4 @@ theorem parameters_parent_eq (c : CertifiedProfile) (P R : Joint.Participant c.k
   simp only [JointResponse.activeHighBudget, pc, CertifiedProfile.parameters, CertifiedProfile.threshold,
     hP, hR, parentBudget]
 
-end Survival.ProfileBudget
+end LfzkV2.Current.Soundness.ProfileBudget

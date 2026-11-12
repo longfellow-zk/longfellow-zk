@@ -33,7 +33,7 @@ run_cmd do
   let env ← Lean.getEnv
   for endpoint in #[``LfzkV2.Current.MdocStrandSoundness.fixed_setup_ratio_le, ``LfzkV2.Current.MdocStrandSoundness.ratio_le] do
     let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
-    unless info.type.getUsedConstants.contains ``Survival.Rate7.failureBound do
+    unless info.type.getUsedConstants.contains ``LfzkV2.Current.Soundness.Rate7.failureBound do
       throwError "Primary endpoint {endpoint} does not use the exact c/q bound"
   for ax in ← Lean.collectAxioms ``LfzkV2.Current.MdocStrandSoundness.nonvacuous do
     unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do

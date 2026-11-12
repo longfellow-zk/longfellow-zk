@@ -5,7 +5,8 @@ import TranscriptV2.Composition
 /-! The actual replay family supplies all strict ancestors on its recovered
 query path. These are exact preimages, including messages and digest links. -/
 noncomputable section
-namespace Survival.RuntimePath
+namespace LfzkV2.Current.Soundness.RuntimePath
+open Survival
 open LfzkV2.Current Merkle.RandomOracle TranscriptV2
 open scoped Classical
 
@@ -54,4 +55,4 @@ theorem ancestors_before {A : Type} [Fintype A] [queryDecidable : DecidableEq (P
     have := j.isLt
     omega
 
-end Survival.RuntimePath
+end LfzkV2.Current.Soundness.RuntimePath

@@ -140,7 +140,7 @@ include bodyFits uniform queries in
 uses the common stopped cover and cost directly, independently of W. -/
 theorem fixed_setup_linear_ratio_le :
     density (event binary prime cantor scalars ids bounds body fits sample) ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q (g).roles.length := by
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length := by
   apply query_bound_or_one Q (2^127)
     (density_le_one (event binary prime cantor scalars ids bounds body fits sample))
   · intro budget
@@ -151,26 +151,26 @@ theorem fixed_setup_linear_ratio_le :
       (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes) (by decide)
       (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) support
       (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
-      (by intros; rfl) (Survival.Rate7.polygeroFraction*Survival.Rate7.rate)
-      (mul_nonneg Survival.Rate7.polygeroFraction_nonneg Survival.Rate7.rate_nonneg)
+      (by intros; rfl) (LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate)
+      (mul_nonneg LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg LfzkV2.Current.Soundness.Rate7.rate_nonneg)
       (by
-        change Survival.Rate7.polygeroFraction*Survival.Rate7.rate ≤ Survival.Rate7.rate
+        change LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate ≤ LfzkV2.Current.Soundness.Rate7.rate
         simpa only [one_mul] using mul_le_mul_of_nonneg_right
-          (Survival.Rate7.polygeroFraction_le.trans (by norm_num : (51/100 : ℚ) ≤ 1))
-          Survival.Rate7.rate_nonneg)
-      Survival.RuntimeRate7.parent_budget
-      (Survival.RuntimeRate7.auxiliary_budget Q budget)
+          (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num : (51/100 : ℚ) ≤ 1))
+          LfzkV2.Current.Soundness.Rate7.rate_nonneg)
+      LfzkV2.Current.Soundness.RuntimeRate7.parent_budget
+      (LfzkV2.Current.Soundness.RuntimeRate7.auxiliary_budget Q budget)
     refine (density_mono (q := failure) (fun _ valid => valid.2)).trans ?_
     apply bound.trans_eq
-    rw [Survival.RuntimeRate7.correction_eq]
+    rw [LfzkV2.Current.Soundness.RuntimeRate7.correction_eq]
     rfl
   · intro bounded
     have castBound : (2^127 : ℚ) ≤ Q := by exact_mod_cast bounded
-    have leading := mul_le_mul_of_nonneg_left castBound Survival.Rate7.rate_nonneg
-    have atCutoff : (1 : ℚ) ≤ Survival.Rate7.rate*(2^127 : ℚ) := by
-      norm_num [Survival.Rate7.rate,Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
-    have correction : 0 ≤ Survival.Rate7.correction Q (g).roles.length := by
-      unfold Survival.Rate7.correction
+    have leading := mul_le_mul_of_nonneg_left castBound LfzkV2.Current.Soundness.Rate7.rate_nonneg
+    have atCutoff : (1 : ℚ) ≤ LfzkV2.Current.Soundness.Rate7.rate*(2^127 : ℚ) := by
+      norm_num [LfzkV2.Current.Soundness.Rate7.rate,LfzkV2.Current.Soundness.Rate7.q, Adapter.Mdoc.binaryOrder]
+    have correction : 0 ≤ LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length := by
+      unfold LfzkV2.Current.Soundness.Rate7.correction
       positivity
     linarith
 
@@ -178,7 +178,7 @@ include bodyFits uniform queries in
 /-- The all-Q leading linear bound for the original runtime failure event. -/
 theorem linear_ratio_le :
     density (event binary prime cantor scalars ids bounds body fits sample) ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q (g).roles.length :=
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length :=
   fixed_setup_linear_ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries
 
 include bodyFits uniform queries in
@@ -186,7 +186,7 @@ include bodyFits uniform queries in
 backend and auxiliary bounds are discharged by the concrete runtime profile. -/
 theorem fixed_setup_ratio_le (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds body fits sample) ≤
-      Survival.Rate7.failureBound Q (g).roles.length := by
+      LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length := by
   have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
     simpa only [MdocStrandSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
   have bound := StrandProtocol.soundness c bp pp P R cb cp bc pc repr shape setup binary.plan prime.plan
@@ -194,13 +194,13 @@ theorem fixed_setup_ratio_le (budget : Q < 2^127) :
     (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes) (by decide)
     (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) support
     (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
-    (by intros; rfl) Survival.Rate7.polygeroFraction Survival.Rate7.polygeroFraction_nonneg
-    (Survival.Rate7.polygeroFraction_le.trans (by norm_num))
-    (Survival.RuntimeRate7.query_budget Q budget) Survival.RuntimeRate7.parent_budget
-    (Survival.RuntimeRate7.auxiliary_budget Q budget)
+    (by intros; rfl) LfzkV2.Current.Soundness.Rate7.polygeroFraction LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg
+    (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num))
+    (LfzkV2.Current.Soundness.RuntimeRate7.query_budget Q budget) LfzkV2.Current.Soundness.RuntimeRate7.parent_budget
+    (LfzkV2.Current.Soundness.RuntimeRate7.auxiliary_budget Q budget)
   refine (density_mono (q := failure) (fun _ valid => valid.2)).trans ?_
   apply bound.trans_eq
-  rw [Survival.RuntimeRate7.correction_eq, Survival.Rate7.failureBound_eq]
+  rw [LfzkV2.Current.Soundness.RuntimeRate7.correction_eq, LfzkV2.Current.Soundness.Rate7.failureBound_eq]
   rfl
 
 include bodyFits uniform queries in
@@ -208,7 +208,7 @@ include bodyFits uniform queries in
 opaque Polygero/hash allowance, with the original runtime failure event. -/
 theorem ratio_le (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds body fits sample) ≤
-      Survival.Rate7.failureBound Q (g).roles.length :=
+      LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length :=
   fixed_setup_ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries budget
 
 include bodyFits uniform queries in
@@ -216,7 +216,7 @@ theorem nonvacuous (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds body fits sample) < 97/100 := by
   exact lt_of_le_of_lt
     ((ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries budget).trans
-      (Survival.Rate7.failureBound_nonvacuous Q (g).roles.length (Survival.RuntimeRate7.range Q budget) fits))
+      (LfzkV2.Current.Soundness.Rate7.failureBound_nonvacuous Q (g).roles.length (LfzkV2.Current.Soundness.RuntimeRate7.range Q budget) fits))
     (by norm_num)
 
 end LfzkV2.Current.MdocStrandSoundness

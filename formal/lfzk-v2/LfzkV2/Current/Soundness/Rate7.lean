@@ -4,7 +4,8 @@ import Mathlib.Data.Nat.Choose.Cast
 
 /-! Exact arithmetic for the active rate-1/7 certificate. Geometry, list
 capacity and field orders are taken from the production parameter modules. -/
-namespace Survival.Rate7
+namespace LfzkV2.Current.Soundness.Rate7
+open Survival
 open LfzkV2.Current
 
 local notation "profile" => FixedRate.Rate7.certificate
@@ -182,4 +183,4 @@ theorem failureBound_nonvacuous (queries rounds : ℕ) (budget : queries < q/2) 
       polygeroFraction_nonneg polygeroFraction_le queries (query_budget queries budget)
       (hash_budget queries rounds budget fits)
 
-end Survival.Rate7
+end LfzkV2.Current.Soundness.Rate7

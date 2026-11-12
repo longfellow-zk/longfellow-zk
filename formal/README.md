@@ -26,7 +26,7 @@ $$
 For every `Q < 2^127`, the full soundness failure probability is
 **strictly less than 0.97**, with the cap rounded up to two decimal places.
 `MdocSoundness.averaged_nonvacuous` proves this strict conclusion. The primary
-`ratio_le` and `averaged_ratio_le` endpoints use the exact `Survival.Rate7.failureBound` above.
+`ratio_le` and `averaged_ratio_le` endpoints use the exact `LfzkV2.Current.Soundness.Rate7.failureBound` above.
 
 The exact parameter-dependent Polygero coefficient is
 
@@ -46,7 +46,7 @@ L=1272737905242889781956743699885451,\\
 $$
 
 Thus $c=1.0000012312149082441647508747\ldots$, and Polygero is charged at exactly $c/q$. Lean defines this rational as
-`Survival.Rate7.polygeroConstant` and checks
+`LfzkV2.Current.Soundness.Rate7.polygeroConstant` and checks
 `1.00000123121490824416 < c < 1.00000123121490824417`.
 The complementary coefficient `1-c*(q-1)/(2*q)` follows from the shared-query
 survival argument.

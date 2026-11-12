@@ -4,7 +4,7 @@ import LfzkV2.Current.StrandRecovery
 
 /-! Attach the exact numerical certificates to the actual runtime profile
 and its existing hash correction, rather than a duplicate free parameter. -/
-namespace Survival.RuntimeRate7
+namespace LfzkV2.Current.Soundness.RuntimeRate7
 open LfzkV2.Current
 local notation "profile" => FixedRate.Rate7.certificate
 
@@ -37,4 +37,4 @@ theorem correction_eq (queries rounds : ℕ) :
   norm_num [Rate7.q, Adapter.Mdoc.binaryOrder]
   ring
 
-end Survival.RuntimeRate7
+end LfzkV2.Current.Soundness.RuntimeRate7

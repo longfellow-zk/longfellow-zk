@@ -155,7 +155,7 @@ theorem event_verified (G : Raw → Digest) (accepted : event binary prime canto
 include queries bodyFits uniform in
 theorem linear_ratio_le :
     density (event binary prime cantor scalars ids bounds body outside fits sample) ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   rw [density_congr (event_eq binary prime cantor scalars ids bounds body outside fits sample)]
   exact MdocStrandSoundness.linear_ratio_le binary prime cantor scalars (identifiers ids outside) bounds
@@ -164,7 +164,7 @@ theorem linear_ratio_le :
 include queries bodyFits uniform in
 theorem ratio_le (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds body outside fits sample) ≤
-      Survival.Rate7.failureBound Q
+      LfzkV2.Current.Soundness.Rate7.failureBound Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   rw [density_congr (event_eq binary prime cantor scalars ids bounds body outside fits sample)]
   exact MdocStrandSoundness.ratio_le binary prime cantor scalars (identifiers ids outside) bounds
@@ -187,7 +187,7 @@ theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) :
     (∑ coin, density (event binary prime cantor scalars ids bounds (adversary coin) (external coin) fits (sampler coin))) /
         Fintype.card Omega ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   apply mean_le
   intro coin
@@ -212,7 +212,7 @@ theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) (budget : Q < 2^127) :
     (∑ coin, density (event binary prime cantor scalars ids bounds (adversary coin) (external coin) fits (sampler coin))) /
         Fintype.card Omega ≤
-      Survival.Rate7.failureBound Q
+      LfzkV2.Current.Soundness.Rate7.failureBound Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   apply mean_le
   intro coin
@@ -239,9 +239,9 @@ theorem averaged_nonvacuous {Omega : Type} [Fintype Omega] [Nonempty Omega]
         Fintype.card Omega < 97/100 := by
   have bound := averaged_ratio_le binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget
-  exact lt_of_le_of_lt (bound.trans (Survival.Rate7.failureBound_nonvacuous Q
+  exact lt_of_le_of_lt (bound.trans (LfzkV2.Current.Soundness.Rate7.failureBound_nonvacuous Q
     (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length
-    (Survival.RuntimeRate7.range Q budget) fits)) (by norm_num)
+    (LfzkV2.Current.Soundness.RuntimeRate7.range Q budget) fits)) (by norm_num)
 
 include bodyFits in
 /-- A polynomial consequence for every query budget, including Q = 0. -/
@@ -269,9 +269,9 @@ theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Om
   · intro budget
     have bound := (averaged_ratio_le binary prime cantor scalars ids bounds
       (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget).trans
-        (Survival.Rate7.failureBound_le_polynomial Q _)
+        (LfzkV2.Current.Soundness.Rate7.failureBound_le_polynomial Q _)
     apply bound.trans_eq
-    norm_num [Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
+    norm_num [LfzkV2.Current.Soundness.Rate7.q, Adapter.Mdoc.binaryOrder]
     ring
   · intro integerBound
     have rationalBound : (170141183460469231731687303715884105728 : ℚ) ≤ Q := by
@@ -279,7 +279,7 @@ theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Om
     have roundsNonnegative : (0 : ℚ) ≤
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length :=
       Nat.cast_nonneg _
-    norm_num [Survival.Rate7.q, Adapter.Mdoc.binaryOrder]
+    norm_num [LfzkV2.Current.Soundness.Rate7.q, Adapter.Mdoc.binaryOrder]
     nlinarith only [rationalBound, sq_nonneg (Q : ℚ), roundsNonnegative]
 
 include bodyFits in
@@ -306,7 +306,7 @@ theorem averaged_mdoc_approximation {Omega : Type} [Fintype Omega] [Nonempty Ome
   · intro budget
     exact (averaged_ratio_le binary prime cantor scalars ids bounds
       (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget).trans
-        (Survival.Rate7.mdoc_approximation Q _ (Survival.RuntimeRate7.range Q budget)
+        (LfzkV2.Current.Soundness.Rate7.mdoc_approximation Q _ (LfzkV2.Current.Soundness.RuntimeRate7.range Q budget)
           (MdocRoundShape.rounds_le _ shape))
   · intro integerBound
     have rationalBound : (170141183460469231731687303715884105728 : ℚ) ≤ Q := by

@@ -209,10 +209,10 @@ fresh-query property; a recovered path is never independently resampled. -/
 theorem analysis_fresh (residual : Tagged → Residual) :
     FreshOracle.FreshFrom (fun _ => False) (analysis residual) := by
   unfold analysisTree
-  apply Survival.RuntimeFresh.reindex_fresh
-  apply Survival.RuntimeFresh.mapQueries_fresh (names).tag (names).tag_injective
-  apply Survival.RuntimeFresh.pad_fresh
-  exact Survival.RuntimeFresh.replay_search_fresh
+  apply LfzkV2.Current.Soundness.RuntimeFresh.reindex_fresh
+  apply LfzkV2.Current.Soundness.RuntimeFresh.mapQueries_fresh (names).tag (names).tag_injective
+  apply LfzkV2.Current.Soundness.RuntimeFresh.pad_fresh
+  exact LfzkV2.Current.Soundness.RuntimeFresh.replay_search_fresh
     (StrandRuntime.Runtime.schema repr shape setup binary.nPublic)
     (StrandWindow.Node.bytes (other := Other)) _
 

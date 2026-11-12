@@ -4,7 +4,7 @@ import LfzkV2.Current.StrandComposition
 /-! Freshness of the exact runtime coordinate transports. No independent
 resampling of the accepted path or the commitment cut is introduced. -/
 noncomputable section
-namespace Survival.RuntimeFresh
+namespace LfzkV2.Current.Soundness.RuntimeFresh
 open Merkle.RandomOracle TranscriptV2 Bcs.TotalOracle
 open scoped Classical
 
@@ -44,4 +44,4 @@ theorem replay_search_fresh {T : Type} [DecidableEq P] (schema : Strand.History.
   (LfzkV2.Current.StrandSearch.searchState_fresh schema bytes (recordTrace program)
     StrandCoupling.Cache.empty []).mono (fun _ impossible => impossible.elim)
 
-end Survival.RuntimeFresh
+end LfzkV2.Current.Soundness.RuntimeFresh

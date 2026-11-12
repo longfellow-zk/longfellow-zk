@@ -151,7 +151,7 @@ variable (queries : ∀ oracle : Bytes → Digest, (seen body oracle).card ≤ Q
 include bodyFits uniform queries in
 theorem ratio_le (separated : MdocWitness.ReadDisjoint binary) (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds outside body fits sample) ≤
-      Survival.Rate7.failureBound Q (g).roles.length :=
+      LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length :=
   (density_mono (fun G bad => event_implies_extraction_failure binary prime cantor scalars ids bounds outside
     body fits sample separated G bad)).trans
     (MdocStrandOracle.ratio_le binary prime cantor scalars ids bounds body outside queries fits sample
@@ -160,7 +160,7 @@ theorem ratio_le (separated : MdocWitness.ReadDisjoint binary) (budget : Q < 2^1
 include bodyFits uniform queries in
 theorem linear_ratio_le (separated : MdocWitness.ReadDisjoint binary) :
     density (event binary prime cantor scalars ids bounds outside body fits sample) ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q (g).roles.length :=
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length :=
   (density_mono (fun G bad => event_implies_extraction_failure binary prime cantor scalars ids bounds outside
     body fits sample separated G bad)).trans
     (MdocStrandOracle.linear_ratio_le binary prime cantor scalars ids bounds body outside queries fits sample
@@ -203,7 +203,7 @@ theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) :
     (∑ coin, density (event binary prime cantor scalars ids bounds (external coin) (adversary coin) fits (sampler coin))) /
         Fintype.card Omega ≤
-      Survival.Rate7.rate*Q + Survival.Rate7.correction Q
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
     (fits := fits) separated external adversary sampler
@@ -226,7 +226,7 @@ theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (queryBound : ∀ coin oracle, (seen (adversary coin) oracle).card ≤ Q) (budget : Q < 2^127) :
     (∑ coin, density (event binary prime cantor scalars ids bounds (external coin) (adversary coin) fits (sampler coin))) /
         Fintype.card Omega ≤
-      Survival.Rate7.failureBound Q
+      LfzkV2.Current.Soundness.Rate7.failureBound Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
     (fits := fits) separated external adversary sampler

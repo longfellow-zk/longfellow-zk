@@ -749,7 +749,7 @@ theorem batching_budget_eq [budgetDecidable : DecidableEq Tagged] (fallback : An
   unfold singleBudget RuntimeAdaptiveFS.budget
   rw [appZero]
   simp only [BackendOracle.singleBudget, BackendOracle.parentOf_point, zero_add]
-  exact Survival.ProfileBudget.parameters_parent_eq c First Second
+  exact LfzkV2.Current.Soundness.ProfileBudget.parameters_parent_eq c First Second
     (binaryCard c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
     (primeCard c R countPrime)
 
@@ -759,24 +759,24 @@ theorem stopped_budget_le [budgetDecidable : DecidableEq Tagged] (fallback : Ans
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ allowance)
     (point : Tagged) :
     (Survival.StoppedCharges.restrict (proofOf fallback)
-      (Survival.RuntimeRoles.marked g.batchingIndex)).budget point ≤
-        if Survival.RuntimeRoles.marked g.batchingIndex point && !Survival.RuntimeRoles.auxiliary point
+      (LfzkV2.Current.Soundness.RuntimeRoles.marked g.batchingIndex)).budget point ≤
+        if LfzkV2.Current.Soundness.RuntimeRoles.marked g.batchingIndex point && !LfzkV2.Current.Soundness.RuntimeRoles.auxiliary point
           then allowance else 0 := by
   rw [Survival.StoppedCharges.restrict_budget _ _
-    (fun parent => Survival.RuntimeRoles.marked_parent g.batchingIndex parent)]
+    (fun parent => LfzkV2.Current.Soundness.RuntimeRoles.marked_parent g.batchingIndex parent)]
   cases point with
   | inr name =>
-      simp only [Survival.RuntimeRoles.marked, Survival.RuntimeRoles.auxiliary, Bool.not_true,
+      simp only [LfzkV2.Current.Soundness.RuntimeRoles.marked, LfzkV2.Current.Soundness.RuntimeRoles.auxiliary, Bool.not_true,
         Bool.and_false, Bool.false_eq_true, if_false, if_true, Composition.LocalCharges.budget,
         localProof, taggedBudget, Sum.elim_inr, reduceCtorEq, sum_const_zero, add_zero, le_refl]
   | inl point =>
       cases hp : BackendOracle.parentOf (i := g.batchingIndex) point with
-      | none => simp only [Survival.RuntimeRoles.marked, hp, Option.isSome_none, Bool.false_eq_true,
+      | none => simp only [LfzkV2.Current.Soundness.RuntimeRoles.marked, hp, Option.isSome_none, Bool.false_eq_true,
           if_false, Bool.false_and, le_refl]
       | some parent =>
           have same := BackendOracle.parentOf_spec hp
           subst point
-          simp only [Survival.RuntimeRoles.marked, Survival.RuntimeRoles.auxiliary,
+          simp only [LfzkV2.Current.Soundness.RuntimeRoles.marked, LfzkV2.Current.Soundness.RuntimeRoles.auxiliary,
             BackendOracle.parentOf_point, Option.isSome_some, if_true, Bool.not_false, Bool.and_true]
           rw [batching_budget_eq]
           exact parentBound

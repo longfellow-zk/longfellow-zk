@@ -5,7 +5,7 @@ import TranscriptV2.StrandCharging
 /-! Hash charges retain exactly the ordered digest observations through
 coordinate changes and stopping. Challenge coordinates are unrestricted. -/
 noncomputable section
-namespace Survival.HashTransport
+namespace LfzkV2.Current.Soundness.HashTransport
 open Finset Merkle.RandomOracle TranscriptV2 Bcs.TotalOracle
 open scoped Classical
 
@@ -143,4 +143,4 @@ theorem hash_sum_le [queryDecidable : DecidableEq (Logical ⊕ Raw)] (strand mer
       · simpa only [if_neg hp] using strandCard p) (liftClaims_card names merkle merkleBound)
 
 end Lift
-end Survival.HashTransport
+end LfzkV2.Current.Soundness.HashTransport

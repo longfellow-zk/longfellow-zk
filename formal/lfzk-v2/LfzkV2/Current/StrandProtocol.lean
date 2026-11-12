@@ -104,7 +104,7 @@ local notation "failsView" => extractionFails c binary prime P R countBinary cou
   repr shape setup binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit
   cfg binaryCount metadata sample primeCount columnsFit
 variable (layoutCorrect : StatementCompiler.addresses P R binary.cells prime.remaining prime.pads = some layout)
-local notation "marked" => (Survival.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
+local notation "marked" => (LfzkV2.Current.Soundness.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
 local notation "hashBad" => StrandRecovery.hashException binary prime P R repr shape setup (I) binaryCount metadata
   columnsFit physical primeCount draw
 local notation "costOf" => stoppedCost c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup

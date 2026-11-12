@@ -18,7 +18,7 @@ P_{\mathrm{fail}}(Q)
 \end{aligned}
 $$
 
-`c = q * Survival.Rate7.parentBudget` exactly; the [formal README](README.md)
+`c = q * LfzkV2.Current.Soundness.Rate7.parentBudget` exactly; the [formal README](README.md)
 expands this rational in binomial coefficients and field orders.
 `MdocSoundness.averaged_nonvacuous` proves failure probability
 **strictly less than 0.97** for `Q < 2^127` (cap rounded up to two decimal places).
@@ -99,7 +99,9 @@ checks. The current test aggregate directly imports every current test module;
 the source audit rejects future omissions. `scripts/Audit.lean` imports the
 default component roots and audits their declarations, including generic
 survival, coding-theory, ECDSA and circuit components. Its axiom collection is
-transitive. The retained Polygero benchmark table is kernel-checked too;
+transitive. Application-specific soundness bridges use the `LfzkV2.Current.Soundness`
+namespace; `Survival` contains the reusable chronological bounds and their
+standalone tests. The retained Polygero benchmark table is kernel-checked too;
 native evaluation is allowed only for the documented V1 numerical rows.
 `WholeAnswerMerkle` names the earlier unindexed node syntax
 explicitly, sharing leaf encoding and physical row maps with the indexed

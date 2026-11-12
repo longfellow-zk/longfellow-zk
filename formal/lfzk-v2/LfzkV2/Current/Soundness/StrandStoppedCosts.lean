@@ -120,7 +120,7 @@ local notation "failsView" => extractionFails c binary prime P R countBinary cou
   repr shape setup binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit
   cfg binaryCount metadata sample primeCount columnsFit
 variable (layoutCorrect : StatementCompiler.addresses P R binary.cells prime.remaining prime.pads = some layout)
-local notation "marked" => (Survival.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
+local notation "marked" => (LfzkV2.Current.Soundness.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
 local notation "auditSafe" => fun residual => Survival.ChargeMonitor.safe (charges residual)
   marked (default,cfg.fallback)
 local notation "auditTree" => fun residual => Survival.History.audit (auditSafe residual) marked
@@ -131,11 +131,11 @@ protocol/auxiliary name space. Only the tree is stopped; names and targets
 are the ones used by the existing runtime recovery theorem. -/
 def hashCost [queryDecidable : DecidableEq Tagged] {X : Type} {steps : ℕ}
     (tree : Tree Tagged (Digest × Answer) X steps) (H : Tagged → Digest × Answer) : ℚ :=
-  DigestProjection.charge (Survival.HashTransport.liftClaims (names)
+  DigestProjection.charge (LfzkV2.Current.Soundness.HashTransport.liftClaims (names)
     (StrandSearch.claims (StrandWindow.Node.bytes (other := Other)))) tree H +
-  DigestProjection.receivingCharge (Survival.HashTransport.liftPredicate (names)
+  DigestProjection.receivingCharge (LfzkV2.Current.Soundness.HashTransport.liftPredicate (names)
     (StrandMerkleRealization.receives codec (StrandWindow.Node.bytes (other := Other))))
-    (Survival.HashTransport.liftClaims (names)
+    (LfzkV2.Current.Soundness.HashTransport.liftClaims (names)
       (StrandCommitment.claims MerkleWireCodec.nodeChildren context FingerprintPrefix.Key.root ∘
         StrandMerkleRealization.byteName (StrandWindow.Node.bytes (other := Other)))) tree H
 local notation "hashOf" => hashCost c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
@@ -163,8 +163,8 @@ theorem hashCost_eq (residual : Tagged → Residual) (H : Tagged → Digest × A
         columnsFit physical program (namedH residual H) := by
   unfold hashCost analysisTree
   erw [StrandComposition.coordinates_charge (names).tag (names).tag_injective split residual (search),
-    Survival.HashTransport.coordinates_receiving (names).tag (names).tag_injective split residual (search)]
-  simp only [Survival.HashTransport.liftClaims_tag, Survival.HashTransport.liftPredicate_tag]
+    LfzkV2.Current.Soundness.HashTransport.coordinates_receiving (names).tag (names).tag_injective split residual (search)]
+  simp only [LfzkV2.Current.Soundness.HashTransport.liftClaims_tag, LfzkV2.Current.Soundness.HashTransport.liftPredicate_tag]
   rfl
 
 /-- A surviving monitor retains the entire original digest trace, so its
@@ -182,7 +182,7 @@ theorem stopped_hashCost_eq (residual : Tagged → Residual) (H : Tagged → Dig
   unfold hashCost
   rw [DigestProjection.charge_congr _ (auditTree residual) (analysis residual) H H
       (congrArg (List.map Prod.fst) same) (fun _ => rfl),
-    Survival.HashTransport.receiving_congr _ _ (auditTree residual) (analysis residual) H H
+    LfzkV2.Current.Soundness.HashTransport.receiving_congr _ _ (auditTree residual) (analysis residual) H H
       (congrArg (List.map Prod.fst) same) (fun _ => rfl)]
 
 include bodyFits in
@@ -194,7 +194,7 @@ theorem path_ancestors_before (residual : Tagged → Residual) (H : Tagged → D
   have path := analysis_path c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
     binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
     binaryCount metadata bodyFits fits sample fiber uniform primeCount columnsFit program residual H ready
-  exact Survival.RuntimePath.ancestors_before (queryDecidable := fun a b => Classical.propDecidable (a = b))
+  exact LfzkV2.Current.Soundness.RuntimePath.ancestors_before (queryDecidable := fun a b => Classical.propDecidable (a = b))
     (encodings) (W).initialLink (analysis residual) H
     (program.run (SHAof residual H)).1 (ordinary (SHAof residual H)) path index within j
 
@@ -296,7 +296,7 @@ theorem stopped_hash_sum_le (residual : Tagged → Residual) :
     letI : Fintype Name := inferInstance
     (∑ H : Tagged → Digest × Answer, hashOf (auditTree residual) H) ≤
       ∑ H : Tagged → Digest × Answer, ∑ p ∈ seen (auditTree residual) H,
-        if Survival.RuntimeRoles.auxiliary p then (2*Q : ℚ)/2^256 else 0 := by
+        if LfzkV2.Current.Soundness.RuntimeRoles.auxiliary p then (2*Q : ℚ)/2^256 else 0 := by
   letI : Fintype Value := valueFinite
   letI : Fintype Name := inferInstance
   letI : Nonempty Answer := ⟨cfg.fallback⟩
@@ -334,7 +334,7 @@ theorem stopped_hash_sum_le (residual : Tagged → Residual) :
     exact analysis_queries c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
       binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
       binaryCount metadata fits sample fiber uniform columnsFit program queries residual H
-  have bound := Survival.HashTransport.hash_sum_le
+  have bound := LfzkV2.Current.Soundness.HashTransport.hash_sum_le
     (queryDecidable := fun a b => Classical.propDecidable (a = b))
     (names) strand merkle receives plantAuxiliary receiveAuxiliary disjoint strandCard merkleCard
     (auditTree residual) stoppedQueries
@@ -344,13 +344,13 @@ theorem stopped_hash_sum_le (residual : Tagged → Residual) :
   intro H _
   apply Finset.sum_congr rfl
   intro p _
-  cases p <;> simp [Survival.HashTransport.auxiliary, Survival.RuntimeRoles.auxiliary]
+  cases p <;> simp [LfzkV2.Current.Soundness.HashTransport.auxiliary, LfzkV2.Current.Soundness.RuntimeRoles.auxiliary]
 
 theorem stopped_backend_budget_le (residual : Tagged → Residual) (opaqueRate : ℚ)
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ opaqueRate)
     (point : Tagged) :
     (Survival.StoppedCharges.restrict (charges residual) marked).budget point ≤
-      if marked point && !Survival.RuntimeRoles.auxiliary point then opaqueRate else 0 := by
+      if marked point && !LfzkV2.Current.Soundness.RuntimeRoles.auxiliary point then opaqueRate else 0 := by
   exact StrandCharges.stopped_budget_le (budgetDecidable := fun a b => Classical.propDecidable (a = b)) c binary prime P R countBinary countPrime binaryCapacity primeCapacity (W)
     fitsRoles layout degreeFits rowsFit bitsFit hashPublic primePublic
     primePlan primeGeometry primeFits binaryPlan binaryGeometry binaryFits
@@ -372,7 +372,7 @@ theorem conditioned_cost_mean_le (residual : Tagged → Residual) (opaqueRate : 
   letI : Fintype Name := inferInstance
   letI : Nonempty Answer := ⟨cfg.fallback⟩
   apply Survival.StoppedCharges.combined_mean_le (charges residual) (auditSafe residual) marked
-    Survival.RuntimeRoles.auxiliary Survival.PrefixCache.advance _ opaqueRate positive
+    LfzkV2.Current.Soundness.RuntimeRoles.auxiliary Survival.PrefixCache.advance _ opaqueRate positive
   · exact stopped_backend_budget_le c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
       binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit cfg
       binaryCount metadata fits sample fiber uniform primeCount columnsFit program layout bitsFit residual opaqueRate parentBound
