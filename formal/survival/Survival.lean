@@ -8,6 +8,7 @@ import Survival.QueryBudget
 import Survival.StoppedCharges
 import Survival.PrefixCache
 import Survival.ChargeMonitor
+import Survival.CausalCharges
 import Survival.StoppedSearch
 import Survival.SharedBudget
 import Survival.Saturation

@@ -133,6 +133,12 @@ library has no V1 or V2 implementation dependencies.
   applies the local algebra on the stopped trace, keeping the original cut.
 - [`Survival.ChargeMonitor`](survival/Survival/ChargeMonitor.lean) combines the
   original distinct-query budget, stopped costs and complete failure cover.
+- [`Survival.CausalCharges`](survival/Survival/CausalCharges.lean) provides
+  linear and saturated composition from explicit query-prefix state, retaining
+  the original opaque charge functions. Its generic history bounds live in
+  [`Survival.HistoryBounds`](survival/Survival/HistoryBounds.lean); neither module
+  imports the completed prefix cache. The application monitor is migrated
+  separately from this generic interface.
 - [`OracleDomain`](lfzk-v2/LfzkV2/Current/OracleDomain.lean) and
   [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean) prove that
   complete verifier replay uses the protocol domain.
