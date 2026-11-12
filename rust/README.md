@@ -256,8 +256,8 @@ repeats the fixture's two disclosures.
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 655,242 | 161,171 | 1.74 MiB |
-| 4 | 680,533 | 163,071 | 1.83 MiB |
+| 2 | 654,541 | 160,968 | 1.74 MiB |
+| 4 | 679,625 | 162,552 | 1.83 MiB |
 
 Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
 circuits, with ordinary code rate `k/n=1/7`. The combined hash/adapter has 20
@@ -268,8 +268,8 @@ carried claim weights extend in place. Fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash + adapter, 2 attributes | 285,469 | 2,076,374 | 4,250,813 | 267 |
-| Hash + adapter, 4 attributes | 312,873 | 2,335,600 | 4,767,433 | 275 |
+| Hash application, 2 attributes | 285,469 | 2,076,110 | 4,250,351 | 267 |
+| Hash application, 4 attributes | 312,873 | 2,335,336 | 4,766,971 | 275 |
 | Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
@@ -339,6 +339,16 @@ linear and constant terms are stored in quad fragments; local gate offsets
 address the global arrays. Shorter circuits join later, aligned at their inputs.
 The final shared-input claim uses one packing reduction. The mdoc binary
 side combines the hash and adapter trees through this implementation.
+
+The hash circuit reads the credential inputs, including the 768 bits shared
+with the adapter. Its final 256 mask bits and 20 quotient-pad bits are reserved
+after compilation and must be unread by every hash gate and assertion. Tests
+exhaustively check this boundary in all four compiled circuit shapes, with no
+runtime scan. Adapter challenges and masked advice enter only the separately
+generated product-tree circuit.
+The adapter authenticates the mask modulo the P256 prime, so its binary copy
+needs no range check. The honest prover still samples a uniform field mask
+and writes its canonical bits; packing supplies their Boolean interpretation.
 
 The application circuit library builds the product-tree topology directly,
 without invoking the compiler. Both proof roles instantiate its public

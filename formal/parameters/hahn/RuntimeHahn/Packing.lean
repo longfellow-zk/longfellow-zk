@@ -1,5 +1,4 @@
 import RuntimeHahn.HahnPolynomial
-import Lean.Elab.Tactic.Omega
 
 /-! Protocol-independent exact Hahn packing certificates. Complementing large
 agreement sets lets the same small-weight Gram checker handle rate 1/4.

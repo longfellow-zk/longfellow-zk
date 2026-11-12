@@ -71,7 +71,6 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
         let mut pos = K_FIRST_WIRE_POSITION;
         let (given, derived, npublic) =
             crate::mdoc::circuits::hash::allocate(&l, num_attrs, &mut pos);
-        let mask = allocate_mask(&l, &mut pos);
         let b = Boolean::new(&l);
         let a = Arithmetic::new(&l);
         let modulus: Vec<_> = (0..256)
@@ -90,31 +89,20 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
                         "canonical_device_y",
                         &a.lt(given.device_pk.1.as_array(), &modulus),
                     ),
-                    mask,
                 ],
             ),
             npublic,
         )
     });
     let mut c = segment_circuit_v2(f, &c);
-    let extra = crate::mdoc::circuits::p256_adapter::shared_plan().advice_bits();
+    // Adapter randomness is appended after compilation, so application gates
+    // cannot read it. The handoff only requires the mask's residue modulo p;
+    // its 256-bit representation need not be canonical for soundness.
+    let extra = crate::mdoc::circuits::p256_adapter::AUXILIARY_BITS;
     c.raw.ninput += extra;
     let layer = c.raw.layers.last_mut().ok_or("empty hash circuit")?;
     layer.nw += extra;
     layer.logw = crate::util::ceil_log2(layer.nw);
     c.id = crate::core::proto::v2::compute_id(f, &c.raw);
     Ok(c)
-}
-
-/// R is a canonical coordinate-field element represented by packed input bits.
-fn allocate_mask<L: LogicIO<F = Gf2_128Field>>(logic: &L, pos: &mut usize) -> L::Assertions {
-    let b = Boolean::new(logic);
-    let bits: Vec<_> = (0..256).map(|_| b.of_input_eltw(logic.next(pos))).collect();
-    let modulus: Vec<_> = (0..256)
-        .map(|r| b.konst((MODULUS[r / 64] >> (r % 64)) & 1 != 0))
-        .collect();
-    b.assert_true(
-        "canonical_adapter_mask",
-        &Arithmetic::new(logic).lt(&bits, &modulus),
-    )
 }

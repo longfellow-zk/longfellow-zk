@@ -88,7 +88,7 @@ Three review passes cover the current soundness path.
    transcript and adapter bind prover messages and static statements while
    retaining challenge-derived coefficients in verifier state.
 
-The endpoint tests and the 604 native Rust library tests pass. This is a
+The endpoint tests and the 607 native Rust library tests pass. This is a
 source-correspondence audit. The v2 test aggregate, including its preserved
 shared component libraries, builds successfully. Superseded implementation proof paths have been removed
 from its imports. `WholeAnswerMerkle` names the earlier unindexed node syntax
@@ -143,6 +143,15 @@ uniformly over public inputs and private values. These premises and the
 explicit basis/generator checks derive backend truth inside the coupling. The leaf-table
 permutation preserves actual earlier query/answer traces, including bad
 branches, and does not require a finite type of all byte strings.
+
+The current hash compiler appends the mask/OTP suffix after application
+compilation. Tests reject any hash input gate or assertion that reads this
+suffix in all four compiled circuit shapes; generated adapter coefficients
+belong to a separate circuit. The mask has no binary range assertion, since
+`Handoff.product_handoff` already covers arbitrary mask bits modulo the prime.
+This removes the conflict between mask canonicality and the unrestricted
+noninterference premise. The test-only check costs nothing at runtime and is
+not a kernel proof of the Rust-to-Lean circuit correspondence.
 
 `StrandCanonicalHiding.statClose` first fixes the complementary non-leaf
 oracle. `StrandLeafWindow.statClose_of_extension` reindexes the finite leaf

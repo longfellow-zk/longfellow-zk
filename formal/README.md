@@ -257,7 +257,13 @@ establish that a cryptographic implementation satisfies their premises.
   `MdocWitness.HashNoninterference` states that changing reserved masks,
   OTP bits and generated-adapter parameters preserves the ordinary hash
   checks, uniformly over public inputs and private values. This trusted-circuit
-  premise does not follow from one satisfying assignment. Rust's normal
+  premise does not follow from one satisfying assignment. The Rust compiler
+  appends the 256 mask and 20 OTP inputs after compiling the application;
+  tests reject hash gates or assertions that read this suffix in any of the
+  four compiled circuit shapes. Adapter parameters instantiate a separate
+  circuit. There is no mask range assertion: `Handoff.product_handoff` handles
+  arbitrary mask bits through their residue modulo the prime. These safeguards do
+  not replace the explicit Lean circuit-correspondence premise. Rust's normal
   `for_spec` loader checks archive metadata but
   does not recompute semantic payload IDs. Consequently, trust includes
   the actual supplied archive bytes, not merely their advertised IDs.

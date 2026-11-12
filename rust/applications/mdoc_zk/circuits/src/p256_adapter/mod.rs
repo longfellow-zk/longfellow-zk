@@ -230,9 +230,15 @@ fn pow<F: AlgebraicField>(f: &F, mut b: F::E, mut n: u128) -> F::E {
 #[path = "../../tests/p256_adapter.rs"]
 mod tests;
 pub(crate) const SHARED_BITS: usize = 768;
+pub(crate) const MASK_BITS: usize = 256;
+/// The mask and both quotient OTPs occupy an unused suffix of c_hash inputs.
+pub(crate) const AUXILIARY_BITS: usize =
+    MASK_BITS + 2 * (SHARED_BITS + MASK_BITS).next_power_of_two().ilog2() as usize;
+#[cfg(test)]
+pub(crate) mod hash_inputs;
 pub(crate) fn shared_plan() -> Plan {
     let mut widths = vec![1; SHARED_BITS];
-    widths.push(256);
+    widths.push(MASK_BITS);
     Plan::new(widths).unwrap()
 }
 

@@ -156,6 +156,13 @@ The v2 ZK wrapper automatically adds the fingerprint affine equations to the
 frontend statements. V1 retains its frozen versions
 5–7 and runtime MACs; the v2 frozen registry is empty.
 
+The hash circuit cannot read the reserved 256 mask bits or 20 quotient OTP
+bits. They are appended after application compilation. Tests check every
+input-layer gate and assertion in all four supported compiled circuit shapes;
+the separation check has no runtime cost. Adapter coefficients and masked advice
+belong to the separate product-tree circuit. The mask's field residue is
+authenticated by the handoff; a binary mask range check is unnecessary.
+
 `prime.rs` runs the masked prime-field sumcheck, with prover and verifier entry
 points in separate files. `row_batching.rs` combines every layer equation and
 the final input equation into one linear claim in its own transcript round.
