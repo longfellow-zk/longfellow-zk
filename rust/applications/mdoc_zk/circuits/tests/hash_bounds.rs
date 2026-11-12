@@ -469,9 +469,8 @@ fn namespace_text_must_precede_each_selected_digest_without_wrapping() {
         let wires = evaluate_given(&logic, &bits, &witness);
         let end = usize::from(offset) + witness.hash_input.expected_namespace.len();
         for digest in [offset, (end as u16), (end + 1) as u16] {
-            let result = MdocHash::new(&logic, 0).assert_namespace_before_digest(
-                &wires, &bits.of_u64(u64::from(digest)),
-            );
+            let result = MdocHash::new(&logic, 0)
+                .assert_namespace_before_digest(&wires, &bits.of_u64(u64::from(digest)));
             assert_eq!(result.is_ok(), usize::from(digest) > end);
         }
     }

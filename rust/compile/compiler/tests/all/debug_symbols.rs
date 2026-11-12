@@ -158,8 +158,25 @@ fn test_root_assertion_simplifying_to_zero_after_stripping_does_not_panic() {
     let (circuit, stats, symbols) = super::compile(&f, |logic| roots(&logic));
     assert_eq!(stats.nassertions, 1);
     let runtime = RuntimeP256Field::new();
-    eval_circuit_fc(&f, &runtime, &circuit, &symbols,
-        &[runtime.one(), runtime.one()], FieldID::P256).unwrap().assert_all_passed();
-    assert!(!eval_circuit_fc(&f, &runtime, &circuit, &symbols,
-        &[runtime.one(), runtime.zero()], FieldID::P256).unwrap().failed_paths().is_empty());
+    eval_circuit_fc(
+        &f,
+        &runtime,
+        &circuit,
+        &symbols,
+        &[runtime.one(), runtime.one()],
+        FieldID::P256,
+    )
+    .unwrap()
+    .assert_all_passed();
+    assert!(!eval_circuit_fc(
+        &f,
+        &runtime,
+        &circuit,
+        &symbols,
+        &[runtime.one(), runtime.zero()],
+        FieldID::P256
+    )
+    .unwrap()
+    .failed_paths()
+    .is_empty());
 }
