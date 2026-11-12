@@ -1,4 +1,6 @@
 import LfzkV2.Current.Protocol.Setup
+import LfzkV2.Current.ProofBodyBounds
+import LfzkV2.Current.StatementCompiler
 import LfzkV2.Current.StrandMerkleMissingQueries
 
 /-! Structural inputs needed for extraction soundness, kept separate from

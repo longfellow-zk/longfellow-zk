@@ -1,4 +1,4 @@
-import LfzkV2.Current.Protocol.Setup
+import LfzkV2.Current.Protocol.ExecutionSampler
 import LfzkV2.Current.StrandRoleSampling
 
 /-! Role-specific sampling data, independent of soundness composition. -/
@@ -104,13 +104,6 @@ abbrev factor (point : S.Point) := Sampling.factor c S.binary S.prime S.P S.R
   S.binaryPlan S.primePlan S.binaryGeometry S.primeGeometry S.binaryFits S.primeFits S.degreeFits S.rowsFit point
 
 end Setup
-
-/-- The executable sampler callback shared with privacy and honest execution.
-It carries no balance or sampler-success hypothesis. -/
-structure ExecutionSampler
-    (S : Setup c g fields Advice B (shared := shared) (maskBits := maskBits) (adviceBits := adviceBits))
-    (blocks : ℕ) where
-  sample : S.Point → Tree Strand.Word Digest (Option S.Answer) blocks
 
 /-- Role-specific sample values before filling unused answer coordinates. -/
 structure SamplerData

@@ -127,8 +127,10 @@ library has no V1 or V2 implementation dependencies.
 
 The composition takes typed setup, sampler and adversary records. Shared
 [`Protocol.Setup`](lfzk-v2/LfzkV2/Current/Protocol/Setup.lean) owns public runtime
-data; [`Protocol.Sampling`](lfzk-v2/LfzkV2/Current/Protocol/Sampling.lean) separates
-executable sampling from its soundness balance law.
+data. [`Protocol.ExecutionSampler`](lfzk-v2/LfzkV2/Current/Protocol/ExecutionSampler.lean)
+owns the executable callback; [`Protocol.Sampling`](lfzk-v2/LfzkV2/Current/Protocol/Sampling.lean)
+adds role factors and the soundness balance law. Privacy and conditional
+completeness do not import that latter module.
 [`Protocol.Execution`](lfzk-v2/LfzkV2/Current/Protocol/Execution.lean) owns the
 original/verifier trace observation and the original-query-bounded adversary.
 Soundness setup adds structural layout, framing and resource constraints;

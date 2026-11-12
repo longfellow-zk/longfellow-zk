@@ -128,9 +128,10 @@ fn violates_owner(root: &str, dependency: &str) -> bool {
     } else if root.starts_with("LfzkV2.Current.ZeroKnowledge.")
         || [CURRENT_ENDPOINTS[1], CURRENT_ENDPOINTS[2]].contains(&root)
     {
-        soundness
+        soundness || dependency == "LfzkV2.Current.Protocol.Sampling"
     } else if root == CURRENT_ENDPOINTS[3] {
         soundness
+            || dependency == "LfzkV2.Current.Protocol.Sampling"
             || [
                 CURRENT_ENDPOINTS[1],
                 CURRENT_ENDPOINTS[2],
@@ -235,6 +236,18 @@ mod tests {
         assert!(!violates_owner(
             CURRENT_ENDPOINTS[1],
             "LfzkV2.Current.Mdoc.Runtime"
+        ));
+        assert!(violates_owner(
+            CURRENT_ENDPOINTS[1],
+            "LfzkV2.Current.Protocol.Sampling"
+        ));
+        assert!(violates_owner(
+            CURRENT_ENDPOINTS[3],
+            "LfzkV2.Current.Protocol.Sampling"
+        ));
+        assert!(!violates_owner(
+            CURRENT_ENDPOINTS[1],
+            "LfzkV2.Current.Protocol.ExecutionSampler"
         ));
     }
 }

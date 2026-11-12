@@ -23,7 +23,7 @@ run_cmd do
     throwError "Honest runtime exposes a derived parse or uniform witness certificate"
   unless used.contains ``Mdoc.Runtime && used.contains ``Protocol.ExecutionSampler do
     throwError "Honest runtime must share the public setup and executable sampler"
-  if used.contains ``Protocol.SamplerLaws then
+  if used.contains `LfzkV2.Current.Protocol.SamplerLaws then
     throwError "Conditional honest acceptance must not require sampler balance"
   for ax in ← collectAxioms endpoint do
     unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do

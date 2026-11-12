@@ -1,5 +1,5 @@
 import LfzkV2.Current.MdocRuntime
-import LfzkV2.Current.Protocol.Sampling
+import LfzkV2.Current.Protocol.Setup
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.Parameters.Rate7
 

@@ -4,8 +4,6 @@ import LfzkV2.Current.FrontendSchedule
 import LfzkV2.Current.FrontendTopology
 import LfzkV2.Current.IdealRuntime
 import LfzkV2.Current.MerkleWireCodec
-import LfzkV2.Current.ProofBodyBounds
-import LfzkV2.Current.StatementCompiler
 
 /-! Public protocol data and structural consistency. This record contains
 no execution, failure-cover or probabilistic soundness hypotheses. -/

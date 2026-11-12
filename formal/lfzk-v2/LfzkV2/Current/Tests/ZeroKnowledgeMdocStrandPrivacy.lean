@@ -39,7 +39,7 @@ run_cmd do
       throwError "Endpoint {endpoint} exposes the derived uniform witness premise"
     unless used.contains ``Protocol.ExecutionSampler do
       throwError "Endpoint {endpoint} does not use the shared executable sampler"
-    if used.contains ``Protocol.SamplerLaws then
+    if used.contains `LfzkV2.Current.Protocol.SamplerLaws then
       throwError "Privacy must not assume the soundness sampling balance law"
   for endpoint in #[``Mdoc.ZeroKnowledge.simulate,
       ``Mdoc.ZeroKnowledge.honest] do

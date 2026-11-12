@@ -1,4 +1,5 @@
 import LfzkV2.Current.Protocol.Execution
+import LfzkV2.Current.Protocol.ExecutionSampler
 import Bcs.OracleReachability
 import LfzkV2.Current.Mdoc.SetupSupport
 import LfzkV2.Current.ZeroKnowledge.StrandPrivacyBudget

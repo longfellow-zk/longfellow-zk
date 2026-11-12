@@ -1,4 +1,5 @@
 import LfzkV2.Current.Mdoc.Runtime
+import LfzkV2.Current.Protocol.ExecutionSampler
 import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestExecution
 import LfzkV2.Current.ZeroKnowledge.StrandHonestCompletion
