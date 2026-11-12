@@ -290,6 +290,11 @@ are outside these results. All endpoint axiom guards permit only `propext`,
 
 ## Shared component results
 
+The `LfzkV2.Current` barrel exposes application soundness, numbered-strand
+privacy, verifier acceptance privacy and honest-runtime acceptance. Sampling,
+metadata readback, generic oracle transport and paper-facing Merkle components
+remain available through their own modules.
+
 The runtime reuses the generic sumcheck, dual-packing, witness-selection and
 Polygero libraries. The [paper-facing Polygero development](../polygero/README.md)
 and its public-coin extraction/soundness theorems are preserved. The generic

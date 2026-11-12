@@ -1,5 +1,4 @@
 import LfzkV2.Current.AdapterParameters
-import Bcs.AdaptiveCommit
 
 /-! Rounding the global per-query bound and collecting digest-sized
 remainders. Actual role-local budgets and their maximum are proved in
@@ -22,11 +21,5 @@ theorem mdoc_chained_budget (Q : ℕ) :
   apply rounded_query_budget
   simp only [binaryOrder]
   decide +kernel
-
-/-- One shared commitment has a checker budget of `2*2560`. The maximum
-current mdoc geometry contributes 500 replay queries, including its seal,
-only inside this digest-sized explanation term. -/
-def mdocRemainder (Q merkleQueries : ℕ) : ℕ :=
-  4*Q+1 + Bcs.AdaptiveCommit.adaptiveNumerator 5120 merkleQueries (Q+500)
 
 end LfzkV2.Current

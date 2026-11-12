@@ -2,8 +2,3 @@ import LfzkV2.Current.MdocSoundness
 import LfzkV2.Current.ZeroKnowledge.MdocStrandZeroKnowledge
 import LfzkV2.Current.ZeroKnowledge.MdocStrandVerifierPrivacy
 import LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime
-import LfzkV2.Current.OpeningFisherYates
-import LfzkV2.Current.ReplayCongruence
-import LfzkV2.Current.ConcreteMetadataReadback
-import LfzkV2.Current.ZeroKnowledge.MerkleBound
-import LfzkV2.Current.ZeroKnowledge.MerklePreparation

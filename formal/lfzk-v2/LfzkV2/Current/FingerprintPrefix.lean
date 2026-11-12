@@ -185,8 +185,4 @@ theorem encode_length_le (setup : Setup) (publicCount : ℕ) (key : Key publicCo
   unfold blockBound
   omega
 
-def blockBytes (setup : Setup) (publicCount : ℕ) (key : Key publicCount) :
-    BoundedBytes (blockBound setup publicCount) :=
-  ⟨(codec setup publicCount).encode key,encode_length_le setup publicCount key⟩
-
 end LfzkV2.Current.FingerprintPrefix

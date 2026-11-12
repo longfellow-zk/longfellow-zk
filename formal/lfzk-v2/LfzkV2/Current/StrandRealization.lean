@@ -79,10 +79,6 @@ local notation "compiledReplay" => fun output : Output => mapQueries decodeRaw (
 local notation "searchTree" => StrandReplay.search (schema) bytes compiled
 local notation "resumeTree" => StrandReplay.resume (schema) bytes compiledReplay
 
-/-- Continue the exact named search through authentication and finalization.
-The search cache and decoder registry are retained by this continuation. -/
-def fullSearch := (searchTree).bind resumeTree
-
 /-- The finite raw table is the complete SHA marginal used by the program.
 Its complement fallback cannot change a covered raw observation. -/
 def rawSHA (G : Raw → Digest) : Bytes → Digest := G ∘ decodeRaw

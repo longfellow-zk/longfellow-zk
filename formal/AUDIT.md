@@ -99,7 +99,10 @@ checks. The current test aggregate directly imports every current test module;
 the source audit rejects future omissions. `scripts/Audit.lean` imports the
 default component roots and audits their declarations, including generic
 survival, coding-theory, ECDSA and circuit components. Its axiom collection is
-transitive. Application-specific soundness bridges use the `LfzkV2.Current.Soundness`
+transitive. Application endpoint barrels import the current soundness, privacy and honest
+runtime modules. Standalone sampling, readback, transport and paper components
+remain directly importable and are covered by the retained-source build.
+Application-specific soundness bridges use the `LfzkV2.Current.Soundness`
 namespace; `Survival` contains the reusable chronological bounds and their
 standalone tests. The retained Polygero benchmark table is kernel-checked too;
 native evaluation is allowed only for the documented V1 numerical rows.
