@@ -43,11 +43,11 @@ variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => ZMod Current.Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B 768 256 10) (prime : PrimePublic P 768)
 variable (primeData : PrimeData prime C) (card : Fintype.card B = Current.Adapter.Mdoc.binaryOrder)
-variable (generator : Bˣ) (bound : 2^10 ≤ Current.Adapter.Mdoc.quotientBound)
-variable (data : BinaryData binary primeData (generator^Current.Adapter.Mdoc.generatorExponent))
+variable (polynomialX : Bˣ) (bound : 2^10 ≤ Current.Adapter.Mdoc.quotientBound)
+variable (data : BinaryData binary primeData (polynomialX^Current.Adapter.Mdoc.generatorExponent))
 
 theorem decoded_frontends (system)
-    (decoded : ApplicationSetup.decodeChecked binary prime primeData card generator bound data = some system) :
+    (decoded : ApplicationSetup.decodeChecked binary prime primeData card polynomialX bound data = some system) :
     system.binary = data.frontend ∧ system.prime = primeData.frontend := by
   unfold ApplicationSetup.decodeChecked at decoded
   split at decoded
@@ -59,7 +59,7 @@ theorem decoded_frontends (system)
   · contradiction
 
 theorem decoded_rows (system)
-    (decoded : ApplicationSetup.decodeChecked binary prime primeData card generator bound data = some system) :
+    (decoded : ApplicationSetup.decodeChecked binary prime primeData card polynomialX bound data = some system) :
     system.binary.rows = data.frontend.rows ∧
       system.primeRows = [primeData.claim.row data.eta data.mu] ∧
       system.binaryLayout = CellLayout.selected binary.cells ∧
@@ -78,16 +78,16 @@ theorem decoded_counts (plan : FrontendSchedule.Plan B binary.template)
     (coinsB : WitnessSelection.Coins B binary.Original)
     (coinsP : WitnessSelection.Coins P prime.Original) (targetB : B × B) (targetP : P × P)
     (system)
-    (decoded : ApplicationSetup.decodeChecked binary prime primeData card generator bound data = some system) :
+    (decoded : ApplicationSetup.decodeChecked binary prime primeData card polynomialX bound data = some system) :
     (system.binary.rows ++ FingerprintRows.rows
       (fun i => system.binaryLayout (.inl i)) (fun i => system.binaryLayout (.inr i)) coinsB targetB).length =
         g.affineRows .binary ∧
     (system.primeRows ++ FingerprintRows.rows
       (fun i => system.primeLayout (.inl i)) (fun i => system.primeLayout (.inr i)) coinsP targetP).length =
         g.affineRows .prime := by
-  have frontends := decoded_frontends binary prime primeData card generator bound data system decoded
+  have frontends := decoded_frontends binary prime primeData card polynomialX bound data system decoded
   have count := packed_rows_length data.setup data.payload data.decode data.nonzero data.answers data.U data.delta data.A
-  let same := binary.same_template data.powers ((generator^Current.Adapter.Mdoc.generatorExponent)^(-(Current.Adapter.Mdoc.primeOrder : ℤ)))
+  let same := binary.same_template data.powers ((polynomialX^Current.Adapter.Mdoc.generatorExponent)^(-(Current.Adapter.Mdoc.primeOrder : ℤ)))
     data.masked data.targets
   have layers := layers_stages (same.plan plan)
   rw [same.frontend plan,← geometry] at layers
@@ -109,10 +109,10 @@ theorem compile_success (plan : FrontendSchedule.Plan B binary.template)
     (coinsB : WitnessSelection.Coins B binary.Original)
     (coinsP : WitnessSelection.Coins P prime.Original) (targetB : B × B) (targetP : P × P)
     (system)
-    (decoded : ApplicationSetup.decodeChecked binary prime primeData card generator bound data = some system) :
+    (decoded : ApplicationSetup.decodeChecked binary prime primeData card polynomialX bound data = some system) :
     ∃ compiled, StatementCompiler.compile first second system layout (g.affineRows .binary) (g.affineRows .prime)
       coinsB coinsP targetB targetP = some compiled := by
-  have counts := decoded_counts binary prime primeData card generator bound data plan g geometry degree
+  have counts := decoded_counts binary prime primeData card polynomialX bound data plan g geometry degree
     coinsB coinsP targetB targetP system decoded
   unfold StatementCompiler.compile StatementCompiler.equationIndex
   rw [dif_pos counts.1.symm,dif_pos counts.2.symm]

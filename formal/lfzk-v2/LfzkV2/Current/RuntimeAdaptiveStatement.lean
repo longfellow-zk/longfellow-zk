@@ -26,7 +26,7 @@ local notation "Output" => RuntimeVerifier.Output (g := g) (fields := fields) (A
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
@@ -56,7 +56,7 @@ theorem application_layouts (point : Point) (past : Fin point.rank → C)
   obtain ⟨bits,inputs,_,_,happlication⟩ :=
     RuntimeAdaptive.application_spec binary prime P R cfg hashPublic decodePublic point past A h
   obtain ⟨nd,bd,_,_,hsetup⟩ := ApplicationPrefix.decodeChecked_spec (binaryWithBits binary bits)
-    (primeWithInputs prime inputs) cfg.card cfg.generator cfg.quotientBound cfg.packingDegree
+    (primeWithInputs prime inputs) cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree
     cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
     cfg.conversion cfg.advice cfg.fallback point past A happlication
   unfold ApplicationSetup.decodeChecked at hsetup

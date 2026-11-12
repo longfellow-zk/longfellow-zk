@@ -28,7 +28,7 @@ variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 variable (e : Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (Base × ProtocolWrites.Fresh g fields Advice) C)
 variable (initialLink : Digest)

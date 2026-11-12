@@ -35,7 +35,8 @@ system or a claim that an adversarial proof follows the verifier. Uniformity
 of challenge decoders belongs to the stated ideal-XOF model. -/
 structure Public where
   card : Fintype.card B = Adapter.Mdoc.binaryOrder
-  generator : Bˣ
+  /-- Polynomial-basis x, before the fixed adapter exponent is applied. -/
+  polynomialX : Bˣ
   quotientBound : 2^adviceBits ≤ Adapter.Mdoc.quotientBound
   packingDegree : g.packingDegree = binary.degree
   binaryField : fields .binary ≃ B
@@ -173,7 +174,7 @@ def statementAt (point : Point (g := g) (fields := fields) (Advice := Advice)
     (Base := Base) (Key := Key)) (past : Fin point.rank → C) :
     Option (Σ A : System binary prime (C := C),
       StatementData A (first binary prime P R cfg) (second binary prime P R cfg)) := do
-  let A ← ApplicationPrefix.decodeChecked binary prime cfg.card cfg.generator
+  let A ← ApplicationPrefix.decodeChecked binary prime cfg.card cfg.polynomialX
     cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
     cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
     cfg.conversion cfg.advice cfg.fallback point past
@@ -204,7 +205,7 @@ theorem statementAt_spec (point : Point (g := g) (fields := fields) (Advice := A
     (data : Σ A : System binary prime (C := C),
       StatementData A (first binary prime P R cfg) (second binary prime P R cfg))
     (h : statementAt binary prime P R cfg point past = some data) :
-    ApplicationPrefix.decodeChecked binary prime cfg.card cfg.generator
+    ApplicationPrefix.decodeChecked binary prime cfg.card cfg.polynomialX
       cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
       cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
       cfg.conversion cfg.advice cfg.fallback point past = some data.1 ∧

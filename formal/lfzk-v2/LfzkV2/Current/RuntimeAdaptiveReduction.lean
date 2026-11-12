@@ -24,7 +24,7 @@ local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Adv
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) C)
 local notation "encodings" => RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier

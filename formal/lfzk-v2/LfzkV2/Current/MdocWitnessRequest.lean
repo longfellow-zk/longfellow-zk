@@ -54,7 +54,7 @@ theorem valid_at_request (separated : ReadDisjoint binary)
     bp pp P R repr shape setup cfg binaryCount primeCount metadata draw output H decoded found w truth
   refine ⟨?_,signature⟩
   exact hashValid_of_satisfies {binary with publicBits := output.request.publicBits}
-    separated w.1 bd.powers ((cfg.generator^Adapter.Mdoc.generatorExponent)^(-(Adapter.Mdoc.primeOrder : ℤ)))
+    separated w.1 bd.powers ((cfg.polynomialX^Adapter.Mdoc.generatorExponent)^(-(Adapter.Mdoc.primeOrder : ℤ)))
     bd.masked bd.targets hash
 
 end LfzkV2.Current.MdocWitness

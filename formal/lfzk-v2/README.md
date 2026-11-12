@@ -89,6 +89,11 @@ handles each fixed public setup.
 from the complementary slice of the same SHA function and preserves the
 original output, protocol-domain query prefix and complete verifier replay.
 
+`RuntimeVerifier.Public.polynomialX` is the polynomial-basis element encoded
+as integer 2, before the fixed adapter exponent is applied. Checked decoding
+validates its multiplicative order and derives the conversion generator from
+that power. The quotient-base identities remain available as component lemmas.
+
 The ordinary rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`. Its
 [exact Hahn certificate](LfzkV2/Current/Parameters/Rate7.lean) and list bounds
 are checked internally. The theorem derives verifier acceptance, application

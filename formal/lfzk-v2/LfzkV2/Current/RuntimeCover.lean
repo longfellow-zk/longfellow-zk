@@ -26,7 +26,7 @@ local notation "Output" => RuntimeVerifier.Output (g := g) (fields := fields) (A
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 /-- The concrete six alternatives obtained from parsed prime/binary data.
 All witness readers are the fixed full-cell layouts, including the two
@@ -55,7 +55,7 @@ application events with the actual parsed data. Generated adapter semantics
 are supplied by the constructor, not by this theorem's caller. -/
 theorem parsedBad_iff (nd : PrimeData prime C) (bd : BinaryData binary nd Generator)
     (A : RuntimeVerifier.System binary prime (C := C))
-    (h : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.generator cfg.quotientBound bd = some A)
+    (h : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A)
     (w : Pair) : A.Bad w ↔ ParsedBad binary prime P R cfg nd bd w := by
   unfold ApplicationSetup.decodeChecked at h
   split at h
@@ -97,7 +97,7 @@ theorem decoded_failure_cover
         ApplicationPrefix.readBinary binary nd Generator cfg.packingDegree cfg.binaryField cfg.primeField
           cfg.binaryDecode cfg.binaryNonzero cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback
           parent.point (parent.point.priorAnswers H) = some bd ∧
-        ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.generator cfg.quotientBound bd =
+        ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.polynomialX cfg.quotientBound bd =
           some decoded.application ∧
         (authentication binary prime P R cfg proof decoded W cutoff).context.extract = some w ∧
         ParsedBad binary prime P R cfg nd bd w := by
@@ -107,7 +107,7 @@ theorem decoded_failure_cover
   · have hs := (RuntimeVerifier.decode_spec binary prime P R cfg draw proof H decoded hd).1
     have ha := (RuntimeVerifier.statementAt_spec binary prime P R cfg _ _ _ hs).1
     obtain ⟨nd,bd,hprime,hbinary,hsetup⟩ :=
-      ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.generator cfg.quotientBound
+      ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.polynomialX cfg.quotientBound
         cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
         cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback _ _ _ ha
     exact Or.inr ⟨nd,bd,w,hprime,hbinary,hsetup,hselected,
@@ -204,7 +204,7 @@ variable (q : QuerySetup binary prime P R cfg S LB LN)
 def primeRead (point : Point) (past : Fin point.rank → C) := readPrimeView binary prime q.primeShape q.primeCapacity
   cfg.primeDecode cfg.primeNonzero q.primeDecoder q.primeFits cfg.primeField cfg.fallback point past
 
-def binaryRead (point : Point) (past : Fin point.rank → C) := readBinaryView binary prime (cfg.generator^Adapter.Mdoc.generatorExponent) q.binaryCapacity q.binaryShape
+def binaryRead (point : Point) (past : Fin point.rank → C) := readBinaryView binary prime (cfg.polynomialX^Adapter.Mdoc.generatorExponent) q.binaryCapacity q.binaryShape
   cfg.binaryDecode cfg.binaryNonzero q.binaryDecoder q.binaryFits cfg.binaryField cfg.primeField
   cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point past
 
@@ -218,7 +218,7 @@ def conversionRead (_q : QuerySetup binary prime P R cfg S LB LN)
     (point : Point) (past : Fin point.rank → C) := readConversionPacket binary prime cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.fallback point past
 
 def packingRead (_q : QuerySetup binary prime P R cfg S LB LN)
-    (point : Point) (past : Fin point.rank → C) := readPackingPacket binary prime (cfg.generator^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
+    (point : Point) (past : Fin point.rank → C) := readPackingPacket binary prime (cfg.polynomialX^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
   cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point past
 
 /-- Each oracle point has one protocol role. In particular, fragments and
@@ -421,7 +421,7 @@ omit [Fintype C] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf] 
 /-- Successful application reconstruction fixes both public cell maps. -/
 theorem decoded_layouts (nd : PrimeData prime C) (bd : BinaryData binary nd Generator)
     (A : RuntimeVerifier.System binary prime (C := C))
-    (h : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.generator cfg.quotientBound bd = some A) :
+    (h : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A) :
     A.binaryLayout = CellLayout.selected binary.cells ∧
       A.primeLayout = CellLayout.Prime.layout prime.remaining prime.pads := by
   unfold ApplicationSetup.decodeChecked at h
@@ -462,7 +462,7 @@ theorem compiled_context
     (layout : StatementCompiler.Addresses P R binary.cells prime.remaining prime.pads)
     (nd : PrimeData prime C) (bd : BinaryData binary nd Generator)
     (A : RuntimeVerifier.System binary prime (C := C))
-    (hA : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.generator cfg.quotientBound bd = some A)
+    (hA : ApplicationSetup.decodeChecked binary prime nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A)
     (data : StatementData A First Second) (fingerprint : C)
     (targetsB : B × B) (targetsN : N × N)
     (hdata : StatementCompiler.compile P R A layout cfg.countBinary cfg.countPrime

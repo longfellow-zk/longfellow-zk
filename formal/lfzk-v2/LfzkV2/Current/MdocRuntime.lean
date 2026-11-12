@@ -122,7 +122,7 @@ def shape : WireBlocks.Shape (geometry binary prime binaryPlan primePlan) (field
     (Equiv.refl _) (Equiv.refl _) inputFits (by decide) privateFits degreeFits
 
 variable (setup : FingerprintPrefix.Setup)
-variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (generator : Bˣ)
+variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (polynomialX : Bˣ)
 
 /-- All protocol callbacks are fixed here. In particular the advice decoder
 is total on exactly the canonical twenty-bit words admitted by the proof
@@ -137,7 +137,7 @@ def configuration : RuntimeVerifier.Public
     (C := Answer binary prime binaryPlan primePlan binaryNodes)
     (Salt := MerkleWireCodec.Salt 2443) where
   card := card
-  generator := generator
+  polynomialX := polynomialX
   quotientBound := by decide
   packingDegree := rfl
   binaryField := Equiv.refl _
@@ -172,7 +172,7 @@ def configuration : RuntimeVerifier.Public
 omit [DecidableEq B] in
 theorem configuration_advice (value : MdocAdvice.Value) :
     (configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-      setup card generator).advice value = some (MdocAdvice.bits value) := rfl
+      setup card polynomialX).advice value = some (MdocAdvice.bits value) := rfl
 
 omit [DecidableEq B] in
 /-- The generic endpoint's ideal-sampling specialization leaves this
@@ -184,8 +184,8 @@ theorem configuration_challenges :
       ((geometry binary prime binaryPlan primePlan).affineRows .prime)
       (binaryCapacity binary binaryPlan) (primeCapacity prime primePlan)
       (configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-        setup card generator) =
+        setup card polynomialX) =
     configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-      setup card generator := rfl
+      setup card polynomialX := rfl
 
 end LfzkV2.Current.MdocRuntime

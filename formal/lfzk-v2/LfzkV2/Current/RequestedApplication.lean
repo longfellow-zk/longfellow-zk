@@ -31,7 +31,7 @@ theorem application_eq (point : Point) (past : Fin point.rank → C)
     (hinputs : RuntimeAdaptive.primePublic prime decodePublic point = some inputs) :
     RuntimeAdaptive.application binary prime P R cfg hashPublic decodePublic point past =
       ApplicationPrefix.decodeChecked (binaryWithBits binary bits) (primeWithInputs prime inputs)
-        cfg.card cfg.generator cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
+        cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
         cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
         cfg.fallback point past := by
   simp only [RuntimeAdaptive.application,Option.bind_eq_bind,hbits,hinputs,Option.bind_some]
@@ -42,10 +42,10 @@ come from the same selected binary witness, not a second committed copy. -/
 theorem checked_true
     (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N)
     (nd : PrimeData (primeWithInputs prime inputs) C)
-    (bd : BinaryData (binaryWithBits binary bits) nd (cfg.generator^Adapter.Mdoc.generatorExponent))
+    (bd : BinaryData (binaryWithBits binary bits) nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent))
     (A : System)
     (h : ApplicationSetup.decodeChecked (binaryWithBits binary bits) (primeWithInputs prime inputs)
-      nd cfg.card cfg.generator cfg.quotientBound bd = some A)
+      nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A)
     (w : Selection.Pair B N binary.Original prime.Original) (htrue : A.True w) :
     bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs
       (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w)) ∧
@@ -71,11 +71,11 @@ theorem true_at_request (point : Point) (past : Fin point.rank → C)
     (hA : RuntimeAdaptive.application binary prime P R cfg hashPublic decodePublic point past = some A)
     (w : Selection.Pair B N binary.Original prime.Original) (htrue : A.True w) :
     ∃ (nd : PrimeData (primeWithInputs prime inputs) C)
-      (bd : BinaryData (binaryWithBits binary bits) nd (cfg.generator^Adapter.Mdoc.generatorExponent)),
+      (bd : BinaryData (binaryWithBits binary bits) nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent)),
       ApplicationPrefix.readPrime (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode
         cfg.primeNonzero cfg.fallback point past = some nd ∧
       ApplicationPrefix.readBinary (binaryWithBits binary bits) nd
-        (cfg.generator^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
+        (cfg.polynomialX^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
         cfg.binaryDecode cfg.binaryNonzero cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback
         point past = some bd ∧
       bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs
@@ -84,7 +84,7 @@ theorem true_at_request (point : Point) (past : Fin point.rank → C)
         (primeInputs (binaryWithBits binary bits) (primeWithInputs prime inputs) w) := by
   rw [application_eq binary prime P R cfg hashPublic decodePublic point past bits inputs hbits hinputs] at hA
   obtain ⟨nd,bd,hprime,hbinary,hchecked⟩ := ApplicationPrefix.decodeChecked_spec
-    (binaryWithBits binary bits) (primeWithInputs prime inputs) cfg.card cfg.generator cfg.quotientBound
+    (binaryWithBits binary bits) (primeWithInputs prime inputs) cfg.card cfg.polynomialX cfg.quotientBound
     cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
     cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point past A hA
   exact ⟨nd,bd,hprime,hbinary,checked_true binary prime P R cfg bits inputs nd bd A hchecked w htrue⟩

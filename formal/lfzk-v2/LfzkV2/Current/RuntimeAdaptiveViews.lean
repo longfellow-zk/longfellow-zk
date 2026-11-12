@@ -29,7 +29,7 @@ variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
 local notation "Pair" => Selection.Pair B N binary.Original prime.Original
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 /-- A missing public vector is a rejected parse, not a default statement.
 Both values are fixed by the query input before its answer is sampled. -/

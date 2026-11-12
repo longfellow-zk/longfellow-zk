@@ -488,7 +488,7 @@ private theorem binary_frontend_normalize
         | some packet =>
             dsimp only [Bind.bind,Option.bind]
             cases payload : ApplicationViews.PartialMessages.read
-                (packet.setup ((publicCfg).generator^Adapter.Mdoc.generatorExponent)).circuit
+                (packet.setup ((publicCfg).polynomialX^Adapter.Mdoc.generatorExponent)).circuit
                 (ApplicationPrefix.wire point Side.binary (publicCfg).binaryField g.binaryStart)
                 (point.rank-g.binaryStart) with
             | none => rfl
@@ -496,7 +496,7 @@ private theorem binary_frontend_normalize
                 dsimp only [Bind.bind,Option.bind,ApplicationViews.FrontendView.bad]
                 let shape := RuntimeShape.binaryPlan (RuntimeAdaptive.binaryWithBits binary values.1)
                   (RuntimeAdaptive.primeWithInputs prime values.2)
-                  ((publicCfg).generator^Adapter.Mdoc.generatorExponent) template packet
+                  ((publicCfg).polynomialX^Adapter.Mdoc.generatorExponent) template packet
                 apply frontend_data_answer S _ shape .binary point H
                 · apply binary_located shape
                   exact (RuntimeShape.binaryPlan_frontend _ _ _ _ _).trans geometry

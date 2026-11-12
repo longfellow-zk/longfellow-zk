@@ -25,7 +25,7 @@ local notation "Output" => RuntimeVerifier.Output (g := g) (fields := fields) (A
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 
@@ -49,7 +49,7 @@ theorem selected_of_statement
   have he : layout' = layout := Option.some.inj (hlayout'.symm.trans hlayout)
   subst layout'
   obtain ⟨nd,bd,hprime,hbinary,hsetup⟩ :=
-    ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.generator cfg.quotientBound
+    ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.polynomialX cfg.quotientBound
       cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
       cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback _ _ _ hs.1
   have hpos : 0 < point.rank := by
@@ -201,7 +201,7 @@ theorem collision_of_statement
   have hf : fingerprint' = fingerprint := Option.some.inj (hfingerprint.symm.trans hfp)
   subst fingerprint'
   obtain ⟨nd,bd,hprime,hbinary,hsetup⟩ :=
-    ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.generator cfg.quotientBound
+    ApplicationPrefix.decodeChecked_spec binary prime cfg.card cfg.polynomialX cfg.quotientBound
       cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
       cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback _ _ _ hs.1
   have hcontext := RuntimeCover.compiled_context binary prime P R cfg layout nd bd data.1 hsetup data.2

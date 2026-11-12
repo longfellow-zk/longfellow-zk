@@ -30,7 +30,7 @@ local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Adv
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "First" => RuntimeVerifier.first binary prime P R cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) C)
 local notation "encodings" => RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier
@@ -90,7 +90,7 @@ def ParsedBad (nd : PrimeData currentPrime C) (bd : BinaryData currentBinary nd 
 omit [Fintype C] in
 theorem parsedBad_iff (nd : PrimeData currentPrime C) (bd : BinaryData currentBinary nd Generator)
     (A : RuntimeVerifier.System binary prime (C := C))
-    (h : ApplicationSetup.decodeChecked currentBinary currentPrime nd cfg.card cfg.generator cfg.quotientBound bd = some A)
+    (h : ApplicationSetup.decodeChecked currentBinary currentPrime nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A)
     (w : Pair) : A.Bad w ↔ ParsedBad binary prime P R cfg bits inputs nd bd w := by
   unfold ApplicationSetup.decodeChecked at h
   split at h
@@ -246,7 +246,7 @@ theorem decoded_failure_cover
     obtain ⟨bits,inputs,hbits,hinputs,happlication⟩ :=
       RuntimeAdaptive.application_spec binary prime P R cfg hashPublic decodePublic _ _ _ hA
     obtain ⟨nd,bd,hprime,hbinary,hsetup⟩ := ApplicationPrefix.decodeChecked_spec (binaryWithBits binary bits)
-      (primeWithInputs prime inputs) cfg.card cfg.generator cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
+      (primeWithInputs prime inputs) cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
       cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback _ _ _ happlication
     have hpublic : RuntimeAdaptiveViews.publics binary prime hashPublic decodePublic
         ((e.chain cfg.initialLink).point output.proof H g.batchingIndex.val) = some (bits,inputs) := by

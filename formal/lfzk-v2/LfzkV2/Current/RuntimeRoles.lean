@@ -25,7 +25,7 @@ local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Adv
   (Base := Base) (Key := Key)
 local notation "Output" => RuntimeVerifier.Output (g := g) (fields := fields) (Advice := Advice)
 local notation "e" => RuntimeVerifier.encoding binary prime P R cfg
-local notation "Generator" => cfg.generator^Adapter.Mdoc.generatorExponent
+local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 omit [Fintype C] in
 theorem point_role (proof : Output) (H : Point → Digest × C) (i : Fin g.roles.length) :

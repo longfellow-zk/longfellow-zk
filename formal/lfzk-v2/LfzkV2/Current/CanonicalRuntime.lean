@@ -148,7 +148,7 @@ theorem decoded_request (output : Output binary shape)
     let point := batchingPoint binary prime P R repr shape setup cfg binaryCount metadata output H
     ApplicationPrefix.decodeChecked (binaryWithBits binary output.request.publicBits)
       (primeWithInputs prime (primeInputs binary prime P R repr shape setup cfg primeCount output.request))
-      cfg.card cfg.generator cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
+      cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
       cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
       cfg.fallback point (point.priorAnswers H) = some decoded.application := by
   have hs := (RuntimeAdaptiveVerifier.decode_spec binary prime P R
@@ -200,10 +200,10 @@ theorem decoded_true_at_request (output : Output binary shape)
       (primeInputs binary prime P R repr shape setup cfg primeCount output.request)
     let requestedBinary := binaryWithBits binary output.request.publicBits
     ∃ (nd : PrimeData requestedPrime C)
-      (bd : BinaryData requestedBinary nd (cfg.generator^Adapter.Mdoc.generatorExponent)),
+      (bd : BinaryData requestedBinary nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent)),
       ApplicationPrefix.readPrime requestedPrime cfg.primeField cfg.primeDecode cfg.primeNonzero
         cfg.fallback point (point.priorAnswers H) = some nd ∧
-      ApplicationPrefix.readBinary requestedBinary nd (cfg.generator^Adapter.Mdoc.generatorExponent)
+      ApplicationPrefix.readBinary requestedBinary nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent)
         cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
         cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point (point.priorAnswers H) = some bd ∧
       bd.setup.circuit.Satisfies (requestedBinary.inputs
@@ -216,7 +216,7 @@ theorem decoded_true_at_request (output : Output binary shape)
   have hchecked := decoded_request binary prime P R repr shape setup cfg binaryCount primeCount
     metadata draw output H decoded hdecode
   obtain ⟨nd,bd,hprime,hbinary,happlication⟩ := ApplicationPrefix.decodeChecked_spec
-    requestedBinary requestedPrime cfg.card cfg.generator cfg.quotientBound cfg.packingDegree
+    requestedBinary requestedPrime cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree
     cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
     cfg.conversion cfg.advice cfg.fallback point (point.priorAnswers H) decoded.application hchecked
   exact ⟨nd,bd,hprime,hbinary,RequestedApplication.checked_true binary prime P R cfg

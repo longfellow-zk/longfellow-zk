@@ -60,7 +60,7 @@ def publicQueries (samplers : RuntimeCover.SamplerLaws binary prime P R cfg S)
   primeShape := primePlan
   primeGeometry := primeGeometry
   primeFits := primeFits
-  binaryShape := binaryPlan binary prime (cfg.generator^Adapter.Mdoc.generatorExponent) binaryTemplate
+  binaryShape := binaryPlan binary prime (cfg.polynomialX^Adapter.Mdoc.generatorExponent) binaryTemplate
   binaryGeometry packet := (binaryPlan_frontend binary prime _ binaryTemplate packet).trans binaryGeometry
   binaryFits packet := by rw [binaryPlan_capacity]; exact binaryFits
 

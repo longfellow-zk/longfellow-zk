@@ -112,6 +112,9 @@ source. Generic profile caps express the local role maximum directly; this
 interface cleanup does not tighten the production probability estimate, which
 already uses the exact joint parent budget. The runtime arithmetic bridge
 continues to identify the actual indexed hash correction with that estimate.
+The runtime public input is named `polynomialX` to distinguish the basis
+element from its fixed power used as the adapter generator; both primitive
+order checks and quotient-base component results are preserved.
 The numbered-strand privacy proof is separate from this soundness argument.
 All four current endpoints also exclude the standalone quadratic circuit
 proof modules (`Circuit`, `Soundness`, `AssertedSoundness`, `Program`). Shared

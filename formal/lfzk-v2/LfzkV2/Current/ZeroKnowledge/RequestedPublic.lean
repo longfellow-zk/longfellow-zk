@@ -59,7 +59,7 @@ def configuration (request : Request) : RuntimeVerifier.Public
     (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
     (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce) := {
   card := cfg.card
-  generator := cfg.generator
+  polynomialX := cfg.polynomialX
   quotientBound := cfg.quotientBound
   packingDegree := cfg.packingDegree
   binaryField := cfg.binaryField

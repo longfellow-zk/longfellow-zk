@@ -240,7 +240,7 @@ def application (point : Point) (past : Fin point.rank → C) : Option System :=
   let bits ← hashPublic point.context
   let inputs ← primePublic prime decodePublic point
   ApplicationPrefix.decodeChecked (binaryWithBits binary bits) (primeWithInputs prime inputs)
-    cfg.card cfg.generator cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
+    cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
     cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
     cfg.fallback point past
 
@@ -257,7 +257,7 @@ theorem application_spec (point : Point) (past : Fin point.rank → C) (A : Syst
     ∃ (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N),
       hashPublic point.context = some bits ∧ primePublic prime decodePublic point = some inputs ∧
       ApplicationPrefix.decodeChecked (binaryWithBits binary bits) (primeWithInputs prime inputs)
-        cfg.card cfg.generator cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
+        cfg.card cfg.polynomialX cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
         cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
         cfg.fallback point past = some A := by
   simp only [application,Option.bind_eq_bind,Option.bind_eq_some_iff] at h
