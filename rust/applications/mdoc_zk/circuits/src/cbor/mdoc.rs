@@ -619,6 +619,14 @@ fn compute_witness(
     value_digests: &CborElement,
     namespace: &str,
 ) -> Result<ParsedAttr, MdocParseError> {
+    // Match AttributeVerifier's fixed Tag-24, one-byte byte-string length,
+    // and four-entry map prefix before constructing any layout witness.
+    if cbor_issuer_signed_item.get(..3) != Some(&[0xd8, 0x18, 0x58])
+        || cbor_issuer_signed_item.get(4) != Some(&0xa4)
+        || cbor_issuer_signed_item.len() != 4 + usize::from(cbor_issuer_signed_item[3])
+    {
+        return Err(MdocParseError::UnsupportedEncoding);
+    }
     let pairs = if let CborValue::Map(pairs) = &inner_map.value {
         pairs
     } else {
@@ -644,6 +652,11 @@ fn compute_witness(
             return Err(MdocParseError::UnexpectedType("IssuerSignedItem key"));
         };
 
+        // The circuit matches literal one-byte text headers for these keys.
+        if k.end.checked_sub(k.start) != Some(1 + key_str.len()) {
+            return Err(MdocParseError::UnsupportedEncoding);
+        }
+
         length[i] = v
             .end
             .checked_sub(k.start)
@@ -658,6 +671,10 @@ fn compute_witness(
                 }
                 slots[0] = Some(i);
                 if let CborValue::Integer(n) = v.value {
+                    // The circuit's atomic decoder excludes eight-byte IDs.
+                    if cbor_issuer_signed_item.get(4 + v.start) == Some(&0x1b) {
+                        return Err(MdocParseError::UnsupportedEncoding);
+                    }
                     digest_id = Some(
                         u64::try_from(n).map_err(|_| MdocParseError::InvalidValue("digestID"))?,
                     );
@@ -666,6 +683,13 @@ fn compute_witness(
                 }
             }
             "random" => {
+                if !matches!(v.value, CborValue::Bytes(_)) {
+                    return Err(MdocParseError::UnexpectedType("IssuerSignedItem.random"));
+                }
+                // Structured lengths in the circuit use at most one length byte.
+                if cbor_issuer_signed_item[4 + v.start] > 0x58 {
+                    return Err(MdocParseError::UnsupportedEncoding);
+                }
                 if slots[1].replace(i).is_some() {
                     return Err(MdocParseError::DuplicateField("IssuerSignedItem.random"));
                 }
@@ -941,5 +965,80 @@ mod tests {
         let expected = Sha256::digest(&expected_preimage).to_vec();
 
         assert_eq!(actual, expected);
+    }
+    fn item_payload(digest: &[u8], random: &[u8]) -> Vec<u8> {
+        let mut payload = b"\xa4\x68digestID".to_vec();
+        payload.extend_from_slice(digest);
+        payload.extend_from_slice(b"\x66random");
+        payload.extend_from_slice(random);
+        payload.extend_from_slice(b"\x71elementIdentifier\x64name\x6celementValue\xf5");
+        payload
+    }
+
+    fn item_witness(
+        payload: &[u8],
+        wide_header: bool,
+    ) -> Result<super::ParsedAttr, MdocParseError> {
+        let mut wrapped = vec![0xd8, 0x18];
+        if wide_header {
+            wrapped.extend_from_slice(&[0x59, 0]);
+        } else {
+            wrapped.push(0x58);
+        }
+        wrapped.push(payload.len() as u8);
+        wrapped.extend_from_slice(payload);
+        let inner = CborParser::new(payload).parse_exact().unwrap();
+        let mut digests = b"\xa1\x62ns\xa1\x01\x58\x20".to_vec();
+        digests.extend_from_slice(&[0; 32]);
+        let digests = CborParser::new(&digests).parse_exact().unwrap();
+        super::compute_witness(
+            b"name".to_vec(),
+            vec![0xf5],
+            &wrapped,
+            &inner,
+            &digests,
+            "ns",
+        )
+    }
+
+    #[test]
+    fn item_witness_rejects_encodings_outside_the_circuit_layout() {
+        for digest in [&[1][..], &[0x1a, 0, 0, 0, 1][..]] {
+            let payload = item_payload(digest, &[0x41, 7]);
+            let witness = item_witness(&payload, false).unwrap();
+            assert_eq!(witness.field_locator.slot_position[0], 5);
+            assert!(matches!(
+                item_witness(&payload, true),
+                Err(MdocParseError::UnsupportedEncoding)
+            ));
+        }
+        let wide_id = item_payload(&[0x1b, 0, 0, 0, 0, 0, 0, 0, 1], &[0x41, 7]);
+        assert!(matches!(
+            item_witness(&wide_id, false),
+            Err(MdocParseError::UnsupportedEncoding)
+        ));
+        for random in [&[0x61, b'r'][..], &[0][..]] {
+            assert!(matches!(
+                item_witness(&item_payload(&[1], random), false),
+                Err(MdocParseError::UnexpectedType("IssuerSignedItem.random"))
+            ));
+        }
+        assert!(item_witness(&item_payload(&[1], &[0x58, 1, 7]), false).is_ok());
+        assert!(matches!(
+            item_witness(&item_payload(&[1], &[0x59, 0, 1, 7]), false),
+            Err(MdocParseError::UnsupportedEncoding)
+        ));
+        let mut wide_map = item_payload(&[1], &[0x41, 7]);
+        wide_map.splice(0..1, [0xb8, 4]);
+        assert!(matches!(
+            item_witness(&wide_map, false),
+            Err(MdocParseError::UnsupportedEncoding)
+        ));
+        let mut wide_key = item_payload(&[1], &[0x41, 7]);
+        wide_key.splice(1..2, [0x78, 8]);
+        assert!(matches!(
+            item_witness(&wide_key, false),
+            Err(MdocParseError::UnsupportedEncoding)
+        ));
     }
 }
