@@ -1,6 +1,6 @@
 import LfzkV2.Linear.Circuit
 import LfzkV2.Linear.Challenges
-import LfzkV2.Replay
+import LfzkV2.ReplayPrimitives
 
 /-!
 # The linear-terminal message and challenge schedule

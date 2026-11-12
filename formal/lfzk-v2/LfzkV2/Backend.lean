@@ -1,4 +1,4 @@
-import LfzkV2.Inputs
+import LfzkV2.Compiler
 import polygero.Local.Decoder
 
 /-!

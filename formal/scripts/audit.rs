@@ -92,7 +92,15 @@ const CURRENT_ENDPOINTS: &[&str] = &[
     "LfzkV2.Current.ZeroKnowledge.StrandHonestRuntime",
 ];
 
-fn check_merkle_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usize {
+const HISTORICAL_CURRENT_IMPORTS: &[&str] = &[
+    "LfzkV2.Current.WholeAnswerMerkle",
+    "LfzkV2.AssertedSoundness",
+    "LfzkV2.Program",
+    "LfzkV2.Soundness",
+    "LfzkV2.Circuit",
+];
+
+fn check_current_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usize {
     let mut failures = 0;
     for &root in CURRENT_ENDPOINTS {
         if !dependencies.contains_key(root) {
@@ -106,10 +114,14 @@ fn check_merkle_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usiz
             if !seen.insert(module.clone()) {
                 continue;
             }
-            if module == "LfzkV2.Current.WholeAnswerMerkle"
-                || module.starts_with("LfzkV2.Current.WholeAnswerMerkle.")
+            if HISTORICAL_CURRENT_IMPORTS
+                .iter()
+                .any(|prefix| module == *prefix || module.starts_with(&format!("{prefix}.")))
             {
-                eprintln!("Retired Merkle import: {}", path.join(" -> "));
+                eprintln!(
+                    "Historical model import in current endpoint: {}",
+                    path.join(" -> ")
+                );
                 failures += 1;
                 break;
             }
@@ -130,23 +142,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn retired_merkle_import_is_rejected_transitively() {
+    fn historical_models_are_rejected_transitively() {
         let mut graph: BTreeMap<_, _> = CURRENT_ENDPOINTS
             .iter()
             .map(|name| ((*name).to_owned(), Vec::new()))
             .collect();
-        assert_eq!(check_merkle_boundaries(&graph), 0);
+        assert_eq!(check_current_boundaries(&graph), 0);
         graph.insert(CURRENT_ENDPOINTS[1].to_owned(), vec!["Helper".to_owned()]);
-        graph.insert(
-            "Helper".to_owned(),
-            vec!["LfzkV2.Current.WholeAnswerMerkle".to_owned()],
-        );
-        assert_eq!(check_merkle_boundaries(&graph), 1);
-        graph.insert(
-            "Helper".to_owned(),
-            vec!["LfzkV2.Current.WholeAnswerMerkle.Future".to_owned()],
-        );
-        assert_eq!(check_merkle_boundaries(&graph), 1);
+        for prefix in HISTORICAL_CURRENT_IMPORTS {
+            for module in [(*prefix).to_owned(), format!("{prefix}.Future")] {
+                graph.insert("Helper".to_owned(), vec![module]);
+                assert_eq!(check_current_boundaries(&graph), 1);
+            }
+        }
     }
 
     #[test]
@@ -268,7 +276,7 @@ fn main() {
             }
         }
     }
-    failures += check_merkle_boundaries(&dependencies);
+    failures += check_current_boundaries(&dependencies);
     println!("Scanned {lean_count} Lean sources and {link_count} local documentation links.");
     assert!(lean_count > 0, "no Lean sources found");
     assert_eq!(failures, 0, "source/documentation audit failed");

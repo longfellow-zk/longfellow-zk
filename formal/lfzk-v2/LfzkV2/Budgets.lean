@@ -1,3 +1,4 @@
+import LfzkV2.ChallengeTests
 import LfzkV2.Events
 
 /-! Challenge budgets computed from the trusted circuit dimensions. -/
@@ -8,43 +9,6 @@ open SumcheckV2
 open scoped Classical
 
 variable {F Pad Slot : Type} [Field F]
-
-def Tests.budget (tests : Tests F) : ℕ := (tests.map fun test => test.1.budget).sum
-
-@[simp] theorem Tests.budget_append (left right : Tests F) :
-    (left ++ right).budget = left.budget + right.budget := by
-  simp [budget]
-
-theorem outputTests_budget {n : ℕ} (table : Cube n → F) (point : Fin n → F) :
-    (outputTests table point).budget = n := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-      change 1 + (outputTests (fold table (point 0)) (fun i => point i.succ)).budget = n + 1
-      rw [ih, Nat.add_comm]
-
-theorem roundTests_budget_le (claim : F) (Ps : List (Polynomial F))
-    (messages : List (RoundPoly F)) (challenges : List F) :
-    (roundTests claim Ps messages challenges).budget ≤ 2 * Ps.length := by
-  induction Ps generalizing claim messages challenges with
-  | nil => simp [roundTests, Tests.budget]
-  | cons P Ps ih =>
-      cases messages with
-      | nil => simp [roundTests, Tests.budget]
-      | cons m ms =>
-          cases challenges with
-          | nil => simp [roundTests, Tests.budget]
-          | cons z zs =>
-              change 2 + (roundTests (check_round claim m z) Ps ms zs).budget ≤
-                2 * (Ps.length + 1)
-              have := ih (check_round claim m z) ms zs
-              omega
-
-theorem truePolys_length {n : ℕ} (q w : Cube n → F) (point : Fin n → F) :
-    (truePolys q w point).length = n := by
-  induction n with
-  | zero => rfl
-  | succ n ih => simp only [truePolys, List.length_cons, ih]
 
 theorem assertionTests_budget_le (model : AssertedModel F) (claim : F) :
     (assertionTests model claim).budget ≤ min 1 model.assertions := by

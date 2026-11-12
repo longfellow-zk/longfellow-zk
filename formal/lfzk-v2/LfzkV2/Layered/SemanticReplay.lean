@@ -1,6 +1,6 @@
 import LfzkV2.Layered.Schedule
 import LfzkV2.Layered.Soundness
-import LfzkV2.SemanticReplay
+import LfzkV2.RoundReplay
 
 /-! Exact challenge tests reconstructed from layered circuit semantics. The
 terminal test is fixed before its scale; the combination test can depend on

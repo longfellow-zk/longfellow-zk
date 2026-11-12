@@ -1,4 +1,4 @@
-import LfzkV2.Events
+import LfzkV2.ChallengeTests
 import SumcheckV1.Grinding
 
 /-!

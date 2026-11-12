@@ -8,12 +8,6 @@ open SumcheckV2
 
 variable {F Pad Slot : Type} [Field F]
 
-theorem honestMessages_length {n : ℕ} (q w : Cube n → F) (point : Fin n → F) :
-    (honestMessages q w point).length = n := by
-  induction n with
-  | zero => rfl
-  | succ n ih => simp only [honestMessages, List.length_cons, ih]
-
 structure LayerPads (Pad Slot : Type) (n : ℕ) where
   round0 : Fin n → Pad
   round1 : Fin n → Pad

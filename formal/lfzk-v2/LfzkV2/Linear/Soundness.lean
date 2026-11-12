@@ -1,5 +1,6 @@
 import LfzkV2.Linear.Circuit
-import LfzkV2.Inputs
+import LfzkV2.InputBinding
+import LfzkV2.Challenges
 
 /-!
 # Native circuit soundness with randomized affine terminals

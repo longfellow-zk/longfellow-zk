@@ -1,5 +1,5 @@
 import LfzkV2.Native.Soundness
-import LfzkV2.Budgets
+import LfzkV2.ChallengeTests
 
 /-!
 # Native frontend challenge budget

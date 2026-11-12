@@ -291,6 +291,13 @@ and its public-coin extraction/soundness theorems are preserved. The generic
 [`PolygeroZk`](LfzkV2/PolygeroZk.lean) masking and distribution couplings and
 finite-query Merkle hiding/preparation theorems also remain available.
 
+`CircuitAlgebra`, `LayerMessages`, `InputBinding`, `ChallengeTests`,
+`ChallengePrefix` and `ReplayPrimitives` own definitions shared by the current
+runtime and standalone circuit models. The current endpoints exclude the
+older `Circuit`, `Soundness`, `AssertedSoundness` and `Program` proof modules;
+their paper-facing APIs remain directly importable. The source audit checks
+this boundary through the full production import closures.
+
 Some shared algebra retains its existing `Native`, `Linear` or `Layered`
 namespace because the current verifier imports those definitions. The public
 V2 entrypoints and API audit cover the current numbered-strand implementation.

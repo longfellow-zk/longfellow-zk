@@ -1,4 +1,4 @@
-import LfzkV2.ChallengeReplay
+import LfzkV2.ChallengePrefix
 import Bcs.TotalOracle
 import LigeroFamily.Protocol.Finite
 

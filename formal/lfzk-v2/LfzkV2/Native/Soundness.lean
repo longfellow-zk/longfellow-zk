@@ -1,5 +1,6 @@
 import LfzkV2.Native.Circuit
-import LfzkV2.Inputs
+import LfzkV2.InputBinding
+import LfzkV2.Challenges
 
 /-!
 # Native affine circuit soundness

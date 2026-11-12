@@ -113,8 +113,11 @@ interface cleanup does not tighten the production probability estimate, which
 already uses the exact joint parent budget. The runtime arithmetic bridge
 continues to identify the actual indexed hash correction with that estimate.
 The numbered-strand privacy proof is separate from this soundness argument.
-The active privacy and honest-runtime endpoints also exclude the historical
-codec. The Rust source audit checks their complete local import closures,
+All four current endpoints also exclude the standalone quadratic circuit
+proof modules (`Circuit`, `Soundness`, `AssertedSoundness`, `Program`). Shared
+algebra, messages, input binding and challenge tests have independent modules;
+the old paper APIs remain directly importable. The Rust source audit checks
+these boundaries through the complete local endpoint import closures,
 preventing an unused public helper from reintroducing that dependency.
 
 The current indexed runtime also checks that each arithmetic response is

@@ -1,3 +1,4 @@
+import LfzkV2.Challenges
 import LfzkV2.Native.Circuit
 
 /-!

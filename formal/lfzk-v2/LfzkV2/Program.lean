@@ -1,3 +1,4 @@
+import LfzkV2.LayerMessages
 import LfzkV2.AssertedSoundness
 
 /-!
@@ -20,22 +21,6 @@ inductive Circuit (F : Type) : ℕ → ℕ → Type where
   | layer {out mid input : ℕ} (assertions : ℕ)
       (body : CircuitLayer (Cube out) (Cube mid) (Fin assertions) F)
       (rest : Circuit F mid input) : Circuit F out input
-
-structure LayerMessages (Pad Slot F : Type) (rounds assertions : ℕ) where
-  messages : List (RoundPoly F × Pad × Pad)
-  point : Fin rounds → F
-  messageA : F
-  messageB : F
-  padA : Pad
-  padB : Pad
-  productSlot : Slot
-  alpha : F
-  beta : Fin assertions → F
-
-def LayerMessages.transcript {n a : ℕ} (m : LayerMessages Pad Slot F n a) :
-    LayerTranscript Pad Slot F :=
-  ⟨m.messages, List.ofFn m.point, m.messageA, m.messageB, m.padA, m.padB,
-    m.productSlot, m.alpha⟩
 
 namespace Circuit
 

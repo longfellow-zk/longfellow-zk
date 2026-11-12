@@ -1,5 +1,6 @@
 import LfzkV2.Native.Constraints
-import LfzkV2.Program
+import LfzkV2.CircuitAlgebra
+import LfzkV2.LayerMessages
 import SumcheckV2.Affine
 
 /-!
