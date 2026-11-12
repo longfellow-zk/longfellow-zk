@@ -1,5 +1,3 @@
-import LfzkV2.Current.Frontend
-import LfzkV2.Current.FrontendReplay
 import LfzkV2.Current.Application
 
 /-! Concrete frontend reconstruction for the current verifier.  Public setup

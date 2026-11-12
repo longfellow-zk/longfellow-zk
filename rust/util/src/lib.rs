@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod morton;
+pub(crate) mod morton;
 
 /// Computes the ceiling of the base-2 logarithm: ceil(log2(n)).
 /// Panics if n == 0.
 #[must_use]
-pub fn ceil_log2(n: usize) -> usize {
+pub(crate) fn ceil_log2(n: usize) -> usize {
     match n {
         0 => panic!("log2 of zero is undefined"),
         1 => 0,
@@ -26,8 +26,8 @@ pub fn ceil_log2(n: usize) -> usize {
 }
 
 cfg_compiler! {
-    pub mod array;
-    pub mod memoize;
+    pub(crate) mod array;
+    pub(crate) mod memoize;
 }
 
 #[cfg(test)]

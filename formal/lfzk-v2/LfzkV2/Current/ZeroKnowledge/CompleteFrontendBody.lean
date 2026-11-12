@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteSimulation
-import LfzkV2.Current.ZeroKnowledge.CompleteBody
 
 /-! Store the public frontend simulator's actual messages in the complete
 runtime body. Backend arrays and authentication are placeholders until the

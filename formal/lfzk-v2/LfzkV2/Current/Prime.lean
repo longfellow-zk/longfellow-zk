@@ -1,4 +1,3 @@
-import LfzkV2.Linear.Constraints
 import LfzkV2.Linear.TerminalSampling
 import LfzkV2.Layered.Soundness
 import LigeroFamily.Protocol.Finite

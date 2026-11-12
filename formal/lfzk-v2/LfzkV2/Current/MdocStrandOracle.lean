@@ -1,6 +1,5 @@
 import LfzkV2.Current.MdocRoundShape
 import LfzkV2.Current.MdocStrandSoundness
-import LfzkV2.Current.StrandDomains
 import LfzkV2.Current.StrandRoutedObserver
 
 /-! Condition the one SHA oracle on its complementary public-setup slice.

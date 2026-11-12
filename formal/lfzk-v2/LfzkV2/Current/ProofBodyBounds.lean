@@ -1,4 +1,3 @@
-import LfzkV2.Current.ProofBodyCodec
 import LfzkV2.Current.CanonicalPrefix
 
 /-! Static sizes of the canonical complete body. Every body has the same

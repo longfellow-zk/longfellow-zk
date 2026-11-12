@@ -1,5 +1,4 @@
 import Bcs.FirstPairPath
-import Bcs.TwoCoordinatePotential
 
 /-! Pair-indexed off-answer context for grouped first-pair charging. -/
 

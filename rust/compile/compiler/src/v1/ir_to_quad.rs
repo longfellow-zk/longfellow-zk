@@ -81,7 +81,7 @@ use crate::compile::logic::scope::{AssertionId, AssertionScope};
 
 /// Rewrite into a stylized Quad circuit with debug info mapping quad node index
 /// to assertion ID.
-pub fn rewrite<'src, 'dst, F: CompileField>(
+pub(crate) fn rewrite<'src, 'dst, F: CompileField>(
     _arena: &'dst crate::compile::compiler::arena::CompilerArena<'dst, F>,
     f: &'dst F,
     x: Assertions<'src, F>,

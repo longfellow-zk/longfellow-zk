@@ -64,15 +64,19 @@ pub(in crate::circuits::ecdsa2) fn sign_and_generate_given_derived<
     (concrete_given, concrete_derived)
 }
 
-pub struct EcdsaCorruptor<F: BareField> {
+pub(super) struct EcdsaCorruptor<F: BareField> {
     pub name: &'static str,
     pub expected_path: &'static str,
     pub corrupt: Box<dyn Fn(&mut ConcreteGiven<F>, &mut ConcreteDerived<F>)>,
 }
 
-pub fn all_ecdsa_corruptors<
+pub(super) fn all_ecdsa_corruptors<
     const W: usize,
-    F: AlgebraicField + SupportsNatConversions<W> + crate::core::algebra::HasLookupPoints + Clone + 'static,
+    F: AlgebraicField
+        + SupportsNatConversions<W>
+        + crate::core::algebra::HasLookupPoints
+        + Clone
+        + 'static,
 >(
     field: &F,
 ) -> Vec<EcdsaCorruptor<F>> {

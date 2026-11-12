@@ -1,6 +1,3 @@
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.SplitIfs
-import LfzkV1.WPoly
 import LfzkV1.Types
 
 open SumcheckV1

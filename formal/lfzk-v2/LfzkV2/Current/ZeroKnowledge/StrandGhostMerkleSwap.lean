@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.MerklePrequery
-import Mathlib.Logic.Function.Basic
 
 /-! Move fresh, indexed leaf answers to independent leaf-digest coins.
 

@@ -1,5 +1,4 @@
 import LfzkV2.Current.ApplicationViews
-import LfzkV2.Current.ApplicationSetup
 import LfzkV2.Current.FrontendTopology
 import LfzkV2.Current.StatementCompiler
 

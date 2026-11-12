@@ -1,5 +1,4 @@
 import LfzkV2.Current.StrandExecution
-import TranscriptV2.Queries
 
 /-! The actual runtime verifier is an ordinary raw-oracle observer. Its
 program records the complete physical replay before computing the decision

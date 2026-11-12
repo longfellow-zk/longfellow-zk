@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteTranscript
-import Merkle.TreeCompose
 
 /-! Oracle-query actions for the honest frontend. Arithmetic chooses a
 message before an action is run. The action queries the current chained key

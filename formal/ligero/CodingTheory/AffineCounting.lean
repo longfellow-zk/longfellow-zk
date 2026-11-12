@@ -1,3 +1,4 @@
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import CodingTheory.Proximity
 
 /-! Counting points on parallel affine lines in a finite vector space. -/

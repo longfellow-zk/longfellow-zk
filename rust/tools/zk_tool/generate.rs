@@ -16,7 +16,7 @@
 use crate::Result;
 
 #[cfg(all(feature = "compiler", feature = "mdoc"))]
-pub fn run() -> Result<()> {
+pub(crate) fn run() -> Result<()> {
     use std::fmt::Write;
 
     use longfellow_zk::mdoc::{development_provider, v2};

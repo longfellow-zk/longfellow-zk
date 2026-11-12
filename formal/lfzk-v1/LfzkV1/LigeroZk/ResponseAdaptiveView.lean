@@ -1,6 +1,5 @@
 import LigeroFamily.Protocol.IPCP
 import LfzkV1.LigeroZk.Distribution
-import LfzkV1.LigeroZk.Witness
 
 -- Ported verbatim from `proofs/ligero/LigeroFamily/ZeroKnowledge/ResponseAdaptiveView.lean` (only the import paths are rewritten);
 -- `formal/ligero/` must not change, so the module lives under `LfzkV1.LigeroZk`.

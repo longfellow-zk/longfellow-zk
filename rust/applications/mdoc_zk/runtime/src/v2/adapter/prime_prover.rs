@@ -4,7 +4,7 @@ use crate::runtime::random::RandomEngine;
 impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
     SharedParticipant<W, F>
 {
-    pub fn prepare(
+    pub(crate) fn prepare(
         &self,
         circuit: &Circuit<F>,
         private: Vec<F::E>,
@@ -30,7 +30,7 @@ impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
             witness,
         ))
     }
-    pub fn prove(
+    pub(crate) fn prove(
         &self,
         circuit: &Circuit<F>,
         public: &[F::E],
@@ -66,7 +66,7 @@ pub(in crate::mdoc::runtime::v2) struct SharedReduction<const W: usize, F: ZkFie
     pub mask: F::E,
 }
 impl<const W: usize, F: ZkField<W>> SharedReduction<W, F> {
-    pub fn masked_value(&self, eta: &F::E, f: &F) -> F::E {
+    pub(crate) fn masked_value(&self, eta: &F::E, f: &F) -> F::E {
         f.addf(
             &f.mulf(
                 eta,

@@ -1,6 +1,5 @@
 import LfzkV2.Current.ApplicationSetup
 import LfzkV2.Current.FrontendBodyVerifier
-import LfzkV2.Current.FrontendSchedule
 import LfzkV2.Current.ProtocolWrites
 
 /-! Application reconstruction from bound messages and strict prior answers.

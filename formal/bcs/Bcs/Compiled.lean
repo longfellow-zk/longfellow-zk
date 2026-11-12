@@ -1,4 +1,3 @@
-import Bcs.IdealCodec
 import LigeroFamily.Protocol.IPCP
 import Merkle.ExtractionROM
 

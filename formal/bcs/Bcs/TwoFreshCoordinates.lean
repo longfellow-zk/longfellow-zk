@@ -1,5 +1,4 @@
 import Bcs.TotalOracle
-import Mathlib.Logic.Equiv.Prod
 
 /-!
 # Two fresh coordinates of a finite random oracle

@@ -2,7 +2,6 @@ import Survival.StoppedCharges
 import Survival.PrefixCache
 import Survival.SharedBudget
 import Survival.QueryStep
-import Bcs.ProbabilityBounds
 
 /-! A chronological monitor for the existing nonnegative single charges.
 Its test is fixed by the explicit cache before the current answer is drawn. -/

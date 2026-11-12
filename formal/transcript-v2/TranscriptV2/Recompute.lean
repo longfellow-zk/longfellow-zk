@@ -1,5 +1,4 @@
 import TranscriptV2.Replay
-import Merkle.TreeCompose
 
 /-! Verifier replay as an oracle program, used only in the Merkle composition.
 The Fiat--Shamir charging theorem continues to use the original adversary's

@@ -1,7 +1,5 @@
-import TranscriptV2.StrandTranscript
 import TranscriptV2.StrandCausality
 import TranscriptV2.DigestCharging
-import Bcs.FiniteProbability
 import TranscriptV2.UnqueriedAnswer
 
 /-! Charging the stored final seal for the two-query SHA construction. A

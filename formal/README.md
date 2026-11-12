@@ -336,3 +336,15 @@ invocation. Lake workers use two Lean threads and an 8,192 MiB Lean memory cap;
 proof heartbeat limits are unchanged. Logs and timing JSON are written to
 `.lake/soundness-check/`. A focused check is
 `python3 scripts/check_soundness.py LfzkV2.Current.MdocStrandOracle`.
+
+Check import boundaries without building with
+`python3 scripts/check_soundness.py --imports-only`.
+For a full rebuild with bounded workers, use:
+
+```sh
+lake env python3 scripts/rebuild_lean.py --jobs 2 --threads 2 --memory-mib 4096 --module-timeout 60
+```
+
+The active rate-1/7 parameter certificate elaborates serially to stay within
+that worker memory cap. The rebuild writes per-module times and peak memory
+to its report under `.lake/`.

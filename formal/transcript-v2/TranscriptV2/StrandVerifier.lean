@@ -1,6 +1,5 @@
 import TranscriptV2.StrandSealCharging
 import TranscriptV2.StrandUnfolding
-import TranscriptV2.StrandOracle
 import TranscriptV2.Recompute
 
 /-! Raw SHA replay of a logical verifier. Each round first hashes its node,

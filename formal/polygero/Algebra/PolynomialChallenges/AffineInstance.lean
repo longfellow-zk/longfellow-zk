@@ -1,3 +1,4 @@
+import polygero.Algebra.PolynomialChallenges.CountingCore
 import polygero.Algebra.PolynomialChallenges.SelectedColumns
 
 /-!

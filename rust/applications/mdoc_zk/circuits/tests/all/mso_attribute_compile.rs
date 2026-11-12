@@ -21,7 +21,7 @@ use crate::{
     runtime::algebra::field::RuntimeField,
 };
 
-pub fn compile_attribute_circuit<const W: usize, FC>(
+pub(super) fn compile_attribute_circuit<const W: usize, FC>(
     fc: &FC,
 ) -> (
     crate::compile::eval::Circuit<FC>,

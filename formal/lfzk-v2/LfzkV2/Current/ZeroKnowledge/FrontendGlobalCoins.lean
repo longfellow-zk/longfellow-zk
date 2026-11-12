@@ -1,5 +1,5 @@
-import LfzkV2.Current.ZeroKnowledge.FrontendCompleteHonest
 import LfzkV2.Current.ZeroKnowledge.FrontendSelection
+import LfzkV2.Current.ZeroKnowledge.FrontendCompleteHonest
 
 /-! The whole frontend's independent coins, with the dedicated fingerprint
 masks separated from all cells they select. A single triangular inverse

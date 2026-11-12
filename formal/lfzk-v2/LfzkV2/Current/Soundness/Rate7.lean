@@ -1,6 +1,5 @@
 import Survival.Parameters
 import Mathlib.Data.Nat.Choose.Cast
-import Mathlib.Tactic.NormNum
 
 /-! Independent exact arithmetic for the captured rate-1/7 profile.
 These are numerical certificates, not a proof of the runtime bridge.

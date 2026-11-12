@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #[must_use]
-pub fn cmp(x0: usize, x1: usize, y0: usize, y1: usize) -> std::cmp::Ordering {
+pub(crate) fn cmp(x0: usize, x1: usize, y0: usize, y1: usize) -> std::cmp::Ordering {
     let diff0 = x0 ^ y0;
     let diff1 = x1 ^ y1;
     if diff0 == 0 && diff1 == 0 {

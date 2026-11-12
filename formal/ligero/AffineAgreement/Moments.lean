@@ -1,7 +1,5 @@
-import Mathlib.Data.Fintype.Fin
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.Field.Rat
-import Lean.Elab.Tactic.Omega
 
 /-!
 # Balanced agreement moments

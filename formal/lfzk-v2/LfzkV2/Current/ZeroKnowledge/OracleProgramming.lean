@@ -1,6 +1,4 @@
-import LfzkV2.Current.BackendBody
 import LfzkV2.Current.ProofBodyReplay
-import Merkle.RandomOracle
 
 /-! The simulator programs one complete answer at the opening boundary.
 Rank separation proves that this operation preserves every earlier input and

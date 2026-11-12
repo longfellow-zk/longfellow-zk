@@ -1,5 +1,4 @@
 import LfzkV2.Current.RuntimeAdaptiveViews
-import LfzkV2.Current.GlobalCharges
 
 /-! Query-local application charging for adaptively chosen public values.
 Every reader sees the current preimage and strict earlier answers. Neither

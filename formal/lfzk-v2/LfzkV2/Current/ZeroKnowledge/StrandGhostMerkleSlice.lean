@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.StrandGhostMerkleProbability
-import LfzkV2.Current.ZeroKnowledge.StrandLeafOracle
 
 /-! The leaf-answer permutation acts on a finite oracle slice. The rest of
 the byte oracle is fixed pointwise, including transcript and internal-node

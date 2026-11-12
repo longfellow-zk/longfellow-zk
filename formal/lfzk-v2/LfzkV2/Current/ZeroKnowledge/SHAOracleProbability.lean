@@ -1,5 +1,6 @@
 import LfzkV2.Current.SHAProbability
-import LfzkV1.FromLigeroZKV1
+import Bcs.StatisticalDistance
+import Bcs.SameDistribution
 
 /-! Averaging the exact SHA-domain split. Here Query is any finite random-
 oracle marginal, not the type of all byte strings. Uniform whole-table

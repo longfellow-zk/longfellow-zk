@@ -4,10 +4,8 @@ import LfzkV2.Current.StrandCut
 import LfzkV2.Joint.Indexed
 import LfzkV2.Current.ByteOracleTransport
 import LfzkV2.Current.RuntimeParameters
-import LfzkV2.Current.RuntimeAdaptiveBackend
 import LfzkV2.Current.RuntimeAdaptiveReduction
 import LfzkV2.Current.StrandComposition
-import TranscriptV2.Composition
 import Survival.PrefixCache
 import LfzkV2.Current.Soundness.RuntimeRoles
 import Survival.StoppedCharges

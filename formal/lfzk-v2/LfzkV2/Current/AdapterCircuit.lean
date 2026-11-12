@@ -1,6 +1,5 @@
 import LfzkV2.Current.AdapterTree
 import LfzkV2.Layered.SparseLayer
-import Mathlib.Data.Nat.Log
 
 /-! The generated adapter is an ordinary sparse circuit: Boolean mux leaves,
 adjacent products with odd carries, and two zero-output product assertions.

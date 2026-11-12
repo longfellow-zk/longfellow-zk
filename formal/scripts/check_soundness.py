@@ -37,10 +37,41 @@ def imports(text):
     return IMPORT.findall("".join(output))
 
 
+def check_import_boundaries(modules):
+    """Keep runtime predicates and soundness separate from simulator assemblies."""
+    rules = {
+        "LfzkV2.Current.MdocStrandOracle": (
+            "LfzkV1", "LfzkV2.Current.ZeroKnowledge"),
+        "LfzkV2.Joint.Pair.Basic": (
+            "LfzkV2.Joint.Replay", "LfzkV2.Linear.Runtime"),
+        "LfzkV2.Current.BackendPrefix": (
+            "LfzkV2.PolygeroZk", "LfzkV2.Current.ZeroKnowledge"),
+        "Bcs.SameDistribution": ("LfzkV1", "LfzkV2"),
+        "LfzkV2.Current.ZeroKnowledge.SHAOracleProbability": (
+            "LfzkV1.FromLigeroZKV1",),
+    }
+    dependencies = {name: imports(source.read_text()) for name, source in modules.items()}
+    for root, forbidden in rules.items():
+        if root not in modules:
+            raise RuntimeError(f"Missing import-boundary root: {root}")
+        pending, seen = [(root, [root])], set()
+        while pending:
+            name, path = pending.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            if any(name == prefix or name.startswith(prefix + ".") for prefix in forbidden):
+                raise RuntimeError("Forbidden import path: " + " -> ".join(path))
+            pending.extend((dependency, path + [dependency])
+                           for dependency in dependencies.get(name, []))
+    print(f"PASS: {len(rules)} import boundaries.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("targets", nargs="*", default=["Survival", "Survival.Axioms", "LfzkV2.Current.Tests.APITest"])
     parser.add_argument("--module-timeout", type=float, default=180)
+    parser.add_argument("--imports-only", action="store_true", help="check source import boundaries without building")
     args = parser.parse_args()
     if args.module_timeout <= 0:
         parser.error("module-timeout must be positive")
@@ -61,6 +92,9 @@ def main():
                 if filename.endswith(".lean"):
                     source = Path(parent) / filename
                     modules[".".join(source.relative_to(directory).with_suffix("").parts)] = source
+    check_import_boundaries(modules)
+    if args.imports_only:
+        return
     visited, active, records = set(), set(), []
     started = time.monotonic()
     targets = args.targets or ["Survival", "Survival.Axioms", "LfzkV2.Current.Tests.APITest"]

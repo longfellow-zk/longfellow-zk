@@ -1,5 +1,3 @@
-import Mathlib.Data.Nat.Choose.Basic
-import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Positivity
 

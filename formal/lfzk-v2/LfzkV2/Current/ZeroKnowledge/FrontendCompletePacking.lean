@@ -1,5 +1,5 @@
-import LfzkV2.Current.ZeroKnowledge.FrontendCompleteHonest
 import LfzkV2.Current.ZeroKnowledge.FrontendCorrectness
+import LfzkV2.Current.ZeroKnowledge.FrontendCompleteHonest
 import LfzkV2.Layered.PackedProver
 
 /-! The binary sumcheck and the packing protocol share one physical pad

@@ -1,4 +1,3 @@
-import Init
 /-! Coefficients for the checked adaptive-FS V1 signature Hahn certificates. -/
 
 namespace Ligero.Examples.Grid.LongfellowProfiledExtraction.HahnMask

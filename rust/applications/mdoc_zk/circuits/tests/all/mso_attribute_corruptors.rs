@@ -15,7 +15,7 @@
 #![allow(dead_code)]
 
 #[derive(Clone)]
-pub struct MsoAttributeMockGiven {
+pub(super) struct MsoAttributeMockGiven {
     pub raw_buf: Vec<u8>,
     pub slot_position: [u64; 4],
     pub length: [u64; 4],
@@ -27,13 +27,13 @@ pub struct MsoAttributeMockGiven {
     pub preimage_len: u64,
 }
 
-pub struct MsoAttributeCorruptor {
+pub(super) struct MsoAttributeCorruptor {
     pub name: String,
     pub expected_path: String,
     pub corrupt: Box<dyn Fn(&mut MsoAttributeMockGiven)>,
 }
 
-pub fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
+pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
     // Systematic bitflips across all active bytes of disclosed_name (12 bytes x 8 bits)
     let name_bitflips = (0..12).flat_map(|byte_idx| {
         (0..8).map(move |bit_idx| MsoAttributeCorruptor {

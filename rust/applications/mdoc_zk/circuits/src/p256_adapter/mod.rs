@@ -36,7 +36,7 @@ pub(crate) struct Plan {
     pub powers: usize,
 }
 impl Plan {
-    pub fn new(widths: Vec<usize>) -> Result<Self, String> {
+    pub(crate) fn new(widths: Vec<usize>) -> Result<Self, String> {
         let bits = widths
             .iter()
             .try_fold(0usize, |n, &w| {
@@ -59,14 +59,14 @@ impl Plan {
             powers: 2 * bits,
         })
     }
-    pub fn advice_bits(&self) -> usize {
+    pub(crate) fn advice_bits(&self) -> usize {
         2 * self.quotient_bits
     }
-    pub fn advice_bytes(&self) -> usize {
+    pub(crate) fn advice_bytes(&self) -> usize {
         self.advice_bits().div_ceil(8)
     }
     /// Advice has an exact byte length and zeroes above its final quotient bit.
-    pub fn validate_advice(&self, bytes: &[u8]) -> Result<(), String> {
+    pub(crate) fn validate_advice(&self, bytes: &[u8]) -> Result<(), String> {
         let used = self.advice_bits() % 8;
         if bytes.len() != self.advice_bytes()
             || (used != 0 && bytes.last().is_some_and(|&b| b >> used != 0))
@@ -76,11 +76,11 @@ impl Plan {
         Ok(())
     }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub fn public_count(&self) -> usize {
+    pub(crate) fn public_count(&self) -> usize {
         2 * self.bits + self.advice_bits() + 2
     }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub fn quotient_coefficients<F: AlgebraicField + SupportsU128Conversions>(
+    pub(crate) fn quotient_coefficients<F: AlgebraicField + SupportsU128Conversions>(
         &self,
         f: &F,
     ) -> Vec<F::E> {
@@ -99,7 +99,7 @@ impl Plan {
     /// Both challenges must be independent, nonzero, uniform FULL prime-field
     /// samples after the root and complete prime claim are fixed.
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub fn encode(
+    pub(crate) fn encode(
         &self,
         weights: &[P256Element],
         target: &P256Element,
@@ -232,6 +232,7 @@ mod tests;
 pub(crate) const SHARED_BITS: usize = 768;
 pub(crate) const MASK_BITS: usize = 256;
 /// The mask and both quotient OTPs occupy an unused suffix of c_hash inputs.
+#[cfg(any(test, feature = "compiler"))]
 pub(crate) const AUXILIARY_BITS: usize =
     MASK_BITS + 2 * (SHARED_BITS + MASK_BITS).next_power_of_two().ilog2() as usize;
 #[cfg(test)]

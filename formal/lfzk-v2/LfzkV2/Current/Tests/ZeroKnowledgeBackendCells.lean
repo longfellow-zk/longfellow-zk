@@ -1,8 +1,11 @@
+import Mathlib.Algebra.Field.ZMod
 import LfzkV2.Current.ZeroKnowledge.BackendCells
 
 /-! A selected vector crossing the 265-cell row boundary retains its second
 fingerprint mask; padding begins at the very next logical cell. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeBackendCells
+
+local instance : Fact (Nat.Prime 7) := ⟨by decide⟩
 
 open ZeroKnowledge.BackendCells
 

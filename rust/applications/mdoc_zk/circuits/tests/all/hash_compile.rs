@@ -26,13 +26,15 @@ use crate::{
     runtime::algebra::field::RuntimeField,
 };
 
-pub fn mdoc_zk_circuits_hash_circuit<FC>(
+pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(
     fc: &FC,
 ) -> (
     crate::compile::eval::Circuit<FC>,
     crate::compile::eval::CircuitGeometry,
 )
-where FC: MdocHashCompileField {
+where
+    FC: MdocHashCompileField,
+{
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
@@ -44,7 +46,9 @@ fn compile_hash_circuit<FC>(
     crate::compile::eval::CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
-where FC: MdocHashCompileField {
+where
+    FC: MdocHashCompileField,
+{
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);

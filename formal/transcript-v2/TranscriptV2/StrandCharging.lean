@@ -1,5 +1,4 @@
 import TranscriptV2.DigestProjection
-import TranscriptV2.SharedCharging
 
 /-! Share the query budget between ordinary protocol queries and queries
 which plant speculative digest targets. The latter pay for their later

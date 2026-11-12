@@ -1,5 +1,4 @@
 import LfzkV2.Current.Adapter
-import Mathlib.Algebra.CharP.Two
 
 /-! Algebra of the runtime product tree. A layer multiplies adjacent pairs
 and carries an odd final wire unchanged. Quotient bits are recovered by XOR

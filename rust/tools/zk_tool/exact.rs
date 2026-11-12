@@ -18,7 +18,7 @@ use std::cmp::Ordering;
 use num_bigint::BigInt;
 use num_traits::{One, Signed, Zero};
 
-pub fn gcd(mut a: BigInt, mut b: BigInt) -> BigInt {
+pub(crate) fn gcd(mut a: BigInt, mut b: BigInt) -> BigInt {
     a = a.abs();
     b = b.abs();
     while !b.is_zero() {
@@ -30,12 +30,12 @@ pub fn gcd(mut a: BigInt, mut b: BigInt) -> BigInt {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Q {
+pub(crate) struct Q {
     pub n: BigInt,
     pub d: BigInt,
 }
 impl Q {
-    pub fn new(mut n: BigInt, mut d: BigInt) -> Self {
+    pub(crate) fn new(mut n: BigInt, mut d: BigInt) -> Self {
         assert!(!d.is_zero(), "zero rational denominator");
         if d.is_negative() {
             n = -n;
@@ -47,40 +47,40 @@ impl Q {
             d: d / g,
         }
     }
-    pub fn int(n: impl Into<BigInt>) -> Self {
+    pub(crate) fn int(n: impl Into<BigInt>) -> Self {
         Self {
             n: n.into(),
             d: BigInt::one(),
         }
     }
     #[cfg(test)]
-    pub fn ratio(n: usize, d: usize) -> Self {
+    pub(crate) fn ratio(n: usize, d: usize) -> Self {
         Self::new(n.into(), d.into())
     }
-    pub fn add(&self, b: &Self) -> Self {
+    pub(crate) fn add(&self, b: &Self) -> Self {
         Self::new(&self.n * &b.d + &b.n * &self.d, &self.d * &b.d)
     }
-    pub fn sub(&self, b: &Self) -> Self {
+    pub(crate) fn sub(&self, b: &Self) -> Self {
         self.add(&b.neg())
     }
-    pub fn neg(&self) -> Self {
+    pub(crate) fn neg(&self) -> Self {
         Self {
             n: -&self.n,
             d: self.d.clone(),
         }
     }
-    pub fn mul(&self, b: &Self) -> Self {
+    pub(crate) fn mul(&self, b: &Self) -> Self {
         let g = gcd(self.n.clone(), b.d.clone());
         let h = gcd(b.n.clone(), self.d.clone());
         Self::new((&self.n / &g) * (&b.n / &h), (&self.d / h) * (&b.d / g))
     }
-    pub fn div(&self, b: &Self) -> Self {
+    pub(crate) fn div(&self, b: &Self) -> Self {
         self.mul(&Self::new(b.d.clone(), b.n.clone()))
     }
-    pub fn square(&self) -> Self {
+    pub(crate) fn square(&self) -> Self {
         self.mul(self)
     }
-    pub fn floor(&self) -> BigInt {
+    pub(crate) fn floor(&self) -> BigInt {
         let q = &self.n / &self.d;
         if self.n.is_negative() && !(&self.n % &self.d).is_zero() {
             q - 1
@@ -100,7 +100,7 @@ impl PartialOrd for Q {
     }
 }
 
-pub fn choose(n: usize, r: usize) -> BigInt {
+pub(crate) fn choose(n: usize, r: usize) -> BigInt {
     if r > n {
         return BigInt::zero();
     }
@@ -110,10 +110,10 @@ pub fn choose(n: usize, r: usize) -> BigInt {
     }
     v
 }
-pub fn pow2(bits: u32) -> BigInt {
+pub(crate) fn pow2(bits: u32) -> BigInt {
     BigInt::one() << bits
 }
-pub fn evaluate(coefficients: &[Q], x: usize) -> Q {
+pub(crate) fn evaluate(coefficients: &[Q], x: usize) -> Q {
     coefficients
         .iter()
         .rev()

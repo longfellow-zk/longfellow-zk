@@ -1,5 +1,4 @@
 import Bcs.FirstPairQuery
-import Merkle.TreeCompose
 
 /-! Append a verifier's final oracle lookup to an adaptive prover. -/
 

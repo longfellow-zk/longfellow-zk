@@ -1,5 +1,5 @@
-import LfzkV2.Current.RuntimeAdaptiveCharges
 import LfzkV2.Current.GlobalCharges
+import LfzkV2.Current.RuntimeAdaptiveCharges
 import LfzkV2.Current.ChainedSupport
 
 /-! One shared local maximum for adaptively parsed application statements

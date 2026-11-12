@@ -1,4 +1,3 @@
-import DualPacking.Coordinates
 import Mathlib.FieldTheory.Finite.Trace
 
 /-! # Relative traces and additive Hilbert 90 for arbitrary finite fields

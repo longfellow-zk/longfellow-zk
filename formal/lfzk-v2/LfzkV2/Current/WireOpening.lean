@@ -1,6 +1,5 @@
 import LfzkV2.Current.WireBlockRequest
 import LfzkV2.Current.QueryRuntime
-import LfzkV2.Current.BackendPositions
 
 /-! The actual opening block contains only the complete binary H/Z and
 prime H/Z slices. Its bytes and parsed cache are constructed from that same

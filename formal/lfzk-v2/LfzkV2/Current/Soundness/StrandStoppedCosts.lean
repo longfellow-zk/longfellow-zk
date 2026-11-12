@@ -1,6 +1,5 @@
 import LfzkV2.Current.Soundness.StrandTransport
 import LfzkV2.Current.Soundness.RuntimePath
-import LfzkV2.Current.Soundness.RuntimeRoles
 import LfzkV2.Current.Soundness.HashTransport
 import Survival.ChargeMonitor
 

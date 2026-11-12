@@ -1,5 +1,4 @@
 import LfzkV2.Current.MerkleWireCodec
-import Merkle.Extraction
 
 /-! The earlier whole-answer proofs use the original Merkle node syntax,
 which predates heap-index binding. Keep that historical model explicit so

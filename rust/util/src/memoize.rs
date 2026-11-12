@@ -16,7 +16,7 @@ use std::{cell::RefCell, hash::Hash};
 
 use rustc_hash::FxHashMap;
 
-pub struct Memoizer<K, V> {
+pub(crate) struct Memoizer<K, V> {
     cache: RefCell<FxHashMap<K, V>>,
 }
 
@@ -26,22 +26,24 @@ where
     V: Clone,
 {
     #[must_use]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Memoizer {
             cache: RefCell::new(FxHashMap::default()),
         }
     }
 
-    pub fn get(&self, k: &K) -> Option<V> {
+    pub(crate) fn get(&self, k: &K) -> Option<V> {
         self.cache.borrow().get(k).cloned()
     }
 
-    pub fn insert(&self, k: K, v: V) {
+    pub(crate) fn insert(&self, k: K, v: V) {
         self.cache.borrow_mut().insert(k, v);
     }
 
-    pub fn call<F>(&self, k: K, f: F) -> V
-    where F: FnOnce(&K) -> V {
+    pub(crate) fn call<F>(&self, k: K, f: F) -> V
+    where
+        F: FnOnce(&K) -> V,
+    {
         let cached = self.get(&k);
         if let Some(val) = cached {
             val

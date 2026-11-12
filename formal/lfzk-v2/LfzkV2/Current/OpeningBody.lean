@@ -1,6 +1,6 @@
 import LfzkV2.Current.Opening
 import LfzkV2.Current.ApplicationStatement
-import LfzkV2.Joint.Pair
+import LfzkV2.Joint.Pair.Basic
 
 /-! The physical opening layout used by the runtime: `u, m, witness, fstar`
 inside each participant, binary before prime inside the one tuple leaf.

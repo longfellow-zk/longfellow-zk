@@ -2,7 +2,6 @@ import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Positivity
-import Lean.Elab.Tactic.Omega
 
 /-!
 # Sampling without replacement

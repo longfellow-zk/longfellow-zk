@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendBodyWrites
-import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalState
 
 /-! The generated frontend's stored writes are exactly the complete body
 prefix. Together with its causal history invariant, this identifies the

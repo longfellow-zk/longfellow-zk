@@ -1,4 +1,3 @@
-import TranscriptV2.StrandSampling
 import TranscriptV2.StrandVerifier
 
 /-! A closed, nondegenerate physical sampler. It issues a numbered PRF

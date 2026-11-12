@@ -1,5 +1,4 @@
 import LfzkV2.Current.OpeningSampling
-import Mathlib.Logic.Equiv.Fin.Basic
 
 /-! The opening sampler's partial Fisher–Yates permutation. One chooses a
 uniform offset in the remaining array, swaps it to the front, emits that

@@ -1,4 +1,3 @@
-import LfzkV1.TwoFieldV1Rows
 import LfzkV1.NizkAdaptiveTwoField
 import LfzkV1.CertifiedV7
 

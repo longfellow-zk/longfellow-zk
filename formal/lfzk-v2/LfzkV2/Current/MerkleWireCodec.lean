@@ -1,4 +1,3 @@
-import LfzkV2.Current.OpeningBody
 import LfzkV2.Current.CanonicalPrefix
 import Merkle.Indexed.Codec
 import Merkle.Indexed.Independence

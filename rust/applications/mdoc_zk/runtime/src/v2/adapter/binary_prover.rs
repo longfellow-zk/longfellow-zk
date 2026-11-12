@@ -17,7 +17,7 @@ pub(in crate::mdoc::runtime::v2) struct BinaryState {
     packing: PackingState<E>,
 }
 impl BinaryParticipant {
-    pub fn prepare(
+    pub(crate) fn prepare(
         &self,
         private: &[bool],
         rng: &mut impl RandomEngine,
@@ -36,7 +36,7 @@ impl BinaryParticipant {
             witness,
         ))
     }
-    pub fn prove<D: EvaluationDomain<2, F>>(
+    pub(crate) fn prove<D: EvaluationDomain<2, F>>(
         &self,
         c: &Circuit<F>,
         public: &[bool],

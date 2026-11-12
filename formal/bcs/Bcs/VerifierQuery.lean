@@ -1,5 +1,4 @@
 import Bcs.PotentialGrinding
-import Merkle.TreeCompose
 
 /-! A verifier lookup can annotate a raw prover output without becoming an
 extra adversarial query charge. Its point already belongs to the verifier

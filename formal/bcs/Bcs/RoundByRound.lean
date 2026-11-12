@@ -1,7 +1,5 @@
 import Bcs.Counting
 import SumcheckV1.Grinding
-import Mathlib.Algebra.Order.Field.Basic
-import Mathlib.Data.Rat.Cast.Order
 
 /-!
 # Round-by-round soundness against a grinding adversary

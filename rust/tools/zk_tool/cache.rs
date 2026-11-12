@@ -27,13 +27,13 @@ use sha2::{Digest, Sha256};
 
 use crate::{require, root, Result};
 
-pub const DEFAULT_CACHE: &str = "/tmp/runtime-hahn-cache";
-pub fn digest(path: &Path) -> Result<String> {
+pub(crate) const DEFAULT_CACHE: &str = "/tmp/runtime-hahn-cache";
+pub(crate) fn digest(path: &Path) -> Result<String> {
     Ok(format!("{:x}", Sha256::digest(fs::read(path)?)))
 }
 /// Locate certificate modules in the formal project selected by the caller.
 /// Module names stay stable so a source-identical checked cache remains usable.
-pub fn sources(project: &Path) -> Result<BTreeMap<PathBuf, PathBuf>> {
+pub(crate) fn sources(project: &Path) -> Result<BTreeMap<PathBuf, PathBuf>> {
     fn collect(base: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, PathBuf>) -> Result<()> {
         for entry in fs::read_dir(dir)? {
             let p = entry?.path();
@@ -54,10 +54,10 @@ pub fn sources(project: &Path) -> Result<BTreeMap<PathBuf, PathBuf>> {
     );
     Ok(out)
 }
-pub fn read_json(path: &Path) -> Result<Value> {
+pub(crate) fn read_json(path: &Path) -> Result<Value> {
     Ok(serde_json::from_slice(&fs::read(path)?)?)
 }
-pub fn write_json(path: &Path, value: &Value) -> Result<()> {
+pub(crate) fn write_json(path: &Path, value: &Value) -> Result<()> {
     let tmp = path.with_extension("json.pending");
     fs::write(&tmp, serde_json::to_vec_pretty(value)?)?;
     fs::rename(tmp, path)?;
@@ -109,7 +109,7 @@ fn owned_parent(root: &Path, parent: &Path) -> Result<()> {
 }
 
 /// Replace stale objects only with trusted objects accompanied by identical source.
-pub fn stage(
+pub(crate) fn stage(
     source: &Path,
     target: &Path,
     module_root: &Path,
@@ -151,7 +151,7 @@ pub fn stage(
     Ok((hash, ready))
 }
 /// Overlay dependencies without replacing locally staged modules or writing through links.
-pub fn overlay(source: &Path, target: &Path) -> Result<()> {
+pub(crate) fn overlay(source: &Path, target: &Path) -> Result<()> {
     fs::create_dir_all(target)?;
     for entry_result in fs::read_dir(source)? {
         let entry = entry_result?;
@@ -175,7 +175,7 @@ pub fn overlay(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn environment(
+pub(crate) fn environment(
     cache: &Path,
     protocol: crate::profiles::Protocol,
     project: &Path,
@@ -254,7 +254,7 @@ fn validated_environment(
 }
 
 /// Resolve a proposed cache location without creating any directory first.
-pub fn private_path(requested: &Path) -> Result<PathBuf> {
+pub(crate) fn private_path(requested: &Path) -> Result<PathBuf> {
     use std::path::Component;
     let absolute = std::path::absolute(requested)?;
     let mut resolved = PathBuf::new();
@@ -280,11 +280,11 @@ pub fn private_path(requested: &Path) -> Result<PathBuf> {
     Ok(resolved)
 }
 
-pub struct TempDir {
+pub(crate) struct TempDir {
     pub path: PathBuf,
 }
 impl TempDir {
-    pub fn new(prefix: &str) -> Result<Self> {
+    pub(crate) fn new(prefix: &str) -> Result<Self> {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         for _ in 0..100 {
             let path = std::env::temp_dir().join(format!(

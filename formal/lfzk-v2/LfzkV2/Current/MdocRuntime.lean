@@ -1,8 +1,6 @@
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.MdocAdvice
 import LfzkV2.Current.IdealRuntime
-import LfzkV2.Current.FrontendTopology
-import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.MerkleWireCodec
 import LfzkV2.Current.ConcreteMetadata
 

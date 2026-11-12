@@ -1,6 +1,4 @@
-import Mathlib.Tactic.SetNotationForOrder
 import Mathlib.Data.Fintype.BigOperators
-import Mathlib.Data.Tree.Basic
 import Mathlib.Algebra.Order.Ring.Nat
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 

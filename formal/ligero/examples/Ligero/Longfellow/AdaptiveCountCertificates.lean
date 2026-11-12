@@ -1,7 +1,4 @@
 import examples.Ligero.Longfellow.OptimizedIOPCertificates
-import Ligero.V1.AdaptiveLocal
-import Ligero.V2.AdaptiveLocal
-import Ligero.V3.AdaptiveLocal
 
 /-! Exact per-round arithmetic certificates for the Ligero profile bounds. -/
 

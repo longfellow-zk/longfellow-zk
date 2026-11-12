@@ -1,6 +1,5 @@
 import LfzkV2.Current.ZeroKnowledge.OracleProgramming
 import LfzkV2.Current.CanonicalRequest
-import LfzkV2.Current.ProofBodyReplay
 
 /-! Finalization for the current canonical request replay. Its ordinary
 blocks depend on the proof body and strict prior answers; the final-seal

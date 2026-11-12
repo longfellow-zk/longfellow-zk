@@ -1,4 +1,3 @@
-import Survival.ChronologicalAudit
 import Survival.Hybrid
 
 /-! Saturated payoff integration. Generic chronological primitives live in

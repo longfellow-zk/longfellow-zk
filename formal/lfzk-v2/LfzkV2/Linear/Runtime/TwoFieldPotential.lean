@@ -1,5 +1,4 @@
 import LfzkV2.Linear.Runtime.TwoFieldReplay
-import LfzkV2.TwoFieldPotential
 
 /-! The merged charge for native sides: a shared affine MAC challenge,
 then the actual packing/frontend/backend charge of each side. -/

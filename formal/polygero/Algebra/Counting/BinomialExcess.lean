@@ -1,6 +1,5 @@
 import polygero.Algebra.Counting.DiscreteThreshold
 import CodingTheory.ListDecoding.HahnDelsarte
-import CodingTheory.ListDecoding.InterleavedJohnson
 
 /-! Binomial excess budgets for finite families of actual sets. -/
 namespace RecursivePolygero.DirectBinomial

@@ -1,6 +1,4 @@
 import LfzkV2.Current.BalancedDecoder
-import Mathlib.Logic.Equiv.Prod
-import Mathlib.Logic.Equiv.Fin.Basic
 
 /-! Exact finite ideal challenge projections. These factor a symbolic
 uniform answer into the coordinates read by a role and independent unused

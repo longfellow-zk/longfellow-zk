@@ -1,8 +1,3 @@
-import LfzkV1.WPoly
-import LfzkV1.Types
-import LfzkV1.Builder
-import LfzkV1.Circuit
-import LfzkV1.LigeroRows
 import LfzkV1.Layers
 
 open SumcheckV1

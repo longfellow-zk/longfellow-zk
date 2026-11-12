@@ -1,7 +1,5 @@
 import LfzkV2.Current.StrandVerifier
 import LfzkV2.Current.RuntimeAdaptiveMerkle
-import LfzkV2.Current.StrandSearch
-import Merkle.Indexed.Execution
 import Merkle.Indexed.Path
 
 /-! The shared-SHA verifier's complete oracle use: ordinary transcript

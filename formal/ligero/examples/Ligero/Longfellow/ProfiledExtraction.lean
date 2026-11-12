@@ -1,3 +1,4 @@
+import LigeroFamily.Soundness.ExtractionRate
 import examples.Ligero.Longfellow.IOPParameters
 import examples.Ligero.Grid.InverseJohnson
 import Ligero.V1.ScalarGapProfiled

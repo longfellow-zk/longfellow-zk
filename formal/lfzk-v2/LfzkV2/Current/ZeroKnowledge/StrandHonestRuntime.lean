@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestExecution
 import LfzkV2.Current.ZeroKnowledge.StrandHonestCompletion
 

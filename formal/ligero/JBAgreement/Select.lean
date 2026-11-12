@@ -2,8 +2,6 @@ import JBAgreement.Swap
 import JBAgreement.Frobenius
 import JBAgreement.Recenter
 import JBAgreement.Branch
-import JBAgreement.FactorSelection
-import Mathlib.Combinatorics.Pigeonhole
 
 /-!
 # §6.2: branch selection from the Guruswami–Sudan interpolant

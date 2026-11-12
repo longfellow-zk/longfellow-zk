@@ -15,7 +15,7 @@ pub(super) struct StreamDirectory {
     pub bytes: usize,
 }
 impl StreamDirectory {
-    pub fn counts(self) -> [usize; 6] {
+    pub(super) fn counts(self) -> [usize; 6] {
         [
             self.deltas,
             self.segments,
@@ -25,7 +25,9 @@ impl StreamDirectory {
             self.bytes,
         ]
     }
-    pub fn from_counts([deltas, segments, indices, tokens, terms, bytes]: [usize; 6]) -> Self {
+    pub(super) fn from_counts(
+        [deltas, segments, indices, tokens, terms, bytes]: [usize; 6],
+    ) -> Self {
         Self {
             deltas,
             segments,
@@ -35,7 +37,7 @@ impl StreamDirectory {
             bytes,
         }
     }
-    pub fn validate(self, arity: usize) -> Result<(), String> {
+    pub(super) fn validate(self, arity: usize) -> Result<(), String> {
         let entries = self
             .deltas
             .checked_mul(arity)

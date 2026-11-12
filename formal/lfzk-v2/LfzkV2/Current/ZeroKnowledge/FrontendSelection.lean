@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendReplay
-import WitnessSelection.Algebra
 
 /-! Joint hiding of selection responses and the later frontend.
 

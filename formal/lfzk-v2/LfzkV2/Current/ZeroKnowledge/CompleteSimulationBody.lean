@@ -1,7 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.CompleteBody
 import LfzkV2.Current.ZeroKnowledge.CompleteBackend
 import LfzkV2.Current.RuntimeVerifier
-import LfzkV2.Current.ConcreteSetup
 
 /-! The explicit backend simulation body and its wire encoding. These
 constructors do not depend on verifier acceptance or statistical privacy

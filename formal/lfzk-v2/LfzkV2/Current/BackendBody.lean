@@ -1,8 +1,6 @@
 import LfzkV2.Current.ApplicationStatement
 import LfzkV2.Current.BackendPositions
-import LfzkV2.Current.JointResponse
 import LfzkV2.Current.Replay
-import Mathlib.LinearAlgebra.Lagrange
 
 /-! Pure v2 backend body decoding and opening-boundary framing. H/Z are
 evaluations at the first oracle nodes, decoded by interpolation. The finite

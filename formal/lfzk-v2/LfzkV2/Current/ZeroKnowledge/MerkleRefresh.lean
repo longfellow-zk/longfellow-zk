@@ -1,6 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.MerklePrequery
-import Merkle.TreeCompose
-import Mathlib.Logic.Equiv.Prod
 
 /-! Iterating fresh-coordinate refresh along an honest causal computation.
 At each step the input is computed by replaying only the already completed

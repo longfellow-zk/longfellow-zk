@@ -2,7 +2,6 @@ import SumcheckV1.Counting
 import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Algebra.Order.Field.Basic
 import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.FieldSimp
 
 /-! Generic finite statistical distance and coupling composition.
 

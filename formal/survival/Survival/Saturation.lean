@@ -1,6 +1,5 @@
 import Survival.Audit
 import Survival.ChargeMonitor
-import Survival.SharedBudget
 
 /-! Saturation is a refinement of the same chronological search and failure
 cover. Only this layer requires `rate * queries ≤ 1`; generic linear shared

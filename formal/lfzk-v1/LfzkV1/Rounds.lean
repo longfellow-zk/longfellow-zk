@@ -1,8 +1,5 @@
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Tactic.Abel
-import Mathlib.Tactic.Ext
-import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.Omega
 import SumcheckV1.Grinding
 
 /-!

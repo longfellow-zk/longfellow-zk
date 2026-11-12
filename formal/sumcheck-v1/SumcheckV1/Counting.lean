@@ -1,7 +1,5 @@
 import Mathlib.Tactic.Ring
-import Mathlib.Tactic.Common
 import Mathlib.Data.Fintype.BigOperators
-import Mathlib.Data.Finset.Card
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 
 /-!

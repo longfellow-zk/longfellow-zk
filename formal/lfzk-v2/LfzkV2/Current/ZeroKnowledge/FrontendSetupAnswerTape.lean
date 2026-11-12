@@ -1,5 +1,5 @@
-import LfzkV2.Current.ZeroKnowledge.FrontendLayerAnswerTape
 import LfzkV2.Current.ZeroKnowledge.FrontendReplay
+import LfzkV2.Current.ZeroKnowledge.FrontendLayerAnswerTape
 
 /-! The stateful frontend compiler consumes exactly the answer coordinates
 that the verifier later replays. This includes shared entry/assertion

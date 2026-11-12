@@ -2,7 +2,6 @@ import JBAgreement.ColumnBound
 import JBAgreement.FactorSelection
 import JBAgreement.Main
 import JBAgreement.SharpClearedJet
-import Mathlib.LinearAlgebra.Lagrange
 
 /-!
 # §3: the branch argument

@@ -1,6 +1,4 @@
 import LfzkV1.CompiledLongfellowZk
-import LfzkV1.Encode
-import LfzkV1.ZkSim
 
 /-!
 # The sumcheck front end, built from `ZkSetup` and a causal Fiat–Shamir transcript

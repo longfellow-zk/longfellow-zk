@@ -1,4 +1,3 @@
-import LfzkV2.Linear.Runtime.CompiledSide
 import LfzkV2.Linear.Runtime.TwoFieldFS
 
 /-! Normalize the actual staged verifier charges by the raw oracle alphabet.

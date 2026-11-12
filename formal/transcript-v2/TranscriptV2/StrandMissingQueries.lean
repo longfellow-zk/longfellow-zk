@@ -1,3 +1,6 @@
+import TranscriptV2.StrandSealCharging
+import Bcs.FiniteProbability
+import TranscriptV2.Strand
 import TranscriptV2.StrandRecovery
 
 /-! One fresh-query charge per numbered strand position. Targets come from

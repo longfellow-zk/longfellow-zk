@@ -1,5 +1,4 @@
 import LfzkV2.Native.Circuit
-import LfzkV2.Challenges
 
 /-!
 # Entering zero-output checks at a layer boundary

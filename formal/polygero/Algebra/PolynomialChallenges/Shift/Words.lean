@@ -1,10 +1,5 @@
 import polygero.Algebra.PolynomialChallenges.Consistency
-import Mathlib.LinearAlgebra.Basis.VectorSpace
-import Mathlib.LinearAlgebra.Quotient.Basic
 import Mathlib.LinearAlgebra.Lagrange
-import Mathlib.Tactic.Ext
-import Lean.Elab.Tactic.NormCast
-import Lean.Elab.Tactic.Omega
 
 namespace RecursivePolygero.Local.Shift
 open Polynomial Finset Submodule RecursivePolygero.Local

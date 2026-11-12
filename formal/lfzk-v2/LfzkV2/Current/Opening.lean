@@ -1,5 +1,3 @@
-import Merkle.ExtractionROM
-import LigeroFamily.Protocol.Finite
 import LfzkV2.Current.MerkleReplay
 import LfzkV2.Current.ReplayPrefix
 import LfzkV2.Current.BackendPositions

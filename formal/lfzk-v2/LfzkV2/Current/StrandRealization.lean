@@ -1,9 +1,8 @@
+import LfzkV2.Current.StrandReplay
 import LfzkV2.Current.StrandExecution
 import LfzkV2.Current.StrandCutObservation
 import LfzkV2.Current.StrandWindow
 import LfzkV2.Current.StrandAcceptedPath
-import TranscriptV2.Composition
-import Merkle.QueryTable
 
 /-! The actual shared-SHA runtime as a transcript realization. Its physical
 answer is a digest and one whole counter row. Reindexing the used role block

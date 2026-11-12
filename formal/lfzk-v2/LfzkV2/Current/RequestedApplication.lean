@@ -1,5 +1,4 @@
 import LfzkV2.Current.RuntimeAdaptiveVerifier
-import LfzkV2.Current.ApplicationViews
 
 /-! Public-vector readback identifies the application checked on an accepted
 path with the caller's request. The algebraic system is still reconstructed

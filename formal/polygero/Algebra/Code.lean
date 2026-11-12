@@ -1,5 +1,4 @@
 import ReedSolomon.Domain
-import Mathlib.Algebra.Polynomial.Roots
 
 /-! Minimal punctured-domain adapter for the imported reconstruction proof.
 Word representation is shared with the existing coding-theory development. -/

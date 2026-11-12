@@ -1,5 +1,4 @@
 import LfzkV2.Current.AdapterParameters
-import Mathlib.FieldTheory.Finite.Basic
 
 /-! The public generator validation executed by the mdoc adapter.  The nine
 runtime factors are a complete prime factorization of `2^128-1`; checking the

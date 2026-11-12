@@ -1,7 +1,5 @@
-import DualPacking.Coordinates
 import Mathlib.RingTheory.Trace.Basic
 import Mathlib.FieldTheory.Finite.GaloisField
-import Mathlib.Tactic.Ring
 
 /-! # Constructing the trace-dual basis
 

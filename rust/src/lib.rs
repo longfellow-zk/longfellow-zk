@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![deny(unreachable_pub)]
+#![deny(unused_imports)]
+
 /// Run shared compiler/circuit tests through the native v2 compiler.
 /// V1 byte compatibility is checked independently by the backend tests.
 #[cfg(test)]

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn tree_fold<T, R, F, B>(a: &[T], f: &F, base: &B) -> R
+pub(crate) fn tree_fold<T, R, F, B>(a: &[T], f: &F, base: &B) -> R
 where
     F: Fn(R, R) -> R,
     B: Fn(&T) -> R,
@@ -35,7 +35,7 @@ where
     recur(a, 0, a.len(), f, base)
 }
 
-pub fn tree_fold2<T1, T2, R, F, B>(a: &[T1], b: &[T2], f: &F, base: &B) -> R
+pub(crate) fn tree_fold2<T1, T2, R, F, B>(a: &[T1], b: &[T2], f: &F, base: &B) -> R
 where
     F: Fn(R, R) -> R,
     B: Fn(&T1, &T2) -> R,
@@ -59,24 +59,32 @@ where
     recur(a, b, 0, a.len(), f, base)
 }
 
-pub fn init<T, F>(n: usize, f: F) -> Vec<T>
-where F: Fn(usize) -> T {
+pub(crate) fn init<T, F>(n: usize, f: F) -> Vec<T>
+where
+    F: Fn(usize) -> T,
+{
     (0..n).map(f).collect()
 }
 
-pub fn map<T, R, F>(a: &[T], f: F) -> Vec<R>
-where F: Fn(&T) -> R {
+pub(crate) fn map<T, R, F>(a: &[T], f: F) -> Vec<R>
+where
+    F: Fn(&T) -> R,
+{
     a.iter().map(f).collect()
 }
 
-pub fn map2<T1, T2, R, F>(a: &[T1], b: &[T2], f: F) -> Vec<R>
-where F: Fn(&T1, &T2) -> R {
+pub(crate) fn map2<T1, T2, R, F>(a: &[T1], b: &[T2], f: F) -> Vec<R>
+where
+    F: Fn(&T1, &T2) -> R,
+{
     assert_eq!(a.len(), b.len(), "slice lengths mismatch in map2");
     (0..a.len()).map(|i| f(&a[i], &b[i])).collect()
 }
 
-pub fn map3<T1, T2, T3, R, F>(a: &[T1], b: &[T2], c: &[T3], f: F) -> Vec<R>
-where F: Fn(&T1, &T2, &T3) -> R {
+pub(crate) fn map3<T1, T2, T3, R, F>(a: &[T1], b: &[T2], c: &[T3], f: F) -> Vec<R>
+where
+    F: Fn(&T1, &T2, &T3) -> R,
+{
     assert_eq!(a.len(), b.len(), "slice lengths mismatch in map3");
     assert_eq!(a.len(), c.len(), "slice lengths mismatch in map3");
     (0..a.len()).map(|i| f(&a[i], &b[i], &c[i])).collect()

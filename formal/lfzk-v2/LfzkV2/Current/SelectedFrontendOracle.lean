@@ -1,5 +1,4 @@
 import LfzkV2.Current.SelectionReplay
-import LfzkV2.Current.FrontendCausality
 import LfzkV2.Current.FrontendCounting
 
 /-! Local frontend events use the early selected pair. The current answer is

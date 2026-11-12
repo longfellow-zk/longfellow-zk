@@ -1,5 +1,4 @@
 import examples.Ligero.Certificate
-import JBAgreement.InverseEtaCertificate
 
 /-! Shared rational Johnson parameter optimization for all verifier variants.
 Searches suggest denominators; every returned value and local line bound is

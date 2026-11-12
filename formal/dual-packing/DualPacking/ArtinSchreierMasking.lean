@@ -1,5 +1,4 @@
 import DualPacking.ArtinSchreier
-import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 
 /-! Privacy of the actual dependent-mask construction.  The zeroth mask is
 not fresh randomness: it is the basis-weighted sum of all the free masks.

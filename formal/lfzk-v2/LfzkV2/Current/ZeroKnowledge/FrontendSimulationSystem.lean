@@ -1,6 +1,5 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationParsed
 import LfzkV2.Current.ZeroKnowledge.FrontendStatementShape
-import LfzkV2.Current.ZeroKnowledge.BackendStatement
 
 /-! Recover the complete canonical application statement from the public
 frontend simulation. The parser, challenge coordinates, fingerprint query

@@ -1,3 +1,5 @@
+import Bcs.SameDistribution
+import LfzkV2.Layered.Replay
 import LfzkV2.Current.ZeroKnowledge.FrontendRounds
 
 /-! Joint privacy of every message at one current sumcheck layer.  The

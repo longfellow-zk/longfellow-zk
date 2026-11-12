@@ -1,5 +1,4 @@
 import TranscriptV2.Charging
-import Bcs.FirstPairQuery
 import Bcs.TwoFreshCoordinates
 import Bcs.PotentialOracle
 

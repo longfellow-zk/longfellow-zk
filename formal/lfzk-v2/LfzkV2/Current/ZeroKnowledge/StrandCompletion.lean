@@ -1,6 +1,5 @@
 import LfzkV2.Current.ZeroKnowledge.OracleProgramming
 import LfzkV2.Current.StrandRuntime
-import TranscriptV2.StrandTranscript
 
 /-! Complete-proof finalization for the strand runtime. The complete
 canonical body contains terminal authentication before its final-node

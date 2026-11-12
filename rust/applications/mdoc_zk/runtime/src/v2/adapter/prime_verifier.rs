@@ -3,7 +3,7 @@ use super::*;
 impl<const W: usize, F: ZkField<W> + crate::runtime::algebra::PackingField>
     SharedParticipant<W, F>
 {
-    pub fn reduce(
+    pub(crate) fn reduce(
         &self,
         circuit: &Circuit<F>,
         public: &[F::E],

@@ -1,12 +1,4 @@
 import polygero.FiatShamir.Nonrecursive
-import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.FieldSimp
-import Mathlib.Tactic.Ext
-import Lean.Elab.Tactic.NormCast
-import Lean.Elab.Tactic.Omega
-import Lean.Util.CollectAxioms
 
 /-!
 Exact counting certificates for the nonrecursive Rust Polygero implementation.

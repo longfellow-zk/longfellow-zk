@@ -1,3 +1,4 @@
+import LfzkV2.Layered.Prover
 import LfzkV2.Current.ZeroKnowledge.HonestTranscriptLayer
 import LfzkV2.Current.FrontendTopology
 

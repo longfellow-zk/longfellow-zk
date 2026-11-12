@@ -1,8 +1,5 @@
-import LfzkV2.Current.BackendPath
 import LfzkV2.Current.ZeroKnowledge.OracleRuntime
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
-import LfzkV2.Current.CanonicalRuntime
-import LfzkV2.Current.MerkleWireCodec
 
 /-! Canonical public statement and batching readers. These unchanged
 runtime constructors are shared by the existing completeness proof and the

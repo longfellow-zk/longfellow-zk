@@ -1,4 +1,3 @@
-import LfzkV2.Current.ApplicationStatement
 import LfzkV2.Current.ApplicationOracle
 import LfzkV2.Current.SelectionPath
 

@@ -1,4 +1,3 @@
-import LfzkV2.Current.ProofBodyReplay
 import LfzkV2.Current.CanonicalPrefix
 import LfzkV2.Current.RuntimeAdaptive
 import LfzkV2.Current.ByteOracleTransport

@@ -17,7 +17,7 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use super::Layer;
-pub use crate::core::algebra::SerializableField;
+pub(super) use crate::core::algebra::SerializableField;
 use crate::core::proto::DigestBytes;
 
 pub struct RawCircuit<F: SerializableField> {

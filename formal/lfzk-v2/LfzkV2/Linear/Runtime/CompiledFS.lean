@@ -1,6 +1,5 @@
 import LfzkV2.Linear.Runtime.CompiledSide
 import LfzkV2.Linear.Packed
-import LfzkV2.Packed.Inputs
 
 /-!
 # Actual native compiler instances of the staged security interface

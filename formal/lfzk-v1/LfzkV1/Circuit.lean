@@ -1,13 +1,4 @@
 import Mathlib.Data.List.GetD
-import Mathlib.Tactic.Abel
-import Mathlib.Tactic.Ext
-import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.SplitIfs
-import Lean.Elab.Tactic.Omega
-import LfzkV1.WPoly
-import LfzkV1.Types
 import LfzkV1.Builder
 
 open SumcheckV1

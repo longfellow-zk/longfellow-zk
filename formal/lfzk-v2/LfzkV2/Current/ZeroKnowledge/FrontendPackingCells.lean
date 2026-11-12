@@ -1,7 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendPacking
 import LfzkV2.Current.CellLayout
 import LfzkV2.Packed.Inputs
-import Mathlib.Data.Fin.Tuple.Basic
 
 /-! The complete binary cell vector in the runtime's physical order:
 packed words; free packing masks, r and sigma(r); sumcheck pads; then the

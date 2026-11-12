@@ -1,6 +1,5 @@
 import LfzkV2.Current.StrandReplay
 import LfzkV2.Current.StrandComposition
-import TranscriptV2.FreshRenaming
 
 /-! Freshness of the exact runtime coordinate transports. No independent
 resampling of the accepted path or the commitment cut is introduced. -/

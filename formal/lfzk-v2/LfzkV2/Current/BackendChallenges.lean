@@ -1,6 +1,5 @@
 import LfzkV2.Current.BackendBody
 import LfzkV2.Current.StatementCompiler
-import LfzkV2.Current.BalancedDecoder
 
 /-! The runtime's batching coin representation. Each field first samples
 one scalar per affine equation, then `s+1` evaluations for each physical row

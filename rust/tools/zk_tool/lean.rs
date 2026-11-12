@@ -191,7 +191,7 @@ fn compile_leaves(
     Ok(())
 }
 
-pub fn certify(args: &Args) -> Result<()> {
+pub(crate) fn certify(args: &Args) -> Result<()> {
     let formal = args.required_path("--formal")?.canonicalize()?;
     let requested = args
         .path("--cache")?
@@ -312,7 +312,7 @@ fn numeric_source(
     writeln!(&mut body,"  for endpoint in #[{names}] do\n    for ax in ← collectAxioms endpoint do\n      unless #[``propext,``Classical.choice,``Quot.sound].contains ax do\n        throwError \"Unexpected axiom in numeric verifier endpoint {{endpoint}}: {{ax}}\"")?;
     Ok(body)
 }
-pub fn check_profiles(
+pub(crate) fn check_profiles(
     protocol: Protocol,
     audit: &Audit,
     project: &Path,

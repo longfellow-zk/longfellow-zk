@@ -1,5 +1,4 @@
 import LfzkV2.Layered.Circuit
-import LfzkV2.Inputs
 
 /-!
 # Layered sumcheck with independent zero-output entries

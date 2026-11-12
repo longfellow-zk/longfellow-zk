@@ -1,4 +1,3 @@
-import LfzkV2.Current.ZeroKnowledge.FrontendFullCoupling
 import LfzkV2.Current.ZeroKnowledge.FrontendHonestAdapter
 
 /-! Ordinary witness truth and static hash-circuit noninterference.

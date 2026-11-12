@@ -1,8 +1,6 @@
 import Mathlib.LinearAlgebra.Basis.Defs
 import Mathlib.Algebra.Algebra.Basic
 import Mathlib.Algebra.Field.ZMod
-import Mathlib.Data.Fintype.Card
-import Mathlib.Tactic.FinCases
 
 /-! # Canonical field coordinates for trace-pairing dual packing
 

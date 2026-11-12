@@ -1,5 +1,4 @@
 import LigeroFamily.Protocol.IPCP
-import Mathlib.Tactic.Module
 
 /-! # Mask-independent honest tableau -/
 

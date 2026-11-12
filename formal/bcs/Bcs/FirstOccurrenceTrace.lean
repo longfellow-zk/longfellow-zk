@@ -1,5 +1,4 @@
 import Bcs.Counting
-import Mathlib.Data.List.Basic
 
 /-! First-occurrence slots for two domain-separated defining queries. -/
 set_option autoImplicit false

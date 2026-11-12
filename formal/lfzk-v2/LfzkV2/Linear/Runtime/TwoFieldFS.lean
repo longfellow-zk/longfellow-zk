@@ -1,5 +1,4 @@
 import LfzkV2.Linear.Runtime.TwoFieldPotential
-import Bcs.VerifierQuery
 
 /-! Shared-query Fiat–Shamir extraction for the packed native two-field
 transcript. Every adaptive query pays the maximum local budget. -/

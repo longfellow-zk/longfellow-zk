@@ -1,5 +1,5 @@
+import Bcs.SameDistribution
 import LfzkV2.Current.ZeroKnowledge.FrontendAdapterBits
-import LfzkV2.Current.Handoff
 import LfzkV2.Current.AdapterParameters
 
 /-! Privacy of the current cross-field adapter's public masked scalar and

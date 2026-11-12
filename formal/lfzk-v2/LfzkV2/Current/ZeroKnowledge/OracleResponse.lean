@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.OracleRuntime
-import LfzkV2.Current.BackendPath
 
 /-! Backend responses are written only at the last ordinary boundary.
 Filling those arrays after sampling the batching coin cannot change the

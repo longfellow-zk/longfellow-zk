@@ -1,4 +1,3 @@
-import TranscriptV2.StrandOracle
 import TranscriptV2.FreshRenaming
 import Mathlib.Algebra.BigOperators.Field
 

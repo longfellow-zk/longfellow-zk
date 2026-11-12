@@ -15,8 +15,6 @@
 -/
 
 import ECDSA.ECBridge
-import PkCircuit
-import ECDSA.EcdsaSpec
 import ECDSA.EcdsaCircuit
 import Mathlib.Algebra.Field.ZMod
 

@@ -1,4 +1,3 @@
-import LigeroFamily.Soundness.ScalarGapChecked
 import Ligero.V2.ScalarGapExtraction
 
 /-! Agreement-dependent extraction, retaining scalar challenges and all checked masks. -/

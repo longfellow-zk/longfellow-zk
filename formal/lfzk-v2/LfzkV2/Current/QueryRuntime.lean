@@ -1,6 +1,4 @@
-import LfzkV2.Current.QueryCodec
 import LfzkV2.Current.FingerprintPrefix
-import LfzkV2.Current.ProtocolWrites
 import LfzkV2.Current.WireBlockBounds
 
 /-! Canonical byte queries embedded in the runtime's logical inputs. The

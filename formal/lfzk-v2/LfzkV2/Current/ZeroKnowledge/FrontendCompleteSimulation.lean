@@ -1,3 +1,4 @@
+import LfzkV2.Layered.Prover
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteWire
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteInputs
 import LfzkV2.Current.ZeroKnowledge.FrontendPacking

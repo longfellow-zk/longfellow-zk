@@ -20,7 +20,7 @@ use crate::runtime::algebra::{
 };
 
 #[inline(always)]
-pub(in crate::runtime::algebra) fn p256_reduction_step(a: &mut [Limb; 6]) {
+fn p256_reduction_step(a: &mut [Limb; 6]) {
     let r = a[0];
     let r_lo = r << 32;
     let r_hi = r >> 32;

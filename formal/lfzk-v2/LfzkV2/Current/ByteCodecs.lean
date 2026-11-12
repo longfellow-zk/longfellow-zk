@@ -1,7 +1,5 @@
 import LfzkV2.Current.PrefixCodec
-import TranscriptV2.FramingBounds
 import Mathlib.Data.Fintype.Pi
-import Mathlib.Data.Fin.Tuple.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Data.Fintype.Sigma
 

@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.BackendPrefix
 import LfzkV2.Current.ZeroKnowledge.StrandHonestBackend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestAcceptance
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackendCompleteness
@@ -82,8 +83,8 @@ theorem respondHonest_accepts
       (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv (honestOracle binary prime binaryNodes primeNodes repr shape setup configuration cells tape)) := by
     rw [← honest_columns binary prime binaryNodes primeNodes repr shape setup configuration cells tape]
     exact committed
-  have prefixZero : BackendPrefix.Zero (ConcreteSetup.backend binaryNodes binary.cells).participant response.1 ∧
-      BackendPrefix.Zero (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)).participant response.2 := by
+  have prefixZero : Current.BackendPrefix.Zero (ConcreteSetup.backend binaryNodes binary.cells).participant response.1 ∧
+      Current.BackendPrefix.Zero (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)).participant response.2 := by
     rw [responseEq]
     constructor
     · intro i

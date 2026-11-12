@@ -1,6 +1,4 @@
-import Mathlib.Data.List.Basic
 import Mathlib.Tactic.NormNum
-import Lean.Elab.Tactic.Omega
 
 /-! Canonical framing of the existing Rust v2 writer. Bytes are unsigned
 values below 256. A fixed public schema determines the field and its width;

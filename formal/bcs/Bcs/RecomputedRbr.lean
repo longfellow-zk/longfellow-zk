@@ -1,7 +1,6 @@
 import Bcs.FiatShamir
 import Merkle.TreeCompose
 import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.Group.Action.Defs
 
 /-!
 # Fiat–Shamir over an `L`-round transcript, against a grinding adversary

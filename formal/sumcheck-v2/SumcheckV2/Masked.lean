@@ -1,5 +1,4 @@
 import SumcheckV2.DotProduct
-import Mathlib.Algebra.BigOperators.Ring.List
 
 /-!
 # Masked messages and symbolic constraints

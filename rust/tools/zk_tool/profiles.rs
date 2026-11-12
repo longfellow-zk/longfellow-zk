@@ -30,41 +30,41 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Protocol {
+pub(crate) enum Protocol {
     Polygero,
 }
 impl Protocol {
-    pub fn parse(value: &str) -> Result<Self> {
+    pub(crate) fn parse(value: &str) -> Result<Self> {
         match value {
             "polygero" => Ok(Self::Polygero),
             _ => Err("protocol must be polygero".into()),
         }
     }
-    pub fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         "polygero"
     }
-    pub fn namespace(self) -> &'static str {
+    pub(crate) fn namespace(self) -> &'static str {
         "Polygero"
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Profile {
+pub(crate) struct Profile {
     pub k: usize,
     pub s: usize,
     pub n: usize,
     pub t: usize,
 }
 impl Profile {
-    pub fn label(self) -> String {
+    pub(crate) fn label(self) -> String {
         format!("{}_{}_{}_{}", self.k, self.s, self.n, self.t)
     }
 }
-pub struct Audit {
+pub(crate) struct Audit {
     pub profiles: Vec<Profile>,
     pub hahn: BTreeMap<Profile, Value>,
 }
 
-pub fn integer(value: &Value) -> Result<BigInt> {
+pub(crate) fn integer(value: &Value) -> Result<BigInt> {
     require(value.is_number(), "expected a JSON integer")?;
     Ok(BigInt::from_str(&value.to_string()).map_err(|_| "expected an exact JSON integer")?)
 }
@@ -184,7 +184,7 @@ fn verify_polynomial(row: &Value, n: usize, w: usize, lambda: usize, count: &Big
 }
 
 /// Verify all finite hypotheses before accepting a manifest's list-size cap.
-pub fn check_hahn(row: &Value) -> Result<Profile> {
+pub(crate) fn check_hahn(row: &Value) -> Result<Profile> {
     require(
         row.get("field_min").is_none(),
         "field-specific profiles are unsupported",
@@ -246,7 +246,7 @@ pub fn check_hahn(row: &Value) -> Result<Profile> {
     require(excess <= theta, "opening excess failed")?;
     Ok(Profile { k, s, n, t })
 }
-pub fn manifest() -> Result<Vec<Value>> {
+pub(crate) fn manifest() -> Result<Vec<Value>> {
     let value: Value = serde_json::from_slice(&fs::read(
         root().join("tools/parameters/hahn/profiles.json"),
     )?)?;
@@ -255,7 +255,7 @@ pub fn manifest() -> Result<Vec<Value>> {
         .ok_or("missing profiles")?
         .clone())
 }
-pub fn catalog(protocol: Protocol) -> Vec<Profile> {
+pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
     let (queries, fixed, r7, r4) = match protocol {
         Protocol::Polygero => (
             gero::TUNING_QUERIES,
@@ -292,7 +292,7 @@ fn baseline_budget(p: Profile) -> bool {
     ) <= theta
         && Q::new(choose(p.k + 2 * p.s - 1, p.t), denominator) <= theta.square()
 }
-pub fn audit(protocol: Protocol) -> Result<Audit> {
+pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
     let profiles = catalog(protocol);
     let rows = manifest()?;
     let mut hahn = BTreeMap::new();

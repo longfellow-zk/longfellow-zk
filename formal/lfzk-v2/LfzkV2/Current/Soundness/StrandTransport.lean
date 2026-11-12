@@ -1,12 +1,7 @@
-import LfzkV2.Current.ProtocolProbability
 import LfzkV2.Current.StrandCharges
 import LfzkV2.Current.StrandDecoder
-import LfzkV2.Current.StrandComposition
 import LfzkV2.Current.StrandRecovery
-import LfzkV2.Current.StrandDomains
-import TranscriptV2.StrandCharging
 import LfzkV2.Current.Soundness.RuntimeFresh
-import Survival.StoppedCharges
 
 /-! Transport and recovered-path algebra for the numbered-strand runtime.
 The shared definitions in this module retain the original SHA execution,

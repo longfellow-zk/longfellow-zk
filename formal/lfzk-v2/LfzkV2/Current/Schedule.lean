@@ -1,6 +1,4 @@
-import Mathlib.Data.List.FinRange
 import Mathlib.Algebra.BigOperators.Fin
-import Lean.Elab.Tactic.Omega
 
 /-! The query schedule of the current MAC-free mdoc verifier. This namespace is
 separate from the retained `Layered` checkpoint, whose adapter and transcript

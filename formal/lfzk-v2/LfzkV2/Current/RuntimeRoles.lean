@@ -1,5 +1,4 @@
 import LfzkV2.Current.RuntimeCover
-import LfzkV2.Current.ApplicationViewReplay
 
 /-! The public schedule fixes the role and charge at each actual replay
 boundary. Fragment count and proof values cannot add protocol roles. -/

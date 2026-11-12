@@ -1,5 +1,4 @@
 import LfzkV2.Current.StrandVerifier
-import LfzkV2.Current.StrandReplay
 import LfzkV2.Current.CanonicalVerifierAgreement
 
 /-! The canonical runtime supplies the path used in strand query charging.

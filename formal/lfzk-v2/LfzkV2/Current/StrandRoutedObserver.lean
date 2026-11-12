@@ -1,4 +1,3 @@
-import LfzkV2.Current.ObserverWindow
 import LfzkV2.Current.SHAOracle
 
 /-! Reuse the old single-SHA domain routing for a raw strand observer.

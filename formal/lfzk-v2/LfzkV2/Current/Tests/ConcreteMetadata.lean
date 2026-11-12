@@ -1,7 +1,10 @@
+import Mathlib.Algebra.Field.ZMod
 import LfzkV2.Current.ConcreteMetadataReadback
 import Mathlib.Tactic.NormNum.NatLog
 
 namespace LfzkV2.Current.ConcreteMetadata.Tests
+
+local instance : Fact (Nat.Prime 7) := ⟨by decide⟩
 open SumcheckV2 Layered MetadataIdentifiers Adapter.Circuit
 set_option maxRecDepth 4096
 set_option maxHeartbeats 1000000

@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalState
 import LfzkV2.Current.ZeroKnowledge.FrontendBodyState
 import LfzkV2.Current.ZeroKnowledge.FrontendAnswerTape
 import LfzkV2.Current.ZeroKnowledge.FrontendOpeningState

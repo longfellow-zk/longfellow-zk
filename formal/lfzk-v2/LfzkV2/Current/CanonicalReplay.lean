@@ -1,5 +1,4 @@
 import LfzkV2.Current.QueryRuntime
-import LfzkV2.Current.ReplayBlocks
 import LfzkV2.Current.ProofBodyBounds
 
 /-! Canonical query prefixes are closed under actual transcript replay.

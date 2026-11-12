@@ -1,6 +1,5 @@
 import LfzkV2.Linear.FrontendBound
 import LfzkV2.Linear.Runtime.Replay
-import LfzkV2.GradedFS
 
 /-!
 # Native frontend, packing, and Polygero on one staged oracle

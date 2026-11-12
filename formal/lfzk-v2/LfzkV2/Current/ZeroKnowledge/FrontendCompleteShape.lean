@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.FrontendPads
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteTranscript
 import LfzkV2.Current.FrontendTopology
 

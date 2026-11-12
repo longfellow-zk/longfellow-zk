@@ -1,5 +1,5 @@
+import LfzkV2.Current.ApplicationViewReplay
 import LfzkV2.Current.ZeroKnowledge.CompleteFrontendBody
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptRoles
 import LfzkV2.Current.ZeroKnowledge.HonestTranscriptWire
 
 /-! Required frontend fields are recovered from the actual canonical

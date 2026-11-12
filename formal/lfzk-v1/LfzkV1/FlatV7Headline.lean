@@ -1,6 +1,4 @@
 import LfzkV1.FlatV7Deployed
-import LfzkV1.SoundnessAudit
-import LfzkV1.CompiledZkProfileSepMac
 import LfzkV1.GradedCircuitV7
 
 /-!

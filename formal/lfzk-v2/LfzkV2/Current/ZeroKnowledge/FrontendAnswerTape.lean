@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationWrites
-import LfzkV2.Current.ApplicationPrefix
 
 /-! Challenge readback from the generated state. Every boundary stores the
 whole answer it just used. Later boundaries append answers and preserve all

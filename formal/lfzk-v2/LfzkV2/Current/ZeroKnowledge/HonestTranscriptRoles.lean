@@ -1,4 +1,3 @@
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptRank
 import LfzkV2.Current.ZeroKnowledge.FrontendWriteLog
 import LfzkV2.Current.RuntimeRoles
 

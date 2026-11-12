@@ -1,3 +1,4 @@
+import Bcs.StatisticalDistance
 import LfzkV1.ZkHiding
 import Merkle.Hiding
 

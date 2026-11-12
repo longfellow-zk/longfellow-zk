@@ -1,5 +1,4 @@
 import LfzkV2.Current.StrandRuntime
-import LfzkV2.Current.Replay
 import TranscriptV2.StrandLinear
 
 /-! The runtime's canonical packets instantiate numbered linear replay.

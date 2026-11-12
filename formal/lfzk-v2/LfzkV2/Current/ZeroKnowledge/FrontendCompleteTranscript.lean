@@ -1,3 +1,4 @@
+import LfzkV2.Current.ZeroKnowledge.FrontendCircuit
 import LfzkV2.Current.ZeroKnowledge.FrontendAdapterCorrectness
 import LfzkV2.Current.ProtocolWrites
 

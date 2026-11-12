@@ -1,7 +1,4 @@
-import Mathlib.Algebra.CharP.Lemmas
 import Mathlib.Algebra.Polynomial.Expand
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Ring
 
 /-!
 # §6.6: the inseparable case, by separable extraction and pointwise untwisting

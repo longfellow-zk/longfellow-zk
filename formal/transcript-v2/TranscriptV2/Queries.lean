@@ -1,9 +1,5 @@
-import Bcs.TotalOracle
 import Bcs.FirstPairQuery
-import Mathlib.Tactic.Ext
 import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.NormCast
 
 /-! Adaptive query prefixes, stopped before the first occurrence of a point.
 No fresh-answer tape or assumed query ordering is used here. -/

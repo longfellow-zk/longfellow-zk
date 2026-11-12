@@ -1,5 +1,4 @@
 import TranscriptV2.DigestCharging
-import Mathlib.Data.Finset.Prod
 
 /-! Birthday counting on the actual adaptive query set. Repeated queries
 reuse their answer and do not create additional collision opportunities.

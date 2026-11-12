@@ -1,5 +1,4 @@
 import LfzkV2.Joint.Side
-import LfzkV2.Transcript
 
 /-!
 # The mdoc joint transcript

@@ -1,4 +1,3 @@
-import LfzkV2.Current.ApplicationStatement
 import LfzkV2.Current.CellLayout
 import LfzkV2.Current.ZkJoint
 

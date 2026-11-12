@@ -1,5 +1,4 @@
 import Survival.FiniteCover
-import Mathlib.Tactic.Positivity
 
 /-! One fresh-answer query step is either a transparent local test or an opaque
 charged step. This abstraction concerns the adversary's queries, so it also

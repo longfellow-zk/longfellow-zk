@@ -1,5 +1,4 @@
 import LigeroFamily.Soundness.LiftListBound
-import LigeroFamily.Soundness.ProfiledLiftList
 import CodingTheory.ListDecoding.InterleavedJohnson
 import Mathlib.Algebra.BigOperators.Module
 

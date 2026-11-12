@@ -1,8 +1,5 @@
 import LfzkV2.Current.RuntimeVerifier
 import LfzkV2.Current.ApplicationViews
-import LfzkV2.Current.ApplicationCover
-import LfzkV2.Current.ZkJoint
-import LfzkV2.Current.BackendFS
 
 /-! Failure coverage starting from the concrete runtime decoder. The
 application, layouts and affine statement below are reconstructed values;

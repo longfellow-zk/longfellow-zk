@@ -1,6 +1,6 @@
+import LfzkV2.Current.ZeroKnowledge.StrandMerkleWindow
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalOracleSupport
-import LfzkV2.Current.Finite
 
 /-! Fixed all-branch raw support for both complete canonical views. No
 private-state finiteness, execution certificate, or selected-run window is

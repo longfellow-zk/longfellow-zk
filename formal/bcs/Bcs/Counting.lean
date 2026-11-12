@@ -1,7 +1,5 @@
-import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Ring.Finset
 import Mathlib.Data.Fintype.BigOperators
-import Mathlib.Data.Fintype.Prod
 import Mathlib.Data.Rat.Cast.Order
 import Mathlib.Logic.Equiv.Fin.Basic
 

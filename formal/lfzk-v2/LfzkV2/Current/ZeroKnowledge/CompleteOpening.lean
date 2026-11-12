@@ -1,5 +1,4 @@
 import LfzkV2.Current.OpeningBody
-import LfzkV2.Joint.Honest
 
 /-! Honest authentication in the actual sampled-order wire layout. The
 query positions come from the opening oracle; only nonce and frontier values

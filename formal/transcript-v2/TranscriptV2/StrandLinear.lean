@@ -1,5 +1,4 @@
 import TranscriptV2.StrandUnfolding
-import TranscriptV2.StrandSealCharging
 
 /-! A submitted proof fixes the bytes written at every boundary. Replaying
 those packets depends only on preceding node hashes. Numbered inputs make

@@ -1,7 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.FrontendSelection
 import LfzkV2.Current.MdocAdvice
-import LfzkV2.Current.AdapterTree
-import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Data.Nat.Bitwise
 
 /-! Canonical little-endian words and the adapter's one-time pad.  Only

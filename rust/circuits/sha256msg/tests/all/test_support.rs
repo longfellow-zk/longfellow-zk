@@ -15,7 +15,7 @@
 use crate::circuits::sha256msg::concrete::{ConcreteDerived, ConcreteGiven};
 
 #[allow(dead_code)]
-pub struct Sha256MsgCorruptor {
+pub(super) struct Sha256MsgCorruptor {
     pub name: String,
     pub expected_path: String,
     pub corrupt: Box<dyn Fn(&mut ConcreteGiven, &mut ConcreteDerived)>,
@@ -23,13 +23,13 @@ pub struct Sha256MsgCorruptor {
 
 impl Sha256MsgCorruptor {
     #[allow(dead_code)]
-    pub fn expected_compiled_path(&self) -> String {
+    pub(super) fn expected_compiled_path(&self) -> String {
         self.expected_path
             .replace("assert_wrapping_sum_gf2", "assert_wrapping_sum_prime")
     }
 }
 
-pub fn all_sha256msg_corruptors() -> Vec<Sha256MsgCorruptor> {
+pub(super) fn all_sha256msg_corruptors() -> Vec<Sha256MsgCorruptor> {
     let bitflips = (0..8)
         .flat_map(|word_idx| {
             (0..32).map(move |bit_idx| Sha256MsgCorruptor {

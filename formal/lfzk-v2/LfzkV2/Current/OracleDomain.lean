@@ -1,4 +1,3 @@
-import Merkle.TreeCompose
 import TranscriptV2.Queries
 import LfzkV2.Current.OracleWindow
 

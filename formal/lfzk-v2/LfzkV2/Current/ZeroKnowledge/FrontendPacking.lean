@@ -1,6 +1,6 @@
 import DualPacking.ArtinSchreierMasking
 import DualPacking.ArtinSchreierBackend
-import LfzkV1.LigeroZk.Distribution
+import Bcs.SameDistribution
 
 /-! The packing simulator uses the same independent field coins as the
 honest packer. Its public vector is obtained by the forward Artin--Schreier

@@ -1,6 +1,4 @@
 import Bcs.TotalOracleCommit
-import Bcs.Counting
-import Merkle.SmallBudget
 import Merkle.NumberedLeaves
 
 /-! A small Merkle-query budget bounds acceptance itself. Fixing the total

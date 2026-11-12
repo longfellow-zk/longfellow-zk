@@ -1,7 +1,4 @@
 import LfzkV2.Current.RuntimeAdaptive
-import LfzkV2.Current.BackendBody
-import LfzkV2.Current.BackendChallenges
-import LfzkV2.Current.OpeningBody
 
 /-! One concrete runtime decoder for adaptively chosen public values. The
 chosen encoding determines the path, while every statement is reconstructed

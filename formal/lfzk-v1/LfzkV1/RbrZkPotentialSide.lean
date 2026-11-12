@@ -1,5 +1,4 @@
 import LfzkV1.RbrZkPotentialPath
-import LfzkV1.NizkZkTwoField
 
 /-!
 # Uniform graded budgets for a compiled Longfellow side

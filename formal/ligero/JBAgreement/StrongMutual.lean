@@ -1,5 +1,4 @@
 import JBAgreement.CertificateMinimum
-import JBAgreement.Complete
 
 /-!
 # Haböck's strong mutual correlated agreement

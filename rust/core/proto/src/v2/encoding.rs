@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use super::{RawCircuit, SerializableField};
 use crate::core::proto::DigestBytes;
 
-pub const MAGIC: &[u8; 4] = b"LFC3";
+pub(crate) const MAGIC: &[u8; 4] = b"LFC3";
 const ID_DOMAIN: &[u8] = b"LFC3-v2-three-streams-v2";
 
 /// LFC3 identity, independent of dictionary compression.

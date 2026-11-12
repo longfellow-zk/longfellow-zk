@@ -1,4 +1,3 @@
-import LfzkV2.Current.FingerprintRows
 import LfzkV2.Current.PrimeClaim
 import LfzkV2.Layered.Replay
 import LfzkV2.Packed.Backend

@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.HonestTranscriptRoles
-import LfzkV2.Current.FrontendTranscript
 
 /-! The optional write at every frontend slot decodes to the same logical
 message as the existing frontend writer. Empty assertion slots and the

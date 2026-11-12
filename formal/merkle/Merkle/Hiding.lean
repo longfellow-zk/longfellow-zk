@@ -1,4 +1,4 @@
-import Mathlib.Algebra.BigOperators.Ring.Finset
+import Merkle.FreshHit
 import Mathlib.Tactic.Ring.RingNF
 import Merkle.CommitCollision
 

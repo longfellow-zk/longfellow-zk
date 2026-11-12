@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteSupport
-import LfzkV2.Current.ZeroKnowledge.StrandLeafWindow
 
 /-! Lift the checked canonical privacy game to one uniformly sampled raw
 byte-oracle table, retaining the same opened-leaf-only programming. -/

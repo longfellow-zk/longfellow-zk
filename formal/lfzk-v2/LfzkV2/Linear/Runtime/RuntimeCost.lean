@@ -1,7 +1,5 @@
 import LfzkV2.Linear.Runtime.Cost
 import LfzkV2.Packed.RuntimeProfiles
-import LfzkV2.Packed.FrontendSizes
-import LfzkV2.RuntimeSide
 
 /-! Current packed runtime costs. These are bounds on the charges in the
 actual two-field extraction theorem, with the degree-one signature path

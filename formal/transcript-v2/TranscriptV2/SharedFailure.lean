@@ -1,7 +1,4 @@
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Data.Fintype.BigOperators
-import Mathlib.Data.Rat.Lemmas
 import Mathlib.Tactic.Positivity
 
 /-! Averaging a shared algebraic charge with an arbitrary transcript exception.

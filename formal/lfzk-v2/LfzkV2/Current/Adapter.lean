@@ -1,14 +1,6 @@
 import LfzkV2.Linear.TerminalSampling
-import Mathlib.Data.ZMod.Basic
 import Mathlib.Algebra.Field.ZMod
 import Mathlib.Data.Int.Interval
-import Mathlib.GroupTheory.OrderOfElement
-import Mathlib.Order.Interval.Finset.Nat
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.NormCast
-import Lean.Elab.Tactic.Omega
 
 /-! Collision counting for the two full-prime-field rescalings in the current
 product-tree adapter. Quotient advice is allowed to depend on both challenges.

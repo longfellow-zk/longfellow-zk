@@ -1,5 +1,4 @@
 import LfzkV2.Linear.Runtime.FiatShamir
-import polygero.FiatShamir.MerkleCompiler
 
 /-!
 # A native compiled side at the commitment boundary

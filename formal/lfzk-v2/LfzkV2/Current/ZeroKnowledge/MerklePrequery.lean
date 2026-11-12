@@ -1,7 +1,5 @@
 import Merkle.RandomOracle
-import LfzkV1.LigeroZk.Distribution
-import Mathlib.Data.Fintype.Pi
-import Mathlib.Logic.Equiv.Defs
+import Bcs.SameDistribution
 
 /-! Fresh hash evaluation after an arbitrary earlier oracle computation.
 Public requests may be chosen by that earlier computation.  Swapping a fresh

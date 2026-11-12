@@ -27,7 +27,7 @@ pub(crate) struct SharedParticipant<const W: usize, F: ZkField<W> + PackingField
     _f: std::marker::PhantomData<F>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
-    pub fn new<D: EvaluationDomain<W, F>>(
+    pub(crate) fn new<D: EvaluationDomain<W, F>>(
         circuit: &Circuit<F>,
         shared: usize,
         config: PolygeroConfig,
@@ -66,10 +66,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
             _f: std::marker::PhantomData,
         })
     }
-    pub fn geometry(&self) -> CircuitGeometry {
+    pub(crate) fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
     }
-    pub fn participant<'a, D: EvaluationDomain<W, F>>(
+    pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
         ctx: &ZkContext<'a, W, F, D>,
     ) -> Result<SelectedField<'a, W, F, D, &'a Self>, String> {
@@ -83,7 +83,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> SharedParticipant<W, F> {
     }
     /// Authenticate eta*other - R + eta*pads + mu - eta*target = 0 in the prime field.
     /// The adapter authenticates mu = eta*shared + R against the binary bits.
-    pub fn finish(
+    pub(crate) fn finish(
         &self,
         claim: LinearClaim<F::E>,
         eta: &F::E,

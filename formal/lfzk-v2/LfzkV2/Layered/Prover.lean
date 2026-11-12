@@ -1,4 +1,3 @@
-import LfzkV2.Layered.Replay
 import LfzkV2.Layered.Soundness
 import LfzkV2.Linear.Prover
 

@@ -1,5 +1,4 @@
 import Merkle.TreeCompose
-import Mathlib.Data.Finset.Union
 
 /-! A bounded oracle program uses a finite marginal even when raw inputs
 are arbitrary byte strings.  Its answer type is finite, so there are only

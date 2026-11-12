@@ -1,5 +1,4 @@
 import LfzkV2.Layered.Packed
-import LfzkV2.Current.Prime
 
 /-! The two frontend compilers at their affine-row boundary. These records
 keep the circuit, messages, layouts and compiled constraints together; they

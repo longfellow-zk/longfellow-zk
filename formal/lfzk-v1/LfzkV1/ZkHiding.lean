@@ -1,9 +1,3 @@
-import Mathlib.Tactic.Ext
-import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.Omega
-import Bcs.StatisticalDistance
-import LfzkV1.WPoly
-import LfzkV1.Types
 import LfzkV1.Builder
 
 open SumcheckV1

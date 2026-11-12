@@ -1,6 +1,5 @@
 import polygero.Algebra.PolynomialChallenges.Basic
 import LigeroFamily.Code.ReedSolomon
-import Mathlib.LinearAlgebra.Lagrange
 
 namespace RecursivePolygero
 open Polynomial Finset Codes LigeroFamily RecursivePolygero.Local

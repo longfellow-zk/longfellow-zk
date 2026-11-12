@@ -99,7 +99,7 @@ The numbered-strand privacy proof is separate from this soundness argument.
 
 The current indexed runtime also checks that each arithmetic response is
 zero on its logical mask prefix. `StrandVerifier.prefixZeros` includes this
-deterministic check for both fields; `BackendPrefix.payload_random` proves it
+deterministic check for both fields; `ZeroKnowledge.BackendPrefix.payload_random` proves it
 for honest responses. Soundness retains the existing Polygero verifier as a
 weaker algebraic predicate, preserving the paper-facing component contracts.
 
@@ -270,3 +270,31 @@ recorded circuit/geometry profiles, and reject violations of the structural
 assertion premises. The older Python launchers targeting the former crate
 layout have been removed. The remaining legacy numerical reporting scripts
 do not participate in the trusted Lean proof chain.
+
+## Import and abstraction boundaries
+
+The current runtime endpoints import `Joint.Pair.Basic`, containing the two-field
+family and coordinate equivalences. The `Joint.Pair` facade adds compiled-side
+replay adapters. Runtime prefix predicates live in `Current.BackendPrefix`;
+the honest-payload lemma lives in `Current.ZeroKnowledge.BackendPrefix`.
+Exact finite-distribution lemmas are shared through `Bcs.SameDistribution`, with
+the existing declaration names and a V1 compatibility import preserved.
+
+Rust rejects unused imports and unreachable public declarations at the crate
+root. Compiler internals, private encoding helpers, and test utilities use
+restricted visibility. `python3 scripts/check_soundness.py --imports-only` checks
+the soundness/simulator and basic/replay import boundaries; the normal soundness
+check runs these checks as well. These restrictions add no runtime checks.
+
+Remaining placement issues are historical rather than runtime dependencies:
+shared masking/coupling algebra still has `LfzkV1.LigeroZk` module names, and
+`Bcs.StatisticalDistance` imports generic event-counting lemmas from
+`SumcheckV1.Counting`. Earlier whole-answer Merkle helpers under
+`Current.ZeroKnowledge` are outside the current soundness, privacy, and
+completeness endpoint closures; they should be checked for component and public
+API consumers before relocation or removal.
+
+`LfzkV1.ZkSim` also contains the `ZkExample` demonstration and a globally
+registered small-field instance. That example section belongs in a V1 test
+module; current V2 tests use their own local prime instances rather than
+relying on this incidental import.

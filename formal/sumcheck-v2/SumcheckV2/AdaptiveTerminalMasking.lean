@@ -1,5 +1,4 @@
 import SumcheckV2.LinearTerminalMasking
-import Mathlib.Data.Fintype.Card
 
 /-! The cross coefficient is sent before the terminal scale is known.  A
 fixed-scale bijection alone therefore does not justify Fiat--Shamir hiding.

@@ -1,7 +1,6 @@
 import LfzkV1.WPoly
 import Mathlib.NumberTheory.LucasPrimality
 import Mathlib.Tactic.NormNum.Prime
-import Mathlib.FieldTheory.Finite.GaloisField
 import LfzkV1.LigeroV1Rows
 
 /-!

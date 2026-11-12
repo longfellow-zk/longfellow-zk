@@ -1,4 +1,3 @@
-import LfzkV2.Circuit
 import SumcheckV2.Challenges
 
 /-!

@@ -1,5 +1,4 @@
 import LfzkV2.Joint.Backend
-import LfzkV2.PolygeroMasking
 import LfzkV2.PolygeroPrimaryMasking
 
 /-!

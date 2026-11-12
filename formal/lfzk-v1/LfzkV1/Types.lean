@@ -1,14 +1,4 @@
-import Mathlib.Algebra.BigOperators.Field
-import Mathlib.Data.Fintype.Pi
-import Mathlib.Data.Fintype.Prod
-import Mathlib.Tactic.Ext
-import Mathlib.Tactic.FieldSimp
-import Mathlib.Tactic.GCongr
 import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.Tauto
-import Lean.Elab.Tactic.NormCast
-import Lean.Elab.Tactic.Omega
 import LfzkV1.WPoly
 
 open SumcheckV1

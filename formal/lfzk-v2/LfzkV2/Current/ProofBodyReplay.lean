@@ -1,5 +1,4 @@
 import LfzkV2.Current.ProofBodyCodec
-import LfzkV2.Current.Replay
 
 /-! Complete-proof bytes keep the final seal separate from its hashed body.
 At final replay, the body bytes are derived from the actual proof, including

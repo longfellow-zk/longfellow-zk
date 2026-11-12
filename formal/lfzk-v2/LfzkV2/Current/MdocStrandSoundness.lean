@@ -1,10 +1,6 @@
-import LfzkV2.Current.ProtocolProbability
 import LfzkV2.Current.StrandProtocol
-import LfzkV2.Current.MdocIdentifiers
 import LfzkV2.Current.MdocDefaults
 import LfzkV2.Current.ProofOutput
-import LfzkV2.Current.Parameters.Rate7
-import LfzkV2.Current.StrandDomains
 import LfzkV2.Current.Soundness.RuntimeRate7
 
 /-! Specialize the strand verifier to the rate-1/7 mdoc configuration.

@@ -1,3 +1,4 @@
+import TranscriptV2.Queries
 import TranscriptV2.StrandReplay
 
 /-! A coupled run describes one consistent raw SHA execution. The sampling

@@ -52,7 +52,7 @@ pub(super) fn sources(npublic: usize, ninput: usize) -> Result<Vec<usize>, Strin
         .collect())
 }
 impl BinaryParticipant {
-    pub fn new<D: EvaluationDomain<2, F>>(
+    pub(crate) fn new<D: EvaluationDomain<2, F>>(
         c: &Circuit<F>,
         config: PolygeroConfig,
         ctx: &ZkContext<'_, 2, F, D>,
@@ -84,10 +84,10 @@ impl BinaryParticipant {
             ninput: c.raw.ninput,
         })
     }
-    pub fn geometry(&self) -> CircuitGeometry {
+    pub(crate) fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
     }
-    pub fn participant<'a, D: EvaluationDomain<2, F>>(
+    pub(crate) fn participant<'a, D: EvaluationDomain<2, F>>(
         &'a self,
         ctx: &ZkContext<'a, 2, F, D>,
     ) -> Result<SelectedField<'a, 2, F, D, &'a Self>, String> {

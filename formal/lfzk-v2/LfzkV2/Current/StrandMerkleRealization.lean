@@ -1,5 +1,4 @@
 import LfzkV2.Current.StrandCommitment
-import LfzkV2.Current.MerkleWireCodec
 import TranscriptV2.CompositionTransport
 import LfzkV2.Current.StrandRuntime
 import LfzkV2.Current.StrandReplay

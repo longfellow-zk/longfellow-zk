@@ -1,9 +1,3 @@
-import Mathlib.Tactic.LinearCombination
-import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.Omega
-import LfzkV1.WPoly
-import LfzkV1.Types
-import LfzkV1.Circuit
 import LfzkV1.LigeroRows
 
 open SumcheckV1

@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendPrefix
-import Mathlib.Data.List.OfFn
 
 /-! The finite log of fresh writes in a generated transcript. Recording a
 boundary appends precisely its pending write; all later boundaries begin

@@ -1,3 +1,4 @@
+import DualPacking.Coordinates
 import DualPacking.DualBasis
 import DualPacking.Trace
 

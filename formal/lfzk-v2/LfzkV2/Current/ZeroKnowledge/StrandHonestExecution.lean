@@ -1,4 +1,3 @@
-import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExecution
 
 /-! The successful result of the actual indexed honest experiment is the

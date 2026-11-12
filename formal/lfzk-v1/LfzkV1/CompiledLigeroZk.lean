@@ -1,8 +1,6 @@
 import LfzkV1.ZkMerkle
 import LfzkV1.FromLigeroZKV1
 import Bcs.SchemeCompiler
-import LfzkV1.LigeroZk.V1ResponseAdaptive
-import LigeroFamily.Protocol.FiniteResponse
 
 /-!
 # Zero knowledge of compiled Ligero, against a query-bounded distinguisher

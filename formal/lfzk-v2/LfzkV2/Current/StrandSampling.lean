@@ -1,7 +1,6 @@
 import LfzkV2.Current.BalancedDecoder
 import TranscriptV2.StrandSampling
 import TranscriptV2.StrandVerifier
-import Bcs.FiniteProbability
 
 /-! Connect the accepted uniform-rejection-sampler assumption to the local
 runtime bounds. Independent analysis coins complete failed samples and supply

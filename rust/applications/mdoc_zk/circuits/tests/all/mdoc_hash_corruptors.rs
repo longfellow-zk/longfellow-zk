@@ -18,13 +18,13 @@ use crate::{
     compile::algebra::CompileNat, core::algebra::Nat, mdoc::circuits::hash::concrete::ConcreteGiven,
 };
 
-pub struct MdocHashCorruptor {
+pub(super) struct MdocHashCorruptor {
     pub name: String,
     pub expected_path: String,
     pub corrupt: Box<dyn Fn(&mut ConcreteGiven<CompileNat<4>>)>,
 }
 
-pub fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
+pub(super) fn all_mdoc_hash_corruptors() -> Vec<MdocHashCorruptor> {
     vec![
         MdocHashCorruptor {
             name: "wrong_global_namespace".into(),

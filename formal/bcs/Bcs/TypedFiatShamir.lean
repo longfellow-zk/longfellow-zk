@@ -1,8 +1,6 @@
 import Bcs.FirstOccurrenceTrace
 import Merkle.LazyTape
 import SumcheckV1.Grinding
-import LigeroFamily.Protocol.Finite
-import Mathlib.Algebra.Order.Field.Rat
 
 /-! Typed defining queries and their first-occurrence answers on a lazy tape. -/
 

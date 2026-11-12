@@ -1,11 +1,9 @@
-import Mathlib.Tactic.SetNotationForOrder
 import Mathlib.Data.Finset.Sort
 import Mathlib.Data.Int.ConditionallyCompleteOrder
 import Mathlib.Data.Nat.Log
 import Mathlib.Data.Nat.SuccPred
 import Mathlib.Tactic.Linarith.Frontend
 import Mathlib.Tactic.NormNum.Ineq
-import Mathlib.Topology.Defs.Basic
 import Mathlib.Algebra.Group.Action.Defs
 import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Algebra.Order.BigOperators.Group.Finset

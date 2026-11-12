@@ -1,6 +1,4 @@
-import LfzkV2.Layered.Prover
 import SumcheckV2.AdaptiveTerminalMasking
-import LfzkV2.PolygeroZk
 
 /-! Stateful simulation of the current coefficient-masked sumcheck rounds.
 The reader sees only public state and messages. It may implement a fixed

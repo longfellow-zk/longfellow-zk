@@ -1,7 +1,6 @@
 import LfzkV2.Current.StrandSealIndependence
 import LfzkV2.Current.StrandWindow
 import LfzkV2.Current.ConcreteMetadata
-import TranscriptV2.CompositionTransport
 
 /-! The actual complete-proof final seal, charged against the original
 prover trace. Verifier replay is used to compute the address, but its queries

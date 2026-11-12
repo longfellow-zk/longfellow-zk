@@ -1,4 +1,3 @@
-import LfzkV2.Current.OracleWindow
 import TranscriptV2.StrandVerifier
 
 /-! Finite raw support for a fixed typed protocol. Histories may contain

@@ -8,7 +8,7 @@ use crate::runtime::{
     },
 };
 impl BinaryParticipant {
-    pub fn reduce<D: EvaluationDomain<2, F>>(
+    pub(crate) fn reduce<D: EvaluationDomain<2, F>>(
         &self,
         c: &Circuit<F>,
         public: &[bool],

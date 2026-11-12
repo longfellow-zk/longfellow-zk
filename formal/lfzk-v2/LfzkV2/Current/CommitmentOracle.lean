@@ -1,7 +1,6 @@
-import LfzkV2.Current.MerkleReplay
 import LfzkV2.Current.Opening
 import LfzkV2.Current.JointResponse
-import LfzkV2.Joint.Pair
+import LfzkV2.Joint.Pair.Basic
 
 /-! One current Merkle commitment explains the complete two-field tuple.
 The oracle used by Fiat--Shamir counting and witness selection is recovered

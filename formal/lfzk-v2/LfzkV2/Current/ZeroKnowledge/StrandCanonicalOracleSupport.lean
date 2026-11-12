@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalSchedule
-import LfzkV2.Current.ZeroKnowledge.StrandMerkleWindow
 import LfzkV2.Current.ZeroKnowledge.StrandObserverWindow
 
 /-! Oracle dependence of the existing canonical encoder and observer view.

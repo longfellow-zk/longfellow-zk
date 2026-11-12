@@ -1,5 +1,4 @@
 import LfzkV2.Current.WholeAnswerMerkle
-import Merkle.Hiding
 
 /-! The earlier whole-answer model hashes a public column index and a fresh 32-byte nonce in
 each leaf.  Only the nonce is random.  For the hiding theorem we therefore
@@ -107,7 +106,7 @@ def runtimeCodec : Codec MerkleNonce (Fin n × (Joint.Pair.family P R).Leaf) Dig
 theorem runtimeCodec_inj : (runtimeCodec P R repr binary prime context fits).Inj :=
   nonceCodec_inj _ (WholeAnswerMerkle.codec_inj P R repr binary prime context fits)
 
-/-- This is literally the same wire preimage, with exactly 40 random nonce
+/-- This is literally the same wire preimage, with exactly 32 random nonce
 bytes. No uniformly sampled column index is introduced in the probability space. -/
 theorem runtime_leaf_bytes (column : Fin n) (nonce : MerkleNonce)
     (leaf : (Joint.Pair.family P R).Leaf) :

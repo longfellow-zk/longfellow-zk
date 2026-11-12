@@ -1,4 +1,3 @@
-import LfzkV2.Linear.Runtime.ProfiledSide
 import polygero.FiatShamir.MerkleCompiler
 
 /-!

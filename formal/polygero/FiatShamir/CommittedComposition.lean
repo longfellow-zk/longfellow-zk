@@ -1,5 +1,6 @@
 import polygero.FiatShamir.Nonrecursive
 import polygero.FiatShamir.OutsideList
+-- Preserve the public frontend-refinement interface for composition clients.
 import polygero.FiatShamir.WitnessSelection
 
 /-! Composition with a frontend bound for a fixed committed witness list.

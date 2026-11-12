@@ -1,6 +1,5 @@
 import LfzkV1.CertifiedV1
 import LigeroFamily.Soundness.PolicyPotential
-import LigeroFamily.Soundness.PotentialProfile
 
 /-!
 # Shared numerical interface for a certified V1 row and a graded curve

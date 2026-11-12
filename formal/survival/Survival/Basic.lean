@@ -1,7 +1,5 @@
 import TranscriptV2.FreshOracle
 import Bcs.FiniteProbability
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Positivity
 
 /-! Chronological safety on fresh adaptive query trees.

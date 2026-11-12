@@ -1,5 +1,3 @@
-import LfzkV2.Current.ObserverWindow
-import LfzkV2.Current.Observer
 import LfzkV2.Current.ZeroKnowledge.MerkleOracleWindow
 
 /-! Canonical transcript inputs can be used to execute an arbitrary raw

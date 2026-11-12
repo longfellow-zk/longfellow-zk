@@ -1,6 +1,5 @@
 import LfzkV2.Current.IdealProjections
 import LfzkV2.Current.FrontendCounting
-import WitnessSelection.Algebra
 import Mathlib.Tactic.DeriveFintype
 
 /-! One finite symbolic challenge alphabet for all runtime roles. Shared

@@ -1,4 +1,3 @@
-import LfzkV1.RbrZkPotentialPath
 import LfzkV1.RbrZkPotentialSide
 import LfzkV1.NizkZkDeployedHashSepMac
 

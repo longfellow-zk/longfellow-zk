@@ -47,15 +47,9 @@ pub(in crate::runtime::algebra) const NEG_P256_MODULUS_32: [u32; 8] =
 
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 mod p256_64;
-#[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
-#[allow(unused_imports)]
-use p256_64::*;
 
 #[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
 mod p256_32;
-#[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
-#[allow(unused_imports)]
-use p256_32::*;
 
 impl Default for P256Field {
     fn default() -> Self {

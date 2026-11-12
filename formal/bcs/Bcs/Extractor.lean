@@ -1,5 +1,4 @@
 import Bcs.Transcript
-import Bcs.Reduction
 
 /-!
 # The compiled experiment, and the extractor it induces

@@ -1,9 +1,7 @@
 import Mathlib.Algebra.BigOperators.Field
-import Mathlib.Data.Rat.BigOperators
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Tactic.Positivity
 import Mathlib.Tactic.Ring
-import Lean.Elab.Tactic.NormCast
 
 /-!
 # Weighted finite-decoder balance for graded transcript charges

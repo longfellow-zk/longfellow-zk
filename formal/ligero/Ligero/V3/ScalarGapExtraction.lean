@@ -1,6 +1,5 @@
 import LigeroFamily.Soundness.ScalarGapChecked
 import LigeroFamily.Soundness.DirectProductProfile
-import LigeroFamily.Soundness.DirectProductExtractor
 
 /-! Scalar proximity-gap IOP extraction for V3. The arithmetic exceptional
 set is fixed before the response; all checked masks are retained. No FS or

@@ -1,5 +1,4 @@
 import LigeroFamily.Protocol.Evaluation
-import LigeroFamily.Protocol.Finite
 import Mathlib.Tactic.DeriveFintype
 
 /-!

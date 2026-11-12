@@ -1,5 +1,3 @@
-import Mathlib.Tactic.Ring.RingNF
-import Merkle.Collision
 import Merkle.Trapdoor
 
 /-!

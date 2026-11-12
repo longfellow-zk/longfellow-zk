@@ -1,6 +1,4 @@
 import SumcheckV2.Multi
-import Mathlib.Data.Fintype.BigOperators
-import Mathlib.Data.List.OfFn
 import Mathlib.Tactic.LinearCombination
 
 /-!

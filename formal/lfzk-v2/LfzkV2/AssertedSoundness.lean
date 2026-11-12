@@ -1,3 +1,5 @@
+import LfzkV2.Circuit
+import LfzkV2.Constraints
 import LfzkV2.Challenges
 
 /-!

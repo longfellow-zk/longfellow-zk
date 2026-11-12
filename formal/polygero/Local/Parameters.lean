@@ -1,6 +1,5 @@
 import polygero.Protocol.Instance
 import polygero.Algebra.Counting.Envelope
-import polygero.Algebra.Counting.DiscreteThreshold
 import polygero.Algebra.Counting.BinomialExcess
 
 /-! Structural parameters and exact rational certificates for each invocation. -/

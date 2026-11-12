@@ -1,6 +1,4 @@
 import Mathlib.Algebra.BigOperators.Field
-import Mathlib.Data.Fintype.Card
-import Mathlib.Data.Fintype.Pi
 import Mathlib.Data.Fintype.Prod
 import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.Ring

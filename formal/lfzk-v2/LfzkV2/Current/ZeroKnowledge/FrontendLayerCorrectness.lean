@@ -1,3 +1,4 @@
+import LfzkV2.Linear.Prover
 import LfzkV2.Current.ZeroKnowledge.FrontendLayer
 
 /-! Identification of the stateful simulator coupling with the numerical

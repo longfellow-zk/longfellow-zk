@@ -4,6 +4,8 @@ import RuntimeHahn.CheckedPolynomial
 noncomputable section
 namespace LfzkV2.Current.FixedRate.Rate7
 open CodingTheory.HahnDelsarte
+-- Elaborate the large checked computations serially to bound compiler memory.
+set_option Elab.async false
 set_option maxRecDepth 100000
 set_option maxHeartbeats 0
 

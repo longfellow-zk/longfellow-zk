@@ -1,6 +1,7 @@
+import Mathlib.Tactic.Ring
+import Merkle.FreshHit
 import Merkle.Extraction
 import Merkle.CheckPass
-import Merkle.FreshHit
 
 /-!
 # The two-stage extraction experiment in the random-oracle model

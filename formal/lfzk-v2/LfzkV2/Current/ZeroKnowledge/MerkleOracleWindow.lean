@@ -1,6 +1,4 @@
 import LfzkV2.Current.ObserverWindow
-import Merkle.Commit
-import Merkle.CheckPass
 
 /-! A finite marginal for the Merkle oracle on arbitrary raw strings.
 The window contains every codec image and every query on every branch of

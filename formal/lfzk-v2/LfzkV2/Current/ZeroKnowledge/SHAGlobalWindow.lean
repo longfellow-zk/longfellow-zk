@@ -1,4 +1,3 @@
-import LfzkV2.Current.ObserverWindow
 import LfzkV2.Current.ZeroKnowledge.SHAObserverWindow
 import LfzkV2.Current.ZeroKnowledge.SHAOracleProbability
 import LfzkV2.Current.ZeroKnowledge.TranscriptObserver

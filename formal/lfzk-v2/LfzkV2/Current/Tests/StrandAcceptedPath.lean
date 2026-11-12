@@ -1,3 +1,5 @@
+import TranscriptV2.Composition
+import LfzkV2.Current.StrandReplay
 import LfzkV2.Current.StrandAcceptedPath
 
 namespace LfzkV2.Current.Tests.StrandAcceptedPath

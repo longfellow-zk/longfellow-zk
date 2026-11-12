@@ -1,6 +1,4 @@
 import LfzkV1.Rounds
-import Merkle.LazyTape
-import LfzkV1.ZkFiatShamir
 import LfzkV1.ZkProgram
 
 /-!

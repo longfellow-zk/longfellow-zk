@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.StrandGhostMerkleTree
-import LfzkV2.Current.OracleWindow
 
 /-! Raw query support for the indexed commitment and its ghost-label tree.
 Internal positions range over the actual heap; the support is fixed before
