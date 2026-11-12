@@ -106,3 +106,35 @@ fn v2_document_checks_signed_doc_type_and_validity_before_proving() {
         assert!(validate_mso(&changed, TEST_DATA.doc_type, TEST_DATA.now, &field).is_err());
     }
 }
+
+#[test]
+fn v2_document_preserves_structural_errors_and_predicate_failures() {
+    let field = P256Field::new();
+    for name in ["docType", "validityInfo", "deviceKeyInfo"] {
+        let mut mso = map();
+        let CborValue::Map(entries) = &mut mso.value else {
+            panic!("map")
+        };
+        entries.retain(|(key, _)| !matches!(&key.value, CborValue::Text(text) if text == name));
+        assert!(matches!(
+            validate_mso(&mso, TEST_DATA.doc_type, TEST_DATA.now, &field),
+            Err(Error::Encoding(MdocParseError::MissingField(_)))
+        ));
+    }
+    let mut wrong_type = map();
+    entry_mut(&mut wrong_type, "docType").value = CborValue::Integer(0);
+    assert!(matches!(
+        validate_mso(&wrong_type, TEST_DATA.doc_type, TEST_DATA.now, &field),
+        Err(Error::Encoding(MdocParseError::UnexpectedType(
+            "MSO.docType"
+        )))
+    ));
+    assert!(matches!(
+        validate_mso(&map(), "wrong", TEST_DATA.now, &field),
+        Err(Error::Predicate)
+    ));
+    assert!(matches!(
+        validate_mso(&map(), TEST_DATA.doc_type, "9999-12-31T23:59:59Z", &field),
+        Err(Error::Predicate)
+    ));
+}

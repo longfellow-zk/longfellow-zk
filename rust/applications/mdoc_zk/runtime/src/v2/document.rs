@@ -30,7 +30,7 @@ pub(super) fn parse(
     field: &P256Field,
 ) -> Result<ParsedMdoc<RuntimeNat<4>>, Error> {
     parse_mdoc_with_mso_check(bytes, transcript, doc_type, |mso| {
-        validate_mso(mso, doc_type, now, field).map_err(|_| Error::Predicate)
+        validate_mso(mso, doc_type, now, field)
     })
 }
 
@@ -94,10 +94,12 @@ fn validate_mso(
     doc_type: &str,
     now: &str,
     field: &P256Field,
-) -> Result<(), MdocParseError> {
-    if !matches!(&text_entry(mso, "docType", "MSO.docType")?.value, CborValue::Text(text) if text == doc_type)
-    {
-        return Err(MdocParseError::InvalidValue("MSO.docType"));
+) -> Result<(), Error> {
+    let CborValue::Text(actual_doc_type) = &text_entry(mso, "docType", "MSO.docType")?.value else {
+        return Err(MdocParseError::UnexpectedType("MSO.docType").into());
+    };
+    if actual_doc_type != doc_type {
+        return Err(Error::Predicate);
     }
     let validity = text_entry(mso, "validityInfo", "MSO.validityInfo")?;
     let from = timestamp(text_entry(
@@ -110,17 +112,16 @@ fn validate_mso(
         "validUntil",
         "MSO.validityInfo.validUntil",
     )?)?;
-    let current = timestamp_digits(now.as_bytes())
-        .ok_or(MdocParseError::InvalidValue("current timestamp"))?;
+    let current = timestamp_digits(now.as_bytes()).ok_or(Error::Predicate)?;
     if !(from <= current && current <= until) {
-        return Err(MdocParseError::InvalidValue("validity window"));
+        return Err(Error::Predicate);
     }
     let info = text_entry(mso, "deviceKeyInfo", "MSO.deviceKeyInfo")?;
     let key = text_entry(info, "deviceKey", "MSO.deviceKeyInfo.deviceKey")?;
     if !matches!(integer_entry(key, 1)?.value, CborValue::Integer(2))
         || !matches!(integer_entry(key, -1)?.value, CborValue::Integer(1))
     {
-        return Err(MdocParseError::InvalidValue("device key type or curve"));
+        return Err(Error::Predicate);
     }
     let x = coordinate(key, -2, field)?;
     let y = coordinate(key, -3, field)?;
@@ -130,7 +131,7 @@ fn validate_mso(
         curve.b(),
     );
     if field.mulf(&y, &y) != rhs {
-        return Err(MdocParseError::InvalidValue("off-curve device key"));
+        return Err(Error::Predicate);
     }
     Ok(())
 }
