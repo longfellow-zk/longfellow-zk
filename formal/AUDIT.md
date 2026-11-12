@@ -211,8 +211,9 @@ difference in actual acceptance probabilities by the same privacy error;
 rejection and abort outcomes are retained. No successful-verifier or
 always-accepting-simulator premise is used.
 
-The theorem uses a fixed witness policy, valid at actually reached requests,
-with separate static hash noninterference, signature satisfaction,
+The theorem uses a Context-indexed witness policy, valid at actually reached
+contexts, including different witnesses for contexts with the same public
+request. It assumes static hash noninterference, signature satisfaction,
 basis/generator checks, and trusted field/codec/circuit/layout inputs. Honest private coins and 256-bit
 nonces are independent and uniform. It assumes a classical SHA random oracle,
 not a numerical concrete-SHA indistinguishability bound. Rust correspondence

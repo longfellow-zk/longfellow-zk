@@ -258,8 +258,9 @@ The proof derives a fixed all-branch support for actual setup evaluation,
 protocol execution and both observers. Outside answers cannot affect either
 experiment. Only disclosed leaf answers are programmed; prior-query conflicts
 retain the original oracle. The simulator has no witness or execution
-certificate, and there is no digest-collision loss. The fixed witness map
-must satisfy ordinary `MdocWitness.HashValid` and the signature circuit only
+certificate, and there is no digest-collision loss. The witness policy depends
+on the full context retained by the prior observer; contexts with identical
+public requests may choose different witnesses. The selected witness must satisfy ordinary `MdocWitness.HashValid` and the signature circuit only
 at contexts reached by the prior observer under setup derived from that same
 oracle; unreachable policy branches impose no validity obligation. The separate static
 `MdocWitness.ReadDisjoint` certificate derives noninterference of ordinary hash

@@ -25,12 +25,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → Adapter.Mdoc.P)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → Adapter.Mdoc.P)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -56,7 +53,6 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
       (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
         (RuntimeStatement.degreeFits binary)) setup
       (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -86,12 +82,12 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     (separated : MdocWitness.ReadDisjoint binary)
     (valid : MdocWitness.HashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1))
-      (original (requestOf (before.run SHA).1)))
+      (original ((before.run SHA).1)))
     (signature :
       let request := requestOf (before.run SHA).1
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh request
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount request
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original request) (remaining request))) :
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (before.run SHA).1) (remaining (before.run SHA).1))) :
     StrandVerifier.verify binary.description prime
       (backend binaryNodes binary.description.cells)
       (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
@@ -111,14 +107,14 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
   let request := requestOf context
   let root := StrandHonestExecution.committedRoot binary prime primePlan binaryNodes scalars inputFits privateFits setup
     original remaining requestOf coins nonces context SHA
-  let front := Front coins.1 request root SHA
+  let front := Front coins.1 context request root SHA
   let cells := FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
-    original remaining coins.1 request
+    (fun _ => original context) (fun _ => remaining context) coins.1 request
   obtain ⟨responses,indices,opened,generated,finished⟩ :=
     StrandHonestExecution.rawReal_some binary prime primePlan binaryNodes scalars inputFits privateFits setup
       metadata original remaining roundSampler batchingSamples before requestOf after coins nonces ghost SHA output produced
   obtain ⟨data,parsed,holds⟩ := StrandHonestFrontend.exists_satisfied binary prime primePlan binaryNodes scalars
-    inputFits privateFits setup metadata original remaining roundSampler coins.1 request root SHA
+    inputFits privateFits setup metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
     pivotOne primitive (MdocWitness.noninterference_of_readDisjoint binary separated) valid signature
   have truth : ∀ next,
       CompleteCanonicalVerifier.statementAt binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup
@@ -136,7 +132,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
       (fun index => ToLeaf (StrandCanonicalBackend.committedColumns binary.description prime binaryNodes
         ConcreteSetup.primeNodes cells coins.2 index)) := by
     exact StrandHonestFrontend.frontend_commitment binary prime primePlan binaryNodes scalars inputFits privateFits
-      setup metadata original remaining roundSampler coins.1 request root SHA
+      setup metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
   have accepted := StrandCanonicalBackend.respondHonest_accepts binary.description prime binaryNodes ConcreteSetup.primeNodes
     Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits) metadata roundSampler
     pCount batchingSamples request front SHA cells coins.2 responses indices opened nonces truth generated committed

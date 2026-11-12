@@ -29,12 +29,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → N)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → N)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -60,7 +57,6 @@ local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime 
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -93,7 +89,7 @@ def ghost (outside : Strand.Oracle) (coin : HonestCoins × OracleCoins) :=
   let SHA := Lift outside coin.2.2.1
   let earlier := before.run SHA
   StrandCanonicalFullCoupling.honestView binary prime primePlan binaryNodes scalars inputFits privateFits setup
-    metadata original remaining roundSampler batchingSamples SHA (requestOf earlier.1)
+    metadata (fun _ => original earlier.1) (fun _ => remaining earlier.1) roundSampler batchingSamples SHA (requestOf earlier.1)
     (StrandGhostMerkle.Tree.labels Codec SHA coin.2.2.2 1) earlier.1 earlier.2
     (after earlier.1) coin.2.2.2 coin.2.1 coin.1
 

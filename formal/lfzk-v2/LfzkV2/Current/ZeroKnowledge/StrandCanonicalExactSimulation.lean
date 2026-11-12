@@ -30,12 +30,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → N)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → N)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -63,7 +60,6 @@ local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description p
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -94,17 +90,17 @@ def simulationEquiv (outside : Strand.Oracle) (pivotOne : binary.basis 0 = 1)
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (valid : ∀ table : LeafInput → Digest, MdocWitness.UniformHashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1))
-      (original (requestOf (before.run (Lift outside table)).1)))
+      (original ((before.run (Lift outside table)).1)))
     (signature : ∀ table : LeafInput → Digest,
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1)
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run (Lift outside table)).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf (before.run (Lift outside table)).1)) (remaining (requestOf (before.run (Lift outside table)).1)))) :
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run (Lift outside table)).1)) (remaining ((before.run (Lift outside table)).1)))) :
     (HonestCoins × OracleCoins) ≃ (PublicCoins × OracleCoins) :=
     Equiv.prodCongrLeft fun oracleCoins : OracleCoins =>
       let SHA := Lift outside oracleCoins.2.1
       let earlier := before.run SHA
       StrandCanonicalFullCoupling.coupling binary prime primePlan binaryNodes scalars inputFits privateFits setup
-        metadata original remaining roundSampler batchingSamples SHA (requestOf earlier.1)
+        metadata (fun _ => original earlier.1) (fun _ => remaining earlier.1) roundSampler batchingSamples SHA (requestOf earlier.1)
         (StrandGhostMerkle.Tree.labels Codec SHA oracleCoins.2.2 1)
         pivotOne primitive (valid oracleCoins.2.1) (signature oracleCoins.2.1)
 
@@ -116,16 +112,18 @@ theorem ghost_simulator_view (outside : Strand.Oracle) (pivotOne : binary.basis 
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (valid : ∀ table : LeafInput → Digest, MdocWitness.UniformHashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1))
-      (original (requestOf (before.run (Lift outside table)).1)))
+      (original ((before.run (Lift outside table)).1)))
     (signature : ∀ table : LeafInput → Digest,
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1)
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run (Lift outside table)).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf (before.run (Lift outside table)).1)) (remaining (requestOf (before.run (Lift outside table)).1))))
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run (Lift outside table)).1)) (remaining ((before.run (Lift outside table)).1))))
     (coin : HonestCoins × OracleCoins) :
     Ghost outside coin =
       Simulate outside (SimulationEquiv outside pivotOne primitive valid signature coin) := by
   exact (StrandCanonicalFullCoupling.complete_view binary prime primePlan binaryNodes scalars inputFits privateFits setup
-    metadata original remaining roundSampler batchingSamples (Lift outside coin.2.2.1)
+    metadata (fun _ => original (before.run (Lift outside coin.2.2.1)).1)
+      (fun _ => remaining (before.run (Lift outside coin.2.2.1)).1)
+      roundSampler batchingSamples (Lift outside coin.2.2.1)
     (requestOf (before.run (Lift outside coin.2.2.1)).1)
     (StrandGhostMerkle.Tree.labels Codec (Lift outside coin.2.2.1) coin.2.2.2 1)
     (before.run (Lift outside coin.2.2.1)).1 (before.run (Lift outside coin.2.2.1)).2
@@ -138,11 +136,11 @@ theorem ghost_sameDistribution (outside : Strand.Oracle) (pivotOne : binary.basi
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (valid : ∀ table : LeafInput → Digest, MdocWitness.UniformHashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1))
-      (original (requestOf (before.run (Lift outside table)).1)))
+      (original ((before.run (Lift outside table)).1)))
     (signature : ∀ table : LeafInput → Digest,
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1)
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run (Lift outside table)).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf (before.run (Lift outside table)).1)) (remaining (requestOf (before.run (Lift outside table)).1)))) :
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run (Lift outside table)).1)) (remaining ((before.run (Lift outside table)).1)))) :
     LigeroFamily.SameDistribution (Ghost outside) (Simulate outside) := by
   apply LigeroFamily.sameDistribution_of_equiv (SimulationEquiv outside pivotOne primitive valid signature)
   intro coin
@@ -154,11 +152,11 @@ theorem exact_simulation (outside : Strand.Oracle) (pivotOne : binary.basis 0 = 
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (valid : ∀ table : LeafInput → Digest, MdocWitness.UniformHashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1))
-      (original (requestOf (before.run (Lift outside table)).1)))
+      (original ((before.run (Lift outside table)).1)))
     (signature : ∀ table : LeafInput → Digest,
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run (Lift outside table)).1)
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run (Lift outside table)).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf (before.run (Lift outside table)).1)) (remaining (requestOf (before.run (Lift outside table)).1)))) :
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run (Lift outside table)).1)) (remaining ((before.run (Lift outside table)).1)))) :
     StatClose 0 (Ghost outside) (Simulate outside) := by
   apply statClose_zero_of_equiv (SimulationEquiv outside pivotOne primitive valid signature)
   intro coin

@@ -29,12 +29,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → N)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → N)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -60,7 +57,6 @@ local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime 
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -98,11 +94,11 @@ theorem statClose (fallback : Strand.Oracle) (pivotOne : binary.basis 0 = 1)
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (valid : ∀ SHA : Strand.Oracle, MdocWitness.UniformHashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1))
-      (original (requestOf (before.run SHA).1)))
+      (original ((before.run SHA).1)))
     (signature : ∀ SHA : Strand.Oracle,
       let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1)
       let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run SHA).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf (before.run SHA).1)) (remaining (requestOf (before.run SHA).1)))) :
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run SHA).1)) (remaining ((before.run SHA).1)))) :
     StatClose ((preQueries + postQueries : ℕ) / (Fintype.card MerkleNonce : ℚ))
       (fun coin : (HonestCoins × AuxiliaryCoins) × ({raw // raw ∈ Window} → Digest) =>
         RawReal coin.1 (OracleWindow.extend Window coin.2 fallback))

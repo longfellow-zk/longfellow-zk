@@ -13,6 +13,24 @@ run_cmd do
   for endpoint in #[``MdocStrandZeroKnowledge.statClose,
       ``MdocStrandVerifierPrivacy.acceptance_probability] do
     let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
+    liftTermElabM do
+      Meta.forallTelescope info.type fun binders _ => do
+        let mut contextBinder : Option Expr := none
+        for binder in binders do
+          if (← binder.fvarId!.getDecl).userName == `Context then
+            contextBinder := some binder
+        let some context := contextBinder | throwError "Endpoint {endpoint} lost its private context"
+        for policy in #[`original, `remaining] do
+          let mut found := false
+          for binder in binders do
+            if (← binder.fvarId!.getDecl).userName == policy then
+              let .forallE _ domain _ _ ← Meta.inferType binder |
+                throwError "Endpoint {endpoint} has a nonfunctional {policy} policy"
+              unless ← Meta.isDefEq domain context do
+                throwError "Endpoint {endpoint} no longer permits a Context-indexed {policy} policy"
+              found := true
+          unless found do
+            throwError "Endpoint {endpoint} lost its {policy} policy"
     let used := info.type.getUsedConstants
     unless used.contains ``MdocStrandZeroKnowledge.Reachable &&
         used.contains ``MdocWitness.ReadDisjoint && used.contains ``MdocWitness.HashValid do

@@ -56,12 +56,8 @@ variable (requestOf : Context → CanonicalRequest.Request
 variable (after : MdocSetupFamily.Values → Context → Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
     bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary))) →
   Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.description.remaining → Adapter.Mdoc.P)
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.description.remaining → Adapter.Mdoc.P)
 
 private def honestAt (visible : MdocSetupFamily.Values) (metadata : Metadata)
     (coins : HonestCoins) (SHA : Strand.Oracle) : PublicView :=
@@ -180,14 +176,14 @@ variable (separated : MdocWitness.ReadDisjoint binary)
 variable (valid : ∀ context, Reachable binary prime cantor scalars ids bounds before context → MdocWitness.HashValid
   (RequestedSimulator.requestedBinary binary prime.description prime.plan (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
     bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) (requestOf context))
-  (original (requestOf context)))
+  (original (context)))
 variable (signature : ∀ context, Reachable binary prime cantor scalars ids bounds before context →
   let b := RequestedSimulator.requestedBinary binary prime.description prime.plan (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
     bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) (requestOf context)
   let p := RequestedSimulator.requestedPrime binary prime.description prime.plan (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
     bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary))
     (RuntimeStatement.prime_count binary prime.description prime.plan bounds.inputFits bounds.privateFits) (requestOf context)
-  p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (requestOf context)) (remaining (requestOf context))))
+  p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (context)) (remaining (context))))
 
 include pivotOne primitive separated valid signature in
 /-- Fixing the complement fixes setup, not the observer's protocol answers.

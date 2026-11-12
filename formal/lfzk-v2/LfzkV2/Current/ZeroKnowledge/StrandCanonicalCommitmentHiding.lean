@@ -31,12 +31,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → N)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → N)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -64,7 +61,6 @@ local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description p
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -110,18 +106,19 @@ theorem ghost_eq (coins : HonestCoins) (SHA : Strand.Oracle)
     StrandGhostMerkle.Schedule.simulate Codec Dec before (Columns coins) (Stage coins) Abort SHA leaves
         (fun index => nonces index.val) =
       StrandCanonicalFullCoupling.honestView binary prime primePlan binaryNodes scalars inputFits privateFits setup
-        metadata original remaining roundSampler batchingSamples SHA (requestOf (before.run SHA).1)
+        metadata (fun _ => original (before.run SHA).1) (fun _ => remaining (before.run SHA).1)
+        roundSampler batchingSamples SHA (requestOf (before.run SHA).1)
         (StrandGhostMerkle.Tree.labels Codec SHA leaves 1) (before.run SHA).1 (before.run SHA).2
         (after (before.run SHA).1) leaves nonces coins := by
   let context := (before.run SHA).1
   let root := StrandGhostMerkle.Tree.labels Codec SHA leaves 1
-  have restricted : Disclosed (requestOf context) (Front coins.1 (requestOf context) root SHA)
-      (Response coins (requestOf context) root SHA) SHA (after context) =
+  have restricted : Disclosed (requestOf context) (Front coins.1 context (requestOf context) root SHA)
+      (Response coins context (requestOf context) root SHA) SHA (after context) =
       fun index => Columns coins context index.val := by
     exact StrandCanonicalBackend.disclosed_respondHonest binary.description prime binaryNodes ConcreteSetup.primeNodes
       Repr Sh setup Public bCount metadata roundSampler pCount batchingSamples (requestOf context)
-      (Front coins.1 (requestOf context) root SHA) SHA
-      (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits original remaining coins.1
+      (Front coins.1 context (requestOf context) root SHA) SHA
+      (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits (fun _ => original context) (fun _ => remaining context) coins.1
         (requestOf context)) coins.2 (after context)
   dsimp only [StrandGhostMerkle.Schedule.simulate,StrandGhostMerkle.Schedule.prepared]
   rw [stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
@@ -130,7 +127,7 @@ theorem ghost_eq (coins : HonestCoins) (SHA : Strand.Oracle)
   rw [← restricted]
   exact StrandCanonicalBackend.complete_prepared binary.description prime binaryNodes ConcreteSetup.primeNodes
     Repr Sh setup Public bCount metadata roundSampler (requestOf context)
-    (Front coins.1 (requestOf context) root SHA) (Response coins (requestOf context) root SHA)
+    (Front coins.1 context (requestOf context) root SHA) (Response coins context (requestOf context) root SHA)
     SHA context (before.run SHA).2 (after context) leaves nonces
 
 /-- One statistical hop, with both complete raw observer traces retained.

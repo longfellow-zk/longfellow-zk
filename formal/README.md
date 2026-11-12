@@ -279,13 +279,13 @@ establish that a cryptographic implementation satisfies their premises.
 - **Adversary and witness scope.** The adversary is classical and makes
   finitely many calls within the stated budgets; extraction counts distinct
   original raw SHA inputs. Privacy permits arbitrary retained private context
-  and adaptive public requests, but uses a fixed witness map per request,
-  independent of oracle answers. The numbered-strand theorem requires valid
-  witnesses only for contexts actually reached by the prior observer under
-  setup computed from the same oracle; unreachable policy branches impose
-  no validity obligation. These
-  results do not prove privacy for arbitrary adaptive selection of a new
-  witness after oracle answers.
+  and adaptive public requests. The witness policy is a function of the full
+  context retained by the prior observer, so two contexts with the same public
+  request may select different witnesses. The numbered-strand theorem requires
+  valid witnesses only for contexts actually reached under setup computed from
+  the same oracle; unreachable policy branches impose no validity obligation.
+  Witness selection is fixed at that context before proof generation; the
+  simulator remains witness-free.
 - **Efficiency and implementation.** Extraction uses mathematical finite
   search; no polynomial-time extractor bound is proved. The explicit public
   simulator has no witness argument, but its running time is not formally

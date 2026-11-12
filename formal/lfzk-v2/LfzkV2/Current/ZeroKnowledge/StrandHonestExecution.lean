@@ -23,12 +23,9 @@ variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic)
-variable (original : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
-variable (remaining : CanonicalRequest.Request
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → Adapter.Mdoc.P)
+variable {Context Observed : Type} {preQueries postQueries : ℕ}
+variable (original : Context → Fin binary.nPrivate → Bool)
+variable (remaining : Context → Fin prime.remaining → Adapter.Mdoc.P)
 variable {blocks : ℕ}
 variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -54,7 +51,6 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
       (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
         (RuntimeStatement.degreeFits binary)) setup
       (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
-variable {Context Observed : Type} {preQueries postQueries : ℕ}
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -88,12 +84,12 @@ theorem rawReal_result (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
     let root := committedRoot binary prime primePlan binaryNodes scalars inputFits privateFits setup
       original remaining requestOf coins nonces context SHA
     (Raw (coins,(nonces,ghost)) SHA).2.1.1 =
-      match Response coins request root SHA with
+      match Response coins context request root SHA with
       | none | some (_,none) => none
       | some (responses,some ⟨indices,_⟩) =>
         some (StrandCanonicalBackend.finish binary.description prime binaryNodes ConcreteSetup.primeNodes
           Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
-          metadata roundSampler request (Front coins.1 request root SHA) responses indices
+          metadata roundSampler request (Front coins.1 context request root SHA) responses indices
           (fun index => (ToLeaf).symm (Columns coins context index.val))
           (Merkle.Indexed.openCore ((Codec).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
             (fun index => (index,nonces index)) (Columns coins context)) SHA) := by
@@ -103,7 +99,7 @@ theorem rawReal_result (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
   rw [StrandCanonicalHiding.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup
     metadata original remaining roundSampler batchingSamples requestOf after coins (before.run SHA).1 SHA
     _]
-  cases backend : Response coins (requestOf (before.run SHA).1)
+  cases backend : Response coins (before.run SHA).1 (requestOf (before.run SHA).1)
       (Merkle.Indexed.commitLabels ((Codec).withOracle SHA) 2443
         (fun index => (index,nonces index)) (Columns coins (before.run SHA).1) 1) SHA with
   | none => simp only [StrandCanonicalBackend.prepare,Merkle.RandomOracle.Tree.run_map]
@@ -127,17 +123,17 @@ theorem rawReal_some (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
     let root := committedRoot binary prime primePlan binaryNodes scalars inputFits privateFits setup
       original remaining requestOf coins nonces context SHA
     ∃ responses indices opened,
-      Response coins request root SHA = some (responses,some ⟨indices,opened⟩) ∧
+      Response coins context request root SHA = some (responses,some ⟨indices,opened⟩) ∧
       output = StrandCanonicalBackend.finish binary.description prime binaryNodes ConcreteSetup.primeNodes
         Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
-        metadata roundSampler request (Front coins.1 request root SHA) responses indices
+        metadata roundSampler request (Front coins.1 context request root SHA) responses indices
         (fun index => (ToLeaf).symm (Columns coins context index.val))
         (Merkle.Indexed.openCore ((Codec).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
           (fun index => (index,nonces index)) (Columns coins context)) SHA := by
   dsimp only
   rw [rawReal_result binary prime primePlan binaryNodes scalars inputFits privateFits setup
     metadata original remaining roundSampler batchingSamples before requestOf after coins nonces ghost SHA] at produced
-  cases backend : Response coins (requestOf (before.run SHA).1)
+  cases backend : Response coins (before.run SHA).1 (requestOf (before.run SHA).1)
       (committedRoot binary prime primePlan binaryNodes scalars inputFits privateFits setup
         original remaining requestOf coins nonces (before.run SHA).1 SHA) SHA with
   | none => simp only [backend,reduceCtorEq] at produced
