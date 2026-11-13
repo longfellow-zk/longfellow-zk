@@ -22,7 +22,8 @@ internals.
 Storage maps and the split of a frontend's claim belong to the zk layer (see [Storage](../zk/README.md#storage)):
 
 - `zk::storage` has the following types.
-  - `StorageMap`: each value is `Native(cell)` or `Foreign(coordinates)`.
+  - `StorageMap`: each value is `Native(cell)` or `Foreign(group)`, a
+    prime-field value held as a bit group in the binary commitment.
   - `Run`: the map's layout parameters as bound to the transcript.
   - `BitGroup<N>` and `Group`: typed and untyped positions of bits in the
     binary input array.
@@ -53,7 +54,10 @@ This module discharges the modular claims:
   its split, the adapter rounds, the host frontend with the mode's fragment,
   and the joint opening. Its proof body is `proto::composed::ComposedProof`;
   an application wraps it in its own envelope (mdoc: `MDA7` and the final
-  seal).
+  seal). The driver composes exactly one GF(2^128) host and one degree-one
+  prime participant with mixed storage. `CircuitParticipant` also supports
+  pure-foreign storage, but this driver always supplies the split mask R and
+  so rejects it. Other shapes need a new driver.
 - `word`: three types.
   - `Word<N>`: the integer quotient, used only inside the adapter.
   - `Otp<N>`: the committed one-time pad, built only by the prover from

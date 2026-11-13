@@ -89,16 +89,6 @@ pub(super) fn absorb_storage(
                     word(t, x);
                 }
             }
-            Run::Coordinates { value, coordinates } => {
-                for x in [2, value, coordinates.len()] {
-                    word(t, x);
-                }
-                for c in coordinates {
-                    for x in [c.index, c.group.start, c.group.width] {
-                        word(t, x);
-                    }
-                }
-            }
         }
     }
     word(t, mask.start);

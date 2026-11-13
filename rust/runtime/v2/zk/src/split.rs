@@ -185,7 +185,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .entries()
             .iter()
             .zip(&claim.claim.weights)
-            .filter_map(|(s, w)| s.prime_group().map(|g| (g, f.mulf(eta, w))))
+            .filter_map(|(s, w)| match s {
+                Storage::Foreign(g) => Some((*g, f.mulf(eta, w))),
+                Storage::Native(_) => None,
+            })
             .collect();
         terms.push((mask, f.one()));
         Ok(ModularClaim {
@@ -204,10 +207,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .entries()
             .iter()
             .zip(&claim.claim.weights)
-            .map(|(s, w)| {
-                s.prime_group()
-                    .map(|g| (g, w.clone()))
-                    .ok_or_else(|| "pure claim expects prime-field values".to_string())
+            .map(|(s, w)| match s {
+                Storage::Foreign(g) => Ok((*g, w.clone())),
+                Storage::Native(_) => Err("pure claim reads a native value".to_string()),
             })
             .collect::<Result<_, _>>()?;
         Ok(ModularClaim {
@@ -282,13 +284,6 @@ pub(crate) fn layout(
         .any(|s| matches!(s, Storage::Foreign(_)))
     {
         return Err("storage map has no foreign value; use native storage".into());
-    }
-    if map
-        .entries()
-        .iter()
-        .any(|s| matches!(s, Storage::Foreign(_)) && s.prime_group().is_none())
-    {
-        return Err("split storage expects prime-field values".into());
     }
     let pure = map.is_pure_foreign();
     if pure != mask.is_none() {

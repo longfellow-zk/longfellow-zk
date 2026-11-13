@@ -111,31 +111,13 @@ impl ReservedWitness<'_> {
     }
 }
 
-/// One stored base-field coordinate of a foreign value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Coordinate {
-    pub index: usize,
-    pub group: Group,
-}
-
 /// Where one value of a foreign-capable frontend lives.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Storage {
     /// Cell index in this frontend's own commitment.
     Native(usize),
-    /// Base-field coordinates held as bits in the binary commitment, in
-    /// increasing coordinate order. Coordinates not listed are zero: a value
-    /// of an extension field may store only its base-field part.
-    Foreign(Vec<Coordinate>),
-}
-impl Storage {
-    /// The single group of a prime-field foreign value.
-    pub fn prime_group(&self) -> Option<Group> {
-        match self {
-            Storage::Foreign(c) if c.len() == 1 && c[0].index == 0 => Some(c[0].group),
-            _ => None,
-        }
-    }
+    /// The bits of a prime-field value in the binary commitment.
+    Foreign(Group),
 }
 
 /// Storage of a frontend's value vector `[private inputs | sumcheck pads]`.
@@ -146,34 +128,21 @@ pub struct StorageMap {
     native: usize,
 }
 impl StorageMap {
-    /// Store values listed in `foreign` (value index, group) as single
-    /// prime-field coordinates in the binary commitment; all others natively.
+    /// Store values listed in `foreign` (value index, group) as bits in the
+    /// binary commitment; all others natively.
     pub fn new(values: usize, foreign: &[(usize, Group)]) -> Result<Self, String> {
-        let coordinates: Vec<_> = foreign.iter().map(|&(v, g)| (v, 0, g)).collect();
-        Self::with_coordinates(values, &coordinates)
-    }
-    /// Store the listed (value, coordinate, group) triples in the binary
-    /// commitment; values with no listed coordinate are native.
-    pub fn with_coordinates(
-        values: usize,
-        foreign: &[(usize, usize, Group)],
-    ) -> Result<Self, String> {
-        let mut entries: Vec<Option<Vec<Coordinate>>> = vec![None; values];
-        for &(v, index, group) in foreign {
-            let slot = entries
-                .get_mut(v)
-                .ok_or("foreign value index")?
-                .get_or_insert_with(Vec::new);
-            if slot.last().is_some_and(|c| c.index >= index) {
-                return Err("foreign coordinates must be listed in increasing order".into());
+        let mut entries: Vec<Option<Group>> = vec![None; values];
+        for &(v, group) in foreign {
+            let slot = entries.get_mut(v).ok_or("foreign value index")?;
+            if slot.replace(group).is_some() {
+                return Err("foreign value listed twice".into());
             }
-            slot.push(Coordinate { index, group });
         }
         let mut native = 0;
         let entries = entries
             .into_iter()
             .map(|s| match s {
-                Some(coordinates) => Storage::Foreign(coordinates),
+                Some(group) => Storage::Foreign(group),
                 None => {
                     native += 1;
                     Storage::Native(native - 1)
@@ -211,11 +180,6 @@ pub enum Run {
         start: usize,
         width: usize,
     },
-    /// One value stored as the listed base-field coordinates.
-    Coordinates {
-        value: usize,
-        coordinates: Vec<Coordinate>,
-    },
 }
 impl StorageMap {
     /// The map as maximal runs, in value order. The encoding is canonical:
@@ -242,11 +206,10 @@ impl StorageMap {
                         start,
                         width,
                     }),
-                    _,
+                    Storage::Foreign(g),
                 ) if *first + *count == v
-                    && s.prime_group().is_some_and(|g| {
-                        g.width == *width && g.start == *start + *count * *width
-                    }) =>
+                    && g.width == *width
+                    && g.start == *start + *count * *width =>
                 {
                     *count += 1;
                     true
@@ -254,23 +217,17 @@ impl StorageMap {
                 _ => false,
             };
             if !extended {
-                runs.push(match s {
+                runs.push(match *s {
                     Storage::Native(cell) => Run::Native {
                         first: v,
                         count: 1,
-                        cell: *cell,
+                        cell,
                     },
-                    Storage::Foreign(coordinates) => match s.prime_group() {
-                        Some(g) => Run::Prime {
-                            first: v,
-                            count: 1,
-                            start: g.start,
-                            width: g.width,
-                        },
-                        None => Run::Coordinates {
-                            value: v,
-                            coordinates: coordinates.clone(),
-                        },
+                    Storage::Foreign(g) => Run::Prime {
+                        first: v,
+                        count: 1,
+                        start: g.start,
+                        width: g.width,
                     },
                 });
             }

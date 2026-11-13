@@ -12,6 +12,11 @@
 //! 3. the adapter mode's rounds, which define the virtual leaves;
 //! 4. the host's frontend over the format circuit and the mode's fragment;
 //! 5. the joint opening of both statements.
+//!
+//! Scope: the driver composes exactly one GF(2^128) host and one degree-one
+//! prime participant with mixed storage. `CircuitParticipant` also supports
+//! pure-foreign storage, but this driver always supplies the split mask R and
+//! so rejects it. Other shapes need a new driver.
 use super::adapter::AdapterMode;
 use crate::{
     core::proto::v2::Circuit,
@@ -47,6 +52,11 @@ type Fields<'s, const W: usize, F, DH, DS> = (
 
 /// A composition's fixed layout, derived from its two circuits and the split
 /// participant's storage map.
+///
+/// The host is a GF(2^128) participant; the split participant is a
+/// degree-one prime participant whose storage is mixed: some values native,
+/// the others bit groups of the host's private inputs. Pure-foreign storage
+/// is rejected, since the driver always supplies the split mask R.
 pub struct Composition<'a, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
 where
     DH: EvaluationDomain<H, Host>,
@@ -84,10 +94,7 @@ where
         let (npublic, ninput) = (host_circuit.raw.npublic_input, host_circuit.raw.ninput);
         let mut widths = Vec::new();
         for s in storage.entries() {
-            if let Storage::Foreign(_) = s {
-                let g = s
-                    .prime_group()
-                    .ok_or("composition expects prime-field foreign values")?;
+            if let Storage::Foreign(g) = s {
                 if g.start < npublic || g.end() > ninput {
                     return Err("foreign values must be private host inputs".into());
                 }
@@ -147,3 +154,7 @@ where
         &self.mode
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/compose.rs"]
+mod tests;
