@@ -16,6 +16,6 @@ pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + Su
         return Err("prime frontend public input shape".into());
     }
     transcript.write_sumcheck_statement(circuit, public, f);
-    let constraints = sumcheck::derive_constraints(circuit, proof, transcript, f)?;
+    let constraints = sumcheck::derive_constraints_for_circuits(&[circuit], proof, transcript, f)?;
     row_batching::batch(circuit, public, constraints, transcript, f)
 }

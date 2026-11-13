@@ -4,8 +4,9 @@
 //! This reduction batches every layer equation and the final input equation.
 //! Its caller must authenticate the complete returned claim against the same
 //! committed witness. Checking only the terminal input claim is insufficient.
-use super::row_batching;
-pub(crate) use super::row_batching::LinearClaim;
+mod row_batching;
+pub(crate) use row_batching::LinearClaim;
+
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
@@ -17,5 +18,9 @@ use crate::{
     },
 };
 
-cfg_prover! { #[path="prime_prover.rs"] mod prover; pub(crate) use prover::{prepare, prove, Prepared}; }
-cfg_verifier! { #[path="prime_verifier.rs"] mod verifier; pub(crate) use verifier::reduce; }
+cfg_prover! { mod prover; pub(crate) use prover::{prepare, prove, Prepared}; }
+cfg_verifier! { mod verifier; pub(crate) use verifier::reduce; }
+
+#[cfg(test)]
+#[path = "../../../../tests/v2_masked_prime.rs"]
+mod tests;

@@ -29,19 +29,13 @@
 //! from the messages. Both use the same constraint compiler and codec layout.
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
-mod context;
+pub(crate) mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod packing_commitment;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod prime;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod row_batching;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) use context::prepare_circuit_layout as prepare_layout;
 pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;

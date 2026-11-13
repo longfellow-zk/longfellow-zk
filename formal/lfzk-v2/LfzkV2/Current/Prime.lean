@@ -12,7 +12,8 @@ open scoped Classical
 
 variable {F Slot Shared Other : Type} [Field F]
 
-/-- Algebraic form of `zk-v2/row_batching.rs::batch`, retaining duplicate terms. -/
+/-- Algebraic form of the mdoc adapter's `masked_prime/row_batching.rs::batch`,
+retaining duplicate terms. -/
 def batchRows {n : ℕ} (rows : Fin n → LinearRow Slot F) (rho : Fin n → F) : LinearRow Slot F where
   constant := ∑ i, rho i * (rows i).constant
   terms := (List.ofFn fun i => (rows i).terms.map fun term => (term.1, rho i * term.2)).flatten

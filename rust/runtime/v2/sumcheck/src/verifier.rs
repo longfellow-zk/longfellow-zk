@@ -31,7 +31,7 @@ use super::{
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{classify_constants, Circuit},
+        proto::v2::classify_constants,
     },
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
@@ -39,11 +39,13 @@ use crate::{
     },
 };
 
+/// Single-circuit convenience for tests; production callers pass circuit lists.
+#[cfg(test)]
 pub(crate) fn derive_constraints<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
-    circuit: &Circuit<F>,
+    circuit: &crate::core::proto::v2::Circuit<F>,
     proof: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
     f: &F,

@@ -161,12 +161,13 @@ ZK joint wrapper invokes the separate
 masked fingerprints before either sumcheck, and automatically adds the
 fingerprint affine equations to the frontend statements.
 
-`prime.rs` runs the masked prime-field sumcheck, with prover and verifier entry
-points in separate files. `row_batching.rs` combines every layer equation and
-the final input equation into one linear claim in its own transcript round.
-Their only current consumer is the mdoc adapter, which uses this staged handoff
-and the same packing/constraint primitives as `CircuitParticipant`; the
-fixed-circuit API retains its circuit-identity and typed-input checks.
+The masked prime-field sumcheck and its row batching, which combine every
+layer equation and the final input equation into one linear claim, are used
+only by the mdoc cross-field adapter and live with it
+(`mdoc/runtime/v2/adapter/masked_prime`). That staged handoff uses the same
+packing/constraint primitives as `CircuitParticipant`; the fixed-circuit API
+retains its circuit-identity and typed-input checks. This crate builds without
+the `mdoc` feature.
 
 `packing_commitment.rs` connects the input-packing protocol to committed cells.
 The application-owned cross-field transcript lives under

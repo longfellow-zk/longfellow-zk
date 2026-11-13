@@ -53,6 +53,15 @@ jobs:
         run: cargo check --all-targets
         working-directory: rust
 
+      - name: Proof-role Feature Builds
+        # Generic v2 roles must build without the mdoc application, and
+        # verifier-only and prover-only builds must not need each other.
+        run: |
+          for features in verifier prover verifier,prover verifier,mdoc prover,mdoc; do
+            cargo check --lib --no-default-features --features "$features"
+          done
+        working-directory: rust
+
       - name: Run clippy
         run: cargo clippy --all-targets
         working-directory: rust

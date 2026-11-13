@@ -64,7 +64,7 @@ impl BinaryParticipant {
             c.raw.npublic_input,
             c.raw.ninput,
         )?;
-        let (geometry, param, backend) = crate::runtime::v2::zk::prepare_layout(
+        let (geometry, param, backend) = crate::runtime::v2::zk::context::prepare_circuit_layout(
             c,
             &[&template],
             config,

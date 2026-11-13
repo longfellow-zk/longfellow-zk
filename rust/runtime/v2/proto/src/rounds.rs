@@ -14,8 +14,13 @@ pub(crate) enum RoundLabel {
     // Tag 6 was a bind-only placeholder and is reserved.
     Batching = 7,
     Opening = 8,
+    // Tags 9-11 belong to the mdoc cross-field adapter. They stay in this one
+    // registry so every protocol tag remains unique.
+    #[cfg_attr(not(feature = "mdoc"), allow(dead_code))]
     Rescaling = 9,
+    #[cfg_attr(not(feature = "mdoc"), allow(dead_code))]
     Conversion = 10,
+    #[cfg_attr(not(feature = "mdoc"), allow(dead_code))]
     RowBatching = 11,
     Fingerprint = 12,
 }

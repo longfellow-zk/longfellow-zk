@@ -2,6 +2,7 @@
 //! Masked prime sumcheck with an uncommitted shared input prefix.
 //! The prefix is authenticated by the caller's cross-field adapter. Only the
 //! remaining prime inputs, one hiding scalar, and sumcheck pads enter this PCS.
+use super::masked_prime::{self as prime_frontend, LinearClaim};
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
@@ -10,10 +11,7 @@ use crate::{
             polygero::{LinearStatement, PolygeroConfig},
             proto::sumcheck::SumcheckProof,
             transcript::TranscriptRef,
-            zk::{
-                joint::SelectedField, prime as prime_frontend, prime::LinearClaim, CircuitGeometry,
-                ZkContext,
-            },
+            zk::{joint::SelectedField, CircuitGeometry, ZkContext},
         },
     },
 };

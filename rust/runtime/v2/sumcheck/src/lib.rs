@@ -75,7 +75,9 @@ pub(crate) use prover::prove_core;
 
 cfg_verifier! {
     mod verifier;
-    pub(crate) use verifier::{derive_constraints, derive_constraints_for_circuits};
+    pub(crate) use verifier::derive_constraints_for_circuits;
+    #[cfg(test)]
+    pub(crate) use verifier::derive_constraints;
 }
 
 #[cfg(test)]

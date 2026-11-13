@@ -1079,8 +1079,14 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/v2/zk/src/prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_verifier.rs", "prover"),
-        ("runtime/v2/zk/src/prime_prover.rs", "verifier"),
-        ("runtime/v2/zk/src/prime_verifier.rs", "prover"),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/prover.rs",
+            "verifier",
+        ),
+        (
+            "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/verifier.rs",
+            "prover",
+        ),
         (
             "applications/mdoc_zk/runtime/src/v2/adapter/prime_prover.rs",
             "verifier",
@@ -1316,6 +1322,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v1_provider.rs",
         "v2_provider.rs",
         "v2_transcript.rs",
+        "v2_masked_prime.rs",
     ]
     .map(|file| tests.join(file))
     .into_iter()
@@ -1382,6 +1389,11 @@ fn test_tooling_and_system_source_boundaries() {
                 "adapter/binary.rs",
                 "adapter/binary_prover.rs",
                 "adapter/binary_verifier.rs",
+                "adapter/masked_prime/mod.rs",
+                "adapter/masked_prime/prover.rs",
+                "adapter/masked_prime/verifier.rs",
+                "adapter/masked_prime/row_batching.rs",
+                "adapter/masked_prime/row_batching/transcript.rs",
             ]
         } else {
             vec![]
@@ -1665,11 +1677,6 @@ fn test_zk_v2_source_layout_and_test_privacy() {
         "joint.rs",
         "joint_prover.rs",
         "joint_verifier.rs",
-        "prime.rs",
-        "prime_prover.rs",
-        "prime_verifier.rs",
-        "row_batching.rs",
-        "row_batching/transcript.rs",
         "transcript.rs",
         "context.rs",
         "constraint_compiler.rs",
@@ -2086,7 +2093,7 @@ fn test_v2_transcript_and_final_seal_boundaries() {
         "runtime/v2/polygero/src",
         "runtime/v2/dual-packing/src",
         "runtime/v2/witness-selection/src",
-        "runtime/v2/zk/src/row_batching",
+        "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/row_batching",
         "applications/mdoc_zk/runtime/src/v2",
         "applications/mdoc_zk/runtime/src/v2/adapter",
     ] {
