@@ -15,7 +15,7 @@ fn bytes(
     lengths: &[usize],
     payload: &[u8],
 ) -> Vec<u8> {
-    let mut out = b"LFC3DIR2".to_vec();
+    let mut out = b"LFC3DIR3".to_vec();
     for n in header {
         serialize_uleb128_max4(&mut out, n);
     }

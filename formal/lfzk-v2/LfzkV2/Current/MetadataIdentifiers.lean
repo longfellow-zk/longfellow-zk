@@ -27,7 +27,7 @@ transcript's `write_bytes` operation. Coefficients precede the stored layers. -/
 def circuitBytes (binary : Bool) (width : ℕ) (encode : F → Bytes)
     (outputs logOutput inputs publicInputs : ℕ) (constants : List F)
     (layers : List SegmentedCircuit.Layer) : Bytes :=
-  CanonicalPrefix.utf8 "LFC3-v2-segmented-id-v1" ++
+  CanonicalPrefix.utf8 "LFC3-v2-segmented-id-v2" ++
     encodeLE 8 (if binary then 1 else 0) ++ encodeLE 8 width ++ encode (-1) ++
     [outputs,logOutput,inputs,publicInputs,layers.length,constants.length].flatMap (encodeLE 8) ++
     constants.flatMap encode ++ layers.flatMap SegmentedCircuit.layerBytes

@@ -6,7 +6,7 @@ use super::{RawCircuit, SerializableField, Stream};
 use crate::core::proto::DigestBytes;
 
 pub(crate) const MAGIC: &[u8; 4] = b"LFC3";
-const ID_DOMAIN: &[u8] = b"LFC3-v2-segmented-id-v1";
+const ID_DOMAIN: &[u8] = b"LFC3-v2-segmented-id-v2";
 
 fn size(write: &mut impl FnMut(&[u8]), n: usize) {
     write(
@@ -16,8 +16,8 @@ fn size(write: &mut impl FnMut(&[u8]), n: usize) {
     );
 }
 
-fn stream<T, W: FnMut(&[u8])>(write: &mut W, tag: u8, s: &Stream<T>, record: impl Fn(&mut W, &T)) {
-    write(&[tag]);
+fn stream<T, W: FnMut(&[u8])>(write: &mut W, tag: u64, s: &Stream<T>, record: impl Fn(&mut W, &T)) {
+    write(&tag.to_le_bytes());
     for n in [
         s.deltas.len(),
         s.segments.len(),
@@ -30,17 +30,13 @@ fn stream<T, W: FnMut(&[u8])>(write: &mut W, tag: u8, s: &Stream<T>, record: imp
         record(write, delta);
     }
     for segment in s.segments.iter() {
-        write(
-            &u32::try_from(segment.len())
-                .expect("segment length exceeds u32")
-                .to_le_bytes(),
-        );
+        size(write, segment.len());
     }
     for &index in s.segments.indices() {
-        write(&index.to_le_bytes());
+        write(&u64::from(index).to_le_bytes());
     }
     for &token in &s.tokens {
-        write(&token.to_le_bytes());
+        write(&u64::from(token).to_le_bytes());
     }
 }
 
@@ -68,19 +64,20 @@ fn encode<F: SerializableField>(f: &F, raw: &RawCircuit<F>, mut write: impl FnMu
         size(&mut write, layer.nw);
         size(&mut write, layer.logw);
         stream(&mut write, 0, &layer.quadratic, |write, t| {
-            for n in [t.g, t.l, t.r, t.k] {
-                write(&n.to_le_bytes());
+            for n in [t.g, t.l, t.r] {
+                write(&i64::from(n as i32).to_le_bytes());
             }
+            write(&u64::from(t.k).to_le_bytes());
         });
         stream(&mut write, 1, &layer.linear, |write, t| {
-            for n in [t.g, t.l, t.k] {
-                write(&n.to_le_bytes());
+            for n in [t.g, t.l] {
+                write(&i64::from(n as i32).to_le_bytes());
             }
+            write(&u64::from(t.k).to_le_bytes());
         });
         stream(&mut write, 2, &layer.constant, |write, t| {
-            for n in [t.g, t.k] {
-                write(&n.to_le_bytes());
-            }
+            write(&i64::from(t.g as i32).to_le_bytes());
+            write(&u64::from(t.k).to_le_bytes());
         });
     }
 }

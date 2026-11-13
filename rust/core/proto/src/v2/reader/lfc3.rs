@@ -159,7 +159,7 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
         .read_exact(&mut header)
         .map_err(|e| format!("LFC3 incomplete header: {e}"))?;
     if &header[..4] != v2::encoding::MAGIC || &header[4..] != REVISION {
-        return Err("expected LFC3 directory revision DIR2".into());
+        return Err("expected LFC3 directory revision DIR3".into());
     }
     if read_size(input)? != reader.field_id as usize {
         return Err("LFC3 field ID mismatch".into());

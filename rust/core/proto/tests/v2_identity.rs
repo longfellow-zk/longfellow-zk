@@ -42,7 +42,7 @@ fn fixture<F: SerializableField + AlgebraicField>(f: &F) -> RawCircuit<F> {
     .build()
 }
 fn reference<F: SerializableField + AlgebraicField>(f: &F) -> Vec<u8> {
-    let mut b = b"LFC3-v2-segmented-id-v1".to_vec();
+    let mut b = b"LFC3-v2-segmented-id-v2".to_vec();
     for n in [usize::from(f.is_binary()), f.serialized_size_bytes()] {
         b.extend((n as u64).to_le_bytes());
     }
@@ -57,14 +57,14 @@ fn reference<F: SerializableField + AlgebraicField>(f: &F) -> Vec<u8> {
     }
     for (tag, counts, words) in [
         (
-            0u8,
+            0u64,
             [2u64, 2, 3, 1],
-            vec![0u32, 1, 2, 0, 1, 0, 0, 1, 2, 1, 0, 1, 0, 0],
+            vec![0u64, 1, 2, 0, 1, 0, 0, 1, 2, 1, 0, 1, 0, 0],
         ),
-        (1u8, [1u64, 1, 1, 1], vec![0u32, 3, 1, 1, 0, 0]),
-        (2u8, [1u64, 1, 1, 1], vec![1u32, 0, 1, 0, 0]),
+        (1u64, [1u64, 1, 1, 1], vec![0u64, 3, 1, 1, 0, 0]),
+        (2u64, [1u64, 1, 1, 1], vec![1u64, 0, 1, 0, 0]),
     ] {
-        b.push(tag);
+        b.extend(tag.to_le_bytes());
         for n in counts {
             b.extend(n.to_le_bytes());
         }
@@ -83,6 +83,13 @@ fn check<F: SerializableField + AlgebraicField>(f: &F) {
         <[u8; 32]>::from(Sha256::digest(&expected))
     );
     let original = compute_id(f, &raw);
+    // Shared fixed vectors run unchanged on native 32-bit and 64-bit targets.
+    let golden = if f.is_binary() {
+        "c1087aada076a12f2f00242b65d12020ea14d5417c2b7e5d95ca2701866d8a81"
+    } else {
+        "2b7488ec97900bcff2d3bae5d295f16efda174fc6a507065e316570346d84fa4"
+    };
+    assert_eq!(hex::encode(original), golden);
     {
         use crate::core::proto::{
             v2::{Circuit, CircuitReader, CircuitWriter},
@@ -181,14 +188,37 @@ fn identity_hashes_stored_arrays_without_expanding_tokens() {
     let mut raw = fixture(&f).into_builder();
     raw.layers[0].quadratic.segments = vec![vec![0; 65536]].into();
     raw.layers[0].quadratic.tokens = vec![0; 65536];
-    // 2^32 expanded terms, but only about 512 KiB of indices and tokens.
+    // 2^32 expanded terms, but only about 1 MiB of indices and tokens.
     let raw = raw.build();
     let bytes = id_bytes(&f, &raw);
-    assert!(bytes.len() < 530_000);
+    assert!(bytes.len() < 1_060_000);
     assert_eq!(
         compute_id(&f, &raw),
         <[u8; 32]>::from(Sha256::digest(bytes))
     );
+}
+
+#[test]
+fn coordinate_deltas_use_signed_64_bit_values() {
+    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let mut raw = fixture(&f).into_builder();
+    let t = &mut raw.layers[0].quadratic.deltas[1];
+    t.g = (-1i32) as u32;
+    t.l = (-2i32) as u32;
+    t.r = (-3i32) as u32;
+    let mut expected = reference(&f);
+    let record = b"LFC3-v2-segmented-id-v2".len()
+        + 2 * 8
+        + f.serialized_size_bytes()
+        + 6 * 8
+        + 2 * f.serialized_size_bytes()
+        + 2 * 8
+        + 5 * 8
+        + 4 * 8;
+    for (i, n) in [-1i64, -2, -3].into_iter().enumerate() {
+        expected[record + i * 8..record + (i + 1) * 8].copy_from_slice(&n.to_le_bytes());
+    }
+    assert_eq!(id_bytes(&f, &raw.build()), expected);
 }
 
 #[test]
@@ -202,10 +232,12 @@ fn old_identity_revision_is_rejected() {
     let mut bytes = CircuitWriter::new(&f, FieldID::Gf2_128).to_bytes(&c);
     let reader = CircuitReader::new(&f, FieldID::Gf2_128);
     assert!(reader.from_bytes(&bytes).is_ok());
-    bytes[4..8].copy_from_slice(b"DIR1");
-    let error = reader
-        .from_bytes(&bytes)
-        .err()
-        .expect("accepted an old identity revision");
-    assert!(error.contains("DIR2"));
+    for revision in [b"DIR1", b"DIR2"] {
+        bytes[4..8].copy_from_slice(revision);
+        let error = reader
+            .from_bytes(&bytes)
+            .err()
+            .expect("accepted an old identity revision");
+        assert!(error.contains("DIR3"));
+    }
 }

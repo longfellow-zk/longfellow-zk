@@ -3,7 +3,7 @@
 //! segment lengths; those lengths precede all constants, deltas, indices and tokens.
 use super::limits::*;
 
-pub(super) const REVISION: &[u8; 4] = b"DIR2";
+pub(super) const REVISION: &[u8; 4] = b"DIR3";
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct StreamDirectory {

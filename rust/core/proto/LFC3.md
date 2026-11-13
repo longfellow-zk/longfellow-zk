@@ -36,9 +36,9 @@ replacing streams so its derived metadata remains consistent.
 
 ## File encoding
 
-The file starts with `LFC3DIR2`. `DIR2` identifies the directory layout and
-the segmented circuit-ID convention. `DIR1` and files without a revision
-marker are rejected. Lengths are unsigned
+The file starts with `LFC3DIR3`. `DIR3` identifies the directory layout and
+the 64-bit segmented circuit-ID convention. Earlier revisions and files without
+a revision marker are rejected. Lengths are unsigned
 LEB128 decoded into `u64` and converted to `usize` with overflow checking.
 Stream records, delta indices and tokens retain the specialized four-byte
 `u32` encoding. Coordinates use zigzag encoding of signed wrapping `u32`
@@ -93,7 +93,7 @@ encodings and frozen proofs remain unchanged.
 
 ## Circuit identity
 
-The SHA-256 domain is `LFC3-v2-segmented-id-v1`. Its input is the following
+The SHA-256 domain is `LFC3-v2-segmented-id-v2`. Its input is the following
 fixed-width encoding, independent of the file's variable-length integers:
 
 1. Field kind (binary = 1, otherwise 0) and serialized element width as `u64`,
@@ -105,12 +105,14 @@ fixed-width encoding, independent of the file's variable-length integers:
 4. Each layer from outputs toward inputs: `nw` and `logw` as `u64`, then the
    quadratic, linear and constant streams.
 
-Each stream starts with its one-byte tag (0, 1 or 2), then four `u64` counts:
+Each stream starts with its `u64` tag (0, 1 or 2), then four `u64` counts:
 dictionary records, segments, stored indices and tokens. These precede the
 dictionary records, segment lengths, flat dictionary-index array and token
-array. Every record component, segment length, index and token is a `u32`.
-All integers are little-endian. Coordinate components are the stored wrapping
-deltas; coefficient indices are absolute. All stored entries participate,
+array. Every integer in the ID input uses eight little-endian bytes, regardless
+of its storage width. Coordinate components are signed numerical deltas,
+sign-extended from the stored wrapping `u32` representation to `i64`.
+Coefficient indices, segment lengths, dictionary indices and tokens are
+unsigned, widened to `u64`. All stored entries participate,
 including unused records and segments. Expanded-term counts and assertion
 counts are derived and are not additional hash inputs.
 

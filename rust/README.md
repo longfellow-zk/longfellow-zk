@@ -429,7 +429,7 @@ V2 represents quadratic, linear, and constant terms explicitly throughout
 lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
 historical Morton ordering and circuit IDs. V2 compiles directly to
 [LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
-separately with an explicit coefficient table. Its `DIR2` directory declares
+separately with an explicit coefficient table. Its `DIR3` directory declares
 all array sizes before the payload; segment contents use contiguous storage.
 Global limits bound layers, total wires, term data, and segment/token metadata.
 It removes the reserved One wire.
@@ -509,8 +509,9 @@ recomputes its SHA-256 ID from the stored segmented representation and checks
 it against the payload and archive identifiers. There is no enforcement flag.
 Compilation returns an identity-free `RawCircuit`; segmentation finalizes its
 representation and computes its ID. Changing segmentation or coefficient-table
-order changes the ID. LFC3 revision `DIR2` uses this convention; older NEXT
-bundles must be regenerated.
+order changes the ID. Every integer in the ID input has a fixed 64-bit encoding,
+independent of the circuit's storage widths. LFC3 revision `DIR3` uses this
+convention; older NEXT bundles must be regenerated.
 
 To measure circuit-ID computation and checked decoding on the largest mdoc
 circuit, run `cargo bench --bench circuit_id`. Set

@@ -35,13 +35,20 @@ def fromTerms {arity : ℕ} (terms : List (Record arity)) : Stream arity :=
     let table := deltas.foldl intern ([],[])
     ⟨table.1,[table.2],[word 0]⟩
 
+/-- Sign-extend a stored wrapping coordinate delta to its 64-bit encoding. -/
+def coordinateValue (n : Word) : ℕ :=
+  if n.val < 2^31 then n.val else 2^64-2^32+n.val
+
+def recordBytes {arity : ℕ} (record : Record arity) : Bytes :=
+  (List.ofFn fun i : Fin arity => if i.val+1 < arity then coordinateValue (record i) else (record i).val).flatMap (encodeLE 8)
+
 def streamBytes {arity : ℕ} (tag : ℕ) (s : Stream arity) : Bytes :=
-  encodeLE 1 tag ++
+  encodeLE 8 tag ++
     [s.deltas.length,s.segments.length,(s.segments.map List.length).sum,s.tokens.length].flatMap (encodeLE 8) ++
-    s.deltas.flatMap (fun record => (List.ofFn record).flatMap fun n => encodeLE 4 n.val) ++
-    s.segments.flatMap (fun segment => encodeLE 4 segment.length) ++
-    s.segments.flatten.flatMap (fun n => encodeLE 4 n.val) ++
-    s.tokens.flatMap (fun n => encodeLE 4 n.val)
+    s.deltas.flatMap recordBytes ++
+    s.segments.flatMap (fun segment => encodeLE 8 segment.length) ++
+    s.segments.flatten.flatMap (fun n => encodeLE 8 n.val) ++
+    s.tokens.flatMap (fun n => encodeLE 8 n.val)
 
 structure Layer where
   inputs : ℕ

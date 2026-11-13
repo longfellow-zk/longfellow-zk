@@ -59,14 +59,14 @@ example : (stream (leafRows (F := ZMod 2) (fun _ : Fin 1 => 10)
      .linear 3 12 1, .linear 3 12 1, .constant 3 1] := by
   simp [stream,leafRows,wireIndex,Term.map,List.ofFn_succ,finProdFinEquiv,finSumFinEquiv,Equiv.trans,Equiv.prodCongr,Fin.divNat,Fin.modNat,Fin.addCases,quotientPower,Equiv.coe_fn_mk]
 
--- Stored records use 32-bit words; the stream tag is one byte and array
--- counts are 64-bit words. Segment lengths, indices and tokens follow records.
+-- All identity integers use 64-bit words, independently of the stored
+-- 32-bit representation. Segment lengths, indices and tokens follow records.
 example : SegmentedCircuit.streamBytes 0
     (SegmentedCircuit.fromTerms [![SegmentedCircuit.word 0,SegmentedCircuit.word 1,
       SegmentedCircuit.word 2,SegmentedCircuit.word 3]]) =
-      TranscriptV2.Framing.encodeLE 1 0 ++
+      TranscriptV2.Framing.encodeLE 8 0 ++
       [1,1,1,1].flatMap (TranscriptV2.Framing.encodeLE 8) ++
-      [0,1,2,3,1,0,0].flatMap (TranscriptV2.Framing.encodeLE 4) := by decide
+      [0,1,2,3,1,0,0].flatMap (TranscriptV2.Framing.encodeLE 8) := by decide
 
 -- Repeated deltas are interned; the coefficient index is absolute, not a delta.
 example : (SegmentedCircuit.fromTerms
@@ -79,6 +79,9 @@ example : List.ofFn (SegmentedCircuit.delta
     ![SegmentedCircuit.word 3,SegmentedCircuit.word 7,SegmentedCircuit.word 9]
     ![SegmentedCircuit.word 1,SegmentedCircuit.word 2,SegmentedCircuit.word 4]) =
       [SegmentedCircuit.word (2^32-2),SegmentedCircuit.word (2^32-5),SegmentedCircuit.word 4] := by decide
+
+-- The hash authenticates negative numerical deltas in signed 64-bit form.
+example : SegmentedCircuit.coordinateValue (SegmentedCircuit.word (2^32-2)) = 2^64-2 := by decide
 
 -- Tokens select complete segments, in order, including repeated dictionary entries.
 example : (SegmentedCircuit.expand (⟨

@@ -234,7 +234,7 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
         (1, 0, 1, false),
         (0, 0, 3, false),
     ] {
-        let mut bytes = b"LFC3DIR2".to_vec();
+        let mut bytes = b"LFC3DIR3".to_vec();
         for n in [FieldID::P256 as usize, 1, 1, 0, 3, 1, 3] {
             serialize_uleb128_max4(&mut bytes, n);
         }
@@ -283,7 +283,7 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
 fn binary_lfc3_classifies_both_signs_as_one() {
     let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     for k in [1, 2] {
-        let mut bytes = b"LFC3DIR2".to_vec();
+        let mut bytes = b"LFC3DIR3".to_vec();
         for n in [FieldID::Gf2_128 as usize, 1, 1, 0, 1, 1, 3] {
             crate::core::proto::serialize_uleb128_max4(&mut bytes, n);
         }
