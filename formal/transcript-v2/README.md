@@ -127,7 +127,9 @@ contains actual non-PRF queries only; unused digest coordinates from reserved
 streams cannot become commitment entries.
 
 Application normalization preserves the existing charges for both fields'
-fingerprints and sumchecks, row batching, rescaling, conversion and packing.
+fingerprints and sumchecks, the split's rescaling `eta`, conversion and
+packing. The prime layer rows go to Polygero unbatched, so there is no
+row-batching charge.
 Its widths come from the circuit schedule. Joint Polygero single/pair
 normalization and the concrete accepted-extraction cover are also checked.
 The actual failure observation is connected to this cover by

@@ -52,12 +52,15 @@ The proof path has the following checked boundaries, listed bottom-up; the
 8. `Mdoc.Soundness` composes `CanonicalRuntime.decoded_true_at_request`
    with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
    ordinary hash constraints and the signature circuit at the actual request.
-   `HashSeparation` proves the required noninterference from the static
-   `MdocWitness.ReadDisjoint` sparse-read certificate. No simulator module is
-   imported by this endpoint, and no runtime separation check is added.
+   Hash read separation is structural: the hash circuit reads only its own
+   input prefix, ahead of R, the quotient pads and the virtual leaves.
+   `HashSeparation` proves it for typed hash topologies
+   (`HashCircuit.readDisjoint`); it is not a premise. No
+   simulator module is imported by this endpoint, and no runtime separation
+   check is added.
 
 The input includes trusted circuit descriptions, canonical field codecs,
-static capacity and read-separation certificates, and the approved ideal joint role sampler. Runtime
+static capacity certificates, and the approved ideal joint role sampler. Runtime
 acceptance, query order, column agreement and the final failure cover are
 derived. Axiom checks on the endpoint and correspondence lemmas report only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -87,7 +90,13 @@ Three review passes cover the current soundness path.
    little-endian indices, indexed Merkle leaves and nodes, 32-byte nonces,
    canonical proof parsing and the mandatory final seal with Rust. The Rust
    transcript and adapter bind prover messages and static statements while
-   retaining challenge-derived coefficients in verifier state.
+   retaining challenge-derived coefficients in verifier state. Before the
+   shared root, every participant binds its packing frame (for packing degree
+   above one) and `layered-sumcheck/commitment-layout/v1` (additional circuit
+   IDs and layer widths); the split participant also binds
+   `foreign-storage/mixed-layout/v1` (circuit ID, storage runs and R's bit
+   group). After the root, only the statement, prover messages and fixed
+   labels are absorbed; virtual leaf definitions and quotients never are.
 
 The endpoint tests and native Rust library tests are source-correspondence
 checks. The current composition, transcript and sumcheck test aggregates each
@@ -166,22 +175,25 @@ commitment theorem. The finite leaf-oracle data lives in `StrandLeafOracle`.
 The public simulator has no witness or satisfaction-certificate argument.
 The theorem assumes ordinary hash/signature witness satisfaction only for
 contexts reached by the prior observer under setup derived from the same
-oracle. Unreachable policy branches impose no validity obligation. The separate static
-`MdocWitness.ReadDisjoint` certificate derives ordinary hash noninterference
-for every reserved mask/OTP assignment and generated-adapter parameter,
-uniformly over public inputs and private values. These premises and the
+oracle. Unreachable policy branches impose no validity obligation. Ordinary
+hash validity then holds for every assignment of R, the quotient pads and the
+virtual leaves, uniformly over public inputs and private values; this is a
+consequence of structural separation, not a premise. These premises and the
 explicit basis/generator checks derive backend truth inside the coupling. The leaf-table
 permutation preserves actual earlier query/answer traces, including bad
 branches, and does not require a finite type of all byte strings.
 
-The current hash compiler appends the mask/OTP suffix after application
-compilation. Tests reject any hash input gate or assertion that reads this
-suffix in all four compiled circuit shapes; generated adapter coefficients
-belong to a separate circuit. The mask has no binary range assertion, since
-`Handoff.product_handoff` already covers arbitrary mask bits modulo the prime.
-This removes the conflict between mask canonicality and the unrestricted
-noninterference premise. The test-only check costs nothing at runtime and is
-not a kernel proof of the Rust-to-Lean circuit correspondence.
+The hash circuit is archived at its natural width. The reserved suffix after
+its inputs holds R (256 bits), the two 10-bit quotient pads and the adapter's
+virtual leaves. Each sumcheck component reads only its own input prefix, so the
+hash circuit cannot address the suffix; there is no read-separation
+certificate or test-only suffix check. The adapter is a fixed product-tree
+fragment: its per-proof leaves are virtual inputs, affine functions of
+committed bits that constraint compilation substitutes like public inputs, and
+there is no per-proof adapter circuit. R has no binary range assertion, since
+`Handoff.product_handoff` already covers arbitrary bits of R modulo the prime.
+Structural separation is not a kernel proof of the Rust-to-Lean circuit
+correspondence, which remains a trusted circuit input.
 
 `StrandCanonicalHiding.statClose` first fixes the complementary non-leaf
 oracle. `StrandLeafWindow.statClose_of_extension` reindexes the finite leaf
@@ -224,8 +236,9 @@ always-accepting-simulator premise is used.
 
 The theorem uses a Context-indexed witness policy, valid at actually reached
 contexts, including different witnesses for contexts with the same public
-request. It assumes static hash noninterference, signature satisfaction,
-basis/generator checks, and trusted field/codec/circuit/layout inputs. Honest private coins and 256-bit
+request. It assumes ordinary hash validity, signature satisfaction,
+basis/generator checks, and trusted field/codec/circuit/layout inputs; hash
+noninterference is derived. Honest private coins and 256-bit
 nonces are independent and uniform. It assumes a classical SHA random oracle,
 not a numerical concrete-SHA indistinguishability bound. Rust correspondence
 is reviewed rather than mechanically refined, and no machine-cost theorem

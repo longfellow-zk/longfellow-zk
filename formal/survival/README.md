@@ -137,14 +137,15 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The largest supported mdoc circuit (four attributes) has 500 rounds:
-`275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
+The largest supported mdoc circuit (four attributes) has 499 rounds:
+`275 + 125 + 3*(20 + 11) + 6 = 499`. Thus `r+15 = 514 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
-per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
-against the current Rust compiler. The approximation takes a supported-shape
-witness and derives the round bound internally.
+487/491/496/499 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+per-layer schedule; [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
+checks those schedules and totals against the current Rust compiler. The
+approximation takes a supported-shape witness and derives the round bound
+internally.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 For $Q\ge2^{127}$ the approximation follows from probability being at most 1.
@@ -293,7 +294,8 @@ The remaining data are causal by their definitions:
 - Selection reads that tuple, the earlier fingerprint answer, and the response
   bound in the current query preimage.
 - Frontend, packing and adapter readers consume the preimage and strict
-  ancestor tape, fixing their equations and generated circuit parameters.
+  ancestor tape, fixing their equations and the adapter's virtual leaf
+  definitions.
 - An opening uses the batching parent's prior tape and earlier batching coin;
   the complete response is bound in the current preimage.
 - The current answer is supplied explicitly to the charge.
@@ -506,8 +508,8 @@ endpoint is `Current.Mdoc.Soundness.averaged_ratio_le`, and the
 uniform numerical cap is `averaged_nonvacuous`, stating the strict result below 0.97. The runtime
 obligations are derived facts, not additional hypotheses in these endpoints.
 `Mdoc.Soundness.decoded_valid` connects the decoded application to the actual
-request and ordinary hash/signature witness validity using the static read
-separation premise; the application event includes actual acceptance and
+request and ordinary hash/signature witness validity. Hash read separation is
+a theorem about the typed hash topology, not a premise; the application event includes actual acceptance and
 failure of that extractor. Thus the endpoint bounds application extraction
 failure, not only an internal algebraic predicate.
 

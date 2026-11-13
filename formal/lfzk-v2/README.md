@@ -26,10 +26,11 @@ top-down [proof map](../README.md#proof-map). The endpoints are
 bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
-per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
-against the current Rust compiler. The approximation takes a supported-shape
-witness and derives the round bound internally.
+487/491/496/499 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+per-layer schedule; [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
+checks those schedules and totals against the current Rust compiler. The
+approximation takes a supported-shape witness and derives the round bound
+internally.
 
 `r` counts rounds: one per `begin_squeeze()` call, regardless of the number of challenge draws within that round. The final seal has its own two-query
 finalization. Proof bytes and public requests may be chosen adaptively.
@@ -60,13 +61,15 @@ explanation. The proof derives execution correspondence, failure coverage and co
 budgets internally. The approved ideal joint sampling law remains an explicit
 assumption.
 
-The mdoc specialization fixes the canonical three-byte quotient-advice parser,
-degree-128 binary packing, committed-cell layout, rate-1/7 backend geometry,
+The mdoc specialization fixes the canonical quotient-advice parser (two
+`MaskedWord<10>`, two bytes each, with zero padding enforced), degree-128
+binary packing, committed-cell layout, rate-1/7 backend geometry,
 evaluation-node order and scalar challenge readers. Sparse circuit topology
 constructs both the algebraic verifier and its transcript plan. Derived prime
-claims, generated adapter identifiers and backend contexts are computed from
-the actual earlier messages and answers. Packing writes its caller-supplied
-statement and public cell counts, not the derived coefficients or affine RHS.
+claims, the adapter's virtual leaf definitions and backend contexts are
+computed from the actual earlier messages and answers. Packing writes its
+caller-supplied statement and public cell counts, not the derived coefficients
+or affine RHS.
 The source is reconstructed from earlier bound messages and answers on the
 same oracle history; the statement bytes alone need not determine it.
 [`readPackingPacket_off`](LfzkV2/Current/ApplicationViews.lean) proves that
@@ -78,7 +81,8 @@ other trusted setups; the mdoc endpoint takes no independent advice decoder,
 metadata callback, transcript plan or backend-layout certificate.
 The concrete mdoc topology supports a hash component strictly deeper than its
 adapter; this ordinary depth restriction is explicit in its setup bounds.
-The current hash and adapter have respectively 20 and 12 layers. The general
+The current hash and adapter fragment have respectively 20 and 11 layers; each
+adapter tree has `768+256+10 = 1034` virtual leaves. The general
 layered-sumcheck model still supports components in either depth order and ties.
 
 ### Oracle and implementation boundary
@@ -109,21 +113,41 @@ verifier replay are preserved by the numbered-strand oracle transport.
 ### Runtime and transcript
 
 The selected joint boundary belongs to `runtime::v2::zk`, in `runtime/v2/zk`.
-Witness selection and Polygero are sibling protocols underneath it. Mdoc
-provides the prime-field handoff and the generated binary adapter.
+Witness selection and Polygero are sibling protocols underneath it. The zk
+layer also owns storage maps (`zk::storage`) and the split of a mixed
+participant's input equation (`zk::split`). `foreign::adapter` supplies the
+fixed product-tree fragment and the P-256 mode (`AdapterMode`, `P256Mode`), and
+`foreign::compose` drives a binary host participant and one split prime
+participant; its body is `proto::composed::ComposedProof`. Mdoc supplies the
+circuits, the storage map and the `MDA7` envelope `MdocProof { body }` with
+the final seal.
+
+The prime participant has mixed storage `[native private | R | pads]`; its
+first 768 private values are bits of the hash witness. Its layer rows read only
+native pads and go to Polygero unbatched. Only its input equation reads foreign
+values. A fresh nonzero `eta` and the message `mu = eta*<w_F, v_F> + R` split
+it into a native row for Polygero and a modular claim for the adapter.
 
 | Boundary | Data bound before the challenge | Answer block |
 |---|---|---|
 | Witness selection | Joint root, field identities and layouts | Two independent full coefficient vectors per field |
 | Prime layered sumcheck | Public prime inputs and preceding masked messages | Shared assertion/entry coefficients, ordinary rounds, nonzero terminals and combine coefficients |
-| Prime row batching | All compiled rows and final input equation | One independent weight per row |
-| Rescaling | Preceding prime frontend messages and rescaling domain | One nonzero prime scalar |
-| Conversion | Masked opening `mu` and conversion domain | Two nonzero prime scalars in one answer |
-| Binary layered sumcheck | Masked quotient advice and public statements | One shared sumcheck over all quad fragments |
+| Split | Preceding prime frontend messages and rescaling domain | One nonzero prime scalar `eta` |
+| Conversion | Split message `mu` and conversion domain | Two nonzero prime scalars in one answer |
+| Binary layered sumcheck | Both masked quotients and public statements | One shared sumcheck over the hash circuit and the adapter fragment |
 | Packing | Caller statement, public cell counts and trace-zero vector `U` | One full-field vector; absent for degree one |
 | Joint Polygero batching | Both completed frontend prefixes and packing response `A` | Both fields' affine weights and polynomial samples |
 | Shared opening | Both complete `H/Z` response pairs | One ordered sample of 84 distinct columns |
 | Final seal | Chained prefix and complete canonical proof body | Separately domain-separated 32-byte seal |
+
+Before the shared root, every participant binds its packing frame (when its
+packing degree exceeds one) and `layered-sumcheck/commitment-layout/v1` with
+its additional circuit IDs and layer widths. The split participant also binds
+`foreign-storage/mixed-layout/v1` with its circuit ID, its storage map as runs
+(native or prime bit-group runs) and R's bit group. After the root, only the
+statement, prover messages and fixed labels are absorbed. Values derived per
+proof, such as claim weights, virtual leaf definitions and quotients, are never
+absorbed; both roles recompute them.
 
 Each field commits two dedicated fingerprint masks before coefficient sampling.
 They are backend auxiliary cells, excluded from the original-cell coefficient
@@ -141,11 +165,13 @@ assertions at their own layer; entering outputs and explicit assertions share
 one answer. Input-only assertions extend the final combine answer.
 
 A frontend with layers has `sum(logw)+3*depth` boundaries. A frontend without
-layers has one input-assertion boundary. Besides both frontends there are six
-ordinary boundaries, one optional packing boundary, and the final seal. The
-one-/two-/three-/four-attribute presentations have respectively 488/492/497/500
-ordinary boundaries. The Rust `test_all_next_zk` test counts actual
-`begin_squeeze()` calls in both the complete prover and verifier and checks
+layers has one input-assertion boundary. Besides both frontends there are five
+ordinary boundaries (witness selection, split, conversion, joint Polygero
+batching and shared opening), one optional packing boundary, and the final
+seal. There is no row-batching boundary; it remains only for pure foreign
+storage, which mdoc does not use. The one-/two-/three-/four-attribute
+presentations have respectively 487/491/496/499 ordinary boundaries. The Rust
+`test_all_next_zk` test counts actual `begin_squeeze()` calls in both the complete prover and verifier and checks
 these values independently of the geometry-derived schedule. Finalization
 then uses a strand-node query and a seal PRF query. Binding source circuit identifiers
 adds no separate query. Current sizes and timings are in the
@@ -154,7 +180,10 @@ adds no separate query. Current sizes and timings are in the
 ### Checked encoding and acceptance
 
 [`ProofBodyCodec`](LfzkV2/Current/ProofBodyCodec.lean) models the canonical
-MDA6/JPG2 body, including the terminal authentication frontier.
+MDA7/JPG2 body, including the terminal authentication frontier. The body is the
+composed proof in protocol order: shared root, both fingerprint responses,
+`mu`, the two masked quotients, the binary and prime reductions, then the joint
+opening.
 [`ProofOutput`](LfzkV2/Current/ProofOutput.lean) parses that body and its seal;
 malformed or trailing proof bytes are rejected inside the final event, without
 a parser-success premise. `H/Z` wire values are oracle-prefix evaluations and
@@ -174,22 +203,27 @@ preimages and their role decoders; injectivity is proved from their parsers.
 
 [`CanonicalRuntime.decoded_true_at_request`](LfzkV2/Current/CanonicalRuntime.lean)
 derives both circuit satisfactions at the actual requested public vectors from
-the same extracted pair. The binary conclusion covers the generated
-hash/adapter circuit; its adapter product semantics are proved. The prime
-conclusion covers the trusted signature circuit, with shared bits taken from
-the binary witness.
+the same extracted pair. The binary conclusion covers the hash circuit and the
+fixed adapter fragment over its virtual leaves; the adapter product semantics
+are proved. The prime conclusion covers the trusted signature circuit, with
+shared bits taken from the binary witness.
 
 [`MdocWitness.valid_at_request`](LfzkV2/Current/MdocWitnessRequest.lean)
-composes this readback with
-[`HashSeparation`](LfzkV2/Current/HashSeparation.lean): a static sparse-read
-certificate excludes the reserved mask/OTP suffix and generated adapter wires
-from ordinary hash gates, assertions and carried outputs. It implies
-`MdocWitness.HashNoninterference` and removes challenge dependence from the
-ordinary hash predicate. `Mdoc.Soundness.event` states actual acceptance with
-failure of the original-cut extractor to produce an application-valid witness;
-its probability bounds use this bridge. The separation certificate is a Lean
-premise corresponding to the compiler's test-only separation checks, with no
-additional runtime work. Application-circuit correctness remains trusted.
+composes this readback with structural hash separation
+([`HashSeparation`](LfzkV2/Current/HashSeparation.lean)). The hash circuit is
+archived at its natural width; R, the quotient pads and the virtual leaves
+follow its inputs. For a typed hash topology, `HashCircuit.readDisjoint`
+proves that ordinary hash gates, assertions and carried outputs
+read only the hash's own input prefix. `MdocWitness.hashChecks_prefix`
+concludes that the hash checks agree on input arrays that agree
+on that prefix, and `MdocWitness.hashValid_of_satisfies` gives ordinary hash
+validity of the extracted private bits for any virtual suffix. Separation is a
+theorem, not a premise, so challenges cannot affect the ordinary hash
+predicate. Its Rust counterpart is that each sumcheck component reads only its
+own input prefix; there is no runtime scan. `Mdoc.Soundness.event` states
+actual acceptance with failure of the original-cut extractor to produce an
+application-valid witness; its probability bounds use this bridge.
+Application-circuit correctness remains trusted.
 
 The extractor is a mathematical finite search. No efficient enumeration bound
 is claimed for the worst-case binary/prime candidate caps
@@ -228,10 +262,13 @@ certificate, and there is no digest-collision loss. The witness policy depends
 on the full context retained by the prior observer; contexts with identical
 public requests may choose different witnesses. The selected witness must satisfy ordinary `MdocWitness.HashValid` and the signature circuit only
 at contexts reached by the prior observer under setup derived from that same
-oracle; unreachable policy branches impose no validity obligation. The separate static
-`MdocWitness.ReadDisjoint` certificate derives noninterference of ordinary hash
-checks under all reserved mask/OTP assignments and generated-adapter parameters,
-uniformly over public inputs and private values. The basis/generator checks,
+oracle; unreachable policy branches impose no validity obligation. Ordinary
+hash validity then holds under every assignment of R, the quotient pads and the
+virtual leaves, uniformly over public inputs and private values
+(`MdocWitness.uniformHashValid_of_valid`). This follows from the structural
+separation above and needs no separation premise. Each quotient pad is drawn
+from two fresh bytes, `Fin 2^16 ≃ Fin 2^10 × Fin 2^6`; the high six bits are
+discarded (`FrontendAdapterBits.rawOtpEquiv`). The basis/generator checks,
 trusted circuits/fields/codecs, and independent uniform private coins remain
 explicit premises.
 

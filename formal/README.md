@@ -57,16 +57,21 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The largest supported mdoc circuit (four attributes) has 500 rounds:
-`275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
+The largest supported mdoc circuit (four attributes) has 499 rounds:
+`275 + 125 + 3*(20 + 11) + 6 = 499`. Thus `r+15 = 514 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
-per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
-against the current Rust compiler. The approximation takes a supported-shape
-witness and derives the round bound internally.
+487/491/496/499 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+per-layer schedule; [`check_mdoc_round_shapes.rs`](scripts/check_mdoc_round_shapes.rs)
+checks those schedules and totals against the current Rust compiler. The six
+rounds outside both frontends are witness selection, the split challenge `eta`,
+the adapter's conversion, packing, joint Polygero batching and the shared
+opening. From `formal/`, build and run the check with
+`rustc --edition 2024 scripts/check_mdoc_round_shapes.rs -o /tmp/mdoc-round-shapes`
+and `/tmp/mdoc-round-shapes`. The approximation takes a supported-shape witness
+and derives the round bound internally.
 
 Here `r` is the number of rounds: one per `begin_squeeze()` call. The final seal
 is counted separately. The numerical composition bound reads its geometry,
@@ -203,9 +208,10 @@ including repetitions. The view retains both query/answer traces, arbitrary
 private context, the adaptive public request, the canonical proof or failure,
 and the final seal. The simulator has no witness argument. Witness validity
 is required only for contexts reached by the prior observer, using setup
-derived from that same oracle. This validity, the separate static hash
-noninterference premise below, and the stated basis/generator checks derive
-backend truth; no execution or simulation certificate is assumed.
+derived from that same oracle. This validity and the stated basis/generator
+checks derive backend truth; hash noninterference is a theorem about the typed
+hash topology (below), not a premise. No execution or simulation certificate
+is assumed.
 
 The proof separates the three complete-view experiments:
 
@@ -300,17 +306,23 @@ establish that a cryptographic implementation satisfies their premises.
   witness satisfying the supplied circuits, not an independently formalized
   ISO mdoc/CBOR specification. Privacy requires signature satisfaction and
   ordinary hash-witness satisfaction, `MdocWitness.HashValid`, at reached
-  requests. The static `MdocWitness.ReadDisjoint` certificate syntactically excludes ordinary
-  reads of reserved inputs and generated adapter wires, including assertions
-  and carried outputs. Lean derives `MdocWitness.HashNoninterference` from
-  this certificate, then composes extraction with request readback and ordinary
-  hash validity. A satisfying assignment alone does not prove separation. The Rust compiler
-  appends the 256 mask and 20 OTP inputs after compiling the application;
-  tests reject hash gates or assertions that read this suffix in any of the
-  four compiled circuit shapes. Adapter parameters instantiate a separate
-  circuit. There is no mask range assertion: `Handoff.product_handoff` handles
-  arbitrary mask bits through their residue modulo the prime. These safeguards do
-  not replace the explicit Lean circuit-correspondence premise. Rust's normal
+  requests. The hash circuit is archived at its natural width. The split
+  mask R (256 bits), the two 10-bit quotient pads and the adapter's virtual
+  leaves follow its inputs, and each sumcheck component reads only its own
+  input prefix. Separation is therefore structural: for a typed hash
+  topology, `HashCircuit.readDisjoint` proves that ordinary
+  hash gates, assertions and carried outputs read neither that suffix nor
+  adapter wires, and `MdocWitness.hashChecks_prefix`
+  concludes that the hash checks depend only on `[public | hash private]`.
+  Lean composes extraction with request readback and ordinary hash validity
+  (`MdocWitness.hashValid_of_satisfies`). The adapter is a fixed product-tree
+  fragment whose per-proof leaves are virtual inputs: affine functions of
+  committed bits that constraint compilation substitutes like public inputs.
+  There is no per-proof adapter circuit. There is no range assertion on R:
+  `Handoff.product_handoff` handles arbitrary bits of R through their residue
+  modulo the prime. Rust enforces prefix reads in sumcheck; the
+  correspondence of the archived circuits with their Lean typed topology
+  remains an explicit premise. Rust's normal
   `for_spec` loader recomputes each segmented circuit ID, checks it against
   the archive entry, and checks the combined ID against the trusted spec.
   Trust therefore includes the circuits selected by the spec and their
@@ -332,7 +344,7 @@ establish that a cryptographic implementation satisfies their premises.
 - **Public setup and resource bounds.** Trusted sparse topology, canonical
   scalar codecs, capacity/address/serialization bounds and the concrete
   hash-depth restriction are explicit. Current parameter certificates,
-  sampler projections, advice decoding, generated adapter equations,
+  sampler projections, advice decoding, adapter leaf definitions,
   authenticated row layouts and failure coverage are constructed and
   proved; no caller-supplied execution or soundness certificate replaces
   those proofs.
