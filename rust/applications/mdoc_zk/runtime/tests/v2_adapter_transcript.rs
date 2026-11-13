@@ -156,3 +156,33 @@ fn conversion_binds_mu_but_not_derived_weights() {
     .unwrap();
     assert_ne!(first.bytes(32), second.bytes(32));
 }
+
+/// the masked quotient advice must be bound before later challenges.
+#[test]
+fn masked_advice_is_bound() {
+    let p = P256Field::new();
+    let f = Gf2_128Field::new();
+    let plan = Plan::new(vec![1, 256]).unwrap();
+    let values = [p.one(), p.u64_to_element(12345)];
+    let weights = [p.u64_to_element(42), p.one()];
+    let target = blas::dot(&weights, &values, &p);
+    let state = |masked: &[u8]| {
+        let encoded = plan
+            .encode(
+                &weights,
+                &target,
+                &[p.u64_to_element(17), p.u64_to_element(31)],
+                Some(&values),
+                &p,
+                &f,
+            )
+            .unwrap();
+        let mut t = Transcript::new(b"advice-binding");
+        public(&plan, encoded, masked, &mut t.borrow()).unwrap();
+        t.bytes(32)
+    };
+    let zero = vec![0; plan.advice_bytes()];
+    let mut one = zero.clone();
+    one[0] = 1;
+    assert_ne!(state(&zero), state(&one), "masked advice not bound");
+}

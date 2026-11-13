@@ -15,3 +15,7 @@ pub(super) fn new(context: &[u8], combined_hash: &[u8; 32]) -> Transcript {
 pub(super) fn absorb_public_inputs(transcript: &mut TranscriptRef<'_>, public: &[bool]) {
     transcript.absorb(|w| w.write_bytes(&public.iter().map(|&b| u8::from(b)).collect::<Vec<_>>()));
 }
+
+#[cfg(test)]
+#[path = "../../tests/v2_transcript.rs"]
+mod tests;

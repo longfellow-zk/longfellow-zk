@@ -294,6 +294,43 @@ pub(crate) fn exercise<
             }
             assert!(verify(public.clone(), &bad).is_err());
         }
+        // A response off the trace-zero hyperplane must fail the trace check
+        // itself. Compute the absolute trace independently of the library.
+        let degree = 8 * f.serialized_size_bytes();
+        let trace = |x: &F::E| {
+            let mut sum = x.clone();
+            let mut power = x.clone();
+            for _ in 1..degree {
+                power = f.mulf(&power, &power);
+                f.add(&mut sum, &power);
+            }
+            sum
+        };
+        let off_hyperplane = (0..degree)
+            .find_map(|bit| {
+                let mut encoded = vec![0u8; f.serialized_size_bytes()];
+                encoded[bit / 8] = 1 << (bit % 8);
+                let x = f.bytes_to_element(&encoded).ok()?;
+                (!f.is_zero(&trace(&x))).then_some(x)
+            })
+            .unwrap();
+        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+            .unwrap()
+            .clone();
+        let crate::runtime::v2::proto::dual_packing::PackingProof::TraceZero { u, .. } =
+            &mut bad.packing
+        else {
+            unreachable!()
+        };
+        f.add(&mut u[0], &off_hyperplane);
+        let Err(error) = verify(public.clone(), &bad) else {
+            panic!("response with nonzero trace accepted");
+        };
+        let error = error.to_string();
+        assert!(
+            error.contains("packing response has nonzero trace"),
+            "{error}"
+        );
     }
 }
 #[test]

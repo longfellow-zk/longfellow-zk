@@ -116,3 +116,70 @@ fn circuit_identifier_enforcement_is_unconditional() {
     };
     assert!(for_spec(&spec, &compressed(&archive), &p, &f).is_err());
 }
+
+/// the spec pins the archive and each payload matches its entry.
+#[test]
+fn for_spec_binds_archive_and_entry_identifiers() {
+    let p = P256Field::new();
+    let f = Gf2_128Field::new();
+    let spec_for = |combined_hash| super::ZkSpecStruct {
+        combined_hash,
+        num_attributes: 1,
+        version: crate::mdoc::circuits::NEXT_VERSION,
+        polygero_hash: super::super::zk_spec::PolygeroParameters {
+            k: 349,
+            n: 2443,
+            s: 12,
+            t: 84,
+        },
+        polygero_sig: super::super::zk_spec::PolygeroParameters {
+            k: 349,
+            n: 2443,
+            s: 12,
+            t: 84,
+        },
+    };
+    let archive = fixture(&p, &f);
+    assert!(for_spec(
+        &spec_for(archive.combined_id),
+        &compressed(&archive),
+        &p,
+        &f
+    )
+    .is_ok());
+    // A self-consistent archive that the spec does not name.
+    let mut other = archive.combined_id;
+    other[0] ^= 1;
+    assert!(
+        for_spec(&spec_for(other), &compressed(&archive), &p, &f).is_err(),
+        "archive accepted under a different spec combined hash"
+    );
+    // Valid payloads whose directory entry names a different circuit ID.
+    let sig = tiny(&p);
+    let hash = tiny(&f);
+    let mut wrong = sig.id;
+    wrong[0] ^= 1;
+    let mut builder = CircuitArchiveBuilder::new();
+    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.add_entry(
+        "sig",
+        wrong,
+        CircuitWriter::new(&p, FieldID::P256).to_bytes(&sig),
+    );
+    builder.add_entry(
+        "hash",
+        hash.id,
+        CircuitWriter::new(&f, FieldID::Gf2_128).to_bytes(&hash),
+    );
+    let mismatched = builder.build();
+    assert!(
+        for_spec(
+            &spec_for(mismatched.combined_id),
+            &compressed(&mismatched),
+            &p,
+            &f
+        )
+        .is_err(),
+        "payload accepted under a different archive entry ID"
+    );
+}

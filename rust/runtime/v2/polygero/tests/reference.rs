@@ -272,4 +272,46 @@ pub(super) fn check<
         let error = verifier.reduce(&forged, &statements).err().unwrap();
         assert_eq!(error.0, expected);
     }
+    // isolate the column arithmetic and primary response checks.
+    for (case, expected) in [
+        (0, "Polygero arithmetic check failed"),
+        (1, "Polygero primary response check failed"),
+    ] {
+        let mut h = proof.h.clone();
+        let mut z = proof.z.clone();
+        if case == 0 {
+            for (sample, i) in z.iter_mut().zip(p.oracle_prefix(2 * g.k)) {
+                f.add(sample, &eval(&v, &domain.point(i), f));
+            }
+        } else {
+            for sample in h.iter_mut() {
+                f.add(sample, &f.one());
+            }
+        }
+        let mut bodies = (
+            FieldProof {
+                h,
+                z,
+                rows: Vec::new(),
+            },
+            (),
+        );
+        let mut opening_transcript = ts.fork_for_test();
+        let indices = joint.queries(&bodies, &mut opening_transcript.borrow());
+        joint
+            .participants
+            .gather(&prover.states, &mut bodies, &indices);
+        let forged = JointPolygeroProof {
+            context: joint.context,
+            bodies,
+            opening: prover.oracle.open(&indices),
+        };
+        let verifier =
+            JointPolygeroVerifier::new(joint.clone(), &commitment, original.fork_for_test());
+        let error = verifier
+            .reduce(&forged, &statements)
+            .err()
+            .expect("forged Polygero response accepted");
+        assert_eq!(error.0, expected);
+    }
 }

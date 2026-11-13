@@ -662,6 +662,28 @@ fn run_next_verifier_negative_cases(test_circuits: &TestCircuits) {
         Err(crate::mdoc::v2::MdocVerifierErrorCode::InvalidZkSpecVersion),
         "Verifier should reject version 99"
     );
+
+    // Requested values must be single, complete, supported CBOR items: the
+    // hash circuit matches raw value bytes, so this guard rejects prefixes.
+    for unsupported in [&[0x82, 0x01, 0x02][..], &[0x65, 0x61][..]] {
+        let mut requested = req_attrs.clone();
+        requested[0].cbor_value = unsupported.to_vec();
+        assert_eq!(
+            run_mdoc_verifier_inner(
+                provided.spec(),
+                provided.compressed(),
+                &pubkey_x_string,
+                &pubkey_y_formatted,
+                transcript,
+                &requested,
+                now,
+                doc_type,
+                &zkproof
+            ),
+            Err(crate::mdoc::v2::MdocVerifierErrorCode::UnsupportedAttribute),
+            "Verifier should reject unsupported value {unsupported:02x?}"
+        );
+    }
 }
 
 fn run_next_verifier_attribute_reordering_and_duplicates(test_circuits: &TestCircuits) {

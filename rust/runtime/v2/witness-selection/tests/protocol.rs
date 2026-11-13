@@ -361,3 +361,26 @@ fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
     assert_eq!(verifier.transcript().round_count_for_test(), 1);
     assert_eq!(verifier.transcript().bytes(32), expected.bytes(32));
 }
+
+/// distinct fingerprint responses must change every later challenge.
+#[test]
+fn fingerprint_responses_are_bound_before_later_challenges() {
+    let f = Gf2_128Field::new();
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    let param = Param::new((field(17, &f, &d), ())).unwrap();
+    let root = PolygeroCommitment {
+        root: Digest { data: [7; 32] },
+    };
+    let state = |values| {
+        let responses = (FingerprintResponse { values }, ());
+        let mut v = Verifier::receive(
+            param.clone(),
+            &root,
+            responses,
+            Transcript::new(b"selection/response-binding"),
+        );
+        v.transcript().bytes(32)
+    };
+    assert_ne!(state([f.zero(), f.one()]), state([f.one(), f.one()]));
+    assert_ne!(state([f.zero(), f.one()]), state([f.zero(), f.zero()]));
+}

@@ -279,3 +279,65 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
         transcript::terminal_challenge(&f.one(), &mut changed_cross.borrow(), &f)
     );
 }
+
+/// each round message must be bound before its challenge.
+#[test]
+fn round_challenge_binds_both_round_coefficients() {
+    use crate::runtime::v2::{
+        proto::sumcheck::RoundPoly, sumcheck::transcript, transcript::Transcript,
+    };
+    let f = P256Field::new();
+    let m = RoundPoly::<4, P256Field> {
+        coefficients: [f.u64_to_element(3), f.u64_to_element(5)],
+    };
+    let mut base = Transcript::new(b"round-order");
+    let z = transcript::round_challenge(&m, &mut base.borrow(), &f);
+    for k in 0..2 {
+        let mut changed = m.clone();
+        f.add(&mut changed.coefficients[k], &f.one());
+        let mut t = Transcript::new(b"round-order");
+        assert_ne!(
+            z,
+            transcript::round_challenge(&changed, &mut t.borrow(), &f),
+            "round coefficient {k} is not bound before z"
+        );
+    }
+}
+
+/// public inputs must be bound by the sumcheck statement.
+#[test]
+fn sumcheck_statement_binds_public_inputs() {
+    use crate::{
+        core::proto::v2::{Circuit, Layer, Quadratic, RawCircuitBuilder, Stream},
+        runtime::v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
+    };
+    let f = P256Field::new();
+    let raw = RawCircuitBuilder {
+        ninput: 2,
+        npublic_input: 1,
+        noutput: 1,
+        logv: 0,
+        constants: vec![f.one()],
+        layers: vec![Layer::with_assertions(
+            2,
+            Stream::<Quadratic>::from_terms([Quadratic {
+                g: 0,
+                l: 0,
+                r: 1,
+                k: 0,
+            }]),
+            Stream::default(),
+            Stream::default(),
+            |_| false,
+        )],
+    }
+    .build();
+    let c = Circuit::from_raw(&f, raw);
+    let state = |x: u64| {
+        let mut t = Transcript::new(b"statement-binding");
+        t.borrow()
+            .write_sumcheck_statement::<4, _>(&c, &[f.u64_to_element(x)], &f);
+        t.bytes(32)
+    };
+    assert_ne!(state(1), state(2), "public inputs not bound");
+}
