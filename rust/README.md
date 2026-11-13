@@ -203,9 +203,11 @@ The [audit](../formal/AUDIT.md) records the proof path and implementation scope.
 
 The cryptographic assumptions are a classical ideal SHA oracle and the
 stated joint successful-sampling law for the physical role readers, including
-nonzero scalars and openings without replacement. Failed samplers reject;
-proving that the concrete Rust rejection loops satisfy the joint sampling law
-remains a separate implementation obligation.
+nonzero scalars and openings without replacement. The Lean model permits
+sampling failure and rejects that branch. The concrete Rust reader has a
+finite PRF counter and panics on counter exhaustion. Proving that the concrete
+reader, including shared-block consumption and rejection order, satisfies the
+joint successful-sampling law remains a separate implementation obligation.
 The field codecs, circuit semantics and static public resource bounds are
 trusted model inputs. Rust correspondence is established through source audit
 and tests. Machine-level refinement and extractor running-time bounds remain

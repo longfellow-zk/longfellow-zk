@@ -190,6 +190,6 @@ lake build RecursivePolygero
 
 `polygero.APITest` checks the public API, concrete proof dependencies, and
 foundational axioms of declarations imported by `polygero`, including private
-proofs and legacy arithmetic helpers. The separate numerical benchmark uses
-`native_decide`, as documented in its benchmark notes. `polygero.APITest` is
-also part of the default `lake build`.
+proofs and legacy arithmetic helpers. The retained numerical benchmark and
+Hahn identities are kernel-checked without native-evaluation axioms.
+`polygero.APITest` is also part of the default `lake build`.

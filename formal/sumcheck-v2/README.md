@@ -1,7 +1,6 @@
 # Sumcheck V2
 
-Lean proofs for the projective, single-hand protocol at Rust snapshot
-`21cb029`, with the earlier `fcf8a3a` terminal retained, in
+Lean component proofs for the projective, single-hand protocol in
 [`rust/runtime/v2/sumcheck`](../../rust/runtime/v2/sumcheck/README.md).
 The library and namespace are `SumcheckV2`. From `formal/`, run:
 
@@ -134,12 +133,12 @@ the Rust operations modeled; it is not a source-level refinement certificate.
 
 | Rust source | Lean model |
 |---|---|
-| `sumcheck-v2/src/prover.rs`, `dense.rs` | `roundMessage`, `fold`, `honestMessages` |
-| `sumcheck-v2/src/monomial.rs` | `monomialWeights`, `evaluate_eq_dot` |
-| `sumcheck-v2/src/quad.rs` | `bindRightAffine`, `bindLeft`, `affine_rebinding`, `affine_nextWeights_correct` |
-| `sumcheck-v2/src/symbolic.rs` at `21cb029` | Shared `PadExpression` operations and `LfzkV2.Linear.buildConstraints_correct`, including both public corrections |
-| `zk-v2/src/constraint_compiler.rs` at `21cb029` | `LfzkV2.Linear.compiled_iff_clear` and `Linear.Runtime.CompiledFS`; the new backend has only affine rows |
-| `sumcheck-v2/src/transcript.rs` | Prefix-dependent challenge strategies |
+| `runtime/v2/sumcheck/src/prover.rs`, `dense.rs` | `roundMessage`, `fold`, `honestMessages` |
+| `runtime/v2/sumcheck/src/monomial.rs` | `monomialWeights`, `evaluate_eq_dot` |
+| `runtime/v2/sumcheck/src/quad.rs` | `bindRightAffine`, `bindLeft`, `affine_rebinding`, `affine_nextWeights_correct` |
+| `runtime/v2/sumcheck/src/symbolic.rs` | `LinearTerminal` affine rows; `LfzkV2.Current.FrontendReplay` and `FrontendVerifier` reconstruct the current constraints |
+| `runtime/v2/zk/src/constraint_compiler.rs` | `LfzkV2.Current.FrontendBodyVerifier` and the current backend row layout |
+| `runtime/v2/sumcheck/src/transcript.rs` | `LfzkV2.Current.FrontendTranscript` and prefix-dependent challenge strategies |
 
 `roundMessage` takes the incoming claim explicitly, matching
 `prover::quad_round_poly`'s `c1 = p(1) - claim`. It does not replace that claim
@@ -153,11 +152,14 @@ constructs all three effective streams, with separate linear and quadratic
 assertion occurrences. It proves complete circuit reconstruction, corrected
 symbolic execution, sparse compilation, honest construction, and soundness
 reduction including zero outputs and invalid assertions. Its challenge tests
-have the same sharp budget `logv + Σ(min(1, assertions) + 2*logw + 1)`.
-The [`LfzkV2.Packed`](../lfzk-v2/README.md) composition connects those native
-semantics to packed input equations, the committed Polygero candidate family,
-causal Fiat–Shamir replay, the two-field MAC, and both Merkle commitments.
-The earlier quadratic/unpacked model remains available in its original namespace.
+have the component budget `logv + Σ(min(1, assertions) + 2*logw + 1)`.
+This is a generic algebraic result; the current runtime's linear terminal
+uses the schedule in `LfzkV2.Current.Schedule`, with `logw + 3` boundaries
+per stage and one input-assertion boundary for a frontend without layers.
+The current frontend replay connects the stage algebra to layered circuit
+topology, carried fragment weights, packed input equations and witness selection.
+The complete mdoc composition adds the cross-field claim adapter, one shared
+Polygero commitment over both fields and numbered-strand Fiat–Shamir analysis.
 
 The remaining correspondence obligations are specific:
 
@@ -171,10 +173,7 @@ The remaining correspondence obligations are specific:
 
 This algebraic component omits serialization; the current runtime composition
 adds canonical proof-body and transcript-query codecs.
-The retained linear-terminal checkpoint is in `LfzkV2.Linear.Runtime`,
-including its packed/direct rows, adaptive Fiat–Shamir, MAC, and two Merkle
-commitments. The current MAC-free runtime and its shared commitment are modeled
-separately in [`LfzkV2.Current`](../lfzk-v2/README.md#current-mac-free-protocol).
-`LfzkV2.Packed` retains the earlier product-checked checkpoint.
-Neither this component library nor the complete soundness composition asserts
-full joint zero knowledge. Existing V1 proofs and certificates remain unchanged.
+The complete runtime, soundness and zero-knowledge assemblies are in
+[`LfzkV2.Current`](../lfzk-v2/README.md#current-mac-free-protocol).
+This component library alone does not assert joint zero knowledge.
+Existing V1 proofs and certificates remain unchanged.

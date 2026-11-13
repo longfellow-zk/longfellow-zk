@@ -313,9 +313,10 @@ establish that a cryptographic implementation satisfies their premises.
   circuit. There is no mask range assertion: `Handoff.product_handoff` handles
   arbitrary mask bits through their residue modulo the prime. These safeguards do
   not replace the explicit Lean circuit-correspondence premise. Rust's normal
-  `for_spec` loader checks archive metadata but
-  does not recompute semantic payload IDs. Consequently, trust includes
-  the actual supplied archive bytes, not merely their advertised IDs.
+  `for_spec` loader recomputes each segmented circuit ID, checks it against
+  the archive entry, and checks the combined ID against the trusted spec.
+  Trust therefore includes the circuits selected by the spec and their
+  application semantics; payload IDs are verified at load time.
 - **Public setup and resource bounds.** Trusted sparse topology, canonical
   scalar codecs, capacity/address/serialization bounds and the concrete
   hash-depth restriction are explicit. Current parameter certificates,
