@@ -250,7 +250,7 @@ retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 
 ## Performance
 
-Complete NEXT v12 mdoc presentations, measured on 2026-11-10 with Rust 1.99.1
+Complete NEXT v12 mdoc presentations, measured on 2026-11-13 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
 Times are medians of seven samples after one warmup;
 heap measurements use separate allocation-tracking runs. The four-slot case
@@ -258,25 +258,25 @@ repeats the fixture's two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 140.2 ms | 75.5 ms | 138,575 | 43.06 MiB | 34.73 MiB |
-| 4 | 145.0 ms | 77.0 ms | 138,735 | 47.65 MiB | 37.78 MiB |
+| 2 | 130.0 ms | 71.1 ms | 137,776 | 47.48 MiB | 34.67 MiB |
+| 4 | 140.2 ms | 76.1 ms | 137,904 | 52.47 MiB | 37.73 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 654,541 | 160,968 | 1.74 MiB |
-| 4 | 679,625 | 162,552 | 1.83 MiB |
+| 2 | 657,038 | 163,666 | 1.75 MiB |
+| 4 | 682,346 | 166,185 | 1.83 MiB |
 
 Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
-circuits, with ordinary code rate `k/n=1/7`. The combined hash/adapter has 20
-layers; the signature has 11.
+circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
+and the adapter fragment joins its input end; the signature has 11.
 Circuit outputs join the assertion block at their own layer. Components are
 ordered by decreasing depth, with original input index breaking ties, so the
-carried claim weights extend in place. Fragments introduce no extra rounds.
+carried claim weights extend in place. Quad fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash application, 2 attributes | 285,469 | 2,076,110 | 4,250,351 | 267 |
-| Hash application, 4 attributes | 312,873 | 2,335,336 | 4,766,971 | 275 |
+| Hash circuit, 2 attributes | 285,193 | 2,076,643 | 4,251,242 | 267 |
+| Hash circuit, 4 attributes | 312,597 | 2,336,187 | 4,768,406 | 275 |
 | Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
