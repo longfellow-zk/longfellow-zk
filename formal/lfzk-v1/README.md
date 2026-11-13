@@ -135,7 +135,7 @@ From `formal/`:
 ```sh
 lake build
 lake build LfzkV1.FlatV7All
-lake env lean scripts/Audit.lean
+lake build SecurityAudit
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-profile
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-assertions
 ```

@@ -265,6 +265,10 @@ claim reaching a true terminal claim must be repaired at some boundary:
 - [`WitnessSelection.Chained.failure_bound`](../witness-selection/WitnessSelection/ChainedFiatShamir.lean):
   `Q*choose(L,2)/q² + (Q+1)/|Link|` for a list of at most `L` projected candidates.
 
+These are standalone component theorems for the chained (link-feedback)
+transcript. The current mdoc endpoint does not import them; it uses the
+numbered-strand composition in `LfzkV2.Current.Soundness`.
+
 With a 32-byte link, `|Link|=2^256`. For multiple frontend components, use their
 combined local bad event in the generic theorem so the common chain exception
 is charged once. Repeated queries provide no new answer; branch exploration

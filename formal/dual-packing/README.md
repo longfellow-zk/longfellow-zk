@@ -12,7 +12,7 @@ From `formal/`:
 ```sh
 lake build DualPacking
 lake env lean dual-packing/audit.lean
-lake env lean scripts/Audit.lean
+lake build SecurityAudit
 ```
 
 The library is included in the default build, with warnings treated as errors.

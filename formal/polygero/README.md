@@ -119,6 +119,11 @@ min(q, L) * choose(n + ℓ − a, t) / choose(n, t)
 ```
 
 The local error remains `θ + (1 − θ)(μ + 1/q)`.
+This is the recursive verifier's per-invocation error. The v2 mdoc runtime
+uses the non-recursive joint verifier instead, and its bound does not use
+this formula: it charges one joint active-family budget over the shared
+query set (`LfzkV2.Current.Soundness.Rate7.parentBudget`), whose column term
+is `choose(866, 84) / choose(2443, 84)` (see the [formal README](../README.md#v2-extraction-soundness)).
 `Protocol.HahnProfileProof.wireExtract_valid` and
 `wire_extraction_failure` prove recursive witness validity and the product
 failure bound, and `soundness_of_extraction` derives false-statement

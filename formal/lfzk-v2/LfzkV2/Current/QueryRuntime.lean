@@ -1,11 +1,17 @@
 import LfzkV2.Current.FingerprintPrefix
 import LfzkV2.Current.WireBlockBounds
 
-/-! Canonical byte queries embedded in the runtime's logical inputs. The
-base retains the complete writes at a boundary and the fresh component is
-only a parsed cache. The initial key is recovered from the first block;
-it is not serialized a second time. Malformed logical cache aliases lie
-outside the canonical image and cannot acquire the same byte query. -/
+/-! Canonical byte queries of the earlier chained transcript, embedded in
+logical inputs. The base retains the complete writes at a boundary and the
+fresh component is only a parsed cache. The initial key is recovered from
+the first block; it is not serialized a second time. Malformed logical cache
+aliases lie outside the canonical image and cannot acquire the same byte query.
+
+These byte layouts (u64 round counters and `boundary-output` feedback links)
+are not what the Rust runtime hashes. The runtime uses numbered SHA-256
+strands, whose preimages are modeled by `TranscriptV2.Strand` and
+`StrandQueryCodec`; the endpoints use those. Current modules import this one
+for its logical types (`Block`, `Input`). -/
 noncomputable section
 namespace LfzkV2.Current.QueryRuntime
 open CanonicalPrefix
@@ -64,8 +70,9 @@ def historyBytes (roles : List Role) (counter : ℕ) (fits : counter+roles.lengt
         roundFooter (roles.get ⟨n,by omega⟩).domain ⟨counter+n,by omega⟩ ++
         feedback.encode history.2.2
 
-/-- The physical oracle preimage. It deliberately ignores redundant
-logical caches. Canonicality below reconstructs and checks those caches. -/
+/-- The oracle preimage under the earlier chained transcript (not the
+numbered-strand runtime). It deliberately ignores redundant logical caches.
+Canonicality below reconstructs and checks those caches. -/
 def bytes (bodyCodec : PrefixCodec Body) (roles : List Role) (counter : ℕ)
     (fits : counter+roles.length < 2^64) :
     Input roles Key (Block capacity Fresh) Digest Body → Bytes

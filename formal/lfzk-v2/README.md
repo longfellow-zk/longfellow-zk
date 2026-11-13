@@ -284,7 +284,7 @@ lake build
 lake build LfzkV2.APITest
 rustc --edition 2024 scripts/audit.rs -o /tmp/longfellow-source-audit
 /tmp/longfellow-source-audit
-lake env lean scripts/Audit.lean
+lake build SecurityAudit
 ```
 
 The endpoint audit and certificates are included in the default build.

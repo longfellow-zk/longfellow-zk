@@ -115,6 +115,14 @@ The generic linear theorem has no restriction $pQ\le1$; that restriction is
 needed only by the optional saturation argument. For $Q\ge2^{127}$ the
 concrete endpoint extends the linear bound using probability being at most one.
 
+`Mdoc.Soundness.averaged_polynomial_ratio_le` restates the linear bound in
+polynomial form, also for every $Q\ge0$:
+
+$$
+P_{\mathrm{fail}}(Q)\le 2Q\,2^{-128}
+ + \left(\frac{2Q^2}{1-2^{-128}}+r+15\right)2^{-256}.
+$$
+
 ### Proof map
 
 Read the chain top-down; each row is proved from the rows below it. The
