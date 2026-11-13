@@ -356,27 +356,41 @@ fn main() {
     roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
     roots.dedup();
     let mut dependencies = BTreeMap::new();
-    // Every current test must be a direct aggregate import. A transitive
-    // dependency on a sibling test must not be its only build coverage.
-    let test_barrel =
-        code(&fs::read_to_string("formal/lfzk-v2/LfzkV2/Current/Tests/APITest.lean").unwrap());
-    let test_imports: BTreeSet<_> = test_barrel
-        .lines()
-        .filter_map(|line| line.trim().strip_prefix("import "))
-        .collect();
-    for name in &paths {
-        if name.starts_with("formal/lfzk-v2/LfzkV2/Current/Tests/")
-            && name.ends_with(".lean")
-            && !name.ends_with("/APITest.lean")
-        {
-            let module = name
-                .strip_prefix("formal/lfzk-v2/")
-                .unwrap()
-                .trim_end_matches(".lean")
-                .replace('/', ".");
-            if !test_imports.contains(module.as_str()) {
-                eprintln!("Current test {module} is missing from Tests.APITest");
-                failures += 1;
+    // Tests need direct aggregate imports: a sibling's transitive import must
+    // not be their only coverage under the normal build.
+    for (base, directory, barrel) in [
+        (
+            "formal/lfzk-v2/",
+            "LfzkV2/Current/Tests/",
+            "LfzkV2/Current/Tests/APITest.lean",
+        ),
+        (
+            "formal/transcript-v2/",
+            "TranscriptV2/Tests/",
+            "TranscriptV2/APITest.lean",
+        ),
+        (
+            "formal/sumcheck-v2/",
+            "SumcheckV2/Tests/",
+            "SumcheckV2/APITest.lean",
+        ),
+    ] {
+        let aggregate = code(&fs::read_to_string(format!("{base}{barrel}")).unwrap());
+        let imported: BTreeSet<_> = imports(&aggregate).into_iter().collect();
+        for name in &paths {
+            if name.starts_with(&format!("{base}{directory}"))
+                && name.ends_with(".lean")
+                && !name.ends_with("/APITest.lean")
+            {
+                let module = name
+                    .strip_prefix(base)
+                    .unwrap()
+                    .trim_end_matches(".lean")
+                    .replace('/', ".");
+                if !imported.contains(&module) {
+                    eprintln!("Test {module} is missing from {base}{barrel}");
+                    failures += 1;
+                }
             }
         }
     }

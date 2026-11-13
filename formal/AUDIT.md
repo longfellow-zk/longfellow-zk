@@ -100,7 +100,8 @@ Three review passes cover the current soundness path.
    retaining challenge-derived coefficients in verifier state.
 
 The endpoint tests and native Rust library tests are source-correspondence
-checks. The current test aggregate directly imports every current test module;
+checks. The current composition, transcript and sumcheck test aggregates each
+directly import every test module in their respective test directories;
 the source audit rejects future omissions. `scripts/Audit.lean` imports the
 default component roots and audits their declarations, including generic
 survival, coding-theory, ECDSA and circuit components. Its axiom collection is
@@ -268,10 +269,9 @@ premises remain explicit; the kernel does not certify Rust machine semantics.
 From `formal/`, after installing the pinned Lean toolchain and Mathlib:
 
 ```sh
-lake build
+lake build SecurityAudit
 rustc --edition 2024 scripts/audit.rs -o /tmp/longfellow-source-audit
 /tmp/longfellow-source-audit
-lake env lean scripts/Audit.lean
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-profile
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-assertions
 ```
@@ -282,17 +282,21 @@ and the Polygero API/dependency checks. `scripts/build.sh` uses Lake's default
 concurrency. There is no separate certificate build requirement.
 
 The Rust source scanner strips nested Lean comments and strings before
-rejecting unchecked proof constructs. It also validates local Markdown
-links in the formal and Rust documentation. The Lean audit inspects every
+rejecting unchecked proof constructs and kernel-check bypass options. It also
+validates local Markdown links in the formal and Rust documentation. The Lean audit inspects every
 imported declaration owned by the V1/V2, sumcheck, dual-packing, witness-selection,
 chained-transcript, BCS, Merkle, Polygero,
-runtime-Hahn, and runtime-profile modules, including private helpers.
+runtime-Hahn, runtime-profile and imported example modules, including private
+helpers.
 V2 and the other audited non-V1 modules permit only `propext`,
 `Classical.choice`, and `Quot.sound`. V1 numerical rows retain the documented
 native-evaluation allowance, including their imported legacy numerical
-certificates. V2 and the retained Hahn identities do not depend on that
-allowance.
+certificates in `examples.Ligero.Longfellow`. Other example modules receive
+the standard axiom check. V2 and the retained Hahn identities do not depend
+on that allowance.
 
+`SecurityAudit` builds the audit's complete import closure before running its
+declaration checks; it does not rely on artifacts from a previous build.
 The broad audit is separate from the default build so repeated incremental
 builds keep their short API and certificate checks. These checks establish
 the stated proof dependencies and exact numerical facts; they do not

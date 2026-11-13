@@ -54,7 +54,7 @@ private def auditedModule (name : Name) : Bool :=
     "TranscriptV2", "Bcs", "Merkle",
     "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles", "MdocJointProfile", "Survival",
     "CodingTheory", "ReedSolomon", "AffineAgreement", "SelectedMCA", "LigeroFamily",
-    "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "PkCircuitPoly", "LigeroLocalCounts"].any fun root =>
+    "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "PkCircuitPoly", "LigeroLocalCounts", "examples"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
 
 run_cmd do
@@ -74,7 +74,8 @@ run_cmd do
   for (name, info) in env.constants do
     let moduleName := owner name
     unless auditedModule moduleName do continue
-    let legacy := moduleName == `LfzkV1 || moduleName.toString.startsWith "LfzkV1."
+    let legacy := moduleName == `LfzkV1 || moduleName.toString.startsWith "LfzkV1." ||
+      moduleName.toString.startsWith "examples.Ligero.Longfellow."
     if info.isAxiom && !(legacy && nativeFact name) then
       throwError "Unexpected axiom declaration: {name}"
     for ax in ← collectAxioms name do

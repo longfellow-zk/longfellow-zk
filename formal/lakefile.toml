@@ -160,3 +160,11 @@ srcDir = "parameters/polygero"
 roots = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
 globs = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+# Build the audit and its complete import closure explicitly, independently
+# of the smaller default endpoints. Invoke with `lake build SecurityAudit`.
+[[lean_lib]]
+name = "SecurityAudit"
+srcDir = "."
+roots = ["scripts.Audit"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
