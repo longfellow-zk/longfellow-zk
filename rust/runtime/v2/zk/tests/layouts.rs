@@ -163,7 +163,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let prover_inst = ZkProver::new(circ, config);
     let (prover, geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
@@ -174,7 +174,6 @@ fn test_zk_prover_verifier_end_to_end() {
     let (zkp, ts_prover) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             prover,
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
@@ -340,15 +339,10 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let mut rng = SimpleRng { state: 42 };
                 let prover_ts = Transcript::new(b"lexicographic-zk");
                 let (commitment, geometry) = prover
-                    .commit(&witness_inputs[1..], &context, prover_ts, &mut rng)
+                    .commit(witness_inputs[1..].to_vec(), &context, prover_ts, &mut rng)
                     .unwrap();
                 let (proof, mut prover_ts) = prover
-                    .prove(
-                        &witness_inputs[..1],
-                        witness_inputs[1..].to_vec(),
-                        commitment,
-                        &context,
-                    )
+                    .prove(&witness_inputs[..1], commitment, &context)
                     .unwrap();
                 let proof_bytes = proof
                     .write(&geometry, &f, prover_ts.fork_for_test())
@@ -441,7 +435,7 @@ fn test_zk_triple_zero_zero_zero() {
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
@@ -451,7 +445,6 @@ fn test_zk_triple_zero_zero_zero() {
     let (zkp, _) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
@@ -570,7 +563,7 @@ fn test_zk_intermediate_zero_logw() {
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst
         .commit(
-            &w0[prover_inst.circuit.raw.npublic_input..],
+            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
@@ -580,7 +573,6 @@ fn test_zk_intermediate_zero_logw() {
     let (zkp, _) = prover_inst
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
-            w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             commit_res,
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         )
@@ -648,7 +640,7 @@ fn test_zk_zero_layers() {
         let prover_inst = ZkProver::new(circ, config);
         let (commit_res, _geom) = prover_inst
             .commit(
-                &w0[2..],
+                w0[2..].to_vec(),
                 &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
                 ts_prover,
                 &mut rng,
@@ -657,7 +649,6 @@ fn test_zk_zero_layers() {
 
         let prove_res = prover_inst.prove(
             &w0[..2],
-            w0[2..].to_vec(),
             commit_res,
             &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
         );

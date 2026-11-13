@@ -125,19 +125,17 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let rejected_ts = Transcript::new(seed);
     let mut rejected_rng = DeterministicRng::new(42);
     assert!(matches!(
-        prover.commit(&[], &context, rejected_ts, &mut rejected_rng),
+        prover.commit([].to_vec(), &context, rejected_ts, &mut rejected_rng),
         Err(error) if error == "witness length mismatch"
     ));
     assert_eq!(rejected_rng.bytes(32), DeterministicRng::new(42).bytes(32));
 
-    for (inputs, private, expected_error) in [
-        (&[][..], witness.clone(), "public inputs length mismatch"),
-        (public.as_slice(), vec![], "witness length mismatch"),
-    ] {
+    {
+        let inputs: &[bool] = &[];
         let transcript = Transcript::new(seed);
         let (mut committed, _) = prover
             .commit(
-                &witness,
+                witness.to_vec(),
                 &context,
                 transcript,
                 &mut DeterministicRng::new(42),
@@ -147,9 +145,9 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         let mut unchanged = transcript.fork_for_test();
         assert!(matches!(
             committed.participant.prove(
-                &prover.circuit, inputs, private, committed.state, &mut transcript, &context
+                &prover.circuit, inputs, committed.state, &mut transcript, &context
             ),
-            Err(error) if error == expected_error
+            Err(error) if error == "public inputs length mismatch"
         ));
         assert_eq!(transcript.bytes(32), unchanged.bytes(32));
     }
@@ -161,7 +159,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     // produce exactly one response, while exposing the same pads to this test.
     let (committed, geometry) = prover
         .commit(
-            &witness,
+            witness.to_vec(),
             &context,
             actual_ts,
             &mut DeterministicRng::new(42),
@@ -169,7 +167,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
     let (mut reference, reference_geometry) = prover
         .commit(
-            &witness,
+            witness.to_vec(),
             &context,
             numerical,
             &mut DeterministicRng::new(42),
@@ -177,9 +175,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
     assert_eq!(geometry, reference_geometry);
-    let (actual, mut actual_ts) = prover
-        .prove(&public, witness.clone(), committed, &context)
-        .unwrap();
+    let (actual, mut actual_ts) = prover.prove(&public, committed, &context).unwrap();
 
     let independent_param = JointParam::new((
         SelectedField::new(

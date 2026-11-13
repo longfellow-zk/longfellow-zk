@@ -201,7 +201,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         let p = CircuitParticipant::with_circuits(&main, &others, config, &ctx).unwrap();
         let private = vec![true, true, false];
         let mut rng = DeterministicRng::new(77);
-        let (state, w) = p.prepare(&private, &mut rng).unwrap();
+        let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
         // Circuit multiplicity changes pads, but never duplicates the packed input.
         assert_eq!(p.backend.layout.private_inputs, 3);
         let param =
@@ -213,7 +213,6 @@ fn binary_circuits_authenticate_one_shared_input() {
             .prove_circuits(
                 &main,
                 &[true],
-                private,
                 state,
                 &others,
                 &mut joint.transcript(),
@@ -259,7 +258,7 @@ fn binary_circuits_authenticate_one_shared_input() {
     }
 }
 #[test]
-fn prime_circuits_keep_degree_one_packing_direct() {
+fn prime_direct_packing_uses_the_owned_committed_witness() {
     use crate::runtime::algebra::{
         fp2::Fp2Field, p256::P256Field,
         range_interpolation::QuadraticExtensionFftInterpolatorFactory, SupportsFFT,
@@ -283,15 +282,21 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         &ctx,
     )
     .unwrap();
-    let private = [2, 3, 0].map(|x| f.u64_to_element(x)).to_vec();
+    let mut private = [2, 3, 0].map(|x| f.u64_to_element(x)).to_vec();
     let public = [f.u64_to_element(6)];
     let mut rng = DeterministicRng::new(78);
-    let (state, w) = p.prepare(&private, &mut rng).unwrap();
+    let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
     assert_eq!(p.geometry().packing_degree, 1);
     assert_eq!(
         w.len(),
         private.len() + p.geometry().sc_geom.pad_count().unwrap()
     );
+    // The prover can no longer substitute these values for the committed ones.
+    // The state owns its inputs; the original caller's buffer is unrelated.
+    private[0] = f.zero();
+    let mut substituted = public.to_vec();
+    substituted.extend(private);
+    assert!(crate::runtime::v2::sumcheck::eval_circuit(substituted, &main, &f).is_err());
     let param =
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let t = Transcript::new(b"prime-fragmented-pcs-test");
@@ -300,7 +305,6 @@ fn prime_circuits_keep_degree_one_packing_direct() {
         .prove_circuits(
             &main,
             &public,
-            private,
             state,
             &others,
             &mut joint.transcript(),
@@ -349,7 +353,7 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
     );
     let mut rng = DeterministicRng::new(42);
     let result = prover.commit(
-        &[],
+        [].to_vec(),
         &ZkContext::new(&domain),
         Transcript::new(b"invalid metadata"),
         &mut rng,
@@ -375,15 +379,13 @@ fn final_seal_failure_has_its_own_verification_error() {
     let private = vec![false; 3];
     let (committed, geometry) = prover
         .commit(
-            &private,
+            private.to_vec(),
             &context,
             Transcript::new(b"seal error"),
             &mut DeterministicRng::new(45),
         )
         .unwrap();
-    let (proof, transcript) = prover
-        .prove(&[false], private, committed, &context)
-        .unwrap();
+    let (proof, transcript) = prover.prove(&[false], committed, &context).unwrap();
     let mut bytes = proof.write(&geometry, &f, transcript).unwrap().into_bytes();
     let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
     let mut input = bytes.as_slice();

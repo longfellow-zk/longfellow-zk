@@ -150,7 +150,7 @@ pub(crate) fn exercise<
     let p = ZkProver::new(circuit(f), config);
     let tp = Transcript::new(b"longfellow/v2/test");
     let mut rng = DeterministicRng::new(42);
-    let (committed, prover_geometry) = p.commit(&witness, &context, tp, &mut rng).unwrap();
+    let (committed, prover_geometry) = p.commit(witness.to_vec(), &context, tp, &mut rng).unwrap();
     let source_circuit = circuit(f);
     let source_geometry =
         crate::runtime::v2::proto::sumcheck::SumcheckProofGeometry::from_circuit(&source_circuit);
@@ -164,9 +164,7 @@ pub(crate) fn exercise<
         prover_geometry.circuit.com_geom.nw,
         source.witness_count + 2
     );
-    let (proof, tp) = p
-        .prove(&public, witness.clone(), committed, &context)
-        .unwrap();
+    let (proof, tp) = p.prove(&public, committed, &context).unwrap();
     let bytes = proof
         .write(&prover_geometry, f, tp.fork_for_test())
         .unwrap()
@@ -229,11 +227,14 @@ pub(crate) fn exercise<
         let other_prover = ZkProver::new(other_circuit, config);
         let other_ts = Transcript::new(b"longfellow/v2/test");
         let (committed, _) = other_prover
-            .commit(&witness, &context, other_ts, &mut DeterministicRng::new(42))
+            .commit(
+                witness.to_vec(),
+                &context,
+                other_ts,
+                &mut DeterministicRng::new(42),
+            )
             .unwrap();
-        let (other_proof, _) = other_prover
-            .prove(&public, witness.clone(), committed, &context)
-            .unwrap();
+        let (other_proof, _) = other_prover.prove(&public, committed, &context).unwrap();
         assert_eq!(other_proof.com, proof.com);
         assert!(verify(public.clone(), &other_proof).is_err());
 

@@ -23,8 +23,9 @@ use crate::{
     },
 };
 
-/// Private masks needed to reduce one circuit after the shared commitment.
+/// Owned private inputs and masks for reduction after the shared commitment.
 pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
+    private: Vec<CircuitInput<F>>,
     pads: SumcheckProof<W, F>,
     packing: PackingState<F::E>,
     id: [u8; 32],
@@ -32,19 +33,20 @@ pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     additional_ids: Vec<[u8; 32]>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
-    /// Validate and pack typed inputs before sampling any masks. The returned
+    /// Own, validate and pack typed inputs before sampling any masks. The returned
     /// witness belongs in the corresponding position of the Polygero tuple.
     pub fn prepare(
         &self,
-        private: &[CircuitInput<F>],
+        private: Vec<CircuitInput<F>>,
         rng: &mut impl RandomEngine,
     ) -> Result<(CircuitState<W, F>, Vec<F::E>), String> {
-        let inputs = self.backend.prepare_inputs(private)?;
+        let inputs = self.backend.prepare_inputs(&private)?;
         let (pads, suffix) =
             sumcheck::sample_pads(&self.geometry.sc_geom, rng, self.backend.parameters.field());
         let (packing, witness) = self.backend.prepare(inputs, suffix, rng);
         Ok((
             CircuitState {
+                private,
                 pads,
                 packing,
                 id: self.id,
@@ -62,21 +64,19 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
-        private: Vec<CircuitInput<F>>,
         state: CircuitState<W, F>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        self.prove_circuits(circuit, public, private, state, &[], t, ctx)
+        self.prove_circuits(circuit, public, state, &[], t, ctx)
     }
-    /// Prove all supplied circuits against the same typed public and private inputs.
+    /// Prove all supplied circuits using the private inputs owned by the state.
     /// The result contains one ordinary sumcheck and one packing reduction.
     #[allow(clippy::too_many_arguments)]
     pub fn prove_circuits<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
-        private: Vec<CircuitInput<F>>,
         state: CircuitState<W, F>,
         others: &[&Circuit<F>],
         t: &mut TranscriptRef<'_>,
@@ -86,9 +86,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             return Err("public inputs length mismatch".into());
         }
         self.validate_circuits(circuit, public.len(), others)?;
-        if private.len() != self.backend.layout.private_inputs {
-            return Err("witness length mismatch".into());
-        }
         if state.id != self.id
             || state.config != self.config
             || state.additional_ids != self.additional_ids
@@ -101,7 +98,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .map_err(|e| e.to_string())?;
         let extension = self.backend.parameters.extension();
         let public = extension.input_elements(ctx.field(), public);
-        let private = extension.into_input_elements(ctx.field(), private);
+        let private = extension.into_input_elements(ctx.field(), state.private);
         let inputs = prepare_inputs(&public, private);
         let mut circuits = vec![circuit];
         circuits.extend_from_slice(others);
@@ -155,7 +152,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     }
     pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine>(
         &self,
-        private: &[CircuitInput<F>],
+        private: Vec<CircuitInput<F>>,
         ctx: &ZkContext<'_, W, F, D>,
         t: Transcript,
         rng: &mut R,
@@ -185,7 +182,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
         public: &[CircuitInput<F>],
-        private: Vec<CircuitInput<F>>,
         mut committed: ZkProverCommitment<W, F>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(ZkProof<W, F>, Transcript), String> {
@@ -195,7 +191,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         let (circuit, statement) = committed.participant.prove(
             &self.circuit,
             public,
-            private,
             committed.state,
             &mut committed.joint.transcript(),
             ctx,
