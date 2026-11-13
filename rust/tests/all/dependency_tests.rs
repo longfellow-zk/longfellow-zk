@@ -1811,7 +1811,6 @@ fn test_hahn_certificate_sources() {
     let formal = root.join("../formal/parameters");
     let shared = formal.join("hahn");
     let mut expected = BTreeSet::from([
-        shared.join("RuntimeHahn/Packing.lean"),
         shared.join("RuntimeHahn/Budget.lean"),
         shared.join("RuntimeHahn/HahnPolynomial.lean"),
         shared.join("RuntimeHahn/APITest.lean"),
@@ -1823,15 +1822,15 @@ fn test_hahn_certificate_sources() {
     for (name, degrees, certificate) in [
         ("Hash", 23, true),
         ("Signature", 23, true),
-        ("Mldsa992", 3, true),
-        ("Mldsa1024", 5, true),
-        ("Mldsa960", 3, true),
         ("LigeroV7Sig", 9, true),
         ("LigeroV7SigFS", 25, true),
         ("LigeroV7Hash1", 11, true),
         ("LigeroV7Hash2", 11, true),
         ("LigeroV7Hash3", 11, true),
         ("LigeroV7Hash4", 11, true),
+        ("MdocRate7Active", 25, false),
+        ("MdocRate7Binary", 13, false),
+        ("MdocRate7Prime", 15, false),
         ("Benchmark2109", 23, false),
         ("Benchmark2119", 21, false),
         ("Benchmark2129", 19, false),
@@ -1843,8 +1842,19 @@ fn test_hahn_certificate_sources() {
         }
         let prefix = "RuntimeHahn/Kernels";
         expected.insert(shared.join(format!("{prefix}/Kernels{name}.lean")));
-        for degree in 1..=degrees {
-            expected.insert(shared.join(format!("{prefix}/{name}Kernels/Degree{degree:02}.lean")));
+        let mut first = 1;
+        for end in [12, 17, 20, 22, 24, degrees] {
+            let last = end.min(degrees);
+            let module = if first == last {
+                format!("Degree{first:02}")
+            } else {
+                format!("Degrees{first:02}To{last:02}")
+            };
+            expected.insert(shared.join(format!("{prefix}/{name}Kernels/{module}.lean")));
+            if last == degrees {
+                break;
+            }
+            first = last + 1;
         }
     }
     let mut actual = BTreeSet::new();

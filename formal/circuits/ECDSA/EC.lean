@@ -16,11 +16,8 @@
 
 module
 
-public import Mathlib.Algebra.Group.Action.Basic
-public import Mathlib.Tactic.Ext
-public import Mathlib.Tactic.Ring
-public import Mathlib.Tactic.Simps.Basic
 public import ECDSA.Nat
+public import Mathlib.Algebra.Group.Action.Defs
 
 /-!
 # Elliptic Curve Core Arithmetic and ZK Circuit Specification

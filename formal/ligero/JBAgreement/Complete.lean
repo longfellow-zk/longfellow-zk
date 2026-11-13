@@ -152,14 +152,15 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
   have hK0 : (0 : ℝ) < (k : ℝ) := by linarith
   have hN4 : (4 : ℝ) ≤ (n : ℝ) := by nlinarith
   have hN0 : (0 : ℝ) < (n : ℝ) := by linarith
-  have hT4 : (4 : ℝ) ≤ (t : ℝ) := by nlinarith
+  have hT4 : (4 : ℝ) ≤ (t : ℝ) := by linarith only [hηn, ht4]
   have hT0 : (0 : ℝ) < (t : ℝ) := by linarith
   have hTN : (t : ℝ) ≤ (n : ℝ) := by exact_mod_cast htn
-  have hsub0 : (0 : ℝ) ≤ (t : ℝ) - 4 * η * n := by nlinarith
+  have hsub0 : (0 : ℝ) ≤ (t : ℝ) - 4 * η * n := sub_nonneg.mpr ht4
   have hKN : (k : ℝ) ≤ (n : ℝ) := by
-    have h2 : (t : ℝ) - 4 * η * n ≤ (n : ℝ) := by nlinarith
-    have h3 : ((t : ℝ) - 4 * η * n) ^ 2 ≤ (n : ℝ) ^ 2 := by nlinarith
-    nlinarith
+    have h2 : (t : ℝ) - 4 * η * n ≤ (n : ℝ) := by linarith only [hTN, hηn]
+    have h3 : ((t : ℝ) - 4 * η * n) ^ 2 ≤ (n : ℝ) ^ 2 :=
+      pow_le_pow_left₀ hsub0 h2 2
+    exact le_of_mul_le_mul_right (by simpa only [pow_two] using hJ.trans h3) hN0
   have h2ηN : (0 : ℝ) < 2 * η * n := by positivity
   -- The multiplicity.
   obtain ⟨m, hm_lb, hm_ub⟩ : ∃ m : ℕ,
@@ -168,7 +169,7 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
   have hm2 : (2 : ℝ) ≤ (m : ℝ) := by
     refine le_trans ?_ hm_lb
     rw [le_div_iff₀ h2ηN]
-    nlinarith
+    nlinarith only [ht4]
   have hm1 : 1 ≤ m := by exact_mod_cast le_trans (by norm_num : (1:ℝ) ≤ 2) hm2
   have ht1 : 1 ≤ t := by exact_mod_cast le_trans (by norm_num : (1:ℝ) ≤ 4) hT4
   have hmt1 : 1 ≤ m * t := Nat.one_le_iff_ne_zero.mpr
@@ -194,14 +195,14 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
   -- `t ≥ k + 4ηn`, hence `D ≥ k` and `dY ≥ 1`.
   have hTk : (k : ℝ) + 4 * η * n ≤ (t : ℝ) := by
     have h1 : (k : ℝ) ≤ (t : ℝ) - 4 * η * n := by
-      nlinarith [hJ, hK0, hKN, hsub0, sq_nonneg ((t : ℝ) - 4 * η * n - k),
+      nlinarith only [hJ, hK0, hKN, hsub0, sq_nonneg ((t : ℝ) - 4 * η * n - k),
         sq_nonneg ((t : ℝ) - 4 * η * n + k)]
     linarith
   have hDk : k ≤ D := by
     have h1 : (k : ℝ) + 1 ≤ (m : ℝ) * t := by
       have h1a : 2 * (t : ℝ) ≤ (m : ℝ) * t :=
         mul_le_mul_of_nonneg_right hm2 (le_of_lt hT0)
-      nlinarith [hTk, hηn]
+      nlinarith only [h1a, hTk, hηn, hK1]
     have h2 : (k : ℝ) ≤ (D : ℝ) := by rw [hD1]; linarith
     exact_mod_cast h2
   have hdY1 : 1 ≤ dY := by
@@ -222,9 +223,9 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
         have h4m : 2 * (t : ℝ) ≤ 4 * η * n * m := by
           have h5 := hm_lb
           rw [div_le_iff₀ h2ηN] at h5
-          nlinarith
+          nlinarith only [h5]
         have hkey : ((m : ℝ) + 1) * ((t : ℝ) - 4 * η * n) ≤ (m : ℝ) * t - t := by
-          nlinarith
+          nlinarith only [h4m, hηn]
         have hsq : (k : ℝ) * n * ((m : ℝ) + 1) ^ 2 ≤ ((m : ℝ) * t - t) ^ 2 := by
           have h2 : (0 : ℝ) ≤ ((m : ℝ) + 1) * ((t : ℝ) - 4 * η * n) := by positivity
           calc (k : ℝ) * n * ((m : ℝ) + 1) ^ 2
@@ -239,8 +240,7 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
           have e2 : ((m : ℝ) * t - t) ^ 2
               = ((m : ℝ) * t) ^ 2 - (2 * m - 1) * (t : ℝ) ^ 2 := by ring
           have e4 : (0 : ℝ) < (2 * (m : ℝ) - 1) * (t : ℝ) ^ 2 := by
-            have h5 : (3 : ℝ) ≤ 2 * (m : ℝ) - 1 := by linarith
-            nlinarith [sq_nonneg (t : ℝ)]
+            exact mul_pos (by linarith only [hm2]) (sq_pos_of_pos hT0)
           have e5 : (0 : ℝ) < (k : ℝ) * n := by positivity
           rw [e2] at hsq
           linarith
@@ -277,17 +277,19 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
           rw [hfac]
   -- ### The size bounds.
   have hmT : (m : ℝ) * t ≤ (t : ℝ) ^ 2 / (2 * η * n) + t := by
-    have h2 : (m : ℝ) * t ≤ ((t : ℝ) / (2 * η * n) + 1) * t := by nlinarith
+    have h2 : (m : ℝ) * t ≤ ((t : ℝ) / (2 * η * n) + 1) * t :=
+      mul_le_mul_of_nonneg_right hm_ub.le hT0.le
     calc (m : ℝ) * t ≤ ((t : ℝ) / (2 * η * n) + 1) * t := h2
       _ = (t : ℝ) * t / (2 * η * n) + t := by ring
       _ = (t : ℝ) ^ 2 / (2 * η * n) + t := by ring
   have hDreal : (D : ℝ) ≤ 3 * n / (4 * η) := by
     have h1 : (t : ℝ) ^ 2 / (2 * η * n) ≤ (n : ℝ) / (2 * η) := by
       rw [div_le_div_iff₀ (by positivity) (by positivity)]
-      nlinarith [mul_le_mul hTN hTN (le_of_lt hT0) (le_of_lt hN0), hη, hT0]
+      nlinarith only [mul_le_mul_of_nonneg_right
+        (mul_le_mul hTN hTN hT0.le hN0.le) (by positivity : (0:ℝ) ≤ 2 * η)]
     have h2 : (t : ℝ) ≤ (n : ℝ) / (4 * η) := by
       rw [le_div_iff₀ (by positivity)]
-      nlinarith
+      nlinarith only [mul_le_mul_of_nonneg_right hη4 hT0.le, hTN]
     have h3 : (D : ℝ) ≤ (m : ℝ) * t := by rw [hD1]; linarith
     calc (D : ℝ) ≤ (m : ℝ) * t := h3
       _ ≤ (t : ℝ) ^ 2 / (2 * η * n) + t := hmT
@@ -306,10 +308,10 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
     have hmub : (m : ℝ) + 1 ≤ 1 / η := by
       have h1 : (t : ℝ) / (2 * η * n) ≤ 1 / (2 * η) := by
         rw [div_le_div_iff₀ h2ηN (by positivity)]
-        nlinarith [mul_le_mul_of_nonneg_left hTN (by positivity : (0:ℝ) ≤ 2 * η)]
+        nlinarith only [mul_le_mul_of_nonneg_left hTN (by positivity : (0:ℝ) ≤ 2 * η)]
       have h2 : (2 : ℝ) ≤ 1 / (2 * η) := by
         rw [le_div_iff₀ (by positivity)]
-        nlinarith
+        nlinarith only [hη4]
       have h3 : (m : ℝ) + 1 < 1 / (2 * η) + 2 := by linarith
       have h4 : 1 / (2 * η) + 2 ≤ 1 / (2 * η) + 1 / (2 * η) := by linarith
       have h5 : 1 / (2 * η) + 1 / (2 * η) = 1 / η := by
@@ -319,7 +321,8 @@ theorem johnson_params_degreeCap (k n t : ℕ) (η : ℝ)
     have hdYub : (dY : ℝ) + 1 ≤ (n : ℝ) / (k * η) := by
       have h1 : (1 : ℝ) ≤ (n : ℝ) / (4 * k * η) := by
         rw [le_div_iff₀ (by positivity)]
-        nlinarith
+        nlinarith only [hKN, mul_le_mul_of_nonneg_left hη4
+          (by positivity : (0:ℝ) ≤ 4 * (k:ℝ))]
       have h2 : 3 * (n : ℝ) / (4 * k * η) + (n : ℝ) / (4 * k * η) = (n : ℝ) / (k * η) := by
         field_simp
         ring

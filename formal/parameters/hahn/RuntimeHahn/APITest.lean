@@ -1,8 +1,5 @@
 import RuntimeHahn.Hash
 import RuntimeHahn.Signature
-import RuntimeHahn.Mldsa992
-import RuntimeHahn.Mldsa960
-import RuntimeHahn.Mldsa1024
 import RuntimeHahn.LigeroV7Sig
 import RuntimeHahn.LigeroV7Hash1
 import RuntimeHahn.LigeroV7Hash2
@@ -27,9 +24,6 @@ run_cmd do
       ``CodingTheory.HahnDelsarte.Fast.certificate_of_integral,
       ``RuntimeHahn.Hash.certificate_valid, ``RuntimeHahn.Hash.count_eq,
       ``RuntimeHahn.Signature.certificate_valid, ``RuntimeHahn.Signature.count_eq,
-      ``RuntimeHahn.Mldsa992.certificate_valid, ``RuntimeHahn.Mldsa992.count_eq,
-      ``RuntimeHahn.Mldsa960.certificate_valid, ``RuntimeHahn.Mldsa960.count_eq,
-      ``RuntimeHahn.Mldsa1024.certificate_valid, ``RuntimeHahn.Mldsa1024.count_eq,
       ``RuntimeHahn.LigeroV7Sig.certificate_valid, ``RuntimeHahn.LigeroV7Sig.count_eq,
       ``RuntimeHahn.LigeroV7Hash1.certificate_valid, ``RuntimeHahn.LigeroV7Hash1.count_eq,
       ``RuntimeHahn.LigeroV7Hash2.certificate_valid, ``RuntimeHahn.LigeroV7Hash2.count_eq,

@@ -1,15 +1,2 @@
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree01
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree02
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree03
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree04
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree05
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree06
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree07
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree08
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree09
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree10
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree11
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree12
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree13
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree14
-import RuntimeHahn.Kernels.Benchmark2152Kernels.Degree15
+import RuntimeHahn.Kernels.Benchmark2152Kernels.Degrees01To12
+import RuntimeHahn.Kernels.Benchmark2152Kernels.Degrees13To15

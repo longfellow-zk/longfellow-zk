@@ -378,6 +378,12 @@ The Rust parameter tool checks this profile's joint budget separately from
 its universal tuning catalog. Its Lean check binds the manifest's geometry,
 cutoffs and list caps to this certificate.
 
+The retained numerical certificates cover V1, the live V2 parameter catalog
+and the Polygero paper's benchmark table. Independent kernel identities share
+bounded source chunks, avoiding an import and compiler startup for each small
+degree. Each chunk checks its identities serially; independent chunks build
+in parallel. The generator reproduces this layout.
+
 The default build also includes the
 [Polygero parameter certificates](parameters/polygero). These use checked
 integer identities and proved interpolation, without a native-evaluation axiom.
@@ -389,7 +395,7 @@ The package uses Lean 4.31.0 and the compatible Mathlib checkout at
 `python3 scripts/check_soundness.py` checks the survival library and the current
 API aggregate, including the existing zero-knowledge tests. It checks local
 dependencies sequentially through Lake, with a 180-second deadline for each
-invocation. Lake workers use two Lean threads and an 8,192 MiB Lean memory cap;
+invocation. Lake workers use two Lean threads and a 4,096 MiB Lean memory cap;
 proof heartbeat limits are unchanged. Logs and timing JSON are written to
 `.lake/soundness-check/`. A focused check is
 `python3 scripts/check_soundness.py LfzkV2.Current.Mdoc.Soundness`.
@@ -409,6 +415,5 @@ imports the default component roots, including survival and circuit libraries;
 it checks declarations and their transitive axiom dependencies. The source
 audit also requires every current test to be directly imported by its aggregate.
 
-The active rate-1/7 parameter certificate elaborates serially to stay within
-that worker memory cap. The rebuild writes per-module times and peak memory
-to its report under `.lake/`.
+The rebuild writes per-module times and peak memory to its report under
+`.lake/`.

@@ -237,12 +237,10 @@ noncomputable def h2S (dist : FullDistinguisher F r w n nw nq reps Salt D Enc Tr
 noncomputable def h3S (dist : FullDistinguisher F r w n nw nq reps Salt D Enc Tr Coin LQ RO V)
     (ρ' : Tape C nw nq reps) (b : Blind) (hs : SimMerkleCoins n Salt D Enc) (Gr : RO)
     (G₀ : LQ → Coin) (c i : Coin) : V :=
-  hybS dec₂ ctx pts dist i (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i))
-    (fun root => FE.transmit wit Gr (ctx root) b)
-    (fun root => simRespAt FE.stmt ctx dec₁ dec₂ ρ' (FE.transmit wit Gr (ctx root) b) c i Gr root)
-    c Gr G₀ hs.2.1
-    (hidView Cod hs.2.1 (dec₂ i) hs.1 (leavesOfOpen (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i)))
-      hs.2.2)
+  let root₀ := (hidView Cod hs.2.1 (dec₂ i) hs.1
+    (leavesOfOpen (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i))) hs.2.2).rt
+  simCoreS Cod dec₁ dec₂ FE.stmt ctx pts dist ρ'
+    (FE.transmit wit Gr (ctx root₀) b) hs Gr G₀ c i
 
 /-! ### Step 1: programming the two Ligero points is free -/
 
@@ -353,8 +351,7 @@ theorem stepS_adaptive (hvalid : ∀ root, FE.Valid wit (ctx root))
   have e2 : (fun ρ' => h3S C Cod dec₁ dec₂ FE ctx pts wit dist ρ' b hs Gr G₀ c i)
       = fun ρ' : Tape C nw nq reps => Ψ (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i))
           (adaptiveSimResp (dec₂ i) (dec₁ c) S ρ') := rfl
-  rw [e1, e2]
-  exact h
+  exact (congrArg₂ (StatClose 0) e1 e2).mpr h
 
 /-! ### Step 4: the pad makes the transmission uniform -/
 
@@ -368,7 +365,10 @@ theorem stepS_pad (dist : FullDistinguisher F r w n nw nq reps Salt D Enc Tr Coi
     (leavesOfOpen (openSchemeOracle (v1Oracle 0 ρ') (dec₂ i))) hs.2.2).rt
   let e := Equiv.ofBijective (FE.transmit wit Gr (ctx root₀))
     (FE.transmit_bijective wit Gr (ctx root₀))
-  exact statClose_of_equiv_pointwise _ _ e fun b => rfl
+  exact statClose_of_equiv_pointwise
+    (fun b => h3S C Cod dec₁ dec₂ FE ctx pts wit dist ρ' b hs Gr G₀ c i)
+    (fun t => simCoreS Cod dec₁ dec₂ FE.stmt ctx pts dist ρ' t hs Gr G₀ c i)
+    e (fun _ => rfl)
 
 /-! ### The theorem -/
 

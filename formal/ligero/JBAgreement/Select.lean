@@ -533,9 +533,7 @@ theorem exists_bucket_sharp (S : Finset F) (p : F → F[X])
   have hLBLpairwise : (↑PS : Set ((F[X][X])[X])).PairwiseDisjoint (fun P =>
       ((gsc P).toFinset.filter (fun H => 1 ≤ H.natDegree)).image (fun H => (P, H))) := by
     intro P hP P' hP' hne
-    change Disjoint
-      (((gsc P).toFinset.filter (fun H => 1 ≤ H.natDegree)).image (fun H => (P, H)))
-      (((gsc P').toFinset.filter (fun H => 1 ≤ H.natDegree)).image (fun H => (P', H)))
+    change Disjoint _ _
     rw [Finset.disjoint_left]
     intro l hl hl'
     obtain ⟨H, _, rfl⟩ := Finset.mem_image.mp hl

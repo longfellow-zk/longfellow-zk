@@ -1,11 +1,1 @@
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree01
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree02
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree03
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree04
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree05
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree06
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree07
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree08
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree09
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree10
-import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degree11
+import RuntimeHahn.Kernels.LigeroV7Hash4Kernels.Degrees01To11

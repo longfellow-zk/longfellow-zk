@@ -1,9 +1,6 @@
 import RuntimeHahn.Budget
 import RuntimeHahn.Hash
 import RuntimeHahn.Signature
-import RuntimeHahn.Mldsa992
-import RuntimeHahn.Mldsa1024
-import RuntimeHahn.Mldsa960
 import polygero.FiatShamir.Nonrecursive
 
 /-!
@@ -13,8 +10,7 @@ uniform-sampler Fiat-Shamir model. The Rust codec, Merkle binding reduction,
 mixed-field privacy, and Longfellow v2 composition are outside this certificate.
 
 Universal profiles retain the field-explicit coefficient 1/q + 2^-129.
-MLDSA uses its actual sextic field cardinality and proves a coefficient at most
-2^-128 per random-oracle query. The adaptive multiplier is explicit.
+The adaptive multiplier is explicit.
 The extraction endpoint also permits satisfiable statements depending on
 earlier transcript answers, provided its two backend hash answers are held out.
 No joint-farness premise is used.
@@ -265,72 +261,6 @@ def profile : Profile 2912 416 15 86 .universal where
   rank := by norm_num [RuntimeHahn.Budget.minimumField,RuntimeHahn.Budget.rankDivisor,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
 end Signature
 
-namespace Mldsa992
-def profile : Profile 3968 992 24 128 .mldsa128 where
-  positive := by decide
-  large := by decide
-  query_pos := by decide
-  overlap_lt := by decide
-  cutoff_large := by decide
-  cutoff_le_n := by decide
-  cutoff := 2016
-  count := 1930197
-  packing := RuntimeHahn.Mldsa992.packing
-  count_bound := by decide
-  active_floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  condition := ⟨1, by decide, by decide, by
-    norm_num [DiscreteThreshold.candidate,RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]⟩
-  privacy := by decide
-  domain := by decide
-  query_bound := by decide
-  floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  rank := by norm_num [RuntimeHahn.Budget.minimumField,RuntimeHahn.Budget.rankDivisor,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-end Mldsa992
-
-namespace Mldsa1024
-def profile : Profile 4096 1024 25 128 .mldsa128 where
-  positive := by decide
-  large := by decide
-  query_pos := by decide
-  overlap_lt := by decide
-  cutoff_large := by decide
-  cutoff_le_n := by decide
-  cutoff := 2080
-  count := 43203942
-  packing := RuntimeHahn.Mldsa1024.packing
-  count_bound := by decide
-  active_floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  condition := ⟨1, by decide, by decide, by
-    norm_num [DiscreteThreshold.candidate,RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]⟩
-  privacy := by decide
-  domain := by decide
-  query_bound := by decide
-  floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  rank := by norm_num [RuntimeHahn.Budget.minimumField,RuntimeHahn.Budget.rankDivisor,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-end Mldsa1024
-
-namespace Mldsa960
-def profile : Profile 3840 960 24 128 .mldsa128 where
-  positive := by decide
-  large := by decide
-  query_pos := by decide
-  overlap_lt := by decide
-  cutoff_large := by decide
-  cutoff_le_n := by decide
-  cutoff := 1952
-  count := 2417892
-  packing := RuntimeHahn.Mldsa960.packing
-  count_bound := by decide
-  active_floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  condition := ⟨1, by decide, by decide, by
-    norm_num [DiscreteThreshold.candidate,RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]⟩
-  privacy := by decide
-  domain := by decide
-  query_bound := by decide
-  floor := by norm_num [RuntimeHahn.Budget.threshold,RuntimeHahn.Budget.minimumField,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-  rank := by norm_num [RuntimeHahn.Budget.minimumField,RuntimeHahn.Budget.rankDivisor,Nat.choose_eq_fast_choose,Nat.fast_choose,Nat.descFactorial,Nat.factorial]
-end Mldsa960
-
 theorem hash_fs_soundness (I : Instance F)
     (hn : I.n = 3584) (hk : I.r+I.w = 512)
     (hs : I.s = 18) (ht : I.t = 87)
@@ -361,51 +291,6 @@ theorem signature_fs_soundness (I : Instance F)
   simpa only [RuntimeHahn.Budget.additiveBudget_universal] using
     Signature.profile.fs_soundness I hn hk hs ht hq σ hfalse oracle tree
 
-theorem mldsa992_fs_soundness (I : Instance F)
-    (hn : I.n = 3968) (hk : I.r+I.w = 992)
-    (hs : I.s = 24) (ht : I.t = 128)
-    (hq : 8380417^6 ≤ Nat.card F)
-    {Commitment : Type} [Fintype Commitment]
-    (σ : I.layer.Statement) (hfalse : ∀ witness, ¬ I.layer.satisfies σ witness)
-    (oracle : Commitment → I.layer.Oracle) {N : ℕ}
-    (tree : Merkle.RandomOracle.Tree (Point I Commitment) (Answer I)
-      (Commitment × I.layer.Payload) N) :
-    ((univ.filter (accepts I σ oracle tree)).card : ℚ)/
-      (Fintype.card (Answer I) : ℚ)^Fintype.card (Point I Commitment) ≤
-      (N+1 : ℕ)*(1/2^128) := by
-  exact (Mldsa992.profile.fs_soundness I hn hk hs ht hq σ hfalse oracle tree).trans
-    (mul_le_mul_of_nonneg_left (RuntimeHahn.Budget.mldsa_per_query hq) (Nat.cast_nonneg _))
-
-theorem mldsa1024_fs_soundness (I : Instance F)
-    (hn : I.n = 4096) (hk : I.r+I.w = 1024)
-    (hs : I.s = 25) (ht : I.t = 128)
-    (hq : 8380417^6 ≤ Nat.card F)
-    {Commitment : Type} [Fintype Commitment]
-    (σ : I.layer.Statement) (hfalse : ∀ witness, ¬ I.layer.satisfies σ witness)
-    (oracle : Commitment → I.layer.Oracle) {N : ℕ}
-    (tree : Merkle.RandomOracle.Tree (Point I Commitment) (Answer I)
-      (Commitment × I.layer.Payload) N) :
-    ((univ.filter (accepts I σ oracle tree)).card : ℚ)/
-      (Fintype.card (Answer I) : ℚ)^Fintype.card (Point I Commitment) ≤
-      (N+1 : ℕ)*(1/2^128) := by
-  exact (Mldsa1024.profile.fs_soundness I hn hk hs ht hq σ hfalse oracle tree).trans
-    (mul_le_mul_of_nonneg_left (RuntimeHahn.Budget.mldsa_per_query hq) (Nat.cast_nonneg _))
-
-theorem mldsa960_fs_soundness (I : Instance F)
-    (hn : I.n = 3840) (hk : I.r+I.w = 960)
-    (hs : I.s = 24) (ht : I.t = 128)
-    (hq : 8380417^6 ≤ Nat.card F)
-    {Commitment : Type} [Fintype Commitment]
-    (σ : I.layer.Statement) (hfalse : ∀ witness, ¬ I.layer.satisfies σ witness)
-    (oracle : Commitment → I.layer.Oracle) {N : ℕ}
-    (tree : Merkle.RandomOracle.Tree (Point I Commitment) (Answer I)
-      (Commitment × I.layer.Payload) N) :
-    ((univ.filter (accepts I σ oracle tree)).card : ℚ)/
-      (Fintype.card (Answer I) : ℚ)^Fintype.card (Point I Commitment) ≤
-      (N+1 : ℕ)*(1/2^128) := by
-  exact (Mldsa960.profile.fs_soundness I hn hk hs ht hq σ hfalse oracle tree).trans
-    (mul_le_mul_of_nonneg_left (RuntimeHahn.Budget.mldsa_per_query hq) (Nat.cast_nonneg _))
-
 end Polygero.RustHahnProfiles
 end
 
@@ -413,7 +298,7 @@ open Lean Elab Command
 run_cmd do
   for endpoint in #[``Polygero.RustHahnProfiles.Profile.fs_extraction_failure_127,
       ``Polygero.RustHahnProfiles.Profile.fs_soundness_127,
-      ``Polygero.RustHahnProfiles.hash_fs_soundness, ``Polygero.RustHahnProfiles.signature_fs_soundness, ``Polygero.RustHahnProfiles.mldsa992_fs_soundness, ``Polygero.RustHahnProfiles.mldsa1024_fs_soundness, ``Polygero.RustHahnProfiles.mldsa960_fs_soundness] do
+      ``Polygero.RustHahnProfiles.hash_fs_soundness, ``Polygero.RustHahnProfiles.signature_fs_soundness] do
     for ax in ← collectAxioms endpoint do
       unless #[``propext,``Classical.choice,``Quot.sound].contains ax do
         throwError "Unexpected axiom in Hahn verifier endpoint {endpoint}: {ax}"
