@@ -129,24 +129,70 @@ fn literal_end(source: &str, start: usize) -> Option<usize> {
     panic!("unterminated source literal");
 }
 
-/// Skip exactly one attributed item, including an inline module or a macro
-/// invocation; production declarations after that item remain visible.
+/// Skip exactly one attributed item or field. Production declarations after
+/// that item remain visible, including fields after test-only metadata.
 fn test_item_end(code: &[u8], start: usize) -> usize {
+    let mut header = std::str::from_utf8(&code[start..]).unwrap().trim_start();
+    while let Some(attribute) = header.strip_prefix("#[") {
+        header = attribute[attribute.find(']').expect("unterminated attribute") + 1..].trim_start();
+    }
+    if let Some(visibility) = header.strip_prefix("pub") {
+        header = visibility.trim_start();
+        if header.starts_with('(') {
+            header = header[header.find(')').expect("unterminated visibility") + 1..].trim_start();
+        }
+    }
+    let name_len = header
+        .bytes()
+        .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'#'))
+        .count();
+    let field = header[name_len..].trim_start().starts_with([':', ',']);
     let mut depth = 0usize;
+    let mut angles = 0usize;
     for (offset, &byte) in code[start..].iter().enumerate() {
         match byte {
+            b'<' if field && depth == 0 => angles += 1,
+            b'>' if field && depth == 0 && angles > 0 => angles -= 1,
             b'(' | b'[' | b'{' => depth += 1,
             b')' | b']' | b'}' => {
                 depth = depth.checked_sub(1).expect("unbalanced source item");
-                if byte == b'}' && depth == 0 {
+                if byte == b'}' && depth == 0 && angles == 0 {
                     return start + offset + 1;
                 }
             }
+            b',' if field && depth == 0 && angles == 0 => return start + offset + 1,
             b';' if depth == 0 => return start + offset + 1,
             _ => {}
         }
     }
     panic!("unterminated test-only source item");
+}
+
+#[test]
+fn test_only_fields_preserve_following_production_dependencies() {
+    let source = r#"
+        struct State {
+            #[cfg(test)] count: u64,
+            #[cfg(test)] #[allow(dead_code)] pub(crate) cache:
+                std::collections::BTreeMap<u64, crate::compile::logic::Value>,
+            current: crate::runtime::v2::proto::Digest,
+        }
+        fn finish() {
+            #[cfg(test)] let count = 1;
+            let state = State {
+                #[cfg(test)] count,
+                current: crate::runtime::v2::proto::Digest::default(),
+            };
+        }
+        use crate::runtime::algebra;
+    "#;
+    assert_eq!(
+        extract_crate_deps(&production_code(source)),
+        BTreeSet::from([
+            "runtime::v2::proto".to_owned(),
+            "runtime::algebra".to_owned(),
+        ])
+    );
 }
 
 #[test]
