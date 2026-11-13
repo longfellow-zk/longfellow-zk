@@ -154,6 +154,19 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     input: &mut R,
     check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
 ) -> Result<Circuit<F>, String> {
+    let (raw, id) = read_unverified(reader, input, check_remaining)?;
+    if v2::compute_id(reader.f, &raw) != id {
+        return Err("LFC3 circuit ID verification failed".into());
+    }
+    Ok(Circuit::new(id, raw))
+}
+
+/// Apply every structural check, but return the stored circuit ID unverified.
+pub(super) fn read_unverified<R: BufRead, F: SerializableField>(
+    reader: &CircuitReader<'_, F>,
+    input: &mut R,
+    check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
+) -> Result<(v2::RawCircuit<F>, [u8; 32]), String> {
     let mut header = [0; 8];
     input
         .read_exact(&mut header)
@@ -332,8 +345,5 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     input
         .read_exact(&mut id)
         .map_err(|e| format!("LFC3 incomplete circuit ID: {e}"))?;
-    if v2::compute_id(f, &raw) != id {
-        return Err("LFC3 circuit ID verification failed".into());
-    }
-    Ok(Circuit::new(id, raw))
+    Ok((raw, id))
 }

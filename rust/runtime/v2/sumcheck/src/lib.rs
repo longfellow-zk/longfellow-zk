@@ -85,3 +85,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/diagnostic.rs"]
 mod diagnostic;
+
+#[cfg(test)]
+#[path = "../tests/lfc3_mutations.rs"]
+mod lfc3_mutations;
