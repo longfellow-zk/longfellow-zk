@@ -31,10 +31,10 @@ local notation "Setup" visible => Mdoc.SetupFamily.setup binary prime cantor sca
 local notation "Values" SHA => Mdoc.SetupFamily.values binary prime cantor scalars ids bounds SHA
 local notation "Meta" SHA => Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds SHA
 local notation "Private" => (CompleteHonest.Tape binary prime.description × CompleteHonest.Masks (B := B)) ×
-  CompleteBackend.Masks Nodes ConcreteSetup.primeNodes binary.description.cells
+  Backend.JointMasks Nodes ConcreteSetup.primeNodes binary.description.cells
     (CellLayout.Prime.cells prime.description.remaining prime.description.pads)
 local notation "Public" => CompleteSimulation.Coins binary prime.description ×
-  CompleteBackend.Masks Nodes ConcreteSetup.primeNodes binary.description.cells
+  Backend.JointMasks Nodes ConcreteSetup.primeNodes binary.description.cells
     (CellLayout.Prime.cells prime.description.remaining prime.description.pads)
 local notation "Auxiliary" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
 local notation "HonestCoins" => Private × Auxiliary
@@ -58,13 +58,13 @@ variable (remaining : Context → Fin prime.description.remaining → Adapter.Md
 
 private def honestAt (visible : Mdoc.SetupFamily.Values) (metadata : Metadata)
     (coins : HonestCoins) (SHA : Strand.Oracle) : PublicView :=
-  StrandCanonicalHiding.rawReal binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
+  StrandCanonicalExecution.rawReal binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
     (Setup visible) metadata original remaining (sample visible).sample (fun (answer : Answer) => answer .batching)
     (before visible) requestOf (after visible) coins SHA
 
 private def simulateAt (visible : Mdoc.SetupFamily.Values) (metadata : Metadata)
     (coins : SimulatorCoins) (SHA : Strand.Oracle) : PublicView :=
-  StrandCanonicalHiding.rawSimulate binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
+  StrandCanonicalExperiments.rawSimulate binary prime.description prime.plan Nodes scalars bounds.inputFits bounds.privateFits
     (Setup visible) metadata (sample visible).sample (fun (answer : Answer) => answer .batching)
     (before visible) requestOf (after visible) coins SHA
 
@@ -190,7 +190,7 @@ theorem fixedComplement (outside : Strand.Oracle) :
       (fun coin : HonestCoins × ({raw // raw ∈ Leaves} → Digest) => Real coin.1 (OracleWindow.extend Leaves coin.2 outside))
       (fun coin : SimulatorCoins × ({raw // raw ∈ Leaves} → Digest) => Sim coin.1 (OracleWindow.extend Leaves coin.2 outside)) := by
   let visible := Values outside
-  let cfg := StrandCanonicalFullCoupling.configuration binary prime.description prime.plan Nodes scalars
+  let cfg := StrandCanonicalContext.configuration binary prime.description prime.plan Nodes scalars
     bounds.inputFits bounds.privateFits (Setup visible)
   let codec := StrandCanonicalBackend.indexedCodec binary.description prime.description Nodes ConcreteSetup.primeNodes
     Repr Sh (Setup visible) cfg

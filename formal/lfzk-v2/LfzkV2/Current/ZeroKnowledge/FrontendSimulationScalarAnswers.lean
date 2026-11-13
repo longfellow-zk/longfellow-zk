@@ -32,7 +32,7 @@ omit [Fintype B] [DecidableEq B] in
 theorem prime_values
     (state future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (payload : Layered.Replay.Payload prime.circuit)
-    (fits : state.rank.val+HonestTranscript.circuitFuel primePlan false+2 ≤
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
     (extended : Extends samples.fallback
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state future) :
@@ -42,13 +42,13 @@ theorem prime_values
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
     native.claim = Current.Prime.Claim.fromRow (Current.Prime.batchRows rows.get
       (fun i => samples.prime (lookup samples.fallback future
-        (state.rank.val+HonestTranscript.circuitFuel primePlan false)) i.val)) ∧
+        (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false)) i.val)) ∧
       native.eta = samples.primeNonzero (lookup samples.fallback future
-        (state.rank.val+HonestTranscript.circuitFuel primePlan false+1)) := by
+        (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1)) := by
   let read := readSetup (CompleteTranscript.reader .prime (Equiv.refl P)
     samples.prime samples.primeNonzero base H) primePlan prime.setup.plan payload state false
   let batched := CompleteTranscript.step base H read.2
-  have readRank : read.2.rank.val = state.rank.val+HonestTranscript.circuitFuel primePlan false := by
+  have readRank : read.2.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false := by
     rw [SimulationWrites.read_rank]
     exact Nat.min_eq_right (by omega)
   have batchInside : read.2.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by omega

@@ -82,8 +82,6 @@ def configuration (request : Request) : RuntimeVerifier.Public
   openings := cfg.openings
   columns := cfg.columns
   openingPositive := cfg.openingPositive
-  context := cfg.context
-  bindOnly := cfg.bindOnly
   openingBase := cfg.openingBase
   initialLink := cfg.initialLink
   root := cfg.root

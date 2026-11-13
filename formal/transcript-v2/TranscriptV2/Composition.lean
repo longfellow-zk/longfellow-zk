@@ -1,17 +1,14 @@
-import TranscriptV2.SharedReduction
+import TranscriptV2.PathCharges
 import Bcs.FiniteProbability
 
 /-! Composition separates local algebra from transcript implementation.
 
 Local proofs give single-answer charges and adjacent-pair charges, including
-their independence and averaging laws. The transcript realization preserves
-the complete observation and recovers an accepted path, or charges a
-speculative query. Its observation must include the actual extraction cut;
-preserving only the submitted proof is insufficient for extraction soundness.
-
-This interface is deliberately conditional. Constructing a realization for
-SHA strands, including its cut and final-seal laws, is a separate obligation.
-The generic theorem below is not a certificate for an uninstantiated runtime.
+their independence and averaging laws. This module owns those algebraic data
+and the query membership/order facts needed along a recovered path.
+`Survival.CausalCharges` combines the costs with causal stopping. The current
+runtime's soundness composition proves its accepted-failure cover and preserves
+the complete observation, including the original extraction cut.
 -/
 noncomputable section
 namespace TranscriptV2.Composition
@@ -52,12 +49,12 @@ def budget (point : P) : ℚ := localProof.singleBudget point +
   ∑ parent, if localProof.parent parent = point then localProof.pairBudget parent else 0
 
 def charge {Out : Type} {fuel : ℕ} (tree : Tree P (D × C) Out fuel) (H : P → D × C) : ℚ :=
-  SharedReduction.charges (parent := localProof.parent) (child := localProof.child)
+  PathCharges.charges (parent := localProof.parent) (child := localProof.child)
     (single := localProof.single) (pair := localProof.pair) tree H
 
 theorem charge_nonneg {Out : Type} {fuel : ℕ} (tree : Tree P (D × C) Out fuel) (H : P → D × C) :
     0 ≤ localProof.charge tree H :=
-  SharedReduction.charges_nonneg tree H localProof.single_nonneg localProof.pair_nonneg
+  PathCharges.charges_nonneg tree H localProof.single_nonneg localProof.pair_nonneg
 
 /-- This is the local reduction a protocol composition must establish for
 one common selected witness, rather than choosing a new witness per component. -/
@@ -83,99 +80,4 @@ structure PathQueries [DecidableEq P] {Out : Type} {fuel rounds : ℕ}
   queried : ∀ i ≤ rounds, path i ∈ seen tree H
   ordered : ∀ i < rounds, firstOfTwo tree H (path i) (path (i+1)) = .left
 
-/-- A transcript implementation must preserve the law of the entire
-observation: request, proof, verifier decision, and the actual extraction cut.
-The path conclusion includes complete-proof finalization. It may fail only
-through the explicit exception or a charge paid by speculative search queries.
-No algebraic failure predicate or local soundness bound is assumed here. -/
-structure SoundnessRealization [Fintype P] [DecidableEq P]
-    {Out RawCoin View : Type} [Fintype RawCoin] {fuel rounds : ℕ}
-    (tree : Tree P (D × C) Out fuel) (raw : RawCoin → View)
-    (observe : Out → (P → D × C) → View) (accepted : View → Prop)
-    (path : Out → (P → D × C) → ℕ → P) where
-  observation_law : ∀ event : View → Prop,
-    density (fun coin => event (raw coin)) = density (fun H => event (observe (tree.run H).1 H))
-  exception : (P → D × C) → Prop
-  speculation : (P → D × C) → ℚ
-  speculation_nonneg : ∀ H, 0 ≤ speculation H
-  accepted_path : ∀ H, accepted (observe (tree.run H).1 H) → ¬exception H →
-    PathQueries (rounds := rounds) tree H (path (tree.run H).1 H) ∨ 1 ≤ speculation H
-
-namespace SoundnessRealization
-
-/-- The earlier whole-answer transcript instantiates the contract directly.
-This checks the interface against an existing complete chain proof; the
-strand implementation must provide its own realization and error analysis. -/
-def ofChain [Fintype P] [DecidableEq P] {Out View : Type} {fuel rounds : ℕ}
-    (model : Chain P D C Out rounds) (tree : Tree P (D × C) Out fuel)
-    (observe : Out → (P → D × C) → View) (accepted : View → Prop)
-    (sealValid : ∀ out H, accepted (observe out H) →
-      (H (model.finalSealPoint out H)).1 = model.finalSeal out) :
-    SoundnessRealization (rounds := rounds) tree
-      (fun H => observe (tree.run H).1 H) observe accepted model.point where
-  observation_law _ := rfl
-  exception := ChainException model tree
-  speculation _ := 0
-  speculation_nonneg _ := le_rfl
-  accepted_path H valid good := by
-    obtain ⟨queried,ordered⟩ := model.accepted_path_queries tree H good (sealValid _ H valid)
-    exact Or.inl ⟨queried,ordered⟩
-
-variable [Fintype P] [DecidableEq P] [Nonempty D] [Nonempty C] [Fintype Parent]
-variable {Out RawCoin View : Type} [Fintype RawCoin] {fuel rounds Q : ℕ}
-variable {tree : Tree P (D × C) Out fuel} {raw : RawCoin → View}
-variable {observe : Out → (P → D × C) → View} {accepted : View → Prop}
-variable {path : Out → (P → D × C) → ℕ → P}
-variable (realization : SoundnessRealization (rounds := rounds) tree raw observe accepted path)
-
-/-- Compose independent local proofs with one transcript accounting law.
-The two query categories spend the same search budget. The implementation
-must separately prove the speculative average and the exception probability;
-neither verifier replay nor a second subprotocol receives extra search budget.
-Only `eligible` coordinates spend that budget. Excluded coordinates, such as
-trusted setup queries, must have zero local charge and no speculative allocation.
-Algebraic correspondence is needed only outside these already charged cases:
-for example a prequeried stream may otherwise differ from a node's unused
-challenge sample. -/
-theorem failure_ratio_le (localProof : LocalCharges P D C Parent Response)
-    (invalid : View → Prop) (eligible auxiliary : P → Prop) (epsilon delta : ℚ)
-    (positive : 0 ≤ epsilon) (queries : ∀ H, ((seen tree H).filter eligible).card ≤ Q)
-    (roles : ∀ p, localProof.budget p ≤ if eligible p ∧ ¬auxiliary p then epsilon else 0)
-    (speculative : (∑ H, realization.speculation H) ≤
-      ∑ H : P → D × C, ∑ p ∈ seen tree H, if eligible p ∧ auxiliary p then epsilon else 0)
-    (exceptions : density realization.exception ≤ delta)
-    (reduction : ∀ out H, accepted (observe out H) → invalid (observe out H) →
-      ¬realization.exception H → realization.speculation H < 1 →
-      localProof.Covers (rounds := rounds) (path out H) H) :
-    density (fun coin => accepted (raw coin) ∧ invalid (raw coin)) ≤ Q*epsilon+delta := by
-  rw [realization.observation_law (fun view => accepted view ∧ invalid view)]
-  let cost := fun H => localProof.charge tree H + realization.speculation H
-  have nonnegative H : 0 ≤ cost H :=
-    add_nonneg (localProof.charge_nonneg tree H) (realization.speculation_nonneg H)
-  have cover H (failed : accepted (observe (tree.run H).1 H) ∧ invalid (observe (tree.run H).1 H))
-      (good : ¬realization.exception H) : 1 ≤ cost H := by
-    by_cases charged : 1 ≤ realization.speculation H
-    · exact charged.trans (le_add_of_nonneg_left (localProof.charge_nonneg tree H))
-    · have queried := (realization.accepted_path H failed.1 good).resolve_right charged
-      have algebra := SharedReduction.charges_of_cover tree H (path (tree.run H).1 H)
-        queried.queried queried.ordered localProof.single_nonneg localProof.pair_nonneg
-        (reduction _ H failed.1 failed.2 good (lt_of_not_ge charged))
-      exact algebra.trans (le_add_of_nonneg_right (realization.speculation_nonneg H))
-  have average : (∑ H, cost H) ≤ (Q : ℚ)*epsilon*Fintype.card (P → D × C) := by
-    have algebra := localProof.charge_mean tree
-      (fun p => if eligible p ∧ ¬auxiliary p then epsilon else 0) roles
-    have combined := add_le_add algebra speculative
-    simp only [← sum_add_distrib] at combined
-    apply combined.trans
-    have perQuery p : (if eligible p ∧ ¬auxiliary p then epsilon else 0) +
-        (if eligible p ∧ auxiliary p then epsilon else 0) = if eligible p then epsilon else 0 := by
-      by_cases inside : eligible p <;> by_cases aux : auxiliary p <;> simp [inside,aux]
-    simp only [perQuery,← sum_filter,sum_const,nsmul_eq_mul]
-    have total := sum_le_sum (fun H (_ : H ∈ (univ : Finset (P → D × C))) =>
-      mul_le_mul_of_nonneg_right
-        (show (((seen tree H).filter eligible).card : ℚ) ≤ Q by exact_mod_cast queries H) positive)
-    simpa only [sum_const,card_univ,nsmul_eq_mul,mul_comm] using total
-  exact SharedFailure.failure_ratio_le _ realization.exception cost nonnegative cover average exceptions
-
-end SoundnessRealization
 end TranscriptV2.Composition

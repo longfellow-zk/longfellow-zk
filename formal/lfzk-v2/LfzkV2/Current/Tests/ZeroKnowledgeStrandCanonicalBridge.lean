@@ -20,7 +20,7 @@ open LfzkV2.Current.ZeroKnowledge
 #check StrandCanonicalBackend.select
 #check StrandCanonicalBackend.rawOpening
 #check StrandCanonicalBackend.finish_valid
-#check StrandCanonicalFullCoupling.simulatedView
+#check StrandCanonicalExperiments.simulatedView
 #check StrandCanonicalFullCoupling.complete_view
 #check StrandCanonicalBackend.respondHonest_columns
 #check StrandCanonicalBackend.prepare_oracle_congr

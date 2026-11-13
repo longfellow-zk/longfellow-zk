@@ -120,11 +120,11 @@ theorem prime_claim (data : PrimeData prime C)
   have batch := strictAnswer_value H samples.fallback point _ batching hbatching
   have first := (SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+HonestTranscript.circuitFuel primePlan false+2 ≤ (G).roles.length := by
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤ (G).roles.length := by
     rw [first,SimulationWrites.capacity binary prime primePlan]
     omega
-  have index : (selected).rank.val+HonestTranscript.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
-    rw [first,HonestTranscript.circuitFuel_roles primePlan .prime]
+  have index : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
+    rw [first,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     rfl
   have values := SimulationScalarAnswers.prime_values binary prime primePlan samples W H selected (result).state
     (simulateCircuit prime.circuit coins.prime) fits
@@ -147,11 +147,11 @@ theorem challenge_values :
       (ApplicationPrefix.packingIndex (G))) i.val) := by
   have first := (SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+HonestTranscript.circuitFuel primePlan false+2 ≤ (G).roles.length := by
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤ (G).roles.length := by
     rw [first,SimulationWrites.capacity binary prime primePlan]
     omega
-  have batchIndex : (selected).rank.val+HonestTranscript.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
-    rw [first,HonestTranscript.circuitFuel_roles primePlan .prime]
+  have batchIndex : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
+    rw [first,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     rfl
   have tape := CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
     binaryRequest metadata request root H initial coins

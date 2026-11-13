@@ -94,6 +94,9 @@ const CURRENT_ENDPOINTS: &[&str] = &[
 
 const HISTORICAL_CURRENT_IMPORTS: &[&str] = &[
     "LfzkV2.Current.WholeAnswerMerkle",
+    "LfzkV2.Current.CommitmentOracle",
+    "LfzkV2.Current.MerkleReplay",
+    "LfzkV2.Current.GlobalCharges",
     "LfzkV2.AssertedSoundness",
     "LfzkV2.Program",
     "LfzkV2.Soundness",
@@ -105,6 +108,33 @@ const HISTORICAL_CURRENT_IMPORTS: &[&str] = &[
     "Survival.PrefixCache",
     "Survival.ChargeMonitor",
     "Survival.Saturation",
+    "LfzkV2.Current.RuntimeBackend",
+    "LfzkV2.Current.RuntimeCover",
+    "LfzkV2.Current.RuntimeSelection",
+    "LfzkV2.Current.RuntimeRoles",
+    "LfzkV2.Current.RuntimeParameters",
+    "LfzkV2.Current.CanonicalVerifierAgreement",
+    "LfzkV2.Current.ProtocolProbability",
+    "LfzkV2.Current.Soundness.ProfileBudget",
+    "LfzkV2.Current.Mdoc.SetupFamily",
+    "LfzkV2.Current.ZeroKnowledge.CompleteBody",
+    "LfzkV2.Current.ZeroKnowledge.CompleteBackend",
+    "LfzkV2.Current.ZeroKnowledge.CompleteOpening",
+    "LfzkV2.Current.ZeroKnowledge.CompleteSimulationBody",
+    "LfzkV2.Current.ZeroKnowledge.FrontendOpeningState",
+    "LfzkV2.Current.ZeroKnowledge.OracleProgramming",
+    "LfzkV2.Current.ZeroKnowledge.OracleRuntime",
+    "LfzkV2.Current.ZeroKnowledge.OracleResponse",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptMdoc",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptLayer",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptProgress",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptCircuit",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptQueries",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptRank",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptRoles",
+    "LfzkV2.Current.ZeroKnowledge.HonestTranscriptWire",
+    "LfzkV2.Current.ZeroKnowledge.StrandCanonicalPrograms",
+    "TranscriptV2.SharedReduction",
 ];
 
 fn violates_owner(root: &str, dependency: &str) -> bool {
@@ -317,6 +347,17 @@ fn main() {
         if name.starts_with("formal/") && name.ends_with(".lean") {
             lean_count += 1;
             let source = code(&fs::read_to_string(path).unwrap());
+            if name.starts_with("formal/lfzk-v2/LfzkV2/Current/")
+                && !name.contains("/Tests/")
+                && source
+                    .lines()
+                    .any(|line| line.trim_start().starts_with("export "))
+            {
+                eprintln!(
+                    "{name}: use the declaration's owning namespace instead of export aliases"
+                );
+                failures += 1;
+            }
             let relative = roots
                 .iter()
                 .find_map(|root| name.strip_prefix(root.as_str()))

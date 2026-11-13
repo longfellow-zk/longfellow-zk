@@ -7,7 +7,7 @@ request branch, rather than a sum of fixed-public experiments. -/
 noncomputable section
 namespace LfzkV2.Current.Soundness.RuntimeCharges
 open Application ApplicationSetup ApplicationOracle RecursivePolygero ProfileAnalysis Finset
-open Merkle.RandomOracle Merkle.RandomOracle.TwoOracleTree
+open Merkle.RandomOracle
 open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice Base Key C B Salt Enc Request : Type}
@@ -41,9 +41,9 @@ variable (cutOracle : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice
     (RuntimeVerifier.second binary prime P R cfg).participant)
 variable (cutOff : ∀ point H H', Bcs.TotalOracle.AgreeOff point H H' →
   cutOracle H point.context = cutOracle H' point.context)
-local notation "S" => RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff
-variable (laws : RuntimeCover.SamplerLaws binary prime P R cfg
-  (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff))
+local notation "S" => RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff
+variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg
+  (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
 variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
@@ -73,10 +73,10 @@ theorem decoded_charge_cover (epsilon : ℚ) (output : Output) (H : Point → Di
     let charge := single laws readers (RuntimeVerifier.encodeResponses binary prime P R cfg)
       (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
       (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-      (RuntimeBackend.queryDecoder binary prime P R cfg) cutoff epsilon
+      (RuntimeVerifier.queryDecoder binary prime P R cfg) cutoff epsilon
     let pairCharge := pair («S» := S) (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)
       (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-      (RuntimeBackend.queryDecoder binary prime P R cfg) epsilon
+      (RuntimeVerifier.queryDecoder binary prime P R cfg) epsilon
     (∃ i < g.roles.length, 1 ≤ charge ((M).point output H i) H (H ((M).point output H i))) ∨
       (∃ i < g.roles.length, ∃ parent response,
         parent.point = (M).point output H i ∧
@@ -100,14 +100,14 @@ theorem decoded_charge_cover (epsilon : ℚ) (output : Output) (H : Point → Di
       · refine Or.inl ⟨g.batchingIndex.val,g.batchingIndex.isLt,?_⟩
         rw [← hp]
         apply backend_charged laws readers _ _ _ _ cutoff epsilon
-        simpa only [BackendOracle.single_point,RuntimeCover.source,ZkJoint.JointParam.source] using hb
+        simpa only [BackendOracle.single_point,RuntimeSource.source,ZkJoint.JointParam.source] using hb
       · refine Or.inl ⟨g.openingIndex.val,g.openingIndex.isLt,?_⟩
         apply backend_charged laws readers _ _ _ _ cutoff epsilon
         rw [ho,BackendOracle.single_child (First).participant (Second).participant
           g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg)
           (RuntimeVerifier.encodeResponses_injective binary prime P R cfg)]
         rw [ho] at hb
-        simpa only [RuntimeCover.source,ZkJoint.JointParam.source] using hb
+        simpa only [RuntimeSource.source,ZkJoint.JointParam.source] using hb
       · refine Or.inr ⟨g.batchingIndex.val,g.batchingIndex.isLt,parent,response,hp,?_,?_⟩
         · rw [← ho,g.openingIndex_val]
         · change 1 ≤ BackendFS.high (First).participant (Second).participant _ _ _ _ _ _ _ _ _ _

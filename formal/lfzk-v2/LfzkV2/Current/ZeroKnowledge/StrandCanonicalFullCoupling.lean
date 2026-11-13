@@ -1,9 +1,10 @@
-import LfzkV2.Current.ZeroKnowledge.StrandCanonicalPrograms
+import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExperiments
 
 /-! Exact joint frontend/backend coin equivalence at a fixed oracle and ghost commitment. No statistical commitment argument enters this module. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalFullCoupling
 open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2 TranscriptV2
+open StrandCanonicalContext StrandCanonicalExperiments
 open scoped Classical
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "N" => Adapter.Mdoc.P
@@ -22,7 +23,7 @@ local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "Point" => QueryRuntime.Runtime.Point Repr Sh setup binary.nPublic
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
 local notation "Public" => configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup

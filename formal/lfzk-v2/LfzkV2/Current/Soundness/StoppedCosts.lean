@@ -174,7 +174,7 @@ theorem recovered_failure_charge (residual : Tagged â†’ Residual) (H : Tagged â†
   have path := analysis_path E fits D L prog inputs residual H ready
   have cover := accepted_cover E fits D L prog inputs
     residual H accepted ready failed
-  exact SharedReduction.charges_of_cover (analysis residual) H (pathOf residual H)
+  exact PathCharges.charges_of_cover (analysis residual) H (pathOf residual H)
     path.queried path.ordered (charges residual).single_nonneg (charges residual).pair_nonneg cover
 /-- The single retained opaque cost used by both composition bounds.
 It uses the original charge functions and cut; only the query tree is stopped. -/

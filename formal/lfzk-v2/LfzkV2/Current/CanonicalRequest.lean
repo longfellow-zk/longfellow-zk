@@ -264,3 +264,52 @@ theorem withBackendOpening_eq (request : Request shape publicCount) :
 end BackendOpening
 
 end LfzkV2.Current.CanonicalRequest
+
+
+/-! Finalization for the current canonical request replay. Its ordinary
+blocks depend on the proof body and strict prior answers; the final-seal
+field is absent from their constructors. The complete final-seal input
+contains the actual terminal authentication inside that same body. -/
+noncomputable section
+namespace LfzkV2.Current.CanonicalRequest
+open CanonicalPrefix QueryRuntime
+open scoped Classical
+
+variable {g : Geometry} {fields : Fields} {Advice C : Type}
+variable (repr : ProofBodyCodec.Representations fields Advice)
+variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)
+variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape publicCount)
+variable (request : CanonicalRequest.Request shape publicCount)
+
+local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
+local notation "Output" => CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice)
+local notation "Point" => QueryRuntime.Runtime.Point repr shape setup publicCount
+
+/-- This constructor uses the actual request-specific packet builder. It
+does not receive the seal as an input. -/
+def bodyEncoding : ProofBodyReplay.BodyEncoding (g := g) (fields := fields)
+    (Advice := Advice) (Authentication := OpeningBody.Authentication g)
+    (Context := CanonicalRequest.Key publicCount)
+    (Block := QueryRuntime.Block (QueryRuntime.Runtime.capacity repr shape setup publicCount)
+      (CanonicalRequest.Fresh (g := g) (fields := fields) (Advice := Advice))) (C := C) where
+  context body := FingerprintPrefix.context request body.commitment
+  block body := CanonicalRequest.block repr shape setup publicCount binaryRequest metadata request
+    ⟨body,fun _ => 0⟩
+
+/-- Equality to the concrete current replay is definitional: the zero seal
+above is never inspected by any canonical ordinary-block constructor. -/
+theorem bodyEncoding_eq :
+    (bodyEncoding repr shape setup publicCount binaryRequest metadata request).encoding =
+      CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request := rfl
+
+theorem point_same_body (initial : Digest) (first second : Output)
+    (same : first.body = second.body) (H : Point → Digest × C) (index : ℕ) :
+    ((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initial).point
+        first H index =
+      ((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initial).point
+        second H index := by
+  rw [← bodyEncoding_eq repr shape setup publicCount binaryRequest metadata request]
+  exact congrArg _ (ProofBodyReplay.replay_same_body _ initial first second same H index)
+
+end LfzkV2.Current.CanonicalRequest

@@ -22,10 +22,10 @@ local notation "Repr" => MdocRuntime.representations scalars
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Public" => StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -47,7 +47,7 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
     (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
       (RuntimeStatement.degreeFits binary)) setup
-    (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+    (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
   ConcreteSetup.primeNodes Repr Sh setup Public
@@ -164,8 +164,3 @@ theorem exact_simulation (outside : Strand.Oracle) (pivotOne : binary.basis 0 = 
       metadata original remaining roundSampler batchingSamples before requestOf after outside pivotOne primitive valid signature coin
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalExactSimulation
-
--- Existing entry points remain aliases of the declarations at their logical home.
-namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
-export LfzkV2.Current.ZeroKnowledge.StrandCanonicalExactSimulation (simulationEquiv ghost_simulator_view ghost_sameDistribution exact_simulation)
-end LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding

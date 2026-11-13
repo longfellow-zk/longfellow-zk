@@ -27,9 +27,9 @@ variable {blocks : ℕ}
 variable (sampler : Protocol.ExecutionSampler runtime.protocol blocks)
 local notation "roundSampler" => sampler.sample
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
+local notation "Public" => StrandCanonicalContext.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
   runtime.inputFits runtime.privateFits runtime.fingerprint
-local notation "BackendCoins" => CompleteBackend.Masks runtime.binaryNodes ConcreteSetup.primeNodes runtime.binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks runtime.binaryNodes ConcreteSetup.primeNodes runtime.binary.description.cells
   (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)
 local notation "HonestCoins" => (CompleteHonest.Tape runtime.binary runtime.prime × CompleteHonest.Masks (B := B)) × BackendCoins
 local notation "Codec" => StrandCanonicalBackend.indexedCodec runtime.binary.description runtime.prime runtime.binaryNodes
@@ -44,7 +44,7 @@ variable (batchingSamples : MdocRuntime.Answer runtime.binary.description runtim
       (MdocRuntime.representations runtime.scalars)
       (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
         (RuntimeStatement.degreeFits runtime.binary)) runtime.fingerprint
-      (StrandCanonicalFullCoupling.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint)))
+      (StrandCanonicalContext.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint)))
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
@@ -53,13 +53,13 @@ variable (after : Context → Option (CanonicalRuntime.Output (Advice := MdocAdv
   (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
     (RuntimeStatement.degreeFits runtime.binary))) →
   Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-local notation "Columns" => StrandCanonicalHiding.columns runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+local notation "Columns" => StrandCanonicalExecution.columns runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
   original remaining requestOf
-local notation "Front" => StrandCanonicalHiding.frontend runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+local notation "Front" => StrandCanonicalExecution.frontend runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
   runtime.metadata original remaining roundSampler
-local notation "Response" => StrandCanonicalHiding.response runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+local notation "Response" => StrandCanonicalExecution.response runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
   runtime.metadata original remaining roundSampler batchingSamples
-local notation "Raw" => StrandCanonicalHiding.rawReal runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
+local notation "Raw" => StrandCanonicalExecution.rawReal runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint
   runtime.metadata original remaining roundSampler batchingSamples before requestOf after
 
 /-- End-to-end honest acceptance for a proof returned by the actual
@@ -111,7 +111,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
   have truth : ∀ next,
       CompleteCanonicalVerifier.statementAt runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
         Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) pCount runtime.metadata request front
-        (StrandCanonicalFullCoupling.actualOracle runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
+        (StrandCanonicalContext.actualOracle runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
           runtime.inputFits runtime.privateFits runtime.fingerprint roundSampler SHA) = some next →
       next.2.statement.1.Satisfies (Backend.logical cells.1) ∧
         next.2.statement.2.Satisfies (Backend.logical cells.2) := by
@@ -129,7 +129,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     Repr Sh runtime.fingerprint Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata roundSampler
     pCount batchingSamples request front SHA cells coins.2 responses indices opened nonces truth generated committed
   rw [finished]
-  simpa only [context,request,root,front,cells,StrandCanonicalHiding.columns,
+  simpa only [context,request,root,front,cells,StrandCanonicalExecution.columns,
     Equiv.symm_apply_apply] using accepted
 
 end LfzkV2.Current.Mdoc.Completeness

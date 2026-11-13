@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.OracleRuntime
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
 /-! Canonical public statement and batching readers. These unchanged
@@ -36,7 +36,7 @@ def earlier := CanonicalRuntime.earlier binary prime P R repr shape setup
   (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount metadata
 
 def encoding (request : CanonicalRequest.Request shape binary.nPublic) :=
-  OracleRuntime.bodyEncoding repr shape setup binary.nPublic
+  CanonicalRequest.bodyEncoding repr shape setup binary.nPublic
     (CanonicalRuntime.binaryRequest binary prime P R repr shape setup
       (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount) metadata request
 

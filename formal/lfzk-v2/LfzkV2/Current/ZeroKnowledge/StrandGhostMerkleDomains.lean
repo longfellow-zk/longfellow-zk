@@ -72,7 +72,7 @@ end Congruence
 section Finish
 variable {g : Geometry} {fs : Fields} {A Auth Key Answer : Type} {capacity blocks : ℕ}
 variable (bodyCodec : PrefixCodec (Body g fs A Auth))
-variable (encoding : OracleProgramming.BodyEncoding (g := g) (fields := fs) (Advice := A)
+variable (encoding : ProofBodyReplay.BodyEncoding (g := g) (fields := fs) (Advice := A)
   (Authentication := Auth) (Context := Key)
   (Block := QueryRuntime.Block capacity (ProtocolWrites.Fresh g fs A)) (C := Answer))
 variable (sample : Replay.Point g fs A Auth Key

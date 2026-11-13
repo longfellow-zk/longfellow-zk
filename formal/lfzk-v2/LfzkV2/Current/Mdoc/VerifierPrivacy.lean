@@ -25,10 +25,10 @@ local notation "Answer" => MdocRuntime.Answer binary.description prime.descripti
 local notation "Setup" visible => Mdoc.SetupFamily.setup binary prime cantor scalars ids bounds visible
 local notation "Values" SHA => Mdoc.SetupFamily.values binary prime cantor scalars ids bounds SHA
 local notation "Private" => (CompleteHonest.Tape binary prime.description × CompleteHonest.Masks (B := B)) ×
-  CompleteBackend.Masks Nodes ConcreteSetup.primeNodes binary.description.cells
+  Backend.JointMasks Nodes ConcreteSetup.primeNodes binary.description.cells
     (CellLayout.Prime.cells prime.description.remaining prime.description.pads)
 local notation "Public" => CompleteSimulation.Coins binary prime.description ×
-  CompleteBackend.Masks Nodes ConcreteSetup.primeNodes binary.description.cells
+  Backend.JointMasks Nodes ConcreteSetup.primeNodes binary.description.cells
     (CellLayout.Prime.cells prime.description.remaining prime.description.pads)
 local notation "Auxiliary" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
 local notation "HonestCoins" => Private × Auxiliary
@@ -45,7 +45,7 @@ variable (requestOf : Context → CanonicalRequest.Request
 variable (original : Context → Fin binary.nPrivate → Bool)
 variable (remaining : Context → Fin prime.description.remaining → Adapter.Mdoc.P)
 
-local notation "Cfg" visible => StrandCanonicalFullCoupling.configuration binary prime.description prime.plan Nodes scalars
+local notation "Cfg" visible => StrandCanonicalContext.configuration binary prime.description prime.plan Nodes scalars
   bounds.inputFits bounds.privateFits (Setup visible)
 local notation "Wire" visible => CompleteCanonicalVerifier.publicConfig binary.description prime.description Nodes
   ConcreteSetup.primeNodes Repr Sh (Setup visible) (Cfg visible)

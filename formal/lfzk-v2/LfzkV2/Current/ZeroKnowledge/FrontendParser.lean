@@ -1,6 +1,6 @@
 import LfzkV2.Current.ApplicationViewReplay
 import LfzkV2.Current.ZeroKnowledge.CompleteFrontendBody
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptWire
+import LfzkV2.Current.ZeroKnowledge.FrontendRoleWrites
 
 /-! Required frontend fields are recovered from the actual canonical
 query history. These readback facts hold independently of the simulator's
@@ -45,7 +45,7 @@ theorem read_mu (n : ℕ) (bounded : n ≤ g.roles.length)
     omega
   let i : Fin g.roles.length := ⟨ApplicationPrefix.conversionIndex g,bound⟩
   have role : g.roles.get i = .conversion := by
-    have hr := RuntimeRoles.adapter_get g (2 : Fin 3)
+    have hr := RuntimeShape.adapter_get g (2 : Fin 3)
     exact Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans hr)
   erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.mu)]
   simp only [ProtocolWrites.fresh,role,↓reduceIte]
@@ -81,7 +81,7 @@ theorem read_packingU (n : ℕ) (bounded : n ≤ g.roles.length)
     omega
   let i : Fin g.roles.length := ⟨ApplicationPrefix.packingIndex g,bound⟩
   have role : g.roles.get i = .packing :=
-    Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans (RuntimeRoles.packing_get g nontrivial))
+    Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans (RuntimeShape.packing_get g nontrivial))
   erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.packingU)]
   simp only [ProtocolWrites.fresh,role,↓reduceIte]
 
@@ -103,7 +103,7 @@ theorem prime_wire (n : ℕ) (bounded : n ≤ g.roles.length)
     (g.primeIndex q) past (fun fresh => some (ApplicationPrefix.mapMessage id (fresh.frontend .prime)))]
   rw [ProtocolWrites.fresh,g.prime_role_get]
   exact congrArg some ((mapMessage_id _).trans (Prefix.role_message proof.body .prime _
-    (RuntimeRoles.frontend_side .prime g.prime _ (List.get_mem _ q))).symm)
+    (RuntimeShape.frontend_side .prime g.prime _ (List.get_mem _ q))).symm)
 
 theorem binary_wire (n : ℕ) (bounded : n ≤ g.roles.length)
     (q : Fin (g.binary.roles .binary).length) (past : g.binaryStart+q.val ≤ n) :
@@ -114,7 +114,7 @@ theorem binary_wire (n : ℕ) (bounded : n ≤ g.roles.length)
     (g.binaryIndex q) past (fun fresh => some (ApplicationPrefix.mapMessage id (fresh.frontend .binary)))]
   rw [ProtocolWrites.fresh,g.binary_role_get]
   exact congrArg some ((mapMessage_id _).trans (Prefix.role_message proof.body .binary _
-    (RuntimeRoles.frontend_side .binary g.binary _ (List.get_mem _ q))).symm)
+    (RuntimeShape.frontend_side .binary g.binary _ (List.get_mem _ q))).symm)
 
 theorem role_stream_cast {E : Type} (first second : Frontend) (same : first = second)
     (side : Side) (body : FrontendPayload E first) :

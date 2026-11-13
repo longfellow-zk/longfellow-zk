@@ -183,7 +183,7 @@ theorem stopped_charge_of_causal_cover [Fintype Parent] {Out : Type} {fuel round
       (path i) (path (i+1)) = .left
     rw [Survival.History.order_preserved (K.safe marked) marked advance [] tree H survived]
     exact queried.ordered i within
-  apply SharedReduction.charges_of_cover (K.audit marked tree) H path queried' ordered
+  apply PathCharges.charges_of_cover (K.audit marked tree) H path queried' ordered
     (Survival.StoppedCharges.restrict original marked).single_nonneg
     (Survival.StoppedCharges.restrict original marked).pair_nonneg
   apply Survival.StoppedCharges.covers_restrict original marked path H cover

@@ -37,12 +37,12 @@ theorem raw_fill (body : Body g fields Advice (OpeningBody.Authentication g))
     intro query
     change (piFinTwoEquiv (fun i : Fin 2 => ((Joint.Pair.family P R).participant i).Leaf)).symm
       (OpeningBody.participantLeaf P .binary binary hB
-        ((CompleteBody.participantEquiv .binary P binary hB).symm
+        ((OpeningBody.participantEquiv .binary P binary hB).symm
           ((piFinTwoEquiv _ (raw.values (Fin.cast hopenings (Fin.cast hopenings.symm query)))).1)),
        OpeningBody.participantLeaf R .prime prime hN
-        ((CompleteBody.participantEquiv .prime R prime hN).symm
+        ((OpeningBody.participantEquiv .prime R prime hN).symm
           ((piFinTwoEquiv _ (raw.values (Fin.cast hopenings (Fin.cast hopenings.symm query)))).2))) = _
-    rw [← CompleteBody.participantEquiv_apply,← CompleteBody.participantEquiv_apply,
+    rw [← OpeningBody.participantEquiv_apply,← OpeningBody.participantEquiv_apply,
       Equiv.apply_symm_apply,Equiv.apply_symm_apply]
     simp only [Fin.cast_cast,Fin.cast_refl,id_eq,Prod.eta,Equiv.symm_apply_apply]
   have nonce : ∀ query,

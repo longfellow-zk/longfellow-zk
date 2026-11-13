@@ -149,7 +149,7 @@ theorem named_linear_failure_le (opaqueRate : ℚ)
   letI : Nonempty (Tagged → Residual) := ⟨fun _ => ⟨0,Fintype.card_pos⟩⟩
   have each residual := conditioned_linear_failure_le E fits D L prog inputs queries
     residual opaqueRate nonnegative atMostRate parentBound guessFits
-  have averaged := ProtocolProbability.mean_add_mul_le
+  have averaged := Bcs.FiniteProbability.mean_add_mul_le
     (fun residual => density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)))
     (fun residual => density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H)))
     (-1) (ordinaryRate*Q) (fun residual => by have := each residual; linarith)
@@ -175,7 +175,7 @@ theorem named_saturated_failure_le (opaqueFraction : ℚ)
   letI : Nonempty (Tagged → Residual) := ⟨fun _ => ⟨0,Fintype.card_pos⟩⟩
   have each residual := conditioned_saturated_failure_le E fits D L prog inputs queries
     residual opaqueFraction nonnegative atMostOne budget parentBound guessFits
-  have averaged := ProtocolProbability.mean_add_mul_le
+  have averaged := Bcs.FiniteProbability.mean_add_mul_le
     (fun residual => density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)))
     (fun residual => density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H)))
     (-1) (Survival.Hybrid.envelope ordinaryRate opaqueFraction Q) (fun residual => by have := each residual; linarith)

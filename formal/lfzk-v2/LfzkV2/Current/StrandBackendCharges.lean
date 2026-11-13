@@ -41,7 +41,7 @@ local notation "publicCfg" => IdealRuntime.challengePublic (g := g) (fields := f
   binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
 local notation "draw" => IdealRuntime.draw binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
 local notation "coin" => RuntimeVerifier.batchingDecoder binary prime P R publicCfg draw
-local notation "query" => RuntimeBackend.queryDecoder binary prime P R publicCfg
+local notation "query" => RuntimeVerifier.queryDecoder binary prime P R publicCfg
 local notation "encode" => RuntimeVerifier.encodeResponses binary prime P R publicCfg
 
 theorem batching_decode_normalize (fallback answer : Answer) :
@@ -134,10 +134,10 @@ private theorem coinSampler_decode :
     (coinSampler binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg).decode = coin := rfl
 
 section Runtime
-variable (S : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+variable (S : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
   (Key := Key) (C := IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity)
   binary prime (Oracle := JointResponse.Oracle (P.indexed countBinary).participant (R.indexed countPrime).participant))
-variable (laws : RuntimeCover.SamplerLaws binary prime P R
+variable (laws : RuntimeSource.SamplerLaws binary prime P R
   (IdealRuntime.challengePublic (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) (Salt := Salt)
     binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg) S)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))

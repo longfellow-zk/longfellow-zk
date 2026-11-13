@@ -24,10 +24,10 @@ local notation "bCount" => RuntimeStatement.binary_count binary prime primePlan 
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Public" => StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -49,7 +49,7 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
     (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
       (RuntimeStatement.degreeFits binary)) setup
-    (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+    (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
   ConcreteSetup.primeNodes Repr Sh setup Public
@@ -122,13 +122,13 @@ theorem observer_of_window (first second : Strand.Oracle)
   simp only [Finset.mem_union]
   exact Or.inr (Or.inr member)
 
-local notation "Front" => StrandCanonicalHiding.frontend binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Front" => StrandCanonicalExecution.frontend binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler
-local notation "Response" => StrandCanonicalHiding.response binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Response" => StrandCanonicalExecution.response binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples
-local notation "Columns" => StrandCanonicalHiding.columns binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Columns" => StrandCanonicalExecution.columns binary prime primePlan binaryNodes scalars inputFits privateFits setup
   original remaining requestOf
-local notation "Stage" => StrandCanonicalHiding.stage binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Stage" => StrandCanonicalExecution.stage binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples requestOf after
 local notation "Prepare" => StrandCanonicalBackend.prepare binary.description prime binaryNodes ConcreteSetup.primeNodes
   Repr Sh setup Public bCount metadata roundSampler
@@ -162,9 +162,9 @@ theorem stage_reads (coins : HonestCoins) (context : Context) (root : Digest) (f
   have prepared := (congrArg₂ (fun front back => Prepare (requestOf context) front back first (after context)) front back).trans
     (StrandCanonicalBackend.prepare_oracle_congr_reads binary.description prime binaryNodes ConcreteSetup.primeNodes
       Repr Sh setup Public bCount metadata roundSampler (requestOf context) _ _ first second (after context) reads)
-  exact (StrandCanonicalHiding.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
+  exact (StrandCanonicalExecution.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
     roundSampler batchingSamples requestOf after coins context first root).trans
-    (prepared.trans (StrandCanonicalHiding.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata
+    (prepared.trans (StrandCanonicalExecution.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata
       original remaining roundSampler batchingSamples requestOf after coins context second root).symm)
 
 /-- All post-proof branches are covered at every context reachable before
@@ -181,9 +181,9 @@ theorem later_of_window (first second : Strand.Oracle)
 In particular, the support is not chosen after the proof or oracle is seen. -/
 theorem rawReal_congr (coins : HonestCoins × ((Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)))
     (first second : Strand.Oracle) (same : ∀ raw ∈ Window, first raw = second raw) :
-    StrandCanonicalHiding.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
+    StrandCanonicalExecution.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
         metadata original remaining roundSampler batchingSamples before requestOf after coins first =
-      StrandCanonicalHiding.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
+      StrandCanonicalExecution.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
         metadata original remaining roundSampler batchingSamples before requestOf after coins second := by
   have reads := reads_of_window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after
     first second same
@@ -193,13 +193,13 @@ theorem rawReal_congr (coins : HonestCoins × ((Fin 2443 → MerkleNonce) × (Fi
     (observer_of_window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after first second same)
   have root := StrandMerkleWindow.commitLabels_congr Codec 2443 first second merkle
     (fun index => (index,coins.2.1 index)) (Columns coins.1 (before.run second).1) 1
-  dsimp only [StrandCanonicalHiding.rawReal,StrandGhostMerkle.Schedule.honest]
+  dsimp only [StrandCanonicalExecution.rawReal,StrandGhostMerkle.Schedule.honest]
   rw [earlier]
   rw [root,stage_reads binary prime primePlan binaryNodes scalars inputFits privateFits setup
     metadata original remaining roundSampler batchingSamples requestOf after coins.1 (before.run second).1 _ first second reads]
   rw [StrandMerkleWindow.openCore_congr Codec 2443 first second merkle]
   apply congrArg (fun result => (before.run second,result))
-  rw [StrandCanonicalHiding.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup
+  rw [StrandCanonicalExecution.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup
     metadata original remaining roundSampler batchingSamples requestOf after coins.1 (before.run second).1 second]
   exact StrandCanonicalBackend.prepare_run_congr binary.description prime binaryNodes ConcreteSetup.primeNodes
     Repr Sh setup Public bCount metadata roundSampler _ _ _ second first second (after (before.run second).1)
@@ -210,9 +210,9 @@ theorem rawReal_congr (coins : HonestCoins × ((Fin 2443 → MerkleNonce) × (Fi
 preserves agreement on every protocol read and every later observer query. -/
 theorem rawSimulate_congr (coins : PublicCoins × ((Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)))
     (first second : Strand.Oracle) (same : ∀ raw ∈ Window, first raw = second raw) :
-    StrandCanonicalHiding.rawSimulate binary prime primePlan binaryNodes scalars inputFits privateFits setup
+    StrandCanonicalExperiments.rawSimulate binary prime primePlan binaryNodes scalars inputFits privateFits setup
         metadata roundSampler batchingSamples before requestOf after coins first =
-      StrandCanonicalHiding.rawSimulate binary prime primePlan binaryNodes scalars inputFits privateFits setup
+      StrandCanonicalExperiments.rawSimulate binary prime primePlan binaryNodes scalars inputFits privateFits setup
         metadata roundSampler batchingSamples before requestOf after coins second := by
   have reads := reads_of_window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after
     first second same
@@ -222,9 +222,9 @@ theorem rawSimulate_congr (coins : PublicCoins × ((Fin 2443 → MerkleNonce) ×
   have earlier := StrandObserverWindow.before_congr before after first second
     (observer_of_window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after first second same)
   have root := StrandGhostMerkle.Tree.labels_congr Codec first second nodes coins.2.2 1
-  dsimp only [StrandCanonicalHiding.rawSimulate]
+  dsimp only [StrandCanonicalExperiments.rawSimulate]
   rw [earlier,root]
-  dsimp only [StrandCanonicalFullCoupling.simulatedView,StrandCanonicalFullCoupling.actualOracle]
+  dsimp only [StrandCanonicalExperiments.simulatedView,StrandCanonicalContext.actualOracle]
   rw [StrandCanonicalBackend.logicalOracle_congr_reads binary.description Repr Sh setup roundSampler (Public).fallback
     first second reads]
   rw [StrandCanonicalBackend.respond_congr_reads binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public

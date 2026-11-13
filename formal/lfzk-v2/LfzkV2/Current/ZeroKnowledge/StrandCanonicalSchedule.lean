@@ -155,7 +155,7 @@ theorem disclosed_respondHonest (primeCount : shape.primePublic = prime.nPublic)
     (request : Request) (frontend : Body) (SHA : Strand.Oracle)
     (cells : Backend.Cells B (ConcreteSetup.rows binary.cells) 265 ×
       Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)
-    (tape : CompleteBackend.Masks binaryNodes primeNodes binary.cells
+    (tape : Backend.JointMasks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
     (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
       RandomOracle.Tree Bytes Digest Observed postQueries) :

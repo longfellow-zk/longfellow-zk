@@ -14,7 +14,7 @@ run_cmd do
   let env ← getEnv
   let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
   let used := info.type.getUsedConstants
-  unless used.contains ``StrandCanonicalHiding.rawReal &&
+  unless used.contains ``StrandCanonicalExecution.rawReal &&
       used.contains ``StrandVerifier.verify &&
       used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.ReadDisjoint do
     throwError "Honest runtime lost actual execution, actual verification or ordinary-witness premises"

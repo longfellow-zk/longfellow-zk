@@ -126,7 +126,7 @@ variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (polynomialX : Bˣ)
 
 /-- All protocol callbacks are fixed here. In particular the advice decoder
 is total on exactly the canonical twenty-bit words admitted by the proof
-codec. Canonical replay replaces the unused legacy framing fields below. -/
+codec. Canonical wire construction supplies the opening packet encoder. -/
 def configuration : RuntimeVerifier.Public
     (g := geometry binary prime binaryPlan primePlan)
     binary prime (binaryBackend binary binaryNodes) (primeBackend prime)
@@ -160,8 +160,6 @@ def configuration : RuntimeVerifier.Public
   openings := rfl
   columns := rfl
   openingPositive := by decide
-  context := fun root => ⟨⟨[],by simp⟩,fun _ => false,root⟩
-  bindOnly := fun _ _ _ => ⟨[],by simp⟩
   openingBase := fun _ => ⟨[],by simp⟩
   initialLink := fun _ => 0
   root := FingerprintPrefix.Key.root

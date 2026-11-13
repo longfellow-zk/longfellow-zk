@@ -117,6 +117,20 @@ theorem parameters_rankError (I : Instance F) (hn : I.n = c.n) (hk : I.r+I.w = c
   simp only [rankError, two_mul, Nat.add_assoc]
 end Parameters
 
+theorem parameters_parent_eq (c : CertifiedProfile) (P R : Joint.Participant c.k c.s c.n c.t)
+    (hP : Nat.card P.Carrier = Adapter.Mdoc.binaryOrder)
+    (hR : Nat.card R.Carrier = Adapter.Mdoc.primeOrder) :
+    let pc := c.parameters P.backend P.columns P.dimension P.batching P.openings (Or.inl hP)
+    let rc := c.parameters R.backend R.columns R.dimension R.batching R.openings (Or.inr hR)
+    pc.rankError+rc.rankError+JointResponse.activeHighBudget P R pc =
+      parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList := by
+  intro pc rc
+  rw [c.parameters_rankError P.backend P.columns P.dimension P.batching P.openings (Or.inl hP),
+    c.parameters_rankError R.backend R.columns R.dimension R.batching R.openings (Or.inr hR), hP, hR]
+  simp only [JointResponse.activeHighBudget, pc, CertifiedProfile.parameters, CertifiedProfile.threshold,
+    hP, hR, parentBudget]
+
+
 /-- The two actual rank terms and the bounded joint response family fit one
 parent-query budget. No per-field query allowance is added. -/
 theorem parameters_parent_budget_le (P R : Joint.Participant c.k c.s c.n c.t)

@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.OracleProgramming
+import LfzkV2.Current.ProofBodyReplay
 import LfzkV2.Current.StrandRuntime
 
 /-! Complete-proof finalization for the strand runtime. The complete
@@ -17,7 +17,7 @@ local notation "PacketBlock" => QueryRuntime.Block capacity (ProtocolWrites.Fres
 local notation "Point" => Replay.Point g fields Advice Authentication Key PacketBlock
 
 variable (bodyCodec : PrefixCodec (Current.Body g fields Advice Authentication))
-variable (e : OracleProgramming.BodyEncoding (g := g) (fields := fields) (Advice := Advice)
+variable (e : ProofBodyReplay.BodyEncoding (g := g) (fields := fields) (Advice := Advice)
   (Authentication := Authentication) (Context := Key) (Block := QueryRuntime.Block capacity (ProtocolWrites.Fresh g fields Advice)) (C := C))
 variable (sample : Replay.Point g fields Advice Authentication Key
   (QueryRuntime.Block capacity (ProtocolWrites.Fresh g fields Advice)) →
@@ -42,7 +42,7 @@ No caller-selected final-message buffer or final-node digest is accepted. -/
 theorem finish_valid (body : Body) (SHA : Strand.Oracle) :
     Valid bodyCodec e sample fallback initial (finish bodyCodec e sample fallback initial body SHA) SHA := by
   let H := StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample fallback SHA
-  have same := OracleProgramming.replay_same_body e initial
+  have same := ProofBodyReplay.replay_same_body e initial
     (finish bodyCodec e sample fallback initial body SHA) (⟨body,fun _ => 0⟩ : Proof) rfl H g.roles.length
   rw [Valid,StrandVerifier.sealValid_iff]
   change SHA (Strand.Input.prf

@@ -1,5 +1,6 @@
 import LfzkV2.Current.IdealSamples
-import LfzkV2.Current.RuntimeBackend
+import LfzkV2.Current.RuntimeVerifier
+import LfzkV2.Current.RuntimeSource
 import LfzkV2.Current.OpeningSampling
 
 /-! Runtime challenge readers on the common finite ideal answer. All
@@ -87,11 +88,11 @@ def querySampler : BalancedDecoder
 
 theorem querySampler_decode :
     (querySampler binary prime P R countBinary countPrime binaryCapacity primeCapacity).decode =
-      RuntimeBackend.queryDecoder binary prime P R
+      RuntimeVerifier.queryDecoder binary prime P R
         (challengePublic binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg) := rfl
 
 variable {Oracle : Type}
-variable (source : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+variable (source : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
   (Key := Key) (C := Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity)
   binary prime (Oracle := Oracle))
 
@@ -103,7 +104,7 @@ def samplerLaws
     (binaryFits : binary.degree ≤ binaryCapacity)
     (primeFits : prime.circuit.layers+1 ≤ primeCapacity)
     (bitsFit : shared+maskBits ≤ Adapter.Mdoc.quotientBound) :
-    RuntimeCover.SamplerLaws binary prime P R
+    RuntimeSource.SamplerLaws binary prime P R
       (challengePublic binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg) source where
   binaryCapacity := binaryCapacity
   primeCapacity := primeCapacity

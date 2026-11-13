@@ -1,5 +1,5 @@
 import LfzkV2.Current.RuntimeAdaptiveCharges
-import LfzkV2.Current.RuntimeRoles
+import LfzkV2.Current.RuntimeShape
 
 /-! Actual query roles under any request-family encoding. The schedule is
 fixed by public templates; adaptive public values add no rounds. -/
@@ -16,9 +16,9 @@ variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePubl
 variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key) (C := C) (Salt := Salt))
-variable (S : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice)
+variable (S : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key) (C := C) binary prime (Oracle := Oracle))
-variable (laws : RuntimeCover.SamplerLaws binary prime P R cfg S)
+variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg S)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
@@ -75,7 +75,7 @@ theorem prime_single (primeGeometry : primePlan.frontend = g.prime) (query : ℕ
   have hr := point_role e initialLink proof H (g.primeIndex i)
   change ((e.chain initialLink).point proof H (g.primeStart+query)).role = some (g.roles.get (g.primeIndex i)) at hr
   rw [g.prime_role_get i] at hr
-  have hs := RuntimeRoles.frontend_side .prime g.prime _ (List.get_mem _ i)
+  have hs := RuntimeShape.frontend_side .prime g.prime _ (List.get_mem _ i)
   unfold single
   rw [hr]
   exact roleCharge_frontend binary prime P R cfg S laws H readers _ .prime _ answer hs
@@ -99,7 +99,7 @@ theorem binary_single (binaryGeometry : binaryTemplate.frontend = g.binary)
   have hr := point_role e initialLink proof H (g.binaryIndex i)
   change ((e.chain initialLink).point proof H (g.binaryStart+query)).role = some (g.roles.get (g.binaryIndex i)) at hr
   rw [g.binary_role_get i] at hr
-  have hs := RuntimeRoles.frontend_side .binary g.binary _ (List.get_mem _ i)
+  have hs := RuntimeShape.frontend_side .binary g.binary _ (List.get_mem _ i)
   unfold single
   rw [hr]
   exact roleCharge_frontend binary prime P R cfg S laws H readers _ .binary _ answer hs
@@ -113,7 +113,7 @@ theorem adapter_single (i : Fin 3) (answer : Digest × C) :
     have hi := i.isLt
     simp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at *
     omega
-  have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeRoles.adapter_get g i)
+  have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeShape.adapter_get g i)
   simp only [single,hr]
 
 theorem rowBatching_single (answer : Digest × C) :
@@ -143,7 +143,7 @@ theorem packing_single (answer : Digest × C) :
     have hlength := g.roles_length
     simp only [ApplicationPrefix.packingIndex,Geometry.binaryStart] at *
     omega
-  have hr := point_role_of_get e initialLink proof H _ hindex .packing (RuntimeRoles.packing_get g nontrivial)
+  have hr := point_role_of_get e initialLink proof H _ hindex .packing (RuntimeShape.packing_get g nontrivial)
   simp only [single,hr,roleCharge]
 
 theorem fingerprint_single (answer : Digest × C) :

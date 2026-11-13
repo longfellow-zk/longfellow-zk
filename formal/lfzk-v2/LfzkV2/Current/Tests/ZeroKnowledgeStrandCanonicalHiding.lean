@@ -10,13 +10,13 @@ open ZeroKnowledge
 
 #check StrandCanonicalBackend.complete_prepared
 #check StrandCanonicalBackend.disclosed_respondHonest
-#check StrandCanonicalHiding.stage_eq
-#check StrandCanonicalHiding.ghost_eq
-#check StrandCanonicalHiding.commitment_hiding
+#check StrandCanonicalExecution.stage_eq
+#check StrandCanonicalCommitmentHiding.ghost_eq
+#check StrandCanonicalCommitmentHiding.commitment_hiding
 #check StrandCanonicalExactSimulation.simulationEquiv
 #check StrandCanonicalExactSimulation.ghost_simulator_view
 #check StrandCanonicalExactSimulation.ghost_sameDistribution
-#check StrandCanonicalHiding.exact_simulation
+#check StrandCanonicalExactSimulation.exact_simulation
 #check StrandCanonicalHiding.statClose
 
 -- The concrete denominator is tied to the runtime's nonce-width constant.
@@ -26,12 +26,12 @@ open Lean Elab Command in
 run_cmd do
   for endpoint in #[``StrandCanonicalBackend.complete_prepared,
       ``StrandCanonicalBackend.disclosed_respondHonest,
-      ``StrandCanonicalHiding.stage_eq,
-      ``StrandCanonicalHiding.ghost_eq,
-      ``StrandCanonicalHiding.commitment_hiding,
+      ``StrandCanonicalExecution.stage_eq,
+      ``StrandCanonicalCommitmentHiding.ghost_eq,
+      ``StrandCanonicalCommitmentHiding.commitment_hiding,
       ``StrandCanonicalExactSimulation.ghost_simulator_view,
       ``StrandCanonicalExactSimulation.ghost_sameDistribution,
-      ``StrandCanonicalHiding.exact_simulation,
+      ``StrandCanonicalExactSimulation.exact_simulation,
       ``StrandCanonicalHiding.statClose] do
     for ax in ← collectAxioms endpoint do
       unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do

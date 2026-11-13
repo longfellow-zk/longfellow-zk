@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptRoles
+import LfzkV2.Current.ZeroKnowledge.FrontendRoleWrites
 import LfzkV2.Current.ZeroKnowledge.CompleteFrontendBody
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationWrites
 
@@ -101,7 +101,7 @@ theorem prime_map (body : Body g fields Advice Authentication) :
   rw [← carry_first _ (pureFresh body) _ (frontend_nonempty body g.prime .prime)]
   apply List.mapIdx_eq_mapIdx_iff.mpr
   intro i bound
-  have owned := RuntimeRoles.frontend_side .prime g.prime ((g.prime.roles .prime)[i]) (List.getElem_mem bound)
+  have owned := RuntimeShape.frontend_side .prime g.prime ((g.prime.roles .prime)[i]) (List.getElem_mem bound)
   rw [at_frontend body (i+1) _ .prime owned]
   have advice : i+1 ≠ g.binaryStart := by unfold Geometry.binaryStart; omega
   by_cases zero : i = 0
@@ -119,7 +119,7 @@ theorem binary_map (body : Body g fields Advice Authentication) :
   rw [← carry_first _ (pureFresh body) _ (frontend_nonempty body g.binary .binary)]
   apply List.mapIdx_eq_mapIdx_iff.mpr
   intro i bound
-  have owned := RuntimeRoles.frontend_side .binary g.binary ((g.binary.roles .binary)[i]) (List.getElem_mem bound)
+  have owned := RuntimeShape.frontend_side .binary g.binary ((g.binary.roles .binary)[i]) (List.getElem_mem bound)
   rw [at_frontend body (i+g.binaryStart) _ .binary owned]
   have fingerprints : i+g.binaryStart ≠ g.primeStart := by unfold Geometry.binaryStart Geometry.primeStart; omega
   by_cases zero : i = 0
@@ -201,7 +201,7 @@ theorem raw_bodyPrefix (root : Digest) (result : CompleteSimulation.RawResult bi
         (primePlan.frontend.roles .prime).map (pureFresh body) := by
     apply List.map_congr_left
     intro role member
-    exact Prefix.role_snapshot body .prime role (RuntimeRoles.frontend_side .prime primePlan.frontend role member)
+    exact Prefix.role_snapshot body .prime role (RuntimeShape.frontend_side .prime primePlan.frontend role member)
   have binaryMap :
       (binary.plan.frontend.roles .binary).map
           (fun role => WriteLog.withMessage .binary (Equiv.refl B) {}
@@ -209,7 +209,7 @@ theorem raw_bodyPrefix (root : Digest) (result : CompleteSimulation.RawResult bi
         (binary.plan.frontend.roles .binary).map (pureFresh body) := by
     apply List.map_congr_left
     intro role member
-    exact Prefix.role_snapshot body .binary role (RuntimeRoles.frontend_side .binary binary.plan.frontend role member)
+    exact Prefix.role_snapshot body .binary role (RuntimeShape.frontend_side .binary binary.plan.frontend role member)
   have primeSnap := Prefix.circuit_snapshots .prime (Equiv.refl P) primePlan result.primePayload
     ({ fingerprints := some result.fingerprints } : CompleteSimulation.Fresh binary prime primePlan)
   have binarySnap := Prefix.circuit_snapshots .binary (Equiv.refl B) binary.plan result.binaryPayload

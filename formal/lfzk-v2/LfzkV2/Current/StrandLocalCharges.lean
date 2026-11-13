@@ -377,10 +377,10 @@ local notation "factor" => StrandRoleSampling.factor B N binary.Original prime.O
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
   (C := IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity) (Salt := Salt))
-variable (S : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+variable (S : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
   (Key := Key) (C := IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity)
   binary prime (Oracle := Oracle))
-variable (laws : RuntimeCover.SamplerLaws binary prime P R
+variable (laws : RuntimeSource.SamplerLaws binary prime P R
   (IdealRuntime.challengePublic (g := g) (fields := fields) (Advice := Advice)
     (Base := Base) (Key := Key) (Salt := Salt)
     binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg) S)

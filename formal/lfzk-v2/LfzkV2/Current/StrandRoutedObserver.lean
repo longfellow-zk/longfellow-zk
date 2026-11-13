@@ -1,6 +1,6 @@
 import LfzkV2.Current.SHAOracle
 
-/-! Reuse the old single-SHA domain routing for a raw strand observer.
+/-! Single-SHA domain routing for a raw strand observer.
 Recording precedes partial evaluation: fixed Merkle answers or fixed strand
 answers remain in the original raw observation, without additional queries. -/
 noncomputable section

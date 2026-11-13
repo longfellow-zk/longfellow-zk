@@ -76,44 +76,6 @@ theorem targets_mapQueries {D : Type} [DecidableEq D] {fuel : ℕ} (claims : Q �
 
 end Queries
 
-namespace SoundnessRealization
-variable {P Q D C Out RawCoin View : Type}
-variable [Fintype P] [DecidableEq P] [Fintype Q] [DecidableEq Q]
-variable [Fintype D] [Nonempty D] [Fintype C] [Nonempty C] [Fintype RawCoin]
-variable {fuel rounds : ℕ}
-variable {tree : Tree P (D × C) Out fuel} {raw : RawCoin → View}
-variable {observe : Out → (P → D × C) → View} {accepted : View → Prop}
-variable {path : Out → (P → D × C) → ℕ → P}
-
-/-- Transport a checked realization without changing its accepting
-predicate, extractor observation, exception or speculative charge. Only
-addresses change; additional target coordinates are never queried. -/
-def rename (realization : SoundnessRealization (rounds := rounds) tree raw observe accepted path)
-    (encode : P → Q) (injective : Function.Injective encode) :
-    SoundnessRealization (rounds := rounds) (mapQueries encode tree) raw
-      (fun out H => observe out (H ∘ encode)) accepted
-      (fun out H i => encode (path out (H ∘ encode) i)) where
-  observation_law event := by
-    rw [realization.observation_law]
-    simp only [run_mapQueries]
-    exact (density_pullback encode injective (fun H => event (observe (tree.run H).1 H))).symm
-  exception H := realization.exception (H ∘ encode)
-  speculation H := realization.speculation (H ∘ encode)
-  speculation_nonneg H := realization.speculation_nonneg (H ∘ encode)
-  accepted_path H accepted good := by
-    simp only [run_mapQueries] at accepted ⊢
-    rcases realization.accepted_path (H ∘ encode) accepted good with ordered | paid
-    · left
-      constructor
-      · intro i bound
-        rw [seen_mapQueries]
-        exact mem_image.mpr ⟨path (tree.run (H ∘ encode)).1 (H ∘ encode) i,ordered.queried i bound,rfl⟩
-      · intro i bound
-        rw [firstOfTwo_mapQueries encode injective]
-        exact ordered.ordered i bound
-    · exact Or.inr paid
-
-end SoundnessRealization
 end TranscriptV2.Composition
 
 namespace TranscriptV2.DigestProjection

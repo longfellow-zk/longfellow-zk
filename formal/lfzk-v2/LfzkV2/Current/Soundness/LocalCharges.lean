@@ -5,12 +5,11 @@ import LfzkV2.Current.Soundness.CausalReaders
 import LfzkV2.Current.StrandCut
 import LfzkV2.Joint.Indexed
 import LfzkV2.Current.ByteOracleTransport
-import LfzkV2.Current.RuntimeParameters
 import LfzkV2.Current.Soundness.FailureCover
 import LfzkV2.Current.Soundness.Coordinates
 import LfzkV2.Current.Soundness.RuntimeRoles
 import Survival.StoppedCharges
-import LfzkV2.Current.Soundness.ProfileBudget
+import LfzkV2.Current.CertifiedProfile
 
 /-! Local protocol charges on the tagged strand search. The commitment
 oracle is extracted from that execution's first-context cut, then held fixed
@@ -251,7 +250,7 @@ local notation "publicCfg" => IdealRuntime.challengePublic (g := g) (fields := f
   binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
 local notation "draw" => IdealRuntime.draw binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
 local notation "coin" => RuntimeVerifier.batchingDecoder binary prime P R publicCfg draw
-local notation "query" => RuntimeBackend.queryDecoder binary prime P R publicCfg
+local notation "query" => RuntimeVerifier.queryDecoder binary prime P R publicCfg
 local notation "encode" => RuntimeVerifier.encodeResponses binary prime P R publicCfg
 
 variable (roleFits : ∀ i : Fin g.roles.length, StrandRoleSampling.Fits binaryCapacity primeCapacity
@@ -303,10 +302,10 @@ variable (bitsFit : shared+maskBits ≤ Adapter.Mdoc.quotientBound)
 local count. This source uses the runtime's actual selected-cell maps and
 fingerprint response parser. -/
 def frozenSource (tuple : Tuple) :=
-  RuntimeCover.source binary prime P R publicCfg layout c.cutoff (fun _ _ => tuple)
+  RuntimeSource.source binary prime P R publicCfg layout c.cutoff (fun _ _ => tuple)
     (fun _ _ _ _ => rfl)
 
-def frozenLaws (tuple : Tuple) : RuntimeCover.SamplerLaws binary prime P R publicCfg
+def frozenLaws (tuple : Tuple) : RuntimeSource.SamplerLaws binary prime P R publicCfg
     (frozenSource c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout tuple) :=
   IdealRuntime.samplerLaws binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg
     (frozenSource c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout tuple)
@@ -388,13 +387,13 @@ def pairBudget : ℚ := JointResponse.activeHighBudget First Second (pc)
 
 private theorem binaryListBound (tuple : Tuple) (point : Point) (H : Point → Digest × Answer) :
     ((source tuple).lists point.context ((source tuple).oracle H point.context)).1.card ≤ c.binaryList :=
-  RuntimeParameters.binary_list_card c binary prime P R publicCfg layout (fun _ _ => tuple)
-    (fun _ _ _ _ => rfl) point.context tuple
+  c.binary_projected_card First tuple.1
+    ((RuntimeSource.selectedParam binary prime P R publicCfg layout c.cutoff).first.view point.context)
 
 private theorem primeListBound (tuple : Tuple) (point : Point) (H : Point → Digest × Answer) :
     ((source tuple).lists point.context ((source tuple).oracle H point.context)).2.card ≤ c.primeList :=
-  RuntimeParameters.prime_list_card c binary prime P R publicCfg layout (fun _ _ => tuple)
-    (fun _ _ _ _ => rfl) point.context tuple
+  c.prime_projected_card Second tuple.2
+    ((RuntimeSource.selectedParam binary prime P R publicCfg layout c.cutoff).second.view point.context)
 
 include primeGeometry binaryGeometry in
 private theorem frozenSingle_mean (tuple : Tuple) (point : Point) (fallback : Answer) (H : Point → Digest × Answer) :
@@ -852,7 +851,7 @@ theorem localProof_budget_le (fallback : Answer) (point : Tagged) :
         c.parameters_parent_budget_le First Second
           (binaryCard c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
           (primeCard c R countPrime)
-      have openingBound : GlobalCharges.openingBudget (s := c.s) (n := c.n) (t := c.t)
+      have openingBound : RoleBudgets.openingBudget (s := c.s) (n := c.n) (t := c.t)
           c.cutoff c.threshold ≤ 2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ) := by
         change ParameterBounds.openingBudget c.n c.s c.t c.activeCutoff c.binaryCutoff c.primeCutoff ≤ _
         exact c.opening_budget_le
@@ -878,7 +877,7 @@ theorem batching_budget_eq [budgetDecidable : DecidableEq Tagged] (fallback : An
   unfold singleBudget Soundness.RuntimeCharges.budget
   rw [appZero]
   simp only [BackendOracle.singleBudget, BackendOracle.parentOf_point, zero_add]
-  exact LfzkV2.Current.Soundness.ProfileBudget.parameters_parent_eq c First Second
+  exact LfzkV2.Current.CertifiedProfile.parameters_parent_eq c First Second
     (binaryCard c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)
     (primeCard c R countPrime)
 

@@ -210,8 +210,8 @@ the sampled-column order.
 [`QueryRuntime`](LfzkV2/Current/QueryRuntime.lean) reconstructs contexts and
 fresh-message caches from actual query bytes. Inconsistent logical aliases lie
 outside its canonical image.
-[`CanonicalVerifierAgreement`](LfzkV2/Current/CanonicalVerifierAgreement.lean)
-proves complete replay, decoding and verification depend only on that image.
+[`StrandAcceptedPath.point_canonical`](LfzkV2/Current/StrandAcceptedPath.lean)
+proves that the actual reconstructed path lies in that canonical image.
 [`StrandCutObservation`](LfzkV2/Current/StrandCutObservation.lean) preserves the
 original first-context Merkle extractor when transporting the oracle program.
 [`MerkleWireCodec`](LfzkV2/Current/MerkleWireCodec.lean) constructs exact leaf/node

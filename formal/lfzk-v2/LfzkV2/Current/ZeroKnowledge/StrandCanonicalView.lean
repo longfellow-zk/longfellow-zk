@@ -21,7 +21,7 @@ variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
 local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
 local notation "Request" => CanonicalRequest.Request shape binary.nPublic
-local notation "Masks" => CompleteBackend.Masks binaryNodes primeNodes binary.cells
+local notation "Masks" => Backend.JointMasks binaryNodes primeNodes binary.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
 variable {blocks : ℕ}

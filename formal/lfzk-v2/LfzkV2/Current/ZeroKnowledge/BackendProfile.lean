@@ -158,3 +158,10 @@ theorem jointProfile_wire_sameDistribution {Observed : Type} [DecidableEq Observ
 end Joint
 
 end LfzkV2.Current.ZeroKnowledge.Backend
+
+namespace LfzkV2.Current.ZeroKnowledge.Backend
+variable {B N : Type} [Field B] [Field N]
+abbrev JointMasks (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ N)
+    (binaryCells primeCells : ℕ) :=
+  ProfileTape binaryNodes binaryCells × ProfileTape primeNodes primeCells
+end LfzkV2.Current.ZeroKnowledge.Backend

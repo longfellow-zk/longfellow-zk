@@ -21,7 +21,7 @@ theorem messages {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F circuit) (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
     (payload : Layered.Replay.Payload circuit)
     (state future : CompleteTranscript.State g fields Advice Key Base C)
-    (fits : state.rank.val+HonestTranscript.circuitFuel plan false ≤ g.roles.length)
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel plan false ≤ g.roles.length)
     (extended : AnswerTape.Extends fallback
       (readSetup (CompleteTranscript.reader side field decode nonzero base H) plan ids payload state false).2 future) :
     messagesFromSetup circuit

@@ -33,9 +33,9 @@ variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations
   Merkle.RandomOracle.Tree Strand.Word Strand.Digest
     (Option (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)) blocks)
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars
+local notation "Public" => StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars
   inputFits privateFits setup
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 local notation "HonestCoins" => (CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)) × BackendCoins
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
@@ -50,7 +50,7 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
       (MdocRuntime.representations scalars)
       (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
         (RuntimeStatement.degreeFits binary)) setup
-      (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+      (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -59,13 +59,13 @@ variable (after : Context → Option (CanonicalRuntime.Output (Advice := MdocAdv
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary))) →
   Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-local notation "Columns" => StrandCanonicalHiding.columns binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Columns" => StrandCanonicalExecution.columns binary prime primePlan binaryNodes scalars inputFits privateFits setup
   original remaining requestOf
-local notation "Front" => StrandCanonicalHiding.frontend binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Front" => StrandCanonicalExecution.frontend binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler
-local notation "Response" => StrandCanonicalHiding.response binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Response" => StrandCanonicalExecution.response binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples
-local notation "Raw" => StrandCanonicalHiding.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Raw" => StrandCanonicalExecution.rawReal binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples before requestOf after
 
 /-- The honest root is computed from all original physical columns and
@@ -93,10 +93,10 @@ theorem rawReal_result (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
           (fun index => (ToLeaf).symm (Columns coins context index.val))
           (Merkle.Indexed.openCore ((Codec).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
             (fun index => (index,nonces index)) (Columns coins context)) SHA) := by
-  unfold StrandCanonicalHiding.rawReal StrandGhostMerkle.Schedule.honest
+  unfold StrandCanonicalExecution.rawReal StrandGhostMerkle.Schedule.honest
   dsimp only
   unfold committedRoot
-  rw [StrandCanonicalHiding.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup
+  rw [StrandCanonicalExecution.stage_eq binary prime primePlan binaryNodes scalars inputFits privateFits setup
     metadata original remaining roundSampler batchingSamples requestOf after coins (before.run SHA).1 SHA
     _]
   cases backend : Response coins (before.run SHA).1 (requestOf (before.run SHA).1)

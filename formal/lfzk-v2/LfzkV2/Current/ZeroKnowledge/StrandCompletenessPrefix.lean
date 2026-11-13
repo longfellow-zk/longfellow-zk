@@ -1,4 +1,4 @@
-import LfzkV2.Current.ZeroKnowledge.OracleRuntime
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteTerminalBody
 import LfzkV2.Current.ReplayCongruence
 

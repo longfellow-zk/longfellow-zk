@@ -5,8 +5,8 @@ import LfzkV2.Current.OpeningBody
 
 /-! A runtime verifier assembled from the actual proof messages. Public setup
 contains the trusted hash/signature circuits, field representations, challenge
-decoders and deterministic bind-only framing. The application system, affine
-rows, payloads and opening are reconstructed here; no execution certificate or
+decoders and opening packet encoder. The application system, affine
+rows, payloads and opening are reconstructed by the adaptive decoder; no execution certificate or
 semantic acceptance checker is a parameter. `Base × Fresh` is a logical
 view of each block; its byte encoder may interleave derived binds and fresh
 writes in the actual role-specific order, without serializing extra tags. -/
@@ -59,9 +59,6 @@ structure Public where
   openings : g.openings = t
   columns : g.columns = n
   openingPositive : 0 < t
-  context : Digest → Key
-  bindOnly : (i : Fin g.roles.length) → (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) →
-    (Fin i.val → C) → Base
   openingBase : Response g (fields .binary) × Response g (fields .prime) → Base
   initialLink : Digest
   root : Key → Digest
@@ -127,100 +124,9 @@ theorem encodeResponses_injective : Function.Injective (encodeResponses binary p
     cfg.binaryField cfg.primeField cfg.rowDimension cfg.maskingDegree (productFits binary prime P R cfg)
     (openingWire binary prime P R cfg) (openingWire_injective binary prime P R cfg)
 
-/-- Bind-only framing receives only public data, the actual message prefix
-through this boundary, and strict prior challenges. It cannot read a future
-proof field. The fresh component is filled by `withProtocolWrites` below. -/
-def framing : Replay.Encoding g fields Advice (Authentication (g := g)) Key
-    (Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) C where
-  context proof := cfg.context proof.body.commitment
-  block proof i past :=
-    (cfg.bindOnly i (fun j => ProtocolWrites.fresh proof.body ⟨j.val,by
-      have hi := i.isLt
-      have hj := j.isLt
-      omega⟩) past,{})
-
-/-- Earlier payloads are assigned to their actual protocol boundaries. The
-opening override only fixes its complete response-pair framing. -/
-def encoding := (framing binary prime P R cfg).withProtocolWrites.withOpening
-  (responses binary prime P R cfg) (encodeResponses binary prime P R cfg)
-
-@[simp] theorem encoding_context
-    (proof : Output (g := g) (fields := fields) (Advice := Advice)) :
-    (encoding binary prime P R cfg).context proof = cfg.context proof.body.commitment := rfl
-
-theorem encoding_opening
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (past : Fin g.openingIndex.val → C) :
-    (encoding binary prime P R cfg).block proof g.openingIndex past =
-      encodeResponses binary prime P R cfg (responses binary prime P R cfg proof) := by
-  simp only [encoding,Replay.Encoding.withOpening_block]
-
-/-- Every earlier fresh payload comes from the actual complete proof body. -/
-theorem encoding_fresh_before
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (i : Fin g.roles.length) (past : Fin i.val → C) (hi : i ≠ g.openingIndex) :
-    ((encoding binary prime P R cfg).block proof i past).2 = ProtocolWrites.fresh proof.body i := by
-  rw [encoding,Replay.Encoding.withOpening_block_earlier _ _ _ _ _ _ hi]
-  rfl
-
 abbrev System := Application.System B (Fin binary.degree) (Fin binary.words) binary.Slot binary.Pad
   prime.Other (Fin prime.pads) binary.Original prime.Original C C Adapter.Mdoc.primeOrder
   shared maskBits Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound
-
-/-- Read only the strict batching prefix, including both early fingerprint
-responses. Equation indices and physical addresses are constructed by the
-compiler after their numerical checks; they are never supplied as witnesses. -/
-def statementAt (point : Point (g := g) (fields := fields) (Advice := Advice)
-    (Base := Base) (Key := Key)) (past : Fin point.rank → C) :
-    Option (Σ A : System binary prime (C := C),
-      StatementData A (first binary prime P R cfg) (second binary prime P R cfg)) := do
-  let A ← ApplicationPrefix.decodeChecked binary prime cfg.card cfg.polynomialX
-    cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
-    cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
-    cfg.conversion cfg.advice cfg.fallback point past
-  let layout ← StatementCompiler.addresses P R binary.cells prime.remaining prime.pads
-  let fingerprint ← ApplicationPrefix.strictAnswer point past 0
-  let targets ← point.readAt g.primeStart (fun block => block.2.fingerprints)
-  let data ← StatementCompiler.compile P R A layout cfg.countBinary cfg.countPrime
-    (cfg.fingerprintBinary fingerprint) (cfg.fingerprintPrime fingerprint)
-    (cfg.binaryField targets.1.1,cfg.binaryField targets.1.2)
-    (cfg.primeField targets.2.1,cfg.primeField targets.2.2)
-  pure ⟨A,data⟩
-
-
-/-- At a fixed query preimage the whole affine statement reads only strict
-ancestors. Its own challenge answer is unavailable to the compiler. -/
-theorem statementAt_off (point : Point (g := g) (fields := fields) (Advice := Advice)
-    (Base := Base) (Key := Key))
-    (H H' : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') :
-    statementAt binary prime P R cfg point (point.priorAnswers H) =
-      statementAt binary prime P R cfg point (point.priorAnswers H') := by
-  rw [point.priorAnswers_off h]
-
-/-- A successful affine-statement reader exposes the actual application
-parse, physical-capacity checks and two bound fingerprint responses. -/
-theorem statementAt_spec (point : Point (g := g) (fields := fields) (Advice := Advice)
-    (Base := Base) (Key := Key)) (past : Fin point.rank → C)
-    (data : Σ A : System binary prime (C := C),
-      StatementData A (first binary prime P R cfg) (second binary prime P R cfg))
-    (h : statementAt binary prime P R cfg point past = some data) :
-    ApplicationPrefix.decodeChecked binary prime cfg.card cfg.polynomialX
-      cfg.quotientBound cfg.packingDegree cfg.binaryField cfg.primeField
-      cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero
-      cfg.conversion cfg.advice cfg.fallback point past = some data.1 ∧
-    ∃ layout fingerprint targets,
-      StatementCompiler.addresses P R binary.cells prime.remaining prime.pads = some layout ∧
-      ApplicationPrefix.strictAnswer point past 0 = some fingerprint ∧
-      point.readAt g.primeStart (fun block => block.2.fingerprints) = some targets ∧
-      StatementCompiler.compile P R data.1 layout cfg.countBinary cfg.countPrime
-        (cfg.fingerprintBinary fingerprint) (cfg.fingerprintPrime fingerprint)
-        (cfg.binaryField targets.1.1,cfg.binaryField targets.1.2)
-        (cfg.primeField targets.2.1,cfg.primeField targets.2.2) = some data.2 := by
-  simp only [statementAt,Option.bind_eq_bind,Option.bind_eq_some_iff] at h
-  obtain ⟨A,hA,layout,hlayout,fingerprint,hfingerprint,targets,htargets,statement,hstatement,hresult⟩ := h
-  cases Option.some.inj hresult
-  exact ⟨hA,layout,fingerprint,targets,hlayout,hfingerprint,htargets,hstatement⟩
 
 /-- The successful runtime decode carries the constructed affine statement
 and the actual query-indexed tuple opening. It contains no execution proof. -/
@@ -231,111 +137,19 @@ structure Decoded where
   coin : JointResponse.Coin (first binary prime P R cfg).participant (second binary prime P R cfg).participant
   query : LigeroFamily.QuerySet n t
 
-variable [Inhabited (Family binary prime P R cfg).Leaf]
+/-- The total compiler has a fixed algebraic fallback, not a fabricated
+certified application. No accepted decoding can select this branch. -/
+def zeroStatement : JointResponse.Statement (first binary prime P R cfg).participant (second binary prime P R cfg).participant :=
+  (⟨fun _ _ _ _ => 0,fun _ => 0⟩,⟨fun _ _ _ _ => 0,fun _ => 0⟩)
 
-/-- Decode all protocol data using the ordinary replay. The two fields use
-one opening answer; the proof contains rows and authentication, not indices.
-The only batching-sampler input is raw field draws. Interpolation and physical
-row ordering are fixed here rather than supplied as a coin decoder. -/
-def decode (draw : C → RawSamples binary prime P R cfg)
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (H : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C) :
-    Option (Decoded binary prime P R cfg) := do
-  let parent := BackendPath.parent (encoding binary prime P R cfg) cfg.initialLink proof H g.batchingIndex
-  let data ← statementAt binary prime P R cfg parent.point (parent.point.priorAnswers H)
-  let answer := (H (((encoding binary prime P R cfg).chain cfg.initialLink).point proof H g.openingIndex.val)).2
-  let indices := cfg.sample answer
-  let raw := OpeningBody.raw (first binary prime P R cfg).participant (second binary prime P R cfg).participant
-    cfg.binaryField cfg.primeField cfg.binaryRows cfg.primeRows cfg.openings proof
-  let claim ← OrderedOpening.decode (cfg.bindSalt ((encoding binary prime P R cfg).context proof)) indices raw
-  pure {
-    application := data.1
-    statement := data.2
-    claim := claim
-    coin := batchingDecoder binary prime P R cfg draw (H parent.point).2
-    query := OrderedOpening.query indices }
 
-/-- Every retained value is tied to its successful concrete reader. This
-is the handoff used to construct an execution after verifier acceptance. -/
-theorem decode_spec
-    (draw : C → RawSamples binary prime P R cfg)
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (H : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C)
-    (decoded : Decoded binary prime P R cfg)
-    (h : decode binary prime P R cfg draw proof H = some decoded) :
-    let parent := BackendPath.parent (encoding binary prime P R cfg) cfg.initialLink proof H g.batchingIndex
-    let indices := cfg.sample (H (((encoding binary prime P R cfg).chain cfg.initialLink).point
-      proof H g.openingIndex.val)).2
-    statementAt binary prime P R cfg parent.point (parent.point.priorAnswers H) =
-      some ⟨decoded.application,decoded.statement⟩ ∧
-    OrderedOpening.decode (cfg.bindSalt ((encoding binary prime P R cfg).context proof)) indices
-      (OpeningBody.raw (first binary prime P R cfg).participant (second binary prime P R cfg).participant
-        cfg.binaryField cfg.primeField cfg.binaryRows cfg.primeRows cfg.openings proof) = some decoded.claim ∧
-    decoded.coin = batchingDecoder binary prime P R cfg draw (H parent.point).2 ∧
-    decoded.query = OrderedOpening.query indices := by
-  let parent := BackendPath.parent (encoding binary prime P R cfg) cfg.initialLink proof H g.batchingIndex
-  let indices := cfg.sample (H (((encoding binary prime P R cfg).chain cfg.initialLink).point
-    proof H g.openingIndex.val)).2
-  let raw := OpeningBody.raw (first binary prime P R cfg).participant (second binary prime P R cfg).participant
-    cfg.binaryField cfg.primeField cfg.binaryRows cfg.primeRows cfg.openings proof
-  change Option.bind (statementAt binary prime P R cfg parent.point (parent.point.priorAnswers H))
-    (fun data => Option.bind (OrderedOpening.decode (cfg.bindSalt ((encoding binary prime P R cfg).context proof)) indices raw)
-      (fun claim => some ⟨data.1,data.2,claim,batchingDecoder binary prime P R cfg draw (H parent.point).2,
-        OrderedOpening.query indices⟩)) = some decoded at h
-  cases hs : statementAt binary prime P R cfg parent.point (parent.point.priorAnswers H) with
-  | none => simp only [hs,Option.bind_none] at h; contradiction
-  | some data =>
-      cases hc : OrderedOpening.decode (cfg.bindSalt ((encoding binary prime P R cfg).context proof)) indices raw with
-      | none => simp only [hs,hc,Option.bind_some,Option.bind_none] at h; contradiction
-      | some claim =>
-          simp only [hs,hc,Option.bind_some] at h
-          cases Option.some.inj h
-          exact ⟨hs,hc,rfl,rfl⟩
+def queryDecoder (answer : C) : LigeroFamily.QuerySet n t := OrderedOpening.query (cfg.sample answer)
 
-/-- The actual verifier checks one jointly authenticated opening against the
-constructed statement, both transmitted H/Z arrays, the shared sample and
-the complete-body final seal. The two context checks reject malformed roots. -/
-def Checks
-    (codec : Codec Salt (Family binary prime P R cfg).Leaf Digest Enc) (HM : Enc → Digest)
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (H : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C)
-    (decoded : Decoded binary prime P R cfg) : Prop :=
-  let key := (encoding binary prime P R cfg).context proof
-  cfg.root key = proof.body.commitment ∧
-  proof.body.authentication.context = cfg.authenticationContext key ∧
-  ((Family binary prime P R cfg).compiler cfg.openingPositive).Accepts (codec.withOracle HM)
-    ((Joint.Pair.statementEquiv _ _).symm decoded.statement.statement) (cfg.root key)
-    ((Joint.Pair.coinEquiv _ _).symm decoded.coin)
-    ((Joint.Pair.responseEquiv _ _).symm (responses binary prime P R cfg proof)) decoded.query decoded.claim ∧
-  (H (((encoding binary prime P R cfg).chain cfg.initialLink).finalSealPoint proof H)).1 = proof.finalSeal
 
-/-- This mathematical runtime model rejects malformed decoding before
-checking authentication and arithmetic. Its classical decision operation is
-not a claim about Lean VM execution. The caller supplies neither a System
-nor an Execution certificate. -/
-def verify
-    (draw : C → RawSamples binary prime P R cfg)
-    (codec : Codec Salt (Family binary prime P R cfg).Leaf Digest Enc) (HM : Enc → Digest)
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (H : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C) : Bool :=
-  match decode binary prime P R cfg draw proof H with
-  | none => false
-  | some decoded => decide (Checks binary prime P R cfg codec HM proof H decoded)
+def wireResponses (response : JointResponse.Response (first binary prime P R cfg).participant (second binary prime P R cfg).participant) :
+    Response g (fields .binary) × Response g (fields .prime) :=
+  (BackendVerifier.responsesEquiv (first binary prime P R cfg) (second binary prime P R cfg) cfg.binaryField cfg.primeField cfg.rowDimension cfg.maskingDegree
+    (RuntimeVerifier.productFits binary prime P R cfg)).symm response
 
-/-- Acceptance supplies the actual successful decoder branch and every
-runtime check. Subsequent soundness proofs reconstruct their execution from
-these values, rather than assuming a supplied execution certificate. -/
-theorem verify_true_iff
-    (draw : C → RawSamples binary prime P R cfg)
-    (codec : Codec Salt (Family binary prime P R cfg).Leaf Digest Enc) (HM : Enc → Digest)
-    (proof : Output (g := g) (fields := fields) (Advice := Advice))
-    (H : Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) → Digest × C) :
-    verify binary prime P R cfg draw codec HM proof H = true ↔
-      ∃ decoded, decode binary prime P R cfg draw proof H = some decoded ∧
-        Checks binary prime P R cfg codec HM proof H decoded := by
-  unfold verify
-  cases hd : decode binary prime P R cfg draw proof H with
-  | none => simp only [Bool.false_eq_true,reduceCtorEq,false_and,exists_false]
-  | some decoded => simp only [decide_eq_true_eq,Option.some.injEq,exists_eq_left']
 
 end LfzkV2.Current.RuntimeVerifier

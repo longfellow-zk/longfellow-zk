@@ -1,6 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalReaders
 import LfzkV2.Current.ZeroKnowledge.CompletePublicBody
-import LfzkV2.Current.ZeroKnowledge.CompleteSimulationBody
+import LfzkV2.Current.RuntimeVerifier
 import LfzkV2.Current.ZeroKnowledge.BackendAdaptiveProfile
 import LfzkV2.Current.ZeroKnowledge.StrandGhostMerkleDomains
 
@@ -36,7 +36,7 @@ local notation "Physical" => PhysicalColumn binary prime
 abbrev ResponsePair (B : Type) [Field B] := Backend.Adaptive.Responses
   (B := B) (N := PrimeField) (r := 84) (w := 265) (s := 12)
 local notation "Responses" => ResponsePair B
-local notation "Masks" => CompleteBackend.Masks binaryNodes primeNodes binary.cells
+local notation "Masks" => Backend.JointMasks binaryNodes primeNodes binary.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
 variable {blocks : ℕ}
@@ -67,7 +67,7 @@ def responseBody (configuration : RuntimeVerifier.Public (g := g) binary prime P
   (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
   (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
     (frontend : Body) (response : Responses) : Body :=
-  let wire := CompleteVerifier.wireResponses binary prime binaryNodes primeNodes (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response
+  let wire := RuntimeVerifier.wireResponses binary prime P R (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response
   { frontend with
     binaryBackend := { frontend.binaryBackend with response := wire.1 }
     primeBackend := { frontend.primeBackend with response := wire.2 } }
@@ -293,7 +293,7 @@ def finish (configuration : RuntimeVerifier.Public (g := g) binary prime P R
   let runtimePublic := CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration
   let raw := rawOpening binary prime indices columns opening
   let full := CompletePublicBody.fillRows frontend
-    (CompleteVerifier.wireResponses binary prime binaryNodes primeNodes runtimePublic response)
+    (RuntimeVerifier.wireResponses binary prime P R runtimePublic response)
     (fun side => match side with
       | .binary => fun row query => configuration.binaryField.symm
           ((raw.values (Fin.cast configuration.openings query)).1

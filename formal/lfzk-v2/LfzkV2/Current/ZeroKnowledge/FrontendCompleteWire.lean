@@ -1,9 +1,8 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteShape
 import LfzkV2.Current.CanonicalRequest
 
-/-! Canonical current boundary bytes from the public prefix alone. The
-legacy runtime's `bindOnly` callback is not used by the canonical endpoint.
-Here the same role packet and request metadata are assembled directly from
+/-! Canonical current boundary bytes from the public prefix alone.
+The role packet and request metadata are assembled directly from
 the current fresh write, with public defaults only for malformed prefixes.
 The honest image is identified with `CanonicalRequest.block` below. -/
 noncomputable section

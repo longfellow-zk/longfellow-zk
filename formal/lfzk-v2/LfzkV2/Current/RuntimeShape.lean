@@ -1,5 +1,5 @@
 import LfzkV2.Current.FrontendTopology
-import LfzkV2.Current.RuntimeCover
+import LfzkV2.Current.ApplicationViews
 
 /-! One trusted public binary template determines the schedule and decoder
 capacity of every generated adapter instance. Only coefficients depend on
@@ -32,37 +32,51 @@ theorem binaryPlan_capacity (packet : AdapterPacket binary prime C) :
 
 end Transfer
 
-section Setup
-variable {g : Geometry} {fields : Fields} {Advice Base Key C B Salt Oracle : Type}
-variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B] [Fintype C]
-variable {shared maskBits adviceBits k s n t : ℕ}
-variable (binary : BinaryPublic B shared maskBits adviceBits)
-local notation "N" => ZMod Adapter.Mdoc.primeOrder
-variable (prime : PrimePublic N shared)
-variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
-variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
-  (Base := Base) (Key := Key) (C := C) (Salt := Salt))
-variable (S : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice)
-  (Base := Base) (Key := Key) (C := C) binary prime (Oracle := Oracle))
+theorem adapter_get (g : Geometry) (i : Fin 3) :
+    g.roles[ApplicationPrefix.rowBatchingIndex g+i.val]? =
+      some (([Role.rowBatching,.rescaling,.conversion]).get i) := by
+  let leading := [.fingerprint] ++ g.prime.roles .prime
+  have hlength : leading.length = ApplicationPrefix.rowBatchingIndex g := by
+    simp only [leading,List.length_append,List.length_singleton,ApplicationPrefix.rowBatchingIndex,
+      Geometry.primeStart]
+  have hroles : g.roles = leading ++
+      ([.rowBatching,.rescaling,.conversion] ++ g.binary.roles .binary ++
+        (if g.packingDegree = 1 then [] else [.packing]) ++ [.batching,.opening]) := by
+    rw [g.roles_eq]
+    simp only [leading,List.append_assoc]
+  rw [hroles,List.getElem?_append_right (by rw [hlength]; omega),hlength,Nat.add_sub_cancel_left]
+  simp only [List.append_assoc]
+  rw [List.getElem?_append_left (show i.val < ([Role.rowBatching,.rescaling,.conversion]).length from i.isLt)]
+  exact List.getElem?_eq_getElem i.isLt
 
-/-- Fixed samplers, the trusted prime representation and one binary
-adapter template suffice. The generated family's schedule and capacity
-checks are conclusions of topology preservation, not separate premises. -/
-def publicQueries (samplers : RuntimeCover.SamplerLaws binary prime P R cfg S)
-    (primePlan : FrontendSchedule.Plan N prime.circuit)
-    (primeGeometry : primePlan.frontend = g.prime)
-    (primeFits : primePlan.capacity ≤ samplers.primeCapacity)
-    (binaryTemplate : FrontendSchedule.Plan B binary.template)
-    (binaryGeometry : binaryTemplate.frontend = g.binary)
-    (binaryFits : binaryTemplate.capacity ≤ samplers.binaryCapacity) :
-    RuntimeCover.PublicQueries binary prime P R cfg S where
-  toSamplerLaws := samplers
-  primeShape := primePlan
-  primeGeometry := primeGeometry
-  primeFits := primeFits
-  binaryShape := binaryPlan binary prime (cfg.polynomialX^Adapter.Mdoc.generatorExponent) binaryTemplate
-  binaryGeometry packet := (binaryPlan_frontend binary prime _ binaryTemplate packet).trans binaryGeometry
-  binaryFits packet := by rw [binaryPlan_capacity]; exact binaryFits
+theorem packing_get (g : Geometry) (nontrivial : g.packingDegree ≠ 1) :
+    g.roles[ApplicationPrefix.packingIndex g]? = some .packing := by
+  let leading := [.fingerprint] ++ g.prime.roles .prime ++ [.rowBatching,.rescaling,.conversion] ++
+    g.binary.roles .binary
+  have hlength : leading.length = ApplicationPrefix.packingIndex g := by
+    simp only [leading,List.length_append,List.length_cons,List.length_nil,
+      ApplicationPrefix.packingIndex,Geometry.binaryStart]
+    omega
+  have hroles : g.roles = leading ++ [.packing,.batching,.opening] := by
+    rw [g.roles_eq]
+    simp only [leading,if_neg nontrivial,List.append_assoc]
+    rfl
+  rw [hroles,List.getElem?_append_right (by rw [hlength]),hlength,Nat.sub_self]
+  rfl
 
-end Setup
+theorem stage_side (side : Side) (index : ℕ) (stage : Stage) (entries : List Entry)
+    (role : Role) (h : role ∈ stage.roles side index entries) : frontendSide role = some side := by
+  simp only [Stage.roles,List.mem_append,List.mem_cons,List.not_mem_nil,
+    or_false,List.mem_map] at h
+  rcases h with (rfl | ⟨i,_,rfl⟩) | rfl | rfl <;> rfl
+
+theorem frontend_side (side : Side) (frontend : Frontend) (role : Role)
+    (h : role ∈ frontend.roles side) : frontendSide role = some side := by
+  by_cases empty : frontend.stages.isEmpty
+  · simp only [Frontend.roles,empty,↓reduceIte,List.mem_singleton] at h
+    subst role
+    rfl
+  · simp only [Frontend.roles,empty,Bool.false_eq_true,↓reduceIte,List.mem_flatMap] at h
+    obtain ⟨i,_,h⟩ := h
+    exact stage_side side i.val (frontend.stages.get i) _ role h
 end LfzkV2.Current.RuntimeShape

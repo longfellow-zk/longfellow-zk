@@ -136,6 +136,17 @@ original/verifier trace observation and the original-query-bounded adversary.
 Soundness setup adds structural layout, framing and resource constraints;
 failure coverage and stopped-cost estimates are proved by the composition.
 
+Shared runtime helpers have one owner: `RuntimeVerifier` contains the public
+configuration and response codecs; `RuntimeSource` constructs the selected
+witness source and its sampling laws; `RuntimeShape` relates generated circuits
+to their public schedule. `CertifiedProfile` owns the certified parameter
+budget; `RoleBudgets` combines the disjoint application and backend allowances.
+Public oracle-dependent setup and its finite family live together in
+`Mdoc.PublicSetup`. For frontend privacy, `FrontendRoleWrites` owns role/write
+correspondence and `FrontendScheduleLength` owns query-prefix length facts.
+Callers use these owning namespaces directly. The source and declaration
+audits reject retired implementation paths and compatibility exports.
+
 - [`Soundness.Recovery`](lfzk-v2/LfzkV2/Current/Soundness/Recovery.lean) recovers the
   ordered path and opened columns, or charges an original hash query or
   an explicit hash exception.

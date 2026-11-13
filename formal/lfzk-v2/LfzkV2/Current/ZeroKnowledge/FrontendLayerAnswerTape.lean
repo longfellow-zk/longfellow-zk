@@ -44,7 +44,7 @@ theorem layer_properties {n : ℕ} (state : CompleteTranscript.State g fields Ad
     (CompleteTranscript.mapMessage field.symm (.claims payload.claimA payload.claimB))
   let combine := CompleteTranscript.step base H claimsState
   have roundsRank : rounds.2.rank.val = state.rank.val+n := by
-    rw [Prefix.rounds_state,HonestTranscript.execute_counter]
+    rw [Prefix.rounds_state,Frontend.ScheduleLength.execute_counter]
     simp only [Prefix.rounds,List.length_ofFn]
     exact Nat.min_eq_right (by omega)
   have crossInside : crossState.rank.val < g.roles.length := by

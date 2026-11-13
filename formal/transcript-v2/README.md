@@ -17,14 +17,11 @@ and their local averages. Charges sharing a role are added before taking the
 maximum over roles. All local reductions use the same selected binary/prime
 witness pair.
 
-`SoundnessRealization` requires equality of the complete observation law,
-including the verifier's decision and the extractor's actual cut. An accepted
-execution outside explicit exceptions must yield the queried logical path or
-a speculative-query charge. Its generic theorem gives `epsilon * Q + delta`:
-ordinary and speculative queries share the original adversary's budget;
-`delta` accounts for the remaining exceptions. Replay cannot pay that budget.
-These are obligations to instantiate, not certificates accepted from an
-application. The current runtime uses the survival specialization below.
+The runtime's shared setup, sampler and execution records connect these local
+charges to the actual verifier decision and original commitment cut. The
+accepted-failure cover and the conditional query costs are proved inside the
+soundness composition. Ordinary and speculative queries share the original
+adversary's budget; replay does not pay that budget.
 
 The current runtime uses the saturated specialization in
 [`Survival.QueryStep`](../survival/Survival/QueryStep.lean) and
@@ -146,7 +143,7 @@ The actual failure observation is connected to this cover by
 `Soundness.Runtime.recovered_failure_charge`. Original strand speculation and
 indexed Merkle receiving share an allowance of `2Q/2^256` per auxiliary
 query slot. The algebraic role bound is `2/(q-1)` per ordinary slot.
-`ProtocolProbability` combines these complementary slots of the original
+`Soundness.Composition` combines these complementary slots of the original
 query budget after averaging the sampler coordinates.
 
 At the current rate-1/7 parameters, the one-SHA mdoc theorem uses the exact
@@ -297,15 +294,13 @@ query budget. The theorem still requires the protocol's local response counts
 and the reduction of accepted failures to those charges. In particular, a
 joint opening must count complete response tuples, not a single-field projection.
 
-[`SharedReduction`](TranscriptV2/SharedReduction.lean) connects those charges
-to a sealed accepted path. Its algebraic certificate supplies either a local
-bad boundary or an adjacent parent/child event. Feedback proves that the parent
-was queried first, outside the existing chain exception. With combined local
-cost at most `epsilon` at every query role, the resulting bound is
-`Q*epsilon + (Q+1)/|Link|`. The certificate does not assume an ordered query
-trace. The `feedback_sum` lemma also accounts for child inputs carrying a
-claimed parent link: only the matching link contributes, so the protocol's
-summed response budget is preserved.
+[`PathCharges`](TranscriptV2/PathCharges.lean) proves nonnegativity and
+deterministic coverage by single-boundary or ordered parent/child charges.
+It uses the recovered path's actual query membership and order, independently
+of its transcript encoding. [`SharedFailure`](TranscriptV2/SharedFailure.lean)
+supplies the sealed-path recovery used by the runtime. The `feedback_sum`
+lemma in `SharedCharging` accounts for child inputs carrying a claimed parent
+link: only the matching link contributes, preserving the summed response budget.
 
 ## Scope
 

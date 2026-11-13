@@ -10,7 +10,7 @@ read from the actual prefix where they are bound; all local charges belong
 to one query space and the same early-selected private pair. -/
 noncomputable section
 namespace LfzkV2.Current.RuntimeAdaptiveAccepted
-open RuntimeAdaptive RuntimeCover ApplicationViews ApplicationOracle Application ApplicationSetup RecursivePolygero SumcheckV2
+open RuntimeAdaptive RuntimeSource ApplicationViews ApplicationOracle Application ApplicationSetup RecursivePolygero SumcheckV2
 open scoped Classical
 
 private theorem indicator_charged {event : Prop} (h : event) : 1 ≤ indicator event := by
@@ -47,9 +47,9 @@ variable (cutOracle : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice
     (RuntimeVerifier.second binary prime P R cfg).participant)
 variable (cutOff : ∀ point H H', Bcs.TotalOracle.AgreeOff point H H' →
   cutOracle H point.context = cutOracle H' point.context)
-local notation "S" => RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff
-variable (laws : RuntimeCover.SamplerLaws binary prime P R cfg
-  (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff))
+local notation "S" => RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff
+variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg
+  (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
 variable (binaryTemplate : FrontendSchedule.Plan B binary.template)

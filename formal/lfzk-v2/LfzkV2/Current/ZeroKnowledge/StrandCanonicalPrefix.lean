@@ -40,7 +40,7 @@ theorem finish_point_before
   let output := (finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA
   let pending : CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice) := ⟨frontend,fun _ => 0⟩
   have same := congrArg (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).input
-    (OracleProgramming.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
+    (ProofBodyReplay.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
       (CompleteTerminal.proof pending output.proof.body) rfl H index)
   exact same.trans (CompleteTerminal.point_before repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
     configuration.initialLink pending output.proof.body H index before)
@@ -59,7 +59,7 @@ theorem finish_point_responses
   let pending : CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice) :=
     ⟨responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response,fun _ => 0⟩
   have same := congrArg (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).input
-    (OracleProgramming.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
+    (ProofBodyReplay.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
       (CompleteTerminal.proof pending output.proof.body) rfl H index)
   exact same.trans (CompleteTerminal.point_same_responses repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
     configuration.initialLink pending output.proof.body rfl rfl H index inside)

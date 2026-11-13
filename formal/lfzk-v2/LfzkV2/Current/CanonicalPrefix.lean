@@ -1,10 +1,9 @@
 import LfzkV2.Current.ProofBodyReplay
 
-/-! Canonical framing for the earlier whole-answer transcript model.
-Only bytes already bound at the boundary occur here. This model retains
-round indices and full-prefix feedback. The direct SHA-256 strand syntax,
-which omits those values, is modeled separately in TranscriptV2.Strand*;
-its end-to-end transport remains an explicit correspondence obligation. -/
+/-! Canonical codecs for typed request and proof packets. Only data already
+bound at the boundary occur here. Physical digest-linked nodes and PRF inputs
+are defined in TranscriptV2.Strand*; the exact raw-oracle connection is proved
+by the current soundness transport. -/
 namespace LfzkV2.Current.CanonicalPrefix
 open TranscriptV2.Framing (Byte encodeLE)
 open scoped Classical

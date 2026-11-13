@@ -1,6 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationHistory
 import LfzkV2.Current.ZeroKnowledge.FrontendWriteLog
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptRank
+import LfzkV2.Current.ZeroKnowledge.FrontendScheduleLength
 
 /-! Public stage bookkeeping for the exact frontend write log. Query
 counts depend only on the normalized public schedule. The log contains the
@@ -24,8 +24,8 @@ variable (H : CompleteTranscript.Point (g := g) (fields := fields) (Advice := Ad
 omit [Field F] in
 theorem step_rank (state : CompleteTranscript.State g fields Advice Key Base C) :
     (CompleteTranscript.step base H state).2.rank.val = min g.roles.length (state.rank.val+1) := by
-  have counted := HonestTranscript.step_counter base state H
-  rw [HonestTranscript.step_output] at counted
+  have counted := Frontend.ScheduleLength.step_counter base state H
+  rw [Frontend.ScheduleLength.step_output] at counted
   exact counted
 
 theorem read_rank (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
@@ -35,8 +35,8 @@ theorem read_rank (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0}
     (continuing : Bool) :
     (readSetup (CompleteTranscript.reader side field decode nonzero base H)
       plan ids payload state continuing).2.rank.val =
-        min g.roles.length (state.rank.val+HonestTranscript.circuitFuel plan continuing) := by
-  rw [Prefix.circuit_state,HonestTranscript.execute_counter,HonestTranscript.circuit_length]
+        min g.roles.length (state.rank.val+Frontend.ScheduleLength.circuitFuel plan continuing) := by
+  rw [Prefix.circuit_state,Frontend.ScheduleLength.execute_counter,Frontend.ScheduleLength.circuit_length]
 
 end Readers
 
@@ -51,14 +51,14 @@ variable (H : CompleteSimulation.Point binary prime primePlan (Key := Key) (Base
 omit [Fintype B] [DecidableEq B] in
 theorem capacity :
     (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
-      HonestTranscript.circuitFuel primePlan false+HonestTranscript.circuitFuel binary.plan false+7 := by
+      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+7 := by
   have length := (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles_length
   have packing : (MdocRuntime.geometry binary.description prime binary.plan primePlan).packingDegree ≠ 1 := by
     change (128:ℕ) ≠ 1
     decide
   rw [if_neg packing] at length
-  rw [HonestTranscript.circuitFuel_roles primePlan .prime,
-    HonestTranscript.circuitFuel_roles binary.plan .binary]
+  rw [Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
+    Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
   change (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
     (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+7
   change (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
@@ -91,10 +91,10 @@ omit [Fintype B] [DecidableEq B] in
 theorem prime_properties
     (state : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (payload : Layered.Replay.Payload prime.circuit)
-    (fits : state.rank.val+HonestTranscript.circuitFuel primePlan false+2 ≤
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) :
     let result := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
-    result.state.rank.val = state.rank.val+HonestTranscript.circuitFuel primePlan false+2 ∧
+    result.state.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ∧
       WriteLog.log result.state = WriteLog.log state ++
         WriteLog.snapshots .prime (Equiv.refl P) state.pending (Prefix.circuit primePlan payload false) ++
           [WriteLog.empty,WriteLog.empty] ∧
@@ -102,12 +102,12 @@ theorem prime_properties
   let read := readSetup
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan prime.setup.plan payload state false
-  have readRank : read.2.rank.val = state.rank.val+HonestTranscript.circuitFuel primePlan false := by
+  have readRank : read.2.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false := by
     rw [read_rank]
     exact Nat.min_eq_right (by omega)
   have readFits : state.rank.val+(Prefix.circuit primePlan payload false).length ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
-    rw [HonestTranscript.circuit_length]
+    rw [Frontend.ScheduleLength.circuit_length]
     omega
   have readLog := WriteLog.circuit_log .prime (Equiv.refl P) base H samples.prime samples.primeNonzero
     primePlan prime.setup.plan payload false state readFits
@@ -175,10 +175,10 @@ theorem binary_properties
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
     (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.template)
     (empty : converted.state.pending = {})
-    (fits : converted.state.rank.val+HonestTranscript.circuitFuel binary.plan false ≤
+    (fits : converted.state.rank.val+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) :
     let result := CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice payload
-    result.2.rank.val = converted.state.rank.val+HonestTranscript.circuitFuel binary.plan false ∧
+    result.2.rank.val = converted.state.rank.val+Frontend.ScheduleLength.circuitFuel binary.plan false ∧
       WriteLog.log result.2 = WriteLog.log converted.state ++
         WriteLog.snapshots .binary (Equiv.refl B) { advice := some advice }
           (Prefix.circuit binary.plan payload false) ∧ result.2.pending = {} := by
@@ -188,14 +188,14 @@ theorem binary_properties
     rw [empty]
   have readFits : start.rank.val+(Prefix.circuit binary.plan payload false).length ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
-    rw [HonestTranscript.circuit_length]
+    rw [Frontend.ScheduleLength.circuit_length]
     exact fits
   dsimp only
   erw [binary_state]
-  have fitsStart : start.rank.val+HonestTranscript.circuitFuel binary.plan false ≤
+  have fitsStart : start.rank.val+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := fits
-  have rank := HonestTranscript.execute_counter base .binary (Equiv.refl B) start (Prefix.circuit binary.plan payload false) H
-  rw [HonestTranscript.circuit_length,Nat.min_eq_right fitsStart] at rank
+  have rank := Frontend.ScheduleLength.execute_counter base .binary (Equiv.refl B) start (Prefix.circuit binary.plan payload false) H
+  rw [Frontend.ScheduleLength.circuit_length,Nat.min_eq_right fitsStart] at rank
   have logged := WriteLog.execute_log .binary (Equiv.refl B) base H start _ readFits
   rw [startValue] at logged
   exact ⟨rank,logged,WriteLog.execute_pending .binary (Equiv.refl B) base H start _
@@ -230,7 +230,7 @@ theorem simulate_properties (context : Key) (coins : CompleteSimulation.Coins bi
       rw [convertedFacts.1,nativeFacts.1,selectedFacts.1,cap]
       omega)
   have readRank : read.2.rank.val =
-      HonestTranscript.circuitFuel primePlan false+HonestTranscript.circuitFuel binary.plan false+4 := by
+      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+4 := by
     rw [binaryFacts.1,convertedFacts.1,nativeFacts.1,selectedFacts.1]
     omega
   have inside : pending.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by

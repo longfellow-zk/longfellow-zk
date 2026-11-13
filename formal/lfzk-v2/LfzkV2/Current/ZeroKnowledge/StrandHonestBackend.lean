@@ -30,7 +30,7 @@ variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPu
 
 
 
-abbrev honestOracle (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))) : ((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).Oracle :=
+abbrev honestOracle (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (Backend.JointMasks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))) : ((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).Oracle :=
   (Joint.Pair.oracleEquiv ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant).symm
     (PolygeroZk.oracle (Backend.profileGeometry binaryNodes) (Backend.messages cells.1) tape.1,
       PolygeroZk.oracle (Backend.profileGeometry primeNodes) (Backend.messages cells.2) tape.2)
@@ -47,7 +47,7 @@ private theorem selected_of_map {Choice : Type} {Opened : Choice → Type}
 theorem respondHonest_spec
     (primeCount : shape.primePublic = prime.nPublic)
     (draw : C → RuntimeVerifier.RawSamples binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (SHA : Strand.Oracle) (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads)))
+    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (SHA : Strand.Oracle) (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (Backend.JointMasks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads)))
     (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
     (opened : Backend.Adaptive.Opened (B := B) (N := PrimeField)
       (bw := ConcreteSetup.rows binary.cells)
@@ -81,7 +81,7 @@ theorem respondHonest_spec
 
 /-- The actual committed physical columns are the same family columns
 used by the shared indexed compiler. -/
-theorem honest_columns (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))) :
+theorem honest_columns (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (Backend.JointMasks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads))) :
     (fun index => (leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration) (committedColumns binary prime binaryNodes primeNodes cells tape index)) =
       ((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv (honestOracle binary prime binaryNodes primeNodes repr shape setup configuration cells tape) := by
   funext index side

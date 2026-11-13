@@ -1,37 +1,70 @@
-import LfzkV2.Current.ZeroKnowledge.HonestTranscriptMdoc
 import LfzkV2.Current.ZeroKnowledge.FrontendPrefix
+import LfzkV2.Current.FrontendTopology
 
-/-! Exact counters of the honest causal program. Counters saturate at the
-end of the ordinary schedule; the static frontend counts below then show
-that the actual mdoc program stops at the joint backend, before saturation.
-No property of the witness, messages or oracle answers enters this count. -/
+/-! Static frontend schedule lengths and actual prefix counters. No alternate
+honest-prover interpreter or whole-answer finalization is constructed. -/
 noncomputable section
-namespace LfzkV2.Current.ZeroKnowledge.HonestTranscript
+namespace LfzkV2.Current.ZeroKnowledge.Frontend.ScheduleLength
 open Merkle.RandomOracle SumcheckV2
 open scoped Classical
+section Static
+variable {F : Type} [Field F]
+def circuitFuel : {out input : ℕ} → {circuit : Layered.Circuit F out input} →
+    FrontendSchedule.Plan F circuit → Bool → ℕ
+  | _,_,_,.input,continuing => if continuing then 0 else 1
+  | _,_,_,.inputEntry ..,continuing => if continuing then 0 else 1
+  | _,_,_,.layer (mid := mid) _ tail,_ => circuitFuel tail true+(2+mid)+1
+  | _,_,_,.entryLayer (mid := mid) _ _ _ tail,_ => circuitFuel tail true+(2+mid)+1
 
-variable {State Query Answer : Type}
+omit [Field F] in
+theorem circuitFuel_same {out input : ℕ} {first second : Layered.Circuit F out input}
+    (same : FrontendTopology.Same first second) (original : FrontendSchedule.Plan F first)
+    (continuing : Bool) : circuitFuel (same.plan original) continuing = circuitFuel original continuing := by
+  induction original generalizing continuing with
+  | input => cases same; rfl
+  | inputEntry entries entry =>
+      cases same with
+      | entry next => cases next; rfl
+  | layer metadata tail ih =>
+      cases same with
+      | layer classes next => simp only [FrontendTopology.Same.plan,circuitFuel,ih next]
+  | entryLayer entries entry metadata tail ih =>
+      cases same with
+      | entry next =>
+          cases next with
+          | layer classes rest => simp only [FrontendTopology.Same.plan,circuitFuel,ih rest]
 
+
+end Static
+variable {State : Type}
 def Counter (cap : ℕ) (rank : State → ℕ) (first last : State) (cost : ℕ) : Prop :=
   rank last = min cap (rank first+cost)
 
-theorem Counter.rebase {cap : ℕ} {rank : State → ℕ} {first last first' last' : State} {cost : ℕ}
-    (counter : Counter cap rank first last cost)
-    (sameFirst : rank first' = rank first) (sameLast : rank last' = rank last) :
-    Counter cap rank first' last' cost := by
-  simpa only [Counter,sameFirst,sameLast] using counter
 
-theorem Counter.bind {A B : Type} {n m cap : ℕ} {rank : State → ℕ}
-    (first : Tree Query Answer A n) (next : A → Tree Query Answer B m)
-    (stateA : A → State) (stateB : B → State) (initial : State) (H : Query → Answer)
-    (before : Counter cap rank initial (stateA (first.run H).1) n)
-    (after : ∀ a, Counter cap rank (stateA a) (stateB ((next a).run H).1) m) :
-    Counter cap rank initial (stateB ((first.bind next).run H).1) (m+n) := by
-  rw [Tree.run_bind]
-  have later := after (first.run H).1
-  simp only [Counter] at before later ⊢
-  omega
+section Step
+variable {g : Geometry} {fields : Fields} {Advice Authentication Key Base C : Type}
+variable (base : (i : Fin g.roles.length) → (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) →
+  (Fin i.val → C) → Base)
+local notation "State" => Frontend.CompleteTranscript.State g fields Advice Key Base C
+local notation "Point" => Frontend.CompleteTranscript.Point (g := g) (fields := fields) (Advice := Advice)
+  (Authentication := Authentication) (Key := Key) (Base := Base)
 
+/-- This is the exact existing complete-transcript step as a bounded tree.
+The exhausted branch is the reader's existing total fallback, not a query. -/
+def step (state : State) : Tree Point (Digest × C) (C × State) 1 :=
+  if inside : state.rank.val < g.roles.length then
+    .query (Frontend.CompleteTranscript.query base state inside) fun answer =>
+      .done (answer.2,Frontend.CompleteTranscript.advance base state inside answer)
+  else .done (state.lastAnswer,state)
+
+theorem step_output (state : State) (H : Point → Digest × C) :
+    ((step base state).run H).1 = Frontend.CompleteTranscript.step base H state := by
+  by_cases inside : state.rank.val < g.roles.length
+  · simp only [step,Frontend.CompleteTranscript.step,dif_pos inside,Tree.run_query,Tree.run_done]
+  · simp only [step,Frontend.CompleteTranscript.step,dif_neg inside,Tree.run_done]
+
+
+end Step
 section Complete
 variable {g : Geometry} {fields : Fields} {Advice Authentication Key Base C : Type}
 variable (base : (i : Fin g.roles.length) → (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) →
@@ -115,21 +148,6 @@ theorem circuitFuel_roles {out input : ℕ} {body : Layered.Circuit F out input}
     rfl
   · rfl
 
-set_option backward.isDefEq.respectTransparency false in
-theorem circuit_counter (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
-    {out input : ℕ} {body : Layered.Circuit F out input}
-    (plan : FrontendSchedule.Plan F body) (ids : Layered.Replay.PadPlan (Pad := Pad) body)
-    (w : Cube input → F) (weights : Cube out → F) (state : State)
-    (pads : Frontend.CircuitTape body) (continuing : Bool) (H : Point → Digest × C) :
-    Counter g.roles.length (fun state : State => state.rank.val) state
-      ((circuit (complete base side field decode nonzero) plan ids w weights state pads continuing).run H).1.state
-      (circuitFuel plan continuing) := by
-  rw [circuit_output]
-  simp only [complete_reader]
-  unfold Counter
-  rw [Frontend.Prefix.circuit_state]
-  dsimp only
-  rw [execute_counter,circuit_length]
 
 end Complete
-end LfzkV2.Current.ZeroKnowledge.HonestTranscript
+end LfzkV2.Current.ZeroKnowledge.Frontend.ScheduleLength

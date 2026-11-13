@@ -46,8 +46,3 @@ def actualOracle : Point → Digest × Answer :=
 
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext
-
--- Existing entry points remain aliases of the declarations at their logical home.
-namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalFullCoupling
-export LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext (configuration actualOracle)
-end LfzkV2.Current.ZeroKnowledge.StrandCanonicalFullCoupling

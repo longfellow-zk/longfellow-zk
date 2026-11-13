@@ -1,4 +1,5 @@
 import LfzkV2.Current.Tests.ProofAudit
+import LfzkV2.Current.Tests.RuntimeBoundary
 import LfzkV2.Current.Tests.ZeroKnowledgeReachability
 import LfzkV2.Current.Tests.MdocSoundness
 import LfzkV2.Current.Tests.StrandLinearReplay
@@ -89,7 +90,7 @@ import LfzkV2.Current.Tests.ZeroKnowledgeSHAGlobalWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserver
 import LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle
 import LfzkV2.Current.Tests.ZeroKnowledgeOracleWindow
-import LfzkV2.Current.Tests.ZeroKnowledgeOracleRuntime
+import LfzkV2.Current.Tests.CanonicalRequestBinding
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkle
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkleOracleWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeMerklePrequery
@@ -103,7 +104,7 @@ import LfzkV2.Current.Tests.ZeroKnowledgeStrandGhostMerkle
 import TranscriptV2.Tests.Framing
 import LfzkV2.Current.EntryChallenges
 import TranscriptV2.SharedCharging
-import TranscriptV2.SharedReduction
+import TranscriptV2.PathCharges
 import Mathlib.Data.ZMod.Basic
 import Lean.Util.CollectAxioms
 

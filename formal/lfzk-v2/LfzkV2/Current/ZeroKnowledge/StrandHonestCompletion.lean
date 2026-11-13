@@ -37,7 +37,7 @@ variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPu
 theorem respondHonest_accepts
     (primeCount : shape.primePublic = prime.nPublic)
     (draw : C → RuntimeVerifier.RawSamples binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (SHA : Strand.Oracle) (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (CompleteBackend.Masks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads)))
+    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (SHA : Strand.Oracle) (cells : (Backend.Cells B (ConcreteSetup.rows binary.cells) 265 × Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)) (tape : (Backend.JointMasks binaryNodes primeNodes binary.cells (CellLayout.Prime.cells prime.remaining prime.pads)))
     (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
     (opened : Backend.Adaptive.Opened (B := B) (N := PrimeField)
       (bw := ConcreteSetup.rows binary.cells)

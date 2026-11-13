@@ -22,7 +22,7 @@ local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells p
 local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
 local notation "Request" => CanonicalRequest.Request shape binary.nPublic
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
-local notation "Masks" => CompleteBackend.Masks binaryNodes primeNodes binary.cells
+local notation "Masks" => Backend.JointMasks binaryNodes primeNodes binary.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 local notation "Cells" => Backend.Cells B (ConcreteSetup.rows binary.cells) 265 ×
   Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265

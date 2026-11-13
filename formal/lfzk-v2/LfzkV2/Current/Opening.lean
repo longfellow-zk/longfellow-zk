@@ -1,4 +1,5 @@
-import LfzkV2.Current.MerkleReplay
+import Merkle.ExtractionROM
+import LigeroFamily.Protocol.Finite
 import LfzkV2.Current.ReplayPrefix
 import LfzkV2.Current.BackendPositions
 
@@ -89,15 +90,6 @@ replay always contains this answer. -/
 def openingAnswer {count : ℕ} (fallback : C) (answers : Replay.VerifierState C count) : C :=
   if h : g.openingIndex.val < count then answers ⟨g.openingIndex.val,h⟩ else fallback
 
-/-- The indexed claim is analysis data reconstructed after the ordinary
-rounds. The original proof and its final-seal body are never extended. -/
-def read (bindSalt : Fin n → Nonce → Salt)
-    (sample : C → (Fin t ↪ Fin n)) (fallback : C)
-    (rawOf : Replay.Output g F Advice Auth → Raw t Nonce Leaf D)
-    (annotated : MerkleReplay.Annotated g F Advice Auth Context Block C) :
-    Option (OpeningClaim n Salt Leaf D) :=
-  decode bindSalt (sample (openingAnswer (g := g) fallback annotated.2.answers)) (rawOf annotated.1)
-
 variable (e : Replay.Encoding g F Advice Auth Context Block C) (initialLink : Digest)
   (proof : Replay.Output g F Advice Auth)
   (H : Replay.Point g F Advice Auth Context Block → Digest × C)
@@ -115,23 +107,6 @@ theorem openingAnswer_replay (fallback : C) :
   unfold openingAnswer
   rw [dif_pos hlt]
   exact e.replay_answer initialLink proof H g.roles.length (by rfl) ⟨_,hlt⟩
-
-theorem read_replay (bindSalt : Fin n → Nonce → Salt)
-    (sample : C → (Fin t ↪ Fin n)) (fallback : C)
-    (rawOf : Replay.Output g F Advice Auth → Raw t Nonce Leaf D) :
-    read bindSalt sample fallback rawOf (proof,(e.chain initialLink).replay proof H g.roles.length) =
-      decode bindSalt (sample (H ((e.chain initialLink).point proof H g.openingIndex.val)).2) (rawOf proof) := by
-  simp only [read, openingAnswer_replay]
-
-theorem read_indices_replay (bindSalt : Fin n → Nonce → Salt)
-    (sample : C → (Fin t ↪ Fin n)) (fallback : C)
-    (rawOf : Replay.Output g F Advice Auth → Raw t Nonce Leaf D)
-    (claim : OpeningClaim n Salt Leaf D)
-    (h : read bindSalt sample fallback rawOf
-      (proof,(e.chain initialLink).replay proof H g.roles.length) = some claim) :
-    claim.I = (query (sample (H ((e.chain initialLink).point proof H g.openingIndex.val)).2)).coordinates := by
-  rw [read_replay] at h
-  exact decode_indices _ _ _ _ h
 
 end Replay
 end LfzkV2.Current.OrderedOpening

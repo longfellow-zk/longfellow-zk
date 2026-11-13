@@ -59,14 +59,14 @@ theorem stage_ranks :
   have last := SimulationWrites.binary_properties binary prime primePlan samples W H native converted coins.advice
     (simulateCircuit binary.description.template coins.binary) next.2.2 (by rw [next.1,middle.1,first.1,cap]; omega)
   refine ⟨first.1,?_,?_,?_⟩
-  · rw [middle.1,first.1,HonestTranscript.circuitFuel_roles primePlan .prime]
+  · rw [middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     change 1+(primePlan.frontend.roles .prime).length+2 = 1+(primePlan.frontend.roles .prime).length+2
     rfl
-  · rw [next.1,middle.1,first.1,HonestTranscript.circuitFuel_roles primePlan .prime]
+  · rw [next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     change 1+(primePlan.frontend.roles .prime).length+2+1 = (primePlan.frontend.roles .prime).length+4
     omega
-  · rw [last.1,next.1,middle.1,first.1,HonestTranscript.circuitFuel_roles primePlan .prime,
-      HonestTranscript.circuitFuel_roles binary.plan .binary]
+  · rw [last.1,next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
+      Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
     change 1+(primePlan.frontend.roles .prime).length+2+1+(binary.plan.frontend.roles .binary).length =
       (primePlan.frontend.roles .prime).length+4+(binary.plan.frontend.roles .binary).length
     omega
@@ -83,7 +83,7 @@ theorem prime_messages :
           (FrontendReplay.slots prime.circuit)) := by
   have rank := (SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+HonestTranscript.circuitFuel primePlan false ≤ (G).roles.length := by
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤ (G).roles.length := by
     rw [rank,SimulationWrites.capacity binary prime primePlan]
     omega
   have message := CompilerTransport.messages
@@ -113,16 +113,16 @@ theorem binary_messages :
           (FrontendReplay.slots circuit)) := by
   have rank : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val = (G).binaryStart :=
     (stage_ranks binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest metadata request root H coins).2.2.1
-  have fuel : HonestTranscript.circuitFuel
+  have fuel : Frontend.ScheduleLength.circuitFuel
       (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice) false =
-        HonestTranscript.circuitFuel binary.plan false :=
-    HonestTranscript.circuitFuel_same _ _ _
+        Frontend.ScheduleLength.circuitFuel binary.plan false :=
+    Frontend.ScheduleLength.circuitFuel_same _ _ _
   have fits : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val+
-      HonestTranscript.circuitFuel (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice) false ≤
+      Frontend.ScheduleLength.circuitFuel (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice) false ≤
         (G).roles.length := by
-    rw [rank,fuel,SimulationWrites.capacity binary prime primePlan,HonestTranscript.circuitFuel_roles primePlan .prime]
-    change (primePlan.frontend.roles .prime).length+4+HonestTranscript.circuitFuel binary.plan false ≤
-      (primePlan.frontend.roles .prime).length+HonestTranscript.circuitFuel binary.plan false+7
+    rw [rank,fuel,SimulationWrites.capacity binary prime primePlan,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    change (primePlan.frontend.roles .prime).length+4+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
+      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+7
     omega
   have message := CompilerTransport.messages
     (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))

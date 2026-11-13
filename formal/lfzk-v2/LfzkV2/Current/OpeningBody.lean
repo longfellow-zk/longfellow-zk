@@ -130,3 +130,24 @@ theorem raw_nonce (P R : Joint.Participant k s n t)
       proof.body.authentication.nonce (Fin.cast hopenings.symm j) := rfl
 
 end LfzkV2.Current.OpeningBody
+
+namespace LfzkV2.Current.OpeningBody
+open Merkle RecursivePolygero
+variable {g : Geometry} {fields : Fields} {k s n t : ℕ}
+/-- The existing scalar/row decoder is invertible, including its physical
+u,m,witness,fstar row order. No field cell is invented by a parser cache. -/
+def participantEquiv (side : Side) (Q : Joint.Participant k s n t)
+    (field : fields side ≃ Q.Carrier) (hrows : g.dataRows side = Q.backend.nw) :
+    (Fin (g.dataRows side+3) → fields side) ≃ Q.Leaf :=
+  ((Equiv.arrowCongr (finCongr (congrArg (fun rows => rows+3) hrows)) field).trans
+    (OpeningBody.leafEquiv Q.Carrier Q.backend.nw)).trans
+      (Equiv.cast (by change MerkleCompiler.Leaf Q.Carrier Q.backend.nw 0 =
+        MerkleCompiler.Leaf Q.Carrier Q.backend.nw Q.backend.nq; rw [Q.linearOnly]))
+
+theorem participantEquiv_apply (side : Side) (Q : Joint.Participant k s n t)
+    (field : fields side ≃ Q.Carrier) (hrows : g.dataRows side = Q.backend.nw)
+    (values : Fin (g.dataRows side+3) → fields side) :
+    participantEquiv side Q field hrows values = OpeningBody.participantLeaf Q side field hrows values := rfl
+
+
+end LfzkV2.Current.OpeningBody

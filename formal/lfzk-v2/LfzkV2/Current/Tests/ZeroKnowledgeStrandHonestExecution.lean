@@ -12,8 +12,8 @@ run_cmd do
   for endpoint in #[``StrandHonestExecution.rawReal_result, ``StrandHonestExecution.rawReal_some] do
     let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
     let used := info.type.getUsedConstants
-    unless used.contains ``StrandCanonicalHiding.rawReal &&
-        used.contains ``StrandCanonicalHiding.response &&
+    unless used.contains ``StrandCanonicalExecution.rawReal &&
+        used.contains ``StrandCanonicalExecution.response &&
         used.contains ``StrandCanonicalBackend.finish && used.contains ``Merkle.Indexed.openCore do
       throwError "Endpoint {endpoint} lost its actual execution or original opening"
     if used.contains ``CompleteCanonicalVerifier.statementAt then

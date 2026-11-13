@@ -6,6 +6,8 @@ import LfzkV2.Current.ZeroKnowledge.StrandLeafWindow
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
 open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2 TranscriptV2 LigeroFamily
+open StrandCanonicalExecution StrandCanonicalExperiments
+open StrandCanonicalCommitmentHiding StrandCanonicalExactSimulation
 open scoped Classical
 local instance : DecidableEq (Fin 2443) := fun a b => Classical.propDecidable (a = b)
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
@@ -21,10 +23,10 @@ local notation "Repr" => MdocRuntime.representations scalars
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Public" => StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -46,7 +48,7 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
     (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
       (RuntimeStatement.degreeFits binary)) setup
-    (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+    (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
   ConcreteSetup.primeNodes Repr Sh setup Public

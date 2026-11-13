@@ -1,5 +1,5 @@
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteOracle
-import LfzkV2.Current.Mdoc.SetupFamily
+import LfzkV2.Current.Mdoc.PublicSetup
 
 /-! Public setup is a function of complementary SHA coordinates. A single
 finite union of leaf domains covers every possible public setup, before any

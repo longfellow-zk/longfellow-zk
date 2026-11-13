@@ -15,7 +15,7 @@ variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePubl
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
 local notation "Cells" => Backend.Cells B (ConcreteSetup.rows binary.cells) 265 ×
   Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265
-local notation "Masks" => CompleteBackend.Masks binaryNodes primeNodes binary.cells
+local notation "Masks" => Backend.JointMasks binaryNodes primeNodes binary.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
 def committedColumns (cells : Cells) (tape : Masks) : Fin 2443 → PhysicalColumn binary prime :=

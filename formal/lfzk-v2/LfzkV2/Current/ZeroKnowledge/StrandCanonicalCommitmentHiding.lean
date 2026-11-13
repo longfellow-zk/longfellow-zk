@@ -23,10 +23,10 @@ local notation "bCount" => RuntimeStatement.binary_count binary prime primePlan 
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
-local notation "BackendCoins" => CompleteBackend.Masks binaryNodes ConcreteSetup.primeNodes binary.description.cells
+local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 
-local notation "Public" => StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
+local notation "Public" => StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
   (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -48,7 +48,7 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
     (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
       (RuntimeStatement.degreeFits binary)) setup
-    (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
+    (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
   ConcreteSetup.primeNodes Repr Sh setup Public
@@ -105,7 +105,7 @@ theorem ghost_eq (coins : HonestCoins) (SHA : Strand.Oracle)
     (leaves : Fin 2443 → Digest) (nonces : Fin 2443 → MerkleNonce) :
     StrandGhostMerkle.Schedule.simulate Codec Dec before (Columns coins) (Stage coins) Abort SHA leaves
         (fun index => nonces index.val) =
-      StrandCanonicalFullCoupling.honestView binary prime primePlan binaryNodes scalars inputFits privateFits setup
+      StrandCanonicalExperiments.honestView binary prime primePlan binaryNodes scalars inputFits privateFits setup
         metadata (fun _ => original (before.run SHA).1) (fun _ => remaining (before.run SHA).1)
         roundSampler batchingSamples SHA (requestOf (before.run SHA).1)
         (StrandGhostMerkle.Tree.labels Codec SHA leaves 1) (before.run SHA).1 (before.run SHA).2
@@ -159,8 +159,3 @@ theorem commitment_hiding (outside : Strand.Oracle) :
 
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalCommitmentHiding
-
--- Existing entry points remain aliases of the declarations at their logical home.
-namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
-export LfzkV2.Current.ZeroKnowledge.StrandCanonicalCommitmentHiding (ghost_eq commitment_hiding)
-end LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding

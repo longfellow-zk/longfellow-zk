@@ -161,15 +161,15 @@ assumption is used.
 The interfaces expose this as `Real ≈ Ghost ≡ Sim`.
 `StrandCanonicalContext` and `StrandCanonicalExecution` contain the public
 oracle context and honest execution shared with completeness.
-`StrandCanonicalPrograms` and `StrandCanonicalExperiments` define the guarded
+`StrandCanonicalExperiments` defines the guarded
 honest/public views and the three experiments before either privacy hop.
 `StrandCanonicalExactSimulation.simulationEquiv` names the joint coin change;
 `ghost_simulator_view` proves pointwise equality under it, and
 `ghost_sameDistribution` states exact distributional equality.
 `StrandCanonicalCommitmentHiding` proves only the statistical Real-to-Ghost
 step; `StrandCanonicalHiding` assembles the two steps and raw-oracle transport.
-The old qualified entry points are aliases of the declarations at their new
-logical homes. In particular, the exact branch does not import the statistical
+Callers use each declaration's owning namespace; there are no compatibility
+exports. The exact branch does not import the statistical
 commitment theorem. The finite leaf-oracle data lives in `StrandLeafOracle`.
 
 The public simulator has no witness or satisfaction-certificate argument.

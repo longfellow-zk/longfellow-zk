@@ -12,7 +12,7 @@ run_cmd do
   let some info := env.find? endpoint | throwError "Missing endpoint {endpoint}"
   let used := info.type.getUsedConstants
   unless used.contains ``FrontendCanonicalRows.honestBody &&
-      used.contains ``StrandCanonicalFullCoupling.actualOracle &&
+      used.contains ``StrandCanonicalContext.actualOracle &&
       used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.HashNoninterference do
     throwError "Honest frontend lost its actual constructor or ordinary-witness premises"
   if used.contains ``MdocWitness.UniformHashValid then

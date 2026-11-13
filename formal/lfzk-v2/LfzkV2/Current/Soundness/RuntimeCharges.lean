@@ -1,4 +1,4 @@
-import LfzkV2.Current.GlobalCharges
+import LfzkV2.Current.RoleBudgets
 import LfzkV2.Current.RuntimeAdaptiveCharges
 
 /-! One shared local maximum for adaptively parsed application statements
@@ -18,9 +18,9 @@ variable {prime : PrimePublic N shared}
 variable {P : FieldBackend B k s n t} {R : FieldBackend N k s n t}
 variable {cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key) (C := C) (Salt := Salt)}
-variable {S : RuntimeCover.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
+variable {S : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice) (Base := Base)
   (Key := Key) (C := C) binary prime (Oracle := JointResponse.Oracle (RuntimeVerifier.first binary prime P R cfg).participant (RuntimeVerifier.second binary prime P R cfg).participant)} {LB LN : ℕ}
-variable (laws : RuntimeCover.SamplerLaws binary prime P R cfg S)
+variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg S)
 variable (readers : RuntimeAdaptiveCharges.Readers (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key) (C := C) binary prime)
 variable (encode : JointResponse.Response (RuntimeVerifier.first binary prime P R cfg).participant (RuntimeVerifier.second binary prime P R cfg).participant → (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)))
@@ -40,7 +40,7 @@ def pair (parent : (BackendQueries.Parent g.roles Key (RuntimeVerifier.Block (g 
 def budget (pc : ProfileParameters (RuntimeVerifier.first binary prime P R cfg).participant.backend) (rc : ProfileParameters (RuntimeVerifier.second binary prime P R cfg).participant.backend)
     (point : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key))) : ℚ :=
   RuntimeAdaptiveCharges.budget (B := B) LB LN point + BackendOracle.singleBudget (RuntimeVerifier.first binary prime P R cfg).participant (RuntimeVerifier.second binary prime P R cfg).participant g.batchingIndex_next encode
-    (pc.rankError+rc.rankError) (GlobalCharges.openingBudget (s := s) (n := n) (t := t) cutoff ε) point
+    (pc.rankError+rc.rankError) (RoleBudgets.openingBudget (s := s) (n := n) (t := t) cutoff ε) point
 
 theorem single_nonneg (point : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key))) (H : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key)) → Digest × C) (answer : Digest × C) :
     0 ≤ single laws readers encode derive decodeCoin decodeQuery cutoff ε point H answer :=
@@ -106,7 +106,7 @@ theorem single_sum (pc : ProfileParameters (RuntimeVerifier.first binary prime P
     (fun query => by simpa only [hqueryDecode] using queryDecoder.fiber_bound query)
     coinDecoder.balanced.le queryDecoder.balanced.le pc rc hε point H
   simp only [single,sum_add_distrib]
-  exact (add_le_add ha hb).trans_eq (by unfold budget GlobalCharges.openingBudget; ring)
+  exact (add_le_add ha hb).trans_eq (by unfold budget RoleBudgets.openingBudget; ring)
 
 include coinDecoder queryDecoder hcoinDecode hqueryDecode in
 theorem pair_sum [Nonempty C] (pc : HahnSystemCertificate (RuntimeVerifier.first binary prime P R cfg).participant.backend)
@@ -132,15 +132,15 @@ theorem point_budget_le (hencode : Function.Injective encode)
     (happ : ∀ role, ApplicationCharging.roundBudget B Adapter.Mdoc.primeOrder Adapter.Mdoc.groupOrder
       Adapter.Mdoc.quotientBound LB LN role ≤ total)
     (hp : pc.rankError+rc.rankError+highBudget ≤ total)
-    (ho : GlobalCharges.openingBudget (s := s) (n := n) (t := t) cutoff ε ≤ total)
+    (ho : RoleBudgets.openingBudget (s := s) (n := n) (t := t) cutoff ε ≤ total)
     (ht : 0 ≤ total) (point : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key))) :
     budget (LB := LB) (LN := LN) encode cutoff ε pc rc point +
       (∑ parent : (BackendQueries.Parent g.roles Key (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := Base)) Digest g.batchingIndex), if parent.point = point then highBudget else 0) ≤ total := by
   unfold budget
-  rw [show RuntimeAdaptiveCharges.budget (B := B) LB LN point = ApplicationCharging.PrefixConfiguration.budget
+  rw [show RuntimeAdaptiveCharges.budget (B := B) LB LN point = ApplicationCharging.budget
     (B := B) (p := Adapter.Mdoc.primeOrder) (M := Adapter.Mdoc.groupOrder)
     (K := Adapter.Mdoc.quotientBound) (LB := LB) (LN := LN) point by cases point <;> rfl]
-  exact GlobalCharges.point_budget_le (B := B) (p := Adapter.Mdoc.primeOrder)
+  exact RoleBudgets.point_budget_le (B := B) (p := Adapter.Mdoc.primeOrder)
     (M := Adapter.Mdoc.groupOrder) (K := Adapter.Mdoc.quotientBound) (LB := LB) (LN := LN)
     (RuntimeVerifier.first binary prime P R cfg).participant (RuntimeVerifier.second binary prime P R cfg).participant encode hencode cutoff ε pc rc highBudget total happ hp ho ht point
 

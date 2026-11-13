@@ -16,6 +16,8 @@ variable {shared maskBits adviceBits : ℕ}
 variable (binary : BinaryPublic B shared maskBits adviceBits)
 variable (prime : PrimePublic PrimeField shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
+local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
+local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
 
@@ -40,7 +42,7 @@ theorem finish_body_as_fill
     ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i)) opening SHA).proof.body =
       CompletePublicBody.fill ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant configuration.binaryField configuration.primeField
         configuration.binaryRows configuration.primeRows configuration.openings frontend
-        (CompleteVerifier.wireResponses binary prime binaryNodes primeNodes (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response)
+        (RuntimeVerifier.wireResponses binary prime P R (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response)
         (CompletePublicBody.ordered indices columns ⟨fun i => (opening.nonce i).2,opening.frontierValue⟩)
         setup.jointContext
         (capacity binary prime binaryNodes primeNodes repr shape setup configuration indices
@@ -95,7 +97,7 @@ theorem finish_raw_honest {Enc : Type}
       (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)).participant
     configuration.binaryField configuration.primeField configuration.binaryRows configuration.primeRows
     configuration.openings frontend
-    (CompleteVerifier.wireResponses binary prime binaryNodes primeNodes
+    (RuntimeVerifier.wireResponses binary prime P R
       (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response)
     _ setup.jointContext _ _
 

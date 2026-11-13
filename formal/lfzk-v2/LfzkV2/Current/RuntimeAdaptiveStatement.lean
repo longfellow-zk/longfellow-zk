@@ -1,12 +1,12 @@
 import LfzkV2.Current.RuntimeAdaptive
-import LfzkV2.Current.RuntimeSelection
+import LfzkV2.Current.RuntimeSource
 
 /-! The adaptive prefix statement authenticates the same early selected cells.
 Public values are parsed where bound; layouts and fingerprint equations are
 constructed from the fixed topology, with no execution certificate. -/
 noncomputable section
 namespace LfzkV2.Current.RuntimeAdaptiveStatement
-open RuntimeAdaptive RuntimeCover Application ApplicationSetup ApplicationViews ApplicationOracle RecursivePolygero SumcheckV2
+open RuntimeAdaptive RuntimeSource Application ApplicationSetup ApplicationViews ApplicationOracle RecursivePolygero SumcheckV2
 open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice Base Key C B Salt : Type}
@@ -83,9 +83,9 @@ theorem compiled_context
     (ZkJoint.authenticate data W coin response cutoff).context =
       Selection.Context.mk
         ((Counting.committedCandidates (First).backend W.1 cutoff.1).image
-          ((RuntimeCover.selectedParam binary prime P R cfg layout cutoff).first.view key))
+          ((RuntimeSource.selectedParam binary prime P R cfg layout cutoff).first.view key))
         ((Counting.committedCandidates (Second).backend W.2 cutoff.2).image
-          ((RuntimeCover.selectedParam binary prime P R cfg layout cutoff).second.view key))
+          ((RuntimeSource.selectedParam binary prime P R cfg layout cutoff).second.view key))
         (cfg.fingerprintBinary fingerprint) (cfg.fingerprintPrime fingerprint) targetsB targetsN := by
   have hl := application_layouts binary prime P R cfg hashPublic decodePublic point past A hA
   have hd := StatementCompiler.compile_fields P R A layout cfg.countBinary cfg.countPrime
@@ -106,7 +106,7 @@ theorem selected_of_statement
     (hdata : RuntimeAdaptive.statementAt binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) = some data)
     (coin : JointResponse.Coin (First).participant (Second).participant)
     (response : JointResponse.Response (First).participant (Second).participant) :
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).selected point H =
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).selected point H =
       (ZkJoint.authenticate data.2 (cutOracle H point.context) coin response cutoff).context.extract := by
   have hs := statementAt_spec binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) data hdata
   obtain ⟨layout',fingerprint,targets,hlayout',hfingerprint,htargets,hcompile⟩ := hs.2
@@ -119,13 +119,13 @@ theorem selected_of_statement
   have hfp : point.priorAnswers H ⟨0,hpos⟩ = fingerprint := by
     unfold ApplicationPrefix.strictAnswer at hfingerprint
     simpa only [dif_pos hpos,Option.some.injEq] using hfingerprint
-  have hresponse := RuntimeCover.fingerprintResponses_at binary prime P R cfg point targets htargets
+  have hresponse := RuntimeSource.fingerprintResponses_at binary prime P R cfg point targets htargets
   have hcontext := compiled_context binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) layout data.1 hs.1 data.2
     fingerprint (cfg.binaryField targets.1.1,cfg.binaryField targets.1.2)
     (cfg.primeField targets.2.1,cfg.primeField targets.2.2) hcompile
     (cutOracle H point.context) coin response cutoff point.context
   rw [hcontext]
-  unfold RuntimeCover.source ZkJoint.JointParam.source ApplicationOracle.SelectionSource.selected Selection.atPoint
+  unfold RuntimeSource.source ZkJoint.JointParam.source ApplicationOracle.SelectionSource.selected Selection.atPoint
   rw [dif_pos hpos]
   simp only [hfp]
   exact congrArg (fun target : (B × B) × (N × N) =>
@@ -147,14 +147,14 @@ theorem selected_replay_same
       (Base × ProtocolWrites.Fresh g fields Advice) C)
     (initialLink : Digest) (proof : Output) (H : Point → Digest × C) (n m : ℕ)
     (hn : n ≤ g.roles.length) (hm : m ≤ g.roles.length) (hpn : 0 < n) (hpm : 0 < m) :
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
         ((e.chain initialLink).point proof H n) H =
-      (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
+      (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
         ((e.chain initialLink).point proof H m) H := by
   exact Selection.atPoint_replay_same e initialLink proof H
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).lists
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).lists
     (fun answer => (cfg.fingerprintBinary answer,cfg.fingerprintPrime answer))
-    (RuntimeCover.fingerprintResponses (B := B) binary prime P R cfg) ((0,0),(0,0)) cutOracle n m hn hm hpn hpm
+    (RuntimeSource.fingerprintResponses (B := B) binary prime P R cfg) ((0,0),(0,0)) cutOracle n m hn hm hpn hpm
 
 /-- The global prefix reader authenticates the one early-selected pair on
 all later points, even when prime-field public inputs were chosen after FP. -/
@@ -174,7 +174,7 @@ theorem selected_on_replay
       ((e.chain initialLink).point proof H m) (((e.chain initialLink).point proof H m).priorAnswers H) = some data)
     (coin : JointResponse.Coin (First).participant (Second).participant)
     (response : JointResponse.Response (First).participant (Second).participant) :
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).selected
         ((e.chain initialLink).point proof H n) H =
       (ZkJoint.authenticate data.2 (cutOracle H (e.context proof)) coin response cutoff).context.extract := by
   have hsame := selected_replay_same binary prime P R cfg layout cutoff cutOracle cutOff
@@ -199,8 +199,8 @@ theorem collision_of_statement
     (fingerprint : C)
     (hfp : ApplicationPrefix.strictAnswer point (point.priorAnswers H) 0 = some fingerprint)
     (hcollision : (ZkJoint.authenticate data.2 (cutOracle H point.context) coin response cutoff).context.Collision) :
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).binarySelection point H fingerprint ∨
-      (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).primeSelection point H fingerprint := by
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).binarySelection point H fingerprint ∨
+      (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).primeSelection point H fingerprint := by
   have hs := statementAt_spec binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) data hdata
   obtain ⟨layout',fingerprint',targets,hlayout',hfingerprint,htargets,hcompile⟩ := hs.2
   have he : layout' = layout := Option.some.inj (hlayout'.symm.trans hlayout)
@@ -212,8 +212,8 @@ theorem collision_of_statement
     (cfg.binaryField targets.1.1,cfg.binaryField targets.1.2)
     (cfg.primeField targets.2.1,cfg.primeField targets.2.2) hcompile
     (cutOracle H point.context) coin response cutoff point.context
-  rw [RuntimeSelection.binarySelection_eq binary prime P R cfg layout cutoff cutOracle cutOff,
-    RuntimeSelection.primeSelection_eq binary prime P R cfg layout cutoff cutOracle cutOff]
+  rw [RuntimeSource.binarySelection_eq binary prime P R cfg layout cutoff cutOracle cutOff,
+    RuntimeSource.primeSelection_eq binary prime P R cfg layout cutoff cutOracle cutOff]
   rw [hcontext] at hcollision
   exact hcollision
 
@@ -235,8 +235,8 @@ theorem collision_on_replay
     (response : JointResponse.Response (First).participant (Second).participant)
     (hcollision : (ZkJoint.authenticate data.2 (cutOracle H (e.context proof)) coin response cutoff).context.Collision) :
     let point := (e.chain initialLink).point proof H 0
-    (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).binarySelection point H (H point).2 ∨
-      (RuntimeCover.source binary prime P R cfg layout cutoff cutOracle cutOff).primeSelection point H (H point).2 := by
+    (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).binarySelection point H (H point).2 ∨
+      (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff).primeSelection point H (H point).2 := by
   let point := (e.chain initialLink).point proof H m
   have hfp := ApplicationViewReplay.strictAnswer_replay e initialLink proof H m 0 hm hpm
   have hcol : (ZkJoint.authenticate data.2 (cutOracle H point.context) coin response cutoff).context.Collision := by

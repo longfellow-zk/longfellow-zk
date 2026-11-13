@@ -1,5 +1,6 @@
 import LfzkV2.Current.RuntimeAdaptiveVerifier
-import LfzkV2.Current.RuntimeBackend
+import LfzkV2.Current.RuntimeVerifier
+import LfzkV2.Current.BackendOracle
 
 /-! Joint-backend charging on the one adaptive runtime path. The affine
 statement comes from the bound prefix, while the opening retains both actual
@@ -37,7 +38,7 @@ variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 def derive (parent : Parent) (past : Fin g.batchingIndex.val → C) :
     JointResponse.Statement (First).participant (Second).participant :=
   ((RuntimeAdaptive.statementAt binary prime P R cfg hashPublic decodePublic parent.point past).map
-    (fun data => data.2.statement)).getD (RuntimeBackend.zeroStatement binary prime P R cfg)
+    (fun data => data.2.statement)).getD (RuntimeVerifier.zeroStatement binary prime P R cfg)
 
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable (cutOracle : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
@@ -103,27 +104,27 @@ theorem failure_charged (output : Output) (H : Point → Digest × C) (decoded :
         (RuntimeVerifier.batchingDecoder binary prime P R cfg draw) parent H (H parent.point) ∨
       1 ≤ BackendFS.opening (First).participant (Second).participant (derive binary prime P R cfg hashPublic decodePublic)
         cutOracle (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-        (RuntimeBackend.queryDecoder binary prime P R cfg) cutoff epsilon parent response H
+        (RuntimeVerifier.queryDecoder binary prime P R cfg) cutoff epsilon parent response H
         (H ((M).point output H g.openingIndex.val)) ∨
       1 ≤ BackendFS.high (First).participant (Second).participant (derive binary prime P R cfg hashPublic decodePublic)
         cutOracle (RuntimeVerifier.batchingDecoder binary prime P R cfg draw)
-        (RuntimeBackend.queryDecoder binary prime P R cfg) epsilon parent response H
+        (RuntimeVerifier.queryDecoder binary prime P R cfg) epsilon parent response H
         (H parent.point) (H ((M).point output H g.openingIndex.val)) := by
   let parent := BackendPath.parent (encodings output.request) cfg.initialLink output.proof H g.batchingIndex
   let response := ((H parent.point).1,RuntimeVerifier.responses binary prime P R cfg output.proof)
   have hs := decoded_statement binary prime P R cfg earlier hashPublic decodePublic draw output H decoded hd
   have spec := RuntimeAdaptiveVerifier.decode_spec binary prime P R cfg earlier hashPublic decodePublic draw output H decoded hd
   have hc := spec.2.2.1
-  have hq : decoded.query = RuntimeBackend.queryDecoder binary prime P R cfg
+  have hq : decoded.query = RuntimeVerifier.queryDecoder binary prime P R cfg
       (H ((M).point output H g.openingIndex.val)).2 := by
-    simpa only [RuntimeBackend.queryDecoder,RuntimeAdaptiveVerifier.point_eq] using spec.2.2.2
+    simpa only [RuntimeVerifier.queryDecoder,RuntimeAdaptiveVerifier.point_eq] using spec.2.2.2
   have hopen := opening_eq binary prime P R cfg earlier output H
   have hcontext := BackendPath.parent_context (encodings output.request) cfg.initialLink output.proof H g.batchingIndex
   have hv' : JointResponse.Verify (First).participant (Second).participant
       (parent.statement (derive binary prime P R cfg hashPublic decodePublic) H)
       (cutOracle H (parent.point : Point).context)
       (RuntimeVerifier.batchingDecoder binary prime P R cfg draw (H parent.point).2) response.2
-      (RuntimeBackend.queryDecoder binary prime P R cfg (H (parent.child g.batchingIndex_next
+      (RuntimeVerifier.queryDecoder binary prime P R cfg (H (parent.child g.batchingIndex_next
         (RuntimeVerifier.encodeResponses binary prime P R cfg) response)).2) := by
     rw [hs,hcontext,← hc,← hopen,← hq]
     exact hv
@@ -143,7 +144,7 @@ theorem failure_charged (output : Output) (H : Point → Digest × C) (decoded :
     exact hf
   have h := BackendFS.failure_charged (First).participant (Second).participant
     (derive binary prime P R cfg hashPublic decodePublic) cutOracle
-    (RuntimeVerifier.batchingDecoder binary prime P R cfg draw) (RuntimeBackend.queryDecoder binary prime P R cfg)
+    (RuntimeVerifier.batchingDecoder binary prime P R cfg draw) (RuntimeVerifier.queryDecoder binary prime P R cfg)
     cutoff epsilon g.batchingIndex_next (RuntimeVerifier.encodeResponses binary prime P R cfg)
     parent response H rfl hv' hf'
   rcases h with h | h | h

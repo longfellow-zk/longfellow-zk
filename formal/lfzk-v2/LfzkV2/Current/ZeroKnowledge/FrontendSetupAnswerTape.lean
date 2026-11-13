@@ -71,7 +71,7 @@ theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
     (state future : CompleteTranscript.State g fields Advice Key Base C) (continuing : Bool)
     (last : continuing = true → Last fallback state)
     (positive : continuing = true → 0 < state.rank.val)
-    (fits : state.rank.val+HonestTranscript.circuitFuel plan continuing ≤ g.roles.length)
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel plan continuing ≤ g.roles.length)
     (extended : Extends fallback
       (readSetup (CompleteTranscript.reader side field decode nonzero base H)
         plan ids payload state continuing).2 future) :
@@ -86,7 +86,7 @@ theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
       cases continuing with
       | false =>
           have inside : state.rank.val < g.roles.length := by
-            simp only [HonestTranscript.circuitFuel,Bool.false_eq_true,↓reduceIte] at fits
+            simp only [Frontend.ScheduleLength.circuitFuel,Bool.false_eq_true,↓reduceIte] at fits
             omega
           have answer := step_answer_into base H fallback state future inside extended
           simp only [readSetup,inputCoefficients,Bool.false_eq_true,↓reduceIte,
@@ -105,13 +105,13 @@ theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
       let first := CompleteTranscript.step base H state
       let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader first.2 payload.1
       have headFits : state.rank.val+mid+3 ≤ g.roles.length := by
-        simp only [HonestTranscript.circuitFuel] at fits
+        simp only [Frontend.ScheduleLength.circuitFuel] at fits
         omega
       have rank := head_rank side field base H decode nonzero state payload.1 headFits
       have rankNamed : replay.state.rank.val = state.rank.val+mid+3 := rank
-      have tailFits : replay.state.rank.val+HonestTranscript.circuitFuel tail true ≤ g.roles.length := by
+      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
         rw [rank]
-        simp only [HonestTranscript.circuitFuel] at fits
+        simp only [Frontend.ScheduleLength.circuitFuel] at fits
         omega
       have through := (readSetup_extends base H side field decode nonzero fallback
         tail ids.2 payload.2 replay.state true).trans extended
@@ -144,13 +144,13 @@ theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
       let first := CompleteTranscript.step base H state
       let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader first.2 payload.1
       have headFits : state.rank.val+mid+3 ≤ g.roles.length := by
-        simp only [HonestTranscript.circuitFuel] at fits
+        simp only [Frontend.ScheduleLength.circuitFuel] at fits
         omega
       have rank := head_rank side field base H decode nonzero state payload.1 headFits
       have rankNamed : replay.state.rank.val = state.rank.val+mid+3 := rank
-      have tailFits : replay.state.rank.val+HonestTranscript.circuitFuel tail true ≤ g.roles.length := by
+      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
         rw [rank]
-        simp only [HonestTranscript.circuitFuel] at fits
+        simp only [Frontend.ScheduleLength.circuitFuel] at fits
         omega
       have through := (readSetup_extends base H side field decode nonzero fallback
         tail ids.2 payload.2 replay.state true).trans extended
@@ -190,7 +190,7 @@ theorem readSetup_initial_into {out input : ℕ} {circuit : Layered.Circuit F ou
     (plan : FrontendSchedule.Plan F circuit) (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
     (payload : Layered.Replay.Payload circuit)
     (state future : CompleteTranscript.State g fields Advice Key Base C)
-    (fits : state.rank.val+HonestTranscript.circuitFuel plan false ≤ g.roles.length)
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel plan false ≤ g.roles.length)
     (extended : Extends fallback
       (readSetup (CompleteTranscript.reader side field decode nonzero base H) plan ids payload state false).2 future) :
     messagesFromSetup circuit

@@ -3,7 +3,7 @@ import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows
 
 /-! Ordinary witness satisfaction makes the actual numbered-strand honest
 frontend parse to satisfied backend equations. This is the body used definitionally
-by `StrandCanonicalHiding.frontend`, without importing its statistical lemmas.
+by `StrandCanonicalExecution.frontend`, without importing its statistical lemmas.
 The oracle and committed root
 are the ones supplied to the actual frontend constructor. -/
 noncomputable section
@@ -48,7 +48,7 @@ theorem frontend_commitment
     (request : Request) (root : Digest) (SHA : Strand.Oracle) :
     (FrontendCanonicalRows.honestBody binary prime primePlan binaryNodes scalars inputFits privateFits setup
       metadata original remaining
-      (StrandCanonicalFullCoupling.actualOracle binary prime primePlan binaryNodes scalars
+      (StrandCanonicalContext.actualOracle binary prime primePlan binaryNodes scalars
         inputFits privateFits setup roundSampler SHA) coins request root).commitment = root := rfl
 
 /-- Parse and truth for the literal honest frontend, from ordinary witness
@@ -69,15 +69,15 @@ theorem exists_satisfied
     ∃ data,
       CompleteCanonicalVerifier.statementAt binary.description prime binaryNodes ConcreteSetup.primeNodes
         Repr Sh setup
-        (StrandCanonicalFullCoupling.configuration binary prime primePlan binaryNodes scalars
+        (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars
           inputFits privateFits setup)
         (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
         pCount metadata request
         (FrontendCanonicalRows.honestBody binary prime primePlan binaryNodes scalars inputFits privateFits setup
           metadata original remaining
-          (StrandCanonicalFullCoupling.actualOracle binary prime primePlan binaryNodes scalars
+          (StrandCanonicalContext.actualOracle binary prime primePlan binaryNodes scalars
             inputFits privateFits setup roundSampler SHA) coins request root)
-        (StrandCanonicalFullCoupling.actualOracle binary prime primePlan binaryNodes scalars
+        (StrandCanonicalContext.actualOracle binary prime primePlan binaryNodes scalars
           inputFits privateFits setup roundSampler SHA) = some data ∧
       data.2.statement.1.Satisfies
         (Backend.logical (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
@@ -89,7 +89,7 @@ theorem exists_satisfied
     (independent.with_publicBits request.publicBits) (original request) valid
   exact FrontendCanonicalRows.exists_satisfied binary prime primePlan binaryNodes scalars inputFits privateFits
     setup metadata original remaining
-    (StrandCanonicalFullCoupling.actualOracle binary prime primePlan binaryNodes scalars
+    (StrandCanonicalContext.actualOracle binary prime primePlan binaryNodes scalars
       inputFits privateFits setup roundSampler SHA)
     coins request root pivotOne primitive
     (FrontendCanonicalRows.couplingHash_of_valid binary prime primePlan binaryNodes scalars

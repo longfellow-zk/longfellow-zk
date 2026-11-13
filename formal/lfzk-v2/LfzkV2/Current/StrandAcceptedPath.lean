@@ -1,5 +1,6 @@
 import LfzkV2.Current.StrandVerifier
-import LfzkV2.Current.CanonicalVerifierAgreement
+import LfzkV2.Current.CanonicalReplay
+import LfzkV2.Current.CanonicalRuntime
 
 /-! The canonical runtime supplies the path used in strand query charging.
 The submitted request and proof determine every reached packet through the
@@ -33,6 +34,7 @@ local notation "W" => CanonicalRuntime.wirePublic binary prime P R repr shape se
 local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlier)
 local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic
+local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
 local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
@@ -40,13 +42,34 @@ local notation "history" => StrandRuntime.history bodyCodec
 local notation "oracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
 local notation "beforeSeal" => TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M)
 
+include bodyFits in
+/-- Actual body/request packets construct the entire canonical replay.
+The last point binds the actual canonical complete proof body. -/
+theorem point_canonical (output : Output) (H : Point → Digest × C)
+    (index : ℕ) (hi : index ≤ g.roles.length) : QueryRuntime.Runtime.Canonical repr shape setup binary.nPublic ((M).point output H index) := by
+  rw [RuntimeAdaptiveVerifier.point_eq,CanonicalRuntime.encodings_eq]
+  apply CanonicalReplay.Runtime.canonical_of_blocks repr shape setup binary.nPublic (Earlier output.request)
+    (fun proof i past => CanonicalRequest.ordinaryData shape binary.nPublic
+      (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
+      metadata output.request proof.body i past)
+    ?_ ?_ bodyFits cfg.initialLink output.proof H index hi
+  · intro proof i past hz
+    exact CanonicalRequest.block_zero repr shape setup binary.nPublic
+      (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
+      metadata output.request proof i hz past
+  · intro proof i past hp
+    exact CanonicalRequest.block_pos repr shape setup binary.nPublic
+      (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
+      metadata output.request proof i (by omega) past
+
+
 /-- Parsed values are recovered from the actual reached verifier inputs.
 Indices beyond the end are irrelevant to the path predicate and use the
 final point, keeping this mathematical function total. -/
 def value (output : Output) (SHA : Strand.Oracle) (index : ℕ) : Value :=
   (StrandRuntime.Runtime.valuesEquiv repr shape setup binary.nPublic fits).symm
     ⟨(M).point output (oracle SHA) (min index g.roles.length),
-      CanonicalVerifierAgreement.point_canonical binary prime P R repr shape setup cfg binaryCount metadata bodyFits
+      point_canonical binary prime P R repr shape setup cfg binaryCount metadata bodyFits
         output (oracle SHA) _ (Nat.min_le_right _ _)⟩
 
 theorem value_point (output : Output) (SHA : Strand.Oracle) (index : ℕ) (within : index ≤ g.roles.length) :

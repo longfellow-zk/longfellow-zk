@@ -115,47 +115,4 @@ theorem decode_spec (output : Output (g := g) (fields := fields) (Advice := Advi
           cases Option.some.inj h
           exact ⟨hs,hc,rfl,rfl⟩
 
-/-- Common arithmetic and tuple authentication checks. The complete verifier
-supplies its recomputed seal, whose construction is transcript-specific. -/
-def ChecksWithSeal (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
-    (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
-    (decoded : Decoded) (computedSeal : Digest) : Prop :=
-  let e := encodings binary prime P R cfg earlier output.request
-  let key := e.context output.proof
-  cfg.root key = output.proof.body.commitment ∧
-  output.proof.body.authentication.context = cfg.authenticationContext key ∧
-  ((RuntimeVerifier.Family binary prime P R cfg).compiler cfg.openingPositive).Accepts (codec.withOracle HM)
-    ((Joint.Pair.statementEquiv _ _).symm decoded.statement.statement) (cfg.root key)
-    ((Joint.Pair.coinEquiv _ _).symm decoded.coin)
-    ((Joint.Pair.responseEquiv _ _).symm (RuntimeVerifier.responses binary prime P R cfg output.proof))
-    decoded.query decoded.claim ∧
-  computedSeal = output.proof.finalSeal
-
-/-- The earlier whole-answer transcript uses the final query's digest.
-SHA strands reuse `ChecksWithSeal` with their recomputed PRF-counter-zero seal. -/
-def Checks (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
-    (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
-    (H : Point → Digest × C) (decoded : Decoded) : Prop :=
-  ChecksWithSeal binary prime P R cfg earlier codec HM output decoded
-    (H ((chain binary prime P R cfg earlier).finalSealPoint output H)).1
-
-def verify (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
-    (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
-    (H : Point → Digest × C) : Bool :=
-  match decode binary prime P R cfg earlier hashPublic decodePublic draw output H with
-  | none => false
-  | some decoded => decide (Checks binary prime P R cfg earlier codec HM output H decoded)
-
-omit [Fintype C] in
-theorem verify_true_iff (codec : Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
-    (HM : Enc → Digest) (output : Output (g := g) (fields := fields) (Advice := Advice) (Request := Request))
-    (H : Point → Digest × C) :
-    verify binary prime P R cfg earlier hashPublic decodePublic draw codec HM output H = true ↔
-      ∃ decoded, decode binary prime P R cfg earlier hashPublic decodePublic draw output H = some decoded ∧
-        Checks binary prime P R cfg earlier codec HM output H decoded := by
-  unfold verify
-  cases hd : decode binary prime P R cfg earlier hashPublic decodePublic draw output H with
-  | none => simp only [Bool.false_eq_true,reduceCtorEq,false_and,exists_false]
-  | some decoded => simp only [decide_eq_true_eq,Option.some.injEq,exists_eq_left']
-
 end LfzkV2.Current.RuntimeAdaptiveVerifier
