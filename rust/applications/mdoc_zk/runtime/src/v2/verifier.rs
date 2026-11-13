@@ -123,11 +123,8 @@ pub fn run_mdoc_verifier_inner(
         joint_context: param.context(),
         config: param.config(),
     };
-    let (remaining, decoded) = super::proto::MdocProof::read(proof_bytes, &geom, &gf2, &p256)
+    let decoded = super::proto::MdocProof::read(proof_bytes, &geom, &gf2, &p256)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-    if !remaining.is_empty() {
-        return Err(MdocVerifierErrorCode::GeneralFailure);
-    }
     let super::proto::MdocProof {
         commitment: root,
         fingerprints,

@@ -73,18 +73,13 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             .map_err(|e| e.to_string())?;
         Ok(transcript.append_final_seal(out))
     }
+    /// Parse one complete MDA6 proof, which must end exactly with its final seal.
     pub fn read<'a>(
         bytes: &'a [u8],
         g: &MdocProofGeometry,
         f1: &F1,
         f2: &F2,
-    ) -> Result<
-        (
-            &'a [u8],
-            crate::runtime::v2::transcript::Unverified<'a, Self>,
-        ),
-        String,
-    > {
+    ) -> Result<crate::runtime::v2::transcript::Unverified<'a, Self>, String> {
         if bytes.get(..4) != Some(b"MDA6") {
             return Err("mdoc adapter proof version or size".into());
         }
@@ -142,9 +137,9 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             proof_sig,
             polygero,
         };
-        let decoded =
-            crate::runtime::v2::transcript::Unverified::decoded(body, bytes, &mut remaining)
-                .map_err(|e| e.to_string())?;
-        Ok((remaining, decoded))
+        // The proof must end exactly with its final seal; no trailing data is
+        // returned to the caller.
+        crate::runtime::v2::transcript::Unverified::decoded(body, bytes, &mut remaining)
+            .map_err(|e| e.to_string())
     }
 }

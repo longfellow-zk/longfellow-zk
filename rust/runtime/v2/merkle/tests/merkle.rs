@@ -121,3 +121,22 @@ fn duplicate_opening_indices_and_noncanonical_frontiers_reject() {
     assert!(verify_proof(&context, 2, &tree.root(), &[leaves[0]], &opened).is_err());
     assert!(verify_proof(&context, 2, &tree.root(), &[], &[(0, leaves[0])]).is_err());
 }
+
+#[test]
+fn verification_rejects_leaf_indices_at_or_beyond_the_leaf_count() {
+    // Indices in [n, 2n) address internal heap slots, not leaves. Verification
+    // must reject them before indexing, even though sampling never produces them.
+    let context = Digest { data: [3; 32] };
+    let root = Digest { data: [5; 32] };
+    let leaf = Digest { data: [7; 32] };
+    for index in [5, 9, 10, usize::MAX] {
+        let result = verify_proof(&context, 5, &root, &[], &[(index, leaf)]);
+        assert!(
+            matches!(
+                result,
+                Err(MerkleError::LeafIndexOutOfBounds { index: i, num_leaves: 5 }) if i == index
+            ),
+            "leaf index {index}"
+        );
+    }
+}

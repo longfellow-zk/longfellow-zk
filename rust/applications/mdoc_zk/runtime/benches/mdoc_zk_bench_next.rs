@@ -232,9 +232,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
-    let (remaining, proof) =
-        runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
-    assert!(remaining.is_empty());
+    let proof = runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
     let hash = proof
         .proof_hash
         .write(&geometry.geom_hash, &binary)
