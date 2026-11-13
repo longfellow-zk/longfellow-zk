@@ -19,17 +19,20 @@ internals.
 
 ## Modules
 
-- `frontend`: a masked layered sumcheck over the value vector
-  `[private inputs | pads]`, batched into one linear claim.
-- `storage`: the following types.
+Storage maps and the split of a frontend's batched claim belong to the zk
+layer (see [Storage](../zk/README.md#storage)):
+
+- `zk::storage` has the following types.
   - `StorageMap`: each value is `Native(cell)` or `Foreign(coordinates)`.
   - `Run`: the map's layout parameters as bound to the transcript.
   - `BitGroup<N>` and `Group`: typed and untyped positions of bits in the
     binary input array.
   - `ReservedSuffix`: an allocator for the bits after the format circuit's
     inputs.
-- `mixed`: a frontend whose values are partly native and partly foreign. Its
-  own commitment holds `[native private inputs | R | native pads]`.
+  - `ModularClaim`: a linear claim over foreign bit groups, modulo the
+    claim field's order.
+- `zk::split` handles a participant whose values are partly native and partly
+  foreign. Its own commitment holds `[native private inputs | R | native pads]`.
   1. The verifier draws a fresh nonzero `eta`.
   2. The prover sends `mu = eta<w_F, v_F> + R`.
   3. The batched claim `<w, v> = t` splits into a native row,
@@ -38,6 +41,9 @@ internals.
 
   R is uniform and used only here, so `mu` hides `<w_F, v_F>`. Only R's
   residue modulo p matters, so R's bits have no range check.
+
+This module discharges the modular claims:
+
 - `adapter`: the fixed product-tree fragment, the definitions of its virtual
   leaves, and the P-256 encoder (`p256`).
 - `word`: three types.
@@ -47,7 +53,6 @@ internals.
   - `MaskedWord<N>`: an element of GF(2)^N. It is the only one of these
     types that appears in a proof, and its canonical encoding (zero
     padding enforced) is defined once here.
-- `transcript`: the layout binding of a mixed frontend, `eta` and `mu`.
 
 ## The P-256 adapter
 

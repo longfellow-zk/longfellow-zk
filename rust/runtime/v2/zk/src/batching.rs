@@ -22,7 +22,7 @@ pub struct LinearClaim<E> {
     pub target: E,
 }
 
-pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],
     constraints: Constraints<F::E>,
@@ -47,7 +47,7 @@ pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         .checked_add(geometry.pad_count()?)
         .ok_or("prime layout overflow")?;
     let pads = geometry.pad_layout(private);
-    let (a, b) = crate::runtime::v2::zk::constraint_compiler::compile_layers(&constraints, &pads)?;
+    let (a, b) = super::constraint_compiler::compile_layers(&constraints, &pads)?;
     let rho = transcript::coefficients(b.len() + 1, transcript, f);
     let mut weights = vec![f.zero(); count];
     let mut constant = blas::dot(&rho[..b.len()], &b, f);
@@ -67,9 +67,13 @@ pub(super) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         f,
     );
     for (pad, coefficient) in constraints.input_claim.terms {
-        let j = crate::runtime::v2::zk::constraint_compiler::pad_coordinate(pad, &pads)?;
+        let j = super::constraint_compiler::pad_coordinate(pad, &pads)?;
         f.add(&mut weights[j], &f.mulf(last, &coefficient));
     }
     let target = f.neg(&constant);
     Ok(LinearClaim { weights, target })
 }
+
+#[cfg(test)]
+#[path = "../tests/batching.rs"]
+mod tests;

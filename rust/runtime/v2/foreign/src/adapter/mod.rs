@@ -16,7 +16,6 @@ pub(crate) mod integer;
 pub mod p256;
 mod transcript;
 
-use super::storage::Group;
 use crate::{
     core::{
         algebra::AlgebraicField,
@@ -27,19 +26,6 @@ use crate::{
         v2::zk::{VirtualInput, VirtualInputs},
     },
 };
-
-/// A linear claim over foreign-stored values, modulo the claim field's order.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ModularClaim<E> {
-    pub terms: Vec<(Group, E)>,
-    pub target: E,
-}
-impl<E> ModularClaim<E> {
-    /// Total committed bits read by the claim.
-    pub fn bits(&self) -> usize {
-        self.terms.iter().map(|(g, _)| g.width).sum()
-    }
-}
 
 /// Number of trees and leaves per tree; it fixes the archived fragment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

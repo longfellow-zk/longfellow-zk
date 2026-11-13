@@ -8,7 +8,7 @@
 //! the honest quotient `k = (S - C) / p` is below `2^Q`.
 use super::{
     integer::{self, Int256},
-    Leaf, ModularClaim, TreeInstance, TreeShape,
+    Leaf, TreeInstance, TreeShape,
 };
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::v2::foreign::word::Word;
@@ -19,7 +19,10 @@ use crate::{
             gf2_128::{Gf2_128, Gf2_128Field},
             p256::{P256Element, P256Field},
         },
-        v2::foreign::{storage::BitGroup, word::MaskedWord},
+        v2::{
+            foreign::word::MaskedWord,
+            zk::storage::{BitGroup, ModularClaim},
+        },
     },
 };
 

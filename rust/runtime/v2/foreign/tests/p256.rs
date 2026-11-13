@@ -5,10 +5,8 @@ use super::{
     adapter::{
         fragment,
         p256::{absorb_masked, conversion, P256Plan},
-        virtual_inputs, ModularClaim,
+        virtual_inputs,
     },
-    storage::{Group, ReservedSuffix},
-    transcript::absorb_mu,
     word::{MaskedWord, Otp},
 };
 use crate::{
@@ -16,7 +14,15 @@ use crate::{
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field},
         random::DeterministicRng,
-        v2::{proto::RoundLabel, sumcheck, transcript::Transcript},
+        v2::{
+            proto::RoundLabel,
+            sumcheck,
+            transcript::Transcript,
+            zk::{
+                split::transcript::absorb_mu,
+                storage::{Group, ModularClaim, ReservedSuffix},
+            },
+        },
     },
 };
 

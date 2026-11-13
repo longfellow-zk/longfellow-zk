@@ -9,7 +9,7 @@ pub use crate::runtime::v2::proto::zk::CircuitProof;
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{EvaluationDomain, PackingField, ZkField},
+        algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
         v2::{
             polygero::{PolygeroConfig, PolygeroParam},
             proto::{polygero::PolygeroGeometry, Digest},
@@ -192,6 +192,8 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,
     pub(super) inputs: InputLayout,
+    /// Values not all native: the split layout. `None` is all native.
+    pub(super) storage: Option<super::split::Split>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
@@ -241,7 +243,67 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             id: circuit.id,
             additional_ids: others.iter().map(|c| c.id).collect(),
             inputs: InputLayout::new(&circuits, virtual_inputs)?,
+            storage: None,
         })
+    }
+    /// A single-circuit participant whose values `[private inputs | pads]` are
+    /// stored as `storage` says. With some native values (mixed storage), it
+    /// commits `[native private inputs | R | pads]` and `mask` holds R's bits
+    /// in the binary commitment. With none (pure foreign storage), it commits
+    /// nothing and `mask` is `None`.
+    pub fn with_storage<D: EvaluationDomain<W, F>>(
+        circuit: &Circuit<F>,
+        storage: super::storage::StorageMap,
+        mask: Option<super::storage::Group>,
+        config: PolygeroConfig,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<Self, String> {
+        let extension = ctx.field().packing_extension();
+        if ctx.field().is_binary() || extension.degree() != 1 {
+            return Err("split storage requires a degree-one prime frontend".into());
+        }
+        let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&[circuit])?;
+        let inputs = InputLayout::new(&[circuit], 0)?;
+        let private = inputs.committed();
+        let values = private
+            .checked_add(sc_geom.pad_count()?)
+            .ok_or("split layout overflow")?;
+        let split = super::split::layout(storage, mask, private, values)?;
+        // Mixed storage commits the native private inputs, then R, then pads;
+        // pure foreign storage commits nothing.
+        let committed = if split.mask.is_some() {
+            split.mask_cell + 1
+        } else {
+            0
+        };
+        let pads = if split.mask.is_some() {
+            sc_geom.pad_count()?
+        } else {
+            0
+        };
+        let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
+        let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
+        let selected =
+            SelectedField::from_parameter(param.clone(), ctx.domain, ctx.field().packing_id())?;
+        Ok(Self {
+            geometry: CircuitGeometry {
+                sc_geom,
+                com_geom: selected.geometry(),
+                packing_degree: 1,
+            },
+            #[cfg(any(test, feature = "prover"))]
+            config,
+            param,
+            backend: PackingCommitment::new(ctx.field().clone(), layout, extension)?,
+            id: circuit.id,
+            additional_ids: Vec::new(),
+            inputs,
+            storage: Some(split),
+        })
+    }
+    /// Whether this participant commits any cells to the joint opening.
+    pub fn commits(&self) -> bool {
+        !self.storage.as_ref().is_some_and(|s| s.mask.is_none())
     }
     pub fn input_layout(&self) -> InputLayout {
         self.inputs

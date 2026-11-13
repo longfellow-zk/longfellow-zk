@@ -17,6 +17,8 @@ use crate::{
                 context::private_input_count,
                 joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
                 packing_commitment::PackingState,
+                split::PendingSplit,
+                storage::Storage,
                 CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
         },
@@ -248,3 +250,92 @@ fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>) -> Vec<E> {
 #[cfg(test)]
 #[path = "../tests/prover.rs"]
 mod tests;
+
+
+/// Prover state of a split participant between commitment and reduction.
+pub struct SplitState<const W: usize, F: ZkField<W>> {
+    pads: sumcheck::SumcheckProof<W, F>,
+    /// `[private inputs | pads]`, in value order.
+    values: Vec<F::E>,
+    mask: Option<F::E>,
+    id: [u8; 32],
+}
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// Sample pads and return the native witness `[native private inputs | R |
+    /// pads]`, which is empty for pure foreign storage. `mask` is R, present
+    /// exactly when some values are native.
+    pub fn prepare_split(
+        &self,
+        private: Vec<CircuitInput<F>>,
+        mask: Option<F::E>,
+        rng: &mut impl RandomEngine,
+    ) -> Result<(SplitState<W, F>, Vec<F::E>), String> {
+
+        let split = self.split()?;
+        if mask.is_some() != split.mask.is_some() || private.len() != self.inputs.committed() {
+            return Err("split witness shape".into());
+        }
+        let f = self.backend.parameters.field();
+        let mut values = self.backend.parameters.extension().into_input_elements(f, private);
+        let (pads, suffix) = sumcheck::sample_pads(&self.geometry.sc_geom, rng, f);
+        values.extend(suffix);
+        let mut witness: Vec<_> = split
+            .map
+            .entries()
+            .iter()
+            .zip(&values)
+            .filter(|(s, _)| matches!(s, Storage::Native(_)))
+            .map(|(_, v)| v.clone())
+            .collect();
+        if let Some(m) = &mask {
+            witness.insert(split.mask_cell, m.clone());
+        }
+        Ok((
+            SplitState {
+                pads,
+                values,
+                mask,
+                id: self.id,
+            },
+            witness,
+        ))
+    }
+    /// Run the frontend and batch its constraints into one linear claim over
+    /// `[private inputs | pads]`, before the split challenge.
+    pub fn prove_split<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        state: SplitState<W, F>,
+        t: &mut TranscriptRef<'_>,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<(sumcheck::SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+
+        self.split()?;
+        self.validate_circuits(circuit, public.len(), &[])?;
+        if state.id != self.id {
+            return Err("split state belongs to another circuit".into());
+        }
+        let f = ctx.field();
+        let public = self.backend.parameters.extension().input_elements(f, public);
+        let mut inputs = public.to_vec();
+        inputs.extend_from_slice(&state.values[..self.inputs.committed()]);
+        t.write_sumcheck_statement(circuit, &public, f);
+        let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
+            &[circuit],
+            inputs,
+            &state.pads,
+            t,
+            f,
+        )?;
+        let claim = crate::runtime::v2::zk::batching::batch(circuit, &public, constraints, t, f)?;
+        Ok((
+            proof,
+            PendingSplit {
+                claim,
+                values: state.values,
+                mask: state.mask,
+            },
+        ))
+    }
+}

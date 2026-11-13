@@ -278,3 +278,21 @@ impl StorageMap {
         runs
     }
 }
+
+/// A linear claim over foreign-stored values, modulo the claim field's order.
+/// Splitting a frontend's claim produces it; the cross-field adapter proves it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModularClaim<E> {
+    pub terms: Vec<(Group, E)>,
+    pub target: E,
+}
+impl<E> ModularClaim<E> {
+    /// Total committed bits read by the claim.
+    pub fn bits(&self) -> usize {
+        self.terms.iter().map(|(g, _)| g.width).sum()
+    }
+}
+
+#[cfg(test)]
+#[path = "../tests/storage.rs"]
+mod tests;

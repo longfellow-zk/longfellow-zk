@@ -113,10 +113,10 @@ pub fn proof_geometry(
         h,
         &hc,
     )?;
-    let s = crate::runtime::v2::foreign::mixed::MixedParticipant::new(
+    let s = crate::runtime::v2::zk::joint::CircuitParticipant::with_storage(
         signature,
         link.storage(signature)?,
-        link.mask,
+        Some(link.mask),
         s,
         &sc,
     )?;

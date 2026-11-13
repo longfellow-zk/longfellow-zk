@@ -4,6 +4,7 @@
 use super::{
     joint::{AbsorbLayout, CircuitParticipant},
     packing_commitment::PackingCommitment,
+    storage::{Group, Run, StorageMap},
 };
 use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
@@ -30,8 +31,14 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
 impl<const W: usize, F: ZkField<W> + PackingField> AbsorbLayout for CircuitParticipant<W, F> {
     /// Bind packing and composed-circuit layout before receiving the shared
     /// root. Degree-one layouts add only composition metadata here; sumcheck
-    /// binds the main circuit statement before its challenges.
+    /// binds the main circuit statement before its challenges. A split
+    /// participant binds its storage layout instead.
     fn absorb_layout(&self, t: &mut TranscriptRef<'_>) {
+        if let Some(split) = &self.storage {
+            let mask = split.mask.unwrap_or(Group { start: 0, width: 0 });
+            absorb_storage(t, &self.id, &split.map, mask);
+            return;
+        }
         self.backend.absorb(t, &self.id);
         t.absorb(|w| {
             w.write_bytes(b"layered-sumcheck/commitment-layout/v1");
@@ -47,4 +54,54 @@ impl<const W: usize, F: ZkField<W> + PackingField> AbsorbLayout for CircuitParti
             t.absorb(|w| w.write_bytes(&(width as u64).to_le_bytes()));
         }
     }
+}
+/// Bind a mixed frontend's layout parameters before the shared root: its
+/// circuit, its storage map as runs, and the bits of the split's mask R.
+/// These are setup constants fixed by the trusted circuits.
+pub(super) fn absorb_storage(
+    t: &mut TranscriptRef<'_>,
+    circuit_id: &[u8; 32],
+    storage: &StorageMap,
+    mask: Group,
+) {
+    let word = |t: &mut TranscriptRef<'_>, x: usize| {
+        t.absorb(|w| w.write_bytes(&(x as u64).to_le_bytes()))
+    };
+    t.absorb(|w| {
+        w.write_bytes(b"foreign-storage/mixed-layout/v1");
+        w.write_bytes(circuit_id);
+    });
+    let runs = storage.runs();
+    word(t, runs.len());
+    for run in runs {
+        match run {
+            Run::Native { first, count, cell } => {
+                for x in [0, first, count, cell] {
+                    word(t, x);
+                }
+            }
+            Run::Prime {
+                first,
+                count,
+                start,
+                width,
+            } => {
+                for x in [1, first, count, start, width] {
+                    word(t, x);
+                }
+            }
+            Run::Coordinates { value, coordinates } => {
+                for x in [2, value, coordinates.len()] {
+                    word(t, x);
+                }
+                for c in coordinates {
+                    for x in [c.index, c.group.start, c.group.width] {
+                        word(t, x);
+                    }
+                }
+            }
+        }
+    }
+    word(t, mask.start);
+    word(t, mask.width);
 }

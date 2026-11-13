@@ -1,0 +1,262 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Storage splits: claims over values stored outside a participant's own
+//! commitment.
+//!
+//! A participant's value vector is `[private inputs | pads]`. Its storage
+//! map assigns each value a native cell or foreign bits in the binary
+//! commitment.
+//!
+//! - All native: the ordinary circuit reduction applies.
+//! - Mixed: the participant commits `[native private inputs | R | pads]`. The batched claim `<w, v>
+//!   = t` is split with a fresh nonzero challenge `eta` and one masked message `mu = eta*<w_F, v_F>
+//!   + R` into:
+//!   - a native row `eta*<w_N, v_N> - R + mu - eta*t = 0` for this field's Polygero participant;
+//!   - a foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
+//!
+//!   R is uniform and used only here, so `mu` hides `<w_F, v_F>`.
+//! - Pure foreign: the participant commits nothing; the whole claim is foreign and its target is
+//!   public.
+use super::{
+    batching::LinearClaim,
+    joint::CircuitParticipant,
+    storage::{Group, ModularClaim, Storage, StorageMap},
+};
+use crate::{
+    core::proto::v2::Circuit,
+    runtime::{
+        algebra::{PackingField, ZkField},
+        v2::{
+            polygero::{LinearStatement, PolygeroLinearTerm},
+            proto::Digest,
+        },
+    },
+};
+
+#[path = "split/transcript.rs"]
+pub mod transcript;
+
+/// Storage of a participant whose values are not all native.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Split {
+    pub(crate) map: StorageMap,
+    /// Bits of R in the binary commitment; absent for pure foreign storage.
+    pub(crate) mask: Option<Group>,
+    /// Physical cell of R: right after the native private inputs.
+    pub(crate) mask_cell: usize,
+}
+impl Split {
+    /// Physical cell of the native value numbered `cell` by the storage map.
+    fn physical(&self, cell: usize) -> usize {
+        if cell < self.mask_cell {
+            cell
+        } else {
+            cell + 1
+        }
+    }
+}
+
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    pub(super) fn split(&self) -> Result<&Split, String> {
+        self.storage
+            .as_ref()
+            .ok_or_else(|| "participant has only native storage".into())
+    }
+    fn check_claim(&self, claim: &LinearClaim<F::E>, eta: &F::E, f: &F) -> Result<&Split, String> {
+        let split = self.split()?;
+        if f.is_zero(eta) || claim.weights.len() != split.map.entries().len() {
+            return Err("split claim shape or zero challenge".into());
+        }
+        Ok(split)
+    }
+    /// Native row `eta*<w_N, v_N> - R + mu - eta*t = 0` on this field's cells.
+    pub fn split_statement(
+        &self,
+        claim: &LinearClaim<F::E>,
+        eta: &F::E,
+        mu: &F::E,
+        f: &F,
+    ) -> Result<LinearStatement<F::E>, String> {
+        let split = self.check_claim(claim, eta, f)?;
+        let mut a = Vec::new();
+        for (s, w) in split.map.entries().iter().zip(&claim.weights) {
+            if let Storage::Native(cell) = s {
+                a.push(PolygeroLinearTerm {
+                    c: 0,
+                    w: split.physical(*cell),
+                    k: f.mulf(eta, w),
+                });
+            }
+        }
+        a.push(PolygeroLinearTerm {
+            c: 0,
+            w: split.mask_cell,
+            k: f.mone(),
+        });
+        Ok(LinearStatement {
+            a,
+            b: vec![f.subf(mu, &f.mulf(eta, &claim.target))],
+            // The frontend and split messages already precede joint batching
+            // on the shared transcript. This identifier names the source only.
+            digest: Digest { data: self.id },
+        })
+    }
+    /// Foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
+    pub fn foreign_claim(
+        &self,
+        claim: &LinearClaim<F::E>,
+        eta: &F::E,
+        mu: &F::E,
+        f: &F,
+    ) -> Result<ModularClaim<F::E>, String> {
+        let split = self.check_claim(claim, eta, f)?;
+        let mask = split.mask.ok_or("pure foreign storage has no split mask")?;
+        let mut terms: Vec<_> = split
+            .map
+            .entries()
+            .iter()
+            .zip(&claim.weights)
+            .filter_map(|(s, w)| s.prime_group().map(|g| (g, f.mulf(eta, w))))
+            .collect();
+        terms.push((mask, f.one()));
+        Ok(ModularClaim {
+            terms,
+            target: mu.clone(),
+        })
+    }
+    /// The whole claim of a pure-foreign participant, whose target is public.
+    pub fn pure_claim(&self, claim: &LinearClaim<F::E>) -> Result<ModularClaim<F::E>, String> {
+        let split = self.split()?;
+        if !split.map.is_pure_foreign() || claim.weights.len() != split.map.entries().len() {
+            return Err("pure claim needs pure foreign storage covering the claim".into());
+        }
+        let terms = split
+            .map
+            .entries()
+            .iter()
+            .zip(&claim.weights)
+            .map(|(s, w)| {
+                s.prime_group()
+                    .map(|g| (g, w.clone()))
+                    .ok_or_else(|| "pure claim expects prime-field values".to_string())
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(ModularClaim {
+            terms,
+            target: claim.target.clone(),
+        })
+    }
+}
+
+/// A split participant's reduction, before its split challenge.
+pub struct PendingSplit<E> {
+    pub claim: LinearClaim<E>,
+    pub(crate) values: Vec<E>,
+    pub(crate) mask: Option<E>,
+}
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// The split message `mu = eta*<w_F, v_F> + R`.
+    pub fn split_message(
+        &self,
+        pending: &PendingSplit<F::E>,
+        eta: &F::E,
+        f: &F,
+    ) -> Result<F::E, String> {
+        let split = self.split()?;
+        let mask = pending
+            .mask
+            .as_ref()
+            .ok_or("pure foreign storage has no split mask")?;
+        let mut sum = f.zero();
+        for ((s, w), v) in split
+            .map
+            .entries()
+            .iter()
+            .zip(&pending.claim.weights)
+            .zip(&pending.values)
+        {
+            if matches!(s, Storage::Foreign(_)) {
+                f.add(&mut sum, &f.mulf(w, v));
+            }
+        }
+        Ok(f.addf(&f.mulf(eta, &sum), mask))
+    }
+    /// Values of the foreign claim's terms, in term order, ending with R.
+    pub fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Result<Vec<F::E>, String> {
+        let split = self.split()?;
+        let mut out: Vec<_> = split
+            .map
+            .entries()
+            .iter()
+            .zip(&pending.values)
+            .filter(|(s, _)| matches!(s, Storage::Foreign(_)))
+            .map(|(_, v)| v.clone())
+            .collect();
+        out.extend(pending.mask.clone());
+        Ok(out)
+    }
+}
+
+/// Validate a storage map for `circuit` and derive its split layout.
+pub(crate) fn layout(
+    map: StorageMap,
+    mask: Option<Group>,
+    private: usize,
+    values: usize,
+) -> Result<Split, String> {
+    if map.entries().len() != values {
+        return Err("storage map does not cover the participant's values".into());
+    }
+    if !map
+        .entries()
+        .iter()
+        .any(|s| matches!(s, Storage::Foreign(_)))
+    {
+        return Err("storage map has no foreign value; use native storage".into());
+    }
+    if map
+        .entries()
+        .iter()
+        .any(|s| matches!(s, Storage::Foreign(_)) && s.prime_group().is_none())
+    {
+        return Err("split storage expects prime-field values".into());
+    }
+    let pure = map.is_pure_foreign();
+    if pure != mask.is_none() {
+        return Err("a mask is required exactly when some values are native".into());
+    }
+    if !pure
+        && map.entries()[private..]
+            .iter()
+            .any(|s| !matches!(s, Storage::Native(_)))
+    {
+        return Err("mixed storage keeps every pad native".into());
+    }
+    let mask_cell = map.entries()[..private]
+        .iter()
+        .filter(|s| matches!(s, Storage::Native(_)))
+        .count();
+    Ok(Split {
+        map,
+        mask,
+        mask_cell,
+    })
+}
+
+/// Number of values `[private inputs | pads]` of a split participant for
+/// `circuit`; a storage map must cover exactly this many.
+pub fn value_count<F: crate::core::algebra::SerializableField>(
+    circuit: &Circuit<F>,
+) -> Result<usize, String> {
+    let private = circuit
+        .raw
+        .ninput
+        .checked_sub(circuit.raw.npublic_input)
+        .ok_or("public prefix")?;
+    private
+        .checked_add(crate::runtime::v2::sumcheck::circuit_geometry(&[circuit])?.pad_count()?)
+        .ok_or_else(|| "split value count overflow".into())
+}
+
+#[cfg(test)]
+#[path = "../tests/split.rs"]
+mod tests;

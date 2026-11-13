@@ -43,7 +43,8 @@ fn circuit(f: &P256Field, cached_logw: usize) -> Circuit<P256Field> {
 }
 
 #[test]
-fn prime_frontend_uses_widths_instead_of_cached_logw() {
+fn batching_uses_widths_instead_of_cached_logw() {
+    use crate::runtime::v2::sumcheck::{self, TranscriptSumcheck};
     let f = P256Field::new();
     for cached_logw in [0, 2, 41] {
         let circuit = circuit(&f, cached_logw);
@@ -51,16 +52,26 @@ fn prime_frontend_uses_widths_instead_of_cached_logw() {
         assert_eq!(geometry.logw_layers, [2]);
         let public = [f.u64_to_element(6)];
         let private = vec![f.u64_to_element(2), f.u64_to_element(3), f.zero()];
-        let state = prepare(&circuit, private, &mut DeterministicRng::new(42), &f).unwrap();
-        assert_eq!(state.values.len(), 3 + geometry.pad_count().unwrap());
-        let witness = state.values.clone();
+        let (pads, suffix) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(42), &f);
+        let mut values = private.clone();
+        values.extend(suffix);
+        let mut inputs = public.to_vec();
+        inputs.extend(private);
         let mut tp = Transcript::new(b"prime-width-geometry");
         let mut tv = tp.fork_for_test();
-        let (proof, claim) = prove(&circuit, &public, state, &mut tp.borrow(), &f).unwrap();
-        let checked = reduce(&circuit, &public, &proof, &mut tv.borrow(), &f).unwrap();
+        tp.borrow().write_sumcheck_statement(&circuit, &public, &f);
+        let (proof, constraints) =
+            sumcheck::evaluate_and_prove_circuits(&[&circuit], inputs, &pads, &mut tp.borrow(), &f)
+                .unwrap();
+        let claim = batch(&circuit, &public, constraints, &mut tp.borrow(), &f).unwrap();
+        tv.borrow().write_sumcheck_statement(&circuit, &public, &f);
+        let derived =
+            sumcheck::derive_constraints_for_circuits(&[&circuit], &proof, &mut tv.borrow(), &f)
+                .unwrap();
+        let checked = batch(&circuit, &public, derived, &mut tv.borrow(), &f).unwrap();
         assert_eq!(claim.weights, checked.weights);
         assert_eq!(claim.target, checked.target);
-        assert_eq!(blas::dot(&claim.weights, &witness, &f), claim.target);
+        assert_eq!(blas::dot(&claim.weights, &values, &f), claim.target);
         assert_eq!(tp.bytes(32), tv.bytes(32));
     }
 }

@@ -35,8 +35,8 @@ use crate::{
             SupportsFFT,
         },
         v2::{
-            foreign::{self, mixed::MixedParticipant},
-            zk::{joint::CircuitParticipant, ZkContext},
+            foreign,
+            zk::{joint::CircuitParticipant, split, ZkContext},
         },
     },
 };
@@ -108,8 +108,9 @@ pub fn run_mdoc_verifier_inner(
         &context_hash,
     )
     .map_err(gen_err)?;
-    let verifier_sig = MixedParticipant::new(&c_sig, storage, link.mask, config_sig, &context_sig)
-        .map_err(gen_err)?;
+    let verifier_sig =
+        CircuitParticipant::with_storage(&c_sig, storage, Some(link.mask), config_sig, &context_sig)
+            .map_err(gen_err)?;
     let param = crate::runtime::v2::zk::joint::JointParam::new((
         verifier_hash.participant(&context_hash).map_err(gen_err)?,
         (verifier_sig.participant(&context_sig).map_err(gen_err)?, ()),
@@ -144,16 +145,16 @@ pub fn run_mdoc_verifier_inner(
     let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
     let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val);
     let claim = verifier_sig
-        .reduce(
+        .reduce_split(
             &c_sig,
             &pub_inputs_sig,
             &proof_sig.sumcheck_proof,
             &mut tp,
-            &p256,
+            &context_sig,
         )
         .map_err(gen_err)?;
-    let eta = foreign::transcript::eta(&mut tp, &p256);
-    foreign::transcript::absorb_mu(&mut tp, mu, &p256);
+    let eta = split::transcript::eta(&mut tp, &p256);
+    split::transcript::absorb_mu(&mut tp, mu, &p256);
     let link_claim = verifier_sig
         .foreign_claim(&claim, &eta, mu, &p256)
         .map_err(gen_err)?;
@@ -185,7 +186,7 @@ pub fn run_mdoc_verifier_inner(
         )
         .map_err(gen_err)?;
     let statement_sig = verifier_sig
-        .native_statement(&claim, &eta, mu, &p256)
+        .split_statement(&claim, &eta, mu, &p256)
         .map_err(gen_err)?;
     let tp = joint
         .authenticate(proof, (statement_hash, (statement_sig, ())))

@@ -11,10 +11,12 @@ use crate::{
     mdoc::circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS, SHARED_BITS},
     runtime::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field},
-        v2::foreign::{
-            adapter::{self, p256::P256Plan, TreeShape},
-            frontend,
-            storage::{BitGroup, Group, ReservedSuffix, StorageMap},
+        v2::{
+            foreign::adapter::{self, p256::P256Plan, TreeShape},
+            zk::{
+                split,
+                storage::{BitGroup, Group, ReservedSuffix, StorageMap},
+            },
         },
     },
 };
@@ -79,7 +81,7 @@ impl Link {
             .enumerate()
             .map(|(i, &start)| (i, Group { start, width: 1 }))
             .collect();
-        StorageMap::new(frontend::value_count(signature)?, &foreign)
+        StorageMap::new(split::value_count(signature)?, &foreign)
     }
     pub(super) fn virtual_inputs(&self) -> usize {
         self.shape.virtual_inputs()

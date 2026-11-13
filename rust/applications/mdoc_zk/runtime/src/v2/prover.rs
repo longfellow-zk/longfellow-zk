@@ -45,10 +45,9 @@ use crate::{
         v2::{
             foreign::{
                 self,
-                mixed::MixedParticipant,
                 word::{MaskedWord, Otp},
             },
-            zk::{joint::CircuitParticipant, ZkContext},
+            zk::{joint::CircuitParticipant, split, ZkContext},
         },
     },
 };
@@ -213,8 +212,9 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
         &context_hash,
     )
     .map_err(gen_err)?;
-    let prover_sig = MixedParticipant::new(&c_sig, storage, link.mask, config_sig, &context_sig)
-        .map_err(gen_err)?;
+    let prover_sig =
+        CircuitParticipant::with_storage(&c_sig, storage, Some(link.mask), config_sig, &context_sig)
+            .map_err(gen_err)?;
     let param = crate::runtime::v2::zk::joint::JointParam::new((
         prover_hash.participant(&context_hash).map_err(gen_err)?,
         (prover_sig.participant(&context_sig).map_err(gen_err)?, ()),
@@ -223,7 +223,7 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
     super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
     let (state_hash, w_hash) = prover_hash.prepare(witness_hash, rng).map_err(gen_err)?;
     let (state_sig, w_sig) = prover_sig
-        .prepare(&c_sig, witness_sig, mask, rng, &p256)
+        .prepare_split(witness_sig, Some(mask), rng)
         .map_err(gen_err)?;
     let (mut joint, root, fingerprints) = param
         .commit((w_hash, (w_sig, ())), tp, rng)
@@ -232,19 +232,21 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
 
     // Signature frontend, then the mixed split of its batched claim.
     let sig_pub_inputs = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
-    let reduced = prover_sig
-        .prove(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &p256)
+    let (proof_sig, reduced) = prover_sig
+        .prove_split(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &context_sig)
         .map_err(gen_err)?;
-    let eta = foreign::transcript::eta(&mut tp, &p256);
-    let mu = reduced.masked_value(&prover_sig, &eta, &p256);
-    foreign::transcript::absorb_mu(&mut tp, &mu, &p256);
+    let eta = split::transcript::eta(&mut tp, &p256);
+    let mu = prover_sig
+        .split_message(&reduced, &eta, &p256)
+        .map_err(gen_err)?;
+    split::transcript::absorb_mu(&mut tp, &mu, &p256);
     let claim = prover_sig
         .foreign_claim(&reduced.claim, &eta, &mu, &p256)
         .map_err(gen_err)?;
 
     // Adapter: conversion challenges, honest quotients, masked words.
     let alpha = foreign::adapter::p256::conversion(&mut tp, &p256);
-    let values = reduced.foreign_values(&prover_sig);
+    let values = prover_sig.foreign_values(&reduced).map_err(gen_err)?;
     let encoded = link
         .plan
         .encode(&claim, &alpha, Some(&values), &p256, &gf2)
@@ -275,10 +277,10 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
         )
         .map_err(gen_err)?;
     let statement_sig = prover_sig
-        .native_statement(&reduced.claim, &eta, &mu, &p256)
+        .split_statement(&reduced.claim, &eta, &mu, &p256)
         .map_err(gen_err)?;
     let proof_sig = crate::runtime::v2::proto::zk::CircuitProof {
-        sumcheck_proof: reduced.proof,
+        sumcheck_proof: proof_sig,
         packing: crate::runtime::v2::proto::dual_packing::PackingProof::Direct,
     };
     let (proof, tp) = joint

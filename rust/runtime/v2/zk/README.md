@@ -161,6 +161,29 @@ are trusted immutable metadata: the runtime absorbs their IDs without rehashing
 them. Symbolic pad expressions end at constraint compilation. They are not
 serialized, and no intermediate dense input-weight vectors are cached.
 
+## Storage
+
+A participant's value vector is `[private inputs | pads]`. By default every
+value is a native cell of its own commitment. `CircuitParticipant::with_storage`
+takes a `StorageMap` (`storage.rs`) that marks some values foreign: bits in the
+binary commitment. The participant then derives its commitment layout from the
+map.
+
+- Mixed storage commits `[native private inputs | R | pads]`. Its frontend
+  batches every layer and input equation into one linear claim
+  `<w, v> = t` (`batching.rs`). A fresh nonzero `eta` and one masked message
+  `mu = eta*<w_F, v_F> + R` split that claim (`split.rs`) into two parts:
+  - a native row `eta*<w_N, v_N> - R + mu - eta*t = 0`, for this field's
+    Polygero participant;
+  - a modular claim `<eta*w_F, v_F> + R_bits = mu (mod p)` over foreign bit
+    groups.
+- Pure foreign storage commits nothing. The whole claim is modular, and its
+  target is public.
+
+The [foreign storage layer](../foreign/README.md) discharges modular claims.
+Before the shared root, a split participant binds its circuit ID, its storage
+map as runs, and R's bit group instead of the packing layout.
+
 ## Application and encoding
 
 The mdoc application exposes `mdoc::v2::run_mdoc_prover` and

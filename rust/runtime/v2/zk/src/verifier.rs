@@ -12,6 +12,7 @@ use crate::{
             sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
+                batching::LinearClaim,
                 joint::{CircuitParticipant, CircuitProof, JointParam},
                 CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
@@ -263,3 +264,33 @@ impl fmt::Display for ZkVerificationError {
 }
 
 impl std::error::Error for ZkVerificationError {}
+
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// Check the frontend proof and return its batched linear claim over
+    /// `[private inputs | pads]`, before the split challenge.
+    pub fn reduce_split<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        proof: &sumcheck::SumcheckProof<W, F>,
+        t: &mut TranscriptRef<'_>,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<LinearClaim<F::E>, String> {
+
+        self.split()?;
+        self.validate_circuits(circuit, public.len(), &[])?;
+        proof
+            .validate(&self.geometry.sc_geom)
+            .map_err(|e| e.to_string())?;
+        let f = ctx.field();
+        let public = self.backend.parameters.extension().input_elements(f, public);
+        t.write_sumcheck_statement(circuit, &public, f);
+        let constraints = sumcheck::derive_constraints_for_circuits(
+            &[circuit],
+            proof,
+            t,
+            f,
+        )?;
+        crate::runtime::v2::zk::batching::batch(circuit, &public, constraints, t, f)
+    }
+}
