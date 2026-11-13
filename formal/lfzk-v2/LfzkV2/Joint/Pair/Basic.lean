@@ -1,7 +1,6 @@
 import LfzkV2.Joint.Backend
 
-/-! The basic two-field family and its coordinate equivalences.
-Compiled-side replay adapters live in the `Joint.Pair` facade. -/
+/-! The basic two-field family and its coordinate equivalences. -/
 namespace LfzkV2.Joint.Pair
 open RecursivePolygero LigeroFamily
 variable {k s n t : ℕ} (P₁ P₂ : Joint.Participant k s n t)

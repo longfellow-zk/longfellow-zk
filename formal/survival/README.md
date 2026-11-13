@@ -1,10 +1,10 @@
 # Shared-budget soundness for the numbered-strand runtime, with an ad hoc Polygero step
 
-This is the pencil-and-paper assembly written before the Lean integration. It concerns the actual
+This is the pencil-and-paper version of the checked Lean argument. It concerns the actual
 mathematical runtime verifier and extractor modeled by
 `LfzkV2.Current.Mdoc.Soundness`, rather than a stand-alone sumcheck game.
 The existing implementation-correspondence and ideal-sampling boundary is
-unchanged. The strengthened runtime endpoint is now checked in the upstream Lean development.
+unchanged. The [proof map](../README.md#proof-map) lists the corresponding Lean declarations.
 
 Generic chronological survival, stopped-search and saturation results remain
 in `Survival`. Runtime-specific bridges and production numerical bounds live
@@ -82,7 +82,7 @@ P_{\mathrm{fail}}(Q)\le
 \frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
 $$
 
-`Mdoc.OracleSoundness.averaged_linear_ratio_le` is the complete one-SHA endpoint
+`Mdoc.Soundness.averaged_linear_ratio_le` is the complete one-SHA endpoint
 for this bound. The exact saturated theorem below remains the sharper
 conclusion in its intended range.
 
@@ -145,7 +145,7 @@ The supported one-/two-/three-/four-attribute compiler shapes have respectively
 per-layer schedule; `scripts/check_mdoc_round_shapes.py` checks those schedules
 against the current Rust compiler. The approximation takes a supported-shape
 witness and derives the round bound internally.
-`Mdoc.OracleSoundness.averaged_mdoc_approximation` proves this all-budget consequence.
+`Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 For $Q\ge2^{127}$ the approximation follows from probability being at most 1.
 For smaller budgets, use the second-order survival estimate
@@ -395,6 +395,9 @@ $$
 \tag{9}
 $$
 
+`Soundness.Runtime.stopped_failure_indicator` states (9) literally; the
+composition consumes its disjunctive form `stopped_failure_cover`.
+
 The final seal is used in this recovery implication, exactly as in the current
 proof. Verifier-only algebraic trials get no field-sized allowance. No earlier
 trial is conditioned on the eventual success of the seal.
@@ -519,8 +522,7 @@ The generic `Survival` library depends only on transcript, finite-probability
 and local algebra libraries. Its `QueryStep` means one fresh adversarial query,
 while a protocol round remains one `begin_squeeze()` boundary. Current runtime
 adapters and the exact rate-1/7 arithmetic live under
-[`Current.Soundness`](../lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean); their
-`Survival.*` constant namespaces are retained for API compatibility.
+[`Current.Soundness`](../lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean).
 Generic probability bounds and statistical-distance couplings are shared in
 [`Bcs.ProbabilityBounds`](../bcs/Bcs/ProbabilityBounds.lean) and
 [`Bcs.StatisticalDistance`](../bcs/Bcs/StatisticalDistance.lean).

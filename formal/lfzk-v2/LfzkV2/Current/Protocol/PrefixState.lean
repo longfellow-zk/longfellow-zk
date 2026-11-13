@@ -76,24 +76,5 @@ theorem lookup_agrees {P A : Type} [DecidableEq P] (fallback : A)
         apply ih (fun entry member => sound entry (List.mem_cons_of_mem _ member))
         simpa only [List.map_cons, List.mem_cons, Ne.symm same, false_or] using present
 
-def tapeFromPrefix {Aux : Type} (fallback : Link × C)
-    (past : List ((Point ⊕ Aux) × (Link × C))) (point : Point) : Fin point.rank → C :=
-  fun i => (lookup fallback past (.inl (point.priorPoints i))).2
-
-theorem tapeFromPrefix_agrees {Aux Out : Type} {fuel : ℕ}
-    (fallback : Link × C) (tree : Tree (Point ⊕ Aux) (Link × C) Out fuel)
-    (H : Point ⊕ Aux → Link × C) (past rest : List ((Point ⊕ Aux) × (Link × C)))
-    (point : Point) (a : Link × C)
-    (executed : (tree.run H).2 = past ++ (.inl point,a)::rest)
-    (ancestors : ∀ i : Fin point.rank, (.inl (point.priorPoints i) : Point ⊕ Aux) ∈ past.map Prod.fst) :
-    tapeFromPrefix fallback past point = point.priorAnswers (fun p => H (.inl p)) := by
-  funext i
-  apply congrArg Prod.snd
-  apply lookup_agrees fallback past H _ _ (ancestors i)
-  intro qa member
-  apply Tree.trace_sound tree H qa
-  rw [executed]
-  exact List.mem_append_left _ member
-
 end Tape
 end LfzkV2.Current.Protocol.PrefixState

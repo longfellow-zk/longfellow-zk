@@ -1,8 +1,6 @@
 import Survival.Basic
 import Survival.Hybrid
 import Survival.Audit
-import Survival.State
-import Survival.Sumcheck
 import Survival.Parameters
 import Survival.QueryBudget
 import Survival.StoppedCharges

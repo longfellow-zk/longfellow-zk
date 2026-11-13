@@ -6,7 +6,7 @@ import LfzkV2.Current.Soundness.HashTransport
 import Survival.CausalCharges
 
 /-! The actual runtime's chronological stopped costs and common failure cover.
-Transport and recovered-path algebra come from `StrandTransport`. This module
+Transport and recovered-path algebra come from `Soundness.Transport`. This module
 constructs the one retained cost, its unconditional mean, and the central
 pointwise failure indicator. It is independent of W and numeric parameters. -/
 noncomputable section

@@ -1,7 +1,5 @@
 import Survival.HistoryBounds
 import Survival.CausalTests
-import Survival.State
-import Survival.Sumcheck
 import Mathlib.Tactic.FinCases
 
 /-! Boundary examples: adaptive state-dependent root sets, reversed private

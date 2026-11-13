@@ -115,15 +115,28 @@ The generic linear theorem has no restriction $pQ\le1$; that restriction is
 needed only by the optional saturation argument. For $Q\ge2^{127}$ the
 concrete endpoint extends the linear bound using probability being at most one.
 
-The proof uses the following compositional boundaries. The application
-transport and recovered-path algebra live in
-[`Soundness.Transport`](lfzk-v2/LfzkV2/Current/Soundness/Transport.lean).
-[`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean)
-constructs the common retained cost and pointwise failure cover independently
-of saturation. [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean)
-applies either query-budget estimate, then
-performs residual averaging and raw SHA realization. The generic `Survival`
-library has no V1 or V2 implementation dependencies.
+### Proof map
+
+Read the chain top-down; each row is proved from the rows below it. The
+linear and saturated bounds differ only in the survival estimate applied at
+row 5; every other row is shared.
+
+| # | Declaration | Module | Step |
+|---|---|---|---|
+| 1 | `Mdoc.Soundness.averaged_ratio_le` | [`Mdoc.Soundness`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | `event_implies_extraction_failure`: an accepted proof whose extracted pair is not valid for the hash and signature circuits at the request (`MdocWitness.valid_at_request`) is a row-2 event. |
+| 2 | `Mdoc.OracleSoundness.averaged_ratio_le` | [`Mdoc.OracleSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean) | Fixes the complementary setup slice (`setup_merge`, `residual_budget`, `event_eq`) and averages it and the adversary coin with no extra error. Domains: [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean), [`SHAOracle`](lfzk-v2/LfzkV2/Current/SHAOracle.lean), [`StrandRoutedObserver`](lfzk-v2/LfzkV2/Current/StrandRoutedObserver.lean). |
+| 3 | `Mdoc.RuntimeSoundness.ratio_le` | [`Mdoc.RuntimeSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/RuntimeSoundness.lean) | Builds the concrete `Soundness.Setup` and discharges the numerical premises with [`Soundness.RuntimeRate7`](lfzk-v2/LfzkV2/Current/Soundness/RuntimeRate7.lean) and [`Soundness.Rate7`](lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean). |
+| 4 | `Soundness.Composition.soundness` | [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean) | Transports raw SHA to named queries (`OracleTransport.observation_law`) and adds the hash exception (`Recovery.hashException_ratio_le`, [`Soundness.OracleBounds`](lfzk-v2/LfzkV2/Current/Soundness/OracleBounds.lean)). |
+| 5 | `Soundness.Runtime.named_saturated_failure_le` | [`Soundness.Runtime`](lfzk-v2/LfzkV2/Current/Soundness/Runtime.lean) | Averages sampler residuals. Per residual, `Survival.CausalCharges.failure_le_support` (saturated, [`Survival.Hybrid`](survival/Survival/Hybrid.lean)) or `linear_failure_le_support` ([`Survival.SharedBudget`](survival/Survival/SharedBudget.lean)) turns rows 6 and 7 into a probability bound. |
+| 6 | `Soundness.Runtime.stopped_failure_cover` | [`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean) | Pointwise cover outside the hash exception: first transparent escape or retained cost at least one (`stopped_failure_indicator` states it as $\mathbf 1_F\le\mathbf 1_X+\mathbf 1_E+C$). |
+| 7 | `Soundness.Runtime.conditioned_cost_mean_le` | [`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean) | The retained Polygero and auxiliary hash cost has mean at most the opaque allowance per opaque query. |
+| 8 | `Soundness.Recovery.accepted_recovery_or_hash` | [`Soundness.Recovery`](lfzk-v2/LfzkV2/Current/Soundness/Recovery.lean) | An accepted run recovers the ordered path and opened columns, or pays a hash charge, or lies in the hash exception. |
+| 9 | `Soundness.Runtime.accepted_cover` | [`Soundness.Transport`](lfzk-v2/LfzkV2/Current/Soundness/Transport.lean) | On the recovered path, extraction failure triggers one local charge (`Soundness.LocalCharges.decoded_cover`). |
+| 10 | `Soundness.LocalCharges.prefixCharge_eq_runtime` | [`Soundness.LocalCharges`](lfzk-v2/LfzkV2/Current/Soundness/LocalCharges.lean) | Local charges at the original commitment cut read only the strict query prefix ([`Protocol.PrefixState`](lfzk-v2/LfzkV2/Current/Protocol/PrefixState.lean)); `single_mean` and `pair_mean` fit the role budgets. |
+| 11 | `Survival.QueryStep.step_le` | [`Survival`](survival/README.md) | Generic chronological survival and stopped-search accounting, with no V1 or V2 dependencies. |
+
+The modules `Soundness.Runtime`, `Soundness.Transport` and
+`Soundness.StoppedCosts` share the namespace `LfzkV2.Current.Soundness.Runtime`.
 
 The composition takes typed setup, sampler and adversary records. Shared
 [`Protocol.Setup`](lfzk-v2/LfzkV2/Current/Protocol/Setup.lean) owns public runtime
@@ -146,29 +159,6 @@ Public oracle-dependent setup and its finite family live together in
 correspondence and `FrontendScheduleLength` owns query-prefix length facts.
 Callers use these owning namespaces directly. The source and declaration
 audits reject retired implementation paths and compatibility exports.
-
-- [`Soundness.Recovery`](lfzk-v2/LfzkV2/Current/Soundness/Recovery.lean) recovers the
-  ordered path and opened columns, or charges an original hash query or
-  an explicit hash exception.
-- [`Survival.QueryStep`](survival/Survival/QueryStep.lean) supplies one common
-  transparent-test/opaque-step inequality for the chronological monitor.
-- [`Soundness.Runtime.recovered_stopped_charge`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean)
-  applies the local algebra on the stopped trace, keeping the original cut.
-- [`Survival.CausalCharges`](survival/Survival/CausalCharges.lean) provides
-  linear and saturated composition from explicit query-prefix state, retaining
-  the original opaque charge functions. Its generic history bounds live in
-  [`Survival.HistoryBounds`](survival/Survival/HistoryBounds.lean); neither module
-  imports the completed prefix cache. The current application instantiates this
-  interface with its original-cut paired tuple and strict-ancestor challenge
-  tape. [`Protocol.PrefixState`](lfzk-v2/LfzkV2/Current/Protocol/PrefixState.lean)
-  reads that state directly from the recorded prefix, and the retained cost
-  still uses the original cut and two-answer charge functions.
-- [`OracleDomain`](lfzk-v2/LfzkV2/Current/OracleDomain.lean) and
-  [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean) prove that
-  complete verifier replay uses the protocol domain.
-- [`SHAOracle`](lfzk-v2/LfzkV2/Current/SHAOracle.lean) and
-  [`StrandRoutedObserver`](lfzk-v2/LfzkV2/Current/StrandRoutedObserver.lean)
-  split one oracle and preserve the original output and filtered query trace.
 
 The original-query collision allowance is `Q(Q-1)/(2*2^256)`. Missing
 transcript nodes, an unqueried final seal and a fresh hit on one indexed

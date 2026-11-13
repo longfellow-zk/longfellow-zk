@@ -4,33 +4,23 @@
 
 The checked current endpoint is
 [`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean).
-For every `0 <= Q < 2^127`, a finite classical adaptive adversary making at most
-`Q` distinct original SHA queries has accepted-extraction-failure probability
-
-$$
-\begin{aligned}
-P_{\mathrm{fail}}(Q)
-&\le \frac{cQ}{q}
- + \left(1-\frac{c(q-1)}{2q}\right)
-   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
-&\quad + \frac{\binom Q2+r+15}{q^2},
-\qquad q=2^{128}.
-\end{aligned}
-$$
-
-`c = q * LfzkV2.Current.Soundness.Rate7.parentBudget` exactly; the [formal README](README.md)
-expands this rational in binomial coefficients and field orders.
-`Mdoc.Soundness.averaged_nonvacuous` proves failure probability
-**strictly less than 0.97** for `Q < 2^127` (cap rounded up to two decimal places).
-The primary endpoint names replace the earlier linear theorems; the obsolete
-linear accounting chain is removed. No execution or charging certificate is
-added to the mdoc endpoint.
+It bounds the probability that a finite classical adaptive adversary making at
+most `Q` distinct original SHA queries obtains an accepted proof from which the
+extractor recovers no application-valid witness. The exact bound
+`LfzkV2.Current.Soundness.Rate7.failureBound`, its coefficient
+`c = q * LfzkV2.Current.Soundness.Rate7.parentBudget`, the strict `0.97` cap
+(`Mdoc.Soundness.averaged_nonvacuous`) and the all-`Q` corollaries are stated
+once, in the [formal README](README.md#v2-extraction-soundness). The leading
+linear bound (`averaged_linear_ratio_le`) and the saturated bound
+(`averaged_ratio_le`) share one stopped cost and one failure cover. No
+execution or charging certificate is added to the mdoc endpoint.
 
 `r` counts rounds, one per `begin_squeeze()` call. The rate-1/7 certificate fixes
 `(k,s,n,t)=(349,12,2443,84)`. Both fields share one indexed Merkle tree and
 one extracted tuple from the original commitment cut.
 
-The proof path has the following checked boundaries.
+The proof path has the following checked boundaries, listed bottom-up; the
+[proof map](README.md#proof-map) lists the same chain top-down.
 
 1. `Soundness.Recovery.accepted_recovery_or_hash` recovers ordered strand
    queries, the actual PRF rows and agreement on opened columns, or charges

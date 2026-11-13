@@ -1,7 +1,7 @@
 # V2 transcript and SHA-256 strands
 
 The numbered-strand soundness endpoint is
-[`Mdoc.OracleSoundness.averaged_ratio_le`](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean).
+[`Mdoc.Soundness.averaged_ratio_le`](../lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean).
 It uses one SHA oracle for setup, original adversarial calls, transcript
 nodes, indexed PRF blocks, indexed Merkle authentication and the final seal.
 The complete indexed ZK endpoint is
@@ -29,18 +29,9 @@ The current runtime uses the saturated specialization in
 Transparent local tests read explicit state from the strict query prefix. The audit stops
 at their first escape; Polygero and hash costs are paid by disjoint opaque
 slots reached before stopping. Their weights retain the original commitment
-cut. The final current endpoint replaces the linear query factor by
-
-$$
-\frac{cQ}{q}+\left(1-\frac{c(q-1)}{2q}\right)
-\left[1-\left(1-\frac{2}{q-1}\right)^Q\right],\qquad q=2^{128}.
-$$
-
-Here `c=q*LfzkV2.Current.Soundness.Rate7.parentBudget` is the exact current Polygero coefficient,
-approximately `1.0000012312149082441647508747`. Including the hash correction,
-the full failure probability is **strictly less than 0.97** for `Q < 2^127`.
-The [formal README](../README.md) gives the exact coefficient and the convenient
-mdoc approximation for every nonnegative query budget.
+cut. The resulting bound, its exact Polygero coefficient and the convenient
+mdoc approximation are stated in the
+[formal README](../README.md#v2-extraction-soundness).
 
 [`Simulation`](TranscriptV2/Simulation.lean) supplies the separate ZK interface.
 `BoundaryCoupling` preserves the state needed by later stages; its composition
@@ -147,14 +138,8 @@ query slot. The algebraic role bound is `2/(q-1)` per ordinary slot.
 query budget after averaging the sampler coordinates.
 
 At the current rate-1/7 parameters, the one-SHA mdoc theorem uses the exact
-parameter-dependent survival bound in the [formal README](../README.md).
-For `Q < 2^127`, its failure probability is strictly below 0.97. The supported
-mdoc circuit also has the all-budget approximation
-
-$$
-\Pr[\mathrm{accepted\ extraction\ failure}]
-\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246},\qquad Q\ge0.
-$$
+parameter-dependent survival bound and all-budget approximation stated in the
+[formal README](../README.md#v2-extraction-soundness).
 
 `Mdoc.OracleSoundness` proves setup-domain independence, preservation of the
 original submitted output and filtered log, complete verifier replay under

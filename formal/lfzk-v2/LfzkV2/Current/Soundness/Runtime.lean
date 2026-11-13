@@ -131,9 +131,35 @@ theorem conditioned_saturated_failure_le (residual : Tagged → Residual) (opaqu
   · exact conditioned_cost_mean_le E fits D L prog inputs queries residual
       (opaqueFraction*ordinaryRate) (mul_nonneg nonnegative (by norm_num [Adapter.Mdoc.binaryOrder])) parentBound guessFits
 
-include inputs queries L in
 /-- Average residuals before estimating the raw hash exception. Fixing a
-residual is permitted for algebraic monitoring, but not for fresh seal bounds. -/
+residual is permitted for algebraic monitoring, but not for fresh seal bounds.
+This one averaging step serves both the linear and the saturated estimate:
+any per-residual bound `cap` survives averaging unchanged. -/
+theorem named_failure_le (cap : ℚ)
+    (each : ∀ residual : Tagged → Residual,
+      letI : Fintype E.Value := valueFinite
+      letI : Fintype Name := inferInstance
+      density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)) ≤
+        cap + density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H))) :
+    letI : Fintype E.Value := valueFinite
+    letI : Fintype Name := inferInstance
+    density (fun K : Name → Digest × Row => acceptedFailure (sourceView K)) ≤
+      cap + density (fun K : Name → Digest × Row => hashBad (sourceView K)) := by
+  letI : Fintype E.Value := valueFinite
+  letI : Fintype Name := inferInstance
+  letI : Nonempty E.Answer := ⟨E.cfg.fallback⟩
+  letI : Nonempty (Tagged → Residual) := ⟨fun _ => ⟨0,Fintype.card_pos⟩⟩
+  have averaged := Bcs.FiniteProbability.mean_add_mul_le
+    (fun residual => density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)))
+    (fun residual => density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H)))
+    (-1) cap (fun residual => by have := each residual; linarith)
+  have failureLaw := named_event_average E fits D L prog (fun K => acceptedFailure (sourceView K))
+  have hashLaw := named_event_average E fits D L prog (fun K => hashBad (sourceView K))
+  rw [← failureLaw, ← hashLaw] at averaged
+  linarith
+
+include inputs queries L in
+/-- The leading linear estimate after residual averaging. -/
 theorem named_linear_failure_le (opaqueRate : ℚ)
     (nonnegative : 0 ≤ opaqueRate) (atMostRate : opaqueRate ≤ ordinaryRate)
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ opaqueRate)
@@ -142,24 +168,12 @@ theorem named_linear_failure_le (opaqueRate : ℚ)
     letI : Fintype Name := inferInstance
     density (fun K : Name → Digest × Row => acceptedFailure (sourceView K)) ≤
       ordinaryRate*Q +
-        density (fun K : Name → Digest × Row => hashBad (sourceView K)) := by
-  letI : Fintype E.Value := valueFinite
-  letI : Fintype Name := inferInstance
-  letI : Nonempty E.Answer := ⟨E.cfg.fallback⟩
-  letI : Nonempty (Tagged → Residual) := ⟨fun _ => ⟨0,Fintype.card_pos⟩⟩
-  have each residual := conditioned_linear_failure_le E fits D L prog inputs queries
+        density (fun K : Name → Digest × Row => hashBad (sourceView K)) :=
+  named_failure_le E fits D L prog _ fun residual => conditioned_linear_failure_le E fits D L prog inputs queries
     residual opaqueRate nonnegative atMostRate parentBound guessFits
-  have averaged := Bcs.FiniteProbability.mean_add_mul_le
-    (fun residual => density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)))
-    (fun residual => density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H)))
-    (-1) (ordinaryRate*Q) (fun residual => by have := each residual; linarith)
-  have failureLaw := named_event_average E fits D L prog (fun K => acceptedFailure (sourceView K))
-  have hashLaw := named_event_average E fits D L prog (fun K => hashBad (sourceView K))
-  rw [← failureLaw, ← hashLaw] at averaged
-  linarith
+
 include inputs queries L in
-/-- Average residuals before estimating the raw hash exception. Fixing a
-residual is permitted for algebraic monitoring, but not for fresh seal bounds. -/
+/-- The saturated estimate after residual averaging. -/
 theorem named_saturated_failure_le (opaqueFraction : ℚ)
     (nonnegative : 0 ≤ opaqueFraction) (atMostOne : opaqueFraction ≤ 1) (budget : ordinaryRate*Q ≤ 1)
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ opaqueFraction*ordinaryRate)
@@ -168,21 +182,9 @@ theorem named_saturated_failure_le (opaqueFraction : ℚ)
     letI : Fintype Name := inferInstance
     density (fun K : Name → Digest × Row => acceptedFailure (sourceView K)) ≤
       Survival.Hybrid.envelope ordinaryRate opaqueFraction Q +
-        density (fun K : Name → Digest × Row => hashBad (sourceView K)) := by
-  letI : Fintype E.Value := valueFinite
-  letI : Fintype Name := inferInstance
-  letI : Nonempty E.Answer := ⟨E.cfg.fallback⟩
-  letI : Nonempty (Tagged → Residual) := ⟨fun _ => ⟨0,Fintype.card_pos⟩⟩
-  have each residual := conditioned_saturated_failure_le E fits D L prog inputs queries
+        density (fun K : Name → Digest × Row => hashBad (sourceView K)) :=
+  named_failure_le E fits D L prog _ fun residual => conditioned_saturated_failure_le E fits D L prog inputs queries
     residual opaqueFraction nonnegative atMostOne budget parentBound guessFits
-  have averaged := Bcs.FiniteProbability.mean_add_mul_le
-    (fun residual => density (fun H : Tagged → Digest × E.Answer => acceptedFailure (viewOf residual H)))
-    (fun residual => density (fun H : Tagged → Digest × E.Answer => hashBad (viewOf residual H)))
-    (-1) (Survival.Hybrid.envelope ordinaryRate opaqueFraction Q) (fun residual => by have := each residual; linarith)
-  have failureLaw := named_event_average E fits D L prog (fun K => acceptedFailure (sourceView K))
-  have hashLaw := named_event_average E fits D L prog (fun K => hashBad (sourceView K))
-  rw [← failureLaw, ← hashLaw] at averaged
-  linarith
 local notation "rawView" => Soundness.OracleTransport.rawView E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
 abbrev Raw := StrandWindow.Point (Other)

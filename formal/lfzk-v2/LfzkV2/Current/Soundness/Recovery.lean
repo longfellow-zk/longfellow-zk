@@ -324,9 +324,6 @@ def hashCharge (H : Name → Answer) : ℚ := speculation H + receiving H
 local notation "charge" => hashCharge binary prime P R repr shape setup cfg binaryCount metadata fits
   columnsFit sample program
 
-theorem hashCharge_nonneg (H : Name → Answer) : 0 ≤ charge H :=
-  add_nonneg (DigestProjection.charge_nonneg _ _ _) (DigestProjection.receivingCharge_nonneg _ _ _ _)
-
 /-- On the accepted path, recovery failure is either paid by an original
 hash charge or falls in the observable exception. -/
 theorem accepted_recovery_or_hash (H : Name → Answer) (accepted : decision (observed H) = true) :

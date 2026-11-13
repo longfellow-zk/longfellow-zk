@@ -35,6 +35,34 @@ local notation "valueFinite" => Fintype.ofInjective
   (QueryRuntime.Runtime.toPoint_injective S.protocol.repr S.protocol.shape S.protocol.fingerprint S.protocol.binary.nPublic S.fits)
 local notation "ordinaryRate" => (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
 local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
+local notation "observe" => Soundness.OracleTransport.observe S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+  M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree
+local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (searchTree S.protocol S.fits M.data A.toProgram) K)) K
+local notation "hashBad" => Soundness.Recovery.hashException S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata
+  S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw
+
+/-- The final step shared by both estimates: transport a named-oracle bound
+`cap` back to the raw SHA failure event, then bound the averaged hash
+exception by `hashCorrection`. -/
+theorem raw_failure_le (cap : ℚ)
+    (named : letI : Fintype S.protocol.Value := valueFinite
+      letI : Fintype Name := inferInstance
+      density (fun K : Name → Digest × (Strand.Word → Digest) => acceptedFailure (sourceView K)) ≤
+        cap + density (fun K : Name → Digest × (Strand.Word → Digest) => hashBad (sourceView K))) :
+    density (rawFailure S.protocol S.fits M.data A.toProgram) ≤
+        cap + Soundness.Recovery.hashCorrection Q g.roles.length c.n := by
+  letI : Fintype S.protocol.Value := valueFinite
+  letI : Fintype Name := inferInstance
+  unfold rawFailure
+  rw [Soundness.OracleTransport.observation_law S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+    M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree (fun view => acceptedFailure view)]
+  apply named.trans
+  apply add_le_add le_rfl
+  have hash := Soundness.Recovery.hashException_ratio_le S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+    S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw A.toProgram.tree S.fallbackPath S.independent S.bindSalt S.inputs.bodyFits A.queryBound
+  apply hash.trans_eq
+  unfold Soundness.OracleBounds.delta Soundness.Recovery.hashCorrection
+  ring
 
 /-- Leading linear soundness of the actual numbered-strand runtime. All execution,
 prefix-state, recovery and stopped-charge facts are derived internally. The remaining
@@ -45,21 +73,9 @@ theorem soundness_linear (opaqueRate : ℚ)
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ opaqueRate)
     (guessFits : (2*Q : ℚ)/2^256 ≤ opaqueRate) :
     density (rawFailure S.protocol S.fits M.data A.toProgram) ≤
-        ordinaryRate*Q + Soundness.Recovery.hashCorrection Q g.roles.length c.n := by
-  letI : Fintype S.protocol.Value := valueFinite
-  letI : Fintype Name := inferInstance
-  unfold rawFailure
-  rw [Soundness.OracleTransport.observation_law S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
-    M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree (fun view => acceptedFailure view)]
-  have algebra := named_linear_failure_le S.protocol S.fits M.data M.laws A.toProgram S.inputs A.queryBound
-    opaqueRate nonnegative atMostRate parentBound guessFits
-  apply algebra.trans
-  apply add_le_add le_rfl
-  have hash := Soundness.Recovery.hashException_ratio_le S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
-    S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw A.toProgram.tree S.fallbackPath S.independent S.bindSalt S.inputs.bodyFits A.queryBound
-  apply hash.trans_eq
-  unfold Soundness.OracleBounds.delta Soundness.Recovery.hashCorrection
-  ring
+        ordinaryRate*Q + Soundness.Recovery.hashCorrection Q g.roles.length c.n :=
+  raw_failure_le S M A _ (named_linear_failure_le S.protocol S.fits M.data M.laws A.toProgram S.inputs A.queryBound
+    opaqueRate nonnegative atMostRate parentBound guessFits)
 
 /-- Saturated soundness of the actual numbered-strand runtime. All execution,
 prefix-state, recovery and stopped-charge facts are derived internally. The remaining
@@ -69,20 +85,8 @@ theorem soundness (opaqueFraction : ℚ)
     (parentBound : ParameterBounds.parentBudget c.n c.k c.s c.t c.activeCutoff c.activeList ≤ opaqueFraction*ordinaryRate)
     (guessFits : (2*Q : ℚ)/2^256 ≤ opaqueFraction*ordinaryRate) :
     density (rawFailure S.protocol S.fits M.data A.toProgram) ≤
-        Survival.Hybrid.envelope ordinaryRate opaqueFraction Q + Soundness.Recovery.hashCorrection Q g.roles.length c.n := by
-  letI : Fintype S.protocol.Value := valueFinite
-  letI : Fintype Name := inferInstance
-  unfold rawFailure
-  rw [Soundness.OracleTransport.observation_law S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
-    M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree (fun view => acceptedFailure view)]
-  have algebra := named_saturated_failure_le S.protocol S.fits M.data M.laws A.toProgram S.inputs A.queryBound
-    opaqueFraction nonnegative atMostOne budget parentBound guessFits
-  apply algebra.trans
-  apply add_le_add le_rfl
-  have hash := Soundness.Recovery.hashException_ratio_le S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
-    S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw A.toProgram.tree S.fallbackPath S.independent S.bindSalt S.inputs.bodyFits A.queryBound
-  apply hash.trans_eq
-  unfold Soundness.OracleBounds.delta Soundness.Recovery.hashCorrection
-  ring
+        Survival.Hybrid.envelope ordinaryRate opaqueFraction Q + Soundness.Recovery.hashCorrection Q g.roles.length c.n :=
+  raw_failure_le S M A _ (named_saturated_failure_le S.protocol S.fits M.data M.laws A.toProgram S.inputs A.queryBound
+    opaqueFraction nonnegative atMostOne budget parentBound guessFits)
 
 end LfzkV2.Current.Soundness.Composition

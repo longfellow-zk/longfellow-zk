@@ -17,61 +17,13 @@ their original public-coin statements and signatures.
 
 ## Current MAC-free protocol
 
-For every integer `0 <= Q < 2^127`, consider any finite classical adaptive adversary
-making at most `Q` distinct original SHA queries.
-
-Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
-and the paired extractor fails to recover a satisfying witness. Then
-
-$$
-\begin{aligned}
-P_{\mathrm{fail}}(Q)
-&\le \frac{cQ}{q}
- + \left(1-\frac{c(q-1)}{2q}\right)
-   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
-&\quad + \frac{\binom Q2+r+15}{q^2},
-\qquad q=2^{128}.
-\end{aligned}
-$$
-
-For every `Q < 2^127`, the full soundness failure probability is
-**strictly less than 0.97**, with the cap rounded up to two decimal places.
-`Mdoc.Soundness.averaged_nonvacuous` proves this strict conclusion. The primary
-`ratio_le` and `averaged_ratio_le` endpoints use the exact `LfzkV2.Current.Soundness.Rate7.failureBound` above.
-
-The exact parameter-dependent Polygero coefficient is
-
-$$
-c=\frac{C}{q^{12}}+\frac{qC}{\ell^{13}}
-  +\left(1+\frac q\ell\right)\left(1+(L-1)T\right),
-$$
-
-where
-
-$$
-\begin{gathered}
-C=\binom{2443}{374},\qquad T=\frac{\binom{866}{84}}{\binom{2443}{84}},\\
-L=1272737905242889781956743699885451,\\
-\ell=2^{256}-2^{224}+2^{192}+2^{96}-1.
-\end{gathered}
-$$
-
-Thus $c=1.0000012312149082441647508747\ldots$, and Polygero is charged at exactly $c/q$. Lean defines this rational as
-`LfzkV2.Current.Soundness.Rate7.polygeroConstant` and checks
-`1.00000123121490824416 < c < 1.00000123121490824417`.
-The complementary coefficient `1-c*(q-1)/(2*q)` follows from the shared-query
-survival argument.
-
-A convenient approximation for the mdoc circuit, valid for every $Q\ge0$, is
-
-$$
-P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
-$$
-
-The largest supported mdoc circuit (four attributes) has 500 rounds:
-`275 + 125 + 3*(20 + 11) + 7 = 500`. Thus `r+15 = 515 < 2^10`.
-The proof rounds the constant correction up to $2^{-246}$.
-`Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
+The exact bound, the Polygero coefficient `c`, the strict `0.97` cap, the
+all-`Q` linear bound and the mdoc approximation are stated once, in the
+[formal README](../README.md#v2-extraction-soundness), together with a
+top-down [proof map](../README.md#proof-map). The endpoints are
+`Mdoc.Soundness.averaged_ratio_le`, `averaged_linear_ratio_le`,
+`averaged_nonvacuous` and `averaged_mdoc_approximation`; the exact rational
+bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 488/492/497/500 rounds. `MdocRoundShape.rounds_eq` derives the total from each
