@@ -4,16 +4,30 @@ use super::Transcript;
 #[derive(Debug, PartialEq, Eq)]
 pub struct VerifiedProof {
     _private: (),
+    #[cfg(test)]
+    rounds: u64,
+}
+#[cfg(test)]
+impl VerifiedProof {
+    pub(crate) fn round_count_for_test(&self) -> u64 {
+        self.rounds
+    }
 }
 
 impl Transcript {
     #[cfg(any(test, feature = "verifier"))]
     pub(crate) fn verify_final_seal(self, bytes: &[u8]) -> Result<VerifiedProof, &'static str> {
+        #[cfg(test)]
+        let rounds = self.round_count_for_test();
         let n = bytes.len().checked_sub(32).ok_or("missing final seal")?;
         if self.compute_final_seal(&bytes[..n]) != bytes[n..] {
             return Err("final seal mismatch");
         }
-        Ok(VerifiedProof { _private: () })
+        Ok(VerifiedProof {
+            _private: (),
+            #[cfg(test)]
+            rounds,
+        })
     }
 }
 /// Parsed, immutable protocol data. Decoding alone grants no verification token.

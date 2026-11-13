@@ -191,8 +191,11 @@ one answer. Input-only assertions extend the final combine answer.
 A frontend with layers has `sum(logw)+3*depth` boundaries. A frontend without
 layers has one input-assertion boundary. Besides both frontends there are six
 ordinary boundaries, one optional packing boundary, and the final seal. The
-measured two-/four-attribute presentations have respectively 492/500 ordinary
-boundaries, followed by finalization through a strand-node query and a seal PRF query. Binding source circuit identifiers
+one-/two-/three-/four-attribute presentations have respectively 488/492/497/500
+ordinary boundaries. The Rust `test_all_next_zk` test counts actual
+`begin_squeeze()` calls in both the complete prover and verifier and checks
+these values independently of the geometry-derived schedule. Finalization
+then uses a strand-node query and a seal PRF query. Binding source circuit identifiers
 adds no separate query. Current sizes and timings are in the
 [Rust README](../../rust/README.md#performance).
 

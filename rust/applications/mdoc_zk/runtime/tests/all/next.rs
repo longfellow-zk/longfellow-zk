@@ -1062,10 +1062,72 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
     }
 }
 
+// These counts come from actual begin_squeeze calls, independently of the
+// geometry summation used by the Lean metadata checker. Final sealing does
+// not call begin_squeeze and is deliberately excluded.
+fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
+    let data = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
+    let coordinate = |value: &CompileNat<4>| {
+        format!(
+            "0x{}",
+            num_bigint::BigUint::from_bytes_le(&value.to_bytes_le()).to_str_radix(16)
+        )
+    };
+    let pkx = coordinate(&issuer_pk.0);
+    let pky = coordinate(&issuer_pk.1);
+    for (count, expected) in [(1, 488), (2, 492), (3, 497), (4, 500)] {
+        let attrs: Vec<_> = parsed
+            .attrs
+            .iter()
+            .cycle()
+            .take(count)
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
+            .collect();
+        let provided = test_circuits.get(count).unwrap();
+        let proof = crate::mdoc::v2::prover::run_mdoc_prover_encoded(
+            provided.spec(),
+            provided.compressed(),
+            data.mdoc,
+            &pkx,
+            &pky,
+            data.transcript,
+            &attrs,
+            now,
+            "org.iso.18013.5.1.mDL",
+            &mut crate::runtime::random::DeterministicRng::new(42),
+        )
+        .unwrap();
+        assert_eq!(
+            proof.round_count_for_test(),
+            expected,
+            "{count}-attribute prover rounds"
+        );
+        let verified = run_mdoc_verifier_inner(
+            provided.spec(),
+            provided.compressed(),
+            &pkx,
+            &pky,
+            data.transcript,
+            &attrs,
+            now,
+            "org.iso.18013.5.1.mDL",
+            proof.as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(
+            verified.round_count_for_test(),
+            expected,
+            "{count}-attribute verifier rounds"
+        );
+    }
+}
+
 #[test]
 fn test_all_next_zk() {
     let test_circuits = TestCircuits::compile_all();
     run_next_circuit_hashes(&test_circuits);
+    run_next_measured_round_counts(&test_circuits);
     run_next_mdoc_flow(&test_circuits);
     run_next_mdoc_subset_flow(&test_circuits);
     run_next_mdoc_all_positive_cases(&test_circuits);

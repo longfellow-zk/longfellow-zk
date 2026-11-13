@@ -86,6 +86,34 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     doc_type: &str,
     rng: &mut RNG,
 ) -> Result<Vec<u8>, MdocProverErrorCode> {
+    run_mdoc_prover_encoded(
+        zk_spec,
+        circuits_compressed,
+        mdoc_bytes,
+        pkx,
+        pky,
+        transcript,
+        attrs,
+        now,
+        doc_type,
+        rng,
+    )
+    .map(|proof| proof.into_bytes())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
+    zk_spec: &ZkSpecStruct,
+    circuits_compressed: &[u8],
+    mdoc_bytes: &[u8],
+    pkx: &str,
+    pky: &str,
+    transcript: &[u8],
+    attrs: &[RequestedAttribute],
+    now: &str,
+    doc_type: &str,
+    rng: &mut RNG,
+) -> Result<crate::runtime::v2::transcript::EncodedProof, MdocProverErrorCode> {
     if !zk_spec.supports_version() {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
@@ -255,6 +283,5 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         &p256,
         tp,
     )
-    .map(|p| p.into_bytes())
     .map_err(|_| MdocProverErrorCode::GeneralFailure)
 }
