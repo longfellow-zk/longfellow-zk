@@ -14,8 +14,6 @@
 
 //! Longfellow v2 application API and its own specification registry.
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod adapter;
 pub(in crate::mdoc) mod archive;
 mod attribute;
 mod circuits;
@@ -26,6 +24,8 @@ mod error;
 mod inputs;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod key;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod link;
 pub mod proto;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
@@ -37,7 +37,7 @@ pub use circuits::decompress_circuits;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use circuits::proof_geometry;
 pub use error::{MdocProverErrorCode, MdocVerifierErrorCode};
-pub use proto::{MdocProof, MdocProofGeometry};
+pub use proto::{MaskedQuotient, MdocProof, MdocProofGeometry};
 pub use zk_spec::{
     find_zk_spec, find_zk_spec_by_hex, is_supported_version, PolygeroParameters, ZkSpecStruct,
     NUM_ZK_SPECS, SUPPORTED_CIRCUIT_VERSIONS, SYSTEM_ID, ZK_SPECS,
@@ -46,3 +46,13 @@ pub use zk_spec::{
 pub mod provider;
 cfg_prover! { pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
 cfg_verifier! { pub mod verifier; pub use verifier::{run_mdoc_verifier,run_mdoc_verifier_inner}; }
+
+/// Test hook: the reserved suffix start and the adapter fragment width for a
+/// hash circuit shape.
+#[cfg(test)]
+pub(crate) fn link_for_test(
+    hash: &crate::core::proto::v2::Circuit<crate::runtime::algebra::gf2_128::Gf2_128Field>,
+) -> Result<(usize, usize), String> {
+    let l = link::Link::new(hash)?;
+    Ok((l.suffix.start(), l.fragment.raw.ninput))
+}

@@ -697,6 +697,7 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("runtime::v1::sumcheck", "runtime/v1/sumcheck/src"),
         ("runtime::v2::sumcheck", "runtime/v2/sumcheck/src"),
         ("runtime::v2::zk", "runtime/v2/zk/src"),
+        ("runtime::v2::foreign", "runtime/v2/foreign/src"),
         ("runtime::v1::ligero", "runtime/v1/ligero/src"),
         ("runtime::v2::polygero", "runtime/v2/polygero/src"),
         (
@@ -1079,30 +1080,8 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/v2/zk/src/prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_verifier.rs", "prover"),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/prover.rs",
-            "verifier",
-        ),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/verifier.rs",
-            "prover",
-        ),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/prime_prover.rs",
-            "verifier",
-        ),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/prime_verifier.rs",
-            "prover",
-        ),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/binary_prover.rs",
-            "verifier",
-        ),
-        (
-            "applications/mdoc_zk/runtime/src/v2/adapter/binary_verifier.rs",
-            "prover",
-        ),
+        ("runtime/v2/foreign/src/frontend_prover.rs", "verifier"),
+        ("runtime/v2/foreign/src/frontend_verifier.rs", "prover"),
         ("runtime/v2/zk/src/verifier.rs", "prover"),
         ("runtime/v2/witness-selection/src/prover.rs", "verifier"),
         ("runtime/v2/witness-selection/src/verifier.rs", "prover"),
@@ -1314,15 +1293,13 @@ fn test_tooling_and_system_source_boundaries() {
         "v2_circuits.rs",
         "v2_inputs.rs",
         "v2_document.rs",
-        "v2_adapter.rs",
-        "v2_adapter_transcript.rs",
+        "v2_link.rs",
         "v2_archive.rs",
         "v2_attributes.rs",
         "specs.rs",
         "v1_provider.rs",
         "v2_provider.rs",
         "v2_transcript.rs",
-        "v2_masked_prime.rs",
     ]
     .map(|file| tests.join(file))
     .into_iter()
@@ -1377,24 +1354,7 @@ fn test_tooling_and_system_source_boundaries() {
         .into_iter()
         .filter(|f| version == "v1" || *f != "mac.rs")
         .chain(if version == "v2" {
-            vec![
-                "archive.rs",
-                "document.rs",
-                "transcript.rs",
-                "adapter/mod.rs",
-                "adapter/transcript.rs",
-                "adapter/prime.rs",
-                "adapter/prime_prover.rs",
-                "adapter/prime_verifier.rs",
-                "adapter/binary.rs",
-                "adapter/binary_prover.rs",
-                "adapter/binary_verifier.rs",
-                "adapter/masked_prime/mod.rs",
-                "adapter/masked_prime/prover.rs",
-                "adapter/masked_prime/verifier.rs",
-                "adapter/masked_prime/row_batching.rs",
-                "adapter/masked_prime/row_batching/transcript.rs",
-            ]
+            vec!["archive.rs", "document.rs", "transcript.rs", "link.rs"]
         } else {
             vec![]
         })
@@ -1991,6 +1951,7 @@ fn test_v2_excludes_legacy_subfield_interfaces() {
         "core/proto/src/v2",
         "runtime/v2/sumcheck/src",
         "runtime/v2/zk/src",
+        "runtime/v2/foreign/src",
         "runtime/v2/polygero/src",
         "applications/mdoc_zk/compile/src",
         "applications/mdoc_zk/runtime/src/v2",
@@ -2093,9 +2054,10 @@ fn test_v2_transcript_and_final_seal_boundaries() {
         "runtime/v2/polygero/src",
         "runtime/v2/dual-packing/src",
         "runtime/v2/witness-selection/src",
-        "applications/mdoc_zk/runtime/src/v2/adapter/masked_prime/row_batching",
+        "runtime/v2/foreign/src",
+        "runtime/v2/foreign/src/batching",
+        "runtime/v2/foreign/src/adapter",
         "applications/mdoc_zk/runtime/src/v2",
-        "applications/mdoc_zk/runtime/src/v2/adapter",
     ] {
         assert!(
             root.join(directory).join("transcript.rs").is_file(),
@@ -2109,6 +2071,7 @@ fn test_v2_transcript_and_final_seal_boundaries() {
         "runtime/v2/polygero/src",
         "runtime/v2/dual-packing/src",
         "runtime/v2/witness-selection/src",
+        "runtime/v2/foreign/src",
         "applications/mdoc_zk/runtime/src/v2",
         "applications/mdoc_zk/circuits/src/p256_adapter",
     ] {

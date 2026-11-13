@@ -94,14 +94,8 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
             npublic,
         )
     });
-    let mut raw = c.into_builder();
-    // Adapter randomness is appended after compilation, so application gates
-    // cannot read it. The handoff only requires the mask's residue modulo p;
-    // its 256-bit representation need not be canonical for soundness.
-    let extra = crate::mdoc::circuits::p256_adapter::AUXILIARY_BITS;
-    raw.ninput += extra;
-    let layer = raw.layers.last_mut().ok_or("empty hash circuit")?;
-    layer.nw += extra;
-    layer.logw = crate::util::ceil_log2(layer.nw);
-    Ok(segment_circuit_v2(f, raw.build()))
+    // Archived at its natural width. The link's mask, quotient pads and tree
+    // leaves live beyond this width in the shared input array, so this
+    // circuit cannot address them.
+    Ok(segment_circuit_v2(f, c.into_builder().build()))
 }

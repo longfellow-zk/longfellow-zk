@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],
     proof: &SumcheckProof<W, F>,
@@ -17,5 +17,5 @@ pub(crate) fn reduce<const W: usize, F: RuntimeField<W> + SerializableField + Su
     }
     transcript.write_sumcheck_statement(circuit, public, f);
     let constraints = sumcheck::derive_constraints_for_circuits(&[circuit], proof, transcript, f)?;
-    row_batching::batch(circuit, public, constraints, transcript, f)
+    batching::batch(circuit, public, constraints, transcript, f)
 }

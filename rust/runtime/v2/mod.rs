@@ -23,6 +23,8 @@
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[path = "dual-packing/src/lib.rs"]
 pub(crate) mod dual_packing;
+#[path = "foreign/src/lib.rs"]
+pub mod foreign;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[path = "merkle/src/lib.rs"]
 pub(super) mod merkle;

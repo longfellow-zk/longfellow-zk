@@ -15,7 +15,7 @@
 //! Shared-root mdoc prover with a packed binary circuit and a prime P256 circuit.
 
 use super::{
-    adapter::{transcript as adapter, BinaryParticipant, SharedParticipant},
+    link,
     inputs::{
         public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash, push_witness_sig,
     },
@@ -42,7 +42,14 @@ use crate::{
             SupportsFFT,
         },
         random::RandomEngine,
-        v2::zk::ZkContext,
+        v2::{
+            foreign::{
+                self,
+                mixed::MixedParticipant,
+                word::{MaskedWord, Otp},
+            },
+            zk::{joint::CircuitParticipant, ZkContext},
+        },
     },
 };
 
@@ -139,7 +146,6 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
         parse_pk_coordinate(pky, &p256).map_err(|_| MdocProverErrorCode::InvalidInput)?,
     );
 
-    let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
     let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -168,101 +174,116 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
             }
         })?;
 
+    let gen_err = |_| MdocProverErrorCode::GeneralFailure;
+    let link = super::link::Link::new(&c_hash).map_err(gen_err)?;
+    let storage = link.storage(&c_sig).map_err(gen_err)?;
+
     let mask = rng.elt_field(&p256);
     let mask_bytes = p256.to_bytes(&mask);
-    let otp = rng.bytes(plan.advice_bytes());
+    let otp = [Otp::<{ link::Q }>::sample(rng), Otp::sample(rng)];
 
     let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
+    // Hash witness, then the reserved suffix written by typed position.
     let mut witness_hash = push_witness_hash(attrs, &parsed)?;
-    witness_hash.extend((0..256).map(|r| ((mask_bytes[r / 8] >> (r % 8)) & 1) != 0));
+    let mut reserved = link.suffix.witness();
+    reserved
+        .set(
+            link.mask,
+            (0..256).map(|r| ((mask_bytes[r / 8] >> (r % 8)) & 1) != 0),
+        )
+        .map_err(gen_err)?;
+    for (group, pad) in link.otp.iter().zip(&otp) {
+        reserved.set(group.group(), pad.bits()).map_err(gen_err)?;
+    }
+    witness_hash.extend(reserved.into_bits());
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed)
         .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
 
     // Public presentation bits are fixed before the shared commitment.
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    witness_hash.extend((0..plan.advice_bits()).map(|r| ((otp[r / 8] >> (r % 8)) & 1) != 0));
     let context_hash = ZkContext::new(&make_interpolator_hash);
     let context_sig = ZkContext::new(&make_interpolator_sig);
 
-    let prover_hash = BinaryParticipant::new(&c_hash, config_hash, &context_hash)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let prover_sig = SharedParticipant::new(
-        &c_sig,
-        crate::mdoc::circuits::p256_adapter::SHARED_BITS,
-        config_sig,
-        &context_sig,
+    let prover_hash = CircuitParticipant::with_virtual_inputs(
+        &c_hash,
+        &[&link.fragment],
+        link.virtual_inputs(),
+        config_hash,
+        &context_hash,
     )
-    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    .map_err(gen_err)?;
+    let prover_sig = MixedParticipant::new(&c_sig, storage, link.mask, config_sig, &context_sig)
+        .map_err(gen_err)?;
     let param = crate::runtime::v2::zk::joint::JointParam::new((
-        prover_hash
-            .participant(&context_hash)
-            .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
-        (
-            prover_sig
-                .participant(&context_sig)
-                .map_err(|_| MdocProverErrorCode::GeneralFailure)?,
-            (),
-        ),
+        prover_hash.participant(&context_hash).map_err(gen_err)?,
+        (prover_sig.participant(&context_sig).map_err(gen_err)?, ()),
     ))
-    .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    .map_err(gen_err)?;
     super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
-    let (state_hash, w_hash) = prover_hash
-        .prepare(&witness_hash, rng)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+    let (state_hash, w_hash) = prover_hash.prepare(witness_hash, rng).map_err(gen_err)?;
     let (state_sig, w_sig) = prover_sig
         .prepare(&c_sig, witness_sig, mask, rng, &p256)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(gen_err)?;
     let (mut joint, root, fingerprints) = param
         .commit((w_hash, (w_sig, ())), tp, rng)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(gen_err)?;
     let mut tp = joint.transcript();
+
+    // Signature frontend, then the mixed split of its batched claim.
     let sig_pub_inputs = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
     let reduced = prover_sig
         .prove(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &p256)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let e = adapter::eta(&mut tp, &p256);
-    let mu = reduced.masked_value(&e, &p256);
-    let weights = adapter::weights(&reduced.claim.weights, &e, &mu, &mut tp, &p256)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let alpha = adapter::alphas(&mut tp, &p256);
-    let mut values = reduced.values;
-    values.push(reduced.mask);
-    let encoded = plan
-        .encode(&weights, &mu, &alpha, Some(&values), &p256, &gf2)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
-    let q = encoded
-        .quotients
-        .ok_or(MdocProverErrorCode::GeneralFailure)?;
-    let mut masked = vec![0; plan.advice_bytes()];
-    for r in 0..plan.advice_bits() {
-        let bit = ((q[r / plan.quotient_bits] >> (r % plan.quotient_bits)) as u8 & 1)
-            ^ ((otp[r / 8] >> (r % 8)) & 1);
-        masked[r / 8] |= bit << (r % 8);
-    }
-    let hash_pub_inputs = adapter::public(&plan, encoded, &masked, &mut tp)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(gen_err)?;
+    let eta = foreign::transcript::eta(&mut tp, &p256);
+    let mu = reduced.masked_value(&prover_sig, &eta, &p256);
+    foreign::transcript::absorb_mu(&mut tp, &mu, &p256);
+    let claim = prover_sig
+        .foreign_claim(&reduced.claim, &eta, &mu, &p256)
+        .map_err(gen_err)?;
+
+    // Adapter: conversion challenges, honest quotients, masked words.
+    let alpha = foreign::adapter::p256::conversion(&mut tp, &p256);
+    let values = reduced.foreign_values(&prover_sig);
+    let encoded = link
+        .plan
+        .encode(&claim, &alpha, Some(&values), &p256, &gf2)
+        .map_err(gen_err)?;
+    let quotients = encoded.quotients.ok_or(MdocProverErrorCode::GeneralFailure)?;
+    let masked = [
+        MaskedWord::mask(quotients[0], &otp[0]),
+        MaskedWord::mask(quotients[1], &otp[1]),
+    ];
+    foreign::adapter::p256::absorb_masked(&mut tp, &masked);
+    let leaves = foreign::adapter::virtual_inputs(
+        link.shape,
+        encoded.trees(&claim, &link.otp, &masked, &gf2),
+        &gf2,
+    )
+    .map_err(gen_err)?;
+
+    // Binary frontend: hash circuit and the fixed adapter fragment.
     let (proof_hash, statement_hash) = prover_hash
-        .prove(
+        .prove_virtual(
             &c_hash,
             &app_public,
-            witness_hash,
             state_hash,
-            &hash_pub_inputs,
+            &[&link.fragment],
+            &leaves,
             &mut tp,
             &context_hash,
         )
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(gen_err)?;
     let statement_sig = prover_sig
-        .finish(reduced.claim, &e, &mu, &p256)
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .native_statement(&reduced.claim, &eta, &mu, &p256)
+        .map_err(gen_err)?;
     let proof_sig = crate::runtime::v2::proto::zk::CircuitProof {
         sumcheck_proof: reduced.proof,
         packing: crate::runtime::v2::proto::dual_packing::PackingProof::Direct,
     };
     let (proof, tp) = joint
         .prove(&param, (statement_hash, (statement_sig, ())))
-        .map_err(|_| MdocProverErrorCode::GeneralFailure)?;
+        .map_err(gen_err)?;
     super::proto::MdocProof {
         commitment: root,
         fingerprints,
@@ -283,5 +304,5 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
         &p256,
         tp,
     )
-    .map_err(|_| MdocProverErrorCode::GeneralFailure)
+    .map_err(gen_err)
 }

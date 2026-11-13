@@ -99,7 +99,7 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     )
     .unwrap();
 
-    assert_eq!(&zkproof[..4], b"MDA6");
+    assert_eq!(&zkproof[..4], b"MDA7");
     assert_eq!(
         crate::mdoc::v2::SYSTEM_ID,
         crate::mdoc::runtime::LONGFELLOW_V2
@@ -868,7 +868,7 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
 
     // The application accepts only the joint envelope, never two old standalone proofs.
     for marker in [
-        b"LFV5", b"LFV6", b"MJP1", b"MJP2", b"MDA1", b"MDA2", b"MDA3",
+        b"LFV5", b"LFV6", b"MJP1", b"MJP2", b"MDA1", b"MDA2", b"MDA3", b"MDA6",
     ] {
         let mut obsolete = zkproof.clone();
         obsolete[..4].copy_from_slice(marker);
@@ -885,6 +885,37 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
                 &obsolete,
             ),
             Err(crate::mdoc::v2::MdocVerifierErrorCode::HashParsingFailure)
+        );
+    }
+
+    // Masked quotients follow the tag, root, both fingerprints and mu. A data
+    // bit flip must fail verification; a padding bit must fail decoding.
+    let masked_at = 4 + 32 + 32 + 64 + 32;
+    for (byte, bit, expected) in [
+        (0, 0, crate::mdoc::v2::MdocVerifierErrorCode::GeneralFailure),
+        (3, 1, crate::mdoc::v2::MdocVerifierErrorCode::GeneralFailure),
+        (
+            1,
+            7,
+            crate::mdoc::v2::MdocVerifierErrorCode::HashParsingFailure,
+        ),
+    ] {
+        let mut tampered = zkproof.clone();
+        tampered[masked_at + byte] ^= 1 << bit;
+        assert_eq!(
+            run_mdoc_verifier_inner(
+                provided.spec(),
+                provided.compressed(),
+                &pubkey_x_string,
+                &pubkey_y_formatted,
+                transcript,
+                &req_attrs,
+                now,
+                doc_type,
+                &tampered,
+            ),
+            Err(expected),
+            "masked quotient byte {byte} bit {bit}"
         );
     }
 
@@ -1181,9 +1212,11 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         extension.omega_order(),
     );
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f).unwrap();
-    // Exhaustively inspect all input reads, including assertion records, in
-    // every supported compiled/decoded circuit. This check is test-only.
-    crate::mdoc::circuits::p256_adapter::hash_inputs::validate(&hash.raw).unwrap();
+    // The hash circuit is archived at its natural width: the link mask, pads
+    // and tree leaves lie beyond it, so it cannot address them.
+    let link = crate::mdoc::runtime::v2::link_for_test(&hash).unwrap();
+    assert_eq!(link.0, hash.raw.ninput);
+    assert!(link.1 > link.0);
     let expected = crate::runtime::v2::proto::polygero::PolygeroConfig {
         k: 349,
         s: 12,

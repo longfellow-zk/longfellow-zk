@@ -1,13 +1,13 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-pub(crate) struct Prepared<const W: usize, F: RuntimeField<W> + SerializableField> {
+pub struct Prepared<const W: usize, F: RuntimeField<W> + SerializableField> {
     circuit_id: [u8; 32],
     pads: SumcheckProof<W, F>,
     /// Prime private inputs followed by round pads and independent terminal cells.
     pub values: Vec<F::E>,
 }
 
-pub(crate) fn prepare<
+pub fn prepare<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     R: crate::runtime::random::RandomEngine,
@@ -34,7 +34,7 @@ pub(crate) fn prepare<
     })
 }
 
-pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+pub fn prove<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuit: &Circuit<F>,
     public: &[F::E],
     state: Prepared<W, F>,
@@ -55,6 +55,6 @@ pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     transcript.write_sumcheck_statement(circuit, public, f);
     let (proof, constraints) =
         sumcheck::evaluate_and_prove_circuits(&[circuit], inputs, &state.pads, transcript, f)?;
-    let claim = row_batching::batch(circuit, public, constraints, transcript, f)?;
+    let claim = batching::batch(circuit, public, constraints, transcript, f)?;
     Ok((proof, claim))
 }

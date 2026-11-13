@@ -105,10 +105,18 @@ pub fn proof_geometry(
     let hc = ZkContext::new(&hd);
     let sc = ZkContext::new(&sd);
     let (h, s) = spec.configs();
-    let h = super::adapter::BinaryParticipant::new(hash, h, &hc)?;
-    let s = super::adapter::SharedParticipant::new(
+    let link = super::link::Link::new(hash)?;
+    let h = crate::runtime::v2::zk::joint::CircuitParticipant::with_virtual_inputs(
+        hash,
+        &[&link.fragment],
+        link.virtual_inputs(),
+        h,
+        &hc,
+    )?;
+    let s = crate::runtime::v2::foreign::mixed::MixedParticipant::new(
         signature,
-        crate::mdoc::circuits::p256_adapter::SHARED_BITS,
+        link.storage(signature)?,
+        link.mask,
         s,
         &sc,
     )?;

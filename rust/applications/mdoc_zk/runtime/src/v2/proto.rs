@@ -11,6 +11,10 @@ use crate::{
         },
     },
 };
+/// A masked link quotient as it appears in the proof.
+pub type MaskedQuotient = crate::runtime::v2::foreign::word::MaskedWord<
+    { crate::mdoc::circuits::p256_adapter::QUOTIENT_BITS },
+>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProofGeometry {
     pub geom_hash: CircuitGeometry,
@@ -21,7 +25,8 @@ pub struct MdocProofGeometry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
     pub mu: F2::E,
-    pub masked: Vec<u8>,
+    /// The two masked quotients, elements of GF(2)^Q.
+    pub masked: [MaskedQuotient; 2],
     pub commitment: PolygeroCommitment,
     pub fingerprints: (
         crate::runtime::v2::proto::witness_selection::FingerprintResponse<F1::E>,
@@ -45,14 +50,14 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         transcript: crate::runtime::v2::transcript::Transcript,
     ) -> Result<crate::runtime::v2::transcript::EncodedProof, String> {
         let mut out = Vec::new();
-        let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
-        plan.validate_advice(&self.masked)?;
-        out.extend_from_slice(b"MDA6");
+        out.extend_from_slice(b"MDA7");
         out.extend_from_slice(&self.commitment.root.data);
         self.fingerprints.0.write(&mut out, f1);
         self.fingerprints.1 .0.write(&mut out, f2);
         out.extend_from_slice(&f2.to_bytes(&self.mu));
-        out.extend_from_slice(&self.masked);
+        for m in &self.masked {
+            m.write(&mut out);
+        }
         self.proof_hash
             .write_to_buf(&mut out, &g.geom_hash, f1)
             .map_err(|e| e.to_string())?;
@@ -73,14 +78,14 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             .map_err(|e| e.to_string())?;
         Ok(transcript.append_final_seal(out))
     }
-    /// Parse one complete MDA6 proof, which must end exactly with its final seal.
+    /// Parse one complete MDA7 proof, which must end exactly with its final seal.
     pub fn read<'a>(
         bytes: &'a [u8],
         g: &MdocProofGeometry,
         f1: &F1,
         f2: &F2,
     ) -> Result<crate::runtime::v2::transcript::Unverified<'a, Self>, String> {
-        if bytes.get(..4) != Some(b"MDA6") {
+        if bytes.get(..4) != Some(b"MDA7") {
             return Err("mdoc adapter proof version or size".into());
         }
         let mut remaining = &bytes[4..];
@@ -98,19 +103,12 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
                 (),
             ),
         );
-        let size = f2.serialized_size_bytes();
-        let plan = crate::mdoc::circuits::p256_adapter::shared_plan();
-        let adapter_size = size
-            .checked_add(plan.advice_bytes())
-            .ok_or("adapter size overflow")?;
-        if remaining.len() < adapter_size {
-            return Err("truncated adapter proof".into());
-        }
         let mu =
             crate::runtime::v2::proto::read_field(&mut remaining, f2).map_err(|e| e.to_string())?;
-        let masked = remaining[..plan.advice_bytes()].to_vec();
-        plan.validate_advice(&masked)?;
-        remaining = &remaining[plan.advice_bytes()..];
+        let masked = [
+            MaskedQuotient::read(&mut remaining)?,
+            MaskedQuotient::read(&mut remaining)?,
+        ];
         let proof_hash =
             CircuitProof::read(&mut remaining, &g.geom_hash, f1).map_err(|e| e.to_string())?;
         let proof_sig =

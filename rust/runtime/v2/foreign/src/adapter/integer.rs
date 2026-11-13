@@ -1,15 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Fixed-limb integer witnesses. Runtime roles do not depend on num-bigint.
-pub(crate) type Word = [u64; 4];
-use super::MODULUS;
+/// A 256-bit unsigned integer, little-endian limbs.
+pub(crate) type Int256 = [u64; 4];
+use super::p256::MODULUS;
 
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn bit(a: &Word, r: usize) -> bool {
+pub(crate) fn bit(a: &Int256, r: usize) -> bool {
     (a[r / 64] >> (r % 64)) & 1 != 0
 }
 
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn add_word(a: &mut [u64; 5], b: &Word) {
+pub(crate) fn add_word(a: &mut [u64; 5], b: &Int256) {
     let mut carry = 0u128;
     for i in 0..4 {
         carry += u128::from(a[i]) + u128::from(b[i]);
@@ -20,8 +21,7 @@ pub(super) fn add_word(a: &mut [u64; 5], b: &Word) {
         .checked_add(carry as u64)
         .expect("adapter sum overflow");
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn subtract_word(a: &mut [u64; 5], b: &Word) -> bool {
+pub(crate) fn subtract_word(a: &mut [u64; 5], b: &Int256) -> bool {
     let mut borrow = false;
     for i in 0..5 {
         let (x, b0) = a[i].overflowing_sub(if i < 4 { b[i] } else { 0 });
@@ -31,7 +31,6 @@ pub(super) fn subtract_word(a: &mut [u64; 5], b: &Word) -> bool {
     }
     !borrow
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
 fn at_least_p(a: &[u64; 5]) -> bool {
     a[4] != 0
         || (0..4)
@@ -39,8 +38,7 @@ fn at_least_p(a: &[u64; 5]) -> bool {
             .find_map(|i| (a[i] != MODULUS[i]).then_some(a[i] > MODULUS[i]))
             .unwrap_or(true)
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn double(a: &mut Word) -> bool {
+pub(crate) fn double(a: &mut Int256) -> bool {
     let mut wide = [0; 5];
     for i in 0..4 {
         wide[i] |= a[i] << 1;
@@ -56,7 +54,7 @@ pub(super) fn double(a: &mut Word) -> bool {
 
 /// Long division by the P256 prime. Quotient width follows the numerator.
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn divide<const N: usize>(value: &[u64; N]) -> ([u64; N], Word) {
+pub(crate) fn divide<const N: usize>(value: &[u64; N]) -> ([u64; N], Int256) {
     let mut quotient = [0; N];
     let mut remainder = [0u64; 5];
     for r in (0..64 * N).rev() {
@@ -75,8 +73,7 @@ pub(super) fn divide<const N: usize>(value: &[u64; N]) -> ([u64; N], Word) {
     }
     (quotient, remainder[..4].try_into().unwrap())
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn reduce_exponent(word: Word) -> u128 {
+pub(crate) fn reduce_exponent(word: Int256) -> u128 {
     let low = u128::from(word[0]) | (u128::from(word[1]) << 64);
     let high = u128::from(word[2]) | (u128::from(word[3]) << 64);
     let (sum, carry) = low.overflowing_add(high);

@@ -17,7 +17,7 @@ use crate::{
 
 mod transcript;
 
-pub(crate) struct LinearClaim<E> {
+pub struct LinearClaim<E> {
     pub weights: Vec<E>,
     pub target: E,
 }

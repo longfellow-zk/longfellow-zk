@@ -243,9 +243,10 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     let hash_payload = polygero.bodies().0.payload_bytes(&binary);
     let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
     let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
+    let masked = proof.masked.len() * runtime::proto::MaskedQuotient::BYTES;
     assert_eq!(
         bytes.len(),
-        32 + proof.masked.len() + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32
+        32 + masked + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32
     );
     eprintln!(
         "  SHA/hash reduction: {} bytes; signature reduction: {} bytes",
@@ -256,7 +257,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     eprintln!("  Witness fingerprints: 96 bytes (binary=32, signature=64)");
     eprintln!(
         "  Adapter: {} bytes; version+commitment: 36 bytes",
-        32 + proof.masked.len()
+        32 + masked
     );
     eprintln!("  Proof SHA256: {:x}", Sha256::digest(bytes));
 }

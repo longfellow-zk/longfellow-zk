@@ -165,31 +165,21 @@ serialized, and no intermediate dense input-weight vectors are cached.
 
 The mdoc application exposes `mdoc::v2::run_mdoc_prover` and
 `mdoc::v2::run_mdoc_verifier`, with corresponding deterministic inner entry points.
-It connects its hash and signature fields through an application-owned
-cross-field adapter; the [adapter README](../../../applications/mdoc_zk/circuits/src/p256_adapter/README.md)
-owns that protocol, its round order and its reserved-input invariants. The v2
+It connects its hash and signature fields through the
+[foreign storage layer](../foreign/README.md), which owns the cross-field
+protocol, its round order and its reserved-input layout. The v2
 ZK joint wrapper invokes the separate
 [witness-selection protocol](../witness-selection/README.md), binding both fields'
 masked fingerprints before either sumcheck, and automatically adds the
 fingerprint affine equations to the frontend statements.
 
-The masked prime-field sumcheck and its row batching, which combine every
-layer equation and the final input equation into one linear claim, are used
-only by the mdoc cross-field adapter and live with it
-(`mdoc/runtime/v2/adapter/masked_prime`). That staged handoff uses the same
-packing/constraint primitives as `CircuitParticipant`; the fixed-circuit API
-retains its circuit-identity and typed-input checks. This crate builds without
-the `mdoc` feature.
-
 `packing_commitment.rs` connects the input-packing protocol to committed cells.
-The application-owned cross-field transcript lives under
-`mdoc/runtime/v2/adapter/transcript.rs`; circuit construction stays under
-`mdoc/circuits/p256_adapter`.
+This crate builds without the `mdoc` feature.
 
 Proof types and canonical codecs live in `runtime::v2::proto`, with the application
 envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
-adapter proofs use `MDA6`, and the shared Polygero envelope uses `JPG2`.
+proofs use `MDA7`, and the shared Polygero envelope uses `JPG2`.
 Serialization writes backend data directly into the containing proof buffer.
 V2 uses typed rounds over SHA-256 strands and a mandatory final seal owned by
 the complete-proof encoder; nested circuit and backend bodies have no extra seals.
