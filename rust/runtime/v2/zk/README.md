@@ -136,9 +136,14 @@ frontends construct their derived rows from the already absorbed transcript;
 challenge-derived coefficients are never absorbed.
 
 `context.rs` derives layouts for both roles. The commitment context contains
-only backend dimensions and the ordered field domains, while circuit identities
-and packing/composition metadata are absorbed internally by joint commit/receive
-before the fingerprint round. Participant construction carries this metadata;
+only backend dimensions and the ordered field domains. Joint commit/receive
+absorbs composition metadata internally before the fingerprint round, together
+with the main circuit identity when the packing degree exceeds one. A
+degree-one participant binds only its additional circuit IDs and layer widths
+there; its main circuit ID first enters with the sumcheck statement, after the
+fingerprint responses, so its fingerprint coefficients are not separated by
+circuit ID. Soundness does not rely on that separation: sumcheck binds the ID
+before its own challenges. Participant construction carries this metadata;
 there is no separate frontend absorb call. Circuits
 are trusted immutable metadata: the runtime absorbs their IDs without rehashing
 them. Symbolic pad expressions end at constraint compilation. They are not
@@ -148,31 +153,20 @@ serialized, and no intermediate dense input-weight vectors are cached.
 
 The mdoc application exposes `mdoc::v2::run_mdoc_prover` and
 `mdoc::v2::run_mdoc_verifier`, with corresponding deterministic inner entry points.
-NEXT v12 connects the hash and signature fields through an application-owned
-P256 adapter. Its two product trees share the binary input array and layered
-sumcheck with the hash circuit. The application commits shared bits only on the
-binary side, while prime-field inputs, one hiding scalar and pads stay in the prime
-field. The v2 ZK joint wrapper invokes the separate
+It connects its hash and signature fields through an application-owned
+cross-field adapter; the [adapter README](../../../applications/mdoc_zk/circuits/src/p256_adapter/README.md)
+owns that protocol, its round order and its reserved-input invariants. The v2
+ZK joint wrapper invokes the separate
 [witness-selection protocol](../witness-selection/README.md), binding both fields'
-masked fingerprints before either sumcheck. Mdoc then sequences the prime-field reduction,
-conversion challenges, binary reduction and packing before one joint opening.
-The v2 ZK wrapper automatically adds the fingerprint affine equations to the
-frontend statements. V1 retains its frozen versions
-5–7 and runtime MACs; the v2 frozen registry is empty.
-
-The hash circuit cannot read the reserved 256 mask bits or 20 quotient OTP
-bits. They are appended after application compilation. Tests check every
-input-layer gate and assertion in all four supported compiled circuit shapes;
-the separation check has no runtime cost. Adapter coefficients and masked advice
-belong to the separate product-tree circuit. The mask's field residue is
-authenticated by the handoff; a binary mask range check is unnecessary.
+masked fingerprints before either sumcheck, and automatically adds the
+fingerprint affine equations to the frontend statements.
 
 `prime.rs` runs the masked prime-field sumcheck, with prover and verifier entry
 points in separate files. `row_batching.rs` combines every layer equation and
 the final input equation into one linear claim in its own transcript round.
-The application adapter uses this staged handoff and the
-same packing/constraint primitives as `CircuitParticipant`; the fixed-circuit
-API retains its circuit-identity and typed-input checks.
+Their only current consumer is the mdoc adapter, which uses this staged handoff
+and the same packing/constraint primitives as `CircuitParticipant`; the
+fixed-circuit API retains its circuit-identity and typed-input checks.
 
 `packing_commitment.rs` connects the input-packing protocol to committed cells.
 The application-owned cross-field transcript lives under

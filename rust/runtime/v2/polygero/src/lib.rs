@@ -28,9 +28,11 @@
 //! Standalone callers construct immutable static statements with `LinearStatement::new`,
 //! which hashes all coefficients and targets. Internal frontends derive A*w+b=0
 //! from their previously absorbed source messages and challenges.
-//! Parameter catalogs bound each field separately. With shared queries, use //! the sum of the
-//! per-field failure bounds, without assuming independence. The former single-field API and PLG9
-//! format have been removed.
+//! Parameter catalogs bound each field separately. Because all fields share one
+//! query set, the certified mdoc analysis charges a single joint active-family
+//! budget (formal `Soundness.Rate7.parentBudget`, built on `ParameterBounds.parentBudget`). Summing
+//! the per-field failure bounds, without assuming independence, is a valid but looser
+//! alternative. The former single-field API and PLG9 format have been removed.
 mod config;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraints;

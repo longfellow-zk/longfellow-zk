@@ -211,7 +211,11 @@ joint successful-sampling law remains a separate implementation obligation.
 The field codecs, circuit semantics and static public resource bounds are
 trusted model inputs. Rust correspondence is established through source audit
 and tests. Machine-level refinement and extractor running-time bounds remain
-open. The exact `q-1` denominator retains the nonzero-sampling correction.
+open. The `q-1` denominator accounts for the scalars sampled as nonzero: the
+sumcheck terminal scale and the adapter rescaling and conversion scalars.
+The other challenge roles have errors `2/q` or `1/q`, which the bound charges
+at the same shared rate. In the Lean proof the terminal soundness count does
+not use the nonzero terminal scale; that requirement serves zero knowledge.
 
 The [complete numbered-strand zero-knowledge theorem](../formal/lfzk-v2/README.md#current-numbered-strand-zero-knowledge)
 gives a witness-free simulator with ideal-model distinguishing error at most
@@ -684,6 +688,11 @@ it does not establish protection against local timing or cache observation.
 The signature circuit retains its affine precomputation layout. Exceptional
 signatures whose precomputed sums are points at infinity remain unsupported;
 v2 witness construction returns `WitnessCreationFailure` instead of panicking.
+The circuit also requires the signature's nonce point to satisfy `R.x < n`
+and the public key to have a nonzero x-coordinate. Valid signatures with
+`n <= R.x < p` (so `r = R.x - n`) and keys with `x = 0` are therefore
+unprovable. Both are rare. The former is not detected during witness
+construction and fails later with `GeneralFailure`.
 
 ## License
 

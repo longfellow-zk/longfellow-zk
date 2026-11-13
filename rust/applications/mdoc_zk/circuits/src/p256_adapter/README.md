@@ -25,8 +25,20 @@ product_i (1 + b_i*(g^A_i - 1))
 The two independent rescalings limit multiplicative-group collisions. Each
 quotient uses ten bits, hidden by precommitted one-time pads. The public masked
 advice has a canonical 20-bit encoding. Binary packing enforces every source
-bit; canonical range predicates enforce R and device coordinates below p.
-Exact digest-bit constraints retain SHA-256 digests even when they exceed p.
+bit, and canonical range predicates enforce the device coordinates below p.
+The R bits have no range check: the handoff uses only R's residue modulo p
+(`Handoff.product_handoff`), so a non-canonical encoding of R such as R+p is
+harmless. Exact digest-bit constraints retain SHA-256 digests even when they
+exceed p.
+
+The hash circuit cannot read the reserved 256 R (mask) bits or the 20 quotient
+OTP bits: they are appended to the compiled hash circuit's inputs after
+application compilation. Tests check every input-layer gate and assertion in
+all four supported compiled circuit shapes; the check has no runtime cost and
+is not repeated when archives are loaded. Both the soundness and the
+zero-knowledge endpoints assume this separation (`MdocWitness.ReadDisjoint`).
+Adapter coefficients and masked advice belong to the separate product-tree
+circuit.
 
 The tree builder constructs sparse circuit IR directly. Its topology is fixed
 by the widths, while the public coefficient table depends on the challenges.
