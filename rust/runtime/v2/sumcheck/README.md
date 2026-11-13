@@ -61,11 +61,15 @@ including its quadratic, linear and constant streams. Its ranges translate
 local gate indices into the global arrays. A `SplitFragment` adds the eleven-way
 split and sampled assertion coefficients. Neither owns a wire array.
 
-All circuits use the same input array and the same public/private input
-ordering. Every intermediate layer is the contiguous concatenation of its active
+All circuits read one shared input array and share its public prefix. A circuit
+may declare fewer inputs than another: the array is as wide as the widest
+circuit, and each circuit reads the prefix given by its own `ninput`. A circuit
+therefore cannot address inputs beyond its declared width, which lets an
+application place values that one circuit must never read after that circuit's
+inputs. Every intermediate layer is the contiguous concatenation of its active
 circuits' wires. Local wire indices start at zero; their offset is the sum of
-the preceding circuits' widths. There is no padding between circuits. At
-the common input boundary every circuit's input offset is zero.
+the preceding circuits' widths. There is no padding between circuits. At the
+common input boundary every circuit's input offset is zero.
 
 For example, three intermediate widths 3, 5 and 3 occupy ranges `0..3`, `3..8`
 and `8..11`. Sumcheck uses `ceil(log2(11))` wire rounds. Missing coefficients
@@ -86,13 +90,13 @@ circuit at stage two, adding freshly weighted zero outputs to the current
 claim. Each output receives an independent field weight, including scalar
 outputs. Evaluation checks all circuit outputs and assertions; once a
 circuit finishes, its checked zero outputs leave the global witness array.
-A zero-layer circuit asserts that the shared inputs themselves vanish and
-joins the final input claim directly.
+A zero-layer circuit asserts that its input prefix vanishes and joins the
+final input claim directly.
 
 The ZK layer commits the common inputs once, runs this ordinary sumcheck and
 performs one packing reduction. Binary sources remain Boolean and degree-one
-packing remains a no-op. Circuit input layouts must agree; the runtime does
-not insert adapters or independent affine input views.
+packing remains a no-op. Circuits must agree on the public prefix and each
+circuit's input layer must span exactly its declared width.
 
 ## Single-hand transition
 

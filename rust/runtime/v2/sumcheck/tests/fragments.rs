@@ -554,3 +554,117 @@ fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
     schedule.absorb(&[&second[0]], &mut b.borrow());
     assert_ne!(a.bytes(32), b.bytes(32));
 }
+
+/// Components may declare different input widths. Each reads a prefix of the
+/// shared input array, whose width is the largest declared width.
+fn check_prefix_widths<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    f: &F,
+) {
+    let layer = |nw: usize, quadratic: Vec<Quadratic>, linear: Vec<Linear>| {
+        Layer::with_assertions(
+            nw,
+            Stream::<Quadratic>::from_terms(quadratic),
+            Stream::<Linear>::from_terms(linear),
+            Stream::default(),
+            |_| false,
+        )
+    };
+    let circuit_with = |ninput: usize, npublic_input: usize, l: Layer| {
+        let raw = RawCircuitBuilder {
+            ninput,
+            npublic_input,
+            noutput: 1,
+            logv: 0,
+            constants: vec![f.one(), f.mone()],
+            layers: vec![l],
+        }
+        .build();
+        Circuit::from_raw(f, raw)
+    };
+    let circuit = |ninput: usize, l: Layer| circuit_with(ninput, 0, l);
+    let wide_layer = |nw: usize| {
+        layer(
+            nw,
+            vec![],
+            vec![Linear { g: 0, l: 4, k: 0 }, Linear { g: 0, l: 0, k: 1 }],
+        )
+    };
+    // Narrow: x*y - in[0] over inputs 0..3. Wide: in[4] - in[0] over 0..5.
+    let narrow = circuit(
+        3,
+        layer(
+            3,
+            vec![Quadratic {
+                g: 0,
+                l: 1,
+                r: 2,
+                k: 0,
+            }],
+            vec![Linear { g: 0, l: 0, k: 1 }],
+        ),
+    );
+    let wide = circuit(5, wide_layer(5));
+    let schedule = Schedule::new(&[&narrow, &wide]).unwrap();
+    assert_eq!(schedule.ninput, 5);
+    assert_eq!(
+        schedule.layers[0]
+            .fragments
+            .iter()
+            .map(|s| s.input_range.clone())
+            .collect::<Vec<_>>(),
+        vec![0..3, 0..5]
+    );
+    let mut rng = DeterministicRng::new(77);
+    let (x, y) = (rng.elt_field(f), rng.elt_field(f));
+    let xy = f.mulf(&x, &y);
+    let inputs = vec![xy.clone(), x, y, rng.elt_field(f), xy];
+    let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
+    let circuits = [&narrow, &wide];
+    let (proof, c) = prove(
+        &circuits,
+        inputs.clone(),
+        &pads,
+        &mut Transcript::new(b"prefix-widths").borrow(),
+        f,
+    )
+    .unwrap();
+    let d = derive(
+        &circuits,
+        &proof,
+        &mut Transcript::new(b"prefix-widths").borrow(),
+        f,
+    )
+    .unwrap();
+    assert_eq!(c, d);
+    assert_eq!(d.input_weights.len(), 5);
+    assert!(d
+        .residuals(&inputs, &pads, f)
+        .unwrap()
+        .iter()
+        .all(|v| f.is_zero(v)));
+    // Only the wide component reads input 4.
+    let mut bad = inputs;
+    f.add(&mut bad[4], &f.one());
+    assert!(prove(
+        &circuits,
+        bad,
+        &pads,
+        &mut Transcript::new(b"prefix-widths").borrow(),
+        f
+    )
+    .is_err());
+    // The public prefix must match, and each component's input layer must
+    // span exactly its own declared width.
+    let public = circuit_with(5, 1, wide_layer(5));
+    assert!(Schedule::new(&[&narrow, &public]).is_err());
+    let short = circuit(5, wide_layer(4));
+    assert!(Schedule::new(&[&narrow, &short]).is_err());
+}
+#[test]
+fn components_read_prefixes_of_one_shared_input_array() {
+    check_prefix_widths(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+    check_prefix_widths(&crate::runtime::algebra::p256::P256Field::new());
+}

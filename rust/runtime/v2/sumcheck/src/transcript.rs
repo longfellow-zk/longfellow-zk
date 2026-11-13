@@ -198,7 +198,8 @@ impl super::fragments::Schedule {
                 if weights.is_empty() {
                     weights.resize(self.ninput, f.zero());
                 }
-                for a in &mut weights {
+                // A zero-layer component asserts only on its own input prefix.
+                for a in &mut weights[..c.raw().ninput] {
                     f.add(a, &r.elt_field(f));
                 }
             }

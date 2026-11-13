@@ -112,8 +112,9 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
     if w.len() != schedule.ninput {
         return Err("shared input width mismatch".into());
     }
-    if circuits.iter().any(|c| c.raw().layers.is_empty()) {
-        if let Some(g) = w.iter().position(|v| !f.is_zero(v)) {
+    // A zero-layer component's outputs are its own input prefix.
+    for c in circuits.iter().filter(|c| c.raw().layers.is_empty()) {
+        if let Some(g) = w[..c.raw().ninput].iter().position(|v| !f.is_zero(v)) {
             return Err(format!("Circuit output at index {g} is not zero"));
         }
     }

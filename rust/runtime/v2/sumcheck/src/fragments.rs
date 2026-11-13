@@ -4,7 +4,9 @@
 //! depth, preserving their supplied order at equal depths. Intermediate wires
 //! are concatenated in that order, without padding. Fragments retain local gate indices;
 //! their ranges translate those indices into the global arrays. At the input
-//! boundary every fragment addresses the same array with input offset zero.
+//! boundary every fragment addresses the same array with input offset zero,
+//! reading the prefix given by its own `ninput`. The shared array is as wide as
+//! the widest component; narrower components cannot address its suffix.
 //!
 //! Shorter circuits enter later when their remaining depth matches the others.
 //! Their outputs must vanish; fresh assertion weights on those outputs add zero to the
@@ -51,18 +53,21 @@ impl Schedule {
         circuits: &[impl CircuitSource<F>],
     ) -> Result<Self, String> {
         let first = circuits.first().ok_or("empty circuit list")?;
-        let ninput = first.raw().ninput;
+        // Components share one input array whose width is the largest declared
+        // width. Each component reads only its own prefix, so a component can
+        // never address inputs beyond its own `ninput`. The public prefix is
+        // common to every component.
+        let ninput = circuits.iter().map(|c| c.raw().ninput).max().unwrap();
         let npublic = first.raw().npublic_input;
-        if npublic > ninput
-            || circuits.iter().any(|c| {
-                c.raw().ninput != ninput
-                    || c.raw().npublic_input != npublic
-                    || c.raw()
-                        .layers
-                        .last()
-                        .map_or(c.raw().noutput != ninput, |l| l.nw != ninput)
-            })
-        {
+        if circuits.iter().any(|c| {
+            let width = c.raw().ninput;
+            c.raw().npublic_input != npublic
+                || npublic > width
+                || c.raw()
+                    .layers
+                    .last()
+                    .map_or(c.raw().noutput != width, |l| l.nw != width)
+        }) {
             return Err("circuits must share one input layout".into());
         }
         let depth = circuits.iter().map(|c| c.raw().layers.len()).max().unwrap();
@@ -101,7 +106,7 @@ impl Schedule {
                             .ok_or("output assertion count overflow")?;
                     }
                     let inputs = if shared_inputs {
-                        0..ninput
+                        0..c.raw().ninput
                     } else {
                         let end = nw
                             .checked_add(width)
