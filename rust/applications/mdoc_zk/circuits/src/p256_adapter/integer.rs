@@ -3,12 +3,12 @@
 pub(crate) type Word = [u64; 4];
 use super::MODULUS;
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[cfg(any(test, feature = "prover"))]
 pub(super) fn bit(a: &Word, r: usize) -> bool {
     (a[r / 64] >> (r % 64)) & 1 != 0
 }
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[cfg(any(test, feature = "prover"))]
 pub(super) fn add_word(a: &mut [u64; 5], b: &Word) {
     let mut carry = 0u128;
     for i in 0..4 {
@@ -55,7 +55,7 @@ pub(super) fn double(a: &mut Word) -> bool {
 }
 
 /// Long division by the P256 prime. Quotient width follows the numerator.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[cfg(any(test, feature = "prover"))]
 pub(super) fn divide<const N: usize>(value: &[u64; N]) -> ([u64; N], Word) {
     let mut quotient = [0; N];
     let mut remainder = [0u64; 5];

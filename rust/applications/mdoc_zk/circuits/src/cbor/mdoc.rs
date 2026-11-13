@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::mdoc::circuits::cbor::{
+    append_bytes_len, append_text_len,
+    constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER, K_TAG24},
+};
+// The parser and witness locator below are prover-only.
+#[cfg(any(test, feature = "prover"))]
 use crate::{
     core::algebra::Nat,
     mdoc::circuits::cbor::{
-        append_bytes_len, append_text_len,
-        constants::{
-            K_COSE1_PREFIX_LEN, K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER,
-            K_TAG24,
-        },
+        constants::K_COSE1_PREFIX_LEN,
         parse::{CborElement, CborIndexVal, CborParser, CborValue},
     },
 };
@@ -182,6 +184,9 @@ impl core::fmt::Display for MdocParseError {
 
 impl std::error::Error for MdocParseError {}
 
+/// Prover-side parsing and witness location. Verifier builds need only
+/// `compute_transcript_hash`, so this parser is compiled for provers and tests.
+#[cfg(any(test, feature = "prover"))]
 pub fn parse_mdoc<N: Nat<4>>(
     mdoc: &[u8],
     transcript: &[u8],
@@ -192,6 +197,7 @@ pub fn parse_mdoc<N: Nat<4>>(
 
 /// Preserve legacy parsing while allowing v2 to validate the original MSO
 /// values before fixed-width integer conversion or witness construction.
+#[cfg(any(test, feature = "prover"))]
 pub(in crate::mdoc) fn parse_mdoc_with_mso_check<N: Nat<4>, E: From<MdocParseError>>(
     mdoc: &[u8],
     transcript: &[u8],
@@ -349,6 +355,7 @@ pub(in crate::mdoc) fn parse_mdoc_with_mso_check<N: Nat<4>, E: From<MdocParseErr
     })
 }
 
+#[cfg(any(test, feature = "prover"))]
 pub(in crate::mdoc) fn map_entry_unique<'a>(
     map: &'a CborElement,
     key: &str,
@@ -372,6 +379,7 @@ pub(in crate::mdoc) fn map_entry_unique<'a>(
     found.ok_or(MdocParseError::MissingField(path))
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_map_value(
     map: &CborElement,
     key: &str,
@@ -381,6 +389,7 @@ fn required_map_value(
     Ok(value.clone())
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_map_key(
     map: &CborElement,
     key: &str,
@@ -393,6 +402,7 @@ fn required_map_key(
     })
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_array<'a>(
     element: &'a CborElement,
     field: &'static str,
@@ -404,6 +414,7 @@ fn required_array<'a>(
     }
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_cose_sign1_array<'a>(
     element: &'a CborElement,
     field: &'static str,
@@ -415,6 +426,7 @@ fn required_cose_sign1_array<'a>(
     }
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_bytes<'a>(
     element: &'a CborElement,
     field: &'static str,
@@ -426,6 +438,7 @@ fn required_bytes<'a>(
     }
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_tagged_bytes<'a>(
     element: &'a CborElement,
     tag: u64,
@@ -439,6 +452,7 @@ fn required_tagged_bytes<'a>(
     Err(MdocParseError::UnexpectedType(field))
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_device_coordinate(
     device_key: &CborElement,
     coordinate_key: i128,
@@ -464,6 +478,7 @@ fn required_device_coordinate(
     found.ok_or(MdocParseError::MissingField(field))
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn required_digest_offset(
     value_digests: &CborElement,
     namespace: &str,
@@ -488,6 +503,7 @@ fn required_digest_offset(
     found.ok_or(MdocParseError::MissingField("attribute digest in MSO"))
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn parse_signature<N: Nat<4>>(bytes: &[u8], field: &'static str) -> Result<(N, N), MdocParseError> {
     if bytes.len() != 64 {
         return Err(MdocParseError::InvalidLength {
@@ -500,6 +516,7 @@ fn parse_signature<N: Nat<4>>(bytes: &[u8], field: &'static str) -> Result<(N, N
     Ok((N::from_bytes_be(r), N::from_bytes_be(s)))
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn validate_mso_layout(
     cbor_mso_wrapped: &[u8],
     cbor_mso_map_bytes: &[u8],
@@ -531,6 +548,7 @@ fn validate_mso_layout(
     Ok(())
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn extract_attrs(
     issuer_signed: &CborElement,
     mdoc_bytes: &[u8],
@@ -617,6 +635,7 @@ fn extract_attrs(
     Ok(attrs)
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn compute_witness(
     name: Vec<u8>,
     cbor_value: Vec<u8>,
@@ -810,6 +829,7 @@ pub fn compute_transcript_hash(transcript: &[u8], doc_type: &str) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
+#[cfg(any(test, feature = "prover"))]
 fn format_cose_sign1_message(cbor_mso: &[u8]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(K_COSE_SIGN1_SIGNING_HEADER.len() + 3 + cbor_mso.len());
     buf.extend_from_slice(&K_COSE_SIGN1_SIGNING_HEADER);

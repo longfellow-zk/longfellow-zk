@@ -98,6 +98,9 @@ impl Plan {
     /// Generate two independent power sequences and the honest quotients.
     /// Both challenges must be independent, nonzero, uniform FULL prime-field
     /// samples after the root and complete prime claim are fixed.
+    // Verifier-only builds omit the prover's quotient accumulation, which is
+    // the only user of `values` and of some loop indices.
+    #[cfg_attr(not(any(test, feature = "prover")), allow(unused_variables))]
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn encode(
         &self,
@@ -146,18 +149,24 @@ impl Plan {
         };
         let targets = alpha.each_ref().map(|a| to_word(p, &p.mulf(a, target)));
         let mut coefficients = Vec::with_capacity(self.powers);
+        // The honest quotients are prover-only; verifiers pass no values, and
+        // verifier-only builds compile none of this accumulation.
+        #[cfg(any(test, feature = "prover"))]
         let mut sums = [[0u64; 5]; 2];
         // Tree-major layout keeps each public coefficient column contiguous.
         for (tree, scaling) in alpha.iter().enumerate() {
             for (j, (&width, a)) in self.widths.iter().zip(weights).enumerate() {
                 let mut a = to_word(p, &p.mulf(scaling, a));
                 let mut power = exponent(a);
+                #[cfg(any(test, feature = "prover"))]
                 let value = values.map(|v| to_word(p, &v[j]));
+                #[cfg(any(test, feature = "prover"))]
                 if value.is_some_and(|v| (width..256).any(|r| integer::bit(&v, r))) {
                     return Err("P256 adapter value exceeds width".into());
                 }
                 for r in 0..width {
                     coefficients.push(f.subf(&power, &f.one()));
+                    #[cfg(any(test, feature = "prover"))]
                     if let Some(v) = value {
                         if integer::bit(&v, r) {
                             integer::add_word(&mut sums[tree], &a);
@@ -171,6 +180,7 @@ impl Plan {
                 }
             }
         }
+        #[cfg(any(test, feature = "prover"))]
         let quotients = if values.is_some() {
             let mut out = [0u32; 2];
             for (tree, c) in targets.into_iter().enumerate() {
@@ -193,6 +203,7 @@ impl Plan {
         Ok(Encoded {
             coefficients,
             targets: targets.map(exponent),
+            #[cfg(any(test, feature = "prover"))]
             quotients,
         })
     }
@@ -202,7 +213,8 @@ impl Plan {
 pub(crate) struct Encoded {
     pub coefficients: Vec<Gf2_128>,
     pub targets: [Gf2_128; 2],
-    #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
+    /// Honest quotients, computed only by provers.
+    #[cfg(any(test, feature = "prover"))]
     pub quotients: Option<[u32; 2]>,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
