@@ -5,7 +5,7 @@ import LfzkV2.Current.AdapterParameters
 /-! Privacy of the current cross-field adapter's public masked scalar and
 quotient advice. The honest quotient is a bounded integer, never a sampled
 field element. Its XOR pad is independent private randomness; uniformity is
-over every canonical twenty-bit public word, not just honest quotient words.
+over every canonical pair of ten-bit public words, not just honest quotient words.
 
 The two rescalings may be arbitrary public functions of the masked scalar.
 No field challenge or quotient is fixed after looking at an OTP bit. -/
@@ -95,7 +95,7 @@ def muEquiv (offset : ZMod p) : ZMod p ≃ ZMod p where
 def muAdviceEquiv (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value) :
     (ZMod p × MdocAdvice.Value) ≃ (ZMod p × MdocAdvice.Value) :=
   (Equiv.prodCongr (muEquiv offset) (Equiv.refl _)).trans
-    (Equiv.prodCongrRight fun mu => AdapterBits.xorEquiv (quotient mu))
+    (Equiv.prodCongrRight fun mu => AdapterBits.xorValue (quotient mu))
 
 theorem muAdviceEquiv_mu (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value)
     (mask : ZMod p) (otp : MdocAdvice.Value) :
@@ -105,7 +105,7 @@ theorem muAdviceEquiv_bits (offset : ZMod p) (quotient : ZMod p → MdocAdvice.V
     (mask : ZMod p) (otp : MdocAdvice.Value) (tree : Fin 2) (i : Fin 10) :
     MdocAdvice.bits (muAdviceEquiv offset quotient (mask,otp)).2 tree i =
       Bool.xor (MdocAdvice.bits (quotient (offset+mask)) tree i) (MdocAdvice.bits otp tree i) :=
-  AdapterBits.xorEquiv_bits _ _ _
+  AdapterBits.xorValue_bits _ _ tree i
 
 /-- Sampling this public pair directly is witness-free. Arbitrarily
 adaptive quotient functions remain confined to the proof coupling. -/
@@ -119,15 +119,15 @@ theorem muAdvice_sameDistribution {Observed : Type} [DecidableEq Observed]
   rfl
 
 def rawMuAdviceEquiv (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value) :
-    (ZMod p × Fin (2^24)) ≃ ((ZMod p × MdocAdvice.Value) × Fin 16) :=
+    (ZMod p × (Fin 2 → AdapterBits.RawWord)) ≃ ((ZMod p × MdocAdvice.Value) × AdapterBits.Unused) :=
   (((Equiv.prodCongr (Equiv.refl _) AdapterBits.rawOtpEquiv).trans
     (Equiv.prodAssoc _ _ _).symm).trans
       (Equiv.prodCongr (muAdviceEquiv offset quotient) (Equiv.refl _)))
 
 theorem rawMuAdviceEquiv_inverse_response (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value)
-    (coins : (ZMod p × MdocAdvice.Value) × Fin 16) :
+    (coins : (ZMod p × MdocAdvice.Value) × AdapterBits.Unused) :
     let raw := (rawMuAdviceEquiv offset quotient).symm coins
-    (offset+raw.1,AdapterBits.xorEquiv (quotient (offset+raw.1)) (AdapterBits.rawOtpEquiv raw.2).1) = coins.1 :=
+    (offset+raw.1,AdapterBits.xorValue (quotient (offset+raw.1)) (AdapterBits.rawOtpEquiv raw.2).1) = coins.1 :=
   congrArg Prod.fst ((rawMuAdviceEquiv offset quotient).apply_symm_apply coins)
 
 theorem rawMuAdvice_sameDistribution {Observed : Type} [DecidableEq Observed]
@@ -135,7 +135,7 @@ theorem rawMuAdvice_sameDistribution {Observed : Type} [DecidableEq Observed]
     (observe : ZMod p × MdocAdvice.Value → Observed) :
     LigeroFamily.SameDistribution
       (fun tape => observe (rawMuAdviceEquiv offset quotient tape).1)
-      (fun coins : (ZMod p × MdocAdvice.Value) × Fin 16 => observe coins.1) := by
+      (fun coins : (ZMod p × MdocAdvice.Value) × AdapterBits.Unused => observe coins.1) := by
   apply LigeroFamily.sameDistribution_of_equiv (rawMuAdviceEquiv offset quotient)
   intro tape
   rfl

@@ -165,14 +165,12 @@ theorem identifier_not_domain (fieldId : ℕ) (isBinary : Bool) (width : ℕ) (e
     change some (112 : TranscriptV2.Framing.Byte) = some (76 : TranscriptV2.Framing.Byte) at first
     exact (by decide : (112 : TranscriptV2.Framing.Byte) ≠ 76) (Option.some.inj first)
 
-theorem adapter_identifier (outside inside : Bytes → Digest) {d q : ℕ}
-    (encode : F → Bytes) (shape : Adapter.Circuit.Shape d q)
-    (inputs publicInputs : ℕ) (sources : Fin d → ℕ) (pads : Fin 2 → Fin q → ℕ)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ)
-    (masked : Fin 2 → Fin q → Bool) (targets : Fin 2 → Fˣ) :
-    MetadataIdentifiers.adapterId (merge merkleDomain outside inside) encode shape
-        inputs publicInputs sources pads powers base masked targets =
-      MetadataIdentifiers.adapterId outside encode shape inputs publicInputs sources pads powers base masked targets := by
+theorem fragment_identifier (outside inside : Bytes → Digest) {leaves : ℕ}
+    (encode : F → Bytes) (shape : Adapter.ProductTree.Shape (Adapter.Circuit.half leaves))
+    (inputs publicInputs virtualStart : ℕ) :
+    MetadataIdentifiers.fragmentId (merge merkleDomain outside inside) encode shape
+        inputs publicInputs virtualStart =
+      MetadataIdentifiers.fragmentId outside encode shape inputs publicInputs virtualStart := by
   apply merge_outside
   exact identifier_not_domain (F := F) _ _ _ _ _ _ _ _ _ _
 

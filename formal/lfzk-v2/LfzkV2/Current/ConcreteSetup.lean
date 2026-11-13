@@ -1,6 +1,7 @@
 import LfzkV2.Current.StatementCompiler
 import LfzkV2.Current.WireBlocks
 import LfzkV2.Current.ConcreteAdapterTopology
+import LfzkV2.Current.ApplicationSetup
 import Mathlib.Data.Nat.Bitwise
 
 /-! Public dimensions for the current rate-1/7 runtime. The trusted inputs
@@ -237,6 +238,28 @@ def inputIndex (publicCount privateCount input : ℕ)
     (cubeIndex input (inputIndex publicCount privateCount input capacity (.inr i))).val = publicCount+i.val := by
   simp [inputIndex]
 
+/-- A component's natural input prefix of the shared input array. -/
+def prefixIndex (width input : ℕ) (capacity : width ≤ 2^input) : Fin width ↪ Cube input :=
+  (⟨Fin.castLE capacity,Fin.castLE_injective capacity⟩ : Fin width ↪ Fin (2^input)).trans
+    (cubeIndex input).symm.toEmbedding
+
+@[simp] theorem prefixIndex_val (width input : ℕ) (capacity : width ≤ 2^input) (i : Fin width) :
+    (cubeIndex input (prefixIndex width input capacity i)).val = i.val := by
+  simp [prefixIndex]
+
+/-- Consecutive entries of the shared input array from `start`. -/
+def rangeIndex (start count input : ℕ) (capacity : start+count ≤ 2^input) : Fin count ↪ Cube input where
+  toFun v := (cubeIndex input).symm ⟨start+v.val,by have := v.isLt; omega⟩
+  inj' := by
+    intro v w h
+    have hv := congrArg (fun u => (cubeIndex input u).val) h
+    simp only [Equiv.apply_symm_apply] at hv
+    exact Fin.ext (by omega)
+
+@[simp] theorem rangeIndex_val (start count input : ℕ) (capacity : start+count ≤ 2^input) (v : Fin count) :
+    (cubeIndex input (rangeIndex start count input capacity v)).val = start+v.val := by
+  simp [rangeIndex]
+
 /-- The trusted signature circuit includes its sparse component topology.
 The algebraic circuit and its transcript plan are both constructed from it. -/
 structure PrimeCircuit where
@@ -262,64 +285,103 @@ def plan (circuit : PrimeCircuit) : FrontendSchedule.Plan (ZMod Adapter.Mdoc.pri
   (circuit.topology.withComponent 0).plan
 end PrimeCircuit
 
-/-- Trusted hash gates and their global coordinate maps surround the
-generated adapter. The 768 shared bits, 256 masking bits and two ten-bit
-masked quotients are fixed by the current mdoc construction. Packing uses
-exactly the required number of degree-128 words. -/
+/-- The trusted hash circuit, archived at its natural width, beside the fixed
+adapter fragment. The shared input array is
+
+`[public | hash private | R | O_0 | O_1 | virtual leaves]`.
+
+The hash's own input width is `nPublic+hashPrivate`; its input-boundary
+fragments are typed by that prefix, so it cannot read R (256 bits), the two
+ten-bit quotient pads or the 2*1034 virtual leaves. Packing commits exactly the
+`hashPrivate+276` committed private inputs in degree-128 words. -/
 structure BinaryCircuit (B : Type) [Field B] [Algebra (ZMod 2) B] where
   input : ℕ
   nPublic : ℕ
-  nPrivate : ℕ
+  hashPrivate : ℕ
   final : ℕ
   out : ℕ
   upper : ℕ
   basis : Module.Basis (Fin 128) (ZMod 2) B
-  inputCapacity : nPublic+nPrivate ≤ 2^input
-  privateCapacity : 21548 ≤ nPrivate
+  inputCapacity : nPublic+(hashPrivate+276)+2*(768+256+10) ≤ 2^input
+  hashCapacity : 21272 ≤ hashPrivate
   publicBits : Fin nPublic → Bool
-  layout : Adapter.Circuit.Layout
+  layout : Adapter.Fragment.Layout
   output : Fin 2 ↪ Cube final
-  others : ConcreteAdapterTopology.Others layout 1024 10 input final output B
-  carry : Cube out → Option (Cube final)
+  others : ConcreteAdapterTopology.Others layout (768+256+10) (nPublic+hashPrivate) input final
+    (prefixIndex (nPublic+hashPrivate) input (le_trans (by omega) inputCapacity)) output B
+  carry : Cube out → Option (ConcreteAdapterTopology.Avoid output)
   above : ConcreteAdapterTopology.Above B upper out
 
 namespace BinaryCircuit
 variable {B : Type} [Field B] [Algebra (ZMod 2) B]
+
+/-- Committed private inputs: the hash's, then R and the two pads. -/
+def nPrivate (circuit : BinaryCircuit B) : ℕ := circuit.hashPrivate+276
+
+/-- The hash's natural input width. -/
+def hashWidth (circuit : BinaryCircuit B) : ℕ := circuit.nPublic+circuit.hashPrivate
+
+theorem committedCapacity (circuit : BinaryCircuit B) :
+    circuit.nPublic+circuit.nPrivate ≤ 2^circuit.input :=
+  le_trans (by unfold nPrivate; omega) circuit.inputCapacity
+
+theorem virtualCapacity (circuit : BinaryCircuit B) :
+    circuit.nPublic+circuit.nPrivate+2*(768+256+10) ≤ 2^circuit.input :=
+  le_trans (by unfold nPrivate; omega) circuit.inputCapacity
+
+/-- The hash's input prefix in the shared array. -/
+def hashIndex (circuit : BinaryCircuit B) : Fin circuit.hashWidth ↪ Cube circuit.input :=
+  prefixIndex (circuit.nPublic+circuit.hashPrivate) circuit.input
+    (le_trans (by omega) circuit.inputCapacity)
+
+@[simp] theorem hashIndex_val (circuit : BinaryCircuit B) (x : Fin circuit.hashWidth) :
+    (cubeIndex circuit.input (circuit.hashIndex x)).val = x.val :=
+  prefixIndex_val _ _ _ x
 
 /-- Hash allocation stores the issuer digest first. Device coordinates
 follow 40 SHA blocks, the 16-bit MSO length and the 8-bit block count. -/
 def sharedPrivate (circuit : BinaryCircuit B) (i : Fin 768) : Fin circuit.nPrivate :=
   ⟨if i.val < 256 then i.val else 20760+(i.val-256),by
     have hi := i.isLt
-    have hc := circuit.privateCapacity
+    have hc := circuit.hashCapacity
+    unfold nPrivate
     split_ifs <;> omega⟩
 
-/-- The final 276 private bits are the 256-bit hiding scalar followed by
-the two independent ten-bit quotient pads. -/
+/-- R follows the hash's own private inputs. -/
 def maskPrivate (circuit : BinaryCircuit B) (i : Fin 256) : Fin circuit.nPrivate :=
-  ⟨circuit.nPrivate-276+i.val,by have := i.isLt; have := circuit.privateCapacity; omega⟩
+  ⟨circuit.hashPrivate+i.val,by have := i.isLt; unfold nPrivate; omega⟩
 
+/-- The two independent ten-bit quotient pads follow R. -/
 def advicePrivate (circuit : BinaryCircuit B) (tree : Fin 2) (i : Fin 10) : Fin circuit.nPrivate :=
-  ⟨circuit.nPrivate-20+10*tree.val+i.val,by
+  ⟨circuit.hashPrivate+256+10*tree.val+i.val,by
     have := tree.isLt
     have := i.isLt
-    have := circuit.privateCapacity
+    unfold nPrivate
     omega⟩
 
-/-- Shared data never reaches the fresh hiding or quotient-pad suffix. -/
-theorem shared_before_masks (circuit : BinaryCircuit B) (i : Fin 768) :
-    (circuit.sharedPrivate i).val < circuit.nPrivate-276 := by
+/-- Shared data lies inside the hash's own inputs. -/
+theorem shared_lt_hash (circuit : BinaryCircuit B) (i : Fin 768) :
+    (circuit.sharedPrivate i).val < circuit.hashPrivate := by
   have := i.isLt
-  have := circuit.privateCapacity
+  have := circuit.hashCapacity
   simp only [sharedPrivate]
   split_ifs <;> omega
 
-theorem mask_before_advice (circuit : BinaryCircuit B) (i : Fin 256) :
-    (circuit.maskPrivate i).val < circuit.nPrivate-20 := by
-  have := i.isLt
-  have := circuit.privateCapacity
-  dsimp [maskPrivate]
-  omega
+def committedIndex (circuit : BinaryCircuit B) : (Fin circuit.nPublic ⊕ Fin circuit.nPrivate) ↪ Cube circuit.input :=
+  inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.committedCapacity
+
+/-- The virtual suffix follows every committed input. -/
+def virtualIndex (circuit : BinaryCircuit B) : Fin (2*(768+256+10)) ↪ Cube circuit.input :=
+  rangeIndex (circuit.nPublic+circuit.nPrivate) (2*(768+256+10)) circuit.input circuit.virtualCapacity
+
+theorem virtualDisjoint (circuit : BinaryCircuit B) (j : Fin circuit.nPublic ⊕ Fin circuit.nPrivate)
+    (v : Fin (2*(768+256+10))) : circuit.committedIndex j ≠ circuit.virtualIndex v := by
+  intro h
+  have hv := congrArg (fun u => (cubeIndex circuit.input u).val) h
+  simp only [committedIndex,virtualIndex,rangeIndex_val] at hv
+  cases j with
+  | inl j => rw [inputIndex_public] at hv; have := j.isLt; omega
+  | inr j => rw [inputIndex_private] at hv; have := j.isLt; omega
 
 def description (circuit : BinaryCircuit B) : BinaryPublic B 768 256 10 where
   input := circuit.input
@@ -336,26 +398,27 @@ def description (circuit : BinaryCircuit B) : BinaryPublic B 768 256 10 where
     have h := Nat.mod_add_div (circuit.nPrivate+127) 128
     have hm := Nat.mod_lt (circuit.nPrivate+127) (by decide : 0<128)
     omega
-  inputIndex := inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.inputCapacity
+  inputIndex := circuit.committedIndex
+  virtualIndex := circuit.virtualIndex
+  virtualDisjoint := circuit.virtualDisjoint
   publicBits := circuit.publicBits
   sharedPrivate := circuit.sharedPrivate
   maskPrivate := circuit.maskPrivate
   advicePrivate := circuit.advicePrivate
   data_pos := by decide
-  advice_pos := by decide
+  leaves_gt := by decide
   layout := circuit.layout
   output := circuit.output
   others := (circuit.others.withComponent 0).algebraic
-  carry := circuit.carry
+  carry := ConcreteAdapterTopology.carryWires circuit.carry
   above := (circuit.above.withComponent 0).algebraic
 
 /-- No annotation or protocol-equivalence hypothesis is supplied: this
-plan follows the same constructors that generated the binary circuit. -/
-def plan (circuit : BinaryCircuit B) : FrontendSchedule.Plan B circuit.description.template :=
+plan follows the same constructors that build the fixed binary circuit. -/
+def plan (circuit : BinaryCircuit B) : FrontendSchedule.Plan B circuit.description.circuit :=
   (circuit.above.withComponent 0).plan _
     (ConcreteAdapterTopology.buildPlan circuit.description.shape (circuit.others.withComponent 0)
-    circuit.carry circuit.description.sources circuit.description.advice
-    (fun _ _ => 1) 1 (fun _ _ => false) (fun _ => 1))
+      circuit.carry circuit.description.read)
 
 end BinaryCircuit
 end LfzkV2.Current.ConcreteSetup

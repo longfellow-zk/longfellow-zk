@@ -47,7 +47,7 @@ local notation "Unused" => unused c binary prime P R countBinary countPrime bina
 local instance valuesFintype (point : Point) : Fintype (Values point) := by
   cases point <;> dsimp only [values] <;> infer_instance
 
-variable (binaryPlan : FrontendSchedule.Plan B binary.template)
+variable (binaryPlan : FrontendSchedule.Plan B binary.circuit)
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (binaryGeometry : binaryPlan.frontend = g.binary) (primeGeometry : primePlan.frontend = g.prime)
 variable (binaryFits : binaryPlan.capacity ≤ binaryCapacity) (primeFits : primePlan.capacity ≤ primeCapacity)

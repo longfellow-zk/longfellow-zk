@@ -1,7 +1,6 @@
 import LfzkV2.Current.CanonicalRuntime
 import LfzkV2.Current.CertifiedProfile
 import LfzkV2.Current.FrontendSchedule
-import LfzkV2.Current.FrontendTopology
 import LfzkV2.Current.IdealRuntime
 import LfzkV2.Current.MerkleWireCodec
 
@@ -24,7 +23,7 @@ structure Setup (c : CertifiedProfile) (g : Geometry) (fields : Fields) (Advice 
   repr : ProofBodyCodec.Representations fields Advice
   shape : WireBlocks.Shape g fields
   fingerprint : FingerprintPrefix.Setup
-  binaryPlan : FrontendSchedule.Plan B binary.template
+  binaryPlan : FrontendSchedule.Plan B binary.circuit
   primePlan : FrontendSchedule.Plan (ZMod Adapter.Mdoc.primeOrder) prime.circuit
   binaryGeometry : binaryPlan.frontend = g.binary
   primeGeometry : primePlan.frontend = g.prime

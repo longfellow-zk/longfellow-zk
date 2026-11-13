@@ -1,4 +1,4 @@
-import LfzkV2.Current.MdocWitnessSeparation
+import LfzkV2.Current.MdocWitness
 import LfzkV2.Current.ZeroKnowledge.FrontendHonestAdapter
 
 noncomputable section
@@ -19,18 +19,19 @@ variable (H : CompleteSimulation.Point binary prime primePlan (Key := Key) (Base
 omit [Fintype B] [DecidableEq B] in
 theorem coupling_hash (context : Key) (original : Fin binary.nPrivate → Bool) (valid : UniformHashValid binary original)
     (responses : CompleteHonest.Masks (B := B)) (coin : CircuitTape prime.circuit)
-    (converted : (Adapter.Mdoc.P × MdocAdvice.Value) × Fin 16) :
+    (converted : (Adapter.Mdoc.P × MdocAdvice.Value) × AdapterBits.Unused) :
     FullCoupling.hashChecks binary prime primePlan samples base H context original responses coin converted := by
-  unfold FullCoupling.hashChecks FullCoupling.recoveredPrivate CompleteInputs.recoveredPrivate
-  exact valid _ _ _ _ _ _
+  unfold FullCoupling.hashChecks FullCoupling.recoveredInputs CompleteHonest.arrayOf FullCoupling.recoveredPrivate
+    CompleteInputs.recoveredPrivate
+  exact valid _ _ _
 
 omit [Fintype B] [DecidableEq B] in
 theorem honest_hash (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (original : Fin binary.nPrivate → Bool) (valid : UniformHashValid binary original)
     (tape : CompleteHonest.Tape binary prime) :
     HonestAdapter.hashChecks binary prime primePlan samples base H native original tape := by
-  unfold HonestAdapter.hashChecks CompleteHonest.privateBits
-  exact valid _ _ _ _ _ _
+  unfold HonestAdapter.hashChecks CompleteHonest.binaryInputs CompleteHonest.arrayOf CompleteHonest.privateBits
+  exact valid _ _ _
 
 end Frontend
 

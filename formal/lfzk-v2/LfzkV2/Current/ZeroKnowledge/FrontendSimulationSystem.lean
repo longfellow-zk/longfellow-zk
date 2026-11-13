@@ -73,7 +73,7 @@ theorem binary_handoff_values (primeData : PrimeData prime C)
   have values := SimulationParsed.challenge_values binary prime primePlan samples shape repr setup defaultAdvice publicCount
     binaryRequest metadata request root H initial coins
   have mu := Parser.read_mu repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ParserApplication.positions binary prime primePlan).2.2.1.le
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (ParserApplication.positions binary prime primePlan).2.1.le
   constructor
   · rw [eta,scaleValue]
     exact congrArg Subtype.val values.1.symm
@@ -85,9 +85,9 @@ theorem decoded_rows (system)
       id id samples.binary samples.binaryNonzero samples.prime samples.primeNonzero samples.conversion MdocAdvice.decode
       samples.fallback point ((point).priorAnswers H) = some system) :
     system.binary.rows = HonestRows.binaryRows binary prime primePlan samples W H native converted coins.advice
-      (simulateCircuit binary.description.template coins.binary)
+      (simulateCircuit binary.description.circuit coins.binary)
       (fun i => ((result).packing.1 i).val) (result).delta (result).packing.2 ∧
-      system.primeRows = [(native).claim.row (native).eta.val coins.mu] ∧
+      system.primeRows = (native).claim.rows (native).eta.val coins.mu ∧
       system.binaryLayout = CellLayout.selected binary.description.cells ∧
       system.primeLayout = CellLayout.Prime.layout prime.remaining prime.pads := by
   obtain ⟨primeData,data,parsedPrime,parsedBinary,checked⟩ := ApplicationPrefix.decodeChecked_spec (g := G) (fields := MdocRuntime.fields B) binary.description prime
@@ -123,13 +123,13 @@ theorem compiled_satisfies (system)
     (flatP : Fin (CellLayout.Prime.cells prime.remaining prime.pads+2) → P)
     (binaryRows : RowsHold
       (HonestRows.binaryRows binary prime primePlan samples W H native converted coins.advice
-        (simulateCircuit binary.description.template coins.binary)
+        (simulateCircuit binary.description.circuit coins.binary)
         (fun i => ((result).packing.1 i).val) (result).delta (result).packing.2 ++
         FingerprintRows.rows (fun i => CellLayout.selected binary.description.cells (.inl i))
           (fun i => CellLayout.selected binary.description.cells (.inr i))
           (selection (CompleteTranscript.step W H
             (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).1).1 coins.fingerprints.1) flatB)
-    (primeRows : RowsHold ([(native).claim.row (native).eta.val coins.mu] ++
+    (primeRows : RowsHold ((native).claim.rows (native).eta.val coins.mu ++
       FingerprintRows.rows (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inl i))
         (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inr i))
         (selection (CompleteTranscript.step W H

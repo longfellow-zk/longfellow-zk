@@ -52,14 +52,14 @@ theorem frontend_commitment
         inputFits privateFits setup roundSampler SHA) coins request root).commitment = root := rfl
 
 /-- Parse and truth for the literal honest frontend, from ordinary witness
-truth and the separate static circuit property. No parse or backend-truth
+truth; hash truth is independent of R, the pads and the virtual leaves by the
+circuit types. No parse or backend-truth
 certificate is assumed. All reserved-mask quantification is derived inside. -/
 theorem exists_satisfied
     (coins : CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
     (request : Request) (root : Digest) (SHA : Strand.Oracle)
     (pivotOne : binary.basis 0 = 1)
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-    (independent : MdocWitness.HashNoninterference binary)
     (valid : MdocWitness.HashValid
       (RequestedSimulator.requestedBinary binary prime primePlan Sh request) (original request))
     (signature :
@@ -85,8 +85,7 @@ theorem exists_satisfied
       data.2.statement.2.Satisfies
         (Backend.logical (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
           original remaining coins request).2) := by
-  have uniform := MdocWitness.uniformHashValid_of_valid
-    (independent.with_publicBits request.publicBits) (original request) valid
+  have uniform := MdocWitness.uniformHashValid_of_valid valid
   exact FrontendCanonicalRows.exists_satisfied binary prime primePlan binaryNodes scalars inputFits privateFits
     setup metadata original remaining
     (StrandCanonicalContext.actualOracle binary prime primePlan binaryNodes scalars

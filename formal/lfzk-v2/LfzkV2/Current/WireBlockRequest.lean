@@ -16,7 +16,7 @@ def setPublic (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (start : Start) → StartMetadata shape start → StartMetadata shape start
   | .none, metadata => metadata
   | .prime, metadata => ((metadata.1.1,primeInputs),metadata.2)
-  | .binary, metadata => ((metadata.1.1,binaryInputs),metadata.2)
+  | .binary, metadata => (((metadata.1.1.1,binaryInputs),(metadata.1.2.1,binaryInputs)),metadata.2)
 
 def requestMetadata (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (primeInputs : Fin shape.primePublic → fields .prime)
@@ -65,16 +65,17 @@ def binaryCodec (role : Role) :
     PrefixCodec (BinaryStart fields Advice shape.binaryPublic × RoleData shape role) :=
   (binaryStart repr shape).pair (roleCodec repr shape role)
 
-/-- Read the single ordinary public-input statement, checking the entire
-block including advice, fixed schedule and first role payload. -/
+/-- Read the hash statement's public inputs, checking the entire block
+including the masked words, both statements, the schedule and the first
+role payload. -/
 def readBinaryPublic (role : Role) (bytes : Bytes) :
     Option (Fin shape.binaryPublic → fields .binary) :=
-  (readWhole (binaryCodec shape repr role) bytes).map fun value => value.1.2.1.2
+  (readWhole (binaryCodec shape repr role) bytes).map fun value => value.1.2.1.1.2
 
 theorem readBinaryPublic_encode (role : Role) (startData : BinaryStart fields Advice shape.binaryPublic)
     (payload : RoleData shape role) :
     readBinaryPublic shape repr role ((binaryCodec shape repr role).encode (startData,payload)) =
-      some startData.2.1.2 := by
+      some startData.2.1.1.2 := by
   simp only [readBinaryPublic,readWhole_encode,Option.map_some]
 
 private theorem readBinaryPublic_start (binaryInputs : Fin shape.binaryPublic → fields .binary)
@@ -87,7 +88,7 @@ private theorem readBinaryPublic_start (binaryInputs : Fin shape.binaryPublic �
       some binaryInputs := by
   cases h
   exact readBinaryPublic_encode shape repr role
-    (body.advice,((metadata.1.1,binaryInputs),metadata.2)) payload
+    (body.advice,(((metadata.1.1.1,binaryInputs),(metadata.1.2.1,binaryInputs)),metadata.2)) payload
 
 theorem readBinaryPublic_fromRequest (binaryInputs : Fin shape.binaryPublic → fields .binary)
     (primeInputs : Fin shape.primePublic → fields .prime)

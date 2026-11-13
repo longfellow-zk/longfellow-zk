@@ -70,7 +70,7 @@ theorem quotient_base (basis : Module.Basis (Fin 128) (ZMod 2) B) :
   rw [generator,← zpow_natCast,← zpow_mul,← zpow_mod_card,hm,zpow_one]
 
 variable (binary : BinaryPublic B 768 256 10) (prime : PrimePublic Prime 768)
-variable (binaryPlan : FrontendSchedule.Plan B binary.template)
+variable (binaryPlan : FrontendSchedule.Plan B binary.circuit)
 variable (primePlan : FrontendSchedule.Plan Prime prime.circuit)
 
 def geometry := ConcreteSetup.geometry binary prime binaryPlan.frontend primePlan.frontend
@@ -125,7 +125,7 @@ variable (setup : FingerprintPrefix.Setup)
 variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (polynomialX : Bˣ)
 
 /-- All protocol callbacks are fixed here. In particular the advice decoder
-is total on exactly the canonical twenty-bit words admitted by the proof
+is total on exactly the canonical pairs of ten-bit words admitted by the proof
 codec. Canonical wire construction supplies the opening packet encoder. -/
 def configuration : RuntimeVerifier.Public
     (g := geometry binary prime binaryPlan primePlan)

@@ -4,7 +4,7 @@ import LfzkV2.Current.MetadataIdentifiers
 
 /-! Fixed bind-only metadata for the current verifier. Actual prover
 messages and request public inputs are assigned by `WireBlocks.fromRequest`.
-Derived affine claims and generated adapter coefficients remain local and
+Derived affine claims and the adapter's virtual definitions remain local and
 cannot enter the metadata constructor. Prefix helpers support the separate
 application readback proofs; they are not used to serialize metadata. -/
 noncomputable section
@@ -91,8 +91,7 @@ def primeData {index : ℕ} (history : Prefix g fields Advice C index) : PrimeDa
   { payload := payload
     decode := samples.prime
     nonzero := samples.primeNonzero
-    answers := answers
-    rho := fun i => samples.prime (history.answer (ApplicationPrefix.rowBatchingIndex g)) i.val }
+    answers := answers }
 
 private def digestBytes (value : Digest) : BoundedBytes CanonicalPrefix.maxLength :=
   ⟨List.ofFn value,by simp [CanonicalPrefix.maxLength]⟩
@@ -110,15 +109,6 @@ def packingStatement (sourceId : Digest) : WireBlocks.PackingStatement shape := 
     exact shape.sliceFits _ (by simp)
   exact (header,⟨binary.nPrivate,inputsFit⟩,⟨binary.pads,params.binaryPadsFit⟩)
 
-/-- LFC3 source coordinates use the unpadded shared input array. The
-algebraic circuit subsequently embeds those same coordinates into its cube. -/
-def adapterSources : Fin (shared+maskBits) → ℕ :=
-  Fin.append (fun i => binary.nPublic+(binary.sharedPrivate i).val)
-    (fun i => binary.nPublic+(binary.maskPrivate i).val)
-
-def adapterPads : Fin 2 → Fin adviceBits → ℕ :=
-  fun tree i => binary.nPublic+(binary.advicePrivate tree i).val
-
 /-- Metadata contains only fixed public identifiers, depths and counts.
 No oracle answer or challenge-derived coefficient can enter these packets. -/
 def start (ids : FingerprintPrefix.Setup) :
@@ -126,10 +116,10 @@ def start (ids : FingerprintPrefix.Setup) :
   | .none => ()
   | .prime => ((ids.primeCircuit,fun _ => shape.zero .prime),
       fun _ => (ids.primeCircuit,⟨prime.circuit.layers,params.primeDepthFit⟩))
-  | .binary => ((ids.hashCircuit,fun _ => shape.zero .binary),
-      Fin.cons params.hashDepth
-        (Fin.cons ⟨(MetadataIdentifiers.reductions (F := B) binary.shape).length+2,
-          params.adapterDepthFit⟩ Fin.elim0))
+  | .binary => (((ids.hashCircuit,fun _ => shape.zero .binary),(ids.fragment,fun _ => shape.zero .binary)),
+      Fin.cons (ids.hashCircuit,params.hashDepth)
+        (Fin.cons (ids.fragment,⟨(MetadataIdentifiers.reductions (F := B) binary.shape).length+2,
+          params.adapterDepthFit⟩) Fin.elim0))
 
 def role (ids : FingerprintPrefix.Setup) :
     (stage : Role) → WireBlocks.RoleMetadata shape stage
@@ -150,12 +140,21 @@ def metadata (ids : FingerprintPrefix.Setup) :
       role binary prime shape params ids (g.roles.get index))
 
 omit [Fintype B] [DecidableEq B] in
-/-- The concrete encoder satisfies the absorption invariant for arbitrary
-challenge arrays, including malformed or adversarial answer histories. -/
+/-- The concrete mdoc transcript satisfies the global absorption invariant:
+its metadata is a function of the block index alone. It absorbs no request
+value beyond the statement, no prover message beyond the body's own fields,
+and no value derived from prover messages or challenges. This holds for
+arbitrary message prefixes and answer arrays, including adversarial ones. -/
+theorem metadata_setupOnly (ids : FingerprintPrefix.Setup) :
+    CanonicalRequest.SetupOnly shape binary.nPublic
+      (metadata (Advice := Advice) (C := C) binary prime shape params ids) := by
+  intro request request' index writes writes' first second
+  rfl
+
+omit [Fintype B] [DecidableEq B] in
 theorem metadata_challengeIndependent (ids : FingerprintPrefix.Setup) :
     CanonicalRequest.ChallengeIndependent shape binary.nPublic
-      (metadata (Advice := Advice) (C := C) binary prime shape params ids) := by
-  intro request index writes first second
-  rfl
+      (metadata (Advice := Advice) (C := C) binary prime shape params ids) :=
+  (metadata_setupOnly binary prime shape params ids).challengeIndependent
 
 end LfzkV2.Current.ConcreteMetadata

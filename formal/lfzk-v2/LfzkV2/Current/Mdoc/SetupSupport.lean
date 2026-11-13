@@ -14,19 +14,17 @@ variable (binary : BinaryCircuit B) (prime : PrimeCircuit)
 variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Scalars B)
 variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
 
-private def templateBytes : Bytes :=
-  MetadataIdentifiers.adapterBytes scalars.binary.encode binary.description.shape
-    (binary.nPublic+binary.nPrivate) binary.nPublic
-    (ConcreteMetadata.adapterSources binary.description) (ConcreteMetadata.adapterPads binary.description)
-    (fun _ _ => 1) (MdocRuntime.polynomialX binary.basis) (fun _ _ => false) (fun _ => 1)
+private def fragmentBytes : Bytes :=
+  MetadataIdentifiers.fragmentBytes scalars.binary.encode binary.description.shape
+    (binary.nPublic+binary.nPrivate+2*(768+256+10)) binary.nPublic (binary.nPublic+binary.nPrivate)
 
 def program : Tree Bytes Digest Mdoc.SetupFamily.Values 4 :=
-  .query (templateBytes binary scalars) fun template =>
+  .query (fragmentBytes binary scalars) fun fragment =>
   .query (MdocIdentifiers.contextBytes (MdocIdentifiers.binaryDomain cantor scalars) (binary.description.cells+2)) fun bc =>
   .query (MdocIdentifiers.contextBytes (MdocIdentifiers.primeDomain scalars)
     (CellLayout.Prime.cells prime.description.remaining prime.description.pads+2)) fun pc =>
   .query (MdocIdentifiers.jointContextBytes bc pc) fun joint =>
-  .done ⟨template,bc,pc,joint⟩
+  .done ⟨fragment,bc,pc,joint⟩
 
 omit [Fintype B] [DecidableEq B] in
 theorem program_result (SHA : Strand.Oracle) :

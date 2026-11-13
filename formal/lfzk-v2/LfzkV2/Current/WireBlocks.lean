@@ -92,14 +92,6 @@ def schedule (count : ℕ) : PrefixCodec (CircuitSchedule count) :=
   (PrefixCodec.vector (framedDigest.pair word) count).prefixed
     (bytesDomain "layered-sumcheck/circuits/v1" ++ frame (encodeLE 8 count))
 
-/-- Generated instances have no circuit ID. Their trusted template and
-layout were bound before commitment; only fixed depths enter this schedule. -/
-abbrev DerivedSchedule (count : ℕ) := Fin count → Word
-
-def derivedSchedule (count : ℕ) : PrefixCodec (DerivedSchedule count) :=
-  (PrefixCodec.vector (word.prefixed (bytesDomain "layered-sumcheck/derived-circuit/v1")) count).prefixed
-    (bytesDomain "layered-sumcheck/circuits/v1" ++ frame (encodeLE 8 count))
-
 abbrev PrimeStart (fields : Fields) (publicCount : ℕ) :=
   Fingerprints fields × (CircuitStatement fields .prime publicCount × CircuitSchedule 1)
 
@@ -109,14 +101,16 @@ def primeStart : PrefixCodec (PrimeStart fields shape.primePublic) :=
       (bytesDomain "longfellow/witness-selection/responses/v1")
 
 abbrev BinaryStart (fields : Fields) (Advice : Type) (publicCount : ℕ) :=
-  Advice × (CircuitStatement fields .binary publicCount × DerivedSchedule 2)
+  Advice × ((CircuitStatement fields .binary publicCount × CircuitStatement fields .binary publicCount) ×
+    CircuitSchedule 2)
 
-/-- Bind advice and the ordinary hash statement. The generated adapter
-has neither a separate instance ID nor a repeated public-input statement. -/
+/-- Bind the masked quotient words, then one statement per component (the hash
+circuit, then the archived adapter fragment, each with its own circuit ID and
+the shared public inputs), then the schedule binding each ID and depth. -/
 def binaryStart : PrefixCodec (BinaryStart fields Advice shape.binaryPublic) :=
-  (repr.advice.prefixed (bytesDomain "p256-adapter/masked-quotient-bits/v1" ++
-    [0] ++ encodeLE 8 repr.adviceWidth)).pair
-      ((statement repr shape .binary shape.binaryPublic).pair (derivedSchedule 2))
+  (repr.adviceWrites.prefixed (bytesDomain "p256-adapter/masked-quotient-bits/v1")).pair
+    (((statement repr shape .binary shape.binaryPublic).pair
+      (statement repr shape .binary shape.binaryPublic)).pair (schedule 2))
 
 inductive Start where
   | none | prime | binary
@@ -235,7 +229,7 @@ def codec (i : Fin g.roles.length) : PrefixCodec (Data (Advice := Advice) shape 
   (startCodec repr shape (startAt g i)).pair (roleCodec repr shape (g.roles.get i))
 
 /-- The cache includes only writes observable at this actual role. Public
-metadata stays in the base bytes; derived instance IDs are absent. -/
+metadata stays in the base bytes; no derived value is absorbed. -/
 def cache (i : Fin g.roles.length) (value : Data (Advice := Advice) shape i) : ProtocolWrites.Fresh g fields Advice :=
   let start := startCache shape (startAt g i) value.1
   let role : ProtocolWrites.Fresh g fields Advice := roleCache shape (g.roles.get i) value.2

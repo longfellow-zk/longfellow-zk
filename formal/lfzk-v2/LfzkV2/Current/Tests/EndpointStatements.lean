@@ -42,15 +42,15 @@ def fingerprint (env : Environment) (root : Name) : UInt64 × NameSet := Id.run 
 /-- Reviewed statement fingerprints. Update a value only after reviewing the
 statement change it reflects. -/
 def pinned : List (Name × UInt64) := [
-  (``Current.Mdoc.Soundness.ratio_le, 2320960330717783613),
-  (``Current.Mdoc.Soundness.linear_ratio_le, 4794053449157163209),
-  (``Current.Mdoc.Soundness.averaged_ratio_le, 8171944902145713937),
-  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 13806769135036279007),
-  (``Current.Mdoc.Soundness.averaged_nonvacuous, 15946407965016625641),
-  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 9926718859704130105),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 4182175844650144754),
-  (``Current.Mdoc.ZeroKnowledge.statClose, 5356686738951577342),
-  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 6755905065642033840)]
+  (``Current.Mdoc.Soundness.ratio_le, 16572572653270246646),
+  (``Current.Mdoc.Soundness.linear_ratio_le, 3770736984615081738),
+  (``Current.Mdoc.Soundness.averaged_ratio_le, 9893581204835879104),
+  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 11877996707575944283),
+  (``Current.Mdoc.Soundness.averaged_nonvacuous, 8925449952227110609),
+  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 4800797827455084754),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 17504637458257368936),
+  (``Current.Mdoc.ZeroKnowledge.statClose, 11478829312894674955),
+  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 14145045277075007458)]
 
 run_cmd do
   let env ← getEnv
@@ -67,8 +67,14 @@ run_cmd do
   let (_, reached) := fingerprint env ``Current.Mdoc.Soundness.averaged_ratio_le
   for required in [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
       ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
-      ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.ReadDisjoint] do
+      ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
+      ``ConcreteAdapterTopology.Others] do
     unless reached.contains required do
       throwError "Endpoint fingerprint does not cover {required}"
+  -- Hash separation is a consequence of the circuit types, never a premise.
+  for (name, _) in pinned do
+    let (_, reached) := fingerprint env name
+    if reached.contains ``HashCircuit.ReadDisjoint then
+      throwError "Endpoint {name} depends on a read-separation premise"
 
 end LfzkV2.Current.Tests.EndpointStatements

@@ -1,13 +1,20 @@
 import LfzkV2.Current.HashCircuit
+import LfzkV2.Current.ConcreteAdapterTopology
 
-/-! Static read separation for the ordinary hash component. Assertions are
-included even when their sparse coefficient is zero. Generated adapter wires
-may vary freely; ordinary wires and checks remain unchanged. -/
+/-! Read separation of the ordinary hash component. Assertions are included
+even when their sparse coefficient is zero. Adapter wires, R, the quotient
+pads and the virtual leaves may vary freely; ordinary wires and checks remain
+unchanged.
+
+For a typed hash topology (`ConcreteAdapterTopology`) the static read
+separation `ReadDisjoint` is a theorem: the hash's input-boundary fragments
+read only its own input prefix, and its later fragments read only wires
+outside the adapter's arrays, by type. It is never a premise. -/
 noncomputable section
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.HashCircuit
-open SumcheckV2 Layered Adapter.Circuit Adapter.Circuit.Fragment
+open SumcheckV2 Layered Adapter.Circuit Adapter.ProductTree Adapter.Fragment
 open scoped Classical
 variable {F W O : Type} [Field F]
 
@@ -78,35 +85,36 @@ theorem layer_agree {n out mid : ℕ} {V V' : Type}
   · intro i
     exact residual_eq reserved left right same (other.assertions i) (separated.assertions i)
 
-structure ReadDisjoint {d q input final out : ℕ} (layout : Layout)
-    (output : Fin 2 ↪ Cube final) (others : Others (F := F) layout d q input final output)
+/-- The static read separation used by the hash checks. For a typed hash
+topology it holds by construction (`readDisjoint` below). -/
+structure ReadDisjoint {leaves input final out : ℕ} (layout : Layout)
+    (output : Fin 2 ↪ Cube final) (others : Others (F := F) layout leaves input final output)
     (carry : Cube out → Option (Cube final)) (reserved : Cube input → Prop) : Prop where
-  leaf : ExtensionAvoids others.leaf reserved
-  pair : ∀ d q, ExtensionAvoids (others.pair d q) (fun u => ∃ i, layout.flat d q i = u)
-  final : ExtensionAvoids others.final (fun u => ∃ i, layout.flat 1 1 i = u)
+  first : ExtensionAvoids others.first reserved
+  pair : ∀ n, ExtensionAvoids (others.pair n) (fun u => ∃ i, layout.flat n i = u)
+  final : ExtensionAvoids others.final (fun u => ∃ i, layout.flat 2 i = u)
   carry : ∀ u tree, carry u ≠ some (output tree)
 
-private theorem reduction_agree {d q input : ℕ} (layout : Layout)
-    (others : ∀ d q, Extension (F := F) (mid := layout.log d q)
-      (layout.flat (half d) (half q)))
-    (separated : ∀ d q, ExtensionAvoids (others d q) (fun u => ∃ i, layout.flat d q i = u))
-    (shape : Shape d q) (first second : Layered.Circuit F (layout.log d q) input)
+private theorem reduction_agree {input : ℕ} (layout : Layout)
+    (others : ∀ n, Extension (F := F) (mid := layout.log n) (layout.flat (half n)))
+    (separated : ∀ n, ExtensionAvoids (others n) (fun u => ∃ i, layout.flat n i = u))
+    {n : ℕ} (shape : Shape n) (first second : Layered.Circuit F (layout.log n) input)
     (left right : Cube input → F)
-    (same : AgreeOutside (fun u => ∃ i, layout.flat d q i = u) (first.eval left) (second.eval right))
+    (same : AgreeOutside (fun u => ∃ i, layout.flat n i = u) (first.eval left) (second.eval right))
     (checks : first.Satisfies left ↔ second.Satisfies right) :
-    AgreeOutside (fun u => ∃ i, layout.flat 1 1 i = u)
+    AgreeOutside (fun u => ∃ i, layout.flat 2 i = u)
       ((reduction layout others shape first).eval left) ((reduction layout others shape second).eval right) ∧
     ((reduction layout others shape first).Satisfies left ↔
       (reduction layout others shape second).Satisfies right) := by
   induction shape with
   | root => exact ⟨same,checks⟩
-  | @pair d q next ih =>
-    have step := layer_agree (pairRows d q) (pairRows d q) (layout.index d q) (layout.index d q)
-      (layout.flat (half d) (half q)) (others d q) _ (separated d q) _ _ same
-    refine ih (.layer (others d q).checks
-      (layer (pairRows d q) (layout.index d q) (layout.flat (half d) (half q)) (others d q)) first)
-      (.layer (others d q).checks
-      (layer (pairRows d q) (layout.index d q) (layout.flat (half d) (half q)) (others d q)) second) ?_ ?_
+  | @pair n next ih =>
+    have step := layer_agree (pairRows n) (pairRows n) (layout.index n) (layout.index n)
+      (layout.flat (half n)) (others n) _ (separated n) _ _ same
+    refine ih (.layer (others n).checks
+      (layer (pairRows n) (layout.index n) (layout.flat (half n)) (others n)) first)
+      (.layer (others n).checks
+      (layer (pairRows n) (layout.index n) (layout.flat (half n)) (others n)) second) ?_ ?_
     · simpa only [Layered.Circuit.eval] using step.1
     · change ((∀ i, _ = 0) ∧ _) ↔ ((∀ i, _ = 0) ∧ _)
       simp_rw [step.2,checks]
@@ -120,30 +128,27 @@ private theorem above_eval_eq_inputs {out mid input : ℕ} (above : Above F out 
   | entry _ mapping _ ih => exact congrArg mapping.previous (ih first second same)
   | layer _ body _ ih => exact congrArg body.outputs (ih first second same)
 
-theorem checks_iff_of_readDisjoint {d q input final out upper : ℕ}
-    (layout : Layout) (output : Fin 2 ↪ Cube final) (shape : Shape d q)
-    (others : Others (F := F) layout d q input final output)
+theorem checks_iff_of_readDisjoint {leaves input final out upper : ℕ}
+    (layout : Layout) (output : Fin 2 ↪ Cube final) (shape : Shape (half leaves))
+    (others : Others (F := F) layout leaves input final output)
     (carry : Cube out → Option (Cube final)) (above : Above F upper out)
     (reserved : Cube input → Prop) (separated : ReadDisjoint layout output others carry reserved)
-    (sources : Fin d → Cube input) (pads : Fin 2 → Fin q → Cube input)
-    (powers powers' : Fin 2 → Fin d → Fˣ) (base base' : Fˣ)
-    (masked masked' : Fin 2 → Fin q → Bool) (targets targets' : Fin 2 → Fˣ)
+    (read read' : Wire leaves → Cube input)
     (left right : Cube input → F) (same : AgreeOutside reserved left right) :
-    Checks layout output shape others carry above sources pads powers base masked targets left ↔
-      Checks layout output shape others carry above sources pads powers' base' masked' targets' right := by
-  have leaf := layer_agree (leafRows sources pads powers base masked)
-    (leafRows sources pads powers' base' masked') id id (layout.flat d q) others.leaf
-    reserved separated.leaf left right same
+    Checks layout output shape others carry above read left ↔
+      Checks layout output shape others carry above read' right := by
+  have first := layer_agree (pairRows leaves) (pairRows leaves) read read'
+    (layout.flat (half leaves)) others.first reserved separated.first left right same
   have reduced := reduction_agree layout others.pair separated.pair shape
-    (.layer others.leaf.checks (layer (leafRows sources pads powers base masked) id (layout.flat d q) others.leaf) .input)
-    (.layer others.leaf.checks (layer (leafRows sources pads powers' base' masked') id (layout.flat d q) others.leaf) .input)
-    left right leaf.1 (by
+    (.layer others.first.checks (layer (pairRows leaves) read (layout.flat (half leaves)) others.first) .input)
+    (.layer others.first.checks (layer (pairRows leaves) read' (layout.flat (half leaves)) others.first) .input)
+    left right (by simpa only [Layered.Circuit.eval] using first.1) (by
     change ((∀ i, _ = 0) ∧ True) ↔ ((∀ i, _ = 0) ∧ True)
-    exact and_congr (forall_congr' fun i => congrArg (· = 0) (leaf.2 i) |> Iff.of_eq) Iff.rfl)
-  have last := layer_agree (finalRows targets) (finalRows targets') (layout.index 1 1) (layout.index 1 1)
+    exact and_congr (forall_congr' fun i => congrArg (· = 0) (first.2 i) |> Iff.of_eq) Iff.rfl)
+  have last := layer_agree finalRows finalRows (layout.index 2) (layout.index 2)
     output others.final _ separated.final _ _ reduced.1
-  have evals : (withoutAdapterChecks layout output shape others carry sources pads powers base masked targets).eval left =
-      (withoutAdapterChecks layout output shape others carry sources pads powers' base' masked' targets').eval right := by
+  have evals : (withoutAdapterChecks layout output shape others carry read).eval left =
+      (withoutAdapterChecks layout output shape others carry read').eval right := by
     funext u
     change (carry u).elim 0 _ = (carry u).elim 0 _
     cases h : carry u with
@@ -152,8 +157,8 @@ theorem checks_iff_of_readDisjoint {d q input final out upper : ℕ}
       apply last.1 i
       rintro ⟨tree,rfl⟩
       exact separated.carry u tree h
-  have checks : (withoutAdapterChecks layout output shape others carry sources pads powers base masked targets).Satisfies left ↔
-      (withoutAdapterChecks layout output shape others carry sources pads powers' base' masked' targets').Satisfies right := by
+  have checks : (withoutAdapterChecks layout output shape others carry read).Satisfies left ↔
+      (withoutAdapterChecks layout output shape others carry read').Satisfies right := by
     change ((∀ i : Fin 0, _ = 0) ∧ (∀ i, _ = 0) ∧ _) ↔ ((∀ i : Fin 0, _ = 0) ∧ (∀ i, _ = 0) ∧ _)
     simp_rw [last.2,reduced.2]
     simp
@@ -169,4 +174,73 @@ theorem checks_iff_of_readDisjoint {d q input final out upper : ℕ}
     rw [above_eval_eq_inputs rest _ _ left right evals]
     exact and_congr Iff.rfl (ih carry separated evals checks)
 
+section Typed
+open ConcreteAdapterTopology
+
+omit [Field F] in
+/-- Typed reads avoid every position outside the range of the read map. -/
+theorem extensionAvoids {n out mid : ℕ} {output : Fin n ↪ Cube out} {V : Type} {read : V → Cube mid}
+    (extension : ConcreteAdapterTopology.Extension output V read F) (reserved : Cube mid → Prop)
+    (outside : ∀ x, ¬reserved (read x)) : ExtensionAvoids extension.algebraic reserved where
+  terms term member := by
+    have h := extension.reads term member
+    cases term with
+    | quadratic g l r k =>
+        obtain ⟨⟨x,rfl⟩,⟨y,rfl⟩⟩ := h
+        exact ⟨outside x,outside y⟩
+    | linear g l k =>
+        obtain ⟨x,rfl⟩ := h
+        exact outside x
+    | constant => trivial
+  assertions i := by
+    have h := extension.assertion_reads i
+    change AssertionAvoids reserved (ConcreteTopology.Layer.assertions extension.global i)
+    generalize ConcreteTopology.Layer.assertions extension.global i = a at h ⊢
+    cases a with
+    | quadratic l r =>
+        obtain ⟨⟨x,rfl⟩,⟨y,rfl⟩⟩ := h
+        exact ⟨outside x,outside y⟩
+    | linear l =>
+        obtain ⟨x,rfl⟩ := h
+        exact outside x
+
+omit [Field F] in
+/-- Read separation of a typed hash topology. The reserved inputs are all
+positions outside the hash's own input prefix. -/
+theorem readDisjoint {layout : Layout} {leaves width input final out : ℕ}
+    {place : Fin width → Cube input} {output : Fin 2 ↪ Cube final}
+    (others : ConcreteAdapterTopology.Others layout leaves width input final place output F)
+    (carry : Cube out → Option (Avoid output)) :
+    ReadDisjoint layout output others.algebraic (carryWires carry) (fun u => ∀ x, place x ≠ u) where
+  first := extensionAvoids others.first _ (fun x h => h x rfl)
+  pair n := extensionAvoids (others.pair n) _ (fun x ⟨i,h⟩ => x.property i h)
+  final := extensionAvoids others.final _ (fun x ⟨i,h⟩ => x.property i h)
+  carry u tree h := by
+    unfold carryWires at h
+    cases hc : carry u with
+    | none => rw [hc] at h; cases h
+    | some y =>
+        rw [hc] at h
+        exact y.property tree (Option.some.inj h).symm
+
+/-- The hash checks of a typed topology depend only on the hash's own input
+prefix. Neither R, the quotient pads, the virtual leaves nor the adapter's
+leaf addresses can change them. -/
+theorem checks_prefix {layout : Layout} {leaves width input final out upper : ℕ}
+    {place : Fin width → Cube input} {output : Fin 2 ↪ Cube final}
+    (shape : Shape (half leaves))
+    (others : ConcreteAdapterTopology.Others layout leaves width input final place output F)
+    (carry : Cube out → Option (Avoid output)) (above : Adapter.Fragment.Above F upper out)
+    (read read' : Wire leaves → Cube input) (left right : Cube input → F)
+    (same : ∀ x, left (place x) = right (place x)) :
+    Checks layout output shape others.algebraic (carryWires carry) above read left ↔
+      Checks layout output shape others.algebraic (carryWires carry) above read' right := by
+  apply checks_iff_of_readDisjoint layout output shape others.algebraic (carryWires carry) above _
+    (readDisjoint others carry) read read' left right
+  intro u hu
+  simp only [not_forall,not_not] at hu
+  obtain ⟨x,rfl⟩ := hu
+  exact same x
+
+end Typed
 end LfzkV2.Current.HashCircuit

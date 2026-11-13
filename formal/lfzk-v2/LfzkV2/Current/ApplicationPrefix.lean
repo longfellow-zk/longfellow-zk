@@ -354,14 +354,14 @@ theorem constraints_frontendTape {F Pad : Type} [Field F] {out input : ℕ}
   unfold FrontendVerifier.constraints
   rw [read_frontendTape]
 
-def rowBatchingIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length
-def rescalingIndex (g : Geometry) : ℕ := rowBatchingIndex g+1
-def conversionIndex (g : Geometry) : ℕ := rowBatchingIndex g+2
+def rescalingIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length
+def conversionIndex (g : Geometry) : ℕ := rescalingIndex g+1
 def packingIndex (g : Geometry) : ℕ := g.binaryStart+(g.binary.roles .binary).length
 
-/-- Compile the prime rows from the complete bound prime message window,
-then sample their row-combination coefficients from the one prime-batch
-answer. No rows, claim or compiler-success proof are supplied by the caller. -/
+/-- Compile the prime rows from the complete bound prime message window.
+Mixed storage has no row-combination challenge: the split claim is derived
+from these rows alone. No rows, claim or compiler-success proof are supplied
+by the caller. -/
 def readPrime (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
     (field : fields .prime → ZMod Adapter.Mdoc.primeOrder)
     (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
@@ -369,18 +369,16 @@ def readPrime (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
     (fallback : C) (point : Point) (past : Fin point.rank → C) : Option (PrimeData n C) :=
   if g.primeStart+FrontendReplay.slots n.circuit ≤ point.rank then do
     let payload ← Messages.read n.circuit (wire point .prime field g.primeStart)
-    let batching ← strictAnswer point past (rowBatchingIndex g)
     some {
       payload := payload
       decode := decode
       nonzero := nonzero
-      answers := frontendTape point past fallback g.primeStart (FrontendReplay.slots n.circuit)
-      rho := fun i => decode batching i.val }
+      answers := frontendTape point past fallback g.primeStart (FrontendReplay.slots n.circuit) }
   else none
 
-/-- The binary circuit is generated from the reconstructed prime claim and
-the actual adapter exchange. Both conversion challenges come from the same
-answer through the fixed two-coordinate decoder. Packing response cells are
+/-- The binary circuit is fixed. The reconstructed prime claim and the actual
+adapter exchange determine only its virtual definitions. Both conversion
+challenges come from the same answer through the fixed two-coordinate decoder. Packing response cells are
 backend data; they are never binary field-valued circuit inputs. -/
 def readBinary (s : BinaryPublic B shared maskBits adviceBits)
     {n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared} (prime : PrimeData n C)
@@ -402,11 +400,8 @@ def readBinary (s : BinaryPublic B shared maskBits adviceBits)
   let A ← point.readAt g.batchingIndex.val (fun block => block.2.packingA.map binaryField)
   let eta := (rescale scale).val
   let alpha := convert conversion
-  let powers := fun tree i => generator^((alpha tree).val*(Handoff.weights prime.claim.sharedWeights eta i)).val
-  let targets := fun tree => generator^((alpha tree).val*mu).val
-  let circuit := s.circuit powers (generator^(-(Adapter.Mdoc.primeOrder : ℤ))) masked targets
-  if g.binaryStart+FrontendReplay.slots circuit ≤ point.rank then
-    let payload ← Messages.read circuit (wire point .binary binaryField g.binaryStart)
+  if g.binaryStart+FrontendReplay.slots s.circuit ≤ point.rank then
+    let payload ← Messages.read s.circuit (wire point .binary binaryField g.binaryStart)
     some {
       eta := eta
       mu := mu
@@ -415,7 +410,7 @@ def readBinary (s : BinaryPublic B shared maskBits adviceBits)
       payload := payload
       decode := decode
       nonzero := nonzero
-      answers := frontendTape point past fallback g.binaryStart (FrontendReplay.slots circuit)
+      answers := frontendTape point past fallback g.binaryStart (FrontendReplay.slots s.circuit)
       U := fun i => binaryField (U (Fin.cast hdegree.symm i))
       delta := fun i => decode packing i.val
       A := A }
@@ -449,16 +444,14 @@ theorem readPrime_spec (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
     g.primeStart+FrontendReplay.slots n.circuit ≤ point.rank ∧
       Messages.read n.circuit (wire point .prime field g.primeStart) = some data.payload ∧
       data.decode = decode ∧ data.nonzero = nonzero ∧
-      data.answers = frontendTape point past fallback g.primeStart (FrontendReplay.slots n.circuit) ∧
-      ∃ batching, strictAnswer point past (rowBatchingIndex g) = some batching ∧
-        data.rho = fun i => decode batching i.val := by
+      data.answers = frontendTape point past fallback g.primeStart (FrontendReplay.slots n.circuit) := by
   unfold readPrime at h
   split at h
   · rename_i hslots
-    simp only [PrimePublic.setup,Option.bind_eq_bind,Option.bind_eq_some_iff] at h
-    obtain ⟨payload,hpayload,batching,hbatching,hresult⟩ := h
+    simp only [Option.bind_eq_bind,Option.bind_eq_some_iff] at h
+    obtain ⟨payload,hpayload,hresult⟩ := h
     cases Option.some.inj hresult
-    exact ⟨hslots,hpayload,rfl,rfl,rfl,batching,hbatching,rfl⟩
+    exact ⟨hslots,hpayload,rfl,rfl,rfl⟩
   · contradiction
 
 omit [DecidableEq B] in

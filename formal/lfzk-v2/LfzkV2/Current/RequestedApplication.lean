@@ -47,7 +47,7 @@ theorem checked_true
     (h : ApplicationSetup.decodeChecked (binaryWithBits binary bits) (primeWithInputs prime inputs)
       nd cfg.card cfg.polynomialX cfg.quotientBound bd = some A)
     (w : Selection.Pair B N binary.Original prime.Original) (htrue : A.True w) :
-    bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs
+    bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs bd.entries
       (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w)) ∧
     prime.circuit.Satisfies
       (primeInputs (binaryWithBits binary bits) (primeWithInputs prime inputs) w) := by
@@ -78,7 +78,7 @@ theorem true_at_request (point : Point) (past : Fin point.rank → C)
         (cfg.polynomialX^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
         cfg.binaryDecode cfg.binaryNonzero cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback
         point past = some bd ∧
-      bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs
+      bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs bd.entries
         (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w)) ∧
       prime.circuit.Satisfies
         (primeInputs (binaryWithBits binary bits) (primeWithInputs prime inputs) w) := by

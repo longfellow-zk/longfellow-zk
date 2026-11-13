@@ -18,7 +18,7 @@ local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Adv
   (Base := Base) (Key := Key)
 local notation "Pair" => Selection.Pair B N binary.Original prime.Original
 
-/-- The six concrete prefix readers have common private coordinates and one
+/-- The five concrete prefix readers have common private coordinates and one
 query domain. Each parsed frontend carries its checked public shape/samplers;
 malformed or unavailable prefixes remain `none`. -/
 structure Readers where
@@ -26,8 +26,6 @@ structure Readers where
     Option (FrontendView B binary.Pad Pair Point C)
   primeRead : (point : Point) → (Fin point.rank → C) →
     Option (FrontendView N (Fin prime.pads) Pair Point C)
-  batchRead : (point : Point) → (Fin point.rank → C) →
-    Option (BatchPacket N (Fin shared ⊕ prime.Other) Pair C)
   rescaleRead : (point : Point) → (Fin point.rank → C) →
     Option (RescaleData N (Fin shared) prime.Other Pair)
   conversionRead : (point : Point) → (Fin point.rank → C) →
@@ -55,12 +53,11 @@ def roleCharge (role : Role) (point : Point) (H : Point → Digest × C) (answer
       .terminal .binary .. | .combine .binary .. => frontendCharge S readers.binaryRead point H answer
   | .inputAssertions .prime .. | .assertions .prime .. | .sumcheck .prime .. |
       .terminal .prime .. | .combine .prime .. => frontendCharge S readers.primeRead point H answer
-  | .rowBatching => indicator (batchBad S readers.batchRead point H answer.2)
   | .rescaling => indicator (rescaleBad S readers.rescaleRead laws.rescaleDecoder point H answer.2)
   | .conversion => indicator (conversionBad S readers.conversionRead laws.conversionDecoder
       Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound point H answer.2)
   | .packing => indicator (packingBad S readers.packingRead laws.packingDecoder point H answer.2)
-  | .batching | .opening => 0
+  | .rowBatching | .batching | .opening => 0
 
 def single (point : Point) (H : Point → Digest × C) (answer : Digest × C) : ℚ :=
   match point.role with
@@ -83,8 +80,8 @@ theorem roleCharge_nonneg (role : Role) (point : Point) (H : Point → Digest ×
   | sumcheck side stage index => cases side <;> exact hi _
   | terminal side stage => cases side <;> exact hi _
   | combine side stage entries => cases side <;> exact hi _
-  | rowBatching | rescaling | conversion | packing => exact hi _
-  | batching | opening => exact le_rfl
+  | rescaling | conversion | packing => exact hi _
+  | rowBatching | batching | opening => exact le_rfl
 
 theorem single_nonneg (point : Point) (H : Point → Digest × C) (answer : Digest × C) :
     0 ≤ single S laws readers point H answer := by
@@ -100,7 +97,6 @@ theorem roleCharge_off (role : Role) (point : Point) (H H' : Point → Digest ×
   have hn := propext (S.primeSelection_off point H H' h answer.2)
   have hbf := frontendCharge_off S readers.binaryRead point H H' h answer
   have hnf := frontendCharge_off S readers.primeRead point H H' h answer
-  have hbatch := propext (packetBad_off S readers.batchRead (fun packet w a => packet.bad w a) point H H' h answer.2)
   have hs := propext (packetBad_off S readers.rescaleRead
     (fun packet w a => packet.bad w (laws.rescaleDecoder.decode a)) point H H' h answer.2)
   have hc := propext (packetBad_off S readers.conversionRead
@@ -115,11 +111,10 @@ theorem roleCharge_off (role : Role) (point : Point) (H H' : Point → Digest ×
   | sumcheck side stage index => cases side <;> first | exact hbf | exact hnf
   | terminal side stage => cases side <;> first | exact hbf | exact hnf
   | combine side stage entries => cases side <;> first | exact hbf | exact hnf
-  | rowBatching => simp only [roleCharge,batchBad,hbatch]
   | rescaling => simp only [roleCharge,rescaleBad,hs]
   | conversion => simp only [roleCharge,conversionBad,hc]
   | packing => simp only [roleCharge,packingBad,hp]
-  | batching | opening => rfl
+  | rowBatching | batching | opening => rfl
 
 theorem single_off (point : Point) (H H' : Point → Digest × C)
     (h : Bcs.TotalOracle.AgreeOff point H H') (answer : Digest × C) :
@@ -162,9 +157,6 @@ theorem roleCharge_sum (role : Role) (point : Point) (H : Point → Digest × C)
     (by simpa only [ZMod.card] using hncount)
   have hbf := frontendCharge_sum S readers.binaryRead point H
   have hnf := frontendCharge_sum S readers.primeRead point H
-  have hbatch := indicator_link_sum_le (Link := Digest) (batchBad S readers.batchRead point H)
-    1 Adapter.Mdoc.primeOrder (by norm_num [Adapter.Mdoc.primeOrder])
-    (by simpa only [ZMod.card,one_mul] using batchBad_card_mul_le S readers.batchRead point H)
   have hs := indicator_link_sum_le (Link := Digest) (rescaleBad S readers.rescaleRead laws.rescaleDecoder point H)
     1 (Adapter.Mdoc.primeOrder-1) hp (by simpa only [ZMod.card,one_mul] using (rescaleBad_card_mul_le S readers.rescaleRead laws.rescaleDecoder point H))
   have hc := indicator_link_sum_le (Link := Digest)
@@ -195,11 +187,10 @@ theorem roleCharge_sum (role : Role) (point : Point) (H : Point → Digest × C)
   | combine side stage entries => cases side with
       | binary => exact hbf
       | prime => simpa only [roleCharge,roundBudget,ZMod.card] using hnf
-  | rowBatching => exact hbatch
   | rescaling => exact hs
   | conversion => simpa only [roleCharge,roundBudget,Nat.cast_pow] using hc
   | packing => exact hpack
-  | batching | opening => simp only [roleCharge,roundBudget,sum_const_zero,mul_zero,le_refl]
+  | rowBatching | batching | opening => simp only [roleCharge,roundBudget,sum_const_zero,mul_zero,le_refl]
 
 theorem single_sum (point : Point) (H : Point → Digest × C) :
     (∑ answer, single S laws readers point H answer) ≤ Fintype.card (Digest × C)*budget (B := B) LB LN point := by
@@ -210,21 +201,20 @@ theorem single_sum (point : Point) (H : Point → Digest × C) :
 
 end Counts
 
-/-- The runtime's six optional readers are constructed directly from the
-bound public-value parsers and one fixed public circuit template. -/
+/-- The runtime's five optional readers are constructed directly from the
+bound public-value parsers and the two fixed public frontend plans. -/
 def concreteReaders (hashPublic : Key → Option (Fin binary.nPublic → Bool))
     (decodePublic : Base → Option (Fin prime.nPublic → N))
     (primePlan : FrontendSchedule.Plan N prime.circuit)
     (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-    (binaryTemplate : FrontendSchedule.Plan B binary.template)
-    (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity) :
+    (binaryPlan : FrontendSchedule.Plan B binary.circuit)
+    (binaryFits : binaryPlan.capacity ≤ laws.binaryCapacity) :
     Readers (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) (C := C)
       binary prime where
   binaryRead := RuntimeAdaptiveViews.readBinaryView binary prime P R cfg S laws hashPublic decodePublic
-    binaryTemplate binaryFits
+    binaryPlan binaryFits
   primeRead := RuntimeAdaptiveViews.readPrimeView binary prime P R cfg S laws hashPublic decodePublic
     primePlan primeFits
-  batchRead := RuntimeAdaptiveViews.readBatch binary prime P R cfg S laws hashPublic decodePublic
   rescaleRead := RuntimeAdaptiveViews.readRescale binary prime P R cfg hashPublic decodePublic
   conversionRead := RuntimeAdaptiveViews.readConversion binary prime P R cfg hashPublic decodePublic
   packingRead := RuntimeAdaptiveViews.readPacking binary prime P R cfg hashPublic decodePublic

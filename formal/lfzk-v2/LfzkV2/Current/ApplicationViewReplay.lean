@@ -86,49 +86,12 @@ variable (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
 variable (nonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
 variable (fallback : C)
 
-/-- Dropping the batching weights from a successful prime decode gives
-the completed pre-batching packet; no new parse-success premise is needed. -/
-theorem readPrimePacket_of_readPrime (point : Point) (past : Fin point.rank → C)
-    (data : PrimeData prime C)
-    (h : ApplicationPrefix.readPrime prime field decode nonzero fallback point past = some data) :
-    ApplicationViews.readPrimePacket prime field fallback point past =
-      some ⟨data.payload,data.answers⟩ := by
-  have hs := ApplicationPrefix.readPrime_spec prime field decode nonzero fallback point past data h
-  unfold ApplicationViews.readPrimePacket
-  rw [if_pos hs.1,hs.2.1]
-  rw [← hs.2.2.2.2.1]
-  rfl
-
-/-- The completed prime packet contains the same payload and bounded tape
-at every later prefix, before its batching challenge is even needed. -/
-theorem readPrimePacket_replay_eq (H : Point → Digest × C) (n m : ℕ)
-    (hn : n ≤ g.roles.length) (hm : m ≤ g.roles.length)
-    (hwn : g.primeStart+FrontendReplay.slots prime.circuit ≤ n)
-    (hwm : g.primeStart+FrontendReplay.slots prime.circuit ≤ m) :
-    ApplicationViews.readPrimePacket prime field fallback
-        ((e.chain initialLink).point proof H n)
-        (((e.chain initialLink).point proof H n).priorAnswers H) =
-      ApplicationViews.readPrimePacket prime field fallback
-        ((e.chain initialLink).point proof H m)
-        (((e.chain initialLink).point proof H m).priorAnswers H) := by
-  have hrn := (e.chain initialLink).point_rank proof H hn
-  have hrm := (e.chain initialLink).point_rank proof H hm
-  change Input.rank _ = n at hrn
-  change Input.rank _ = m at hrm
-  unfold ApplicationViews.readPrimePacket
-  rw [if_pos (by rw [hrn]; exact hwn),if_pos (by rw [hrm]; exact hwm)]
-  rw [messages_replay_eq e initialLink proof .prime field prime.circuit H n m g.primeStart hn hm hwn hwm,
-    frontendTape_replay_eq e initialLink proof H fallback n m g.primeStart
-      (FrontendReplay.slots prime.circuit) hn hm hwn hwm]
-
-/-- After prime batching is in the strict past, the actual prime claim
-and its row weights are identical at every later replay prefix. -/
+/-- Once the prime message window is in the past, the actual prime data and
+its split claim are identical at every later replay prefix. -/
 theorem readPrime_replay_eq (H : Point → Digest × C) (n m : ℕ)
     (hn : n ≤ g.roles.length) (hm : m ≤ g.roles.length)
     (hwn : g.primeStart+FrontendReplay.slots prime.circuit ≤ n)
-    (hwm : g.primeStart+FrontendReplay.slots prime.circuit ≤ m)
-    (hbn : ApplicationPrefix.rowBatchingIndex g < n)
-    (hbm : ApplicationPrefix.rowBatchingIndex g < m) :
+    (hwm : g.primeStart+FrontendReplay.slots prime.circuit ≤ m) :
     ApplicationPrefix.readPrime prime field decode nonzero fallback
         ((e.chain initialLink).point proof H n)
         (((e.chain initialLink).point proof H n).priorAnswers H) =
@@ -142,34 +105,15 @@ theorem readPrime_replay_eq (H : Point → Digest × C) (n m : ℕ)
   unfold ApplicationPrefix.readPrime
   rw [if_pos (by rw [hrn]; exact hwn),if_pos (by rw [hrm]; exact hwm)]
   rw [messages_replay_eq e initialLink proof .prime field prime.circuit H n m g.primeStart hn hm hwn hwm,
-    strictAnswer_replay_eq e initialLink proof H n m (ApplicationPrefix.rowBatchingIndex g) hn hm hbn hbm,
     frontendTape_replay_eq e initialLink proof H fallback n m g.primeStart
       (FrontendReplay.slots prime.circuit) hn hm hwn hwm]
 
-/-- Late prime acceptance supplies the earlier pre-batching packet. -/
-theorem readPrimePacket_from_late (H : Point → Digest × C) (n m : ℕ)
-    (hn : n ≤ g.roles.length) (hm : m ≤ g.roles.length)
-    (hwn : g.primeStart+FrontendReplay.slots prime.circuit ≤ n)
-    (hwm : g.primeStart+FrontendReplay.slots prime.circuit ≤ m)
-    (data : PrimeData prime C)
-    (hlate : ApplicationPrefix.readPrime prime field decode nonzero fallback
-      ((e.chain initialLink).point proof H m)
-      (((e.chain initialLink).point proof H m).priorAnswers H) = some data) :
-    ApplicationViews.readPrimePacket prime field fallback
-        ((e.chain initialLink).point proof H n)
-        (((e.chain initialLink).point proof H n).priorAnswers H) =
-      some ⟨data.payload,data.answers⟩ :=
-  (readPrimePacket_replay_eq e initialLink proof prime field fallback H n m hn hm hwn hwm).trans
-    (readPrimePacket_of_readPrime prime field decode nonzero fallback _ _ data hlate)
-
-/-- Once the batching answer is available, a late successful read supplies
-the identical prime data at the earlier protocol boundary. -/
+/-- A late successful read supplies the identical prime data at every
+earlier boundary after the prime frontend. -/
 theorem readPrime_from_late (H : Point → Digest × C) (n m : ℕ)
     (hn : n ≤ g.roles.length) (hm : m ≤ g.roles.length)
     (hwn : g.primeStart+FrontendReplay.slots prime.circuit ≤ n)
     (hwm : g.primeStart+FrontendReplay.slots prime.circuit ≤ m)
-    (hbn : ApplicationPrefix.rowBatchingIndex g < n)
-    (hbm : ApplicationPrefix.rowBatchingIndex g < m)
     (data : PrimeData prime C)
     (hlate : ApplicationPrefix.readPrime prime field decode nonzero fallback
       ((e.chain initialLink).point proof H m)
@@ -178,7 +122,7 @@ theorem readPrime_from_late (H : Point → Digest × C) (n m : ℕ)
         ((e.chain initialLink).point proof H n)
         (((e.chain initialLink).point proof H n).priorAnswers H) = some data :=
   (readPrime_replay_eq e initialLink proof prime field decode nonzero fallback H n m hn hm
-    hwn hwm hbn hbm).trans hlate
+    hwn hwm).trans hlate
 
 end Prime
 
@@ -232,18 +176,10 @@ theorem readAdapter_replay_eq (H : Point → Digest × C) (n m : ℕ)
       ApplicationViews.readAdapter binary prime field decode nonzero convert advice fallback
         ((e.chain initialLink).point proof H m)
         (((e.chain initialLink).point proof H m).priorAnswers H) := by
-  have hbn : ApplicationPrefix.rowBatchingIndex g < n := by
-    unfold ApplicationPrefix.conversionIndex at hcn
-    omega
-  have hbm : ApplicationPrefix.rowBatchingIndex g < m := by
-    unfold ApplicationPrefix.conversionIndex at hcm
-    omega
   have hsn : ApplicationPrefix.rescalingIndex g < n := by
-    unfold ApplicationPrefix.rescalingIndex
     unfold ApplicationPrefix.conversionIndex at hcn
     omega
   have hsm : ApplicationPrefix.rescalingIndex g < m := by
-    unfold ApplicationPrefix.rescalingIndex
     unfold ApplicationPrefix.conversionIndex at hcm
     omega
   have hab : g.binaryStart < g.roles.length := by
@@ -251,7 +187,7 @@ theorem readAdapter_replay_eq (H : Point → Digest × C) (n m : ℕ)
     unfold Geometry.binaryStart
     omega
   unfold ApplicationViews.readAdapter
-  rw [readPrime_replay_eq e initialLink proof prime field decode nonzero fallback H n m hn hm hwn hwm hbn hbm,
+  rw [readPrime_replay_eq e initialLink proof prime field decode nonzero fallback H n m hn hm hwn hwm,
     strictAnswer_replay_eq e initialLink proof H n m (ApplicationPrefix.rescalingIndex g) hn hm hsn hsm,
     strictAnswer_replay_eq e initialLink proof H n m (ApplicationPrefix.conversionIndex g) hn hm hcn hcm,
     readAt_replay_eq e initialLink proof H

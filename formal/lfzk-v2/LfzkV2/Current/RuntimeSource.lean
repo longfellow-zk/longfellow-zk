@@ -45,8 +45,6 @@ structure SamplerLaws (S : Source (g := g) (fields := fields) (Advice := Advice)
   binaryCapacity : ℕ
   primeDecoder : FrontendReplay.Decoder primeCapacity cfg.primeDecode cfg.primeNonzero
   binaryDecoder : FrontendReplay.Decoder binaryCapacity cfg.binaryDecode cfg.binaryNonzero
-  batchDecoder : BalancedDecoder C (Fin (prime.circuit.layers+1) → N)
-  batch_agrees : ∀ answer i, batchDecoder.decode answer i = cfg.primeDecode answer i.val
   rescaleDecoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N)
   rescale_agrees : rescaleDecoder.decode = cfg.primeNonzero
   conversionDecoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N × Linear.TerminalSampling.Nonzero N)

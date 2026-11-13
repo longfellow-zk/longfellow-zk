@@ -1,7 +1,7 @@
 import LfzkV2.Current.ByteCodecs
 import LfzkV2.Current.OpeningBody
 
-/-! Canonical MDA6/JPG2 body encoding, in the runtime's physical order.
+/-! Canonical MDA7/JPG2 body encoding, in the runtime's physical order.
 The complete body includes terminal authentication. Its final seal is a
 separate 32-byte value and is not encoded by this module. -/
 namespace LfzkV2.Current.ProofBodyCodec
@@ -20,6 +20,11 @@ structure Representations (fields : Fields) (Advice : Type) where
   advice : PrefixCodec Advice
   adviceWidth : ℕ
   adviceLength : ∀ value, (advice.encode value).length = adviceWidth
+  /-- The transcript writes of the same advice after its domain label. Each
+  masked word is its own framed `write_bytes`; no derived value is written. -/
+  adviceWrites : PrefixCodec Advice
+  adviceWritesWidth : ℕ
+  adviceWritesLength : ∀ value, (adviceWrites.encode value).length = adviceWritesWidth
 
 private def layerData (rounds : ℕ) :
     ((Fin rounds → F × F) × (F × (F × F))) ≃ LayerPayload F rounds where
@@ -118,7 +123,7 @@ private def bodyData (g : Geometry) (fields : Fields) (Advice : Type) :
   right_inv value := by cases value; rfl
 
 /-- Proof-body marker bytes, distinct from numbered-strand domain tags. -/
-def mda6 : Bytes := [77,68,65,54]
+def mda7 : Bytes := [77,68,65,55]
 def jpg2 : Bytes := [74,80,71,50]
 
 private def initial (repr : Representations fields Advice) (g : Geometry) :
@@ -140,15 +145,15 @@ shared nonce vector and counted frontier. No statement identifier or final
 seal is inserted between these existing body fields. -/
 def codec (repr : Representations fields Advice) (g : Geometry) :
     PrefixCodec (Body g fields Advice (OpeningBody.Authentication g)) :=
-  (((initial repr g).pair (joint repr g)).equiv (bodyData g fields Advice)).prefixed mda6
+  (((initial repr g).pair (joint repr g)).equiv (bodyData g fields Advice)).prefixed mda7
 
 /-- The visible byte formula fixes the same field and authentication
-order as the MDA6/JPG2 writer. The component codecs prove canonical parsing;
+order as the MDA7/JPG2 writer. The component codecs prove canonical parsing;
 no whole-body injectivity or layout certificate is assumed. -/
 theorem codec_encode (repr : Representations fields Advice) (g : Geometry)
     (value : Body g fields Advice (OpeningBody.Authentication g)) :
     (codec repr g).encode value =
-      mda6 ++ digest.encode value.commitment ++
+      mda7 ++ digest.encode value.commitment ++
       repr.binary.encode value.fingerprints.1.1 ++ repr.binary.encode value.fingerprints.1.2 ++
       repr.prime.encode value.fingerprints.2.1 ++ repr.prime.encode value.fingerprints.2.2 ++
       repr.prime.encode value.mu ++ repr.advice.encode value.advice ++

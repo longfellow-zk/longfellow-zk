@@ -58,12 +58,12 @@ local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (prime : PrimePublic N shared) (samples : Samples B C) (primeField : fields .prime ≃ N)
 
 /-- A successful ordinary prime reader reconstructs exactly the record
-used for the rescaling metadata, including every row-batching coefficient. -/
+used for the rescaling metadata, including its split claim. -/
 theorem primeData_readback (point : Point) (past : Fin point.rank → C) (data : PrimeData prime C)
     (read : ApplicationPrefix.readPrime prime primeField samples.prime samples.primeNonzero
       samples.fallback point past = some data) :
     primeData prime samples primeField (Prefix.ofPoint point past samples.fallback) = data := by
-  obtain ⟨_,hp,hd,hn,ha,batching,hb,hr⟩ := ApplicationPrefix.readPrime_spec prime primeField
+  obtain ⟨_,hp,hd,hn,ha⟩ := ApplicationPrefix.readPrime_spec prime primeField
     samples.prime samples.primeNonzero samples.fallback point past data read
   have hpayload : FrontendTranscript.read prime.circuit
       ((Prefix.ofPoint point past samples.fallback).message .prime primeField g.primeStart) = data.payload := by
@@ -73,19 +73,15 @@ theorem primeData_readback (point : Point) (past : Fin point.rank → C) (data :
       exact Prefix.ofPoint_message point past samples.fallback .prime primeField g.primeStart q
     rw [hw]
     exact ApplicationPrefix.Messages.readFrom_agrees prime.circuit _ 0 data.payload hp
-  have hb' : (Prefix.ofPoint point past samples.fallback).answer (ApplicationPrefix.rowBatchingIndex g) = batching := by
-    rw [Prefix.ofPoint_answer,hb,Option.getD_some]
   cases data with
-  | mk payload decode nonzero answers rho =>
-      dsimp only at hpayload hd hn ha hr
+  | mk payload decode nonzero answers =>
+      dsimp only at hpayload hd hn ha
       subst decode
       subst nonzero
       subst answers
-      subst rho
       subst payload
       have ht := Prefix.ofPoint_tape point past samples.fallback g.primeStart (FrontendReplay.slots prime.circuit)
       rw [← ht]
-      dsimp only [primeData]
-      simp only [hb']
+      rfl
 
 end LfzkV2.Current.ConcreteMetadata

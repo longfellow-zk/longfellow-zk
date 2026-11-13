@@ -10,26 +10,26 @@ variable {B : Type} [Field B] [Algebra (ZMod 2) B]
 
 def privateValues (circuit : BinaryCircuit B) (original : Fin circuit.nPrivate → Bool)
     (mask : Fin 256 → Bool) (otp : Fin 2 → Fin 10 → Bool) (i : Fin circuit.nPrivate) : Bool :=
-  if hfirst : i.val < circuit.nPrivate-276 then original i
-  else if hsecond : i.val < circuit.nPrivate-20 then
-    mask ⟨i.val-(circuit.nPrivate-276),by have := circuit.privateCapacity; omega⟩
-  else otp ⟨(i.val-(circuit.nPrivate-20))/10,by
-      have := i.isLt; have := circuit.privateCapacity; omega⟩
-    ⟨(i.val-(circuit.nPrivate-20))%10,Nat.mod_lt _ (by decide)⟩
+  if hfirst : i.val < circuit.hashPrivate then original i
+  else if hsecond : i.val < (circuit.hashPrivate+256) then
+    mask ⟨i.val-(circuit.hashPrivate),by have := circuit.hashCapacity; unfold BinaryCircuit.nPrivate at *; omega⟩
+  else otp ⟨(i.val-((circuit.hashPrivate+256)))/10,by
+      have := i.isLt; have := circuit.hashCapacity; unfold BinaryCircuit.nPrivate at *; omega⟩
+    ⟨(i.val-((circuit.hashPrivate+256)))%10,Nat.mod_lt _ (by decide)⟩
 
 theorem shared_values (circuit : BinaryCircuit B) (original : Fin circuit.nPrivate → Bool)
     (mask : Fin 256 → Bool) (otp : Fin 2 → Fin 10 → Bool) (i : Fin 768) :
     privateValues circuit original mask otp (circuit.sharedPrivate i) = original (circuit.sharedPrivate i) := by
-  exact dif_pos (circuit.shared_before_masks i)
+  exact dif_pos (circuit.shared_lt_hash i)
 
 theorem mask_values (circuit : BinaryCircuit B) (original : Fin circuit.nPrivate → Bool)
     (mask : Fin 256 → Bool) (otp : Fin 2 → Fin 10 → Bool) (i : Fin 256) :
     privateValues circuit original mask otp (circuit.maskPrivate i) = mask i := by
-  have hc := circuit.privateCapacity
+  have hc := circuit.hashCapacity
   have hi := i.isLt
-  have hn : ¬(circuit.maskPrivate i).val < circuit.nPrivate-276 := by
+  have hn : ¬(circuit.maskPrivate i).val < circuit.hashPrivate := by
     dsimp [BinaryCircuit.maskPrivate]; omega
-  rw [privateValues,dif_neg hn,dif_pos (circuit.mask_before_advice i)]
+  rw [privateValues,dif_neg hn,dif_pos (by dsimp [BinaryCircuit.maskPrivate]; omega)]
   congr 1
   apply Fin.ext
   dsimp [BinaryCircuit.maskPrivate]
@@ -38,23 +38,23 @@ theorem mask_values (circuit : BinaryCircuit B) (original : Fin circuit.nPrivate
 theorem otp_values (circuit : BinaryCircuit B) (original : Fin circuit.nPrivate → Bool)
     (mask : Fin 256 → Bool) (otp : Fin 2 → Fin 10 → Bool) (tree : Fin 2) (i : Fin 10) :
     privateValues circuit original mask otp (circuit.advicePrivate tree i) = otp tree i := by
-  have hc := circuit.privateCapacity
+  have hc := circuit.hashCapacity
   have hi := i.isLt
   have ht := tree.isLt
-  have hn : ¬(circuit.advicePrivate tree i).val < circuit.nPrivate-276 := by
+  have hn : ¬(circuit.advicePrivate tree i).val < circuit.hashPrivate := by
     dsimp [BinaryCircuit.advicePrivate]; omega
-  have hm : ¬(circuit.advicePrivate tree i).val < circuit.nPrivate-20 := by
+  have hm : ¬(circuit.advicePrivate tree i).val < (circuit.hashPrivate+256) := by
     dsimp [BinaryCircuit.advicePrivate]; omega
   rw [privateValues,dif_neg hn,dif_neg hm]
   congr 1
   · apply Fin.ext
     dsimp [BinaryCircuit.advicePrivate]
-    have he : circuit.nPrivate-20+10*tree.val+i.val-(circuit.nPrivate-20) = 10*tree.val+i.val := by omega
+    have he : (circuit.hashPrivate+256)+10*tree.val+i.val-((circuit.hashPrivate+256)) = 10*tree.val+i.val := by omega
     rw [he,Nat.add_comm (10*tree.val),Nat.add_mul_div_left _ _ (by decide : 0<10),Nat.div_eq_of_lt hi]
     omega
   · apply Fin.ext
     dsimp [BinaryCircuit.advicePrivate]
-    have he : circuit.nPrivate-20+10*tree.val+i.val-(circuit.nPrivate-20) = 10*tree.val+i.val := by omega
+    have he : (circuit.hashPrivate+256)+10*tree.val+i.val-((circuit.hashPrivate+256)) = 10*tree.val+i.val := by omega
     rw [he,Nat.add_comm (10*tree.val),Nat.add_mul_mod_self_left,Nat.mod_eq_of_lt hi]
 
 def bits (circuit : BinaryCircuit B) (privateBits : Fin circuit.nPrivate → Bool)
@@ -68,7 +68,7 @@ theorem bits_private (circuit : BinaryCircuit B) (privateBits : Fin circuit.nPri
     (i : Fin circuit.nPrivate) :
     bits circuit privateBits (circuit.description.inputIndex (.inr i)) = privateBits i := by
   change bits circuit privateBits
-    (ConcreteSetup.inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.inputCapacity (.inr i)) = _
+    (ConcreteSetup.inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.committedCapacity (.inr i)) = _
   unfold bits
   rw [ConcreteSetup.inputIndex_private]
   have hn : ¬circuit.nPublic+i.val < circuit.nPublic := by omega
@@ -81,22 +81,22 @@ theorem bits_public (circuit : BinaryCircuit B) (privateBits : Fin circuit.nPriv
     (i : Fin circuit.nPublic) :
     bits circuit privateBits (circuit.description.inputIndex (.inl i)) = circuit.publicBits i := by
   change bits circuit privateBits
-    (ConcreteSetup.inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.inputCapacity (.inl i)) = _
+    (ConcreteSetup.inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.committedCapacity (.inl i)) = _
   unfold bits
   rw [ConcreteSetup.inputIndex_public]
   exact dif_pos i.isLt
 
 theorem bits_prefix (circuit : BinaryCircuit B) (first second : Fin circuit.nPrivate → Bool)
-    (same : ∀ i, i.val < circuit.nPrivate-276 → first i = second i)
+    (same : ∀ i, i.val < circuit.hashPrivate → first i = second i)
     (u : Cube circuit.input)
-    (before : (cubeIndex circuit.input u).val < circuit.nPublic+(circuit.nPrivate-276)) :
+    (before : (cubeIndex circuit.input u).val < circuit.nPublic+(circuit.hashPrivate)) :
     bits circuit first u = bits circuit second u := by
   dsimp only [bits]
   split
   · rfl
   · split
     · apply same
-      change (cubeIndex circuit.input u).val-circuit.nPublic < circuit.nPrivate-276
+      change (cubeIndex circuit.input u).val-circuit.nPublic < circuit.hashPrivate
       omega
     · rfl
 

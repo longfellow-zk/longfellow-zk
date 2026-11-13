@@ -13,10 +13,10 @@ run_cmd do
   let used := info.type.getUsedConstants
   unless used.contains ``FrontendCanonicalRows.honestBody &&
       used.contains ``StrandCanonicalContext.actualOracle &&
-      used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.HashNoninterference do
+      used.contains ``MdocWitness.HashValid do
     throwError "Honest frontend lost its actual constructor or ordinary-witness premises"
-  if used.contains ``MdocWitness.UniformHashValid then
-    throwError "Honest frontend exposes the derived uniform witness premise"
+  if used.contains ``MdocWitness.UniformHashValid || used.contains ``HashCircuit.ReadDisjoint then
+    throwError "Honest frontend exposes a derived witness or separation premise"
   for endpoint in #[``StrandHonestFrontend.exists_satisfied,
       ``StrandHonestFrontend.frontend_commitment] do
     for ax in ← collectAxioms endpoint do

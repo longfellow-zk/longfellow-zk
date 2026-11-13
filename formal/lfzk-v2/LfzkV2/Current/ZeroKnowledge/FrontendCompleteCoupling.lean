@@ -41,50 +41,50 @@ def alphas (native : CompleteSimulation.PrimePrefix binary prime primePlan Key B
   fun mu => (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).alpha
 
 def adapterEquiv (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
-    (shared : Fin 768 → Bool) : (P × Fin (2^24)) ≃ ((P × MdocAdvice.Value) × Fin 16) :=
+    (shared : Fin 768 → Bool) : (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused) :=
   Adapter.Mdoc.coupling native.claim.sharedWeights shared native.eta.val
     (alphas binary prime primePlan samples base H native)
 
 theorem adapterEquiv_mu (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
-    (shared : Fin 768 → Bool) (mask : P) (otp : Fin (2^24)) :
+    (shared : Fin 768 → Bool) (mask : P) (otp : (Fin 2 → AdapterBits.RawWord)) :
     (adapterEquiv binary prime primePlan samples base H native shared (mask,otp)).1.1 =
       native.eta.val*Adapter.Mdoc.sharedSum native.claim.sharedWeights shared+mask := rfl
 
 theorem adapterEquiv_bits (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
-    (shared : Fin 768 → Bool) (mask : P) (otp : Fin (2^24)) (tree : Fin 2) (i : Fin 10) :
+    (shared : Fin 768 → Bool) (mask : P) (otp : (Fin 2 → AdapterBits.RawWord)) (tree : Fin 2) (i : Fin 10) :
     let mu := Adapter.Mdoc.offset native.claim.sharedWeights shared native.eta.val+mask
     MdocAdvice.bits (adapterEquiv binary prime primePlan samples base H native shared (mask,otp)).1.2 tree i =
       Bool.xor ((Adapter.Mdoc.quotients native.claim.sharedWeights shared native.eta.val
         (alphas binary prime primePlan samples base H native) mu tree).val.testBit i.val)
-        (otp.val.testBit (10*tree.val+i.val)) := Adapter.Mdoc.coupling_bits _ _ _ _ _ _ _ _
+        ((otp tree).val.testBit i.val) := Adapter.Mdoc.coupling_bits _ _ _ _ _ _ _ _
 
 def binaryEquiv
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
     (advice : MdocAdvice.Value) (inputs : Cube binary.input → B) :
-    CircuitTape binary.description.template ≃ CircuitTape binary.description.template :=
+    CircuitTape binary.description.circuit ≃ CircuitTape binary.description.circuit :=
   (binaryMessageEquiv binary prime primePlan samples base H native converted advice inputs).trans
-    (circuitPayloadEquiv binary.description.template).symm
+    (circuitPayloadEquiv binary.description.circuit).symm
 
 theorem binaryEquiv_payload
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
     (advice : MdocAdvice.Value) (inputs : Cube binary.input → B)
-    (pads : CircuitTape binary.description.template) :
-    simulateCircuit binary.description.template
+    (pads : CircuitTape binary.description.circuit) :
+    simulateCircuit binary.description.circuit
         (binaryEquiv binary prime primePlan samples base H native converted advice inputs pads) =
       binaryMessageEquiv binary prime primePlan samples base H native converted advice inputs pads :=
-  (circuitPayloadEquiv binary.description.template).apply_symm_apply _
+  (circuitPayloadEquiv binary.description.circuit).apply_symm_apply _
 
 theorem binaryEquiv_replay [Fintype B] [DecidableEq B]
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
     (advice : MdocAdvice.Value) (inputs : Cube binary.input → B)
-    (pads : CircuitTape binary.description.template) :
-    CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice
-        (simulateCircuit binary.description.template
+    (pads : CircuitTape binary.description.circuit) :
+    CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice
+        (simulateCircuit binary.description.circuit
           (binaryEquiv binary prime primePlan samples base H native converted advice inputs pads)) =
-      CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice
+      CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice
         (binaryMessageEquiv binary prime primePlan samples base H native converted advice inputs pads) := by
   rw [binaryEquiv_payload]
 

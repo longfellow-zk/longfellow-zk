@@ -14,7 +14,7 @@ open ZeroKnowledge
 #check @SHAObserverWindow.later_output
 #print axioms SHAOracle.observer_output
 #print axioms SHAOracle.identifier_not_domain
-#print axioms SHAOracle.adapter_identifier
+#print axioms SHAOracle.fragment_identifier
 #print axioms SHAOracle.context_hash
 #print axioms SHAOracle.joint_context_hash
 #print axioms SHAObserverWindow.window_domain

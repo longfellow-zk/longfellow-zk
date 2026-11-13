@@ -132,7 +132,7 @@ theorem encode_length_le {fields : Fields} {Advice : Type}
     packing_length (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
     fieldBody_length .binary (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
     fieldBody_length .prime (PrefixCodec.field repr.prime) 32 (by intro v; exact (repr.prime.length v).trans repr.primeWidth),
-    vector_length _ merkleNonceBytes nonce_length,frontier_length,ProofBodyCodec.mda6,ProofBodyCodec.jpg2,
+    vector_length _ merkleNonceBytes nonce_length,frontier_length,ProofBodyCodec.mda7,ProofBodyCodec.jpg2,
     List.length_cons,List.length_nil,merkleNonceBytes]
   have hfrontier := value.authentication.frontierLength.isLt
   unfold bodyBound merkleNonceBytes

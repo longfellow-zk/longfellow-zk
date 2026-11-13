@@ -26,22 +26,4 @@ theorem circuit_injective {out input : ℕ} {circuit : Layered.Circuit F out inp
   rw [ApplicationPrefix.Messages.read_write,ApplicationPrefix.Messages.read_write] at parsed
   exact Option.some.inj parsed
 
-omit [Field F] in
-theorem same_body {out input : ℕ} {first second : Layered.Circuit F out input}
-    (plan : FrontendSchedule.Plan F first) (same : FrontendTopology.Same first second)
-    (payload : Layered.Replay.Payload first) :
-    (CompleteShape.bodyEquiv (same.plan plan)).symm
-      (Eq.mp (congrArg (FrontendPayload F) (same.frontend plan).symm) (CompleteShape.bodyEquiv plan payload)) =
-      CompleteShape.payloadEquiv same payload := by
-  let decoded := (CompleteShape.bodyEquiv (same.plan plan)).symm
-    (Eq.mp (congrArg (FrontendPayload F) (same.frontend plan).symm) (CompleteShape.bodyEquiv plan payload))
-  have encoded : Eq.mp (congrArg (FrontendPayload F) (same.frontend plan).symm) (CompleteShape.bodyEquiv plan payload) =
-      CompleteShape.bodyEquiv (same.plan plan) decoded :=
-    (CompleteShape.bodyEquiv (same.plan plan)).apply_symm_apply _ |>.symm
-  have stream := Parser.role_stream_cast plan.frontend (same.plan plan).frontend (same.frontend plan).symm
-    .binary (CompleteShape.bodyEquiv plan payload)
-  rw [encoded,← Prefix.circuit_roles,← Prefix.circuit_roles] at stream
-  apply circuit_injective (same.plan plan)
-  exact stream.symm.trans (Prefix.circuit_same plan same payload false).symm
-
 end LfzkV2.Current.ZeroKnowledge.Frontend.PayloadTransport

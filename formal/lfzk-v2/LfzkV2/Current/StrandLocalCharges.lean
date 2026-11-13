@@ -346,14 +346,6 @@ private theorem frontend_data_answer
 
 end FrontendData
 
-private theorem decoder_cast_eq {F C : Type} [Fintype F] [Fintype C]
-    {a b : ℕ} (sameSize : a = b) (decoder : BalancedDecoder C (Fin a → F))
-    (left right : C) (same : decoder.decode left = decoder.decode right) :
-    (sameSize ▸ decoder : BalancedDecoder C (Fin b → F)).decode left =
-      (sameSize ▸ decoder : BalancedDecoder C (Fin b → F)).decode right := by
-  cases sameSize
-  exact same
-
 section Runtime
 open Application ApplicationSetup ApplicationOracle RuntimeAdaptiveCharges
 open scoped Classical
@@ -456,19 +448,19 @@ private theorem prime_frontend_normalize
 private theorem binary_frontend_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
     (decodePublic : Base → Option (Fin prime.nPublic → N))
-    (template : FrontendSchedule.Plan B binary.template) (geometry : template.frontend = g.binary)
-    (capacity : template.capacity ≤ laws.binaryCapacity)
+    (binaryPlan : FrontendSchedule.Plan B binary.circuit) (geometry : binaryPlan.frontend = g.binary)
+    (capacity : binaryPlan.capacity ≤ laws.binaryCapacity)
     (physical : Role) (point : Point) (current : point.role = some physical)
     (side : frontendSide physical = some .binary)
     (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
       (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical))
     (fallback answer : Answer) (H : Point → Digest × Answer) (link : Digest) :
     ApplicationViews.frontendCharge S
-      (RuntimeAdaptiveViews.readBinaryView binary prime P R publicCfg S laws hashPublic decodePublic template capacity)
+      (RuntimeAdaptiveViews.readBinaryView binary prime P R publicCfg S laws hashPublic decodePublic binaryPlan capacity)
       point H (link,StrandSampling.normalize
         (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) =
     ApplicationViews.frontendCharge S
-      (RuntimeAdaptiveViews.readBinaryView binary prime P R publicCfg S laws hashPublic decodePublic template capacity)
+      (RuntimeAdaptiveViews.readBinaryView binary prime P R publicCfg S laws hashPublic decodePublic binaryPlan capacity)
       point H (link,answer) := by
   unfold ApplicationViews.frontendCharge
   congr 1
@@ -494,12 +486,11 @@ private theorem binary_frontend_normalize
             | none => rfl
             | some payload =>
                 dsimp only [Bind.bind,Option.bind,ApplicationViews.FrontendView.bad]
-                let shape := RuntimeShape.binaryPlan (RuntimeAdaptive.binaryWithBits binary values.1)
-                  (RuntimeAdaptive.primeWithInputs prime values.2)
-                  ((publicCfg).polynomialX^Adapter.Mdoc.generatorExponent) template packet
+                let shape : FrontendSchedule.Plan B (packet.setup
+                    ((publicCfg).polynomialX^Adapter.Mdoc.generatorExponent)).circuit := binaryPlan
                 apply frontend_data_answer S _ shape .binary point H
                 · apply binary_located shape
-                  exact (RuntimeShape.binaryPlan_frontend _ _ _ _ _).trans geometry
+                  exact geometry
                 · intro actual same i bound
                   have eq := Option.some.inj (same.symm.trans current)
                   subst actual
@@ -513,44 +504,6 @@ private theorem binary_frontend_normalize
                     (Fin t ↪ Fin n) binaryCapacity primeCapacity binary.degree (prime.circuit.layers+1)
                     physical fits side domain fallback answer
       · rfl
-
-private theorem row_batching_normalize
-    (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
-    (fits : prime.circuit.layers+1 ≤ primeCapacity)
-    (fallback answer : Answer) (point : Point) (H : Point → Digest × Answer) :
-    ApplicationViews.batchBad S
-      (RuntimeAdaptiveViews.readBatch binary prime P R publicCfg S laws hashPublic decodePublic)
-      point H (StrandSampling.normalize (factor (.prime (prime.circuit.layers+1)) fits) fallback answer) ↔
-    ApplicationViews.batchBad S
-      (RuntimeAdaptiveViews.readBatch binary prime P R publicCfg S laws hashPublic decodePublic)
-      point H answer := by
-  have sample : laws.batchDecoder.decode
-      (StrandSampling.normalize (factor (.prime (prime.circuit.layers+1)) fits) fallback answer) =
-      laws.batchDecoder.decode answer := by
-    funext i
-    rw [laws.batch_agrees,laws.batch_agrees]
-    exact StrandRoleSampling.normalize_prime_read B N binary.Original prime.Original RawB RawN
-      (Fin t ↪ Fin n) binaryCapacity primeCapacity (prime.circuit.layers+1) fits fallback answer i.val i.isLt
-  unfold ApplicationViews.batchBad ApplicationViews.packetBad SelectionSource.test
-  apply exists_congr
-  intro witness
-  apply and_congr_right
-  intro _
-  unfold RuntimeAdaptiveViews.readBatch
-  cases hp : RuntimeAdaptiveViews.publics binary prime hashPublic decodePublic point with
-  | none => rfl
-  | some values =>
-      dsimp only [Bind.bind,Option.bind]
-      unfold ApplicationViews.readBatchPacket
-      cases read : ApplicationViews.readPrimePacket (RuntimeAdaptive.primeWithInputs prime values.2)
-          (publicCfg).primeField (publicCfg).fallback point (point.priorAnswers H) with
-      | none => rfl
-      | some packet =>
-          dsimp only [Bind.bind,Option.bind,ApplicationViews.optionBad,BatchPacket.bad]
-          apply Iff.of_eq
-          congr 1
-          exact decoder_cast_eq _ laws.batchDecoder _ _ sample
 
 omit [Fintype B] in
 private theorem packet_answer {Data : Type}
@@ -636,7 +589,7 @@ theorem application_role_normalize
     (decodePublic : Base → Option (Fin prime.nPublic → N))
     (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
     (primeFits : primeShape.capacity ≤ laws.primeCapacity)
-    (binaryShape : FrontendSchedule.Plan B binary.template) (binaryGeometry : binaryShape.frontend = g.binary)
+    (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
     (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
     (coins : ∀ a : Answer, S.coins a = a .fingerprints)
     (role : Role) (point : Point) (current : point.role = some role)
@@ -677,11 +630,6 @@ theorem application_role_normalize
       cases side with
       | binary => exact hb _ point current rfl fits fallback answer H link
       | prime => exact hn _ point current rfl fits fallback answer H link
-  | rowBatching =>
-      change RecursivePolygero.indicator _ = RecursivePolygero.indicator _
-      congr 1
-      exact propext (row_batching_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
-        cfg S laws hashPublic decodePublic fits fallback answer point H)
   | rescaling =>
       exact rescaling_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
         cfg S laws _ fallback answer point H link
@@ -691,7 +639,7 @@ theorem application_role_normalize
   | packing =>
       exact packing_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
         cfg S laws _ fits fallback answer point H link
-  | batching | opening => rfl
+  | rowBatching | batching | opening => rfl
 
 /-- The physical-factor charges retain the existing role budgets. This is
 pointwise normalization followed by the original algebraic bound, so it adds
@@ -701,7 +649,7 @@ theorem application_role_sum
     (decodePublic : Base → Option (Fin prime.nPublic → N))
     (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
     (primeFits : primeShape.capacity ≤ laws.primeCapacity)
-    (binaryShape : FrontendSchedule.Plan B binary.template) (binaryGeometry : binaryShape.frontend = g.binary)
+    (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
     (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
     (coins : ∀ a : Answer, S.coins a = a .fingerprints)
     (LB LN : ℕ)

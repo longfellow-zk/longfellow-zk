@@ -41,7 +41,7 @@ def binaryRows (firstState : CompleteSimulation.State binary prime primePlan (Ke
 
 def primeRows (coefficients : WitnessSelection.Coins P prime.Original)
     (raw : CompleteSimulation.RawResult binary prime primePlan Key Base C) :=
-  [raw.primeClaim.row raw.eta.val raw.mu] ++
+  raw.primeClaim.rows raw.eta.val raw.mu ++
     FingerprintRows.rows
       (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inl i))
       (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inr i)) coefficients raw.fingerprints.2
@@ -77,7 +77,8 @@ theorem selected_rows
   let conversion := CompleteSimulation.conversionPrefix binary prime primePlan samples base H front mu
   let advice := HonestAdapter.advice binary prime primePlan samples base H front original tape
   let binaryPayload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H front conversion advice
-    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+    (CompleteHonest.binaryInputs binary prime original tape
+      (CompleteSimulation.entries binary prime primePlan front conversion advice)) tape.binary
   let inst := CompleteHonest.packingInstance binary prime primePlan samples base H front conversion advice binaryPayload original tape
   have stagedHash : HonestAdapter.hashChecks binary prime primePlan samples base H front original tape := hash
   have staged := HonestStatement.rows binary prime primePlan samples base H firstState coefficients original remaining
@@ -92,7 +93,7 @@ theorem selected_rows
     unfold converted
     rw [nativeEq,muEq]
   have adviceEq : raw.advice = advice := by
-    change AdapterBits.xorEquiv
+    change AdapterBits.xorValue
       (Adapter.Mdoc.advice front.claim.sharedWeights (WitnessInputs.shared binary original) front.eta.val
         (fun _ => conversion.alpha) mu) (AdapterBits.rawOtpEquiv tape.otp).1 = _
     unfold advice HonestAdapter.advice
@@ -100,7 +101,8 @@ theorem selected_rows
     rfl
   have binaryPayloadEq : raw.binaryPayload = binaryPayload := by
     change CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H front conversion raw.advice
-      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary = _
+      (CompleteHonest.binaryInputs binary prime original tape
+        (CompleteSimulation.entries binary prime primePlan front conversion raw.advice)) tape.binary = _
     rw [adviceEq]
   have uEq : raw.packing.1 = inst.honestU := by
     change (CompleteHonest.packingInstance binary prime primePlan samples base H front conversion raw.advice raw.binaryPayload

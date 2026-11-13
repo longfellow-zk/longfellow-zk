@@ -18,23 +18,34 @@ variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 structure Tape (binary : BinaryCircuit B) (prime : PrimePublic P 768) where
   prime : CircuitTape prime.circuit
   mask : P
-  otp : Fin (2^24)
-  binary : CircuitTape binary.description.template
+  otp : Fin 2 → AdapterBits.RawWord
+  binary : CircuitTape binary.description.circuit
   packing : Packing.Tape (F := B) (0 : Fin 128)
 
 abbrev Masks := Current.Fingerprints (CompleteSimulation.Fields (B := B))
 
 def privateBits (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime) : Fin binary.nPrivate → Bool :=
   WitnessInputs.privateValues binary original (Adapter.canonicalMask Adapter.Mdoc.maskCapacity tape.mask)
-    (fun tree i => tape.otp.val.testBit (10*tree.val+i.val))
+    (fun tree i => (tape.otp tree).val.testBit i.val)
 
 def primeInputs (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P) : Cube prime.input → P :=
   circuitInputs prime.inputIndex prime.publicInputs id
     (Fin.addCases (fun i => if WitnessInputs.shared binary original i then 1 else 0) remaining)
 
-def binaryPads (tape : CircuitTape binary.description.template) : Fin binary.description.pads → B :=
-  circuitPadValues binary.description.template tape ∘
-    Fin.cast (binary.description.circuit_pads (fun _ _ => 1) 1 (fun _ _ => false) (fun _ => 1)).symm
+def binaryPads (tape : CircuitTape binary.description.circuit) : Fin binary.description.pads → B :=
+  circuitPadValues binary.description.circuit tape ∘ Fin.cast binary.description.circuit_pads.symm
+
+/-- The binary input array `[public | committed | virtual]` for committed bits. -/
+def arrayOf (bits : Fin binary.nPrivate → Bool)
+    (entries : Fin (2*(768+256+10)) → VirtualInput (Fin binary.nPrivate) B) : Cube binary.input → B :=
+  virtualInputs binary.description.inputIndex binary.description.virtualIndex
+    (Current.Adapter.Circuit.bitValue ∘ binary.description.publicBits)
+    (Current.Adapter.Circuit.bitValue ∘ bits) entries
+
+/-- The honest binary input array. -/
+def binaryInputs (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime)
+    (entries : Fin (2*(768+256+10)) → VirtualInput (Fin binary.nPrivate) B) : Cube binary.input → B :=
+  arrayOf binary (privateBits binary prime original tape) entries
 
 def binaryCells (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime) (selection : Fin 2 → B) :
     Fin (binary.description.cells+2) → B :=
@@ -107,36 +118,37 @@ def binaryMessageEquiv
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
     (advice : MdocAdvice.Value) (inputs : Cube binary.input → B) :
-    CircuitTape binary.description.template ≃ Layered.Replay.Payload binary.description.template :=
+    CircuitTape binary.description.circuit ≃ Layered.Replay.Payload binary.description.circuit :=
   CompleteCoupling.binaryMessageEquiv binary prime primePlan samples base H native converted advice inputs
 
 def packingInstanceFromRead
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
-    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.template)
-    (setup : Layered.Circuit.Setup (Fin binary.description.pads)
-      (CompleteSimulation.generatedCircuit binary prime primePlan native converted advice))
+    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.circuit)
+    (setup : Layered.Circuit.Setup (Fin binary.description.pads) binary.description.circuit)
     (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime) :
     DualPacking.ArtinSchreier.Instance (ZMod 2) B (Fin 128) (Fin binary.description.words) :=
-  let circuit := CompleteSimulation.generatedCircuit binary prime primePlan native converted advice
-  let actualPayload := CompleteShape.payloadEquiv
-    (CompleteSimulation.generatedSame binary prime primePlan native converted advice) payload
-  let messages := messagesFromSetup circuit setup actualPayload
+  let circuit := binary.description.circuit
+  let messages := messagesFromSetup circuit setup payload
   let constraints := (Linear.buildConstraints (circuit.proof messages 0)).getD ⟨[],zeroClaim⟩
+  let weights := circuit.inputWeights messages 0
+  let entries := CompleteSimulation.entries binary prime primePlan native converted advice
   let source := PackingCells.source (by decide : 1<128) binary.description.capacity binary.basis constraints.inputClaim
-    (fun i => circuit.inputWeights messages 0 (binary.description.inputIndex (.inl i)))
-    (Current.Adapter.Circuit.bitValue ∘ binary.publicBits)
-    (fun i => circuit.inputWeights messages 0 (binary.description.inputIndex (.inr i)))
+    (substitutedPublicWeights (fun i => weights (binary.description.inputIndex (.inl i)))
+      (fun v => weights (binary.description.virtualIndex v)))
+    (substitutedPublicInputs (Current.Adapter.Circuit.bitValue ∘ binary.description.publicBits) entries)
+    (substitutedPrivateWeights (fun i => weights (binary.description.inputIndex (.inr i)))
+      (fun v => weights (binary.description.virtualIndex v)) entries)
   source.realize (binaryCells binary prime original tape 0)
 
 def packingInstance
     (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
-    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.template)
+    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.circuit)
     (original : Fin binary.nPrivate → Bool) (tape : Tape binary prime) :
     DualPacking.ArtinSchreier.Instance (ZMod 2) B (Fin 128) (Fin binary.description.words) :=
   packingInstanceFromRead binary prime primePlan native converted advice payload
-    (CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice payload).1 original tape
+    (CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice payload).1 original tape
 
 def runSelected
     (firstState : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
@@ -151,10 +163,11 @@ def runSelected
   let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu
   let alpha := fun _ : P => converted.alpha
   let quotient := Adapter.Mdoc.advice native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val alpha mu
-  let advice := AdapterBits.xorEquiv quotient (AdapterBits.rawOtpEquiv tape.otp).1
+  let advice := AdapterBits.xorValue quotient (AdapterBits.rawOtpEquiv tape.otp).1
   let binaryPayload := binaryMessageEquiv binary prime primePlan samples base H native converted advice
-    (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (privateBits binary prime original tape)) tape.binary
-  let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice binaryPayload
+    (binaryInputs binary prime original tape
+      (CompleteSimulation.entries binary prime primePlan native converted advice)) tape.binary
+  let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice binaryPayload
   let inst := packingInstance binary prime primePlan samples base H native converted advice binaryPayload original tape
   let packingState := CompleteTranscript.bind read.2 fun writes => { writes with packingU := some inst.honestU }
   let packed := CompleteTranscript.step base H packingState

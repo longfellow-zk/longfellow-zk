@@ -68,33 +68,27 @@ theorem product_handoff (generator : G) {M K : ℕ} (horder : orderOf generator 
     exact ⟨quotient j, hquotient j,
       (Adapter.product_check_iff generator horder _ _ _ _ _).mp (hproducts j)⟩
 
-/-- This includes the independent batching step before eta. In particular,
-the authenticated row is derived from the actual complete row vector, which
-contains the final input equation as well as the layer equations. -/
-theorem batched_handoff {n : ℕ} (rows : Fin n → LinearRow (Fin shared ⊕ Other) (ZMod p))
-    (rho : Fin n → ZMod p) (generator : G) {M K : ℕ} (horder : orderOf generator = M)
+/-- The unbatched mixed-storage handoff. The prime statement is the layer
+rows followed by the native row; the layer rows are authenticated directly,
+and the input equation only through rescaling and the conversion proof. No
+row-combination challenge precedes eta. -/
+theorem split_handoff (claim : Prime.Claim (Fin shared) Other (ZMod p)) (generator : G) {M K : ℕ}
+    (horder : orderOf generator = M)
     (sharedValues : Fin shared → Bool) (mask : Fin maskBits → Bool) (other : Other → ZMod p)
     (eta mu primeMask : ZMod p) (alpha : Fin 2 → Linear.TerminalSampling.Nonzero (ZMod p))
-    (quotient : Fin 2 → ℕ) (hquotient : ∀ j, quotient j < K) :
-    let claim := Prime.Claim.fromRow (Prime.batchRows rows rho)
-    let witness := Sum.elim (fun i => if sharedValues i then 1 else 0) other
-    (∀ j, Adapter.ProductCheck generator (weights claim.sharedWeights eta)
-      (values sharedValues mask) mu (alpha j).val (quotient j)) →
-    (claim.row eta mu).eval (Sum.elim other (fun _ => primeMask)) = 0 →
-    (∀ i, (rows i).eval witness = 0) ∨
-      Prime.BatchBad (fun i => (rows i).eval witness) rho ∨
+    (quotient : Fin 2 → ℕ) (hquotient : ∀ j, quotient j < K)
+    (hproducts : ∀ j, Adapter.ProductCheck generator (weights claim.sharedWeights eta)
+      (values sharedValues mask) mu (alpha j).val (quotient j))
+    (hrows : RowsHold (claim.rows eta mu) (Sum.elim other (fun _ => primeMask))) :
+    (RowsHold claim.layers other ∧
+        claim.residual (fun i => if sharedValues i then 1 else 0) other = 0) ∨
       Prime.RescalingBad (claim.residual (fun i => if sharedValues i then 1 else 0) other)
         (binaryMask mask - primeMask) eta ∨
       ConversionBad claim.sharedWeights eta mu sharedValues mask M K alpha := by
-  intro claim witness hproducts hrow
+  obtain ⟨hlayers,hrow⟩ := (claim.rows_hold_iff eta mu primeMask other).mp hrows
   rcases product_handoff generator horder claim sharedValues mask other eta mu primeMask
     alpha quotient hquotient hproducts hrow with htrue | hscale | hconversion
-  · have hbatch : (Prime.batchRows rows rho).eval witness = 0 := by
-      simpa only [claim, Prime.Claim.fromRow_residual] using htrue.1
-    rcases Prime.batch_rows_or_bad rows rho witness hbatch with hrows | hbad
-    · exact Or.inl hrows
-    · exact Or.inr (Or.inl hbad)
-  · exact Or.inr (Or.inr (Or.inl hscale))
-  · exact Or.inr (Or.inr (Or.inr hconversion))
-
+  · exact Or.inl ⟨hlayers,htrue.1⟩
+  · exact Or.inr (Or.inl hscale)
+  · exact Or.inr (Or.inr hconversion)
 end LfzkV2.Current.Handoff

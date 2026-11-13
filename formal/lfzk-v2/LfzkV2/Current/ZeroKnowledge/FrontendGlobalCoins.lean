@@ -19,9 +19,9 @@ variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 
-abbrev BinaryTail := CircuitTape binary.description.template × Packing.Tape (F := B) (0 : Fin 128)
-abbrev Source := CircuitTape prime.circuit × ((P × Fin (2^24)) × BinaryTail binary)
-abbrev Public := CircuitTape prime.circuit × (((P × MdocAdvice.Value) × Fin 16) × BinaryTail binary)
+abbrev BinaryTail := CircuitTape binary.description.circuit × Packing.Tape (F := B) (0 : Fin 128)
+abbrev Source := CircuitTape prime.circuit × ((P × (Fin 2 → AdapterBits.RawWord)) × BinaryTail binary)
+abbrev Public := CircuitTape prime.circuit × (((P × MdocAdvice.Value) × AdapterBits.Unused) × BinaryTail binary)
 
 def tapeEquiv : CompleteHonest.Tape binary prime ≃ Source binary prime where
   toFun coins := (coins.prime,(coins.mask,coins.otp),(coins.binary,coins.packing))
@@ -60,11 +60,11 @@ particular the packing change follows the binary payload, and the binary
 change follows both conversion responses. -/
 def stages
     (native : CircuitTape prime.circuit ≃ CircuitTape prime.circuit)
-    (adapter : CircuitTape prime.circuit → (P × Fin (2^24)) ≃ ((P × MdocAdvice.Value) × Fin 16))
-    (binaryStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × Fin 16) →
-      CircuitTape binary.description.template ≃ CircuitTape binary.description.template)
-    (packingStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × Fin 16) →
-      CircuitTape binary.description.template →
+    (adapter : CircuitTape prime.circuit → (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused))
+    (binaryStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
+      CircuitTape binary.description.circuit ≃ CircuitTape binary.description.circuit)
+    (packingStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
+      CircuitTape binary.description.circuit →
         Packing.Tape (F := B) (0 : Fin 128) ≃ Packing.Tape (F := B) (0 : Fin 128)) :
     CompleteHonest.Tape binary prime ≃ Public binary prime :=
   (tapeEquiv binary prime).trans
@@ -78,11 +78,11 @@ def stages
 omit [Fintype B] [DecidableEq B] in
 theorem stages_apply
     (native : CircuitTape prime.circuit ≃ CircuitTape prime.circuit)
-    (adapter : CircuitTape prime.circuit → (P × Fin (2^24)) ≃ ((P × MdocAdvice.Value) × Fin 16))
-    (binaryStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × Fin 16) →
-      CircuitTape binary.description.template ≃ CircuitTape binary.description.template)
-    (packingStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × Fin 16) →
-      CircuitTape binary.description.template →
+    (adapter : CircuitTape prime.circuit → (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused))
+    (binaryStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
+      CircuitTape binary.description.circuit ≃ CircuitTape binary.description.circuit)
+    (packingStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
+      CircuitTape binary.description.circuit →
         Packing.Tape (F := B) (0 : Fin 128) ≃ Packing.Tape (F := B) (0 : Fin 128))
     (coins : CompleteHonest.Tape binary prime) :
     let primeCoin := native coins.prime

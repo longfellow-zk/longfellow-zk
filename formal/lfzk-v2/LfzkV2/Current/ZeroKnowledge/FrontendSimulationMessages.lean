@@ -42,13 +42,13 @@ local notation "point" => TranscriptV2.Chain.point
   (Replay.Encoding.chain (CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request) initial)
   proof H (Fin.val (Geometry.batchingIndex G))
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem stage_ranks :
     (selected).rank.val = (G).primeStart ∧
       (native).state.rank.val = ApplicationPrefix.conversionIndex (G) ∧
       (converted).state.rank.val = (G).binaryStart ∧
-      (CompleteSimulation.binaryReplay binary prime primePlan samples W H native converted coins.advice
-        (simulateCircuit binary.description.template coins.binary)).2.rank.val = ApplicationPrefix.packingIndex (G) := by
+      (CompleteSimulation.binaryReplay binary prime primePlan samples W H converted coins.advice
+        (simulateCircuit binary.description.circuit coins.binary)).2.rank.val = ApplicationPrefix.packingIndex (G) := by
   have first := SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints
   have cap := SimulationWrites.capacity binary prime primePlan
@@ -56,19 +56,19 @@ theorem stage_ranks :
     (simulateCircuit prime.circuit coins.prime) (by rw [first.1,cap]; omega)
   have next := SimulationWrites.conversion_properties binary prime primePlan samples W H native coins.mu
     middle.2.2 (by rw [middle.1,first.1,cap]; omega)
-  have last := SimulationWrites.binary_properties binary prime primePlan samples W H native converted coins.advice
-    (simulateCircuit binary.description.template coins.binary) next.2.2 (by rw [next.1,middle.1,first.1,cap]; omega)
+  have last := SimulationWrites.binary_properties binary prime primePlan samples W H converted coins.advice
+    (simulateCircuit binary.description.circuit coins.binary) next.2.2 (by rw [next.1,middle.1,first.1,cap]; omega)
   refine ⟨first.1,?_,?_,?_⟩
   · rw [middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change 1+(primePlan.frontend.roles .prime).length+2 = 1+(primePlan.frontend.roles .prime).length+2
+    change 1+(primePlan.frontend.roles .prime).length+1 = 1+(primePlan.frontend.roles .prime).length+1
     rfl
   · rw [next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change 1+(primePlan.frontend.roles .prime).length+2+1 = (primePlan.frontend.roles .prime).length+4
+    change 1+(primePlan.frontend.roles .prime).length+1+1 = (primePlan.frontend.roles .prime).length+3
     omega
   · rw [last.1,next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
       Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
-    change 1+(primePlan.frontend.roles .prime).length+2+1+(binary.plan.frontend.roles .binary).length =
-      (primePlan.frontend.roles .prime).length+4+(binary.plan.frontend.roles .binary).length
+    change 1+(primePlan.frontend.roles .prime).length+1+1+(binary.plan.frontend.roles .binary).length =
+      (primePlan.frontend.roles .prime).length+3+(binary.plan.frontend.roles .binary).length
     omega
 
 omit [DecidableEq B] in
@@ -98,47 +98,34 @@ theorem prime_messages :
 
 omit [DecidableEq B] in
 theorem binary_messages :
-    let circuit := CompleteSimulation.generatedCircuit binary prime primePlan native converted coins.advice
-    let payload := CompleteShape.payloadEquiv
-      (CompleteSimulation.generatedSame binary prime primePlan native converted coins.advice)
-      (simulateCircuit binary.description.template coins.binary)
-    let ids := (binary.description.setup (CompleteSimulation.powers binary prime primePlan native converted)
-      (CompleteSimulation.generatorBase binary) (MdocAdvice.bits coins.advice)
-      (CompleteSimulation.targets binary prime primePlan converted)).plan
+    let circuit := binary.description.circuit
+    let payload := simulateCircuit binary.description.circuit coins.binary
+    let ids := binary.description.padPlan
     messagesFromSetup circuit
-      (CompleteSimulation.binaryReplay binary prime primePlan samples W H native converted coins.advice
-        (simulateCircuit binary.description.template coins.binary)).1 payload =
+      (CompleteSimulation.binaryReplay binary prime primePlan samples W H converted coins.advice
+        (simulateCircuit binary.description.circuit coins.binary)).1 payload =
       FrontendReplay.read samples.binary samples.binaryNonzero circuit ids payload
         (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback (G).binaryStart
           (FrontendReplay.slots circuit)) := by
   have rank : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val = (G).binaryStart :=
     (stage_ranks binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest metadata request root H coins).2.2.1
-  have fuel : Frontend.ScheduleLength.circuitFuel
-      (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice) false =
-        Frontend.ScheduleLength.circuitFuel binary.plan false :=
-    Frontend.ScheduleLength.circuitFuel_same _ _ _
   have fits : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val+
-      Frontend.ScheduleLength.circuitFuel (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice) false ≤
+      Frontend.ScheduleLength.circuitFuel binary.plan false ≤
         (G).roles.length := by
-    rw [rank,fuel,SimulationWrites.capacity binary prime primePlan,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change (primePlan.frontend.roles .prime).length+4+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
-      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+7
+    rw [rank,SimulationWrites.capacity binary prime primePlan,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    change (primePlan.frontend.roles .prime).length+3+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
+      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+6
     omega
   have message := CompilerTransport.messages
     (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))
     .binary (Equiv.refl B) W H samples.binary samples.binaryNonzero samples.fallback
-    (CompleteSimulation.generatedPlan binary prime primePlan native converted coins.advice)
-    (binary.description.setup _ _ _ _).plan
-    (CompleteShape.payloadEquiv (CompleteSimulation.generatedSame binary prime primePlan native converted coins.advice)
-      (simulateCircuit binary.description.template coins.binary))
+    binary.plan binary.description.padPlan (simulateCircuit binary.description.circuit coins.binary)
     (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice) (result).state fits
     (SimulationAnswers.binary_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
   rw [CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
     binaryRequest metadata request root H initial coins,rank] at message
   exact message.trans (AnswerTape.frontend_read H samples.binary samples.binaryNonzero samples.fallback
-    (CompleteSimulation.generatedCircuit binary prime primePlan native converted coins.advice)
-    (binary.description.setup _ _ _ _).plan
-    (CompleteShape.payloadEquiv (CompleteSimulation.generatedSame binary prime primePlan native converted coins.advice)
-      (simulateCircuit binary.description.template coins.binary)) point (G).binaryStart).symm
+    binary.description.circuit binary.description.padPlan
+    (simulateCircuit binary.description.circuit coins.binary) point (G).binaryStart).symm
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages

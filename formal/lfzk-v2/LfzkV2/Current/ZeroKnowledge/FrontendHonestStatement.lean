@@ -51,7 +51,8 @@ theorem rows
     let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H front mu
     let advice := HonestAdapter.advice binary prime primePlan samples base H front original tape
     let binaryPayload := CompleteHonest.binaryMessageEquiv binary prime primePlan samples base H front converted advice
-      (Current.Adapter.Circuit.bitValue ∘ WitnessInputs.bits binary (CompleteHonest.privateBits binary prime original tape)) tape.binary
+      (CompleteHonest.binaryInputs binary prime original tape
+        (CompleteSimulation.entries binary prime primePlan front converted advice)) tape.binary
     let inst := CompleteHonest.packingInstance binary prime primePlan samples base H front converted advice binaryPayload original tape
     (∀ i, DualPacking.ArtinSchreier.traceF (ZMod 2) (inst.honestU i) = 0) ∧
       RowsHold (HonestRows.binaryRows binary prime primePlan samples base H front converted advice binaryPayload
@@ -60,7 +61,7 @@ theorem rows
           (fun i => CellLayout.selected binary.description.cells (.inl i))
           (fun i => CellLayout.selected binary.description.cells (.inr i)) coefficients.1 responses.1)
         (CompleteHonest.binaryCells binary prime original tape ((finTwoArrowEquiv B).symm masks.1)) ∧
-      RowsHold ([front.claim.row front.eta.val mu] ++
+      RowsHold (front.claim.rows front.eta.val mu ++
         FingerprintRows.rows
           (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inl i))
           (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inr i)) coefficients.2 responses.2)

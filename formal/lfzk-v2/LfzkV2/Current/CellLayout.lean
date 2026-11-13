@@ -174,27 +174,42 @@ theorem rows_avoid_fingerprint {F : Type} [Field F] {shared remaining pads nPubl
     · exact input_ne_fingerprint _ _ _ _ _
     · simp [pad, fingerprint]
 
-/-- Prime batching retains zero coefficients on both fingerprint cells;
-only the selection wrapper appends equations mentioning them. -/
-theorem batch_fingerprint_zero {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
+/-- The split claim of the prime compiler on its physical cells: the layer
+rows on native pad cells and the split input equation. -/
+def claim {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
     (cs : Linear.Constraints (Fin pads) F)
     (publicWeights publicInputs : Fin nPublic → F)
-    (privateWeights : Fin (shared+remaining) → F)
-    (rho : Fin (rows cs publicWeights publicInputs privateWeights).length → F) (j : Fin 2) :
-    (LfzkV2.Current.Prime.Claim.fromRow (LfzkV2.Current.Prime.batchRows
-      (rows cs publicWeights publicInputs privateWeights).get rho)).otherWeights
-        (fingerprint remaining pads j) = 0 := by
-  unfold LfzkV2.Current.Prime.Claim.fromRow LfzkV2.Current.Prime.coefficients
-    LfzkV2.Current.Prime.batchRows
-  simp only [Function.comp_apply, List.map_flatten, List.sum_flatten, List.map_ofFn,
-    List.sum_ofFn, List.map_map, Function.comp_def]
-  apply Finset.sum_eq_zero
-  intro i _
-  apply List.sum_eq_zero
-  intro x hx
-  obtain ⟨t,ht,rfl⟩ := List.mem_map.mp hx
-  simp [rows_avoid_fingerprint cs publicWeights publicInputs privateWeights j
-    _ (List.get_mem _ i) t ht]
+    (privateWeights : Fin (shared+remaining) → F) :
+    LfzkV2.Current.Prime.Claim (Fin shared) (Other remaining pads) F :=
+  LfzkV2.Current.Prime.Claim.ofConstraints cs (pad remaining pads) (input shared remaining pads)
+    publicWeights publicInputs privateWeights
+
+/-- The split claim retains zero weights on both fingerprint cells, and its
+layer rows never read them; only the selection wrapper appends equations
+mentioning them. -/
+theorem claim_fingerprint_zero {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
+    (cs : Linear.Constraints (Fin pads) F)
+    (publicWeights publicInputs : Fin nPublic → F)
+    (privateWeights : Fin (shared+remaining) → F) (j : Fin 2) :
+    (claim cs publicWeights publicInputs privateWeights).otherWeights (fingerprint remaining pads j) = 0 ∧
+      ∀ row ∈ (claim cs publicWeights publicInputs privateWeights).layers, ∀ term ∈ row.terms,
+        term.1 ≠ fingerprint remaining pads j := by
+  constructor
+  · have hinput := rows_avoid_fingerprint cs publicWeights publicInputs privateWeights j _
+      (List.mem_append_right _ (List.mem_singleton_self _))
+    unfold claim LfzkV2.Current.Prime.Claim.ofConstraints LfzkV2.Current.Prime.Claim.split
+      LfzkV2.Current.Prime.coefficients
+    simp only [neg_eq_zero]
+    apply List.sum_eq_zero
+    intro x hx
+    obtain ⟨t,ht,rfl⟩ := List.mem_map.mp hx
+    simp [hinput t ht]
+  · intro row hrow term hterm
+    simp only [claim, LfzkV2.Current.Prime.Claim.ofConstraints, LfzkV2.Current.Prime.Claim.split,
+      LfzkV2.Current.Prime.nativeLayers, List.mem_map] at hrow
+    obtain ⟨r,_,rfl⟩ := hrow
+    obtain ⟨t,_,rfl⟩ := List.mem_map.mp hterm
+    simp [pad, fingerprint]
 
 end Prime
 

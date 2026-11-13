@@ -46,7 +46,7 @@ variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg
   (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "readers" => RuntimeAdaptiveCharges.concreteReaders S laws hashPublic decodePublic
   primePlan primeFits binaryTemplate binaryFits

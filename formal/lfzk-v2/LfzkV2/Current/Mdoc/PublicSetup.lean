@@ -49,8 +49,8 @@ omit [Fintype B] [DecidableEq B] in
 theorem setup_merge (outside inside : Bytes → Digest) :
     setup binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
       setup binary prime cantor scalars ids bounds outside := by
-  unfold setup MdocIdentifiers.setup MdocIdentifiers.templateId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [SHAOracle.adapter_identifier,SHAOracle.context_hash,SHAOracle.joint_context_hash]
+  unfold setup MdocIdentifiers.setup MdocIdentifiers.fragmentId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
+  simp only [SHAOracle.fragment_identifier,SHAOracle.context_hash,SHAOracle.joint_context_hash]
 
 omit [Fintype B] [DecidableEq B] in
 theorem metadata_merge (outside inside : Bytes → Digest) :
@@ -80,14 +80,14 @@ set_option maxRecDepth 4096
 the observer. Enumerating all four digests fixes a common oracle window;
 actual values still come from one SHA function and need not be independent. -/
 structure Values where
-  hashTemplate : Digest
+  fragment : Digest
   binaryContext : Digest
   primeContext : Digest
   jointContext : Digest
 
 instance : Fintype Values := by
   apply Fintype.ofInjective (fun value : Values =>
-    (value.hashTemplate,value.binaryContext,value.primeContext,value.jointContext))
+    (value.fragment,value.binaryContext,value.primeContext,value.jointContext))
   intro first second same
   cases first
   cases second
@@ -100,14 +100,14 @@ variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Sca
 variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
 
 def values (SHA : Bytes → Digest) : Values where
-  hashTemplate := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).hashTemplate
+  fragment := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).fragment
   binaryContext := MdocIdentifiers.binaryContext binary cantor scalars (Mdoc.PublicSetup.identifiers ids SHA)
   primeContext := MdocIdentifiers.primeContext prime scalars (Mdoc.PublicSetup.identifiers ids SHA)
   jointContext := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).jointContext
 
 def setup (visible : Values) : FingerprintPrefix.Setup :=
   { Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds (fun _ => fun _ => 0) with
-    hashTemplate := visible.hashTemplate
+    fragment := visible.fragment
     jointContext := visible.jointContext }
 
 omit [Fintype B] [DecidableEq B] in

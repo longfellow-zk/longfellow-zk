@@ -123,7 +123,7 @@ theorem statement_exists (binaryNodes : Fin 2792 ↪ B)
     (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero samples.prime
     samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) system decoded
   obtain ⟨statement,compiled⟩ := StatementShape.compile_success binary.description prime primeData (MdocRuntime.field_card binary.basis)
-    (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound data binary.plan (G) rfl
+    (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound data binary.plan primePlan (G) rfl rfl
     (ParserApplication.packing_degree binary prime primePlan) (backend binaryNodes binary.description.cells)
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
     (BackendStatement.addresses binaryNodes ConcreteSetup.primeNodes)

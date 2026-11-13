@@ -42,7 +42,7 @@ namespace Geometry
 
 /-- All boundaries preceding the one joint backend. -/
 def backendPrefix (g : Geometry) : List Role :=
-  [.fingerprint] ++ g.prime.roles .prime ++ [.rowBatching,.rescaling,.conversion] ++
+  [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion] ++
     g.binary.roles .binary ++ (if g.packingDegree = 1 then [] else [.packing])
 
 theorem roles_eq_backend (g : Geometry) :

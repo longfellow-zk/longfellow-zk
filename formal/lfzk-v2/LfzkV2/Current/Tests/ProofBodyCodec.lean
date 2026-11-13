@@ -2,7 +2,7 @@ import LfzkV2.Current.ProofBodyReplay
 import LfzkV2.Current.ProofBodyBounds
 import LfzkV2.Current.ProofOutput
 
-/-! Literal MDA6/JPG2 ordering and rejection checks. Distinct byte-valued
+/-! Literal MDA7/JPG2 ordering and rejection checks. Distinct byte-valued
 coordinates make field order, layer order and row-major openings visible. -/
 namespace LfzkV2.Current.Tests.ProofBodyCodec
 open TranscriptV2.Framing (Byte FieldCodec)
@@ -62,6 +62,12 @@ private def repr : Current.ProofBodyCodec.Representations fields (Fin 3 → Byte
   advice := PrefixCodec.vector PrefixCodec.byte 3
   adviceWidth := 3
   adviceLength value := by rw [PrefixCodec.bytes_encode,List.length_ofFn]
+  adviceWrites := (PrefixCodec.vector PrefixCodec.byte 3).prefixed ([0] ++ TranscriptV2.Framing.encodeLE 8 3)
+  adviceWritesWidth := 12
+  adviceWritesLength value := by
+    change (([0] ++ TranscriptV2.Framing.encodeLE 8 3) ++ (PrefixCodec.vector PrefixCodec.byte 3).encode value).length = 12
+    rw [PrefixCodec.bytes_encode,List.length_append,List.length_ofFn]
+    rfl
 
 private def byte (value : ℕ) : Byte := ⟨value%256,Nat.mod_lt _ (by decide)⟩
 
@@ -99,7 +105,7 @@ private def blocks (width : ℕ) (values : List Byte) : Bytes :=
   values.flatMap (List.replicate width)
 
 private def wire : Bytes :=
-  [77,68,65,54] ++ List.replicate 32 1 ++ blocks 16 [7,8] ++ blocks 32 [9,10,11] ++ [90,91,12] ++
+  [77,68,65,55] ++ List.replicate 32 1 ++ blocks 16 [7,8] ++ blocks 32 [9,10,11] ++ [90,91,12] ++
     blocks 16 [12,13,14,15,16,17,18] ++ blocks 16 [19,20,21] ++ blocks 32 [22,23,24,25,26] ++
     [74,80,71,50] ++ List.replicate 32 2 ++
     blocks 16 [30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49] ++
@@ -176,8 +182,10 @@ example : (Current.ProofBodyCodec.checked repr geometry (fun _ => 3)).decode wir
   simp only [Current.ProofBodyCodec.checked,PrefixCodec.restrict,hs,
     Option.bind_eq_bind,Option.bind_some,dif_neg hn]
 
--- The fixed MDA6 marker rejects a wrong version immediately.
+-- The fixed MDA7 marker rejects a wrong version immediately.
 example : (Current.ProofBodyCodec.codec repr geometry).decode [77,68,65,53] = none := rfl
+-- The previous MDA6 version, with its packed three-byte advice, is rejected too.
+example : (Current.ProofBodyCodec.codec repr geometry).decode [77,68,65,54] = none := rfl
 
 -- Degree-one packing is exactly empty, including its decoder's suffix.
 example : (Current.ProofBodyCodec.packing PrefixCodec.byte 1).encode () = [] := rfl

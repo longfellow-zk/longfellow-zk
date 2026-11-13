@@ -16,9 +16,9 @@ def binaryRounds (attributes : Fin 4) : List ℕ :=
 def primeRounds : List ℕ := [4, 5, 11, 11, 13, 14, 13, 14, 14, 14, 12]
 
 def roundCount (attributes : Fin 4) : ℕ :=
-  (binaryRounds attributes).sum + primeRounds.sum + 3*(20+11) + 7
+  (binaryRounds attributes).sum + primeRounds.sum + 3*(20+11) + 6
 
-theorem counts : List.ofFn roundCount = [488,492,497,500] := by decide
+theorem counts : List.ofFn roundCount = [487,491,496,499] := by decide
 
 structure Matches (g : Geometry) (attributes : Fin 4) : Prop where
   binary : g.binary.stages.map Stage.rounds = binaryRounds attributes
@@ -58,7 +58,7 @@ theorem rounds_eq (g : Geometry) (attributes : Fin 4) (shape : Matches g attribu
     sumcheckRounds_eq, shape.binary, shape.prime, binaryLength, primeLength, shape.packing, roundCount]
   omega
 
-theorem rounds_le (g : Geometry) (shape : Supported g) : g.roles.length ≤ 500 := by
+theorem rounds_le (g : Geometry) (shape : Supported g) : g.roles.length ≤ 499 := by
   obtain ⟨attributes, shape⟩ := shape
   rw [rounds_eq g attributes shape]
   fin_cases attributes <;> decide

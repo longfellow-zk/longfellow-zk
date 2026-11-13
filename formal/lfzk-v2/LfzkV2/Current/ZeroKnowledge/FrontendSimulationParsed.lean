@@ -78,19 +78,20 @@ theorem prime_payload : Parser.payload proof .prime primePlan rfl = simulateCirc
 
 omit [DecidableEq B] in
 theorem binary_payload :
-    let same := CompleteSimulation.generatedSame binary prime primePlan native converted coins.advice
-    Parser.payload proof .binary (same.plan binary.plan) (same.frontend binary.plan).symm =
-      CompleteShape.payloadEquiv same (simulateCircuit binary.description.template coins.binary) := by
-  exact PayloadTransport.same_body binary.plan _ _
+    Parser.payload proof .binary binary.plan rfl = simulateCircuit binary.description.circuit coins.binary := by
+  change (CompleteShape.bodyEquiv binary.plan).symm
+    (CompleteShape.bodyEquiv binary.plan (simulateCircuit binary.description.circuit coins.binary)) = _
+  exact (CompleteShape.bodyEquiv binary.plan).symm_apply_apply _
 
 omit [DecidableEq B] in
-theorem prime_frontend_rows (data : PrimeData prime C)
+/-- The parsed prime frontend is the simulator's: its fallible fields are
+those of the replayed simulated messages. -/
+theorem prime_frontend (data : PrimeData prime C)
     (parsed : ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point
       ((point).priorAnswers H) = some data) :
-    data.frontend.rows = CompleteSimulation.primeRows prime (messagesFromSetup prime.circuit
-      (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero W H)
-        primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected false).1
-      (simulateCircuit prime.circuit coins.prime)) := by
+    data.frontend = prime.setup.prepare (simulateCircuit prime.circuit coins.prime) samples.prime
+      samples.primeNonzero (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback
+        (G).primeStart (FrontendReplay.slots prime.circuit)) := by
   have spec := ApplicationPrefix.readPrime_spec prime id samples.prime samples.primeNonzero samples.fallback
     point ((point).priorAnswers H) data parsed
   have wire := Parser.messages repr shape setup publicCount binaryRequest metadata request initial proof H
@@ -101,41 +102,42 @@ theorem prime_frontend_rows (data : PrimeData prime C)
     request root H coins] at wire
   have payload : data.payload = simulateCircuit prime.circuit coins.prime :=
     Option.some.inj (spec.2.1.symm.trans wire)
+  unfold PrimeData.frontend
+  rw [spec.2.2.1,spec.2.2.2.1,spec.2.2.2.2,payload]
+
+omit [DecidableEq B] in
+theorem prime_frontend_rows (data : PrimeData prime C)
+    (parsed : ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point
+      ((point).priorAnswers H) = some data) :
+    data.frontend.rows = CompleteSimulation.primeRows prime (messagesFromSetup prime.circuit
+      (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero W H)
+        primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected false).1
+      (simulateCircuit prime.circuit coins.prime)) := by
   have messages := SimulationMessages.prime_messages binary prime primePlan samples shape repr setup defaultAdvice
     publicCount binaryRequest metadata request root H initial coins
-  unfold PrimeData.frontend
-  rw [spec.2.2.1,spec.2.2.2.1,spec.2.2.2.2.1,payload]
+  rw [prime_frontend binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest
+    metadata request root H initial coins data parsed]
   symm
-  simpa only [CompleteSimulation.primeRows,Frontend.Prime.rows,FrontendVerifier.PrimeSetup.prepare,
-    FrontendVerifier.constraints,PrimePublic.setup,CellLayout.Prime.rows] using
+  simpa only [CompleteSimulation.primeRows,CompleteSimulation.primeConstraints,Frontend.Prime.rows,
+    FrontendVerifier.PrimeSetup.prepare,FrontendVerifier.constraints,PrimePublic.setup,CellLayout.Prime.rows] using
     congrArg (CompleteSimulation.primeRows prime) messages
 
 omit [DecidableEq B] in
+/-- The parser's split claim is the simulator's: both are computed from the
+same prime messages by the same compiler, with no challenge. -/
 theorem prime_claim (data : PrimeData prime C)
     (parsed : ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point
       ((point).priorAnswers H) = some data) : data.claim = (native).claim := by
-  have spec := ApplicationPrefix.readPrime_spec prime id samples.prime samples.primeNonzero samples.fallback
-    point ((point).priorAnswers H) data parsed
-  obtain ⟨batching,hbatching,rho⟩ := spec.2.2.2.2.2
-  have batch := strictAnswer_value H samples.fallback point _ batching hbatching
-  have first := (SimulationWrites.selected_properties binary prime primePlan samples W H
-    (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤ (G).roles.length := by
-    rw [first,SimulationWrites.capacity binary prime primePlan]
-    omega
-  have index : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
-    rw [first,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    rfl
-  have values := SimulationScalarAnswers.prime_values binary prime primePlan samples W H selected (result).state
-    (simulateCircuit prime.circuit coins.prime) fits
-    (SimulationAnswers.native_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
-  rw [CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
-    binaryRequest metadata request root H initial coins,index,← batch] at values
+  have messages := SimulationMessages.prime_messages binary prime primePlan samples shape repr setup defaultAdvice
+    publicCount binaryRequest metadata request root H initial coins
   unfold PrimeData.claim
-  rw [rho]
-  erw [prime_frontend_rows binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest
+  rw [prime_frontend binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest
     metadata request root H initial coins data parsed]
-  exact values.1.symm
+  symm
+  simpa only [CompleteSimulation.primePrefix,CompleteSimulation.primeClaim,CompleteSimulation.primeConstraints,
+    Composition.splitClaim,FrontendVerifier.PrimeSetup.prepare,FrontendVerifier.constraints,PrimePublic.setup,
+    CellLayout.Prime.claim] using
+    congrArg (CompleteSimulation.primeClaim prime) messages
 
 omit [DecidableEq B] in
 theorem challenge_values :
@@ -147,10 +149,10 @@ theorem challenge_values :
       (ApplicationPrefix.packingIndex (G))) i.val) := by
   have first := (SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+2 ≤ (G).roles.length := by
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1 ≤ (G).roles.length := by
     rw [first,SimulationWrites.capacity binary prime primePlan]
     omega
-  have batchIndex : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rowBatchingIndex (G) := by
+  have scaleIndex : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rescalingIndex (G) := by
     rw [first,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     rfl
   have tape := CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
@@ -160,10 +162,10 @@ theorem challenge_values :
   have primeValues := SimulationScalarAnswers.prime_values binary prime primePlan samples W H selected (result).state
     (simulateCircuit prime.circuit coins.prime) fits
     (SimulationAnswers.native_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
-  rw [tape,batchIndex] at primeValues
+  rw [tape,scaleIndex] at primeValues
   have inside : (native).state.rank.val < (G).roles.length := by
     rw [ranks.2.1]
-    exact ((ParserApplication.positions binary prime primePlan).2.2.1).trans (G).batchingIndex.isLt
+    exact ((ParserApplication.positions binary prime primePlan).2.1).trans (G).batchingIndex.isLt
   have conversion := SimulationScalarAnswers.conversion_values binary prime primePlan samples W H native coins.mu
     (result).state inside
     (SimulationAnswers.converted_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
@@ -182,7 +184,7 @@ theorem binary_frontend_rows (primeData : PrimeData prime C)
       (ParserApplication.packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero
       samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) = some data) :
     data.frontend.rows = HonestRows.binaryRows binary prime primePlan samples W H native converted coins.advice
-      (simulateCircuit binary.description.template coins.binary)
+      (simulateCircuit binary.description.circuit coins.binary)
       (fun i => ((result).packing.1 i).val) (result).delta (result).packing.2 := by
   have values := challenge_values binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest
     metadata request root H initial coins
@@ -190,7 +192,7 @@ theorem binary_frontend_rows (primeData : PrimeData prime C)
     metadata request root H initial coins primeData parsedPrime
   have messages := SimulationMessages.binary_messages binary prime primePlan samples shape repr setup defaultAdvice
     publicCount binaryRequest metadata request root H initial coins
-  have bpayload : (result).binaryPayload = simulateCircuit binary.description.template coins.binary := rfl
+  have bpayload : (result).binaryPayload = simulateCircuit binary.description.circuit coins.binary := rfl
   have hmu : (result).mu = coins.mu := rfl
   have hadvice : (result).advice = coins.advice := rfl
   have cmu : (converted).mu = coins.mu := rfl
@@ -218,37 +220,32 @@ theorem binary_frontend_rows (primeData : PrimeData prime C)
   have rank := ((CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request).chain initial).point_rank
     publicProof H (G).batchingIndex.isLt.le
   change publicPoint.rank = (G).batchingIndex.val at rank
-  let powers := fun (tree : Fin 2) (i : Fin 1024) => MdocRuntime.generator binary.basis^
-    ((cv.alpha tree).val*(Handoff.weights (maskBits := 256) primeData.claim.sharedWeights n.eta.val i)).val
-  let targets := fun tree => MdocRuntime.generator binary.basis^((cv.alpha tree).val*coins.mu).val
-  let same := binary.description.same_template powers (CompleteSimulation.generatorBase binary)
-    (MdocAdvice.bits coins.advice) targets
-  let plan := same.plan binary.plan
-  have shapeEq : (G).binary = plan.frontend := (same.frontend binary.plan).symm
+  let plan := binary.plan
+  have shapeEq : (G).binary = plan.frontend := rfl
   have window := ParserApplication.binary_window binary prime primePlan _ plan shapeEq
   have wire := Parser.messages repr shape setup publicCount binaryRequest metadata request initial publicProof H
     .binary plan shapeEq (G).batchingIndex.val (G).batchingIndex.isLt.le window
   have payload : Parser.payload publicProof .binary plan shapeEq =
-      CompleteShape.payloadEquiv same (simulateCircuit binary.description.template coins.binary) := by
+      simulateCircuit binary.description.circuit coins.binary := by
     change (CompleteShape.bodyEquiv plan).symm
       (Eq.mp (congrArg (FrontendPayload B) shapeEq) (CompleteShape.bodyEquiv binary.plan view.binaryPayload)) = _
     rw [bpayload]
-    exact PayloadTransport.same_body binary.plan same _
+    exact (CompleteShape.bodyEquiv binary.plan).symm_apply_apply _
   rw [payload] at wire
   dsimp only [Parser.start] at wire
   have scale := strictAnswer_lookup H samples.fallback publicPoint (ApplicationPrefix.rescalingIndex (G))
-    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).2.1)
+    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).1)
   have conversion := strictAnswer_lookup H samples.fallback publicPoint (ApplicationPrefix.conversionIndex (G))
-    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).2.2.1)
+    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).2.1)
   have packing := strictAnswer_lookup H samples.fallback publicPoint (ApplicationPrefix.packingIndex (G))
-    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).2.2.2)
+    (by rw [rank]; exact (ParserApplication.positions binary prime primePlan).2.2)
   have mu := Parser.read_mu repr shape setup publicCount binaryRequest metadata request initial publicProof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ParserApplication.positions binary prime primePlan).2.2.1.le
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (ParserApplication.positions binary prime primePlan).2.1.le
   have advice := Parser.read_advice repr shape setup publicCount binaryRequest metadata request initial publicProof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (by exact le_trans (Nat.le_add_right _ _) window)
   have U := Parser.read_packingU repr shape setup publicCount binaryRequest metadata request initial publicProof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (by change (128 : ℕ) ≠ 1; decide)
-    (ParserApplication.positions binary prime primePlan).2.2.2.le
+    (ParserApplication.positions binary prime primePlan).2.2.le
   have A := Parser.read_packingA repr shape setup publicCount binaryRequest metadata request initial publicProof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le le_rfl
   change _ = some view.mu at mu
@@ -273,13 +270,13 @@ theorem binary_frontend_rows (primeData : PrimeData prime C)
   symm
   exact congrArg
       (fun msg =>
-        let circuit := CompleteSimulation.generatedCircuit binary prime primePlan n cv coins.advice
+        let circuit := binary.description.circuit
         let cs := (Linear.buildConstraints (circuit.proof msg 0)).getD ⟨[],zeroClaim⟩
-        Linear.Packed.rows binary.description.packing cs binary.description.packedIndex
+        Layered.Packed.virtualRows binary.description.packing cs (circuit.inputWeights msg 0)
+          binary.description.inputIndex binary.description.virtualIndex binary.description.packedIndex
           (CellLayout.Binary.pad binary.description.words 128 binary.description.pads)
-          (fun i => circuit.inputWeights msg 0 (binary.description.inputIndex (.inl i)))
-          (Current.Adapter.Circuit.bitValue ∘ binary.publicBits)
-          (fun i => circuit.inputWeights msg 0 (binary.description.inputIndex (.inr i)))
+          (Current.Adapter.Circuit.bitValue ∘ binary.description.publicBits)
+          (CompleteSimulation.entries binary prime primePlan n cv coins.advice)
           (fun i => (view.packing.1 i).val) view.delta view.packing.2) messages
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed

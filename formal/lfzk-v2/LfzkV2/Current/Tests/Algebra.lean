@@ -1,5 +1,5 @@
 import LfzkV2.Current.Selection
-import LfzkV2.Current.Prime
+import LfzkV2.Current.PrimeClaim
 import LfzkV2.Current.AdapterParameters
 import LfzkV2.Current.Handoff
 import LfzkV2.Current.AdapterTree
@@ -16,23 +16,27 @@ example : ¬ Prime.RescalingBad (1 : ZMod 5) 4 2 := by
   unfold Prime.RescalingBad
   decide
 
--- Even with no layer rows, the final input row must participate in batching.
-def inputRow : Fin 1 → LfzkV2.LinearRow Unit (ZMod 5) := fun _ => ⟨1, []⟩
-example : (Prime.batchRows inputRow (fun _ => 1)).eval (fun _ => 0) = 1 := by
-  decide
-example : (Prime.batchRows inputRow (fun _ => 0)).eval (fun _ => 0) = 0 := by
-  decide
+-- Layer rows enter the prime statement unbatched: a false layer row fails
+-- for every rescaling challenge and masked message.
+def falseLayer : Prime.Claim Unit Unit (ZMod 5) := ⟨[⟨1, []⟩], fun _ => 0, fun _ => 0, 0⟩
+example (eta mu mask : ZMod 5) :
+    ¬ LfzkV2.RowsHold (falseLayer.rows eta mu) (Sum.elim (fun _ => 0) (fun _ => mask)) := by
+  rw [Prime.Claim.rows_hold_iff]
+  simp [falseLayer, LfzkV2.RowsHold, SumcheckV2.PadExpression.eval]
+example (eta mu : ZMod 5) : (falseLayer.rows eta mu).length = 2 := rfl
 
 instance : Fact (Nat.Prime 7) := ⟨by decide⟩
 
--- Sparse occurrences add when forming the dense claim used by the adapter.
+-- Sparse occurrences add when forming the dense split claim. The runtime's
+-- weights negate the compiled input row, whose constant is the target.
 def repeatedRow : LfzkV2.LinearRow (Unit ⊕ Unit) (ZMod 7) :=
   ⟨1, [(.inl (), 2), (.inl (), 3), (.inr (), 4)]⟩
-example : (Prime.Claim.fromRow repeatedRow).sharedWeights () = 5 := by
-  simp [Prime.Claim.fromRow, Prime.coefficients, repeatedRow]
+example : (Prime.Claim.split [] repeatedRow).sharedWeights () = 2 := by
+  simp [Prime.Claim.split, Prime.coefficients, repeatedRow]
   decide
-example : (Prime.Claim.fromRow repeatedRow).residual (fun _ => 1) (fun _ => 2) = 0 := by
-  rw [Prime.Claim.fromRow_residual]
+example : (Prime.Claim.split [] repeatedRow).target = 1 := rfl
+example : (Prime.Claim.split [] repeatedRow).residual (fun _ => 1) (fun _ => 2) = 0 := by
+  rw [Prime.Claim.split_residual]
   decide
 
 -- Binary mask bits need not encode a canonical prime integer. The handoff
@@ -67,8 +71,7 @@ example (bits : WitnessSelection.Candidate (ZMod 2) Unit → Bool → Bool)
     (w : Selection.Pair (ZMod 2) (ZMod 7) Unit Unit) (i : Bool) :
     Selection.primeInputs bits other w (.inl i) = if bits w.1 i then 1 else 0 := rfl
 
--- The odd final product wire is carried, rather than discarded or squared.
-example : Adapter.Tree.reduce 2 ([2, 3, 4] : List (ZMod 7)) = [3] := by decide
+-- Masked quotient bits decode little-endian.
 example : Adapter.Tree.binaryValue [true, false, true] = 5 := by decide
 
 end LfzkV2.Current.Tests

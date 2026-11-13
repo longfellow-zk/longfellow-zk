@@ -33,10 +33,10 @@ run_cmd do
             throwError "Endpoint {endpoint} lost its {policy} policy"
     let used := info.type.getUsedConstants
     unless used.contains ``Mdoc.ZeroKnowledge.Reachable &&
-        used.contains ``MdocWitness.ReadDisjoint && used.contains ``MdocWitness.HashValid do
-      throwError "Endpoint {endpoint} lost reached-witness or static-circuit premises"
-    if used.contains ``MdocWitness.UniformHashValid then
-      throwError "Endpoint {endpoint} exposes the derived uniform witness premise"
+        used.contains ``MdocWitness.HashValid do
+      throwError "Endpoint {endpoint} lost its reached-witness premise"
+    if used.contains ``MdocWitness.UniformHashValid || used.contains ``HashCircuit.ReadDisjoint then
+      throwError "Endpoint {endpoint} exposes a derived witness or separation premise"
     unless used.contains ``Protocol.ExecutionSampler do
       throwError "Endpoint {endpoint} does not use the shared executable sampler"
     if used.contains `LfzkV2.Current.Protocol.SamplerLaws then
@@ -71,7 +71,7 @@ run_cmd do
       ``StrandCanonicalFullCoupling.complete_view,
       ``StrandCanonicalBackend.responseCoupling,
       ``FrontendCanonicalRows.frontendCoupling,
-      ``MdocWitness.noninterference_of_readDisjoint] do
+      ``MdocWitness.uniformHashValid_of_valid,``HashCircuit.readDisjoint] do
     unless visited.contains required do
       throwError "Complete privacy endpoint disconnected from {required}"
   for endpoint in #[``Mdoc.OracleWindow.leaves_subset,

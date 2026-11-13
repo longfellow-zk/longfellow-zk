@@ -104,14 +104,14 @@ theorem success
   have coefficients := Parser.strictAnswer Repr Shape setup binary.nPublic BinaryRequest metadata request
     (RuntimeVerifier.Public.initialLink Cfg) proof H (G).batchingIndex.val (G).batchingIndex.isLt.le 0 (by
       have pos := (ParserApplication.positions binary prime primePlan).1
-      simp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at pos
+      simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at pos
       omega)
   have targets := Parser.read_fingerprints Repr Shape setup binary.nPublic BinaryRequest metadata request
     (RuntimeVerifier.Public.initialLink Cfg) proof H (G).batchingIndex.val (G).batchingIndex.isLt.le primeStart
   obtain ⟨statement,compiled⟩ := StatementShape.compile_success
     (RuntimeAdaptive.binaryWithBits binary.description request.publicBits) (RuntimeAdaptive.primeWithInputs prime inputs)
     native (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound data
-    binary.plan (G) rfl (ParserApplication.packing_degree binary prime primePlan) First Second layout
+    binary.plan primePlan (G) rfl rfl (ParserApplication.packing_degree binary prime primePlan) First Second layout
     ((Cfg).fingerprintBinary fingerprint) ((Cfg).fingerprintPrime fingerprint) proof.body.fingerprints.1 proof.body.fingerprints.2
     system checked
   unfold RuntimeAdaptive.statementAt

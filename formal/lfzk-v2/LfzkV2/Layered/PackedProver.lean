@@ -43,4 +43,32 @@ theorem honest_rows {input nPublic nPrivate : ℕ}
     P.honestU delta (P.honestA delta) values htrace).mpr ⟨hcs.1, ?_⟩⟩
   exact P.native_linear_completeness htrue hmask delta
 
+/-- Honest completeness with per-proof virtual inputs: the final input
+equation over `[public | committed | virtual]` gives true substituted rows. -/
+theorem honest_virtual_rows {input nPublic nPrivate nVirtual : ℕ}
+    (cs : Linear.Constraints Pad F) (weights : Cube input → F)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (publicInputs : Fin nPublic → F) (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F)
+    (coordinate : Pad → Slot) (values : Slot → F)
+    (hcs : cs.Holds (values ∘ coordinate)
+      (dot weights (S.virtualInputs inputIndex virtualIndex packedIndex publicInputs entries values)))
+    (delta : I → F) (hmask : frobenius K F (S.realize values).r = (S.realize values).b) :
+    let T := S.withVirtualSource packedIndex cs.inputClaim coordinate weights inputIndex virtualIndex
+      publicInputs entries
+    let P := T.realize values
+    (∀ i, traceF K (P.honestU i) = 0) ∧
+      RowsHold (virtualRows S cs weights inputIndex virtualIndex packedIndex coordinate publicInputs
+        entries P.honestU delta (P.honestA delta)) values := by
+  intro T P
+  have htrue : P.target = P.trueValue :=
+    (S.virtual_source_claim_iff packedIndex cs.inputClaim coordinate weights inputIndex virtualIndex
+      publicInputs entries values).mpr hcs.2
+  have htrace : ∀ i, traceF K (P.honestU i) = 0 := by
+    intro i
+    rw [P.trace_honestU,htrue,sub_self]
+  refine ⟨htrace,(Linear.Packed.rows_iff S cs packedIndex coordinate _ _ _
+    P.honestU delta (P.honestA delta) values htrace).mpr ⟨hcs.1,?_⟩⟩
+  exact P.native_linear_completeness htrue hmask delta
+
 end LfzkV2.Layered.Packed

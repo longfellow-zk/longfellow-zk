@@ -38,8 +38,8 @@ theorem setup_merge (outside inside : Bytes → Digest) :
     MdocIdentifiers.setup binary prime cantor scalars
         (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) bounds =
       MdocIdentifiers.setup binary prime cantor scalars (identifiers ids outside) bounds := by
-  unfold MdocIdentifiers.setup MdocIdentifiers.templateId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [StrandDomains.adapter_merge,StrandDomains.context_merge,StrandDomains.joint_context_merge]
+  unfold MdocIdentifiers.setup MdocIdentifiers.fragmentId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
+  simp only [StrandDomains.fragment_merge,StrandDomains.context_merge,StrandDomains.joint_context_merge]
 
 omit [Fintype B] [DecidableEq B] in
 theorem parameters_merge (outside inside : Bytes → Digest) :

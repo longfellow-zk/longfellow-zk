@@ -123,6 +123,49 @@ theorem frontend_or_bad {Pad : Type} [DecidableEq F]
     simpa only [Function.comp_id] using hsource
   · exact Or.inr hbad
 
+/-- Packed private inputs beside the public prefix, with each per-proof
+virtual input at its own address. Virtual values are affine views of the
+decoded committed inputs; they are never committed themselves. -/
+noncomputable def virtualInputs {input nPublic nPrivate nVirtual : ℕ}
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (publicInputs : Fin nPublic → F) (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F)
+    (values : Slot → F) : Cube input → F :=
+  LfzkV2.virtualInputs inputIndex virtualIndex publicInputs
+    (unpack S.basis S.word packedIndex values) entries
+
+/-- Compile the final input claim with the virtual definitions substituted,
+as `compile_packed` does: constants on the public side, coefficients added
+to the weights of their committed sources. -/
+noncomputable def withVirtualSource {Pad : Type} {input nPublic nPrivate nVirtual : ℕ}
+    (packedIndex : Fin nPrivate ↪ J × I) (claim : PadExpression Pad F)
+    (coordinate : Pad → Slot) (weights : Cube input → F)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (publicInputs : Fin nPublic → F)
+    (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F) : Statement K F I J Slot :=
+  S.withSource packedIndex claim coordinate
+    (substitutedPublicWeights (fun i => weights (inputIndex (.inl i))) (fun v => weights (virtualIndex v)))
+    (substitutedPublicInputs publicInputs entries)
+    (substitutedPrivateWeights (fun i => weights (inputIndex (.inr i)))
+      (fun v => weights (virtualIndex v)) entries)
+
+omit [Fintype K] [Fintype F] [DecidableEq I] in
+/-- A true substituted source claim is exactly the final input equation over
+`[public | committed | virtual]`. -/
+theorem virtual_source_claim_iff {Pad : Type} {input nPublic nPrivate nVirtual : ℕ}
+    (packedIndex : Fin nPrivate ↪ J × I) (claim : PadExpression Pad F)
+    (coordinate : Pad → Slot) (weights : Cube input → F)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (publicInputs : Fin nPublic → F)
+    (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F) (values : Slot → F) :
+    let P := (S.withVirtualSource packedIndex claim coordinate weights inputIndex virtualIndex
+      publicInputs entries).realize values
+    P.target = P.trueValue ↔ claim.eval (values ∘ coordinate) =
+      dot weights (S.virtualInputs inputIndex virtualIndex packedIndex publicInputs entries values) := by
+  dsimp only
+  rw [withVirtualSource,virtualInputs,virtual_input_sum]
+  exact S.source_claim_iff packedIndex claim coordinate _ _ _ values
+
 /-- Every unpacked binary coordinate is a bit, including adversarial decoded
 words. This is the input guarantee used by the native Boolean circuit. -/
 theorem unpack_binary_bit {F I J Slot : Type} [Field F] [Algebra (ZMod 2) F]

@@ -1,7 +1,6 @@
 import LfzkV2.Current.RuntimeAdaptiveStatement
 import LfzkV2.Current.RuntimeAdaptiveRoles
 import LfzkV2.Current.RuntimeAdaptiveLocal
-import LfzkV2.Current.RuntimeAdaptiveBatch
 import LfzkV2.Current.RuntimeAdaptiveAuxiliary
 import LfzkV2.Current.RuntimeAdaptiveBackend
 
@@ -52,7 +51,7 @@ variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg
   (RuntimeSource.source binary prime P R cfg layout cutoff cutOracle cutOff))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "readers" => RuntimeAdaptiveCharges.concreteReaders S laws hashPublic decodePublic
   primePlan primeFits binaryTemplate binaryFits
@@ -67,19 +66,18 @@ variable (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N)
 local notation "currentBinary" => binaryWithBits binary bits
 local notation "currentPrime" => primeWithInputs prime inputs
 
-/-- The six actual parsed algebraic events, without introducing a new
+/-- The five actual parsed algebraic events, without introducing a new
 configuration for the adaptively read public inputs. -/
 def ParsedBad (nd : PrimeData currentPrime C) (bd : BinaryData currentBinary nd Generator) (w : Pair) : Prop :=
   (∃ query < FrontendReplay.slots bd.setup.circuit,
     FrontendReplay.BadAt bd.decode bd.nonzero bd.setup.circuit bd.setup.plan bd.payload bd.answers
-      ((currentBinary).inputs (binaryValues currentBinary currentPrime w))
+      ((currentBinary).inputs bd.entries (binaryValues currentBinary currentPrime w))
       (fun i => binaryValues currentBinary currentPrime w (CellLayout.Binary.pad binary.words binary.degree binary.pads i)) query) ∨
   bd.frontend.source.Bad (binaryValues currentBinary currentPrime w) bd.U bd.delta ∨
   (∃ query < FrontendReplay.slots prime.circuit,
     FrontendReplay.BadAt nd.decode nd.nonzero prime.circuit prime.setup.plan nd.payload nd.answers
       (primeInputs currentBinary currentPrime w)
       (fun i => primeFullValues currentBinary currentPrime w (.inr (CellLayout.Prime.pad prime.remaining prime.pads i))) query) ∨
-  Prime.BatchBad (fun i => (nd.frontend.rows.get i).eval (primeFullValues currentBinary currentPrime w)) nd.rho ∨
   Prime.RescalingBad
     (nd.claim.residual (fun i => if (currentBinary).sharedValues w.1 i then 1 else 0)
       (fun i => primeValues currentBinary currentPrime w (.inl i)))
@@ -139,23 +137,19 @@ theorem parsed_charged
     rw [primePlan.slots_eq_roles_length .prime,primeGeometry]
   let packet : AdapterPacket (binaryWithBits binary bits) (primeWithInputs prime inputs) C := ⟨nd,bd.eta,bd.mu,bd.alpha,bd.masked⟩
   have binaryWindow : FrontendReplay.slots bd.setup.circuit = (g.binary.roles .binary).length := by
-    have hh := (RuntimeShape.binaryPlan (binaryWithBits binary bits) (primeWithInputs prime inputs) Generator binaryTemplate packet).slots_eq_roles_length .binary
-    rw [RuntimeShape.binaryPlan_frontend] at hh
+    have hh := (show FrontendSchedule.Plan B (packet.setup Generator).circuit from binaryTemplate).slots_eq_roles_length .binary
     change FrontendReplay.slots bd.setup.circuit = (binaryTemplate.frontend.roles .binary).length at hh
     rwa [binaryGeometry] at hh
-  have hn : ApplicationPrefix.rowBatchingIndex g < g.roles.length := by
-    have hh := g.roles_length
-    simp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at *; omega
   have hr : ApplicationPrefix.rescalingIndex g < g.roles.length := by
     have hh := g.roles_length
-    simp only [ApplicationPrefix.rescalingIndex,ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at *; omega
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *; omega
   have hc : ApplicationPrefix.conversionIndex g < g.roles.length := by
     have hh := g.roles_length
-    simp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at *; omega
+    simp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *; omega
   have hp : ApplicationPrefix.packingIndex g < g.roles.length := by
     have hh := g.roles_length
     simp only [ApplicationPrefix.packingIndex,Geometry.binaryStart] at *; omega
-  rcases hbad with ⟨query,hquery,hbad⟩ | hbad | ⟨query,hquery,hbad⟩ | hbad | hbad | hbad
+  rcases hbad with ⟨query,hquery,hbad⟩ | hbad | ⟨query,hquery,hbad⟩ | hbad | hbad
   · have hi : g.binaryStart+query < g.roles.length := by
       have hh := g.roles_length; have hqq := hquery
       rw [binaryWindow] at hqq; dsimp only [Geometry.binaryStart]; omega
@@ -182,21 +176,15 @@ theorem parsed_charged
     refine ⟨g.primeStart+query,hi,?_⟩
     rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.prime_single binary prime P R cfg S laws primePlan e cfg.initialLink output.proof H readers primeGeometry query hquery]
     exact indicator_charged hlocal
-  · have hlocal := RuntimeAdaptiveBatch.batch_of_late binary prime P R cfg S laws hashPublic decodePublic primePlan e cfg.initialLink
-      output.proof H primeGeometry g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd hprime w
-      (selected _ hn (by dsimp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart]; omega)) hbad
-    refine ⟨ApplicationPrefix.rowBatchingIndex g,hn,?_⟩
-    rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.rowBatching_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers]
-    exact indicator_charged hlocal
-  · have hlocal := RuntimeAdaptiveBatch.rescale_of_late binary prime P R cfg S laws hashPublic decodePublic primePlan e cfg.initialLink
-      output.proof H primeGeometry g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd bd hprime hbinary w
-      (selected _ hr (by dsimp only [ApplicationPrefix.rescalingIndex,ApplicationPrefix.rowBatchingIndex,Geometry.primeStart]; omega)) hbad
+  · have hlocal := RuntimeAdaptiveAuxiliary.rescale_of_late laws hashPublic decodePublic primePlan primeGeometry e cfg.initialLink
+      output.proof H g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd bd hprime hbinary w
+      (selected _ hr (by dsimp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart]; omega)) hbad
     refine ⟨ApplicationPrefix.rescalingIndex g,hr,?_⟩
     rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.rescaling_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers]
     exact indicator_charged hlocal
   · have hlocal := RuntimeAdaptiveAuxiliary.conversion_of_late laws hashPublic decodePublic primePlan primeGeometry e cfg.initialLink
       output.proof H g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd bd hprime hbinary w
-      (selected _ hc (by dsimp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,ApplicationPrefix.rowBatchingIndex,Geometry.primeStart]; omega)) hbad
+      (selected _ hc (by dsimp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,Geometry.primeStart]; omega)) hbad
     refine ⟨ApplicationPrefix.conversionIndex g,hc,?_⟩
     rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.conversion_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers]
     exact indicator_charged hlocal

@@ -98,7 +98,6 @@ local notation "Sim" => Mdoc.ZeroKnowledge.simulate binary prime cantor scalars 
 local notation "Epsilon" => (preQueries+Budget : ℕ)/(Fintype.card MerkleNonce : ℚ)
 variable (pivotOne : binary.basis 0 = 1)
 variable (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-variable (separated : MdocWitness.ReadDisjoint binary)
 variable (valid : ∀ context,
   Mdoc.ZeroKnowledge.Reachable binary prime cantor scalars ids bounds before context → MdocWitness.HashValid
   (RequestedSimulator.requestedBinary binary prime.description prime.plan (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
@@ -113,7 +112,7 @@ variable (signature : ∀ context,
     (RuntimeStatement.prime_count binary prime.description prime.plan bounds.inputFits bounds.privateFits) (requestOf context)
   p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (context)) (remaining (context))))
 
-include pivotOne primitive separated valid signature in
+include pivotOne primitive valid signature in
 /-- Actual acceptance probabilities differ by at most the same privacy
 error. No always-accepting simulator or acceptance certificate is assumed;
 missing proofs and physical sampling failures remain rejecting outcomes. -/
@@ -123,7 +122,7 @@ theorem acceptance_probability (additional : Finset Bytes) (fallback : Strand.Or
       probOf (fun coin : SimulatorCoins × ({raw // raw ∈ Window ∪ additional} → Digest) =>
         (Sim coin.1 (OracleWindow.extend (Window ∪ additional) coin.2 fallback)).2.1.2) (fun bit => bit = true)| ≤ Epsilon := by
   have privacy := Mdoc.ZeroKnowledge.statClose binary prime cantor scalars ids bounds sample before requestOf After
-    original remaining pivotOne primitive separated valid signature additional fallback
+    original remaining pivotOne primitive valid signature additional fallback
   have compared := statClose_map (fun view => view.2.1.2) privacy
   unfold StatClose at compared
   exact compared (fun bit => bit = true)

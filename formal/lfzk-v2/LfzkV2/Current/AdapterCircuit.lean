@@ -1,10 +1,10 @@
 import LfzkV2.Current.AdapterTree
 import LfzkV2.Layered.SparseLayer
 
-/-! The generated adapter is an ordinary sparse circuit: Boolean mux leaves,
-adjacent products with odd carries, and two zero-output product assertions.
-The mathematical generator below follows those three loops. Its semantics
-is derived from its sparse terms, not supplied as a root-equation premise. -/
+/-! Sparse rows shared by the fixed adapter fragment: one output's terms,
+adjacent products with odd carries, and their placement in a global sparse
+layer. The fragment itself is `Adapter.ProductTree`; its virtual leaves are
+`Adapter.Leaves`. These rows have no challenge-dependent coefficient. -/
 noncomputable section
 namespace LfzkV2.Current.Adapter.Circuit
 open Layered SumcheckV2 Finset
@@ -52,19 +52,6 @@ theorem stream_outputs {n : ℕ} [Fintype W] (rows : Fin n → Row W F)
 
 /-- Runtime tree-major layout: data first, then quotient factors, in each of
 its two challenge trees. -/
-abbrev Wire (data quotient : ℕ) := Fin 2 × (Fin data ⊕ Fin quotient)
-
-def wireIndex (data quotient : ℕ) : Wire data quotient ≃ Fin (2*(data+quotient)) :=
-  (Equiv.prodCongr (Equiv.refl (Fin 2)) finSumFinEquiv).trans finProdFinEquiv
-
-@[simp] theorem wireIndex_data {d q : ℕ} (tree : Fin 2) (i : Fin d) :
-    (wireIndex d q (tree,Sum.inl i)).val = tree.val*(d+q)+i.val := by
-  simp [wireIndex, finProdFinEquiv, finSumFinEquiv, Nat.mul_comm, Nat.add_comm]
-
-@[simp] theorem wireIndex_quotient {d q : ℕ} (tree : Fin 2) (i : Fin q) :
-    (wireIndex d q (tree,Sum.inr i)).val = tree.val*(d+q)+d+i.val := by
-  simp [wireIndex, finProdFinEquiv, finSumFinEquiv, Nat.mul_comm, Nat.add_comm, Nat.add_left_comm, Nat.add_assoc]
-
 def half (n : ℕ) : ℕ := (n+1)/2
 
 private theorem pair_left_lt {n : ℕ} (i : Fin (half n)) : 2*i.val < n := by
@@ -128,71 +115,6 @@ theorem pairValue_prod {n : ℕ} (w : Fin n → F) :
     _ = ∏ i : Fin n, extended i.val := (Fin.prod_univ_eq_prod_range _ _).symm
     _ = ∏ i, w i := by apply Finset.prod_congr rfl; intro i _; simp [extended]
 
-/-- Each reduction layer preserves the two contiguous groups separately. -/
-def pairRows (d q : ℕ) : Fin (2*(half d+half q)) → Row (Wire d q) F :=
-  fun output => match (wireIndex (half d) (half q)).symm output with
-    | (tree, .inl i) => pairRow (fun j => (tree, Sum.inl j)) i
-    | (tree, .inr i) => pairRow (fun j => (tree, Sum.inr j)) i
-
-def step {d q : ℕ} (w : Wire d q → F) : Wire (half d) (half q) → F := fun output =>
-  (Layered.sparseLayer (stream (pairRows d q))
-    (Fin.elim0 : Fin 0 → LfzkV2.Native.AssertionTerm (Wire d q))).outputs w
-      (wireIndex (half d) (half q) output)
-
-@[simp] theorem step_data {d q : ℕ} (w : Wire d q → F) (tree : Fin 2) (i : Fin (half d)) :
-    step w (tree,Sum.inl i) = pairValue (fun j => w (tree,Sum.inl j)) i := by
-  simp [step, stream_outputs, pairRows, pairRow_eval, Function.comp_def]
-
-@[simp] theorem step_quotient {d q : ℕ} (w : Wire d q → F) (tree : Fin 2) (i : Fin (half q)) :
-    step w (tree,Sum.inr i) = pairValue (fun j => w (tree,Sum.inr j)) i := by
-  simp [step, stream_outputs, pairRows, pairRow_eval, Function.comp_def]
-
-/-- A generated reduction ends with one data and one quotient factor in each
-challenge tree. Extra intermediate wires or asserted root equations are absent. -/
-inductive Shape : ℕ → ℕ → Type where
-  | root : Shape 1 1
-  | pair {d q : ℕ} : Shape (half d) (half q) → Shape d q
-
-private theorem half_pos {n : ℕ} (h : 0 < n) : 0 < half n := by dsimp [half]; omega
-private theorem half_le {n : ℕ} (h : 0 < n) : half n ≤ n := by dsimp [half]; omega
-private theorem half_lt {n : ℕ} (h : 1 < n) : half n < n := by dsimp [half]; omega
-
-/-- The same stopping rule as the runtime while loop. -/
-def plan (d q : ℕ) (hd : 0 < d) (hq : 0 < q) : Shape d q :=
-  if h : d = 1 ∧ q = 1 then by rcases h with ⟨rfl,rfl⟩; exact .root
-  else .pair (plan (half d) (half q) (half_pos hd) (half_pos hq))
-termination_by d+q
-decreasing_by
-  have hdle := half_le hd
-  have hqle := half_le hq
-  have hs : half d < d ∨ half q < q := by
-    by_cases hdone : d = 1
-    · right; apply half_lt; omega
-    · left; apply half_lt; omega
-  omega
-
-def roots {d q : ℕ} : Shape d q → (Wire d q → F) → Wire 1 1 → F
-  | .root, w => w
-  | .pair rest, w => roots rest (step w)
-
-theorem roots_data {d q : ℕ} (shape : Shape d q) (w : Wire d q → F) (tree : Fin 2) :
-    roots shape w (tree,Sum.inl 0) = ∏ i, w (tree,Sum.inl i) := by
-  induction shape with
-  | root => simp [roots]
-  | pair rest ih =>
-      rw [roots, ih]
-      simp only [step_data]
-      exact pairValue_prod _
-
-theorem roots_quotient {d q : ℕ} (shape : Shape d q) (w : Wire d q → F) (tree : Fin 2) :
-    roots shape w (tree,Sum.inr 0) = ∏ i, w (tree,Sum.inr i) := by
-  induction shape with
-  | root => simp [roots]
-  | pair rest ih =>
-      rw [roots, ih]
-      simp only [step_quotient]
-      exact pairValue_prod _
-
 /-- Repeated squaring produces the little-endian quotient powers. -/
 def quotientPower (base : Fˣ) (i : ℕ) : Fˣ := base^(2^i)
 
@@ -209,117 +131,8 @@ theorem quotientLeaves_ofFn {a : ℕ} (base : Fˣ) (bits : Fin a → Bool) :
         funext i
         simp [quotientPower, pow_succ, pow_mul, mul_pow]
 
-/-- The two linear coefficients stay separate, exactly as in LFC3, even
-when their sum is zero. Thus the topology does not depend on the challenges. -/
-def leafRows {d q : ℕ} (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool) :
-    Fin (2*(d+q)) → Row W F := fun output =>
-  match (wireIndex d q).symm output with
-  | (tree,.inl i) => [.linear () (sources i) (powers tree i), .linear () (sources i) 1,
-      .constant () 1]
-  | (tree,.inr i) => [.linear () (pads tree i) (quotientPower base i.val),
-      .linear () (pads tree i) 1,
-      .constant () (if masked tree i then (quotientPower base i.val : F) else 1)]
-
-def leafState {d q : ℕ} [Fintype W]
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (w : W → F) : Wire d q → F := fun output =>
-  (Layered.sparseLayer (stream (leafRows sources pads powers base masked))
-    (Fin.elim0 : Fin 0 → LfzkV2.Native.AssertionTerm W)).outputs w (wireIndex d q output)
-
+/-- A committed bit as a field element. -/
 def bitValue (b : Bool) : F := if b then 1 else 0
-
-variable [CharP F 2]
-
-@[simp] theorem leafState_data {d q : ℕ} [Fintype W]
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (bits : W → Bool) (tree : Fin 2) (i : Fin d) :
-    leafState sources pads powers base masked (bitValue ∘ bits) (tree,.inl i) =
-      if bits (sources i) then (powers tree i : F) else 1 := by
-  simp only [leafState, stream_outputs, leafRows, Equiv.symm_apply_apply, rowEval,
-    List.map_cons, Layered.Term.value, List.map_nil, List.sum_cons, List.sum_nil,
-    one_mul, Function.comp_apply, bitValue]
-  cases bits (sources i) <;> simp [CharTwo.add_self_eq_zero]
-
-@[simp] theorem leafState_quotient {d q : ℕ} [Fintype W]
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (bits : W → Bool) (tree : Fin 2) (i : Fin q) :
-    leafState sources pads powers base masked (bitValue ∘ bits) (tree,.inr i) =
-      if Bool.xor (bits (pads tree i)) (masked tree i) then
-        (quotientPower base i.val : F) else 1 := by
-  simp only [leafState, stream_outputs, leafRows, Equiv.symm_apply_apply, rowEval,
-    List.map_cons, Layered.Term.value, List.map_nil, List.sum_cons, List.sum_nil,
-    one_mul, Function.comp_apply, bitValue]
-  cases bits (pads tree i) <;> cases masked tree i <;>
-    simp [CharTwo.add_self_eq_zero, add_left_comm]
-
-/-- The final layer multiplies the two roots and adds its public target. -/
-def finalRows (targets : Fin 2 → Fˣ) (tree : Fin 2) : Row (Wire 1 1) F :=
-  [.quadratic () (tree,.inl 0) (tree,.inr 0) 1, .constant () (targets tree)]
-
-def eval {d q : ℕ} [Fintype W] (shape : Shape d q)
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (targets : Fin 2 → Fˣ) (w : W → F) : Fin 2 → F :=
-  (Layered.sparseLayer (stream (finalRows targets))
-    (Fin.elim0 : Fin 0 → LfzkV2.Native.AssertionTerm (Wire 1 1))).outputs
-      (roots shape (leafState sources pads powers base masked w))
-
-def Satisfies {d q : ℕ} [Fintype W] (shape : Shape d q)
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (targets : Fin 2 → Fˣ) (w : W → F) : Prop :=
-  ∀ tree, eval shape sources pads powers base masked targets w tree = 0
-
-theorem eval_products {d q : ℕ} [Fintype W] (shape : Shape d q)
-    (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ) (masked : Fin 2 → Fin q → Bool)
-    (targets : Fin 2 → Fˣ) (bits : W → Bool) (tree : Fin 2) :
-    eval shape sources pads powers base masked targets (bitValue ∘ bits) tree =
-      (∏ i, if bits (sources i) then (powers tree i : F) else 1) *
-      (∏ i, if Bool.xor (bits (pads tree i)) (masked tree i) then
-        (quotientPower base i.val : F) else 1) + targets tree := by
-  simp only [eval, stream_outputs, finalRows, rowEval, List.map_cons, Layered.Term.value,
-    List.map_nil, List.sum_cons, List.sum_nil, one_mul, add_zero,
-    roots_data, roots_quotient, leafState_data, leafState_quotient]
-
-/-- Satisfaction of the generated sparse circuit supplies the conversion
-proof's product equation and its bounded quotient, for each challenge. -/
-theorem satisfies_product_check {p d q : ℕ} [Fact p.Prime] [Fintype W]
-    (shape : Shape d q) (sources : Fin d → W) (pads : Fin 2 → Fin q → W)
-    (generator : Fˣ) (weights : Fin d → ZMod p) (target : ZMod p)
-    (alpha : Fin 2 → ZMod p) (masked : Fin 2 → Fin q → Bool) (bits : W → Bool)
-    (h : Satisfies shape sources pads
-      (fun tree i => generator^(alpha tree*weights i).val) (generator^(-(p : ℤ))) masked
-      (fun tree => generator^(alpha tree*target).val) (bitValue ∘ bits)) :
-    let quotient := fun tree => Tree.binaryValue
-      (List.ofFn fun i => Bool.xor (bits (pads tree i)) (masked tree i))
-    (∀ tree, quotient tree < 2^q) ∧ ∀ tree,
-      Adapter.ProductCheck generator weights (bits ∘ sources) target (alpha tree) (quotient tree) := by
-  intro quotient
-  have hproduct (tree : Fin 2) := h tree
-  simp only [eval_products] at hproduct
-  constructor
-  · intro tree
-    simpa only [quotient, List.length_ofFn] using
-      (Tree.binaryValue_lt (List.ofFn fun i => Bool.xor (bits (pads tree i)) (masked tree i)))
-  intro tree
-  have hq := Tree.quotientLeaves_prod (generator^(-(p : ℤ)))
-    (List.ofFn fun i => Bool.xor (bits (pads tree i)) (masked tree i))
-  rw [quotientLeaves_ofFn, List.prod_ofFn] at hq
-  have heq :
-      (∏ i, if bits (sources i) then generator^(alpha tree*weights i).val else 1) *
-        (generator^(-(p : ℤ)))^(quotient tree) = generator^(alpha tree*target).val := by
-    apply Units.ext
-    have hp := congrArg (fun x : F => x + (generator^(alpha tree*target).val : Fˣ)) (hproduct tree)
-    rw [← hq]
-    simpa only [Units.val_mul, Units.coe_prod, apply_ite, Units.val_one,
-      add_assoc, CharTwo.add_self_eq_zero, add_zero, zero_add] using hp
-  change _ = _ at heq ⊢
-  exact heq
 
 section Layered
 
@@ -330,7 +143,6 @@ def mappedLayer {n out mid : ℕ} (rows : Fin n → Row W F)
     LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin 0) F :=
   Layered.sparseLayer ((stream rows).map (Layered.Term.map output input)) Fin.elim0
 
-omit [CharP F 2] in
 private theorem evaluated_map {n out mid : ℕ} (input : W → Cube mid)
     (output : Fin n ↪ Cube out) (w : Cube mid → F) (g : Fin n)
     (term : Layered.Term (Fin n) W F) :
@@ -338,7 +150,6 @@ private theorem evaluated_map {n out mid : ℕ} (input : W → Cube mid)
   cases term <;> simp [Layered.Term.evaluated, Layered.Term.map,
     Layered.Term.output, Layered.Term.value, output.injective.eq_iff]
 
-omit [CharP F 2] in
 /-- Padding and embedding are proved at the sparse tensor layer. -/
 theorem mappedLayer_outputs {n out mid : ℕ} [Fintype W] (rows : Fin n → Row W F)
     (input : W → Cube mid) (output : Fin n ↪ Cube out) (w : Cube mid → F) (g : Fin n) :
@@ -348,53 +159,5 @@ theorem mappedLayer_outputs {n out mid : ℕ} [Fintype W] (rows : Fin n → Row 
   have h := stream_outputs rows (w ∘ input) g
   rw [Layered.sparseLayer_outputs] at h
   exact h
-
-/-- Every intermediate layer has its own dense wire array. These public
-injections specify its ordinary padding and indexing; no semantic equality is
-stored in the layout. -/
-structure Layout where
-  log : ℕ → ℕ → ℕ
-  index : ∀ d q, Wire d q ↪ Cube (log d q)
-
-def Layout.flat (layout : Layout) (d q : ℕ) : Fin (2*(d+q)) ↪ Cube (layout.log d q) :=
-  (wireIndex d q).symm.toEmbedding.trans (layout.index d q)
-
-/-- Canonical low-bit-first dense-array indexing into the Boolean cube. -/
-def cube (n : ℕ) : Fin (2^n) → Cube n :=
-  match n with
-  | 0 => fun _ => ()
-  | n+1 => fun i => (decide (i.val%2 = 1), cube n ⟨i.val/2,by
-      exact Nat.div_lt_of_lt_mul (by simpa only [pow_succ, Nat.mul_comm] using i.isLt)⟩)
-
-omit [CharP F 2] in
-private theorem cube_injective (n : ℕ) : Function.Injective (cube n) := by
-  induction n with
-  | zero => intro i j _; apply Fin.ext; have := i.isLt; have := j.isLt; simp_all
-  | succ n ih =>
-      intro i j h
-      have ht := congrArg Prod.snd h
-      have hp := congrArg Prod.fst h
-      change cube n _ = cube n _ at ht
-      have hd := congrArg Fin.val (ih ht)
-      change decide (i.val%2 = 1) = decide (j.val%2 = 1) at hp
-      have hi := Nat.mod_lt i.val (by decide : 0 < 2)
-      have hj := Nat.mod_lt j.val (by decide : 0 < 2)
-      have hm : i.val%2 = j.val%2 := by
-        by_cases ha : i.val%2 = 1 <;> by_cases hb : j.val%2 = 1 <;> simp_all
-      apply Fin.ext
-      dsimp at hd
-      omega
-
-/-- Construct padding maps from the public numeric width bounds. -/
-def Layout.ofBounds (log : ℕ → ℕ → ℕ)
-    (bound : ∀ d q, 2*(d+q) ≤ 2^(log d q)) : Layout where
-  log := log
-  index d q := (wireIndex d q).toEmbedding.trans
-    ((Fin.castLEEmb (bound d q)).trans ⟨cube (log d q),cube_injective _⟩)
-
-/-- The ordinary next-power-of-two padding used for the generated arrays. -/
-def Layout.standard : Layout :=
-  Layout.ofBounds (fun d q => Nat.clog 2 (2*(d+q))) (fun _ _ => Nat.le_pow_clog (by decide) _)
-
 end Layered
 end LfzkV2.Current.Adapter.Circuit

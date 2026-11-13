@@ -4,16 +4,17 @@ import LfzkV2.Current.SegmentedCircuit
 
 /-! Identifier inputs used by the current runtime. Hashing is an explicit
 auxiliary function; the bytes it receives are fixed here, rather than supplied
-by a proof-dependent metadata callback. In particular the adapter identifier
-uses the same generated sparse rows as its algebraic circuit model.
+by a proof-dependent metadata callback. In particular the identifier of the
+archived adapter fragment uses the same sparse rows as its algebraic model.
 
 The LFC3 hash input authenticates the stored coefficient table, delta
 dictionaries, segment indices and tokens. Compression changes the identity.
 This is `core/proto/src/v2/encoding.rs`; expansion supplies the algebraic
-circuit, while the generated adapter template fixes its own single-run streams. -/
+circuit, while the fixed fragment (`foreign::adapter::fragment`) has
+single-run streams and the one coefficient `1`. -/
 noncomputable section
 namespace LfzkV2.Current.MetadataIdentifiers
-open SumcheckV2 Layered Adapter.Circuit
+open SumcheckV2 Layered Adapter.Circuit Adapter.ProductTree
 open TranscriptV2.Framing (encodeLE)
 
 variable {F : Type} [Field F]
@@ -34,18 +35,21 @@ def circuitBytes (fieldId : ℕ) (binary : Bool) (width : ℕ) (encode : F → B
     [outputs,logOutput,inputs,publicInputs,layers.length,constants.length].flatMap (encodeLE 8) ++
     constants.flatMap encode ++ layers.flatMap SegmentedCircuit.layerBytes
 
-def pairLayer (d q : ℕ) : Layer F :=
-  ⟨2*(d+q),(stream (pairRows (F := F) d q)).map
-    (Term.map Fin.val (fun wire => (wireIndex d q wire).val))⟩
+/-- One reduction layer of `n` wires per tree, reading `2*n` wires of an
+array of width `inputs` from offset `base`: `g = t*half n+i`,
+`l = base+t*n+2*i`, exactly as the runtime builder emits them. -/
+def pairLayer (base n inputs : ℕ) : Layer F :=
+  ⟨inputs,(stream (pairRows (F := F) n)).map
+    (Term.map Fin.val (fun wire => base+(wireIndex n wire).val))⟩
 
-/-- The runtime builds from leaves upwards and reverses once at the end.
+/-- The runtime builds from the inputs upwards and reverses once at the end.
 The recursion below therefore emits the rootward reductions first. -/
-def reductions : {d q : ℕ} → Shape d q → List (Layer F)
-  | _, _, .root => []
-  | d, q, .pair rest => reductions rest ++ [pairLayer d q]
+def reductions : {n : ℕ} → Shape n → List (Layer F)
+  | _, .root => []
+  | n, .pair rest => reductions rest ++ [pairLayer 0 n (2*n)]
 
 /-- Preserve each stream's order and use Rust's first-occurrence delta
-interning. The coefficient index is supplied by the template's table builder. -/
+interning. The coefficient index is supplied by the circuit's table builder. -/
 def storedLayer (layer : Layer F)
     (coefficient : ℕ → Layered.Term ℕ ℕ F → ℕ) : SegmentedCircuit.Layer :=
   let indexed := layer.terms.zipIdx
@@ -66,44 +70,23 @@ def storedLayer (layer : Layer F)
       | .constant g _ => some ![SegmentedCircuit.word g,SegmentedCircuit.word (coefficient i term)]
       | _ => none) }
 
-/-- Every leaf appends its power and base, including duplicate values. Its
-second linear coefficient refers to the initial table entry, one. -/
-def leafConstants (leaf : Layer F) : List F :=
-  leaf.terms.zipIdx.filterMap fun (term,i) =>
-    if i % 3 = 1 then none else
-      match term with
-      | .linear _ _ k | .constant _ k => some k
-      | _ => none
+/-- The final product layer: output `t` is `l*r + 1` on wires `2t, 2t+1`. -/
+def finalLayer : Layer F :=
+  ⟨4,(stream (finalRows (F := F))).map (Term.map Fin.val (fun wire => (wireIndex 2 wire).val))⟩
 
-private def leafCoefficient (i : ℕ) (term : Layered.Term ℕ ℕ F) : ℕ :=
-  match term with
-  | .linear g _ _ => if i % 3 = 0 then 2*g+1 else 0
-  | .constant g _ => 2*g+2
-  | _ => 0
-
-def adapterBytes {d q : ℕ} (encode : F → Bytes) (shape : Shape d q)
-    (inputs publicInputs : ℕ) (sources : Fin d → ℕ) (pads : Fin 2 → Fin q → ℕ)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ)
-    (masked : Fin 2 → Fin q → Bool) (targets : Fin 2 → Fˣ) : Bytes :=
-  let leaf : Layer F := ⟨inputs,(stream (leafRows sources pads powers base masked)).map (Term.map Fin.val id)⟩
-  let coefficients := leafConstants leaf
-  let constants := [1] ++ coefficients ++ (List.ofFn fun tree => (targets tree : F))
-  let finalLayer : Layer F := ⟨4,(stream (finalRows targets)).map
-    (Term.map Fin.val (fun wire => (wireIndex 1 1 wire).val))⟩
-  let finalStored := storedLayer finalLayer fun _ term =>
-    match term with
-    | .constant g _ => 1+coefficients.length+g
-    | _ => 0
-  circuitBytes 4 true 16 encode 2 1 inputs publicInputs constants
-    (finalStored :: (reductions (F := F) shape).map (fun layer => storedLayer layer (fun _ _ => 0)) ++
-      [storedLayer leaf (leafCoefficient (F := F))])
+/-- LFC3 identity bytes of the archived adapter fragment. Its first
+reduction reads the virtual leaves from `virtualStart` of the shared input
+array of width `inputs`; every coefficient is table entry zero, the one. -/
+def fragmentBytes (encode : F → Bytes) {leaves : ℕ} (shape : Shape (half leaves))
+    (inputs publicInputs virtualStart : ℕ) : Bytes :=
+  circuitBytes 4 true 16 encode 2 1 inputs publicInputs [1]
+    ((finalLayer (F := F) :: reductions (F := F) shape ++ [pairLayer virtualStart leaves inputs]).map
+      fun layer => storedLayer layer fun _ _ => 0)
 
 /-- Only this final hash operation remains abstract. It may be instantiated
 with SHA-256, as in Rust, or with the identifier oracle in the proof model. -/
-def adapterId {d q : ℕ} (hash : Bytes → Digest) (encode : F → Bytes) (shape : Shape d q)
-    (inputs publicInputs : ℕ) (sources : Fin d → ℕ) (pads : Fin 2 → Fin q → ℕ)
-    (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ)
-    (masked : Fin 2 → Fin q → Bool) (targets : Fin 2 → Fˣ) : Digest :=
-  hash (adapterBytes encode shape inputs publicInputs sources pads powers base masked targets)
+def fragmentId (hash : Bytes → Digest) (encode : F → Bytes) {leaves : ℕ} (shape : Shape (half leaves))
+    (inputs publicInputs virtualStart : ℕ) : Digest :=
+  hash (fragmentBytes encode shape inputs publicInputs virtualStart)
 
 end LfzkV2.Current.MetadataIdentifiers

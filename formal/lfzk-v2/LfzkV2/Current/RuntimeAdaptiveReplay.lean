@@ -24,7 +24,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
@@ -103,9 +103,9 @@ theorem binaryRead_from_late
       RuntimeAdaptiveViews.readBinaryView binary prime P R cfg S laws hashPublic decodePublic binaryTemplate binaryFits
           ((e.chain initialLink).point proof H n) (((e.chain initialLink).point proof H n).priorAnswers H) =
         some (binaryViewOfPayload currentBinary currentPrime Generator packet
-          (RuntimeShape.binaryPlan currentBinary currentPrime Generator binaryTemplate packet)
+          binaryTemplate
           laws.binaryCapacity cfg.binaryDecode cfg.binaryNonzero laws.binaryDecoder
-          (by rw [RuntimeShape.binaryPlan_capacity]; exact binaryFits) cfg.fallback early) ∧
+          binaryFits cfg.fallback early) ∧
       ∀ role, FrontendReplay.queryIndex bd.setup.circuit role 0 ≤ n-g.binaryStart →
         Layered.Replay.layerMessage bd.setup.circuit early role =
           Layered.Replay.layerMessage bd.setup.circuit bd.payload role := by
@@ -126,7 +126,7 @@ theorem binaryRead_from_late
     omega
   have hconversion : ApplicationPrefix.conversionIndex g < n := by
     dsimp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,
-      ApplicationPrefix.rowBatchingIndex,Geometry.primeStart,Geometry.binaryStart] at *
+      Geometry.primeStart,Geometry.binaryStart] at *
     omega
   have hpublicStart : g.primeStart ≤ n := by
     dsimp only [Geometry.primeStart,Geometry.binaryStart] at *
@@ -139,9 +139,9 @@ theorem binaryRead_from_late
     hprimeWindow (by change g.primeStart+FrontendReplay.slots prime.circuit ≤ m; omega) hconversion (by omega) hpn (by omega) nd Generator cfg.packingDegree
     cfg.binaryField cfg.binaryDecode cfg.binaryNonzero bd hprime hbinary
   obtain ⟨early,hread,hmessages⟩ := ApplicationViews.binaryView_from_late e currentBinary currentPrime
-    Generator laws.binaryCapacity (RuntimeShape.binaryPlan currentBinary currentPrime Generator binaryTemplate)
+    Generator laws.binaryCapacity (fun _ => binaryTemplate)
     cfg.binaryDecode cfg.binaryNonzero laws.binaryDecoder
-    (fun packet => by rw [RuntimeShape.binaryPlan_capacity]; exact binaryFits)
+    (fun _ => binaryFits)
     cfg.binaryField cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback
     initialLink proof H n m hn hm hpn hnm.le packet hadapter hfit bd.payload hs.2.2.2.2.2.2.2.2.1
   refine ⟨early,?_,hmessages⟩

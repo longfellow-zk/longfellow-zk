@@ -16,10 +16,10 @@ run_cmd do
   let used := info.type.getUsedConstants
   unless used.contains ``StrandCanonicalExecution.rawReal &&
       used.contains ``StrandVerifier.verify &&
-      used.contains ``MdocWitness.HashValid && used.contains ``MdocWitness.ReadDisjoint do
+      used.contains ``MdocWitness.HashValid do
     throwError "Honest runtime lost actual execution, actual verification or ordinary-witness premises"
   if used.contains ``CompleteCanonicalVerifier.statementAt ||
-      used.contains ``MdocWitness.UniformHashValid then
+      used.contains ``MdocWitness.UniformHashValid || used.contains ``HashCircuit.ReadDisjoint then
     throwError "Honest runtime exposes a derived parse or uniform witness certificate"
   unless used.contains ``Mdoc.Runtime && used.contains ``Protocol.ExecutionSampler do
     throwError "Honest runtime must share the public setup and executable sampler"

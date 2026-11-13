@@ -123,8 +123,6 @@ theorem roleCharge_prior (role : Role) (point : Point) (H H' : Point → Digest 
   have hn := propext (S.primeSelection_prior point H H' committed answer.2)
   have hbf := frontendCharge_prior S point H H' prior committed readers.binaryRead answer
   have hnf := frontendCharge_prior S point H H' prior committed readers.primeRead answer
-  have hbatch := propext (packetBad_prior S point H H' prior committed readers.batchRead
-    (fun packet w a => packet.bad w a) answer.2)
   have hs := propext (packetBad_prior S point H H' prior committed readers.rescaleRead
     (fun packet w a => packet.bad w (laws.rescaleDecoder.decode a)) answer.2)
   have hc := propext (packetBad_prior S point H H' prior committed readers.conversionRead
@@ -139,11 +137,10 @@ theorem roleCharge_prior (role : Role) (point : Point) (H H' : Point → Digest 
   | sumcheck side stage index => cases side <;> first | exact hbf | exact hnf
   | terminal side stage => cases side <;> first | exact hbf | exact hnf
   | combine side stage entries => cases side <;> first | exact hbf | exact hnf
-  | rowBatching => simp only [roleCharge, batchBad, hbatch]
   | rescaling => simp only [roleCharge, rescaleBad, hs]
   | conversion => simp only [roleCharge, conversionBad, hc]
   | packing => simp only [roleCharge, packingBad, hp]
-  | batching | opening => rfl
+  | rowBatching | batching | opening => rfl
 
 theorem single_prior (point : Point) (H H' : Point → Digest × C)
     (prior : point.priorAnswers H = point.priorAnswers H')

@@ -44,6 +44,7 @@ def roleKind (packingDegree rowCount : ℕ) (role : Role) : Kind :=
       .combine .prime .. => .prime (FrontendSchedule.coordinates role)
   | .terminal .binary .. => .binaryNonzero
   | .terminal .prime .. | .rescaling => .primeNonzero
+  -- Pure-foreign storage only; absent from the mdoc schedule.
   | .rowBatching => .prime rowCount
   | .packing => .binary packingDegree
   | .conversion => .conversion
@@ -201,25 +202,26 @@ private theorem frontend_fits {F : Type} {out input : ℕ} {circuit : Layered.Ci
 
 /-- Every scheduled block fits the same public capacities already used by
 the actual frontend readers. This includes empty rounds and the optional
-packing round; no extra schedule-capacity assumption is required. -/
+packing round; no extra schedule-capacity assumption is required. The mdoc
+schedule has no row-batching round (pure-foreign storage only), so the
+row-count bound `_rowsFit` of the shared sampler interface is not needed. -/
 theorem roleFits {BF PF : Type} {bo bi po pi : ℕ}
     {binaryCircuit : Layered.Circuit BF bo bi} {primeCircuit : Layered.Circuit PF po pi}
     (g : Geometry) (binaryPlan : FrontendSchedule.Plan BF binaryCircuit)
     (primePlan : FrontendSchedule.Plan PF primeCircuit)
     (binaryGeometry : binaryPlan.frontend = g.binary) (primeGeometry : primePlan.frontend = g.prime)
     (binaryFits : binaryPlan.capacity ≤ binaryCapacity) (primeFits : primePlan.capacity ≤ primeCapacity)
-    (degree rowCount : ℕ) (degreeFits : degree ≤ binaryCapacity) (rowsFit : rowCount ≤ primeCapacity)
+    (degree rowCount : ℕ) (degreeFits : degree ≤ binaryCapacity) (_rowsFit : rowCount ≤ primeCapacity)
     (index : Fin g.roles.length) :
     Fits binaryCapacity primeCapacity (roleKind degree rowCount (g.roles.get index)) := by
   have member := List.get_mem g.roles index
   generalize actual : g.roles.get index = role at member ⊢
   rw [g.roles_eq] at member
   simp only [List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
-  rcases member with ((((rfl | primeMember) | (rfl | rfl | rfl)) | binaryMember) | packingMember) | (rfl | rfl)
+  rcases member with ((((rfl | primeMember) | (rfl | rfl)) | binaryMember) | packingMember) | (rfl | rfl)
   · trivial
   · rw [← primeGeometry] at primeMember
     exact frontend_fits binaryCapacity primeCapacity primePlan .prime degree rowCount primeFits _ primeMember
-  · exact rowsFit
   · trivial
   · trivial
   · rw [← binaryGeometry] at binaryMember

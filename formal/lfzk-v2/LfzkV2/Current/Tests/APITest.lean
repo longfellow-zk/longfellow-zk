@@ -50,11 +50,9 @@ import LfzkV2.Current.Tests.FrontendBody
 import LfzkV2.Current.Tests.FrontendSchedule
 import LfzkV2.Current.Tests.ApplicationPrefix
 import LfzkV2.Current.Tests.ApplicationViews
-import LfzkV2.Current.Tests.FrontendTopology
 import LfzkV2.Current.Tests.OpeningBody
 import LfzkV2.Current.Tests.BackendBody
 import LfzkV2.Current.Tests.BackendChallenges
-import LfzkV2.Current.Tests.BatchPacket
 import LfzkV2.Current.Tests.ByteCodecs
 import LfzkV2.Current.Tests.ProofBodyCodec
 import LfzkV2.Current.Tests.MdocAdvice
@@ -77,6 +75,7 @@ import LfzkV2.Current.Tests.ZeroKnowledgeBackendStatement
 import LfzkV2.Current.Tests.ZeroKnowledgeCanonicalPublic
 import LfzkV2.Current.Tests.ZeroKnowledgeFrontend
 import LfzkV2.Current.Tests.ZeroKnowledgeFrontendAdapter
+import LfzkV2.Current.Tests.AdapterFragment
 import LfzkV2.Current.Tests.ZeroKnowledgePacking
 import LfzkV2.Current.Tests.ZeroKnowledgePackingCells
 import LfzkV2.Current.Tests.ZeroKnowledgeGlobalCoins
@@ -151,18 +150,20 @@ example : (Frontend.roles .binary
       .assertions, .sumcheck, .terminal, .combine] := by decide
 
 example : geometry.roles.map Role.domain =
-    [.fingerprint, .assertions, .terminal, .combine, .rowBatching, .rescaling,
+    [.fingerprint, .assertions, .terminal, .combine, .rescaling,
       .conversion, .assertions, .sumcheck, .terminal,
       .combine, .packing, .batching, .opening] := by decide
 
-example : geometry.roles.length + 1 = 15 := by decide
+example : geometry.roles.length + 1 = 14 := by decide
 example : geometry.actions.take 4 =
     [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] := by decide
 
-example : ({geometry with packingDegree := 1, packingPositive := by decide}.roles).length = 13 :=
+example : ({geometry with packingDegree := 1, packingPositive := by decide}.roles).length = 12 :=
   by decide
 example : packingActions 1 = [] := rfl
-example : geometry.affineRows .binary = 5 ∧ geometry.affineRows .prime = 3 := by decide
+-- The prime statement has its unbatched layer row, the native split row and
+-- the two fingerprint rows.
+example : geometry.affineRows .binary = 5 ∧ geometry.affineRows .prime = 4 := by decide
 example : geometry.dataRows .binary = 3 ∧ geometry.dataRows .prime = 2 := by decide
 
 abbrev fields : Fields | .binary => ZMod 2 | .prime => ZMod 5

@@ -63,6 +63,12 @@ private def repr : ProofBodyCodec.Representations fields (Fin 3 → Byte) where
   advice := PrefixCodec.vector PrefixCodec.byte 3
   adviceWidth := 3
   adviceLength value := by rw [PrefixCodec.bytes_encode,List.length_ofFn]
+  adviceWrites := (PrefixCodec.vector PrefixCodec.byte 3).prefixed ([0] ++ TranscriptV2.Framing.encodeLE 8 3)
+  adviceWritesWidth := 12
+  adviceWritesLength value := by
+    change (([0] ++ TranscriptV2.Framing.encodeLE 8 3) ++ (PrefixCodec.vector PrefixCodec.byte 3).encode value).length = 12
+    rw [PrefixCodec.bytes_encode,List.length_append,List.length_ofFn]
+    rfl
 
 private def shape : Shape geometry fields where
   binaryPublic := 2
@@ -98,6 +104,23 @@ example : (packingHeader shape).encode ⟨[17,19],by decide⟩ =
 example : (packingStatement shape).encode (⟨[],by decide⟩,2,7) =
     frame (utf8 "longfellow/dual-packing128/trace-zero/v1") ++ frame [] ++ frame [2,0,0,0] ++
       frame (encodeLE 8 2) ++ frame (encodeLE 8 7) := by decide
+
+-- The binary start binds the masked words, then the hash and fragment
+-- statements, then the schedule with both circuit IDs and depths.
+example (advice : Fin 3 → Byte) (hash fragment : CircuitStatement fields .binary 2)
+    (circuits : CircuitSchedule 2) :
+    (binaryStart repr shape).encode (advice,(hash,fragment),circuits) =
+      (bytesDomain "p256-adapter/masked-quotient-bits/v1" ++ repr.adviceWrites.encode advice) ++
+        (((statement repr shape .binary 2).encode hash ++ (statement repr shape .binary 2).encode fragment) ++
+          (schedule 2).encode circuits) := rfl
+
+example (circuits : CircuitSchedule 2) :
+    (schedule 2).encode circuits =
+      (bytesDomain "layered-sumcheck/circuits/v1" ++ frame (encodeLE 8 2)) ++
+        (List.ofFn circuits).flatMap (framedDigest.pair word).encode := by
+  change _ ++ (PrefixCodec.vector (framedDigest.pair word) 2).encode circuits = _
+  rw [PrefixCodec.vector_encode]
+  rfl
 
 example (i : Fin geometry.roles.length) (value : Data (Advice := Fin 3 → Byte) shape i) :
     parse repr shape i ((codec repr shape i).encode value ++ [255]) = none := by

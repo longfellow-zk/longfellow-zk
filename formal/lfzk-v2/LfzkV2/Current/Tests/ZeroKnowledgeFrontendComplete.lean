@@ -24,6 +24,8 @@ masked quotient advice, packing messages and the entire chained state. -/
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling.sameDistribution
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestAdapter.adapter_satisfies
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestAdapter.generated_satisfies
+#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows.prime_split
+#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows.prime_handoff
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows.prime_rows_selected
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows.binary_rows_selected
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestStatement.rows
@@ -32,6 +34,7 @@ masked quotient advice, packing messages and the entire chained state. -/
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication.binary_success
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication.decode_success
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication.decode_requested
+#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.StatementShape.prime_rows_length
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.StatementShape.decoded_counts
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.StatementShape.decoded_rows
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.StatementShape.compile_success
@@ -39,9 +42,10 @@ masked quotient advice, packing messages and the entire chained state. -/
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompilerTransport.messages
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages.prime_messages
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages.binary_messages
-#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.PayloadTransport.same_body
+#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_frontend
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_frontend_rows
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_claim
+#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationScalarAnswers.prime_values
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.challenge_values
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.binary_frontend_rows
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationSystem.initial_answer

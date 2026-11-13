@@ -33,7 +33,6 @@ theorem prime_good (context : Key)
     History.Good base H context
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state := by
   apply History.step_good
-  apply History.step_good
   exact History.circuit_good base H .prime (Equiv.refl P) samples.prime samples.primeNonzero
     primePlan prime.setup.plan payload false context state good
 
@@ -46,14 +45,13 @@ theorem conversion_good (context : Key)
   apply History.step_good
   exact History.bind_good base H context native.state _ good
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem binary_good (context : Key)
-    (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
-    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.template)
+    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.circuit)
     (good : History.Good base H context converted.state) :
     History.Good base H context
-      (CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice payload).2 := by
+      (CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice payload).2 := by
   apply History.circuit_good
   exact History.bind_good base H context converted.state _ good
 

@@ -99,6 +99,10 @@ structure PackedSetup (B I J Slot Pad : Type) [Field B] [Fintype B]
   inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input
   packedIndex : Fin nPrivate ↪ J × I
   publicInputs : Fin nPublic → B
+  nVirtual : ℕ
+  virtualIndex : Fin nVirtual ↪ Cube input
+  /-- Per-proof virtual definitions; they never change the circuit or its plan. -/
+  virtualInputs : Fin nVirtual → VirtualInput (Fin nPrivate) B
   coordinate : Pad → Slot
   plan : Layered.Replay.PadPlan (Pad := Pad) circuit
 
@@ -120,6 +124,9 @@ def prepare (payload : Layered.Replay.Payload setup.circuit)
   inputIndex := setup.inputIndex
   packedIndex := setup.packedIndex
   publicInputs := setup.publicInputs
+  nVirtual := setup.nVirtual
+  virtualIndex := setup.virtualIndex
+  virtualInputs := setup.virtualInputs
   coordinate := setup.coordinate
   constraints := constraints setup.circuit setup.plan payload decode nonzero answers
   built := constraints_built setup.circuit setup.plan payload decode nonzero answers

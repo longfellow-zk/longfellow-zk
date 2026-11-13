@@ -21,6 +21,11 @@ structure Packed (B I J Slot Pad : Type) [Field B] [Fintype B]
   inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input
   packedIndex : Fin nPrivate ↪ J × I
   publicInputs : Fin nPublic → B
+  /-- Per-proof virtual inputs at the end of the shared input array: affine
+  views of committed inputs, substituted into the final input claim. -/
+  nVirtual : ℕ
+  virtualIndex : Fin nVirtual ↪ Cube input
+  virtualInputs : Fin nVirtual → VirtualInput (Fin nPrivate) B
   coordinate : Pad → Slot
   constraints : Linear.Constraints Pad B
   built : Linear.buildConstraints (circuit.proof messages 0) = some constraints
@@ -33,18 +38,18 @@ variable {B I J Slot Pad : Type} [Field B] [Fintype B] [DecidableEq B]
   [Algebra (ZMod 2) B] [Fintype I] [DecidableEq I] [Fintype J]
 variable (b : Packed B I J Slot Pad)
 
+/-- The complete input array `[public | committed | virtual]`. -/
 noncomputable def inputs (read : Slot → B) : Cube b.input → B :=
-  b.packing.inputs b.inputIndex b.packedIndex b.publicInputs read
+  b.packing.virtualInputs b.inputIndex b.virtualIndex b.packedIndex b.publicInputs b.virtualInputs read
 
+/-- Terminal rows and the packing rows of the substituted input claim. -/
 noncomputable def rows : List (LinearRow Slot B) :=
-  Linear.Packed.rows b.packing b.constraints b.packedIndex b.coordinate
-    (fun i => b.circuit.inputWeights b.messages 0 (b.inputIndex (.inl i))) b.publicInputs
-    (fun i => b.circuit.inputWeights b.messages 0 (b.inputIndex (.inr i))) b.U b.delta b.A
+  Layered.Packed.virtualRows b.packing b.constraints (b.circuit.inputWeights b.messages 0)
+    b.inputIndex b.virtualIndex b.packedIndex b.coordinate b.publicInputs b.virtualInputs b.U b.delta b.A
 
 noncomputable def source : LfzkV2.Packed.Statement (ZMod 2) B I J Slot :=
-  b.packing.withSource b.packedIndex b.constraints.inputClaim b.coordinate
-    (fun i => b.circuit.inputWeights b.messages 0 (b.inputIndex (.inl i))) b.publicInputs
-    (fun i => b.circuit.inputWeights b.messages 0 (b.inputIndex (.inr i)))
+  b.packing.withVirtualSource b.packedIndex b.constraints.inputClaim b.coordinate
+    (b.circuit.inputWeights b.messages 0) b.inputIndex b.virtualIndex b.publicInputs b.virtualInputs
 
 noncomputable def Bad (read : Slot → B) : Prop :=
   Layered.Circuit.Bad b.circuit b.messages (b.inputs read) 0 (read ∘ b.coordinate) 0 ∨
@@ -58,8 +63,9 @@ theorem rows_satisfy_or_bad (read : Slot → B)
   classical
   by_cases h : b.circuit.Satisfies (b.inputs read)
   · exact Or.inl h
-  · exact Or.inr (Layered.Packed.rows_soundness b.packing b.circuit b.messages b.constraints
-      b.built b.inputIndex b.packedIndex b.publicInputs b.coordinate read b.U b.delta b.A htrace hrows h)
+  · exact Or.inr (Layered.Packed.virtual_rows_soundness b.packing b.circuit b.messages b.constraints
+      b.built b.inputIndex b.virtualIndex b.packedIndex b.publicInputs b.virtualInputs b.coordinate read
+      b.U b.delta b.A htrace hrows h)
 
 end Packed
 

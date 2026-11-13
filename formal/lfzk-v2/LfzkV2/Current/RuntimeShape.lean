@@ -1,57 +1,34 @@
-import LfzkV2.Current.FrontendTopology
 import LfzkV2.Current.ApplicationViews
 
-/-! One trusted public binary template determines the schedule and decoder
-capacity of every generated adapter instance. Only coefficients depend on
-conversion challenges and masked advice; all metadata is retained exactly. -/
+/-! Role positions of the fixed public schedule. The binary circuit and its
+plan are fixed; adapter challenges and masked words change only virtual
+definitions, never the schedule or the decoder capacity. -/
 noncomputable section
 namespace LfzkV2.Current.RuntimeShape
 open Application ApplicationSetup ApplicationViews ApplicationOracle RecursivePolygero SumcheckV2
 
-section Transfer
-variable {B C : Type} [Field B] [Fintype B] [Algebra (ZMod 2) B] {shared maskBits adviceBits : ℕ}
-variable (binary : BinaryPublic B shared maskBits adviceBits)
-local notation "N" => ZMod Adapter.Mdoc.primeOrder
-variable (prime : PrimePublic N shared) (generator : Bˣ)
-variable (template : FrontendSchedule.Plan B binary.template)
-
-/-- This is the template's supplied metadata on the actual generated circuit.
-It does not replace component identifiers or infer fragment provenance. -/
-def binaryPlan (packet : AdapterPacket binary prime C) :
-    FrontendSchedule.Plan B (packet.setup generator).circuit :=
-  binary.planFromTemplate template (packet.powers generator)
-    (generator^(-(Adapter.Mdoc.primeOrder : ℤ))) packet.masked (packet.targets generator)
-
-theorem binaryPlan_frontend (packet : AdapterPacket binary prime C) :
-    (binaryPlan binary prime generator template packet).frontend = template.frontend :=
-  binary.planFromTemplate_frontend template _ _ _ _
-
-theorem binaryPlan_capacity (packet : AdapterPacket binary prime C) :
-    (binaryPlan binary prime generator template packet).capacity = template.capacity :=
-  binary.planFromTemplate_capacity template _ _ _ _
-
-end Transfer
-
-theorem adapter_get (g : Geometry) (i : Fin 3) :
-    g.roles[ApplicationPrefix.rowBatchingIndex g+i.val]? =
-      some (([Role.rowBatching,.rescaling,.conversion]).get i) := by
+/-- The two adapter boundaries directly follow the prime frontend; mixed
+storage has no row-batching round. -/
+theorem adapter_get (g : Geometry) (i : Fin 2) :
+    g.roles[ApplicationPrefix.rescalingIndex g+i.val]? =
+      some (([Role.rescaling,.conversion]).get i) := by
   let leading := [.fingerprint] ++ g.prime.roles .prime
-  have hlength : leading.length = ApplicationPrefix.rowBatchingIndex g := by
-    simp only [leading,List.length_append,List.length_singleton,ApplicationPrefix.rowBatchingIndex,
+  have hlength : leading.length = ApplicationPrefix.rescalingIndex g := by
+    simp only [leading,List.length_append,List.length_singleton,ApplicationPrefix.rescalingIndex,
       Geometry.primeStart]
   have hroles : g.roles = leading ++
-      ([.rowBatching,.rescaling,.conversion] ++ g.binary.roles .binary ++
+      ([.rescaling,.conversion] ++ g.binary.roles .binary ++
         (if g.packingDegree = 1 then [] else [.packing]) ++ [.batching,.opening]) := by
     rw [g.roles_eq]
     simp only [leading,List.append_assoc]
   rw [hroles,List.getElem?_append_right (by rw [hlength]; omega),hlength,Nat.add_sub_cancel_left]
   simp only [List.append_assoc]
-  rw [List.getElem?_append_left (show i.val < ([Role.rowBatching,.rescaling,.conversion]).length from i.isLt)]
+  rw [List.getElem?_append_left (show i.val < ([Role.rescaling,.conversion]).length from i.isLt)]
   exact List.getElem?_eq_getElem i.isLt
 
 theorem packing_get (g : Geometry) (nontrivial : g.packingDegree ≠ 1) :
     g.roles[ApplicationPrefix.packingIndex g]? = some .packing := by
-  let leading := [.fingerprint] ++ g.prime.roles .prime ++ [.rowBatching,.rescaling,.conversion] ++
+  let leading := [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion] ++
     g.binary.roles .binary
   have hlength : leading.length = ApplicationPrefix.packingIndex g := by
     simp only [leading,List.length_append,List.length_cons,List.length_nil,

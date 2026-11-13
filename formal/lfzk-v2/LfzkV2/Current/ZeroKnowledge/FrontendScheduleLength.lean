@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendPrefix
-import LfzkV2.Current.FrontendTopology
 
 /-! Static frontend schedule lengths and actual prefix counters. No alternate
 honest-prover interpreter or whole-answer finalization is constructed. -/
@@ -15,24 +14,6 @@ def circuitFuel : {out input : ℕ} → {circuit : Layered.Circuit F out input} 
   | _,_,_,.inputEntry ..,continuing => if continuing then 0 else 1
   | _,_,_,.layer (mid := mid) _ tail,_ => circuitFuel tail true+(2+mid)+1
   | _,_,_,.entryLayer (mid := mid) _ _ _ tail,_ => circuitFuel tail true+(2+mid)+1
-
-omit [Field F] in
-theorem circuitFuel_same {out input : ℕ} {first second : Layered.Circuit F out input}
-    (same : FrontendTopology.Same first second) (original : FrontendSchedule.Plan F first)
-    (continuing : Bool) : circuitFuel (same.plan original) continuing = circuitFuel original continuing := by
-  induction original generalizing continuing with
-  | input => cases same; rfl
-  | inputEntry entries entry =>
-      cases same with
-      | entry next => cases next; rfl
-  | layer metadata tail ih =>
-      cases same with
-      | layer classes next => simp only [FrontendTopology.Same.plan,circuitFuel,ih next]
-  | entryLayer entries entry metadata tail ih =>
-      cases same with
-      | entry next =>
-          cases next with
-          | layer classes rest => simp only [FrontendTopology.Same.plan,circuitFuel,ih rest]
 
 
 end Static

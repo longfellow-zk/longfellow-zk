@@ -94,4 +94,92 @@ theorem rows_soundness {out input nPublic nPrivate : ℕ}
   · exact Or.inl (Circuit.soundness_reduction circuit m _ _ hfalse hf)
   · exact Or.inr hp
 
+/-! ## Virtual inputs
+
+The input claim is compiled with per-proof virtual definitions substituted.
+The packer then authenticates the substituted claim over committed inputs
+only; the virtual values themselves are never committed. -/
+
+/-- The terminal rows and the two packing rows of the substituted claim. -/
+noncomputable def virtualRows {input nPublic nPrivate nVirtual : ℕ}
+    (cs : Linear.Constraints Pad F) (weights : Cube input → F)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (coordinate : Pad → Slot) (publicInputs : Fin nPublic → F)
+    (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F) (U delta : I → F) (A : F) :
+    List (LinearRow Slot F) :=
+  Linear.Packed.rows S cs packedIndex coordinate
+    (substitutedPublicWeights (fun i => weights (inputIndex (.inl i))) (fun v => weights (virtualIndex v)))
+    (substitutedPublicInputs publicInputs entries)
+    (substitutedPrivateWeights (fun i => weights (inputIndex (.inr i)))
+      (fun v => weights (virtualIndex v)) entries) U delta A
+
+omit [DecidableEq F] in
+theorem virtualRows_iff {input nPublic nPrivate nVirtual : ℕ}
+    (cs : Linear.Constraints Pad F) (weights : Cube input → F)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (coordinate : Pad → Slot) (publicInputs : Fin nPublic → F)
+    (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F) (U delta : I → F) (A : F)
+    (values : Slot → F) (htrace : ∀ k, traceF K (U k) = 0) :
+    RowsHold (virtualRows S cs weights inputIndex virtualIndex packedIndex coordinate publicInputs
+      entries U delta A) values ↔
+      (∀ row ∈ cs.layers, row.eval (values ∘ coordinate) = 0) ∧
+        ((S.withVirtualSource packedIndex cs.inputClaim coordinate weights inputIndex virtualIndex
+          publicInputs entries).realize values).nativeLinearVerify U delta A :=
+  Linear.Packed.rows_iff S cs packedIndex coordinate _ _ _ U delta A values htrace
+
+/-- Actual substituted rows imply an accepted layered frontend over the
+complete input array `[public | committed | virtual]`, or the packing escape. -/
+theorem virtual_rows_frontend_or_bad {out input nPublic nPrivate nVirtual : ℕ}
+    (circuit : Layered.Circuit F out input) (m : Circuit.Messages Pad circuit)
+    (cs : Linear.Constraints Pad F)
+    (hbuild : Linear.buildConstraints (Circuit.proof circuit m 0) = some cs)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (publicInputs : Fin nPublic → F) (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F)
+    (coordinate : Pad → Slot) (values : Slot → F) (U delta : I → F) (A : F)
+    (htrace : ∀ k, traceF K (U k) = 0)
+    (hrows : RowsHold (virtualRows S cs (Circuit.inputWeights circuit m 0) inputIndex virtualIndex
+      packedIndex coordinate publicInputs entries U delta A) values) :
+    Linear.ClearAccepts (values ∘ coordinate) 0 (Circuit.proof circuit m 0)
+      (dot (Circuit.inputWeights circuit m 0)
+        (S.virtualInputs inputIndex virtualIndex packedIndex publicInputs entries values)) ∨
+      (S.withVirtualSource packedIndex cs.inputClaim coordinate (Circuit.inputWeights circuit m 0)
+        inputIndex virtualIndex publicInputs entries).Bad values U delta := by
+  obtain ⟨hlayers,hpacking⟩ := (virtualRows_iff S cs _ inputIndex virtualIndex packedIndex
+    coordinate publicInputs entries U delta A values htrace).mp hrows
+  rcases (S.withVirtualSource packedIndex cs.inputClaim coordinate (Circuit.inputWeights circuit m 0)
+      inputIndex virtualIndex publicInputs entries).target_or_bad values U delta A hpacking with htrue | hbad
+  · apply Or.inl
+    apply (Linear.buildConstraints_correct _ _ _).mp
+    refine ⟨cs,hbuild,hlayers,?_⟩
+    exact (S.virtual_source_claim_iff packedIndex cs.inputClaim coordinate _ inputIndex virtualIndex
+      publicInputs entries values).mp htrue
+  · exact Or.inr hbad
+
+/-- Authenticated substituted rows for a false layered statement imply either
+a frontend challenge failure or the separately counted packing escape. -/
+theorem virtual_rows_soundness {out input nPublic nPrivate nVirtual : ℕ}
+    (circuit : Layered.Circuit F out input) (m : Circuit.Messages Pad circuit)
+    (cs : Linear.Constraints Pad F)
+    (hbuild : Linear.buildConstraints (Circuit.proof circuit m 0) = some cs)
+    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
+    (virtualIndex : Fin nVirtual ↪ Cube input) (packedIndex : Fin nPrivate ↪ J × I)
+    (publicInputs : Fin nPublic → F) (entries : Fin nVirtual → VirtualInput (Fin nPrivate) F)
+    (coordinate : Pad → Slot) (values : Slot → F) (U delta : I → F) (A : F)
+    (htrace : ∀ k, traceF K (U k) = 0)
+    (hrows : RowsHold (virtualRows S cs (Circuit.inputWeights circuit m 0) inputIndex virtualIndex
+      packedIndex coordinate publicInputs entries U delta A) values)
+    (hfalse : ¬ circuit.Satisfies
+      (S.virtualInputs inputIndex virtualIndex packedIndex publicInputs entries values)) :
+    Circuit.Bad circuit m (S.virtualInputs inputIndex virtualIndex packedIndex publicInputs entries values) 0
+      (values ∘ coordinate) 0 ∨
+      (S.withVirtualSource packedIndex cs.inputClaim coordinate (Circuit.inputWeights circuit m 0)
+        inputIndex virtualIndex publicInputs entries).Bad values U delta := by
+  rcases virtual_rows_frontend_or_bad S circuit m cs hbuild inputIndex virtualIndex packedIndex
+    publicInputs entries coordinate values U delta A htrace hrows with hf | hp
+  · exact Or.inl (Circuit.soundness_reduction circuit m _ _ hfalse hf)
+  · exact Or.inr hp
+
 end LfzkV2.Layered.Packed

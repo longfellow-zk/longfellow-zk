@@ -82,18 +82,17 @@ local notation "Witness" => Selection.Pair B (ZMod Adapter.Mdoc.primeOrder)
   (BinaryPublic.Original bp) (PrimePublic.Original pp)
 
 /-- Both circuits use the request's public values and the same selected
-private witness; ordinary hash truth is independent of adapter challenges. -/
+private witness; hash truth reads only the hash circuit's own input prefix. -/
 def Valid (request : Mdoc.RuntimeSoundness.Request binary prime bounds) (w : Witness) : Prop :=
   MdocWitness.Valid binary prime request.publicBits request.primeInputs w
 
-theorem decoded_valid (separated : MdocWitness.ReadDisjoint binary)
-    (output : Output) (H : Point → Digest × Answer)
+theorem decoded_valid (output : Output) (H : Point → Digest × Answer)
     (decoded : RuntimeVerifier.Decoded bp pp P R W)
     (found : RuntimeAdaptiveVerifier.decode bp pp P R W earlier
       (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw output H = some decoded)
     (w : Witness) (truth : decoded.application.True w) : Valid binary prime bounds output.request w := by
   exact MdocWitness.valid_at_request binary prime P R repr shape setup I rfl rfl metadata draw
-    separated output H decoded found w truth
+    output H decoded found w truth
 
 variable {fuel blocks Q : ℕ}
 variable (body : Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
@@ -125,8 +124,9 @@ def event (G : Raw → Digest) : Prop :=
   ¬ ∃ w, extract binary prime cantor scalars ids bounds outside body fits sample G = some w ∧
     Valid binary prime bounds (view G).original.1.request w
 
-theorem event_implies_extraction_failure (separated : MdocWitness.ReadDisjoint binary)
-    (G : Raw → Digest) (bad : event binary prime cantor scalars ids bounds outside body fits sample G) :
+-- The decoded split-claim system makes this unfolding slightly larger.
+set_option maxHeartbeats 400000 in
+theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binary prime cantor scalars ids bounds outside body fits sample G) :
     Mdoc.OracleSoundness.event binary prime cantor scalars ids bounds body outside fits sample G := by
   have replayed := Mdoc.OracleSoundness.verifier_actual binary prime cantor scalars ids bounds body outside fits sample G
   have decoding := Protocol.Observation.decoded_of_trace bp pp P R W earlier (ProofBodyCodec.codec repr g)
@@ -142,7 +142,7 @@ theorem event_implies_extraction_failure (separated : MdocWitness.ReadDisjoint b
   refine ⟨bad.1,decision.trans bad.2.1,decoded,foundView,?_⟩
   rintro ⟨w,extracted,truth⟩
   apply bad.2.2
-  refine ⟨w,?_,decoded_valid binary prime cantor scalars ids bounds outside separated
+  refine ⟨w,?_,decoded_valid binary prime cantor scalars ids bounds outside
     (view G).original.1 _ decoded found w truth⟩
   simp only [extract,foundView,Option.bind_some]
   exact extracted
@@ -156,27 +156,27 @@ variable (uniform : ∀ point value,
 variable (queries : ∀ oracle : Bytes → Digest, (seen body oracle).card ≤ Q)
 
 include bodyFits uniform queries in
-theorem ratio_le (separated : MdocWitness.ReadDisjoint binary) (budget : Q < 2^127) :
+theorem ratio_le (budget : Q < 2^127) :
     density (event binary prime cantor scalars ids bounds outside body fits sample) ≤
       LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length :=
   (density_mono (fun G bad => event_implies_extraction_failure binary prime cantor scalars ids bounds outside
-    body fits sample separated G bad)).trans
+    body fits sample G bad)).trans
     (Mdoc.OracleSoundness.ratio_le binary prime cantor scalars ids bounds body outside queries fits sample
       fiber uniform bodyFits budget)
 
 include bodyFits uniform queries in
-theorem linear_ratio_le (separated : MdocWitness.ReadDisjoint binary) :
+theorem linear_ratio_le :
     density (event binary prime cantor scalars ids bounds outside body fits sample) ≤
       LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length :=
   (density_mono (fun G bad => event_implies_extraction_failure binary prime cantor scalars ids bounds outside
-    body fits sample separated G bad)).trans
+    body fits sample G bad)).trans
     (Mdoc.OracleSoundness.linear_ratio_le binary prime cantor scalars ids bounds body outside queries fits sample
       fiber uniform bodyFits)
 
 
 
 private theorem averaged_event_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -192,11 +192,11 @@ private theorem averaged_event_le {Omega : Type} [Fintype Omega] [Nonempty Omega
   apply Finset.sum_le_sum
   intro coin _
   exact density_mono (fun G bad => event_implies_extraction_failure binary prime cantor scalars ids bounds
-    (external coin) (adversary coin) fits (sampler coin) separated G bad)
+    (external coin) (adversary coin) fits (sampler coin) G bad)
 
 include bodyFits in
 theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -213,13 +213,13 @@ theorem averaged_linear_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
       LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
-    (fits := fits) separated external adversary sampler
+    (fits := fits) external adversary sampler
   exact comparison.trans (Mdoc.OracleSoundness.averaged_linear_ratio_le binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound)
 
 include bodyFits in
 theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -236,13 +236,13 @@ theorem averaged_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
       LfzkV2.Current.Soundness.Rate7.failureBound Q
         (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
-    (fits := fits) separated external adversary sampler
+    (fits := fits) external adversary sampler
   exact comparison.trans (Mdoc.OracleSoundness.averaged_ratio_le binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget)
 
 include bodyFits in
 theorem averaged_nonvacuous {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -257,13 +257,13 @@ theorem averaged_nonvacuous {Omega : Type} [Fintype Omega] [Nonempty Omega]
     (∑ coin, density (event binary prime cantor scalars ids bounds (external coin) (adversary coin) fits (sampler coin))) /
         Fintype.card Omega < 97/100 := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
-    (fits := fits) separated external adversary sampler
+    (fits := fits) external adversary sampler
   exact comparison.trans_lt (Mdoc.OracleSoundness.averaged_nonvacuous binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound budget)
 
 include bodyFits in
 theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -282,13 +282,13 @@ theorem averaged_polynomial_ratio_le {Omega : Type} [Fintype Omega] [Nonempty Om
           (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length + 15) *
             (2 : ℚ)^(-256 : ℤ) := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
-    (fits := fits) separated external adversary sampler
+    (fits := fits) external adversary sampler
   exact comparison.trans (Mdoc.OracleSoundness.averaged_polynomial_ratio_le binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound)
 
 include bodyFits in
 theorem averaged_mdoc_approximation {Omega : Type} [Fintype Omega] [Nonempty Omega]
-    (separated : MdocWitness.ReadDisjoint binary)
+   
     (external : Omega → Bytes → Digest)
     (adversary : Omega → Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
     (sampler : (coin : Omega) →
@@ -305,7 +305,7 @@ theorem averaged_mdoc_approximation {Omega : Type} [Fintype Omega] [Nonempty Ome
         Fintype.card Omega ≤
       (Q : ℚ)/2^127 + (Q : ℚ)^2/2^257 + 1/2^246 := by
   have comparison := averaged_event_le binary prime cantor scalars ids bounds
-    (fits := fits) separated external adversary sampler
+    (fits := fits) external adversary sampler
   exact comparison.trans (Mdoc.OracleSoundness.averaged_mdoc_approximation binary prime cantor scalars ids bounds
     (fits := fits) (bodyFits := bodyFits) external adversary sampler sampleFiber balanced queryBound supported)
 

@@ -105,9 +105,9 @@ omit [Fintype B] [DecidableEq B] in
 The same early selected cells therefore serve every later public branch. -/
 theorem binaryWithBits_private (binary : BinaryPublic B shared maskBits adviceBits)
     (bits : Fin binary.nPublic → Bool) (values : binary.Slot → B) (i : Fin binary.nPrivate) :
-    (binaryWithBits binary bits).inputs values (binary.inputIndex (.inr i)) =
-      binary.inputs values (binary.inputIndex (.inr i)) := by
-  simp only [binaryWithBits,BinaryPublic.inputs,Packed.Statement.inputs,circuitInputs,zeroExtend_apply,
+    (binaryWithBits binary bits).committed values (binary.inputIndex (.inr i)) =
+      binary.committed values (binary.inputIndex (.inr i)) := by
+  simp only [binaryWithBits,BinaryPublic.committed,Packed.Statement.inputs,circuitInputs,zeroExtend_apply,
     Sum.elim_inr]
   rfl
 

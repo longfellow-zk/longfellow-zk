@@ -137,7 +137,7 @@ theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
       (original request) (remaining request) pivotOne hashAll selection source coins.2
     convert congrArg (CompleteFrontendBody.rawBody b p primePlan root) coupled using 1 <;> rfl
   obtain ⟨system,statement,decoded,compiled,holds⟩ := FullSatisfaction.statement_exists b p primePlan samples Sh Repr setup
-    (⟨0,by decide⟩ : MdocAdvice.Value) binary.nPublic binaryRequest metadata request root H (Cfg).initialLink
+    (0 : MdocAdvice.Value) binary.nPublic binaryRequest metadata request root H (Cfg).initialLink
     (original request) (remaining request) pivotOne hashAll selection source coins.2 binaryNodes primitive signature hash
   have pointEq : CompleteCanonicalVerifier.batchingPoint binary.description prime binaryNodes ConcreteSetup.primeNodes
       Repr Sh setup Cfg bCount metadata request body H = point := by
@@ -165,7 +165,7 @@ theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
   have fingerprint := SimulationParsed.strictAnswer_lookup H samples.fallback point 0 (by
     rw [rank]
     have positive := (ParserApplication.positions binary prime primePlan).1
-    simp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at positive
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at positive
     omega)
   have targets := Parser.read_fingerprints Repr Sh setup binary.nPublic binaryRequest metadata request (Cfg).initialLink proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le primeStart

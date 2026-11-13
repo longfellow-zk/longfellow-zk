@@ -2,7 +2,7 @@ import LfzkV2.Current.RuntimeAdaptiveCharges
 import LfzkV2.Current.RuntimeShape
 
 /-! Actual query roles under any request-family encoding. The schedule is
-fixed by public templates; adaptive public values add no rounds. -/
+fixed by the public frontend plans; adaptive public values add no rounds. -/
 noncomputable section
 namespace LfzkV2.Current.RuntimeAdaptiveRoles
 open RuntimeAdaptiveCharges Application ApplicationSetup ApplicationViews ApplicationOracle RuntimeAdaptive RecursivePolygero SumcheckV2
@@ -23,7 +23,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
@@ -80,8 +80,8 @@ theorem prime_single (primeGeometry : primePlan.frontend = g.prime) (query : ℕ
   rw [hr]
   exact roleCharge_frontend binary prime P R cfg S laws H readers _ .prime _ answer hs
 
-/-- Generated coefficients and adaptive public values preserve one public
-binary template, so they introduce no additional roles or boundaries. -/
+/-- Per-proof virtual leaves and adaptive public values preserve the one
+fixed binary plan, so they introduce no additional roles or boundaries. -/
 theorem binary_single (binaryGeometry : binaryTemplate.frontend = g.binary)
     (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N)
     (packet : AdapterPacket (binaryWithBits binary bits) (primeWithInputs prime inputs) C)
@@ -89,11 +89,9 @@ theorem binary_single (binaryGeometry : binaryTemplate.frontend = g.binary)
     (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (g.binaryStart+query)) H answer =
       frontendCharge S readers.binaryRead ((e.chain initialLink).point proof H (g.binaryStart+query)) H answer := by
-  let shape := RuntimeShape.binaryPlan (binaryWithBits binary bits) (primeWithInputs prime inputs)
-    Generator binaryTemplate packet
+  let shape : FrontendSchedule.Plan B (packet.setup Generator).circuit := binaryTemplate
   have hslots : FrontendReplay.slots (packet.setup Generator).circuit = (g.binary.roles .binary).length := by
     rw [shape.slots_eq_roles_length .binary]
-    rw [RuntimeShape.binaryPlan_frontend]
     exact congrArg (fun frontend => (frontend.roles .binary).length) binaryGeometry
   let i : Fin (g.binary.roles .binary).length := ⟨query,by omega⟩
   have hr := point_role e initialLink proof H (g.binaryIndex i)
@@ -104,33 +102,28 @@ theorem binary_single (binaryGeometry : binaryTemplate.frontend = g.binary)
   rw [hr]
   exact roleCharge_frontend binary prime P R cfg S laws H readers _ .binary _ answer hs
 
-theorem adapter_single (i : Fin 3) (answer : Digest × C) :
-    single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rowBatchingIndex g+i.val)) H answer =
-      roleCharge S laws readers (([Role.rowBatching,.rescaling,.conversion]).get i)
-        ((e.chain initialLink).point proof H (ApplicationPrefix.rowBatchingIndex g+i.val)) H answer := by
-  have hindex : ApplicationPrefix.rowBatchingIndex g+i.val < g.roles.length := by
+theorem adapter_single (i : Fin 2) (answer : Digest × C) :
+    single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g+i.val)) H answer =
+      roleCharge S laws readers (([Role.rescaling,.conversion]).get i)
+        ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g+i.val)) H answer := by
+  have hindex : ApplicationPrefix.rescalingIndex g+i.val < g.roles.length := by
     have hlength := g.roles_length
     have hi := i.isLt
-    simp only [ApplicationPrefix.rowBatchingIndex,Geometry.primeStart] at *
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
     omega
   have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeShape.adapter_get g i)
   simp only [single,hr]
 
-theorem rowBatching_single (answer : Digest × C) :
-    single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rowBatchingIndex g)) H answer =
-      indicator (batchBad S readers.batchRead ((e.chain initialLink).point proof H (ApplicationPrefix.rowBatchingIndex g)) H answer.2) := by
-  simpa [roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 0 answer
-
 theorem rescaling_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H answer =
       indicator (rescaleBad S readers.rescaleRead laws.rescaleDecoder ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H answer.2) := by
-  simpa [ApplicationPrefix.rescalingIndex,roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 1 answer
+  simpa [roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 0 answer
 
 theorem conversion_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.conversionIndex g)) H answer =
       indicator (conversionBad S readers.conversionRead laws.conversionDecoder Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound
         ((e.chain initialLink).point proof H (ApplicationPrefix.conversionIndex g)) H answer.2) := by
-  simpa [ApplicationPrefix.conversionIndex,roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 2 answer
+  simpa [ApplicationPrefix.conversionIndex,roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 1 answer
 
 theorem packing_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.packingIndex g)) H answer =

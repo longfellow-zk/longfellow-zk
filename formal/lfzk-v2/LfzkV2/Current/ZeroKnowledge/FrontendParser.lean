@@ -41,11 +41,11 @@ theorem read_mu (n : ℕ) (bounded : n ≤ g.roles.length)
       (fun block => block.2.mu) = some proof.body.mu := by
   have bound : ApplicationPrefix.conversionIndex g < g.roles.length := by
     have length := g.roles_length
-    simp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rowBatchingIndex,Geometry.primeStart]
+    simp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,Geometry.primeStart]
     omega
   let i : Fin g.roles.length := ⟨ApplicationPrefix.conversionIndex g,bound⟩
   have role : g.roles.get i = .conversion := by
-    have hr := RuntimeShape.adapter_get g (2 : Fin 3)
+    have hr := RuntimeShape.adapter_get g (1 : Fin 2)
     exact Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans hr)
   erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.mu)]
   simp only [ProtocolWrites.fresh,role,↓reduceIte]

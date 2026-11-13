@@ -57,7 +57,7 @@ theorem prime_rows
     primePlan prime.setup.plan (CompleteHonest.primeInputs binary prime original remaining) valid state tape.prime
     (circuitPadValues prime.circuit tape.prime) (circuitPadValues_assignment prime.circuit tape.prime)
   obtain ⟨constraints,built,holds⟩ := h
-  unfold CompleteSimulation.primeRows
+  unfold CompleteSimulation.primeRows CompleteSimulation.primeConstraints
   erw [built]
   apply (Linear.compile_correct _ _ _ _ _ _ _).mpr
   have inputs := fullPrimeRead_inputs binary prime original remaining tape selection
@@ -74,6 +74,27 @@ theorem prime_rows
   exact ⟨holds.1,holds.2.trans sumEq⟩
 
 omit [Fintype B] [DecidableEq B] in
+/-- The honest prime cells satisfy the split claim: its unbatched layer rows
+on the native cells, and its input equation. -/
+theorem prime_split
+    (state : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
+    (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P)
+    (tape : CompleteHonest.Tape binary prime) (selection : Fin 2 → P)
+    (valid : prime.circuit.Satisfies (CompleteHonest.primeInputs binary prime original remaining)) :
+    let payload := realCircuit
+      (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
+      primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 state tape.prime
+    let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
+    RowsHold native.claim.layers (fun other => CompletePrimeCells.values remaining tape.mask
+        (circuitPadValues prime.circuit tape.prime) selection (.inl other)) ∧
+      native.claim.residual (fun i => if WitnessInputs.shared binary original i then 1 else 0)
+        (fun other => CompletePrimeCells.values remaining tape.mask
+          (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 := by
+  have rows := prime_rows binary prime primePlan samples base H state original remaining tape selection valid
+  dsimp only [CompleteSimulation.primePrefix,CompleteSimulation.primeClaim,CellLayout.Prime.claim]
+  exact (Current.Prime.Claim.ofConstraints_iff _ _ _ _ _ _ _ _).mp rows
+
+omit [Fintype B] [DecidableEq B] in
 theorem prime_claim
     (state : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P)
@@ -85,15 +106,11 @@ theorem prime_claim
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
     native.claim.residual (fun i => if WitnessInputs.shared binary original i then 1 else 0)
       (fun other => CompletePrimeCells.values remaining tape.mask
-        (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 := by
-  have rows := prime_rows binary prime primePlan samples base H state original remaining tape selection valid
-  dsimp only [CompleteSimulation.primePrefix]
-  rw [Current.Prime.Claim.fromRow_residual,Current.Prime.batchRows_eval]
-  apply Finset.sum_eq_zero
-  intro i _
-  exact mul_eq_zero_of_right _ (rows _ (List.get_mem _ _))
+        (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 :=
+  (prime_split binary prime primePlan samples base H state original remaining tape selection valid).2
 
 omit [Fintype B] [DecidableEq B] in
+/-- The complete honest prime statement: the layer rows, then the native row. -/
 theorem prime_handoff
     (state : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P)
@@ -104,21 +121,24 @@ theorem prime_handoff
       primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 state tape.prime
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
     let mu := Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask
-    RowsHold [native.claim.row native.eta.val mu]
+    RowsHold (native.claim.rows native.eta.val mu)
       (CompletePrimeCells.values remaining tape.mask (circuitPadValues prime.circuit tape.prime) selection) := by
   let payload := realCircuit
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 state tape.prime
   let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
-  have residual := prime_claim binary prime primePlan samples base H state original remaining tape selection valid
-  change native.claim.residual (fun i => if WitnessInputs.shared binary original i then 1 else 0)
-    (fun other => CompletePrimeCells.values remaining tape.mask
-      (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 at residual
-  change RowsHold [native.claim.row native.eta.val
-    (Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask)] _
-  intro row member
-  rcases List.mem_singleton.mp member with rfl
+  have split := prime_split binary prime primePlan samples base H state original remaining tape selection valid
+  change RowsHold native.claim.layers (fun other => CompletePrimeCells.values remaining tape.mask
+      (circuitPadValues prime.circuit tape.prime) selection (.inl other)) ∧
+    native.claim.residual (fun i => if WitnessInputs.shared binary original i then 1 else 0)
+      (fun other => CompletePrimeCells.values remaining tape.mask
+        (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 at split
+  obtain ⟨layers,residual⟩ := split
+  change RowsHold (native.claim.rows native.eta.val
+    (Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask)) _
   unfold CompletePrimeCells.values
+  rw [Current.Prime.Claim.rows_hold_iff]
+  refine ⟨layers,?_⟩
   rw [Current.Prime.Claim.row_eval]
   dsimp only [Adapter.Mdoc.offset,Adapter.Mdoc.sharedSum,Current.Prime.Claim.residual,
     CompletePrimeCells.values,Sum.elim_inl] at residual ⊢
@@ -180,7 +200,7 @@ theorem prime_rows_selected
       primePlan (CompleteHonest.primeInputs binary prime original remaining) 0 state tape.prime
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
     let mu := Adapter.Mdoc.offset native.claim.sharedWeights (WitnessInputs.shared binary original) native.eta.val+tape.mask
-    RowsHold ([native.claim.row native.eta.val mu] ++
+    RowsHold (native.claim.rows native.eta.val mu ++
       FingerprintRows.rows
         (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inl i))
         (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inr i)) coefficients

@@ -132,7 +132,7 @@ theorem binary_map (body : Body g fields Advice Authentication) :
     simp only [if_neg zero,if_neg fingerprints,if_neg advice,pureFresh]
 
 def leading (g : Geometry) : List Role :=
-  [.fingerprint] ++ g.prime.roles .prime ++ [.rowBatching,.rescaling,.conversion]
+  [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion]
 
 theorem leading_length (g : Geometry) : (leading g).length = g.binaryStart := by
   simp only [leading,List.length_append,List.length_cons,List.length_nil,Geometry.binaryStart]
@@ -141,19 +141,19 @@ theorem leading_length (g : Geometry) : (leading g).length = g.binaryStart := by
 theorem leading_map (body : Body g fields Advice Authentication) :
     (leading g).mapIdx (atRole body) =
       [WriteLog.empty] ++ ({ fingerprints := some body.fingerprints } :: ((g.prime.roles .prime).map (pureFresh body)).tail) ++
-        [WriteLog.empty,WriteLog.empty,{ mu := some body.mu }] := by
+        [WriteLog.empty,{ mu := some body.mu }] := by
   have positive : 0 < (g.prime.roles .prime).length :=
     List.length_pos_iff.mpr (frontend_nonempty body g.prime .prime)
   simp only [leading,List.mapIdx_append,List.mapIdx_cons,List.mapIdx_nil,
     List.length_cons,List.length_nil,List.length_append]
   rw [prime_map]
   simp (disch := omega) [atRole,Geometry.primeStart,Geometry.binaryStart,ProtocolWrites.frontendMessages,WriteLog.empty]
-  exact ⟨⟨frontend_nonempty body g.prime .prime,by omega⟩,by omega,by omega,by omega⟩
+  exact ⟨⟨frontend_nonempty body g.prime .prime,by omega⟩,by omega⟩
 
 theorem backend_map (body : Body g fields Advice Authentication) (packing : g.packingDegree ≠ 1) :
     g.backendPrefix.mapIdx (atRole body) =
       [WriteLog.empty] ++ ({ fingerprints := some body.fingerprints } :: ((g.prime.roles .prime).map (pureFresh body)).tail) ++
-        [WriteLog.empty,WriteLog.empty,{ mu := some body.mu }] ++
+        [WriteLog.empty,{ mu := some body.mu }] ++
         ({ advice := some body.advice } :: ((g.binary.roles .binary).map (pureFresh body)).tail) ++
         [{ packingU := (ProtocolWrites.packingPair body).map Prod.fst }] := by
   have roles : g.backendPrefix = leading g ++ g.binary.roles .binary ++ [.packing] := by
@@ -181,7 +181,7 @@ def rawWrites (result : CompleteSimulation.RawResult binary prime primePlan Key 
   [WriteLog.empty] ++
     WriteLog.snapshots .prime (Equiv.refl P) { fingerprints := some result.fingerprints }
       (Prefix.circuit primePlan result.primePayload false) ++
-    [WriteLog.empty,WriteLog.empty,{ mu := some result.mu }] ++
+    [WriteLog.empty,{ mu := some result.mu }] ++
     WriteLog.snapshots .binary (Equiv.refl B) { advice := some result.advice }
       (Prefix.circuit binary.plan result.binaryPayload false) ++
     [{ packingU := some result.packing.1 }]
@@ -219,7 +219,7 @@ theorem raw_bodyPrefix (root : Digest) (result : CompleteSimulation.RawResult bi
   rw [bodyPrefix,backend_map body packing]
   change [WriteLog.empty] ++
       ({ fingerprints := some result.fingerprints } :: ((primePlan.frontend.roles .prime).map (pureFresh body)).tail) ++
-      [WriteLog.empty,WriteLog.empty,{ mu := some result.mu }] ++
+      [WriteLog.empty,{ mu := some result.mu }] ++
       ({ advice := some result.advice } :: ((binary.plan.frontend.roles .binary).map (pureFresh body)).tail) ++
       [{ packingU := some result.packing.1 }] = _
   rw [← primeSnap,← binarySnap]
@@ -230,14 +230,14 @@ theorem raw_pending (root : Digest) (result : CompleteSimulation.RawResult binar
     ProtocolWrites.fresh (CompleteFrontendBody.rawBody binary prime primePlan root result) (G).batchingIndex =
       { packingA := some result.packing.2 } := by
   have packing : binary.description.degree ≠ 1 := by change (128 : ℕ) ≠ 1; decide
-  have counter : (G).batchingIndex.val = (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+5 := by
+  have counter : (G).batchingIndex.val = (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+4 := by
     simp only [Geometry.batchingIndex,Geometry.backendPrefix,MdocRuntime.geometry,ConcreteSetup.geometry,
       if_neg packing,List.length_append,List.length_cons,List.length_nil]
     omega
   have notPrime : (G).batchingIndex.val ≠ (G).primeStart := by rw [counter]; change _ ≠ 1; omega
   have notBinary : (G).batchingIndex.val ≠ (G).binaryStart := by
     rw [counter]
-    change _ ≠ (primePlan.frontend.roles .prime).length+4
+    change _ ≠ (primePlan.frontend.roles .prime).length+3
     omega
   simp only [ProtocolWrites.fresh,Geometry.get_batchingIndex,if_neg notPrime,if_neg notBinary,
     ProtocolWrites.frontendMessages,reduceCtorEq,↓reduceIte]

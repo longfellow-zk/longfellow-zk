@@ -153,19 +153,6 @@ theorem packetCharge_off
   unfold packetCharge
   rw [packetBad_off S read bad point H H' h answer.2]
 
-def batchBad {Slot : Type}
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) →
-      Option (BatchPacket N Slot Pair C)) := packetBad S read (fun packet w answer => packet.bad w answer)
-
-omit [Fintype B] in
-theorem batchBad_card_mul_le {Slot : Type}
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) →
-      Option (BatchPacket N Slot Pair C)) (point : Point) (H : Point → Link × C) :
-    (univ.filter (batchBad S read point H)).card*Fintype.card N ≤ Fintype.card C := by
-  simpa only [batchBad,one_mul] using packetBad_card_mul_le S read
-    (fun packet w answer => packet.bad w answer) point H 1 (Fintype.card N)
-    (fun packet w => by simpa only [one_mul] using packet.bad_card_mul_le w)
-
 def rescaleBad {Shared Other : Type} [Fintype Shared] [Fintype Other]
     (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option (RescaleData N Shared Other Pair))
     (decoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N)) :=
@@ -408,9 +395,8 @@ theorem circuit_proof_length {F Pad : Type} [Field F] {out input : ℕ}
       omega
 
 omit [Fintype C] in
-/-- Prime batching has one row per ordinary layer plus its input row.
-The sampler dimension is thus public and bounded, independently of prover
-messages, challenges or the number of quad fragments. -/
+/-- The prime compiler has one row per ordinary layer plus its input row,
+independently of prover messages, challenges or the number of quad fragments. -/
 theorem prime_rows_length {F Slot Pad : Type} [Field F]
     (setup : FrontendVerifier.PrimeSetup F Slot Pad)
     (payload : Layered.Replay.Payload setup.circuit) (decode : C → ℕ → F)
@@ -423,37 +409,6 @@ theorem prime_rows_length {F Slot Pad : Type} [Field F]
   rw [circuit_proof_length] at hc
   simpa only [Frontend.Prime.rows,FrontendVerifier.PrimeSetup.prepare,Linear.compile,
     List.length_append,List.length_map,List.length_singleton] using congrArg (·+1) hc
-
-structure PrimePacket (n : PrimePublic N shared) (C : Type) where
-  payload : Layered.Replay.Payload n.circuit
-  answers : ℕ → C
-
-namespace PrimePacket
-variable {n : PrimePublic N shared}
-def frontend (packet : PrimePacket n C) (decode : C → ℕ → N)
-    (nonzero : C → Linear.TerminalSampling.Nonzero N) :=
-  n.setup.prepare packet.payload decode nonzero packet.answers
-end PrimePacket
-
-/-- The completed prime frontend before its row-batching challenge. No
-rho value is invented merely to construct this packet. -/
-def readPrimePacket (n : PrimePublic N shared) (field : fields .prime → N)
-    (fallback : C) (point : Point) (past : Fin point.rank → C) : Option (PrimePacket n C) :=
-  if g.primeStart+FrontendReplay.slots n.circuit ≤ point.rank then do
-    let payload ← ApplicationPrefix.Messages.read n.circuit (ApplicationPrefix.wire point .prime field g.primeStart)
-    some ⟨payload,ApplicationPrefix.frontendTape point past fallback g.primeStart (FrontendReplay.slots n.circuit)⟩
-  else none
-
-def readBatchPacket (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic N shared)
-    (decode : C → ℕ → N) (nonzero : C → Linear.TerminalSampling.Nonzero N)
-    (decoder : BalancedDecoder C (Fin (n.circuit.layers+1) → N))
-    (field : fields .prime → N) (fallback : C) (point : Point) (past : Fin point.rank → C) :
-    Option (BatchPacket N (Fin shared ⊕ n.Other) (Selection.Pair B N s.Original n.Original) C) := do
-  let packet ← readPrimePacket n field fallback point past
-  let frontend := packet.frontend decode nonzero
-  some {
-    data := ⟨frontend.rows,primeFullValues s n⟩
-    decoder := (prime_rows_length n.setup packet.payload decode nonzero packet.answers).symm ▸ decoder }
 
 /-- Prime local tests need no adapter or binary frontend execution. Shared
 input bits and prime pad cells are reconstructed directly from the selected
@@ -487,7 +442,7 @@ def readPrimeView (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePubl
       (point.rank-g.primeStart)).map (primeViewOfPayload s n shape capacity decode nonzero decoder hcapacity fallback)
   else none
 
-/-- Only data already needed to generate the binary circuit is present.
+/-- Only data already needed for the virtual definitions is present.
 Packing U, delta and A are deliberately absent from this packet. -/
 structure AdapterPacket (s : BinaryPublic B shared maskBits adviceBits)
     (n : PrimePublic N shared) (C : Type) where
@@ -504,8 +459,10 @@ variable (packet : AdapterPacket s n C) (generator : Bˣ)
 def powers (tree : Fin 2) (i : Fin (shared+maskBits)) : Bˣ :=
   generator^((packet.alpha tree).val*(Handoff.weights packet.prime.claim.sharedWeights packet.eta i)).val
 def targets (tree : Fin 2) : Bˣ := generator^((packet.alpha tree).val*packet.mu).val
-def setup := s.setup (packet.powers generator) (generator^(-(Adapter.Mdoc.primeOrder : ℤ)))
+/-- The virtual definitions; the fixed circuit does not depend on them. -/
+def entries := s.entries (packet.powers generator) (generator^(-(Adapter.Mdoc.primeOrder : ℤ)))
   packet.masked (packet.targets generator)
+def setup := s.setup (packet.entries generator)
 
 end AdapterPacket
 
@@ -570,9 +527,9 @@ def source (packet : BinaryPacket s n C generator) (decode : C → ℕ → B)
   let setup := packet.adapter.setup generator
   let messages := FrontendReplay.read decode nonzero setup.circuit setup.plan packet.payload packet.answers
   let constraints := FrontendVerifier.constraints setup.circuit setup.plan packet.payload decode nonzero packet.answers
-  s.packing.withSource s.packedIndex constraints.inputClaim setup.coordinate
-    (fun i => setup.circuit.inputWeights messages 0 (s.inputIndex (.inl i))) setup.publicInputs
-    (fun i => setup.circuit.inputWeights messages 0 (s.inputIndex (.inr i)))
+  s.packing.withVirtualSource s.packedIndex constraints.inputClaim setup.coordinate
+    (setup.circuit.inputWeights messages 0) s.inputIndex s.virtualIndex setup.publicInputs
+    setup.virtualInputs
 
 end BinaryPacket
 
@@ -643,7 +600,7 @@ def binaryViewOfPayload (s : BinaryPublic B shared maskBits adviceBits) (n : Pri
     out := (packet.setup generator).out,input := (packet.setup generator).input
     circuit := (packet.setup generator).circuit,plan := (packet.setup generator).plan
     payload := fun _ => payload
-    inputs := fun w => s.inputs (binaryValues s n w)
+    inputs := fun w => s.inputs (packet.entries generator) (binaryValues s n w)
     pads := fun w i => binaryValues s n w (CellLayout.Binary.pad s.words s.degree s.pads i)
     decode := decode,nonzero := nonzero,start := g.binaryStart,fallback := fallback }
   capacity := capacity
@@ -651,8 +608,8 @@ def binaryViewOfPayload (s : BinaryPublic B shared maskBits adviceBits) (n : Pri
   coalesced := shape.coalesced
   fits := shape.fits_of_capacityFrom_le 0 capacity hcapacity
 
-/-- Once conversion and masked advice are bound, the generated binary
-circuit has a local view even though its packing response is still future.
+/-- Once conversion and masked advice are bound, the binary circuit with its
+virtual definitions has a local view even though its packing response is still future.
 Only its current message prefix is parsed. -/
 def readBinaryView (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic N shared)
     (generator : Bˣ) (capacity : ℕ)

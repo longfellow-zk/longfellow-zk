@@ -547,8 +547,8 @@ namespace LfzkV2.Current.Geometry
 /-- Prime sumcheck follows the shared fingerprint boundary. -/
 def primeStart (_g : Geometry) : ℕ := 1
 
-/-- Three adapter boundaries separate prime and binary sumcheck. -/
-def binaryStart (g : Geometry) : ℕ := (g.prime.roles .prime).length+4
+/-- The rescaling and conversion boundaries separate prime and binary sumcheck. -/
+def binaryStart (g : Geometry) : ℕ := (g.prime.roles .prime).length+3
 
 def primeIndex (g : Geometry) (i : Fin (g.prime.roles .prime).length) : Fin g.roles.length :=
   ⟨g.primeStart+i.val,by
@@ -568,7 +568,7 @@ theorem prime_role_get (g : Geometry) (i : Fin (g.prime.roles .prime).length) :
     g.roles.get (g.primeIndex i) = (g.prime.roles .prime).get i := by
   have hget : g.roles[g.primeStart+i.val]? = some ((g.prime.roles .prime).get i) := by
     have hr : g.roles = [.fingerprint] ++ ((g.prime.roles .prime) ++
-      [.rowBatching,.rescaling,.conversion] ++ g.binary.roles .binary ++
+      [.rescaling,.conversion] ++ g.binary.roles .binary ++
       (if g.packingDegree = 1 then [] else [.packing]) ++ [.batching,.opening]) := by
       rw [g.roles_eq]
       simp only [List.append_assoc]
@@ -582,7 +582,7 @@ theorem prime_role_get (g : Geometry) (i : Fin (g.prime.roles .prime).length) :
 
 theorem binary_role_get (g : Geometry) (i : Fin (g.binary.roles .binary).length) :
     g.roles.get (g.binaryIndex i) = (g.binary.roles .binary).get i := by
-  let leadingRoles : List Role := [.fingerprint] ++ g.prime.roles .prime ++ [.rowBatching,.rescaling,.conversion]
+  let leadingRoles : List Role := [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion]
   have hlen : leadingRoles.length = g.binaryStart := by
     simp only [leadingRoles,binaryStart,List.length_append,List.length_cons,List.length_nil]
     omega

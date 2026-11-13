@@ -2,7 +2,7 @@ import LfzkV2.Current.MdocRuntime
 
 /-! Exact setup bytes for the current mdoc verifier. Trusted circuit identifiers
 and the identifier hash are inputs; layouts, field identities, packing metadata,
-backend contexts and the generated adapter template are constructed here.
+backend contexts and the archived adapter fragment identifier are constructed here.
 These are ordinary auxiliary hash inputs, not additional transcript queries. -/
 noncomputable section
 set_option maxRecDepth 4096
@@ -74,6 +74,9 @@ structure Bounds where
   binaryCellsFit : binary.description.cells+2 < 2^64
   primeCellsFit : CellLayout.Prime.cells prime.description.remaining prime.description.pads+2 < 2^64
   layerFits : ∀ stage ∈ binary.plan.frontend.stages, stage.rounds < 2^64
+  primeLayerFits : ∀ stage ∈ prime.plan.frontend.stages, stage.rounds < 2^64
+  /-- The committed binary inputs, and so every storage address, fit a word. -/
+  committedFit : binary.nPublic+binary.nPrivate < 2^64
   hashDepthFit : hashDepth binary < 2^64
   /-- This concrete topology places the hash first and admits the adapter's
   outputs at a later layer. A tied or shorter hash needs a different topology
@@ -99,24 +102,50 @@ private def boundedPacking : BoundedBytes CanonicalPrefix.maxLength :=
       Function.comp_def,scalars.binary.length,scalars.binaryWidth]
     decide⟩
 
-def templateId (ids : Identifiers) : Digest :=
-  MetadataIdentifiers.adapterId ids.hash scalars.binary.encode binary.description.shape
-    (binary.nPublic+binary.nPrivate) binary.nPublic
-    (ConcreteMetadata.adapterSources binary.description)
-    (ConcreteMetadata.adapterPads binary.description)
-    (fun _ _ => 1) (MdocRuntime.polynomialX binary.basis)
-    (fun _ _ => false) (fun _ => 1)
+/-- Identifier of the archived adapter fragment, rebuilt from the hash
+circuit's shape: its virtual leaves start after the committed inputs. -/
+def fragmentId (ids : Identifiers) : Digest :=
+  MetadataIdentifiers.fragmentId ids.hash scalars.binary.encode binary.description.shape
+    (binary.nPublic+binary.nPrivate+2*(768+256+10)) binary.nPublic (binary.nPublic+binary.nPrivate)
+
+private def word (value : ℕ) (fits : value < 2^64) : FingerprintPrefix.Word := ⟨value,fits⟩
+
+/-- The signature participant's storage map as runs (`StorageMap::runs`).
+Its values are `[private inputs | pads]`: the issuer digest's 256 bits, then
+device x and y (512 bits after the MSO preimage), each a one-bit prime group
+in the binary inputs; every other value is native, in value order. R's 256
+bits follow the hash circuit's own inputs. Each word is its own write. -/
+def storageWords (bounds : Bounds binary prime) : List FingerprintPrefix.Word :=
+  have hc := bounds.committedFit
+  have hn : binary.nPublic+20760 < 2^64 := by
+    have := binary.hashCapacity
+    unfold ConcreteSetup.BinaryCircuit.nPrivate at hc
+    omega
+  have hh : binary.nPublic+binary.hashPrivate < 2^64 := by
+    unfold ConcreteSetup.BinaryCircuit.nPrivate at hc
+    omega
+  have hr : prime.description.remaining+prime.description.pads < 2^64 := by
+    have := bounds.inputFits
+    omega
+  [word 3 (by decide),
+    word 1 (by decide),word 0 (by decide),word 256 (by decide),word binary.nPublic (by omega),word 1 (by decide),
+    word 1 (by decide),word 256 (by decide),word 512 (by decide),word (binary.nPublic+20760) hn,word 1 (by decide),
+    word 0 (by decide),word 768 (by decide),
+      word (prime.description.remaining+prime.description.pads) hr,word 0 (by decide),
+    word (binary.nPublic+binary.hashPrivate) hh,word 256 (by decide)]
 
 def setup (ids : Identifiers) (bounds : Bounds binary prime) : FingerprintPrefix.Setup where
   combinedHash := ids.combinedHash
   hashCircuit := ids.hashCircuit
-  hashTemplate := templateId binary scalars ids
+  fragment := fragmentId binary scalars ids
   primeCircuit := ids.primeCircuit
   packingDescriptor := boundedPacking binary scalars
   privateInputs := ⟨binary.description.nPrivate,bounds.privateFits⟩
   padCells := ⟨binary.description.pads,bounds.padsFit⟩
   layerWidths := binary.plan.frontend.stages.attach.map fun stage => ⟨stage.val.rounds,bounds.layerFits _ stage.property⟩
-  shared := ⟨768,by decide⟩
+  primeLayerWidths := prime.plan.frontend.stages.attach.map fun stage =>
+    ⟨stage.val.rounds,bounds.primeLayerFits _ stage.property⟩
+  storage := storageWords binary prime bounds
   jointContext := ids.hash (jointContextBytes (binaryContext binary cantor scalars ids) (primeContext prime scalars ids))
   binaryField := boundedBinaryField
   primeField := boundedPrimeField scalars

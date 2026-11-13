@@ -45,9 +45,10 @@ def quotients (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta :
   honestQuotient (weights sharedWeights eta) (values sharedWeights shared eta mu)
     (alpha mu tree).val (by decide) (by decide)
 
+/-- The two honest quotients are the two clear words; there is no packing. -/
 def advice (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P)
     (alpha : Alphas) (mu : P) : MdocAdvice.Value :=
-  AdapterBits.packedQuotients (quotients sharedWeights shared eta alpha mu)
+  quotients sharedWeights shared eta alpha mu
 
 theorem advice_at (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P)
     (alpha : Alphas) (mu : P) :
@@ -65,28 +66,26 @@ theorem quotients_runtime (sharedWeights : Fin 768 → P) (shared : Fin 768 → 
   honestQuotient_runtime _ _ _ _ (by decide) (by decide) (residual_zero _ _ _ _)
 
 def coupling (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P) (alpha : Alphas) :
-    (P × Fin (2^24)) ≃ ((P × MdocAdvice.Value) × Fin 16) :=
+    (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused) :=
   rawMuAdviceEquiv (offset sharedWeights shared eta) (advice sharedWeights shared eta alpha)
 
 theorem coupling_mu (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P)
-    (alpha : Alphas) (mask : P) (otp : Fin (2^24)) :
+    (alpha : Alphas) (mask : P) (otp : Fin 2 → AdapterBits.RawWord) :
     (coupling sharedWeights shared eta alpha (mask,otp)).1.1 =
       eta*sharedSum sharedWeights shared+mask := rfl
 
 theorem coupling_bits (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P)
-    (alpha : Alphas) (mask : P) (otp : Fin (2^24)) (tree : Fin 2) (i : Fin 10) :
+    (alpha : Alphas) (mask : P) (otp : Fin 2 → AdapterBits.RawWord) (tree : Fin 2) (i : Fin 10) :
     let mu := offset sharedWeights shared eta+mask
     MdocAdvice.bits (coupling sharedWeights shared eta alpha (mask,otp)).1.2 tree i =
       Bool.xor ((quotients sharedWeights shared eta alpha mu tree).val.testBit i.val)
-        (otp.val.testBit (10*tree.val+i.val)) := by
+        ((otp tree).val.testBit i.val) := by
   have h := muAdviceEquiv_bits (offset sharedWeights shared eta)
     (advice sharedWeights shared eta alpha) mask (AdapterBits.rawOtpEquiv otp).1 tree i
-  rw [show ∀ mu, advice sharedWeights shared eta alpha mu =
-      AdapterBits.packedQuotients (quotients sharedWeights shared eta alpha mu) from fun _ => rfl,
-    AdapterBits.packedQuotients_bits,AdapterBits.rawOtp_bits] at h
+  rw [AdapterBits.rawOtp_bits] at h
   exact h
 
-def simulate (coins : (P × MdocAdvice.Value) × Fin 16) : P × MdocAdvice.Value := coins.1
+def simulate (coins : (P × MdocAdvice.Value) × AdapterBits.Unused) : P × MdocAdvice.Value := coins.1
 
 theorem sameDistribution {Observed : Type} [DecidableEq Observed]
     (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P) (alpha : Alphas)

@@ -14,11 +14,12 @@ negative subtraction or nonzero-remainder rejection. -/
 example : (Adapter.honestQuotient (fun _ : Fin 4 => (6 : ZMod 7)) (fun _ => true)
     1 (show 4 ≤ 4 from le_rfl) (by decide)).val = 3 := by decide
 
-example : AdapterBits.packedQuotients (fun _ => ⟨1023,by decide⟩) =
-    (⟨2^20-1,by decide⟩ : MdocAdvice.Value) := by decide
+-- Each pad keeps the low ten bits of its own two raw bytes.
+example : (AdapterBits.rawOtpEquiv ![⟨2^16-1,by decide⟩,⟨1024+5,by decide⟩]).1 =
+    (![⟨2^10-1,by decide⟩,⟨5,by decide⟩] : MdocAdvice.Value) := by decide
 
-example : (AdapterBits.rawOtpEquiv ⟨2^24-1,by decide⟩).1 =
-    (⟨2^20-1,by decide⟩ : MdocAdvice.Value) := by decide
+example : (AdapterBits.rawOtpEquiv ![⟨2^16-1,by decide⟩,⟨1024+5,by decide⟩]).2 =
+    ![⟨2^6-1,by decide⟩,⟨1,by decide⟩] := by decide
 
 example (sharedWeights : Fin 768 → Adapter.Mdoc.P) (shared : Fin 768 → Bool)
     (eta : Adapter.Mdoc.P) (alpha : Adapter.Mdoc.Alphas) (mu : Adapter.Mdoc.P)
@@ -36,6 +37,6 @@ example (sharedWeights : Fin 768 → Adapter.Mdoc.P) (shared : Fin 768 → Bool)
 #print axioms Adapter.Mdoc.sameDistribution
 #print axioms Adapter.Mdoc.quotients_runtime
 #print axioms Adapter.recovered_advice
-#print axioms Adapter.product_check_satisfies
+#print axioms Adapter.product_check_leaves
 #print axioms Adapter.Mdoc.recoveredInputs_satisfy
 end LfzkV2.Current.Tests.ZeroKnowledgeFrontendAdapter

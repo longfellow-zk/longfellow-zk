@@ -24,7 +24,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
@@ -51,17 +51,11 @@ def readBinaryView (point : Point) (past : Fin point.rank → C) :
   let currentBinary := binaryWithBits binary values.1
   let currentPrime := primeWithInputs prime values.2
   ApplicationViews.readBinaryView currentBinary currentPrime Generator laws.binaryCapacity
-    (RuntimeShape.binaryPlan currentBinary currentPrime Generator binaryTemplate)
+    (fun _ => binaryTemplate)
     cfg.binaryDecode cfg.binaryNonzero laws.binaryDecoder
-    (fun packet => by rw [RuntimeShape.binaryPlan_capacity]; exact binaryFits)
+    (fun _ => binaryFits)
     cfg.binaryField cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
     cfg.fallback point past
-
-def readBatch (point : Point) (past : Fin point.rank → C) :
-    Option (BatchPacket N (Fin shared ⊕ prime.Other) Pair C) := do
-  let values ← publics binary prime hashPublic decodePublic point
-  ApplicationViews.readBatchPacket (binaryWithBits binary values.1) (primeWithInputs prime values.2)
-    cfg.primeDecode cfg.primeNonzero laws.batchDecoder cfg.primeField cfg.fallback point past
 
 def readRescale (point : Point) (past : Fin point.rank → C) :
     Option (RescaleData N (Fin shared) prime.Other Pair) := do
@@ -96,13 +90,8 @@ theorem binary_card (point : Point) (H : Point → Digest × C) :
         (Fintype.card B-1) ≤ 2*Fintype.card C :=
   frontendBad_card_mul_le S _ point H
 
-/-- The remaining four predicates use the existing packet-local bounds.
+/-- The remaining three predicates use the existing packet-local bounds.
 Their packets carry only already-bound data and fixed-dimension samplers. -/
-theorem batch_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (batchBad S (readBatch binary prime P R cfg S laws hashPublic decodePublic) point H)).card *
-      Fintype.card N ≤ Fintype.card C :=
-  batchBad_card_mul_le S _ point H
-
 theorem rescale_card (point : Point) (H : Point → Digest × C) :
     (Finset.univ.filter (rescaleBad S (readRescale binary prime P R cfg hashPublic decodePublic)
       laws.rescaleDecoder point H)).card*(Fintype.card N-1) ≤ Fintype.card C :=

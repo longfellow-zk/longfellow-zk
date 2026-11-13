@@ -58,6 +58,8 @@ inductive Role where
   | sumcheck (side : Side) (stage round : ℕ)
   | terminal (side : Side) (stage : ℕ)
   | combine (side : Side) (stage : ℕ) (inputEntries : List Entry)
+  /-- Pure-foreign storage only (`zk/src/batching.rs`). The mdoc schedule has
+  mixed storage, whose layer rows go to Polygero unbatched. -/
   | rowBatching
   | rescaling
   | conversion
@@ -122,6 +124,7 @@ inductive Binding where
   | setup
   | fingerprints
   | frontend (side : Side)
+  /-- The split claim, reconstructed locally by both roles and never absorbed. -/
   | primeClaim
   | maskedOpening
   | adapterAdvice
@@ -159,9 +162,11 @@ def Geometry.cells (g : Geometry) : Side → ℕ
   | .binary => g.binaryCells
   | .prime => g.primeCells
 
+/-- Rows of each Polygero statement. The prime statement has its unbatched
+layer rows, the native split row and the two fingerprint rows. -/
 def Geometry.affineRows (g : Geometry) : Side → ℕ
   | .binary => g.binary.stages.length + (if g.packingDegree = 1 then 1 else 2) + 2
-  | .prime => 1 + 2
+  | .prime => g.prime.stages.length + 1 + 2
 
 /-- Every ordinary row reserves `openings` masking coordinates. The two
 fingerprint masks are witness cells; Polygero's three row masks are separate. -/
@@ -183,7 +188,7 @@ participant list, fingerprint vectors and backend samples are binary first. -/
 def Geometry.actions (g : Geometry) : List Action :=
   [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] ++
   (g.prime.roles .prime).map Action.query ++
-  [.query .rowBatching, .bind .primeClaim, .query .rescaling,
+  [.bind .primeClaim, .query .rescaling,
     .bind .maskedOpening, .query .conversion, .bind .adapterAdvice, .bind (.frontend .binary)] ++
   (g.binary.roles .binary).map Action.query ++ packingActions g.packingDegree ++
   [.query .batching, .query .opening, .finalSeal]
@@ -198,17 +203,17 @@ def Geometry.roles (g : Geometry) : List Role := g.actions.filterMap Action.quer
 participants' backend samples each belong to their respective single block. -/
 theorem Geometry.roles_eq (g : Geometry) :
     g.roles = [.fingerprint] ++ g.prime.roles .prime ++
-      [.rowBatching, .rescaling, .conversion] ++ g.binary.roles .binary ++
+      [.rescaling, .conversion] ++ g.binary.roles .binary ++
       (if g.packingDegree = 1 then [] else [.packing]) ++
       [.batching, .opening] := by
   by_cases h : g.packingDegree = 1 <;>
     simp [roles, actions, packingActions, h, Action.queryRole, List.filterMap_map]
 
-/-- Six non-frontend boundaries, plus optional packing. The final seal adds
+/-- Five non-frontend boundaries, plus optional packing. The final seal adds
 a strand-node hash and a PRF hash and is counted separately. -/
 theorem Geometry.roles_length (g : Geometry) :
     g.roles.length = (g.prime.roles .prime).length + (g.binary.roles .binary).length +
-      (if g.packingDegree = 1 then 0 else 1) + 6 := by
+      (if g.packingDegree = 1 then 0 else 1) + 5 := by
   rw [g.roles_eq]
   by_cases h : g.packingDegree = 1 <;> simp [h] <;> omega
 

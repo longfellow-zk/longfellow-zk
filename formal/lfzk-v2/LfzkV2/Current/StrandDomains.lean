@@ -57,13 +57,12 @@ theorem joint_context_merge (outside inside : Bytes → Digest) (binary prime : 
       outside (MdocIdentifiers.jointContextBytes binary prime) :=
   SHAOracle.merge_outside protocol outside inside _ (joint_context_outside binary prime)
 
-theorem adapter_merge {F : Type} [Field F] (outside inside : Bytes → Digest) {d q : ℕ}
-    (encode : F → Bytes) (shape : Adapter.Circuit.Shape d q) (inputs publicInputs : ℕ)
-    (sources : Fin d → ℕ) (pads : Fin 2 → Fin q → ℕ) (powers : Fin 2 → Fin d → Fˣ) (base : Fˣ)
-    (masked : Fin 2 → Fin q → Bool) (targets : Fin 2 → Fˣ) :
-    MetadataIdentifiers.adapterId (SHAOracle.merge protocol outside inside) encode shape inputs publicInputs
-      sources pads powers base masked targets =
-      MetadataIdentifiers.adapterId outside encode shape inputs publicInputs sources pads powers base masked targets :=
+theorem fragment_merge {F : Type} [Field F] (outside inside : Bytes → Digest) {leaves : ℕ}
+    (encode : F → Bytes) (shape : Adapter.ProductTree.Shape (Adapter.Circuit.half leaves))
+    (inputs publicInputs virtualStart : ℕ) :
+    MetadataIdentifiers.fragmentId (SHAOracle.merge protocol outside inside) encode shape inputs
+        publicInputs virtualStart =
+      MetadataIdentifiers.fragmentId outside encode shape inputs publicInputs virtualStart :=
   SHAOracle.merge_outside protocol outside inside _ (circuit_outside (F := F) _ _ _ _ _ _ _ _ _ _)
 
 section Transcript

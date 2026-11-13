@@ -6,7 +6,7 @@ import LfzkV2.Current.MdocRuntime
 
 /-! The complete public frontend simulator in runtime order. It samples
 fingerprint responses, every masked sumcheck message, the masked prime scalar,
-canonical quotient advice and the packing response from public spaces. All
+canonical masked quotients and the packing response from public spaces. All
 challenges come from the actual chained state; no witness is an input.
 
 `base` is instantiated by `CompleteWire.canonicalBase`, with the runtime's
@@ -37,15 +37,26 @@ structure Coins (binary : BinaryCircuit B) (prime : PrimePublic P 768) where
   prime : CircuitTape prime.circuit
   mu : P
   advice : MdocAdvice.Value
-  /-- The unused high nibble of the runtime's three-byte OTP draw. -/
-  otpUnused : Fin 16
-  binary : CircuitTape binary.description.template
+  /-- The six discarded high bits of each pad's two raw bytes. -/
+  otpUnused : AdapterBits.Unused
+  binary : CircuitTape binary.description.circuit
   packing : Packing.Tape (F := B) (0 : Fin 128)
+
+def primeConstraints (messages : Layered.Circuit.Messages (Fin prime.pads) prime.circuit) :
+    Linear.Constraints (Fin prime.pads) P :=
+  (Linear.buildConstraints (prime.circuit.proof messages 0)).getD ⟨[],zeroClaim⟩
 
 def primeRows (messages : Layered.Circuit.Messages (Fin prime.pads) prime.circuit) :
     List (LinearRow (Fin 768 ⊕ prime.Other) P) :=
-  let constraints := (Linear.buildConstraints (prime.circuit.proof messages 0)).getD ⟨[],zeroClaim⟩
-  CellLayout.Prime.rows constraints
+  CellLayout.Prime.rows (primeConstraints prime messages)
+    (fun i => prime.circuit.inputWeights messages 0 (prime.inputIndex (.inl i))) prime.publicInputs
+    (fun i => prime.circuit.inputWeights messages 0 (prime.inputIndex (.inr i)))
+
+/-- `split.rs::split_claim` of the same compiled constraints: the unbatched
+layer rows on native pads and the split input equation. -/
+def primeClaim (messages : Layered.Circuit.Messages (Fin prime.pads) prime.circuit) :
+    Current.Prime.Claim (Fin 768) prime.Other P :=
+  CellLayout.Prime.claim (primeConstraints prime messages)
     (fun i => prime.circuit.inputWeights messages 0 (prime.inputIndex (.inl i))) prime.publicInputs
     (fun i => prime.circuit.inputWeights messages 0 (prime.inputIndex (.inr i)))
 
@@ -58,7 +69,7 @@ structure Result (binary : BinaryCircuit B) (prime : PrimePublic P 768)
   mu : P
   alpha : Fin 2 → {x : P // x ≠ 0}
   advice : MdocAdvice.Value
-  binaryPayload : Layered.Replay.Payload binary.description.template
+  binaryPayload : Layered.Replay.Payload binary.description.circuit
   packing : Packing.Payload (ZMod 2) B (Fin 128)
   delta : Fin 128 → B
   state : State binary prime primePlan (Key := Key) (Base := Base) (C := C)
@@ -74,7 +85,7 @@ structure RawResult (binary : BinaryCircuit B) (prime : PrimePublic P 768)
   mu : P
   alpha : Fin 2 → {x : P // x ≠ 0}
   advice : MdocAdvice.Value
-  binaryPayload : Layered.Replay.Payload binary.description.template
+  binaryPayload : Layered.Replay.Payload binary.description.circuit
   packing : (Fin 128 → B) × B
   delta : Fin 128 → B
   state : State binary prime primePlan (Key := Key) (Base := Base) (C := C)
@@ -118,11 +129,8 @@ def primePrefix (state : State binary prime primePlan (Key := Key) (Base := Base
   let read := readSetup
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan prime.setup.plan payload state false
-  let rows := primeRows prime (messagesFromSetup prime.circuit read.1 payload)
-  let batched := CompleteTranscript.step base H read.2
-  let claim := Current.Prime.Claim.fromRow (Current.Prime.batchRows rows.get
-    (fun i => samples.prime batched.1 i.val))
-  let rescaled := CompleteTranscript.step base H batched.2
+  let claim := primeClaim prime (messagesFromSetup prime.circuit read.1 payload)
+  let rescaled := CompleteTranscript.step base H read.2
   ⟨claim,samples.primeNonzero rescaled.1,rescaled.2⟩
 
 /-- Conversion is completed before masked advice is available to the reader. -/
@@ -142,35 +150,23 @@ def targets (converted : ConversionPrefix binary prime primePlan Key Base C) (tr
 
 def generatorBase : Bˣ := MdocRuntime.generator binary.basis ^ (-(Current.Adapter.Mdoc.primeOrder : ℤ))
 
-def generatedCircuit (native : PrimePrefix binary prime primePlan Key Base C)
-    (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value) :=
-  binary.description.circuit (powers binary prime primePlan native converted) (generatorBase binary)
+/-- The per-proof virtual definitions of the fixed binary circuit. -/
+def entries (native : PrimePrefix binary prime primePlan Key Base C)
+    (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value) :
+    Fin (2*(768+256+10)) → VirtualInput (Fin binary.nPrivate) B :=
+  binary.description.entries (powers binary prime primePlan native converted) (generatorBase binary)
     (MdocAdvice.bits advice) (targets binary prime primePlan converted)
-
-def generatedSame (native : PrimePrefix binary prime primePlan Key Base C)
-    (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value) :
-    FrontendTopology.Same binary.description.template (generatedCircuit binary prime primePlan native converted advice) :=
-  binary.description.same_template _ _ _ _
-
-def generatedPlan (native : PrimePrefix binary prime primePlan Key Base C)
-    (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value) :
-    FrontendSchedule.Plan B (generatedCircuit binary prime primePlan native converted advice) :=
-  (generatedSame binary prime primePlan native converted advice).plan binary.plan
 
 def binaryStart (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value) :
     State binary prime primePlan (Key := Key) (Base := Base) (C := C) :=
   CompleteTranscript.bind converted.state fun writes => { writes with advice := some advice }
 
-def binaryReplay (native : PrimePrefix binary prime primePlan Key Base C)
-    (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value)
-    (payload : Layered.Replay.Payload binary.description.template) :
-    Layered.Circuit.Setup (Fin binary.description.pads)
-      (generatedCircuit binary prime primePlan native converted advice) ×
+def binaryReplay (converted : ConversionPrefix binary prime primePlan Key Base C) (advice : MdocAdvice.Value)
+    (payload : Layered.Replay.Payload binary.description.circuit) :
+    Layered.Circuit.Setup (Fin binary.description.pads) binary.description.circuit ×
         State binary prime primePlan (Key := Key) (Base := Base) (C := C) :=
   readSetup (CompleteTranscript.reader .binary (Equiv.refl B) samples.binary samples.binaryNonzero base H)
-    (generatedPlan binary prime primePlan native converted advice)
-    (binary.description.setup _ _ _ _).plan
-    (CompleteShape.payloadEquiv (generatedSame binary prime primePlan native converted advice) payload)
+    binary.plan binary.description.padPlan payload
     (binaryStart binary prime primePlan converted advice) false
 
 def simulate
@@ -179,8 +175,8 @@ def simulate
   let primePayload := simulateCircuit prime.circuit coins.prime
   let native := primePrefix binary prime primePlan samples base H selected primePayload
   let converted := conversionPrefix binary prime primePlan samples base H native coins.mu
-  let binaryRead := binaryReplay binary prime primePlan samples base H native converted coins.advice
-    (simulateCircuit binary.description.template coins.binary)
+  let binaryRead := binaryReplay binary prime primePlan samples base H converted coins.advice
+    (simulateCircuit binary.description.circuit coins.binary)
   let packing := Packing.simulate binary.basis 0 coins.packing
   let packingState := CompleteTranscript.bind binaryRead.2 fun writes =>
     { writes with packingU := some (fun i => (packing.1 i).val) }
@@ -193,7 +189,7 @@ def simulate
     mu := coins.mu
     alpha := converted.alpha
     advice := coins.advice
-    binaryPayload := simulateCircuit binary.description.template coins.binary
+    binaryPayload := simulateCircuit binary.description.circuit coins.binary
     packing := packing
     delta := fun i => samples.binary packed.1 i.val
     state := finished }

@@ -35,6 +35,30 @@ def ChallengeIndependent (metadata : Metadata (Advice := Advice) (C := C) shape 
   ∀ request index writes first second,
     metadata request index writes first = metadata request index writes second
 
+/-- The global absorption invariant of the transcript model. An ordinary
+block is the fixed role codec applied to `WireBlocks.fromRequest`, which
+writes only three kinds of value:
+
+- the statement: the request's public inputs;
+- setup and layout constants fixed by the trusted circuits, supplied by
+  `metadata`;
+- prover messages, copied verbatim from the submitted body.
+
+The codec itself adds only fixed domain labels and framing. `SetupOnly`
+requires the metadata to depend on the block index alone. It may read neither
+the prover messages bound so far nor any answer, so no per-proof derived
+quantity can be absorbed: nothing computed from prover messages or
+challenges, such as claim weights, virtual leaf definitions or quotients.
+Both roles recompute those. The initial block is fixed separately by
+`FingerprintPrefix`, whose setup bytes are trusted-circuit constants. -/
+def SetupOnly (metadata : Metadata (Advice := Advice) (C := C) shape publicCount) : Prop :=
+  ∀ request request' index writes writes' first second,
+    metadata request index writes first = metadata request' index writes' second
+
+theorem SetupOnly.challengeIndependent {metadata : Metadata (Advice := Advice) (C := C) shape publicCount}
+    (setupOnly : SetupOnly shape publicCount metadata) : ChallengeIndependent shape publicCount metadata :=
+  fun request index writes first second => setupOnly request request index writes writes first second
+
 def writes (body : Current.Body g fields Advice (OpeningBody.Authentication g)) (i : Fin g.roles.length) :
     Fin (i.val+1) → Fresh (g := g) (fields := fields) (Advice := Advice) :=
   fun j => ProtocolWrites.fresh body ⟨j.val,by have := i.isLt; have := j.isLt; omega⟩
@@ -56,6 +80,20 @@ theorem ordinaryData_challengeIndependent
       ordinaryData shape publicCount binaryRequest metadata request body i second := by
   unfold ordinaryData
   rw [independent request i (writes body i) first second]
+
+/-- Under `SetupOnly`, each absorbed ordinary block is the codec of one fixed
+setup packet for its index, the request statement and the body's prover
+messages. No other value reaches the transcript. -/
+theorem ordinaryData_of_setupOnly
+    (setupOnly : SetupOnly shape publicCount metadata)
+    (request : Request shape publicCount) (body : Current.Body g fields Advice (OpeningBody.Authentication g))
+    (i : Fin g.roles.length) (past : Fin i.val → C) :
+    ∃ fixed : WireBlocks.Metadata shape i,
+      (∀ request' writes' past', metadata request' i writes' past' = fixed) ∧
+      ordinaryData shape publicCount binaryRequest metadata request body i past =
+        WireBlocks.fromRequest shape (binaryRequest request.publicBits) request.primeInputs i body fixed :=
+  ⟨metadata request i (writes body i) past,
+    fun request' writes' past' => setupOnly request' request i writes' (writes body i) past' past,rfl⟩
 
 /-- Index zero uses the complete initial prefix. Every later block uses
 the actual role schema, with its byte base and cache constructed together. -/

@@ -62,36 +62,6 @@ def circuit : {out input : ℕ} → {body : Layered.Circuit F out input} →
   | _,_,_,.layer _ tail,payload,_ => none :: layer payload.1 ++ circuit tail payload.2 true
   | _,_,_,.entryLayer _ _ _ tail,payload,_ => none :: layer payload.1 ++ circuit tail payload.2 true
 
-omit [Field F] in
-theorem circuit_same {out input : ℕ} {first second : Layered.Circuit F out input}
-    (plan : FrontendSchedule.Plan F first) (same : FrontendTopology.Same first second)
-    (payload : Layered.Replay.Payload first) (continuing : Bool) :
-    circuit (same.plan plan) (CompleteShape.payloadEquiv same payload) continuing =
-      circuit plan payload continuing := by
-  induction plan generalizing continuing with
-  | input => cases same; rfl
-  | inputEntry =>
-      cases same with
-      | entry tail => cases tail; rfl
-  | layer _ _ ih =>
-      cases same with
-      | layer _ next =>
-          simp only [FrontendTopology.Same.plan,CompleteShape.payloadEquiv,circuit,
-            Equiv.prodCongr_apply]
-          change none :: layer payload.1 ++
-            circuit (next.plan _) (CompleteShape.payloadEquiv next payload.2) true = _
-          rw [ih next]
-  | entryLayer _ _ _ _ ih =>
-      cases same with
-      | entry next =>
-          cases next with
-          | layer _ rest =>
-              simp only [FrontendTopology.Same.plan,CompleteShape.payloadEquiv,circuit,
-                Equiv.prodCongr_apply]
-              change none :: layer payload.1 ++
-                circuit (rest.plan _) (CompleteShape.payloadEquiv rest payload.2) true = _
-              rw [ih rest]
-
 variable (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
 
 theorem rounds_state {n : ℕ} (state : State) (messages : Fin n → RoundPoly F) :

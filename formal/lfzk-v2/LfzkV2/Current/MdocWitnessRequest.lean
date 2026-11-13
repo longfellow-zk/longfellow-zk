@@ -1,7 +1,7 @@
 import LfzkV2.Current.CanonicalRuntime
-import LfzkV2.Current.MdocWitnessSeparation
+import LfzkV2.Current.MdocWitness
 
-/-! Request readback followed by static hash separation. This interface is
+/-! Request readback followed by the structural hash separation. This interface is
 independent of oracle probability and of the concrete runtime configuration. -/
 noncomputable section
 set_option maxRecDepth 4096
@@ -40,7 +40,7 @@ variable (draw : C → RuntimeVerifier.RawSamples binary.description prime.descr
 variable [Inhabited (RuntimeVerifier.Family binary.description prime.description P R
   (CanonicalRuntime.wirePublic binary.description prime.description P R repr shape setup cfg)).Leaf]
 
-theorem valid_at_request (separated : ReadDisjoint binary)
+theorem valid_at_request
     (output : CanonicalRuntime.Output (Advice := Advice) bp shape)
     (H : CanonicalRuntime.Point bp repr shape setup → Digest × C)
     (decoded : RuntimeVerifier.Decoded bp pp P R W)
@@ -53,8 +53,6 @@ theorem valid_at_request (separated : ReadDisjoint binary)
   obtain ⟨nd,bd,_,_,hash,signature⟩ := CanonicalRuntime.decoded_true_at_request
     bp pp P R repr shape setup cfg binaryCount primeCount metadata draw output H decoded found w truth
   refine ⟨?_,signature⟩
-  exact hashValid_of_satisfies {binary with publicBits := output.request.publicBits}
-    separated w.1 bd.powers ((cfg.polynomialX^Adapter.Mdoc.generatorExponent)^(-(Adapter.Mdoc.primeOrder : ℤ)))
-    bd.masked bd.targets hash
+  exact hashValid_of_satisfies {binary with publicBits := output.request.publicBits} w.1 bd.entries hash
 
 end LfzkV2.Current.MdocWitness

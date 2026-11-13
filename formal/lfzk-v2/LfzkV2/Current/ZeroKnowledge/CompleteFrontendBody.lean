@@ -49,7 +49,7 @@ theorem prime_decode (commitment : Digest)
 omit [Fintype B] [DecidableEq B] in
 theorem binary_decode (commitment : Digest)
     (result : CompleteSimulation.Result binary prime primePlan Key Base C) :
-    FrontendBody.decode id binary.description.template binary.plan.frontend
+    FrontendBody.decode id binary.description.circuit binary.plan.frontend
       (body binary prime primePlan commitment result).binary = some result.binaryPayload :=
   CompleteShape.decode_bodyEquiv binary.plan result.binaryPayload
 

@@ -315,7 +315,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
 variable (primeCapacityFits : primeShape.capacity ≤ primeCapacity)
-variable (binaryShape : FrontendSchedule.Plan B binary.template) (binaryGeometry : binaryShape.frontend = g.binary)
+variable (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
 variable (binaryCapacityFits : binaryShape.capacity ≤ binaryCapacity)
 local notation "source" => frozenSource c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout
 local notation "samplers" => frozenLaws c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout

@@ -70,10 +70,9 @@ theorem role_valid (g : Geometry) (i : Fin g.roles.length) : ValidRole g (g.role
   change ValidRole g role
   rw [g.roles_eq] at h
   simp only [List.mem_append,List.mem_cons,List.not_mem_nil,or_false,or_assoc] at h
-  rcases h with hfp | hp | hrow | hres | hconv | hb | hpack | hbatch | hopen
+  rcases h with hfp | hp | hres | hconv | hb | hpack | hbatch | hopen
   · rw [hfp]; trivial
   · exact prime_role_valid g _ hp
-  · rw [hrow]; trivial
   · rw [hres]; trivial
   · rw [hconv]; trivial
   · exact binary_role_valid g _ hb
@@ -94,7 +93,8 @@ responses and masked advice are taken from the body by `startFromBody`. -/
 def StartMetadata : Start → Type
   | .none => Unit
   | .prime => CircuitStatement fields .prime shape.primePublic × CircuitSchedule 1
-  | .binary => CircuitStatement fields .binary shape.binaryPublic × DerivedSchedule 2
+  | .binary => (CircuitStatement fields .binary shape.binaryPublic ×
+      CircuitStatement fields .binary shape.binaryPublic) × CircuitSchedule 2
 
 def startFromBody (body : Body g fields Advice Auth) :
     (start : Start) → StartMetadata shape start → StartData (Advice := Advice) shape start

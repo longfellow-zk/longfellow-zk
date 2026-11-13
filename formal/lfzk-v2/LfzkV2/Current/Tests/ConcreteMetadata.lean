@@ -9,55 +9,43 @@ open SumcheckV2 Layered MetadataIdentifiers Adapter.Circuit
 set_option maxRecDepth 4096
 set_option maxHeartbeats 1000000
 
--- Exact current adapter dimensions: ten product reductions, plus its final
--- zero-output layer and its mux leaves. This is independent of challenges.
-example : (reductions (F := ZMod 2) (plan 1024 10 (by decide) (by decide))).length = 10 := by
-  repeat' (rw [plan]; norm_num only [half, Nat.reduceEqDiff, Nat.reduceAdd, Nat.reduceDiv, and_false, false_and, and_true, true_and, dite_false, dite_true]; simp only [reductions,List.length_append,List.length_singleton])
-  change (reductions (F := ZMod 2) (plan 1 1 (by decide) (by decide))).length+10 = 10
-  rw [plan]
+-- Exact current fragment dimensions for 1034 leaves per tree: the first
+-- reduction reads the virtual leaves, nine more reductions follow, then the
+-- final zero-output layer. This is independent of challenges.
+example : (reductions (F := ZMod 2) (Adapter.ProductTree.plan (half 1034) (by decide))).length = 9 := by
+  repeat' (rw [Adapter.ProductTree.plan]; norm_num only [half, Nat.reduceEqDiff, Nat.reduceAdd, Nat.reduceDiv, dite_false, dite_true]; simp only [reductions,List.length_append,List.length_singleton])
   rfl
 
 -- Odd carries retain their own stream position; the pair tree is not padded
--- with fictitious multiplications. The second tree follows the first.
-example : (pairLayer (F := ZMod 2) 3 1).terms =
-    [.quadratic 0 0 1 1, .linear 1 2 1, .linear 2 3 1,
-     .quadratic 3 4 5 1, .linear 4 6 1, .linear 5 7 1] := by
-  have rows : pairRows (F := ZMod 2) 3 1 =
-      ![[.quadratic () (0,Sum.inl 0) (0,Sum.inl 1) 1],
-        [.linear () (0,Sum.inl 2) 1],[.linear () (0,Sum.inr 0) 1],
-        [.quadratic () (1,Sum.inl 0) (1,Sum.inl 1) 1],
-        [.linear () (1,Sum.inl 2) 1],[.linear () (1,Sum.inr 0) 1]] := by
+-- with fictitious multiplications. The second tree follows the first, and the
+-- first reduction reads absolute input addresses from the virtual start.
+example : (pairLayer (F := ZMod 2) 100 3 106).terms =
+    [.quadratic 0 100 101 1, .linear 1 102 1, .quadratic 2 103 104 1, .linear 3 105 1] := by
+  have rows : Adapter.ProductTree.pairRows (F := ZMod 2) 3 =
+      ![[.quadratic () (0,0) (0,1) 1],[.linear () (0,2) 1],
+        [.quadratic () (1,0) (1,1) 1],[.linear () (1,2) 1]] := by
     funext i
-    change Fin 6 at i
+    change Fin 4 at i
     fin_cases i
-    · change pairRow (fun j : Fin 3 => ((0 : Fin 2),Sum.inl j)) ⟨0,by decide⟩ = _
+    · change pairRow (fun j : Fin 3 => ((0 : Fin 2),j)) ⟨0,by decide⟩ = _
       simp [pairRow]
-    · change pairRow (fun j : Fin 3 => ((0 : Fin 2),Sum.inl j)) ⟨1,by decide⟩ = _
+    · change pairRow (fun j : Fin 3 => ((0 : Fin 2),j)) ⟨1,by decide⟩ = _
       simp [pairRow]
-    · change pairRow (fun j : Fin 1 => ((0 : Fin 2),Sum.inr j)) ⟨0,by decide⟩ = _
+    · change pairRow (fun j : Fin 3 => ((1 : Fin 2),j)) ⟨0,by decide⟩ = _
       simp [pairRow]
-    · change pairRow (fun j : Fin 3 => ((1 : Fin 2),Sum.inl j)) ⟨0,by decide⟩ = _
+    · change pairRow (fun j : Fin 3 => ((1 : Fin 2),j)) ⟨1,by decide⟩ = _
       simp [pairRow]
-    · change pairRow (fun j : Fin 3 => ((1 : Fin 2),Sum.inl j)) ⟨1,by decide⟩ = _
-      simp [pairRow]
-    · change pairRow (fun j : Fin 1 => ((1 : Fin 2),Sum.inr j)) ⟨0,by decide⟩ = _
-      simp [pairRow]
-  change ((List.ofFn fun i : Fin 6 => i).flatMap fun i => (pairRows (F := ZMod 2) 3 1 i).map
-    (Term.map (fun _ => i) id)).map (Term.map Fin.val (fun wire => (wireIndex 3 1 wire).val)) = _
+  change ((List.ofFn fun i : Fin 4 => i).flatMap fun i => (Adapter.ProductTree.pairRows (F := ZMod 2) 3 i).map
+    (Term.map (fun _ => i) id)).map (Term.map Fin.val (fun wire => 100+(Adapter.ProductTree.wireIndex 3 wire).val)) = _
   rw [rows]
-  simp only [wireIndex,List.ofFn_succ,finProdFinEquiv,finSumFinEquiv]
+  simp only [Adapter.ProductTree.wireIndex,List.ofFn_succ,finProdFinEquiv]
   rfl
 
--- LFC3 identity retains duplicate linear records even when their sum is
--- zero. The masked quotient bit changes only its constant record.
-example : (stream (leafRows (F := ZMod 2) (fun _ : Fin 1 => 10)
-      (fun t (_ : Fin 1) => 11+t.val) (fun _ _ => 1) 1 (fun t _ => t = 1))).map
-      (Term.map Fin.val id) =
-    [.linear 0 10 1, .linear 0 10 1, .constant 0 1,
-     .linear 1 11 1, .linear 1 11 1, .constant 1 1,
-     .linear 2 10 1, .linear 2 10 1, .constant 2 1,
-     .linear 3 12 1, .linear 3 12 1, .constant 3 1] := by
-  simp [stream,leafRows,wireIndex,Term.map,List.ofFn_succ,finProdFinEquiv,finSumFinEquiv,Equiv.trans,Equiv.prodCongr,Fin.divNat,Fin.modNat,Fin.addCases,quotientPower,Equiv.coe_fn_mk]
+-- The final layer: one product and the constant one per tree.
+example : (finalLayer (F := ZMod 2)).terms =
+    [.quadratic 0 0 1 1, .constant 0 1, .quadratic 1 2 3 1, .constant 1 1] := by
+  simp [finalLayer,stream,Adapter.ProductTree.finalRows,Adapter.ProductTree.wireIndex,Term.map,
+    List.ofFn_succ,finProdFinEquiv]
 
 -- All identity integers use 64-bit words, independently of the stored
 -- 32-bit representation. Segment lengths, indices and tokens follow records.
@@ -94,20 +82,15 @@ example : (SegmentedCircuit.expand (⟨
          [SegmentedCircuit.word 1,SegmentedCircuit.word 2],
          [SegmentedCircuit.word 3,SegmentedCircuit.word 4]] := by decide
 
--- The template appends duplicate power/base values rather than interning them.
-example : leafConstants (⟨13,
-    [.linear 0 10 (1 : ZMod 2),.linear 0 10 1,.constant 0 1,
-     .linear 1 11 1,.linear 1 11 1,.constant 1 1]⟩ : Layer (ZMod 2)) =
-    [1,1,1,1] := by decide
-
--- A scalar row's target is the negative constant; duplicate coordinates add.
-example : (Prime.Claim.fromRow
+-- The split target is the input row's constant and its weights negate the
+-- row coefficients (`split.rs::split_claim`); duplicate coordinates add.
+example : (Prime.Claim.split []
     (⟨3,[(Sum.inl (0 : Fin 1),(4 : ZMod 7)),(Sum.inl 0,5),
-      (Sum.inr (0 : Fin 1),6)]⟩ : LinearRow (Fin 1 ⊕ Fin 1) (ZMod 7))).target = 4 := by decide
-example : (Prime.Claim.fromRow
+      (Sum.inr (0 : Fin 1),6)]⟩ : LinearRow (Fin 1 ⊕ Fin 1) (ZMod 7))).target = 3 := by decide
+example : (Prime.Claim.split []
     (⟨3,[(Sum.inl (0 : Fin 1),(4 : ZMod 7)),(Sum.inl 0,5),
-      (Sum.inr (0 : Fin 1),6)]⟩ : LinearRow (Fin 1 ⊕ Fin 1) (ZMod 7))).sharedWeights 0 = 2 := by
-  norm_num [Prime.Claim.fromRow,Prime.coefficients,Sum.inr_ne_inl]
+      (Sum.inr (0 : Fin 1),6)]⟩ : LinearRow (Fin 1 ⊕ Fin 1) (ZMod 7))).sharedWeights 0 = 5 := by
+  norm_num [Prime.Claim.split,Prime.coefficients,Sum.inr_ne_inl]
   decide
 
 example {g : Geometry} {fields : Fields} {Advice C : Type} {index : ℕ}

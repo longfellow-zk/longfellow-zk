@@ -206,7 +206,7 @@ theorem decoded_true_at_request (output : Output binary shape)
       ApplicationPrefix.readBinary requestedBinary nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent)
         cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
         cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point (point.priorAnswers H) = some bd ∧
-      bd.setup.circuit.Satisfies (requestedBinary.inputs
+      bd.setup.circuit.Satisfies (requestedBinary.inputs bd.entries
         (ApplicationViews.binaryValues requestedBinary requestedPrime w)) ∧
       prime.circuit.Satisfies (ApplicationViews.primeInputs requestedBinary requestedPrime w) := by
   let point := batchingPoint binary prime P R repr shape setup cfg binaryCount metadata output H

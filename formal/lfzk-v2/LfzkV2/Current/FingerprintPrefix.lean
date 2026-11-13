@@ -17,13 +17,20 @@ bind-only metadata; no additional identifier is inserted in the transcript. -/
 structure Setup where
   combinedHash : Digest
   hashCircuit : Digest
-  hashTemplate : Digest
+  /-- Identifier of the archived adapter fragment, the binary participant's
+  one additional component. -/
+  fragment : Digest
   primeCircuit : Digest
   packingDescriptor : BoundedBytes CanonicalPrefix.maxLength
   privateInputs : Word
   padCells : Word
+  /-- Per-layer log widths of the binary joint circuit. -/
   layerWidths : List Word
-  shared : Word
+  /-- Per-layer log widths of the signature circuit. -/
+  primeLayerWidths : List Word
+  /-- The signature participant's storage layout as u64 words: the run
+  count, each run's tagged words, then the start and width of R's bits. -/
+  storage : List Word
   jointContext : Digest
   binaryField : BoundedBytes CanonicalPrefix.maxLength
   primeField : BoundedBytes CanonicalPrefix.maxLength
@@ -73,14 +80,25 @@ canonical byte vector of public presentation bits. -/
 def beforePublic (setup : Setup) : Bytes :=
   frame (utf8 "mdoc/adapter/statement/v1") ++ digestFrame setup.combinedHash
 
-/-- Packing/layout binding, binary template, prime shared-prefix binding,
-then the shared Polygero root envelope, in the actual runtime order. -/
+/-- The common composed-circuit layout frame of every circuit participant:
+its additional component identifiers, then its per-layer log widths, each
+count and value its own eight-byte write. -/
+def commitmentLayout (ids : List Digest) (widths : List Word) : Bytes :=
+  frame (utf8 "layered-sumcheck/commitment-layout/v1") ++ constantWord ids.length ++
+    ids.flatMap digestFrame ++ constantWord widths.length ++ widths.flatMap wordFrame
+
+/-- Layout bindings before the shared root, in runtime order. The binary
+participant binds its packing layout and its composition with the archived
+adapter fragment; the signature participant (degree-one packing) binds its
+composition layout and then its storage layout. All values are setup
+constants fixed by the trusted circuits. -/
 def beforeRoot (setup : Setup) : Bytes :=
   frame (utf8 "longfellow/v2/packing-commitment/v1") ++ digestFrame setup.hashCircuit ++
   frame setup.packingDescriptor.bytes ++ wordFrame setup.privateInputs ++ wordFrame setup.padCells ++
-  frame (utf8 "mdoc/adapter/shared-binary/v1") ++ digestFrame setup.hashTemplate ++
-  setup.layerWidths.flatMap wordFrame ++
-  frame (utf8 "native-shared-prefix/joint/v1") ++ digestFrame setup.primeCircuit ++ wordFrame setup.shared ++
+  commitmentLayout [setup.fragment] setup.layerWidths ++
+  commitmentLayout [] setup.primeLayerWidths ++
+  frame (utf8 "foreign-storage/mixed-layout/v1") ++ digestFrame setup.primeCircuit ++
+  setup.storage.flatMap wordFrame ++
   frame (utf8 "polygero/joint/root/v1") ++ digestFrame setup.jointContext
 
 def beforeRepeatedRoot (setup : Setup) : Bytes :=

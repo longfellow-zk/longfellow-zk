@@ -47,7 +47,7 @@ def samples : ConcreteMetadata.Samples B C where
 def base (request : Request) (root : Digest) :
     CompleteSimulation.BaseWriter binary prime primePlan
       (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic) (C := C) :=
-  CompleteWire.canonicalBase shape (⟨0,by decide⟩ : MdocAdvice.Value) repr setup
+  CompleteWire.canonicalBase shape (0 : MdocAdvice.Value) repr setup
     binary.description.nPublic
     (CanonicalRuntime.binaryRequest binary.description prime
       (ConcreteSetup.backend binaryNodes binary.description.cells)

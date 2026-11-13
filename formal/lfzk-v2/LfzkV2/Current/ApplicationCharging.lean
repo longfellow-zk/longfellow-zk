@@ -67,11 +67,11 @@ def roundBudget (B : Type) [Fintype B] (p M K LB LN : ℕ) : Role → ℚ
       .terminal .binary .. | .combine .binary .. => 2/((Fintype.card B-1 : ℕ) : ℚ)
   | .inputAssertions .prime .. | .assertions .prime .. | .sumcheck .prime .. |
       .terminal .prime .. | .combine .prime .. => 2/((p-1 : ℕ) : ℚ)
-  | .rowBatching => 1/(p : ℚ)
   | .rescaling => 1/((p-1 : ℕ) : ℚ)
   | .conversion => ((2*(K*p/M)+1 : ℕ) : ℚ)^2/((p-1 : ℕ) : ℚ)^2
   | .packing => 1/(Fintype.card B : ℚ)
-  | .batching | .opening => 0
+  -- Row batching is pure-foreign storage only and absent from the mdoc schedule.
+  | .rowBatching | .batching | .opening => 0
 
 variable {p M K LB LN : ℕ}
 

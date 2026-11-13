@@ -41,6 +41,7 @@ abbrev Samples (g : Geometry) (F : Fields) [∀ side, Zero (F side)] : Role → 
   | .sumcheck side .. => F side
   | .terminal side .. => {x : F side // x ≠ 0}
   | .combine side _ entries => F side × (Fin ((entries.map (·.outputs)).sum) → F side)
+  -- Pure-foreign storage only; absent from the mdoc schedule.
   | .rowBatching => Fin (g.prime.stages.length + 1) → F .prime
   | .rescaling => {x : F .prime // x ≠ 0}
   | .conversion => Fin 2 → {x : F .prime // x ≠ 0}

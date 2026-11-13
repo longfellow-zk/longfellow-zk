@@ -2,9 +2,11 @@ import LfzkV2.Current.ZeroKnowledge.FrontendParser
 import LfzkV2.Current.RuntimeAdaptive
 
 /-! Canonical typed frontend bodies parse without an application-system
-certificate. Public topology fixes both message windows, including every
-challenge-generated adapter circuit. Trace and primitive-generator checks
-remain the actual checks performed by the application decoder. -/
+certificate. Public topology fixes both message windows. The adapter is a
+fixed product-tree fragment whose leaves are per-proof virtual inputs, so
+the binary window does not depend on any challenge. Trace and
+primitive-generator checks remain the actual checks performed by the
+application decoder. -/
 noncomputable section
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
@@ -34,12 +36,11 @@ local notation "past" => Input.priorAnswers
 
 omit [DecidableEq B] in
 theorem positions :
-    ApplicationPrefix.rowBatchingIndex (G) < (G).batchingIndex.val ∧
-      ApplicationPrefix.rescalingIndex (G) < (G).batchingIndex.val ∧
+    ApplicationPrefix.rescalingIndex (G) < (G).batchingIndex.val ∧
       ApplicationPrefix.conversionIndex (G) < (G).batchingIndex.val ∧
       ApplicationPrefix.packingIndex (G) < (G).batchingIndex.val := by
-  simp only [ApplicationPrefix.rowBatchingIndex,ApplicationPrefix.rescalingIndex,
-    ApplicationPrefix.conversionIndex,ApplicationPrefix.packingIndex,Geometry.primeStart,
+  simp only [ApplicationPrefix.rescalingIndex,ApplicationPrefix.conversionIndex,
+    ApplicationPrefix.packingIndex,Geometry.primeStart,
     Geometry.binaryStart,Geometry.batchingIndex_val,Geometry.backendPrefix,
     MdocRuntime.geometry,ConcreteSetup.geometry,BinaryCircuit.description,
     List.length_append,List.length_cons,List.length_nil,show (128 : ℕ) ≠ 1 by decide,if_false]
@@ -56,20 +57,18 @@ theorem binary_window {out input : ℕ} (circuit : Layered.Circuit B out input)
     (plan : FrontendSchedule.Plan B circuit) (same : (G).binary = plan.frontend) :
     (G).binaryStart+FrontendReplay.slots circuit ≤ (G).batchingIndex.val := by
   rw [plan.slots_eq_roles_length .binary,← same]
-  exact (positions binary prime primePlan).2.2.2.le
+  exact (positions binary prime primePlan).2.2.le
 
 omit [DecidableEq B] in
 theorem prime_success : ∃ data,
     ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point past = some data := by
   have messages := Parser.messages repr shape setup publicCount binaryRequest metadata request initial proof H
     .prime primePlan rfl (G).batchingIndex.val (G).batchingIndex.isLt.le (prime_window binary prime primePlan)
-  have batch := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.rowBatchingIndex (G)) (positions binary prime primePlan).1
   have rank := ((E).chain initial).point_rank proof H (G).batchingIndex.isLt.le
   change Input.rank point = (G).batchingIndex.val at rank
   dsimp only [Parser.start] at messages
   unfold ApplicationPrefix.readPrime
-  erw [if_pos (by erw [rank]; exact prime_window binary prime primePlan),messages,batch]
+  erw [if_pos (by erw [rank]; exact prime_window binary prime primePlan),messages]
   exact ⟨_,rfl⟩
 
 omit [DecidableEq B] in
@@ -87,29 +86,24 @@ theorem binary_success (native : PrimeData prime C) (generator : Bˣ) : ∃ data
   let conversion := (H (((E).chain initial).point proof H (ApplicationPrefix.conversionIndex (G)))).2
   let eta := (samples.primeNonzero scale).val
   let alpha := samples.conversion conversion
-  let bodyMu : P := proof.body.mu
-  let powers := fun (tree : Fin 2) (i : Fin 1024) => generator^((alpha tree).val*(Handoff.weights (maskBits := 256) native.claim.sharedWeights eta i)).val
-  let targets := fun tree => generator^((alpha tree).val*bodyMu).val
-  let same := binary.description.same_template powers (generator^(-(Current.Adapter.Mdoc.primeOrder : ℤ)))
-    (MdocAdvice.bits proof.body.advice) targets
-  let plan := same.plan binary.plan
-  have shapeEq : (G).binary = plan.frontend := (same.frontend binary.plan).symm
+  let plan := binary.plan
+  have shapeEq : (G).binary = plan.frontend := rfl
   have window := binary_window binary prime primePlan _ plan shapeEq
   have messages := Parser.messages repr shape setup publicCount binaryRequest metadata request initial proof H
     .binary plan shapeEq (G).batchingIndex.val (G).batchingIndex.isLt.le window
   have rescale := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.rescalingIndex (G)) (positions binary prime primePlan).2.1
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.rescalingIndex (G)) (positions binary prime primePlan).1
   have convert := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.conversionIndex (G)) (positions binary prime primePlan).2.2.1
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.conversionIndex (G)) (positions binary prime primePlan).2.1
   have packed := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.packingIndex (G)) (positions binary prime primePlan).2.2.2
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.packingIndex (G)) (positions binary prime primePlan).2.2
   have mu := Parser.read_mu repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (positions binary prime primePlan).2.2.1.le
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (positions binary prime primePlan).2.1.le
   have advice := Parser.read_advice repr shape setup publicCount binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (by
       exact le_trans (Nat.le_add_right _ _) window)
   have U := Parser.read_packingU repr shape setup publicCount binaryRequest metadata request initial proof H
-    (G).batchingIndex.val (G).batchingIndex.isLt.le (by change (128 : ℕ) ≠ 1; decide) (positions binary prime primePlan).2.2.2.le
+    (G).batchingIndex.val (G).batchingIndex.isLt.le (by change (128 : ℕ) ≠ 1; decide) (positions binary prime primePlan).2.2.le
   have A := Parser.read_packingA repr shape setup publicCount binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le le_rfl
   rw [packing_pair binary prime primePlan proof] at U A

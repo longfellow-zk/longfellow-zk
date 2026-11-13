@@ -26,7 +26,7 @@ theorem prime_tail
       (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
         primePlan prime.setup.plan payload state false).2
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state := by
-  exact (step_extends base H samples.fallback _).trans (step_extends base H samples.fallback _)
+  exact step_extends base H samples.fallback _
 
 omit [Fintype B] [DecidableEq B] in
 theorem conversion
@@ -35,13 +35,12 @@ theorem conversion
       (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).state := by
   exact (bind_extends samples.fallback native.state _).trans (step_extends base H samples.fallback _)
 
-omit [DecidableEq B] in
+omit [Fintype B] [DecidableEq B] in
 theorem binary_read
-    (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
     (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
-    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.template) :
+    (advice : MdocAdvice.Value) (payload : Layered.Replay.Payload binary.description.circuit) :
     Extends samples.fallback converted.state
-      (CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted advice payload).2 := by
+      (CompleteSimulation.binaryReplay binary prime primePlan samples base H converted advice payload).2 := by
   erw [SimulationWrites.binary_state]
   exact (bind_extends samples.fallback converted.state _).trans (execute_extends base H .binary (Equiv.refl B) samples.fallback _ _)
 
@@ -51,8 +50,8 @@ theorem binary_future (context : Key) (coins : CompleteSimulation.Coins binary p
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H selected
       (simulateCircuit prime.circuit coins.prime)
     let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native coins.mu
-    let binaryRead := CompleteSimulation.binaryReplay binary prime primePlan samples base H native converted coins.advice
-      (simulateCircuit binary.description.template coins.binary)
+    let binaryRead := CompleteSimulation.binaryReplay binary prime primePlan samples base H converted coins.advice
+      (simulateCircuit binary.description.circuit coins.binary)
     Extends samples.fallback binaryRead.2
       (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state := by
   exact (bind_extends samples.fallback _ _).trans
@@ -66,7 +65,7 @@ theorem converted_future (context : Key) (coins : CompleteSimulation.Coins binar
     let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native coins.mu
     Extends samples.fallback converted.state
       (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state := by
-  exact (binary_read binary prime primePlan samples base H _ _ _ _).trans
+  exact (binary_read binary prime primePlan samples base H _ _ _).trans
     (binary_future binary prime primePlan samples base H context coins)
 
 omit [DecidableEq B] in

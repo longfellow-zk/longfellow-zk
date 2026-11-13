@@ -144,7 +144,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
 variable (primeFits : primeShape.capacity ≤ laws.primeCapacity)
-variable (binaryShape : FrontendSchedule.Plan B binary.template) (binaryGeometry : binaryShape.frontend = g.binary)
+variable (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
 variable (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
 variable (coins : ∀ a : IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity,
   S.coins a = a .fingerprints)

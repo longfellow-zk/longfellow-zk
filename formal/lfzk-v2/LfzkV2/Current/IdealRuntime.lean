@@ -113,16 +113,6 @@ def samplerLaws
     (by have := binary.degree_gt; omega)
   primeDecoder := IdealSamples.primeFrontend B N binary.Original prime.Original
     (RawBinary P countBinary) (RawPrime R countPrime) (Fin t ↪ Fin n) binaryCapacity primeCapacity (by omega)
-  batchDecoder := IdealSamples.vectorBlock
-    (component binary prime P R countBinary countPrime binaryCapacity primeCapacity .prime)
-    0 (prime.circuit.layers+1) (by omega)
-  batch_agrees answer i := by
-    change _ = IdealSamples.vectorRead
-      (component binary prime P R countBinary countPrime binaryCapacity primeCapacity .prime) answer i.val
-    simpa only [Nat.zero_add] using congrFun (congrFun
-      (IdealSamples.vectorBlock_decode
-        (component binary prime P R countBinary countPrime binaryCapacity primeCapacity .prime)
-        0 (prime.circuit.layers+1) (by omega)) answer) i
   rescaleDecoder := primeNonzero binary prime P R countBinary countPrime binaryCapacity primeCapacity
   rescale_agrees := rfl
   conversionDecoder := component binary prime P R countBinary countPrime binaryCapacity primeCapacity .primeNonzero

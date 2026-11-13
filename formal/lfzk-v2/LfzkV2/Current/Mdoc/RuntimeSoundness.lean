@@ -132,7 +132,7 @@ local notation "inputs" => (Soundness.Inputs.mk (protocol := E)
   (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes)
   (by decide) (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) bodyFits : Soundness.Inputs (E))
 local notation "S" => (Soundness.Setup.mk (E) inputs fits
-  (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_challengeIndependent bp pp shape params setup)
+  (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_setupOnly bp pp shape params setup)
   (by intros; rfl) : Soundness.Setup c g (MdocRuntime.fields B) MdocAdvice.Value B)
 variable (queries : ∀ SHA : Bytes → Digest, (seen body SHA).card ≤ Q)
 

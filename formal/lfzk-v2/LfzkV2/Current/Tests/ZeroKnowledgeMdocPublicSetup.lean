@@ -1,7 +1,7 @@
 import LfzkV2.Current.Mdoc.PublicSetup
 
 /-! The concrete mdoc runtime shares one SHA oracle across public setup,
-generated adapter identifiers and Merkle authentication. -/
+the archived adapter fragment identifier and Merkle authentication. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
 
 #check Mdoc.PublicSetup.protocol

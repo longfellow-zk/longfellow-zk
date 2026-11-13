@@ -22,7 +22,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : Base → Option (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
-variable (binaryTemplate : FrontendSchedule.Plan B binary.template)
+variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)
 variable (binaryFits : binaryTemplate.capacity ≤ laws.binaryCapacity)
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
@@ -84,7 +84,7 @@ theorem prime_bad
   · intro j hj
     change j ≤ ((e.chain initialLink).point proof H current).rank-g.primeStart at hj
     rw [hcurrent] at hj
-    rw [hs.2.2.2.2.1]
+    rw [hs.2.2.2.2]
     exact frontendTape_eq_answersWith e initialLink proof H current m g.primeStart
       (FrontendReplay.slots prime.circuit) hc hm hstart hcm (by dsimp only [current]; omega) cfg.fallback j hj
   · intro role hrole
@@ -118,7 +118,7 @@ theorem binary_bad
     (query : ℕ) (hquery : query < FrontendReplay.slots bd.setup.circuit) (w : Pair)
     (hselected : S.selected ((e.chain initialLink).point proof H (g.binaryStart+query)) H = some w)
     (hbad : FrontendReplay.BadAt bd.decode bd.nonzero bd.setup.circuit bd.setup.plan bd.payload bd.answers
-      ((binaryWithBits binary bits).inputs (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w))
+      ((binaryWithBits binary bits).inputs bd.entries (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w))
       (fun i => binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w
         (CellLayout.Binary.pad binary.words binary.degree binary.pads i)) query) :
     frontendBad S (RuntimeAdaptiveViews.readBinaryView binary prime P R cfg S laws hashPublic decodePublic binaryTemplate binaryFits)
@@ -141,9 +141,9 @@ theorem binary_bad
     hashPublic decodePublic primePlan binaryTemplate binaryFits e initialLink proof H primeGeometry
     current m hc hm hstart hcm bits inputs hpublic nd bd hprime hread
   let view : FrontendView B binary.Pad Pair Point C := binaryViewOfPayload currentBinary currentPrime Generator packet
-    (RuntimeShape.binaryPlan currentBinary currentPrime Generator binaryTemplate packet)
+    binaryTemplate
     laws.binaryCapacity cfg.binaryDecode cfg.binaryNonzero laws.binaryDecoder
-    (by rw [RuntimeShape.binaryPlan_capacity]; exact binaryFits) cfg.fallback early
+    binaryFits cfg.fallback early
   have hcurrent := (e.chain initialLink).point_rank proof H hc
   change Input.rank _ = current at hcurrent
   have hindex : ((e.chain initialLink).point proof H current).rank-g.binaryStart = query := by
@@ -163,7 +163,7 @@ theorem binary_bad
     rw [hcurrent] at hrole
     exact (hmessages role hrole).symm
   · change FrontendReplay.BadAt cfg.binaryDecode cfg.binaryNonzero bd.setup.circuit bd.setup.plan
-      bd.payload bd.answers (currentBinary.inputs (binaryValues currentBinary currentPrime w))
+      bd.payload bd.answers (currentBinary.inputs bd.entries (binaryValues currentBinary currentPrime w))
       (fun i => binaryValues currentBinary currentPrime w (CellLayout.Binary.pad binary.words binary.degree binary.pads i))
       (((e.chain initialLink).point proof H current).rank-g.binaryStart)
     rw [hindex]

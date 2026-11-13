@@ -16,7 +16,7 @@ private def proofData (g : Geometry) (fields : Fields) (Advice : Type) :
   right_inv value := by cases value; rfl
 
 /-- The body is followed by precisely its 32-byte seal. The body codec
-itself is the independently proved MDA6/JPG2 canonical codec. -/
+itself is the independently proved MDA7/JPG2 canonical codec. -/
 def complete (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry) :
     PrefixCodec (Proof g fields Advice (OpeningBody.Authentication g)) :=
   ((ProofBodyCodec.codec repr g).pair ProofBodyCodec.digest).equiv (proofData g fields Advice)

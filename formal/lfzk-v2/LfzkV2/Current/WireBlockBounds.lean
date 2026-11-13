@@ -13,7 +13,7 @@ variable [∀ side, Fintype (fields side)] [Fintype Advice]
 variable (shape : Shape g fields)
 
 instance startDataFintype (start : Start) : Fintype (StartData (Advice := Advice) shape start) := by
-  cases start <;> simp only [StartData,PrimeStart,BinaryStart,CircuitStatement,CircuitSchedule,DerivedSchedule] <;> infer_instance
+  cases start <;> simp only [StartData,PrimeStart,BinaryStart,CircuitStatement,CircuitSchedule] <;> infer_instance
 
 instance packingHeaderFintype : Fintype (PackingHeader shape) := by
   unfold PackingHeader
@@ -91,27 +91,14 @@ private theorem schedule_length (count : ℕ) (value : CircuitSchedule count) :
   simp only [List.length_append,frame_length,TranscriptV2.Framing.encodeLE_length]
   omega
 
-private theorem derivedSchedule_length (count : ℕ) (value : DerivedSchedule count) :
-    ((derivedSchedule count).encode value).length =
-      (bytesDomain "layered-sumcheck/circuits/v1").length+17+
-      ((bytesDomain "layered-sumcheck/derived-circuit/v1").length+17)*count := by
-  change ((bytesDomain "layered-sumcheck/circuits/v1" ++ frame (TranscriptV2.Framing.encodeLE 8 count)) ++
-    (PrefixCodec.vector (word.prefixed (bytesDomain "layered-sumcheck/derived-circuit/v1")) count).encode value).length = _
-  rw [List.length_append,PrefixCodec.vector_length _ _ (by
-    intro v
-    change (bytesDomain "layered-sumcheck/derived-circuit/v1" ++ word.encode v).length = _
-    rw [List.length_append,word_length])]
-  simp only [List.length_append,frame_length,TranscriptV2.Framing.encodeLE_length]
-  ring
-
 /-- A start block carries either fingerprint responses and one prime circuit,
-or adapter advice, one binary statement and a derived-circuit schedule. Summing their lengths
+or the masked quotient words, two binary statements and a two-circuit schedule. Summing their lengths
 bounds either case without inspecting any message value. -/
 def startBound : ℕ :=
   (bytesDomain "longfellow/witness-selection/responses/v1").length+41+73+
     (41+(shape.primePublic+1)*33)+
     ((bytesDomain "layered-sumcheck/circuits/v1").length+17+58) +
-  ((bytesDomain "p256-adapter/masked-quotient-bits/v1").length+9+repr.adviceWidth+
+  ((bytesDomain "p256-adapter/masked-quotient-bits/v1").length+repr.adviceWritesWidth+
     2*(41+(shape.binaryPublic+1)*17)+
     ((bytesDomain "layered-sumcheck/circuits/v1").length+17+116))
 
@@ -129,13 +116,12 @@ private theorem start_length_le (start : Start) (value : StartData (Advice := Ad
     unfold startBound
     omega
   | binary =>
-    change (((bytesDomain "p256-adapter/masked-quotient-bits/v1" ++
-      [0] ++ TranscriptV2.Framing.encodeLE 8 repr.adviceWidth) ++ repr.advice.encode value.1) ++
-      ((statement repr shape .binary shape.binaryPublic).encode value.2.1 ++
-      (derivedSchedule 2).encode value.2.2)).length ≤ _
-    simp only [List.length_append,repr.adviceLength,statement_length,derivedSchedule_length,
-      fieldCodec,repr.binaryWidth,List.length_singleton,TranscriptV2.Framing.encodeLE_length]
-    have marker : (bytesDomain "layered-sumcheck/derived-circuit/v1").length = 44 := by decide
+    change ((bytesDomain "p256-adapter/masked-quotient-bits/v1" ++ repr.adviceWrites.encode value.1) ++
+      (((statement repr shape .binary shape.binaryPublic).encode value.2.1.1 ++
+        (statement repr shape .binary shape.binaryPublic).encode value.2.1.2) ++
+      (schedule 2).encode value.2.2)).length ≤ _
+    simp only [List.length_append,repr.adviceWritesLength,statement_length,schedule_length,
+      fieldCodec,repr.binaryWidth]
     unfold startBound
     omega
 

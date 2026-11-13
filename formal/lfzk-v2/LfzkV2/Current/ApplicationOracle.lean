@@ -5,7 +5,7 @@ import LfzkV2.Current.SelectionReplay
 /-! Query-local tests for the non-layered parts of the current application.
 All data readers receive only the fixed preimage and its strict ancestors.
 The candidate answer is explicit.  The tests below are the actual fingerprint,
-row-batching, rescaling, conversion and packing predicates, with their existing
+rescaling, conversion and packing predicates, with their existing
 algebraic counts lifted to the full raw answer alphabet. -/
 noncomputable section
 namespace LfzkV2.Current.ApplicationOracle
@@ -154,52 +154,6 @@ theorem selected_card_mul_le (selected : Option W) (bad : W → Raw → Prop)
   | some w => simpa only [Option.some.injEq, exists_eq_left'] using hlocal w
 
 variable {F Slot Shared Other I J KField : Type} [Field F] [Fintype F] [DecidableEq F]
-
-structure BatchData (F Slot W : Type) [Field F] where
-  rows : List (LinearRow Slot F)
-  values : W → Slot → F
-
-def BatchData.bad (d : BatchData F Slot W) (w : W) (rho : Fin d.rows.length → F) : Prop :=
-  Prime.BatchBad (fun i => (d.rows.get i).eval (d.values w)) rho
-
-theorem BatchData.bad_card_mul_le (d : BatchData F Slot W) (w : W)
-    (decoder : BalancedDecoder Raw (Fin d.rows.length → F)) :
-    (univ.filter fun raw => d.bad w (decoder.decode raw)).card * Fintype.card F ≤
-      Fintype.card Raw := by
-  have hlocal := Prime.batch_bad_card_mul_le (fun i => (d.rows.get i).eval (d.values w))
-  simpa only [one_mul] using decoder.bad_card_mul_le (d.bad w) 1 (Fintype.card F)
-    (by simpa [BatchData.bad] using hlocal)
-
-/-- One actual prime-row packet and its matching ideal sampler. A finite
-raw answer cannot support samplers for arbitrarily long unrelated row lists;
-the decoder is therefore bundled with the rows that this query uses. -/
-structure BatchPacket (F Slot W Raw : Type) [Field F] [Fintype F] [Fintype Raw] where
-  data : BatchData F Slot W
-  decoder : BalancedDecoder Raw (Fin data.rows.length → F)
-
-namespace BatchPacket
-
-def bad (packet : BatchPacket F Slot W Raw) (w : W) (answer : Raw) : Prop :=
-  packet.data.bad w (packet.decoder.decode answer)
-
-/-- Retarget only along equality of the actual decoded packet data. This
-does not ask for a decoder on any additional row dimension. -/
-def decoderAt (packet : BatchPacket F Slot W Raw) {data : BatchData F Slot W}
-    (h : packet.data = data) : BalancedDecoder Raw (Fin data.rows.length → F) :=
-  h ▸ packet.decoder
-
-omit [DecidableEq F] in
-theorem bad_eq (packet : BatchPacket F Slot W Raw) {data : BatchData F Slot W}
-    (h : packet.data = data) (w : W) (answer : Raw) :
-    packet.bad w answer = data.bad w ((packet.decoderAt h).decode answer) := by
-  cases h
-  rfl
-
-theorem bad_card_mul_le (packet : BatchPacket F Slot W Raw) (w : W) :
-    (univ.filter (packet.bad w)).card * Fintype.card F ≤ Fintype.card Raw :=
-  packet.data.bad_card_mul_le w packet.decoder
-
-end BatchPacket
 
 structure RescaleData (F Shared Other W : Type) [Field F] where
   claim : Prime.Claim Shared Other F

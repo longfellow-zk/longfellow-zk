@@ -27,9 +27,15 @@ example : (ConcreteSetup.cubeIndex 2 (false,true,())).val = 2 := rfl
 example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :
     (circuit.sharedPrivate ⟨256,by decide⟩).val = 20760 := rfl
 
+-- R and the two pads follow the hash's own private inputs.
 example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :
-    (circuit.advicePrivate 1 9).val = circuit.nPrivate-20+19 := by
+    (circuit.advicePrivate 1 9).val = circuit.hashPrivate+275 := by
   simp [ConcreteSetup.BinaryCircuit.advicePrivate,Nat.add_assoc]
+
+-- The virtual suffix starts right after the committed inputs.
+example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :
+    (ConcreteSetup.cubeIndex circuit.input (circuit.virtualIndex 0)).val = circuit.nPublic+circuit.nPrivate := by
+  simp [ConcreteSetup.BinaryCircuit.virtualIndex]
 
 private def fragment (component : ℕ) : ConcreteTopology.Fragment 0 0 (ZMod 3) where
   circuit := component

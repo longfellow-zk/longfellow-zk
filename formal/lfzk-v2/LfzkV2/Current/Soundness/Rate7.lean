@@ -134,11 +134,11 @@ theorem failureBound_le_birthday (queries rounds : ℕ) (budget : queries < q/2)
   nlinarith only [weighted, saving, sq_nonneg ((queries : ℚ)-137/49)]
 
 /-- Convenient all-budget approximation for the supported mdoc schedules. -/
-theorem mdoc_approximation (queries rounds : ℕ) (budget : queries < q/2) (roundBound : rounds ≤ 500) :
+theorem mdoc_approximation (queries rounds : ℕ) (budget : queries < q/2) (roundBound : rounds ≤ 499) :
     failureBound queries rounds ≤
       (queries : ℚ)/2^127 + (queries : ℚ)^2/2^257 + 1/2^246 := by
   apply (failureBound_le_birthday queries rounds budget).trans
-  have cast : (rounds : ℚ) ≤ 500 := by exact_mod_cast roundBound
+  have cast : (rounds : ℚ) ≤ 499 := by exact_mod_cast roundBound
   norm_num [q, Adapter.Mdoc.binaryOrder, pow_succ]
   linarith only [cast]
 
