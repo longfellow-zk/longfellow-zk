@@ -6,5 +6,5 @@ pub fn generate_hash_circuit(
     f: &Gf2_128Field,
     num_attrs: usize,
 ) -> Result<Circuit<Gf2_128Field>, String> {
-    super::adapter::binary_circuit(f, num_attrs)
+    super::circuits::binary_circuit(f, num_attrs)
 }

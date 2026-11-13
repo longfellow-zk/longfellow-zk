@@ -525,7 +525,7 @@ fn quad_fragments_match_a_physically_merged_circuit() {
 }
 
 #[test]
-fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
+fn schedule_binds_each_circuit_identity() {
     use crate::{core::algebra::AlgebraicField, runtime::v2::transcript::Transcript};
     let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let first = fixture(&f);
@@ -540,14 +540,8 @@ fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
         second2,
         second3,
     ];
-    let mut a = Transcript::new(b"derived-schedule");
-    let mut b = Transcript::new(b"derived-schedule");
-    let schedule = Schedule::new(&[&first[0].raw]).unwrap();
-    schedule.absorb(&[&first[0].raw], &mut a.borrow());
-    schedule.absorb(&[&second[0].raw], &mut b.borrow());
-    assert_eq!(a.bytes(32), b.bytes(32));
-
-    // Independent circuit sources still bind their ordinary identity.
+    let schedule = Schedule::new(&[&first[0]]).unwrap();
+    // The schedule binds circuit identities, not their instance terms.
     let mut a = Transcript::new(b"fixed-schedule");
     let mut b = Transcript::new(b"fixed-schedule");
     schedule.absorb(&[&first[0]], &mut a.borrow());

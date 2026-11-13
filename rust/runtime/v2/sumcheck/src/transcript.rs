@@ -148,10 +148,7 @@ impl super::fragments::Schedule {
         });
         for c in circuits {
             t.absorb(|w| {
-                match c.source_id() {
-                    Some(id) => w.write_bytes(id),
-                    None => w.write_bytes(b"layered-sumcheck/derived-circuit/v1"),
-                }
+                w.write_bytes(c.source_id());
                 w.write_bytes(&(c.raw().layers.len() as u64).to_le_bytes());
             });
         }

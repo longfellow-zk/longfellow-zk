@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod adapter;
+pub mod circuits;
 pub mod generate_hash;
 pub mod generate_sig;
 

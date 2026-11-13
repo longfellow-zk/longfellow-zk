@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! MAC-free mdoc circuits. Shared input bits are reused by the binary adapter.
+//! The mdoc v2 circuits. The signature circuit's issuer digest and device
+//! key inputs are stored as bits of the hash circuit's witness (foreign
+//! storage); the hash circuit also checks that the device key is canonical.
 use crate::{
     circuits::{
         arithmetic::Arithmetic,
@@ -20,8 +22,8 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
         let mut pos = K_FIRST_WIRE_POSITION;
         let issuer_pk = (logic.next(&mut pos), logic.next(&mut pos));
         let b = Boolean::new(&logic);
-        // The verifier constructs device_e from a public digest. The external
-        // adapter ties the other 768 inputs to packed binary source bits.
+        // The verifier constructs device_e from a public digest. Foreign storage
+        // keeps the other 768 inputs as bits of the hash witness.
         // Prime-field inputs retain their bit assertions, and the signature
         // gadget checks the exact digest and integer ranges.
         let next_bit = |pos: &mut usize| b.of_input_eltw(logic.next(pos));
@@ -52,7 +54,7 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
         let ecdsa = EcdsaCircuit::new(&logic, &curve);
         (
             logic.assert_all(
-                "mdoc_adapter_signatures",
+                "mdoc_signatures",
                 &[
                     ecdsa.assert_signature_on_digest(&issuer, &issuer_derived, &issuer_e),
                     ecdsa.assert_signature_on_digest(&device, &device_derived, &device_e),
@@ -65,7 +67,7 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
 }
 pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_128Field>, String> {
     if !(1..=4).contains(&num_attrs) {
-        return Err("adapter attribute count".into());
+        return Err("hash circuit attribute count".into());
     }
     let (c, _, _) = compile_v2(f, |l| {
         let mut pos = K_FIRST_WIRE_POSITION;
@@ -78,7 +80,7 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
             .collect();
         (
             l.assert_all(
-                "mdoc_hash_and_adapter",
+                "mdoc_hash",
                 &[
                     MdocHash::new(&l, num_attrs).assert_valid_presentation(&given, &derived),
                     b.assert_true(

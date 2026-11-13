@@ -224,13 +224,10 @@ serialized layers at 40 rounds, regardless of host index width; circuit
 execution also checks its index capacity.
 
 The transcript binds the ordered circuit list and depths under
-`layered-sumcheck/circuits/v1`. An archived `Circuit` contributes its ID. A raw
-circuit (`RawCircuit`, including generated instances) has no source ID and
-contributes only the tag `layered-sumcheck/derived-circuit/v1` with its depth;
-its caller must bind its identity or generator before the first challenge. The
-mdoc binary participant passes its hash circuit in raw form alongside the
-per-proof adapter tree, so the hash circuit's ID is bound by its sumcheck
-statement and backend layout absorption, not by this block. Entering circuit outputs and explicit assertions
+`layered-sumcheck/circuits/v1`: each circuit contributes its ID and depth. The
+mdoc binary participant combines its archived hash circuit with the fixed
+adapter fragment, whose leaves are per-proof virtual inputs rather than
+circuit coefficients. Entering circuit outputs and explicit assertions
 share the same assertion answer. `transcript::end_layer` binds the two final claims before the
 ordinary alpha challenge. Prover and verifier share the fragment layout and
 public transition arithmetic; legacy transcript operations are unchanged.

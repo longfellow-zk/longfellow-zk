@@ -212,7 +212,8 @@ The field codecs, circuit semantics and static public resource bounds are
 trusted model inputs. Rust correspondence is established through source audit
 and tests. Machine-level refinement and extractor running-time bounds remain
 open. The `q-1` denominator accounts for the scalars sampled as nonzero: the
-sumcheck terminal scale and the adapter rescaling and conversion scalars.
+sumcheck terminal scale, the split challenge `eta` and the adapter's conversion
+scalars.
 The other challenge roles have errors `2/q` or `1/q`, which the bound charges
 at the same shared rate. In the Lean proof the terminal soundness count does
 not use the nonzero terminal scale; that requirement serves zero knowledge.
@@ -279,10 +280,10 @@ carried claim weights extend in place. Fragments introduce no extra rounds.
 | Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
-Its trace-zero packing response occupies 2,064 bytes. The adapter adds a
-32-byte masked prime-field claim and three bytes of masked quotient advice.
-The prime-field signature side commits its remaining field inputs, one hiding
-scalar and sumcheck pads. The 768 shared digest/key bits are committed only
+Its trace-zero packing response occupies 2,064 bytes. The split adds the
+32-byte message `mu`, and the adapter adds two 10-bit masked quotients
+(4 bytes). The prime-field signature side commits its remaining field inputs,
+the split mask R and its sumcheck pads. The 768 shared digest/key bits are committed only
 on the binary side. Proof sizes include the 32-byte final seal and
 the sampled Merkle frontier, whose size varies with the transcript.
 Witness selection adds two backend cells per field and 96 bytes of responses:
@@ -348,34 +349,32 @@ by circuit, without padding between circuits. Only the sparse quadratic,
 linear and constant terms are stored in quad fragments; local gate offsets
 address the global arrays. Shorter circuits join later, aligned at their inputs.
 The final shared-input claim uses one packing reduction. The mdoc binary
-side combines the hash and adapter trees through this implementation.
+side combines the hash circuit and the fixed adapter fragment this way.
 
-The hash circuit reads the credential inputs, including the 768 bits shared
-with the adapter. Its final 256 mask bits and 20 quotient-pad bits are reserved
-after compilation and must be unread by every hash gate and assertion. Tests
-exhaustively check this boundary in all four compiled circuit shapes, with no
-runtime scan. Adapter challenges and masked advice enter only the separately
-generated product-tree circuit.
-The adapter authenticates the mask modulo the P256 prime, so its binary copy
+The hash circuit reads the credential inputs, including the 768 bits that the
+signature circuit stores in the binary commitment. It is archived at its
+natural width. The split mask R (256 bits), the two 10-bit quotient pads and
+the adapter's virtual leaves follow its inputs, and each sumcheck component
+reads only its own input prefix, so the hash circuit cannot address them.
+The adapter authenticates R modulo the P256 prime, so its binary copy
 needs no range check. The honest prover still samples a uniform field mask
 and writes its canonical bits; packing supplies their Boolean interpretation.
 
-The application circuit library builds the product-tree topology directly,
-without invoking the compiler. Both proof roles instantiate its public
-coefficients from the masked prime-field claim and two independent conversion
-challenges. The leaves are ordinary linear expressions over the shared
-Boolean inputs; intermediate nodes multiply, and two final equations assert
-the rescaled prime-field claim. The application prover and verifier sequence
-prime-field sumcheck, claim conversion, binary sumcheck, packing and the joint opening.
+The adapter fragment is a fixed product tree with no challenge-dependent
+coefficients. Its leaves are virtual inputs: per-proof affine functions of
+committed bits, defined from the modular claim and two independent conversion
+challenges and substituted during constraint compilation. Each tree asserts
+`product + 1 = 0`. The composition driver (`runtime::v2::foreign::compose`)
+sequences the joint commitment, prime-field sumcheck and its split, the
+adapter rounds, binary sumcheck with packing, and the joint opening.
 
 V2 binary circuits accept Boolean public and private inputs. Authenticated
 packing enforces their bit representation, so the Boolean layer omits bitness
 assertions on binary input wires. Internal arithmetic uses the full field;
 converting an arbitrary field expression back to a Boolean still checks bitness.
 Nonbinary circuits retain field-element inputs and Boolean input assertions.
-Compilation rejects unused input declarations. Adapter pads in the shared
-source layout are consumed by the tree. The application compiler and circuit
-tests use the same input allocator and witness ordering.
+Compilation rejects unused input declarations. The application compiler and
+circuit tests use the same input allocator and witness ordering.
 
 The hash circuit checks that every selected field ends within the unpadded
 signed message. The docType check requires the exact CBOR text type, encoded

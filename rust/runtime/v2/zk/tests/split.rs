@@ -1,5 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! The mixed split of a participant's batched claim.
+//! Split storage: the mixed split of a participant's input equation, and pure
+//! foreign storage.
 use crate::{
     core::{
         algebra::{AlgebraicField, SupportsU64Conversions},

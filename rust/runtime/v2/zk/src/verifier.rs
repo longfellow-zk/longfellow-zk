@@ -266,8 +266,8 @@ impl fmt::Display for ZkVerificationError {
 impl std::error::Error for ZkVerificationError {}
 
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
-    /// Check the frontend proof and return its batched linear claim over
-    /// `[private inputs | pads]`, before the split challenge.
+    /// Check the frontend proof and reduce its constraints to the claim its
+    /// storage discharges (`split_claim`), before the split challenge.
     pub fn reduce_split<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,

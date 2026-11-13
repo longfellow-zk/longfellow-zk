@@ -33,19 +33,19 @@ pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         .raw
         .ninput
         .checked_sub(circuit.raw.npublic_input)
-        .ok_or("prime public prefix")?;
+        .ok_or("batched frontend public prefix")?;
     if public.len() != circuit.raw.npublic_input
         || constraints.input_weights.len() != circuit.raw.ninput
     {
-        return Err("prime frontend input shape".into());
+        return Err("batched frontend input shape".into());
     }
     let geometry = sumcheck::circuit_geometry(&[circuit])?;
     if constraints.layers.len() != geometry.logw_layers.len() {
-        return Err("prime layer count".into());
+        return Err("batched frontend layer count".into());
     }
     let count = private
         .checked_add(geometry.pad_count()?)
-        .ok_or("prime layout overflow")?;
+        .ok_or("batched frontend layout overflow")?;
     let pads = geometry.pad_layout(private);
     let (a, b) = super::constraint_compiler::compile_layers(&constraints, &pads)?;
     let rho = transcript::coefficients(b.len() + 1, transcript, f);

@@ -42,8 +42,8 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The largest supported mdoc circuit (four attributes) has 500 rounds, so
-`r+15 = 515 < 2^10`. The [exact theorem and assumptions](formal/lfzk-v2/README.md#current-mac-free-protocol)
+The largest supported mdoc circuit (four attributes) has 499 rounds, so
+`r+15 = 514 < 2^10`. The [exact theorem and assumptions](formal/lfzk-v2/README.md#current-mac-free-protocol)
 cover adaptive public requests, both fields, packing, the cross-field adapter,
 joint Polygero and its shared indexed Merkle commitment.
 

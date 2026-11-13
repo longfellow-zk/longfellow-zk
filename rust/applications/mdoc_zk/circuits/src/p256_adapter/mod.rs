@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Constants of mdoc's cross-field link. The protocol itself lives in the
-//! foreign storage layer (`runtime::v2::foreign`), whose README describes it.
+//! Constants of mdoc's composition. Storage maps and the split live in
+//! `runtime::v2::zk`, the adapter and the driver in `runtime::v2::foreign`.
 //!
 //! The signature circuit reads 768 values stored as bits in the hash
 //! commitment: the issuer digest and the device public key coordinates.

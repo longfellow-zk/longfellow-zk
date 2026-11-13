@@ -300,8 +300,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             witness,
         ))
     }
-    /// Run the frontend and batch its constraints into one linear claim over
-    /// `[private inputs | pads]`, before the split challenge.
+    /// Run the frontend and reduce its constraints to the claim its storage
+    /// discharges (`split_claim`), before the split challenge.
     pub fn prove_split<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
