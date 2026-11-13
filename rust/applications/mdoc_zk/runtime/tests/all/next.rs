@@ -1127,7 +1127,7 @@ fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
     };
     let pkx = coordinate(&issuer_pk.0);
     let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 488), (2, 492), (3, 497), (4, 500)] {
+    for (count, expected) in [(1, 487), (2, 491), (3, 496), (4, 499)] {
         let attrs: Vec<_> = parsed
             .attrs
             .iter()

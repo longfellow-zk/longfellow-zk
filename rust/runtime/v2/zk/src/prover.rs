@@ -328,7 +328,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             t,
             f,
         )?;
-        let claim = crate::runtime::v2::zk::batching::batch(circuit, &public, constraints, t, f)?;
+        let claim = self.split_claim(circuit, &public, constraints, t, f)?;
         Ok((
             proof,
             PendingSplit {

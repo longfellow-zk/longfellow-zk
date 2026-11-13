@@ -35,9 +35,10 @@ layer (see [Storage](../zk/README.md#storage)):
   foreign. Its own commitment holds `[native private inputs | R | native pads]`.
   1. The verifier draws a fresh nonzero `eta`.
   2. The prover sends `mu = eta<w_F, v_F> + R`.
-  3. The batched claim `<w, v> = t` splits into a native row,
+  3. The frontend's input equation `<w, v> = t` splits into a native row,
      `eta<w_N, v_N> - R + mu - eta*t = 0`, and a foreign modular claim,
-     `<eta*w_F, v_F> + R_bits = mu (mod p)`.
+     `<eta*w_F, v_F> + R_bits = mu (mod p)`. The layer rows read only native
+     pads and go to Polygero unbatched.
 
   R is uniform and used only here, so `mu` hides `<w_F, v_F>`. Only R's
   residue modulo p matters, so R's bits have no range check.
@@ -99,10 +100,10 @@ shape; its circuit ID is bound with the others.
 
 ## Transcript
 
-Before the shared root, a mixed frontend binds its layout parameters: its
-circuit ID, its storage map as runs, and the position of R's bits. The other
-participants bind their own layouts in the same way. After the root, only the
+Before the shared root, every participant binds its layout parameters. A split
+participant adds its circuit ID, its storage map as runs, and the position of
+R's bits. After the root, only the
 statement, prover messages and fixed domain labels are absorbed: `mu`, the
 masked quotients, and the frontends' and backend's own messages. Challenge-
-and message-derived values (claim weights, leaf definitions, quotients) are
+and message-derived values (row and claim weights, leaf definitions, quotients) are
 never absorbed; both roles recompute them.

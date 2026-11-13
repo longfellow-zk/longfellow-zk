@@ -89,8 +89,8 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let checked = part
         .reduce_split(&c, &[f.one()], &proof, &mut tv.borrow(), &ctx)
         .unwrap();
-    assert_eq!(reduction.claim.weights, checked.weights);
-    assert_eq!(reduction.claim.target, checked.target);
+    assert_eq!(reduction.claim.claim.weights, checked.claim.weights);
+    assert_eq!(reduction.claim.claim.target, checked.claim.target);
     let eta = f.u64_to_element(19);
     let mu = part.split_message(&reduction, &eta, &f).unwrap();
     // Foreign claim: eta*w_0*source + R = mu, over the shared group and R.
@@ -106,25 +106,24 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         f.fma(&mut sum, k, v);
     }
     assert_eq!(sum, foreign.target);
-    let residual = |a: &LinearStatement<_>, w: &[_]| {
-        let mut x = a.b[0];
-        for t in &a.a {
-            f.fma(&mut x, &t.k, &w[t.w]);
+    // Every row of the statement holds on the witness.
+    let holds = |s: &LinearStatement<_>, w: &[_]| {
+        let mut rows = s.b.clone();
+        for t in &s.a {
+            f.fma(&mut rows[t.c], &t.k, &w[t.w]);
         }
-        x
+        rows.iter().all(|x| f.is_zero(x))
     };
     let statement = part.split_statement(&checked, &eta, &mu, &f).unwrap();
-    assert!(f.is_zero(&residual(&statement, &witness)));
-    // Every native pad cell is authenticated.
-    let pad = statement
-        .a
-        .iter()
-        .find(|a| a.w >= 2 && !f.is_zero(&a.k))
-        .unwrap()
-        .w;
-    let mut bad = witness.clone();
-    f.add(&mut bad[pad], &f.one());
-    assert!(!f.is_zero(&residual(&statement, &bad)));
+    // The layer rows, unbatched, then the split row.
+    assert_eq!(statement.b.len(), c.raw.layers.len() + 1);
+    assert!(holds(&statement, &witness));
+    // Every native cell is authenticated: changing it breaks some row.
+    for cell in 0..witness.len() {
+        let mut bad = witness.clone();
+        f.add(&mut bad[cell], &f.one());
+        assert!(!holds(&statement, &bad), "cell {cell} unauthenticated");
+    }
     // A forged sumcheck message changes the claim; the honest split fails.
     let mut forged = proof;
     f.add(&mut forged.layers[0].cross, &f.one());
@@ -132,9 +131,12 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let claim = part
         .reduce_split(&c, &[f.one()], &forged, &mut t.borrow(), &ctx)
         .unwrap();
-    let mu = f.addf(&f.mulf(&eta, &f.mulf(&claim.weights[0], &source)), &mask);
+    let mu = f.addf(
+        &f.mulf(&eta, &f.mulf(&claim.claim.weights[0], &source)),
+        &mask,
+    );
     let statement = part.split_statement(&claim, &eta, &mu, &f).unwrap();
-    assert!(!f.is_zero(&residual(&statement, &witness)));
+    assert!(!holds(&statement, &witness));
 }
 
 #[test]
@@ -174,12 +176,12 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let claim = part
         .reduce_split(&c, &[f.one()], &proof, &mut tv.borrow(), &ctx)
         .unwrap();
-    assert_eq!(pending.claim.weights, claim.weights);
-    assert_eq!(pending.claim.target, claim.target);
+    assert_eq!(pending.claim.claim.weights, claim.claim.weights);
+    assert_eq!(pending.claim.claim.target, claim.claim.target);
     // The whole claim is foreign, over every value, with its public target.
     let modular = part.pure_claim(&claim).unwrap();
     assert_eq!(modular.terms.len(), values);
-    assert_eq!(modular.target, claim.target);
+    assert_eq!(modular.target, claim.claim.target);
     // No mask: the mixed split's message and native row do not apply.
     let eta = f.one();
     assert!(part.split_message(&pending, &eta, &f).is_err());

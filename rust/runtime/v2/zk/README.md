@@ -169,20 +169,22 @@ takes a `StorageMap` (`storage.rs`) that marks some values foreign: bits in the
 binary commitment. The participant then derives its commitment layout from the
 map.
 
-- Mixed storage commits `[native private inputs | R | pads]`. Its frontend
-  batches every layer and input equation into one linear claim
-  `<w, v> = t` (`batching.rs`). A fresh nonzero `eta` and one masked message
-  `mu = eta*<w_F, v_F> + R` split that claim (`split.rs`) into two parts:
-  - a native row `eta*<w_N, v_N> - R + mu - eta*t = 0`, for this field's
-    Polygero participant;
+- Mixed storage commits `[native private inputs | R | pads]`, and every pad
+  is native. The layer rows read only pads, so they go to this field's
+  Polygero participant unchanged. Only the input equation `<w, v> = t` reads
+  foreign values. A fresh nonzero `eta` and one masked message
+  `mu = eta*<w_F, v_F> + R` split it (`split.rs`) into two parts:
+  - a native row `eta*<w_N, v_N> - R + mu - eta*t = 0`, beside the layer
+    rows;
   - a modular claim `<eta*w_F, v_F> + R_bits = mu (mod p)` over foreign bit
     groups.
-- Pure foreign storage commits nothing. The whole claim is modular, and its
-  target is public.
+- Pure foreign storage commits nothing. Fresh weights batch every layer row
+  and the input equation into one modular claim with a public target
+  (`batching.rs`).
 
 The [foreign storage layer](../foreign/README.md) discharges modular claims.
-Before the shared root, a split participant binds its circuit ID, its storage
-map as runs, and R's bit group instead of the packing layout.
+Before the shared root, a split participant binds the same layout as any
+participant, then its circuit ID, its storage map as runs, and R's bit group.
 
 ## Application and encoding
 

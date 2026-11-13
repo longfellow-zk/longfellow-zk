@@ -12,7 +12,7 @@ use crate::{
             sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
-                batching::LinearClaim,
+                split::SplitClaim,
                 joint::{CircuitParticipant, CircuitProof, JointParam},
                 CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
@@ -275,7 +275,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         proof: &sumcheck::SumcheckProof<W, F>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<LinearClaim<F::E>, String> {
+    ) -> Result<SplitClaim<F::E>, String> {
 
         self.split()?;
         self.validate_circuits(circuit, public.len(), &[])?;
@@ -291,6 +291,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             t,
             f,
         )?;
-        crate::runtime::v2::zk::batching::batch(circuit, &public, constraints, t, f)
+        self.split_claim(circuit, &public, constraints, t, f)
     }
 }
