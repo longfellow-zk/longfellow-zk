@@ -10,7 +10,10 @@
 use super::ZkSpecStruct;
 use crate::{
     core::proto::v2::Circuit,
-    mdoc::circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS, SHARED_BITS},
+    mdoc::{
+        circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS},
+        proto::layout,
+    },
     runtime::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, EvaluationDomain},
         v2::{
@@ -30,22 +33,16 @@ pub(super) type Mode = P256Mode<QUOTIENT_BITS>;
 const _: () = assert!(<Mode as AdapterMode<P256Field>>::MASK_BITS == MASK_BITS);
 pub(super) type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
 
-/// Binary input positions of the shared values, in signature input order.
-/// Between the issuer digest and the device coordinates are the padded MSO
-/// preimage, its length, and the one-byte SHA block count. This is the
-/// allocation order of `hash::allocate`, also used by the witness encoder.
-fn shared_positions(npublic: usize, width: usize) -> Result<Vec<usize>, String> {
-    use crate::mdoc::proto::hash::constants::{K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN};
-    let device = 256 + 8 * K_MSO_PREIMAGE_LEN + K_HASH_INDEX_BITS + 8;
-    if npublic + device + 512 > width {
+/// The shared values as (signature value, hash input) pairs, from the shared
+/// layout table that the compilers and witness encoders also check against.
+fn shared_positions(npublic: usize, width: usize) -> Result<Vec<(usize, usize)>, String> {
+    if npublic + layout::hash::DEVICE_Y.end > width {
         return Err("hash circuit too narrow for the shared values".into());
     }
-    let positions: Vec<_> = (0..256)
-        .chain(device..device + 512)
-        .map(|i| npublic + i)
-        .collect();
-    debug_assert_eq!(positions.len(), SHARED_BITS);
-    Ok(positions)
+    Ok(layout::SHARED
+        .into_iter()
+        .flat_map(|(sig, hash)| sig.zip(hash.map(|h| npublic + h)))
+        .collect())
 }
 
 /// mdoc's composition of its two trusted circuits.
@@ -61,8 +58,7 @@ where
 {
     let foreign: Vec<_> = shared_positions(hash.raw.npublic_input, hash.raw.ninput)?
         .into_iter()
-        .enumerate()
-        .map(|(i, start)| (i, Group { start, width: 1 }))
+        .map(|(value, start)| (value, Group { start, width: 1 }))
         .collect();
     let storage = StorageMap::new(split::value_count(signature)?, &foreign)?;
     Composition::new(hash, signature, storage, spec.configs(), domains)

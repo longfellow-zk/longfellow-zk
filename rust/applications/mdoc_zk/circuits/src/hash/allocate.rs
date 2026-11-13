@@ -34,6 +34,8 @@ use crate::{
     },
 };
 
+use crate::mdoc::proto::layout;
+
 /// Allocate the complete presentation and return the end of its public prefix.
 pub fn allocate<L: LogicIO>(
     logic: &L,
@@ -66,13 +68,29 @@ pub fn allocate<L: LogicIO>(
         len: io.next::<K_ATTR_INDEX_BITS>(pos),
     };
     let npublic = *pos;
+    // The leading private inputs follow the shared layout table; the runtime
+    // link reads the same table, so a drift here must fail compilation.
+    let at = |pos: usize, range: &core::ops::Range<usize>, name: &str| {
+        if let Err(e) = layout::check_at(pos - npublic, range, name) {
+            panic!("{e}");
+        }
+    };
+    at(*pos, &layout::hash::ISSUER_DIGEST, "issuer digest");
     let issuer_sig_e = io.next::<256>(pos);
+    at(*pos, &layout::hash::MSO_PREIMAGE, "MSO preimage");
+    let value = std::array::from_fn(|_| io.next::<8>(pos));
+    at(*pos, &layout::hash::MSO_LEN, "MSO length");
     let preimage = MsoPreimageBytes {
-        value: std::array::from_fn(|_| io.next::<8>(pos)),
+        value,
         len: io.next::<K_HASH_INDEX_BITS>(pos),
     };
+    at(*pos, &layout::hash::NBLOCKS, "block count");
     let nblocks = io.next::<8>(pos);
-    let device_pk = (io.next::<256>(pos), io.next::<256>(pos));
+    at(*pos, &layout::hash::DEVICE_X, "device x");
+    let device_x = io.next::<256>(pos);
+    at(*pos, &layout::hash::DEVICE_Y, "device y");
+    let device_pk = (device_x, io.next::<256>(pos));
+    at(*pos, &(layout::hash::DEVICE_Y.end..layout::hash::DEVICE_Y.end), "end of device y");
     let doc_type_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_from_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_until_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);

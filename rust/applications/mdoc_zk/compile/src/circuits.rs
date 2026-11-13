@@ -15,7 +15,10 @@ use crate::{
         logic::{Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::proto::v2::Circuit,
-    mdoc::circuits::{hash::circuit::MdocHash, p256_adapter::MODULUS},
+    mdoc::{
+        circuits::{hash::circuit::MdocHash, p256_adapter::MODULUS},
+        proto::layout,
+    },
 };
 pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
     let (c, _, _) = compile_v2(f, |logic| {
@@ -29,11 +32,21 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
         let next_bit = |pos: &mut usize| b.of_input_eltw(logic.next(pos));
         let device_e = V256::new((0..256).map(|_| next_bit(&mut pos)).collect());
         let npublic = pos;
-        let issuer_e = V256::new((0..256).map(|_| next_bit(&mut pos)).collect());
-        let device_pk = (
-            V256::new((0..256).map(|_| next_bit(&mut pos)).collect()),
-            V256::new((0..256).map(|_| next_bit(&mut pos)).collect()),
-        );
+        // The leading private inputs follow the shared layout table, which
+        // the runtime link reads; a drift here must fail compilation.
+        let at = |pos: usize, range: &core::ops::Range<usize>, name: &str| {
+            if let Err(e) = layout::check_at(pos - npublic, range, name) {
+                panic!("{e}");
+            }
+        };
+        let bits256 = |pos: &mut usize| V256::new((0..256).map(|_| next_bit(pos)).collect());
+        at(pos, &layout::sig::ISSUER_DIGEST, "issuer digest");
+        let issuer_e = bits256(&mut pos);
+        at(pos, &layout::sig::DEVICE_X, "device x");
+        let device_x = bits256(&mut pos);
+        at(pos, &layout::sig::DEVICE_Y, "device y");
+        let device_pk = (device_x, bits256(&mut pos));
+        at(pos, &(layout::SHARED_BITS..layout::SHARED_BITS), "end of shared inputs");
         let arithmetic = Arithmetic::new(&logic);
         let mut given = |pkxy, e| {
             let rxy = (logic.next(&mut pos), logic.next(&mut pos));

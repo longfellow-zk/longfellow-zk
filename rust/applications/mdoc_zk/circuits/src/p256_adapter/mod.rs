@@ -14,7 +14,7 @@ pub(crate) const MODULUS: [u64; 4] = [
     0xffffffff00000001,
 ];
 /// Signature-circuit inputs stored in the binary commitment.
-pub(crate) const SHARED_BITS: usize = 768;
+pub(crate) const SHARED_BITS: usize = crate::mdoc::proto::layout::SHARED_BITS;
 /// Bits of the mixed split's mask R.
 pub(crate) const MASK_BITS: usize = 256;
 /// Quotient width: the link claim reads `SHARED_BITS + MASK_BITS = 2^10` bits.

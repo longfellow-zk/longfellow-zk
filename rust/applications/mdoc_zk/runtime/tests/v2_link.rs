@@ -8,7 +8,8 @@ fn shared_positions_match_signature_inputs() {
     use crate::{
         core::algebra::SupportsNatConversions,
         mdoc::{
-            circuits::{p256_adapter::SHARED_BITS, parse_test_data},
+            circuits::parse_test_data,
+            proto::layout::SHARED_BITS,
             runtime::v2::{inputs, req_attr},
         },
         runtime::algebra::{secp256r1::Secp256r1, Q256Field, RuntimeNat},
@@ -34,9 +35,13 @@ fn shared_positions_match_signature_inputs() {
         let positions = shared_positions(public.len(), width).unwrap();
         let mut expected = inputs::push_witness_sig(&f, &q, &curve, &issuer_pk, &parsed).unwrap();
         expected.truncate(SHARED_BITS);
+        assert!(positions
+            .iter()
+            .enumerate()
+            .all(|(k, &(value, _))| value == k));
         let actual: Vec<_> = positions
             .iter()
-            .map(|&i| {
+            .map(|&(_, i)| {
                 assert!(i < width, "shared values lie inside the hash inputs");
                 if private[i - public.len()] {
                     f.one()

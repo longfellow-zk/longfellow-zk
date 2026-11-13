@@ -34,6 +34,10 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
         }
     }
 
+    #[cfg(any(test, feature = "prover"))]
+    pub(super) fn len(&self) -> usize {
+        self.buffer.len()
+    }
     pub(super) fn into_inner(self) -> Vec<F::E> {
         self.buffer
     }
@@ -143,6 +147,10 @@ impl BinaryAssignmentBuilder {
     }
     pub(super) fn push_v8(&mut self, byte: u8) {
         self.push_bits_len(u64::from(byte), 8);
+    }
+    #[cfg(any(test, feature = "prover"))]
+    pub(super) fn len(&self) -> usize {
+        self.buffer.len()
     }
     pub(super) fn into_inner(self) -> Vec<bool> {
         self.buffer

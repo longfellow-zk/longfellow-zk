@@ -20,7 +20,10 @@ use crate::{
         circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
             config::K_ATTR_LEN_BITS,
-            hash::constants::{K_COSE1_PREFIX_LEN, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN},
+            hash::constants::{
+                K_COSE1_PREFIX_LEN, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN,
+            },
+            layout,
             mso_attribute::constants::{
                 K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
             },
@@ -39,8 +42,15 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     parsed: &ParsedMdoc<N>,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
     let mut builder = BinaryAssignmentBuilder::new();
+    // The leading private inputs follow the shared layout table, which the
+    // runtime link reads; refuse to produce a witness that drifts from it.
+    let at = |position: usize, range: &core::ops::Range<usize>, name: &str| {
+        layout::check_at(position, range, name)
+            .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)
+    };
 
     // 1. issuer_sig_digest (256 bits)
+    at(builder.len(), &layout::hash::ISSUER_DIGEST, "issuer digest")?;
     builder.push_nat256(&parsed.issuer_sig_digest);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
@@ -73,41 +83,48 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
 
+    at(builder.len(), &layout::hash::MSO_PREIMAGE, "MSO preimage")?;
     for &b in &preimage_arr {
         builder.push_v8(b);
     }
-    builder.push_bits_len(parsed.cbor_mso.len() as u64, 16);
+    at(builder.len(), &layout::hash::MSO_LEN, "MSO length")?;
+    builder.push_bits_len(parsed.cbor_mso.len() as u64, K_HASH_INDEX_BITS);
 
     // 3. nblocks (bytes as bits)
+    at(builder.len(), &layout::hash::NBLOCKS, "block count")?;
     builder.push_v8(nblocks as u8);
 
     // 4. device_pkx and device_pky (256 bits)
+    at(builder.len(), &layout::hash::DEVICE_X, "device x")?;
     builder.push_nat256(&parsed.device_pk.0);
+    at(builder.len(), &layout::hash::DEVICE_Y, "device y")?;
     builder.push_nat256(&parsed.device_pk.1);
+    let end = layout::hash::DEVICE_Y.end;
+    at(builder.len(), &(end..end), "end of device y")?;
 
     // 5. doc_type / valid_from / valid_until / dev_key_info / value_digests offsets
     let preimage_base_offset = K_COSE1_PREFIX_LEN + 7;
     builder.push_bits_len(
         (preimage_base_offset + parsed.doc_type_offset_in_mso) as u64,
-        16,
+        K_HASH_INDEX_BITS,
     );
     builder.push_bits_len(
         (preimage_base_offset + parsed.valid_from_offset_in_mso) as u64,
-        16,
+        K_HASH_INDEX_BITS,
     );
     builder.push_bits_len(
         (preimage_base_offset + parsed.valid_until_offset_in_mso) as u64,
-        16,
+        K_HASH_INDEX_BITS,
     );
     builder.push_bits_len(
         (preimage_base_offset + parsed.device_key_info_offset_in_mso) as u64,
-        16,
+        K_HASH_INDEX_BITS,
     );
     builder.push_bits_len(
         (preimage_base_offset + parsed.value_digests_offset_in_mso) as u64,
-        16,
+        K_HASH_INDEX_BITS,
     );
-    builder.push_bits_len((preimage_base_offset + namespace.key_offset) as u64, 16);
+    builder.push_bits_len((preimage_base_offset + namespace.key_offset) as u64, K_HASH_INDEX_BITS);
 
     // 6. attribute_witnesses
     push_witness_attrs(req_attrs, &attributes, &mut builder)?;
@@ -151,7 +168,7 @@ fn push_witness_attrs(
         builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_LEN_BITS);
         let preimage_base_offset = K_COSE1_PREFIX_LEN + 7;
         let mso_digest_offset_in_preimage = preimage_base_offset + pa.mso_digest_offset_in_preimage;
-        builder.push_bits_len(mso_digest_offset_in_preimage as u64, 16);
+        builder.push_bits_len(mso_digest_offset_in_preimage as u64, K_HASH_INDEX_BITS);
         for &s in &pa.field_locator.slot_position {
             builder.push_bits_len(s as u64, K_ATTR_LEN_BITS);
         }
@@ -208,13 +225,22 @@ where
         )?;
 
     let mut builder = AssignmentBuilder::new(runtime_field);
+    // The leading private inputs are the shared values of the layout table,
+    // which the runtime link reads; refuse to drift from it.
+    let at = |position: usize, range: &core::ops::Range<usize>| {
+        layout::check_at(position, range, "signature input").map_err(|_| "signature input layout")
+    };
 
     // 1. issuer_sig_digest
+    at(builder.len(), &layout::sig::ISSUER_DIGEST)?;
     builder.push_nat_256_bits(&parsed.issuer_sig_digest);
 
     // 2. device_pk
+    at(builder.len(), &layout::sig::DEVICE_X)?;
     builder.push_nat_256_bits(&parsed.device_pk.0);
+    at(builder.len(), &layout::sig::DEVICE_Y)?;
     builder.push_nat_256_bits(&parsed.device_pk.1);
+    at(builder.len(), &(layout::SHARED_BITS..layout::SHARED_BITS))?;
 
     // 3. issuer_sig_given
     builder.push_ecdsa_signature(&issuer_sig_given);
