@@ -69,6 +69,13 @@ pub trait AlgebraicField: BareField {
     }
 }
 
+/// Canonical, fixed-width field encoding. The width must be positive.
+///
+/// Zero is encoded as all-zero bytes and one as `[1, 0, ...]`. These must
+/// decode to the algebraic identities when `Self` also implements
+/// [`AlgebraicField`]. `serialized_mone()` must encode algebraic minus one.
+/// Circuit coefficient classification relies on this convention even for
+/// fields whose internal representation is not a little-endian integer.
 pub trait SerializableField: BareField {
     fn is_binary(&self) -> bool;
 
