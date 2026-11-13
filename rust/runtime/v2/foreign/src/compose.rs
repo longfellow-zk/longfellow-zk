@@ -99,9 +99,8 @@ where
         widths.push(mask.width);
         let mode = M::new(widths, npublic, &mut suffix)?;
         let (host_ctx, split_ctx) = (ZkContext::new(domains.0), ZkContext::new(domains.1));
-        let host = CircuitParticipant::with_virtual_inputs(
-            host_circuit,
-            &[mode.fragment()],
+        let host = CircuitParticipant::new(
+            &[host_circuit, mode.fragment()],
             mode.virtual_inputs(),
             config.0,
             &host_ctx,

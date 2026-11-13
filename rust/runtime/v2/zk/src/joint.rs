@@ -196,34 +196,22 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) storage: Option<super::split::Split>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// Prove `circuits` as one layered sumcheck; `circuits[0]` is the primary
+    /// circuit. They share the public prefix and read prefixes of one input
+    /// array. Each intermediate layer has one wire array; only the sparse quad
+    /// terms retain their local indexing.
+    ///
+    /// The last `virtual_inputs` entries of the shared input array are virtual:
+    /// each proof defines them as affine functions of committed inputs (see
+    /// `VirtualInputs`). The primary circuit cannot read them; the other
+    /// components may.
     pub fn new<D: EvaluationDomain<W, F>>(
-        circuit: &Circuit<F>,
-        config: PolygeroConfig,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<Self, String> {
-        Self::with_circuits(circuit, &[], config, ctx)
-    }
-    /// Prove these circuits as one layered sumcheck. They share the public
-    /// prefix and read prefixes of one input array. Each intermediate layer has
-    /// one wire array; only the sparse quad terms retain their local indexing.
-    pub fn with_circuits<D: EvaluationDomain<W, F>>(
-        circuit: &Circuit<F>,
-        others: &[&Circuit<F>],
-        config: PolygeroConfig,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<Self, String> {
-        Self::with_virtual_inputs(circuit, others, 0, config, ctx)
-    }
-    /// As `with_circuits`, with the last `virtual_inputs` entries of the shared
-    /// input array defined per proof as affine functions of committed inputs.
-    /// The primary `circuit` cannot read them; the other components may.
-    pub fn with_virtual_inputs<D: EvaluationDomain<W, F>>(
-        circuit: &Circuit<F>,
-        others: &[&Circuit<F>],
+        circuits: &[&Circuit<F>],
         virtual_inputs: usize,
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
+        let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
         let (geometry, param, backend) = prepare_circuit_layout(
             circuit,
             others,
@@ -232,8 +220,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             ctx.field().packing_extension(),
             ctx,
         )?;
-        let mut circuits = vec![circuit];
-        circuits.extend_from_slice(others);
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]
@@ -242,7 +228,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             backend,
             id: circuit.id,
             additional_ids: others.iter().map(|c| c.id).collect(),
-            inputs: InputLayout::new(&circuits, virtual_inputs)?,
+            inputs: InputLayout::new(circuits, virtual_inputs)?,
             storage: None,
         })
     }
@@ -308,26 +294,28 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn input_layout(&self) -> InputLayout {
         self.inputs
     }
+    /// Check that `circuits` are this participant's circuits, in order, and
+    /// that `public` inputs fit the primary circuit.
     pub(super) fn validate_circuits(
         &self,
-        circuit: &Circuit<F>,
+        circuits: &[&Circuit<F>],
         public: usize,
-        others: &[&Circuit<F>],
     ) -> Result<(), String> {
+        let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
+        if public != circuit.raw.npublic_input {
+            return Err("public inputs length mismatch".into());
+        }
         if circuit.id != self.id
-            || public != circuit.raw.npublic_input
             || self.additional_ids.len() != others.len()
+            || self
+                .additional_ids
+                .iter()
+                .zip(others)
+                .any(|(id, c)| *id != c.id)
         {
-            return Err("joint circuit statement mismatch".into());
+            return Err("circuit statement mismatch".into());
         }
-        for (id, c) in self.additional_ids.iter().zip(others) {
-            if *id != c.id {
-                return Err("circuit statement mismatch".into());
-            }
-        }
-        let mut circuits = vec![circuit];
-        circuits.extend_from_slice(others);
-        if InputLayout::new(&circuits, self.inputs.virtual_count())? != self.inputs {
+        if InputLayout::new(circuits, self.inputs.virtual_count())? != self.inputs {
             return Err("shared input layout mismatch".into());
         }
         Ok(())

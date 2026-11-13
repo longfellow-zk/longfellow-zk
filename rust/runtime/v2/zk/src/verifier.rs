@@ -20,23 +20,29 @@ use crate::{
     },
 };
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
-    /// Returns constraints, not an acceptance decision: the caller must verify
-    /// their joint Polygero proof against the root received before sumcheck.
+    /// Reduce `circuits` (the primary circuit first, as at construction) to
+    /// affine equations awaiting authentication. This returns constraints, not
+    /// an acceptance decision: the caller must verify their joint Polygero
+    /// proof against the root received before sumcheck.
+    ///
+    /// `virtual_inputs` must be the definitions the prover used. They must be
+    /// fixed before this call draws any challenge: derive them only from data
+    /// the transcript already binds, never from this proof's own messages.
     pub fn reduce<D: EvaluationDomain<W, F>>(
         &self,
-        circuit: &Circuit<F>,
+        circuits: &[&Circuit<F>],
         public: &[CircuitInput<F>],
         proof: &CircuitProof<W, F>,
+        virtual_inputs: &VirtualInputs<F::E>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
         self.reduce_parts(
-            circuit,
+            circuits,
             public,
             &proof.sumcheck_proof,
             &proof.packing,
-            &[],
-            &VirtualInputs::none(),
+            virtual_inputs,
             t,
             ctx,
         )
@@ -44,16 +50,15 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     #[allow(clippy::too_many_arguments)]
     fn reduce_parts<D: EvaluationDomain<W, F>>(
         &self,
-        circuit: &Circuit<F>,
+        circuits: &[&Circuit<F>],
         public: &[CircuitInput<F>],
         sumcheck: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
         packing: &crate::runtime::v2::proto::dual_packing::PackingProof<F::E>,
-        others: &[&Circuit<F>],
         virtual_inputs: &VirtualInputs<F::E>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
-        self.validate_circuits(circuit, public.len(), others)?;
+        self.validate_circuits(circuits, public.len())?;
         virtual_inputs.validate(&self.inputs)?;
         sumcheck
             .validate(&self.geometry.sc_geom)
@@ -63,13 +68,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .parameters
             .extension()
             .input_elements(ctx.field(), public);
-        let mut circuits = vec![circuit];
-        circuits.extend_from_slice(others);
-        for c in &circuits {
+        for c in circuits {
             t.write_sumcheck_statement(c, &public, ctx.field());
         }
         let constraints =
-            sumcheck::derive_constraints_for_circuits(&circuits, sumcheck, t, ctx.field())?;
+            sumcheck::derive_constraints_for_circuits(circuits, sumcheck, t, ctx.field())?;
         let pads = self
             .geometry
             .sc_geom
@@ -84,51 +87,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         )?;
         self.backend.reduce::<W>(statement, packing, &self.id, t)
     }
-    /// As `reduce_circuits`, substituting this proof's virtual input entries.
-    #[allow(clippy::too_many_arguments)]
-    pub fn reduce_virtual<D: EvaluationDomain<W, F>>(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[CircuitInput<F>],
-        proof: &CircuitProof<W, F>,
-        others: &[&Circuit<F>],
-        virtual_inputs: &VirtualInputs<F::E>,
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<LinearStatement<F::E>, String> {
-        self.reduce_parts(
-            circuit,
-            public,
-            &proof.sumcheck_proof,
-            &proof.packing,
-            others,
-            virtual_inputs,
-            t,
-            ctx,
-        )
-    }
-    /// Reduce all circuit statements to affine equations awaiting authentication. The
-    /// caller must still complete the shared Polygero verification.
-    pub fn reduce_circuits<D: EvaluationDomain<W, F>>(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[CircuitInput<F>],
-        proof: &CircuitProof<W, F>,
-        others: &[&Circuit<F>],
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<LinearStatement<F::E>, String> {
-        self.reduce_parts(
-            circuit,
-            public,
-            &proof.sumcheck_proof,
-            &proof.packing,
-            others,
-            &VirtualInputs::none(),
-            t,
-            ctx,
-        )
-    }
 }
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
     circuit: Circuit<F>,
@@ -141,7 +99,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, ZkVerificationError> {
-        let participant = CircuitParticipant::new(&circuit, config, ctx)
+        let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)
             .map_err(ZkVerificationError::PolygeroVerification)?;
         let param = JointParam::new((
             participant
@@ -220,11 +178,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         let statement = self
             .participant
             .reduce_parts(
-                &self.circuit,
+                &[&self.circuit],
                 public,
                 &proof.sumcheck_proof,
                 &proof.packing,
-                &[],
                 &VirtualInputs::none(),
                 &mut verifier.transcript(),
                 ctx,
@@ -278,7 +235,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     ) -> Result<SplitClaim<F::E>, String> {
 
         self.split()?;
-        self.validate_circuits(circuit, public.len(), &[])?;
+        self.validate_circuits(&[circuit], public.len())?;
         proof
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;

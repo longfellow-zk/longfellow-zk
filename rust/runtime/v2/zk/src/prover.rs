@@ -58,59 +58,29 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             witness,
         ))
     }
+    /// Prove `circuits` (the primary circuit first, as at construction) as one
+    /// layered sumcheck, then reduce its input claim through packing.
+    ///
+    /// `virtual_inputs` defines this proof's virtual input suffix. Its
+    /// definitions must be fixed before this call draws any challenge: derive
+    /// them only from data the transcript already binds, never from this
+    /// proof's own messages. Use `VirtualInputs::none()` when the participant
+    /// has no virtual inputs.
+    ///
     /// The resulting affine statement is authenticated only when the caller
     /// completes the shared Polygero proof against the original commitment.
     /// Continue the transcript used for that commitment. All participants must
     /// finish this reduction before the joint backend samples its challenges.
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
-        circuit: &Circuit<F>,
+        circuits: &[&Circuit<F>],
         public: &[CircuitInput<F>],
         state: CircuitState<W, F>,
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        self.prove_circuits(circuit, public, state, &[], t, ctx)
-    }
-    /// Prove all supplied circuits using the private inputs owned by the state.
-    /// The result contains one ordinary sumcheck and one packing reduction.
-    #[allow(clippy::too_many_arguments)]
-    pub fn prove_circuits<D: EvaluationDomain<W, F>>(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[CircuitInput<F>],
-        state: CircuitState<W, F>,
-        others: &[&Circuit<F>],
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        self.prove_virtual(
-            circuit,
-            public,
-            state,
-            others,
-            &VirtualInputs::none(),
-            t,
-            ctx,
-        )
-    }
-    /// As `prove_circuits`, appending this proof's virtual input entries to the
-    /// shared input array. Their definitions are substituted, not committed.
-    #[allow(clippy::too_many_arguments)]
-    pub fn prove_virtual<D: EvaluationDomain<W, F>>(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[CircuitInput<F>],
-        state: CircuitState<W, F>,
-        others: &[&Circuit<F>],
         virtual_inputs: &VirtualInputs<F::E>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        if public.len() != circuit.raw.npublic_input {
-            return Err("public inputs length mismatch".into());
-        }
-        self.validate_circuits(circuit, public.len(), others)?;
+        self.validate_circuits(circuits, public.len())?;
         virtual_inputs.validate(&self.inputs)?;
         if state.id != self.id
             || state.config != self.config
@@ -131,13 +101,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             let value = f.addf(&v.constant, &f.mulf(&v.coefficient, &inputs[v.source]));
             inputs.push(value);
         }
-        let mut circuits = vec![circuit];
-        circuits.extend_from_slice(others);
-        for c in &circuits {
+        for c in circuits {
             t.write_sumcheck_statement(c, &public, ctx.field());
         }
         let (sumcheck_proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(&circuits, inputs, &state.pads, t, ctx.field())?;
+            sumcheck::evaluate_and_prove_circuits(circuits, inputs, &state.pads, t, ctx.field())?;
         let pad_layout = self
             .geometry
             .sc_geom
@@ -189,7 +157,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         t: Transcript,
         rng: &mut R,
     ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
-        let participant = CircuitParticipant::new(&self.circuit, self.config, ctx)?;
+        let participant = CircuitParticipant::new(&[&self.circuit], 0, self.config, ctx)?;
         if private.len() != private_input_count(&self.circuit) {
             return Err("witness length mismatch".into());
         }
@@ -221,9 +189,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             return Err("commitment belongs to another circuit or configuration".into());
         }
         let (circuit, statement) = committed.participant.prove(
-            &self.circuit,
+            &[&self.circuit],
             public,
             committed.state,
+            &VirtualInputs::none(),
             &mut committed.joint.transcript(),
             ctx,
         )?;
@@ -312,7 +281,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     ) -> Result<(sumcheck::SumcheckProof<W, F>, PendingSplit<F::E>), String> {
 
         self.split()?;
-        self.validate_circuits(circuit, public.len(), &[])?;
+        self.validate_circuits(&[circuit], public.len())?;
         if state.id != self.id {
             return Err("split state belongs to another circuit".into());
         }

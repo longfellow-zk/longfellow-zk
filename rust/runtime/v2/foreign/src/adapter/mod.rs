@@ -202,6 +202,14 @@ pub fn fragment(
 /// One way of discharging a split's modular claim over foreign bit groups:
 /// the rounds after the claim is fixed, the message they publish, and the
 /// fixed fragment whose virtual leaves the binary host proves.
+///
+/// Implementations are trusted protocol code. Matching these types does not
+/// make a mode sound or hiding: each mode must show that its fragment accepts
+/// only true claims (up to its stated error), that its message reveals nothing
+/// beyond the claim given its pads, and that `prove` and `verify` absorb the
+/// same transcript data. Its virtual leaves must depend only on the claim, the
+/// mode's own challenges and its published message, all fixed before the host
+/// sumcheck begins.
 pub trait AdapterMode<F: SerializableField>: Sized {
     /// Bits of the split mask R in the binary witness.
     const MASK_BITS: usize;

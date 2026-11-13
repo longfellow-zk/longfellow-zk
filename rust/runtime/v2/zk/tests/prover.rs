@@ -145,7 +145,12 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         let mut unchanged = transcript.fork_for_test();
         assert!(matches!(
             committed.participant.prove(
-                &prover.circuit, inputs, committed.state, &mut transcript, &context
+                &[&prover.circuit],
+                inputs,
+                committed.state,
+                &VirtualInputs::none(),
+                &mut transcript,
+                &context
             ),
             Err(error) if error == "public inputs length mismatch"
         ));

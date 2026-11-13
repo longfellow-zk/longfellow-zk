@@ -43,11 +43,10 @@ where
 
         // Adapter rounds, then the host frontend with the mode's fragment.
         let leaves = self.mode.verify(&foreign, &proof.message, &mut t, fs, fh)?;
-        let statement_host = self.host.reduce_virtual(
-            self.host_circuit,
+        let statement_host = self.host.reduce(
+            &[self.host_circuit, self.mode.fragment()],
             host_public,
             &proof.host,
-            &[self.mode.fragment()],
             &leaves,
             &mut t,
             &self.host_ctx,

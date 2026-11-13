@@ -71,12 +71,13 @@ sums them. T controls both openings and row masks.
 
 ## Same-field circuit composition
 
-`CircuitParticipant::with_circuits` combines the supplied circuits in one
-layered sumcheck. They share the public prefix and read prefixes of one input
-array as wide as the widest circuit.
-`prove_circuits` and `reduce_circuits` take that ordered circuit list and the
-same public inputs. The prover supplies one private source vector, packed and
-committed once. All circuit IDs and the common public values bind before sumcheck.
+`CircuitParticipant::new(circuits, virtual_inputs, ..)` combines the supplied
+circuits in one layered sumcheck; `circuits[0]` is the primary circuit. They
+share the public prefix and read prefixes of one input array as wide as the
+widest circuit. `prove` and `reduce` take the same ordered circuit list, which
+must match the participant's circuit IDs, and the same public inputs. The
+prover supplies one private source vector, packed and committed once. All
+circuit IDs and the common public values bind before sumcheck.
 
 The input array is shared. Intermediate layers concatenate each active
 circuit's wires in decreasing depth order, breaking ties by the original
@@ -86,16 +87,18 @@ the global arrays supply the offsets. At the input boundary every fragment's
 input offset is zero, so their contributions accumulate into the same input
 weights; a narrower circuit contributes only to its prefix.
 
-`CircuitParticipant::with_virtual_inputs` reserves the last entries of the
-shared input array as virtual inputs. Each proof defines them as affine
-functions `c0 + c1 * x[source]` of committed private inputs (`VirtualInputs`);
-both roles derive the definitions, and they are never absorbed. The prover
-appends their values to the input array. `compile_packed` substitutes them
-like public inputs: each constant moves to the right-hand side and each
+A nonzero `virtual_inputs` count reserves the last entries of the shared input
+array as virtual inputs. Each proof defines them as affine functions
+`c0 + c1 * x[source]` of committed private inputs (`VirtualInputs`). Both roles
+derive the definitions, and they are never absorbed, so they must be fixed
+before the participant's sumcheck draws any challenge: derive them only from
+data the transcript already binds, never from that proof's own messages. The
+prover appends their values to the input array. `compile_packed` substitutes
+them like public inputs: each constant moves to the right-hand side and each
 linear part joins its source input's weight, so virtual inputs are never
 committed. The primary circuit must end before the virtual suffix and so
-cannot read it; the other circuits may. `prove_virtual` and `reduce_virtual`
-take the definitions; `prove_circuits` and `reduce_circuits` use none.
+cannot read it; the other circuits may. `prove` and `reduce` take the
+definitions; participants without virtual inputs pass `VirtualInputs::none()`.
 
 Shorter circuits join later, aligned at their inputs. New zero-output claims
 receive fresh output weights. Each layer otherwise uses ordinary sumcheck over

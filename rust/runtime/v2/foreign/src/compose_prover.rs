@@ -66,11 +66,10 @@ where
         // Adapter rounds, then the host frontend with the mode's fragment.
         let values = self.split.foreign_values(&pending)?;
         let (message, leaves) = self.mode.prove(&claim, &values, &pads, &mut t, fs, fh)?;
-        let (host, statement_host) = self.host.prove_virtual(
-            self.host_circuit,
+        let (host, statement_host) = self.host.prove(
+            &[self.host_circuit, self.mode.fragment()],
             host_public,
             state_host,
-            &[self.mode.fragment()],
             &leaves,
             &mut t,
             &self.host_ctx,

@@ -10,7 +10,7 @@ use crate::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
         random::DeterministicRng,
-        v2::transcript::Transcript,
+        v2::{transcript::Transcript, zk::VirtualInputs},
     },
 };
 
@@ -166,8 +166,9 @@ fn binary_circuits_authenticate_one_shared_input() {
         t: 8,
     };
     for count in [0, 1, 3, 5] {
-        let others = vec![&side; count];
-        let p = CircuitParticipant::with_circuits(&main, &others, config, &ctx).unwrap();
+        let mut components = vec![&main];
+        components.extend(vec![&side; count]);
+        let p = CircuitParticipant::new(&components, 0, config, &ctx).unwrap();
         let private = vec![true, true, false];
         let mut rng = DeterministicRng::new(77);
         let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
@@ -179,11 +180,11 @@ fn binary_circuits_authenticate_one_shared_input() {
         let t = Transcript::new(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
         let (proof, statement) = p
-            .prove_circuits(
-                &main,
+            .prove(
+                &components,
                 &[true],
                 state,
-                &others,
+                &VirtualInputs::none(),
                 &mut joint.transcript(),
                 &ctx,
             )
@@ -192,11 +193,11 @@ fn binary_circuits_authenticate_one_shared_input() {
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let t = Transcript::new(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
-            let statement = p.reduce_circuits(
-                &main,
+            let statement = p.reduce(
+                &components,
                 &[public],
                 candidate,
-                &others,
+                &VirtualInputs::none(),
                 &mut v.transcript(),
                 &ctx,
             )?;
@@ -215,14 +216,22 @@ fn binary_circuits_authenticate_one_shared_input() {
             let mut raw = wrong.into_raw().into_builder();
             raw.ninput += 1;
             let wrong = Circuit::with_test_id(id, raw.build());
-            let invalid = vec![&wrong; count];
+            let mut invalid = vec![&main];
+            invalid.extend(vec![&wrong; count]);
             let mut t = Transcript::new(b"bad-shared-layout");
             let before = t.fork_for_test().bytes(32);
             assert!(p
-                .reduce_circuits(&main, &[true], &proof, &invalid, &mut t.borrow(), &ctx)
+                .reduce(
+                    &invalid,
+                    &[true],
+                    &proof,
+                    &VirtualInputs::none(),
+                    &mut t.borrow(),
+                    &ctx
+                )
                 .is_err());
             assert_eq!(before, t.bytes(32));
-            assert!(CircuitParticipant::with_circuits(&main, &invalid, config, &ctx).is_err());
+            assert!(CircuitParticipant::new(&invalid, 0, config, &ctx).is_err());
         }
     }
 }
@@ -238,10 +247,10 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
         QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
     let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
-    let others = [&side, &main];
-    let p = CircuitParticipant::with_circuits(
-        &main,
-        &others,
+    let components = [&main, &side, &main];
+    let p = CircuitParticipant::new(
+        &components,
+        0,
         PolygeroConfig {
             k: 64,
             s: 2,
@@ -271,11 +280,11 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     let t = Transcript::new(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = p
-        .prove_circuits(
-            &main,
+        .prove(
+            &components,
             &public,
             state,
-            &others,
+            &VirtualInputs::none(),
             &mut joint.transcript(),
             &ctx,
         )
@@ -288,7 +297,14 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     let t = Transcript::new(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = p
-        .reduce_circuits(&main, &public, &proof, &others, &mut v.transcript(), &ctx)
+        .reduce(
+            &components,
+            &public,
+            &proof,
+            &VirtualInputs::none(),
+            &mut v.transcript(),
+            &ctx,
+        )
         .unwrap();
     let mut tv = v
         .authenticate(&opening, (statement, ()))
@@ -376,10 +392,7 @@ fn final_seal_failure_has_its_own_verification_error() {
 /// three private inputs are committed.
 #[test]
 fn binary_virtual_inputs_are_substituted_not_committed() {
-    use crate::{
-        core::algebra::SupportsU128Conversions,
-        runtime::v2::zk::{VirtualInput, VirtualInputs},
-    };
+    use crate::{core::algebra::SupportsU128Conversions, runtime::v2::zk::VirtualInput};
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
     let ctx = ZkContext::new(&domain);
@@ -409,7 +422,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         n: 256,
         t: 8,
     };
-    let p = CircuitParticipant::with_virtual_inputs(&main, &[&fragment], 1, config, &ctx).unwrap();
+    let p = CircuitParticipant::new(&[&main, &fragment], 1, config, &ctx).unwrap();
     assert_eq!(p.backend.layout.private_inputs, 3);
     let layout = p.input_layout();
     assert_eq!((layout.committed_end, layout.ninput), (4, 5));
@@ -430,11 +443,10 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let t = Transcript::new(b"virtual-inputs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = p
-        .prove_virtual(
-            &main,
+        .prove(
+            &[&main, &fragment],
             &[true],
             state,
-            &[&fragment],
             &honest,
             &mut joint.transcript(),
             &ctx,
@@ -444,11 +456,10 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::new(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
-        let statement = p.reduce_virtual(
-            &main,
+        let statement = p.reduce(
+            &[&main, &fragment],
             &[true],
             &proof,
-            &[&fragment],
             definition,
             &mut v.transcript(),
             &ctx,
@@ -478,16 +489,15 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         .commit((w, ()), Transcript::new(b"virtual-inputs-test"), &mut rng)
         .unwrap();
     assert!(p
-        .prove_virtual(
-            &main,
+        .prove(
+            &[&main, &fragment],
             &[true],
             state,
-            &[&fragment],
             &tampered,
             &mut joint.transcript(),
             &ctx,
         )
         .is_err());
     // The primary circuit cannot read the virtual suffix.
-    assert!(CircuitParticipant::with_virtual_inputs(&fragment, &[&main], 1, config, &ctx).is_err());
+    assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &ctx).is_err());
 }
