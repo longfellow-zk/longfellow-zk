@@ -34,10 +34,6 @@ use crate::{
             },
             SupportsFFT,
         },
-        v2::{
-            foreign,
-            zk::{joint::CircuitParticipant, split, ZkContext},
-        },
     },
 };
 
@@ -59,7 +55,6 @@ pub fn run_mdoc_verifier_inner(
     if attrs.len() != zk_spec.num_attributes {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
-    let (config_hash, config_sig) = zk_spec.configs();
     if !same_namespace(attrs) {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
     }
@@ -94,104 +89,29 @@ pub fn run_mdoc_verifier_inner(
     let (c_sig, c_hash) = super::circuits::for_spec(zk_spec, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
-    let context_hash = ZkContext::new(&make_interpolator_hash);
-    let context_sig = ZkContext::new(&make_interpolator_sig);
     let gen_err = |_| MdocVerifierErrorCode::GeneralFailure;
-
-    let link = super::link::Link::new(&c_hash).map_err(gen_err)?;
-    let storage = link.storage(&c_sig).map_err(gen_err)?;
-    let verifier_hash = CircuitParticipant::with_virtual_inputs(
+    let composition = super::link::composition(
+        zk_spec,
+        &c_sig,
         &c_hash,
-        &[&link.fragment],
-        link.virtual_inputs(),
-        config_hash,
-        &context_hash,
+        (&make_interpolator_hash, &make_interpolator_sig),
     )
     .map_err(gen_err)?;
-    let verifier_sig =
-        CircuitParticipant::with_storage(&c_sig, storage, Some(link.mask), config_sig, &context_sig)
-            .map_err(gen_err)?;
-    let param = crate::runtime::v2::zk::joint::JointParam::new((
-        verifier_hash.participant(&context_hash).map_err(gen_err)?,
-        (verifier_sig.participant(&context_sig).map_err(gen_err)?, ()),
-    ))
-    .map_err(gen_err)?;
-    let geom = super::proto::MdocProofGeometry {
-        geom_hash: verifier_hash.geometry(),
-        geom_sig: verifier_sig.geometry(),
-        joint_context: param.context(),
-        config: param.config(),
+    let geometry = super::proto::MdocProofGeometry {
+        body: composition.geometry().map_err(gen_err)?,
     };
-    let decoded = super::proto::MdocProof::read(proof_bytes, &geom, &gf2, &p256)
+    let decoded = super::proto::MdocProof::read(proof_bytes, &geometry, &gf2, &p256)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-    let super::proto::MdocProof {
-        commitment: root,
-        fingerprints,
-        mu,
-        masked,
-        proof_hash,
-        proof_sig,
-        polygero: proof,
-    } = &*decoded;
-    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
 
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
-    let mut joint = param.receive(root, fingerprints.clone(), tp);
-    let mut tp = joint.transcript();
-
-    // Signature frontend, then the mixed split of its batched claim.
     let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
     let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
-    let pub_inputs_sig = push_input_sig(&p256, &issuer_pk, &e2_val);
-    let claim = verifier_sig
-        .reduce_split(
-            &c_sig,
-            &pub_inputs_sig,
-            &proof_sig.sumcheck_proof,
-            &mut tp,
-            &context_sig,
-        )
+    let sig_public = push_input_sig(&p256, &issuer_pk, &e2_val);
+    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
+    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
+    let tp = composition
+        .verify(&app_public, &sig_public, &decoded.body, tp)
         .map_err(gen_err)?;
-    let eta = split::transcript::eta(&mut tp, &p256);
-    split::transcript::absorb_mu(&mut tp, mu, &p256);
-    let link_claim = verifier_sig
-        .foreign_claim(&claim, &eta, mu, &p256)
-        .map_err(gen_err)?;
-
-    // Adapter: conversion challenges, then the published masked words.
-    let alpha = foreign::adapter::p256::conversion(&mut tp, &p256);
-    let encoded = link
-        .plan
-        .encode(&link_claim, &alpha, None, &p256, &gf2)
-        .map_err(gen_err)?;
-    foreign::adapter::p256::absorb_masked(&mut tp, masked);
-    let leaves = foreign::adapter::virtual_inputs(
-        link.shape,
-        encoded.trees(&link_claim, &link.otp, masked, &gf2),
-        &gf2,
-    )
-    .map_err(gen_err)?;
-
-    // Binary frontend: hash circuit and the fixed adapter fragment.
-    let statement_hash = verifier_hash
-        .reduce_virtual(
-            &c_hash,
-            &app_public,
-            proof_hash,
-            &[&link.fragment],
-            &leaves,
-            &mut tp,
-            &context_hash,
-        )
-        .map_err(gen_err)?;
-    let statement_sig = verifier_sig
-        .split_statement(&claim, &eta, mu, &p256)
-        .map_err(gen_err)?;
-    let tp = joint
-        .authenticate(proof, (statement_hash, (statement_sig, ())))
-        .map_err(gen_err)?
-        .into_transcript();
     decoded
         .checked(tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)

@@ -86,15 +86,12 @@ pub fn proof_geometry(
     signature: &Circuit<P256Field>,
     hash: &Circuit<Gf2_128Field>,
 ) -> Result<super::MdocProofGeometry, String> {
-    use crate::runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
+    use crate::runtime::algebra::{
+        fp2::Fp2Field,
+        range_interpolation::{
+            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
         },
-        v2::zk::{joint::JointParam, ZkContext},
+        SupportsFFT,
     };
     let f = Gf2_128Field::new();
     let p = P256Field::new();
@@ -102,30 +99,7 @@ pub fn proof_geometry(
     let hd = BinaryInterpolatorFactory::full_field(&f);
     let sd =
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    let hc = ZkContext::new(&hd);
-    let sc = ZkContext::new(&sd);
-    let (h, s) = spec.configs();
-    let link = super::link::Link::new(hash)?;
-    let h = crate::runtime::v2::zk::joint::CircuitParticipant::with_virtual_inputs(
-        hash,
-        &[&link.fragment],
-        link.virtual_inputs(),
-        h,
-        &hc,
-    )?;
-    let s = crate::runtime::v2::zk::joint::CircuitParticipant::with_storage(
-        signature,
-        link.storage(signature)?,
-        Some(link.mask),
-        s,
-        &sc,
-    )?;
-    let joint = JointParam::new((h.participant(&hc)?, (s.participant(&sc)?, ())))
-        .map_err(|e| e.to_string())?;
     Ok(super::MdocProofGeometry {
-        geom_hash: h.geometry(),
-        geom_sig: s.geometry(),
-        joint_context: joint.context(),
-        config: joint.config(),
+        body: super::link::composition(spec, signature, hash, (&hd, &sd))?.geometry()?,
     })
 }

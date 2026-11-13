@@ -232,18 +232,16 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
-    let proof = runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
-    let hash = proof
-        .proof_hash
-        .write(&geometry.geom_hash, &binary)
-        .unwrap();
-    let signature = proof.proof_sig.write(&geometry.geom_sig, &prime).unwrap();
+    let decoded = runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
+    let (proof, geometry) = (&decoded.body, &geometry.body);
+    let hash = proof.host.write(&geometry.host, &binary).unwrap();
+    let signature = proof.split.write(&geometry.split, &prime).unwrap();
     let polygero = &proof.polygero;
     let (nonces, frontier) = polygero.authentication_bytes();
     let hash_payload = polygero.bodies().0.payload_bytes(&binary);
     let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
     let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
-    let masked = proof.masked.len() * runtime::proto::MaskedQuotient::BYTES;
+    let masked = proof.message.len() * runtime::proto::MaskedQuotient::BYTES;
     assert_eq!(
         bytes.len(),
         32 + masked + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32

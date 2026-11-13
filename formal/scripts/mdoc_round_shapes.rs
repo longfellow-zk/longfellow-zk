@@ -13,8 +13,8 @@ fn main() {
         let (spec, archive) = compile_next(attributes).unwrap().into_parts();
         let (sig, hash) = decompress_circuits(&archive, &prime, &binary).unwrap();
         let geometry = proof_geometry(&spec, &sig, &hash).unwrap();
-        let binary_rounds = geometry.geom_hash.sc_geom.logw_layers;
-        let prime_rounds = geometry.geom_sig.sc_geom.logw_layers;
+        let binary_rounds = geometry.body.host.sc_geom.logw_layers;
+        let prime_rounds = geometry.body.split.sc_geom.logw_layers;
         println!(
             "{{\"attributes\":{},\"binary_rounds\":{:?},\"prime_rounds\":{:?}}}",
             attributes, binary_rounds, prime_rounds

@@ -204,7 +204,8 @@ This crate builds without the `mdoc` feature.
 Proof types and canonical codecs live in `runtime::v2::proto`, with the application
 envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
-proofs use `MDA7`, and the shared Polygero envelope uses `JPG2`.
+proofs use `MDA7`: an envelope around the generic composed body
+(`proto::composed`). The shared Polygero envelope uses `JPG2`.
 Serialization writes backend data directly into the containing proof buffer.
 V2 uses typed rounds over SHA-256 strands and a mandatory final seal owned by
 the complete-proof encoder; nested circuit and backend bodies have no extra seals.

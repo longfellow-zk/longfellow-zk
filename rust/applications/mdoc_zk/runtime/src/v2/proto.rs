@@ -1,14 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Two circuit reductions with one shared Polygero commitment and opening.
+//! The mdoc envelope: version `MDA7`, a composed proof body, the final seal.
 use crate::{
     core::proto::SerializableField,
     runtime::{
         algebra::RuntimeField,
-        v2::proto::{
-            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
-            zk::{CircuitGeometry, CircuitProof},
-            Digest,
-        },
+        v2::proto::composed::{ComposedGeometry, ComposedProof},
     },
 };
 /// A masked link quotient as it appears in the proof.
@@ -17,27 +13,13 @@ pub type MaskedQuotient = crate::runtime::v2::foreign::word::MaskedWord<
 >;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProofGeometry {
-    pub geom_hash: CircuitGeometry,
-    pub geom_sig: CircuitGeometry,
-    pub joint_context: Digest,
-    pub config: PolygeroConfig,
+    pub body: ComposedGeometry,
 }
+/// The hash circuit hosts the signature circuit's shared values; the body's
+/// adapter message is the two masked quotients.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
-    pub mu: F2::E,
-    /// The two masked quotients, elements of GF(2)^Q.
-    pub masked: [MaskedQuotient; 2],
-    pub commitment: PolygeroCommitment,
-    pub fingerprints: (
-        crate::runtime::v2::proto::witness_selection::FingerprintResponse<F1::E>,
-        (
-            crate::runtime::v2::proto::witness_selection::FingerprintResponse<F2::E>,
-            (),
-        ),
-    ),
-    pub proof_hash: CircuitProof<2, F1>,
-    pub proof_sig: CircuitProof<4, F2>,
-    pub polygero: JointPolygeroProof<(FieldProof<F1::E>, (FieldProof<F2::E>, ()))>,
+    pub body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]>,
 }
 impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
     MdocProof<F1, F2>
@@ -51,31 +33,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     ) -> Result<crate::runtime::v2::transcript::EncodedProof, String> {
         let mut out = Vec::new();
         out.extend_from_slice(b"MDA7");
-        out.extend_from_slice(&self.commitment.root.data);
-        self.fingerprints.0.write(&mut out, f1);
-        self.fingerprints.1 .0.write(&mut out, f2);
-        out.extend_from_slice(&f2.to_bytes(&self.mu));
-        for m in &self.masked {
-            m.write(&mut out);
-        }
-        self.proof_hash
-            .write_to_buf(&mut out, &g.geom_hash, f1)
-            .map_err(|e| e.to_string())?;
-        self.proof_sig
-            .write_to_buf(&mut out, &g.geom_sig, f2)
-            .map_err(|e| e.to_string())?;
-        self.polygero
-            .write_to_buf::<std::io::Error>(
-                &mut out,
-                &g.joint_context,
-                g.config.t,
-                g.config.n,
-                |b, out| {
-                    b.0.write(out, &g.geom_hash.com_geom, f1)?;
-                    b.1 .0.write(out, &g.geom_sig.com_geom, f2)
-                },
-            )
-            .map_err(|e| e.to_string())?;
+        self.body.write_to_buf(&mut out, &g.body, f1, f2)?;
         Ok(transcript.append_final_seal(out))
     }
     /// Parse one complete MDA7 proof, which must end exactly with its final seal.
@@ -89,55 +47,10 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
             return Err("mdoc adapter proof version or size".into());
         }
         let mut remaining = &bytes[4..];
-        let commitment = PolygeroCommitment {
-            root: Digest {
-                data: crate::runtime::v2::proto::util::read_bytes_32(&mut remaining)
-                    .map_err(|e| e.to_string())?,
-            },
-        };
-        use crate::runtime::v2::proto::witness_selection::FingerprintResponse;
-        let fingerprints = (
-            FingerprintResponse::read(&mut remaining, f1).map_err(|e| e.to_string())?,
-            (
-                FingerprintResponse::read(&mut remaining, f2).map_err(|e| e.to_string())?,
-                (),
-            ),
-        );
-        let mu =
-            crate::runtime::v2::proto::read_field(&mut remaining, f2).map_err(|e| e.to_string())?;
-        let masked = [
-            MaskedQuotient::read(&mut remaining)?,
-            MaskedQuotient::read(&mut remaining)?,
-        ];
-        let proof_hash =
-            CircuitProof::read(&mut remaining, &g.geom_hash, f1).map_err(|e| e.to_string())?;
-        let proof_sig =
-            CircuitProof::read(&mut remaining, &g.geom_sig, f2).map_err(|e| e.to_string())?;
-        let polygero = JointPolygeroProof::read::<std::io::Error>(
-            &mut remaining,
-            &g.joint_context,
-            g.config.t,
-            g.config.n,
-            |b| {
-                Ok((
-                    FieldProof::read(b, &g.geom_hash.com_geom, f1)?,
-                    (FieldProof::read(b, &g.geom_sig.com_geom, f2)?, ()),
-                ))
-            },
-        )
-        .map_err(|e| e.to_string())?;
-        let body = Self {
-            mu,
-            masked,
-            commitment,
-            fingerprints,
-            proof_hash,
-            proof_sig,
-            polygero,
-        };
+        let body = ComposedProof::read(&mut remaining, &g.body, f1, f2)?;
         // The proof must end exactly with its final seal; no trailing data is
         // returned to the caller.
-        crate::runtime::v2::transcript::Unverified::decoded(body, bytes, &mut remaining)
+        crate::runtime::v2::transcript::Unverified::decoded(Self { body }, bytes, &mut remaining)
             .map_err(|e| e.to_string())
     }
 }

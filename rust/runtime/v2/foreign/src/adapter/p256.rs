@@ -254,3 +254,103 @@ impl<const Q: usize> P256Encoded<Q> {
 }
 
 pub use super::transcript::{absorb_masked, conversion};
+
+/// The P-256 wrapping mode as an adapter mode: two trees, each with a
+/// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
+pub struct P256Mode<const Q: usize> {
+    plan: P256Plan<Q>,
+    otp: [BitGroup<Q>; 2],
+    shape: TreeShape,
+    fragment: crate::core::proto::v2::Circuit<Gf2_128Field>,
+}
+impl<const Q: usize> P256Mode<Q> {
+    /// The pads' bit groups in the binary witness.
+    pub fn pads(&self) -> &[BitGroup<Q>; 2] {
+        &self.otp
+    }
+}
+impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
+    const MASK_BITS: usize = 256;
+    type Pads = [crate::runtime::v2::foreign::word::Otp<Q>; 2];
+    type Message = [MaskedWord<Q>; 2];
+    fn new(
+        widths: Vec<usize>,
+        npublic: usize,
+        suffix: &mut crate::runtime::v2::zk::storage::ReservedSuffix,
+    ) -> Result<Self, String> {
+        let otp = [suffix.word::<Q>(), suffix.word::<Q>()];
+        let plan = P256Plan::new(widths)?;
+        let shape = plan.shape();
+        let fragment = super::fragment(npublic, suffix.end(), shape)?;
+        Ok(Self {
+            plan,
+            otp,
+            shape,
+            fragment,
+        })
+    }
+    fn fragment(&self) -> &crate::core::proto::v2::Circuit<Gf2_128Field> {
+        &self.fragment
+    }
+    fn virtual_inputs(&self) -> usize {
+        self.shape.virtual_inputs()
+    }
+    #[cfg(any(test, feature = "prover"))]
+    fn sample_pads(&self, rng: &mut impl crate::runtime::random::RandomEngine) -> Self::Pads {
+        use crate::runtime::v2::foreign::word::Otp;
+        [Otp::sample(rng), Otp::sample(rng)]
+    }
+    #[cfg(any(test, feature = "prover"))]
+    fn write_pads(
+        &self,
+        pads: &Self::Pads,
+        reserved: &mut crate::runtime::v2::zk::storage::ReservedWitness<'_>,
+    ) -> Result<(), String> {
+        for (group, pad) in self.otp.iter().zip(pads) {
+            reserved.set(group.group(), pad.bits())?;
+        }
+        Ok(())
+    }
+    #[cfg(any(test, feature = "prover"))]
+    fn prove(
+        &self,
+        claim: &ModularClaim<P256Element>,
+        values: &[P256Element],
+        pads: &Self::Pads,
+        t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>,
+        p: &P256Field,
+        f: &Gf2_128Field,
+    ) -> Result<
+        (
+            Self::Message,
+            crate::runtime::v2::zk::VirtualInputs<Gf2_128>,
+        ),
+        String,
+    > {
+        let alpha = conversion(t, p);
+        let encoded = self.plan.encode(claim, &alpha, Some(values), p, f)?;
+        let k = encoded.quotients.ok_or("P256 adapter quotients")?;
+        let masked = [
+            MaskedWord::mask(k[0], &pads[0]),
+            MaskedWord::mask(k[1], &pads[1]),
+        ];
+        absorb_masked(t, &masked);
+        let leaves =
+            super::virtual_inputs(self.shape, encoded.trees(claim, &self.otp, &masked, f), f)?;
+        Ok((masked, leaves))
+    }
+    #[cfg(any(test, feature = "verifier"))]
+    fn verify(
+        &self,
+        claim: &ModularClaim<P256Element>,
+        masked: &Self::Message,
+        t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>,
+        p: &P256Field,
+        f: &Gf2_128Field,
+    ) -> Result<crate::runtime::v2::zk::VirtualInputs<Gf2_128>, String> {
+        let alpha = conversion(t, p);
+        let encoded = self.plan.encode(claim, &alpha, None, p, f)?;
+        absorb_masked(t, masked);
+        super::virtual_inputs(self.shape, encoded.trees(claim, &self.otp, masked, f), f)
+    }
+}

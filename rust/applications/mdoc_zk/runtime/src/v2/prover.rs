@@ -15,14 +15,12 @@
 //! Shared-root mdoc prover with a packed binary circuit and a prime P256 circuit.
 
 use super::{
-    link,
     inputs::{
         public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash, push_witness_sig,
     },
     ZkSpecStruct,
 };
 use crate::{
-    core::algebra::SerializableField,
     mdoc::{
         circuits::cbor::mdoc::{MdocParseError, ParsedMdoc},
         runtime::v2::{
@@ -42,13 +40,6 @@ use crate::{
             SupportsFFT,
         },
         random::RandomEngine,
-        v2::{
-            foreign::{
-                self,
-                word::{MaskedWord, Otp},
-            },
-            zk::{joint::CircuitParticipant, split, ZkContext},
-        },
     },
 };
 
@@ -126,7 +117,6 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
     if attrs.len() != zk_spec.num_attributes {
         return Err(MdocProverErrorCode::InvalidInput);
     }
-    let (config_hash, config_sig) = zk_spec.configs();
     if !same_namespace(attrs) {
         return Err(MdocProverErrorCode::NamespacesMissing);
     }
@@ -174,137 +164,29 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
         })?;
 
     let gen_err = |_| MdocProverErrorCode::GeneralFailure;
-    let link = super::link::Link::new(&c_hash).map_err(gen_err)?;
-    let storage = link.storage(&c_sig).map_err(gen_err)?;
-
-    let mask = rng.elt_field(&p256);
-    let mask_bytes = p256.to_bytes(&mask);
-    let otp = [Otp::<{ link::Q }>::sample(rng), Otp::sample(rng)];
-
-    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
-
-    // Hash witness, then the reserved suffix written by typed position.
-    let mut witness_hash = push_witness_hash(attrs, &parsed)?;
-    let mut reserved = link.suffix.witness();
-    reserved
-        .set(
-            link.mask,
-            (0..256).map(|r| ((mask_bytes[r / 8] >> (r % 8)) & 1) != 0),
-        )
-        .map_err(gen_err)?;
-    for (group, pad) in link.otp.iter().zip(&otp) {
-        reserved.set(group.group(), pad.bits()).map_err(gen_err)?;
-    }
-    witness_hash.extend(reserved.into_bits());
+    let composition = super::link::composition(
+        zk_spec,
+        &c_sig,
+        &c_hash,
+        (&make_interpolator_hash, &make_interpolator_sig),
+    )
+    .map_err(gen_err)?;
+    let witness_hash = push_witness_hash(attrs, &parsed)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed)
         .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
+    let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
+    let sig_public = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
 
     // Public presentation bits are fixed before the shared commitment.
-    let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    let context_hash = ZkContext::new(&make_interpolator_hash);
-    let context_sig = ZkContext::new(&make_interpolator_sig);
-
-    let prover_hash = CircuitParticipant::with_virtual_inputs(
-        &c_hash,
-        &[&link.fragment],
-        link.virtual_inputs(),
-        config_hash,
-        &context_hash,
-    )
-    .map_err(gen_err)?;
-    let prover_sig =
-        CircuitParticipant::with_storage(&c_sig, storage, Some(link.mask), config_sig, &context_sig)
-            .map_err(gen_err)?;
-    let param = crate::runtime::v2::zk::joint::JointParam::new((
-        prover_hash.participant(&context_hash).map_err(gen_err)?,
-        (prover_sig.participant(&context_sig).map_err(gen_err)?, ()),
-    ))
-    .map_err(gen_err)?;
+    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
     super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
-    let (state_hash, w_hash) = prover_hash.prepare(witness_hash, rng).map_err(gen_err)?;
-    let (state_sig, w_sig) = prover_sig
-        .prepare_split(witness_sig, Some(mask), rng)
+    let (body, tp) = composition
+        .prove(&app_public, witness_hash, &sig_public, witness_sig, tp, rng)
         .map_err(gen_err)?;
-    let (mut joint, root, fingerprints) = param
-        .commit((w_hash, (w_sig, ())), tp, rng)
-        .map_err(gen_err)?;
-    let mut tp = joint.transcript();
-
-    // Signature frontend, then the mixed split of its batched claim.
-    let sig_pub_inputs = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
-    let (proof_sig, reduced) = prover_sig
-        .prove_split(&c_sig, &sig_pub_inputs, state_sig, &mut tp, &context_sig)
-        .map_err(gen_err)?;
-    let eta = split::transcript::eta(&mut tp, &p256);
-    let mu = prover_sig
-        .split_message(&reduced, &eta, &p256)
-        .map_err(gen_err)?;
-    split::transcript::absorb_mu(&mut tp, &mu, &p256);
-    let claim = prover_sig
-        .foreign_claim(&reduced.claim, &eta, &mu, &p256)
-        .map_err(gen_err)?;
-
-    // Adapter: conversion challenges, honest quotients, masked words.
-    let alpha = foreign::adapter::p256::conversion(&mut tp, &p256);
-    let values = prover_sig.foreign_values(&reduced).map_err(gen_err)?;
-    let encoded = link
-        .plan
-        .encode(&claim, &alpha, Some(&values), &p256, &gf2)
-        .map_err(gen_err)?;
-    let quotients = encoded.quotients.ok_or(MdocProverErrorCode::GeneralFailure)?;
-    let masked = [
-        MaskedWord::mask(quotients[0], &otp[0]),
-        MaskedWord::mask(quotients[1], &otp[1]),
-    ];
-    foreign::adapter::p256::absorb_masked(&mut tp, &masked);
-    let leaves = foreign::adapter::virtual_inputs(
-        link.shape,
-        encoded.trees(&claim, &link.otp, &masked, &gf2),
-        &gf2,
-    )
-    .map_err(gen_err)?;
-
-    // Binary frontend: hash circuit and the fixed adapter fragment.
-    let (proof_hash, statement_hash) = prover_hash
-        .prove_virtual(
-            &c_hash,
-            &app_public,
-            state_hash,
-            &[&link.fragment],
-            &leaves,
-            &mut tp,
-            &context_hash,
-        )
-        .map_err(gen_err)?;
-    let statement_sig = prover_sig
-        .split_statement(&reduced.claim, &eta, &mu, &p256)
-        .map_err(gen_err)?;
-    let proof_sig = crate::runtime::v2::proto::zk::CircuitProof {
-        sumcheck_proof: proof_sig,
-        packing: crate::runtime::v2::proto::dual_packing::PackingProof::Direct,
+    let geometry = super::MdocProofGeometry {
+        body: composition.geometry().map_err(gen_err)?,
     };
-    let (proof, tp) = joint
-        .prove(&param, (statement_hash, (statement_sig, ())))
-        .map_err(gen_err)?;
-    super::proto::MdocProof {
-        commitment: root,
-        fingerprints,
-        mu,
-        masked,
-        proof_hash,
-        proof_sig,
-        polygero: proof,
-    }
-    .write(
-        &super::proto::MdocProofGeometry {
-            geom_hash: prover_hash.geometry(),
-            geom_sig: prover_sig.geometry(),
-            joint_context: param.context(),
-            config: param.config(),
-        },
-        &gf2,
-        &p256,
-        tp,
-    )
-    .map_err(gen_err)
+    super::proto::MdocProof { body }
+        .write(&geometry, &gf2, &p256, tp)
+        .map_err(gen_err)
 }

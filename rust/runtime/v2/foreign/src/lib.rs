@@ -2,14 +2,17 @@
 //! Foreign storage: one field's frontend values stored as bits in the binary
 //! commitment, beside packing as a way of storing frontend inputs.
 //!
-//! The zk layer owns storage maps and the split of a participant's batched
-//! claim (`zk::storage`, `zk::split`). This module discharges the resulting
-//! modular claims over foreign bit groups with the exponent-tree adapter.
+//! The zk layer owns storage maps and the split of a participant's claim
+//! (`zk::storage`, `zk::split`). This module discharges the resulting modular
+//! claims over foreign bit groups with the exponent-tree adapter.
 //!
-//! - `adapter`: the fixed product-tree fragment and the P-256 encoder.
+//! - `adapter`: the fixed product-tree fragment, the P-256 encoder and the `AdapterMode` trait.
+//! - `compose`: the driver for a binary host and one mixed split participant.
 //! - `word`: quotient words, their pads and the masked words in proofs.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod adapter;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub mod compose;
 pub mod word;
 
 #[cfg(test)]

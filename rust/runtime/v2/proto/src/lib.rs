@@ -1,6 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 proof declarations, geometry and canonical complete-proof encoding.
 
+pub mod composed;
 pub mod dual_packing;
 mod field;
 mod merkle;

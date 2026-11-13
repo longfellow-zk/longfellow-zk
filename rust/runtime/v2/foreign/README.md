@@ -19,8 +19,7 @@ internals.
 
 ## Modules
 
-Storage maps and the split of a frontend's batched claim belong to the zk
-layer (see [Storage](../zk/README.md#storage)):
+Storage maps and the split of a frontend's claim belong to the zk layer (see [Storage](../zk/README.md#storage)):
 
 - `zk::storage` has the following types.
   - `StorageMap`: each value is `Native(cell)` or `Foreign(coordinates)`.
@@ -46,7 +45,15 @@ layer (see [Storage](../zk/README.md#storage)):
 This module discharges the modular claims:
 
 - `adapter`: the fixed product-tree fragment, the definitions of its virtual
-  leaves, and the P-256 encoder (`p256`).
+  leaves, and the P-256 encoder (`p256`). `AdapterMode` packages an encoder
+  with its rounds, pads and published message; `P256Mode` is the wrapping
+  mode.
+- `compose`: the driver for a binary host participant and one mixed split
+  participant. Both roles run the joint commitment, the split frontend and
+  its split, the adapter rounds, the host frontend with the mode's fragment,
+  and the joint opening. Its proof body is `proto::composed::ComposedProof`;
+  an application wraps it in its own envelope (mdoc: `MDA7` and the final
+  seal).
 - `word`: three types.
   - `Word<N>`: the integer quotient, used only inside the adapter.
   - `Otp<N>`: the committed one-time pad, built only by the prover from

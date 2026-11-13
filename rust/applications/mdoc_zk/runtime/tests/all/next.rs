@@ -1214,7 +1214,7 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
     let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f).unwrap();
     // The hash circuit is archived at its natural width: the link mask, pads
     // and tree leaves lie beyond it, so it cannot address them.
-    let link = crate::mdoc::runtime::v2::link_for_test(&hash).unwrap();
+    let link = crate::mdoc::runtime::v2::link_for_test(spec, &sig, &hash, (&d, &pd)).unwrap();
     assert_eq!(link.0, hash.raw.ninput);
     assert!(link.1 > link.0);
     let expected = crate::runtime::v2::proto::polygero::PolygeroConfig {
@@ -1229,8 +1229,8 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
     let geometry = crate::mdoc::v2::proof_geometry(spec, &sig, &hash).unwrap();
     // Keep the numerical frontend and Merkle charges tied to the actual
     // hash-plus-adapter geometry, including entries for both quad fragments.
-    let binary = &geometry.geom_hash.sc_geom;
-    let native = &geometry.geom_sig.sc_geom;
+    let binary = &geometry.body.host.sc_geom;
+    let native = &geometry.body.split.sc_geom;
     assert!(2 * binary.logw_layers.iter().sum::<usize>() + 2 * binary.logw_layers.len() + 2 <= 593);
     assert!(binary.logw_layers.len() <= 20);
     assert!(2 * native.logw_layers.iter().sum::<usize>() + 2 * native.logw_layers.len() < 593);

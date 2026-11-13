@@ -1081,6 +1081,8 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/v2/zk/src/joint_prover.rs", "verifier"),
         ("runtime/v2/zk/src/joint_verifier.rs", "prover"),
         ("runtime/v2/zk/src/verifier.rs", "prover"),
+        ("runtime/v2/foreign/src/compose_prover.rs", "verifier"),
+        ("runtime/v2/foreign/src/compose_verifier.rs", "prover"),
         ("runtime/v2/witness-selection/src/prover.rs", "verifier"),
         ("runtime/v2/witness-selection/src/verifier.rs", "prover"),
         ("runtime/v2/polygero/src/prover.rs", "verifier"),

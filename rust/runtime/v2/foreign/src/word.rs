@@ -87,3 +87,14 @@ impl<const N: usize> MaskedWord<N> {
         out
     }
 }
+
+impl<const N: usize> crate::runtime::v2::proto::composed::AdapterMessage for [MaskedWord<N>; 2] {
+    fn write(&self, out: &mut Vec<u8>) {
+        for m in self {
+            m.write(out);
+        }
+    }
+    fn read(b: &mut &[u8]) -> Result<Self, String> {
+        Ok([MaskedWord::read(b)?, MaskedWord::read(b)?])
+    }
+}

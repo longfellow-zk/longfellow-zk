@@ -10,20 +10,30 @@
 //!
 //! The fragment is fixed: a pure product tree over virtual inputs. Every
 //! challenge-dependent value lives in the per-proof virtual input definitions.
-//! The modulus-specific encoders (`p256` wrapping, `exact` small-prime) only
-//! compute leaf coefficients, targets and honest quotients.
+//! The modulus-specific encoder (`p256`, wrapping mode) only computes leaf
+//! coefficients, targets and honest quotients. `AdapterMode` packages an
+//! encoder with its rounds, pads and message for the composition driver.
 pub(crate) mod integer;
 pub mod p256;
 mod transcript;
 
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::{random::RandomEngine, v2::zk::storage::ReservedWitness};
 use crate::{
     core::{
-        algebra::AlgebraicField,
+        algebra::{AlgebraicField, SerializableField},
         proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
-        v2::zk::{VirtualInput, VirtualInputs},
+        v2::{
+            proto::composed::AdapterMessage,
+            transcript::TranscriptRef,
+            zk::{
+                storage::{ModularClaim, ReservedSuffix},
+                VirtualInput, VirtualInputs,
+            },
+        },
     },
 };
 
@@ -187,4 +197,52 @@ pub fn fragment(
     }
     .build();
     Ok(Circuit::from_raw(&f, raw))
+}
+
+/// One way of discharging a split's modular claim over foreign bit groups:
+/// the rounds after the claim is fixed, the message they publish, and the
+/// fixed fragment whose virtual leaves the binary host proves.
+pub trait AdapterMode<F: SerializableField>: Sized {
+    /// Bits of the split mask R in the binary witness.
+    const MASK_BITS: usize;
+    /// Committed one-time pads, built only by the prover.
+    type Pads;
+    /// The published message.
+    type Message: AdapterMessage;
+    /// A mode for a claim whose term widths are `widths`, in term order. It
+    /// allocates its pads in `suffix`, after R; its fragment reads the host's
+    /// `npublic` public inputs and the virtual inputs after the suffix.
+    fn new(widths: Vec<usize>, npublic: usize, suffix: &mut ReservedSuffix)
+        -> Result<Self, String>;
+    fn fragment(&self) -> &Circuit<Gf2_128Field>;
+    fn virtual_inputs(&self) -> usize;
+    #[cfg(any(test, feature = "prover"))]
+    fn sample_pads(&self, rng: &mut impl RandomEngine) -> Self::Pads;
+    #[cfg(any(test, feature = "prover"))]
+    fn write_pads(
+        &self,
+        pads: &Self::Pads,
+        reserved: &mut ReservedWitness<'_>,
+    ) -> Result<(), String>;
+    /// Prover rounds: `values` are the claim's term values, in term order.
+    #[cfg(any(test, feature = "prover"))]
+    fn prove(
+        &self,
+        claim: &ModularClaim<F::E>,
+        values: &[F::E],
+        pads: &Self::Pads,
+        t: &mut TranscriptRef<'_>,
+        f: &F,
+        gf2: &Gf2_128Field,
+    ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String>;
+    /// Verifier rounds from the published message.
+    #[cfg(any(test, feature = "verifier"))]
+    fn verify(
+        &self,
+        claim: &ModularClaim<F::E>,
+        message: &Self::Message,
+        t: &mut TranscriptRef<'_>,
+        f: &F,
+        gf2: &Gf2_128Field,
+    ) -> Result<VirtualInputs<Gf2_128>, String>;
 }
