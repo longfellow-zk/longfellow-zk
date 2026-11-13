@@ -21,7 +21,6 @@ use crate::compile::algebra::{
     Curve,
 };
 use crate::compile::compiler::dump_stats;
-use crate::compile::eval::FieldID;
 use crate::compile::logic::K_FIRST_WIRE_POSITION;
 use crate::core::algebra::{Nat, SerializableField};
 use crate::runtime::algebra::field::RuntimeField;
@@ -139,7 +138,7 @@ fn test_compile_ecdsa_generic<
 
     let inputs = make_inputs(&concrete_given_r, &concrete_derived_r, fr);
 
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, FieldID::P256)
+    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -205,14 +204,11 @@ fn test_compile_ecdsa_signature_tampering_generic<
     // Verify valid inputs pass
     {
         let inputs = make_inputs(&concrete_given, &concrete_derived, fr);
-        let eval_res = crate::compile::eval::eval_circuit_fc(
-            fc,
+        let eval_res = crate::compile::eval::eval_circuit_fc(fc,
             fr,
             &circuit,
             &symbols,
-            &inputs,
-            FieldID::P256,
-        )
+            &inputs)
         .unwrap();
         eval_res.assert_all_passed();
     }
@@ -224,14 +220,11 @@ fn test_compile_ecdsa_signature_tampering_generic<
         let mut cd = concrete_derived.clone();
         (c.corrupt)(&mut g, &mut cd);
         let inputs = make_inputs(&g, &cd, fr);
-        let eval_res = crate::compile::eval::eval_circuit_fc(
-            fc,
+        let eval_res = crate::compile::eval::eval_circuit_fc(fc,
             fr,
             &circuit,
             &symbols,
-            &inputs,
-            FieldID::P256,
-        )
+            &inputs)
         .unwrap();
         assert!(
             eval_res.is_err(),

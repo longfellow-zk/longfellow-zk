@@ -187,11 +187,10 @@ fn convert_circuit<
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
-    field_id: crate::core::proto::FieldID,
 ) -> Result<Circuit<FR>, String> {
-    let writer = crate::core::proto::v2::CircuitWriter::new(fc, field_id);
+    let writer = crate::core::proto::v2::CircuitWriter::new(fc);
     let bytes = writer.to_bytes(circuit);
-    let reader = crate::core::proto::v2::CircuitReader::new(fr, field_id);
+    let reader = crate::core::proto::v2::CircuitReader::new(fr);
     let (converted_circuit, remaining) = reader.from_bytes(&bytes)?;
     if !remaining.is_empty() {
         return Err("Remaining bytes after deserialization".to_string());
@@ -211,8 +210,7 @@ pub fn eval_circuit_fc<
     circuit: &Circuit<FC>,
     symbols: &'a crate::compile::eval::CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-    field_id: crate::core::proto::FieldID,
 ) -> Result<crate::compile::eval::CompiledEvalAssertions<'a, EvalError>, String> {
-    let converted = convert_circuit(fc, fr, circuit, field_id)?;
+    let converted = convert_circuit(fc, fr, circuit)?;
     Ok(eval_circuit(fr, &converted, symbols, inputs))
 }

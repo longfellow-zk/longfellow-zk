@@ -16,7 +16,7 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 
 use super::mso_attribute_corruptors;
 use crate::{
-    compile::{algebra::gf2_128::Gf2_128Field, eval::FieldID},
+    compile::{algebra::gf2_128::Gf2_128Field},
     mdoc::circuits::mso_attribute::circuit::AttributeVerifier,
     runtime::algebra::field::RuntimeField,
 };
@@ -209,14 +209,11 @@ fn test_compile_mso_attribute_tampering() {
 
     // Verify untampered passes
     let inputs = make_inputs(&base_mock, &gf2_r);
-    crate::compile::eval::eval_circuit_fc(
-        &gf2_c,
+    crate::compile::eval::eval_circuit_fc(&gf2_c,
         &gf2_r,
         &circuit,
         &symbols,
-        &inputs,
-        FieldID::Gf2_128,
-    )
+        &inputs)
     .unwrap()
     .assert_all_passed();
 
@@ -227,14 +224,11 @@ fn test_compile_mso_attribute_tampering() {
         (c.corrupt)(&mut mock);
 
         let inputs_tampered = make_inputs(&mock, &gf2_r);
-        let eval_res = crate::compile::eval::eval_circuit_fc(
-            &gf2_c,
+        let eval_res = crate::compile::eval::eval_circuit_fc(&gf2_c,
             &gf2_r,
             &circuit,
             &symbols,
-            &inputs_tampered,
-            FieldID::Gf2_128,
-        )
+            &inputs_tampered)
         .unwrap();
         assert!(
             eval_res.is_err(),

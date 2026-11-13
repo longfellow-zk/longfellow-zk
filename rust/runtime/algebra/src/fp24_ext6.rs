@@ -98,6 +98,9 @@ impl AlgebraicField for RuntimeFp24Ext6 {
 }
 
 impl SerializableField for RuntimeFp24Ext6 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         false
     }

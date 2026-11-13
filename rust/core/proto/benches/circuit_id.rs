@@ -5,10 +5,7 @@ use std::{hint::black_box, time::Instant};
 use longfellow_zk::{
     core::{
         algebra::SerializableField,
-        proto::{
-            v2::{self, Circuit, CircuitReader, RawCircuit},
-            FieldID,
-        },
+        proto::v2::{self, Circuit, CircuitReader, RawCircuit},
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
@@ -75,15 +72,8 @@ fn measure<T>(samples: usize, mut f: impl FnMut() -> T) -> (f64, f64) {
     times.sort_by(f64::total_cmp);
     (times[times.len() / 2], times[(times.len() - 1) * 95 / 100])
 }
-fn report<F: SerializableField>(
-    attrs: usize,
-    name: &str,
-    f: &F,
-    fid: FieldID,
-    payload: &[u8],
-    samples: usize,
-) {
-    let reader = CircuitReader::new(f, fid);
+fn report<F: SerializableField>(attrs: usize, name: &str, f: &F, payload: &[u8], samples: usize) {
+    let reader = CircuitReader::new(f);
     let (circuit, tail): (Circuit<F>, _) = reader.from_bytes(payload).unwrap();
     assert!(tail.is_empty());
     assert_eq!(v2::compute_id(f, &circuit.raw), circuit.id);
@@ -162,7 +152,6 @@ fn main() {
             attrs,
             "signature",
             &P256Field::new(),
-            FieldID::P256,
             &archive.get("sig").unwrap().payload,
             samples,
         );
@@ -170,7 +159,6 @@ fn main() {
             attrs,
             "hash",
             &Gf2_128Field::new(),
-            FieldID::Gf2_128,
             &archive.get("hash").unwrap().payload,
             samples,
         );

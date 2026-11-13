@@ -9,12 +9,9 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::{
-            v2::{
-                Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
-                RawCircuitBuilder, Stream,
-            },
-            FieldID,
+        proto::v2::{
+            Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
+            RawCircuitBuilder, Stream,
         },
     },
     runtime::{
@@ -114,13 +111,12 @@ fn random_proof<const W: usize, F: RuntimeField<W> + SerializableField + Support
 /// original. Returns the number of accepted mutants; panics propagate.
 fn check_mutations<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     f: &F,
-    id: FieldID,
     iterations: usize,
     seed: u64,
 ) -> usize {
     let original = base(f);
-    let bytes = CircuitWriter::new(f, id).to_bytes(&original);
-    let reader = CircuitReader::new(f, id);
+    let bytes = CircuitWriter::new(f).to_bytes(&original);
+    let reader = CircuitReader::new(f);
     let mut xs = XorShift(seed);
     let mut accepted = 0;
     for iteration in 0..iterations {
@@ -167,18 +163,8 @@ fn check_mutations<const W: usize, F: RuntimeField<W> + SerializableField + Supp
 #[test]
 fn reader_accepted_circuits_never_panic_sumcheck_verifier() {
     const ITERATIONS: usize = 4000;
-    let binary = check_mutations(
-        &Gf2_128Field::new(),
-        FieldID::Gf2_128,
-        ITERATIONS,
-        0x9e37_79b9_7f4a_7c15,
-    );
-    let prime = check_mutations(
-        &P256Field::new(),
-        FieldID::P256,
-        ITERATIONS,
-        0x2545_f491_4f6c_dd1d,
-    );
+    let binary = check_mutations(&Gf2_128Field::new(), ITERATIONS, 0x9e37_79b9_7f4a_7c15);
+    let prime = check_mutations(&P256Field::new(), ITERATIONS, 0x2545_f491_4f6c_dd1d);
     // Guard against a vacuous run: a useful share of mutants must reach the verifier.
     assert!(
         binary > ITERATIONS / 20,

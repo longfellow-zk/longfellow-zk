@@ -18,6 +18,9 @@ impl BareField for ZeroWidth {
     type E = u64;
 }
 impl SerializableField for ZeroWidth {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         false
     }

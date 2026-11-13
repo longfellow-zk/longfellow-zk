@@ -202,6 +202,9 @@ impl<T> std::fmt::Debug for Elt<T> {
 impl<T> crate::compile::algebra::field::CompilePrimeField for FpField<T> {}
 
 impl<T> crate::core::algebra::SerializableField for FpField<T> {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+    }
     fn is_binary(&self) -> bool {
         false
     }

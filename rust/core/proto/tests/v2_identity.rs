@@ -42,8 +42,12 @@ fn fixture<F: SerializableField + AlgebraicField>(f: &F) -> RawCircuit<F> {
     .build()
 }
 fn reference<F: SerializableField + AlgebraicField>(f: &F) -> Vec<u8> {
-    let mut b = b"LFC3-v2-segmented-id-v2".to_vec();
-    for n in [usize::from(f.is_binary()), f.serialized_size_bytes()] {
+    let mut b = b"LFC3-v2-segmented-id-v3".to_vec();
+    for n in [
+        f.field_id() as usize,
+        usize::from(f.is_binary()),
+        f.serialized_size_bytes(),
+    ] {
         b.extend((n as u64).to_le_bytes());
     }
     b.extend(f.serialized_mone());
@@ -85,20 +89,17 @@ fn check<F: SerializableField + AlgebraicField>(f: &F) {
     let original = compute_id(f, &raw);
     // Shared fixed vectors run unchanged on native 32-bit and 64-bit targets.
     let golden = if f.is_binary() {
-        "c1087aada076a12f2f00242b65d12020ea14d5417c2b7e5d95ca2701866d8a81"
+        "1afb728f1d66322c0bf0245c1709a8a71703aa9e828ec1d16bfa70b33e9a8ee4"
     } else {
-        "2b7488ec97900bcff2d3bae5d295f16efda174fc6a507065e316570346d84fa4"
+        "7ce429c3e9194d6a76a489f62acaa600248a0a88b2b1fd534b39330d31e05a4e"
     };
     assert_eq!(hex::encode(original), golden);
     {
-        use crate::core::proto::{
-            v2::{Circuit, CircuitReader, CircuitWriter},
-            FieldID,
-        };
+        use crate::core::proto::v2::{Circuit, CircuitReader, CircuitWriter};
         let circuit = Circuit::from_raw(f, raw);
-        let writer = CircuitWriter::new(f, FieldID::None);
+        let writer = CircuitWriter::new(f);
         let bytes = writer.to_bytes(&circuit);
-        let reader = CircuitReader::new(f, FieldID::None);
+        let reader = CircuitReader::new(f);
         let (decoded, tail) = reader.from_bytes(&bytes).unwrap();
         assert!(tail.is_empty());
         assert_eq!(compute_id(f, &decoded.raw), original);
@@ -207,8 +208,8 @@ fn coordinate_deltas_use_signed_64_bit_values() {
     t.l = (-2i32) as u32;
     t.r = (-3i32) as u32;
     let mut expected = reference(&f);
-    let record = b"LFC3-v2-segmented-id-v2".len()
-        + 2 * 8
+    let record = b"LFC3-v2-segmented-id-v3".len()
+        + 3 * 8
         + f.serialized_size_bytes()
         + 6 * 8
         + 2 * f.serialized_size_bytes()
@@ -223,14 +224,11 @@ fn coordinate_deltas_use_signed_64_bit_values() {
 
 #[test]
 fn old_identity_revision_is_rejected() {
-    use crate::core::proto::{
-        v2::{Circuit, CircuitReader, CircuitWriter},
-        FieldID,
-    };
+    use crate::core::proto::v2::{Circuit, CircuitReader, CircuitWriter};
     let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let c = Circuit::from_raw(&f, fixture(&f));
-    let mut bytes = CircuitWriter::new(&f, FieldID::Gf2_128).to_bytes(&c);
-    let reader = CircuitReader::new(&f, FieldID::Gf2_128);
+    let mut bytes = CircuitWriter::new(&f).to_bytes(&c);
+    let reader = CircuitReader::new(&f);
     assert!(reader.from_bytes(&bytes).is_ok());
     for revision in [b"DIR1", b"DIR2"] {
         bytes[4..8].copy_from_slice(revision);
@@ -240,4 +238,36 @@ fn old_identity_revision_is_rejected() {
             .expect("accepted an old identity revision");
         assert!(error.contains("DIR3"));
     }
+}
+
+/// Field identifiers come from the field, and the compile-time and runtime
+/// implementations of one field agree, so converted circuits keep their IDs.
+#[test]
+fn fields_report_their_identifiers() {
+    use crate::{
+        compile::algebra as compile,
+        core::{algebra::FieldID, proto::v2::Circuit},
+        runtime::algebra as runtime,
+    };
+    assert_eq!(runtime::p256::P256Field::new().field_id(), FieldID::P256);
+    assert_eq!(compile::p256::P256Field::new().field_id(), FieldID::P256);
+    assert_eq!(
+        runtime::gf2_128::Gf2_128Field::new().field_id(),
+        FieldID::Gf2_128
+    );
+    assert_eq!(
+        compile::gf2_128::Gf2_128Field::new().field_id(),
+        FieldID::Gf2_128
+    );
+    assert_eq!(
+        crate::core::algebra::Gf2_128Field::new().field_id(),
+        FieldID::Gf2_128
+    );
+    assert_eq!(runtime::q256::Q256Field::new().field_id(), FieldID::None);
+    // The identifier is part of the hashed header.
+    let f = runtime::gf2_128::Gf2_128Field::new();
+    let bytes = id_bytes(&f, &fixture(&f));
+    let at = b"LFC3-v2-segmented-id-v3".len();
+    assert_eq!(bytes[at..at + 8], (FieldID::Gf2_128 as u64).to_le_bytes());
+    let _ = Circuit::from_raw(&f, fixture(&f));
 }

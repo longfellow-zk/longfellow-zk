@@ -6,7 +6,7 @@ use super::{RawCircuit, SerializableField, Stream};
 use crate::core::proto::DigestBytes;
 
 pub(crate) const MAGIC: &[u8; 4] = b"LFC3";
-const ID_DOMAIN: &[u8] = b"LFC3-v2-segmented-id-v2";
+const ID_DOMAIN: &[u8] = b"LFC3-v2-segmented-id-v3";
 
 fn size(write: &mut impl FnMut(&[u8]), n: usize) {
     write(
@@ -42,6 +42,9 @@ fn stream<T, W: FnMut(&[u8])>(write: &mut W, tag: u64, s: &Stream<T>, record: im
 
 fn encode<F: SerializableField>(f: &F, raw: &RawCircuit<F>, mut write: impl FnMut(&[u8])) {
     write(ID_DOMAIN);
+    // The field identifier distinguishes fields whose -1 encodings coincide,
+    // such as binary fields of one width with different reduction polynomials.
+    size(&mut write, f.field_id() as usize);
     size(&mut write, usize::from(f.is_binary()));
     size(&mut write, f.serialized_size_bytes());
     write(&f.serialized_mone());

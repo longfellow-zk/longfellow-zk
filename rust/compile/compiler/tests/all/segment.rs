@@ -7,8 +7,7 @@ use crate::{
     },
     core::proto::{
         v2::{CircuitReader, CircuitWriter, Stream},
-        FieldID,
-    },
+        },
 };
 fn check_stream<T>(stream: &Stream<T>) {
     let mut deltas = vec![0; stream.deltas.len()];
@@ -37,14 +36,14 @@ fn circuit_compression_and_recompression_preserve_lfc3() {
     let original_id = original.id;
     let compressed = segment_circuit_v2(&f, original.into_raw());
     let compressed_id = compressed.id;
-    let compressed_bytes = CircuitWriter::new(&f, FieldID::P256).to_bytes(&compressed);
+    let compressed_bytes = CircuitWriter::new(&f).to_bytes(&compressed);
     let recompressed = segment_circuit_v2(&f, compressed.into_raw());
     assert_eq!(original_id, compressed_id);
     assert_eq!(compressed_id, recompressed.id);
-    let writer = CircuitWriter::new(&f, FieldID::P256);
+    let writer = CircuitWriter::new(&f);
     let bytes = compressed_bytes;
     assert_eq!(bytes, writer.to_bytes(&recompressed));
-    let (decoded, tail) = CircuitReader::new(&f, FieldID::P256)
+    let (decoded, tail) = CircuitReader::new(&f)
         .from_bytes(&bytes)
         .unwrap();
     assert!(tail.is_empty());

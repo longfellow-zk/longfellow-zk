@@ -18,7 +18,7 @@ use crate::{
         eval::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
-    core::{algebra::AlgebraicField, proto::FieldID},
+    core::{algebra::AlgebraicField},
     runtime::algebra::p256::P256Field as RuntimeP256Field,
 };
 
@@ -56,7 +56,7 @@ fn test_compiled_circuit_debug_symbols() {
     {
         let inputs = vec![rf.zero(), rf.zero()];
         let eval_res =
-            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
+            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_all_passed();
     }
 
@@ -64,7 +64,7 @@ fn test_compiled_circuit_debug_symbols() {
     {
         let inputs = vec![rf.one(), rf.zero()];
         let eval_res =
-            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
+            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_any_failed_at("root/block_a/check_w1");
     }
 
@@ -72,7 +72,7 @@ fn test_compiled_circuit_debug_symbols() {
     {
         let inputs = vec![rf.zero(), rf.one()];
         let eval_res =
-            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs, FieldID::P256).unwrap();
+            eval_circuit_fc(&f, &rf, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_any_failed_at("root/block_b/check_w2");
     }
 }
@@ -101,14 +101,11 @@ fn test_debug_symbols_record_assertion_layers() {
     assert_eq!(output_symbol.wire.layer, 0);
 
     let runtime_f = RuntimeP256Field::new();
-    let failed = eval_circuit_fc(
-        &f,
+    let failed = eval_circuit_fc(&f,
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one()],
-        FieldID::P256,
-    )
+        &[runtime_f.one()])
     .unwrap();
     failed.assert_any_failed_at("root/input");
 }
@@ -132,14 +129,11 @@ fn test_attached_assertion_keeps_its_path() {
         .any(|symbol| symbols.get_path(symbol.id).as_deref() == Some("slice")));
 
     let runtime_f = RuntimeP256Field::new();
-    let failed = eval_circuit_fc(
-        &f,
+    let failed = eval_circuit_fc(&f,
         &runtime_f,
         &circuit,
         &symbols,
-        &[runtime_f.one(), runtime_f.zero()],
-        FieldID::P256,
-    )
+        &[runtime_f.one(), runtime_f.zero()])
     .unwrap();
     assert_eq!(failed.failed_paths(), vec!["slice"]);
 }
@@ -158,24 +152,18 @@ fn test_root_assertion_simplifying_to_zero_after_stripping_does_not_panic() {
     let (circuit, stats, symbols) = super::compile(&f, |logic| roots(&logic));
     assert_eq!(stats.nassertions, 1);
     let runtime = RuntimeP256Field::new();
-    eval_circuit_fc(
-        &f,
+    eval_circuit_fc(&f,
         &runtime,
         &circuit,
         &symbols,
-        &[runtime.one(), runtime.one()],
-        FieldID::P256,
-    )
+        &[runtime.one(), runtime.one()])
     .unwrap()
     .assert_all_passed();
-    assert!(!eval_circuit_fc(
-        &f,
+    assert!(!eval_circuit_fc(&f,
         &runtime,
         &circuit,
         &symbols,
-        &[runtime.one(), runtime.zero()],
-        FieldID::P256
-    )
+        &[runtime.one(), runtime.zero()])
     .unwrap()
     .failed_paths()
     .is_empty());

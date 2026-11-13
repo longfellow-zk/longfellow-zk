@@ -28,10 +28,10 @@ pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
     let sig = generate_sig_circuit(&p)?;
     let hash = generate_hash_circuit(&f, num_attrs)?;
     let sig_bytes =
-        crate::core::proto::v2::CircuitWriter::new(&p, crate::core::proto::FieldID::P256)
+        crate::core::proto::v2::CircuitWriter::new(&p)
             .to_bytes(&sig);
     let hash_bytes =
-        crate::core::proto::v2::CircuitWriter::new(&f, crate::core::proto::FieldID::Gf2_128)
+        crate::core::proto::v2::CircuitWriter::new(&f)
             .to_bytes(&hash);
     let mut builder = crate::core::proto::archive::CircuitArchiveBuilder::new();
     builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);

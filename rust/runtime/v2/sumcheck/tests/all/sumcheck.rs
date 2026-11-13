@@ -19,7 +19,7 @@ use crate::{
     },
     core::proto::{
         v2::{Circuit, CircuitReader, CircuitWriter},
-        FieldID, SerializableField,
+        SerializableField,
     },
     runtime::{
         algebra::{
@@ -130,10 +130,10 @@ fn test_sumcheck_prover_verifier_end_to_end() {
     });
 
     let f = RuntimeP256::new();
-    let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let writer = CircuitWriter::new(&fc);
     let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
-    let reader = CircuitReader::new(&f, FieldID::P256);
+    let reader = CircuitReader::new(&f);
     let (circ, _) = reader
         .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
@@ -184,10 +184,10 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
     });
 
     let f = RuntimeP256::new();
-    let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let writer = CircuitWriter::new(&fc);
     let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
-    let reader = CircuitReader::new(&f, FieldID::P256);
+    let reader = CircuitReader::new(&f);
     let (circ, _) = reader
         .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
@@ -244,10 +244,10 @@ fn test_sumcheck_multi_layer() {
         (iologic.assert0("assert_x", &x), 1)
     });
     let f = RuntimeP256::new();
-    let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let writer = CircuitWriter::new(&fc);
     let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
-    let reader = CircuitReader::new(&f, FieldID::P256);
+    let reader = CircuitReader::new(&f);
     let (circ, _) = reader
         .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
@@ -302,10 +302,10 @@ fn test_sumcheck_core_single_hand_permutations() {
         (logic.assert0("x", &x), 1)
     });
     let compiled = crate::compile::compiler::segment_circuit_v2(&fc, compiled);
-    let bytes = CircuitWriter::new(&fc, FieldID::P256).to_bytes(&compiled);
+    let bytes = CircuitWriter::new(&fc).to_bytes(&compiled);
     let f = RuntimeP256::new();
-    let reader = CircuitReader::new(&f, FieldID::P256);
-    let writer = CircuitWriter::new(&f, FieldID::P256);
+    let reader = CircuitReader::new(&f);
+    let writer = CircuitWriter::new(&f);
 
     let mut expected = None;
     let mut ids = Vec::new();

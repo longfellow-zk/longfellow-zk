@@ -273,28 +273,22 @@ fn test_compile_mdoc_hash_corruptors() {
     let base_given = given::<4, _>(hash_input);
     let base_derived = derived::<4, _>(&base_given);
 
-    crate::compile::eval::eval_circuit_fc(
-        &fc,
+    crate::compile::eval::eval_circuit_fc(&fc,
         &fr,
         &circuit,
         &symbols,
-        &make_hash_inputs(&base_given, &base_derived, &fr),
-        crate::compile::eval::FieldID::Gf2_128,
-    )
+        &make_hash_inputs(&base_given, &base_derived, &fr))
     .unwrap()
     .assert_all_passed();
 
     for corruptor in mdoc_hash_corruptors::all_mdoc_hash_corruptors() {
         let mut corrupted = base_given.clone();
         (corruptor.corrupt)(&mut corrupted);
-        let result = crate::compile::eval::eval_circuit_fc(
-            &fc,
+        let result = crate::compile::eval::eval_circuit_fc(&fc,
             &fr,
             &circuit,
             &symbols,
-            &make_hash_inputs(&corrupted, &base_derived, &fr),
-            crate::compile::eval::FieldID::Gf2_128,
-        )
+            &make_hash_inputs(&corrupted, &base_derived, &fr))
         .unwrap();
         let failed = result.failed_paths();
         assert!(
@@ -308,7 +302,7 @@ fn test_compile_mdoc_hash_corruptors() {
 
 #[test]
 fn test_serialize_and_verify_mdoc_hash_circuit() {
-    use crate::core::proto::{v2::CircuitWriter, FieldID};
+    use crate::core::proto::{v2::CircuitWriter};
 
     let gf2_c = Gf2_128Field::new();
     let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
@@ -316,8 +310,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        119, 92, 229, 147, 91, 185, 142, 16, 213, 157, 189, 25, 178, 30, 133, 225, 27, 199, 249,
-        162, 108, 241, 127, 178, 225, 80, 138, 67, 30, 112, 33, 225,
+        239, 25, 6, 15, 121, 200, 100, 90, 130, 55, 189, 48, 103, 250, 69, 82, 136, 100, 139, 148,
+        242, 52, 105, 134, 200, 186, 23, 163, 237, 47, 216, 181,
     ];
     assert_eq!(
         circuit.id, expected_id,
@@ -325,7 +319,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
         expected_id, circuit.id
     );
 
-    let writer = CircuitWriter::new(&gf2_c, FieldID::Gf2_128);
+    let writer = CircuitWriter::new(&gf2_c);
     let serialized = writer.to_bytes(&circuit);
     let orig_size = serialized.len();
 

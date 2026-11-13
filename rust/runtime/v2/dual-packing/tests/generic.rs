@@ -152,6 +152,9 @@ impl<const P: u8> PackingField for Prime<P> {
     }
 }
 impl<const P: u8> SerializableField for Prime<P> {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         P == 2
     }
@@ -230,6 +233,9 @@ impl<const P: u8, const A: u8, const B: u8> PackingField for Quad<P, A, B> {
     }
 }
 impl<const P: u8, const A: u8, const B: u8> SerializableField for Quad<P, A, B> {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         P == 2
     }

@@ -2,7 +2,7 @@
 #[test]
 fn default_total_term_limit_matches_v2_limit() {
     let field = crate::compile::algebra::p256::P256Field::new();
-    let reader = super::CircuitReader::new(&field, crate::core::proto::FieldID::P256);
+    let reader = super::CircuitReader::new(&field);
     assert_eq!(
         reader.max_total_terms,
         crate::core::proto::v2::limits::MAX_TOTAL_TERMS
@@ -18,7 +18,7 @@ fn lfc3_rejects_zero_outputs_without_panicking() {
         serialize_uleb128_max4(&mut bytes, n);
     }
     bytes.extend([0; 32]);
-    assert!(super::CircuitReader::new(&field, FieldID::Gf2_128)
+    assert!(super::CircuitReader::new(&field)
         .from_bytes(&bytes)
         .is_err());
 }
@@ -28,6 +28,9 @@ impl crate::core::algebra::BareField for Aliased {
     type E = crate::runtime::algebra::gf2_128::Gf2_128;
 }
 impl crate::core::algebra::SerializableField for Aliased {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         true
     }
@@ -53,7 +56,7 @@ impl crate::core::algebra::SerializableField for Aliased {
 fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
     use crate::core::{
         algebra::SerializableField,
-        proto::{v2, v2::CircuitWriter, FieldID},
+        proto::{v2, v2::CircuitWriter},
     };
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let raw = v2::RawCircuitBuilder {
@@ -66,14 +69,14 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
     }
     .build();
     let circuit = v2::Circuit::from_raw(&field, raw);
-    let mut bytes = CircuitWriter::new(&field, FieldID::Gf2_128).to_bytes(&circuit);
+    let mut bytes = CircuitWriter::new(&field).to_bytes(&circuit);
     let mut remaining = &bytes[8..];
     for _ in 0..7 {
         crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
     }
     let offset = bytes.len() - remaining.len();
     bytes[offset..offset + field.serialized_size_bytes()].fill(0xff);
-    assert!(super::CircuitReader::new(&Aliased(field), FieldID::Gf2_128)
+    assert!(super::CircuitReader::new(&Aliased(field))
         .from_bytes(&bytes)
         .is_err());
 }

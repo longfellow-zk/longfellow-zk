@@ -18,13 +18,18 @@ mod lfc3;
 use super::Circuit;
 use crate::core::proto::{FieldID, SerializableField};
 
+/// Writes LFC3 circuits. The header's field identifier comes from the field
+/// itself, so the tag, the circuit ID and the arithmetic cannot disagree.
 pub struct CircuitWriter<'a, F> {
     pub(super) f: &'a F,
     pub(super) field_id: FieldID,
 }
 impl<'a, F: SerializableField> CircuitWriter<'a, F> {
-    pub fn new(f: &'a F, field_id: FieldID) -> Self {
-        Self { f, field_id }
+    pub fn new(f: &'a F) -> Self {
+        Self {
+            f,
+            field_id: f.field_id(),
+        }
     }
     #[must_use]
     pub fn to_bytes(&self, circuit: &Circuit<F>) -> Vec<u8> {

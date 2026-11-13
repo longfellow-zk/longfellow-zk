@@ -8,7 +8,7 @@ use crate::{
         bitvec::BitvecLogic,
         sha256msg::{concrete::given, Sha256Msg},
     },
-    compile::{algebra::gf2_128::Gf2_128Field, eval::FieldID, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
 };
 
 #[test]
@@ -147,14 +147,11 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
             let mut inputs = Vec::new();
             g.push_elements(&fr, 3, |e| inputs.push(e));
             derived.push_elements(&fr, |e| inputs.push(e));
-            let result = crate::compile::eval::eval_circuit_fc(
-                &fc,
+            let result = crate::compile::eval::eval_circuit_fc(&fc,
                 &fr,
                 &circuit,
                 &symbols,
-                &inputs,
-                FieldID::Gf2_128,
-            )
+                &inputs)
             .unwrap();
             assert_eq!(
                 result.is_ok(),

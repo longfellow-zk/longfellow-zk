@@ -14,8 +14,9 @@
 
 pub mod field;
 pub use field::{
-    AlgebraicField, BareField, Comparable, ElementOf, FieldElement, HasLookupPoints, NatOf,
-    SerializableField, SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
+    AlgebraicField, BareField, Comparable, ElementOf, FieldElement, FieldID, HasLookupPoints,
+    NatOf, SerializableField, SupportsNatConversions, SupportsU128Conversions,
+    SupportsU64Conversions,
 };
 
 pub mod nat;

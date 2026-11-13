@@ -22,7 +22,6 @@ use crate::compile::algebra::{
     secp256r1::Secp256r1,
     Curve,
 };
-use crate::compile::eval::FieldID;
 use crate::compile::logic::{concrete::push_eltw, Logic, LogicIO};
 use crate::core::algebra::{Nat, SerializableField};
 use crate::runtime::algebra::field::RuntimeField;
@@ -89,7 +88,7 @@ fn test_compile_ec_generic<
     push_pt2(&g3_normalized, &mut inputs);
     push_eltw(g3_zinv_val, &mut inputs);
 
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, FieldID::P256)
+    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }

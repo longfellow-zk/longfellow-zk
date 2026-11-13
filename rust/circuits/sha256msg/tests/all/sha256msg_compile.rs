@@ -23,7 +23,6 @@ use crate::{
     compile::{
         algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
         compiler::CompilerLogic,
-        eval::FieldID,
     },
     core::algebra::SerializableField,
     runtime::algebra::field::RuntimeField,
@@ -39,7 +38,6 @@ fn test_compile_sha256msg_for_field<
     fc: &'a FC,
     fr: &'a FR,
     name: &str,
-    field_id: FieldID,
     message: &[u8],
 ) {
     let mut hasher = Sha2Reference::new();
@@ -86,7 +84,7 @@ fn test_compile_sha256msg_for_field<
     derived.push_elements(fr, |e| inputs.push(e));
 
     // Evaluate circuit
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, field_id)
+    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -95,37 +93,13 @@ fn test_compile_sha256msg_for_field<
 fn test_compile_sha256msg() {
     let p256_c = P256Field::new();
     let p256_r = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_sha256msg_for_field::<4, _, _, 1>(
-        &p256_c,
-        &p256_r,
-        "sha256msg_p256_empty",
-        FieldID::P256,
-        &[],
-    );
-    test_compile_sha256msg_for_field::<4, _, _, 2>(
-        &p256_c,
-        &p256_r,
-        "sha256msg_p256_hello",
-        FieldID::P256,
-        b"hello world from Antigravity!",
-    );
+    test_compile_sha256msg_for_field::<4, _, _, 1>(&p256_c, &p256_r, "sha256msg_p256_empty", &[]);
+    test_compile_sha256msg_for_field::<4, _, _, 2>(&p256_c, &p256_r, "sha256msg_p256_hello", b"hello world from Antigravity!");
 
     let gf2_c = Gf2_128Field::new();
     let gf2_r = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_sha256msg_for_field::<2, _, _, 1>(
-        &gf2_c,
-        &gf2_r,
-        "sha256msg_gf2_empty",
-        FieldID::Gf2_128,
-        &[],
-    );
-    test_compile_sha256msg_for_field::<2, _, _, 2>(
-        &gf2_c,
-        &gf2_r,
-        "sha256msg_gf2_hello",
-        FieldID::Gf2_128,
-        b"hello world from Antigravity!",
-    );
+    test_compile_sha256msg_for_field::<2, _, _, 1>(&gf2_c, &gf2_r, "sha256msg_gf2_empty", &[]);
+    test_compile_sha256msg_for_field::<2, _, _, 2>(&gf2_c, &gf2_r, "sha256msg_gf2_hello", b"hello world from Antigravity!");
 }
 
 #[test]
@@ -173,14 +147,11 @@ fn test_compile_sha256msg_tampering() {
         g.push_elements(&fr, const_max_blocks, |e| inputs.push(e));
         d.push_elements(&fr, |e| inputs.push(e));
 
-        let eval_res = crate::compile::eval::eval_circuit_fc(
-            &fc,
+        let eval_res = crate::compile::eval::eval_circuit_fc(&fc,
             &fr,
             &circuit,
             &symbols,
-            &inputs,
-            FieldID::P256,
-        )
+            &inputs)
         .unwrap();
         assert!(
             eval_res.is_err(),

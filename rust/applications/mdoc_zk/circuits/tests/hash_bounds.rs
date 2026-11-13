@@ -162,7 +162,7 @@ fn every_selected_field_reports_an_out_of_message_read() {
 fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
     use crate::{
         circuits::bitvec::BitvecIO,
-        core::{algebra::AlgebraicField, proto::FieldID},
+        core::{algebra::AlgebraicField},
         runtime::algebra::gf2_128::Gf2_128Field as RuntimeGf128,
     };
     let fc = Gf2_128Field::new();
@@ -198,14 +198,11 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
                 })
             })
             .collect();
-        let result = crate::compile::eval::eval_circuit_fc(
-            &fc,
+        let result = crate::compile::eval::eval_circuit_fc(&fc,
             &f,
             &circuit,
             &symbols,
-            &inputs,
-            FieldID::Gf2_128,
-        )
+            &inputs)
         .unwrap();
         if valid {
             result.assert_all_passed();

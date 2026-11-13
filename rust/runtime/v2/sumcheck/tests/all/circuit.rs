@@ -63,21 +63,17 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     }
     .build();
     let circuit = Circuit::from_raw(f, raw);
-    let bytes = CircuitWriter::new(f, FieldID::None).to_bytes(&circuit);
+    let bytes = CircuitWriter::new(f).to_bytes(&circuit);
     assert_eq!(&bytes[..4], b"LFC3");
-    let (circuit, tail) = CircuitReader::new(f, FieldID::None)
-        .from_bytes(&bytes)
-        .unwrap();
+    let (circuit, tail) = CircuitReader::new(f).from_bytes(&bytes).unwrap();
     assert!(tail.is_empty());
     assert_eq!(circuit.raw.layers[0].num_terms(), 4);
-    assert!(CircuitReader::new(f, FieldID::None)
+    assert!(CircuitReader::new(f)
         .with_total_term_limit(3)
         .from_bytes(&bytes)
         .is_err());
     for i in 0..bytes.len() {
-        assert!(CircuitReader::new(f, FieldID::None)
-            .from_bytes(&bytes[..i])
-            .is_err());
+        assert!(CircuitReader::new(f).from_bytes(&bytes[..i]).is_err());
     }
     let mut rng = DeterministicRng::new(42);
     let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&circuit), &mut rng, f);
@@ -118,9 +114,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     let mut corrupted = bytes.clone();
     let last = corrupted.len() - 1;
     corrupted[last] ^= 1;
-    assert!(CircuitReader::new(f, FieldID::None)
-        .from_bytes(&corrupted)
-        .is_err());
+    assert!(CircuitReader::new(f).from_bytes(&corrupted).is_err());
 }
 #[test]
 fn v2_streams_prime() {
@@ -154,10 +148,8 @@ fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
     assert_eq!(c.layers.len(), geometry.nlayers);
     let c = segment_circuit_v2(&cf, c);
     let f = P256Field::new();
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
-    let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes)
-        .unwrap();
+    let bytes = CircuitWriter::new(&cf).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f).from_bytes(&bytes).unwrap();
     let inputs = vec![
         f.u64_to_element(2),
         f.u64_to_element(3),
@@ -225,7 +217,7 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
 fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
     use crate::core::proto::serialize_uleb128_max4;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let reader = CircuitReader::new(&f, FieldID::P256);
+    let reader = CircuitReader::new(&f);
     for (g, l, k, valid) in [
         (0, 0, 0, true),
         (0, 0, 1, true),
@@ -316,7 +308,7 @@ fn binary_lfc3_classifies_both_signs_as_one() {
         }
         .build();
         bytes.extend(crate::core::proto::v2::compute_id(&f, &raw));
-        let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(&bytes);
+        let result = CircuitReader::new(&f).from_bytes(&bytes);
         let (c, _) = result.unwrap();
         assert_eq!(c.raw.constants[1], c.raw.constants[2]);
         assert_eq!(
@@ -362,11 +354,9 @@ where
     });
 
     let c = segment_circuit_v2(cf, c);
-    let bytes = CircuitWriter::new(cf, FieldID::None).to_bytes(&c);
+    let bytes = CircuitWriter::new(cf).to_bytes(&c);
     assert_eq!(&bytes[..4], b"LFC3");
-    let (c, rest) = CircuitReader::new(f, FieldID::None)
-        .from_bytes(&bytes)
-        .unwrap();
+    let (c, rest) = CircuitReader::new(f).from_bytes(&bytes).unwrap();
     assert!(rest.is_empty());
     let scalar = |n: u8| {
         let mut b = vec![0; f.serialized_size_bytes()];
@@ -413,21 +403,17 @@ where
     )
     .is_err());
     let terms = c.raw.layers.iter().map(|l| l.num_terms()).sum::<usize>();
-    assert!(CircuitReader::new(f, FieldID::None)
+    assert!(CircuitReader::new(f)
         .with_total_term_limit(terms - 1)
         .from_bytes(&bytes)
         .is_err());
     for n in 0..bytes.len() {
-        assert!(CircuitReader::new(f, FieldID::None)
-            .from_bytes(&bytes[..n])
-            .is_err());
+        assert!(CircuitReader::new(f).from_bytes(&bytes[..n]).is_err());
     }
     let mut malformed = bytes;
     let end = malformed.len() - 1;
     malformed[end] ^= 1;
-    assert!(CircuitReader::new(f, FieldID::None)
-        .from_bytes(&malformed)
-        .is_err());
+    assert!(CircuitReader::new(f).from_bytes(&malformed).is_err());
 }
 #[test]
 fn coefficient_arrays_binary() {
@@ -484,10 +470,8 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
         "product result or squared assertion was materialized"
     );
     let c = segment_circuit_v2(&cf, c);
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
-    let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes)
-        .unwrap();
+    let bytes = CircuitWriter::new(&cf).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f).from_bytes(&bytes).unwrap();
     let counts = c.term_breakdown(&f);
     assert_eq!(counts[0][0], 2);
     assert_eq!(counts[1][0], 0);
@@ -528,10 +512,8 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
         )
     });
     let c = segment_circuit_v2(&cf, c);
-    let bytes = CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
-    let (c, _) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes)
-        .unwrap();
+    let bytes = CircuitWriter::new(&cf).to_bytes(&c);
+    let (c, _) = CircuitReader::new(&f).from_bytes(&bytes).unwrap();
     assert_eq!(c.term_breakdown(&f)[0][0], 0);
     assert_eq!(c.term_breakdown(&f)[1][0], 2);
     let inputs = vec![f.zero(), f.zero()];

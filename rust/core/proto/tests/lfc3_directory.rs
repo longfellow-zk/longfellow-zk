@@ -38,7 +38,7 @@ fn header(layers: usize) -> [usize; 7] {
 }
 fn reject(data: &[u8], error: &str) {
     let f = Gf2_128Field::new();
-    let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(data);
+    let result = CircuitReader::new(&f).from_bytes(data);
     let err = match result {
         Ok(_) => panic!("accepted malformed directory"),
         Err(e) => e,
@@ -108,7 +108,7 @@ fn zero_term_limit_still_enforces_metadata_limits() {
     let f = Gf2_128Field::new();
     let streams = [[0, MAX_METADATA_BYTES / 80 + 1, 0, 0, 0, 0], [0; 6], [0; 6]];
     let data = bytes(header(1), &[(1, streams)], &[], &[]);
-    assert!(CircuitReader::new(&f, FieldID::Gf2_128)
+    assert!(CircuitReader::new(&f)
         .with_total_term_limit(0)
         .from_bytes(&data)
         .is_err());
@@ -136,9 +136,9 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
     }
     .build();
     let c = v2::Circuit::from_raw(&f, raw);
-    let writer = v2::CircuitWriter::new(&f, FieldID::Gf2_128);
+    let writer = v2::CircuitWriter::new(&f);
     let encoded = writer.to_bytes(&c);
-    let reader = CircuitReader::new(&f, FieldID::Gf2_128).with_total_term_limit(0);
+    let reader = CircuitReader::new(&f).with_total_term_limit(0);
     let mut input = std::io::BufReader::with_capacity(1, encoded.as_slice());
     let decoded = reader.from_stream(&mut input).unwrap();
     assert_eq!(decoded.id, c.id);
@@ -157,7 +157,5 @@ fn truncated_large_payload_is_rejected_before_reserving_circuit_arrays() {
     let data = bytes(header(1), &[(1, streams)], &[], &[]);
     reject(&data, "Incomplete LFC3 payload");
     let mut input = std::io::BufReader::with_capacity(1, data.as_slice());
-    assert!(CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_stream(&mut input)
-        .is_err());
+    assert!(CircuitReader::new(&f).from_stream(&mut input).is_err());
 }

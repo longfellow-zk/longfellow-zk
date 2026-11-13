@@ -15,10 +15,7 @@
 //! Longfellow v2 circuit loading with mandatory payload ID verification.
 use super::ZkSpecStruct;
 use crate::{
-    core::proto::{
-        v2::{Circuit, CircuitReader},
-        FieldID,
-    },
+    core::proto::v2::{Circuit, CircuitReader},
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
@@ -67,13 +64,11 @@ fn load(
     let hash_entry = archive
         .get("hash")
         .ok_or("Missing 'hash' entry in circuit archive")?;
-    let (signature, signature_tail) =
-        CircuitReader::new(p256, FieldID::P256).from_bytes(&sig_entry.payload)?;
+    let (signature, signature_tail) = CircuitReader::new(p256).from_bytes(&sig_entry.payload)?;
     if !signature_tail.is_empty() || signature.id != sig_entry.circuit_id {
         return Err("Signature payload does not match its archive entry".into());
     }
-    let (hash, hash_tail) =
-        CircuitReader::new(gf2, FieldID::Gf2_128).from_bytes(&hash_entry.payload)?;
+    let (hash, hash_tail) = CircuitReader::new(gf2).from_bytes(&hash_entry.payload)?;
     if !hash_tail.is_empty() || hash.id != hash_entry.circuit_id {
         return Err("Hash payload does not match its archive entry".into());
     }

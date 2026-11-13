@@ -94,6 +94,9 @@ impl crate::core::algebra::Comparable for CompileFp24Ext6 {
 }
 
 impl SerializableField for CompileFp24Ext6 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         false
     }

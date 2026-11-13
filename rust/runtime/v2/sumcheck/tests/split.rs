@@ -303,10 +303,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField
         + crate::runtime::algebra::SupportsSampling {
     use crate::{
-        core::proto::{
-            v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
-            FieldID,
-        },
+        core::proto::v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
         runtime::{
             random::DeterministicRng,
             v2::{
@@ -384,7 +381,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
     }
     .build();
     let circuit = Circuit::from_raw(f, raw);
-    let writer = CircuitWriter::new(f, FieldID::None);
+    let writer = CircuitWriter::new(f);
     let bytes_before = writer.to_bytes(&circuit);
     let id_before = circuit.id;
     let inputs = vec![x, y, f.zero()];
@@ -457,7 +454,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
     let reindexed = Circuit::from_raw(f, raw);
     let encoded = writer.to_bytes(&reindexed);
     assert_eq!(&encoded[..4], b"LFC3");
-    let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(f, FieldID::None)
+    let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(f)
         .from_bytes(&encoded)
         .unwrap();
     assert!(tail.is_empty());

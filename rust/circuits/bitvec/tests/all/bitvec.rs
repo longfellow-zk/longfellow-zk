@@ -36,7 +36,6 @@ fn test_compile_bitvec() {
 #[test]
 fn test_compile_bitvec_leq() {
     use crate::compile::algebra::p256::P256Field;
-    use crate::compile::eval::FieldID;
     let fc = P256Field::new();
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {
@@ -57,7 +56,7 @@ fn test_compile_bitvec_leq() {
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 119, 64, &mut inputs);
 
-    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs, FieldID::P256)
+    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -65,7 +64,6 @@ fn test_compile_bitvec_leq() {
 #[test]
 fn test_compile_bitvec_is_zero() {
     use crate::compile::algebra::p256::P256Field;
-    use crate::compile::eval::FieldID;
     let fc = P256Field::new();
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {
@@ -83,21 +81,18 @@ fn test_compile_bitvec_is_zero() {
     // Test a = 0 (should pass)
     let mut inputs = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 0, 8, &mut inputs);
-    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs, FieldID::P256)
+    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 
     // Test a = 5 (should fail)
     let mut inputs_fail = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 5, 8, &mut inputs_fail);
-    assert!(crate::compile::eval::eval_circuit_fc(
-        &fc,
+    assert!(crate::compile::eval::eval_circuit_fc(&fc,
         &fr,
         &circuit,
         &symbols,
-        &inputs_fail,
-        FieldID::P256
-    )
+        &inputs_fail)
     .unwrap()
     .result
     .is_err());
@@ -106,7 +101,6 @@ fn test_compile_bitvec_is_zero() {
 #[test]
 fn test_compile_bitvec_lt() {
     use crate::compile::algebra::p256::P256Field;
-    use crate::compile::eval::FieldID;
     let fc = P256Field::new();
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {
@@ -125,7 +119,7 @@ fn test_compile_bitvec_lt() {
     let mut inputs = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 66, 64, &mut inputs);
-    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs, FieldID::P256)
+    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 
@@ -133,14 +127,11 @@ fn test_compile_bitvec_lt() {
     let mut inputs_fail = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs_fail);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs_fail);
-    assert!(crate::compile::eval::eval_circuit_fc(
-        &fc,
+    assert!(crate::compile::eval::eval_circuit_fc(&fc,
         &fr,
         &circuit,
         &symbols,
-        &inputs_fail,
-        FieldID::P256
-    )
+        &inputs_fail)
     .unwrap()
     .result
     .is_err());

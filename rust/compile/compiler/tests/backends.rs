@@ -55,7 +55,7 @@ where
         writer.to_bytes_lfc2(&legacy),
     ];
     for (bytes, expected) in encodings.iter().zip(expected) {
-        assert!(crate::core::proto::v2::CircuitReader::new(fr, fid)
+        assert!(crate::core::proto::v2::CircuitReader::new(fr)
             .from_bytes(bytes)
             .is_err());
         assert_eq!(
@@ -68,11 +68,11 @@ where
         assert_eq!(decoded.id, v1.id);
     }
     let modern = segment_circuit_v2(fc, v2);
-    let encoded = crate::core::proto::v2::CircuitWriter::new(fc, fid).to_bytes(&modern);
+    let encoded = crate::core::proto::v2::CircuitWriter::new(fc).to_bytes(&modern);
     assert!(CircuitReader::new(fr, fid)
         .from_bytes(&encoded, true)
         .is_err());
-    let (modern, tail) = crate::core::proto::v2::CircuitReader::new(fr, fid)
+    let (modern, tail) = crate::core::proto::v2::CircuitReader::new(fr)
         .from_bytes(&encoded)
         .unwrap();
     let (legacy, _) = CircuitReader::new(fr, fid)

@@ -25,10 +25,11 @@ pub struct CircuitReader<'a, F> {
 }
 
 impl<'a, F: SerializableField> CircuitReader<'a, F> {
-    pub fn new(f: &'a F, field_id: FieldID) -> Self {
+    /// The expected header field identifier comes from the field itself.
+    pub fn new(f: &'a F) -> Self {
         Self {
             f,
-            field_id,
+            field_id: f.field_id(),
             max_total_terms: super::limits::MAX_TOTAL_TERMS,
         }
     }

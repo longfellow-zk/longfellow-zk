@@ -23,11 +23,13 @@ structure Layer (F : Type) where
   terms : List (Layered.Term ℕ ℕ F)
 
 /-- The raw identity header uses unframed little-endian words, unlike the
-transcript's `write_bytes` operation. Coefficients precede the stored layers. -/
-def circuitBytes (binary : Bool) (width : ℕ) (encode : F → Bytes)
+transcript's `write_bytes` operation. It starts with the runtime `FieldID`
+(`Gf2_128 = 4`, `P256 = 1`), which distinguishes fields whose encodings of
+`-1` coincide. Coefficients precede the stored layers. -/
+def circuitBytes (fieldId : ℕ) (binary : Bool) (width : ℕ) (encode : F → Bytes)
     (outputs logOutput inputs publicInputs : ℕ) (constants : List F)
     (layers : List SegmentedCircuit.Layer) : Bytes :=
-  CanonicalPrefix.utf8 "LFC3-v2-segmented-id-v2" ++
+  CanonicalPrefix.utf8 "LFC3-v2-segmented-id-v3" ++ encodeLE 8 fieldId ++
     encodeLE 8 (if binary then 1 else 0) ++ encodeLE 8 width ++ encode (-1) ++
     [outputs,logOutput,inputs,publicInputs,layers.length,constants.length].flatMap (encodeLE 8) ++
     constants.flatMap encode ++ layers.flatMap SegmentedCircuit.layerBytes
@@ -92,7 +94,7 @@ def adapterBytes {d q : ℕ} (encode : F → Bytes) (shape : Shape d q)
     match term with
     | .constant g _ => 1+coefficients.length+g
     | _ => 0
-  circuitBytes true 16 encode 2 1 inputs publicInputs constants
+  circuitBytes 4 true 16 encode 2 1 inputs publicInputs constants
     (finalStored :: (reductions (F := F) shape).map (fun layer => storedLayer layer (fun _ _ => 0)) ++
       [storedLayer leaf (leafCoefficient (F := F))])
 

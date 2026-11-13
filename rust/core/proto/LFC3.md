@@ -93,11 +93,16 @@ encodings and frozen proofs remain unchanged.
 
 ## Circuit identity
 
-The SHA-256 domain is `LFC3-v2-segmented-id-v2`. Its input is the following
+The SHA-256 domain is `LFC3-v2-segmented-id-v3`. Its input is the following
 fixed-width encoding, independent of the file's variable-length integers:
 
-1. Field kind (binary = 1, otherwise 0) and serialized element width as `u64`,
-   then the canonical encoding of minus one.
+1. The field identifier (`FieldID`, e.g. `P256` = 1, `Gf2_128` = 4), field kind
+   (binary = 1, otherwise 0) and serialized element width as `u64`, then the
+   canonical encoding of minus one. The identifier distinguishes fields whose
+   encodings of minus one coincide, such as binary fields of one width with
+   different reduction polynomials. It comes from the field implementation
+   (`SerializableField::field_id`), which also supplies the header field ID that
+   v2 readers and writers check, so the tag, the ID and the arithmetic agree.
 2. `noutput`, `logv`, `ninput`, `npublic_input`, layer count, and coefficient
    count, all as `u64`.
 3. Every coefficient-table entry in order, in canonical fixed-width encoding,

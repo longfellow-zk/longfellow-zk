@@ -8,7 +8,7 @@ fn compiled_attribute_checks_every_public_byte() {
     fn run<const N: usize>(prefix: &[u8]) {
         use crate::{
             circuits::bitvec::BitvecIO,
-            core::{algebra::AlgebraicField, proto::FieldID},
+            core::{algebra::AlgebraicField},
             runtime::algebra::gf2_128::Gf2_128Field as RuntimeField,
         };
         let fc = Gf2_128Field::new();
@@ -81,14 +81,11 @@ fn compiled_attribute_checks_every_public_byte() {
                 }
                 push(length as u64, K_ATTR_INDEX_BITS);
                 push((prefix.len() + length) as u64, K_ATTR_INDEX_BITS);
-                let result = crate::compile::eval::eval_circuit_fc(
-                    &fc,
+                let result = crate::compile::eval::eval_circuit_fc(&fc,
                     &fr,
                     &circuit,
                     &symbols,
-                    &inputs,
-                    FieldID::Gf2_128,
-                )
+                    &inputs)
                 .unwrap();
                 assert_eq!(
                     result.is_ok(),

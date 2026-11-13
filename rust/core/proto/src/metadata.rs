@@ -16,20 +16,7 @@
 
 pub type DigestBytes = [u8; 32];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FieldID {
-    None = 0,
-    P256 = 1,
-    P384 = 2,
-    P521 = 3,
-    Gf2_128 = 4,
-    Gf2_16 = 5,
-    Fp128 = 6,
-    Fp64 = 7,
-    Goldi = 8,
-    Fp64_2 = 9,
-    Secp = 10,
-}
+pub use crate::core::algebra::FieldID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CircuitGeometry {

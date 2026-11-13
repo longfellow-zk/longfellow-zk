@@ -44,6 +44,9 @@ impl crate::runtime::algebra::SupportsSampling for Gf2 {
     }
 }
 impl SerializableField for Gf2 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         true
     }
@@ -246,6 +249,9 @@ impl crate::runtime::algebra::SupportsSampling for Gf256 {
     }
 }
 impl SerializableField for Gf256 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         true
     }

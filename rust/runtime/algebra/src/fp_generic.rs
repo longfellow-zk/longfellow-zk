@@ -423,6 +423,9 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     SerializableField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+    }
     fn is_binary(&self) -> bool {
         false
     }

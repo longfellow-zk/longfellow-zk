@@ -156,9 +156,9 @@ theorem node_in_domain (value : Digest × Digest) (index : ℕ := 0) :
 
 variable {F : Type} [Field F]
 
-theorem identifier_not_domain (isBinary : Bool) (width : ℕ) (encode : F → Bytes)
+theorem identifier_not_domain (fieldId : ℕ) (isBinary : Bool) (width : ℕ) (encode : F → Bytes)
     (outputs logOutput inputs publicInputs : ℕ) (constants : List F) (layers : List SegmentedCircuit.Layer) :
-    ¬merkleDomain (MetadataIdentifiers.circuitBytes isBinary width encode outputs logOutput inputs publicInputs constants layers) := by
+    ¬merkleDomain (MetadataIdentifiers.circuitBytes fieldId isBinary width encode outputs logOutput inputs publicInputs constants layers) := by
   rintro (⟨tail,equal⟩ | ⟨tail,equal⟩)
   all_goals
     have first := congrArg List.head? equal
@@ -174,7 +174,7 @@ theorem adapter_identifier (outside inside : Bytes → Digest) {d q : ℕ}
         inputs publicInputs sources pads powers base masked targets =
       MetadataIdentifiers.adapterId outside encode shape inputs publicInputs sources pads powers base masked targets := by
   apply merge_outside
-  exact identifier_not_domain (F := F) _ _ _ _ _ _ _ _ _
+  exact identifier_not_domain (F := F) _ _ _ _ _ _ _ _ _ _
 
 end ActualBytes
 end LfzkV2.Current.SHAOracle

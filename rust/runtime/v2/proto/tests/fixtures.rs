@@ -10,6 +10,9 @@ impl BareField for Aliased {
     type E = Gf2_128;
 }
 impl SerializableField for Aliased {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         true
     }

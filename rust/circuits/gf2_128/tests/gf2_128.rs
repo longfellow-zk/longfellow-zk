@@ -40,7 +40,7 @@ fn ref_mul(x: u128, y: u128) -> u128 {
     a
 }
 
-use crate::{compile::eval::FieldID, runtime::algebra::field::RuntimeField};
+use crate::runtime::algebra::field::RuntimeField;
 
 fn test_compile_gf2_128_mul_for_field<
     const W: usize,
@@ -50,7 +50,6 @@ fn test_compile_gf2_128_mul_for_field<
     fc: &FC,
     fr: &FR,
     name: &str,
-    field_id: FieldID,
     expected_stats: crate::compile::eval::CircuitGeometry,
 ) {
     let (circuit, stats, symbols) = compile(fc, |iologic| {
@@ -85,7 +84,7 @@ fn test_compile_gf2_128_mul_for_field<
     push_bitvec_u128(fr, y, 128, &mut inputs);
     push_bitvec_u128(fr, target_val, 128, &mut inputs);
 
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, field_id)
+    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -94,12 +93,7 @@ fn test_compile_gf2_128_mul_for_field<
 fn test_compile_gf2_128_mul() {
     let fc_bin = Gf2_128Field::new();
     let fr_bin = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_gf2_128_mul_for_field(
-        &fc_bin,
-        &fr_bin,
-        "gf2_128_mul_bin",
-        FieldID::Gf2_128,
-        crate::compile::eval::CircuitGeometry {
+    test_compile_gf2_128_mul_for_field(&fc_bin, &fr_bin, "gf2_128_mul_bin", crate::compile::eval::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -107,17 +101,11 @@ fn test_compile_gf2_128_mul() {
             nterms: 9153,
             nlayers: 2,
             nassertions: 1,
-        },
-    );
+        });
 
     let fc_prime = P256Field::new();
     let fr_prime = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_gf2_128_mul_for_field(
-        &fc_prime,
-        &fr_prime,
-        "gf2_128_mul_prime",
-        FieldID::P256,
-        crate::compile::eval::CircuitGeometry {
+    test_compile_gf2_128_mul_for_field(&fc_prime, &fr_prime, "gf2_128_mul_prime", crate::compile::eval::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -125,8 +113,7 @@ fn test_compile_gf2_128_mul() {
             nterms: 27851,
             nlayers: 19,
             nassertions: 385,
-        },
-    );
+        });
 }
 
 use crate::compile::logic::{eval::EvalLogic, Logic};

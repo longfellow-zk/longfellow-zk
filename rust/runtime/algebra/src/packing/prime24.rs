@@ -37,6 +37,9 @@ impl crate::runtime::algebra::SupportsSampling for Prime24 {
     }
 }
 impl SerializableField for Prime24 {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         false
     }

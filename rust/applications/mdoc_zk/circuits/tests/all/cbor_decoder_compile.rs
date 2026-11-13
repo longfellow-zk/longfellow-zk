@@ -16,7 +16,6 @@ use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::{
         algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
-        eval::FieldID,
         logic::Logic,
     },
     core::algebra::SerializableField,
@@ -33,7 +32,6 @@ fn test_compile_cbor_decoder_for_field<
     fc: &'a FC,
     fr: &'a FR,
     name: &str,
-    field_id: FieldID,
 ) {
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
         let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
@@ -65,7 +63,7 @@ fn test_compile_cbor_decoder_for_field<
         }
 
         let eval_res =
-            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, field_id)
+            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
                 .unwrap();
         eval_res.assert_all_passed();
     }
@@ -79,7 +77,7 @@ fn test_compile_cbor_decoder_for_field<
             inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
         }
         let eval_res =
-            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs, field_id)
+            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
                 .unwrap();
         eval_res.assert_any_failed_at("cbor_decoder_assert/valid_cbor_byte");
     }
@@ -89,19 +87,9 @@ fn test_compile_cbor_decoder_for_field<
 fn test_compile_cbor_decoder() {
     let fc_p256 = P256Field::new();
     let fr_p256 = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_cbor_decoder_for_field::<4, _, _>(
-        &fc_p256,
-        &fr_p256,
-        "cbor_decoder_p256",
-        FieldID::P256,
-    );
+    test_compile_cbor_decoder_for_field::<4, _, _>(&fc_p256, &fr_p256, "cbor_decoder_p256");
 
     let fc_gf2 = Gf2_128Field::new();
     let fr_gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_cbor_decoder_for_field::<2, _, _>(
-        &fc_gf2,
-        &fr_gf2,
-        "cbor_decoder_gf2",
-        FieldID::Gf2_128,
-    );
+    test_compile_cbor_decoder_for_field::<2, _, _>(&fc_gf2, &fr_gf2, "cbor_decoder_gf2");
 }

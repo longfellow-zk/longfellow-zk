@@ -23,6 +23,9 @@ impl crate::core::algebra::BareField for Lfa1P256Field {
 }
 
 impl crate::core::algebra::SerializableField for Lfa1P256Field {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+    }
     fn is_binary(&self) -> bool {
         false
     }

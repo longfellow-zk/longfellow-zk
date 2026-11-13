@@ -23,7 +23,6 @@ use crate::{
             v2::{
                 Circuit, CircuitReader, CircuitWriter, Layer, Quadratic, RawCircuitBuilder, Stream,
             },
-            FieldID,
         },
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
@@ -57,16 +56,8 @@ fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
     let hash = tiny(f);
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
-    builder.add_entry(
-        "sig",
-        sig.id,
-        CircuitWriter::new(p, FieldID::P256).to_bytes(&sig),
-    );
-    builder.add_entry(
-        "hash",
-        hash.id,
-        CircuitWriter::new(f, FieldID::Gf2_128).to_bytes(&hash),
-    );
+    builder.add_entry("sig", sig.id, CircuitWriter::new(p).to_bytes(&sig));
+    builder.add_entry("hash", hash.id, CircuitWriter::new(f).to_bytes(&hash));
     builder.build()
 }
 fn compressed(archive: &CircuitArchive) -> Vec<u8> {
@@ -80,7 +71,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
     let mut archive = fixture(&p, &f);
     decompress_circuits(&compressed(&archive), &p, &f).unwrap();
     let original = archive.combined_id;
-    let (circuit, _) = CircuitReader::new(&p, FieldID::P256)
+    let (circuit, _) = CircuitReader::new(&p)
         .from_bytes(&archive.entries[0].payload)
         .unwrap();
     let stale_id = circuit.id;
@@ -88,7 +79,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
     raw.constants[0] = p.zero();
     let raw = raw.build();
     let circuit = Circuit::from_raw(&p, raw);
-    let mut payload = CircuitWriter::new(&p, FieldID::P256).to_bytes(&circuit);
+    let mut payload = CircuitWriter::new(&p).to_bytes(&circuit);
     let id_offset = payload.len() - stale_id.len();
     payload[id_offset..].copy_from_slice(&stale_id);
     archive.entries[0].payload = payload;
@@ -161,16 +152,8 @@ fn for_spec_binds_archive_and_entry_identifiers() {
     wrong[0] ^= 1;
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
-    builder.add_entry(
-        "sig",
-        wrong,
-        CircuitWriter::new(&p, FieldID::P256).to_bytes(&sig),
-    );
-    builder.add_entry(
-        "hash",
-        hash.id,
-        CircuitWriter::new(&f, FieldID::Gf2_128).to_bytes(&hash),
-    );
+    builder.add_entry("sig", wrong, CircuitWriter::new(&p).to_bytes(&sig));
+    builder.add_entry("hash", hash.id, CircuitWriter::new(&f).to_bytes(&hash));
     let mismatched = builder.build();
     assert!(
         for_spec(

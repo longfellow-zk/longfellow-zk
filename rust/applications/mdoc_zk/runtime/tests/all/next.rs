@@ -1070,14 +1070,12 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
         let gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
         let sig_entry = archive.get("sig").unwrap();
         let hash_entry = archive.get("hash").unwrap();
-        let (sig, sig_tail) =
-            crate::core::proto::v2::CircuitReader::new(&p256, crate::core::proto::FieldID::P256)
-                .from_bytes(&sig_entry.payload)
-                .unwrap();
-        let (hash, hash_tail) =
-            crate::core::proto::v2::CircuitReader::new(&gf2, crate::core::proto::FieldID::Gf2_128)
-                .from_bytes(&hash_entry.payload)
-                .unwrap();
+        let (sig, sig_tail) = crate::core::proto::v2::CircuitReader::new(&p256)
+            .from_bytes(&sig_entry.payload)
+            .unwrap();
+        let (hash, hash_tail) = crate::core::proto::v2::CircuitReader::new(&gf2)
+            .from_bytes(&hash_entry.payload)
+            .unwrap();
         assert!(sig_tail.is_empty() && hash_tail.is_empty());
         assert_eq!(sig.id, sig_entry.circuit_id);
         assert_eq!(hash.id, hash_entry.circuit_id);

@@ -28,12 +28,12 @@ private theorem outside {raw : Bytes} (notZero : raw.head? ≠ some 0) (notOne :
   · exact notOne one
   · exact notMerkle merkle
 
-theorem circuit_outside {F : Type} [Field F] (binary : Bool) (width : ℕ) (encode : F → Bytes)
+theorem circuit_outside {F : Type} [Field F] (fieldId : ℕ) (binary : Bool) (width : ℕ) (encode : F → Bytes)
     (outputs logOutput inputs publicInputs : ℕ) (constants : List F) (layers : List SegmentedCircuit.Layer) :
-    ¬protocol (MetadataIdentifiers.circuitBytes binary width encode outputs logOutput inputs publicInputs constants layers) :=
+    ¬protocol (MetadataIdentifiers.circuitBytes fieldId binary width encode outputs logOutput inputs publicInputs constants layers) :=
   outside (by change some (76 : Framing.Byte) ≠ some 0; decide)
     (by change some (76 : Framing.Byte) ≠ some 1; decide)
-    (SHAOracle.identifier_not_domain _ _ _ _ _ _ _ _ _)
+    (SHAOracle.identifier_not_domain _ _ _ _ _ _ _ _ _ _)
 
 theorem context_outside (domain : Bytes) (cells : ℕ) :
     ¬protocol (MdocIdentifiers.contextBytes domain cells) :=
@@ -64,7 +64,7 @@ theorem adapter_merge {F : Type} [Field F] (outside inside : Bytes → Digest) {
     MetadataIdentifiers.adapterId (SHAOracle.merge protocol outside inside) encode shape inputs publicInputs
       sources pads powers base masked targets =
       MetadataIdentifiers.adapterId outside encode shape inputs publicInputs sources pads powers base masked targets :=
-  SHAOracle.merge_outside protocol outside inside _ (circuit_outside (F := F) _ _ _ _ _ _ _ _ _)
+  SHAOracle.merge_outside protocol outside inside _ (circuit_outside (F := F) _ _ _ _ _ _ _ _ _ _)
 
 section Transcript
 variable {Point C Out : Type} {rounds blocks : ℕ}

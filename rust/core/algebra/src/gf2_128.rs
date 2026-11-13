@@ -110,6 +110,9 @@ impl AlgebraicField for Gf2_128Field {
 }
 
 impl SerializableField for Gf2_128Field {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::Gf2_128
+    }
     fn is_binary(&self) -> bool {
         true
     }

@@ -192,13 +192,12 @@ fn three_streams<
             core::proto::{
                 archive::{CircuitArchive, CircuitArchiveBuilder},
                 v2::CircuitReader,
-                FieldID,
             },
         };
         let compressed = segment_circuit_v2(f, c.into_raw());
-        let writer = crate::core::proto::v2::CircuitWriter::new(f, FieldID::None);
+        let writer = crate::core::proto::v2::CircuitWriter::new(f);
         let bytes = writer.to_bytes(&compressed);
-        let reader = CircuitReader::new(f, FieldID::None);
+        let reader = CircuitReader::new(f);
         let mut fragmented = std::io::BufReader::with_capacity(1, bytes.as_slice());
         let decoded = reader.from_stream(&mut fragmented).unwrap();
         assert_eq!(
@@ -301,10 +300,8 @@ fn v2_reader_rejects_quadratic_only_archives() {
         .from_stream(&mut fragmented, true)
         .unwrap();
     let mut fragmented = std::io::BufReader::with_capacity(1, bytes.as_slice());
-    assert!(CircuitReader::new(&f, FieldID::P256)
-        .from_stream(&mut fragmented)
-        .is_err());
-    let error = match CircuitReader::new(&f, FieldID::P256).from_bytes(&bytes) {
+    assert!(CircuitReader::new(&f).from_stream(&mut fragmented).is_err());
+    let error = match CircuitReader::new(&f).from_bytes(&bytes) {
         Ok(_) => panic!("accepted legacy layer"),
         Err(e) => e,
     };
@@ -318,10 +315,7 @@ fn default_v2_compiler_emits_three_streams_without_a_one_input() {
             compiler::compile_v2,
             logic::{Logic, LogicIO},
         },
-        core::{
-            algebra::AlgebraicField,
-            proto::{v2::CircuitReader, FieldID},
-        },
+        core::{algebra::AlgebraicField, proto::v2::CircuitReader},
     };
     let cf = crate::compile::algebra::p256::P256Field::new();
     let (c, geometry, _) = compile_v2(&cf, |logic| {
@@ -335,12 +329,10 @@ fn default_v2_compiler_emits_three_streams_without_a_one_input() {
     assert_eq!(geometry.ninput, 2);
     assert_eq!(geometry.npublic_input, 1);
     let c = crate::compile::compiler::segment_circuit_v2(&cf, c);
-    let bytes = crate::core::proto::v2::CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
+    let bytes = crate::core::proto::v2::CircuitWriter::new(&cf).to_bytes(&c);
     assert_eq!(&bytes[..4], b"LFC3");
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let (c, tail) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes)
-        .unwrap();
+    let (c, tail) = CircuitReader::new(&f).from_bytes(&bytes).unwrap();
     assert!(tail.is_empty());
     // Zero in input slot zero must not suppress the linear equality.
     eval_circuit(vec![f.zero(), f.one()], &c, &f).unwrap();
@@ -354,10 +346,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
             compiler::compile_v2,
             logic::{Logic, LogicIO},
         },
-        core::{
-            algebra::SupportsU64Conversions,
-            proto::{v2::CircuitReader, FieldID},
-        },
+        core::{algebra::SupportsU64Conversions, proto::v2::CircuitReader},
     };
     let cf = crate::compile::algebra::p256::P256Field::new();
     let (c, _, _) = compile_v2(&cf, |logic| {
@@ -368,12 +357,10 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
         (logic.assert_eq("value", &value, &target), 2)
     });
     let c = crate::compile::compiler::segment_circuit_v2(&cf, c);
-    let bytes = crate::core::proto::v2::CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
+    let bytes = crate::core::proto::v2::CircuitWriter::new(&cf).to_bytes(&c);
     assert_eq!(&bytes[..4], b"LFC3");
     let f = crate::runtime::algebra::p256::P256Field::new();
-    CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes)
-        .unwrap();
+    CircuitReader::new(&f).from_bytes(&bytes).unwrap();
 
     // Unit coefficients are ordinary table entries. Changing a numeric value
     // without recomputing the ID is rejected on every load.
@@ -393,9 +380,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
     let offset = lfc3_constants_offset(&corrupt) + index * cf.serialized_size_bytes();
     let minus = cf.serialized_mone();
     corrupt[offset..offset + minus.len()].copy_from_slice(&minus);
-    assert!(CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&corrupt)
-        .is_err());
+    assert!(CircuitReader::new(&f).from_bytes(&corrupt).is_err());
 }
 
 fn explicit_units<const W: usize, CF, RF>(cf: &CF, f: &RF)
@@ -408,7 +393,7 @@ where
             compiler::{compile_v2, segment_circuit_v2},
             logic::{Logic, LogicIO},
         },
-        core::proto::{v2::CircuitReader, FieldID},
+        core::proto::v2::CircuitReader,
     };
     let (c, _, _) = compile_v2(cf, |l| {
         let x = l.input(1);
@@ -425,7 +410,7 @@ where
     assert_eq!(c.constants.len(), if cf.is_binary() { 1 } else { 2 });
     let c = segment_circuit_v2(cf, c);
     let expected: Vec<_> = c.raw.constants.iter().map(|k| cf.to_bytes(k)).collect();
-    let bytes = crate::core::proto::v2::CircuitWriter::new(cf, FieldID::None).to_bytes(&c);
+    let bytes = crate::core::proto::v2::CircuitWriter::new(cf).to_bytes(&c);
     let mut header = &bytes[8..];
     for _ in 0..6 {
         crate::core::proto::read_uleb128_max4(&mut header).unwrap();
@@ -435,9 +420,7 @@ where
         c.raw.constants.len(),
         "every constant must be serialized"
     );
-    let (c, tail) = CircuitReader::new(f, FieldID::None)
-        .from_bytes(&bytes)
-        .unwrap();
+    let (c, tail) = CircuitReader::new(f).from_bytes(&bytes).unwrap();
     assert!(tail.is_empty());
     assert_eq!(
         c.raw

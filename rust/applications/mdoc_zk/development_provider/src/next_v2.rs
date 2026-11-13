@@ -15,7 +15,7 @@
 //! Compile NEXT with the shared, checked Polygero profile.
 
 use crate::{
-    core::proto::{archive::CircuitArchive, v2::CircuitReader, FieldID},
+    core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         circuits::{config::K_ZSTD_LEVEL, NEXT_VERSION},
         compile,
@@ -75,9 +75,9 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
     // Keep payload validation even though the fixed profile does not inspect
     // circuit sizes. The provider separately checks the archive's metadata.
-    CircuitReader::new(&f, FieldID::Gf2_128)
+    CircuitReader::new(&f)
         .from_bytes(&archive.get("hash").ok_or("Missing hash circuit")?.payload)?;
-    CircuitReader::new(&p, FieldID::P256).from_bytes(
+    CircuitReader::new(&p).from_bytes(
         &archive
             .get("sig")
             .ok_or("Missing signature circuit")?

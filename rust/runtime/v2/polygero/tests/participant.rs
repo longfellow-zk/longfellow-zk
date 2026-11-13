@@ -105,6 +105,9 @@ impl SupportsSampling for EncodingWidth {
     }
 }
 impl SerializableField for EncodingWidth {
+    fn field_id(&self) -> crate::core::algebra::FieldID {
+        crate::core::algebra::FieldID::None
+    }
     fn is_binary(&self) -> bool {
         false
     }

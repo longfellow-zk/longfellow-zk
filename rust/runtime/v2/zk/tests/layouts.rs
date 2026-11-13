@@ -332,8 +332,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
                 let decoded = crate::core::proto::v2::quadratic_fixture(decoded, &f);
                 let native_id = decoded.id;
-                let native_writer =
-                    crate::core::proto::v2::CircuitWriter::new(&f, FieldID::Gf2_128);
+                let native_writer = crate::core::proto::v2::CircuitWriter::new(&f);
                 let native_bytes = native_writer.to_bytes(&decoded);
                 let prover = ZkProver::new(decoded, config);
                 let mut rng = SimpleRng { state: 42 };

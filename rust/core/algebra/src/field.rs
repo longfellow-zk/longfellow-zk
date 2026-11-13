@@ -93,6 +93,45 @@ pub trait SerializableField: BareField {
 
     // Serialized Constants
     fn serialized_mone(&self) -> Vec<u8>;
+
+    /// The identifier this field writes into circuit files and binds into v2
+    /// circuit IDs. It must distinguish fields whose arithmetic differs.
+    fn field_id(&self) -> FieldID;
+}
+
+/// Identifies the field a circuit's constants and arithmetic belong to. The
+/// numeric values appear in LFC circuit files and in v2 circuit identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldID {
+    None = 0,
+    P256 = 1,
+    P384 = 2,
+    P521 = 3,
+    Gf2_128 = 4,
+    Gf2_16 = 5,
+    Fp128 = 6,
+    Fp64 = 7,
+    Goldi = 8,
+    Fp64_2 = 9,
+    Secp = 10,
+}
+
+/// Canonical little-endian encoding of -1 in the P-256 base field.
+const P256_MONE: [u8; 32] = [
+    0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+];
+
+impl FieldID {
+    /// Identify a prime field from its canonical encoding of -1, which
+    /// determines the modulus. Primes without a listed identifier map to `None`.
+    pub fn of_prime_field(mone: &[u8]) -> Self {
+        if mone == P256_MONE {
+            Self::P256
+        } else {
+            Self::None
+        }
+    }
 }
 
 pub type ElementOf<F> = <F as BareField>::E;
