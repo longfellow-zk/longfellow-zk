@@ -163,6 +163,10 @@ impl<F: PackingField> PackingExtension for IdentityExtension<F> {
 /// Owned initialization shared by all invocations using one chosen basis.
 /// The distinguished coordinate must complement K: the first coordinate of
 /// one is nonzero. Degree one uses exactly [1] and bypasses the reduction.
+/// The mechanized hiding proof (`DualPacking.ArtinSchreierMasking`) covers
+/// bases whose first element is one, as in the native basis. Other
+/// complementing bases are accepted, but their hiding argument is not
+/// mechanized.
 pub struct PackingParameters<X: PackingExtension> {
     field: X::Ambient,
     extension: X,
@@ -208,8 +212,12 @@ impl<X: PackingExtension> PackingParameters<X> {
             }
         }
         let inverse = invert_matrix(base, matrix)?;
-        // The fixed mask relation t_0=sum_(j>0) beta_j*t_j hides every
-        // trace-zero coordinate only when {1,beta_1,...} is a basis.
+        // The fixed mask relation t_0=sum_(j>0) beta_j*t_j can hide every
+        // trace-zero coordinate only if {1,beta_1,...} is a basis, so reject
+        // other bases. Lean proves hiding when beta_0 = 1. For other
+        // complementing bases, hiding follows because t -> sigma(t)-t maps
+        // span{beta_j : j>0} onto the trace-zero hyperplane exactly when 1 is
+        // outside that span; this general case is not mechanized.
         extension.coordinates_into(&field, &field.one(), &mut coordinates);
         let unit_first = inverse[0]
             .iter()
