@@ -315,6 +315,20 @@ establish that a cryptographic implementation satisfies their premises.
   the archive entry, and checks the combined ID against the trusted spec.
   Trust therefore includes the circuits selected by the spec and their
   application semantics; payload IDs are verified at load time.
+- **Request encoding.** The Lean request consists of the session context, the
+  binary public bits and the prime public inputs, and the theorem holds at
+  whatever public vectors the request carries. How the Rust verifier derives
+  those vectors from an application request lies outside the model:
+  - the device-authentication digest `e2`, SHA-256 of the COSE
+    `Sig_structure` over `DeviceAuthentication` (session transcript, docType,
+    empty namespaces), computed by `compute_transcript_hash`;
+  - the length-prefixed encoding of the time, attribute identifiers and
+    values, docType and namespace into public bits (`push_input_hash`);
+  - parsing of the issuer public key.
+
+  Binding a proof to its session and to the requested attribute values
+  therefore rests on this Rust code, which is reviewed and tested but not
+  proved.
 - **Public setup and resource bounds.** Trusted sparse topology, canonical
   scalar codecs, capacity/address/serialization bounds and the concrete
   hash-depth restriction are explicit. Current parameter certificates,
