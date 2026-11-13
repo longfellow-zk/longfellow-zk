@@ -1315,6 +1315,7 @@ fn test_tooling_and_system_source_boundaries() {
         "specs.rs",
         "v1_provider.rs",
         "v2_provider.rs",
+        "v2_transcript.rs",
     ]
     .map(|file| tests.join(file))
     .into_iter()
@@ -1580,6 +1581,7 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
                 "diagnostic.rs",
                 "eval_fixtures.rs",
                 "fragments.rs",
+                "lfc3_mutations.rs",
             ][..],
         ),
     ] {
