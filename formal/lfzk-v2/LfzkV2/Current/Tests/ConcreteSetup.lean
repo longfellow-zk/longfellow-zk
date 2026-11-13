@@ -24,8 +24,25 @@ example : (ConcreteSetup.primeNodes ⟨2791,by decide⟩).val = 2791 := by
 example : (ConcreteSetup.cubeIndex 2 (true,false,())).val = 1 := rfl
 example : (ConcreteSetup.cubeIndex 2 (false,true,())).val = 2 := rfl
 
+-- The shared values lead the hash witness: signature value i is hash private bit i.
 example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :
-    (circuit.sharedPrivate ⟨256,by decide⟩).val = 20760 := rfl
+    (circuit.sharedPrivate ⟨256,by decide⟩).val = 256 := rfl
+example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :
+    (circuit.sharedPrivate ⟨767,by decide⟩).val = 767 := rfl
+
+-- Physical commitment order: frontend values in value order, then the storage
+-- reduction's auxiliary cells, then the two selection masks. Packed binary:
+-- words, sumcheck pads, packing masks t_1..t_(m-1), r, b. Split prime:
+-- remaining inputs, pads, R.
+example : (CellLayout.Binary.pad 3 4 5 0).val = 3 := rfl
+example : (CellLayout.Binary.mask 3 4 5 0).val = 8 := rfl
+example : (CellLayout.Binary.random 3 4 5).val = 11 := rfl
+example : (CellLayout.Binary.frobenius 3 4 5).val = 12 := rfl
+example : (CellLayout.selected (CellLayout.Binary.cells 3 4 5) (.inr 0)).val = 13 := by decide
+example : (CellLayout.Prime.index 3 4 (.inl (.inr (.inl 0)))).val = 3 := by simp
+example : (CellLayout.Prime.index 3 4 (.inr ())).val = 7 := by simp
+example : (CellLayout.Prime.index 3 4 (.inl (.inr (.inr 0)))).val = 8 := by
+  rw [CellLayout.Prime.index_fingerprint]; rfl
 
 -- R and the two pads follow the hash's own private inputs.
 example {B : Type} [Field B] [Algebra (ZMod 2) B] (circuit : ConcreteSetup.BinaryCircuit B) :

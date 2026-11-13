@@ -7,7 +7,7 @@ in their physical array order. The last row's unused cells are zero; the
 of this logical array. Both fingerprint masks are retained.
 
 Prime shared inputs have no prime address. The existing Prime.index map
-orders remaining inputs, the hiding scalar, pads, then fingerprint masks. -/
+orders remaining inputs, pads, the hiding scalar, then fingerprint masks. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.BackendCells
 

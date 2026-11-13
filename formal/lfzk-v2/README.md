@@ -122,7 +122,7 @@ participant; its body is `proto::composed::ComposedProof`. Mdoc supplies the
 circuits, the storage map and the `MDA7` envelope `MdocProof { body }` with
 the final seal.
 
-The prime participant has mixed storage `[native private | R | pads]`; its
+The prime participant has mixed storage `[native private | pads | R]`; its
 first 768 private values are bits of the hash witness. Its layer rows read only
 native pads and go to Polygero unbatched. Only its input equation reads foreign
 values. A fresh nonzero `eta` and the message `mu = eta*<w_F, v_F> + R` split

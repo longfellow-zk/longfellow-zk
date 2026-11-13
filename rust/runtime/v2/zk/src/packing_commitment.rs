@@ -1,7 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The packing/Polygero boundary. The commitment contains packed input words,
-//! packing masks, then full-field sumcheck pads and terminal cells. Packing changes
-//! only the input claim; pad positions already refer to this physical layout.
+//! full-field sumcheck pads and terminal cells, then the packing masks. Packing
+//! changes only the input claim; pad positions already refer to this physical
+//! layout.
 use crate::runtime::{
     algebra::{
         packing::{PackingExtension, PackingField, PackingParameters},
@@ -14,13 +15,20 @@ use crate::runtime::{
 };
 /// Physical witness positions belong to ZK composition, rather than the
 /// proof codec. Both roles derive them before the commitment is processed.
+///
+/// The cells are `[packed words | pads and terminal cells | packing masks]`:
+/// frontend values in value order, then the packing reduction's masks. The
+/// joint wrapper appends its fingerprint masks after all of them.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PackingLayout {
     pub(crate) private_inputs: usize,
     pub(crate) packed_words: usize,
     pub(crate) masks: usize,
+    /// First pad cell: right after the packed words.
     pub(crate) suffix_start: usize,
     pub(crate) pad_cells: usize,
+    /// First packing mask: right after the pads.
+    pub(crate) masks_start: usize,
     pub(crate) witness_count: usize,
     pub(crate) degree: usize,
 }
@@ -39,11 +47,12 @@ impl PackingLayout {
         } else {
             degree.checked_add(1).ok_or("packing layout overflow")?
         };
-        let suffix_start = packed_words
-            .checked_add(masks)
-            .ok_or("packing layout overflow")?;
-        let witness_count = suffix_start
+        let suffix_start = packed_words;
+        let masks_start = suffix_start
             .checked_add(pad_cells)
+            .ok_or("packing layout overflow")?;
+        let witness_count = masks_start
+            .checked_add(masks)
             .ok_or("packing layout overflow")?;
         Ok(Self {
             private_inputs,
@@ -51,6 +60,7 @@ impl PackingLayout {
             masks,
             suffix_start,
             pad_cells,
+            masks_start,
             witness_count,
             degree,
         })
@@ -130,7 +140,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             for (i, k) in row.masks.iter().enumerate() {
                 a.push(PolygeroLinearTerm {
                     c: index,
-                    w: self.layout.packed_words + i,
+                    w: self.layout.masks_start + i,
                     k: k.clone(),
                 });
             }

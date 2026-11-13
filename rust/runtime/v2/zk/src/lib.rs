@@ -14,7 +14,7 @@
 
 //! Longfellow v2 composes projective sumcheck with nonrecursive Polygero.
 //!
-//! Commit the packed private inputs, packing masks, sumcheck pads, and terminal cells.
+//! Commit the packed private inputs, sumcheck pads and terminal cells, then packing masks.
 //! The joint wrapper adds two fresh private fingerprint masks per field and
 //! fixes the selected witness before frontend challenges. Then run sumcheck
 //! on the same transcript with the public inputs bound. Its

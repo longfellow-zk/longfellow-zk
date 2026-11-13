@@ -42,15 +42,15 @@ def fingerprint (env : Environment) (root : Name) : UInt64 × NameSet := Id.run 
 /-- Reviewed statement fingerprints. Update a value only after reviewing the
 statement change it reflects. -/
 def pinned : List (Name × UInt64) := [
-  (``Current.Mdoc.Soundness.ratio_le, 16572572653270246646),
-  (``Current.Mdoc.Soundness.linear_ratio_le, 3770736984615081738),
-  (``Current.Mdoc.Soundness.averaged_ratio_le, 9893581204835879104),
-  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 11877996707575944283),
-  (``Current.Mdoc.Soundness.averaged_nonvacuous, 8925449952227110609),
-  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 4800797827455084754),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 17504637458257368936),
-  (``Current.Mdoc.ZeroKnowledge.statClose, 11478829312894674955),
-  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 14145045277075007458)]
+  (``Current.Mdoc.Soundness.ratio_le, 6852780044468296287),
+  (``Current.Mdoc.Soundness.linear_ratio_le, 8768021159403050915),
+  (``Current.Mdoc.Soundness.averaged_ratio_le, 13858214089535155201),
+  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 2035500163054338946),
+  (``Current.Mdoc.Soundness.averaged_nonvacuous, 6417869686120692792),
+  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 8380300765099853091),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 12677829382267847561),
+  (``Current.Mdoc.ZeroKnowledge.statClose, 7942711869825099294),
+  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 5015810915842464675)]
 
 run_cmd do
   let env ← getEnv

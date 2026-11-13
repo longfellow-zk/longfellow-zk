@@ -49,9 +49,14 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
             .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)
     };
 
-    // 1. issuer_sig_digest (256 bits)
+    // 1. Values shared with the signature circuit, in its order: issuer
+    // digest, device x, device y (256 bits each).
     at(builder.len(), &layout::hash::ISSUER_DIGEST, "issuer digest")?;
     builder.push_nat256(&parsed.issuer_sig_digest);
+    at(builder.len(), &layout::hash::DEVICE_X, "device x")?;
+    builder.push_nat256(&parsed.device_pk.0);
+    at(builder.len(), &layout::hash::DEVICE_Y, "device y")?;
+    builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
     let mso_sha_in = crate::circuits::sha256msg::concrete::given(
@@ -93,16 +98,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     // 3. nblocks (bytes as bits)
     at(builder.len(), &layout::hash::NBLOCKS, "block count")?;
     builder.push_v8(nblocks as u8);
+    let end = layout::hash::NBLOCKS.end;
+    at(builder.len(), &(end..end), "end of block count")?;
 
-    // 4. device_pkx and device_pky (256 bits)
-    at(builder.len(), &layout::hash::DEVICE_X, "device x")?;
-    builder.push_nat256(&parsed.device_pk.0);
-    at(builder.len(), &layout::hash::DEVICE_Y, "device y")?;
-    builder.push_nat256(&parsed.device_pk.1);
-    let end = layout::hash::DEVICE_Y.end;
-    at(builder.len(), &(end..end), "end of device y")?;
-
-    // 5. doc_type / valid_from / valid_until / dev_key_info / value_digests offsets
+    // 4. doc_type / valid_from / valid_until / dev_key_info / value_digests offsets
     let preimage_base_offset = K_COSE1_PREFIX_LEN + 7;
     builder.push_bits_len(
         (preimage_base_offset + parsed.doc_type_offset_in_mso) as u64,
@@ -126,10 +125,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     );
     builder.push_bits_len((preimage_base_offset + namespace.key_offset) as u64, K_HASH_INDEX_BITS);
 
-    // 6. attribute_witnesses
+    // 5. attribute_witnesses
     push_witness_attrs(req_attrs, &attributes, &mut builder)?;
 
-    // 7. sha_witnesses (MSO preimage hashing)
+    // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
 
     Ok(builder.into_inner())

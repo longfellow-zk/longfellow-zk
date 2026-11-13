@@ -32,7 +32,7 @@ Storage maps and the split of a frontend's claim belong to the zk layer (see [St
   - `ModularClaim`: a linear claim over foreign bit groups, modulo the
     claim field's order.
 - `zk::split` handles a participant whose values are partly native and partly
-  foreign. Its own commitment holds `[native private inputs | R | native pads]`.
+  foreign. Its own commitment holds `[native private inputs | native pads | R]`.
   1. The verifier draws a fresh nonzero `eta`.
   2. The prover sends `mu = eta<w_F, v_F> + R`.
   3. The frontend's input equation `<w, v> = t` splits into a native row,

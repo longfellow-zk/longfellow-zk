@@ -26,6 +26,16 @@ example : FingerprintPrefix.commitmentLayout [fun _ => 7] [⟨3,by decide⟩] =
       CanonicalPrefix.frame (encodeLE 8 1) ++ [CanonicalPrefix.frame (List.ofFn fun _ : Fin 32 => (7 : TranscriptV2.Framing.Byte))].flatten ++
       CanonicalPrefix.frame (encodeLE 8 1) ++ [CanonicalPrefix.frame (encodeLE 8 3)].flatten := rfl
 
+-- The signature participant's storage runs: one run of 768 one-bit prime
+-- groups at the hash's first private input, one native run in value order,
+-- then R's 256 bits after the hash circuit's own inputs.
+example {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+    (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
+    (bounds : Bounds binary prime) :
+    (storageWords binary prime bounds).map Fin.val =
+      [2, 1,0,768,binary.nPublic,1, 0,768,prime.description.remaining+prime.description.pads,0,
+        binary.nPublic+binary.hashPrivate,256] := rfl
+
 #print axioms setup
 #print axioms parameters
 

@@ -14,8 +14,9 @@
 
 //! Lower symbolic sumcheck constraints into Polygero's sparse A*w+b=0 format.
 //!
-//! The committed vector starts with packed private inputs and packing masks,
-//! followed by each layer's round pads and terminal cells p_A,p_B,p_AB,p_D. Symbolic sumcheck
+//! The committed vector starts with packed private inputs, followed by each
+//! layer's round pads and terminal cells p_A,p_B,p_AB,p_D, then the packing
+//! masks. Symbolic sumcheck
 //! expressions instead name pads by (layer, round, slot), independently of this
 //! physical layout. Compilation replaces each logical pad with its committed
 //! coordinate and substitutes the known public-input prefix.

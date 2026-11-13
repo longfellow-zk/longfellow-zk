@@ -172,7 +172,7 @@ takes a `StorageMap` (`storage.rs`) that marks some values foreign: bits in the
 binary commitment. The participant then derives its commitment layout from the
 map.
 
-- Mixed storage commits `[native private inputs | R | pads]`, and every pad
+- Mixed storage commits `[native private inputs | pads | R]`, and every pad
   is native. The layer rows read only pads, so they go to this field's
   Polygero participant unchanged. Only the input equation `<w, v> = t` reads
   foreign values. A fresh nonzero `eta` and one masked message

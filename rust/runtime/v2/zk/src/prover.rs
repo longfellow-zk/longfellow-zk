@@ -230,8 +230,8 @@ pub struct SplitState<const W: usize, F: ZkField<W>> {
     id: [u8; 32],
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
-    /// Sample pads and return the native witness `[native private inputs | R |
-    /// pads]`, which is empty for pure foreign storage. `mask` is R, present
+    /// Sample pads and return the native witness `[native private inputs |
+    /// pads | R]`, which is empty for pure foreign storage. `mask` is R, present
     /// exactly when some values are native.
     pub fn prepare_split(
         &self,
@@ -256,9 +256,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .filter(|(s, _)| matches!(s, Storage::Native(_)))
             .map(|(_, v)| v.clone())
             .collect();
-        if let Some(m) = &mask {
-            witness.insert(split.mask_cell, m.clone());
-        }
+        // R follows every native value.
+        witness.extend(mask.clone());
         Ok((
             SplitState {
                 pads,

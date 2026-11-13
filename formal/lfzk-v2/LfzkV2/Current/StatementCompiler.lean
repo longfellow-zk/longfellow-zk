@@ -38,7 +38,7 @@ variable {B N : Type} [Field B] [Field N]
 variable {k s n t cellsB remaining padsN : ℕ}
 
 /-- These are public addresses, constructed once from numerical capacities.
-The prime order is other inputs, hiding scalar, pads, then fingerprint masks;
+The prime order is other inputs, pads, the hiding scalar, then fingerprint masks;
 the shared input prefix has no address in this participant. -/
 structure Addresses (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
     (cellsB remaining padsN : ℕ) where

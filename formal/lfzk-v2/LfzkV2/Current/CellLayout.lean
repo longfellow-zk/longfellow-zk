@@ -47,20 +47,22 @@ def primary {cells rows width : ℕ} (hwidth : 0 < width) (capacity : cells ≤ 
 
 namespace Binary
 
-/-- Nontrivial binary packing: words, independent masks followed by r and b, then the
-complete sumcheck-pad suffix. The selector's two cells follow this count. -/
+/-- Nontrivial binary packing: packed words, then the complete sumcheck-pad
+suffix, then the packing masks t_1,...,t_(m-1), r and b. Frontend values come
+first, in value order; the packing reduction's auxiliary cells follow them
+(`packing_commitment.rs`). The selector's two cells follow this count. -/
 def cells (words degree pads : ℕ) : ℕ := words+(degree+1)+pads
 
 def word (words degree pads : ℕ) (i : Fin words) : Fin (cells words degree pads+2) :=
   ⟨i.val,by dsimp [cells]; omega⟩
 def mask (words degree pads : ℕ) (i : Fin (degree-1)) : Fin (cells words degree pads+2) :=
-  ⟨words+i.val,by have := i.isLt; dsimp [cells]; omega⟩
+  ⟨words+pads+i.val,by have := i.isLt; dsimp [cells]; omega⟩
 def random (words degree pads : ℕ) : Fin (cells words degree pads+2) :=
-  ⟨words+(degree-1),by dsimp [cells]; omega⟩
+  ⟨words+pads+(degree-1),by dsimp [cells]; omega⟩
 def frobenius (words degree pads : ℕ) : Fin (cells words degree pads+2) :=
-  ⟨words+degree,by dsimp [cells]; omega⟩
+  ⟨words+pads+degree,by dsimp [cells]; omega⟩
 def pad (words degree pads : ℕ) (i : Fin pads) : Fin (cells words degree pads+2) :=
-  ⟨words+(degree+1)+i.val,by have := i.isLt; dsimp [cells]; omega⟩
+  ⟨words+i.val,by have := i.isLt; dsimp [cells]; omega⟩
 
 /-- Pivot-zero packing uses the same physical mask order as the runtime:
 t_1,...,t_(m-1),r,b. No standalone input-bitness constraints are introduced. -/
@@ -82,7 +84,7 @@ def packing {F : Type} [Field F] [Algebra (ZMod 2) F]
   target := target
 
 @[simp] theorem pad_val (words degree pads : ℕ) (i : Fin pads) :
-    (pad words degree pads i).val = words+(degree+1)+i.val := rfl
+    (pad words degree pads i).val = words+i.val := rfl
 
 end Binary
 
@@ -93,7 +95,7 @@ prime input or pad address. Thus their frontend coefficients are zero. -/
 abbrev Other (remaining pads : ℕ) := Fin remaining ⊕ (Fin pads ⊕ Fin 2)
 abbrev Slot (remaining pads : ℕ) := Other remaining pads ⊕ Unit
 
-def cells (remaining pads : ℕ) : ℕ := remaining+1+pads
+def cells (remaining pads : ℕ) : ℕ := remaining+pads+1
 
 private def unitFin : Unit ≃ Fin 1 where
   toFun _ := 0
@@ -102,13 +104,18 @@ private def unitFin : Unit ≃ Fin 1 where
   right_inv _ := Subsingleton.elim _ _
 
 /-- Reorder the typed slots into the exact physical order: remaining private
-inputs, hiding scalar R, prime sumcheck pads, then both fingerprint masks. -/
+inputs, prime sumcheck pads, the hiding scalar R, then both fingerprint masks.
+Native values come first, in value order; the split's R follows them
+(`split.rs`), so a native value's cell is its storage-map cell. -/
 def index (remaining pads : ℕ) : Slot remaining pads ≃ Fin (cells remaining pads+2) :=
-  ((Equiv.sumAssoc (Fin remaining) (Fin pads ⊕ Fin 2) Unit).trans
-    (Equiv.sumCongr (Equiv.refl _) (Equiv.sumComm _ _))).trans
+  (Equiv.sumAssoc (Fin remaining) (Fin pads ⊕ Fin 2) Unit).trans
     ((Equiv.sumCongr (Equiv.refl _)
-      ((Equiv.sumCongr unitFin finSumFinEquiv).trans finSumFinEquiv)).trans
-      (finSumFinEquiv.trans (finCongr (by dsimp [cells]; omega))))
+      ((Equiv.sumAssoc (Fin pads) (Fin 2) Unit).trans
+        (Equiv.sumCongr (Equiv.refl _)
+          (((Equiv.sumComm (Fin 2) Unit).trans (Equiv.sumCongr unitFin (Equiv.refl _))).trans
+            finSumFinEquiv)))).trans
+      ((Equiv.sumCongr (Equiv.refl _) finSumFinEquiv).trans
+        (finSumFinEquiv.trans (finCongr (by dsimp [cells]; omega)))))
 
 /-- Every original prime cell and the two fresh masks are selected. -/
 def layout (remaining pads : ℕ) :
@@ -118,15 +125,16 @@ def layout (remaining pads : ℕ) :
 @[simp] theorem index_private (remaining pads : ℕ) (i : Fin remaining) :
     (index remaining pads (.inl (.inl i))).val = i.val := rfl
 @[simp] theorem index_hiding (remaining pads : ℕ) :
-    (index remaining pads (.inr ())).val = remaining := by
+    (index remaining pads (.inr ())).val = remaining+pads := by
   simp [index, unitFin, finSumFinEquiv]
 @[simp] theorem index_pad (remaining pads : ℕ) (i : Fin pads) :
-    (index remaining pads (.inl (.inr (.inl i)))).val = remaining+1+i.val := by
-  simp [index, finSumFinEquiv, Nat.add_assoc]
+    (index remaining pads (.inl (.inr (.inl i)))).val = remaining+i.val := by
+  simp [index, finSumFinEquiv]
 @[simp] theorem index_fingerprint (remaining pads : ℕ) (i : Fin 2) :
     (index remaining pads (.inl (.inr (.inr i)))).val = cells remaining pads+i.val := by
-  change remaining+(1+(pads+i.val)) = cells remaining pads+i.val
-  simp [cells, Nat.add_assoc]
+  change remaining+(pads+(1+i.val)) = cells remaining pads+i.val
+  simp only [cells]
+  omega
 
 /-- Reconstruct only logical prime inputs. Shared bits occupy a separate
 summand and never obtain a committed prime coordinate. -/

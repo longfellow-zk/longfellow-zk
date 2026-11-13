@@ -234,7 +234,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// A single-circuit participant whose values `[private inputs | pads]` are
     /// stored as `storage` says. With some native values (mixed storage), it
-    /// commits `[native private inputs | R | pads]` and `mask` holds R's bits
+    /// commits `[native private inputs | pads | R]` and `mask` holds R's bits
     /// in the binary commitment. With none (pure foreign storage), it commits
     /// nothing and `mask` is `None`.
     pub fn with_storage<D: EvaluationDomain<W, F>>(
@@ -255,20 +255,17 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .checked_add(sc_geom.pad_count()?)
             .ok_or("split layout overflow")?;
         let split = super::split::layout(storage, mask, private, values)?;
-        // Mixed storage commits the native private inputs, then R, then pads;
-        // pure foreign storage commits nothing.
-        let committed = if split.mask.is_some() {
-            split.mask_cell + 1
+        // Mixed storage commits its native values in value order (native
+        // private inputs, then pads), then R; pure foreign storage commits
+        // nothing.
+        let (committed, pads, mask_cells) = if split.mask.is_some() {
+            let pads = sc_geom.pad_count()?;
+            (split.map.native_cells() - pads, pads, 1)
         } else {
-            0
-        };
-        let pads = if split.mask.is_some() {
-            sc_geom.pad_count()?
-        } else {
-            0
+            (0, 0, 0)
         };
         let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
-        let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
+        let param = prepare_parameter(layout.witness_count + mask_cells, config, ctx.domain)?;
         let selected =
             SelectedField::from_parameter(param.clone(), ctx.domain, ctx.field().packing_id())?;
         Ok(Self {

@@ -111,25 +111,21 @@ def fragmentId (ids : Identifiers) : Digest :=
 private def word (value : ℕ) (fits : value < 2^64) : FingerprintPrefix.Word := ⟨value,fits⟩
 
 /-- The signature participant's storage map as runs (`StorageMap::runs`).
-Its values are `[private inputs | pads]`: the issuer digest's 256 bits, then
-device x and y (512 bits after the MSO preimage), each a one-bit prime group
-in the binary inputs; every other value is native, in value order. R's 256
-bits follow the hash circuit's own inputs. Each word is its own write. -/
+Its values are `[private inputs | pads]`. The 768 shared values (issuer
+digest, device x, device y) are hash private bits 0..767, so they form one
+run of one-bit prime groups starting at the hash's first private input; every
+other value is native, in value order. R's 256 bits follow the hash circuit's
+own inputs. Each word is its own write. -/
 def storageWords (bounds : Bounds binary prime) : List FingerprintPrefix.Word :=
   have hc := bounds.committedFit
-  have hn : binary.nPublic+20760 < 2^64 := by
-    have := binary.hashCapacity
-    unfold ConcreteSetup.BinaryCircuit.nPrivate at hc
-    omega
   have hh : binary.nPublic+binary.hashPrivate < 2^64 := by
     unfold ConcreteSetup.BinaryCircuit.nPrivate at hc
     omega
   have hr : prime.description.remaining+prime.description.pads < 2^64 := by
     have := bounds.inputFits
     omega
-  [word 3 (by decide),
-    word 1 (by decide),word 0 (by decide),word 256 (by decide),word binary.nPublic (by omega),word 1 (by decide),
-    word 1 (by decide),word 256 (by decide),word 512 (by decide),word (binary.nPublic+20760) hn,word 1 (by decide),
+  [word 2 (by decide),
+    word 1 (by decide),word 0 (by decide),word 768 (by decide),word binary.nPublic (by omega),word 1 (by decide),
     word 0 (by decide),word 768 (by decide),
       word (prime.description.remaining+prime.description.pads) hr,word 0 (by decide),
     word (binary.nPublic+binary.hashPrivate) hh,word 256 (by decide)]

@@ -5,9 +5,10 @@
 //! Positions are relative to each circuit's public prefix. The signature
 //! circuit stores its first private inputs, one input per bit, as bits of the
 //! hash circuit's witness; `SHARED` pairs each such signature range with its
-//! hash range. The compiler and the encoders check their allocation order
-//! against these ranges, and the link reads them, so this table is the single
-//! description of the shared positions.
+//! hash range. Both circuits allocate the shared values first, in the same
+//! order, so each pair names the same private offsets. The compiler and the
+//! encoders check their allocation order against these ranges, and the link
+//! reads them, so this table is the single description of the shared positions.
 use core::ops::Range;
 
 use super::hash::constants::{K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN};
@@ -20,11 +21,11 @@ const fn after(previous: Range<usize>, width: usize) -> Range<usize> {
 pub mod hash {
     use super::{after, Range, K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN};
     pub const ISSUER_DIGEST: Range<usize> = 0..256;
-    pub const MSO_PREIMAGE: Range<usize> = after(ISSUER_DIGEST, 8 * K_MSO_PREIMAGE_LEN);
+    pub const DEVICE_X: Range<usize> = after(ISSUER_DIGEST, 256);
+    pub const DEVICE_Y: Range<usize> = after(DEVICE_X, 256);
+    pub const MSO_PREIMAGE: Range<usize> = after(DEVICE_Y, 8 * K_MSO_PREIMAGE_LEN);
     pub const MSO_LEN: Range<usize> = after(MSO_PREIMAGE, K_HASH_INDEX_BITS);
     pub const NBLOCKS: Range<usize> = after(MSO_LEN, 8);
-    pub const DEVICE_X: Range<usize> = after(NBLOCKS, 256);
-    pub const DEVICE_Y: Range<usize> = after(DEVICE_X, 256);
 }
 
 /// The signature circuit's leading private inputs, in allocation order.
@@ -46,14 +47,14 @@ pub const SHARED: [(Range<usize>, Range<usize>); 3] = [
 /// Number of signature inputs stored in the hash witness.
 pub const SHARED_BITS: usize = sig::DEVICE_Y.end;
 
-// The shared signature inputs are the leading `SHARED_BITS` private inputs,
-// and each pair has equal widths.
+// The shared values are the leading `SHARED_BITS` private inputs of both
+// circuits, at the same offsets.
 const _: () = {
     let mut i = 0;
     let mut next = 0;
     while i < SHARED.len() {
         let (s, h) = (&SHARED[i].0, &SHARED[i].1);
-        assert!(s.start == next && s.end - s.start == h.end - h.start);
+        assert!(s.start == next && s.start == h.start && s.end == h.end);
         next = s.end;
         i += 1;
     }

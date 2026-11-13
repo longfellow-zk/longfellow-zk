@@ -75,8 +75,15 @@ pub fn allocate<L: LogicIO>(
             panic!("{e}");
         }
     };
+    // The values shared with the signature circuit come first, in the
+    // signature circuit's order, so both circuits store them at the same
+    // private offsets.
     at(*pos, &layout::hash::ISSUER_DIGEST, "issuer digest");
     let issuer_sig_e = io.next::<256>(pos);
+    at(*pos, &layout::hash::DEVICE_X, "device x");
+    let device_x = io.next::<256>(pos);
+    at(*pos, &layout::hash::DEVICE_Y, "device y");
+    let device_pk = (device_x, io.next::<256>(pos));
     at(*pos, &layout::hash::MSO_PREIMAGE, "MSO preimage");
     let value = std::array::from_fn(|_| io.next::<8>(pos));
     at(*pos, &layout::hash::MSO_LEN, "MSO length");
@@ -86,11 +93,7 @@ pub fn allocate<L: LogicIO>(
     };
     at(*pos, &layout::hash::NBLOCKS, "block count");
     let nblocks = io.next::<8>(pos);
-    at(*pos, &layout::hash::DEVICE_X, "device x");
-    let device_x = io.next::<256>(pos);
-    at(*pos, &layout::hash::DEVICE_Y, "device y");
-    let device_pk = (device_x, io.next::<256>(pos));
-    at(*pos, &(layout::hash::DEVICE_Y.end..layout::hash::DEVICE_Y.end), "end of device y");
+    at(*pos, &(layout::hash::NBLOCKS.end..layout::hash::NBLOCKS.end), "end of block count");
     let doc_type_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_from_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_until_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);

@@ -173,11 +173,11 @@ where
     );
 
     push_nat(&mut inputs, &given.hash_input.issuer_sig_e, 256, fr);
+    push_nat(&mut inputs, &given.hash_input.device_pk.0, 256, fr);
+    push_nat(&mut inputs, &given.hash_input.device_pk.1, 256, fr);
     push_bytes(&mut inputs, &given.preimage.value, K_MSO_PREIMAGE_LEN, fr);
     push_bits(&mut inputs, u128::from(given.preimage.len), 16, fr);
     push_bits(&mut inputs, u128::from(given.nblocks), 8, fr);
-    push_nat(&mut inputs, &given.hash_input.device_pk.0, 256, fr);
-    push_nat(&mut inputs, &given.hash_input.device_pk.1, 256, fr);
 
     for offset in [
         given.doc_type_offset_in_preimage,
@@ -310,8 +310,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        239, 25, 6, 15, 121, 200, 100, 90, 130, 55, 189, 48, 103, 250, 69, 82, 136, 100, 139, 148,
-        242, 52, 105, 134, 200, 186, 23, 163, 237, 47, 216, 181,
+        251, 174, 88, 50, 81, 103, 182, 247, 37, 69, 200, 135, 186, 204, 45, 32, 45, 6, 105, 49, 67,
+        21, 97, 204, 187, 68, 151, 35, 37, 55, 169, 167,
     ];
     assert_eq!(
         circuit.id, expected_id,

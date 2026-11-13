@@ -7,7 +7,7 @@
 //! commitment.
 //!
 //! - All native: the ordinary circuit reduction applies.
-//! - Mixed: the participant commits `[native private inputs | R | pads]`, and every pad is native.
+//! - Mixed: the participant commits `[native private inputs | pads | R]`, and every pad is native.
 //!   The layer rows read only pads, so they go to this field's Polygero participant unchanged. The
 //!   input equation `<w, v> = t` is split with a fresh nonzero challenge `eta` and one masked
 //!   message `mu = eta*<w_F, v_F> + R` into:
@@ -44,15 +44,15 @@ pub(crate) struct Split {
     pub(crate) map: StorageMap,
     /// Bits of R in the binary commitment; absent for pure foreign storage.
     pub(crate) mask: Option<Group>,
-    /// Physical cell of R: right after the native private inputs.
+    /// Physical cell of R: after every native value.
     pub(crate) mask_cell: usize,
 }
 impl Split {
-    /// Physical cell of the value at `index`, which must be native.
+    /// Physical cell of the value at `index`, which must be native. Native
+    /// values are committed in value order, so this is the map's own cell.
     fn native_cell(&self, index: usize) -> Result<usize, String> {
         match self.map.entries().get(index) {
-            Some(Storage::Native(cell)) if *cell < self.mask_cell => Ok(*cell),
-            Some(Storage::Native(cell)) => Ok(cell + 1),
+            Some(Storage::Native(cell)) => Ok(*cell),
             _ => Err("native row reads a foreign value".into()),
         }
     }
@@ -296,10 +296,7 @@ pub(crate) fn layout(
     {
         return Err("mixed storage keeps every pad native".into());
     }
-    let mask_cell = map.entries()[..private]
-        .iter()
-        .filter(|s| matches!(s, Storage::Native(_)))
-        .count();
+    let mask_cell = map.native_cells();
     Ok(Split {
         map,
         mask,

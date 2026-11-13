@@ -303,7 +303,8 @@ structure BinaryCircuit (B : Type) [Field B] [Algebra (ZMod 2) B] where
   upper : ℕ
   basis : Module.Basis (Fin 128) (ZMod 2) B
   inputCapacity : nPublic+(hashPrivate+276)+2*(768+256+10) ≤ 2^input
-  hashCapacity : 21272 ≤ hashPrivate
+  /-- The hash private inputs begin with the 768 bits shared with the signature circuit. -/
+  hashCapacity : 768 ≤ hashPrivate
   publicBits : Fin nPublic → Bool
   layout : Adapter.Fragment.Layout
   output : Fin 2 ↪ Cube final
@@ -338,14 +339,15 @@ def hashIndex (circuit : BinaryCircuit B) : Fin circuit.hashWidth ↪ Cube circu
     (cubeIndex circuit.input (circuit.hashIndex x)).val = x.val :=
   prefixIndex_val _ _ _ x
 
-/-- Hash allocation stores the issuer digest first. Device coordinates
-follow 40 SHA blocks, the 16-bit MSO length and the 8-bit block count. -/
+/-- The hash allocates the values shared with the signature circuit first,
+in that circuit's order: issuer digest, device x, device y (`layout::hash`).
+Shared signature value `i` is thus hash private bit `i`. -/
 def sharedPrivate (circuit : BinaryCircuit B) (i : Fin 768) : Fin circuit.nPrivate :=
-  ⟨if i.val < 256 then i.val else 20760+(i.val-256),by
+  ⟨i.val,by
     have hi := i.isLt
     have hc := circuit.hashCapacity
     unfold nPrivate
-    split_ifs <;> omega⟩
+    omega⟩
 
 /-- R follows the hash's own private inputs. -/
 def maskPrivate (circuit : BinaryCircuit B) (i : Fin 256) : Fin circuit.nPrivate :=
@@ -365,7 +367,7 @@ theorem shared_lt_hash (circuit : BinaryCircuit B) (i : Fin 768) :
   have := i.isLt
   have := circuit.hashCapacity
   simp only [sharedPrivate]
-  split_ifs <;> omega
+  omega
 
 def committedIndex (circuit : BinaryCircuit B) : (Fin circuit.nPublic ⊕ Fin circuit.nPrivate) ↪ Cube circuit.input :=
   inputIndex circuit.nPublic circuit.nPrivate circuit.input circuit.committedCapacity

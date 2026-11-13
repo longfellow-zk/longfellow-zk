@@ -75,9 +75,9 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
             &mut DeterministicRng::new(42),
         )
         .unwrap();
-    // Native cells: the native private input, then R, then the pads.
+    // Native cells: the native private input, then the pads, then R.
     assert_eq!(witness[0], native);
-    assert_eq!(witness[1], mask);
+    assert_eq!(*witness.last().unwrap(), mask);
     assert_eq!(
         witness.len(),
         2 + part.geometry().sc_geom.pad_count().unwrap()

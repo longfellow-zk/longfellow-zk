@@ -3,7 +3,7 @@ import LfzkV2.Current.CellLayout
 import LfzkV2.Packed.Inputs
 
 /-! The complete binary cell vector in the runtime's physical order:
-packed words; free packing masks, r and sigma(r); sumcheck pads; then the
+packed words; sumcheck pads; free packing masks, r and sigma(r); then the
 two dedicated selection masks. This constructor supplies values at the
 existing addresses. It does not introduce field-valued binary inputs.
 
@@ -65,18 +65,42 @@ def auxiliary (positive : 0 < degree) (masks : Fin (degree-1) → F) (random : F
   fun i => Fin.append masks (fun j : Fin 2 => if j = 0 then random else frobenius (ZMod 2) F random)
     (Fin.cast (show degree+1 = (degree-1)+2 by omega) i)
 
+/-- Frontend values in value order (packed words, then sumcheck pads), then
+the packing reduction's auxiliary cells (`packing_commitment.rs`). -/
+def frontend (positive : 0 < degree) (packed : Fin words → F)
+    (masks : Fin (degree-1) → F) (random : F) (sumcheck : Fin pads → F) :
+    Fin (words+pads+(degree+1)) → F :=
+  Fin.append (Fin.append packed sumcheck) (auxiliary positive masks random)
+
+theorem cells_eq (words degree pads : ℕ) :
+    CellLayout.Binary.cells words degree pads = words+pads+(degree+1) := by
+  unfold CellLayout.Binary.cells
+  omega
+
 def values (positive : 0 < degree) (packed : Fin words → F)
     (masks : Fin (degree-1) → F) (random : F) (sumcheck : Fin pads → F)
     (selection : Fin 2 → F) : Fin (CellLayout.Binary.cells words degree pads+2) → F :=
-  Fin.append (Fin.append (Fin.append packed (auxiliary positive masks random)) sumcheck) selection
+  Fin.append (frontend positive packed masks random sumcheck ∘ Fin.cast (cells_eq words degree pads)) selection
+
+theorem values_original (positive : 0 < degree) (packed : Fin words → F)
+    (masks : Fin (degree-1) → F) (random : F) (sumcheck : Fin pads → F)
+    (selection : Fin 2 → F) (k : Fin (CellLayout.Binary.cells words degree pads)) :
+    values positive packed masks random sumcheck selection (Fin.castAdd 2 k) =
+      frontend positive packed masks random sumcheck (Fin.cast (cells_eq words degree pads) k) := by
+  unfold values
+  rw [Fin.append_left]
+  rfl
 
 theorem word_value (positive : 0 < degree) (packed : Fin words → F)
     (masks : Fin (degree-1) → F) (random : F) (sumcheck : Fin pads → F)
     (selection : Fin 2 → F) (i : Fin words) :
     values positive packed masks random sumcheck selection (CellLayout.Binary.word words degree pads i) =
       packed i := by
-  change Fin.append _ _ (Fin.castAdd 2 (Fin.castAdd pads (Fin.castAdd (degree+1) i))) = _
-  rw [Fin.append_left,Fin.append_left,Fin.append_left]
+  have index : CellLayout.Binary.word words degree pads i =
+      Fin.castAdd 2 ⟨i.val,by have := i.isLt; unfold CellLayout.Binary.cells; omega⟩ := rfl
+  rw [index,values_original]
+  change Fin.append (Fin.append packed sumcheck) _ (Fin.castAdd (degree+1) (Fin.castAdd pads i)) = _
+  rw [Fin.append_left,Fin.append_left]
 
 theorem mask_value (positive : 0 < degree) (packed : Fin words → F)
     (masks : Fin (degree-1) → F) (random : F) (sumcheck : Fin pads → F)
@@ -84,8 +108,11 @@ theorem mask_value (positive : 0 < degree) (packed : Fin words → F)
     values positive packed masks random sumcheck selection (CellLayout.Binary.mask words degree pads i) =
       masks i := by
   let j : Fin (degree+1) := ⟨i.val,by have := i.isLt; omega⟩
-  change Fin.append _ _ (Fin.castAdd 2 (Fin.castAdd pads (Fin.natAdd words j))) = _
-  rw [Fin.append_left,Fin.append_left,Fin.append_right]
+  have index : CellLayout.Binary.mask words degree pads i =
+      Fin.castAdd 2 ⟨words+pads+i.val,by have := i.isLt; unfold CellLayout.Binary.cells; omega⟩ := rfl
+  rw [index,values_original]
+  change Fin.append (Fin.append packed sumcheck) _ (Fin.natAdd (words+pads) j) = _
+  rw [Fin.append_right]
   change Fin.append masks _ (Fin.castAdd 2 i) = _
   exact Fin.append_left _ _ i
 
@@ -95,8 +122,11 @@ theorem random_value (positive : 0 < degree) (packed : Fin words → F)
     values positive packed masks random sumcheck selection (CellLayout.Binary.random words degree pads) =
       random := by
   let j : Fin (degree+1) := ⟨degree-1,by omega⟩
-  change Fin.append _ _ (Fin.castAdd 2 (Fin.castAdd pads (Fin.natAdd words j))) = _
-  rw [Fin.append_left,Fin.append_left,Fin.append_right]
+  have index : CellLayout.Binary.random words degree pads =
+      Fin.castAdd 2 ⟨words+pads+(degree-1),by unfold CellLayout.Binary.cells; omega⟩ := rfl
+  rw [index,values_original]
+  change Fin.append (Fin.append packed sumcheck) _ (Fin.natAdd (words+pads) j) = _
+  rw [Fin.append_right]
   change Fin.append masks _ (Fin.natAdd (degree-1) (0 : Fin 2)) = _
   rw [Fin.append_right]
   exact if_pos rfl
@@ -107,8 +137,11 @@ theorem frobenius_value (positive : 0 < degree) (packed : Fin words → F)
     values positive packed masks random sumcheck selection (CellLayout.Binary.frobenius words degree pads) =
       frobenius (ZMod 2) F random := by
   let j : Fin (degree+1) := ⟨degree,by omega⟩
-  change Fin.append _ _ (Fin.castAdd 2 (Fin.castAdd pads (Fin.natAdd words j))) = _
-  rw [Fin.append_left,Fin.append_left,Fin.append_right]
+  have index : CellLayout.Binary.frobenius words degree pads =
+      Fin.castAdd 2 ⟨words+pads+degree,by unfold CellLayout.Binary.cells; omega⟩ := rfl
+  rw [index,values_original]
+  change Fin.append (Fin.append packed sumcheck) _ (Fin.natAdd (words+pads) j) = _
+  rw [Fin.append_right]
   have index : Fin.cast (show degree+1 = (degree-1)+2 by omega) j =
       Fin.natAdd (degree-1) (1 : Fin 2) := by
     apply Fin.ext
@@ -123,7 +156,10 @@ theorem pad_value (positive : 0 < degree) (packed : Fin words → F)
     (selection : Fin 2 → F) (i : Fin pads) :
     values positive packed masks random sumcheck selection (CellLayout.Binary.pad words degree pads i) =
       sumcheck i := by
-  change Fin.append _ _ (Fin.castAdd 2 (Fin.natAdd (words+(degree+1)) i)) = _
+  have index : CellLayout.Binary.pad words degree pads i =
+      Fin.castAdd 2 ⟨words+i.val,by have := i.isLt; unfold CellLayout.Binary.cells; omega⟩ := rfl
+  rw [index,values_original]
+  change Fin.append (Fin.append packed sumcheck) _ (Fin.castAdd (degree+1) (Fin.natAdd words i)) = _
   rw [Fin.append_left,Fin.append_right]
 
 theorem selection_value (positive : 0 < degree) (packed : Fin words → F)

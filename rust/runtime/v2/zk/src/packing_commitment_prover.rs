@@ -43,9 +43,11 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         } else {
             Vec::new()
         };
+        // Frontend values in value order (packed words, then pads), then the
+        // packing masks.
         let mut witness = inputs.packed;
-        witness.extend_from_slice(masks.cells());
         witness.extend_from_slice(&suffix);
+        witness.extend_from_slice(masks.cells());
         (
             PackingState {
                 words,
