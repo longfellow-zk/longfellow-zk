@@ -1,8 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Selected joint commitments and circuit metadata for v2 composition.
 use super::{
-    context::prepare_circuit_layout, packing_commitment::PackingCommitment, CircuitGeometry,
-    ZkContext,
+    context::{prepare_circuit_layout, InputLayout},
+    packing_commitment::PackingCommitment,
+    CircuitGeometry, ZkContext,
 };
 pub use crate::runtime::v2::proto::zk::CircuitProof;
 use crate::{
@@ -190,6 +191,7 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) backend: PackingCommitment<F>,
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,
+    pub(super) inputs: InputLayout,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
@@ -199,22 +201,37 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     ) -> Result<Self, String> {
         Self::with_circuits(circuit, &[], config, ctx)
     }
-    /// Prove these circuits as one layered sumcheck. They share the same input
-    /// counts and public/private ordering. Each intermediate layer has one wire
-    /// array; only the sparse quad terms retain their circuit-local indexing.
+    /// Prove these circuits as one layered sumcheck. They share the public
+    /// prefix and read prefixes of one input array. Each intermediate layer has
+    /// one wire array; only the sparse quad terms retain their local indexing.
     pub fn with_circuits<D: EvaluationDomain<W, F>>(
         circuit: &Circuit<F>,
         others: &[&Circuit<F>],
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
+        Self::with_virtual_inputs(circuit, others, 0, config, ctx)
+    }
+    /// As `with_circuits`, with the last `virtual_inputs` entries of the shared
+    /// input array defined per proof as affine functions of committed inputs.
+    /// The primary `circuit` cannot read them; the other components may.
+    pub fn with_virtual_inputs<D: EvaluationDomain<W, F>>(
+        circuit: &Circuit<F>,
+        others: &[&Circuit<F>],
+        virtual_inputs: usize,
+        config: PolygeroConfig,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<Self, String> {
         let (geometry, param, backend) = prepare_circuit_layout(
             circuit,
             others,
+            virtual_inputs,
             config,
             ctx.field().packing_extension(),
             ctx,
         )?;
+        let mut circuits = vec![circuit];
+        circuits.extend_from_slice(others);
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]
@@ -223,7 +240,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             backend,
             id: circuit.id,
             additional_ids: others.iter().map(|c| c.id).collect(),
+            inputs: InputLayout::new(&circuits, virtual_inputs)?,
         })
+    }
+    pub fn input_layout(&self) -> InputLayout {
+        self.inputs
     }
     pub(super) fn validate_circuits(
         &self,
@@ -238,12 +259,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             return Err("joint circuit statement mismatch".into());
         }
         for (id, c) in self.additional_ids.iter().zip(others) {
-            if *id != c.id
-                || c.raw.ninput != circuit.raw.ninput
-                || c.raw.npublic_input != circuit.raw.npublic_input
-            {
-                return Err("circuit statement or shared input layout mismatch".into());
+            if *id != c.id {
+                return Err("circuit statement mismatch".into());
             }
+        }
+        let mut circuits = vec![circuit];
+        circuits.extend_from_slice(others);
+        if InputLayout::new(&circuits, self.inputs.virtual_count())? != self.inputs {
+            return Err("shared input layout mismatch".into());
         }
         Ok(())
     }

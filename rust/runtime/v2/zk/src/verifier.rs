@@ -13,7 +13,7 @@ use crate::{
             transcript::{Transcript, TranscriptRef},
             zk::{
                 joint::{CircuitParticipant, CircuitProof, JointParam},
-                CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
+                CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
         },
     },
@@ -35,10 +35,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &proof.sumcheck_proof,
             &proof.packing,
             &[],
+            &VirtualInputs::none(),
             t,
             ctx,
         )
     }
+    #[allow(clippy::too_many_arguments)]
     fn reduce_parts<D: EvaluationDomain<W, F>>(
         &self,
         circuit: &Circuit<F>,
@@ -46,10 +48,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         sumcheck: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
         packing: &crate::runtime::v2::proto::dual_packing::PackingProof<F::E>,
         others: &[&Circuit<F>],
+        virtual_inputs: &VirtualInputs<F::E>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<LinearStatement<F::E>, String> {
         self.validate_circuits(circuit, public.len(), others)?;
+        virtual_inputs.validate(&self.inputs)?;
         sumcheck
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;
@@ -74,9 +78,33 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &pads,
             &public,
             &self.backend.layout,
+            virtual_inputs,
             ctx.field(),
         )?;
         self.backend.reduce::<W>(statement, packing, &self.id, t)
+    }
+    /// As `reduce_circuits`, substituting this proof's virtual input entries.
+    #[allow(clippy::too_many_arguments)]
+    pub fn reduce_virtual<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        proof: &CircuitProof<W, F>,
+        others: &[&Circuit<F>],
+        virtual_inputs: &VirtualInputs<F::E>,
+        t: &mut TranscriptRef<'_>,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<LinearStatement<F::E>, String> {
+        self.reduce_parts(
+            circuit,
+            public,
+            &proof.sumcheck_proof,
+            &proof.packing,
+            others,
+            virtual_inputs,
+            t,
+            ctx,
+        )
     }
     /// Reduce all circuit statements to affine equations awaiting authentication. The
     /// caller must still complete the shared Polygero verification.
@@ -95,6 +123,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &proof.sumcheck_proof,
             &proof.packing,
             others,
+            &VirtualInputs::none(),
             t,
             ctx,
         )
@@ -195,6 +224,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 &proof.sumcheck_proof,
                 &proof.packing,
                 &[],
+                &VirtualInputs::none(),
                 &mut verifier.transcript(),
                 ctx,
             )

@@ -114,18 +114,33 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     pads: &CircuitPadLayout,
     public: &[F::E],
     layout: &crate::runtime::v2::zk::packing_commitment::PackingLayout,
+    virtual_inputs: &super::VirtualInputs<F::E>,
     f: &F,
 ) -> Result<super::packing_commitment::CommitmentStatement<F::E>, String> {
     use crate::runtime::v2::dual_packing::generic::{Affine, SourceClaim};
     validate(&constraints, pads, public.len())?;
-    if constraints.input_weights.len() != public.len() + layout.private_inputs {
+    let committed_end = public.len() + layout.private_inputs;
+    if constraints.input_weights.len() != committed_end + virtual_inputs.entries.len() {
         return Err("input claim shape".into());
     }
     let (a, b) = compile_layers(&constraints, pads)?;
-    let constant = f.subf(
+    let mut constant = f.subf(
         &constraints.input_claim.constant,
         &blas::dot(&constraints.input_weights[..public.len()], public, f),
     );
+    // Substitute each virtual entry v = c0 + c1 * x[source] like a public
+    // input: its constant moves to the right-hand side and its linear part
+    // joins the weight of the committed source input.
+    let mut input_weights = constraints.input_weights;
+    let (committed_weights, virtual_weights) = input_weights.split_at_mut(committed_end);
+    for (v, w) in virtual_inputs.entries.iter().zip(virtual_weights.iter()) {
+        if v.source < public.len() || v.source >= committed_end {
+            return Err("virtual input source outside the committed inputs".into());
+        }
+        f.sub(&mut constant, &f.mulf(w, &v.constant));
+        f.fma(&mut committed_weights[v.source], w, &v.coefficient);
+    }
+    input_weights.truncate(committed_end);
     let terms = constraints
         .input_claim
         .terms
@@ -141,11 +156,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
             Ok((coordinate, k))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let weights = constraints
-        .input_weights
-        .into_iter()
-        .skip(public.len())
-        .collect();
+    let weights = input_weights.into_iter().skip(public.len()).collect();
     Ok(super::packing_commitment::CommitmentStatement {
         claim: SourceClaim {
             weights,

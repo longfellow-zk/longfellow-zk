@@ -72,7 +72,8 @@ sums them. T controls both openings and row masks.
 ## Same-field circuit composition
 
 `CircuitParticipant::with_circuits` combines the supplied circuits in one
-layered sumcheck. All must have the same input width and public/private ordering.
+layered sumcheck. They share the public prefix and read prefixes of one input
+array as wide as the widest circuit.
 `prove_circuits` and `reduce_circuits` take that ordered circuit list and the
 same public inputs. The prover supplies one private source vector, packed and
 committed once. All circuit IDs and the common public values bind before sumcheck.
@@ -83,7 +84,18 @@ list index, without padding between circuits. Sparse
 quadratic, linear and constant streams retain local indices; their slices of
 the global arrays supply the offsets. At the input boundary every fragment's
 input offset is zero, so their contributions accumulate into the same input
-weights. There are no independent affine input views or extra advice vectors.
+weights; a narrower circuit contributes only to its prefix.
+
+`CircuitParticipant::with_virtual_inputs` reserves the last entries of the
+shared input array as virtual inputs. Each proof defines them as affine
+functions `c0 + c1 * x[source]` of committed private inputs (`VirtualInputs`);
+both roles derive the definitions, and they are never absorbed. The prover
+appends their values to the input array. `compile_packed` substitutes them
+like public inputs: each constant moves to the right-hand side and each
+linear part joins its source input's weight, so virtual inputs are never
+committed. The primary circuit must end before the virtual suffix and so
+cannot read it; the other circuits may. `prove_virtual` and `reduce_virtual`
+take the definitions; `prove_circuits` and `reduce_circuits` use none.
 
 Shorter circuits join later, aligned at their inputs. New zero-output claims
 receive fresh output weights. Each layer otherwise uses ordinary sumcheck over

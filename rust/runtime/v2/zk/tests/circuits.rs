@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
-        proto::v2::{self, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+        proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{
@@ -369,4 +369,125 @@ fn final_seal_failure_has_its_own_verification_error() {
         verifier.verify(&[false], tampered, Transcript::new(b"seal error"), &context),
         Err(ZkVerificationError::InvalidTranscriptSeal(_))
     ));
+}
+
+/// A fragment reading `virt = c0 + c1 * x[1]` beyond the primary circuit's
+/// inputs. The virtual entry is substituted at constraint compilation; only the
+/// three private inputs are committed.
+#[test]
+fn binary_virtual_inputs_are_substituted_not_committed() {
+    use crate::{
+        core::algebra::SupportsU128Conversions,
+        runtime::v2::zk::{VirtualInput, VirtualInputs},
+    };
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let ctx = ZkContext::new(&domain);
+    let (main, _) = circuits(&f);
+    // Output: in[4] + 1, which vanishes iff the virtual entry equals one.
+    let fragment = Circuit::from_raw(
+        &f,
+        RawCircuitBuilder {
+            ninput: 5,
+            npublic_input: 1,
+            noutput: 1,
+            logv: 0,
+            constants: vec![f.zero(), f.one()],
+            layers: vec![Layer::with_assertions(
+                5,
+                Stream::default(),
+                Stream::<Linear>::from_terms([Linear { g: 0, l: 4, k: 1 }]),
+                Stream::<Constant>::from_terms([Constant { g: 0, k: 1 }]),
+                |k| k == 0,
+            )],
+        }
+        .build(),
+    );
+    let config = PolygeroConfig {
+        k: 64,
+        s: 2,
+        n: 256,
+        t: 8,
+    };
+    let p = CircuitParticipant::with_virtual_inputs(&main, &[&fragment], 1, config, &ctx).unwrap();
+    assert_eq!(p.backend.layout.private_inputs, 3);
+    let layout = p.input_layout();
+    assert_eq!((layout.committed_end, layout.ninput), (4, 5));
+    // x[1] = 1, so c0 + c1 = 1 makes the virtual entry one.
+    let c0 = f.u128_to_element(7);
+    let definition = |c0| VirtualInputs {
+        entries: vec![VirtualInput {
+            source: 1,
+            constant: c0,
+            coefficient: f.addf(&c0, &f.one()),
+        }],
+    };
+    let honest = definition(c0);
+    let param =
+        crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
+    let mut rng = DeterministicRng::new(91);
+    let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
+    let t = Transcript::new(b"virtual-inputs-test");
+    let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
+    let (proof, statement) = p
+        .prove_virtual(
+            &main,
+            &[true],
+            state,
+            &[&fragment],
+            &honest,
+            &mut joint.transcript(),
+            &ctx,
+        )
+        .unwrap();
+    let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
+    let verify = |definition: &VirtualInputs<_>| {
+        let t = Transcript::new(b"virtual-inputs-test");
+        let mut v = param.clone().receive(&root, responses.clone(), t);
+        let statement = p.reduce_virtual(
+            &main,
+            &[true],
+            &proof,
+            &[&fragment],
+            definition,
+            &mut v.transcript(),
+            &ctx,
+        )?;
+        v.authenticate(&opening, (statement, ()))
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    };
+    verify(&honest).unwrap();
+    // A different definition, even one that also equals one at x[1] = 1,
+    // changes the compiled statement and fails authentication.
+    assert!(verify(&definition(f.u128_to_element(9))).is_err());
+    let mut tampered = honest.clone();
+    tampered.entries[0].constant = f.addf(&c0, &f.one());
+    assert!(verify(&tampered).is_err());
+    // Definitions must match the layout and point into committed inputs.
+    for source in [0, 4] {
+        let mut bad = honest.clone();
+        bad.entries[0].source = source;
+        assert!(verify(&bad).is_err(), "source {source}");
+    }
+    assert!(verify(&VirtualInputs::none()).is_err());
+    // A dishonest definition cannot be proven: the fragment output is nonzero.
+    let mut rng = DeterministicRng::new(91);
+    let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
+    let (mut joint, _, _) = param
+        .commit((w, ()), Transcript::new(b"virtual-inputs-test"), &mut rng)
+        .unwrap();
+    assert!(p
+        .prove_virtual(
+            &main,
+            &[true],
+            state,
+            &[&fragment],
+            &tampered,
+            &mut joint.transcript(),
+            &ctx,
+        )
+        .is_err());
+    // The primary circuit cannot read the virtual suffix.
+    assert!(CircuitParticipant::with_virtual_inputs(&fragment, &[&main], 1, config, &ctx).is_err());
 }

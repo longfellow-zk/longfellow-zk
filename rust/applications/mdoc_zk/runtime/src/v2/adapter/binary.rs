@@ -67,6 +67,7 @@ impl BinaryParticipant {
         let (geometry, param, backend) = crate::runtime::v2::zk::context::prepare_circuit_layout(
             c,
             &[&template],
+            0,
             config,
             ctx.field().packing_extension(),
             ctx,

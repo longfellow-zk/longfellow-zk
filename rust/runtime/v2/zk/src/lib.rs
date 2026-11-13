@@ -36,7 +36,7 @@ pub mod joint;
 pub(crate) mod packing_commitment;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-pub use context::{CircuitInput, ZkContext};
+pub use context::{CircuitInput, InputLayout, VirtualInput, VirtualInputs, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
 pub use crate::runtime::v2::proto::zk::{CircuitGeometry, ZkProof, ZkProofGeometry};

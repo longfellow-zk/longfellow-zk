@@ -240,13 +240,21 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let layout = reference.participant.backend.layout.clone();
     let pads = geometry.circuit.sc_geom.pad_layout(layout.suffix_start);
     let source =
-        constraint_compiler::compile_packed(constraints, &pads, &public_elements, &layout, &f)
+        constraint_compiler::compile_packed(
+            constraints,
+            &pads,
+            &public_elements,
+            &layout,
+            &crate::runtime::v2::zk::VirtualInputs::none(),
+            &f,
+        )
             .unwrap();
     let verifier_source = constraint_compiler::compile_packed(
         verifier_constraints,
         &pads,
         &public_elements,
         &layout,
+        &crate::runtime::v2::zk::VirtualInputs::none(),
         &f,
     )
     .unwrap();

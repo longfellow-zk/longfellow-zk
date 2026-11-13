@@ -17,7 +17,7 @@ use crate::{
                 context::private_input_count,
                 joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
                 packing_commitment::PackingState,
-                CircuitInput, ZkContext, ZkProof, ZkProofGeometry,
+                CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
         },
     },
@@ -82,10 +82,34 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
+        self.prove_virtual(
+            circuit,
+            public,
+            state,
+            others,
+            &VirtualInputs::none(),
+            t,
+            ctx,
+        )
+    }
+    /// As `prove_circuits`, appending this proof's virtual input entries to the
+    /// shared input array. Their definitions are substituted, not committed.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prove_virtual<D: EvaluationDomain<W, F>>(
+        &self,
+        circuit: &Circuit<F>,
+        public: &[CircuitInput<F>],
+        state: CircuitState<W, F>,
+        others: &[&Circuit<F>],
+        virtual_inputs: &VirtualInputs<F::E>,
+        t: &mut TranscriptRef<'_>,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
         if public.len() != circuit.raw.npublic_input {
             return Err("public inputs length mismatch".into());
         }
         self.validate_circuits(circuit, public.len(), others)?;
+        virtual_inputs.validate(&self.inputs)?;
         if state.id != self.id
             || state.config != self.config
             || state.additional_ids != self.additional_ids
@@ -99,7 +123,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let extension = self.backend.parameters.extension();
         let public = extension.input_elements(ctx.field(), public);
         let private = extension.into_input_elements(ctx.field(), state.private);
-        let inputs = prepare_inputs(&public, private);
+        let mut inputs = prepare_inputs(&public, private);
+        let f = ctx.field();
+        for v in &virtual_inputs.entries {
+            let value = f.addf(&v.constant, &f.mulf(&v.coefficient, &inputs[v.source]));
+            inputs.push(value);
+        }
         let mut circuits = vec![circuit];
         circuits.extend_from_slice(others);
         for c in &circuits {
@@ -116,6 +145,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             &pad_layout,
             &public,
             &self.backend.layout,
+            virtual_inputs,
             ctx.field(),
         )?;
         let (packing, statement) =

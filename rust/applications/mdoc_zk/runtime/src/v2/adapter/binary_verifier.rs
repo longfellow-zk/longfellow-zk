@@ -45,6 +45,7 @@ impl BinaryParticipant {
             &pads,
             &public,
             &self.backend.layout,
+            &crate::runtime::v2::zk::VirtualInputs::none(),
             ctx.field(),
         )?;
         self.backend
