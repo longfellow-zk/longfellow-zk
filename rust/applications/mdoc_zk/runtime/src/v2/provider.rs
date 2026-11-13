@@ -43,6 +43,9 @@ impl ProvidedCircuit {
 }
 
 /// Load a frozen circuit from the repository's artifact directory.
+/// This embeds the build checkout's path, so it exists only in development
+/// and test builds; deployed callers pass a directory to `materialize_from`.
+#[cfg(any(test, feature = "compiler"))]
 pub fn materialize(
     version: usize,
     num_attributes: usize,
