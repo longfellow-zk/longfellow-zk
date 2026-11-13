@@ -229,8 +229,9 @@ the same comparison, including rejection and simulator-abort outcomes.
 The theorem assumes independent uniform private coins, trusted
 fields/codecs/circuits and layout bounds, and a fixed witness policy valid
 at contexts reached using setup derived from the same oracle. Ordinary hash
-witness satisfaction and static hash-circuit noninterference are separate
-premises, alongside the basis/generator checks. V2 uses a
+witness satisfaction is a separate premise, alongside the basis/generator
+checks; hash-circuit separation is structural (the hash circuit reads only its
+own input prefix) and is proved, not assumed. V2 uses a
 32-byte nonce per committed column, with one `NONCE_LEN` constant shared by
 sampling, codecs and size estimates. At `Qpre+Qpost <= 2^128`, the ideal-model
 error is at most `2^-128`. The 84 opened columns carry 2688 nonce bytes;
