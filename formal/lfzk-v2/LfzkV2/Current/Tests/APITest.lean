@@ -2,6 +2,7 @@ import LfzkV2.Current.Tests.ProofAudit
 import LfzkV2.Current.Tests.RuntimeBoundary
 import LfzkV2.Current.Tests.ZeroKnowledgeReachability
 import LfzkV2.Current.Tests.MdocSoundness
+import LfzkV2.Current.Tests.EndpointStatements
 import LfzkV2.Current.Tests.StrandLinearReplay
 import LfzkV2.Current.Tests.StrandMerkleBounds
 import LfzkV2.Current.Tests.StrandMerkleMissingQueries
