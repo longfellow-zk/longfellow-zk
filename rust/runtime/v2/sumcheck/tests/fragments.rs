@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+    core::proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     runtime::{
         algebra::SupportsSampling,
         random::{DeterministicRng, RandomEngine},
@@ -31,7 +31,7 @@ fn check_early_output_weights(short_has_layer: bool) {
             layers,
         }
         .build();
-        Circuit::new(v2::compute_id(&f, &raw), raw)
+        Circuit::from_raw(&f, raw)
     };
     let identity = || {
         Layer::with_assertions(
@@ -138,7 +138,7 @@ fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Ci
             layers,
         }
         .build();
-        Circuit::new(v2::compute_id(f, &raw), raw)
+        Circuit::from_raw(f, raw)
     };
     let long = circuit(
         vec![
@@ -393,7 +393,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         layers: merged_layers,
     }
     .build();
-    let merged = Circuit::new(v2::compute_id(f, &raw), raw);
+    let merged = Circuit::from_raw(f, raw);
     let splits: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
     let merged_splits = split_layers(&merged, f);
     let mut rng = DeterministicRng::new(913);
@@ -534,7 +534,12 @@ fn derived_schedule_does_not_absorb_instance_constants_or_ids() {
     id[0] ^= 1;
     let mut raw = second0.into_raw().into_builder();
     raw.constants.push(f.one());
-    let second = [Circuit::new(id, raw.build()), second1, second2, second3];
+    let second = [
+        Circuit::with_test_id(id, raw.build()),
+        second1,
+        second2,
+        second3,
+    ];
     let mut a = Transcript::new(b"derived-schedule");
     let mut b = Transcript::new(b"derived-schedule");
     let schedule = Schedule::new(&[&first[0].raw]).unwrap();

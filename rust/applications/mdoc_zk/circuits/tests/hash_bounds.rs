@@ -179,6 +179,7 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
             1,
         )
     });
+    let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
     for (offset, length, consumed, valid) in [
         (26u16, 101u16, 75u16, true),
         (26, 100, 75, false),

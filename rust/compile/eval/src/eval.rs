@@ -192,7 +192,7 @@ fn convert_circuit<
     let writer = crate::core::proto::v2::CircuitWriter::new(fc, field_id);
     let bytes = writer.to_bytes(circuit);
     let reader = crate::core::proto::v2::CircuitReader::new(fr, field_id);
-    let (converted_circuit, remaining) = reader.from_bytes(&bytes, true)?;
+    let (converted_circuit, remaining) = reader.from_bytes(&bytes)?;
     if !remaining.is_empty() {
         return Err("Remaining bytes after deserialization".to_string());
     }

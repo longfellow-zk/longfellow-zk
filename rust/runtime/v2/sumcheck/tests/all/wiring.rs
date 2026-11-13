@@ -245,7 +245,7 @@ fn check_output_sampling<
 ) {
     use crate::core::proto::v2::{Circuit, RawCircuitBuilder};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
-        let circuit = Circuit::new(
+        let circuit = Circuit::with_test_id(
             [0; 32],
             RawCircuitBuilder {
                 ninput: noutput,

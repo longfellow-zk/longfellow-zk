@@ -56,7 +56,7 @@ where
     ];
     for (bytes, expected) in encodings.iter().zip(expected) {
         assert!(crate::core::proto::v2::CircuitReader::new(fr, fid)
-            .from_bytes(bytes, true)
+            .from_bytes(bytes)
             .is_err());
         assert_eq!(
             format!("{:x}", Sha256::digest(bytes)),
@@ -67,13 +67,13 @@ where
         assert!(tail.is_empty());
         assert_eq!(decoded.id, v1.id);
     }
-    let modern = segment_circuit_v2(fc, &v2);
+    let modern = segment_circuit_v2(fc, v2);
     let encoded = crate::core::proto::v2::CircuitWriter::new(fc, fid).to_bytes(&modern);
     assert!(CircuitReader::new(fr, fid)
         .from_bytes(&encoded, true)
         .is_err());
     let (modern, tail) = crate::core::proto::v2::CircuitReader::new(fr, fid)
-        .from_bytes(&encoded, true)
+        .from_bytes(&encoded)
         .unwrap();
     let (legacy, _) = CircuitReader::new(fr, fid)
         .from_bytes(&encodings[2], true)
@@ -170,7 +170,6 @@ fn binary_input_bit_assertions_are_v1_only() {
     assert_eq!(v1.nassertions, 2);
     assert_eq!(v2.nassertions, 1);
     assert!(v2_circuit
-        .raw
         .layers
         .iter()
         .all(|layer| layer.quadratic.num_terms() == 0));
@@ -183,7 +182,6 @@ fn binary_input_bit_assertions_are_v1_only() {
     });
     assert_eq!(checked.nassertions, 2);
     assert!(checked_circuit
-        .raw
         .layers
         .iter()
         .any(|layer| layer.quadratic.num_terms() != 0));

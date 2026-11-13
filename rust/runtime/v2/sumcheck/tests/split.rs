@@ -383,7 +383,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         )],
     }
     .build();
-    let circuit = Circuit::new(compute_id(f, &raw), raw);
+    let circuit = Circuit::from_raw(f, raw);
     let writer = CircuitWriter::new(f, FieldID::None);
     let bytes_before = writer.to_bytes(&circuit);
     let id_before = circuit.id;
@@ -453,12 +453,12 @@ where F: crate::runtime::algebra::RuntimeField<W>
         }
     }
     let raw = raw.build();
-    assert_eq!(compute_id(f, &raw), id_before);
-    let reindexed = Circuit::new(id_before, raw);
+    assert_ne!(compute_id(f, &raw), id_before);
+    let reindexed = Circuit::from_raw(f, raw);
     let encoded = writer.to_bytes(&reindexed);
     assert_eq!(&encoded[..4], b"LFC3");
     let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(f, FieldID::None)
-        .from_bytes(&encoded, true)
+        .from_bytes(&encoded)
         .unwrap();
     assert!(tail.is_empty());
     assert_eq!(decoded.raw.layers[0].assertion_counts(), [1, 1]);
@@ -473,11 +473,20 @@ where F: crate::runtime::algebra::RuntimeField<W>
     let reindexed_proof =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &decoded, &mut transcript.borrow(), f)
             .unwrap();
+    // Table order changes the ID and hence the challenges. Compare against
+    // the reference implementation under this circuit's new statement.
+    let mut expected = Transcript::new(b"private-layer-split");
+    expected
+        .borrow()
+        .write_sumcheck_statement(&decoded, &inputs[..1], f);
+    let witnesses = super::reference::eval_circuit(inputs.clone(), &decoded, f).unwrap();
+    let reference = super::reference::prove_core(witnesses, &pads, &decoded, &mut expected, f);
     assert_eq!(
         reindexed_proof.0.write(&geometry, f).unwrap(),
-        got.0.write(&geometry, f).unwrap()
+        reference.0.write(&geometry, f).unwrap()
     );
-    assert_eq!(reindexed_proof.1, got.1);
+    assert_eq!(reindexed_proof.1, reference.1);
+    assert_eq!(transcript.bytes(64), expected.bytes(64));
     sumcheck::diagnostic::verify(
         inputs.clone(),
         &pads,

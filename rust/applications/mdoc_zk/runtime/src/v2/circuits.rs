@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Longfellow v2 trusted circuit loading with opt-in payload ID enforcement.
+//! Longfellow v2 circuit loading with mandatory payload ID verification.
 use super::ZkSpecStruct;
 use crate::{
     core::proto::{
@@ -24,18 +24,16 @@ use crate::{
 
 type DecodedCircuits = (Circuit<P256Field>, Circuit<Gf2_128Field>);
 
-/// Load trusted circuits; optionally recompute and enforce their payload IDs.
+/// Load circuits, validating their structure and recomputing their payload IDs.
 pub fn decompress_circuits(
     compressed: &[u8],
     p256: &P256Field,
     gf2: &Gf2_128Field,
-    enforce_circuit_id: bool,
 ) -> Result<DecodedCircuits, String> {
-    load(compressed, p256, gf2, None, enforce_circuit_id)
+    load(compressed, p256, gf2, None)
 }
 
-/// Check cheap archive metadata against the spec. Application circuits are trusted;
-/// this path deliberately skips recomputing their semantic IDs.
+/// Check archive metadata against the spec and verify both payload identities.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(super) fn for_spec(
     spec: &ZkSpecStruct,
@@ -43,7 +41,7 @@ pub(super) fn for_spec(
     p256: &P256Field,
     gf2: &Gf2_128Field,
 ) -> Result<DecodedCircuits, String> {
-    load(compressed, p256, gf2, Some(spec), false)
+    load(compressed, p256, gf2, Some(spec))
 }
 
 fn load(
@@ -51,7 +49,6 @@ fn load(
     p256: &P256Field,
     gf2: &Gf2_128Field,
     spec: Option<&ZkSpecStruct>,
-    enforce_circuit_id: bool,
 ) -> Result<DecodedCircuits, String> {
     let archive = super::archive::read(compressed)?;
     if archive.entries.len() != 2 {
@@ -70,13 +67,13 @@ fn load(
     let hash_entry = archive
         .get("hash")
         .ok_or("Missing 'hash' entry in circuit archive")?;
-    let (signature, signature_tail) = CircuitReader::new(p256, FieldID::P256)
-        .from_bytes(&sig_entry.payload, enforce_circuit_id)?;
+    let (signature, signature_tail) =
+        CircuitReader::new(p256, FieldID::P256).from_bytes(&sig_entry.payload)?;
     if !signature_tail.is_empty() || signature.id != sig_entry.circuit_id {
         return Err("Signature payload does not match its archive entry".into());
     }
-    let (hash, hash_tail) = CircuitReader::new(gf2, FieldID::Gf2_128)
-        .from_bytes(&hash_entry.payload, enforce_circuit_id)?;
+    let (hash, hash_tail) =
+        CircuitReader::new(gf2, FieldID::Gf2_128).from_bytes(&hash_entry.payload)?;
     if !hash_tail.is_empty() || hash.id != hash_entry.circuit_id {
         return Err("Hash payload does not match its archive entry".into());
     }

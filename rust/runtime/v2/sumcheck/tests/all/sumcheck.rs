@@ -131,10 +131,11 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f, FieldID::P256);
     let (circ, _) = reader
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
 
     // Witness where x = 1, y = 0 => z = 1 * 0 = 0 (satisfies assert0)
@@ -184,10 +185,11 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f, FieldID::P256);
     let (circ, _) = reader
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
 
     let mut w_pad = vec![f.zero(); circ.raw.ninput];
@@ -243,10 +245,11 @@ fn test_sumcheck_multi_layer() {
     });
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc, FieldID::P256);
+    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f, FieldID::P256);
     let (circ, _) = reader
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .expect("Circuit conversion to runtime field failed");
     assert!(
         circ.raw.layers.len() > 1,
@@ -281,7 +284,7 @@ fn test_sumcheck_multi_layer() {
 #[test]
 fn test_sumcheck_core_single_hand_permutations() {
     use crate::{
-        core::proto::v2::{compute_id, Stream},
+        core::proto::v2::Stream,
         runtime::v2::{
             proto::sumcheck::SumcheckProofGeometry,
             sumcheck::{diagnostic::verify_core, prove_core},
@@ -298,6 +301,7 @@ fn test_sumcheck_core_single_hand_permutations() {
         }
         (logic.assert0("x", &x), 1)
     });
+    let compiled = crate::compile::compiler::segment_circuit_v2(&fc, compiled);
     let bytes = CircuitWriter::new(&fc, FieldID::P256).to_bytes(&compiled);
     let f = RuntimeP256::new();
     let reader = CircuitReader::new(&f, FieldID::P256);
@@ -306,7 +310,7 @@ fn test_sumcheck_core_single_hand_permutations() {
     let mut expected = None;
     let mut ids = Vec::new();
     for layout in 0..4 {
-        let (circuit, _) = reader.from_bytes(&bytes, true).unwrap();
+        let (circuit, _) = reader.from_bytes(&bytes).unwrap();
         let mut raw = circuit.into_raw().into_builder();
         let classes = crate::core::proto::v2::classify_constants(&f, &raw.constants);
         for layer in &mut raw.layers {
@@ -344,12 +348,11 @@ fn test_sumcheck_core_single_hand_permutations() {
             );
         }
         let raw = raw.build();
-        let mut circuit = Circuit::new(compute_id(&f, &raw), raw);
-        ids.push(circuit.id);
-        let segmented = crate::compile::compiler::segment_circuit_v2(&f, &circuit);
+        let segmented = crate::compile::compiler::segment_circuit_v2(&f, raw);
+        ids.push(segmented.id);
         let encoded = writer.to_bytes(&segmented);
-        let (decoded, tail) = reader.from_bytes(&encoded, true).unwrap();
-        circuit = decoded;
+        let (decoded, tail) = reader.from_bytes(&encoded).unwrap();
+        let circuit = decoded;
         assert!(tail.is_empty());
         let mut inputs = vec![f.zero(); circuit.raw.ninput];
         inputs[1] = f.u64_to_element(12345);
@@ -357,7 +360,7 @@ fn test_sumcheck_core_single_hand_permutations() {
         let pad = zero_proof(&circuit, &f);
         // Hold the trusted identity fixed only for this arithmetic-layout comparison.
         // Layered sumcheck binds each actual circuit ID before sampling.
-        let circuit = Circuit::new([42; 32], circuit.into_raw());
+        let circuit = Circuit::with_test_id([42; 32], circuit.into_raw());
         let mut pt = Transcript::new(b"fixed-layout-comparison");
         let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt.borrow(), &f);
         let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");

@@ -429,7 +429,7 @@ V2 represents quadratic, linear, and constant terms explicitly throughout
 lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
 historical Morton ordering and circuit IDs. V2 compiles directly to
 [LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
-separately with an explicit coefficient table. Its `DIR1` directory declares
+separately with an explicit coefficient table. Its `DIR2` directory declares
 all array sizes before the payload; segment contents use contiguous storage.
 Global limits bound layers, total wires, term data, and segment/token metadata.
 It removes the reserved One wire.
@@ -504,8 +504,18 @@ and its selected parameters.
 Frozen artifacts and parameters are immutable. NEXT bundles store their
 matching circuit archive and complete parameter specification.
 
-Circuit archives are trusted inputs. The v2 loader supports optional
-circuit-ID recomputation through `enforce_circuit_id`.
+Circuit specifications are trusted configuration. Every v2 circuit load
+recomputes its SHA-256 ID from the stored segmented representation and checks
+it against the payload and archive identifiers. There is no enforcement flag.
+Compilation returns an identity-free `RawCircuit`; segmentation finalizes its
+representation and computes its ID. Changing segmentation or coefficient-table
+order changes the ID. LFC3 revision `DIR2` uses this convention; older NEXT
+bundles must be regenerated.
+
+To measure circuit-ID computation and checked decoding on the largest mdoc
+circuit, run `cargo bench --bench circuit_id`. Set
+`CIRCUIT_ID_BENCH_ATTRIBUTES=1,2,3,4` to measure all attribute counts. Compilation
+is outside timing; the benchmark reports median and 95th-percentile times.
 
 ## Cargo features
 

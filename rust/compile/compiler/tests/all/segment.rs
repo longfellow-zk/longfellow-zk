@@ -34,19 +34,22 @@ fn circuit_compression_and_recompression_preserve_lfc3() {
         }
         (logic.assert0("x", &x), 1, 0)
     });
-    let compressed = segment_circuit_v2(&f, &original);
-    let recompressed = segment_circuit_v2(&f, &compressed);
-    assert_eq!(original.id, compressed.id);
-    assert_eq!(compressed.id, recompressed.id);
+    let original_id = original.id;
+    let compressed = segment_circuit_v2(&f, original.into_raw());
+    let compressed_id = compressed.id;
+    let compressed_bytes = CircuitWriter::new(&f, FieldID::P256).to_bytes(&compressed);
+    let recompressed = segment_circuit_v2(&f, compressed.into_raw());
+    assert_eq!(original_id, compressed_id);
+    assert_eq!(compressed_id, recompressed.id);
     let writer = CircuitWriter::new(&f, FieldID::P256);
-    let bytes = writer.to_bytes(&compressed);
+    let bytes = compressed_bytes;
     assert_eq!(bytes, writer.to_bytes(&recompressed));
     let (decoded, tail) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .unwrap();
     assert!(tail.is_empty());
-    assert_eq!(decoded.id, original.id);
-    for l in &compressed.raw.layers {
+    assert_eq!(decoded.id, original_id);
+    for l in &recompressed.raw.layers {
         check_stream(&l.quadratic);
         check_stream(&l.linear);
         check_stream(&l.constant);

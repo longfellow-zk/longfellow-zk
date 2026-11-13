@@ -45,7 +45,7 @@ pub(super) fn to_bytes<F: SerializableField>(
     assert_eq!(
         c.id,
         v2::compute_id(writer.f, &c.raw),
-        "v2 writer requires the semantic circuit ID"
+        "v2 writer requires the segmented circuit ID"
     );
     let mut payload = Vec::new();
     for k in &c.raw.constants {

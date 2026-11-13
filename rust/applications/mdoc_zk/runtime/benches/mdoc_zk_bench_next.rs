@@ -192,7 +192,7 @@ fn report_profiles(
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
     let baseline = memory::get_current_allocated();
-    let (signature, hash) = runtime::decompress_circuits(circuits, &prime, &binary, false).unwrap();
+    let (signature, hash) = runtime::decompress_circuits(circuits, &prime, &binary).unwrap();
     if cfg!(feature = "bench-memory") {
         eprintln!(
             "Decoded circuit heap: {} bytes",

@@ -1050,11 +1050,11 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
         let hash_entry = archive.get("hash").unwrap();
         let (sig, sig_tail) =
             crate::core::proto::v2::CircuitReader::new(&p256, crate::core::proto::FieldID::P256)
-                .from_bytes(&sig_entry.payload, true)
+                .from_bytes(&sig_entry.payload)
                 .unwrap();
         let (hash, hash_tail) =
             crate::core::proto::v2::CircuitReader::new(&gf2, crate::core::proto::FieldID::Gf2_128)
-                .from_bytes(&hash_entry.payload, true)
+                .from_bytes(&hash_entry.payload)
                 .unwrap();
         assert!(sig_tail.is_empty() && hash_tail.is_empty());
         assert_eq!(sig.id, sig_entry.circuit_id);
@@ -1098,7 +1098,7 @@ fn assert_v2_parameters(spec: &crate::mdoc::v2::ZkSpecStruct, compressed: &[u8])
         extension.omega(),
         extension.omega_order(),
     );
-    let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f, false).unwrap();
+    let (sig, hash) = crate::mdoc::v2::decompress_circuits(compressed, &p, &f).unwrap();
     // Exhaustively inspect all input reads, including assertion records, in
     // every supported compiled/decoded circuit. This check is test-only.
     crate::mdoc::circuits::p256_adapter::hash_inputs::validate(&hash.raw).unwrap();

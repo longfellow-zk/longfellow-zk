@@ -19,8 +19,8 @@ use std::path::Path;
 use super::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
 
 /// A trusted v2 specification and its matching compressed archive.
-/// Construction checks container metadata; payload ID enforcement remains opt-in
-/// during circuit decoding. Read-only access keeps the two stored values together.
+/// Construction checks container metadata; decoding always verifies payload IDs.
+/// Read-only access keeps the two stored values together.
 #[derive(Clone, Debug)]
 pub struct ProvidedCircuit {
     spec: ZkSpecStruct,

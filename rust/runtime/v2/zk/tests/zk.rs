@@ -224,7 +224,8 @@ pub(crate) fn exercise<
         let other_circuit = circuit(f);
         let mut id = other_circuit.id;
         id[0] ^= 1;
-        let other_circuit = crate::core::proto::v2::Circuit::new(id, other_circuit.into_raw());
+        let other_circuit =
+            crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
         let other_prover = ZkProver::new(other_circuit, config);
         let other_ts = Transcript::new(b"longfellow/v2/test");
         let (committed, _) = other_prover
@@ -239,7 +240,8 @@ pub(crate) fn exercise<
         let other_circuit = circuit(f);
         let mut id = other_circuit.id;
         id[0] ^= 1;
-        let other_circuit = crate::core::proto::v2::Circuit::new(id, other_circuit.into_raw());
+        let other_circuit =
+            crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
         let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
         let other_ts = Transcript::new(b"longfellow/v2/test");
         other_verifier

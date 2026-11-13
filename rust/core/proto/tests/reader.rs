@@ -13,13 +13,13 @@ fn default_total_term_limit_matches_v2_limit() {
 fn lfc3_rejects_zero_outputs_without_panicking() {
     use crate::core::proto::{serialize_uleb128_max4, FieldID};
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    let mut bytes = b"LFC3DIR1".to_vec();
+    let mut bytes = b"LFC3DIR2".to_vec();
     for n in [FieldID::Gf2_128 as usize, 0, 1, 0, 0, 0, 0] {
         serialize_uleb128_max4(&mut bytes, n);
     }
     bytes.extend([0; 32]);
     assert!(super::CircuitReader::new(&field, FieldID::Gf2_128)
-        .from_bytes(&bytes, false)
+        .from_bytes(&bytes)
         .is_err());
 }
 
@@ -65,7 +65,7 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
         layers: vec![],
     }
     .build();
-    let circuit = v2::Circuit::new(v2::compute_id(&field, &raw), raw);
+    let circuit = v2::Circuit::from_raw(&field, raw);
     let mut bytes = CircuitWriter::new(&field, FieldID::Gf2_128).to_bytes(&circuit);
     let mut remaining = &bytes[8..];
     for _ in 0..7 {
@@ -74,6 +74,6 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
     let offset = bytes.len() - remaining.len();
     bytes[offset..offset + field.serialized_size_bytes()].fill(0xff);
     assert!(super::CircuitReader::new(&Aliased(field), FieldID::Gf2_128)
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .is_err());
 }

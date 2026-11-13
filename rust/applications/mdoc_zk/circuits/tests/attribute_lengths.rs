@@ -42,6 +42,7 @@ fn compiled_attribute_checks_every_public_byte() {
                 1,
             )
         });
+        let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
         for length in 0..=N {
             let expected: Vec<u8> = (0..N).map(|i| (i * 17 + 33) as u8).collect();
             let mut raw = prefix.to_vec();

@@ -9,8 +9,7 @@ use crate::{
     core::{
         algebra::AlgebraicField,
         proto::v2::{
-            self, Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, RawCircuitBuilder,
-            Stream,
+            Circuit, Constant, Layer, Linear, Quadratic, RawCircuit, RawCircuitBuilder, Stream,
         },
     },
     runtime::algebra::gf2_128::{Gf2_128 as E, Gf2_128Field as F},
@@ -179,5 +178,5 @@ pub(crate) fn template(
     public[n - 2] = f.one();
     public[n - 1] = f.one();
     let raw = program(plan, sources, npublic, ninput, &public)?;
-    Ok(Circuit::new(v2::compute_id(&f, &raw), raw))
+    Ok(Circuit::from_raw(&f, raw))
 }

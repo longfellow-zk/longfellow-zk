@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Longfellow v2 circuit-loader flag tests.
+//! Longfellow v2 circuit-loader identity checks.
 
 use super::*;
 use crate::{
@@ -21,8 +21,7 @@ use crate::{
         proto::{
             archive::{CircuitArchive, CircuitArchiveBuilder},
             v2::{
-                compute_id, Circuit, CircuitReader, CircuitWriter, Layer, Quadratic,
-                RawCircuitBuilder, Stream,
+                Circuit, CircuitReader, CircuitWriter, Layer, Quadratic, RawCircuitBuilder, Stream,
             },
             FieldID,
         },
@@ -51,7 +50,7 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
         )],
     }
     .build();
-    Circuit::new(compute_id(f, &raw), raw)
+    Circuit::from_raw(f, raw)
 }
 fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
     let sig = tiny(p);
@@ -75,29 +74,45 @@ fn compressed(archive: &CircuitArchive) -> Vec<u8> {
 }
 
 #[test]
-fn circuit_identifier_enforcement_is_opt_in() {
+fn circuit_identifier_enforcement_is_unconditional() {
     let p = P256Field::new();
     let f = Gf2_128Field::new();
     let mut archive = fixture(&p, &f);
-    decompress_circuits(&compressed(&archive), &p, &f, true).unwrap();
+    decompress_circuits(&compressed(&archive), &p, &f).unwrap();
     let original = archive.combined_id;
     let (circuit, _) = CircuitReader::new(&p, FieldID::P256)
-        .from_bytes(&archive.entries[0].payload, true)
+        .from_bytes(&archive.entries[0].payload)
         .unwrap();
     let stale_id = circuit.id;
     let mut raw = circuit.into_raw().into_builder();
     raw.constants[0] = p.zero();
     let raw = raw.build();
-    let circuit = Circuit::new(compute_id(&p, &raw), raw);
+    let circuit = Circuit::from_raw(&p, raw);
     let mut payload = CircuitWriter::new(&p, FieldID::P256).to_bytes(&circuit);
     let id_offset = payload.len() - stale_id.len();
     payload[id_offset..].copy_from_slice(&stale_id);
     archive.entries[0].payload = payload;
     assert_eq!(archive.combined_id, original);
     assert!(
-        decompress_circuits(&compressed(&archive), &p, &f, true).is_err(),
-        "explicit ID enforcement must reject a payload with a stale identifier"
+        decompress_circuits(&compressed(&archive), &p, &f).is_err(),
+        "loading must reject a payload with a stale identifier"
     );
-    // Trusted loads preserve the C++ flag contract and pay no ID-recomputation cost.
-    decompress_circuits(&compressed(&archive), &p, &f, false).unwrap();
+    let spec = super::ZkSpecStruct {
+        combined_hash: archive.combined_id,
+        num_attributes: 1,
+        version: crate::mdoc::circuits::NEXT_VERSION,
+        polygero_hash: super::super::zk_spec::PolygeroParameters {
+            k: 349,
+            n: 2443,
+            s: 12,
+            t: 84,
+        },
+        polygero_sig: super::super::zk_spec::PolygeroParameters {
+            k: 349,
+            n: 2443,
+            s: 12,
+            t: 84,
+        },
+    };
+    assert!(for_spec(&spec, &compressed(&archive), &p, &f).is_err());
 }

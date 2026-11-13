@@ -15,7 +15,7 @@ fn bytes(
     lengths: &[usize],
     payload: &[u8],
 ) -> Vec<u8> {
-    let mut out = b"LFC3DIR1".to_vec();
+    let mut out = b"LFC3DIR2".to_vec();
     for n in header {
         serialize_uleb128_max4(&mut out, n);
     }
@@ -38,7 +38,7 @@ fn header(layers: usize) -> [usize; 7] {
 }
 fn reject(data: &[u8], error: &str) {
     let f = Gf2_128Field::new();
-    let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(data, false);
+    let result = CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(data);
     let err = match result {
         Ok(_) => panic!("accepted malformed directory"),
         Err(e) => e,
@@ -110,7 +110,7 @@ fn zero_term_limit_still_enforces_metadata_limits() {
     let data = bytes(header(1), &[(1, streams)], &[], &[]);
     assert!(CircuitReader::new(&f, FieldID::Gf2_128)
         .with_total_term_limit(0)
-        .from_bytes(&data, false)
+        .from_bytes(&data)
         .is_err());
 }
 #[test]
@@ -135,17 +135,17 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
         )],
     }
     .build();
-    let c = v2::Circuit::new(v2::compute_id(&f, &raw), raw);
+    let c = v2::Circuit::from_raw(&f, raw);
     let writer = v2::CircuitWriter::new(&f, FieldID::Gf2_128);
     let encoded = writer.to_bytes(&c);
     let reader = CircuitReader::new(&f, FieldID::Gf2_128).with_total_term_limit(0);
     let mut input = std::io::BufReader::with_capacity(1, encoded.as_slice());
-    let decoded = reader.from_stream(&mut input, true).unwrap();
+    let decoded = reader.from_stream(&mut input).unwrap();
     assert_eq!(decoded.id, c.id);
     assert_eq!(writer.to_bytes(&decoded), encoded);
     assert_eq!(decoded.raw.layers[0].quadratic.segments.ends(), [0, 0]);
     for end in 0..encoded.len() {
-        assert!(reader.from_bytes(&encoded[..end], true).is_err());
+        assert!(reader.from_bytes(&encoded[..end]).is_err());
     }
 }
 
@@ -158,6 +158,6 @@ fn truncated_large_payload_is_rejected_before_reserving_circuit_arrays() {
     reject(&data, "Incomplete LFC3 payload");
     let mut input = std::io::BufReader::with_capacity(1, data.as_slice());
     assert!(CircuitReader::new(&f, FieldID::Gf2_128)
-        .from_stream(&mut input, false)
+        .from_stream(&mut input)
         .is_err());
 }

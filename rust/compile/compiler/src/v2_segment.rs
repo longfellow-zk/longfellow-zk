@@ -3,7 +3,7 @@
 use std::{collections::HashMap, hash::Hash};
 
 use crate::core::proto::{
-    v2::{compute_id, Circuit, Layer, Stream},
+    v2::{Circuit, Layer, RawCircuit, Stream},
     SerializableField,
 };
 
@@ -40,11 +40,12 @@ fn layer(layer: &Layer, classes: &[crate::core::proto::v2::CoefficientClass]) ->
     )
 }
 
-/// Preserve expanded stream order and identity while compressing each stream.
-pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: &Circuit<F>) -> Circuit<F> {
-    let classes = crate::core::proto::v2::classify_constants(f, &c.raw.constants);
-    let mut layers: Vec<_> = c.raw.layers.iter().map(|l| layer(l, &classes)).collect();
-    let mut counts = vec![0usize; c.raw.constants.len()];
+/// Preserve expanded stream order, compress the identity-free circuit, then
+/// compute the ID of its final representation.
+pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: RawCircuit<F>) -> Circuit<F> {
+    let classes = crate::core::proto::v2::classify_constants(f, &c.constants);
+    let mut layers: Vec<_> = c.layers.iter().map(|l| layer(l, &classes)).collect();
+    let mut counts = vec![0usize; c.constants.len()];
     for layer in &layers {
         for &token in &layer.quadratic.tokens {
             for &index in &layer.quadratic.segments[token as usize] {
@@ -70,7 +71,7 @@ pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: &Circuit<F>) -> Circui
         .enumerate()
         .map(|(new, old)| {
             mapping[old] = new as u32;
-            c.raw.constants[old].clone()
+            c.constants[old].clone()
         })
         .collect();
     for layer in &mut layers {
@@ -85,18 +86,13 @@ pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: &Circuit<F>) -> Circui
         }
     }
     let raw = crate::core::proto::v2::RawCircuitBuilder {
-        ninput: c.raw.ninput,
-        npublic_input: c.raw.npublic_input,
-        noutput: c.raw.noutput,
-        logv: c.raw.logv,
+        ninput: c.ninput,
+        npublic_input: c.npublic_input,
+        noutput: c.noutput,
+        logv: c.logv,
         constants,
         layers,
     }
     .build();
-    assert_eq!(
-        compute_id(f, &raw),
-        c.id,
-        "Circuit ID changed during compression!"
-    );
-    Circuit::new(c.id, raw)
+    Circuit::from_raw(f, raw)
 }

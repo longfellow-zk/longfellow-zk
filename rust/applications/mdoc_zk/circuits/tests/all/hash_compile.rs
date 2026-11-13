@@ -32,9 +32,7 @@ pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(
     crate::compile::eval::Circuit<FC>,
     crate::compile::eval::CircuitGeometry,
 )
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
@@ -46,9 +44,7 @@ fn compile_hash_circuit<FC>(
     crate::compile::eval::CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )
-where
-    FC: MdocHashCompileField,
-{
+where FC: MdocHashCompileField {
     let (_, parsed, now) =
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
@@ -320,8 +316,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        93, 8, 146, 103, 235, 1, 57, 213, 164, 236, 191, 253, 165, 253, 228, 77, 114, 198, 209,
-        199, 187, 114, 22, 201, 20, 119, 33, 215, 141, 82, 115, 208,
+        121, 27, 127, 57, 193, 2, 178, 240, 238, 39, 2, 152, 176, 51, 221, 210, 123, 17, 144, 178,
+        219, 191, 75, 132, 205, 191, 223, 11, 201, 136, 47, 97,
     ];
     assert_eq!(
         circuit.id, expected_id,

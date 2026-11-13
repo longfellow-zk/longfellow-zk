@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SupportsU64Conversions},
-        proto::v2::{self, Circuit, Layer, Linear, RawCircuitBuilder, Stream},
+        proto::v2::{Circuit, Layer, Linear, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
@@ -90,7 +90,7 @@ fn native_shared_prefix_and_every_linear_check_are_authenticated() {
         )],
     }
     .build();
-    let c = Circuit::new(v2::compute_id(&f, &raw), raw);
+    let c = Circuit::from_raw(&f, raw);
     let part = SharedParticipant::new(
         &c,
         1,

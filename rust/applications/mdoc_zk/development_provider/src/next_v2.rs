@@ -75,16 +75,13 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
         QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
     // Keep payload validation even though the fixed profile does not inspect
     // circuit sizes. The provider separately checks the archive's metadata.
-    CircuitReader::new(&f, FieldID::Gf2_128).from_bytes(
-        &archive.get("hash").ok_or("Missing hash circuit")?.payload,
-        false,
-    )?;
+    CircuitReader::new(&f, FieldID::Gf2_128)
+        .from_bytes(&archive.get("hash").ok_or("Missing hash circuit")?.payload)?;
     CircuitReader::new(&p, FieldID::P256).from_bytes(
         &archive
             .get("sig")
             .ok_or("Missing signature circuit")?
             .payload,
-        false,
     )?;
     // Both fields share one column/query geometry. Validate the fixed profile
     // against each interpolation domain.

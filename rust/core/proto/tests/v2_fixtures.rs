@@ -55,7 +55,7 @@ pub(crate) fn quadratic_fixture<F: SerializableField + AlgebraicField>(
         layers,
     }
     .build();
-    Circuit::new(super::compute_id(f, &raw), raw)
+    Circuit::from_raw(f, raw)
 }
 pub(crate) fn quadratic_layer_fixture<F: SerializableField + AlgebraicField>(
     l: crate::core::proto::v1::Layer<F>,

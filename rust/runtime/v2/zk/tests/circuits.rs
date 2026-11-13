@@ -116,7 +116,7 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
             layers,
         }
         .build();
-        Circuit::new(v2::compute_id(f, &raw), raw)
+        Circuit::from_raw(f, raw)
     };
     (
         circuit(vec![layer(
@@ -164,7 +164,7 @@ fn prime_frontend_uses_widths_instead_of_cached_logw() {
         let mut raw = circuit.into_raw().into_builder();
         raw.layers[0].logw = cached_logw;
         let raw = raw.build();
-        let circuit = Circuit::new(v2::compute_id(&f, &raw), raw);
+        let circuit = Circuit::from_raw(&f, raw);
         let geometry = sumcheck::circuit_geometry(&[&circuit]).unwrap();
         assert_eq!(geometry.logw_layers, [2]);
         // The fixture asserts x*y = public and its last private input = 0.
@@ -246,7 +246,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             let id = wrong.id;
             let mut raw = wrong.into_raw().into_builder();
             raw.ninput += 1;
-            let wrong = Circuit::new(id, raw.build());
+            let wrong = Circuit::with_test_id(id, raw.build());
             let invalid = vec![&wrong; count];
             let mut t = Transcript::new(b"bad-shared-layout");
             let before = t.fork_for_test().bytes(32);
@@ -337,7 +337,7 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
         layers: vec![],
     }
     .build();
-    let circuit = v2::Circuit::new([0; 32], raw);
+    let circuit = v2::Circuit::with_test_id([0; 32], raw);
     let prover = crate::runtime::v2::zk::ZkProver::new(
         circuit,
         PolygeroConfig {

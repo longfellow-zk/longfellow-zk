@@ -26,14 +26,15 @@ use crate::{
     core::proto::CircuitGeometry,
 };
 
-/// Compile directly into the concrete v2 streams, with no One input.
+/// Compile into identity-free v2 streams, with no One input. Call
+/// `segment_circuit_v2` to finalize the representation and compute its ID.
 /// The shared source API numbers inputs from one and includes its reserved
 /// position in the public-input boundary; native circuit indices start at zero.
 pub fn compile_v2<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    crate::core::proto::v2::Circuit<F>,
+    crate::core::proto::v2::RawCircuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 )

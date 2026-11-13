@@ -95,6 +95,12 @@ path = "runtime/v1/sumcheck/benches/sumcheck_bench.rs"
 harness = false
 
 [[bench]]
+name = "circuit_id"
+path = "core/proto/benches/circuit_id.rs"
+harness = false
+required-features = ["compiler", "mdoc"]
+
+[[bench]]
 name = "sumcheck_bench_v2"
 path = "runtime/v2/sumcheck/benches/sumcheck_bench.rs"
 harness = false

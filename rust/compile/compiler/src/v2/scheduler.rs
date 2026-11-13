@@ -385,7 +385,7 @@ pub(super) fn schedule<F: CompileField>(
     npublic_input: usize,
     tracker: crate::compile::logic::scope::AssertionScope,
 ) -> (
-    crate::core::proto::v2::Circuit<F>,
+    crate::core::proto::v2::RawCircuit<F>,
     CircuitGeometry,
     crate::compile::compiler::debug::CircuitDebugSymbols,
 ) {
@@ -409,12 +409,7 @@ pub(super) fn schedule<F: CompileField>(
         layers,
     }
     .build();
-    let id = crate::core::proto::v2::compute_id(f, &raw);
-    (
-        crate::core::proto::v2::Circuit::new(id, raw),
-        graph.info,
-        graph.symbols,
-    )
+    (raw, graph.info, graph.symbols)
 }
 
 fn collect_constants<F: CompileField>(

@@ -152,7 +152,6 @@ fn read_stream<R: BufRead, T, const N: usize>(
 pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     reader: &CircuitReader<'_, F>,
     input: &mut R,
-    enforce_id: bool,
     check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
 ) -> Result<Circuit<F>, String> {
     let mut header = [0; 8];
@@ -160,7 +159,7 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
         .read_exact(&mut header)
         .map_err(|e| format!("LFC3 incomplete header: {e}"))?;
     if &header[..4] != v2::encoding::MAGIC || &header[4..] != REVISION {
-        return Err("expected LFC3 directory revision DIR1".into());
+        return Err("expected LFC3 directory revision DIR2".into());
     }
     if read_size(input)? != reader.field_id as usize {
         return Err("LFC3 field ID mismatch".into());
@@ -333,7 +332,7 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
     input
         .read_exact(&mut id)
         .map_err(|e| format!("LFC3 incomplete circuit ID: {e}"))?;
-    if enforce_id && v2::compute_id(f, &raw) != id {
+    if v2::compute_id(f, &raw) != id {
         return Err("LFC3 circuit ID verification failed".into());
     }
     Ok(Circuit::new(id, raw))

@@ -36,8 +36,9 @@ replacing streams so its derived metadata remains consistent.
 
 ## File encoding
 
-The file starts with `LFC3DIR1`. `DIR1` identifies the directory layout;
-LFC3 files without this revision marker are rejected. Lengths are unsigned
+The file starts with `LFC3DIR2`. `DIR2` identifies the directory layout and
+the segmented circuit-ID convention. `DIR1` and files without a revision
+marker are rejected. Lengths are unsigned
 LEB128 decoded into `u64` and converted to `usize` with overflow checking.
 Stream records, delta indices and tokens retain the specialized four-byte
 `u32` encoding. Coordinates use zigzag encoding of signed wrapping `u32`
@@ -78,8 +79,9 @@ dictionary data remains bounded. A caller may lower the expanded-term ceiling.
 Container/file I/O also has a coarse 64 MiB ceiling; v2 archives contain at
 most three entries. The zstd window is bounded by the metadata limit.
 
-Structural validation always runs. Circuit-ID enforcement is optional for
-trusted application artifacts. `core::proto::v2::CircuitReader::from_bytes`
+Structural validation and circuit-ID verification always run. The reader
+hashes the validated stored representation and rejects a mismatching ID.
+`core::proto::v2::CircuitReader::from_bytes`
 and `core::proto::v2::CircuitWriter::to_bytes` select this LFC3 layout directly.
 V2 archive loading uses its own checked LFA2 reader. Slice readers check that
 the declared payload and circuit ID remain before allocating circuit arrays.
@@ -91,14 +93,32 @@ encodings and frozen proofs remain unchanged.
 
 ## Circuit identity
 
-The SHA-256 domain is `LFC3-v2-three-streams-v2`. The identity includes the field
-kind and encoding, circuit dimensions, layer widths/logarithms, and, for each of
-the three streams, its tag, expanded term count, absolute coordinates and actual
-coefficient values. Dimensions, tags, counts and coordinates are encoded as
-little-endian `u64`; field elements use their canonical fixed-width encoding.
-Assertions are identified by their zero coefficient value.
+The SHA-256 domain is `LFC3-v2-segmented-id-v1`. Its input is the following
+fixed-width encoding, independent of the file's variable-length integers:
 
-Dictionary interning, segmentation, and reordering coefficient-table
-entries preserve the identity. Stream traversal order is authenticated. Changes
-to this format's semantics use a new identity domain. V1's circuit ID remains
-unchanged.
+1. Field kind (binary = 1, otherwise 0) and serialized element width as `u64`,
+   then the canonical encoding of minus one.
+2. `noutput`, `logv`, `ninput`, `npublic_input`, layer count, and coefficient
+   count, all as `u64`.
+3. Every coefficient-table entry in order, in canonical fixed-width encoding,
+   including duplicates and unused entries.
+4. Each layer from outputs toward inputs: `nw` and `logw` as `u64`, then the
+   quadratic, linear and constant streams.
+
+Each stream starts with its one-byte tag (0, 1 or 2), then four `u64` counts:
+dictionary records, segments, stored indices and tokens. These precede the
+dictionary records, segment lengths, flat dictionary-index array and token
+array. Every record component, segment length, index and token is a `u32`.
+All integers are little-endian. Coordinate components are the stored wrapping
+deltas; coefficient indices are absolute. All stored entries participate,
+including unused records and segments. Expanded-term counts and assertion
+counts are derived and are not additional hash inputs.
+
+Hashing visits each stored entry once, without expanding repeated segments.
+Segmentation, dictionary interning and coefficient-table reordering change the
+identity. The compiler returns an identity-free `RawCircuit`; segmentation
+consumes it and computes the final `Circuit` ID. The runtime's private stream
+partition does not change this stored representation or its identity. Changing
+zstd settings or file integer encodings does not change the identity. Changes
+to the identity convention require a new domain and file revision. V1's circuit
+ID remains unchanged.

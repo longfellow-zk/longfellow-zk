@@ -127,6 +127,7 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
             1,
         )
     });
+    let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
     for length in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
         let message: Vec<_> = (0..length).map(|i| (i * 37 + length) as u8).collect();
         let mut good = given(&message, &crate::circuits::sha256::constants::INITIAL, 3).unwrap();

@@ -59,20 +59,43 @@ example : (stream (leafRows (F := ZMod 2) (fun _ : Fin 1 => 10)
      .linear 3 12 1, .linear 3 12 1, .constant 3 1] := by
   simp [stream,leafRows,wireIndex,Term.map,List.ofFn_succ,finProdFinEquiv,finSumFinEquiv,Equiv.trans,Equiv.prodCongr,Fin.divNat,Fin.modNat,Fin.addCases,quotientPower,Equiv.coe_fn_mk]
 
--- Identity bytes carry raw words, the three stream tags and their separate
--- counts. Interleaved input terms are partitioned without reordering a stream.
-example {F : Type} [Field F] (encode : F → Bytes) (a b c : F) :
-    layerBytes encode ⟨8,[.constant 5 c,.linear 3 4 b,.quadratic 0 1 2 a]⟩ =
-      TranscriptV2.Framing.encodeLE 8 8 ++ TranscriptV2.Framing.encodeLE 8 3 ++
-      (TranscriptV2.Framing.encodeLE 8 0 ++ TranscriptV2.Framing.encodeLE 8 1 ++
-        (TranscriptV2.Framing.encodeLE 8 0 ++ TranscriptV2.Framing.encodeLE 8 1 ++
-          TranscriptV2.Framing.encodeLE 8 2 ++ encode a)) ++
-      (TranscriptV2.Framing.encodeLE 8 1 ++ TranscriptV2.Framing.encodeLE 8 1 ++
-        (TranscriptV2.Framing.encodeLE 8 3 ++ TranscriptV2.Framing.encodeLE 8 4 ++ encode b)) ++
-      (TranscriptV2.Framing.encodeLE 8 2 ++ TranscriptV2.Framing.encodeLE 8 1 ++
-        (TranscriptV2.Framing.encodeLE 8 5 ++ encode c)) := by
-  simp only [layerBytes,List.filterMap_cons,List.filterMap_nil,MetadataIdentifiers.quadratic,MetadataIdentifiers.linear,MetadataIdentifiers.constant]
-  norm_num [streamBytes]
+-- Stored records use 32-bit words; the stream tag is one byte and array
+-- counts are 64-bit words. Segment lengths, indices and tokens follow records.
+example : SegmentedCircuit.streamBytes 0
+    (SegmentedCircuit.fromTerms [![SegmentedCircuit.word 0,SegmentedCircuit.word 1,
+      SegmentedCircuit.word 2,SegmentedCircuit.word 3]]) =
+      TranscriptV2.Framing.encodeLE 1 0 ++
+      [1,1,1,1].flatMap (TranscriptV2.Framing.encodeLE 8) ++
+      [0,1,2,3,1,0,0].flatMap (TranscriptV2.Framing.encodeLE 4) := by decide
+
+-- Repeated deltas are interned; the coefficient index is absolute, not a delta.
+example : (SegmentedCircuit.fromTerms
+    [![SegmentedCircuit.word 3,SegmentedCircuit.word 4,SegmentedCircuit.word 9,SegmentedCircuit.word 2],
+     ![SegmentedCircuit.word 6,SegmentedCircuit.word 8,SegmentedCircuit.word 18,SegmentedCircuit.word 2]]).segments =
+      [[SegmentedCircuit.word 0,SegmentedCircuit.word 0]] := by decide
+
+-- Coordinate differences wrap, while the final coefficient index stays absolute.
+example : List.ofFn (SegmentedCircuit.delta
+    ![SegmentedCircuit.word 3,SegmentedCircuit.word 7,SegmentedCircuit.word 9]
+    ![SegmentedCircuit.word 1,SegmentedCircuit.word 2,SegmentedCircuit.word 4]) =
+      [SegmentedCircuit.word (2^32-2),SegmentedCircuit.word (2^32-5),SegmentedCircuit.word 4] := by decide
+
+-- Tokens select complete segments, in order, including repeated dictionary entries.
+example : (SegmentedCircuit.expand (⟨
+    [![SegmentedCircuit.word 1,SegmentedCircuit.word 2],
+      ![SegmentedCircuit.word 3,SegmentedCircuit.word 4]],
+    [[SegmentedCircuit.word 0,SegmentedCircuit.word 1],[SegmentedCircuit.word 0]],
+    [SegmentedCircuit.word 1,SegmentedCircuit.word 0]⟩ : SegmentedCircuit.Stream 2)).map
+      (List.map List.ofFn) = some
+        [[SegmentedCircuit.word 1,SegmentedCircuit.word 2],
+         [SegmentedCircuit.word 1,SegmentedCircuit.word 2],
+         [SegmentedCircuit.word 3,SegmentedCircuit.word 4]] := by decide
+
+-- The template appends duplicate power/base values rather than interning them.
+example : leafConstants (⟨13,
+    [.linear 0 10 (1 : ZMod 2),.linear 0 10 1,.constant 0 1,
+     .linear 1 11 1,.linear 1 11 1,.constant 1 1]⟩ : Layer (ZMod 2)) =
+    [1,1,1,1] := by decide
 
 -- A scalar row's target is the negative constant; duplicate coordinates add.
 example : (Prime.Claim.fromRow

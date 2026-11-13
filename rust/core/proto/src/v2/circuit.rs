@@ -38,10 +38,22 @@ pub struct CircuitParts<F: SerializableField> {
 }
 
 impl<F: SerializableField> Circuit<F> {
-    /// Attach the identity supplied by the compiler or circuit reader.
-    /// This does not hash or validate the trusted circuit.
-    pub fn new(id: DigestBytes, raw: RawCircuit<F>) -> Self {
+    /// Finalize the stored representation by computing its identity. The
+    /// compiler keeps a `RawCircuit` until segmentation is complete. Generated
+    /// circuits may use the single-run streams produced by `Stream::from_terms`.
+    pub fn from_raw(f: &F, raw: RawCircuit<F>) -> Self {
+        Self::new(super::compute_id(f, &raw), raw)
+    }
+
+    /// The reader has already checked this identity against the stored data.
+    pub(super) fn new(id: DigestBytes, raw: RawCircuit<F>) -> Self {
         Self(CircuitParts { raw, id })
+    }
+
+    /// Fault injection for tests of transcript binding and forged metadata.
+    #[cfg(test)]
+    pub(crate) fn with_test_id(id: DigestBytes, raw: RawCircuit<F>) -> Self {
+        Self::new(id, raw)
     }
 
     /// Consume this circuit, discarding the identity before any edits.
@@ -64,6 +76,12 @@ impl<F: SerializableField> Deref for Circuit<F> {
 /// use longfellow_zk::core::proto::{v2::RawCircuit, SerializableField};
 /// fn change_layers<F: SerializableField>(c: &mut RawCircuit<F>) {
 ///     c.layers.clear();
+/// }
+/// ```
+/// ```compile_fail,E0609
+/// use longfellow_zk::core::proto::{v2::RawCircuit, SerializableField};
+/// fn compiler_output_has_no_id<F: SerializableField>(c: &RawCircuit<F>) {
+///     let _ = c.id;
 /// }
 /// ```
 #[repr(transparent)]

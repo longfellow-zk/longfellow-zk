@@ -150,7 +150,7 @@ fn three_streams<
     assert!(eval_layer(&bad, &linear_split, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));
-    let c = Circuit::new(
+    let c = Circuit::with_test_id(
         [71; 32],
         RawCircuitBuilder {
             ninput: 3,
@@ -191,33 +191,28 @@ fn three_streams<
             compile::compiler::segment_circuit_v2,
             core::proto::{
                 archive::{CircuitArchive, CircuitArchiveBuilder},
-                v2::{compute_id, CircuitReader},
+                v2::CircuitReader,
                 FieldID,
             },
         };
-        let c = Circuit::new(compute_id(f, &c.raw), c.into_raw());
-        let compressed = segment_circuit_v2(f, &c);
-        assert_eq!(c.id, compressed.id);
+        let compressed = segment_circuit_v2(f, c.into_raw());
         let writer = crate::core::proto::v2::CircuitWriter::new(f, FieldID::None);
         let bytes = writer.to_bytes(&compressed);
         let reader = CircuitReader::new(f, FieldID::None);
         let mut fragmented = std::io::BufReader::with_capacity(1, bytes.as_slice());
-        let decoded = reader.from_stream(&mut fragmented, true).unwrap();
+        let decoded = reader.from_stream(&mut fragmented).unwrap();
         assert_eq!(
             decoded.term_class_breakdown(f),
             [[1, 1, 1, 1], [1, 1, 1, 1], [0, 1, 1, 1]]
         );
         assert_eq!(writer.to_bytes(&decoded), bytes);
         let mut builder = CircuitArchiveBuilder::new();
-        builder.add_entry("all-classes", c.id, bytes.clone());
+        builder.add_entry("all-classes", compressed.id, bytes.clone());
         let archive_bytes = builder.build().to_bytes();
         assert_eq!(&archive_bytes[..4], b"LFA2");
         let archive = CircuitArchive::from_bytes(&archive_bytes).unwrap();
         assert_eq!(archive.entries[0].payload, bytes);
-        let decoded = reader
-            .from_bytes(&archive.entries[0].payload, true)
-            .unwrap()
-            .0;
+        let decoded = reader.from_bytes(&archive.entries[0].payload).unwrap().0;
         assert_eq!(decoded.id, archive.entries[0].circuit_id);
     }
 }
@@ -307,9 +302,9 @@ fn v2_reader_rejects_quadratic_only_archives() {
         .unwrap();
     let mut fragmented = std::io::BufReader::with_capacity(1, bytes.as_slice());
     assert!(CircuitReader::new(&f, FieldID::P256)
-        .from_stream(&mut fragmented, true)
+        .from_stream(&mut fragmented)
         .is_err());
-    let error = match CircuitReader::new(&f, FieldID::P256).from_bytes(&bytes, true) {
+    let error = match CircuitReader::new(&f, FieldID::P256).from_bytes(&bytes) {
         Ok(_) => panic!("accepted legacy layer"),
         Err(e) => e,
     };
@@ -339,11 +334,12 @@ fn default_v2_compiler_emits_three_streams_without_a_one_input() {
     });
     assert_eq!(geometry.ninput, 2);
     assert_eq!(geometry.npublic_input, 1);
+    let c = crate::compile::compiler::segment_circuit_v2(&cf, c);
     let bytes = crate::core::proto::v2::CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
     assert_eq!(&bytes[..4], b"LFC3");
     let f = crate::runtime::algebra::p256::P256Field::new();
     let (c, tail) = CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .unwrap();
     assert!(tail.is_empty());
     // Zero in input slot zero must not suppress the linear equality.
@@ -371,15 +367,16 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
         let value = logic.quadratic(&cf.u64_to_element(7), &x, &y);
         (logic.assert_eq("value", &value, &target), 2)
     });
+    let c = crate::compile::compiler::segment_circuit_v2(&cf, c);
     let bytes = crate::core::proto::v2::CircuitWriter::new(&cf, FieldID::P256).to_bytes(&c);
     assert_eq!(&bytes[..4], b"LFC3");
     let f = crate::runtime::algebra::p256::P256Field::new();
     CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .unwrap();
 
     // Unit coefficients are ordinary table entries. Changing a numeric value
-    // is accepted without ID enforcement and rejected with ID enforcement.
+    // without recomputing the ID is rejected on every load.
     let mut corrupt = bytes.clone();
     let mut tail = &corrupt[8..];
     let mut count = 0;
@@ -397,10 +394,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
     let minus = cf.serialized_mone();
     corrupt[offset..offset + minus.len()].copy_from_slice(&minus);
     assert!(CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&corrupt, false)
-        .is_ok());
-    assert!(CircuitReader::new(&f, FieldID::P256)
-        .from_bytes(&corrupt, true)
+        .from_bytes(&corrupt)
         .is_err());
 }
 
@@ -425,12 +419,11 @@ where
         (l.assert_eq("result", &l.add(&a, &x), &target), 2)
     });
     assert!(c
-        .raw
         .constants
         .iter()
         .all(|k| *k == cf.one() || *k == cf.mone()));
-    assert_eq!(c.raw.constants.len(), if cf.is_binary() { 1 } else { 2 });
-    let c = segment_circuit_v2(cf, &c);
+    assert_eq!(c.constants.len(), if cf.is_binary() { 1 } else { 2 });
+    let c = segment_circuit_v2(cf, c);
     let expected: Vec<_> = c.raw.constants.iter().map(|k| cf.to_bytes(k)).collect();
     let bytes = crate::core::proto::v2::CircuitWriter::new(cf, FieldID::None).to_bytes(&c);
     let mut header = &bytes[8..];
@@ -443,7 +436,7 @@ where
         "every constant must be serialized"
     );
     let (c, tail) = CircuitReader::new(f, FieldID::None)
-        .from_bytes(&bytes, true)
+        .from_bytes(&bytes)
         .unwrap();
     assert!(tail.is_empty());
     assert_eq!(

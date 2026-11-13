@@ -17,8 +17,13 @@ where
         usize,
     ),
 {
-    crate::compile::compiler::compile_v2(f, |logic| {
+    let (raw, geometry, symbols) = crate::compile::compiler::compile_v2(f, |logic| {
         let (assertions, npublic, _) = build(logic);
         (assertions, npublic)
-    })
+    });
+    (
+        crate::compile::compiler::segment_circuit_v2(f, raw),
+        geometry,
+        symbols,
+    )
 }
