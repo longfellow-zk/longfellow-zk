@@ -253,19 +253,19 @@ retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 
 Complete NEXT v12 mdoc presentations, measured on 2026-11-13 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
-Times are medians of seven samples after one warmup;
-heap measurements use separate allocation-tracking runs. The four-slot case
-repeats the fixture's two disclosures.
+Times are medians of 21 samples: three interleaved runs of seven, each
+after one warmup. Heap measurements use separate allocation-tracking runs.
+The four-slot case repeats the fixture's two disclosures.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|
-| 2 | 130.0 ms | 71.1 ms | 137,776 | 47.48 MiB | 34.67 MiB |
-| 4 | 140.2 ms | 76.1 ms | 137,904 | 52.47 MiB | 37.73 MiB |
+| 2 | 127.7 ms | 71.0 ms | 137,520 | 47.42 MiB | 34.60 MiB |
+| 4 | 137.2 ms | 75.3 ms | 138,064 | 52.40 MiB | 37.66 MiB |
 
 | Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---|---:|---:|---:|
-| 2 | 657,038 | 163,666 | 1.75 MiB |
-| 4 | 682,346 | 166,185 | 1.83 MiB |
+| 2 | 657,195 | 163,694 | 1.75 MiB |
+| 4 | 682,420 | 166,401 | 1.83 MiB |
 
 Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
 circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
