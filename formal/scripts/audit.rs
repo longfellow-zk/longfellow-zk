@@ -85,6 +85,23 @@ fn imports(source: &str) -> Vec<String> {
     result
 }
 
+fn unchecked_constructs(source: &str) -> Vec<(usize, &str)> {
+    source
+        .lines()
+        .enumerate()
+        .flat_map(|(line, text)| {
+            text.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'')
+                .filter(|word| {
+                    matches!(
+                        *word,
+                        "sorry" | "sorryAx" | "admit" | "axiom" | "unsafe" | "skipKernelTC"
+                    )
+                })
+                .map(move |word| (line + 1, word))
+        })
+        .collect()
+}
+
 const CURRENT_ENDPOINTS: &[&str] = &[
     "LfzkV2.Current.Mdoc.Soundness",
     "LfzkV2.Current.Mdoc.ZeroKnowledge",
@@ -229,6 +246,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn kernel_check_bypass_is_rejected_in_option_and_meta_commands() {
+        for source in [
+            "set_option debug.skipKernelTC true in\ntheorem bad : False := by exact False.elim (by assumption)",
+            "set_option debug.skipKernelTC false",
+            "run_cmd modifyOptions (Lean.debug.skipKernelTC.set · true)",
+            "set_option «debug.skipKernelTC» true",
+        ] {
+            assert_eq!(unchecked_constructs(&code(source)), [(1, "skipKernelTC")]);
+        }
+    }
+
+    #[test]
+    fn bypass_mentions_in_comments_and_strings_are_not_commands() {
+        let source = "/- debug.skipKernelTC /- nested -/ -/\n\
+            -- set_option debug.skipKernelTC true\n\
+            def message := \"debug.skipKernelTC\"\n\
+            def skipKernelTC_description := 0\n";
+        assert!(unchecked_constructs(&code(source)).is_empty());
+    }
+
+    #[test]
     fn historical_models_are_rejected_transitively() {
         let mut graph: BTreeMap<_, _> = CURRENT_ENDPOINTS
             .iter()
@@ -367,13 +405,9 @@ fn main() {
                 dependencies.insert(module, imports(&source)).is_none(),
                 "duplicate Lean module"
             );
-            for (line, text) in source.lines().enumerate() {
-                for word in text.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'') {
-                    if ["sorry", "sorryAx", "admit", "axiom", "unsafe"].contains(&word) {
-                        eprintln!("{name}:{}: unchecked construct {word}", line + 1);
-                        failures += 1;
-                    }
-                }
+            for (line, word) in unchecked_constructs(&source) {
+                eprintln!("{name}:{line}: unchecked construct {word}");
+                failures += 1;
             }
         }
         if name.ends_with(".md")
