@@ -13,9 +13,10 @@ use crate::{
     runtime::algebra::SupportsSampling,
 };
 
-/// Joint participant construction rejects field encodings wider than this stack buffer.
+/// Field encodings up to this width are serialized through a stack buffer;
+/// wider ones use a heap buffer, so absorption accepts every field.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(in crate::runtime::v2) const MAX_FIELD_BYTES: usize = 128;
+const MAX_FIELD_BYTES: usize = 128;
 
 // Schedule instrumentation has no storage or behavior in production builds.
 #[cfg(test)]
@@ -138,10 +139,16 @@ impl Writing<'_> {
         }
     }
     fn field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
-        let mut buf = [0u8; MAX_FIELD_BYTES];
         let n = f.serialized_size_bytes();
-        f.to_bytes_into(e, &mut buf[..n]);
-        self.session.strand.write(&buf[..n]);
+        if n <= MAX_FIELD_BYTES {
+            let mut buf = [0u8; MAX_FIELD_BYTES];
+            f.to_bytes_into(e, &mut buf[..n]);
+            self.session.strand.write(&buf[..n]);
+        } else {
+            let mut buf = vec![0u8; n];
+            f.to_bytes_into(e, &mut buf);
+            self.session.strand.write(&buf);
+        }
     }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

@@ -140,8 +140,8 @@ impl SupportsU64Conversions for EncodingWidth {
 }
 
 #[test]
-fn attaching_a_field_rejects_unsupported_transcript_encoding_widths() {
-    let limit = crate::runtime::v2::transcript::MAX_FIELD_BYTES;
+fn attaching_a_field_rejects_unsupported_encoding_widths() {
+    let limit = MAX_FIELD_BYTES;
     for bytes in [0, 32, limit, limit + 1, usize::MAX] {
         let f = EncodingWidth {
             field: P256Field::new(),
@@ -151,7 +151,7 @@ fn attaching_a_field_rejects_unsupported_transcript_encoding_widths() {
         let param = PolygeroParam::try_new(17, config(), &d).unwrap();
         assert_eq!(
             Participant::new(param, &d).is_ok(),
-            matches!(bytes, 32) || bytes == limit
+            bytes == 32 || bytes == limit
         );
     }
 }

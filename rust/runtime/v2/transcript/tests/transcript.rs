@@ -1,6 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::runtime::v2::proto::RoundLabel;
+use crate::{
+    core::algebra::{AlgebraicField, BareField, FieldID, SupportsU64Conversions},
+    runtime::{algebra::p256::P256Field, v2::proto::RoundLabel},
+};
 const TEST_ROUND: u8 = 6;
 // Explicit test-only replay helpers; none are compiled into proof-role builds.
 impl Transcript {
@@ -273,4 +276,65 @@ fn index_rejection_matches_the_same_prf_stream() {
         assert_eq!(sampled, (expected, tail), "bound {n}");
     }
     assert!(saw_rejection);
+}
+
+/// P-256 arithmetic advertised with a wider encoding: the element's 32 bytes
+/// fill the end of the buffer, after `bytes - 32` zeros.
+struct WideEncoding {
+    field: P256Field,
+    bytes: usize,
+}
+impl BareField for WideEncoding {
+    type E = <P256Field as BareField>::E;
+}
+impl SerializableField for WideEncoding {
+    fn is_binary(&self) -> bool {
+        false
+    }
+    fn serialized_size_bytes(&self) -> usize {
+        self.bytes
+    }
+    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
+        assert_eq!(dst.len(), self.bytes);
+        dst.fill(0);
+        let tail = dst.len() - 32;
+        self.field.to_bytes_into(e, &mut dst[tail..]);
+    }
+    fn bytes_to_element(&self, _: &[u8]) -> Result<Self::E, String> {
+        unreachable!("absorption never decodes")
+    }
+    fn serialized_mone(&self) -> Vec<u8> {
+        unreachable!("absorption never encodes constants")
+    }
+    fn field_id(&self) -> FieldID {
+        FieldID::None
+    }
+}
+
+#[test]
+fn absorption_accepts_encodings_wider_than_the_stack_buffer() {
+    let base = P256Field::new();
+    for bytes in [
+        32,
+        MAX_FIELD_BYTES,
+        MAX_FIELD_BYTES + 1,
+        4 * MAX_FIELD_BYTES,
+    ] {
+        let f = WideEncoding {
+            field: P256Field::new(),
+            bytes,
+        };
+        let challenge = |e: &<WideEncoding as BareField>::E| {
+            let mut t = Transcript::new(b"wide field");
+            t.absorb(|w| w.write_elt_field(e, &f));
+            t.u128()
+        };
+        // The element's bytes sit at the end, so differing elements show that
+        // the whole encoding is absorbed, not just a stack-sized prefix.
+        assert_ne!(
+            challenge(&base.one()),
+            challenge(&base.u64_to_element(2)),
+            "width {bytes}"
+        );
+    }
 }

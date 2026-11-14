@@ -9,8 +9,6 @@ mod verifier;
 
 pub use prover::EncodedProof;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(in crate::runtime::v2) use session::MAX_FIELD_BYTES;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use session::{Reading, RoundEnd};
 pub use session::{Transcript, TranscriptRef, Writing};
 pub use strand::{Prf, Strand};

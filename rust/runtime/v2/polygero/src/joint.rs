@@ -22,6 +22,10 @@ use crate::{
     },
 };
 
+/// Widest field encoding a joint participant accepts. Every supported field
+/// is far narrower; the bound keeps codec and proof-size arithmetic small.
+pub(crate) const MAX_FIELD_BYTES: usize = 128;
+
 /// Field and domain references remain typed; parameters own their initialization state.
 pub struct Participant<'a, const W: usize, F: RuntimeField<W>, D> {
     pub(super) param: PolygeroParam,
@@ -65,8 +69,7 @@ impl<
             "interpolation capacity exceeded",
         )?;
         ensure(
-            (1..=crate::runtime::v2::transcript::MAX_FIELD_BYTES)
-                .contains(&f.serialized_size_bytes()),
+            (1..=MAX_FIELD_BYTES).contains(&f.serialized_size_bytes()),
             "unsupported joint field encoding width",
         )?;
         Ok(Self { param, f, domain })
