@@ -348,6 +348,9 @@ fn choices(p: Profile) -> BTreeSet<(usize, usize)> {
         (n, t),
     ])
 }
+/// Profiles checked per Lean process; see `check_profiles`.
+const PROFILES_PER_LEAN_RUN: usize = 16;
+
 /// Emit arithmetic instances for the independent Polygero Lean bridge.
 fn numeric_source(
     protocol: Protocol,
@@ -464,18 +467,24 @@ pub(crate) fn check_profiles(
     let project_root = project.canonicalize()?;
     let env = cache::environment(&cache, protocol, &project_root)?;
     let temp = cache::TempDir::new("rust-profiles")?;
-    let proof = temp.path.join("Profiles.lean");
-    fs::write(
-        &proof,
-        numeric_source(protocol, audit, &selected, &project_root)?,
-    )?;
-    let mut command = Command::new("lean");
-    command
-        .args(["-j2", "-M4096", "-DwarningAsError=true"])
-        .arg(proof)
-        .envs(env);
-    let status = run_lean(command, "parameter records")?;
-    require(status.success(), "Lean rejected numerical profiles")?;
+    // Importing the certificate environment takes about 2.6 GiB, and each
+    // profile adds about 25 MiB, so the full catalog in one file sat at the
+    // 4 GiB limit and failed intermittently. Bounded chunks keep every Lean
+    // process well below the limit.
+    for (i, chunk) in selected.chunks(PROFILES_PER_LEAN_RUN).enumerate() {
+        let proof = temp.path.join(format!("Profiles{i}.lean"));
+        fs::write(
+            &proof,
+            numeric_source(protocol, audit, chunk, &project_root)?,
+        )?;
+        let mut command = Command::new("lean");
+        command
+            .args(["-j2", "-M4096", "-DwarningAsError=true"])
+            .arg(proof)
+            .envs(env.clone());
+        let status = run_lean(command, "parameter records")?;
+        require(status.success(), "Lean rejected numerical profiles")?;
+    }
     println!(
         "{} parameter records checked by Lean; foundational axiom audit passed.",
         selected.len()
