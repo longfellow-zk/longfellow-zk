@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Selected joint commitments and circuit metadata for v2 composition.
 use super::{
-    context::{prepare_circuit_layout, InputLayout},
+    context::{prepare_circuit_layout, prepare_parameter, InputLayout},
     packing_commitment::PackingCommitment,
     CircuitGeometry, ZkContext,
 };
@@ -69,15 +69,6 @@ impl<'a, const W: usize, F: ZkField<W>, D, L> SelectedField<'a, W, F, D, L> {
     pub fn geometry(&self) -> PolygeroGeometry {
         self.geometry
     }
-}
-
-pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
-    cells: usize,
-    config: PolygeroConfig,
-    domain: &D,
-) -> Result<PolygeroParam, String> {
-    PolygeroParam::try_new(witness_selection::witness_count(cells)?, config, domain)
-        .map_err(|e| e.to_string())
 }
 
 /// Frontend metadata consumed internally before the fingerprint round.
@@ -220,6 +211,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             ctx.field().packing_extension(),
             ctx,
         )?;
+        // Keep the selected field's identity, mask-cell and backend/domain checks
+        // even when this circuit will join a larger participant list.
+        SelectedField::from_parameter(param.clone(), ctx.domain, ctx.field().packing_id())?;
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]

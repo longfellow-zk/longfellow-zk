@@ -59,7 +59,24 @@ pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
     circuit.raw.ninput - circuit.raw.npublic_input
 }
 
+/// The Polygero parameter for `cells` frontend cells plus the witness-selection
+/// masks the joint commitment appends.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
+    cells: usize,
+    config: PolygeroConfig,
+    domain: &D,
+) -> Result<PolygeroParam, String> {
+    PolygeroParam::try_new(
+        crate::runtime::v2::witness_selection::witness_count(cells)?,
+        config,
+        domain,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Derive the common source layout and one input-aligned sumcheck pad suffix.
+/// The caller still validates the parameter as a selected field.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) fn prepare_circuit_layout<
     const W: usize,
@@ -82,17 +99,10 @@ pub(crate) fn prepare_circuit_layout<
     let private_inputs = InputLayout::new(&circuits, virtual_inputs)?.committed();
     let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
     let layout = PackingLayout::new(private_inputs, sc_geom.pad_count()?, extension.degree())?;
-    let param = super::joint::prepare_parameter(layout.witness_count, config, ctx.domain)?;
-    // Keep the selected field's identity, mask-cell and backend/domain checks
-    // even when this circuit will join a larger participant list.
-    let selected = super::joint::SelectedField::from_parameter(
-        param.clone(),
-        ctx.domain,
-        ctx.field().packing_id(),
-    )?;
+    let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
     let geometry = CircuitGeometry {
         sc_geom,
-        com_geom: selected.geometry(),
+        com_geom: param.geometry(),
         packing_degree: layout.degree,
     };
     let backend = PackingCommitment::new(ctx.field().clone(), layout, extension)?;
