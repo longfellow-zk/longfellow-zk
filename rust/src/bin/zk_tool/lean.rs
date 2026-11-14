@@ -370,8 +370,11 @@ fn numeric_source(
             facts.extend(choices(p));
         }
     }
+    // The kernel evaluates `fast_choose` directly; unfolding `descFactorial`
+    // and `factorial` with `norm_num` exceeds simp's recursion depth once the
+    // lower index reaches a few hundred.
     for &(n, r) in &facts {
-        writeln!(&mut body,"private theorem choose_{n}_{r} : Nat.choose {n} {r} = {} := by\n  norm_num [Nat.choose_eq_fast_choose, Nat.fast_choose, Nat.descFactorial, Nat.factorial]",choose(n,r))?;
+        writeln!(&mut body,"private theorem choose_{n}_{r} : Nat.choose {n} {r} = {} := by\n  rw [Nat.choose_eq_fast_choose]; decide +kernel",choose(n,r))?;
     }
     for &p in selected {
         let Profile { k, s, n, t } = p;
