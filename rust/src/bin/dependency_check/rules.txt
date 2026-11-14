@@ -1,7 +1,9 @@
 # Allowed dependencies between components, checked by
 #   cargo run --release --features tooling --bin dependency_check
-# A component is a file's directory up to its `src` directory, or its own
-# directory when it has none. Each line `component: dependencies...` lists
+# A component is a module path (`runtime/v2/zk`): a file belongs to the
+# longest component its module path starts with. A component with components
+# below it owns only its root file (`src/runtime/v2.rs`), so every other
+# module needs a component of its own. Each line `component: dependencies...` lists
 # every component the component's files may use; an edge missing here fails
 # the check, and so does a component without a line. Keep the rules acyclic.
 # The file graph itself must be acyclic too: any file cycle fails.
@@ -48,8 +50,9 @@ core/proto: core/algebra util
 runtime:
 runtime/algebra: core/algebra core/bits
 runtime/random: core/algebra runtime/algebra
-runtime/v1: runtime/random runtime/v1/subfield
-runtime/v1/ligero: core/algebra runtime/algebra runtime/random runtime/v1 runtime/v1/merkle runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
+runtime/v1:
+runtime/v1/random: runtime/random runtime/v1/subfield
+runtime/v1/ligero: core/algebra runtime/algebra runtime/random runtime/v1/random runtime/v1/merkle runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
 runtime/v1/merkle: runtime/random runtime/v1/proto
 runtime/v1/proto: core/algebra core/proto runtime/algebra runtime/v1/subfield
 runtime/v1/subfield: core/algebra runtime/algebra
@@ -76,8 +79,8 @@ util:
 # and file patterns. A pattern that names no symbol fails the check.
 [symbol rules]
 # Transcript rounds are framed only in each protocol's transcript.rs.
-runtime/v2/transcript/session/impl#[*]begin_squeeze(). only */transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
-runtime/v2/transcript/session/impl#[*]write_*(). only */transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
+runtime/v2/transcript/session/impl#[*]begin_squeeze(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
+runtime/v2/transcript/session/impl#[*]write_*(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
 # Only the complete-proof codecs seal, and only the transcript verifier
 # checks the seal; only the complete verifiers accept.
 runtime/v2/transcript/prover/impl#[Transcript]append_final_seal(). only src/mdoc/runtime/v2/proto.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/proto/zk.rs

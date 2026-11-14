@@ -63,7 +63,10 @@ fn module_path(path: &str) -> &str {
 
 /// The components listed in the rules. A file belongs to the longest listed
 /// component its module path starts with; a file under none of them is its
-/// own unlisted component, which the check reports.
+/// own unlisted component, which the check reports. A parent component, one
+/// with listed components below it (`runtime/v2`), owns only its root file:
+/// any other file under it is unlisted until it gets its own rule, so a new
+/// module cannot join a facade unnoticed.
 struct Components(BTreeSet<String>);
 impl Components {
     fn of(&self, path: &str) -> String {
@@ -71,6 +74,14 @@ impl Components {
         let mut prefix = module;
         loop {
             if self.0.contains(prefix) {
+                let parent = self
+                    .0
+                    .range(format!("{prefix}/")..)
+                    .next()
+                    .is_some_and(|c| c.starts_with(&format!("{prefix}/")));
+                if parent && prefix != module {
+                    return module.to_owned();
+                }
                 return prefix.to_owned();
             }
             match prefix.rfind('/') {
@@ -145,7 +156,7 @@ fn file_graph(root: &Path, work: &Path) -> (Graph, Vec<Reference>, BTreeSet<Stri
     let definition = scip::types::SymbolRole::Definition as i32;
     // Binaries' items are named by package only, so two binaries can define
     // the same symbol; a reference resolves to its own file's definition, or
-    // one in its component, when there is one.
+    // else to the definition sharing the longest path prefix with it.
     let mut defined_in: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for doc in &index.documents {
         for occurrence in &doc.occurrences {
