@@ -393,8 +393,8 @@ Frontend `reduce` methods return equations awaiting authentication; complete
 sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
-implementation. The top-level dependency checker enforces these boundaries,
-including code behind inactive feature gates.
+implementation. `tools/dependency_check` enforces these boundaries from
+rust-analyzer's index of every feature-gated file.
 
 V2 runtime circuits are read-only at the type level, including generated
 adapter instances. `RawCircuitBuilder` owns mutable construction data;
@@ -421,7 +421,7 @@ they are not separate crates.
 | `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
 | `tools/` | Rust commands for parameter auditing and specification generation |
 | `src/lib.rs` | Module assembly and feature gates |
-| `tests/all/dependency_tests.rs` | Dependency and source-organization checks |
+| `tools/dependency_check` | Module dependency rules over rust-analyzer's index |
 
 Compile-time and runtime code occupy separate directories. Prover and
 verifier implementations also remain separate within each protocol.
