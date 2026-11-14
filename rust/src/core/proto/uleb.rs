@@ -14,9 +14,16 @@
 
 use std::io::BufRead;
 
+/// Longest generic ULEB128 encoding: ten bytes carry a 64-bit value.
+const MAX_ULEB128_BYTES: usize = 10;
+
 /// Serializes a `usize` value as a standard ULEB128 byte sequence.
+///
+/// The encoding is that of the value as a `u64`, at most ten bytes on every
+/// host, which is exactly the domain `read_uleb128` accepts.
 #[inline]
-pub fn serialize_uleb128(bytes: &mut Vec<u8>, mut val: usize) {
+pub fn serialize_uleb128(bytes: &mut Vec<u8>, val: usize) {
+    let mut val = val as u64;
     loop {
         let mut byte = (val & 0x7F) as u8;
         val >>= 7;
@@ -31,23 +38,33 @@ pub fn serialize_uleb128(bytes: &mut Vec<u8>, mut val: usize) {
 }
 
 /// Reads a standard ULEB128 `usize` value from a `BufRead` stream.
+///
+/// The value is decoded as a `u64`, independent of the host width: at most
+/// ten bytes, with no payload bits beyond bit 63. It is then narrowed to
+/// `usize`, so a value that does not fit the host is an error, not a
+/// truncation or a panic.
 #[inline]
 pub fn read_uleb128<R: BufRead>(stream: &mut R) -> Result<usize, String> {
-    let mut val: usize = 0;
-    let mut shift = 0;
-    for _ in 0..8 {
+    let mut val: u64 = 0;
+    for i in 0..MAX_ULEB128_BYTES {
         let mut b = [0u8; 1];
         stream
             .read_exact(&mut b)
             .map_err(|_| "Unexpected EOF reading ULEB128".to_string())?;
         let byte = b[0];
-        val |= ((byte & 0x7F) as usize) << shift;
-        if (byte & 0x80) == 0 {
-            return Ok(val);
+        let payload = u64::from(byte & 0x7F);
+        let shift = 7 * i as u32;
+        // The tenth byte holds only bit 63.
+        if shift == 63 && payload > 1 {
+            return Err("ULEB128 value exceeds 64 bits".to_string());
         }
-        shift += 7;
+        val |= payload << shift;
+        if (byte & 0x80) == 0 {
+            return usize::try_from(val)
+                .map_err(|_| format!("ULEB128 value {val} does not fit in usize"));
+        }
     }
-    Err("ULEB128 value too large".to_string())
+    Err("ULEB128 value exceeds 64 bits".to_string())
 }
 
 /// High-performance 4-byte max ULEB128 serializer for circuit deltas.
