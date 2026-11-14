@@ -75,9 +75,15 @@ same oracle history; the statement bytes alone need not determine it.
 [`readPackingPacket_off`](LfzkV2/Current/ApplicationViews.lean) proves that
 varying the current packing answer cannot change this source. Accepted-path
 readback identifies it with the frontend's actual input claim. U is still
-bound before the packing query, and A before joint backend challenges. The generic
-[`Soundness.Composition.soundness`](LfzkV2/Current/Soundness/Composition.lean) theorem handles
-other trusted setups; the mdoc endpoint takes no independent advice decoder,
+bound before the packing query, and A before joint backend challenges.
+[`Soundness.Composition.soundness`](LfzkV2/Current/Soundness/Composition.lean)
+abstracts the circuits, topologies and metadata of a trusted setup, but not the
+fields or the adapter: `Protocol.Setup`, `Protocol.Sampling`, `Soundness.Setup`
+and the composition fix the prime side to `ZMod Adapter.Mdoc.primeOrder`, the
+binary rate to `Adapter.Mdoc.binaryOrder` and the shared-bit budget to
+`Adapter.Mdoc.quotientBound`. Another application on the same P-256 and
+GF(2^128) adapter can reuse it; another field pair or adapter mode needs these
+layers parameterized first. The mdoc endpoint takes no independent advice decoder,
 metadata callback, transcript plan or backend-layout certificate.
 The concrete mdoc topology supports a hash component strictly deeper than its
 adapter; this ordinary depth restriction is explicit in its setup bounds.
