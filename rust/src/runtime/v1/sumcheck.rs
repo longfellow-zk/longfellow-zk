@@ -36,7 +36,7 @@ mod transcript;
 
 pub use dense::{as_scalar, bind, bind_all, normalize};
 pub use eq::eq;
-pub use hquad::HQuad;
+pub use hquad::{HCorner, HQuad};
 pub use poly::{QuadRoundPoly, QuadWirePoly};
 pub use round_data::{LayerVerifierData, RoundCoefficients, VerifierData};
 pub use transcript::TranscriptSumcheck;

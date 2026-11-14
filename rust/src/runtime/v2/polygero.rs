@@ -59,7 +59,7 @@ pub use param::PolygeroParam;
 
 cfg_prover! { mod prover_commitment; }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use joint::{JointPolygeroParam, LinearStatement, Participant, Participants};
+pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
 cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
 cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
 

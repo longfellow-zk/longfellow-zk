@@ -18,7 +18,7 @@ pub struct ConcreteGiven {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CborDecodeResult {
+pub struct ConcreteCborDecodeResult {
     pub atomp: bool,
     pub itemsp: bool,
     pub stringp: bool,
@@ -40,7 +40,7 @@ pub struct CborDecodeResult {
 }
 
 #[must_use]
-pub fn decode_one_v8(v: u8) -> CborDecodeResult {
+pub fn decode_one_v8(v: u8) -> ConcreteCborDecodeResult {
     let count = v & 0x1f;
     let type_val = (v >> 5) & 0x07;
 
@@ -85,7 +85,7 @@ pub fn decode_one_v8(v: u8) -> CborDecodeResult {
         length += u64::from(count);
     }
 
-    CborDecodeResult {
+    ConcreteCborDecodeResult {
         atomp,
         itemsp,
         stringp,

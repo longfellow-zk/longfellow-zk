@@ -22,7 +22,7 @@ cfg_testonly! {
 
     pub use self::{
         allocate::allocate_given,
-        concrete::{decode_one_v8, ConcreteGiven},
+        concrete::{decode_one_v8, ConcreteCborDecodeResult, ConcreteGiven},
         evaluate::evaluate_given,
     };
 }

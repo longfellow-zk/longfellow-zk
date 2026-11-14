@@ -120,7 +120,7 @@ pub(crate) fn prepare_circuit_layout<
 /// primary circuit must end before the virtual suffix, so it cannot read it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputLayout {
-    npublic: usize,
+    pub npublic: usize,
     pub committed_end: usize,
     pub ninput: usize,
 }

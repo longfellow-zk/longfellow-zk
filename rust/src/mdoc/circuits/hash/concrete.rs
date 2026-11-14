@@ -52,15 +52,15 @@ pub struct HashInput<N> {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct HashBytes<const N: usize> {
+pub struct ConcreteHashBytes<const N: usize> {
     pub value: [u8; N],
     pub len: u16,
 }
 
-pub(super) type MsoPreimageBytes = HashBytes<K_MSO_PREIMAGE_LEN>;
+pub(super) type MsoPreimageBytes = ConcreteHashBytes<K_MSO_PREIMAGE_LEN>;
 
 #[derive(Clone, Debug)]
-pub struct AttrGiven {
+pub struct ConcreteAttrGiven {
     pub expected_name: Vec<u8>,
     pub expected_cbor_value: Vec<u8>,
     pub padded_preimage: Vec<u8>,
@@ -70,7 +70,7 @@ pub struct AttrGiven {
 }
 
 #[derive(Clone, Debug)]
-pub struct AttrDerived {
+pub struct ConcreteAttrDerived {
     pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
 }
 
@@ -85,12 +85,12 @@ pub struct ConcreteGiven<N> {
     pub dev_key_info_offset_in_preimage: u16,
     pub value_digests_offset_in_preimage: u16,
     pub namespace_offset_in_preimage: u16,
-    pub attribute_given: Vec<AttrGiven>,
+    pub attribute_given: Vec<ConcreteAttrGiven>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConcreteDerived {
-    pub attribute_derived: Vec<AttrDerived>,
+    pub attribute_derived: Vec<ConcreteAttrDerived>,
     pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
 }
 
@@ -117,7 +117,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     for a in &hash_input.attrs {
         let attr_sha_wit =
             crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
-        attribute_given.push(AttrGiven {
+        attribute_given.push(ConcreteAttrGiven {
             expected_name: a.expected_name.clone(),
             expected_cbor_value: a.expected_cbor_value.clone(),
             padded_preimage: attr_sha_wit.padded_preimage,
@@ -165,7 +165,7 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
         let attr_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
             sha_derived: sha256_msg_derived(&ag.padded_preimage, &INITIAL, 2),
         };
-        attribute_witnesses.push(AttrDerived {
+        attribute_witnesses.push(ConcreteAttrDerived {
             sha_derived: attr_sha_derived,
         });
     }

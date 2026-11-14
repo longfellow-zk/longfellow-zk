@@ -25,12 +25,12 @@ pub mod constraint_compiler;
 
 cfg_prover! {
     mod prover;
-    pub use prover::ZkProver;
+    pub use prover::{ZkCommitResult, ZkProver};
 }
 
 cfg_verifier! {
     mod verifier;
-    pub use verifier::ZkVerifier;
+    pub use verifier::{ZkVerificationError, ZkVerifier};
 }
 
 #[cfg(test)]

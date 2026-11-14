@@ -13,7 +13,7 @@
 // limitations under the License.
 
 mod concrete;
-pub use concrete::{derived, given, try_witness, ConcreteDerived, ConcreteGiven};
+pub use concrete::{derived, given, try_witness, ConcreteDerived, ConcreteGiven, ConcreteSlicing};
 
 cfg_compiler! {
     mod allocate;

@@ -30,12 +30,12 @@ pub(in crate::runtime::algebra) fn assert_valid_orders(transform_order: u64, roo
 }
 
 pub struct Twiddle<const W: usize, F: RuntimeField<W>> {
-    order: usize,
-    w: Vec<F::E>,
+    pub order: usize,
+    pub w: Vec<F::E>,
 }
 
 impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
-    fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
+    pub fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
         assert!(
             order.is_power_of_two(),
             "twiddle order must be a nonzero power of two"

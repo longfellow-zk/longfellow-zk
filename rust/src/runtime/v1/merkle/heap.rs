@@ -84,8 +84,8 @@ fn mark_paths_to_root(num_leaves: usize, leaf_indices: &[usize]) -> Result<Vec<b
 
 /// Representation of a built, immutable Merkle heap.
 pub struct MerkleHeap {
-    num_leaves: usize,
-    layers: Vec<Digest>,
+    pub num_leaves: usize,
+    pub layers: Vec<Digest>,
 }
 
 impl MerkleHeap {

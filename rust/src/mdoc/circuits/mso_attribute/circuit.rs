@@ -61,9 +61,9 @@ impl<L: Logic> Clone for DisclosedAttribute<L> {
 pub struct Slice<L: Logic> {
     /// Offset of the field (in bytes) relative to the start of the outer
     /// tagged CBOR byte array.
-    offset: AttrIndex<L>,
+    pub offset: AttrIndex<L>,
     /// Length of the field (in bytes).
-    len: AttrIndex<L>,
+    pub len: AttrIndex<L>,
 }
 
 impl<L: Logic> Clone for Slice<L> {
@@ -447,7 +447,7 @@ where L::F: FieldWrappingSum
             .collect()
     }
 
-    fn slot_offset_and_len(&self, slot: usize, field_locator: &FieldLocator<L>) -> Slice<L> {
+    pub fn slot_offset_and_len(&self, slot: usize, field_locator: &FieldLocator<L>) -> Slice<L> {
         let zero = self.bv.of_u64::<K_ATTR_INDEX_BITS>(0);
         let offset = self.routing.shift_bitvec(
             1,

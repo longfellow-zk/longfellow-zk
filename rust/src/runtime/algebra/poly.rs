@@ -101,7 +101,7 @@ impl<const N: usize, const W: usize, F: SerializableField + InterpolationField<W
 /// evaluates the polynomial at `x`.
 pub struct LagrangeBasis<const N: usize, const W: usize, F: InterpolationField<W>> {
     /// The Kronecker delta functions (Lagrange basis polynomials) represented in the Newton basis.
-    delta_in_newton_basis: [Poly<N, W, F>; N],
+    pub delta_in_newton_basis: [Poly<N, W, F>; N],
 }
 
 impl<const N: usize, const W: usize, F: InterpolationField<W>> LagrangeBasis<N, W, F> {

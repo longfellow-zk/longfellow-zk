@@ -14,7 +14,7 @@
 
 mod circuit;
 
-pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
+pub use circuit::{AttrDerived, AttrGiven, Derived, Given, HashBytes, MdocHash};
 
 cfg_compiler! {
     mod allocate;
@@ -27,8 +27,8 @@ cfg_testonly! {
 
     pub use self::{
         concrete::{
-            derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
-            ConcreteGiven, HashInput,
+            derived, given, hash_input_of_parsed_mdoc, AttrInput, ConcreteAttrDerived,
+            ConcreteAttrGiven, ConcreteDerived, ConcreteGiven, ConcreteHashBytes, HashInput,
         },
         evaluate::{evaluate_derived, evaluate_given},
     };
