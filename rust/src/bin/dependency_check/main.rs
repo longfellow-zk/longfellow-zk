@@ -132,21 +132,14 @@ fn phase(path: &str) -> Phase {
     use Phase::*;
     let m = module_path(path);
     let under = |root: &str| m == root || m.starts_with(&format!("{root}/"));
-    let last = m.rsplit('/').next().unwrap_or(m);
-    let circuit = under("circuits") || under("mdoc/circuits");
     if under("bin") || under("mdoc/development_provider") || m == "mdoc/artifacts" {
         // Drivers, tools and the development provider compile and run.
         Neutral
-    } else if m == "runtime" {
-        // The runtime module facade.
+    } else if m == "runtime" || m == "mdoc/circuits" {
+        // Module facades that only mount and re-export.
         Neutral
-    } else if circuit && last == "evaluate" {
-        Bridge
     } else if under("core") || under("mdoc/proto") || under("mdoc/testcases") || under("util") {
         // Contracts, test vectors, and dependency-free helpers.
-        Shared
-    } else if circuit && (last == "constants" || m == "circuits/ec/points") {
-        // Circuit constants and point tuples that native code also uses.
         Shared
     } else if under("compile") || under("mdoc/compile") {
         Compile
@@ -155,17 +148,123 @@ fn phase(path: &str) -> Phase {
     } else if under("mdoc/circuits/cbor") {
         // Native CBOR and mdoc parsing.
         Runtime
-    } else if circuit && last == "concrete" {
-        // Native witness halves of circuits.
-        Runtime
-    } else if circuit && matches!(last, "circuit" | "allocate" | "traits" | "fields" | "proto") {
-        Compile
-    } else if circuit {
-        // Facades: a circuit's root module mounts and re-exports its halves.
-        Neutral
+    } else if let Some(rest) = m
+        .strip_prefix("circuits/")
+        .or_else(|| m.strip_prefix("mdoc/circuits/"))
+    {
+        circuit_phase(path, rest)
     } else {
         panic!("{path} has no phase; classify it in `phase`");
     }
+}
+
+/// A circuit module `<name>[/<half>[/...]]` below `circuits` or
+/// `mdoc::circuits`. The root `<name>` is a facade; a half, and every module
+/// below it, takes the half's phase. A half of an unknown kind has no phase
+/// until it is classified here.
+fn circuit_phase(path: &str, rest: &str) -> Phase {
+    use Phase::*;
+    let mut segments = rest.split('/');
+    let name = segments.next().unwrap_or(rest);
+    let half = segments.next();
+    match half.unwrap_or(name) {
+        "circuit" | "allocate" | "traits" | "fields" => Compile,
+        // Native witness halves.
+        "concrete" => Runtime,
+        "evaluate" => Bridge,
+        // Constants and point helpers that native code also uses.
+        "constants" | "points" => Shared,
+        // A circuit's root module mounts and re-exports its halves.
+        _ if half.is_none() => Neutral,
+        _ => panic!("{path} has no phase; classify its kind in `circuit_phase`"),
+    }
+}
+
+/// Whether a file is a facade, whose only content may be module declarations
+/// and re-exports: a neutral circuit root, or a listed module facade.
+fn is_facade(path: &str) -> bool {
+    let m = module_path(path);
+    let circuit_root = ["circuits/", "mdoc/circuits/"]
+        .iter()
+        .any(|area| m.strip_prefix(area).is_some_and(|rest| !rest.contains('/')));
+    phase(path) == Phase::Neutral && (circuit_root || m == "runtime" || m == "mdoc/circuits")
+}
+
+/// The first statement in a facade's source that is not a module
+/// declaration, a `use`, an attribute or a `cfg_*!` block around those, if
+/// any. A facade with items could run either phase's code through trait
+/// impls that no reference names, out of reach of the phase check.
+fn facade_item(text: &str) -> Option<String> {
+    let src = strip_comments(text);
+    let mut rest = src.trim_start();
+    let mut depth = 0usize;
+    while !rest.is_empty() {
+        if let Some(r) = rest.strip_prefix('}').filter(|_| depth > 0) {
+            depth -= 1;
+            rest = r.trim_start();
+        } else if rest.starts_with('#') {
+            // An attribute: skip to its closing bracket.
+            let mut brackets = 0usize;
+            let mut end = rest.len();
+            for (i, c) in rest.char_indices() {
+                match c {
+                    '[' => brackets += 1,
+                    ']' => {
+                        brackets -= 1;
+                        if brackets == 0 {
+                            end = i + 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            rest = rest[end..].trim_start();
+        } else if let Some(r) = rest
+            .strip_prefix("cfg_")
+            .and_then(|r| r.split_once('!'))
+            .filter(|(name, _)| name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+            .and_then(|(_, r)| r.trim_start().strip_prefix('{'))
+        {
+            depth += 1;
+            rest = r.trim_start();
+        } else {
+            let item = rest
+                .strip_prefix("pub")
+                .map(|r| match r.trim_start().strip_prefix('(') {
+                    Some(r) => r.split_once(')').map_or(r, |(_, r)| r),
+                    None => r,
+                })
+                .unwrap_or(rest)
+                .trim_start();
+            if !(item.starts_with("mod ") || item.starts_with("use ")) {
+                return Some(rest.lines().next().unwrap_or(rest).to_owned());
+            }
+            let end = rest.find(';').map_or(rest.len(), |i| i + 1);
+            rest = rest[end..].trim_start();
+        }
+    }
+    None
+}
+
+/// Source without `//` and `/* */` comments (string literals do not occur in
+/// facades, so they are not tracked).
+fn strip_comments(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while !rest.is_empty() {
+        if let Some(r) = rest.strip_prefix("//") {
+            rest = r.find('\n').map_or("", |i| &r[i..]);
+        } else if let Some(r) = rest.strip_prefix("/*") {
+            rest = r.find("*/").map_or("", |i| &r[i + 2..]);
+            out.push(' ');
+        } else {
+            let c = rest.chars().next().unwrap();
+            out.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    out
 }
 
 /// Whether a file of phase `from` may use a file of phase `to`. References
@@ -678,6 +777,12 @@ fn main() {
     for from in files.keys().filter(|f| f.starts_with("src/")) {
         if phase(from) == Phase::Bridge && !bridge_is_test_only(&root, from) {
             failures.push(format!("bridge {from} is not declared only for tests"));
+        }
+        if is_facade(from) {
+            let text = std::fs::read_to_string(root.join(from)).unwrap_or_default();
+            if let Some(item) = facade_item(&text) {
+                failures.push(format!("facade {from} defines an item: {item}"));
+            }
         }
     }
     for (from, targets) in &files {

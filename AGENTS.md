@@ -12,15 +12,31 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
 
 ### Compile time and run time
 
-- Compile-time code (`compile`, `mdoc::compile`, the circuit halves of
-  `circuits`) never uses run-time code (`runtime`, `mdoc::runtime`, the
-  `concrete` native-witness halves of `circuits`), and run-time code never uses
-  compile-time code. Shared code (`core`, `mdoc::proto`, `util`, circuit
-  constants) uses neither. Tests, and the test-only `evaluate` bridges that turn
-  native witnesses into circuit wires, may use both. The dependency checker
-  fixes each file's phase in its source (`phase` in
-  `rust/src/bin/dependency_check/main.rs`), not in `rules.txt`: classify a new
-  kind of file there, in a reviewed change.
+- Compile-time code never uses run-time code, and run-time code never uses
+  compile-time code. Shared code uses neither. The dependency checker fixes
+  each file's phase in its source (`phase` and `circuit_phase` in
+  `rust/src/bin/dependency_check/main.rs`), not in `rules.txt`; a file it
+  cannot classify fails the check, so classify a new kind of file there, in a
+  reviewed change. The classes are:
+  - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate`,
+    `traits` and `fields` halves of each circuit in `circuits` and
+    `mdoc::circuits`;
+  - run time: `runtime`, `mdoc::runtime`, `mdoc::circuits::cbor` (native CBOR
+    and mdoc parsing), and the `concrete` native-witness halves of circuits;
+  - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the
+    `constants` and `points` halves of circuits;
+  - test-only bridges, which may use both: the `evaluate` halves of circuits,
+    which turn native witnesses into circuit wires and must be declared only
+    for tests;
+  - neutral, which may use both: the binaries in `bin` and
+    `mdoc::development_provider` (which compile and run), `mdoc::artifacts`
+    (the stored circuit and proof files), and facades (`runtime`,
+    `mdoc::circuits`, and each circuit's root module). A facade may contain
+    only module declarations and `use`s; no item.
+
+  A circuit half's submodules take the half's phase. Compile-time, run-time
+  and shared code may not use neutral or bridge files. Tests may use both
+  phases.
 - Compile time and run time have separate field implementations. Do not share
   field arithmetic between them; each side implements its own, so that one can
   check the other. Reference implementations used as test oracles are
@@ -37,8 +53,8 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
 
 - `runtime::v1::proto` and `runtime::v2::proto` are the prover/verifier
   contracts: proof formats and the public metadata both sides use. They may use
-  only `core`, `runtime::algebra` and the transcript framing (v2) or subfield
-  (v1), never a protocol implementation.
+  only `core`, `util`, `runtime::algebra` and the transcript framing (v2) or
+  subfield (v1), never a protocol implementation.
 - Prover and verifier code stay separate; neither uses the other's files.
 - The standalone prover and verifier build independently, with no compiler
   dependencies: `--no-default-features` with `prover` or `verifier` (plus

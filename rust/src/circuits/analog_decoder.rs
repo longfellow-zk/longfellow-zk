@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod proto;
+mod points;
 
-pub use proto::{binary_point, unary_point};
+pub use points::{binary_point, unary_point};
 
 cfg_compiler! {
     mod circuit;

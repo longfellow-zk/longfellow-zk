@@ -4,7 +4,10 @@
 use super::*;
 
 fn bridge_in(parent: &str) -> bool {
-    let dir = std::env::temp_dir().join(format!("deps-bridge-{}", std::process::id()));
+    // A directory per call: tests run in parallel.
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("deps-bridge-{}-{call}", std::process::id()));
     std::fs::create_dir_all(dir.join("src/c")).unwrap();
     std::fs::write(dir.join("src/c.rs"), parent).unwrap();
     let gated = bridge_is_test_only(&dir, "src/c/evaluate.rs");
@@ -83,5 +86,133 @@ fn contracts_use_only_lower_layers() {
     assert!(proto_allows(
         "src/runtime/v2/zk/prover.rs",
         "src/runtime/v2/polygero/error.rs"
+    ));
+}
+
+#[test]
+fn phases_never_cross() {
+    use Phase::*;
+    for (from, to) in [
+        (Compile, Runtime),
+        (Runtime, Compile),
+        (Compile, Neutral),
+        (Runtime, Neutral),
+        (Shared, Neutral),
+        (Compile, Bridge),
+        (Runtime, Bridge),
+        (Shared, Bridge),
+        (Shared, Compile),
+        (Shared, Runtime),
+    ] {
+        assert!(!phase_allows(from, to), "{from:?} may not use {to:?}");
+    }
+    for (from, to) in [
+        (Compile, Compile),
+        (Runtime, Runtime),
+        (Compile, Shared),
+        (Runtime, Shared),
+        (Shared, Shared),
+        (Bridge, Compile),
+        (Bridge, Runtime),
+        (Neutral, Compile),
+        (Neutral, Runtime),
+    ] {
+        assert!(phase_allows(from, to), "{from:?} may use {to:?}");
+    }
+}
+
+#[test]
+fn circuit_halves_and_their_submodules_have_phases() {
+    use Phase::*;
+    for (path, expected) in [
+        ("src/circuits/ecdsa2/traits.rs", Compile),
+        ("src/circuits/sha256/allocate.rs", Compile),
+        ("src/mdoc/circuits/fields.rs", Compile),
+        ("src/circuits/sha256/circuit/part.rs", Compile),
+        ("src/circuits/sha256/concrete/fast.rs", Runtime),
+        ("src/circuits/ecdsa2/evaluate/x.rs", Bridge),
+        ("src/circuits/ec/points.rs", Shared),
+        ("src/circuits/analog_decoder/points.rs", Shared),
+        ("src/circuits/sha256/constants/table.rs", Shared),
+        ("src/mdoc/circuits/hash/allocate.rs", Compile),
+        ("src/mdoc/circuits/hash.rs", Neutral),
+        ("src/mdoc/circuits.rs", Neutral),
+        ("src/runtime.rs", Neutral),
+        ("src/mdoc/testcases/vectors.rs", Shared),
+        ("src/mdoc/artifacts.rs", Neutral),
+    ] {
+        assert_eq!(phase(path), expected, "{path}");
+    }
+}
+
+#[test]
+fn circuit_files_of_unknown_kinds_have_no_phase() {
+    for path in [
+        "src/circuits/sha256/helpers.rs",
+        "src/circuits/sha256/proto.rs",
+        "src/mdoc/circuits/hash/glue/x.rs",
+        "src/newtop/x.rs",
+    ] {
+        assert!(
+            std::panic::catch_unwind(|| phase(path)).is_err(),
+            "{path} should have no phase"
+        );
+    }
+}
+
+#[test]
+fn facades_only_declare_and_reexport() {
+    assert_eq!(
+        facade_item(
+            "// Copyright\n//! Docs.\n#![allow(x)]\nmod circuit;\npub use circuit::{A, B};\n\
+             pub(crate) mod p;\n#[cfg(test)]\nmod tests;\n\
+             cfg_testonly! {\n    /* note */ mod concrete;\n    pub use concrete::C;\n}\n"
+        ),
+        None
+    );
+    for (text, item) in [
+        ("mod circuit;\npub fn f() {}\n", "pub fn f() {}"),
+        ("impl A for B {}\n", "impl A for B {}"),
+        ("pub const K: u8 = 1;\n", "pub const K: u8 = 1;"),
+        ("pub struct S;\n", "pub struct S;"),
+        (
+            "macro_rules! m { () => {} }\n",
+            "macro_rules! m { () => {} }",
+        ),
+        (
+            "cfg_testonly! {\n    mod c;\n    impl T for U {}\n}\n",
+            "impl T for U {}",
+        ),
+        ("pub(crate) type T = u8;\n", "pub(crate) type T = u8;"),
+    ] {
+        assert_eq!(facade_item(text).as_deref(), Some(item), "{text}");
+    }
+}
+
+#[test]
+fn contracts_reject_other_layers_of_their_version() {
+    assert!(!proto_allows(
+        "src/runtime/v1/proto/zk.rs",
+        "src/runtime/v1/transcript.rs"
+    ));
+    assert!(!proto_allows(
+        "src/runtime/v2/proto/zk.rs",
+        "src/runtime/random/engine.rs"
+    ));
+    assert!(!proto_allows(
+        "src/runtime/v1/proto/ligero.rs",
+        "src/runtime/v1/ligero/param.rs"
+    ));
+    assert!(!proto_allows(
+        "src/runtime/v2/proto/polygero.rs",
+        "src/runtime/v2/merkle/hash.rs"
+    ));
+    assert!(proto_allows(
+        "src/runtime/v2/proto/zk.rs",
+        "src/util/array.rs"
+    ));
+    assert!(proto_allows(
+        "src/runtime/v2/proto/zk.rs",
+        "src/runtime/algebra/field.rs"
     ));
 }

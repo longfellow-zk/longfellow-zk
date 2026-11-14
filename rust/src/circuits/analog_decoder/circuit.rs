@@ -14,7 +14,7 @@
 
 use crate::{
     circuits::{
-        analog_decoder::proto,
+        analog_decoder::{binary_point, unary_point},
         boolean::{Bitw, Boolean},
         lookup::{Lookup, Table},
     },
@@ -45,7 +45,7 @@ impl<'a, L: Logic> AnalogDecoder<'a, L> {
 
     #[must_use]
     pub fn unary_point(&self, n: usize, i: usize) -> ElementOf<L::F> {
-        proto::unary_point(self.logic.field(), n, i)
+        unary_point(self.logic.field(), n, i)
     }
 
     #[must_use]
@@ -66,7 +66,7 @@ impl<'a, L: Logic> AnalogDecoder<'a, L> {
 
     #[must_use]
     pub fn binary_point(&self, width: usize, i: usize) -> ElementOf<L::F> {
-        proto::binary_point(self.logic.field(), width, i)
+        binary_point(self.logic.field(), width, i)
     }
 
     #[must_use]
