@@ -36,6 +36,20 @@ fn masked_word_codec_is_canonical() {
 }
 
 #[test]
+fn fragment_rejects_shapes_whose_size_overflows() {
+    // trees * leaves wraps to 0 in usize; it must be rejected, not passed on
+    // to the width check and then to an impossible allocation.
+    let shape = TreeShape {
+        trees: 1usize << (usize::BITS - 1),
+        leaves: 2,
+    };
+    assert_eq!(shape.virtual_inputs(), None);
+    assert!(fragment(0, 0, shape).is_err());
+    let f = Gf2_128Field::new();
+    assert!(virtual_inputs(shape, vec![], &f).is_err());
+}
+
+#[test]
 fn fragment_accepts_exactly_unit_products() {
     use crate::runtime::v2::sumcheck;
     let f = Gf2_128Field::new();

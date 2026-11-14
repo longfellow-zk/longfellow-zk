@@ -44,8 +44,9 @@ pub struct TreeShape {
     pub leaves: usize,
 }
 impl TreeShape {
-    pub fn virtual_inputs(&self) -> usize {
-        self.trees * self.leaves
+    /// The number of virtual inputs, `trees * leaves`; None if it overflows.
+    pub fn virtual_inputs(&self) -> Option<usize> {
+        self.trees.checked_mul(self.leaves)
     }
 }
 
@@ -92,7 +93,7 @@ pub fn virtual_inputs(
     if trees.len() != shape.trees || trees.iter().any(|t| t.leaves.len() != shape.leaves) {
         return Err("adapter tree shape".into());
     }
-    let mut entries = Vec::with_capacity(shape.virtual_inputs());
+    let mut entries = Vec::with_capacity(shape.virtual_inputs().ok_or("adapter tree shape")?);
     for tree in trees {
         if f.is_zero(&tree.target) {
             return Err("adapter target must be nonzero".into());
@@ -135,7 +136,7 @@ pub fn fragment(
     }
     let ninput = shape
         .virtual_inputs()
-        .checked_add(virtual_start)
+        .and_then(|n| n.checked_add(virtual_start))
         .filter(|&n| n <= u32::MAX as usize)
         .ok_or("adapter fragment width")?;
     let f = Gf2_128Field::new();

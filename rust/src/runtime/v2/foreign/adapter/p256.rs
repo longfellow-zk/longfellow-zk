@@ -264,6 +264,8 @@ pub struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
     otp: [BitGroup<Q>; 2],
     shape: TreeShape,
+    /// `shape.virtual_inputs()`, checked when the fragment was built.
+    virtual_inputs: usize,
     fragment: Circuit<Gf2_128Field>,
 }
 impl<const Q: usize> P256Mode<Q> {
@@ -285,10 +287,12 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         let plan = P256Plan::new(widths)?;
         let shape = plan.shape();
         let fragment = super::fragment(npublic, suffix.end(), shape)?;
+        let virtual_inputs = shape.virtual_inputs().ok_or("adapter fragment width")?;
         Ok(Self {
             plan,
             otp,
             shape,
+            virtual_inputs,
             fragment,
         })
     }
@@ -296,7 +300,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         &self.fragment
     }
     fn virtual_inputs(&self) -> usize {
-        self.shape.virtual_inputs()
+        self.virtual_inputs
     }
     #[cfg(any(test, feature = "prover"))]
     fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads {
