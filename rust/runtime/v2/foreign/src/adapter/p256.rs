@@ -26,13 +26,6 @@ use crate::{
     },
 };
 
-/// P-256 coordinate modulus, little-endian limbs. The scalar order differs.
-pub(crate) const MODULUS: [u64; 4] = [
-    0xffffffffffffffff,
-    0x00000000ffffffff,
-    0,
-    0xffffffff00000001,
-];
 const ORDER_FACTORS: [u128; 9] = [3, 5, 17, 257, 641, 65537, 274177, 6700417, 67280421310721];
 
 fn pow<F: AlgebraicField>(f: &F, mut b: F::E, mut n: u128) -> F::E {
