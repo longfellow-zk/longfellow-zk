@@ -68,7 +68,7 @@ impl<'a, F: CompileField> Cse<'a, F> {
         if let Some(&cached) = self.elt_memo.borrow().get(elt) {
             return cached;
         }
-        let allocated = self.arena.bump.alloc(elt.clone());
+        let allocated = self.arena.alloc_constant(elt.clone());
         self.elt_memo.borrow_mut().insert(elt.clone(), allocated);
         allocated
     }

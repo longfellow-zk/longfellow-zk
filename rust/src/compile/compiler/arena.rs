@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::{Cell, OnceCell};
+
 use crate::compile::{
     algebra::CompileField,
     compiler::{
@@ -20,11 +22,73 @@ use crate::compile::{
     },
 };
 
+/// The compiler's storage. Nodes and slices live in a bump arena, which never
+/// runs destructors, so it may hold only `Copy` values. Field constants can
+/// own heap storage (a prime-field element owns a `BigUint`), so they live in
+/// `constants`, which drops them with the arena.
 pub struct CompilerArena<'a, F: CompileField> {
-    pub(in crate::compile::compiler) bump: bumpalo::Bump,
-    next_node_id: std::cell::Cell<usize>,
-    input_end: std::cell::Cell<usize>,
+    bump: bumpalo::Bump,
+    constants: DropArena<F::E>,
+    next_node_id: Cell<usize>,
+    input_end: Cell<usize>,
     _marker: std::marker::PhantomData<&'a F>,
+}
+
+/// An append-only arena that hands out shared references and drops its values
+/// when it is dropped. Values sit in chunks of set-once slots, each chunk twice
+/// the size of the previous one, so nothing moves once allocated and a value
+/// is found after walking O(log n) chunk links.
+pub(in crate::compile::compiler) struct DropArena<T> {
+    first: Chunk<T>,
+    /// Chunks beyond `first` and the slots used in the last chunk.
+    extra_chunks: Cell<usize>,
+    used: Cell<usize>,
+}
+
+struct Chunk<T> {
+    slots: Box<[OnceCell<T>]>,
+    next: OnceCell<Box<Chunk<T>>>,
+}
+
+impl<T> Chunk<T> {
+    fn new(len: usize) -> Self {
+        Self {
+            slots: (0..len).map(|_| OnceCell::new()).collect(),
+            next: OnceCell::new(),
+        }
+    }
+}
+
+impl<T> DropArena<T> {
+    const FIRST_CHUNK: usize = 64;
+
+    pub(in crate::compile::compiler) fn new() -> Self {
+        Self {
+            first: Chunk::new(Self::FIRST_CHUNK),
+            extra_chunks: Cell::new(0),
+            used: Cell::new(0),
+        }
+    }
+
+    pub(in crate::compile::compiler) fn alloc(&self, value: T) -> &T {
+        let mut chunk = &self.first;
+        for _ in 0..self.extra_chunks.get() {
+            chunk = chunk.next.get().expect("counted chunks exist");
+        }
+        let mut i = self.used.get();
+        if i == chunk.slots.len() {
+            let len = chunk.slots.len() * 2;
+            chunk = chunk.next.get_or_init(|| Box::new(Chunk::new(len)));
+            self.extra_chunks.set(self.extra_chunks.get() + 1);
+            i = 0;
+        }
+        self.used.set(i + 1);
+        let slot = &chunk.slots[i];
+        if slot.set(value).is_err() {
+            unreachable!("arena slots are filled once, in order");
+        }
+        slot.get().expect("the slot was just filled")
+    }
 }
 
 impl<F: CompileField> Default for CompilerArena<'_, F> {
@@ -38,10 +102,17 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
     pub fn new() -> Self {
         Self {
             bump: bumpalo::Bump::new(),
-            next_node_id: std::cell::Cell::new(0),
-            input_end: std::cell::Cell::new(0),
+            constants: DropArena::new(),
+            next_node_id: Cell::new(0),
+            input_end: Cell::new(0),
             _marker: std::marker::PhantomData,
         }
+    }
+
+    /// Store a field constant for the arena's lifetime; it is dropped with the
+    /// arena, releasing any heap storage it owns.
+    pub(in crate::compile::compiler) fn alloc_constant(&'a self, value: F::E) -> &'a F::E {
+        self.constants.alloc(value)
     }
 
     pub(super) fn record_input(&self, position: usize) {
@@ -56,20 +127,26 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
     }
 
     pub fn alloc_node(&'a self, expr: Expr<'a, F>, depth: usize) -> ExprNode<'a, F> {
+        // A node is two counts and an `Expr`; `Expr` being `Copy` means it owns
+        // nothing, so leaving nodes undropped in the bump arena leaks nothing.
+        const fn owns_nothing<T: Copy>() {}
+        owns_nothing::<Expr<'a, F>>();
         let id = self.next_node_id.get();
         self.next_node_id.set(id + 1);
         self.bump.alloc(Node::new(id, expr, depth))
     }
 
-    pub fn alloc_slice<T: Clone>(&'a self, slice: &[T]) -> &'a [T] {
-        self.bump.alloc_slice_clone(slice)
+    /// `Copy` guarantees the values own nothing the bump arena would leak.
+    pub fn alloc_slice<T: Copy>(&'a self, slice: &[T]) -> &'a [T] {
+        self.bump.alloc_slice_copy(slice)
     }
 
     pub fn alloc_str(&'a self, s: &str) -> &'a str {
         self.bump.alloc_str(s)
     }
 
-    pub fn alloc<T>(&'a self, val: T) -> &'a T {
+    /// `Copy` guarantees the value owns nothing the bump arena would leak.
+    pub fn alloc<T: Copy>(&'a self, val: T) -> &'a T {
         self.bump.alloc(val)
     }
 }
@@ -175,3 +252,6 @@ pub(super) fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
 
     arena.alloc_slice(&walked_list)
 }
+
+#[cfg(test)]
+mod tests;
