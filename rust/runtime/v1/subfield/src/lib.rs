@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod traits;
+
+pub use traits::{InterpolationPlanV1, SubfieldV1};
+
 use crate::runtime::algebra::gf2_128::Gf2_128;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -168,22 +172,6 @@ impl BinarySubfieldV1 {
     }
 }
 
-pub trait SubfieldV1 {
-    type E;
-    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]);
-    #[inline]
-    fn to_bytes(&self, e: &Self::E) -> Vec<u8> {
-        let len = self.serialized_size_bytes();
-        let mut buf = vec![0u8; len];
-        self.to_bytes_into(e, &mut buf);
-        buf
-    }
-    fn contains(&self, e: &Self::E) -> bool;
-    fn serialized_size_bytes(&self) -> usize;
-    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String>;
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
-}
-
 impl SubfieldV1 for BinarySubfieldV1 {
     type E = Gf2_128;
 
@@ -237,46 +225,6 @@ impl SubfieldV1 for BinarySubfieldV1 {
         }
         self.embed(val)
     }
-}
-
-/// V1-only compact-row interpolation; ordinary plans do not require this capability.
-pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>:
-    crate::runtime::algebra::InterpolationPlan<W, F>
-{
-    /// A public layout hint that all source values belong to `subfield`.
-    /// The default implementation works without subfield specialization.
-    fn apply_subfield_v1<SF: SubfieldV1<E = F::E>>(
-        &self,
-        source: &[F::E],
-        _subfield: &SF,
-    ) -> Vec<F::E> {
-        self.apply(source)
-    }
-}
-
-impl<const W: usize, F: crate::runtime::algebra::RuntimeBinaryField<W, E = Gf2_128>>
-    InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::binary::BinaryInterpolationPlan<'_, W, F>
-{
-}
-impl<
-        const W: usize,
-        F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SupportsU64Conversions,
-    > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::scalar::ScalarInterpolationPlan<'_, W, F>
-{
-}
-impl<
-        const W: usize,
-        F: crate::runtime::algebra::SupportsQuadraticExtension<W>
-            + crate::core::algebra::SupportsU64Conversions,
-    > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan<
-        '_,
-        W,
-        F,
-    >
-{
 }
 
 mod p256;
