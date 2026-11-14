@@ -17,11 +17,9 @@
 //! `core::proto::v2::evaluate` reports which terms and outputs failed; this
 //! maps them through the compiler's debug symbols to assertion statuses.
 
-use std::collections::HashMap;
-
 use super::{CircuitDebugSymbols, CompiledEvalAssertions, WireRef};
 use crate::{
-    compile::logic::AssertionStatus,
+    compile::logic::{AssertionMap, AssertionStatus},
     core::{
         algebra::{AlgebraicField, ElementOf, SerializableField},
         proto::v2::{
@@ -43,16 +41,17 @@ fn eval_circuit<'a, F: AlgebraicField + SerializableField>(
         Err(err) => {
             return CompiledEvalAssertions {
                 result: Err(err),
-                fates: HashMap::new(),
+                fates: AssertionMap::new(),
                 tracker,
             };
         }
     };
-    let mut fates = HashMap::new();
+    let mut fates = AssertionMap::new();
     let mut failed = !evaluation.failed_terms.is_empty();
     for &(layer, index) in &evaluation.failed_terms {
         if let Some(id) = symbols.get_id(&WireRef::new(layer, index)) {
             fates.insert(
+                tracker,
                 id,
                 AssertionStatus::Failed("layer assertion failed".to_string()),
             );
@@ -67,7 +66,7 @@ fn eval_circuit<'a, F: AlgebraicField + SerializableField>(
             } else {
                 AssertionStatus::Failed("circuit output non-zero".to_string())
             };
-            fates.entry(id).or_insert(status);
+            fates.insert_if_absent(tracker, id, status);
         }
     }
     CompiledEvalAssertions {

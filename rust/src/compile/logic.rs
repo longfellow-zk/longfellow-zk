@@ -22,7 +22,7 @@ mod scope;
 #[cfg(test)]
 pub(crate) use eval::{EvalAssertions, EvalContext, EvalLogic, EvalWire};
 pub use logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION};
-pub use scope::{AssertionId, AssertionScope, AssertionStatus, NIL_ASSERTION_ID};
+pub use scope::{AssertionId, AssertionMap, AssertionScope, AssertionStatus, NIL_ASSERTION_ID};
 
 cfg_testonly! {
     mod concrete;

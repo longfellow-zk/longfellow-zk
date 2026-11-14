@@ -264,18 +264,28 @@ fn test_eval_union_reports_failure_from_any_alias() {
     let l = EvalLogic::new(&field, &tracker);
     let passed = l.assert0("passed", &l.zero());
     let failed = l.assert0("failed", &l.one());
-    let passed_id = *passed.all_items().keys().next().unwrap();
-    let failed_id = *failed.all_items().keys().next().unwrap();
+    let passed_id = passed.all_items().ids().next().unwrap();
+    let failed_id = failed.all_items().ids().next().unwrap();
     tracker.union(passed_id, failed_id);
 
-    let mut fates = (*passed.all_items()).clone();
-    fates.extend(failed.all_items());
+    let fates = passed.all_items().merged(&failed.all_items());
 
-    assert!(tracker
-        .failed_paths(&fates)
-        .iter()
-        .all(|p| p == "passed" || p == "failed"));
+    // Both aliases report the group's failure.
+    assert_eq!(tracker.failed_paths(&fates), vec!["passed", "failed"]);
+    assert!(tracker.passed_paths(&fates).is_empty());
     assert!(!tracker.is_ok(&fates));
+}
+
+#[test]
+#[should_panic(expected = "assertions from different evaluator scopes cannot be queried")]
+fn test_scope_rejects_queries_about_another_scope() {
+    // Assertion IDs are local to a scope, so another scope would resolve them
+    // to its own, unrelated paths.
+    let field = Gf2_128Field::new();
+    let (scope_a, scope_b) = (AssertionScope::new(), AssertionScope::new());
+    let a = EvalLogic::new(&field, &scope_a);
+    let failed = a.assert0("failed_in_a", &a.one());
+    scope_b.failed_paths(&failed.all_items());
 }
 
 #[test]
@@ -314,18 +324,22 @@ fn test_eval_rejects_wires_from_another_scope() {
 }
 
 #[test]
-#[should_panic(expected = "Expected assertion failure at 'expected'")]
+#[should_panic(
+    expected = "Expected assertion failure at 'expected', but actual failed assertion paths were: [\"unrelated\"]"
+)]
 fn test_assert_any_failed_at_rejects_a_passing_expected_path() {
-    use std::collections::HashMap;
-
-    use crate::compile::logic::AssertionStatus;
-    // An unrelated failure must not satisfy a check for a failure elsewhere.
+    use crate::compile::logic::{AssertionMap, AssertionStatus};
+    // An unrelated failure must not satisfy a check for a failure elsewhere,
+    // and the message names the failures that did occur.
     let tracker = AssertionScope::new();
     let expected = tracker.new_leaf("expected");
     let unrelated = tracker.new_leaf("unrelated");
-    let fates = HashMap::from([
-        (expected, AssertionStatus::Passed),
-        (unrelated, AssertionStatus::Failed("unrelated".to_string())),
-    ]);
+    let mut fates = AssertionMap::new();
+    fates.insert(&tracker, expected, AssertionStatus::Passed);
+    fates.insert(
+        &tracker,
+        unrelated,
+        AssertionStatus::Failed("unrelated".to_string()),
+    );
     tracker.assert_any_failed_at("expected", &fates);
 }

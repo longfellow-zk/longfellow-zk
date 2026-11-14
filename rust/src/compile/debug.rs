@@ -30,7 +30,7 @@ impl WireRef {
     }
 }
 
-use crate::compile::logic::{AssertionId, AssertionScope, AssertionStatus};
+use crate::compile::logic::{AssertionId, AssertionMap, AssertionScope};
 
 /// Mapping from a specific circuit output wire to its assertion ID.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,16 +124,14 @@ pub struct EvaluatedCompiledAssertion {
     pub status: CompiledAssertionStatus,
 }
 
-use std::collections::HashMap;
-
 /// Aggregate result of evaluating a compiled circuit, detailing overall pass/fail status and
 /// per-assertion evaluation.
 #[derive(Clone)]
 pub struct CompiledEvalAssertions<'a, E = String> {
     /// Overall result of the circuit evaluation.
     pub result: Result<(), E>,
-    /// Map of assertion ID to status.
-    pub fates: HashMap<AssertionId, AssertionStatus>,
+    /// Status of each evaluated assertion, owned by `tracker`.
+    pub fates: AssertionMap,
     /// Reference to the assertion scope.
     pub tracker: &'a AssertionScope,
 }

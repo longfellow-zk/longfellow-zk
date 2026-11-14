@@ -14,66 +14,13 @@
 
 //! Direct evaluation of circuit logic with exact assertion provenance.
 
-use std::{collections::HashMap, ops::Deref, rc::Rc, sync::Arc};
-
 use crate::{
     compile::{
         algebra::CompileField,
-        logic::{AssertionId, AssertionScope, AssertionStatus, Logic, LogicIO},
+        logic::{AssertionMap, AssertionScope, AssertionStatus, Logic, LogicIO},
     },
     core::algebra::ElementOf,
 };
-
-/// Assertion statuses of one evaluator scope. Assertion IDs are local to the
-/// scope that issued them, so a nonempty map records its owner, and maps from
-/// different scopes are never combined.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct AssertionMap {
-    owner: Option<Rc<()>>,
-    statuses: Arc<HashMap<AssertionId, AssertionStatus>>,
-}
-
-impl Deref for AssertionMap {
-    type Target = HashMap<AssertionId, AssertionStatus>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.statuses
-    }
-}
-
-impl AssertionMap {
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn insert(&mut self, scope: &AssertionScope, id: AssertionId, status: AssertionStatus) {
-        self.check_owner(scope);
-        self.owner = Some(scope.identity().clone());
-        Arc::make_mut(&mut self.statuses).insert(id, status);
-    }
-
-    /// Panic unless this map is empty or was issued by `scope`.
-    fn check_owner(&self, scope: &AssertionScope) {
-        if let Some(owner) = &self.owner {
-            assert!(
-                Rc::ptr_eq(owner, scope.identity()),
-                "assertions from different evaluator scopes cannot be combined"
-            );
-        }
-    }
-}
-
-impl IntoIterator for AssertionMap {
-    type Item = (AssertionId, AssertionStatus);
-    type IntoIter = std::collections::hash_map::IntoIter<AssertionId, AssertionStatus>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match Arc::try_unwrap(self.statuses) {
-            Ok(map) => map.into_iter(),
-            Err(shared) => (*shared).clone().into_iter(),
-        }
-    }
-}
 
 pub(crate) struct EvalWire<F: CompileField> {
     pub(crate) value: ElementOf<F>,
@@ -136,7 +83,12 @@ impl<'a, F: CompileField> EvalContext<'a, F> {
         build: impl FnOnce(&EvalLogic<'ctx, F>) -> EvalAssertions<'ctx>,
     ) -> EvalAssertions<'ctx> {
         let logic = EvalLogic::new(self.f, &self.tracker);
-        build(&logic)
+        let result = build(&logic);
+        assert!(
+            std::ptr::eq(result.tracker, &self.tracker),
+            "assertions from different evaluator scopes cannot be combined"
+        );
+        logic.result(result.scoped, result.unscoped)
     }
 }
 
@@ -150,20 +102,21 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
     }
 
     // Every wire and assertion set this logic produces passes through `wire` or
-    // `result`, which reject assertions issued by another scope.
+    // `result`, which reject assertions issued by another scope. Operations
+    // that record state in the scope check their inputs first.
     fn wire(&self, value: ElementOf<F>, assertions: AssertionMap) -> EvalWire<F> {
-        assertions.check_owner(self.tracker);
+        assertions.check_owner(self.tracker, "combined");
         EvalWire::new(value, assertions)
     }
 
     fn combine(&self, x: &EvalWire<F>, y: &EvalWire<F>, value: ElementOf<F>) -> EvalWire<F> {
-        let assertions = merge_assertions(&x.assertions, &y.assertions);
+        let assertions = x.assertions.merged(&y.assertions);
         self.wire(value, assertions)
     }
 
     fn result(&self, scoped: AssertionMap, unscoped: AssertionMap) -> EvalAssertions<'a> {
-        scoped.check_owner(self.tracker);
-        unscoped.check_owner(self.tracker);
+        scoped.check_owner(self.tracker, "combined");
+        unscoped.check_owner(self.tracker, "combined");
         EvalAssertions {
             scoped,
             unscoped,
@@ -181,7 +134,7 @@ pub(crate) struct EvalAssertions<'a> {
 
 impl<'a> EvalAssertions<'a> {
     pub(crate) fn all_items(&self) -> AssertionMap {
-        merge_assertions(&self.scoped, &self.unscoped)
+        self.scoped.merged(&self.unscoped)
     }
 
     pub(crate) fn is_ok(&self) -> bool {
@@ -232,7 +185,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
     }
 
     fn precious(&self, x: &Self::Wire) -> Self::Wire {
-        x.clone()
+        self.wire(x.value.clone(), x.assertions.clone())
     }
 
     fn sum(&self, xs: &[Self::Wire]) -> Self::Wire {
@@ -240,7 +193,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
         let mut assertions = AssertionMap::new();
         for x in xs {
             val = self.f.addf(&val, &x.value);
-            assertions = merge_assertions(&assertions, &x.assertions);
+            assertions = assertions.merged(&x.assertions);
         }
         self.wire(val, assertions)
     }
@@ -275,6 +228,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
 
     fn assert0(&self, name: &str, x: &Self::Wire) -> Self::Assertions {
         assert!(!name.is_empty(), "assert0 requires a non-empty name");
+        x.assertions.check_owner(self.tracker, "combined");
         let status = if x.value.eq(&self.f.zero()) {
             AssertionStatus::Passed
         } else {
@@ -291,43 +245,27 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
         let mut scoped = AssertionMap::new();
         let mut unscoped = AssertionMap::new();
         for a in assertions {
-            scoped = merge_assertions(&scoped, &a.scoped);
-            unscoped = merge_assertions(&unscoped, &a.unscoped);
+            scoped = scoped.merged(&a.scoped);
+            unscoped = unscoped.merged(&a.unscoped);
         }
-        for &id in scoped.keys() {
+        // Check ownership before renaming the scope's assertions.
+        scoped.check_owner(self.tracker, "combined");
+        unscoped.check_owner(self.tracker, "combined");
+        for id in scoped.ids() {
             self.tracker.prepend_scope(id, name);
         }
         self.result(scoped, unscoped)
     }
 
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
-        let attached = merge_assertions(&assertions.scoped, &assertions.unscoped);
-        let new_unscoped = merge_assertions(&x.assertions, &attached);
+        let attached = assertions.scoped.merged(&assertions.unscoped);
+        let new_unscoped = x.assertions.merged(&attached);
         self.wire(x.value.clone(), new_unscoped)
     }
 
     fn to_stringw_debug(&self, x: &Self::Wire) -> String {
         format!("{:?}", x.value)
     }
-}
-
-fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
-    if left.is_empty() {
-        return right.clone();
-    }
-    if right.is_empty() {
-        return left.clone();
-    }
-
-    // Both maps are nonempty, so both have owners.
-    assert!(
-        matches!((&left.owner, &right.owner), (Some(a), Some(b)) if Rc::ptr_eq(a, b)),
-        "assertions from different evaluator scopes cannot be combined"
-    );
-    let mut merged = left.clone();
-    Arc::make_mut(&mut merged.statuses)
-        .extend(right.iter().map(|(&id, status)| (id, status.clone())));
-    merged
 }
 
 impl<F: CompileField> LogicIO for EvalLogic<'_, F> {

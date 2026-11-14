@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssertionStatus {
@@ -22,6 +22,104 @@ pub enum AssertionStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AssertionId(u32);
+
+/// Assertion statuses issued by one scope. Assertion IDs are local to the
+/// scope that issued them, so a nonempty map records its owner; queries check
+/// it against the scope asked, and maps from different scopes never merge.
+#[derive(Clone, Debug, Default)]
+pub struct AssertionMap {
+    owner: Option<Rc<()>>,
+    statuses: Arc<HashMap<AssertionId, AssertionStatus>>,
+}
+
+impl AssertionMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.statuses.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.statuses.len()
+    }
+
+    /// The assertions in this map, in no particular order.
+    pub fn ids(&self) -> impl Iterator<Item = AssertionId> + '_ {
+        self.statuses.keys().copied()
+    }
+
+    pub fn get(&self, id: AssertionId) -> Option<&AssertionStatus> {
+        self.statuses.get(&id)
+    }
+
+    /// The recorded statuses, in no particular order.
+    pub fn values(&self) -> impl Iterator<Item = &AssertionStatus> + '_ {
+        self.statuses.values()
+    }
+
+    /// Record `status` for `id`, issued by `scope`, replacing an earlier one.
+    #[cfg(test)]
+    pub(crate) fn insert(
+        &mut self,
+        scope: &AssertionScope,
+        id: AssertionId,
+        status: AssertionStatus,
+    ) {
+        self.check_owner(scope, "combined");
+        self.owner = Some(scope.identity.clone());
+        Arc::make_mut(&mut self.statuses).insert(id, status);
+    }
+
+    /// Record `status` for `id`, issued by `scope`, unless `id` has one.
+    #[cfg(test)]
+    pub(crate) fn insert_if_absent(
+        &mut self,
+        scope: &AssertionScope,
+        id: AssertionId,
+        status: AssertionStatus,
+    ) {
+        if !self.statuses.contains_key(&id) {
+            self.insert(scope, id, status);
+        }
+    }
+
+    /// The union of two maps of the same scope.
+    #[cfg(test)]
+    pub(crate) fn merged(&self, other: &Self) -> Self {
+        if self.is_empty() {
+            return other.clone();
+        }
+        if other.is_empty() {
+            return self.clone();
+        }
+        // Both maps are nonempty, so both have owners.
+        assert!(
+            matches!((&self.owner, &other.owner), (Some(a), Some(b)) if Rc::ptr_eq(a, b)),
+            "assertions from different evaluator scopes cannot be combined"
+        );
+        let mut merged = self.clone();
+        Arc::make_mut(&mut merged.statuses).extend(
+            other
+                .statuses
+                .iter()
+                .map(|(&id, status)| (id, status.clone())),
+        );
+        merged
+    }
+
+    /// Panic unless this map is empty or was issued by `scope`; `what` names
+    /// the operation in the message.
+    pub(crate) fn check_owner(&self, scope: &AssertionScope, what: &str) {
+        if let Some(owner) = &self.owner {
+            assert!(
+                Rc::ptr_eq(owner, &scope.identity),
+                "assertions from different evaluator scopes cannot be {what}"
+            );
+        }
+    }
+}
 
 pub const NIL_ASSERTION_ID: AssertionId = AssertionId(0);
 
@@ -95,11 +193,10 @@ struct AssertionRecord {
 
 pub struct AssertionScope {
     state: RefCell<AssertionState>,
-    /// Owned identity of this scope. Assertion IDs are local to a scope, so the
-    /// reference evaluator tags its assertion maps with this token and refuses
-    /// to combine maps from different scopes.
-    #[cfg(test)]
-    identity: std::rc::Rc<()>,
+    /// Owned identity of this scope. Assertion IDs are local to a scope, so an
+    /// `AssertionMap` records the identity of the scope that issued it, and
+    /// queries and merges compare identities by pointer.
+    identity: Rc<()>,
 }
 
 struct AssertionState {
@@ -125,15 +222,8 @@ impl AssertionScope {
                 members: HashMap::new(),
                 tree: ScopeTree::new(),
             }),
-            #[cfg(test)]
-            identity: std::rc::Rc::new(()),
+            identity: Rc::new(()),
         }
-    }
-
-    /// The token identifying this scope (see `identity`).
-    #[cfg(test)]
-    pub(crate) fn identity(&self) -> &std::rc::Rc<()> {
-        &self.identity
     }
 
     pub fn new_leaf(&self, name: &str) -> AssertionId {
@@ -205,22 +295,26 @@ impl AssertionScope {
         }
     }
 
-    pub fn is_ok(&self, fates: &HashMap<AssertionId, AssertionStatus>) -> bool {
-        fates.values().all(|s| matches!(s, AssertionStatus::Passed))
+    pub fn is_ok(&self, fates: &AssertionMap) -> bool {
+        fates.check_owner(self, "queried");
+        fates
+            .statuses
+            .values()
+            .all(|s| matches!(s, AssertionStatus::Passed))
     }
 
-    pub fn is_err(&self, fates: &HashMap<AssertionId, AssertionStatus>) -> bool {
+    pub fn is_err(&self, fates: &AssertionMap) -> bool {
         !self.is_ok(fates)
     }
 
-    pub fn all_paths(&self, fates: &HashMap<AssertionId, AssertionStatus>) -> Vec<String> {
+    pub fn all_paths(&self, fates: &AssertionMap) -> Vec<String> {
         self.query_fates("", fates)
             .into_iter()
             .map(|(path, _)| path)
             .collect()
     }
 
-    pub fn passed_paths(&self, fates: &HashMap<AssertionId, AssertionStatus>) -> Vec<String> {
+    pub fn passed_paths(&self, fates: &AssertionMap) -> Vec<String> {
         self.query_fates("", fates)
             .into_iter()
             .filter(|(_, status)| matches!(status, AssertionStatus::Passed))
@@ -228,7 +322,7 @@ impl AssertionScope {
             .collect()
     }
 
-    pub fn failed_paths(&self, fates: &HashMap<AssertionId, AssertionStatus>) -> Vec<String> {
+    pub fn failed_paths(&self, fates: &AssertionMap) -> Vec<String> {
         self.query_fates("", fates)
             .into_iter()
             .filter(|(_, status)| matches!(status, AssertionStatus::Failed(_)))
@@ -236,7 +330,7 @@ impl AssertionScope {
             .collect()
     }
 
-    pub fn assert_all_passed(&self, fates: &HashMap<AssertionId, AssertionStatus>) {
+    pub fn assert_all_passed(&self, fates: &AssertionMap) {
         let failed = self.failed_paths(fates);
         assert!(
             self.is_ok(fates) && failed.is_empty(),
@@ -244,11 +338,7 @@ impl AssertionScope {
         );
     }
 
-    pub fn assert_all_passed_at(
-        &self,
-        expected_path: &str,
-        fates: &HashMap<AssertionId, AssertionStatus>,
-    ) {
+    pub fn assert_all_passed_at(&self, expected_path: &str, fates: &AssertionMap) {
         let failed_under_path: Vec<_> = self
             .query_fates(expected_path, fates)
             .into_iter()
@@ -272,33 +362,31 @@ impl AssertionScope {
         );
     }
 
-    pub fn assert_any_failed_at(
-        &self,
-        expected_path: &str,
-        fates: &HashMap<AssertionId, AssertionStatus>,
-    ) {
+    pub fn assert_any_failed_at(&self, expected_path: &str, fates: &AssertionMap) {
         assert!(
             self.is_err(fates),
             "Expected assertion failure at '{expected_path}', but evaluation passed successfully!"
         );
-        let fates_res = self.query_fates(expected_path, fates);
-        let matches = fates_res
+        let matches = self
+            .query_fates(expected_path, fates)
             .iter()
             .any(|(p, status)| p == expected_path && matches!(status, AssertionStatus::Failed(_)));
         assert!(
             matches,
-            "Expected assertion failure at '{expected_path}', but actual failed assertion paths were: {fates_res:?}"
+            "Expected assertion failure at '{expected_path}', but actual failed assertion paths were: {:?}",
+            self.failed_paths(fates)
         );
     }
 
     fn query_fates(
         &self,
         path_prefix: &str,
-        fates: &HashMap<AssertionId, AssertionStatus>,
+        fates: &AssertionMap,
     ) -> Vec<(String, AssertionStatus)> {
+        fates.check_owner(self, "queried");
         let mut results = Vec::new();
         let mut state = self.state.borrow_mut();
-        let mut sorted_fates: Vec<_> = fates.iter().collect();
+        let mut sorted_fates: Vec<_> = fates.statuses.iter().collect();
         sorted_fates.sort_by_key(|(id, _)| id.0);
 
         let mut group_fates = HashMap::new();
