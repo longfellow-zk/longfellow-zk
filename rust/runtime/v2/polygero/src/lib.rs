@@ -22,9 +22,9 @@
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
-//! rows, `joint` coordinates tuples, and `transcript` owns message framing and
-//! challenge rounds. V2 Merkle owns the column authentication codecs and tree.
-//! Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
+//! rows, `joint` coordinates tuples, `participant` traverses them, and `transcript`
+//! owns message framing and challenge rounds. V2 Merkle owns the column authentication codecs and
+//! tree. Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
 //! Standalone callers construct immutable static statements with `LinearStatement::new`,
 //! which hashes all coefficients and targets. Internal frontends derive A*w+b=0
 //! from their previously absorbed source messages and challenges.
@@ -47,6 +47,8 @@ use crate::runtime::v2::merkle::hash;
 pub mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod param;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod participant;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod polynomials;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

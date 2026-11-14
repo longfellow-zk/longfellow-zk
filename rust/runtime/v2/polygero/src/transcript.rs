@@ -67,7 +67,7 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
         batching_samples,
     }
 }
-// Tuple traversal lives in joint; all transcript framing and round transitions
+// Tuple traversal lives in participant; all transcript framing and round transitions
 // live here, shared by both roles. Binding completes before squeezing begins.
 pub(super) fn absorb_statement(
     t: &mut Writing<'_>,
