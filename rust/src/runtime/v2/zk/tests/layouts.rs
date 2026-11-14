@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    core::proto::{
-        v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
-        SerializableField,
+    core::{
+        algebra::SerializableField,
+        proto::v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
     },
     runtime::{
         algebra::{
@@ -219,9 +219,9 @@ fn test_zk_prover_verifier_end_to_end() {
 
 #[test]
 fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
-    use crate::core::proto::{
-        v1::{compute_id, CircuitReader, CircuitWriter},
-        FieldID,
+    use crate::core::{
+        algebra::FieldID,
+        proto::v1::{compute_id, CircuitReader, CircuitWriter},
     };
 
     let f = Gf2_128Field::new();

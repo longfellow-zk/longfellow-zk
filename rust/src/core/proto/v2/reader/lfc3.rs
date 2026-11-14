@@ -4,16 +4,19 @@ use std::io::{BufRead, Read};
 
 use super::CircuitReader;
 use crate::{
-    core::proto::{
-        uleb::read_uleb128_max4_u32,
-        v2::{
-            self,
-            directory::{self, LayerDirectory, StreamDirectory, REVISION},
-            limits::*,
-            uleb::read_size,
-            Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Segments, Stream,
+    core::{
+        algebra::SerializableField,
+        proto::{
+            uleb::read_uleb128_max4_u32,
+            v2,
+            v2::{
+                directory,
+                directory::{LayerDirectory, StreamDirectory, REVISION},
+                limits::*,
+                uleb::read_size,
+                Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Segments, Stream,
+            },
         },
-        SerializableField,
     },
     util::ceil_log2,
 };

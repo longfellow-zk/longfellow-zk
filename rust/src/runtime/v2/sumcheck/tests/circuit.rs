@@ -2,13 +2,10 @@
 //! V2 streams must prove the same polynomial without a One wire.
 use crate::{
     core::{
-        algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
-        proto::{
-            v2::{
-                Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
-                RawCircuitBuilder, Stream,
-            },
-            FieldID,
+        algebra::{AlgebraicField, FieldID, SerializableField, SupportsU64Conversions},
+        proto::v2::{
+            Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
+            RawCircuitBuilder, Stream,
         },
     },
     runtime::{

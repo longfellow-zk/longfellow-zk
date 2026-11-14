@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The mdoc envelope: version `MDA7`, a composed proof body, the final seal.
 use crate::{
-    core::proto::SerializableField,
+    core::algebra::SerializableField,
     runtime::{
         algebra::RuntimeField,
         v2::proto::composed::{ComposedGeometry, ComposedProof},

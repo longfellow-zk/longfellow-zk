@@ -264,11 +264,10 @@ fn records_have_their_exact_arities_and_runs_retain_deltas() {
 #[test]
 fn v2_reader_rejects_quadratic_only_archives() {
     use crate::core::{
-        algebra::AlgebraicField,
+        algebra::{AlgebraicField, FieldID},
         proto::{
             v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
             v2::CircuitReader,
-            FieldID,
         },
     };
     let f = crate::runtime::algebra::p256::P256Field::new();

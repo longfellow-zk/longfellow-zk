@@ -12,11 +12,8 @@ use crate::{
         logic::{Logic, LogicIO},
     },
     core::{
-        algebra::{SerializableField, SupportsU64Conversions},
-        proto::{
-            v1::{CircuitReader, CircuitWriter},
-            FieldID,
-        },
+        algebra::{FieldID, SerializableField, SupportsU64Conversions},
+        proto::v1::{CircuitReader, CircuitWriter},
     },
     runtime::algebra::RuntimeField,
 };

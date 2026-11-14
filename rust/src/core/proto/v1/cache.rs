@@ -43,7 +43,7 @@ struct CacheEntry {
 /// Longfellow's exact 2-way set-associative LRU cache strategy over a fixed prime-sized table
 /// (typically 8209). This trades occasional deduplication misses for $O(1)$ allocation-free lookups
 /// and minimal memory footprint.
-pub struct ApproximateDeltaTableBuilder {
+pub(super) struct ApproximateDeltaTableBuilder {
     pub deltas: Vec<TermDelta>,
     cache: Vec<CacheEntry>,
 }
@@ -53,7 +53,7 @@ impl ApproximateDeltaTableBuilder {
     ///
     /// For best hash distribution, `cache_size` should be a prime number (e.g. 8209).
     #[must_use]
-    pub fn new(cache_size: usize) -> Self {
+    pub(super) fn new(cache_size: usize) -> Self {
         Self {
             deltas: Vec::new(),
             cache: vec![CacheEntry::default(); cache_size],
@@ -64,7 +64,7 @@ impl ApproximateDeltaTableBuilder {
     /// `self.deltas`.
     ///
     /// Uses Longfellow's exact FNV-1a derived 64-bit hash function and 2-way LRU eviction policy.
-    pub fn dedup(&mut self, dg: u32, dh0: u32, dh1: u32, vi: u32) -> u32 {
+    pub(super) fn dedup(&mut self, dg: u32, dh0: u32, dh1: u32, vi: u32) -> u32 {
         let d = TermDelta {
             g: dg,
             h: [dh0, dh1],
@@ -118,7 +118,7 @@ impl ApproximateDeltaTableBuilder {
 
 /// Exact delta table builder using a standard `HashMap` for perfect, collision-free deduplication.
 /// Typically used at compiler/compile time where optimal compression outweighs runtime allocations.
-pub struct ExactDeltaTableBuilder {
+pub(super) struct ExactDeltaTableBuilder {
     pub deltas: Vec<TermDelta>,
     map: std::collections::HashMap<TermDelta, u32>,
 }
@@ -131,14 +131,14 @@ impl Default for ExactDeltaTableBuilder {
 
 impl ExactDeltaTableBuilder {
     #[must_use]
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             deltas: Vec::new(),
             map: std::collections::HashMap::new(),
         }
     }
 
-    pub fn dedup(&mut self, dg: u32, dh0: u32, dh1: u32, vi: u32) -> u32 {
+    pub(super) fn dedup(&mut self, dg: u32, dh0: u32, dh1: u32, vi: u32) -> u32 {
         let d = TermDelta {
             g: dg,
             h: [dh0, dh1],

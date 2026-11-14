@@ -48,7 +48,7 @@ fn check_constant_encoding<F: AlgebraicField + SerializableField>(field: &F) {
 #[test]
 fn serializable_fields_use_canonical_constant_encodings() {
     use crate::{compile::algebra as compile, runtime::algebra as runtime};
-    check_constant_encoding(&crate::core::algebra::gf2_128::Gf2_128Field::new());
+    check_constant_encoding(&crate::core::algebra::Gf2_128Field::new());
     check_constant_encoding(&compile::gf2_128::Gf2_128Field::new());
     check_constant_encoding(&compile::p256::P256Field::new());
     check_constant_encoding(&compile::q256::Q256Field::new());

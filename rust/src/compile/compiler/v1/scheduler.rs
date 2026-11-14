@@ -27,9 +27,11 @@ use crate::{
         },
         logic::scope::AssertionId,
     },
-    core::proto::v1::{
-        canonical_term, compare_term, compute_id, Circuit, CircuitGeometry, Layer, RawCircuit,
-        Term, TermDelta,
+    core::proto::{
+        v1::{
+            canonical_term, compare_term, compute_id, Circuit, Layer, RawCircuit, Term, TermDelta,
+        },
+        CircuitGeometry,
     },
     util::ceil_log2,
 };

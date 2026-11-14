@@ -16,11 +16,10 @@ pub mod archive;
 mod metadata;
 mod reader;
 mod stream;
-pub mod uleb;
+mod uleb;
 pub mod v1;
 pub mod v2;
 
-pub use archive::{ArchiveEntry, CircuitArchive, CircuitArchiveBuilder};
 pub use uleb::*;
 
 pub const MAX_LOGW: usize = 40;
@@ -31,10 +30,8 @@ pub fn sane_logw(logw: usize) -> bool {
     logw <= MAX_LOGW && logw < (usize::BITS as usize)
 }
 
-pub use metadata::{CircuitGeometry, DigestBytes, FieldID};
+pub use metadata::{CircuitGeometry, DigestBytes};
 pub use stream::Stream;
-
-pub use crate::core::algebra::SerializableField;
 
 #[cfg(test)]
 mod tests;

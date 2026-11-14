@@ -43,7 +43,7 @@ pub use q256::{Q256Element, Q256Field};
 pub use range_interpolation::{EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory};
 pub use secp256r1::Secp256r1 as RuntimeSecp256r1;
 
-pub use crate::core::algebra::{AlgebraicField, Curve as RuntimeCurve, ElementOf};
+pub use crate::core::algebra::{ec::Curve as RuntimeCurve, AlgebraicField, ElementOf};
 
 /// Stable trait alias bundling requirements for zero-knowledge proving.
 pub trait ZkField<const W: usize>:

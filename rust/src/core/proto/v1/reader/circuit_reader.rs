@@ -14,7 +14,10 @@
 
 //! V1 reader state and the limits shared by the LFC1 and LFC2 parsers.
 
-use crate::core::proto::{reader::*, v1::RawCircuit, FieldID, SerializableField};
+use crate::core::{
+    algebra::{FieldID, SerializableField},
+    proto::{reader::*, v1::RawCircuit},
+};
 
 pub struct CircuitReader<'a, F> {
     pub(in crate::core::proto::v1) f: &'a F,

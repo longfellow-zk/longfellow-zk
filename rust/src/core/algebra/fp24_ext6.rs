@@ -14,8 +14,7 @@
 
 //! Shared arithmetic and canonical encoding of `F_q[x] / (x^6 - 7)`.
 
-use super::fp24::{add_base, invert_base, mul_base, sub_base};
-pub use super::fp24::{BASE_SERIALIZED_SIZE, Q};
+use super::fp24::{add_base, invert_base, mul_base, sub_base, BASE_SERIALIZED_SIZE, Q};
 
 pub const BETA: u32 = 7;
 pub const EXTENSION_DEGREE: usize = 6;

@@ -15,7 +15,7 @@
 //! Native v2 LFC3 parsing.
 
 mod lfc3;
-use crate::core::proto::{FieldID, SerializableField};
+use crate::core::algebra::{FieldID, SerializableField};
 
 pub struct CircuitReader<'a, F> {
     pub(super) f: &'a F,

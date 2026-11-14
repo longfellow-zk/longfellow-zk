@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod reader;
-pub mod writer;
+mod reader;
+mod writer;
 
 pub use reader::from_stream_lfa1;
 pub use writer::to_bytes_lfa1;

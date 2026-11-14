@@ -15,7 +15,7 @@
 //! Longfellow v2 private assignment encoding.
 
 use crate::{
-    core::algebra::{Curve, Nat},
+    core::algebra::{ec::Curve, Nat},
     mdoc::{
         circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
@@ -81,8 +81,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
                 .contains(&attribute.mso_digest_offset_in_preimage)
         })
         .collect();
-    let mso_sha_derived =
-        crate::circuits::sha256msg::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
+    let mso_sha_derived = crate::circuits::sha256msg::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
@@ -122,7 +121,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
         (preimage_base_offset + parsed.value_digests_offset_in_mso) as u64,
         K_HASH_INDEX_BITS,
     );
-    builder.push_bits_len((preimage_base_offset + namespace.key_offset) as u64, K_HASH_INDEX_BITS);
+    builder.push_bits_len(
+        (preimage_base_offset + namespace.key_offset) as u64,
+        K_HASH_INDEX_BITS,
+    );
 
     // 5. attribute_witnesses
     push_witness_attrs(req_attrs, &attributes, &mut builder)?;
@@ -197,30 +199,28 @@ where
     C: Curve<4, F = F, N = F::N>,
     F::N: Nat<4>,
 {
-    let (issuer_sig_given, issuer_sig_derived) =
-        crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
-            secp256r1,
-            issuer_pk,
-            &parsed.issuer_sig_digest,
-            &parsed.issuer_sig_r,
-            &parsed.issuer_sig_s,
-            runtime_field,
-            q256,
-        )?;
+    let (issuer_sig_given, issuer_sig_derived) = crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
+        secp256r1,
+        issuer_pk,
+        &parsed.issuer_sig_digest,
+        &parsed.issuer_sig_r,
+        &parsed.issuer_sig_s,
+        runtime_field,
+        q256,
+    )?;
 
-    let (device_sig_given, device_sig_derived) =
-        crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
-            secp256r1,
-            &(
-                runtime_field.reduce_nat(&parsed.device_pk.0),
-                runtime_field.reduce_nat(&parsed.device_pk.1),
-            ),
-            &parsed.device_sig_digest,
-            &parsed.device_sig_r,
-            &parsed.device_sig_s,
-            runtime_field,
-            q256,
-        )?;
+    let (device_sig_given, device_sig_derived) = crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
+        secp256r1,
+        &(
+            runtime_field.reduce_nat(&parsed.device_pk.0),
+            runtime_field.reduce_nat(&parsed.device_pk.1),
+        ),
+        &parsed.device_sig_digest,
+        &parsed.device_sig_r,
+        &parsed.device_sig_s,
+        runtime_field,
+        q256,
+    )?;
 
     let mut builder = AssignmentBuilder::new(runtime_field);
     // The leading private inputs are the shared values of the layout table,

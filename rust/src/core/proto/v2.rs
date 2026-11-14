@@ -4,15 +4,15 @@
 //! `k` indexes the circuit's coefficient table. Coordinate deltas wrap modulo
 //! 2^32; coefficient indices are absolute, with no reserved entries.
 //! Quadratic and linear records whose coefficient is zero are assertions.
-use super::SerializableField;
+use crate::core::algebra::SerializableField;
 
 pub mod archive;
 mod directory;
 pub(crate) mod encoding;
 pub mod limits;
-pub mod reader;
+mod reader;
 mod uleb;
-pub mod writer;
+mod writer;
 pub use encoding::compute_id;
 pub use reader::CircuitReader;
 #[cfg(test)]

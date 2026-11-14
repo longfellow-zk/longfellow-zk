@@ -1,14 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Write the LFC3 allocation directory before its contiguous stream payloads.
 use super::CircuitWriter;
-use crate::core::proto::{
-    uleb::{serialize_uleb128_max4, serialize_uleb128_max4_u32},
-    v2::{
-        self,
-        directory::{LayerDirectory, StreamDirectory, REVISION},
-        Circuit, Stream,
+use crate::core::{
+    algebra::SerializableField,
+    proto::{
+        uleb::{serialize_uleb128_max4, serialize_uleb128_max4_u32},
+        v2,
+        v2::{
+            directory::{LayerDirectory, StreamDirectory, REVISION},
+            Circuit, Stream,
+        },
     },
-    SerializableField,
 };
 
 fn coordinate(bytes: &mut Vec<u8>, delta: u32) {

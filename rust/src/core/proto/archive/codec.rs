@@ -28,14 +28,14 @@ impl CircuitArchive {
     /// Serializes to LFA2 format (with metadata fields).
     #[must_use]
     pub fn to_bytes_lfa2(&self) -> Vec<u8> {
-        lfa2::writer::to_bytes_lfa2(self)
+        lfa2::to_bytes_lfa2(self)
     }
 
     /// Serializes to LFA1 format (legacy minimal format without header metadata).
     /// Asserts that no metadata information is lost.
     #[must_use]
     pub fn to_bytes_lfa1(&self) -> Vec<u8> {
-        lfa1::writer::to_bytes_lfa1(self)
+        lfa1::to_bytes_lfa1(self)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
@@ -50,9 +50,9 @@ impl CircuitArchive {
 
         if buf.starts_with(LFA2_MAGIC) {
             stream.consume(4);
-            lfa2::reader::from_stream_lfa2_body(stream)
+            lfa2::from_stream_lfa2_body(stream)
         } else if !buf.is_empty() && buf[0] == 1 {
-            lfa1::reader::from_stream_lfa1(stream)
+            lfa1::from_stream_lfa1(stream)
         } else {
             Err(format!(
                 "Unsupported archive header: expected b\"LFA2\" magic or 0x01 (LFA1), got {:?}",

@@ -40,7 +40,7 @@ pub const GF2_16_BASIS_V1: [u128; 16] = [
     0x18d4_bbb6_833c_5ae8_b683_0123_50e5_5753,
 ];
 
-pub const CANTOR_BASIS: [u128; 128] = [
+pub const CANTOR_BASIS_U128: [u128; 128] = [
     0x0000_0000_0000_0000_0000_0000_0000_0001,
     0x295a_c0b1_f473_1af9_676a_ac9f_a4b2_0b08,
     0xa213_4422_cd40_54c9_ff10_99c3_1bbe_8f22,

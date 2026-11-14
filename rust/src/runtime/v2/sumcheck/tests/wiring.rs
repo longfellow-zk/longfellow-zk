@@ -14,11 +14,8 @@
 
 use crate::{
     core::{
-        algebra::{SupportsU128Conversions, SupportsU64Conversions},
-        proto::{
-            v1::{Layer, TermDelta},
-            SerializableField,
-        },
+        algebra::{SerializableField, SupportsU128Conversions, SupportsU64Conversions},
+        proto::v1::{Layer, TermDelta},
     },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},

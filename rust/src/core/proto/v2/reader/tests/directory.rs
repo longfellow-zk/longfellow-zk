@@ -1,10 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::CircuitReader;
 use crate::{
-    core::proto::{
-        serialize_uleb128_max4,
-        v2::{self, limits::*},
-        FieldID,
+    core::{
+        algebra::FieldID,
+        proto::{serialize_uleb128_max4, v2, v2::limits::*},
     },
     runtime::algebra::gf2_128::Gf2_128Field,
 };

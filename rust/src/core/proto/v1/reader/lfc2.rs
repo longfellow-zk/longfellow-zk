@@ -14,10 +14,12 @@
 
 use super::CircuitReader;
 use crate::{
-    core::proto::{
-        uleb::{read_uleb128_max4, read_uleb128_max4_u32},
-        v1::{Circuit, Layer, RawCircuit, TermDelta},
-        SerializableField,
+    core::{
+        algebra::SerializableField,
+        proto::{
+            uleb::{read_uleb128_max4, read_uleb128_max4_u32},
+            v1::{Circuit, Layer, RawCircuit, TermDelta},
+        },
     },
     util::ceil_log2,
 };

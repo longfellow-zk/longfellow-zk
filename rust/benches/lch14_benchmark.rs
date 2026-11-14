@@ -24,7 +24,7 @@ fn bench_lch14(c: &mut Criterion) {
     group.sample_size(10);
 
     let subfield = longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(
-        &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
+        &longfellow_zk::core::algebra::GF2_16_BASIS_V1,
     );
     let fft = Lch14::new(&gf2, subfield.basis());
 

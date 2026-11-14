@@ -92,7 +92,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     let gf2_runtime = longfellow_zk::runtime::algebra::gf2_128::Gf2_128RuntimeField::new();
     let p256_runtime = longfellow_zk::runtime::algebra::p256::P256Field::new();
     let subfield = longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(
-        &longfellow_zk::core::algebra::proto::GF2_16_BASIS_V1,
+        &longfellow_zk::core::algebra::GF2_16_BASIS_V1,
     );
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2_runtime, subfield.basis());
     let p256_2 = Fp2Field::new(&p256_runtime);

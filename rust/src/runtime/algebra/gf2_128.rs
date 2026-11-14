@@ -99,7 +99,7 @@ impl Gf2_128Field {
         let mut poly_evaluation_points = [Gf2_128::default(); 6];
         for (pt, raw) in poly_evaluation_points
             .iter_mut()
-            .zip(crate::core::algebra::proto::POLY_EVALUATION_POINTS)
+            .zip(crate::core::algebra::POLY_EVALUATION_POINTS)
         {
             *pt = Gf2_128::from(raw);
         }

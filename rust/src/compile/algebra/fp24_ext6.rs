@@ -15,13 +15,16 @@
 //! Compiler field for the sextic extension `F_q[x] / (x^6 - 7)`.
 //! Its elements remain distinct from runtime elements.
 
-use crate::core::algebra::fp24_ext6::{
-    add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
+pub use crate::core::algebra::{
+    fp24::{BASE_SERIALIZED_SIZE, Q},
+    fp24_ext6::{BETA, EXTENSION_DEGREE, SERIALIZED_SIZE},
 };
-pub use crate::core::algebra::fp24_ext6::{
-    BASE_SERIALIZED_SIZE, BETA, EXTENSION_DEGREE, Q, SERIALIZED_SIZE,
+use crate::core::algebra::{
+    fp24_ext6::{
+        add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
+    },
+    AlgebraicField, BareField, SerializableField, SupportsU64Conversions,
 };
-use crate::core::algebra::{AlgebraicField, BareField, SerializableField, SupportsU64Conversions};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CompileElement {

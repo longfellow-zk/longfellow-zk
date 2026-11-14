@@ -14,7 +14,11 @@
 
 use num_bigint::BigUint;
 
-use crate::core::algebra::{ec::*, nat::Nat, AlgebraicField, BareField, Curve, ElementOf};
+use crate::core::algebra::{
+    ec::{Curve, *},
+    nat::Nat,
+    AlgebraicField, BareField, ElementOf,
+};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct TestNat(BigUint);

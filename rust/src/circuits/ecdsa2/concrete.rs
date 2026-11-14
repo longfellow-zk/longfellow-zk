@@ -13,15 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    circuits::ec::{
-        self as ec_concrete,
-        Pt2, Pt3,
-    },
-    core::algebra::{BareField, Curve, Nat, NatOf, SupportsNatConversions},
+    circuits::ec::{self as ec_concrete, Pt2, Pt3},
+    core::algebra::{ec::Curve, BareField, Nat, NatOf, SupportsNatConversions},
 };
 
 #[cfg(test)]
-
 mod tests;
 
 #[derive(Clone, Debug)]

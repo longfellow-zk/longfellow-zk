@@ -15,8 +15,9 @@
 //! Runtime arithmetic, compact serialization and sampling in the sextic field.
 //! This module has no compiler or circuit dependencies.
 
-pub use crate::core::algebra::fp24_ext6::{
-    BASE_SERIALIZED_SIZE, BETA, EXTENSION_DEGREE, Q, SERIALIZED_SIZE,
+pub use crate::core::algebra::{
+    fp24::{BASE_SERIALIZED_SIZE, Q},
+    fp24_ext6::{BETA, EXTENSION_DEGREE, SERIALIZED_SIZE},
 };
 use crate::{
     core::algebra::{

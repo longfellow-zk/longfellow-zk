@@ -2,9 +2,9 @@
 //! Compress the three native v2 streams.
 use std::{collections::HashMap, hash::Hash};
 
-use crate::core::proto::{
-    v2::{Circuit, Layer, RawCircuit, Stream},
-    SerializableField,
+use crate::core::{
+    algebra::SerializableField,
+    proto::v2::{Circuit, Layer, RawCircuit, Stream},
 };
 
 fn compress<T: Copy + Eq + Hash>(stream: &Stream<T>) -> Stream<T> {

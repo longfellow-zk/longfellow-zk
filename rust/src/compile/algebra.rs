@@ -21,13 +21,13 @@ pub mod p256;
 pub mod q256;
 pub mod secp256r1;
 
-pub use crate::core::algebra::{AlgebraicField, Curve, ElementOf};
 pub use field::{CompileBinaryField, CompileField};
 pub use nat::CompileNat;
+
+pub use crate::core::algebra::{ec::Curve, AlgebraicField, ElementOf};
 
 #[cfg(any(test, feature = "tooling"))]
 pub mod fp24_ext6;
 
 #[cfg(test)]
-
 mod tests;

@@ -27,10 +27,10 @@ pub use crate::{
         },
     },
     core::{
-        algebra::SerializableField,
+        algebra::{FieldID, SerializableField},
         proto::{
             v2::{Circuit, Layer, RawCircuit},
-            CircuitGeometry, DigestBytes, FieldID,
+            CircuitGeometry, DigestBytes,
         },
     },
 };

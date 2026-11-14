@@ -53,10 +53,7 @@ fn evaluation_matrix(
 fn binary_mixed_transform_all_intervals_and_nonzero_tails() {
     let f = Gf2_128RuntimeField::new();
     let ordinary: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    for basis in [
-        &crate::core::algebra::proto::GF2_16_BASIS_V1[..8],
-        &ordinary,
-    ] {
+    for basis in [&crate::core::algebra::GF2_16_BASIS_V1[..8], &ordinary] {
         let sf = BinarySubfieldV1::new(basis);
         let fft = Lch14::new(&f, sf.basis());
         for log in 0..=6 {
@@ -113,10 +110,7 @@ fn binary_mixed_transform_all_intervals_and_nonzero_tails() {
 fn binary_mixed_transform_shifted_domains() {
     let f = Gf2_128RuntimeField::new();
     let ordinary: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    for basis in [
-        &crate::core::algebra::proto::GF2_16_BASIS_V1[..8],
-        &ordinary,
-    ] {
+    for basis in [&crate::core::algebra::GF2_16_BASIS_V1[..8], &ordinary] {
         let sf = BinarySubfieldV1::new(basis);
         let fft = Lch14::new(&f, sf.basis());
         for log in 0..=5 {

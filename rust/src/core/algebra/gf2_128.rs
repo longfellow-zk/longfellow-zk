@@ -40,7 +40,7 @@ pub struct Gf2_128Field {
 impl Gf2_128Field {
     pub fn new() -> Self {
         Self {
-            cantor_basis: super::proto::CANTOR_BASIS.map(Gf2_128),
+            cantor_basis: super::proto::CANTOR_BASIS_U128.map(Gf2_128),
         }
     }
 

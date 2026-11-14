@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use super::CircuitWriter;
-use crate::core::proto::{
-    uleb::{serialize_uleb128_max4, serialize_uleb128_max4_u32},
-    v1::Circuit,
-    SerializableField,
+use crate::core::{
+    algebra::SerializableField,
+    proto::{
+        uleb::{serialize_uleb128_max4, serialize_uleb128_max4_u32},
+        v1::Circuit,
+    },
 };
 
 #[inline(always)]

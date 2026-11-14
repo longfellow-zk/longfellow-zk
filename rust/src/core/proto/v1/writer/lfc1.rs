@@ -15,9 +15,9 @@
 use std::collections::HashMap;
 
 use super::CircuitWriter;
-use crate::core::proto::{
-    v1::{Circuit, BYTES_PER_SIZE_T},
-    SerializableField,
+use crate::core::{
+    algebra::SerializableField,
+    proto::v1::{Circuit, BYTES_PER_SIZE_T},
 };
 
 fn serialize_num(bytes: &mut Vec<u8>, mut g: usize) {
@@ -33,7 +33,7 @@ fn serialize_num(bytes: &mut Vec<u8>, mut g: usize) {
     }
 }
 
-fn serialize_field_id(bytes: &mut Vec<u8>, id: crate::core::proto::FieldID) {
+fn serialize_field_id(bytes: &mut Vec<u8>, id: crate::core::algebra::FieldID) {
     serialize_num(bytes, id as usize);
 }
 

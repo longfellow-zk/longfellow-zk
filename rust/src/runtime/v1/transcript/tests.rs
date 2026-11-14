@@ -103,9 +103,8 @@ fn test_transcript_cpp_compatibility() {
 
 #[test]
 fn test_transcript_gf2_128_subfield_sampling() {
-    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
+    let sf =
+        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let init = [1u8, 2, 3, 4];
     let mut ts = Transcript::new(&init);
 

@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use crate::{
     compile::algebra::p256::P256Field as P256CompileField,
     core::algebra::{
-        AlgebraicField, Curve, Nat, SerializableField, SupportsNatConversions,
+        ec::Curve, AlgebraicField, Nat, SerializableField, SupportsNatConversions,
         SupportsU64Conversions,
     },
     runtime::algebra::{

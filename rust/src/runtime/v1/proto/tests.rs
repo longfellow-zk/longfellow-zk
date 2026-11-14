@@ -353,7 +353,7 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
         },
     };
 
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let sub_val = sf.embed(10);
     let field_val = f.u128_to_element(11);
     assert!(sf.contains(&sub_val), "sub_val should be in subfield");
@@ -383,7 +383,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     };
 
     let f = Gf2_128Field::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let geom = LigeroGeometry {
         block: 0,
         dblock: 0,

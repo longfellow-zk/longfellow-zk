@@ -27,7 +27,7 @@ use crate::{
 #[test]
 fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let f = Gf2_128Field::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let interpolation = BinaryInterpolatorFactory::new(&f, sf.basis());
     let context = ZkContext {
         f: &f,

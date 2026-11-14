@@ -83,10 +83,10 @@ fn test_circuit_archive_lfa1_roundtrip() {
         (boolean_gf2.assert_true("assert_b", &bb), 1, 0)
     });
 
-    let w_sig = CircuitWriter::new(&f256, crate::core::proto::FieldID::P256);
+    let w_sig = CircuitWriter::new(&f256, crate::core::algebra::FieldID::P256);
     let sig_bytes = w_sig.to_bytes_lfc1(&c_sig);
 
-    let w_hash = CircuitWriter::new(&fgf2, crate::core::proto::FieldID::Gf2_128);
+    let w_hash = CircuitWriter::new(&fgf2, crate::core::algebra::FieldID::Gf2_128);
     let hash_bytes = w_hash.to_bytes_lfc1(&c_hash);
 
     let mut builder = CircuitArchiveBuilder::new();
@@ -176,10 +176,10 @@ fn test_circuit_archive_legacy_concatenated_stream() {
         (boolean_gf2.assert_true("assert_b", &bb), 1, 0)
     });
 
-    let w_sig = CircuitWriter::new(&f256, crate::core::proto::FieldID::P256);
+    let w_sig = CircuitWriter::new(&f256, crate::core::algebra::FieldID::P256);
     let sig_bytes = w_sig.to_bytes_lfc1(&c_sig);
 
-    let w_hash = CircuitWriter::new(&fgf2, crate::core::proto::FieldID::Gf2_128);
+    let w_hash = CircuitWriter::new(&fgf2, crate::core::algebra::FieldID::Gf2_128);
     let hash_bytes = w_hash.to_bytes_lfc1(&c_hash);
 
     let mut concatenated = Vec::new();

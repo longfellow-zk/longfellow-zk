@@ -22,7 +22,7 @@ use circuit_reader::validate_raw_circuit;
 pub use circuit_reader::CircuitReader;
 
 use super::Circuit;
-use crate::core::proto::{reader::*, SerializableField};
+use crate::core::{algebra::SerializableField, proto::reader::*};
 
 impl<F: SerializableField> CircuitReader<'_, F> {
     pub fn from_bytes<'b>(

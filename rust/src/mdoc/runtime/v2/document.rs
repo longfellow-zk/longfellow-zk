@@ -3,7 +3,7 @@
 //! These checks give early errors; the circuit remains the acceptance rule.
 use super::inputs::timestamp_digits;
 use crate::{
-    core::algebra::{AlgebraicField, Curve, SerializableField},
+    core::algebra::{ec::Curve, AlgebraicField, SerializableField},
     mdoc::circuits::cbor::{
         mdoc::{map_entry_unique, parse_mdoc_with_mso_check, MdocParseError, ParsedMdoc},
         parse::{CborElement, CborValue},

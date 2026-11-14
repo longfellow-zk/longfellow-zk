@@ -118,7 +118,7 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
     );
     draws.exhausted();
     for count in [8, 16] {
-        let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1[..count]);
+        let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1[..count]);
         let mut subfield_draws = Draws::new([vec![0xff; count / 8]]);
         assert_eq!(
             sf.sample(|n| subfield_draws.bytes(n)),

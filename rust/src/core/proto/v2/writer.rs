@@ -15,7 +15,7 @@
 //! Native v2 LFC3 serialization.
 
 mod lfc3;
-use crate::core::proto::{FieldID, SerializableField};
+use crate::core::algebra::{FieldID, SerializableField};
 
 /// Writes LFC3 circuits. The header's field identifier comes from the field
 /// itself, so the tag, the circuit ID and the arithmetic cannot disagree.

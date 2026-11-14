@@ -15,7 +15,7 @@
 //! Longfellow v1 proto.
 
 use crate::{
-    core::proto::SerializableField,
+    core::algebra::SerializableField,
     runtime::{
         algebra::{ElementOf, RuntimeField},
         v1::{

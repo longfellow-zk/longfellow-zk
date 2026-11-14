@@ -104,9 +104,8 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash = crate::runtime::v1::subfield::BinarySubfieldV1::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
+    let sf_hash =
+        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)

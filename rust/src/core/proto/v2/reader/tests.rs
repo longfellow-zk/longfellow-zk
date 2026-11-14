@@ -11,7 +11,7 @@ fn default_total_term_limit_matches_v2_limit() {
 
 #[test]
 fn lfc3_rejects_zero_outputs_without_panicking() {
-    use crate::core::proto::{serialize_uleb128_max4, FieldID};
+    use crate::core::{algebra::FieldID, proto::serialize_uleb128_max4};
     let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let mut bytes = b"LFC3DIR3".to_vec();
     for n in [FieldID::Gf2_128 as usize, 0, 1, 0, 0, 0, 0] {

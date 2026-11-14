@@ -16,8 +16,6 @@
 
 pub type DigestBytes = [u8; 32];
 
-pub use crate::core::algebra::FieldID;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CircuitGeometry {
     pub ninput: usize,

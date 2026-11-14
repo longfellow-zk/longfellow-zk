@@ -17,9 +17,9 @@ use crate::{
         algebra::p256::P256Field as CompileP256,
         logic::{Logic, LogicIO},
     },
-    core::proto::{
-        v1::{Circuit, CircuitReader, CircuitWriter},
-        FieldID, SerializableField,
+    core::{
+        algebra::{FieldID, SerializableField},
+        proto::v1::{Circuit, CircuitReader, CircuitWriter},
     },
     runtime::{
         algebra::{

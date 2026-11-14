@@ -16,7 +16,7 @@
 
 mod lfc1;
 mod lfc2;
-use crate::core::proto::{FieldID, SerializableField};
+use crate::core::algebra::{FieldID, SerializableField};
 
 pub struct CircuitWriter<'a, F> {
     f: &'a F,

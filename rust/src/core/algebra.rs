@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod field;
+mod field;
 pub use field::{
     AlgebraicField, BareField, Comparable, ElementOf, FieldElement, FieldID, HasLookupPoints,
     NatOf, SerializableField, SupportsNatConversions, SupportsU128Conversions,
     SupportsU64Conversions,
 };
 
-pub mod nat;
+mod nat;
 pub use nat::Nat;
 
 pub mod ec;
-pub use ec::Curve;
 
-pub mod gf2_128;
+mod gf2_128;
 pub use gf2_128::{Gf2_128, Gf2_128Field};
 
-pub mod proto;
-pub use proto::{CANTOR_BASIS as CANTOR_BASIS_U128, GF2_16_BASIS_V1, POLY_EVALUATION_POINTS};
+mod proto;
+pub use proto::{CANTOR_BASIS_U128, GF2_16_BASIS_V1, POLY_EVALUATION_POINTS};
 
 #[cfg(any(test, feature = "tooling"))]
 pub mod fp24;

@@ -545,7 +545,7 @@ fn test_rejects_insufficient_blinding_capacity() {
         block_enc: 451,
     };
     let gf2_runtime = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let factory = crate::runtime::algebra::range_interpolation::BinaryInterpolatorFactory::new(
         &gf2_runtime,
         subfield.basis(),
@@ -562,9 +562,8 @@ fn test_rejects_insufficient_blinding_capacity() {
 #[test]
 fn test_ligero_gf2_128() {
     let f = Gf2_128RuntimeField::new();
-    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
+    let sf =
+        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let make_interpolator = BinaryInterpolatorFactory::new(&f, sf.basis());
     ligero_test(&make_interpolator, &f, &sf, 3000, 300, 189, 7, 4096);
     test_ligero_verifier_failures_generic(&make_interpolator, &f, &sf);
@@ -631,7 +630,7 @@ fn test_range_capacity_includes_response_source() {
         }
     }
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     let domain = BinaryInterpolatorFactory::new(&f, sf.basis());
     let config = LigeroConfig {
         rateinv: 4,
@@ -774,7 +773,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let subfield_boundary = read_u64(data, &mut offset);
 
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::proto::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
 
     // Read W
     let mut w = Vec::with_capacity(nw);
@@ -857,9 +856,8 @@ fn test_cpp_roundtrip_gf2_128() {
         &make_interpolator,
     );
 
-    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(
-        &crate::core::algebra::proto::GF2_16_BASIS_V1,
-    );
+    let sf =
+        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
     // 1. Deserialize C++ proof using Rust's reader
     let mut r_slice = cpp_proof_bytes;
     let cpp_proof = LigeroProof::read(&mut r_slice, &param.geom, &f, &sf)

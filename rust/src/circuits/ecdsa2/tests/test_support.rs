@@ -14,9 +14,13 @@
 
 #![allow(dead_code)]
 
-use crate::circuits::ec::{affine, projective, scalar_mul};
-use crate::circuits::ecdsa2::concrete::{derived, given, ConcreteDerived, ConcreteGiven};
-use crate::core::algebra::{AlgebraicField, BareField, Curve, SupportsNatConversions};
+use crate::{
+    circuits::{
+        ec::{affine, projective, scalar_mul},
+        ecdsa2::concrete::{derived, given, ConcreteDerived, ConcreteGiven},
+    },
+    core::algebra::{ec::Curve, AlgebraicField, BareField, SupportsNatConversions},
+};
 
 pub(in crate::circuits::ecdsa2) fn sign_and_generate_given_derived<
     const W: usize,

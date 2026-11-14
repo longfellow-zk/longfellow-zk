@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::{Curve, ElementOf},
+    core::algebra::{ec::Curve, ElementOf},
     runtime::algebra::field::RuntimeSerializableField,
 };
 

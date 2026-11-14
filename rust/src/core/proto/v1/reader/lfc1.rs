@@ -14,9 +14,9 @@
 
 use super::CircuitReader;
 use crate::{
-    core::proto::{
-        v1::{Circuit, Layer, RawCircuit},
-        SerializableField,
+    core::{
+        algebra::SerializableField,
+        proto::v1::{Circuit, Layer, RawCircuit},
     },
     util::ceil_log2,
 };

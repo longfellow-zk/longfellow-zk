@@ -23,7 +23,7 @@ use crate::{
         },
         logic::AssertionScope,
     },
-    core::proto::v1::{Circuit, CircuitGeometry},
+    core::proto::{v1::Circuit, CircuitGeometry},
 };
 
 /// Compile with the historical Morton order.
