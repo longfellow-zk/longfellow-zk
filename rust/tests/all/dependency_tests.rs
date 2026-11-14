@@ -746,6 +746,11 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         ("mdoc::runtime", "applications/mdoc_zk/runtime/src"),
         ("mdoc::testcases", "applications/mdoc_zk/testcases/src"),
         ("mdoc::artifacts", "applications/mdoc_zk/artifacts/src"),
+        ("bin::prover_only", "applications/mdoc_zk/prover_only/src"),
+        (
+            "bin::verifier_only",
+            "applications/mdoc_zk/verifier_only/src",
+        ),
     ];
 
     let layer_rank = |mod_name: &str| -> u8 {
@@ -759,14 +764,14 @@ fn test_module_dependency_dag_and_layer_boundaries() {
             3
         } else if mod_name.starts_with("circuits::") {
             4
+        } else if mod_name.starts_with("bin::") {
+            8
         } else if mod_name == "tools::zk_tool" {
             7
         } else if mod_name == "mdoc::development_provider" {
             6
         } else if mod_name.starts_with("mdoc::") {
             5
-        } else if mod_name.starts_with("tools::") {
-            6
         } else {
             panic!("Unknown module {mod_name}")
         }
@@ -799,30 +804,18 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                                 | "RandomEngineV1"
                                 | "InterpolationPlanV1"
                                 | "sumcheck_v1"
-                                | "sumcheck_v2"
                                 | "zk_v1"
-                                | "zk_v2"
                                 | "ligero_v1"
                                 | "polygero"
                                 | "dual_packing"
                                 | "witness_selection"
                                 | "subfield_v1"
                                 | "transcript_v1"
-                                | "transcript_v2"
                         ) && !word.ends_with("SubfieldV1"),
                         "Versioned capability in shared implementation {}: {word}",
                         f.display()
                     );
                 }
-            }
-            if mod_name == "mdoc::circuits" {
-                assert!(
-                    !prod_content
-                        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
-                        .any(|word| word == "transcript_v2"),
-                    "protocol transcript in circuit construction: {}",
-                    f.display()
-                );
             }
             if matches!(mod_name, "runtime::v2::zk" | "mdoc::runtime") {
                 for word in prod_content.split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
@@ -872,10 +865,32 @@ fn test_module_dependency_dag_and_layer_boundaries() {
                             f.display()
                         );
                     }
-                    if matches!(mod_name, "runtime::algebra" | "runtime::random") {
+                    // Shared primitives and circuit construction are protocol-free.
+                    if matches!(
+                        mod_name,
+                        "runtime::algebra" | "runtime::random" | "mdoc::circuits"
+                    ) {
                         assert!(
                             !dep.starts_with("runtime::v1::") && !dep.starts_with("runtime::v2::"),
-                            "Versioned protocol in shared implementation {}: {dep}",
+                            "Versioned protocol in {mod_name} ({}): {dep}",
+                            f.display()
+                        );
+                    }
+                    if mod_name == "runtime::v2::foreign" {
+                        assert!(
+                            matches!(
+                                dep.as_str(),
+                                "util"
+                                    | "core::algebra"
+                                    | "core::proto"
+                                    | "runtime::algebra"
+                                    | "runtime::random"
+                                    | "runtime::v2::polygero"
+                                    | "runtime::v2::proto"
+                                    | "runtime::v2::transcript"
+                                    | "runtime::v2::zk"
+                            ),
+                            "foreign storage composes through zk and polygero ({}): {dep}",
                             f.display()
                         );
                     }
@@ -886,14 +901,29 @@ fn test_module_dependency_dag_and_layer_boundaries() {
         graph.insert(mod_name.to_string(), deps);
     }
 
-    let mut runtime_sources = Vec::new();
-    collect_rs_files(&root.join("runtime"), &mut runtime_sources);
-    for source in runtime_sources {
+    // Every source directory in every layer is registered, so no module can
+    // escape these checks. Only the crate root `src/lib.rs` mounts the tree.
+    let mut sources = Vec::new();
+    for entry in fs::read_dir(root).expect("read crate root") {
+        let path = entry.expect("read crate root entry").path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if path.is_dir() && !matches!(name, "target" | "src") && !name.starts_with('.') {
+            collect_rs_files(&path, &mut sources);
+        }
+    }
+    for source in sources {
         let relative = source.strip_prefix(root).unwrap();
-        if relative.components().any(|part| part.as_os_str() == "src") {
+        let parts: Vec<_> = relative.components().map(|c| c.as_os_str()).collect();
+        if parts.iter().any(|p| *p == "tests" || *p == "benches") {
+            continue;
+        }
+        if parts.iter().any(|p| *p == "src") {
             assert!(
                 registered_sources.contains(&source),
-                "Unregistered runtime source: {}",
+                "Unregistered source: {}",
                 source.display()
             );
         }
@@ -2195,5 +2225,78 @@ fn test_witness_selection_protocol_boundaries() {
                 "witness selection dependency {dependency}"
             );
         }
+    }
+}
+
+/// Production sources outside `tests/`, `benches/` and the build directory.
+fn production_sources(root: &Path) -> Vec<PathBuf> {
+    let mut sources = Vec::new();
+    for entry in fs::read_dir(root).expect("read crate root") {
+        let path = entry.expect("read crate root entry").path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if path.is_dir() && name != "target" && !name.starts_with('.') {
+            collect_rs_files(&path, &mut sources);
+        }
+    }
+    sources.retain(|source| {
+        !source
+            .strip_prefix(root)
+            .unwrap()
+            .components()
+            .any(|part| part.as_os_str() == "tests" || part.as_os_str() == "benches")
+    });
+    sources
+}
+
+/// The v1 protocol is gated only where the crate composes its versions; the
+/// checker blanks string literals, so this scans raw source for the gate.
+#[test]
+fn v1_feature_gates_stay_at_composition_roots() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let roots = [
+        "src/lib.rs",
+        "runtime/mod.rs",
+        "applications/mdoc_zk/runtime/src/lib.rs",
+        "applications/mdoc_zk/runtime/src/zk_spec.rs",
+        "applications/mdoc_zk/development_provider/src/lib.rs",
+    ]
+    .map(|path| root.join(path));
+    for source in production_sources(root) {
+        let content = fs::read_to_string(&source).unwrap();
+        let gated = content.split("feature").skip(1).any(|rest| {
+            rest.trim_start()
+                .strip_prefix('=')
+                .is_some_and(|value| value.trim_start().starts_with("\"v1\""))
+        });
+        assert!(
+            !gated || roots.contains(&source),
+            "v1 feature gate outside the composition roots: {}",
+            source.display()
+        );
+    }
+}
+
+/// v2 provers take private coins as `PrivateRandom`, which no transcript
+/// implements; naming `RandomEngine` would admit a public challenge stream.
+#[test]
+fn v2_private_coins_use_private_random() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for source in production_sources(root) {
+        let relative = source.strip_prefix(root).unwrap().to_string_lossy();
+        if !(relative.starts_with("runtime/v2/")
+            || relative.starts_with("applications/mdoc_zk/runtime/src/v2/"))
+        {
+            continue;
+        }
+        let code = production_code(&fs::read_to_string(&source).unwrap());
+        assert!(
+            !code
+                .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                .any(|word| word == "RandomEngine"),
+            "v2 private coins must be PrivateRandom: {relative}"
+        );
     }
 }
