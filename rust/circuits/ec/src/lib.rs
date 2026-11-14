@@ -15,9 +15,6 @@
 pub mod concrete;
 pub use concrete::*;
 
-pub type Pt2<T> = (T, T);
-pub type Pt3<T> = (T, T, T);
-
 cfg_compiler! {
     pub mod circuit;
     pub use circuit::{iter_pt2, iter_pt3, pt2_wires, pt3_wires, EcCircuit};

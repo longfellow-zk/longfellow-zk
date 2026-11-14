@@ -14,17 +14,20 @@
 
 pub use crate::core::algebra::ec::*;
 
+pub type Pt2<T> = (T, T);
+pub type Pt3<T> = (T, T, T);
+
 cfg_compiler! {
-    use crate::{circuits::ec::{Pt2 as WirePt2, Pt3 as WirePt3}, compile::{algebra::field::{CompileField, SupportsNatConversions}, logic::Logic}};
+    use crate::{compile::{algebra::field::{CompileField, SupportsNatConversions}, logic::Logic}, core::algebra::ElementOf};
 
     pub fn evaluate_pt2<
         const W: usize,
         F: CompileField + SupportsNatConversions<W>,
         L: Logic<F = F>,
     >(
-        pt: &Pt2<F>,
+        pt: &Pt2<ElementOf<F>>,
         l: &L,
-    ) -> WirePt2<crate::compile::logic::Eltw<L>> {
+    ) -> Pt2<crate::compile::logic::Eltw<L>> {
         (l.konst(&pt.0), l.konst(&pt.1))
     }
 
@@ -33,9 +36,9 @@ cfg_compiler! {
         F: CompileField + SupportsNatConversions<W>,
         L: Logic<F = F>,
     >(
-        pt: &Pt3<F>,
+        pt: &Pt3<ElementOf<F>>,
         l: &L,
-    ) -> WirePt3<crate::compile::logic::Eltw<L>> {
+    ) -> Pt3<crate::compile::logic::Eltw<L>> {
         (l.konst(&pt.0), l.konst(&pt.1), l.konst(&pt.2))
     }
 }
