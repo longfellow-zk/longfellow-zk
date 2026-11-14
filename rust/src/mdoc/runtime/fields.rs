@@ -12,25 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Field requirements of the mdoc runtime's native witness derivation.
+
 use crate::{
     core::algebra::{
-        BareField, HasLookupPoints, Nat, SerializableField, SupportsNatConversions,
-        SupportsU128Conversions, SupportsU64Conversions,
+        BareField, HasLookupPoints, Nat, SupportsNatConversions, SupportsU64Conversions,
     },
     runtime::algebra::RuntimeField,
 };
 
 /// Bundles all runtime derived value derivation and evaluation requirements for `MdocHash`.
-pub trait MdocHashRuntimeField:
-    Sized + RuntimeField<2> + SerializableField + HasLookupPoints + SupportsU128Conversions
+#[cfg(feature = "v1")]
+pub(crate) trait MdocHashRuntimeField:
+    Sized
+    + RuntimeField<2>
+    + crate::core::algebra::SerializableField
+    + HasLookupPoints
+    + crate::core::algebra::SupportsU128Conversions
 {
 }
 
-impl<F> MdocHashRuntimeField for F where F: Sized + RuntimeField<2> + SerializableField + HasLookupPoints + SupportsU128Conversions
-{}
+#[cfg(feature = "v1")]
+impl<F> MdocHashRuntimeField for F where F: Sized
+        + RuntimeField<2>
+        + crate::core::algebra::SerializableField
+        + HasLookupPoints
+        + crate::core::algebra::SupportsU128Conversions
+{
+}
 
 /// Bundles all runtime derived value derivation requirements for signature field arithmetic.
-pub trait MdocSigRuntimeField:
+pub(crate) trait MdocSigRuntimeField:
     Sized
     + BareField
     + RuntimeField<4>
@@ -51,22 +63,4 @@ where
         + HasLookupPoints,
     <F as SupportsNatConversions<4>>::N: Nat<4>,
 {
-}
-
-cfg_compiler! {
-    use crate::{circuits::analog_adder::FieldWrappingSum, compile::algebra::CompileField};
-
-    /// Bundles all compile-time circuit generation requirements for `MdocHash`.
-    pub trait MdocHashCompileField:
-        Sized + CompileField + FieldWrappingSum + SerializableField
-    {
-    }
-
-    impl<F> MdocHashCompileField for F where F: Sized
-            + CompileField
-            + FieldWrappingSum
-            + SerializableField
-    {
-    }
-
 }

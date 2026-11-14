@@ -22,10 +22,7 @@ use crate::{
     },
     core::algebra::{ec::Curve, Nat, SupportsNatConversions},
     mdoc::{
-        circuits::{
-            cbor::mdoc::{ParsedAttr, ParsedMdoc},
-            MdocSigRuntimeField,
-        },
+        circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
             hash::constants::{
                 K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
@@ -35,6 +32,7 @@ use crate::{
                 K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
             },
         },
+        runtime::fields::MdocSigRuntimeField,
         v2::{
             attribute::RequestedAttribute,
             error::MdocProverErrorCode,

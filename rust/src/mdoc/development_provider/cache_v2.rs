@@ -21,7 +21,7 @@ use std::io::{Read, Write};
 
 use crate::{
     mdoc::{
-        circuits::NEXT_VERSION,
+        proto::NEXT_VERSION,
         v2::{
             archive::read_compressed,
             provider::{self, ProvidedCircuit},

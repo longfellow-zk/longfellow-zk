@@ -10,8 +10,10 @@
 use crate::{
     core::proto::v2::Circuit,
     mdoc::{
-        circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS},
-        proto::layout,
+        proto::{
+            adapter::{MASK_BITS, QUOTIENT_BITS},
+            layout,
+        },
         v2::ZkSpecStruct,
     },
     runtime::{

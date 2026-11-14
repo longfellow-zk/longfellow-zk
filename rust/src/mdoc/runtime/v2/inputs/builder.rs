@@ -14,7 +14,7 @@
 
 //! Longfellow v2 assignment builder; preserves its own field encodings.
 
-use crate::{core::algebra::Nat, mdoc::circuits::MdocSigRuntimeField};
+use crate::{core::algebra::Nat, mdoc::runtime::fields::MdocSigRuntimeField};
 
 pub(super) struct AssignmentBuilder<
     'a,

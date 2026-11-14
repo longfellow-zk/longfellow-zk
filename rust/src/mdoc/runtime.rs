@@ -14,6 +14,8 @@
 
 //! System selection only; proof execution and encoding live under v1 or v2.
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod fields;
 #[cfg(feature = "v1")]
 pub mod v1;
 pub mod v2;

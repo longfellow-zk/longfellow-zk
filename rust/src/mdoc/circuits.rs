@@ -13,15 +13,11 @@
 // limitations under the License.
 
 pub mod cbor;
-mod traits;
-
-pub(crate) mod p256_adapter;
-
-pub use traits::*;
-
-pub const NEXT_VERSION: usize = 12;
 
 cfg_compiler! {
+    mod fields;
+    pub use fields::MdocHashCompileField;
+
     pub mod cbor_decoder;
     pub mod hash;
     pub mod mso_attribute;

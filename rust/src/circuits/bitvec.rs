@@ -13,13 +13,7 @@
 // limitations under the License.
 
 mod circuit;
-pub use circuit::{Bitvec, BitvecIO, BitvecLogic, Slice};
-
-pub type V8<L> = Bitvec<L, 8>;
-pub type V32<L> = Bitvec<L, 32>;
-pub type V64<L> = Bitvec<L, 64>;
-pub type V256<L> = Bitvec<L, 256>;
-pub type V128<L> = Bitvec<L, 128>;
+pub use circuit::{Bitvec, BitvecIO, BitvecLogic, Slice, V128, V256, V32, V64, V8};
 
 cfg_testonly! {
     mod concrete;

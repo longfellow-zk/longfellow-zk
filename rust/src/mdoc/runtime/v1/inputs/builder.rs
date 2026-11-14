@@ -16,7 +16,7 @@
 
 use crate::{
     core::algebra::{AlgebraicField, BareField, Nat},
-    mdoc::circuits::{MdocHashRuntimeField, MdocSigRuntimeField},
+    mdoc::runtime::fields::{MdocHashRuntimeField, MdocSigRuntimeField},
 };
 
 pub(super) struct AssignmentBuilder<'a, F: BareField + AlgebraicField> {

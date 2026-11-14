@@ -14,7 +14,7 @@
 
 //! Development selection and cache round trips are independent of frozen publication.
 use super::*;
-use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::circuits::NEXT_VERSION};
+use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::proto::NEXT_VERSION};
 
 #[test]
 fn frozen_requests_delegate_and_never_compile_next() {

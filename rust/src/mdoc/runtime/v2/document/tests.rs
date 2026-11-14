@@ -1,11 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use crate::{
-    core::algebra::Nat,
+    core::algebra::encoding::P256_MODULUS,
     mdoc::{
-        circuits::{cbor::mdoc::parse_mdoc, p256_adapter::MODULUS},
-        proto::hash::constants::K_MSO_OFFSET,
-        testcases::TEST_DATA,
-        v2::document::*,
+        circuits::cbor::mdoc::parse_mdoc, proto::hash::constants::K_MSO_OFFSET,
+        testcases::TEST_DATA, v2::document::*,
     },
 };
 
@@ -50,8 +48,7 @@ fn v2_document_validates_original_device_key_before_integer_conversion() {
         &field,
     )
     .unwrap();
-    let modulus = MODULUS;
-    let mut noncanonical = RuntimeNat::<4>::from_limbs(&modulus).to_bytes_le();
+    let mut noncanonical = P256_MODULUS.to_vec();
     noncanonical.reverse();
     for (index, value) in [
         (1, CborValue::Integer(1)),

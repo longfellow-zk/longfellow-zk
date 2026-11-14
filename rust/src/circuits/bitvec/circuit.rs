@@ -27,6 +27,12 @@ use crate::{
 pub struct Bitvec<L: Logic, const N: usize> {
     bits: Vec<Bitw<L>>,
 }
+pub type V8<L> = Bitvec<L, 8>;
+pub type V32<L> = Bitvec<L, 32>;
+pub type V64<L> = Bitvec<L, 64>;
+pub type V128<L> = Bitvec<L, 128>;
+pub type V256<L> = Bitvec<L, 256>;
+
 // We implement Clone manually to avoid the standard derive adding an
 // unnecessary `L: Clone` bound. L represents the logic type (e.g. EvalLogic or
 // CompilerLogic) which does not need to be Clone for the bit-vector itself to

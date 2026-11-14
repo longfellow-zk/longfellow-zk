@@ -21,10 +21,8 @@ use crate::{
         proto::{archive::CircuitArchive, v2::CircuitReader},
     },
     mdoc::{
-        circuits::{
-            cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
-            NEXT_VERSION,
-        },
+        circuits::cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
+        proto::NEXT_VERSION,
         runtime::v2::run_mdoc_prover_encoded,
         testcases::{ALL_TEST_CASES, TEST_DATA},
         v2::{

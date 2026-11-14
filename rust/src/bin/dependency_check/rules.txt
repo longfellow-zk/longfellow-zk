@@ -15,7 +15,7 @@
 
 mdoc/artifacts:
 mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
-mdoc/compile: mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
+mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
 mdoc/development_provider: mdoc/circuits mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto
 mdoc/proto:
 bin/prover_only: mdoc/runtime

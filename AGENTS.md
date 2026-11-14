@@ -15,7 +15,12 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
 - Compile-time code (`compile`, `mdoc::compile`, the circuit halves of
   `circuits`) never uses run-time code (`runtime`, `mdoc::runtime`, the
   `concrete` native-witness halves of `circuits`), and run-time code never uses
-  compile-time code. Tests may use both.
+  compile-time code. Shared code (`core`, `mdoc::proto`, `util`, circuit
+  constants) uses neither. Tests, and the test-only `evaluate` bridges that turn
+  native witnesses into circuit wires, may use both. The dependency checker
+  fixes each file's phase in its source (`phase` in
+  `rust/src/bin/dependency_check/main.rs`), not in `rules.txt`: classify a new
+  kind of file there, in a reviewed change.
 - Compile time and run time have separate field implementations. Do not share
   field arithmetic between them; each side implements its own, so that one can
   check the other. Reference implementations used as test oracles are
@@ -72,6 +77,8 @@ profiles an application chose (for example in `mdoc::proto`).
   module needs its own rule.
 - When the checker reports a new dependency, remove it, or, if it is intended,
   add it to `rules.txt` deliberately.
+- The phase check and the prover/verifier contract check (`proto_allows`) are
+  code, not rules; do not weaken them to make a change pass.
 
 ## Performance
 

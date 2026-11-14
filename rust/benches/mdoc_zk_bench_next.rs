@@ -66,7 +66,7 @@ fn main() {
     let (spec, circuits) = prepare_circuits(attrs.len());
     eprintln!(
         "Longfellow v2 / NEXT v{}; SHA-256 strand transcript.",
-        longfellow_zk::mdoc::circuits::NEXT_VERSION
+        longfellow_zk::mdoc::proto::NEXT_VERSION
     );
     eprintln!(
         "Offline circuit preparation: {:.3} ms",

@@ -14,12 +14,9 @@ use crate::{
         compiler::{compile_v2, segment_circuit_v2},
         logic::{Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
-    core::proto::v2::Circuit,
+    core::{algebra::encoding::P256_MODULUS, proto::v2::Circuit},
     mdoc::{
-        circuits::{
-            hash::{allocate, MdocHash},
-            p256_adapter::MODULUS,
-        },
+        circuits::hash::{allocate, MdocHash},
         proto::layout,
     },
 };
@@ -95,7 +92,7 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
         let b = Boolean::new(&l);
         let a = Arithmetic::new(&l);
         let modulus: Vec<_> = (0..256)
-            .map(|r| b.konst((MODULUS[r / 64] >> (r % 64)) & 1 != 0))
+            .map(|r| b.konst((P256_MODULUS[r / 8] >> (r % 8)) & 1 != 0))
             .collect();
         (
             l.assert_all(

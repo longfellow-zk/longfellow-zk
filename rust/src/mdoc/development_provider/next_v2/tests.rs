@@ -66,6 +66,6 @@ fn shared_profile_fits_one_query_budget() {
     assert!(p.t > 0 && 2 * p.t < p.k);
     // Keep the formal adapter's 1024-bit source and 10-bit quotient bounds
     // tied to the circuit plan used by the development provider.
-    use crate::mdoc::circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS, SHARED_BITS};
+    use crate::mdoc::proto::adapter::{MASK_BITS, QUOTIENT_BITS, SHARED_BITS};
     assert_eq!((SHARED_BITS + MASK_BITS, QUOTIENT_BITS), (1024, 10));
 }

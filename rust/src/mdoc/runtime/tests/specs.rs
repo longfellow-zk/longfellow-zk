@@ -15,7 +15,7 @@
 //! Frozen registry discovery and explicit v2 execution specifications.
 use crate::{
     mdoc::{
-        circuits::NEXT_VERSION,
+        proto::NEXT_VERSION,
         runtime::{v1, v2},
         *,
     },

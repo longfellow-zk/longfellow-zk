@@ -14,7 +14,7 @@
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
-    circuits::ec::{concrete::push_pt2, pt2_wires, EcCircuit},
+    circuits::ec::{pt2_wires, push_pt2, EcCircuit},
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField},
         compiler::dump_stats,

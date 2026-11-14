@@ -2,7 +2,7 @@
 //! The mdoc envelope: version `MDA7`, a composed proof body, the final seal.
 use crate::{
     core::algebra::SerializableField,
-    mdoc::circuits::p256_adapter::QUOTIENT_BITS,
+    mdoc::proto::adapter::QUOTIENT_BITS,
     runtime::{
         algebra::RuntimeField,
         v2::{

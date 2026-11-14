@@ -24,7 +24,7 @@ use crate::{
             },
         },
     },
-    mdoc::{circuits::NEXT_VERSION, v2::circuits::*},
+    mdoc::{proto::NEXT_VERSION, v2::circuits::*},
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 

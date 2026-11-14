@@ -14,7 +14,7 @@
 
 use crate::{
     core::proto::{archive::CircuitArchiveBuilder, v2::CircuitWriter},
-    mdoc::circuits::NEXT_VERSION,
+    mdoc::proto::NEXT_VERSION,
 };
 
 pub mod circuits;

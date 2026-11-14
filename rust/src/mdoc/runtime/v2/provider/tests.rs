@@ -15,7 +15,7 @@
 //! Frozen v2 lookup and loading, including a synthetic unpublished fixture.
 use crate::{
     core::proto::archive::CircuitArchiveBuilder,
-    mdoc::{circuits::NEXT_VERSION, runtime::tests::specs::v2_spec, v2::provider::*},
+    mdoc::{proto::NEXT_VERSION, runtime::tests::specs::v2_spec, v2::provider::*},
 };
 
 #[test]

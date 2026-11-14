@@ -19,3 +19,7 @@ pub const K_ZSTD_LEVEL: i32 = 16;
 /// `zk_tool check-profiles` certifies its shared two-field budget separately
 /// from the universal tuning catalog.
 pub const MDOC_JOINT_PROFILE: (usize, usize, usize, usize) = (349, 12, 2443, 84);
+
+/// The circuit version of the NEXT (v2) mdoc circuits: the compiler writes it
+/// into the archive and the v2 runtime accepts it.
+pub const NEXT_VERSION: usize = 12;

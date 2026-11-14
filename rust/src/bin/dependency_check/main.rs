@@ -29,6 +29,11 @@
 //! - the file graph has a cycle: no file may depend on itself through others;
 //! - a file whose name marks one proof role (`prover`, `verifier`, or a name containing exactly one
 //!   of them as a `_`-separated word) uses a file of the other role;
+//! - a compile-time file uses a run-time file or the reverse, or a shared file uses either. The
+//!   phase of every file is fixed by [`phase`] in this source, not by the editable rules, so
+//!   loosening it takes a reviewed code change;
+//! - a prover/verifier contract (`runtime::vN::proto`) uses anything but core, `util`, the run-time
+//!   algebra and its framing (the v1 subfield or the v2 transcript), fixed by [`proto_allows`];
 //! - a reference breaks a `[symbol rules]` line, which says which files may (`only`) or may not
 //!   (`never`) reference a symbol, or a symbol pattern names no symbol of the crate. Symbol rules
 //!   see references within a file too; they keep transcript framing, sealing and private coins
@@ -102,6 +107,136 @@ fn version(path: &str) -> Option<&'static str> {
         (false, true) => Some("v2"),
         _ => None,
     }
+}
+
+/// Which side of the compile/run-time split a file is on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    /// Circuit construction and compilation.
+    Compile,
+    /// Proving, verification and native witness derivation.
+    Runtime,
+    /// Contracts both sides agree on; uses neither.
+    Shared,
+    /// Test-only code that connects native witnesses to circuit wires
+    /// (`cfg_testonly!`): may use both sides.
+    Bridge,
+    /// Programs and drivers that run both sides, and facades that only
+    /// mount and re-export modules: may use both sides.
+    Neutral,
+}
+
+/// The phase of a library file. A first-match table: listing a file in the
+/// wrong class, or adding a class, is a design change to review here.
+fn phase(path: &str) -> Phase {
+    use Phase::*;
+    let m = module_path(path);
+    let under = |root: &str| m == root || m.starts_with(&format!("{root}/"));
+    let last = m.rsplit('/').next().unwrap_or(m);
+    let circuit = under("circuits") || under("mdoc/circuits");
+    if under("bin") || under("mdoc/development_provider") || m == "mdoc/artifacts" {
+        // Drivers, tools and the development provider compile and run.
+        Neutral
+    } else if m == "runtime" {
+        // The runtime module facade.
+        Neutral
+    } else if circuit && last == "evaluate" {
+        Bridge
+    } else if under("core") || under("mdoc/proto") || under("mdoc/testcases") || under("util") {
+        // Contracts, test vectors, and dependency-free helpers.
+        Shared
+    } else if circuit && (last == "constants" || m == "circuits/ec/points") {
+        // Circuit constants and point tuples that native code also uses.
+        Shared
+    } else if under("compile") || under("mdoc/compile") {
+        Compile
+    } else if under("runtime") || under("mdoc/runtime") {
+        Runtime
+    } else if under("mdoc/circuits/cbor") {
+        // Native CBOR and mdoc parsing.
+        Runtime
+    } else if circuit && last == "concrete" {
+        // Native witness halves of circuits.
+        Runtime
+    } else if circuit && matches!(last, "circuit" | "allocate" | "traits" | "fields" | "proto") {
+        Compile
+    } else if circuit {
+        // Facades: a circuit's root module mounts and re-exports its halves.
+        Neutral
+    } else {
+        panic!("{path} has no phase; classify it in `phase`");
+    }
+}
+
+/// Whether a file of phase `from` may use a file of phase `to`. References
+/// resolve to the defining file, so a use through a facade is an edge to
+/// the file behind it; a direct edge to a facade or driver is a reference
+/// to an item defined there.
+fn phase_allows(from: Phase, to: Phase) -> bool {
+    use Phase::*;
+    match (from, to) {
+        (Bridge | Neutral, _) => true,
+        (_, Shared) => true,
+        (Compile, Compile) | (Runtime, Runtime) => true,
+        (Compile | Runtime | Shared, _) => false,
+    }
+}
+
+/// Whether the parent module declares `mod evaluate;` only for tests, inside
+/// `cfg_testonly! { ... }` or under `#[cfg(test)]`. A bridge may use both
+/// phases only because it is never built into a library user's binary.
+fn bridge_is_test_only(root: &Path, path: &str) -> bool {
+    let Some(parent) = Path::new(path).parent() else {
+        return false;
+    };
+    let Ok(text) = std::fs::read_to_string(root.join(parent).with_extension("rs")) else {
+        return false;
+    };
+    let mut depth = 0usize;
+    let mut testonly_at = None;
+    let mut cfg_test = false;
+    for line in text.lines() {
+        let t = line.trim();
+        if t.starts_with("cfg_testonly!") && t.ends_with('{') {
+            testonly_at = Some(depth);
+        }
+        let declares = t.ends_with("mod evaluate;");
+        if declares && (testonly_at.is_some() || cfg_test) {
+            return true;
+        }
+        cfg_test = t == "#[cfg(test)]";
+        depth += t.matches('{').count();
+        depth = depth.saturating_sub(t.matches('}').count());
+        if testonly_at.is_some_and(|d| depth <= d) && t.contains('}') {
+            testonly_at = None;
+        }
+    }
+    false
+}
+
+/// The prover/verifier contracts, `runtime::vN::proto`, use only the shared
+/// layers below them: core, the run-time algebra, and the framing they are
+/// defined over. Like [`phase`], this is fixed here, not in the rules.
+fn proto_allows(from: &str, to: &str) -> bool {
+    let (from, to) = (module_path(from), module_path(to));
+    let under = |m: &str, root: &str| m == root || m.starts_with(&format!("{root}/"));
+    let version = if under(from, "runtime/v1/proto") {
+        "v1"
+    } else if under(from, "runtime/v2/proto") {
+        "v2"
+    } else {
+        return true;
+    };
+    let framing = if version == "v1" {
+        "runtime/v1/subfield"
+    } else {
+        "runtime/v2/transcript"
+    };
+    under(to, &format!("runtime/{version}/proto"))
+        || under(to, "core")
+        || under(to, "util")
+        || under(to, "runtime/algebra")
+        || under(to, framing)
 }
 
 fn role(path: &str) -> Option<&'static str> {
@@ -540,6 +675,25 @@ fn main() {
     for cycle in cycles(&files) {
         failures.push(format!("file cycle: {}", cycle.join(" ")));
     }
+    for from in files.keys().filter(|f| f.starts_with("src/")) {
+        if phase(from) == Phase::Bridge && !bridge_is_test_only(&root, from) {
+            failures.push(format!("bridge {from} is not declared only for tests"));
+        }
+    }
+    for (from, targets) in &files {
+        if !from.starts_with("src/") {
+            continue;
+        }
+        for to in targets.keys().filter(|to| to.starts_with("src/")) {
+            let (a, b) = (phase(from), phase(to));
+            if !phase_allows(a, b) {
+                failures.push(format!("{a:?} file {from} uses {b:?} file {to}"));
+            }
+            if !proto_allows(from, to) {
+                failures.push(format!("prover/verifier contract {from} uses {to}"));
+            }
+        }
+    }
     for (from, targets) in &files {
         if let Some(own) = role(from) {
             for to in targets.keys() {
@@ -598,3 +752,6 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests;
