@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    circuits::ec::{self as ec_concrete, Pt2, Pt3},
-    core::algebra::{ec::Curve, BareField, Nat, NatOf, SupportsNatConversions},
+    circuits::ec::{Pt2, Pt3},
+    core::algebra::{ec as ec_concrete, ec::Curve, BareField, Nat, NatOf, SupportsNatConversions},
 };
 
 #[cfg(test)]

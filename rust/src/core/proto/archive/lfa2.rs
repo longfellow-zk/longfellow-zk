@@ -16,4 +16,4 @@ mod reader;
 mod writer;
 
 pub use reader::from_stream_lfa2_body;
-pub use writer::{to_bytes_lfa2, LFA2_MAGIC};
+pub use writer::to_bytes_lfa2;

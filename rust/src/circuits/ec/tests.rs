@@ -14,15 +14,15 @@
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
-    circuits::ec::{
-        concrete::{add, affine, double, projective, push_pt2, scalar_mul},
-        pt2_wires, EcCircuit,
-    },
+    circuits::ec::{concrete::push_pt2, pt2_wires, EcCircuit},
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField},
         logic::{push_eltw, Logic, LogicIO},
     },
-    core::algebra::{ec::Curve, Nat, SerializableField, SupportsNatConversions},
+    core::algebra::{
+        ec::{add, affine, double, projective, scalar_mul, Curve},
+        Nat, SerializableField, SupportsNatConversions,
+    },
     runtime::algebra::RuntimeField,
 };
 

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::core::algebra::ec::*;
-
 pub type Pt2<T> = (T, T);
 pub type Pt3<T> = (T, T, T);
 
