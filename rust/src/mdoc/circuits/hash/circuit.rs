@@ -29,14 +29,14 @@ use crate::{
     compile::logic::{Logic, LogicIO},
     mdoc::circuits::{
         mso_attribute::{
-            circuit::AttributeVerifier,
+            AttributeVerifier,
             constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
         },
         traits::MdocHashCompileField,
     },
 };
 
-pub type HashIndex<L> = Bitvec<L, K_HASH_INDEX_BITS>;
+pub(super) type HashIndex<L> = Bitvec<L, K_HASH_INDEX_BITS>;
 
 #[derive(Clone)]
 pub struct HashBytes<L: Logic, const N: usize> {
@@ -50,9 +50,9 @@ mod tests;
 
 
 
-pub type AttrPreimageBytes<L> =
-    crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
-pub type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
+pub(super) type AttrPreimageBytes<L> =
+    crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
+pub(super) type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
 
 pub struct AttrGiven<L: Logic> {
     pub preimage: AttrPreimageBytes<L>,
@@ -62,7 +62,7 @@ pub struct AttrGiven<L: Logic> {
 
 use crate::mdoc::circuits::{
     hash::constants::{K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
-    mso_attribute::circuit::DisclosedAttribute,
+    mso_attribute::DisclosedAttribute,
 };
 
 pub struct AttrDerived<L: Logic> {
@@ -73,9 +73,9 @@ pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
     pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
     pub suppress_doc_type_check: crate::circuits::boolean::Bitw<L>,
-    pub expected_doc_type: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_DOC_TYPE_BYTES>,
+    pub expected_doc_type: crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_DOC_TYPE_BYTES>,
     pub expected_namespace:
-        crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_NAMESPACE_BYTES>,
+        crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_NAMESPACE_BYTES>,
     pub preimage: MsoPreimageBytes<L>,
     pub nblocks: V8<L>,
     pub issuer_sig_e: V256<L>,
@@ -166,7 +166,7 @@ where
             .zext::<{ K_HASH_INDEX_BITS }, 64>(&given.preimage.len);
         let nblocks_ext = self.bv.zext::<8, { K_MAX_SHA_BLOCKS }>(&given.nblocks);
 
-        let shamsg_given = crate::circuits::sha256msg::circuit::Given {
+        let shamsg_given = crate::circuits::sha256msg::Given {
             padded_preimage: preimage.to_vec(),
             nblocks: nblocks_ext,
             length_bytes: preimage_len_64,
@@ -227,7 +227,7 @@ where
         &self,
         offset: &HashIndex<L>,
         preimage_len: &HashIndex<L>,
-        expected: &crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, N>,
+        expected: &crate::mdoc::circuits::mso_attribute::AttrSlice<L, N>,
         enabled: &crate::circuits::boolean::Bitw<L>,
         prefix: &[u8],
         preimage: &[V8<L>],
@@ -548,7 +548,7 @@ where
                     &K_TAG32,
                 );
 
-                let verifier_given = crate::mdoc::circuits::mso_attribute::circuit::Given {
+                let verifier_given = crate::mdoc::circuits::mso_attribute::Given {
                     attribute_preimage: attr_given.preimage.clone(),
                     field_locator: attr_given.field_locator.clone(),
                     disclosed_attribute: given.disclosed_attributes[i].clone(),

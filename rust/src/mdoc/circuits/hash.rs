@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 
 pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
 
 pub use crate::mdoc::proto::hash::constants;
 
 cfg_compiler! {
-    pub mod allocate;
+    mod allocate;
     pub use allocate::allocate;
 }
 
 cfg_testonly! {
-    pub mod concrete;
-    pub mod evaluate;
+    mod concrete;
+    mod evaluate;
 
     pub use self::{
         concrete::{

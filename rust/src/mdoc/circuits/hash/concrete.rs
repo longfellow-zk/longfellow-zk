@@ -14,7 +14,7 @@
 
 use super::constants::K_MSO_PREIMAGE_LEN;
 use crate::{
-    core::algebra::Nat, mdoc::circuits::mso_attribute::concrete::FieldLocator as MsoFieldLocator,
+    core::algebra::Nat, mdoc::circuits::cbor::mdoc::FieldLocator as MsoFieldLocator,
 };
 
 #[derive(Clone, Debug)]
@@ -50,7 +50,7 @@ pub struct HashBytes<const N: usize> {
     pub len: u16,
 }
 
-pub type MsoPreimageBytes = HashBytes<K_MSO_PREIMAGE_LEN>;
+pub(super) type MsoPreimageBytes = HashBytes<K_MSO_PREIMAGE_LEN>;
 
 #[derive(Clone, Debug)]
 pub struct AttrGiven {
@@ -64,7 +64,7 @@ pub struct AttrGiven {
 
 #[derive(Clone, Debug)]
 pub struct AttrDerived {
-    pub sha_derived: crate::circuits::sha256msg::concrete::ConcreteDerived,
+    pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
 }
 
 #[derive(Clone, Debug)]
@@ -84,11 +84,11 @@ pub struct ConcreteGiven<N> {
 #[derive(Clone, Debug)]
 pub struct ConcreteDerived {
     pub attribute_derived: Vec<AttrDerived>,
-    pub sha_derived: crate::circuits::sha256msg::concrete::ConcreteDerived,
+    pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
 }
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
-    let cose_sha_wit = crate::circuits::sha256msg::concrete::given(
+    let cose_sha_wit = crate::circuits::sha256msg::given(
         &hash_input.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
         super::constants::K_MAX_SHA_BLOCKS,
@@ -111,7 +111,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
     for a in &hash_input.attrs {
-        let attr_sha_wit = crate::circuits::sha256msg::concrete::given(
+        let attr_sha_wit = crate::circuits::sha256msg::given(
             &a.cbor_issuer_signed_item,
             &crate::circuits::sha256::constants::INITIAL,
             2,
@@ -156,8 +156,8 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 }
 
 pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteDerived {
-    let cose_sha_derived = crate::circuits::sha256msg::concrete::ConcreteDerived {
-        sha_derived: crate::circuits::sha256msg::concrete::sha256_msg_derived(
+    let cose_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
+        sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
             &given.preimage.value,
             &crate::circuits::sha256::constants::INITIAL,
             super::constants::K_MAX_SHA_BLOCKS,
@@ -166,8 +166,8 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
 
     let mut attribute_witnesses = Vec::with_capacity(given.attribute_given.len());
     for ag in &given.attribute_given {
-        let attr_sha_derived = crate::circuits::sha256msg::concrete::ConcreteDerived {
-            sha_derived: crate::circuits::sha256msg::concrete::sha256_msg_derived(
+        let attr_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
+            sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
                 &ag.padded_preimage,
                 &crate::circuits::sha256::constants::INITIAL,
                 2,

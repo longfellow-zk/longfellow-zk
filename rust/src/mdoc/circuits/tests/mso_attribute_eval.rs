@@ -19,8 +19,8 @@ use crate::{
     circuits::bitvec::{BitvecLogic, V8},
     compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
     mdoc::circuits::mso_attribute::{
-        circuit::{AttrSlice, AttributeVerifier, DisclosedAttribute, FieldLocator},
-        constants::K_ATTR_INDEX_BITS,
+        constants::K_ATTR_INDEX_BITS, AttrSlice, AttributeVerifier, DisclosedAttribute,
+        FieldLocator,
     },
 };
 
@@ -132,7 +132,7 @@ where
 
     use crate::mdoc::circuits::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
     let (nblocks, length_bytes, padded_preimage) =
-        crate::circuits::sha256msg::concrete::pad_sha256_message(&mock.raw_buf, 2).unwrap();
+        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
     let attribute_preimage = padded_preimage
         .iter()
         .map(|&b| bv.of_u8(b))
@@ -187,19 +187,18 @@ where
         crate::circuits::boolean::Boolean::new(&l).konst(bit_val)
     });
 
-    let concrete_given = crate::circuits::sha256msg::concrete::ConcreteGiven {
+    let concrete_given = crate::circuits::sha256msg::ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = crate::circuits::sha256msg::concrete::derived(&concrete_given, 2);
-    let sha_derived =
-        crate::circuits::sha256msg::evaluate::evaluate_derived(&concrete_derived, &bv);
+    let concrete_derived = crate::circuits::sha256msg::derived(&concrete_given, 2);
+    let sha_derived = crate::circuits::sha256msg::evaluate_derived(&concrete_derived, &bv);
 
     let verifier = AttributeVerifier::new(&l);
 
-    let verifier_args = crate::mdoc::circuits::mso_attribute::circuit::Given {
+    let verifier_args = crate::mdoc::circuits::mso_attribute::Given {
         attribute_preimage: preimage_bytes,
         field_locator,
         disclosed_attribute: da,

@@ -16,7 +16,7 @@ use crate::compile::algebra::{field::CompileField, Curve};
 use crate::compile::logic::{Eltw, Logic};
 use crate::core::algebra::ElementOf;
 
-pub use crate::circuits::ec::{Pt2, Pt3};
+use crate::circuits::ec::{Pt2, Pt3};
 
 pub fn iter_pt2<T, E>(pt: &(T, T), f: &mut impl FnMut(&T) -> Result<(), E>) -> Result<(), E> {
     f(&pt.0)?;

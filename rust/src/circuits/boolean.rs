@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 pub use circuit::{Bitw, Boolean, BooleanIO};
 
 cfg_testonly! {
-    pub mod concrete;
+    mod concrete;
     pub use concrete::*;
 }
 

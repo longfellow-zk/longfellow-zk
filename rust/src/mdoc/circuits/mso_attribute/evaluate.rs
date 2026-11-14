@@ -83,5 +83,5 @@ pub fn evaluate_derived<L: Logic>(
     derived: &ConcreteDerived,
     bv: &BitvecLogic<L>,
 ) -> WireDerived<L> {
-    crate::circuits::sha256msg::evaluate::evaluate_derived(&derived.sha_derived, bv)
+    crate::circuits::sha256msg::evaluate_derived(&derived.sha_derived, bv)
 }

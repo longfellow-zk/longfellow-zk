@@ -25,11 +25,8 @@ use crate::{
     circuits::bitvec::BitvecLogic,
     core::algebra::Nat,
     mdoc::circuits::mso_attribute::{
-        circuit::{
-            AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
-            FieldLocator as WireFieldLocator,
-        },
-        constants::K_ATTR_INDEX_BITS,
+        constants::K_ATTR_INDEX_BITS, AttrSlice as MsoSlice,
+        DisclosedAttribute as WireDisclosedAttribute, FieldLocator as WireFieldLocator,
     },
 };
 
@@ -201,12 +198,12 @@ pub fn evaluate_derived<L: crate::compile::logic::LogicIO>(
     let mut attribute_derived = Vec::with_capacity(derived.attribute_derived.len());
     for a in &derived.attribute_derived {
         let sha_derived =
-            crate::circuits::sha256msg::evaluate::evaluate_derived(&a.sha_derived, bv);
+            crate::circuits::sha256msg::evaluate_derived(&a.sha_derived, bv);
         attribute_derived.push(WireAttrDerived { sha_derived });
     }
 
     let sha_derived =
-        crate::circuits::sha256msg::evaluate::evaluate_derived(&derived.sha_derived, bv);
+        crate::circuits::sha256msg::evaluate_derived(&derived.sha_derived, bv);
 
     WireDerived {
         attribute_derived,

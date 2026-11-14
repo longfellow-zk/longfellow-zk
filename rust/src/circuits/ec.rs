@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod concrete;
+mod concrete;
 pub use concrete::*;
 
 cfg_compiler! {
-    pub mod circuit;
+    mod circuit;
     pub use circuit::{iter_pt2, iter_pt3, pt2_wires, pt3_wires, EcCircuit};
 }
 

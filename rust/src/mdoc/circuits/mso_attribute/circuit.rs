@@ -186,7 +186,7 @@ where L::F: FieldWrappingSum
             .bv
             .zext::<{ K_ATTR_INDEX_BITS }, 64>(&given.attribute_preimage.len);
         let two_wire = self.bv.of_u64::<2>(2);
-        let shamsg_given = crate::circuits::sha256msg::circuit::Given {
+        let shamsg_given = crate::circuits::sha256msg::Given {
             padded_preimage: given.attribute_preimage.data.to_vec(),
             nblocks: two_wire,
             length_bytes: preimage_len_64,

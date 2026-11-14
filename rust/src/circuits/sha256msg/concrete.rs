@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::sha256::concrete::{
+use crate::circuits::sha256::{
     derived as sha256_generate_derived, ConcreteDerived as Sha256ConcreteDerived,
     ConcreteGiven as Sha256ConcreteGiven,
 };

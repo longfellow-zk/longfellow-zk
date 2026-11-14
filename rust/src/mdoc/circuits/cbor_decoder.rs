@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 pub use circuit::{CborByteDecoder, CborDecodeResult, Given};
 
 cfg_testonly! {
-    pub mod allocate;
-    pub mod concrete;
-    pub mod evaluate;
+    mod allocate;
+    mod concrete;
+    mod evaluate;
 
     pub use self::{
         allocate::allocate_given,

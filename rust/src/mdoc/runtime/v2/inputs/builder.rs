@@ -79,7 +79,7 @@ cfg_prover! {
     {
         pub(super) fn push_ecdsa_signature(
             &mut self,
-            given: &crate::circuits::ecdsa2::concrete::ConcreteGiven<F>,
+            given: &crate::circuits::ecdsa2::ConcreteGiven<F>,
         ) {
             // Key coordinates and digest bits already occupy the shared prefix.
             self.push_elt(&given.rxy.0);
@@ -89,7 +89,7 @@ cfg_prover! {
 
         pub(super) fn push_ecdsa_derived(
             &mut self,
-            derived: &crate::circuits::ecdsa2::concrete::ConcreteDerived<F>,
+            derived: &crate::circuits::ecdsa2::ConcreteDerived<F>,
         ) {
             derived.push_elements(|elt| self.push_elt(elt));
         }
@@ -109,7 +109,7 @@ cfg_prover! {
 
         pub(super) fn push_sha256_derived(
             &mut self,
-            derived: &crate::circuits::sha256::concrete::ConcreteDerived,
+            derived: &crate::circuits::sha256::ConcreteDerived,
         ) {
             for val in derived.modern_elements() {
                 self.push_v32(val);
@@ -118,7 +118,7 @@ cfg_prover! {
 
         pub(super) fn push_sha256msg_derived(
             &mut self,
-            derived: &crate::circuits::sha256msg::concrete::ConcreteDerived,
+            derived: &crate::circuits::sha256msg::ConcreteDerived,
         ) {
             for sha in &derived.sha_derived {
                 self.push_sha256_derived(sha);

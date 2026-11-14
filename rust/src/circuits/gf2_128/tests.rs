@@ -16,7 +16,7 @@ use crate::compile::compiler::tests::source_fixture::compile;
 
 use crate::{
     circuits::{
-        bitvec::{concrete::push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic},
+        bitvec::{push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic},
         boolean::Boolean,
         gf2_128::Gf2_128Mul,
     },

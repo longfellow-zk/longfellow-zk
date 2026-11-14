@@ -58,7 +58,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
-    let mso_sha_in = crate::circuits::sha256msg::concrete::given(
+    let mso_sha_in = crate::circuits::sha256msg::given(
         &parsed.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
         K_MAX_SHA_BLOCKS,
@@ -82,7 +82,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
         })
         .collect();
     let mso_sha_derived =
-        crate::circuits::sha256msg::concrete::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
+        crate::circuits::sha256msg::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
@@ -149,14 +149,14 @@ fn push_witness_attrs(
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
-        let attr_sha_in = crate::circuits::sha256msg::concrete::given(
+        let attr_sha_in = crate::circuits::sha256msg::given(
             &pa.cbor_issuer_signed_item,
             &crate::circuits::sha256::constants::INITIAL,
             K_MAX_ATTR_SHA_BLOCKS,
         )
         .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         let attr_sha_derived =
-            crate::circuits::sha256msg::concrete::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
+            crate::circuits::sha256msg::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
         let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] =
             attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
 
@@ -198,7 +198,7 @@ where
     F::N: Nat<4>,
 {
     let (issuer_sig_given, issuer_sig_derived) =
-        crate::circuits::ecdsa2::concrete::try_witness::<4, F, Fn, C>(
+        crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
             secp256r1,
             issuer_pk,
             &parsed.issuer_sig_digest,
@@ -209,7 +209,7 @@ where
         )?;
 
     let (device_sig_given, device_sig_derived) =
-        crate::circuits::ecdsa2::concrete::try_witness::<4, F, Fn, C>(
+        crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
             secp256r1,
             &(
                 runtime_field.reduce_nat(&parsed.device_pk.0),

@@ -41,7 +41,7 @@ fn max_shablocks(version: usize) -> usize {
 
 fn push_legacy_sha_witness(
     builder: &mut AssignmentBuilder<Gf2_128Field>,
-    sha: &crate::circuits::sha256::concrete::ConcreteDerived,
+    sha: &crate::circuits::sha256::ConcreteDerived,
 ) {
     for val in sha.legacy_elements() {
         builder.push_v32_legacy(val);
@@ -88,14 +88,14 @@ pub(in crate::mdoc::runtime::v1) fn push_witness_hash<N: Nat<4>>(
     }
 
     let max_mso_blocks = max_shablocks(version);
-    let mso_sha_in = crate::circuits::sha256msg::concrete::given(
+    let mso_sha_in = crate::circuits::sha256msg::given(
         &parsed.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
         max_mso_blocks,
     )
     .unwrap();
     let mso_sha_witness =
-        crate::circuits::sha256msg::concrete::derived(&mso_sha_in, max_mso_blocks);
+        crate::circuits::sha256msg::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
 
@@ -134,13 +134,13 @@ fn push_witness_attrs<N: Nat<4>>(
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
 
-        let attr_sha_in = crate::circuits::sha256msg::concrete::given(
+        let attr_sha_in = crate::circuits::sha256msg::given(
             &pa.cbor_issuer_signed_item,
             &crate::circuits::sha256::constants::INITIAL,
             2,
         )
         .unwrap();
-        let attr_sha_witness = crate::circuits::sha256msg::concrete::derived(&attr_sha_in, 2);
+        let attr_sha_witness = crate::circuits::sha256msg::derived(&attr_sha_in, 2);
         builder.push_raw_bytes(&attr_sha_in.padded_preimage);
         push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[0]);
         push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[1]);
@@ -204,9 +204,9 @@ fn push_legacy_verify_witness_3(
 ) {
     let p256 = builder.field;
     let ecdsa_given =
-        crate::circuits::ecdsa2::concrete::given(secp256r1, &(*pk_x, *pk_y), e, r, s, p256, q256);
+        crate::circuits::ecdsa2::given(secp256r1, &(*pk_x, *pk_y), e, r, s, p256, q256);
     let ecdsa_derived =
-        crate::circuits::ecdsa2::concrete::derived(secp256r1, &(*pk_x, *pk_y), e, r, s, p256, q256);
+        crate::circuits::ecdsa2::derived(secp256r1, &(*pk_x, *pk_y), e, r, s, p256, q256);
 
     builder.push_elt(&ecdsa_given.rxy.0);
     builder.push_elt(&ecdsa_given.rxy.1);

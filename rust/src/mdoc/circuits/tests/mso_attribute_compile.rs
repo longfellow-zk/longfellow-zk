@@ -16,8 +16,7 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 
 use super::mso_attribute_corruptors;
 use crate::{
-    compile::algebra::gf2_128::Gf2_128Field,
-    mdoc::circuits::mso_attribute::circuit::AttributeVerifier,
+    compile::algebra::gf2_128::Gf2_128Field, mdoc::circuits::mso_attribute::AttributeVerifier,
     runtime::algebra::field::RuntimeField,
 };
 
@@ -65,7 +64,7 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
     let mut inputs = crate::compile::eval::initial_inputs(fr);
 
     let (_, _, padded_preimage) =
-        crate::circuits::sha256msg::concrete::pad_sha256_message(&mock.raw_buf, 2).unwrap();
+        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
 
     // attribute_preimage.data (128 bytes)
     for i in 0..128 {
@@ -132,14 +131,14 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
 
     // allocate_derived: SHA-256 derived for 2 blocks
     let (nblocks, length_bytes, _) =
-        crate::circuits::sha256msg::concrete::pad_sha256_message(&mock.raw_buf, 2).unwrap();
-    let concrete_given = crate::circuits::sha256msg::concrete::ConcreteGiven {
+        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
+    let concrete_given = crate::circuits::sha256msg::ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = crate::circuits::sha256msg::concrete::derived(&concrete_given, 2);
+    let concrete_derived = crate::circuits::sha256msg::derived(&concrete_given, 2);
 
     for b in 0..2 {
         let d = &concrete_derived.sha_derived[b];

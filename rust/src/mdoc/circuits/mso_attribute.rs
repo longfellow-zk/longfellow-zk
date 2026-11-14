@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 
 pub use crate::mdoc::proto::mso_attribute::constants;
 pub use circuit::{
@@ -21,9 +21,9 @@ pub use circuit::{
 };
 
 cfg_testonly! {
-    pub mod allocate;
-    pub mod concrete;
-    pub mod evaluate;
+    mod allocate;
+    mod concrete;
+    mod evaluate;
 
     pub use self::{
         allocate::{allocate_derived, allocate_given},

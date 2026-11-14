@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod concrete;
+mod concrete;
 pub mod constants;
 
 pub use concrete::{derived, ConcreteDerived, ConcreteGiven};
 
 cfg_compiler! {
-    pub mod allocate;
-    pub mod circuit;
+    mod allocate;
+    mod circuit;
 
     pub use self::{
         allocate::{allocate_derived, allocate_given},
@@ -28,7 +28,7 @@ cfg_compiler! {
 }
 
 cfg_testonly! {
-    pub mod evaluate;
+    mod evaluate;
     pub use evaluate::{evaluate_derived, evaluate_given};
 }
 

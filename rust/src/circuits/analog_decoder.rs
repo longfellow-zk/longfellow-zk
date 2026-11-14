@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod proto;
+mod proto;
 
 pub use proto::{binary_point, unary_point};
 
 cfg_compiler! {
-    pub mod circuit;
+    mod circuit;
     pub use circuit::{AnalogDecoder, BinaryDecoder, BitDecoder, UnaryDecoder};
 }
 

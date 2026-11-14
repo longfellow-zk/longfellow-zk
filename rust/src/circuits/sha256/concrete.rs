@@ -59,11 +59,6 @@ fn sigma1_lower(x: u32) -> u32 {
 }
 
 #[must_use]
-pub fn given(input_block: [u32; 16], h0: [u32; 8]) -> ConcreteGiven {
-    ConcreteGiven { input_block, h0 }
-}
-
-#[must_use]
 pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
     let mut w = [0u32; 64];
     w[..16].copy_from_slice(&given.input_block);
@@ -163,7 +158,7 @@ cfg_testonly! {
         ) {
             let mut dest = Vec::with_capacity(168 * 32);
             for &val in &self.outw {
-                crate::circuits::bitvec::concrete::push_bitvec_u64(
+                crate::circuits::bitvec::push_bitvec_u64(
                     fr,
                     u64::from(val),
                     32,
@@ -171,7 +166,7 @@ cfg_testonly! {
                 );
             }
             for &val in &self.oute {
-                crate::circuits::bitvec::concrete::push_bitvec_u64(
+                crate::circuits::bitvec::push_bitvec_u64(
                     fr,
                     u64::from(val),
                     32,
@@ -179,7 +174,7 @@ cfg_testonly! {
                 );
             }
             for &val in &self.outa {
-                crate::circuits::bitvec::concrete::push_bitvec_u64(
+                crate::circuits::bitvec::push_bitvec_u64(
                     fr,
                     u64::from(val),
                     32,
@@ -187,7 +182,7 @@ cfg_testonly! {
                 );
             }
             for &val in &self.h1 {
-                crate::circuits::bitvec::concrete::push_bitvec_u64(
+                crate::circuits::bitvec::push_bitvec_u64(
                     fr,
                     u64::from(val),
                     32,

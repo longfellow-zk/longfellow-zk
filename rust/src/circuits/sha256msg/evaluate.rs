@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::circuits::bitvec::BitvecLogic;
-use crate::circuits::sha256::evaluate::evaluate_derived as sha256_evaluate_derived;
+use crate::circuits::sha256::evaluate_derived as sha256_evaluate_derived;
 use crate::compile::logic::Logic;
 
 use super::{

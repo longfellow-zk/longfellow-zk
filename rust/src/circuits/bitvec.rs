@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 pub use circuit::{Bitvec, BitvecIO, BitvecLogic, Slice};
 
 pub type V8<L> = Bitvec<L, 8>;
@@ -22,7 +22,7 @@ pub type V256<L> = Bitvec<L, 256>;
 pub type V128<L> = Bitvec<L, 128>;
 
 cfg_testonly! {
-    pub mod concrete;
+    mod concrete;
     pub use concrete::*;
 }
 

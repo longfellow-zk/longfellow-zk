@@ -14,7 +14,7 @@
 
 #![allow(dead_code)]
 
-use crate::circuits::ec::concrete::{affine, projective, scalar_mul};
+use crate::circuits::ec::{affine, projective, scalar_mul};
 use crate::circuits::ecdsa2::concrete::{derived, given, ConcreteDerived, ConcreteGiven};
 use crate::core::algebra::{AlgebraicField, BareField, Curve, SupportsNatConversions};
 

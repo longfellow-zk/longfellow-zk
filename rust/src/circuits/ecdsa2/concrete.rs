@@ -14,7 +14,7 @@
 
 use crate::{
     circuits::ec::{
-        concrete::{self as ec_concrete},
+        self as ec_concrete,
         Pt2, Pt3,
     },
     core::algebra::{BareField, Curve, Nat, NatOf, SupportsNatConversions},
@@ -72,7 +72,7 @@ pub fn given<
 
 /// Fallible construction for v2: malformed or unsupported signatures must not
 /// unwind while the application is preparing a witness.
-pub fn try_given<
+pub(super) fn try_given<
     const W: usize,
     F: crate::core::algebra::AlgebraicField
         + SupportsNatConversions<W>
@@ -150,7 +150,7 @@ pub fn derived<
 
 /// Keep the existing affine witness layout, but reject its exceptional points
 /// explicitly. In particular G+PK may be infinity even for a valid signature.
-pub fn try_derived<
+pub(super) fn try_derived<
     const W: usize,
     F: crate::core::algebra::AlgebraicField
         + SupportsNatConversions<W>

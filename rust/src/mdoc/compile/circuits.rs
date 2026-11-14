@@ -16,7 +16,7 @@ use crate::{
     },
     core::proto::v2::Circuit,
     mdoc::{
-        circuits::{hash::circuit::MdocHash, p256_adapter::MODULUS},
+        circuits::{hash::MdocHash, p256_adapter::MODULUS},
         proto::layout,
     },
 };

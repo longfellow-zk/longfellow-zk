@@ -15,7 +15,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    compile::algebra::CompileNat, core::algebra::Nat, mdoc::circuits::hash::concrete::ConcreteGiven,
+    compile::algebra::CompileNat, core::algebra::Nat, mdoc::circuits::hash::ConcreteGiven,
 };
 
 pub(super) struct MdocHashCorruptor {

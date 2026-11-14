@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod circuit;
+mod circuit;
 pub use circuit::{Lookup, Table};
 
 #[cfg(test)]
