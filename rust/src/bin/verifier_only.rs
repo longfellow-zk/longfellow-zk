@@ -17,8 +17,8 @@
 //! Verifies a proof produced by `prover_only`. Like the prover, it is pinned to the
 //! **precompiled Longfellow v1 circuit** [`ZK_SPECS`]`[0]` (ZK-spec version 7, one disclosed
 //! attribute) whose `.lfa2` archive is checked into `src/mdoc/artifacts/circuits/`;
-//! the `NEXT_VERSION` (v8) circuits are only synthesised by `compiler` builds and are not
-//! exercised here.
+//! the NEXT circuits (`mdoc::proto::NEXT_VERSION`, version 12) are only synthesised by
+//! `compiler` builds and are not exercised here.
 //!
 //! ```text
 //! verifier_only [--circuit <path>] [<proof-in-path>]

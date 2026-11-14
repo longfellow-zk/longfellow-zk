@@ -17,8 +17,8 @@
 //! Because this profile has no circuit compiler, the demo proves against a **precompiled
 //! Longfellow v1 circuit**: [`ZK_SPECS`]`[0]` (ZK-spec version 7, one disclosed attribute), whose
 //! `.lfa2` archive is checked into `src/mdoc/artifacts/circuits/`. It does *not*
-//! exercise the `NEXT_VERSION` (v8) circuits, which are only synthesised on the fly by
-//! `mdoc::development_provider::compile_next` in `compiler` builds.
+//! exercise the NEXT circuits (`mdoc::proto::NEXT_VERSION`, version 12), which are only
+//! synthesised on the fly by `mdoc::development_provider::compile_next` in `compiler` builds.
 //!
 //! ```text
 //! prover_only [--circuit <path>] [<proof-out-path>]

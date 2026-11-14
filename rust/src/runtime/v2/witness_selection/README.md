@@ -4,8 +4,9 @@
 reduction. The v2 ZK joint wrapper invokes it for standalone proofs and for mdoc's
 GF128 and P256 participants. Applications use the v2 ZK wrapper. It contains no
 circuit, sumcheck, or packing implementation. `prover.rs` and `verifier.rs` own
-their respective role operations. `lib.rs` owns the shared layout and fingerprint
-equations; `transcript.rs` owns v2 framing, coefficient sampling and response binding.
+their respective role operations. `witness_selection.rs` and `fields.rs` own the
+shared layout and fingerprint equations; `transcript.rs` owns v2 framing,
+coefficient sampling and response binding.
 
 For a frontend's existing field-cell vector `w`, the protocol appends two fresh
 private masks `m₁,m₂`. `witness_count` gives the augmented backend count; frontend

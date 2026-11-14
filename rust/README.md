@@ -393,7 +393,9 @@ sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
 implementation. `src/bin/dependency_check` enforces these boundaries from
-rust-analyzer's index of every feature-gated file.
+rust-analyzer's index of the `testonly,tooling` build on the host target;
+code for other targets and features is covered by the role, feature and
+cross-target builds.
 
 V2 runtime circuits are read-only at the type level, including generated
 adapter instances. `RawCircuitBuilder` owns mutable construction data;
@@ -414,7 +416,7 @@ its unit tests in `foo/tests.rs` or `foo/tests/`.
 |---|---|
 | `lib.rs` | Module assembly and feature gates |
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
-| `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
+| `compile/` | Symbolic arithmetic and circuit compilation |
 | `runtime/algebra/`, `runtime/random/` | Shared arithmetic, interpolation and private randomness |
 | `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, Merkle tree and proof codecs |
 | `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, Merkle tree and proof codecs |
@@ -530,23 +532,23 @@ is outside timing; the benchmark reports median and 95th-percentile times.
 ## Cargo features
 
 Features support builds tailored to the prover, verifier, or offline
-compiler. The default features are `verifier`, `prover`, `compiler`, and
-`mdoc`.
+compiler. The default features are `verifier`, `prover`, `compiler`, `mdoc`, and
+`v1`.
 
 | Feature | Purpose |
 |---|---|
 | `verifier` | Runtime proof verification |
 | `prover` | Witness generation and runtime proving |
-| `compiler` | Symbolic construction, circuit compilation, and parameter selection |
+| `compiler` | Symbolic construction and circuit compilation |
 | `mdoc` | mdoc application and circuit-archive support |
 | `v1` | The deployed v1 protocol: runtime, AES-based transcript, mdoc v1 entry points and the `prover_only`/`verifier_only` tools; on by default. v2-only builds omit it |
 | `testonly` | Test fixtures and deterministic randomness; also enables both proof roles, the compiler and `v1` |
-| `tooling` | Offline Rust tools, including compiler and auxiliary-arithmetic dependencies |
+| `tooling` | Offline Rust tools (`dependency_check`, `zk_tool`); enables the compiler and the tools' own dependencies |
 | `arm-neon` | ARMv7 NEON field arithmetic; also requires the compiler's NEON target flag |
 | `bench-memory` | Benchmark allocation tracking |
 
 The `tooling` feature is not enabled by default and does not enable proving or
-verification. Auxiliary extension arithmetic is available to tests and tooling.
+verification.
 
 Feature gates are placed high in the module tree. The `cfg_compiler!`,
 `cfg_prover!`, `cfg_verifier!`, `cfg_prover_or_compiler!`, and
@@ -578,8 +580,9 @@ cargo build --release --no-default-features --features compiler,mdoc
 # Standard test suites.
 cargo test --release --features testonly
 
-# Offline-tool tests without proof-role features.
-cargo test --no-default-features --features tooling --bin zk_tool
+# Offline-tool tests. The Polygero catalog tests prove and verify every
+# admitted profile, so they need the proof roles that testonly enables.
+cargo test --release --features testonly,tooling --bin zk_tool
 ```
 
 Circuit synthesis and tampering tests use the native v2 compiler. Dedicated
@@ -632,8 +635,19 @@ the summary above records the measured code configuration.
 
 `dependency_check` builds the crate's exact file dependency graph from
 rust-analyzer's index and checks it against
-[`src/bin/dependency_check/rules.txt`](src/bin/dependency_check/rules.txt): allowed
-component edges, acyclic rules, disjoint v1 and v2 files, no file cycles, and no prover file using a verifier file or the reverse.
+[`src/bin/dependency_check/rules.txt`](src/bin/dependency_check/rules.txt). It checks:
+
+- component edges against the rules, which must name every component and stay
+  acyclic; a component with components below it owns only its root file;
+- that the file graph has no cycles;
+- that v1 and v2 files and rules stay disjoint;
+- that no prover file uses a verifier file or the reverse;
+- the symbol rules in `rules.txt` (for example where transcript framing and
+  the final seal may be used);
+- the compile/run-time split, the prover/verifier contract layers
+  (`runtime::v1::proto`, `runtime::v2::proto`) and the test-only `evaluate`
+  bridges, which are defined in the checker's code rather than in
+  `rules.txt`.
 
 ```sh
 cargo run --release --features tooling --bin dependency_check
