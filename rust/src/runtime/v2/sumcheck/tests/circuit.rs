@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 streams must prove the same polynomial without a One wire.
 use crate::{
-    compile::algebra::{fp24_ext6::CompileFp24Ext6, CompileField},
+    compile::algebra::CompileField,
     core::{
         algebra::{AlgebraicField, FieldID, SerializableField, SupportsU64Conversions},
         proto::v2::{
@@ -10,7 +10,7 @@ use crate::{
         },
     },
     runtime::{
-        algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField, SupportsSampling},
+        algebra::{RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
             sumcheck::{
@@ -427,10 +427,6 @@ fn coefficient_arrays_prime() {
         &crate::compile::algebra::p256::P256Field::new(),
         &crate::runtime::algebra::p256::P256Field::new(),
     );
-}
-#[test]
-fn coefficient_arrays_sextic() {
-    check_coefficients(&CompileFp24Ext6::new(), &RuntimeFp24Ext6::new());
 }
 
 #[test]

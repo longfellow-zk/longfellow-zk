@@ -22,11 +22,8 @@ use crate::{
     runtime::{
         algebra::{
             fp2::Fp2Field,
-            fp24_ext6::RuntimeFp24Ext6,
             p256::P256Field,
-            range_interpolation::{
-                CrtInterpolatorFactory, EvaluationDomain, QuadraticExtensionFftInterpolatorFactory,
-            },
+            range_interpolation::{EvaluationDomain, QuadraticExtensionFftInterpolatorFactory},
             RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
@@ -138,10 +135,6 @@ fn admitted_profiles_encode_and_verify() {
         extension.omega_order(),
     );
     admitted_profiles_roundtrip(&prime, &prime_domain);
-    {
-        let sextic = RuntimeFp24Ext6::new();
-        admitted_profiles_roundtrip(&sextic, &CrtInterpolatorFactory);
-    }
 }
 
 fn admitted_profiles_roundtrip<

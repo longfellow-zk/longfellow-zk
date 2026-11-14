@@ -24,8 +24,5 @@ pub mod secp256r1;
 pub use field::{CompileBinaryField, CompileField, CompilePrimeField};
 pub use nat::CompileNat;
 
-#[cfg(any(test, feature = "tooling"))]
-pub mod fp24_ext6;
-
 #[cfg(test)]
 mod tests;

@@ -3,10 +3,7 @@ use super::*;
 use crate::{
     core::{algebra::SerializableField, proto::v2::CircuitReader},
     runtime::{
-        algebra::{
-            fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
-            SupportsSampling,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         random::RandomEngine,
         v2::sumcheck::eval::eval_layer,
     },
@@ -301,10 +298,6 @@ fn split_bindings_match_three_stream_prime() {
 fn split_bindings_match_three_stream_binary() {
     check_bindings(&Gf2_128Field::new());
 }
-#[test]
-fn split_bindings_match_three_stream_sextic() {
-    check_bindings(&RuntimeFp24Ext6::new());
-}
 
 fn check_proof<const W: usize, F>(f: &F)
 where F: RuntimeField<W> + SerializableField + SupportsSampling {
@@ -508,10 +501,6 @@ fn split_preserves_proof_transcript_and_circuit_prime() {
 #[test]
 fn split_preserves_proof_transcript_and_circuit_binary() {
     check_proof(&Gf2_128Field::new());
-}
-#[test]
-fn split_preserves_proof_transcript_and_circuit_sextic() {
-    check_proof(&RuntimeFp24Ext6::new());
 }
 
 pub(super) mod fixtures;

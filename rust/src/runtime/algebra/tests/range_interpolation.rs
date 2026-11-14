@@ -15,7 +15,7 @@
 use std::ops::Range;
 
 use crate::{
-    core::algebra::{fp24::Q, AlgebraicField, SupportsU64Conversions, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SupportsU64Conversions, GF2_16_BASIS_V1},
     runtime::{
         algebra::{
             fp2::Fp2Field,
@@ -308,46 +308,6 @@ fn scalar_range_interpolation() {
 }
 
 #[test]
-fn crt_range_interpolation() {
-    use crate::runtime::{
-        algebra::{fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory},
-        v1::subfield::RuntimeFp24SubfieldV1,
-    };
-    let f = RuntimeFp24Ext6::new();
-    let factory = CrtInterpolatorFactory;
-    let coefficient = |i| {
-        f.from_coefficients(std::array::from_fn(|j| {
-            (random_word(6 * i + j) % 8_380_417) as u32
-        }))
-    };
-    exercise(&f, &factory, coefficient, 8_380_417);
-    arbitrary_values(&f, &factory, coefficient);
-    prefix_suffix_consistency(&factory, coefficient);
-    invalid_ranges(&f, &factory, 8_380_417);
-    for source in [1..5, 127..160] {
-        let destination = 0..200;
-        let values: Vec<_> = source
-            .clone()
-            .map(|i| f.u64_to_element((i * i + 1) as u64))
-            .collect();
-        let plan = factory.make_range(source, destination.clone());
-        let ordinary = plan.apply(&values);
-        let hinted = plan.apply_subfield_v1(&values, &RuntimeFp24SubfieldV1);
-        assert_eq!(ordinary, hinted);
-        let mut invalid = values;
-        invalid[0] = f.from_coefficients([1, 1, 0, 0, 0, 0]);
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-            || plan.apply_subfield_v1(&invalid, &RuntimeFp24SubfieldV1)
-        ))
-        .is_err());
-    }
-    let q = u128::from(Q - 1);
-    let bound = ((18_446_744_072_195_407_873u128 - 1) / (q * q)) as usize;
-    assert!(factory.can_interpolate(0..bound, bound..bound + 1));
-    assert!(!factory.can_interpolate(0..bound + 1, bound + 1..bound + 2));
-}
-
-#[test]
 fn binary_range_interpolation_with_non_cantor_basis() {
     let f = Gf2_128RuntimeField::new();
     let basis: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
@@ -423,16 +383,4 @@ fn interpolation_backend_points_are_distinct() {
     let other_subfield = BinarySubfieldV1::new(&basis);
     let other_binary = BinaryInterpolatorFactory::new(&binary_field, other_subfield.basis());
     assert_distinct_points(&binary_field, &other_binary, std::iter::once(0..256));
-
-    {
-        use crate::runtime::algebra::{
-            fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
-        };
-        let extension = RuntimeFp24Ext6::new();
-        assert_distinct_points(
-            &extension,
-            &CrtInterpolatorFactory,
-            [0..8192, 8_380_353..8_380_417],
-        );
-    }
 }

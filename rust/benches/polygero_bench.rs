@@ -121,12 +121,4 @@ fn main() {
             30,
         );
     }
-    #[cfg(feature = "tooling")]
-    {
-        use longfellow_zk::runtime::algebra::{
-            fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
-        };
-        let f = RuntimeFp24Ext6::new();
-        run("extension", &f, &CrtInterpolatorFactory, BENCH_CONFIG, 8192);
-    }
 }

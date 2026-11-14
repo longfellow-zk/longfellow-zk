@@ -14,10 +14,9 @@
 
 use super::{ZkContext, ZkProver, ZkVerifier};
 use crate::{
-    compile::polygero::tune_large_field_at_rate,
     core::proto::v2::quadratic_fixture,
     runtime::v2::{
-        proto::{dual_packing::PackingProof, witness_selection::FINGERPRINTS, zk::ZkProof},
+        proto::{dual_packing::PackingProof, zk::ZkProof},
         sumcheck::circuit_geometry,
         zk::CircuitInput,
     },
@@ -366,37 +365,6 @@ fn q256_zk_comparison() {
     let f = Q256Field::new();
     let d = ScalarInterpolatorFactory::new(&f, 128);
     exercise(&f, &d);
-}
-#[test]
-fn extension_zk_comparison() {
-    use crate::runtime::algebra::{
-        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
-    };
-    let f = RuntimeFp24Ext6::new();
-    exercise(&f, &CrtInterpolatorFactory);
-    let c = circuit(&f);
-    use crate::runtime::algebra::packing::{PackingExtension, PackingField};
-    let geometry = circuit_geometry(&[&c]).unwrap();
-    let source = super::packing_commitment::PackingLayout::new(
-        c.raw.ninput - c.raw.npublic_input,
-        geometry.pad_count().unwrap(),
-        f.packing_extension().degree(),
-    )
-    .unwrap();
-    let nw = source.witness_count + FINGERPRINTS;
-    let select = |filter: fn(PolygeroConfig) -> bool| {
-        tune_large_field_at_rate(4, nw, f.serialized_size_bytes(), |config| {
-            filter(config) && config.can_interpolate(&CrtInterpolatorFactory)
-        })
-    };
-    let config = select(|p| p.k == 992).unwrap();
-    assert_eq!(
-        (config.k, config.s, config.n, config.t),
-        (992, 26, 3968, 131)
-    );
-    assert!(select(|_| false).is_none());
-    // A public resource filter can only restrict the certified family.
-    assert!(select(|p| p.k == 993).is_none());
 }
 
 mod layouts;

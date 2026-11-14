@@ -15,9 +15,7 @@
 use crate::{
     core::algebra::SupportsU64Conversions,
     runtime::{
-        algebra::{
-            fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
         v2::sumcheck::{bind, dense::as_scalar},
     },
 };
@@ -66,18 +64,6 @@ fn binding_matches_monomial_weights_binary() {
     use crate::core::algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
     check_binding(&f, |x| f.u128_to_element(x as u128));
-}
-
-#[test]
-fn binding_matches_monomial_weights_extension() {
-    let f = RuntimeFp24Ext6::new();
-    check_binding(&f, |x| {
-        if x < 2 {
-            f.u64_to_element(x)
-        } else {
-            f.from_coefficients([x as u32, 1, 2, 3, 4, 5])
-        }
-    });
 }
 
 #[test]

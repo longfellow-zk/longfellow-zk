@@ -230,10 +230,5 @@ impl SubfieldV1 for BinarySubfieldV1 {
 mod p256;
 pub use p256::P256SubfieldV1;
 
-#[cfg(any(test, feature = "tooling"))]
-mod fp24;
-#[cfg(any(test, feature = "tooling"))]
-pub use fp24::RuntimeFp24SubfieldV1;
-
 #[cfg(test)]
 mod tests;

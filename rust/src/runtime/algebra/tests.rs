@@ -27,7 +27,3 @@ mod quadratic_extension_fft_interpolation;
 mod range_interpolation;
 mod rfft;
 mod sampling;
-
-mod crt_interpolation;
-
-mod fp24_ext6;

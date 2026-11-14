@@ -127,28 +127,3 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
         subfield_draws.exhausted();
     }
 }
-#[test]
-fn sextic_sampling_reads_three_bytes_and_masks_23_bits_per_coordinate() {
-    use crate::{
-        core::algebra::fp24::Q,
-        runtime::{algebra::fp24_ext6::RuntimeFp24Ext6, v1::subfield::RuntimeFp24SubfieldV1},
-    };
-    let f = RuntimeFp24Ext6;
-    let mut draws =
-        Draws::new([Q, 0x80_0001, 2, 3, 4, 5, Q - 1].map(|x| x.to_le_bytes()[..3].to_vec()));
-    let sampled = f.sample(|n| draws.bytes(n));
-    assert_eq!(sampled.coefficients(), &[1, 2, 3, 4, 5, Q - 1]);
-    draws.exhausted();
-    assert_eq!(draws.requests, vec![3; 7]);
-    let inputs = [Q, Q + 1, (Q - 1) | 0x80_0000].map(|x| x.to_le_bytes()[..3].to_vec());
-    let mut legacy = Draws::new(inputs);
-    let sampled_base = RuntimeFp24SubfieldV1.sample(|n| legacy.bytes(n));
-    assert_eq!(sampled_base.coefficients(), &[Q - 1, 0, 0, 0, 0, 0]);
-    assert!(RuntimeFp24SubfieldV1.contains(&sampled_base));
-    legacy.exhausted();
-    assert_eq!(legacy.requests, [3, 3, 3]);
-    let mut no_rejections = Draws::new((0..6).map(|i| vec![i, 0, 0]));
-    f.sample(|n| no_rejections.bytes(n));
-    no_rejections.exhausted();
-    assert_eq!(no_rejections.requests.iter().sum::<usize>(), 18);
-}

@@ -106,13 +106,6 @@ fn binary_ambient_masks_and_privacy() {
     let f = Gf2_128Field::new();
     ambient_rows(&f, &BinaryInterpolatorFactory::full_field(&f));
 }
-#[test]
-fn extension_ambient_masks_and_privacy() {
-    use crate::runtime::algebra::{
-        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
-    };
-    ambient_rows(&RuntimeFp24Ext6::new(), &CrtInterpolatorFactory);
-}
 
 #[test]
 fn ordinary_only_rows_allow_large_mask_prefixes() {

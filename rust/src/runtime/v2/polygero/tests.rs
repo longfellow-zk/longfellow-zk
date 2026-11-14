@@ -497,14 +497,6 @@ fn q256_scalar_reference_and_failures() {
     let d = ScalarInterpolatorFactory::new(&f, 128);
     exercise(&f, &d);
 }
-#[test]
-fn extension_crt_reference_and_failures() {
-    use crate::runtime::algebra::{
-        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory,
-    };
-    let f = RuntimeFp24Ext6::new();
-    exercise(&f, &CrtInterpolatorFactory);
-}
 
 struct BrokenDomain<'a, D> {
     inner: &'a D,

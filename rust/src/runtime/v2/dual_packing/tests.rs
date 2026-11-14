@@ -584,19 +584,6 @@ fn gf128_over_gf256_packs_non_boolean_coordinates() {
     let mut rng = DeterministicRng::new(889);
     roundtrip(&p, &values, || V::from(rng.u128()));
 }
-#[cfg(any(test, feature = "tooling"))]
-#[test]
-fn sextic_prime_extension() {
-    use crate::runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, packing::prime24::Prime24Extension};
-    let f = RuntimeFp24Ext6::new();
-    let p = PackingParameters::new(f, Prime24Extension).unwrap();
-    let values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    laws(&p, &values);
-    let mut rng = DeterministicRng::new(123);
-    roundtrip(&p, &values, || {
-        f.from_coefficients(std::array::from_fn(|_| (rng.u128() % 8_380_417) as u32))
-    });
-}
 
 fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::Ambient>>(
     p: &PackingParameters<X>,
@@ -731,19 +718,6 @@ fn generic_equations_authenticate_against_the_original_polygero_commitment() {
     authenticate(&p, &domain, &values);
     let identity = PackingParameters::new(f.clone(), IdentityExtension::new(f.clone())).unwrap();
     authenticate(&identity, &domain, &[f.one(), f.mone()]);
-    #[cfg(any(test, feature = "tooling"))]
-    {
-        use crate::runtime::algebra::{
-            fp24_ext6::RuntimeFp24Ext6, packing::prime24::Prime24Extension,
-            range_interpolation::CrtInterpolatorFactory,
-        };
-        let sextic_parameters = PackingParameters::new(RuntimeFp24Ext6, Prime24Extension).unwrap();
-        authenticate(
-            &sextic_parameters,
-            &CrtInterpolatorFactory,
-            &[1, 2, 3, 4, 5, 6, 7],
-        );
-    }
 }
 #[test]
 fn sparse_prime_codec_samples_uniformly_without_padding_grinding() {

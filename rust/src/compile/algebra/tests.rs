@@ -15,5 +15,3 @@
 mod fp;
 mod gf2_128;
 mod interpolation;
-
-mod fp24_ext6;

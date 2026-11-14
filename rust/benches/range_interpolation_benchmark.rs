@@ -17,8 +17,6 @@
 use std::{hint::black_box, ops::Range, time::Duration};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-#[cfg(feature = "tooling")]
-use longfellow_zk::runtime::v1::subfield::InterpolationPlanV1;
 use longfellow_zk::{
     core::algebra::SupportsU64Conversions,
     runtime::{
@@ -125,29 +123,6 @@ fn all_backends(c: &mut Criterion) {
         let factory = ScalarInterpolatorFactory::<4, _>::new(&f, 1024);
         let values: Vec<_> = (0..32).map(|i| f.u64_to_element(i * i + 1)).collect();
         benchmark(c, "range/scalar", &factory, 3..35, 128..256, &values);
-    }
-    #[cfg(feature = "tooling")]
-    {
-        use longfellow_zk::runtime::{
-            algebra::{fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory},
-            v1::subfield::RuntimeFp24SubfieldV1,
-        };
-        let f = RuntimeFp24Ext6::new();
-        let factory = CrtInterpolatorFactory;
-        let k = 992;
-        let values: Vec<_> = (0..k)
-            .map(|i| f.from_coefficients(std::array::from_fn(|j| (i * i + 17 * j + 1) as u32)))
-            .collect();
-        benchmark_ranges(c, "range/crt-sextic", &factory, k, 992..4960, &values);
-        let base_values: Vec<_> = (0..k)
-            .map(|i| f.u64_to_element((i * i + 1) as u64))
-            .collect();
-        let plan = factory.make_range(0..k, 992..4960);
-        let mut group = c.benchmark_group("range/crt-sextic/base-subfield");
-        group.bench_function("apply", |b| {
-            b.iter(|| plan.apply_subfield_v1(black_box(&base_values), &RuntimeFp24SubfieldV1))
-        });
-        group.finish();
     }
 }
 fn binary_ranges(c: &mut Criterion) {

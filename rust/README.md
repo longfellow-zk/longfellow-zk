@@ -467,9 +467,6 @@ precedes the packing challenge; the scalar A precedes backend challenges.
 Degree-one packing performs no transcript operations.
 For GF128, trace uses two polynomial-coordinate bits and the trace-dual basis
 uses the modulus's closed formula. Frobenius remains ordinary field squaring.
-Auxiliary sextic arithmetic, available to tests and tooling,
-defers reduction across accumulated products through the existing sumcheck
-accumulator interface.
 
 Formal proofs and parameter certificates live in [`../formal`](../formal),
 including `../formal/parameters`. There are no Lean source files in the

@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Exercise all three streams, including independent quadratic and linear assertions.
 use crate::{
-    compile::algebra::{fp24_ext6::CompileFp24Ext6, CompileField},
+    compile::algebra::CompileField,
     core::{
         algebra::SerializableField,
         proto::{
@@ -10,7 +10,7 @@ use crate::{
         },
     },
     runtime::{
-        algebra::{blas, fp24_ext6::RuntimeFp24Ext6, RuntimeField, SupportsSampling},
+        algebra::{blas, RuntimeField, SupportsSampling},
         random::DeterministicRng,
         v2::{
             sumcheck::{
@@ -229,10 +229,6 @@ fn three_streams_prime() {
 #[test]
 fn three_streams_binary() {
     three_streams(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
-}
-#[test]
-fn three_streams_extension() {
-    three_streams(&RuntimeFp24Ext6::new());
 }
 #[test]
 fn records_have_their_exact_arities_and_runs_retain_deltas() {
@@ -486,10 +482,6 @@ fn explicit_units_binary() {
         &crate::compile::algebra::gf2_128::Gf2_128Field::new(),
         &crate::runtime::algebra::gf2_128::Gf2_128Field::new(),
     );
-}
-#[test]
-fn explicit_units_extension() {
-    explicit_units(&CompileFp24Ext6::new(), &RuntimeFp24Ext6::new());
 }
 
 // Locate the coefficient payload after all layer descriptors and segment ends.

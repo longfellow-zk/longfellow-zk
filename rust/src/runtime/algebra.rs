@@ -49,8 +49,5 @@ pub trait ZkField<const W: usize>:
 impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + SerializableField + SupportsSampling
 {}
 
-#[cfg(any(test, feature = "tooling"))]
-pub mod fp24_ext6;
-
 #[cfg(test)]
 mod tests;

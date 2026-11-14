@@ -46,16 +46,10 @@ use super::RuntimeField;
 
 mod arithmetic;
 pub(in crate::runtime) mod binary;
-#[cfg(any(test, feature = "tooling"))]
-pub(in crate::runtime) mod crt;
-#[cfg(any(test, feature = "tooling"))]
-mod crt_fft;
 mod domain;
 pub(in crate::runtime) mod quadratic_extension_fft;
 pub(in crate::runtime) mod scalar;
 pub use binary::BinaryInterpolatorFactory;
-#[cfg(any(test, feature = "tooling"))]
-pub use crt::CrtInterpolatorFactory;
 use domain::{difference, Ranges};
 pub use domain::{
     interpolate_range, EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory,

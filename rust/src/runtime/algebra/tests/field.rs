@@ -15,7 +15,7 @@
 //! Generic runtime field operations, checked independently of protocol code.
 use crate::{
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
-    runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField},
+    runtime::algebra::RuntimeField,
 };
 
 fn check_constant_encoding<F: AlgebraicField + SerializableField>(field: &F) {
@@ -52,14 +52,11 @@ fn serializable_fields_use_canonical_constant_encodings() {
     check_constant_encoding(&compile::gf2_128::Gf2_128Field::new());
     check_constant_encoding(&compile::p256::P256Field::new());
     check_constant_encoding(&compile::q256::Q256Field::new());
-    check_constant_encoding(&compile::fp24_ext6::CompileFp24Ext6::new());
     check_constant_encoding(&runtime::gf2_128::Gf2_128Field::new());
     check_constant_encoding(&runtime::p256::P256Field::new());
     check_constant_encoding(&runtime::q256::Q256Field::new());
-    check_constant_encoding(&runtime::fp24_ext6::RuntimeFp24Ext6::new());
     check_constant_encoding(&runtime::packing::binary::Gf2);
     check_constant_encoding(&runtime::packing::binary::Gf256::new());
-    check_constant_encoding(&runtime::packing::prime24::Prime24);
 }
 
 fn check<const W: usize, F: RuntimeField<W>>(field: &F, value: F::E) {
@@ -90,8 +87,4 @@ fn power_works_in_binary_prime_and_extension_fields() {
         &extension,
         extension.addf(&extension.one(), &extension.one()),
     );
-    {
-        let sextic = RuntimeFp24Ext6::new();
-        check(&sextic, sextic.addf(&sextic.one(), &sextic.one()));
-    }
 }

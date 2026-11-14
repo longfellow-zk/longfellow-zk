@@ -130,12 +130,6 @@ harness = false
 required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 
 [[bench]]
-name = "fp24_benchmark"
-path = "benches/fp24_benchmark.rs"
-harness = false
-required-features = ["tooling"]
-
-[[bench]]
 name = "polygero_bench"
 path = "benches/polygero_bench.rs"
 harness = false

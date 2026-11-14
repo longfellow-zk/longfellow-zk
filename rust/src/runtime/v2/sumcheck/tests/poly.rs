@@ -17,9 +17,7 @@ use crate::{
         AlgebraicField, SerializableField, SupportsU128Conversions, SupportsU64Conversions,
     },
     runtime::{
-        algebra::{
-            blas, fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
-        },
+        algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
         v2::{
             proto::{
                 sumcheck::{LayerProof, RoundPoly, SumcheckProof},
@@ -145,14 +143,6 @@ fn round_constraints_match_polynomial_prime() {
 fn round_constraints_match_polynomial_binary() {
     let f = Gf2_128Field::new();
     check_round_constraints(&f, |x| f.u128_to_element(x as u128));
-}
-
-#[test]
-fn round_polynomial_and_constraints_extension() {
-    let f = RuntimeFp24Ext6::new();
-    let element = |x: u64| f.from_coefficients([x as u32, 1, 2, 3, 4, 5]);
-    check_round_polynomial(&f, element);
-    check_round_constraints(&f, element);
 }
 
 // A dishonest product cell is allowed. Construct an error polynomial with two

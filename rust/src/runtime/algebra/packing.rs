@@ -6,8 +6,6 @@ use crate::core::algebra::{AlgebraicField, BareField, SerializableField};
 
 pub mod binary;
 pub mod binary128;
-#[cfg(any(test, feature = "tooling"))]
-pub mod prime24;
 
 /// Explicit packing support. Other arithmetic fields need not implement this trait.
 pub trait PackingField:
