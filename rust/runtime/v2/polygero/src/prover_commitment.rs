@@ -24,7 +24,7 @@
 use super::PolygeroParam;
 use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField, SupportsSampling},
-    random::RandomEngine,
+    random::PrivateRandom,
 };
 
 /// Encode u and m, the witness rows, then fstar.
@@ -34,7 +34,7 @@ pub(super) fn encode_rows<
     const W: usize,
     F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
-    R: RandomEngine,
+    R: PrivateRandom,
 >(
     param: &PolygeroParam,
     witness: Vec<F::E>,
@@ -56,7 +56,7 @@ fn encode_witness_rows<
     const W: usize,
     F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
-    R: RandomEngine,
+    R: PrivateRandom,
 >(
     w: &mut Vec<Vec<F::E>>,
     param: &PolygeroParam,
@@ -84,7 +84,7 @@ fn encode_fstar<
     const W: usize,
     F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
-    R: RandomEngine,
+    R: PrivateRandom,
 >(
     w: &mut Vec<Vec<F::E>>,
     param: &PolygeroParam,
@@ -106,7 +106,7 @@ fn encode_arithmetic_masks<
     const W: usize,
     F: RuntimeField<W> + SupportsSampling,
     D: EvaluationDomain<W, F>,
-    R: RandomEngine,
+    R: PrivateRandom,
 >(
     w: &mut Vec<Vec<F::E>>,
     param: &PolygeroParam,
@@ -144,7 +144,7 @@ impl ColumnOracle {
     pub(super) fn new(
         n: usize,
         context: &Digest,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
         mut append: impl FnMut(usize, &mut Sha256),
     ) -> Self {
         let salts: Vec<_> = (0..n)

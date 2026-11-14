@@ -2,7 +2,7 @@
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
     algebra::{PackingExtension, PackingField, ZkField},
-    random::RandomEngine,
+    random::PrivateRandom,
     v2::{
         dual_packing::generic::{PackingMasks, PackingProof},
         polygero::LinearStatement,
@@ -33,7 +33,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         &self,
         inputs: PreparedInputs<F::E>,
         suffix: Vec<F::E>,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> (PackingState<F::E>, Vec<F::E>) {
         let f = self.parameters.field();
         let masks = PackingMasks::sample(&self.parameters, || rng.elt_field(f));

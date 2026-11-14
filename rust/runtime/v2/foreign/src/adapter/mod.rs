@@ -18,7 +18,7 @@ pub mod p256;
 mod transcript;
 
 #[cfg(any(test, feature = "prover"))]
-use crate::runtime::{random::RandomEngine, v2::zk::storage::ReservedWitness};
+use crate::runtime::{random::PrivateRandom, v2::zk::storage::ReservedWitness};
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField},
@@ -225,7 +225,7 @@ pub trait AdapterMode<F: SerializableField>: Sized {
     fn fragment(&self) -> &Circuit<Gf2_128Field>;
     fn virtual_inputs(&self) -> usize;
     #[cfg(any(test, feature = "prover"))]
-    fn sample_pads(&self, rng: &mut impl RandomEngine) -> Self::Pads;
+    fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads;
     #[cfg(any(test, feature = "prover"))]
     fn write_pads(
         &self,

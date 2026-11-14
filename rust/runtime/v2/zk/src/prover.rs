@@ -4,7 +4,7 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
-        random::RandomEngine,
+        random::PrivateRandom,
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             proto::{
@@ -40,7 +40,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn prepare(
         &self,
         private: Vec<CircuitInput<F>>,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> Result<(CircuitState<W, F>, Vec<F::E>), String> {
         let inputs = self.backend.prepare_inputs(&private)?;
         let (pads, suffix) =
@@ -150,7 +150,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig) -> Self {
         Self { circuit, config }
     }
-    pub fn commit<D: EvaluationDomain<W, F>, R: RandomEngine>(
+    pub fn commit<D: EvaluationDomain<W, F>, R: PrivateRandom>(
         &self,
         private: Vec<CircuitInput<F>>,
         ctx: &ZkContext<'_, W, F, D>,
@@ -237,7 +237,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         private: Vec<CircuitInput<F>>,
         mask: Option<F::E>,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> Result<(SplitState<W, F>, Vec<F::E>), String> {
 
         let split = self.split()?;

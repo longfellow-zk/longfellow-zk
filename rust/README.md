@@ -69,6 +69,8 @@ Its legacy index and opening samplers live on the v1 transcript, including
 the original extra-bit rejection behavior at power-of-two bounds. Shared
 `RandomEngine` contains no index sampler; its v1 extension is limited to
 legacy subfield sampling.
+V2 provers take their private coins as `PrivateRandom`, which no transcript
+implements, so a public challenge stream cannot stand in for them.
 V2 uses SHA-256 strands with explicit message and challenge phases. A root
 has id zero and no parents. Each round consumes its absorbing strand and returns
 a PRF and a fresh one-parent continuation with id `parent.id + 1`.

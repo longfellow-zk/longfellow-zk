@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::random::RandomEngine;
+use crate::runtime::random::{PrivateRandom, RandomEngine};
 
 #[derive(Clone, Debug)]
 pub struct DeterministicRng {
@@ -39,3 +39,5 @@ impl DeterministicRng {
         Self { state }
     }
 }
+
+impl PrivateRandom for DeterministicRng {}

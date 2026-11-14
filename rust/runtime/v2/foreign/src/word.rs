@@ -5,7 +5,7 @@
 //! `Otp<N>` is a uniform pad committed with the binary witness. The proof
 //! carries only `MaskedWord<N>`: an element of GF(2)^N, neither an integer nor
 //! a field element, whose canonical encoding is defined once here.
-use crate::runtime::random::RandomEngine;
+use crate::runtime::random::PrivateRandom;
 
 const fn mask(n: usize) -> u64 {
     if n == 64 {
@@ -36,7 +36,7 @@ impl<const N: usize> Word<N> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Otp<const N: usize>(u64);
 impl<const N: usize> Otp<N> {
-    pub fn sample(rng: &mut impl RandomEngine) -> Self {
+    pub fn sample(rng: &mut impl PrivateRandom) -> Self {
         let () = Word::<N>::WIDTH_OK;
         // Exactly ceil(N/8) fresh bytes; the unused high bits are discarded.
         let mut buf = [0u8; 8];

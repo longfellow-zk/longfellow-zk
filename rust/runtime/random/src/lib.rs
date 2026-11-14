@@ -40,6 +40,20 @@ pub trait RandomEngine {
     }
 }
 
+/// Coins that stay private to the prover: masks, pads, nonces and one-time
+/// pads. v2 prover APIs take this, not `RandomEngine`, so a public Fiat-Shamir
+/// challenge stream such as the v1 transcript cannot be supplied as private
+/// randomness: transcripts never implement it.
+///
+/// ```compile_fail
+/// use longfellow_zk::runtime::{random::PrivateRandom, v1::transcript::Transcript};
+/// fn private_coins(_: &mut impl PrivateRandom) {}
+/// fn challenges_as_coins(t: &mut Transcript) {
+///     private_coins(t);
+/// }
+/// ```
+pub trait PrivateRandom: RandomEngine {}
+
 pub mod secure;
 pub use secure::SecureRandomEngine;
 

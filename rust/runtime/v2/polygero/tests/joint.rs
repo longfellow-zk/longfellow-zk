@@ -10,7 +10,7 @@ use crate::{
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
             Q256Field,
         },
-        random::DeterministicRng,
+        random::{DeterministicRng, RandomEngine},
         v2::polygero::{JointPolygeroProver, JointPolygeroVerifier, PolygeroCommitment},
     },
 };

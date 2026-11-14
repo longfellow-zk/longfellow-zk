@@ -2,7 +2,7 @@
 //! The prover's side of the composition driver.
 use super::*;
 use crate::runtime::{
-    random::RandomEngine,
+    random::PrivateRandom,
     v2::{
         proto::{composed::ComposedProof, dual_packing::PackingProof, zk::CircuitProof},
         transcript::Transcript,
@@ -28,7 +28,7 @@ where
         split_public: &[CircuitInput<F>],
         split_private: Vec<CircuitInput<F>>,
         transcript: Transcript,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> Result<(ComposedProof<H, Host, W, F, M::Message>, Transcript), String> {
         let (fh, fs) = (self.host_ctx.field(), self.split_ctx.field());
         // The split mask R and the mode's pads fill the reserved suffix.

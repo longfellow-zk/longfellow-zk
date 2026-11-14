@@ -2172,7 +2172,11 @@ fn test_witness_selection_protocol_boundaries() {
         .collect();
     assert_eq!(files.iter().cloned().collect::<BTreeSet<_>>(), expected);
     let shared = production_code(&fs::read_to_string(directory.join("lib.rs")).unwrap());
-    assert!(!shared.contains("RandomEngine") && !shared.contains("PackingField"));
+    assert!(
+        !shared.contains("RandomEngine")
+            && !shared.contains("PrivateRandom")
+            && !shared.contains("PackingField")
+    );
     for file in files {
         let source = fs::read_to_string(&file).unwrap();
         assert!(!source.lines().any(|line| line.trim() == "#[test]"));

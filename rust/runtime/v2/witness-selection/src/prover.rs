@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::{
-    random::RandomEngine,
+    random::PrivateRandom,
     v2::{
         polygero::JointPolygeroProver,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
@@ -16,7 +16,7 @@ pub trait ProverFields: Fields {
     fn append_masks(
         &self,
         witnesses: &mut Witnesses<Self>,
-        rng: &mut impl crate::runtime::random::RandomEngine,
+        rng: &mut impl PrivateRandom,
     );
     fn responses(
         &self,
@@ -28,7 +28,7 @@ impl ProverFields for () {
     fn validate_witnesses(&self, _: &()) -> Result<(), String> {
         Ok(())
     }
-    fn append_masks(&self, _: &mut (), _: &mut impl crate::runtime::random::RandomEngine) {}
+    fn append_masks(&self, _: &mut (), _: &mut impl PrivateRandom) {}
     fn responses(&self, _: &(), _: &()) {}
 }
 impl<
@@ -48,7 +48,7 @@ impl<
     fn append_masks(
         &self,
         witnesses: &mut Witnesses<Self>,
-        rng: &mut impl crate::runtime::random::RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) {
         witnesses
             .0
@@ -89,7 +89,7 @@ pub fn commit<L: ProverFields>(
     param: &Param<L>,
     mut witnesses: Witnesses<L>,
     t: Transcript,
-    rng: &mut impl RandomEngine,
+    rng: &mut impl PrivateRandom,
 ) -> Result<
     (
         Prover<<L::Backend as BackendParticipants>::States, L::Coefficients, L::Responses>,

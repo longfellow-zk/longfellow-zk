@@ -2,7 +2,7 @@
 //! Prover ownership of the selected joint commitment and its final equations.
 use super::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
 use crate::runtime::{
-    random::RandomEngine,
+    random::PrivateRandom,
     v2::{
         polygero::joint::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
@@ -20,7 +20,7 @@ impl<L: Fields> JointParam<L> {
         &self,
         witnesses: Witnesses<L>,
         mut transcript: Transcript,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> Result<
         (
             JointProver<

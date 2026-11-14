@@ -9,7 +9,7 @@ use super::{
     PolygeroParam,
 };
 #[cfg(any(test, feature = "prover"))]
-use crate::runtime::random::RandomEngine;
+use crate::runtime::random::PrivateRandom;
 pub use crate::runtime::v2::proto::polygero::{FieldProof, JointPolygeroProof};
 use crate::{
     core::algebra::SerializableField,
@@ -170,7 +170,7 @@ pub trait Participants: sealed::Sealed {
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
-    fn encode(&self, w: Self::Witnesses, rng: &mut impl RandomEngine) -> Self::States;
+    fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States;
     #[cfg(any(test, feature = "prover"))]
     fn append_encoded(&self, w: &Self::States, j: usize, h: &mut Sha256);
     #[cfg(any(test, feature = "prover"))]
@@ -222,7 +222,7 @@ impl Participants for () {
         Ok(())
     }
     #[cfg(any(test, feature = "prover"))]
-    fn encode(&self, _: (), _: &mut impl RandomEngine) {}
+    fn encode(&self, _: (), _: &mut impl PrivateRandom) {}
     #[cfg(any(test, feature = "prover"))]
     fn append_encoded(&self, _: &(), _: usize, _: &mut Sha256) {}
     #[cfg(any(test, feature = "prover"))]
@@ -319,7 +319,7 @@ impl<
         self.1.validate_witnesses(&w.1)
     }
     #[cfg(any(test, feature = "prover"))]
-    fn encode(&self, w: Self::Witnesses, rng: &mut impl RandomEngine) -> Self::States {
+    fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States {
         (
             super::prover_commitment::encode_rows(&self.0.param, w.0, self.0.domain, rng, self.0.f),
             self.1.encode(w.1, rng),

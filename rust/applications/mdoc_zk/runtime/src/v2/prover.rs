@@ -39,7 +39,7 @@ use crate::{
             secp256r1::Secp256r1,
             SupportsFFT,
         },
-        random::RandomEngine,
+        random::PrivateRandom,
     },
 };
 
@@ -71,7 +71,7 @@ pub fn run_mdoc_prover(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
+pub fn run_mdoc_prover_inner<RNG: PrivateRandom>(
     zk_spec: &ZkSpecStruct,
     circuits_compressed: &[u8],
     mdoc_bytes: &[u8],
@@ -99,7 +99,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: RandomEngine>(
+pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     zk_spec: &ZkSpecStruct,
     circuits_compressed: &[u8],
     mdoc_bytes: &[u8],

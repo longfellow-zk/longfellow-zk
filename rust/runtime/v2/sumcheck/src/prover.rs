@@ -53,7 +53,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
-        random::RandomEngine,
+        random::PrivateRandom,
         v2::transcript::{Reading, TranscriptRef},
     },
 };
@@ -344,7 +344,7 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
 pub(crate) fn sample_pads<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
-    R: RandomEngine,
+    R: PrivateRandom,
 >(
     geometry: &SumcheckProofGeometry,
     rng: &mut R,

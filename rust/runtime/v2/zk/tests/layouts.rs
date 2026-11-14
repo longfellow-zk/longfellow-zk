@@ -22,7 +22,7 @@ use crate::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
             RuntimeField,
         },
-        random::RandomEngine,
+        random::{PrivateRandom, RandomEngine},
         v2::{
             polygero::PolygeroConfig,
             transcript::Transcript,
@@ -48,6 +48,7 @@ impl RandomEngine for SimpleRng {
         buf
     }
 }
+impl PrivateRandom for SimpleRng {}
 
 #[allow(clippy::too_many_arguments)]
 fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(

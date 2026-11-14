@@ -7,7 +7,7 @@ use super::{
 use crate::runtime::{
     algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
     v2::proto::Digest,
-    random::RandomEngine,
+    random::PrivateRandom,
     v2::transcript::{Transcript, TranscriptRef},
 };
 pub struct JointPolygeroProver<S> {
@@ -21,7 +21,7 @@ impl<S> JointPolygeroProver<S> {
         param: &JointPolygeroParam<L>,
         witnesses: L::Witnesses,
         mut t: Transcript,
-        rng: &mut impl RandomEngine,
+        rng: &mut impl PrivateRandom,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
         param.participants.validate_witnesses(&witnesses)?;
         let states = param.participants.encode(witnesses, rng);

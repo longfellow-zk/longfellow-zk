@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::random::RandomEngine;
+use crate::runtime::random::{PrivateRandom, RandomEngine};
 
 /// A cryptographically secure random engine backed by the operating system's CSPRNG.
 #[derive(Clone, Default, Debug)]
@@ -32,3 +32,5 @@ impl RandomEngine for SecureRandomEngine {
         buf
     }
 }
+
+impl PrivateRandom for SecureRandomEngine {}

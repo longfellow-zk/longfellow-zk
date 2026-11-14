@@ -11,7 +11,7 @@ use super::{
     Leaf, TreeInstance, TreeShape,
 };
 #[cfg(any(test, feature = "prover"))]
-use crate::runtime::v2::foreign::word::Word;
+use crate::runtime::{random::PrivateRandom, v2::foreign::word::Word};
 use crate::{
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
     runtime::{
@@ -296,7 +296,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         self.shape.virtual_inputs()
     }
     #[cfg(any(test, feature = "prover"))]
-    fn sample_pads(&self, rng: &mut impl crate::runtime::random::RandomEngine) -> Self::Pads {
+    fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads {
         use crate::runtime::v2::foreign::word::Otp;
         [Otp::sample(rng), Otp::sample(rng)]
     }

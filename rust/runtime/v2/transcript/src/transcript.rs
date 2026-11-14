@@ -28,7 +28,7 @@ struct RoundCount(u64);
 #[cfg(not(test))]
 type RoundCount = ();
 
-/// A ready session. It never implements RandomEngine or Clone.
+/// A ready session. It never implements RandomEngine, PrivateRandom or Clone.
 pub struct Transcript {
     strand: Strand,
     _round_count: RoundCount,

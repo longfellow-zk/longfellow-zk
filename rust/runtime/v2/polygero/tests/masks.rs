@@ -1,6 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Ambient-field masking and privacy under witness translations.
 use super::*;
+use crate::runtime::random::{PrivateRandom, RandomEngine};
 
 struct MaskRng {
     inner: DeterministicRng,
@@ -15,6 +16,7 @@ impl RandomEngine for MaskRng {
         self.inner.elt_field(f)
     }
 }
+impl PrivateRandom for MaskRng {}
 
 fn ambient_rows<const W: usize, F, D>(f: &F, domain: &D)
 where
