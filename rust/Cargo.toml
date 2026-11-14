@@ -34,7 +34,7 @@ arm-neon = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
 # Offline audits and specification generation; never a proof-role dependency.
-tooling = ["compiler", "dep:serde_json"]
+tooling = ["compiler", "dep:serde_json", "dep:scip", "dep:protobuf"]
 
 [dependencies]
 aes = { version = "0.8.4", optional = true }
@@ -51,6 +51,9 @@ sha2 = { version = "0.10.8", features = ["asm"] }
 zstd = { version = "0.13", default-features = false, optional = true }
 
 serde_json = { version = "1.0", features = ["arbitrary_precision"], optional = true }
+# Read rust-analyzer's SCIP index in the deps tool (tooling only).
+scip = { version = "0.10", optional = true }
+protobuf = { version = "3.7", optional = true }
 
 [dev-dependencies]
 bumpalo = "3.16.0"
@@ -162,4 +165,9 @@ lto = false
 [[bin]]
 name = "zk_tool"
 path = "tools/zk_tool/main.rs"
+required-features = ["tooling"]
+
+[[bin]]
+name = "dependency_check"
+path = "tools/dependency_check/main.rs"
 required-features = ["tooling"]

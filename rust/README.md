@@ -629,6 +629,18 @@ the summary above records the measured code configuration.
 
 ## Offline tools
 
+`dependency_check` builds the crate's exact file dependency graph from
+rust-analyzer's index and checks it against
+[`tools/dependency_check/rules.txt`](tools/dependency_check/rules.txt): allowed
+component edges, acyclic rules, disjoint v1 and v2 files, no file cycles beyond
+the listed ones, and no prover file using a verifier file or the reverse.
+
+```sh
+cargo run --release --features tooling --bin dependency_check
+cargo run --release --features tooling --bin dependency_check -- --dot /tmp/deps   # files.dot, components.dot
+cargo run --release --features tooling --bin dependency_check -- --current      # current graph as rules
+```
+
 Parameter selection belongs to the compiler. The standalone `zk_tool`
 provides:
 

@@ -29,7 +29,7 @@ use crate::runtime::{
             hquad::HQuad,
             proof::{SumcheckProof, SumcheckProofGeometry},
             transcript::TranscriptSumcheck,
-            verifier_data::{LayerVerifierData, RoundCoefficients, VerifierData},
+            round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
             LagrangeBasis,
         },
         transcript::Transcript,

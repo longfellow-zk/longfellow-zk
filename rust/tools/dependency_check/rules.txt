@@ -1,0 +1,94 @@
+# Allowed dependencies between components, checked by
+#   cargo run --release --features tooling --bin dependency_check
+# A component is a file's directory up to its `src` directory, or its own
+# directory when it has none. Each line `component: dependencies...` lists
+# every component the component's files may use; an edge missing here fails
+# the check, and so does a component without a line. Keep the rules acyclic.
+# `--current` prints the current graph in this format.
+#
+# Notes on individual edges:
+# - applications/mdoc_zk/circuits -> applications/mdoc_zk/testcases: test
+#   fixtures in cbor/test_utils.rs, compiled only with `testonly`.
+# - runtime -> runtime/v1/*: the v1 compatibility re-exports in
+#   runtime/mod.rs (runtime::merkle, runtime::proto, random::Transcript, ...).
+
+applications/mdoc_zk/artifacts: 
+applications/mdoc_zk/circuits: applications/mdoc_zk/proto applications/mdoc_zk/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
+applications/mdoc_zk/compile: applications/mdoc_zk/circuits applications/mdoc_zk/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
+applications/mdoc_zk/development_provider: applications/mdoc_zk/circuits applications/mdoc_zk/compile applications/mdoc_zk/proto applications/mdoc_zk/runtime compile/polygero core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto
+applications/mdoc_zk/proto: 
+applications/mdoc_zk/prover_only: applications/mdoc_zk/runtime
+applications/mdoc_zk/runtime: applications/mdoc_zk/circuits applications/mdoc_zk/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/proto runtime/v2/transcript runtime/v2/zk
+applications/mdoc_zk/testcases: 
+applications/mdoc_zk/verifier_only: applications/mdoc_zk/runtime
+circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
+circuits/analog_decoder: circuits/boolean circuits/lookup compile/logic core/algebra
+circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
+circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra runtime/algebra
+circuits/bignum: circuits/boolean compile/algebra compile/logic core/algebra util
+circuits/bitvec: circuits/arithmetic circuits/boolean compile/algebra compile/logic core/algebra runtime/algebra util
+circuits/boolean: compile/algebra compile/logic core/algebra runtime/algebra util
+circuits/ec: compile/algebra compile/logic core/algebra
+circuits/ecdsa2: circuits/arithmetic circuits/big_bitvec circuits/bitvec circuits/boolean circuits/ec circuits/lookup compile/algebra compile/logic core/algebra
+circuits/gf2_128: circuits/bitvec circuits/boolean compile/logic
+circuits/lookup: circuits/polynomial compile/algebra compile/logic core/algebra
+circuits/memcmp: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
+circuits/polynomial: compile/logic
+circuits/routing: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
+circuits/sha256: circuits/analog_adder circuits/bitvec compile/logic core/algebra runtime/algebra
+circuits/sha256msg: circuits/analog_adder circuits/bitvec circuits/boolean circuits/sha256 compile/logic core/algebra runtime/algebra
+compile/algebra: core/algebra
+compile/compiler: compile/algebra compile/logic compile/proto core/algebra core/proto util
+compile/eval: compile/algebra compile/logic compile/proto core/algebra core/proto runtime/algebra
+compile/logic: compile/algebra core/algebra util
+compile/polygero: runtime/v2/proto
+compile/proto: compile/logic
+core/algebra: 
+core/bits: 
+core/proto: core/algebra util
+runtime: runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
+runtime/algebra: core/algebra core/bits
+runtime/random: core/algebra runtime/algebra
+runtime/v1: runtime/random runtime/v1/subfield
+runtime/v1/ligero: core/algebra runtime/algebra runtime/random runtime/v1 runtime/v1/merkle runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
+runtime/v1/merkle: runtime/random runtime/v1/proto
+runtime/v1/proto: core/algebra core/proto runtime/algebra runtime/v1/subfield
+runtime/v1/subfield: core/algebra runtime/algebra
+runtime/v1/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v1/proto runtime/v1/transcript
+runtime/v1/transcript: core/algebra runtime/random
+runtime/v1/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/sumcheck runtime/v1/transcript
+runtime/v2: 
+runtime/v2/dual-packing: core/algebra runtime/algebra runtime/v2/proto runtime/v2/transcript
+runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/proto runtime/v2/transcript runtime/v2/zk util
+runtime/v2/merkle: runtime/v2/proto
+runtime/v2/polygero: core/algebra runtime/algebra runtime/random runtime/v2/merkle runtime/v2/proto runtime/v2/transcript
+runtime/v2/proto: core/algebra runtime/algebra runtime/v2/transcript
+runtime/v2/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v2/proto runtime/v2/transcript util
+runtime/v2/transcript: core/algebra runtime/algebra
+runtime/v2/witness-selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/proto runtime/v2/transcript
+runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual-packing runtime/v2/polygero runtime/v2/proto runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness-selection
+tools/dependency_check: 
+tools/zk_tool: applications/mdoc_zk/development_provider applications/mdoc_zk/runtime compile/polygero
+util: 
+
+# File cycles that exist today. The check fails on any other cycle, and on a
+# listed cycle that no longer exists. This list should only shrink.
+[known file cycles]
+circuits/ec/src/circuit.rs circuits/ec/src/lib.rs
+compile/compiler/src/arena.rs compile/compiler/src/ir.rs
+core/proto/src/archive/lfa1/reader.rs core/proto/src/archive/lfa1/writer.rs core/proto/src/archive/lfa2/reader.rs core/proto/src/archive/lfa2/writer.rs core/proto/src/archive/mod.rs core/proto/src/lib.rs core/proto/src/v1/reader/lfc1.rs core/proto/src/v1/reader/lfc2.rs core/proto/src/v1/reader/mod.rs
+core/proto/src/v1/cache.rs core/proto/src/v1/layer.rs
+core/proto/src/v1/mod.rs core/proto/src/v1/writer/lfc1.rs core/proto/src/v1/writer/lfc2.rs core/proto/src/v1/writer/mod.rs
+core/proto/src/v2.rs core/proto/src/v2/circuit.rs core/proto/src/v2/directory.rs core/proto/src/v2/encoding.rs core/proto/src/v2/reader/lfc3.rs core/proto/src/v2/reader/mod.rs core/proto/src/v2/writer/lfc3.rs core/proto/src/v2/writer/mod.rs
+runtime/algebra/src/range_interpolation/arithmetic.rs runtime/algebra/src/range_interpolation/binary.rs runtime/algebra/src/range_interpolation/crt.rs runtime/algebra/src/range_interpolation/mod.rs runtime/algebra/src/range_interpolation/quadratic_extension_fft.rs runtime/algebra/src/range_interpolation/scalar.rs
+runtime/random/src/deterministic.rs runtime/random/src/lib.rs runtime/random/src/secure.rs
+runtime/v1/ligero/src/lib.rs runtime/v1/ligero/src/verifier.rs
+runtime/v1/merkle/src/commitment.rs runtime/v1/merkle/src/heap.rs runtime/v1/merkle/src/lib.rs
+runtime/v1/subfield/src/fp24.rs runtime/v1/subfield/src/lib.rs runtime/v1/subfield/src/p256.rs
+runtime/v2/foreign/src/adapter/integer.rs runtime/v2/foreign/src/adapter/p256.rs
+runtime/v2/merkle/src/heap.rs runtime/v2/merkle/src/lib.rs
+runtime/v2/polygero/src/constraints.rs runtime/v2/polygero/src/joint.rs runtime/v2/polygero/src/lib.rs runtime/v2/polygero/src/param.rs runtime/v2/polygero/src/prover.rs runtime/v2/polygero/src/prover_commitment.rs runtime/v2/polygero/src/transcript.rs runtime/v2/polygero/src/verifier.rs
+runtime/v2/witness-selection/src/lib.rs runtime/v2/witness-selection/src/prover.rs runtime/v2/witness-selection/src/transcript.rs runtime/v2/witness-selection/src/verifier.rs
+runtime/v2/zk/src/batching.rs runtime/v2/zk/src/constraint_compiler.rs runtime/v2/zk/src/context.rs runtime/v2/zk/src/joint.rs runtime/v2/zk/src/joint_prover.rs runtime/v2/zk/src/joint_verifier.rs runtime/v2/zk/src/split.rs
+runtime/v2/zk/src/packing_commitment.rs runtime/v2/zk/src/packing_commitment_prover.rs
+tools/zk_tool/cache.rs tools/zk_tool/generate.rs tools/zk_tool/lean.rs tools/zk_tool/main.rs tools/zk_tool/profiles.rs

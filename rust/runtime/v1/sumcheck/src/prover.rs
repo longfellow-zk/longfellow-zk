@@ -37,7 +37,7 @@ use crate::{
                 poly::{Poly, QuadRoundPoly, QuadWirePoly},
                 proof::{LayerProof, SumcheckProof, MAX_LOGW},
                 transcript::TranscriptSumcheck,
-                verifier_data::{LayerVerifierData, RoundCoefficients, VerifierData},
+                round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
                 LagrangeBasis,
             },
             transcript::Transcript,

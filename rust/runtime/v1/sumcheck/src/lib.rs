@@ -30,17 +30,17 @@ pub mod eval;
 pub mod hquad;
 pub mod pad;
 pub mod poly;
+mod round_data;
 pub mod symbolic;
 pub mod transcript;
-pub mod verifier_data;
 
 pub use dense::{as_scalar, bind, bind_all, normalize};
 pub use eq::eval as eq;
 pub use hquad::HQuad;
 pub use poly::{LagrangeBasis, Poly, QuadRoundPoly, QuadWirePoly};
 pub use proof::{sane_logw, LayerProof, RoundPoly, SumcheckProof, MAX_LOGW};
+pub use round_data::{LayerVerifierData, RoundCoefficients, VerifierData};
 pub use transcript::TranscriptSumcheck;
-pub use verifier_data::{LayerVerifierData, RoundCoefficients, VerifierData};
 
 pub use crate::runtime::{
     random::RandomEngine,

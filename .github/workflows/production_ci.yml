@@ -64,6 +64,12 @@ jobs:
           done
         working-directory: rust
 
+      - name: Dependency Check
+        run: |
+          rustup component add rust-analyzer
+          cargo run --release --features tooling --bin dependency_check
+        working-directory: rust
+
       - name: Run clippy
         run: cargo clippy --all-targets
         working-directory: rust
