@@ -49,22 +49,38 @@ fn independent_node_vector_binds_little_endian_u64_index() {
     );
 }
 
-#[test]
-fn independent_leaf_vector_pins_preimage_layout() {
-    // Generated independently with printf and coreutils sha256sum over
-    // "polygero/joint/leaf/v1" || [7; 32] || LE64(0x0102030405) || [9; 32]
-    // followed by caller-appended column bytes [0xaa; 16] || [0xbb; 32].
+/// Hash a leaf at position `j` with fixed context, salt and column bytes.
+fn leaf_vector(j: usize) -> String {
     let mut h = hash::leaf(
         &Digest { data: [7; 32] },
-        0x0102030405,
+        j,
         &MerkleNonce {
             bytes: [9; NONCE_LEN],
         },
     );
     h.update([0xaa; 16]);
     h.update([0xbb; 32]);
+    hex::encode(h.finalize())
+}
+
+// Both vectors were generated independently with printf and coreutils
+// sha256sum over "polygero/joint/leaf/v1" || [7; 32] || LE64(j) || [9; 32]
+// followed by caller-appended column bytes [0xaa; 16] || [0xbb; 32].
+
+#[test]
+fn independent_leaf_vector_pins_preimage_layout() {
     assert_eq!(
-        hex::encode(h.finalize()),
+        leaf_vector(0x01020304),
+        "307d064bded5f2fd9fabf4d7fb0aa2497585fd3261b32e6fa5ac162875a0874b"
+    );
+}
+
+/// A position above 2^32 checks that all eight bytes of the position are hashed.
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn independent_leaf_vector_pins_all_position_bytes() {
+    assert_eq!(
+        leaf_vector(0x0102030405),
         "748e94e279c0a2ff0c954e373bace13d5d1c54f7beaf7c182ed072fea45f4608"
     );
 }

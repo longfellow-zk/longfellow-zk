@@ -132,6 +132,19 @@ fn distinct_labels_and_terminal_authentication_are_bound() {
 }
 
 #[test]
+fn sealed_and_verified_proofs_record_their_round_count() {
+    let mut prover = Transcript::new(b"round count");
+    prover.bytes(32);
+    prover.bytes(32);
+    let encoded = prover.append_final_seal(vec![1, 2, 3]);
+    assert_eq!(encoded.round_count_for_test(), 2);
+    let mut verifier = Transcript::new(b"round count");
+    verifier.bytes(32);
+    verifier.bytes(32);
+    let verified = verifier.verify_final_seal(encoded.as_bytes()).unwrap();
+    assert_eq!(verified.round_count_for_test(), 2);
+}
+#[test]
 fn parent_chain_matches_independent_two_round_vector() {
     let mut t = Transcript::new(b"feedback");
     assert_eq!(

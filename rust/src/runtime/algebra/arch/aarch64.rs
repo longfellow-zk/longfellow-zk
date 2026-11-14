@@ -21,7 +21,7 @@ use std::arch::aarch64::*;
 
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 #[inline(always)]
-pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
+pub(crate) fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     #[cfg(target_arch = "aarch64")]
     if N == 1 {
         unsafe {
@@ -114,7 +114,7 @@ pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]
 
 #[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
 #[inline(always)]
-pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
+pub(crate) fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     #[cfg(target_arch = "aarch64")]
     if N == 1 {
         unsafe {
@@ -206,12 +206,12 @@ pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]
 }
 
 #[inline(always)]
-pub fn cmovnz<const N: usize>(a: &mut [Limb; N], nz: Limb, b: &[Limb; N]) {
+pub(crate) fn cmovnz<const N: usize>(a: &mut [Limb; N], nz: Limb, b: &[Limb; N]) {
     cmovne(a, nz, 0, b);
 }
 
 #[inline(always)]
-pub fn zero_but_you_dont_know_it() -> Limb {
+pub(crate) fn zero_but_you_dont_know_it() -> Limb {
     std::hint::black_box(0 as Limb)
 }
 
@@ -338,7 +338,7 @@ unsafe fn reduce_128(t0: poly64x2_t, t1: poly64x2_t) -> poly64x2_t {
 }
 
 #[inline(always)]
-pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
+pub(crate) fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
     unsafe {
         let t0 = vmull_low(x.0, y.0);
         let swx = ext_poly_1(x.0, x.0);
@@ -353,7 +353,7 @@ pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
 }
 
 #[inline(always)]
-pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
+pub(crate) fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
     unsafe {
         let t0 = vmull_low(x.0, y.0);
         let swx = ext_poly_1(x.0, x.0);
@@ -369,7 +369,7 @@ pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
 }
 
 #[inline(always)]
-pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
+pub(crate) fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     unsafe {
         let t0 = acc.0[0].0;
         let mut t1 = acc.0[1].0;
