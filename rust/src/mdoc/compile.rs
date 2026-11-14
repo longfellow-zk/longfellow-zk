@@ -13,8 +13,8 @@
 // limitations under the License.
 
 pub mod circuits;
-pub mod generate_hash;
-pub mod generate_sig;
+mod generate_hash;
+mod generate_sig;
 
 pub use generate_hash::*;
 pub use generate_sig::*;
@@ -35,7 +35,6 @@ pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
     builder.add_entry("hash", hash.id, hash_bytes);
     Ok(builder.build().to_bytes())
 }
-pub use compile_circuits as generate_circuits;
 
 pub fn compile_all_circuits() -> Vec<Result<Vec<u8>, String>> {
     std::thread::scope(|scope| {
@@ -48,4 +47,3 @@ pub fn compile_all_circuits() -> Vec<Result<Vec<u8>, String>> {
             .collect()
     })
 }
-pub use compile_all_circuits as generate_all_circuits;

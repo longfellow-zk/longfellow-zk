@@ -9,14 +9,13 @@ use crate::{
     },
     core::algebra::Nat,
     mdoc::circuits::{
+        cbor::test_utils::parse_test_data,
         hash::{concrete, evaluate_derived, evaluate_given},
-        parse_test_data,
     },
 };
 
 fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     concrete::given::<4, _>(concrete::hash_input_of_parsed_mdoc(
         &parsed,
         &parsed.all_attr_ids(),

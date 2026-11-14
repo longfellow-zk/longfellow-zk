@@ -162,11 +162,8 @@ fn main() {
             &archive.get("hash").unwrap().payload,
             samples,
         );
-        let compressed = zstd::encode_all(
-            bytes.as_slice(),
-            longfellow_zk::mdoc::circuits::config::K_ZSTD_LEVEL,
-        )
-        .unwrap();
+        let compressed =
+            zstd::encode_all(bytes.as_slice(), longfellow_zk::mdoc::proto::K_ZSTD_LEVEL).unwrap();
         let prime = P256Field::new();
         let binary = Gf2_128Field::new();
         let (median, p95) = measure(samples, || {

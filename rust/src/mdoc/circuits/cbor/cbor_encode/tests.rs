@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::{append_bytes_len, append_text_len};
+use crate::mdoc::circuits::cbor::{append_bytes_len, append_text_len};
 
 #[test]
 fn byte_string_length_boundaries() {

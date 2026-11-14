@@ -89,7 +89,7 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 cfg_prover! {
-    use crate::mdoc::proto::config::K_SIG_MAC_BIT_PLUCKER_V1;
+    use crate::mdoc::proto::K_SIG_MAC_BIT_PLUCKER_V1;
 
 
     impl<

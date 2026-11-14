@@ -149,11 +149,13 @@ pub mod mdoc {
 
     pub mod proto;
 
-    pub mod runtime;
+    mod runtime;
 
     #[cfg(feature = "v1")]
     pub use runtime::v1;
-    pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v2, ZkSpecRef};
+    #[cfg(feature = "v1")]
+    pub use runtime::LONGFELLOW_V1;
+    pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v2, ZkSpecRef, LONGFELLOW_V2};
 
     cfg_compiler! {
 

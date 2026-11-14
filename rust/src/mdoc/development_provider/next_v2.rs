@@ -17,9 +17,10 @@
 use crate::{
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
-        circuits::{config::K_ZSTD_LEVEL, NEXT_VERSION},
+        circuits::NEXT_VERSION,
         compile,
-        runtime::v2::{
+        proto::K_ZSTD_LEVEL,
+        v2::{
             provider::{self, ProvidedCircuit},
             PolygeroParameters, ZkSpecStruct,
         },

@@ -16,7 +16,7 @@
 
 use std::path::Path;
 
-use super::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
+use crate::mdoc::v2::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
 
 /// A trusted v2 specification and its matching compressed archive.
 /// Construction checks container metadata; decoding always verifies payload IDs.

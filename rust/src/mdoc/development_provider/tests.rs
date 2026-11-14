@@ -58,7 +58,7 @@ fn next_compilation_is_reproducible_and_unregistered() {
 
 #[test]
 fn next_cache_preserves_the_complete_spec() {
-    use crate::mdoc::runtime::v2::{PolygeroParameters, ZkSpecStruct};
+    use crate::mdoc::v2::{PolygeroParameters, ZkSpecStruct};
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
@@ -106,7 +106,7 @@ fn next_cache_preserves_the_complete_spec() {
 
 #[test]
 fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
-    use crate::mdoc::runtime::v2::PolygeroParameters;
+    use crate::mdoc::v2::PolygeroParameters;
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);

@@ -13,14 +13,11 @@
 // limitations under the License.
 
 pub mod cbor;
-pub mod traits;
+mod traits;
 
 pub(crate) mod p256_adapter;
 
-pub use cbor::{cbor_encode::*, mdoc::*};
 pub use traits::*;
-
-pub use crate::mdoc::proto::config;
 
 pub const NEXT_VERSION: usize = 12;
 
@@ -28,10 +25,6 @@ cfg_compiler! {
     pub mod cbor_decoder;
     pub mod hash;
     pub mod mso_attribute;
-}
-
-cfg_testonly! {
-    pub use cbor::test_utils::*;
 }
 
 #[cfg(test)]

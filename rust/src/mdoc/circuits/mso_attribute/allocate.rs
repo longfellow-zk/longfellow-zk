@@ -15,9 +15,11 @@
 use crate::{
     circuits::bitvec::BitvecLogic,
     compile::logic::LogicIO,
-    mdoc::circuits::mso_attribute::{
-        circuit::{AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given},
-        constants::K_ATTR_INDEX_BITS,
+    mdoc::{
+        circuits::mso_attribute::circuit::{
+            AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given,
+        },
+        proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
     },
 };
 

@@ -21,7 +21,7 @@ use std::io::{Read, Write};
 
 use crate::mdoc::{
     circuits::NEXT_VERSION,
-    runtime::v2::{
+    v2::{
         provider::{self, ProvidedCircuit},
         PolygeroParameters, ZkSpecStruct,
     },
@@ -100,7 +100,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
         },
     };
     validate(&spec)?;
-    let compressed = crate::mdoc::runtime::v2::archive::read_compressed(reader)?;
+    let compressed = crate::mdoc::v2::archive::read_compressed(reader)?;
     provider::from_compressed(spec, compressed)
         .map_err(|error| format!("Invalid NEXT circuit bundle: {error:?}"))
 }

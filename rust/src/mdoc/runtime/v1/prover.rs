@@ -14,11 +14,10 @@
 
 //! Longfellow v1 application prover.
 
-use super::ZkSpecStruct;
 use crate::{
     mdoc::{
         circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
-        runtime::v1::{MdocProverErrorCode, RequestedAttribute},
+        v1::{MdocProverErrorCode, RequestedAttribute, ZkSpecStruct},
     },
     runtime::{
         algebra::{

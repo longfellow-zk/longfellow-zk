@@ -16,7 +16,7 @@
 
 use crate::{
     core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
-    mdoc::runtime::v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
+    mdoc::v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
     runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         p256::{P256Element, P256Field},

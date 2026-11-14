@@ -22,5 +22,5 @@ pub struct TestDataStatic {
     pub mdoc: &'static [u8],
 }
 
-pub mod vectors;
+mod vectors;
 pub use vectors::*;

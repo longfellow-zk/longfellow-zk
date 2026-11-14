@@ -69,7 +69,7 @@ fn namespace_capacity_and_encoding_are_checked_before_proving() {
 #[test]
 fn global_namespace_scopes_the_honest_attribute_lookup() {
     use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
-    let fixture = &crate::mdoc::testcases::vectors::DHS_COMPLIANCE_MDOC_10;
+    let fixture = &crate::mdoc::testcases::DHS_COMPLIANCE_MDOC_10;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let namespaces = parsed.namespaces().unwrap();
@@ -121,7 +121,7 @@ fn zero_signature_is_a_witness_error() {
         mdoc::circuits::cbor::mdoc::parse_mdoc,
         runtime::algebra::RuntimeNat,
     };
-    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let fixture = &crate::mdoc::testcases::TEST_DATA;
     let mut zero_signature =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let f = crate::runtime::algebra::p256::P256Field::new();
@@ -206,7 +206,7 @@ fn private_hash_inputs_enforce_sha_capacity() {
             hash::constants::K_MSO_PREIMAGE_LEN, mso_attribute::constants::K_MAX_ATTR_CBOR_LEN,
         },
     };
-    let fixture = &crate::mdoc::testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3;
+    let fixture = &crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3;
     let mut parsed = parse_mdoc::<crate::runtime::algebra::RuntimeNat<4>>(
         fixture.mdoc,
         fixture.transcript,
@@ -267,7 +267,7 @@ fn utc_public_input_syntax_is_checked_and_case_is_normalized() {
 #[test]
 fn requested_values_must_match_before_building_sha_witnesses() {
     use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
-    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let fixture = &crate::mdoc::testcases::TEST_DATA;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let attr = &parsed.attrs[0];

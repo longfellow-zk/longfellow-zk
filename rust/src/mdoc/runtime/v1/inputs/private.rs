@@ -18,7 +18,7 @@ use crate::{
     core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
     mdoc::{
         circuits::cbor::mdoc::ParsedMdoc,
-        runtime::v1::{
+        v1::{
             attribute::RequestedAttribute, error::MdocProverErrorCode,
             inputs::builder::AssignmentBuilder,
         },

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Frozen v1 lookup errors and stored-archive identity.
-use super::*;
+use crate::mdoc::v1::provider::*;
 
 #[test]
 fn provider_loads_all_frozen_v1_archives() {

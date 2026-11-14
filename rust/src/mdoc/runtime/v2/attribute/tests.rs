@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::circuit_supports;
+use crate::mdoc::v2::attribute::circuit_supports;
 
 #[test]
 fn circuit_supports_rejects_malformed_trailing_data() {

@@ -1,23 +1,22 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! mdoc's cross-field link: shared positions of the signature inputs.
-use super::*;
-use crate::{core::algebra::AlgebraicField, runtime::algebra::p256::P256Field};
+use crate::{core::algebra::AlgebraicField, mdoc::v2::link::*, runtime::algebra::p256::P256Field};
 
 #[test]
 fn shared_positions_match_signature_inputs() {
     use crate::{
         core::algebra::SupportsNatConversions,
         mdoc::{
-            circuits::parse_test_data,
+            circuits::cbor::test_utils::parse_test_data,
             proto::layout::SHARED_BITS,
-            runtime::v2::{inputs, req_attr},
+            v2::{inputs, req_attr},
         },
         runtime::algebra::{q256::Q256Field, secp256r1::Secp256r1, RuntimeNat},
     };
     let f = P256Field::new();
     let q = Q256Field::new();
     let curve = Secp256r1::new(&f);
-    let fixture = &crate::mdoc::testcases::vectors::TEST_DATA;
+    let fixture = &crate::mdoc::testcases::TEST_DATA;
     let (issuer, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(fixture);
     let issuer_pk = (f.reduce_nat(&issuer.0), f.reduce_nat(&issuer.1));
     for count in 1..=4 {

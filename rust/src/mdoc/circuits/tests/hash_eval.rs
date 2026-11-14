@@ -23,20 +23,23 @@ use crate::{
         logic::{EvalLogic, Logic},
     },
     core::algebra::Nat,
-    mdoc::circuits::{
-        hash::{
-            derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc, MdocHash,
+    mdoc::{
+        circuits::{
+            cbor::test_utils::parse_test_data,
+            hash::{
+                derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc,
+                MdocHash,
+            },
+            mso_attribute::DisclosedAttribute,
         },
-        mso_attribute::{constants::K_ATTR_INDEX_BITS, DisclosedAttribute},
-        parse_test_data,
+        proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
     },
 };
 
 #[test]
 fn test_eval_mdoc_hash_independent() {
     let fc = P256Field::new();
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let tracker = crate::compile::logic::AssertionScope::new();
@@ -55,8 +58,7 @@ fn test_eval_mdoc_hash_independent() {
 
 fn test_eval_mdoc_hash_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
 where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let given = given::<4, _>(hash_input);
@@ -193,7 +195,7 @@ fn test_all_mdoc_cases_generic<'a, const W: usize, FC>(l: &'a EvalLogic<'a, FC>)
 where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
     let mut count = 0;
 
-    for case in crate::mdoc::testcases::vectors::ALL_TEST_CASES {
+    for case in crate::mdoc::testcases::ALL_TEST_CASES {
         let filename = case.name;
         println!("Running test case: {filename}");
         let is_negative = filename.starts_with("fail-");
@@ -242,8 +244,7 @@ fn test_all_mdoc_cases() {
 fn test_doc_type_key_and_offset_tampering() {
     let f = Gf2_128Field::new();
 
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let mut hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let doc_type_off = 23 + parsed.doc_type_offset_in_mso;
@@ -284,8 +285,7 @@ fn test_doc_type_key_and_offset_tampering() {
 fn test_eval_mdoc_hash_shared_corruptors() {
     let f = Gf2_128Field::new();
 
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let base_hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let corruptors = mdoc_hash_corruptors::all_mdoc_hash_corruptors();
@@ -327,8 +327,7 @@ fn test_check_doc_type_suppression() {
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
 
     // 1. When suppress_doc_type_check is false and expected_doc_type matches, evaluation succeeds.
     let mut hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);

@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::*;
+use crate::mdoc::v2::transcript::*;
 
 /// The spec's combined archive hash must change every later challenge.
 #[test]

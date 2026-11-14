@@ -27,7 +27,7 @@ use crate::{
                 K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
             },
         },
-        runtime::v2::{
+        v2::{
             attribute::RequestedAttribute,
             error::MdocProverErrorCode,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},

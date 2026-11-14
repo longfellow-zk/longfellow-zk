@@ -13,7 +13,10 @@
 // limitations under the License.
 
 //! Frozen registry discovery and explicit v2 execution specifications.
-use crate::mdoc::runtime::{v1, v2, zk_spec::*};
+use crate::mdoc::{
+    runtime::{v1, v2},
+    *,
+};
 #[test]
 fn systems_own_disjoint_specifications() {
     for spec in &v1::ZK_SPECS {

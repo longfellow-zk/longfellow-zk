@@ -23,7 +23,7 @@ use crate::{
             },
             mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
         },
-        runtime::v2::{
+        v2::{
             attribute::RequestedAttribute,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
         },

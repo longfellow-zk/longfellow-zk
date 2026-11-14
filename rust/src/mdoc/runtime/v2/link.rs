@@ -7,12 +7,12 @@
 //! and its pads are native P-256 cells. The split mask R and the two quotient
 //! pads occupy a reserved suffix after the hash circuit's inputs, followed by
 //! the adapter's virtual leaves.
-use super::ZkSpecStruct;
 use crate::{
     core::proto::v2::Circuit,
     mdoc::{
         circuits::p256_adapter::{MASK_BITS, QUOTIENT_BITS},
         proto::layout,
+        v2::ZkSpecStruct,
     },
     runtime::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, range_interpolation::EvaluationDomain},

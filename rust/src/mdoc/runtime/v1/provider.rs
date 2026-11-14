@@ -16,8 +16,10 @@
 
 use std::{io::BufRead, path::Path};
 
-use super::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
-use crate::core::proto::archive::CircuitArchive;
+use crate::{
+    core::proto::archive::CircuitArchive,
+    mdoc::v1::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS},
+};
 
 /// A registered specification and its stored circuit archive.
 #[derive(Clone, Debug)]

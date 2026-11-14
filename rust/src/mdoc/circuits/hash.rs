@@ -16,8 +16,6 @@ mod circuit;
 
 pub use circuit::{AttrDerived, AttrGiven, Derived, Given, MdocHash};
 
-pub use crate::mdoc::proto::hash::constants;
-
 cfg_compiler! {
     mod allocate;
     pub use allocate::allocate;

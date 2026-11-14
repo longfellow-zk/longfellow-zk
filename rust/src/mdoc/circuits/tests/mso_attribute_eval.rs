@@ -18,9 +18,9 @@ use super::mso_attribute_corruptors;
 use crate::{
     circuits::bitvec::{BitvecLogic, V8},
     compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
-    mdoc::circuits::mso_attribute::{
-        constants::K_ATTR_INDEX_BITS, AttrSlice, AttributeVerifier, DisclosedAttribute,
-        FieldLocator,
+    mdoc::{
+        circuits::mso_attribute::{AttrSlice, AttributeVerifier, DisclosedAttribute, FieldLocator},
+        proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
     },
 };
 
@@ -130,7 +130,7 @@ where
     let l = EvalLogic::new_with_tracker(f, tracker);
     let bv = BitvecLogic::new(&l);
 
-    use crate::mdoc::circuits::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
+    use crate::mdoc::proto::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
     let (nblocks, length_bytes, padded_preimage) =
         crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
     let attribute_preimage = padded_preimage

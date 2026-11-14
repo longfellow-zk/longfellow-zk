@@ -26,10 +26,10 @@ mod inputs;
 mod key;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod link;
-pub mod proto;
+mod proto;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-pub mod zk_spec;
+mod zk_spec;
 #[cfg(test)]
 pub(in crate::mdoc::runtime) use attribute::{circuit_supports, same_namespace};
 pub use attribute::{req_attr, RequestedAttribute};
@@ -44,8 +44,8 @@ pub use zk_spec::{
 };
 
 pub mod provider;
-cfg_prover! { pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
-cfg_verifier! { pub mod verifier; pub use verifier::{run_mdoc_verifier,run_mdoc_verifier_inner}; }
+cfg_prover! { mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; #[cfg(test)] pub(in crate::mdoc::runtime) use prover::run_mdoc_prover_encoded; }
+cfg_verifier! { mod verifier; pub use verifier::run_mdoc_verifier; }
 
 /// Test hook: the reserved suffix start and the adapter fragment width of
 /// mdoc's composition.

@@ -19,8 +19,6 @@ pub use circuit::{
     Slice,
 };
 
-pub use crate::mdoc::proto::mso_attribute::constants;
-
 cfg_testonly! {
     mod allocate;
     mod concrete;

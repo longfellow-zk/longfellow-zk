@@ -16,9 +16,9 @@
 
 mod builder;
 mod public;
-pub(super) use public::{push_input_hash, push_input_sig};
+pub(super) use crate::mdoc::v1::inputs::public::{push_input_hash, push_input_sig};
 
 cfg_prover! {
     mod private;
-    pub(super) use private::{push_witness_hash, push_witness_sig};
+    pub(super) use crate::mdoc::v1::inputs::private::{push_witness_hash, push_witness_sig};
 }

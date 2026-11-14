@@ -14,7 +14,6 @@
 
 //! Longfellow v2 circuit-loader identity checks.
 
-use super::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField},
@@ -25,6 +24,7 @@ use crate::{
             },
         },
     },
+    mdoc::v2::circuits::*,
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 

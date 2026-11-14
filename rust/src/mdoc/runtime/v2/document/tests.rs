@@ -1,6 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::*;
-use crate::{core::algebra::Nat, mdoc::testcases::vectors::TEST_DATA};
+use crate::{
+    core::algebra::Nat,
+    mdoc::{testcases::TEST_DATA, v2::document::*},
+};
 
 fn map() -> CborElement {
     let parsed = crate::mdoc::circuits::cbor::mdoc::parse_mdoc::<RuntimeNat<4>>(

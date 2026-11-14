@@ -21,8 +21,8 @@ mod error;
 mod inputs;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod key;
-pub mod proto;
-pub mod zk_spec;
+mod proto;
+mod zk_spec;
 pub use attribute::{req_attr, RequestedAttribute};
 pub use circuits::decompress_circuits;
 pub use error::{MdocProverErrorCode, MdocVerifierErrorCode};
@@ -33,5 +33,5 @@ pub use zk_spec::{
 };
 
 pub mod provider;
-cfg_prover! { mod mac; pub mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
-cfg_verifier! { pub mod verifier; pub use verifier::{run_mdoc_verifier,run_mdoc_verifier_inner}; }
+cfg_prover! { mod mac; mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; }
+cfg_verifier! { mod verifier; pub use verifier::run_mdoc_verifier; }

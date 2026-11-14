@@ -13,8 +13,7 @@
 // limitations under the License.
 
 //! Frozen v2 lookup and loading, including a synthetic unpublished fixture.
-use super::*;
-use crate::core::proto::archive::CircuitArchiveBuilder;
+use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::v2::provider::*};
 
 #[test]
 fn next_is_not_a_frozen_v2_circuit() {

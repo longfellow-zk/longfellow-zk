@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cbor_encode;
+mod cbor_encode;
 pub mod constants;
 pub mod mdoc;
 pub mod parse;

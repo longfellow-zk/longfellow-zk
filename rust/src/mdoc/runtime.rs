@@ -17,7 +17,7 @@
 #[cfg(feature = "v1")]
 pub mod v1;
 pub mod v2;
-pub mod zk_spec;
+mod zk_spec;
 #[cfg(feature = "v1")]
 pub use zk_spec::LONGFELLOW_V1;
 pub use zk_spec::{find_zk_spec, find_zk_spec_by_hex, ZkSpecRef, LONGFELLOW_V2};

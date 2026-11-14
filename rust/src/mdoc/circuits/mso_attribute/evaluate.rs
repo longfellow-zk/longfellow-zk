@@ -18,9 +18,11 @@ use super::{
         FieldLocator as WireFieldLocator, Given as WireGiven,
     },
     concrete::{ConcreteDerived, ConcreteGiven},
-    constants::K_ATTR_INDEX_BITS,
 };
-use crate::{circuits::bitvec::BitvecLogic, compile::logic::Logic};
+use crate::{
+    circuits::bitvec::BitvecLogic, compile::logic::Logic,
+    mdoc::proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
+};
 
 pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> WireGiven<L> {
     let get_padded = |vec: &[u8], i: usize| -> u8 {

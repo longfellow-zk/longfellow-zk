@@ -16,16 +16,13 @@
 // Evaluation failures can expose private inputs; never write them to logs.
 #![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
 
-use super::{
-    inputs::{public_inputs_fit, push_input_hash, push_input_sig},
-    ZkSpecStruct,
-};
 use crate::{
     core::algebra::Nat,
-    mdoc::runtime::v2::{
+    mdoc::v2::{
         attribute::{circuit_supports, same_namespace},
+        inputs::{public_inputs_fit, push_input_hash, push_input_sig},
         key::parse_pk_coordinate,
-        MdocVerifierErrorCode, RequestedAttribute,
+        MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
     },
     runtime::algebra::{
         gf2_128::Gf2_128Field,
@@ -38,7 +35,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_mdoc_verifier_inner(
+pub fn run_mdoc_verifier(
     zk_spec: &ZkSpecStruct,
     circuits_compressed: &[u8],
     pkx: &str,
@@ -116,5 +113,3 @@ pub fn run_mdoc_verifier_inner(
         .checked(tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
 }
-
-pub use run_mdoc_verifier_inner as run_mdoc_verifier;

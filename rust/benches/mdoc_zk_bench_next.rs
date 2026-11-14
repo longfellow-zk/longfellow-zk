@@ -25,9 +25,8 @@ use longfellow_zk::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        circuits::parse_test_data,
-        v2 as runtime,
-        v2::{req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner},
+        circuits::cbor::test_utils::parse_test_data,
+        v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
     runtime::random::DeterministicRng,
 };
@@ -45,7 +44,7 @@ fn main() {
         samples >= 2,
         "one warmup and at least one measured sample required"
     );
-    let data = &longfellow_zk::mdoc::testcases::vectors::TEST_DATA;
+    let data = &longfellow_zk::mdoc::testcases::TEST_DATA;
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
     let attrs: Vec<_> = parsed
         .attrs
@@ -99,7 +98,7 @@ fn main() {
         memory::reset_peak();
         let verifier_baseline = memory::get_current_allocated();
         let verifier_start = Instant::now();
-        run_mdoc_verifier_inner(
+        run_mdoc_verifier(
             &spec,
             &circuits,
             &pkx,
@@ -141,7 +140,7 @@ fn main() {
         let mut bad = proof.clone();
         let last = bad.len() - 1;
         bad[last] ^= 1;
-        assert!(run_mdoc_verifier_inner(
+        assert!(run_mdoc_verifier(
             &spec,
             &circuits,
             &pkx,
@@ -184,10 +183,7 @@ fn prepare_circuits(num_attributes: usize) -> (runtime::ZkSpecStruct, Vec<u8>) {
 }
 
 /// Report the selected public profiles and derive sizes outside timed operations.
-fn report_profiles(
-    circuits: &[u8],
-    spec: &runtime::ZkSpecStruct,
-) -> runtime::proto::MdocProofGeometry {
+fn report_profiles(circuits: &[u8], spec: &runtime::ZkSpecStruct) -> runtime::MdocProofGeometry {
     use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
@@ -227,12 +223,12 @@ fn report_profiles(
 }
 
 /// Measure actual serialized proof bodies and adapter messages.
-fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry) {
+fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
     use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
-    let decoded = runtime::proto::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
+    let decoded = runtime::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
     let (proof, geometry) = (&decoded.body, &geometry.body);
     let hash = proof.host.write(&geometry.host, &binary).unwrap();
     let signature = proof.split.write(&geometry.split, &prime).unwrap();
@@ -241,7 +237,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::proto::MdocProofGeometry
     let hash_payload = polygero.bodies().0.payload_bytes(&binary);
     let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
     let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
-    let masked = proof.message.len() * runtime::proto::MaskedQuotient::BYTES;
+    let masked = proof.message.len() * runtime::MaskedQuotient::BYTES;
     assert_eq!(
         bytes.len(),
         32 + masked + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32

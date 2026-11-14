@@ -1,12 +1,14 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 host validation on original CBOR values, before lossy conversions.
 //! These checks give early errors; the circuit remains the acceptance rule.
-use super::inputs::timestamp_digits;
 use crate::{
     core::algebra::{ec::Curve, AlgebraicField, SerializableField},
-    mdoc::circuits::cbor::{
-        mdoc::{map_entry_unique, parse_mdoc_with_mso_check, MdocParseError, ParsedMdoc},
-        parse::{CborElement, CborValue},
+    mdoc::{
+        circuits::cbor::{
+            mdoc::{map_entry_unique, parse_mdoc_with_mso_check, MdocParseError, ParsedMdoc},
+            parse::{CborElement, CborValue},
+        },
+        v2::inputs::timestamp_digits,
     },
     runtime::algebra::{p256::P256Field, secp256r1::Secp256r1, RuntimeNat},
 };

@@ -22,7 +22,7 @@ mod tests {
 
     use crate::{
         compile::algebra::CompileNat,
-        mdoc::{circuits::parse_test_data, v1::*},
+        mdoc::{circuits::cbor::test_utils::parse_test_data, v1::*},
     };
 
     fn is_supported_by_prior_version<N>(
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_all_circuits_prior_compatibility() {
-        let test_data = &crate::mdoc::testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3;
+        let test_data = &crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3;
         let all_attrs = [
             req_attr(
                 "org.iso.18013.5.1",
@@ -163,7 +163,7 @@ mod tests {
 
                         // Verify the saved legacy proof as well as a newly generated one.
                         // A prover/verifier roundtrip alone can hide a matching protocol change.
-                        crate::mdoc::v1::verifier::run_mdoc_verifier(
+                        crate::mdoc::v1::run_mdoc_verifier(
                             spec,
                             compressed,
                             test_data.pkx,
@@ -178,7 +178,7 @@ mod tests {
 
                         let mut rng = crate::runtime::random::DeterministicRng::new(42);
 
-                        let proof_bytes = crate::mdoc::v1::prover::run_mdoc_prover_inner(
+                        let proof_bytes = crate::mdoc::v1::run_mdoc_prover_inner(
                             spec,
                             compressed,
                             test_data.mdoc,
@@ -200,7 +200,7 @@ mod tests {
                             expected_prior_proof.len(),
                         );
 
-                        crate::mdoc::v1::verifier::run_mdoc_verifier(
+                        crate::mdoc::v1::run_mdoc_verifier(
                             spec,
                             compressed,
                             test_data.pkx,
@@ -233,7 +233,7 @@ mod tests {
                     let compressed = &provided.compressed;
                     let mut count = 0;
 
-                    for case in crate::mdoc::testcases::vectors::ALL_TEST_CASES {
+                    for case in crate::mdoc::testcases::ALL_TEST_CASES {
                         if case.name.starts_with("fail-") {
                             continue;
                         }
@@ -284,7 +284,7 @@ mod tests {
                         );
                         let proof = prove_res.unwrap();
 
-                        let verify_res = run_mdoc_verifier_inner(
+                        let verify_res = run_mdoc_verifier(
                             spec,
                             compressed,
                             case.data.pkx,

@@ -204,8 +204,8 @@ fingerprint affine equations to the frontend statements.
 `packing_commitment.rs` connects the input-packing protocol to committed cells.
 This crate builds without the `mdoc` feature.
 
-Proof types and canonical codecs live in `runtime::v2::proto`, with the application
-envelope under `mdoc::runtime::v2::proto`. Standalone ZK proofs use `LFV9` and
+Proof types and canonical codecs live in `runtime::v2::proto`; the application
+envelope is `mdoc::v2::MdocProof`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
 proofs use `MDA7`: an envelope around the generic composed body
 (`proto::composed`). The shared Polygero envelope uses `JPG2`.

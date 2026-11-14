@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constants::{
-    K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_DIGEST_ID,
-    K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
-};
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
@@ -24,7 +20,14 @@ use crate::{
         routing::Routing,
     },
     compile::logic::{Logic, LogicIO},
-    mdoc::circuits::cbor_decoder::CborByteDecoder,
+    mdoc::{
+        circuits::cbor_decoder::CborByteDecoder,
+        proto::mso_attribute::constants::{
+            K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES,
+            K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN,
+            K_RANDOM_ID,
+        },
+    },
 };
 
 pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;

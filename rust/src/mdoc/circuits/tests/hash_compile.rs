@@ -16,12 +16,15 @@ use super::mdoc_hash_corruptors;
 use crate::{
     compile::algebra::{gf2_128::Gf2_128Field, CompileNat},
     core::algebra::{Nat, SerializableField, SupportsU128Conversions},
-    mdoc::circuits::{
-        config::K_ZSTD_LEVEL,
-        hash::{
-            derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven, MdocHash,
+    mdoc::{
+        circuits::{
+            cbor::test_utils::parse_test_data,
+            hash::{
+                derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven, MdocHash,
+            },
+            MdocHashCompileField,
         },
-        parse_test_data, MdocHashCompileField,
+        proto::K_ZSTD_LEVEL,
     },
     runtime::algebra::RuntimeField,
 };
@@ -45,8 +48,7 @@ fn compile_hash_circuit<FC>(
     crate::compile::proto::CircuitDebugSymbols,
 )
 where FC: MdocHashCompileField {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
     let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
     let num_attrs = hash_input.attrs.len();
@@ -116,7 +118,7 @@ fn make_hash_inputs<const W: usize, FR>(
 where
     FR: RuntimeField<W> + SupportsU128Conversions,
 {
-    use crate::mdoc::circuits::{
+    use crate::mdoc::proto::{
         hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS},
         mso_attribute::constants::K_ATTR_PREIMAGE_LEN,
     };
@@ -232,8 +234,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
     fc: &FC,
     _fr: &FR,
 ) {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
     let num_attrs = hash_input.attrs.len();
 
@@ -266,8 +267,7 @@ fn test_compile_mdoc_hash_corruptors() {
     let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let (circuit, _, symbols) = compile_hash_circuit(&fc);
 
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let base_given = given::<4, _>(hash_input);
@@ -338,9 +338,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
 
 #[test]
 fn test_paranoid_hash_input_subsets_and_permutations() {
-    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(
-        &crate::mdoc::testcases::vectors::BIRTHDATE_1971_09_01_MDOC_3,
-    );
+    let (_, parsed, now) =
+        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3);
     let all_ids = parsed.all_attr_ids();
     assert!(
         all_ids.len() >= 4,

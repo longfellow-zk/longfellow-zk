@@ -19,14 +19,16 @@ use super::{
         MsoPreimageBytes as WireMsoPreimageBytes,
     },
     concrete::{ConcreteDerived, ConcreteGiven},
-    constants::K_HASH_INDEX_BITS,
 };
 use crate::{
     circuits::bitvec::BitvecLogic,
     core::algebra::Nat,
-    mdoc::circuits::mso_attribute::{
-        constants::K_ATTR_INDEX_BITS, AttrSlice as MsoSlice,
-        DisclosedAttribute as WireDisclosedAttribute, FieldLocator as WireFieldLocator,
+    mdoc::{
+        circuits::mso_attribute::{
+            AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
+            FieldLocator as WireFieldLocator,
+        },
+        proto::{hash::constants::K_HASH_INDEX_BITS, mso_attribute::constants::K_ATTR_INDEX_BITS},
     },
 };
 
@@ -70,7 +72,7 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
     let now = std::array::from_fn(|i| {
         let bit_val = get_byte(
             &given.hash_input.now,
-            super::constants::K_TIMESTAMP_DIGITS[i],
+            crate::mdoc::proto::hash::constants::K_TIMESTAMP_DIGITS[i],
         );
         bv.of_u64::<8>(u64::from(bit_val))
     });

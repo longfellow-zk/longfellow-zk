@@ -16,19 +16,17 @@
 // Evaluation failures can expose private inputs; never write them to logs.
 #![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
 
-use super::{
-    inputs::{
-        public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash, push_witness_sig,
-    },
-    ZkSpecStruct,
-};
 use crate::{
     mdoc::{
         circuits::cbor::mdoc::{MdocParseError, ParsedMdoc},
-        runtime::v2::{
+        v2::{
             attribute::{circuit_supports, same_namespace},
+            inputs::{
+                public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash,
+                push_witness_sig,
+            },
             key::parse_pk_coordinate,
-            MdocProverErrorCode, RequestedAttribute,
+            MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
         },
     },
     runtime::{

@@ -14,10 +14,12 @@
 
 use num_bigint::BigUint;
 
-pub use crate::mdoc::testcases::TestDataStatic;
 use crate::{
     core::algebra::Nat,
-    mdoc::circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc},
+    mdoc::{
+        circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc},
+        testcases::TestDataStatic,
+    },
 };
 
 #[must_use]

@@ -23,17 +23,16 @@ use crate::{
     compile::logic::LogicIO,
     mdoc::{
         circuits::{
-            hash::{
-                circuit::{
-                    AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
-                },
-                constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
+            hash::circuit::{
+                AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
             },
-            mso_attribute::{
-                constants::K_ATTR_INDEX_BITS, AttrSlice, DisclosedAttribute, FieldLocator,
-            },
+            mso_attribute::{AttrSlice, DisclosedAttribute, FieldLocator},
         },
-        proto::layout,
+        proto::{
+            hash::constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
+            layout,
+            mso_attribute::constants::K_ATTR_INDEX_BITS,
+        },
     },
 };
 

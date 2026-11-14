@@ -13,9 +13,9 @@
 // limitations under the License.
 
 //! Longfellow v2 circuit loading with mandatory payload ID verification.
-use super::ZkSpecStruct;
 use crate::{
     core::proto::v2::{Circuit, CircuitReader},
+    mdoc::v2::ZkSpecStruct,
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 

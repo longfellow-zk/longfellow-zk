@@ -14,16 +14,13 @@
 
 //! Longfellow v1 application verifier.
 
-use super::{
-    inputs::{push_input_hash, push_input_sig},
-    proto::{MdocProof, MdocProofGeometry},
-    ZkSpecStruct,
-};
 use crate::{
     core::algebra::Nat,
-    mdoc::runtime::v1::{
-        attribute::same_namespace, key::parse_pk_coordinate, MdocVerifierErrorCode,
-        RequestedAttribute,
+    mdoc::v1::{
+        attribute::same_namespace,
+        inputs::{push_input_hash, push_input_sig},
+        key::parse_pk_coordinate,
+        MdocProof, MdocProofGeometry, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
     },
     runtime::{
         algebra::{
@@ -41,31 +38,6 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_mdoc_verifier(
-    zk_spec: &ZkSpecStruct,
-    circuits_compressed: &[u8],
-    pkx: &str,
-    pky: &str,
-    transcript: &[u8],
-    attrs: &[RequestedAttribute],
-    now: &str,
-    doc_type: &str,
-    proof_bytes: &[u8],
-) -> Result<(), MdocVerifierErrorCode> {
-    run_mdoc_verifier_inner(
-        zk_spec,
-        circuits_compressed,
-        pkx,
-        pky,
-        transcript,
-        attrs,
-        now,
-        doc_type,
-        proof_bytes,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn run_mdoc_verifier_inner(
     zk_spec: &ZkSpecStruct,
     circuits_compressed: &[u8],
     pkx: &str,

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constants::{
-    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR,
-    K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
-    K_NAMESPACE_BYTES, K_TAG32, K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN,
-    K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
-};
 use crate::{
     circuits::{
         bitvec::{Bitvec, BitvecLogic, V256, V8},
@@ -27,12 +21,18 @@ use crate::{
         sha256msg::Sha256Msg,
     },
     compile::logic::{Logic, LogicIO},
-    mdoc::circuits::{
-        mso_attribute::{
-            constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
-            AttributeVerifier,
+    mdoc::{
+        circuits::{mso_attribute::AttributeVerifier, MdocHashCompileField},
+        proto::{
+            hash::constants::{
+                K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR,
+                K_DOCTYPE_HEADER_CHECK_CBOR, K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS,
+                K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
+                K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR,
+                K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
+            },
+            mso_attribute::constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
         },
-        traits::MdocHashCompileField,
     },
 };
 
@@ -57,9 +57,9 @@ pub struct AttrGiven<L: Logic> {
     pub field_locator: crate::mdoc::circuits::mso_attribute::FieldLocator<L>,
 }
 
-use crate::mdoc::circuits::{
-    hash::constants::{K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
-    mso_attribute::DisclosedAttribute,
+use crate::mdoc::{
+    circuits::mso_attribute::DisclosedAttribute,
+    proto::hash::constants::{K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
 };
 
 pub struct AttrDerived<L: Logic> {

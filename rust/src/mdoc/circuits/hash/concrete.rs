@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constants::K_MSO_PREIMAGE_LEN;
-use crate::{core::algebra::Nat, mdoc::circuits::cbor::mdoc::FieldLocator as MsoFieldLocator};
+use crate::{
+    core::algebra::Nat,
+    mdoc::{
+        circuits::cbor::mdoc::FieldLocator as MsoFieldLocator,
+        proto::hash::constants::K_MSO_PREIMAGE_LEN,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct AttrInput {
@@ -89,7 +94,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     let cose_sha_wit = crate::circuits::sha256msg::given(
         &hash_input.cbor_mso,
         &crate::circuits::sha256::constants::INITIAL,
-        super::constants::K_MAX_SHA_BLOCKS,
+        crate::mdoc::proto::hash::constants::K_MAX_SHA_BLOCKS,
     )
     .unwrap();
     let signed_bytes = cose_sha_wit.padded_preimage;
@@ -97,7 +102,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 
     // These raw compiler/test helpers retain their existing panic contract for
     // invalid inputs, but must never silently narrow or wrap an input offset.
-    let preimage_base_offset = super::constants::K_MSO_OFFSET;
+    let preimage_base_offset = crate::mdoc::proto::hash::constants::K_MSO_OFFSET;
     let offset = |relative: usize| {
         u16::try_from(
             relative
@@ -158,7 +163,7 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
         sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
             &given.preimage.value,
             &crate::circuits::sha256::constants::INITIAL,
-            super::constants::K_MAX_SHA_BLOCKS,
+            crate::mdoc::proto::hash::constants::K_MAX_SHA_BLOCKS,
         ),
     };
 

@@ -22,9 +22,9 @@ use longfellow_zk::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        circuits::parse_test_data,
+        circuits::cbor::test_utils::parse_test_data,
         v1::{
-            decompress_circuits, req_attr, run_mdoc_prover_inner, run_mdoc_verifier_inner,
+            decompress_circuits, req_attr, run_mdoc_prover_inner, run_mdoc_verifier,
             RequestedAttribute,
         },
     },
@@ -62,7 +62,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     );
     println!("Requested attributes: {num_attributes}");
     let (issuer_pk, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&longfellow_zk::mdoc::testcases::vectors::TEST_DATA);
+        parse_test_data::<4, CompileNat<4>>(&longfellow_zk::mdoc::testcases::TEST_DATA);
     let req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
         .iter()
@@ -70,8 +70,8 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
         .collect();
 
-    let mdoc_bytes = longfellow_zk::mdoc::testcases::vectors::TEST_DATA.mdoc;
-    let transcript = longfellow_zk::mdoc::testcases::vectors::TEST_DATA.transcript;
+    let mdoc_bytes = longfellow_zk::mdoc::testcases::TEST_DATA.mdoc;
+    let transcript = longfellow_zk::mdoc::testcases::TEST_DATA.transcript;
     let doc_type = "org.iso.18013.5.1.mDL";
 
     let pubkey_x_string = format!(
@@ -112,7 +112,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
             .expect("decompress");
         println!(
             "  Circuit Sizes: zstd-{}={} bytes, segmented (no zstd)={} bytes",
-            longfellow_zk::mdoc::circuits::config::K_ZSTD_LEVEL,
+            longfellow_zk::mdoc::proto::K_ZSTD_LEVEL,
             circuits_lfa1.len(),
             decompressed.len()
         );
@@ -235,7 +235,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
 
     let baseline_ver = get_current_allocated();
     reset_peak();
-    run_mdoc_verifier_inner(
+    run_mdoc_verifier(
         spec,
         &circuits_lfa1,
         &pubkey_x_string,
@@ -302,7 +302,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
 
     let baseline_ver_lfa2 = get_current_allocated();
     reset_peak();
-    run_mdoc_verifier_inner(
+    run_mdoc_verifier(
         spec,
         &circuits_lfa2,
         &pubkey_x_string,
@@ -363,7 +363,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     });
     group.bench_function("verify_longfellow_v1_circuit_v7_lfa1", |b| {
         b.iter(|| {
-            let verify_res = run_mdoc_verifier_inner(
+            let verify_res = run_mdoc_verifier(
                 black_box(spec),
                 black_box(&circuits_lfa1),
                 black_box(&pubkey_x_string),
@@ -398,7 +398,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
     });
     group.bench_function("verify_longfellow_v1_circuit_v7_lfa2", |b| {
         b.iter(|| {
-            let verify_res = run_mdoc_verifier_inner(
+            let verify_res = run_mdoc_verifier(
                 black_box(spec),
                 black_box(&circuits_lfa2),
                 black_box(&pubkey_x_string),
