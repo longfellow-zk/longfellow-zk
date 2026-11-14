@@ -92,14 +92,14 @@ where
         crate::runtime::v2::sumcheck::eval_circuit(inputs.clone(), &modern, fr).unwrap();
         let mut old = vec![fr.one()];
         old.extend(inputs.clone());
-        crate::runtime::v1::sumcheck::eval_circuit(old.clone(), &legacy, fr).unwrap();
+        crate::runtime::v1::sumcheck::eval::eval_circuit(old.clone(), &legacy, fr).unwrap();
         for i in 8..16 {
             let mut bad = inputs.clone();
             fr.add(&mut bad[i], &fr.one());
             assert!(crate::runtime::v2::sumcheck::eval_circuit(bad, &modern, fr).is_err());
             let mut bad = old.clone();
             fr.add(&mut bad[i + 1], &fr.one());
-            assert!(crate::runtime::v1::sumcheck::eval_circuit(bad, &legacy, fr).is_err());
+            assert!(crate::runtime::v1::sumcheck::eval::eval_circuit(bad, &legacy, fr).is_err());
         }
     }
 }

@@ -16,7 +16,10 @@
 use super::*;
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::v2::{polygero::joint::Participants, proto::Digest},
+    runtime::v2::{
+        polygero::Participants,
+        proto::{polygero::PolygeroCommitment, Digest},
+    },
 };
 
 /// Preserve private rows for independent polynomial/forgery checks after prove

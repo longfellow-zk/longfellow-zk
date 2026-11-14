@@ -34,16 +34,14 @@
 //! in production. [`crate::runtime::v2::zk::ZkVerifier`] compiles the same symbolic
 //! constraints and checks them through Polygero while keeping those values hidden.
 
-use super::super::{
-    symbolic::{Constraints, Pad, PadExpression},
-    RoundPoly,
-};
+use super::super::symbolic::{Constraints, Pad, PadExpression};
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
-            sumcheck::{circuit_geometry, derive_constraints, SumcheckProof, TranscriptSumcheck},
+            proto::sumcheck::{RoundPoly, SumcheckProof},
+            sumcheck::{circuit_geometry, derive_constraints, TranscriptSumcheck},
             transcript::Transcript,
         },
     },

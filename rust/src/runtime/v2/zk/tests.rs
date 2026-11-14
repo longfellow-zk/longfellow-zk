@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ZkContext, ZkProof, ZkProver, ZkVerifier};
+use super::{ZkContext, ZkProver, ZkVerifier};
+use crate::runtime::v2::proto::zk::ZkProof;
 
 #[test]
 fn context_uses_its_domains_runtime_modulus() {
@@ -41,7 +42,7 @@ use crate::{
             RuntimeField, ZkField,
         },
         random::DeterministicRng,
-        v2::{polygero::PolygeroConfig, transcript::Transcript},
+        v2::{proto::polygero::PolygeroConfig, transcript::Transcript},
     },
 };
 

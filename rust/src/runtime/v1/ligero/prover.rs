@@ -37,15 +37,12 @@ use crate::{
         v1::{
             ligero::{
                 common::{inner_product_vector, layout_aext_into},
-                param::{
-                    LigeroCommitment, LigeroLinearConstraint, LigeroParam,
-                    LigeroQuadraticConstraint,
-                },
                 tableau::Tableau,
                 transcript::TranscriptLigero,
+                LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint,
             },
             merkle::{commit, open, MerkleCommitment},
-            proto::ligero::LigeroProof,
+            proto::ligero::{LigeroCommitment, LigeroProof},
             random::RandomEngineV1,
             subfield::{InterpolationPlanV1, SubfieldV1},
             transcript::Transcript,
@@ -137,7 +134,7 @@ impl<
         linear_evals: &[ElementOf<F>],
         ts: &mut Transcript,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::v1::merkle::Digest,
+        hash_of_ligero_statement: &crate::runtime::v1::proto::Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,

@@ -21,7 +21,7 @@
 use crate::runtime::{
     algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField},
     v1::{
-        ligero::param::{LigeroConfig, LigeroParam},
+        ligero::{LigeroConfig, LigeroParam},
         proto::{DIGEST_LEN, NONCE_LEN},
     },
 };

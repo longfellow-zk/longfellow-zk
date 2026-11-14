@@ -2,7 +2,7 @@
 //! V1 proof declarations and their unchanged wire encoding.
 
 pub mod ligero;
-pub mod merkle;
+mod merkle;
 pub mod subfield;
 pub mod sumcheck;
 pub mod util;

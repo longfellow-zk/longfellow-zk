@@ -24,40 +24,30 @@
 //! inputs and pads, which `zk` compiles for Ligero. `dense`, `eq`, and `hquad`
 //! implement the dense witness and sparse tensor bindings. The public module
 //! and wire interfaces retain the legacy conventions used by circuits through v7.
-pub mod dense;
-pub mod eq;
+mod dense;
+mod eq;
 pub mod eval;
-pub mod hquad;
+mod hquad;
 pub mod pad;
-pub mod poly;
+mod poly;
 mod round_data;
 pub mod symbolic;
-pub mod transcript;
+mod transcript;
 
 pub use dense::{as_scalar, bind, bind_all, normalize};
-pub use eq::eval as eq;
+pub use eq::eq;
 pub use hquad::HQuad;
-pub use poly::{LagrangeBasis, Poly, QuadRoundPoly, QuadWirePoly};
-pub use proof::{sane_logw, LayerProof, RoundPoly, SumcheckProof, MAX_LOGW};
+pub use poly::{QuadRoundPoly, QuadWirePoly};
 pub use round_data::{LayerVerifierData, RoundCoefficients, VerifierData};
 pub use transcript::TranscriptSumcheck;
 
-pub use crate::runtime::{
-    random::RandomEngine,
-    v1::{
-        proto::sumcheck as proof,
-        sumcheck::eval::{eval_circuit, eval_quad},
-        transcript::Transcript,
-    },
-};
-
 cfg_prover! {
-    pub mod prover;
+    mod prover;
     pub use prover::{prove, prove_core};
 }
 
 cfg_verifier! {
-    pub mod verifier;
+    mod verifier;
     pub use verifier::{derive_verifier_data, verify, verify_core};
 }
 

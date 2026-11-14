@@ -3,9 +3,10 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::{joint::Participants as BackendParticipants, JointPolygeroProver},
+        polygero::{JointPolygeroProver, Participants as BackendParticipants},
         proto::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
+            witness_selection::{FingerprintResponse, FINGERPRINTS},
             Digest,
         },
         transcript::{Transcript, TranscriptRef},

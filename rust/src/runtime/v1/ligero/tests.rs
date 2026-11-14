@@ -29,10 +29,14 @@ use crate::{
         random::RandomEngine,
         v1::{
             ligero::{
-                LigeroCommitment, LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam,
-                LigeroProof, LigeroProver, LigeroQuadraticConstraint, LigeroVerifier,
+                LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam, LigeroProver,
+                LigeroQuadraticConstraint, LigeroVerifier,
             },
-            merkle::{Digest, MerkleError},
+            merkle::MerkleError,
+            proto::{
+                ligero::{LigeroCommitment, LigeroProof},
+                Digest,
+            },
             subfield::{BinarySubfieldV1, SubfieldV1},
             transcript::Transcript,
         },
@@ -545,7 +549,7 @@ fn test_ligero_verifier_failures_generic<
 fn test_rejects_insufficient_blinding_capacity() {
     let nw_hash = 77998;
     let nq_hash = 20;
-    let config_hash = crate::runtime::v1::ligero::param::LigeroConfig {
+    let config_hash = crate::runtime::v1::ligero::LigeroConfig {
         rateinv: 7,
         nreq: 132,
         block_enc: 451,
@@ -556,12 +560,8 @@ fn test_rejects_insufficient_blinding_capacity() {
         &gf2_runtime,
         subfield.basis(),
     );
-    let res = crate::runtime::v1::ligero::param::LigeroParam::try_new(
-        nw_hash,
-        nq_hash,
-        config_hash,
-        &factory,
-    );
+    let res =
+        crate::runtime::v1::ligero::LigeroParam::try_new(nw_hash, nq_hash, config_hash, &factory);
     assert!(res.is_none());
 }
 

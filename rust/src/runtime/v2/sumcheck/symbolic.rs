@@ -76,7 +76,7 @@
 
 use crate::{
     core::algebra::SerializableField,
-    runtime::{algebra::RuntimeField, v2::sumcheck::SumcheckProof},
+    runtime::{algebra::RuntimeField, v2::proto::sumcheck::SumcheckProof},
 };
 
 /// Propagate an affine claim through the proof and record the constraints.

@@ -1,8 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Commitment and responses for a typed list of fields.
 use super::{
-    constraints, ensure, joint::*, prover_commitment::ColumnOracle, PolygeroCommitment,
-    PolygeroError, PolygeroParam,
+    constraints, ensure, joint::*, prover_commitment::ColumnOracle, PolygeroError, PolygeroParam,
 };
 use crate::runtime::{
     algebra::{
@@ -12,7 +11,10 @@ use crate::runtime::{
     },
     random::PrivateRandom,
     v2::{
-        proto::Digest,
+        proto::{
+            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
+            Digest,
+        },
         transcript::{Transcript, TranscriptRef},
     },
 };

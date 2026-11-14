@@ -22,12 +22,13 @@ use crate::{
         proto::v1::{Circuit, CircuitReader, CircuitWriter},
     },
     runtime::{
-        algebra::{p256::P256Field as RuntimeP256, RuntimeField},
+        algebra::{p256::P256Field as RuntimeP256, Poly, RuntimeField},
         random::RandomEngine,
         v1::{
+            proto::sumcheck::{LayerProof, SumcheckProof},
             sumcheck::{
-                eval::eval_circuit, prover::prove, verifier::verify, LayerProof, Poly,
-                QuadRoundPoly, SumcheckProof, TranscriptSumcheck,
+                eval::eval_circuit, prover::prove, verifier::verify, QuadRoundPoly,
+                TranscriptSumcheck,
             },
             transcript::Transcript,
         },

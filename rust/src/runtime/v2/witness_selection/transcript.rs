@@ -4,13 +4,17 @@
 //! Bind the complete ordered field layout before drawing any coefficient. Every
 //! vector consumes the same reading phase, and all responses bind before the
 //! enclosing frontend starts. The typed field traversal stays in `lib`.
-use super::{Field, Fields, FingerprintResponse, Param, FINGERPRINTS};
+use super::{Field, Fields, Param};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
-            proto::{polygero::PolygeroCommitment, RoundLabel},
+            proto::{
+                polygero::PolygeroCommitment,
+                witness_selection::{FingerprintResponse, FINGERPRINTS},
+                RoundLabel,
+            },
             transcript::{Reading, TranscriptRef, Writing},
         },
     },

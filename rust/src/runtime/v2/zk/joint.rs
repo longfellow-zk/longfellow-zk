@@ -3,9 +3,8 @@
 use super::{
     context::{prepare_circuit_layout, prepare_parameter, InputLayout},
     packing_commitment::PackingCommitment,
-    CircuitGeometry, ZkContext,
+    ZkContext,
 };
-pub use crate::runtime::v2::proto::zk::CircuitProof;
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
@@ -15,8 +14,12 @@ use crate::{
             ZkField,
         },
         v2::{
-            polygero::{PolygeroConfig, PolygeroParam},
-            proto::{polygero::PolygeroGeometry, Digest},
+            polygero::PolygeroParam,
+            proto::{
+                polygero::{PolygeroConfig, PolygeroGeometry},
+                zk::CircuitGeometry,
+                Digest,
+            },
             witness_selection,
         },
     },

@@ -24,8 +24,8 @@ use crate::{
         algebra::SupportsSampling,
         random::RandomEngine,
         v1::{
-            ligero::param::{LigeroCommitment, LigeroParam},
-            proto::Digest,
+            ligero::LigeroParam,
+            proto::{ligero::LigeroCommitment, Digest},
             transcript::Transcript,
         },
     },

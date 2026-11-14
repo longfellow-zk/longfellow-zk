@@ -22,7 +22,8 @@ use crate::{
         algebra::{gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory},
         random::{DeterministicRng, RandomEngine},
         v2::{
-            polygero::{LinearStatement, PolygeroConfig},
+            polygero::LinearStatement,
+            proto::polygero::PolygeroConfig,
             zk::{
                 constraint_compiler,
                 joint::{JointParam, SelectedField},

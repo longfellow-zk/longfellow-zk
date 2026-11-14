@@ -23,9 +23,9 @@ use crate::{
         },
         random::{PrivateRandom, RandomEngine},
         v2::{
-            polygero::PolygeroConfig,
+            proto::{polygero::PolygeroConfig, zk::ZkProof},
             transcript::Transcript,
-            zk::{ZkProof, ZkProver, ZkVerifier},
+            zk::{ZkProver, ZkVerifier},
         },
     },
 };

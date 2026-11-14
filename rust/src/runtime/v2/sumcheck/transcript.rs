@@ -31,8 +31,7 @@ use crate::{
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
-            proto::RoundLabel,
-            sumcheck::RoundPoly,
+            proto::{sumcheck::RoundPoly, RoundLabel},
             transcript::{Reading, TranscriptRef},
         },
     },

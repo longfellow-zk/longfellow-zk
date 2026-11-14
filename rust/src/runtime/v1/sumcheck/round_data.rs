@@ -22,8 +22,8 @@
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{InterpolationField, RuntimeField},
-        v1::sumcheck::{LagrangeBasis, RoundPoly},
+        algebra::{InterpolationField, LagrangeBasis, RuntimeField},
+        v1::proto::sumcheck::RoundPoly,
     },
 };
 

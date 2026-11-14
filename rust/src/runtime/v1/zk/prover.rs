@@ -26,11 +26,12 @@ use crate::{
         algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
         random::RandomEngine,
         v1::{
-            ligero::{param::LigeroQuadraticConstraint, LigeroProver},
+            ligero::{LigeroProver, LigeroQuadraticConstraint},
+            proto::{sumcheck::SumcheckProof, zk::ZkProof},
             subfield::SubfieldV1,
-            sumcheck::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck},
+            sumcheck::{prove_core as sumcheck_prove_core, TranscriptSumcheck},
             transcript::Transcript,
-            zk::{common::ZkContext, ZkProof},
+            zk::common::ZkContext,
         },
     },
 };
@@ -38,7 +39,7 @@ use crate::{
 /// A trusted legacy circuit and the configuration for its Ligero commitment.
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
     pub circuit: crate::core::proto::v1::Circuit<F>,
-    pub config: crate::runtime::v1::ligero::param::LigeroConfig,
+    pub config: crate::runtime::v1::ligero::LigeroConfig,
 }
 
 /// Private state retained between commitment and proof generation.
@@ -53,7 +54,7 @@ pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
 impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     pub fn new(
         circuit: crate::core::proto::v1::Circuit<F>,
-        config: crate::runtime::v1::ligero::param::LigeroConfig,
+        config: crate::runtime::v1::ligero::LigeroConfig,
     ) -> Self {
         Self { circuit, config }
     }
@@ -105,14 +106,14 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         let lqc =
             crate::runtime::v1::zk::constraint_compiler::product_constraints(n_witness, &sc_geom);
 
-        let ligero_param = crate::runtime::v1::ligero::param::LigeroParam::new(
+        let ligero_param = crate::runtime::v1::ligero::LigeroParam::new(
             witness.len(),
             self.circuit.raw.layers.len(),
             self.config,
             ctx.make_interpolator,
         );
 
-        let (lp, com) = crate::runtime::v1::ligero::prover::LigeroProver::commit(
+        let (lp, com) = crate::runtime::v1::ligero::LigeroProver::commit(
             subfield_boundary,
             &witness,
             ligero_param,
@@ -158,9 +159,12 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         inputs_and_witnesses.extend(witness_only);
 
         tsp.write_sumcheck_statement(&self.circuit, &public_inputs, ctx.f);
-        let in_layers =
-            crate::runtime::v1::sumcheck::eval_circuit(inputs_and_witnesses, &self.circuit, ctx.f)
-                .map_err(|e| format!("eval_circuit failed: {e}"))?;
+        let in_layers = crate::runtime::v1::sumcheck::eval::eval_circuit(
+            inputs_and_witnesses,
+            &self.circuit,
+            ctx.f,
+        )
+        .map_err(|e| format!("eval_circuit failed: {e}"))?;
 
         let (proof, data) =
             sumcheck_prove_core(in_layers, &commit_info.pad, &self.circuit, tsp, ctx.f);

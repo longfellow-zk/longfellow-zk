@@ -29,7 +29,10 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::RuntimeField,
-        v1::sumcheck::{RoundPoly, SumcheckProof, VerifierData},
+        v1::{
+            proto::sumcheck::{RoundPoly, SumcheckProof},
+            sumcheck::VerifierData,
+        },
     },
 };
 

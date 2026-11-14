@@ -67,10 +67,7 @@ impl<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableFiel
         let cap = layer.nterms_after_bind_g();
         let mut hc: Vec<HCorner> = Vec::with_capacity(cap);
         let mut vc: Vec<F::E> = Vec::with_capacity(cap);
-        assert!(
-            crate::runtime::v1::sumcheck::sane_logw(logv),
-            "logv must be sane"
-        );
+        assert!(crate::core::proto::sane_logw(logv), "logv must be sane");
         let dot = crate::runtime::v1::sumcheck::eq::eq2(logv, nv, g0, g1, alpha, f);
         let mut prev_h0 = !0u32;
         let mut prev_h1 = !0u32;

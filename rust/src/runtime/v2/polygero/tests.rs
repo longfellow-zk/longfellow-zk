@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    joint::{FieldProof, JointPolygeroProof},
-    *,
-};
+use super::*;
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
@@ -26,7 +23,13 @@ use crate::{
             RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
-        v2::{proto::Digest, transcript::Transcript},
+        v2::{
+            proto::{
+                polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
+                Digest,
+            },
+            transcript::Transcript,
+        },
     },
 };
 

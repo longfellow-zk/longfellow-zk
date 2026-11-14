@@ -1,7 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Ambient-field masking and privacy under witness translations.
 use super::*;
-use crate::runtime::random::{PrivateRandom, RandomEngine};
+use crate::runtime::{
+    random::{PrivateRandom, RandomEngine},
+    v2::proto::polygero::PolygeroConfig,
+};
 
 struct MaskRng {
     inner: DeterministicRng,

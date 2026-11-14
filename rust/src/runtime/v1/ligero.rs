@@ -24,10 +24,10 @@
 //! batches sparse constraints into logical row coefficients. `prover` owns the
 //! tableau; `verifier` checks public responses and opened columns. Both use the
 //! transcript format in `transcript` and the independent legacy proof codec.
-pub mod common;
-pub mod geometry;
-pub mod param;
-pub mod transcript;
+mod common;
+mod geometry;
+mod param;
+mod transcript;
 
 pub use common::{inner_product_vector, layout_aext_into};
 pub use geometry::{estimate_proof_size, optimize_geometry};
@@ -36,16 +36,14 @@ pub use param::{
 };
 pub use transcript::TranscriptLigero;
 
-pub use crate::runtime::v1::proto::ligero::{LigeroCommitment, LigeroProof};
-
 cfg_prover! {
-    pub mod prover;
+    mod prover;
     pub mod tableau;
     pub use prover::LigeroProver;
 }
 
 cfg_verifier! {
-    pub mod verifier;
+    mod verifier;
     pub use verifier::LigeroVerifier;
 }
 

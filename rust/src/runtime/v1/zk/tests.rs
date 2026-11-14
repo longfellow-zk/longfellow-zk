@@ -24,10 +24,10 @@ use crate::{
         random::RandomEngine,
         v1::{
             ligero::LigeroConfig,
-            proto::sumcheck::SumcheckProofGeometry,
+            proto::{sumcheck::SumcheckProofGeometry, zk::ZkProof},
             subfield::BinarySubfieldV1,
             transcript::Transcript,
-            zk::{ZkProof, ZkProver, ZkVerifier},
+            zk::{ZkProver, ZkVerifier},
         },
     },
 };
@@ -754,7 +754,7 @@ fn test_zk_intermediate_zero_logw() {
     w0[3] = f.u128_to_element(30);
 
     // Check that plain evaluation succeeds (sum is 0, squared twice is 0)
-    let eval_res = crate::runtime::v1::sumcheck::eval_circuit(w0.clone(), &circ, &f);
+    let eval_res = crate::runtime::v1::sumcheck::eval::eval_circuit(w0.clone(), &circ, &f);
     assert!(
         eval_res.is_ok(),
         "Plain circuit evaluation failed: {:?}",
@@ -853,7 +853,7 @@ fn test_zk_zero_layers() {
             }
         }
 
-        let eval_res = crate::runtime::v1::sumcheck::eval_circuit(w0.clone(), &circ, &f);
+        let eval_res = crate::runtime::v1::sumcheck::eval::eval_circuit(w0.clone(), &circ, &f);
 
         let mut rng = SimpleRng {
             state: 9999 + mask as u64,

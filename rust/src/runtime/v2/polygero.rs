@@ -44,7 +44,7 @@ pub use error::PolygeroError;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::merkle::hash;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod joint;
+mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod param;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -57,12 +57,9 @@ pub use config::PolygeroLinearTerm;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use param::PolygeroParam;
 
-pub use crate::runtime::v2::proto::polygero::{
-    PolygeroCommitment, PolygeroConfig, PolygeroGeometry,
-};
 cfg_prover! { mod prover_commitment; }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use joint::{JointPolygeroParam, LinearStatement, Participant};
+pub use joint::{JointPolygeroParam, LinearStatement, Participant, Participants};
 cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
 cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
 

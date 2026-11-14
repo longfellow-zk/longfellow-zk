@@ -24,15 +24,19 @@
 //! ordering. The later digest binds the source statement from which
 //! the caller derives A and b, independently of their sparse representation.
 use super::{
-    joint::{FieldChallenges, JointPolygeroParam, Participants},
-    PolygeroCommitment, PolygeroParam,
+    joint::{FieldChallenges, JointPolygeroParam},
+    PolygeroParam,
 };
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::SupportsSampling,
         v2::{
-            proto::{polygero::FieldProof, Digest, RoundLabel},
+            polygero::Participants,
+            proto::{
+                polygero::{FieldProof, PolygeroCommitment},
+                Digest, RoundLabel,
+            },
             transcript::{Reading, TranscriptRef, Writing},
         },
     },

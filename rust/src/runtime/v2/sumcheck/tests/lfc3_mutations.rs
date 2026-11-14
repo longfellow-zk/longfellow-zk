@@ -18,10 +18,8 @@ use crate::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
-            sumcheck::{
-                circuit_geometry, derive_constraints_for_circuits, LayerProof, RoundPoly,
-                SumcheckProof,
-            },
+            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
+            sumcheck::{circuit_geometry, derive_constraints_for_circuits},
             transcript::Transcript,
         },
     },

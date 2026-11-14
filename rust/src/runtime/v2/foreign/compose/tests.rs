@@ -23,7 +23,7 @@ use crate::{
         random::DeterministicRng,
         v2::{
             foreign::{adapter::p256::P256Mode, word::MaskedWord},
-            polygero::PolygeroConfig,
+            proto::polygero::PolygeroConfig,
             transcript::Transcript,
             zk::{
                 split::value_count,

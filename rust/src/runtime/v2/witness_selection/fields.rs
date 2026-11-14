@@ -9,8 +9,7 @@ use crate::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{
-                joint::Participants as BackendParticipants, JointPolygeroParam, Participant,
-                PolygeroParam,
+                JointPolygeroParam, Participant, Participants as BackendParticipants, PolygeroParam,
             },
             proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS, Digest},
             transcript::{Reading, Writing},

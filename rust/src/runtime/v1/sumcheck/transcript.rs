@@ -23,12 +23,12 @@
 use crate::{
     core::{
         algebra::{ElementOf, SerializableField},
-        proto::v1::Circuit,
+        proto::{v1::Circuit, MAX_LOGW},
     },
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         random::RandomEngine,
-        v1::{proto::sumcheck::RoundPoly, sumcheck::MAX_LOGW, transcript::Transcript},
+        v1::{proto::sumcheck::RoundPoly, transcript::Transcript},
     },
 };
 

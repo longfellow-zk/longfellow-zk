@@ -6,9 +6,10 @@ use crate::{
         algebra::SupportsSampling,
         random::{DeterministicRng, RandomEngine},
         v2::{
+            proto::sumcheck::SumcheckProof,
             sumcheck::{
                 derive_constraints_for_circuits as derive, evaluate_and_prove_circuits as prove,
-                sample_pads, split::split_layers, SumcheckProof,
+                sample_pads, split::split_layers,
             },
             transcript::Transcript,
         },
@@ -18,7 +19,7 @@ use crate::{
 fn check_early_output_weights(short_has_layer: bool) {
     use crate::{
         core::algebra::AlgebraicField,
-        runtime::{algebra::gf2_128::Gf2_128Field, v2::sumcheck::LayerProof},
+        runtime::{algebra::gf2_128::Gf2_128Field, v2::proto::sumcheck::LayerProof},
     };
     let f = Gf2_128Field::new();
     let make = |layers| {

@@ -14,9 +14,8 @@
 
 use crate::{
     core::algebra::SupportsU64Conversions,
-    runtime::{
-        algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField},
-        v1::sumcheck::poly::{LagrangeBasis, Poly},
+    runtime::algebra::{
+        gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
     },
 };
 

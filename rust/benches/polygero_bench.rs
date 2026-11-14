@@ -20,7 +20,7 @@ use longfellow_zk::{
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
-        v2::{polygero::*, transcript::Transcript},
+        v2::{polygero::*, proto::polygero::PolygeroConfig, transcript::Transcript},
     },
 };
 fn run<

@@ -22,11 +22,9 @@ use crate::runtime::algebra::{range_interpolation::EvaluationDomain, ZkField};
 use crate::{
     core::proto::v2::Circuit,
     runtime::v2::{
-        polygero::{PolygeroConfig, PolygeroParam},
-        zk::{
-            packing_commitment::{PackingCommitment, PackingLayout},
-            CircuitGeometry,
-        },
+        polygero::PolygeroParam,
+        proto::{polygero::PolygeroConfig, zk::CircuitGeometry},
+        zk::packing_commitment::{PackingCommitment, PackingLayout},
     },
 };
 

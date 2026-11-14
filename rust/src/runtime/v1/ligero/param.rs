@@ -87,8 +87,10 @@
 
 use std::fmt;
 
-use crate::runtime::algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField};
-pub use crate::runtime::v1::proto::ligero::{LigeroCommitment, LigeroGeometry};
+use crate::runtime::{
+    algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField},
+    v1::proto::ligero::LigeroGeometry,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LigeroConfig {

@@ -10,7 +10,8 @@ use crate::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
         random::DeterministicRng,
         v2::{
-            polygero::{LinearStatement, PolygeroConfig},
+            polygero::LinearStatement,
+            proto::polygero::PolygeroConfig,
             transcript::Transcript,
             zk::{
                 joint::CircuitParticipant,

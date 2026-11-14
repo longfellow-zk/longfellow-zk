@@ -2,9 +2,7 @@
 //! Authenticate the shared columns, then check each field's equations.
 use sha2::Digest as _;
 
-use super::{
-    constraints, ensure, hash, joint::*, PolygeroCommitment, PolygeroError, PolygeroParam,
-};
+use super::{constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam};
 use crate::runtime::{
     algebra::{
         blas,
@@ -12,7 +10,10 @@ use crate::runtime::{
         RuntimeField,
     },
     v2::{
-        proto::Digest,
+        proto::{
+            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
+            Digest,
+        },
         transcript::{Transcript, TranscriptRef},
     },
 };

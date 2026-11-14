@@ -8,13 +8,13 @@
 //! the fingerprint equations when authenticating the later frontend statements.
 //! The early responses fix targets; only the final backend check authenticates
 //! them. Complete-proof sealing remains the enclosing protocol's responsibility.
-pub use crate::runtime::v2::proto::witness_selection::{FingerprintResponse, FINGERPRINTS};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{Participant, PolygeroLinearTerm},
+            proto::witness_selection::{FingerprintResponse, FINGERPRINTS},
             transcript::{Reading, Writing},
         },
     },

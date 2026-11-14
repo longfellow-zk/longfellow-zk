@@ -2,16 +2,18 @@
 //! Typed recursive participants sharing a column oracle and query set.
 use sha2::{Digest as _, Sha256};
 
-use super::{ensure, PolygeroConfig, PolygeroError, PolygeroLinearTerm, PolygeroParam};
+use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
-pub use crate::runtime::v2::proto::polygero::{FieldProof, JointPolygeroProof};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
-            proto::Digest,
+            proto::{
+                polygero::{JointPolygeroProof, PolygeroConfig},
+                Digest,
+            },
             transcript::{Reading, Transcript, Writing},
         },
     },

@@ -14,6 +14,7 @@ use crate::{
             polygero::{LinearStatement, PolygeroParam},
             proto::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
+                witness_selection::{FingerprintResponse, FINGERPRINTS},
                 RoundLabel,
             },
             transcript::Transcript,

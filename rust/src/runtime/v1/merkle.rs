@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod heap;
+mod heap;
 
 pub use heap::{merkle_heap_len, verify_proof, MerkleError, MerkleHeap};
 
-pub use crate::runtime::v1::proto::{Digest, MerkleNonce, MerkleProof};
-
-pub mod commitment;
+mod commitment;
 pub use commitment::verify;
 cfg_prover! { pub use commitment::{commit, open, MerkleCommitment}; }

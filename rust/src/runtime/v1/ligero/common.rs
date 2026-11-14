@@ -20,7 +20,7 @@
 //! surrounds those coefficients with zero mask slots before interpolation.
 use crate::runtime::{
     algebra::RuntimeField,
-    v1::ligero::param::{LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint},
+    v1::ligero::{LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint},
 };
 
 /// Computes the linear combination coefficients vector `a` for the verifier's

@@ -10,7 +10,7 @@ use crate::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
         random::DeterministicRng,
-        v2::{transcript::Transcript, zk::VirtualInputs},
+        v2::{proto::zk::CircuitProof, transcript::Transcript, zk::VirtualInputs},
     },
 };
 
@@ -21,8 +21,8 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
             p256::P256Field, packing::PackingField, range_interpolation::ScalarInterpolatorFactory,
         },
         v2::{
-            polygero::{LinearStatement, PolygeroConfig},
-            proto::Digest,
+            polygero::LinearStatement,
+            proto::{polygero::PolygeroConfig, Digest},
             transcript::Transcript,
             zk::joint::{JointParam, SelectedField},
         },
@@ -351,7 +351,10 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
 
 #[test]
 fn final_seal_failure_has_its_own_verification_error() {
-    use crate::runtime::v2::zk::{ZkProof, ZkProver, ZkVerificationError, ZkVerifier};
+    use crate::runtime::v2::{
+        proto::zk::ZkProof,
+        zk::{ZkProver, ZkVerificationError, ZkVerifier},
+    };
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
     let context = ZkContext::new(&domain);

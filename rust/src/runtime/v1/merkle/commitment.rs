@@ -15,8 +15,8 @@
 use sha2::{Digest as ShaDigest, Sha256};
 
 use crate::runtime::v1::{
-    merkle::{heap::verify_proof, Digest, MerkleError},
-    proto::MerkleProof,
+    merkle::{heap::verify_proof, MerkleError},
+    proto::{Digest, MerkleProof},
 };
 
 /// Verifies that the opened column data (hashed via `update_leaf_hash`) matches

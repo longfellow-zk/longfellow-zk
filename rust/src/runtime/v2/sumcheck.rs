@@ -33,7 +33,7 @@ mod circuit;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod fragments;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) use fragments::geometry as circuit_geometry;
+pub(crate) use fragments::circuit_geometry;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod monomial;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -45,7 +45,6 @@ pub(crate) mod symbolic;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
 
-pub use proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry};
 #[cfg(test)]
 pub(crate) use symbolic::LayerChallenges;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -53,7 +52,6 @@ pub(crate) use transcript::TranscriptSumcheck;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::core::proto::sane_logw;
-use crate::runtime::v2::proto::sumcheck as proof;
 
 cfg_prover! {
     mod dense;

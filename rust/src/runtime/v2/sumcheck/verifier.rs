@@ -26,13 +26,12 @@ use super::{
     split::SplitLayer,
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{end_layer, round_challenge, terminal_challenge},
-    SumcheckProof,
 };
 use crate::{
     core::{algebra::SerializableField, proto::v2::classify_constants},
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        v2::transcript::TranscriptRef,
+        v2::{proto::sumcheck::SumcheckProof, transcript::TranscriptRef},
     },
 };
 

@@ -41,7 +41,7 @@ use std::fmt;
 
 use sha2::{Digest as ShaDigest, Sha256};
 
-use super::Digest;
+use crate::runtime::v1::proto::Digest;
 
 /// Calculates the height (number of levels) of a Merkle heap with `num_leaves`
 /// leaves. For a power-of-two number of leaves, this is `log2(num_leaves)` + 1.
@@ -160,7 +160,7 @@ pub fn verify_proof(
 }
 
 /// Verify a frontier using the same internal-node codec used at construction.
-pub fn verify_proof_with_hash(
+pub(super) fn verify_proof_with_hash(
     num_leaves: usize,
     root: &Digest,
     proof: &[Digest],

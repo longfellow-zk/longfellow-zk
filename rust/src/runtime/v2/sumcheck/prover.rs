@@ -44,7 +44,6 @@ use super::{
     circuit::CircuitSource,
     dense::{as_scalar, bind},
     fragments::{self, Schedule, SplitFragment},
-    proof::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
     split::{split_layers, SplitLayer},
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{end_layer, round_challenge},
@@ -54,7 +53,10 @@ use crate::{
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         random::PrivateRandom,
-        v2::transcript::{Reading, TranscriptRef},
+        v2::{
+            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
+            transcript::{Reading, TranscriptRef},
+        },
     },
 };
 

@@ -142,7 +142,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         );
         let (count_w_hash, total_q_hash) =
             longfellow_zk::runtime::v1::proto::zk::witness_and_constraint_count(&c_hash);
-        let param_hash = longfellow_zk::runtime::v1::ligero::param::LigeroParam::try_new(
+        let param_hash = longfellow_zk::runtime::v1::ligero::LigeroParam::try_new(
             count_w_hash,
             total_q_hash,
             config_hash,
@@ -180,7 +180,7 @@ fn bench_mdoc_zk_flow(c: &mut Criterion) {
         );
         let (count_w_sig, total_q_sig) =
             longfellow_zk::runtime::v1::proto::zk::witness_and_constraint_count(&c_sig);
-        let param_sig = longfellow_zk::runtime::v1::ligero::param::LigeroParam::try_new(
+        let param_sig = longfellow_zk::runtime::v1::ligero::LigeroParam::try_new(
             count_w_sig,
             total_q_sig,
             config_sig,

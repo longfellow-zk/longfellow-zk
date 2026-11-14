@@ -22,7 +22,6 @@ use crate::{
         algebra::p256::P256Field,
         v1::proto::{
             ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
-            merkle::{Digest, MerkleNonce, MerkleProof},
             subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
             sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
             util::{
@@ -30,6 +29,7 @@ use crate::{
                 zero_field_element,
             },
             zk::{ZkProof, ZkProofGeometry},
+            Digest, MerkleNonce, MerkleProof,
         },
     },
 };

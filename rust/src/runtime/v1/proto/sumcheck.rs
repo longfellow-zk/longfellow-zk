@@ -37,7 +37,7 @@ impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
     }
 }
 
-pub use crate::core::proto::{sane_logw, MAX_LOGW};
+use crate::core::proto::{sane_logw, MAX_LOGW};
 
 /// The proof of a single layer inside the circuit.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -23,15 +23,13 @@
 pub mod common;
 pub mod constraint_compiler;
 
-pub use crate::runtime::v1::proto::zk::ZkProof;
-
 cfg_prover! {
-    pub mod prover;
+    mod prover;
     pub use prover::ZkProver;
 }
 
 cfg_verifier! {
-    pub mod verifier;
+    mod verifier;
     pub use verifier::ZkVerifier;
 }
 

@@ -18,13 +18,15 @@ use super::{
     circuit::CircuitSource,
     quad::{affine_constant, affine_linear, bind_l_into},
     split::SplitLayer,
-    SumcheckProofGeometry,
 };
 #[cfg(test)]
 use crate::core::proto::v2::Circuit;
 use crate::{
     core::algebra::SerializableField,
-    runtime::algebra::{blas, RuntimeField},
+    runtime::{
+        algebra::{blas, RuntimeField},
+        v2::proto::sumcheck::SumcheckProofGeometry,
+    },
 };
 
 /// Locate one circuit layer's sparse terms in the global layer arrays.
@@ -149,7 +151,7 @@ impl Schedule {
     }
 }
 
-pub(crate) fn geometry<F: SerializableField>(
+pub(crate) fn circuit_geometry<F: SerializableField>(
     circuits: &[impl CircuitSource<F>],
 ) -> Result<SumcheckProofGeometry, String> {
     Ok(Schedule::new(circuits)?.geometry)

@@ -24,12 +24,15 @@
 //! Polynomial samples and interpolation plans are computed by their consumers.
 use sha2::{Digest as _, Sha256};
 
-use super::{ensure, PolygeroConfig, PolygeroError, PolygeroGeometry};
+use super::{ensure, PolygeroError};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField},
-        v2::proto::Digest,
+        v2::proto::{
+            polygero::{PolygeroConfig, PolygeroGeometry},
+            Digest,
+        },
     },
 };
 

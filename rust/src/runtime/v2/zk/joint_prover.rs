@@ -4,7 +4,7 @@ use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statemen
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::joint::Participants,
+        polygero::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
         transcript::{Transcript, TranscriptRef},
         witness_selection,

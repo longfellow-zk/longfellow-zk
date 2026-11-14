@@ -18,9 +18,9 @@ use crate::{
     },
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
-        v2::sumcheck::{
-            prover::quad_round_poly, symbolic::build_constraints, LayerChallenges, LayerProof,
-            RoundPoly, SumcheckProof,
+        v2::{
+            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
+            sumcheck::{prover::quad_round_poly, symbolic::build_constraints, LayerChallenges},
         },
     },
 };

@@ -28,14 +28,14 @@ pub fn sample<
         + crate::runtime::algebra::SupportsSampling,
     R: RandomEngine,
 >(
-    geometry: &crate::runtime::v1::sumcheck::proof::SumcheckProofGeometry,
+    geometry: &crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
 ) -> (
-    crate::runtime::v1::sumcheck::proof::SumcheckProof<W, F>,
+    crate::runtime::v1::proto::sumcheck::SumcheckProof<W, F>,
     Vec<F::E>,
 ) {
-    let mut pad = crate::runtime::v1::sumcheck::proof::SumcheckProof { layers: Vec::new() };
+    let mut pad = crate::runtime::v1::proto::sumcheck::SumcheckProof { layers: Vec::new() };
     let mut witness = Vec::new();
 
     for &logw in &geometry.logw_layers {
@@ -63,10 +63,11 @@ pub fn sample<
         let rr = f.mulf(&r0, &r1);
         witness.push(rr);
 
-        pad.layers.push(crate::runtime::v1::sumcheck::LayerProof {
-            hp,
-            claims: [r0, r1],
-        });
+        pad.layers
+            .push(crate::runtime::v1::proto::sumcheck::LayerProof {
+                hp,
+                claims: [r0, r1],
+            });
     }
 
     (pad, witness)

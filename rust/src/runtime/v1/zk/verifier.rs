@@ -27,10 +27,11 @@ use crate::{
     runtime::{
         algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
         v1::{
-            ligero::param::{LigeroConfig, LigeroParam},
+            ligero::{LigeroConfig, LigeroParam},
+            proto::zk::ZkProof,
             sumcheck::TranscriptSumcheck,
             transcript::Transcript,
-            zk::{common::ZkContext, ZkProof},
+            zk::common::ZkContext,
         },
     },
 };

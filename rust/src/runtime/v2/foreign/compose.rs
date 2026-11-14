@@ -26,8 +26,7 @@ use crate::{
             ZkField,
         },
         v2::{
-            polygero::PolygeroConfig,
-            proto::composed::ComposedGeometry,
+            proto::{composed::ComposedGeometry, polygero::PolygeroConfig},
             zk::{
                 joint::{CircuitParticipant, JointParam, SelectedField},
                 storage::{Group, ReservedSuffix, Storage, StorageMap},

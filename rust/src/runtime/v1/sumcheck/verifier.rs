@@ -24,15 +24,14 @@
 use crate::{
     core::algebra::ElementOf,
     runtime::{
-        algebra::{InterpolationField, SupportsSampling},
+        algebra::{InterpolationField, LagrangeBasis, SupportsSampling},
         random::RandomEngine,
         v1::{
+            proto::sumcheck::{SumcheckProof, SumcheckProofGeometry},
             sumcheck::{
                 hquad::HQuad,
-                proof::{SumcheckProof, SumcheckProofGeometry},
                 round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
                 transcript::TranscriptSumcheck,
-                LagrangeBasis,
             },
             transcript::Transcript,
         },

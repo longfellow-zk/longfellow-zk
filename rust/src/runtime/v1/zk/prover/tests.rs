@@ -80,8 +80,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &sf,
     );
     let (nw, nq) = crate::runtime::v1::proto::zk::witness_and_constraint_count(&prover.circuit);
-    let param =
-        crate::runtime::v1::ligero::param::LigeroParam::new(nw, nq, prover.config, &interpolation);
+    let param = crate::runtime::v1::ligero::LigeroParam::new(nw, nq, prover.config, &interpolation);
     let mut numerical = Transcript::new(b"legacy-symbolic-equivalence");
     let mut independent = Transcript::new(b"legacy-symbolic-equivalence");
     for stream in [&mut numerical, &mut independent] {
@@ -121,7 +120,8 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 
     let mut inputs = public.clone();
     inputs.extend(witness);
-    let layers = crate::runtime::v1::sumcheck::eval_circuit(inputs, &prover.circuit, &f).unwrap();
+    let layers =
+        crate::runtime::v1::sumcheck::eval::eval_circuit(inputs, &prover.circuit, &f).unwrap();
     let (proof, data) = crate::runtime::v1::sumcheck::prove_core(
         layers,
         &committed.pad,

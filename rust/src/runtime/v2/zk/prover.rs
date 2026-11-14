@@ -10,20 +10,22 @@ use crate::{
         },
         random::PrivateRandom,
         v2::{
-            polygero::{LinearStatement, PolygeroConfig},
+            polygero::LinearStatement,
             proto::{
-                polygero::PolygeroCommitment,
+                polygero::{PolygeroCommitment, PolygeroConfig},
+                sumcheck::SumcheckProof,
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
+                zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
-            sumcheck::{self, SumcheckProof, TranscriptSumcheck},
+            sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
                 context::private_input_count,
-                joint::{CircuitParticipant, CircuitProof, JointParam},
+                joint::{CircuitParticipant, JointParam},
                 packing_commitment::prover::PackingState,
                 split::PendingSplit,
                 storage::Storage,
-                CircuitInput, JointProver, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
+                CircuitInput, JointProver, VirtualInputs, ZkContext,
             },
         },
     },
@@ -225,7 +227,7 @@ mod tests;
 
 /// Prover state of a split participant between commitment and reduction.
 pub struct SplitState<const W: usize, F: ZkField<W>> {
-    pads: sumcheck::SumcheckProof<W, F>,
+    pads: SumcheckProof<W, F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
     mask: Option<F::E>,
@@ -282,7 +284,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         state: SplitState<W, F>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(sumcheck::SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+    ) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
         self.split()?;
         self.validate_circuits(&[circuit], public.len())?;
         if state.id != self.id {

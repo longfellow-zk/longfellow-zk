@@ -32,7 +32,7 @@ use crate::runtime::algebra::RuntimeField;
 /// For even n, the last pair has weights a,b, giving b <- a*i0j0+b*i1j1.
 ///
 /// For odd n, its missing partner is zero, giving b <- b*i0j0.
-pub fn eval<const W: usize, F: RuntimeField<W>>(
+pub fn eq<const W: usize, F: RuntimeField<W>>(
     logn: usize,
     mut n: usize,
     input_i: &[F::E],
@@ -62,7 +62,7 @@ pub fn eval<const W: usize, F: RuntimeField<W>>(
 /// Optimization for a special case: return a raw vector
 ///   eq[i] = EQ(G0, i) + alpha * EQ(G1, i)
 /// for all 0 <= i < n.
-pub fn eq2<const W: usize, F: RuntimeField<W>>(
+pub(super) fn eq2<const W: usize, F: RuntimeField<W>>(
     logn: usize,
     n: usize,
     g0: &[F::E],

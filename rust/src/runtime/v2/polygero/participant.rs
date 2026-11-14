@@ -4,8 +4,8 @@ use sha2::{Digest as _, Sha256};
 
 use super::{
     constraints, ensure,
-    joint::{FieldChallenges, FieldProof, LinearStatement, Participant, Participants},
-    transcript, PolygeroConfig, PolygeroError,
+    joint::{FieldChallenges, LinearStatement, Participant},
+    transcript, PolygeroError,
 };
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
@@ -13,7 +13,11 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
-        v2::transcript::{Reading, Writing},
+        v2::{
+            polygero::Participants,
+            proto::polygero::{FieldProof, PolygeroConfig},
+            transcript::{Reading, Writing},
+        },
     },
 };
 

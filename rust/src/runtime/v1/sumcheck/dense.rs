@@ -22,7 +22,7 @@ use crate::runtime::algebra::RuntimeField;
 
 #[inline(always)]
 /// Evaluate the line through f0 at zero and f1 at one.
-pub fn affine_interpolation<const W: usize, F: RuntimeField<W>>(
+pub(super) fn affine_interpolation<const W: usize, F: RuntimeField<W>>(
     r: &F::E,
     f0: &F::E,
     f1: &F::E,
@@ -36,7 +36,7 @@ pub fn affine_interpolation<const W: usize, F: RuntimeField<W>>(
 
 #[inline(always)]
 /// Bind a pair whose even entry is zero.
-pub fn affine_interpolation_z_nz<const W: usize, F: RuntimeField<W>>(
+pub(super) fn affine_interpolation_z_nz<const W: usize, F: RuntimeField<W>>(
     r: &F::E,
     f1: &F::E,
     f: &F,
@@ -46,7 +46,7 @@ pub fn affine_interpolation_z_nz<const W: usize, F: RuntimeField<W>>(
 
 #[inline(always)]
 /// Bind a pair whose odd entry is zero.
-pub fn affine_interpolation_nz_z<const W: usize, F: RuntimeField<W>>(
+pub(super) fn affine_interpolation_nz_z<const W: usize, F: RuntimeField<W>>(
     r: &F::E,
     f0: &F::E,
     f: &F,
@@ -84,7 +84,8 @@ pub fn bind<const W: usize, F: RuntimeField<W>>(v: &mut Vec<F::E>, r: &F::E, f: 
 }
 
 /// Produce a new half-sized table when the input is shared by both witness hands.
-pub fn bind_out_of_place<const W: usize, F: RuntimeField<W>>(
+#[cfg(any(test, feature = "prover"))]
+pub(super) fn bind_out_of_place<const W: usize, F: RuntimeField<W>>(
     v: &[F::E],
     r: &F::E,
     f: &F,
@@ -113,10 +114,7 @@ pub fn bind_all<const W: usize, F: RuntimeField<W>>(
     f: &F,
 ) {
     assert!(!v.is_empty(), "vector length must be >= 1 in bind_all");
-    assert!(
-        crate::runtime::v1::sumcheck::sane_logw(logv),
-        "logv must be sane"
-    );
+    assert!(crate::core::proto::sane_logw(logv), "logv must be sane");
     assert!(
         v.len() as u64 <= (1u64 << logv),
         "size of wires {} exceeds 2^logw {}",

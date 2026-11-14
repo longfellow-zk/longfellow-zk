@@ -11,14 +11,18 @@ use crate::{
             ZkField,
         },
         v2::{
-            polygero::{LinearStatement, PolygeroConfig},
-            proto::Digest,
+            polygero::LinearStatement,
+            proto::{
+                polygero::PolygeroConfig,
+                zk::{CircuitProof, ZkProof, ZkProofGeometry},
+                Digest,
+            },
             sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
-                joint::{CircuitParticipant, CircuitProof, JointParam},
+                joint::{CircuitParticipant, JointParam},
                 split::SplitClaim,
-                CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
+                CircuitInput, VirtualInputs, ZkContext,
             },
         },
     },
@@ -233,7 +237,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
-        proof: &sumcheck::SumcheckProof<W, F>,
+        proof: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<SplitClaim<F::E>, String> {

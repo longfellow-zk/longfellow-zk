@@ -17,7 +17,7 @@ use longfellow_zk::{
     core::algebra::{ElementOf, SupportsU64Conversions},
     runtime::{
         algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field},
-        v1::sumcheck::dense::bind,
+        v1::sumcheck::bind,
     },
 };
 

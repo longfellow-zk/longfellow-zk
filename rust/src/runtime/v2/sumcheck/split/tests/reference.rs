@@ -132,12 +132,12 @@ pub(in super::super) fn prove_core<
     F: RuntimeField<W> + SerializableField + crate::runtime::algebra::SupportsSampling,
 >(
     witnesses: Vec<Vec<F::E>>,
-    pads: &crate::runtime::v2::sumcheck::SumcheckProof<W, F>,
+    pads: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
     t: &mut crate::runtime::v2::transcript::Transcript,
     f: &F,
 ) -> (
-    crate::runtime::v2::sumcheck::SumcheckProof<W, F>,
+    crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
     crate::runtime::v2::sumcheck::symbolic::Constraints<F::E>,
 ) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
@@ -190,7 +190,7 @@ pub(in super::super) fn prove_core<
         layers.push(proof);
         challenges.push(c);
     }
-    let proof = crate::runtime::v2::sumcheck::SumcheckProof { layers };
+    let proof = crate::runtime::v2::proto::sumcheck::SumcheckProof { layers };
     let constraints = symbolic::build_constraints(&proof, challenges, a, f);
     (proof, constraints)
 }

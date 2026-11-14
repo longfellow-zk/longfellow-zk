@@ -11,7 +11,10 @@ use crate::{
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
         },
         random::{DeterministicRng, RandomEngine},
-        v2::polygero::{JointPolygeroProver, JointPolygeroVerifier, PolygeroCommitment},
+        v2::{
+            polygero::{JointPolygeroProver, JointPolygeroVerifier},
+            proto::polygero::PolygeroCommitment,
+        },
     },
 };
 

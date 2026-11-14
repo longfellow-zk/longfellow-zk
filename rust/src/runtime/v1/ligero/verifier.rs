@@ -36,14 +36,10 @@ use crate::{
         v1::{
             ligero::{
                 common::{inner_product_vector, layout_aext_into},
-                param::{
-                    LigeroCommitment, LigeroLinearConstraint, LigeroParam,
-                    LigeroQuadraticConstraint,
-                },
                 transcript::TranscriptLigero,
-                LigeroError,
+                LigeroError, LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint,
             },
-            proto::ligero::LigeroProof,
+            proto::ligero::{LigeroCommitment, LigeroProof},
             transcript::Transcript,
         },
     },
@@ -78,7 +74,7 @@ impl<'a> LigeroVerifier<'a> {
         commitment: &LigeroCommitment,
         proof: &LigeroProof<W, F>,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::v1::merkle::Digest,
+        hash_of_ligero_statement: &crate::runtime::v1::proto::Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,

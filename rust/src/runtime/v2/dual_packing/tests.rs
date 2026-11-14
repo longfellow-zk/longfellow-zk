@@ -613,9 +613,9 @@ fn authenticate<
     use crate::runtime::v2::{
         polygero::{
             JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
-            Participant, PolygeroConfig, PolygeroLinearTerm, PolygeroParam,
+            Participant, PolygeroLinearTerm, PolygeroParam,
         },
-        proto::Digest,
+        proto::{polygero::PolygeroConfig, Digest},
     };
     let f = p.field();
     let mut rng = DeterministicRng::new(99876);

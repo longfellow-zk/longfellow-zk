@@ -24,7 +24,8 @@ use crate::{
     runtime::{
         algebra::{p256::P256Field as RuntimeP256, RuntimeField},
         v2::{
-            sumcheck::{eval_circuit, prove, tests::diagnostic::verify, RoundPoly, SumcheckProof},
+            proto::sumcheck::{RoundPoly, SumcheckProof},
+            sumcheck::{eval_circuit, prove, tests::diagnostic::verify},
             transcript::Transcript,
         },
     },

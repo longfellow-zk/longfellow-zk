@@ -24,7 +24,7 @@ use crate::{
     runtime::{
         algebra::RuntimeField,
         v1::{
-            ligero::param::{LigeroLinearConstraint, LigeroQuadraticConstraint},
+            ligero::{LigeroLinearConstraint, LigeroQuadraticConstraint},
             proto::sumcheck::{CircuitPadLayout, SumcheckProofGeometry},
             sumcheck::symbolic::{Pad, PadExpression, VerificationRelations},
         },

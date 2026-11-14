@@ -27,18 +27,17 @@
 //! Witness bindings reuse owned buffers; the initial two hands share one buffer
 //! until the first binding separates them.
 use crate::{
-    core::algebra::ElementOf,
+    core::{algebra::ElementOf, proto::MAX_LOGW},
     runtime::{
-        algebra::{InterpolationField, SupportsSampling},
+        algebra::{InterpolationField, LagrangeBasis, Poly, SupportsSampling},
         random::RandomEngine,
         v1::{
+            proto::sumcheck::{LayerProof, SumcheckProof},
             sumcheck::{
                 hquad::HQuad,
-                poly::{Poly, QuadRoundPoly, QuadWirePoly},
-                proof::{LayerProof, SumcheckProof, MAX_LOGW},
+                poly::{QuadRoundPoly, QuadWirePoly},
                 round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
                 transcript::TranscriptSumcheck,
-                LagrangeBasis,
             },
             transcript::Transcript,
         },
@@ -89,7 +88,7 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     f: &F,
 ) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
     pad.validate(
-        &crate::runtime::v1::sumcheck::proof::SumcheckProofGeometry::from_circuit(circuit),
+        &crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(circuit),
     )
     .expect("pad shape mismatch");
     // The wire array is conceptually infinite (padded with zeros), but we normalize
@@ -194,10 +193,7 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     [ElementOf<F>; 2],
     LayerVerifierData<ElementOf<F>>,
 ) {
-    assert!(
-        crate::runtime::v1::sumcheck::sane_logw(logw),
-        "logw must be sane"
-    );
+    assert!(crate::core::proto::sane_logw(logw), "logw must be sane");
     assert!(
         wires.len() as u64 <= (1u64 << logw),
         "size of wires {} exceeds 2^logw {}",
