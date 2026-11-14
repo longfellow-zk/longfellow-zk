@@ -54,7 +54,9 @@ pub trait RandomEngine {
 /// ```
 pub trait PrivateRandom: RandomEngine {}
 
+#[cfg(feature = "prover")]
 pub mod secure;
+#[cfg(feature = "prover")]
 pub use secure::SecureRandomEngine;
 
 cfg_testonly! {
