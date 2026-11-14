@@ -80,8 +80,8 @@ cfg_compiler! {
     pub mod compile {
         pub mod algebra;
         pub mod compiler;
+        pub mod debug;
         pub mod logic;
-        pub mod proto;
         pub mod polygero;
         cfg_testonly! {
             pub mod eval;

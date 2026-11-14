@@ -25,8 +25,8 @@ use crate::{
             },
             v1::quad::{QuadCircuit, WExpr},
         },
+        debug::CircuitDebugSymbols,
         logic::{AssertionId, AssertionScope},
-        proto::CircuitDebugSymbols,
     },
     core::{
         algebra::SerializableField,

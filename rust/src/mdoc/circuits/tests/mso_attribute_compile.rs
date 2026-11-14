@@ -23,9 +23,9 @@ use crate::{
     compile::{
         algebra::gf2_128::Gf2_128Field,
         compiler::dump_stats,
+        debug::CircuitDebugSymbols,
         eval::{eval_circuit_fc, initial_inputs},
         logic::K_FIRST_WIRE_POSITION,
-        proto::CircuitDebugSymbols,
     },
     core::proto::{v2::Circuit, CircuitGeometry},
     mdoc::circuits::{

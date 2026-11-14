@@ -14,8 +14,8 @@
 
 use crate::{
     compile::{
+        debug::{CircuitDebugSymbols, CompiledEvalAssertions, WireRef},
         logic::AssertionStatus,
-        proto::{CircuitDebugSymbols, CompiledEvalAssertions, WireRef},
     },
     core::{
         algebra::{ElementOf, SerializableField},

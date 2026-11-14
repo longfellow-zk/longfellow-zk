@@ -5,8 +5,8 @@ use crate::{
     compile::{
         algebra::CompileField,
         compiler::graph::Node,
+        debug::{AssertionSymbol, CircuitDebugSymbols, WireRef},
         logic::{AssertionId, AssertionScope},
-        proto::{AssertionSymbol, CircuitDebugSymbols, WireRef},
     },
     core::algebra::{ElementOf, SerializableField},
 };

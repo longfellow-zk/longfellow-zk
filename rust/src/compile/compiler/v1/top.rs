@@ -18,8 +18,8 @@ use crate::{
     compile::{
         algebra::CompileField,
         compiler::{arena::CompilerArena, CompilerAssertions, CompilerLogic},
+        debug::CircuitDebugSymbols,
         logic::AssertionScope,
-        proto::CircuitDebugSymbols,
     },
     core::{
         algebra::SerializableField,

@@ -39,11 +39,11 @@ circuits/routing: circuits/arithmetic circuits/bitvec circuits/boolean compile/l
 circuits/sha256: circuits/analog_adder circuits/bitvec compile/logic core/algebra runtime/algebra
 circuits/sha256msg: circuits/analog_adder circuits/bitvec circuits/boolean circuits/sha256 compile/logic core/algebra runtime/algebra
 compile/algebra: core/algebra
-compile/compiler: compile/algebra compile/logic compile/proto core/algebra core/proto util
-compile/eval: compile/algebra compile/logic compile/proto core/algebra core/proto runtime/algebra
+compile/compiler: compile/algebra compile/logic compile/debug core/algebra core/proto util
+compile/eval: compile/algebra compile/logic compile/debug core/algebra core/proto runtime/algebra
 compile/logic: compile/algebra core/algebra util
 compile/polygero: runtime/v2/proto
-compile/proto: compile/logic
+compile/debug: compile/logic
 core/algebra:
 core/bits:
 core/proto: core/algebra util

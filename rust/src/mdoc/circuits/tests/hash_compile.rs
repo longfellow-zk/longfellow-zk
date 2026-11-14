@@ -17,9 +17,9 @@ use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
         compiler::dump_stats,
+        debug::CircuitDebugSymbols,
         eval::{eval_circuit_fc, initial_inputs},
         logic::K_FIRST_WIRE_POSITION,
-        proto::CircuitDebugSymbols,
     },
     core::{
         algebra::{Nat, SerializableField, SupportsU128Conversions},

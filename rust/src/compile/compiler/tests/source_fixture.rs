@@ -3,7 +3,7 @@ use crate::{
     compile::{
         algebra::CompileField,
         compiler::{compile_v2, segment_circuit_v2, CompilerAssertions, CompilerLogic},
-        proto::CircuitDebugSymbols,
+        debug::CircuitDebugSymbols,
     },
     core::proto::{v2::Circuit, CircuitGeometry},
 };

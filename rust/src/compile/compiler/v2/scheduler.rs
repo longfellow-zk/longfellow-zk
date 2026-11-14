@@ -22,8 +22,8 @@ use crate::{
             extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
             INVALID_WIRE_ID,
         },
+        debug::CircuitDebugSymbols,
         logic::{AssertionId, AssertionScope},
-        proto::CircuitDebugSymbols,
     },
     core::{
         algebra::SerializableField,
