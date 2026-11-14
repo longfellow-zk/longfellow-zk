@@ -269,7 +269,9 @@ impl AssertionScope {
             "Expected assertion failure at '{expected_path}', but evaluation passed successfully!"
         );
         let fates_res = self.query_fates(expected_path, fates);
-        let matches = fates_res.iter().any(|(p, _)| p == expected_path);
+        let matches = fates_res
+            .iter()
+            .any(|(p, status)| p == expected_path && matches!(status, AssertionStatus::Failed(_)));
         assert!(
             matches,
             "Expected assertion failure at '{expected_path}', but actual failed assertion paths were: {fates_res:?}"

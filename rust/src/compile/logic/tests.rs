@@ -285,3 +285,20 @@ fn test_eval_context_owns_tracker() {
     let result = context.run(|logic| logic.assert0("zero", &logic.zero()));
     result.assert_all_passed();
 }
+
+#[test]
+#[should_panic(expected = "Expected assertion failure at 'expected'")]
+fn test_assert_any_failed_at_rejects_a_passing_expected_path() {
+    use std::collections::HashMap;
+
+    use crate::compile::logic::AssertionStatus;
+    // An unrelated failure must not satisfy a check for a failure elsewhere.
+    let tracker = AssertionScope::new();
+    let expected = tracker.new_leaf("expected");
+    let unrelated = tracker.new_leaf("unrelated");
+    let fates = HashMap::from([
+        (expected, AssertionStatus::Passed),
+        (unrelated, AssertionStatus::Failed("unrelated".to_string())),
+    ]);
+    tracker.assert_any_failed_at("expected", &fates);
+}
