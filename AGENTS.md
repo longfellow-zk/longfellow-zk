@@ -36,6 +36,14 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   only `core`, `runtime::algebra` and the transcript framing (v2) or subfield
   (v1), never a protocol implementation.
 - Prover and verifier code stay separate; neither uses the other's files.
+- The standalone prover and verifier build independently, with no compiler
+  dependencies: `--no-default-features` with `prover` or `verifier` (plus
+  `mdoc`, and `v1` for the deployed system), including the `prover_only` and
+  `verifier_only` binaries, must not need the other role, the `compiler`
+  feature, compile-time code, or the compiler's crates (`bumpalo`,
+  `num-bigint`, `num-traits`, `rustc-hash`). Check with
+  `cargo tree -e normal --no-default-features --features prover,mdoc,v1`
+  (and the verifier and v2 equivalents).
 - v1 and v2 are disjoint: no v1 file uses a v2 file or the reverse.
 
 ### Parameters
