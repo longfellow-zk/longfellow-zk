@@ -45,6 +45,8 @@ pub use context::{CircuitInput, InputLayout, VirtualInput, VirtualInputs, ZkCont
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
 pub use crate::runtime::v2::proto::zk::{CircuitGeometry, ZkProof, ZkProofGeometry};
+cfg_prover! { mod joint_prover; pub use joint_prover::JointProver; }
+cfg_verifier! { mod joint_verifier; pub use joint_verifier::{Authenticated, JointVerifier}; }
 cfg_prover! { mod prover; pub use prover::{ZkProver, ZkProverCommitment}; }
 cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}; }
 

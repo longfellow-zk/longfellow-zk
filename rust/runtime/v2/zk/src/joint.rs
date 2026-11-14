@@ -149,8 +149,8 @@ pub type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>:
 /// any frontend challenge, and completion necessarily authenticates those rows.
 #[derive(Clone)]
 pub struct JointParam<L: Fields> {
-    selection: witness_selection::Param<L::Selection>,
-    fields: L,
+    pub(super) selection: witness_selection::Param<L::Selection>,
+    pub(super) fields: L,
 }
 impl<L: Fields> JointParam<L> {
     pub fn new(fields: L) -> Result<Self, String> {
@@ -166,9 +166,6 @@ impl<L: Fields> JointParam<L> {
         self.selection.config()
     }
 }
-
-cfg_prover! { #[path="joint_prover.rs"] mod prover; pub use prover::JointProver; }
-cfg_verifier! { #[path="joint_verifier.rs"] mod verifier; pub use verifier::{Authenticated, JointVerifier}; }
 
 /// A circuit's packing and commitment layout, independent of the participant list.
 /// Joint commit/receive absorbs each participant's layout before the fingerprint round.

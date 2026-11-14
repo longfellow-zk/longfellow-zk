@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Prover ownership of the selected joint commitment and its final equations.
-use super::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
+use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
 use crate::runtime::{
     random::PrivateRandom,
     v2::{

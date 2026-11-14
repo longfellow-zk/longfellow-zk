@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Verifier ownership of early selection and final joint authentication.
-use super::{Bodies, Fields, JointParam, Responses, Statements};
+use super::joint::{Bodies, Fields, JointParam, Responses, Statements};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Transcript, TranscriptRef},

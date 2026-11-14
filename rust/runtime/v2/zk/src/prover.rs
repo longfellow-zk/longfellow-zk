@@ -15,7 +15,8 @@ use crate::{
             transcript::{Transcript, TranscriptRef},
             zk::{
                 context::private_input_count,
-                joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
+                joint::{CircuitParticipant, CircuitProof, JointParam},
+                JointProver,
                 packing_commitment::prover::PackingState,
                 split::PendingSplit,
                 storage::Storage,

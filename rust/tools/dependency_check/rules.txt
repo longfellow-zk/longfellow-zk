@@ -99,4 +99,3 @@ runtime/v2/polygero/verifier/* never runtime/v2/polygero/src/config.rs runtime/v
 # File cycles that exist today. The check fails on any other cycle, and on a
 # listed cycle that no longer exists. This list should only shrink.
 [known file cycles]
-runtime/v2/zk/src/joint.rs runtime/v2/zk/src/joint_prover.rs runtime/v2/zk/src/joint_verifier.rs
