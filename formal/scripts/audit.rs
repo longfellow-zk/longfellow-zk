@@ -103,6 +103,44 @@ fn unchecked_constructs(source: &str) -> Vec<(usize, &str)> {
         .collect()
 }
 
+/// Modules whose numerical facts keep the documented native-evaluation
+/// allowance; `scripts/Audit.lean` accepts native axioms from exactly these.
+/// No other module may use native evaluation. `scripts.Audit` names
+/// `ofReduceBool` only to reject it.
+const NATIVE_EVALUATION_ROOTS: &[&str] = &["LfzkV1", "examples.Ligero.Longfellow"];
+
+fn native_evaluation_allowed(module: &str) -> bool {
+    module == "scripts.Audit"
+        || NATIVE_EVALUATION_ROOTS
+            .iter()
+            .any(|root| module == *root || module.starts_with(&format!("{root}.")))
+}
+
+/// Native-evaluation routes: `native_decide`, `decide +native` or
+/// `native := true`, and any mention of `ofReduceBool`/`reduceBool`.
+fn native_evaluation(source: &str) -> Vec<(usize, &'static str)> {
+    let mut found = Vec::new();
+    for (line, text) in source.lines().enumerate() {
+        let words: Vec<_> = text
+            .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'' && c != '.')
+            .collect();
+        if words.iter().any(|w| w.split('.').any(|part| part == "native_decide")) {
+            found.push((line + 1, "native_decide"));
+        }
+        if words.iter().any(|w| {
+            w.split('.')
+                .any(|part| part == "ofReduceBool" || part == "reduceBool")
+        }) {
+            found.push((line + 1, "ofReduceBool"));
+        }
+        let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+        if compact.contains("+native") || compact.contains("native:=true") {
+            found.push((line + 1, "native decide option"));
+        }
+    }
+    found
+}
+
 const CURRENT_ENDPOINTS: &[&str] = &[
     "LfzkV2.Current.Mdoc.Soundness",
     "LfzkV2.Current.Mdoc.ZeroKnowledge",
@@ -245,6 +283,32 @@ fn check_current_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usi
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_evaluation_is_found_and_allowed_only_for_the_legacy_rows() {
+        for source in [
+            "theorem t : 2 + 2 = 4 := by native_decide",
+            "example : True := by decide +native",
+            "example : True := by decide (config := { native := true })",
+            "#check Lean.ofReduceBool",
+        ] {
+            assert!(!native_evaluation(&code(source)).is_empty(), "{source}");
+        }
+        for source in [
+            "-- native_decide in a comment",
+            "def s := \"native_decide\"",
+            "theorem t : 2 + 2 = 4 := by decide +kernel",
+            "def native_decided := 0",
+        ] {
+            assert!(native_evaluation(&code(source)).is_empty(), "{source}");
+        }
+        assert!(native_evaluation_allowed("LfzkV1"));
+        assert!(native_evaluation_allowed("LfzkV1.Arith"));
+        assert!(native_evaluation_allowed("examples.Ligero.Longfellow.Rows"));
+        assert!(!native_evaluation_allowed("LfzkV2.Current.Mdoc"));
+        assert!(!native_evaluation_allowed("LfzkV1Extra"));
+        assert!(!native_evaluation_allowed("examples.Ligero.Other"));
+    }
 
     #[test]
     fn kernel_check_bypass_is_rejected_in_option_and_meta_commands() {
@@ -422,9 +486,17 @@ fn main() {
                 .unwrap();
             let module = relative.trim_end_matches(".lean").replace('/', ".");
             assert!(
-                dependencies.insert(module, imports(&source)).is_none(),
+                dependencies.insert(module.clone(), imports(&source)).is_none(),
                 "duplicate Lean module"
             );
+            if !native_evaluation_allowed(&module) {
+                for (line, route) in native_evaluation(&source) {
+                    eprintln!(
+                        "{name}:{line}: native evaluation ({route}) outside the legacy allowance"
+                    );
+                    failures += 1;
+                }
+            }
             for (line, word) in unchecked_constructs(&source) {
                 eprintln!("{name}:{line}: unchecked construct {word}");
                 failures += 1;

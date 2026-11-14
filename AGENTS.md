@@ -75,8 +75,10 @@ profiles an application chose (for example in `mdoc::proto`).
 ### Source layout and paths
 
 - Module `foo` lives in `foo.rs`, its submodules in `foo/`, and its unit tests
-  in `foo/tests.rs` or `foo/tests/`. Do not use `#[path]` (the double mount of
-  `runtime/algebra/arch/generic.rs` from `arm.rs` is the one exception).
+  in `foo/tests.rs` or `foo/tests/`. Do not use `#[path]`. The exceptions are
+  the double mount of `runtime/algebra/arch/generic.rs` from `arm.rs`, and
+  the benches' `#[path = "support/memory.rs"]`, which shares the allocation
+  tracker between bench targets.
 - Every public item has exactly one public path. Implementation splits
   (`circuit`, `concrete`, `field`, `prover`, ...) are private modules behind
   their parent's `pub use`. Do not re-export another module's items, and do not
@@ -122,9 +124,11 @@ profiles an application chose (for example in `mdoc::proto`).
 - Lean proofs use only the standard axioms (`propext`, `Classical.choice`,
   `Quot.sound`): no `sorry`, no `native_decide` or other `ofReduceBool`
   routes. Kernel evaluation (`decide +kernel`) is fine. The one exception is
-  the legacy v1 numerical rows, which keep the documented native-evaluation
-  allowance that `formal/scripts/Audit.lean` checks and reports separately;
-  nothing new may join it, and v2 and shared modules never use it.
+  the legacy numerical rows in the modules `LfzkV1` and `LfzkV1.*` and in
+  `examples.Ligero.Longfellow.*`, which keep the documented native-evaluation
+  allowance that `formal/scripts/Audit.lean` checks and reports separately.
+  Nothing new may join it: `formal/scripts/audit.rs` rejects native
+  evaluation in any other module, from the same list of roots.
 - Lean must agree with Rust. After changes to circuits, parameters, or files
   the formal sources cite, run from `formal/` `lake build` and
   `lake build SecurityAudit`; from `rust/`
