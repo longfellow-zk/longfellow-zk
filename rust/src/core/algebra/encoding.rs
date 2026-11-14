@@ -72,6 +72,12 @@ pub const SECP256R1_GY: [u8; 32] =
 /// A field seen only through its canonical encoding: an element is its bytes.
 /// Decoding checks canonicity, so codecs can read circuits and proofs without
 /// either side's arithmetic.
+///
+/// This is a serialization view, not an arithmetic field. Its element type is a
+/// plain byte array, so it can hold values that are not field elements; only
+/// arrays produced or accepted by `bytes_to_element` are canonical encodings
+/// (for a prime field, little-endian integers below the modulus). An array
+/// built directly is not validated.
 #[derive(Clone, Copy, Debug)]
 pub struct Encoding<const N: usize> {
     id: FieldID,
