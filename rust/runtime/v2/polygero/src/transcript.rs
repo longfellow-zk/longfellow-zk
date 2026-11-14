@@ -24,7 +24,7 @@
 //! ordering. The later digest binds the source statement from which
 //! the caller derives A and b, independently of their sparse representation.
 use super::{
-    joint::{JointPolygeroParam, Participants},
+    joint::{FieldChallenges, JointPolygeroParam, Participants},
     PolygeroCommitment, PolygeroParam,
 };
 use crate::{
@@ -38,14 +38,6 @@ use crate::{
     },
 };
 
-/// Independent constraint-batching scalars and evaluation-basis polynomial samples.
-pub struct Challenges<E> {
-    /// One independent weight per affine equation.
-    pub(super) alpha: Vec<E>,
-    /// Uniform evaluations of B_i on the first s+1 nodes of the oracle.
-    /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
-    pub(super) batching_samples: Vec<Vec<E>>,
-}
 /// Sample after the joint binding pass has fixed every participant statement.
 /// A reading capability cannot absorb another message or open another round.
 pub(super) fn challenges<F: SupportsSampling + SerializableField>(
@@ -53,7 +45,7 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     param: &PolygeroParam,
     nconstraints: usize,
     f: &F,
-) -> Challenges<F::E> {
+) -> FieldChallenges<F::E> {
     // Evaluation on any distinct s+1 points is a bijection on degree-at-most-s
     // polynomials, so oracle-prefix samples give the same uniform challenge.
 
@@ -62,7 +54,7 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
         .batched_rows()
         .map(|_| ts.elt_field_slice(param.geom.s + 1, f))
         .collect();
-    Challenges {
+    FieldChallenges {
         alpha,
         batching_samples,
     }

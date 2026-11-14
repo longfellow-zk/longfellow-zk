@@ -2,8 +2,6 @@
 //! Typed recursive participants sharing a column oracle and query set.
 use sha2::{Digest as _, Sha256};
 
-#[doc(hidden)]
-pub use super::transcript::Challenges as FieldChallenges;
 use super::{ensure, PolygeroConfig, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
@@ -133,6 +131,15 @@ impl<E> LinearStatement<E> {
     pub fn digest(&self) -> Digest {
         self.digest
     }
+}
+/// Independent constraint-batching scalars and evaluation-basis polynomial samples.
+#[doc(hidden)]
+pub struct FieldChallenges<E> {
+    /// One independent weight per affine equation.
+    pub(super) alpha: Vec<E>,
+    /// Uniform evaluations of B_i on the first s+1 nodes of the oracle.
+    /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
+    pub(super) batching_samples: Vec<Vec<E>>,
 }
 mod sealed {
     pub trait Sealed {}
