@@ -15,70 +15,10 @@
 pub(in crate::runtime::v2) mod hash;
 mod heap;
 
-use std::fmt;
-
 #[cfg(any(test, feature = "verifier"))]
 pub(in crate::runtime::v2) use heap::verify_proof;
 #[cfg(any(test, feature = "prover"))]
 pub(in crate::runtime::v2) use heap::MerkleHeap;
-
-use crate::runtime::v2::proto::Digest;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::runtime::v2) enum MerkleError {
-    DuplicateLeafIndex {
-        index: usize,
-    },
-    LeafIndexOutOfBounds {
-        index: usize,
-        num_leaves: usize,
-    },
-    #[cfg(any(test, feature = "verifier"))]
-    ProofLengthMismatch {
-        expected: usize,
-        found: usize,
-    },
-    #[cfg(any(test, feature = "verifier"))]
-    RootMismatch {
-        expected: Digest,
-        found: Digest,
-    },
-    EmptyLeaves,
-    LeafIndexNotOnPath,
-}
-
-impl fmt::Display for MerkleError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::DuplicateLeafIndex { index } => {
-                write!(f, "duplicate leaf index requested: {index}")
-            }
-            Self::LeafIndexOutOfBounds { index, num_leaves } => write!(
-                f,
-                "leaf index {index} out of bounds (tree has {num_leaves} leaves)"
-            ),
-            #[cfg(any(test, feature = "verifier"))]
-            Self::ProofLengthMismatch { expected, found } => write!(
-                f,
-                "proof length mismatch: expected {expected}, found {found}"
-            ),
-            #[cfg(any(test, feature = "verifier"))]
-            Self::RootMismatch { expected, found } => write!(
-                f,
-                "root mismatch: expected root {:?}, computed root {:?}",
-                expected.data, found.data
-            ),
-            Self::EmptyLeaves => {
-                write!(f, "empty leaves requested for verification")
-            }
-            Self::LeafIndexNotOnPath => {
-                write!(f, "leaf index is not on the path to the root")
-            }
-        }
-    }
-}
-
-impl std::error::Error for MerkleError {}
 
 #[cfg(test)]
 #[path = "../tests/merkle.rs"]

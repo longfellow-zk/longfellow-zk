@@ -1,8 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use sha2::Digest as _;
 
-use super::*;
-use crate::runtime::v2::proto::{MerkleNonce, NONCE_LEN};
+use super::{heap::MerkleError, *};
+use crate::runtime::v2::proto::{Digest, MerkleNonce, NONCE_LEN};
 
 #[test]
 fn codecs_bind_role_index_context_and_salt() {

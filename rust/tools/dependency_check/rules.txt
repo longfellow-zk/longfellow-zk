@@ -103,6 +103,5 @@ runtime/random/src/deterministic.rs runtime/random/src/lib.rs runtime/random/src
 runtime/v1/ligero/src/lib.rs runtime/v1/ligero/src/verifier.rs
 runtime/v1/merkle/src/commitment.rs runtime/v1/merkle/src/heap.rs runtime/v1/merkle/src/lib.rs
 runtime/v1/subfield/src/fp24.rs runtime/v1/subfield/src/lib.rs runtime/v1/subfield/src/p256.rs
-runtime/v2/merkle/src/heap.rs runtime/v2/merkle/src/lib.rs
 runtime/v2/polygero/src/constraints.rs runtime/v2/polygero/src/joint.rs runtime/v2/polygero/src/lib.rs runtime/v2/polygero/src/param.rs runtime/v2/polygero/src/prover.rs runtime/v2/polygero/src/prover_commitment.rs runtime/v2/polygero/src/transcript.rs runtime/v2/polygero/src/verifier.rs
 runtime/v2/zk/src/joint.rs runtime/v2/zk/src/joint_prover.rs runtime/v2/zk/src/joint_verifier.rs
