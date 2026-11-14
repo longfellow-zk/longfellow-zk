@@ -85,6 +85,8 @@
 //! this structure, the code stores `NQTRIPLES = ceil(NQ / W)` instead of the
 //! number `3 * NQTRIPLES` of rows.
 
+use std::fmt;
+
 use crate::runtime::algebra::{field::RuntimeField, RangeInterpolatorFactory};
 pub use crate::runtime::v1::proto::ligero::{LigeroCommitment, LigeroGeometry};
 
@@ -263,3 +265,32 @@ pub struct LigeroQuadraticConstraint {
     pub y: usize,
     pub z: usize,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LigeroError {
+    InvalidProof(String),
+    MerkleCheckFailed(crate::runtime::v1::merkle::MerkleError),
+    LowDegreeCheckFailed,
+    DotCheckFailed,
+    LinearInnerProductMismatch,
+    QuadraticCheckFailed,
+}
+
+impl fmt::Display for LigeroError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidProof(msg) => write!(f, "invalid proof: {msg}"),
+            Self::MerkleCheckFailed(err) => {
+                write!(f, "merkle_check failed: {err}")
+            }
+            Self::LowDegreeCheckFailed => write!(f, "low_degree_check failed"),
+            Self::DotCheckFailed => write!(f, "dot_check failed"),
+            Self::LinearInnerProductMismatch => {
+                write!(f, "linear inner product mismatch")
+            }
+            Self::QuadraticCheckFailed => write!(f, "quadratic_check failed"),
+        }
+    }
+}
+
+impl std::error::Error for LigeroError {}

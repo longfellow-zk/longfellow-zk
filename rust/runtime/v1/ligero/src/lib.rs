@@ -29,11 +29,11 @@ pub mod geometry;
 pub mod param;
 pub mod transcript;
 
-use std::fmt;
-
 pub use common::{inner_product_vector, layout_aext_into};
 pub use geometry::{estimate_proof_size, optimize_geometry};
-pub use param::{LigeroConfig, LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint};
+pub use param::{
+    LigeroConfig, LigeroError, LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint,
+};
 pub use transcript::TranscriptLigero;
 
 pub use crate::runtime::v1::proto::ligero::{LigeroCommitment, LigeroProof};
@@ -48,35 +48,6 @@ cfg_verifier! {
     pub mod verifier;
     pub use verifier::LigeroVerifier;
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LigeroError {
-    InvalidProof(String),
-    MerkleCheckFailed(crate::runtime::v1::merkle::MerkleError),
-    LowDegreeCheckFailed,
-    DotCheckFailed,
-    LinearInnerProductMismatch,
-    QuadraticCheckFailed,
-}
-
-impl fmt::Display for LigeroError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidProof(msg) => write!(f, "invalid proof: {msg}"),
-            Self::MerkleCheckFailed(err) => {
-                write!(f, "merkle_check failed: {err}")
-            }
-            Self::LowDegreeCheckFailed => write!(f, "low_degree_check failed"),
-            Self::DotCheckFailed => write!(f, "dot_check failed"),
-            Self::LinearInnerProductMismatch => {
-                write!(f, "linear inner product mismatch")
-            }
-            Self::QuadraticCheckFailed => write!(f, "quadratic_check failed"),
-        }
-    }
-}
-
-impl std::error::Error for LigeroError {}
 
 #[cfg(test)]
 #[path = "../tests/ligero.rs"]
