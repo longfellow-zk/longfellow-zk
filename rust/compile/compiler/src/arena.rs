@@ -15,7 +15,7 @@
 use crate::compile::{
     algebra::field::CompileField,
     compiler::{
-        ir::{Expr, ExprNode},
+        ir::{AssertionItem, Assertions, Expr, ExprNode, RewriteT},
         node::Node,
     },
 };
@@ -72,4 +72,106 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
     pub fn alloc<T>(&'a self, val: T) -> &'a T {
         self.bump.alloc(val)
     }
+}
+
+/// Recursively walks the expression/assertion tree from input arena ('a) to target arena ('b).
+pub(super) fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
+    arena: &'b CompilerArena<'b, F>,
+    assertions: Assertions<'a, F>,
+    rewriter: &NEXT,
+) -> Assertions<'b, F> {
+    fn children<F: CompileField>(node: ExprNode<'_, F>) -> Vec<ExprNode<'_, F>> {
+        match &node.v {
+            Expr::Input(_) | Expr::One | Expr::Constant(_) => Vec::new(),
+            Expr::Sum(list, _) => list.to_vec(),
+            Expr::Linear(_, x) => vec![*x],
+            Expr::Quadratic(_, x, y) => vec![*x, *y],
+            Expr::WithAssertions(a, x) => {
+                let mut children = vec![*x];
+                children.extend(a.iter().map(|item| item.expr));
+                children
+            }
+        }
+    }
+
+    // Single-pass post-order DFS walk using a heap-allocated stack
+    let mut visited = Vec::new();
+    let mut cache: Vec<Option<ExprNode<'b, F>>> = Vec::new();
+    let mut stack = Vec::new();
+
+    // Push root assertion expressions
+    for item in assertions.iter() {
+        stack.push((item.expr, false));
+    }
+
+    while let Some((node, children_visited)) = stack.pop() {
+        let id = node.id;
+        if id < visited.len() && visited[id] {
+            continue;
+        }
+        if children_visited {
+            if id >= visited.len() {
+                visited.resize(id + 1, false);
+            }
+            visited[id] = true;
+            let rewritten = match &node.v {
+                Expr::Input(a) => rewriter.input(*a),
+                Expr::One => rewriter.one(),
+                Expr::Constant(e) => rewriter.constant(e),
+                Expr::Sum(list, precious) => {
+                    let walked_list: Vec<ExprNode<'b, F>> =
+                        list.iter().map(|child| cache[child.id].unwrap()).collect();
+                    rewriter.sum(&walked_list, *precious)
+                }
+                Expr::Linear(e, x) => {
+                    let walked_x = cache[x.id].unwrap();
+                    rewriter.linear(e, &walked_x)
+                }
+                Expr::Quadratic(e, x, y) => {
+                    let walked_x = cache[x.id].unwrap();
+                    let walked_y = cache[y.id].unwrap();
+                    rewriter.quadratic(e, &walked_x, &walked_y)
+                }
+                Expr::WithAssertions(a, x) => {
+                    let mut seen = rustc_hash::FxHashSet::default();
+                    let mut walked_assertions = Vec::new();
+                    for item in a.iter() {
+                        let walked_assertion = cache[item.expr.id].unwrap();
+                        for &expr in rewriter.assert0(&walked_assertion) {
+                            if seen.insert(expr.id) {
+                                walked_assertions.push(AssertionItem { expr, id: item.id });
+                            }
+                        }
+                    }
+                    let walked_a = arena.alloc_slice(&walked_assertions);
+                    let walked_x = cache[x.id].unwrap();
+                    rewriter.with_assertions(&walked_a, &walked_x)
+                }
+            };
+            if id >= cache.len() {
+                cache.resize(id + 1, None);
+            }
+            cache[id] = Some(rewritten);
+        } else {
+            stack.push((node, true));
+            for child in children(node) {
+                stack.push((child, false));
+            }
+        }
+    }
+
+    // Normalize retained roots just like nested assertions: stripping attached
+    // assertions can turn a root into zero or a scalar multiple of another root.
+    let mut seen = rustc_hash::FxHashSet::default();
+    let mut walked_list = Vec::new();
+    for item in assertions.iter() {
+        let walked = cache[item.expr.id].unwrap();
+        for &expr in rewriter.assert0(&walked) {
+            if seen.insert(expr.id) {
+                walked_list.push(AssertionItem { expr, id: item.id });
+            }
+        }
+    }
+
+    arena.alloc_slice(&walked_list)
 }

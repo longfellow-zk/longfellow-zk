@@ -207,5 +207,5 @@ pub fn rewrite<'a, 'b, F: CompileField>(
 ) -> Assertions<'b, F> {
     let cse = Cse::new(arena);
     let copy_rewriter = CopyRewriter::new(f, cse);
-    crate::compile::compiler::ir::walk(arena, x, &copy_rewriter)
+    crate::compile::compiler::arena::walk(arena, x, &copy_rewriter)
 }

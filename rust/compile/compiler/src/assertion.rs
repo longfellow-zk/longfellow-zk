@@ -115,7 +115,7 @@ pub fn strip_all<'src, 'dst, F: CompileField>(
     };
 
     // Perform initial walk from source assertions to destination arena.
-    let stripped_slice = crate::compile::compiler::ir::walk(arena, assertions, &rewriter);
+    let stripped_slice = crate::compile::compiler::arena::walk(arena, assertions, &rewriter);
     let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
     if new_sub_exprs.is_empty() {
@@ -127,7 +127,7 @@ pub fn strip_all<'src, 'dst, F: CompileField>(
 
     loop {
         let unique_items = dedup_assertions(arena, &current_items, tracker);
-        let next_stripped = crate::compile::compiler::ir::walk(arena, unique_items, &rewriter);
+        let next_stripped = crate::compile::compiler::arena::walk(arena, unique_items, &rewriter);
         let next_sub_exprs = rewriter.collected.replace(Vec::new());
 
         if next_sub_exprs.is_empty() {
@@ -154,6 +154,6 @@ pub fn rewrite<'src, 'dst, F: CompileField>(
     let stripped = strip_all(arena, assertions, tracker);
     let cse = Cse::new(arena);
     let algebraic = AlgebraicRewriter::new(f, cse);
-    let rewritten = crate::compile::compiler::ir::walk(arena, stripped, &algebraic);
+    let rewritten = crate::compile::compiler::arena::walk(arena, stripped, &algebraic);
     dedup_assertions(arena, rewritten, tracker)
 }
