@@ -44,24 +44,17 @@ use super::RuntimeField;
 use crate::core::algebra::{AlgebraicField, SupportsU64Conversions};
 
 mod arithmetic;
-mod binary;
+pub(in crate::runtime) mod binary;
 #[cfg(any(test, feature = "tooling"))]
-mod crt;
+pub(in crate::runtime) mod crt;
 #[cfg(any(test, feature = "tooling"))]
 mod crt_fft;
-mod quadratic_extension_fft;
-mod scalar;
-// The v1 subfield hints are the only users of the concrete plans.
-#[cfg(feature = "v1")]
-pub(in crate::runtime) use binary::BinaryInterpolationPlan;
+pub(in crate::runtime) mod quadratic_extension_fft;
+pub(in crate::runtime) mod scalar;
 pub use binary::BinaryInterpolatorFactory;
 #[cfg(any(test, feature = "tooling"))]
 pub use crt::CrtInterpolatorFactory;
-#[cfg(feature = "v1")]
-pub(in crate::runtime) use quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan;
 pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
-#[cfg(feature = "v1")]
-pub(in crate::runtime) use scalar::ScalarInterpolationPlan;
 pub use scalar::ScalarInterpolatorFactory;
 
 /// An immutable plan for fixed source and destination ranges.
@@ -214,6 +207,3 @@ fn difference<F: AlgebraicField + SupportsU64Conversions>(a: usize, b: usize, f:
         f.neg(&f.u64_to_element((b - a) as u64))
     }
 }
-
-#[cfg(all(any(test, feature = "tooling"), feature = "v1"))]
-pub(in crate::runtime) use crt::CrtInterpolationPlan;

@@ -4,7 +4,7 @@ use crate::runtime::algebra::{
     fp24_ext6::{
         sample_base, RuntimeElement, RuntimeFp24Ext6, BASE_SERIALIZED_SIZE, EXTENSION_DEGREE, Q,
     },
-    range_interpolation::{CrtInterpolationPlan, InterpolationPlan},
+    range_interpolation::{crt::CrtInterpolationPlan, InterpolationPlan},
 };
 
 pub struct RuntimeFp24SubfieldV1;

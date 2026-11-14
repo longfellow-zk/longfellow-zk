@@ -256,14 +256,14 @@ pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::Runtim
 
 impl<const W: usize, F: crate::runtime::algebra::RuntimeBinaryField<W, E = Gf2_128>>
     InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::BinaryInterpolationPlan<'_, W, F>
+    for crate::runtime::algebra::range_interpolation::binary::BinaryInterpolationPlan<'_, W, F>
 {
 }
 impl<
         const W: usize,
         F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SupportsU64Conversions,
     > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::ScalarInterpolationPlan<'_, W, F>
+    for crate::runtime::algebra::range_interpolation::scalar::ScalarInterpolationPlan<'_, W, F>
 {
 }
 impl<
@@ -271,7 +271,7 @@ impl<
         F: crate::runtime::algebra::SupportsQuadraticExtension<W>
             + crate::core::algebra::SupportsU64Conversions,
     > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::QuadraticExtensionFftInterpolationPlan<
+    for crate::runtime::algebra::range_interpolation::quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan<
         '_,
         W,
         F,
