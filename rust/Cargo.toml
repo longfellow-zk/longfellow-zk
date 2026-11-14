@@ -15,13 +15,15 @@ exclude = [
 ]
 
 [features]
-default = ["verifier", "prover", "compiler", "mdoc"]
+default = ["verifier", "prover", "compiler", "mdoc", "v1"]
+# The deployed v1 protocol: its runtime, transcript (AES-256 challenges) and mdoc entry points.
+v1 = ["dep:aes"]
 verifier = []
 # OS randomness for private coins is needed only to prove.
 prover = ["dep:getrandom"]
 compiler = ["dep:bumpalo", "dep:num-bigint", "dep:num-traits", "dep:rustc-hash"]
 mdoc = ["dep:zstd"]
-testonly = ["verifier", "prover", "compiler"]
+testonly = ["verifier", "prover", "compiler", "v1"]
 force-32bit-limbs = []
 limb32 = ["force-32bit-limbs"]
 force-generic-arch = []
@@ -35,7 +37,7 @@ bench-memory = []
 tooling = ["compiler", "dep:serde_json"]
 
 [dependencies]
-aes = "0.8.4"
+aes = { version = "0.8.4", optional = true }
 bumpalo = { version = "3.16.0", optional = true }
 getrandom = { version = "0.3", optional = true }
 num-bigint = { version = "0.4", optional = true }
@@ -62,12 +64,12 @@ serde_json = "1.0"
 [[bin]]
 name = "prover_only"
 path = "applications/mdoc_zk/prover_only/src/main.rs"
-required-features = ["prover", "mdoc"]
+required-features = ["prover", "mdoc", "v1"]
 
 [[bin]]
 name = "verifier_only"
 path = "applications/mdoc_zk/verifier_only/src/main.rs"
-required-features = ["verifier", "mdoc"]
+required-features = ["verifier", "mdoc", "v1"]
 
 [[bench]]
 name = "p256_benchmark"
@@ -98,6 +100,7 @@ harness = false
 name = "sumcheck_bench_v1"
 path = "runtime/v1/sumcheck/benches/sumcheck_bench.rs"
 harness = false
+required-features = ["v1"]
 
 [[bench]]
 name = "circuit_id"

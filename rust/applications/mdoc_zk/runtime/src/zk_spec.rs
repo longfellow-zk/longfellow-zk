@@ -14,11 +14,15 @@
 
 //! Version-neutral system discovery; never dispatches or implements proof execution.
 
-use super::{v1, v2};
+#[cfg(feature = "v1")]
+use super::v1;
+use super::v2;
+#[cfg(feature = "v1")]
 pub const LONGFELLOW_V1: &str = v1::SYSTEM_ID;
 pub const LONGFELLOW_V2: &str = v2::SYSTEM_ID;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ZkSpecRef {
+    #[cfg(feature = "v1")]
     V1(&'static v1::ZkSpecStruct),
     V2(&'static v2::ZkSpecStruct),
 }
@@ -26,6 +30,7 @@ impl ZkSpecRef {
     #[must_use]
     pub fn version(self) -> usize {
         match self {
+            #[cfg(feature = "v1")]
             Self::V1(s) => s.version,
             Self::V2(s) => s.version,
         }
@@ -34,6 +39,7 @@ impl ZkSpecRef {
 #[must_use]
 pub fn find_zk_spec(system: &str, hash: &[u8; 32]) -> Option<ZkSpecRef> {
     match system {
+        #[cfg(feature = "v1")]
         LONGFELLOW_V1 => v1::find_zk_spec(system, hash).map(ZkSpecRef::V1),
         LONGFELLOW_V2 => v2::find_zk_spec(system, hash).map(ZkSpecRef::V2),
         _ => None,
@@ -42,6 +48,7 @@ pub fn find_zk_spec(system: &str, hash: &[u8; 32]) -> Option<ZkSpecRef> {
 #[must_use]
 pub fn find_zk_spec_by_hex(system: &str, hash: &str) -> Option<ZkSpecRef> {
     match system {
+        #[cfg(feature = "v1")]
         LONGFELLOW_V1 => v1::find_zk_spec_by_hex(system, hash).map(ZkSpecRef::V1),
         LONGFELLOW_V2 => v2::find_zk_spec_by_hex(system, hash).map(ZkSpecRef::V2),
         _ => None,

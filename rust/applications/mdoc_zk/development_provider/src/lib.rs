@@ -18,7 +18,9 @@
 //! an owned v2 spec together with its archive; it is never inserted into a frozen
 //! registry. Proving and verification consume that pair through the usual v2 API.
 
-use crate::mdoc::runtime::{v1, v2};
+#[cfg(feature = "v1")]
+use crate::mdoc::runtime::v1;
+use crate::mdoc::runtime::v2;
 mod cache_v2;
 mod next_v2;
 pub use cache_v2::{read_next, write_next};
@@ -26,6 +28,7 @@ pub use next_v2::compile_next;
 
 /// Explicit selection keeps development compilation distinct from frozen lookup.
 pub enum CircuitRequest {
+    #[cfg(feature = "v1")]
     FrozenV1 {
         version: usize,
         num_attributes: usize,
@@ -41,6 +44,7 @@ pub enum CircuitRequest {
 
 /// The system remains explicit; each variant has its own spec and proof API.
 pub enum ProvidedCircuit {
+    #[cfg(feature = "v1")]
     V1(v1::provider::ProvidedCircuit),
     V2(v2::provider::ProvidedCircuit),
 }
@@ -48,6 +52,7 @@ pub enum ProvidedCircuit {
 /// Delegate frozen requests to their runtime provider; compile only an explicit NEXT request.
 pub fn materialize(request: CircuitRequest) -> Result<ProvidedCircuit, String> {
     match request {
+        #[cfg(feature = "v1")]
         CircuitRequest::FrozenV1 {
             version,
             num_attributes,

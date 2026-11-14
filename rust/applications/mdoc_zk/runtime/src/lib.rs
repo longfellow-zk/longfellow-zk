@@ -14,10 +14,13 @@
 
 //! System selection only; proof execution and encoding live under v1 or v2.
 
+#[cfg(feature = "v1")]
 pub mod v1;
 pub mod v2;
 pub mod zk_spec;
-pub use zk_spec::{find_zk_spec, find_zk_spec_by_hex, ZkSpecRef, LONGFELLOW_V1, LONGFELLOW_V2};
+#[cfg(feature = "v1")]
+pub use zk_spec::LONGFELLOW_V1;
+pub use zk_spec::{find_zk_spec, find_zk_spec_by_hex, ZkSpecRef, LONGFELLOW_V2};
 
 #[cfg(test)]
 #[path = "../tests/all/mod.rs"]

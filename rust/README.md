@@ -538,7 +538,8 @@ compiler. The default features are `verifier`, `prover`, `compiler`, and
 | `prover` | Witness generation and runtime proving |
 | `compiler` | Symbolic construction, circuit compilation, and parameter selection |
 | `mdoc` | mdoc application and circuit-archive support |
-| `testonly` | Test fixtures and deterministic randomness; also enables both proof roles and the compiler |
+| `v1` | The deployed v1 protocol: runtime, AES-based transcript, mdoc v1 entry points and the `prover_only`/`verifier_only` tools; on by default. v2-only builds omit it |
+| `testonly` | Test fixtures and deterministic randomness; also enables both proof roles, the compiler and `v1` |
 | `tooling` | Offline Rust tools, including compiler and auxiliary-arithmetic dependencies |
 | `arm-neon` | ARMv7 NEON field arithmetic; also requires the compiler's NEON target flag |
 | `bench-memory` | Benchmark allocation tracking |

@@ -51,12 +51,16 @@ mod crt;
 mod crt_fft;
 mod quadratic_extension_fft;
 mod scalar;
+// The v1 subfield hints are the only users of the concrete plans.
+#[cfg(feature = "v1")]
 pub(in crate::runtime) use binary::BinaryInterpolationPlan;
 pub use binary::BinaryInterpolatorFactory;
 #[cfg(any(test, feature = "tooling"))]
 pub use crt::CrtInterpolatorFactory;
+#[cfg(feature = "v1")]
 pub(in crate::runtime) use quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan;
 pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
+#[cfg(feature = "v1")]
 pub(in crate::runtime) use scalar::ScalarInterpolationPlan;
 pub use scalar::ScalarInterpolatorFactory;
 
@@ -211,5 +215,5 @@ fn difference<F: AlgebraicField + SupportsU64Conversions>(a: usize, b: usize, f:
     }
 }
 
-#[cfg(any(test, feature = "tooling"))]
+#[cfg(all(any(test, feature = "tooling"), feature = "v1"))]
 pub(in crate::runtime) use crt::CrtInterpolationPlan;

@@ -56,8 +56,9 @@ jobs:
       - name: Proof-role Feature Builds
         # Generic v2 roles must build without the mdoc application, and
         # verifier-only and prover-only builds must not need each other.
+        # Without v1 the builds must not need the v1 runtime or AES.
         run: |
-          for features in verifier prover verifier,prover verifier,mdoc prover,mdoc; do
+          for features in verifier prover verifier,prover verifier,mdoc prover,mdoc verifier,mdoc,v1 prover,mdoc,v1; do
             cargo check --lib --no-default-features --features "$features"
           done
         working-directory: rust
