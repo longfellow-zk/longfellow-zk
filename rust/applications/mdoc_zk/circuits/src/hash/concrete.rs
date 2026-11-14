@@ -99,7 +99,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 
     // These raw compiler/test helpers retain their existing panic contract for
     // invalid inputs, but must never silently narrow or wrap an input offset.
-    let preimage_base_offset = super::constants::K_COSE1_PREFIX_LEN + 7;
+    let preimage_base_offset = super::constants::K_MSO_OFFSET;
     let offset = |relative: usize| {
         u16::try_from(
             relative

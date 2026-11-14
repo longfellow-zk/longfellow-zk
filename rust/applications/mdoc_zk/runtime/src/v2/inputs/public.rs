@@ -18,8 +18,10 @@ use crate::{
     core::algebra::Nat,
     mdoc::{
         proto::{
-            config::K_ATTR_LEN_BITS,
-            hash::constants::{K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
+            hash::constants::{
+                K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
+            },
+            mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
         },
         runtime::v2::{
             attribute::RequestedAttribute,
@@ -28,10 +30,6 @@ use crate::{
     },
     runtime::algebra::p256::{P256Element, P256Field},
 };
-
-const ATTRIBUTE_ID_BYTES: usize = 32;
-const ATTRIBUTE_VALUE_BYTES: usize = 64;
-const DOC_TYPE_BYTES: usize = 32;
 
 /// Supported UTC spelling; T/t and Z/z have identical ordering semantics.
 pub(in crate::mdoc::runtime::v2) fn timestamp_digits(value: &[u8]) -> Option<[u8; 14]> {
@@ -61,32 +59,32 @@ pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
 ) -> bool {
     timestamp_digits(now).is_some()
         && !doc_type.is_empty()
-        && doc_type.len() <= DOC_TYPE_BYTES
+        && doc_type.len() <= K_DOC_TYPE_BYTES
         && attrs.first().is_some_and(|attribute| {
             !attribute.namespace_id.is_empty()
                 && attribute.namespace_id.len() <= K_NAMESPACE_BYTES
                 && std::str::from_utf8(&attribute.namespace_id).is_ok()
         })
         && attrs.iter().all(|attribute| {
-            attribute.id.len() <= ATTRIBUTE_ID_BYTES
+            attribute.id.len() <= K_ATTR_ID_BYTES
                 && crate::mdoc::circuits::cbor::encode_cbor_string(&attribute.id).len()
-                    <= ATTRIBUTE_ID_BYTES
-                && attribute.cbor_value.len() <= ATTRIBUTE_VALUE_BYTES
+                    <= K_ATTR_ID_BYTES
+                && attribute.cbor_value.len() <= K_ATTR_VALUE_BYTES
         })
 }
 
 fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAttribute]) {
     for la in attrs {
         let cbor_id = crate::mdoc::circuits::cbor::encode_cbor_string(&la.id);
-        for i in 0..ATTRIBUTE_ID_BYTES {
+        for i in 0..K_ATTR_ID_BYTES {
             builder.push_v8(*cbor_id.get(i).unwrap_or(&0));
         }
-        builder.push_bits_len(cbor_id.len() as u64, K_ATTR_LEN_BITS);
+        builder.push_bits_len(cbor_id.len() as u64, K_ATTR_INDEX_BITS);
 
-        for i in 0..ATTRIBUTE_VALUE_BYTES {
+        for i in 0..K_ATTR_VALUE_BYTES {
             builder.push_v8(*la.cbor_value.get(i).unwrap_or(&0));
         }
-        builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_LEN_BITS);
+        builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_INDEX_BITS);
     }
 }
 
@@ -104,10 +102,10 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     push_input_attrs(&mut builder, attrs);
 
     builder.push_bit(suppress_doc_type_check);
-    for i in 0..DOC_TYPE_BYTES {
+    for i in 0..K_DOC_TYPE_BYTES {
         builder.push_v8(*expected_doc_type.get(i).unwrap_or(&0));
     }
-    builder.push_bits_len(expected_doc_type.len() as u64, K_ATTR_LEN_BITS);
+    builder.push_bits_len(expected_doc_type.len() as u64, K_ATTR_INDEX_BITS);
     let namespace = attrs
         .first()
         .map(|a| a.namespace_id.as_slice())
@@ -115,7 +113,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     for i in 0..K_NAMESPACE_BYTES {
         builder.push_v8(*namespace.get(i).unwrap_or(&0));
     }
-    builder.push_bits_len(namespace.len() as u64, K_ATTR_LEN_BITS);
+    builder.push_bits_len(namespace.len() as u64, K_ATTR_INDEX_BITS);
 
     builder.into_inner()
 }

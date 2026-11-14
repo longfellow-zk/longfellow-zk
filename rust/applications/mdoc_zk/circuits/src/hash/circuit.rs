@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::constants::{
-    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR,
-    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
+    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR, K_DOC_TYPE_BYTES,
+    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
     K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN,
     K_VALUE_DIGESTS_CHECK_CBOR,
 };
@@ -75,7 +75,7 @@ pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
     pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
     pub suppress_doc_type_check: crate::circuits::boolean::Bitw<L>,
-    pub expected_doc_type: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, 32>,
+    pub expected_doc_type: crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_DOC_TYPE_BYTES>,
     pub expected_namespace:
         crate::mdoc::circuits::mso_attribute::circuit::AttrSlice<L, K_NAMESPACE_BYTES>,
     pub preimage: MsoPreimageBytes<L>,
@@ -366,7 +366,7 @@ where
             &length,
             &[&[
                 self.bv.zext::<16, 17>(&inner_length),
-                self.bv.of_u64::<17>((K_COSE1_PREFIX_LEN + 7) as u64),
+                self.bv.of_u64::<17>(K_MSO_OFFSET as u64),
             ]],
         );
         self.logic.assert_all(
@@ -380,7 +380,7 @@ where
                     "map_type",
                     &self
                         .bv
-                        .eqmask(&preimage[K_COSE1_PREFIX_LEN + 7], 0xa0, 0xe0),
+                        .eqmask(&preimage[K_MSO_OFFSET], 0xa0, 0xe0),
                 ),
             ],
         )

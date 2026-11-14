@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::constants::{
-    K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX,
+    K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX,
     K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
 };
 use crate::{
@@ -44,8 +44,8 @@ pub type AttrSlice<L, const N: usize> =
 /// their verified lengths.  These are concrete values, not indices in
 /// the credential.
 pub struct DisclosedAttribute<L: Logic> {
-    pub expected_name: AttrSlice<L, 32>,
-    pub expected_cbor_value: AttrSlice<L, 64>,
+    pub expected_name: AttrSlice<L, K_ATTR_ID_BYTES>,
+    pub expected_cbor_value: AttrSlice<L, K_ATTR_VALUE_BYTES>,
 }
 
 impl<L: Logic> Clone for DisclosedAttribute<L> {

@@ -17,18 +17,21 @@ pub const K_MSO_PREIMAGE_LEN: usize = K_MAX_SHA_BLOCKS * 64;
 pub const K_HASH_INDEX_BITS: usize = 16;
 /// Maximum UTF-8 byte length of the one namespace shared by all disclosures.
 pub const K_NAMESPACE_BYTES: usize = 64;
+/// Maximum byte length of the expected document type.
+pub const K_DOC_TYPE_BYTES: usize = 32;
 
 pub const K_COSE1_PREFIX: [u8; 18] = [
     0x84, 0x6A, b'S', b'i', b'g', b'n', b'a', b't', b'u', b'r', b'e', b'1', 0x43, 0xA1, 0x01, 0x26,
     0x40, 0x59,
 ];
 pub const K_COSE1_PREFIX_LEN: usize = 18;
+/// Offset of the MSO map in the hashed preimage: after the COSE prefix, its
+/// two-byte length, tag 24 with a two-byte-length byte string header
+/// (`d8 18 59`) and that length.
+pub const K_MSO_OFFSET: usize = K_COSE1_PREFIX_LEN + 7;
 pub const K_TAG32: [u8; 2] = [0x58, 0x20];
 
 pub const K_DOCTYPE_HEADER_CHECK_CBOR: [u8; 8] = [0x67, b'd', b'o', b'c', b'T', b'y', b'p', b'e'];
-
-/// Legacy namespace constant. NEXT receives its expected namespace as public input.
-pub const K_NAMESPACE_CHECK_CBOR: [u8; 17] = *b"org.iso.18013.5.1";
 
 pub const K_VALID_FROM_LEN: usize = 12;
 pub const K_VALID_FROM_CHECK_CBOR: [u8; 12] = [

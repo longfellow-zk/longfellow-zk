@@ -224,7 +224,7 @@ fn signed_envelope_constraints_reject_rehashed_documents() {
         (K_COSE1_PREFIX_LEN + 2, "assert_bytes_at"),
         (K_COSE1_PREFIX_LEN + 4, "assert_bytes_at"),
         (K_COSE1_PREFIX_LEN + 6, "inner_length"),
-        (K_COSE1_PREFIX_LEN + 7, "map_type"),
+        (K_MSO_OFFSET, "map_type"),
     ] {
         let mut input = original.hash_input.clone();
         input.cbor_mso[index] ^= if path == "map_type" { 0x20 } else { 1 };
@@ -314,7 +314,7 @@ fn doc_type_checks_types_lengths_and_actual_read_end() {
 #[test]
 fn doc_type_header_type_is_checked_after_rehashing() {
     let mut input = fixture().hash_input;
-    let header = K_COSE1_PREFIX_LEN + 7 + input.doc_type_offset + K_DOCTYPE_HEADER_CHECK_CBOR.len();
+    let header = K_MSO_OFFSET + input.doc_type_offset + K_DOCTYPE_HEADER_CHECK_CBOR.len();
     input.cbor_mso[header] ^= 0x20; // text -> byte string, same length and payload
     input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
     let witness = concrete::given::<4, _>(input);
@@ -374,7 +374,7 @@ fn attribute_type_checks_reject_documents_with_fresh_hashes() {
         attribute.cbor_issuer_signed_item[header] ^= 0x20;
         let digest = Sha256::digest(&attribute.cbor_issuer_signed_item);
         let digest_start =
-            K_COSE1_PREFIX_LEN + 7 + attribute.mso_digest_offset_in_preimage + K_TAG32.len();
+            K_MSO_OFFSET + attribute.mso_digest_offset_in_preimage + K_TAG32.len();
         input.cbor_mso[digest_start..digest_start + 32].copy_from_slice(&digest);
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);

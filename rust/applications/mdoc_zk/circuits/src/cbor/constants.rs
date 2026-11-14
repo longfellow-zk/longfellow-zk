@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const K_COSE1_PREFIX: [u8; 18] = [
-    0x84, 0x6A, b'S', b'i', b'g', b'n', b'a', b't', b'u', b'r', b'e', b'1', 0x43, 0xA1, 0x01, 0x26,
-    0x40, 0x59,
-];
-pub const K_COSE1_PREFIX_LEN: usize = 18;
+use crate::mdoc::proto::hash::constants::{K_COSE1_PREFIX, K_COSE1_PREFIX_LEN};
 
 pub const K_DEVICE_AUTHENTICATION_HEADER: [u8; 22] = [
     0x84, 0x74, b'D', b'e', b'v', b'i', b'c', b'e', b'A', b'u', b't', b'h', b'e', b'n', b't', b'i',
     b'c', b'a', b't', b'i', b'o', b'n',
 ];
 
-pub const K_TAG32: [u8; 2] = [0x58, 0x20];
-
-pub const K_COSE_SIGN1_SIGNING_HEADER: [u8; 17] = [
-    0x84, 0x6A, b'S', b'i', b'g', b'n', b'a', b't', b'u', b'r', b'e', b'1', 0x43, 0xA1, 0x01, 0x26,
-    0x40,
-];
+/// The COSE Sig_structure header: the hashed preimage's COSE prefix without its
+/// final byte-string tag, which the signed payload supplies.
+pub const K_COSE_SIGN1_SIGNING_HEADER: [u8; K_COSE1_PREFIX_LEN - 1] = {
+    let mut header = [0; K_COSE1_PREFIX_LEN - 1];
+    let mut i = 0;
+    while i < header.len() {
+        header[i] = K_COSE1_PREFIX[i];
+        i += 1;
+    }
+    header
+};
 
 pub const K_TAG24: [u8; 2] = [0xD8, 0x18];

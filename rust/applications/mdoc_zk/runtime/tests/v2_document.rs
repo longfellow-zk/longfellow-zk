@@ -9,7 +9,7 @@ fn map() -> CborElement {
         TEST_DATA.doc_type,
     )
     .unwrap();
-    let start = crate::mdoc::proto::hash::constants::K_COSE1_PREFIX_LEN + 7;
+    let start = crate::mdoc::proto::hash::constants::K_MSO_OFFSET;
     crate::mdoc::circuits::cbor::parse::CborParser::new(&parsed.cbor_mso[start..])
         .parse_exact()
         .unwrap()

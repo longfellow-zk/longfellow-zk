@@ -13,6 +13,10 @@
 // limitations under the License.
 
 pub const K_ATTR_INDEX_BITS: usize = 10;
+/// Bytes of a disclosed attribute's CBOR identifier slot.
+pub const K_ATTR_ID_BYTES: usize = 32;
+/// Bytes of a disclosed attribute's CBOR value slot.
+pub const K_ATTR_VALUE_BYTES: usize = 64;
 pub const K_DIGEST_ID: [u8; 9] = [0x68, b'd', b'i', b'g', b'e', b's', b't', b'I', b'D'];
 
 pub const K_RANDOM_ID: [u8; 7] = [0x66, b'r', b'a', b'n', b'd', b'o', b'm'];

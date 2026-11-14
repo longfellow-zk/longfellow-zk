@@ -20,9 +20,9 @@ use crate::mdoc::circuits::cbor::{
 #[cfg(any(test, feature = "prover"))]
 use crate::{
     core::algebra::Nat,
-    mdoc::circuits::cbor::{
-        constants::K_COSE1_PREFIX_LEN,
-        parse::{CborElement, CborIndexVal, CborParser, CborValue},
+    mdoc::{
+        circuits::cbor::parse::{CborElement, CborIndexVal, CborParser, CborValue},
+        proto::hash::constants::{K_COSE1_PREFIX_LEN, K_MSO_OFFSET},
     },
 };
 
@@ -95,7 +95,7 @@ impl<N> ParsedMdoc<N> {
     pub(crate) fn namespaces(&self) -> Result<Vec<MsoNamespace>, MdocParseError> {
         let map_bytes = self
             .cbor_mso
-            .get(K_COSE1_PREFIX_LEN + 7..)
+            .get(K_MSO_OFFSET..)
             .ok_or(MdocParseError::UnsupportedEncoding)?;
         let map = CborParser::new(map_bytes)
             .parse_exact()

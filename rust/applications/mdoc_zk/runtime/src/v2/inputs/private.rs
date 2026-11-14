@@ -19,13 +19,12 @@ use crate::{
     mdoc::{
         circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
-            config::K_ATTR_LEN_BITS,
             hash::constants::{
-                K_COSE1_PREFIX_LEN, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_PREIMAGE_LEN,
+                K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
             },
             layout,
             mso_attribute::constants::{
-                K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
+                K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
             },
         },
         runtime::v2::{
@@ -102,7 +101,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     at(builder.len(), &(end..end), "end of block count")?;
 
     // 4. doc_type / valid_from / valid_until / dev_key_info / value_digests offsets
-    let preimage_base_offset = K_COSE1_PREFIX_LEN + 7;
+    let preimage_base_offset = K_MSO_OFFSET;
     builder.push_bits_len(
         (preimage_base_offset + parsed.doc_type_offset_in_mso) as u64,
         K_HASH_INDEX_BITS,
@@ -164,15 +163,15 @@ fn push_witness_attrs(
         for &b in &preimage_arr {
             builder.push_v8(b);
         }
-        builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_LEN_BITS);
-        let preimage_base_offset = K_COSE1_PREFIX_LEN + 7;
+        builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_INDEX_BITS);
+        let preimage_base_offset = K_MSO_OFFSET;
         let mso_digest_offset_in_preimage = preimage_base_offset + pa.mso_digest_offset_in_preimage;
         builder.push_bits_len(mso_digest_offset_in_preimage as u64, K_HASH_INDEX_BITS);
         for &s in &pa.field_locator.slot_position {
-            builder.push_bits_len(s as u64, K_ATTR_LEN_BITS);
+            builder.push_bits_len(s as u64, K_ATTR_INDEX_BITS);
         }
         for &l in &pa.field_locator.length {
-            builder.push_bits_len(l as u64, K_ATTR_LEN_BITS);
+            builder.push_bits_len(l as u64, K_ATTR_INDEX_BITS);
         }
         let mut perm_val = pa.field_locator.permutation;
         for _ in 0..4 {
