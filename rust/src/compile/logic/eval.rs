@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default)]
-pub struct AssertionMap(Arc<HashMap<AssertionId, AssertionStatus>>);
+pub(crate) struct AssertionMap(Arc<HashMap<AssertionId, AssertionStatus>>);
 
 impl Deref for AssertionMap {
     type Target = HashMap<AssertionId, AssertionStatus>;
@@ -63,9 +63,9 @@ impl Extend<(AssertionId, AssertionStatus)> for AssertionMap {
     }
 }
 
-pub struct EvalWire<F: CompileField> {
-    pub value: ElementOf<F>,
-    pub assertions: AssertionMap,
+pub(crate) struct EvalWire<F: CompileField> {
+    pub(crate) value: ElementOf<F>,
+    pub(crate) assertions: AssertionMap,
 }
 
 impl<F: CompileField> Clone for EvalWire<F> {
@@ -78,10 +78,6 @@ impl<F: CompileField> Clone for EvalWire<F> {
 }
 
 impl<F: CompileField> EvalWire<F> {
-    pub fn ok(value: ElementOf<F>) -> Self {
-        Self::new(value, AssertionMap::new())
-    }
-
     fn new(value: ElementOf<F>, assertions: AssertionMap) -> Self {
         Self { value, assertions }
     }
@@ -104,26 +100,26 @@ impl<F: CompileField> std::fmt::Debug for EvalWire<F> {
     }
 }
 
-pub struct EvalLogic<'a, F: CompileField> {
+pub(crate) struct EvalLogic<'a, F: CompileField> {
     f: &'a F,
     tracker: &'a AssertionScope,
 }
 
 /// Owns the assertion scope for one direct-evaluation session.
-pub struct EvalContext<'a, F: CompileField> {
+pub(crate) struct EvalContext<'a, F: CompileField> {
     f: &'a F,
     tracker: AssertionScope,
 }
 
 impl<'a, F: CompileField> EvalContext<'a, F> {
-    pub fn new(f: &'a F) -> Self {
+    pub(crate) fn new(f: &'a F) -> Self {
         Self {
             f,
             tracker: AssertionScope::new(),
         }
     }
 
-    pub fn run<'ctx>(
+    pub(crate) fn run<'ctx>(
         &'ctx self,
         build: impl FnOnce(&EvalLogic<'ctx, F>) -> EvalAssertions<'ctx>,
     ) -> EvalAssertions<'ctx> {
@@ -133,11 +129,11 @@ impl<'a, F: CompileField> EvalContext<'a, F> {
 }
 
 impl<'a, F: CompileField> EvalLogic<'a, F> {
-    pub fn new(f: &'a F, tracker: &'a AssertionScope) -> Self {
+    pub(crate) fn new(f: &'a F, tracker: &'a AssertionScope) -> Self {
         Self { f, tracker }
     }
 
-    pub fn new_with_tracker(f: &'a F, tracker: &'a AssertionScope) -> Self {
+    pub(crate) fn new_with_tracker(f: &'a F, tracker: &'a AssertionScope) -> Self {
         Self::new(f, tracker)
     }
 
@@ -160,46 +156,38 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
 }
 
 #[derive(Debug, Clone)]
-pub struct EvalAssertions<'a> {
-    pub scoped: AssertionMap,
-    pub unscoped: AssertionMap,
-    pub tracker: &'a AssertionScope,
+pub(crate) struct EvalAssertions<'a> {
+    pub(crate) scoped: AssertionMap,
+    pub(crate) unscoped: AssertionMap,
+    pub(crate) tracker: &'a AssertionScope,
 }
 
 impl<'a> EvalAssertions<'a> {
-    pub fn all_items(&self) -> AssertionMap {
+    pub(crate) fn all_items(&self) -> AssertionMap {
         merge_assertions(&self.scoped, &self.unscoped)
     }
 
-    pub fn is_ok(&self) -> bool {
+    pub(crate) fn is_ok(&self) -> bool {
         self.tracker.is_ok(&self.all_items())
     }
 
-    pub fn is_err(&self) -> bool {
+    pub(crate) fn is_err(&self) -> bool {
         self.tracker.is_err(&self.all_items())
     }
 
-    pub fn unwrap(self) {
+    pub(crate) fn unwrap(self) {
         self.assert_all_passed();
     }
 
-    pub fn failed_paths(&self) -> Vec<String> {
+    pub(crate) fn failed_paths(&self) -> Vec<String> {
         self.tracker.failed_paths(&self.all_items())
     }
 
-    pub fn all_paths(&self) -> Vec<String> {
-        self.tracker.all_paths(&self.all_items())
-    }
-
-    pub fn passed_paths(&self) -> Vec<String> {
-        self.tracker.passed_paths(&self.all_items())
-    }
-
-    pub fn assert_all_passed(&self) {
+    pub(crate) fn assert_all_passed(&self) {
         self.tracker.assert_all_passed(&self.all_items());
     }
 
-    pub fn assert_any_failed_at(&self, expected_path: &str) {
+    pub(crate) fn assert_any_failed_at(&self, expected_path: &str) {
         self.tracker
             .assert_any_failed_at(expected_path, &self.all_items());
     }

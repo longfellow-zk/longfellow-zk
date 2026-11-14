@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(test)]
 mod eval;
 // `compile::logic::logic` mirrors the layout of the former `compile-logic` crate.
 #[allow(clippy::module_inception)]
 mod logic;
 mod scope;
 
-pub use eval::{AssertionMap, EvalAssertions, EvalContext, EvalLogic, EvalWire};
+#[cfg(test)]
+pub(crate) use eval::{EvalAssertions, EvalContext, EvalLogic, EvalWire};
 pub use logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION};
 pub use scope::{AssertionId, AssertionScope, AssertionStatus, NIL_ASSERTION_ID};
 
