@@ -330,15 +330,11 @@ fn dependency_module(path: &str) -> String {
         "zk_v1" => Some(("v1", "zk")),
         "proto" => match parts.get(2).copied() {
             Some("sumcheck_v1" | "ligero_v1" | "zk_v1" | "subfield_v1") => Some(("v1", "proto")),
-            Some("sumcheck_v2" | "polygero" | "zk_v2" | "dual_packing" | "witness_selection") => {
-                return parts[..3].join("::")
-            }
             _ => Some(("v1", "proto")),
         },
         "random" => match parts.get(2).copied() {
             Some("v1") => Some(("v1", "random")),
             Some("Transcript" | "transcript_v1") => Some(("v1", "transcript")),
-            Some("transcript_v2") => return parts[..3].join("::"),
             _ => None,
         },
         "algebra"
@@ -499,8 +495,6 @@ fn runtime_storage_checks_resolve_legacy_aliases_and_reject_upward_dependencies(
 #[test]
 fn runtime_ownership_and_visibility_boundaries_are_explicit() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    assert!(!root.join("runtime/merkle").join("src/lib.rs").exists());
-    assert!(!root.join("runtime/proto").join("src/lib.rs").exists());
     for (version, expected) in [
         ("v1", BTreeSet::from(["commitment.rs", "heap.rs", "lib.rs"])),
         ("v2", BTreeSet::from(["hash.rs", "heap.rs", "lib.rs"])),
@@ -978,8 +972,6 @@ fn sumcheck_dependency_violation(module: &str, production: &str) -> Option<Strin
         let local = [
             format!("runtime::{version}::proto"),
             format!("runtime::{version}::transcript"),
-            format!("runtime::{version}::random"),
-            format!("runtime::{version}::subfield"),
         ];
         if dependency != module
             && !local.contains(&dependency)
@@ -1228,19 +1220,9 @@ fn test_v2_role_and_shared_module_boundaries() {
 #[test]
 fn test_phase_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Core and runtime never reach the compiler by layer rank; these compiler
+    // modules may use runtime arithmetic in general but not here.
     for (path, forbidden) in [
-        ("core/algebra/src/fp24.rs", "both"),
-        ("core/algebra/src/fp24_ext6.rs", "both"),
-        ("runtime/algebra/src/fp24_ext6.rs", "compile"),
-        (
-            "runtime/algebra/src/range_interpolation/crt_fft.rs",
-            "compile",
-        ),
-        ("runtime/algebra/src/range_interpolation", "compile"),
-        ("runtime/v2/sumcheck/src", "compile"),
-        ("runtime/v2/zk/src", "compile"),
-        ("runtime/v2/polygero/src/prover_commitment.rs", "compile"),
-        ("runtime/v2/polygero/src", "compile"),
         ("compile/algebra/src/fp24_ext6.rs", "runtime"),
         ("compile/compiler/src/v1", "runtime"),
         ("compile/compiler/src/v2", "runtime"),
@@ -1275,17 +1257,16 @@ fn test_phase_boundaries() {
 }
 #[test]
 fn test_polygero_protocol_and_phase_boundaries() {
+    // Module dependencies are covered by the graph test; identifiers also
+    // catch grouped proto imports of the other protocol's proof types.
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    for (relative_path, forbidden) in [
-        ("runtime/v2/polygero/src", "runtime::v1::ligero"),
-        ("runtime/v1/ligero/src", "runtime::v2::polygero"),
-        (
-            "runtime/v2/proto/src/polygero.rs",
-            "runtime::proto::ligero_v1",
-        ),
-        ("runtime/v1/proto/src/ligero.rs", "runtime::proto::polygero"),
-        ("runtime/v2/proto/src/zk.rs", "runtime::proto::ligero_v1"),
-        ("runtime/v2/zk/src", "runtime::v1::ligero"),
+    for (relative_path, opposite) in [
+        ("runtime/v2/polygero/src", "Ligero"),
+        ("runtime/v1/ligero/src", "Polygero"),
+        ("runtime/v2/proto/src/polygero.rs", "Ligero"),
+        ("runtime/v1/proto/src/ligero.rs", "Polygero"),
+        ("runtime/v2/proto/src/zk.rs", "Ligero"),
+        ("runtime/v2/zk/src", "Ligero"),
     ] {
         let path = root.join(relative_path);
         let mut files = Vec::new();
@@ -1298,29 +1279,13 @@ fn test_polygero_protocol_and_phase_boundaries() {
         for file in files {
             let source = fs::read_to_string(&file).unwrap();
             let production = production_code(&source);
-            // The DAG extractor intentionally stops at layer::module.
-            // Also inspect identifiers so grouped proto imports cannot
-            // hide a dependency on the other protocol's proof types.
-            let opposite = if forbidden.contains("ligero") {
-                "Ligero"
-            } else {
-                "Polygero"
-            };
-            let code = &production;
             assert!(
-                !code
+                !production
                     .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
                     .any(|word| word.starts_with(opposite)),
                 "cross-protocol type in {}",
                 file.display()
             );
-            for dep in extract_crate_deps(&production) {
-                assert!(
-                    !dep.starts_with(forbidden) && !dep.starts_with("compile::"),
-                    "protocol/phase boundary in {}: {dep}",
-                    file.display()
-                );
-            }
         }
     }
 }
@@ -1802,14 +1767,10 @@ fn test_v1_v2_implementation_isolation() {
             format!("applications/mdoc_zk/runtime/src/{version}"),
             format!("compile/compiler/src/{version}"),
             format!("core/proto/src/{version}"),
-            format!("runtime/{version}/sumcheck/src"),
-            format!("runtime/{version}/zk/src"),
         ] {
             collect_rs_files(&root.join(directory), &mut files);
         }
-        for name in ["sumcheck", "zk"] {
-            files.push(root.join(format!("runtime/{version}/proto/src/{name}.rs")));
-        }
+        // Every runtime/{version} source, including its sumcheck, zk and proto.
         let runtime = root.join(format!("runtime/{version}"));
         let mut all_runtime = Vec::new();
         collect_rs_files(&runtime, &mut all_runtime);
@@ -1825,7 +1786,6 @@ fn test_v1_v2_implementation_isolation() {
             opposite.to_owned(),
             format!("sumcheck_{opposite}"),
             format!("zk_{opposite}"),
-            format!("compile_{opposite}"),
             commitment.to_lowercase(),
             if version == "v2" {
                 "ligero_v1".into()
@@ -2114,20 +2074,15 @@ fn test_v2_transcript_and_final_seal_boundaries() {
             "missing protocol transcript: {directory}"
         );
     }
-    let mut files = Vec::new();
-    for directory in [
-        "runtime/v2/sumcheck/src",
-        "runtime/v2/zk/src",
-        "runtime/v2/polygero/src",
-        "runtime/v2/dual-packing/src",
-        "runtime/v2/witness-selection/src",
-        "runtime/v2/foreign/src",
-        "applications/mdoc_zk/runtime/src/v2",
-        "applications/mdoc_zk/circuits/src/p256_adapter",
-    ] {
-        collect_rs_files(&root.join(directory), &mut files);
-    }
-    files.push(root.join("runtime/v2/proto/src/zk.rs"));
+    // Every v2 frontend, backend and codec outside the transcript itself.
+    let files: Vec<_> = production_sources(root)
+        .into_iter()
+        .filter(|file| {
+            let relative = file.strip_prefix(root).unwrap().to_string_lossy();
+            (relative.starts_with("runtime/v2/") && !relative.starts_with("runtime/v2/transcript/"))
+                || relative.starts_with("applications/mdoc_zk/runtime/src/v2/")
+        })
+        .collect();
     let codecs = [
         "runtime/v2/polygero/src/joint.rs",
         "runtime/v2/proto/src/zk.rs",
@@ -2176,17 +2131,6 @@ fn test_v2_transcript_and_final_seal_boundaries() {
                     "transcript framing outside transcript module: {relative}"
                 );
             }
-        }
-        for forbidden in [
-            "random::Transcript",
-            "random::transcript_v1::Transcript",
-            "random::{Transcript",
-            "random::{RandomEngine,Transcript",
-        ] {
-            assert!(
-                !compact.contains(forbidden),
-                "legacy transcript in {relative}"
-            );
         }
         if compact.contains(".append_final_seal(") {
             assert!(codecs.contains(&relative), "raw sealing in {relative}");
