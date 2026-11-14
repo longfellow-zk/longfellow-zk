@@ -1818,11 +1818,11 @@ fn test_v1_v2_implementation_isolation() {
     );
 }
 
-/// Offline certificate sources live in the formal project. Shared Hahn
-/// sources contain only packing arithmetic; protocol bridges remain separate.
+/// Lean sources, including the offline Hahn certificates, live in the formal
+/// project; `formal/scripts/audit.rs` pins the certificate registry.
 #[test]
-fn test_hahn_certificate_sources() {
-    fn collect(directory: &Path, out: &mut BTreeSet<std::path::PathBuf>) {
+fn lean_sources_stay_in_the_formal_project() {
+    fn collect(directory: &Path, out: &mut BTreeSet<PathBuf>) {
         for entry in fs::read_dir(directory).unwrap() {
             let path = entry.unwrap().path();
             if path.is_dir() {
@@ -1833,106 +1833,7 @@ fn test_hahn_certificate_sources() {
         }
     }
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let formal = root.join("../formal/parameters");
-    let shared = formal.join("hahn");
-    let mut expected = BTreeSet::from([
-        shared.join("RuntimeHahn/Budget.lean"),
-        shared.join("RuntimeHahn/HahnPolynomial.lean"),
-        shared.join("RuntimeHahn/APITest.lean"),
-        shared.join("RuntimeHahn/CheckedPolynomial.lean"),
-        shared.join("RuntimeHahn/Coefficients.lean"),
-        shared.join("RuntimeHahn/IntegralKernel.lean"),
-        shared.join("RuntimeHahn/PolynomialIdentity.lean"),
-    ]);
-    for (name, degrees, certificate) in [
-        ("Hash", 23, true),
-        ("Signature", 23, true),
-        ("LigeroV7Sig", 9, true),
-        ("LigeroV7SigFS", 25, true),
-        ("LigeroV7Hash1", 11, true),
-        ("LigeroV7Hash2", 11, true),
-        ("LigeroV7Hash3", 11, true),
-        ("LigeroV7Hash4", 11, true),
-        ("MdocRate7Active", 25, false),
-        ("MdocRate7Binary", 13, false),
-        ("MdocRate7Prime", 15, false),
-        ("Benchmark2109", 23, false),
-        ("Benchmark2119", 21, false),
-        ("Benchmark2129", 19, false),
-        ("Benchmark2140", 17, false),
-        ("Benchmark2152", 15, false),
-    ] {
-        if certificate {
-            expected.insert(shared.join(format!("RuntimeHahn/{name}.lean")));
-        }
-        let prefix = "RuntimeHahn/Kernels";
-        expected.insert(shared.join(format!("{prefix}/Kernels{name}.lean")));
-        let mut first = 1;
-        for end in [12, 17, 20, 22, 24, degrees] {
-            let last = end.min(degrees);
-            let module = if first == last {
-                format!("Degree{first:02}")
-            } else {
-                format!("Degrees{first:02}To{last:02}")
-            };
-            expected.insert(shared.join(format!("{prefix}/{name}Kernels/{module}.lean")));
-            if last == degrees {
-                break;
-            }
-            first = last + 1;
-        }
-    }
-    let mut actual = BTreeSet::new();
-    collect(&shared, &mut actual);
-    assert_eq!(actual, expected, "update the Hahn source registry");
-    for file in actual {
-        let source = fs::read_to_string(&file).unwrap();
-        for imported in source
-            .lines()
-            .filter_map(|line| line.strip_prefix("import "))
-        {
-            assert!(
-                imported.starts_with("Mathlib.")
-                    || imported.starts_with("RuntimeHahn.")
-                    || imported.starts_with("CodingTheory.")
-                    // The audit aggregates certificate checks from both libraries.
-                    || (file == shared.join("RuntimeHahn/APITest.lean")
-                        && imported == "polygero.Benchmarks.HahnRateSixteenth.Certificates"),
-                "protocol dependency in shared packing arithmetic {}: {imported}",
-                file.display()
-            );
-        }
-    }
-    let protocol = formal.join("polygero");
-    let mut protocol_files = BTreeSet::new();
-    collect(&protocol, &mut protocol_files);
-    assert_eq!(
-        protocol_files,
-        BTreeSet::from([
-            protocol.join("MdocJointProfile.lean"),
-            protocol.join("PolygeroRustHahn.lean"),
-            protocol.join("TunedProfiles.lean"),
-        ])
-    );
-    for generic in ["PolygeroRustHahn.lean", "TunedProfiles.lean"] {
-        let source = fs::read_to_string(protocol.join(generic)).unwrap();
-        assert!(
-            !source
-                .lines()
-                .filter_map(|line| line.strip_prefix("import "))
-                .any(|module| module.starts_with("LfzkV2.")),
-            "application certificate belongs in the separate mdoc facade: {generic}"
-        );
-    }
-    assert!(fs::read_to_string(protocol.join("MdocJointProfile.lean"))
-        .unwrap()
-        .lines()
-        .any(|line| line == "import LfzkV2.Current.Parameters.Rate7"));
     assert!(!root.join("runtime/v2/polygero/theory").exists());
-    let bridge = fs::read_to_string(protocol.join("PolygeroRustHahn.lean")).unwrap();
-    assert!(bridge
-        .lines()
-        .any(|line| line == "import polygero.FiatShamir.Nonrecursive"));
     let mut rust_sources = BTreeSet::new();
     for directory in [
         "src",
