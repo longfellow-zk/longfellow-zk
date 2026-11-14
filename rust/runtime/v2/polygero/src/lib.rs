@@ -36,6 +36,11 @@
 mod config;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod constraints;
+mod error;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use error::ensure;
+pub use error::PolygeroError;
+
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::merkle::hash;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -58,28 +63,6 @@ cfg_prover! { mod prover_commitment; }
 pub use joint::{JointPolygeroParam, LinearStatement, Participant};
 cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
 cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PolygeroError(String);
-impl std::fmt::Display for PolygeroError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-impl std::error::Error for PolygeroError {}
-impl From<std::io::Error> for PolygeroError {
-    fn from(error: std::io::Error) -> Self {
-        Self(error.to_string())
-    }
-}
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-fn ensure(condition: bool, message: &str) -> Result<(), PolygeroError> {
-    if condition {
-        Ok(())
-    } else {
-        Err(PolygeroError(message.into()))
-    }
-}
 
 #[cfg(test)]
 #[path = "../tests/polygero.rs"]
