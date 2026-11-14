@@ -135,7 +135,7 @@ fn vanish<F: AlgebraicField>(nodes: &[F::E], f: &F) -> Vec<F::E> {
 pub(super) fn check<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
-    D: crate::runtime::algebra::EvaluationDomain<W, F>,
+    D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>,
 >(
     joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
     prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,

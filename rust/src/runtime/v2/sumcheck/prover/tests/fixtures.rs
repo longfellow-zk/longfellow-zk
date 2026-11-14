@@ -1,8 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::*;
-use crate::runtime::{
-    algebra::ElementOf,
-    v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
+use crate::{
+    core::algebra::ElementOf,
+    runtime::v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
 };
 
 /// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.

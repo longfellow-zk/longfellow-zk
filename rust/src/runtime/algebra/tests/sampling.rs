@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
-        algebra::{fp_generic::FpGenericField, SupportsSampling, LIMBS_PER_U64},
+        algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64, SupportsSampling},
         v1::subfield::SubfieldV1,
     },
 };
@@ -129,9 +129,9 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
 }
 #[test]
 fn sextic_sampling_reads_three_bytes_and_masks_23_bits_per_coordinate() {
-    use crate::runtime::{
-        algebra::fp24_ext6::{RuntimeFp24Ext6, Q},
-        v1::subfield::RuntimeFp24SubfieldV1,
+    use crate::{
+        core::algebra::fp24::Q,
+        runtime::{algebra::fp24_ext6::RuntimeFp24Ext6, v1::subfield::RuntimeFp24SubfieldV1},
     };
     let f = RuntimeFp24Ext6;
     let mut draws =

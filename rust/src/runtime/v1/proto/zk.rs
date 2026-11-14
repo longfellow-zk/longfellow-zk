@@ -19,7 +19,7 @@ use std::io::Result;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::field::RuntimeField,
+        algebra::RuntimeField,
         v1::{
             proto::{
                 ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},

@@ -15,9 +15,9 @@
 //! Longfellow v1 proto.
 
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{ElementOf, RuntimeField},
+        algebra::RuntimeField,
         v1::{
             proto::zk::{ZkProof, ZkProofGeometry},
             subfield::SubfieldV1,

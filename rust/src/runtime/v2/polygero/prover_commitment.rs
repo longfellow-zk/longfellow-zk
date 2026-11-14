@@ -23,7 +23,11 @@
 //! Interpolation plans are local to the encoding invocation that uses them.
 use super::PolygeroParam;
 use crate::runtime::{
-    algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField, SupportsSampling},
+    algebra::{
+        blas,
+        range_interpolation::{EvaluationDomain, InterpolationPlan},
+        RuntimeField, SupportsSampling,
+    },
     random::PrivateRandom,
 };
 

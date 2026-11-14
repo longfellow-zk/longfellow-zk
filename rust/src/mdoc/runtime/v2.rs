@@ -57,11 +57,14 @@ pub(crate) fn link_for_test<DH, DS>(
     domains: (&DH, &DS),
 ) -> Result<(usize, usize), String>
 where
-    DH: crate::runtime::algebra::EvaluationDomain<
+    DH: crate::runtime::algebra::range_interpolation::EvaluationDomain<
         2,
         crate::runtime::algebra::gf2_128::Gf2_128Field,
     >,
-    DS: crate::runtime::algebra::EvaluationDomain<4, crate::runtime::algebra::p256::P256Field>,
+    DS: crate::runtime::algebra::range_interpolation::EvaluationDomain<
+        4,
+        crate::runtime::algebra::p256::P256Field,
+    >,
 {
     use crate::runtime::v2::foreign::adapter::AdapterMode;
     let c = link::composition(spec, signature, hash, domains)?;

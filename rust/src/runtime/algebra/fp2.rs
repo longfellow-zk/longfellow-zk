@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::field::{AlgebraicField, RuntimeField, SupportsQuadraticExtension};
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{RuntimeField, SupportsQuadraticExtension},
+};
 
 pub struct Fp2Element<const W: usize, F: SupportsQuadraticExtension<W>> {
     pub re: F::E,

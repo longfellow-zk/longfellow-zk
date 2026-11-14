@@ -3,8 +3,8 @@ use super::super::*;
 use crate::{
     core::algebra::{AlgebraicField, BareField, SupportsNatConversions, SupportsU64Conversions},
     runtime::algebra::{
-        fp_generic::FpGenericField, p256::P256Field,
-        range_interpolation::ScalarInterpolatorFactory, LIMBS_PER_U64,
+        fp_generic::FpGenericField, limb::LIMBS_PER_U64, p256::P256Field,
+        range_interpolation::ScalarInterpolatorFactory,
     },
 };
 

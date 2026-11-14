@@ -41,7 +41,7 @@ fn ref_mul(x: u128, y: u128) -> u128 {
     a
 }
 
-use crate::runtime::algebra::field::RuntimeField;
+use crate::runtime::algebra::RuntimeField;
 
 fn test_compile_gf2_128_mul_for_field<
     const W: usize,

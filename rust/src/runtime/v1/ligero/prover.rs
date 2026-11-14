@@ -29,7 +29,9 @@ use crate::{
     core::algebra::ElementOf,
     runtime::{
         algebra::{
-            blas, InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsSampling,
+            blas,
+            range_interpolation::{InterpolationPlan, RangeInterpolatorFactory},
+            RuntimeField, SupportsSampling,
         },
         random::RandomEngine,
         v1::{

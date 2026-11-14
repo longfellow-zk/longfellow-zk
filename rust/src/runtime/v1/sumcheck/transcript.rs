@@ -21,9 +21,12 @@
 //! the final input-combination challenge. These tags, lengths and ordering are part of
 //! legacy proof compatibility, including samples that the circuit does not use.
 use crate::{
-    core::{algebra::SerializableField, proto::v1::Circuit},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::v1::Circuit,
+    },
     runtime::{
-        algebra::{field::RuntimeField, ElementOf, SupportsSampling},
+        algebra::{RuntimeField, SupportsSampling},
         random::RandomEngine,
         v1::{proto::sumcheck::RoundPoly, sumcheck::MAX_LOGW, transcript::Transcript},
     },

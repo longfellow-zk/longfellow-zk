@@ -24,10 +24,10 @@ use crate::{
         },
     },
     runtime::algebra::{
-        field::RuntimeSerializableField,
         gf2_128::{Gf2_128, Gf2_128Field},
         p256::{P256Element, P256Field},
         secp256r1::Secp256r1,
+        RuntimeSerializableField,
     },
 };
 
@@ -193,7 +193,7 @@ fn push_witness_attrs<N: Nat<4>>(
 #[allow(clippy::too_many_arguments)]
 fn push_legacy_verify_witness_3(
     builder: &mut AssignmentBuilder<P256Field>,
-    q256: &crate::runtime::algebra::Q256Field,
+    q256: &crate::runtime::algebra::q256::Q256Field,
     secp256r1: &Secp256r1<P256Field>,
     pk_x: &P256Element,
     pk_y: &P256Element,
@@ -252,7 +252,7 @@ fn push_legacy_verify_witness_3(
 
 pub(in crate::mdoc::runtime::v1) fn push_witness_sig(
     p256: &P256Field,
-    q256: &crate::runtime::algebra::Q256Field,
+    q256: &crate::runtime::algebra::q256::Q256Field,
     secp256r1: &Secp256r1<P256Field>,
     issuer_pk: &(P256Element, P256Element),
     parsed: &ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>>,

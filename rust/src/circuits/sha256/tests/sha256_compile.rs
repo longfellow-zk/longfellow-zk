@@ -20,7 +20,7 @@ use crate::{
     },
     compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
     core::algebra::SerializableField,
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 fn push_u32_bits<const W: usize, FR: RuntimeField<W>>(inputs: &mut Vec<FR::E>, val: u32, fr: &FR) {

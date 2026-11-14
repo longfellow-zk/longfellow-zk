@@ -6,7 +6,7 @@
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{
                 joint::Participants as BackendParticipants, JointPolygeroParam, Participant,

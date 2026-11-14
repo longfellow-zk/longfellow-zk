@@ -5,7 +5,11 @@ use super::{
     PolygeroError, PolygeroParam,
 };
 use crate::runtime::{
-    algebra::{blas, EvaluationDomain, InterpolationPlan, RuntimeField},
+    algebra::{
+        blas,
+        range_interpolation::{EvaluationDomain, InterpolationPlan},
+        RuntimeField,
+    },
     random::PrivateRandom,
     v2::{
         proto::Digest,

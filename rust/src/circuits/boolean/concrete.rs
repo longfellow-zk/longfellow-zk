@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::field::RuntimeField;
+use crate::runtime::algebra::RuntimeField;
 
 pub fn push_bool<const W: usize, FR: RuntimeField<W>>(fr: &FR, value: bool, dest: &mut Vec<FR::E>) {
     dest.push(if value { fr.one() } else { fr.zero() });

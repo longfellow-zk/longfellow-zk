@@ -18,15 +18,11 @@ use crate::{
         logic::{Logic, LogicIO},
     },
     core::{
-        algebra::SerializableField,
+        algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
         proto::v2::{Circuit, CircuitReader, CircuitWriter},
     },
     runtime::{
-        algebra::{
-            field::{RuntimeField, SupportsU64Conversions},
-            p256::P256Field as RuntimeP256,
-            AlgebraicField,
-        },
+        algebra::{p256::P256Field as RuntimeP256, RuntimeField},
         v2::{
             sumcheck::{eval_circuit, prove, tests::diagnostic::verify, RoundPoly, SumcheckProof},
             transcript::Transcript,

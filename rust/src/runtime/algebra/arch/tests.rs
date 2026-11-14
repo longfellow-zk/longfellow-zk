@@ -186,7 +186,7 @@ fn conditional_moves() {
                 super::cmovnz(&mut result, x, &replacement);
                 assert_eq!(result, if x != 0 { replacement } else { original });
                 result = original;
-                super::cmovzn(&mut result, x, &replacement);
+                super::cmovnz(&mut result, x, &replacement);
                 assert_eq!(result, if x != 0 { replacement } else { original });
             }
         }

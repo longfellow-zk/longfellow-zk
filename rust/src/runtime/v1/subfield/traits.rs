@@ -32,7 +32,7 @@ pub trait SubfieldV1 {
 
 /// V1-only compact-row interpolation; ordinary plans do not require this capability.
 pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>:
-    crate::runtime::algebra::InterpolationPlan<W, F>
+    crate::runtime::algebra::range_interpolation::InterpolationPlan<W, F>
 {
     /// A public layout hint that all source values belong to `subfield`.
     /// The default implementation works without subfield specialization.

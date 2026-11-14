@@ -15,22 +15,17 @@
 //! Runtime arithmetic, compact serialization and sampling in the sextic field.
 //! This module has no compiler or circuit dependencies.
 
-pub use crate::core::algebra::{
-    fp24::{BASE_SERIALIZED_SIZE, Q},
-    fp24_ext6::{BETA, EXTENSION_DEGREE, SERIALIZED_SIZE},
-};
 use crate::{
     core::algebra::{
-        fp24::invert_base,
+        fp24::{invert_base, Q},
         fp24_ext6::{
             add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
+            BETA, EXTENSION_DEGREE, SERIALIZED_SIZE,
         },
         AlgebraicField, BareField, Nat, SerializableField, SupportsU64Conversions,
     },
     runtime::algebra::{
-        field::{RuntimeSerializableField, SupportsSampling},
-        poly::InterpolationField,
-        RuntimeField, RuntimeNat,
+        InterpolationField, RuntimeField, RuntimeNat, RuntimeSerializableField, SupportsSampling,
     },
 };
 

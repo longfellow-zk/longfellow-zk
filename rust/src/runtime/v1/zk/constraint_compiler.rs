@@ -19,12 +19,15 @@
 //! inputs contribute to b, while private inputs contribute columns of A. Logical
 //! pad indices are resolved through the same layout used to build the commitment.
 //! A separate product constraint enforces each committed pad product x*y=z.
-use crate::runtime::{
-    algebra::{ElementOf, RuntimeField},
-    v1::{
-        ligero::param::{LigeroLinearConstraint, LigeroQuadraticConstraint},
-        proto::sumcheck::{CircuitPadLayout, SumcheckProofGeometry},
-        sumcheck::symbolic::{Pad, PadExpression, VerificationRelations},
+use crate::{
+    core::algebra::ElementOf,
+    runtime::{
+        algebra::RuntimeField,
+        v1::{
+            ligero::param::{LigeroLinearConstraint, LigeroQuadraticConstraint},
+            proto::sumcheck::{CircuitPadLayout, SumcheckProofGeometry},
+            sumcheck::symbolic::{Pad, PadExpression, VerificationRelations},
+        },
     },
 };
 

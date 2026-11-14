@@ -87,7 +87,7 @@
 
 use std::fmt;
 
-use crate::runtime::algebra::{field::RuntimeField, RangeInterpolatorFactory};
+use crate::runtime::algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField};
 pub use crate::runtime::v1::proto::ligero::{LigeroCommitment, LigeroGeometry};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

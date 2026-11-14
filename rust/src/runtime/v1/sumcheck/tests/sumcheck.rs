@@ -18,15 +18,11 @@ use crate::{
         logic::{Logic, LogicIO},
     },
     core::{
-        algebra::{FieldID, SerializableField},
+        algebra::{AlgebraicField, FieldID, SerializableField, SupportsU64Conversions},
         proto::v1::{Circuit, CircuitReader, CircuitWriter},
     },
     runtime::{
-        algebra::{
-            field::{RuntimeField, SupportsU64Conversions},
-            p256::P256Field as RuntimeP256,
-            AlgebraicField,
-        },
+        algebra::{p256::P256Field as RuntimeP256, RuntimeField},
         random::RandomEngine,
         v1::{
             sumcheck::{

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::field::RuntimeField;
+use crate::runtime::algebra::RuntimeField;
 
 /// SUM_{i} x[i] * y[i]
 pub fn dot<const W: usize, F: RuntimeField<W>>(x: &[F::E], y: &[F::E], f: &F) -> F::E {

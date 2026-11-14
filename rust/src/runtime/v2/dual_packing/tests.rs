@@ -600,7 +600,7 @@ fn sextic_prime_extension() {
 fn authenticate<
     const W: usize,
     X: PackingExtension,
-    D: crate::runtime::algebra::EvaluationDomain<W, X::Ambient>,
+    D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, X::Ambient>,
 >(
     p: &PackingParameters<X>,
     domain: &D,
@@ -752,7 +752,7 @@ fn generic_equations_authenticate_against_the_original_polygero_commitment() {
 }
 #[test]
 fn sparse_prime_codec_samples_uniformly_without_padding_grinding() {
-    use crate::runtime::algebra::{fp_generic::FpGenericField, LIMBS_PER_U64};
+    use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};
     struct NonCloneBrand;
     type SmallPrime =
         FpGenericField<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }, NonCloneBrand>;

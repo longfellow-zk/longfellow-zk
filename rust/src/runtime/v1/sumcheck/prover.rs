@@ -29,7 +29,7 @@
 use crate::{
     core::algebra::ElementOf,
     runtime::{
-        algebra::{poly::InterpolationField, SupportsSampling},
+        algebra::{InterpolationField, SupportsSampling},
         random::RandomEngine,
         v1::{
             sumcheck::{

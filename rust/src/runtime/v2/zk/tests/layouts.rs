@@ -14,13 +14,12 @@
 
 use crate::{
     core::{
-        algebra::SerializableField,
+        algebra::{AlgebraicField, SerializableField},
         proto::v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
     },
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
-            RuntimeField,
+            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
         random::{PrivateRandom, RandomEngine},
         v2::{

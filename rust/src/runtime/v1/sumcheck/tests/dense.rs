@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::{
-    algebra::{field::SupportsU64Conversions, p256::P256Field, AlgebraicField, ElementOf},
-    v1::sumcheck::{as_scalar, normalize},
+use crate::{
+    core::algebra::{AlgebraicField, ElementOf, SupportsU64Conversions},
+    runtime::{
+        algebra::p256::P256Field,
+        v1::sumcheck::{as_scalar, normalize},
+    },
 };
 
 #[test]

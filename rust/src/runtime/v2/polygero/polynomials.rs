@@ -24,7 +24,8 @@
 //! API. The verifier uses these same functions and gathers its queried columns.
 use super::PolygeroGeometry;
 use crate::runtime::algebra::{
-    range_interpolation::interpolate_range, RangeInterpolatorFactory, RuntimeField,
+    range_interpolation::{interpolate_range, RangeInterpolatorFactory},
+    RuntimeField,
 };
 
 /// Evaluate V, the monic polynomial vanishing on all K logical points, on the oracle.

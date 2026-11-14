@@ -28,7 +28,7 @@ use super::{ensure, PolygeroConfig, PolygeroError, PolygeroGeometry};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField},
         v2::proto::Digest,
     },
 };

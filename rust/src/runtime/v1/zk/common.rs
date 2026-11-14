@@ -15,7 +15,7 @@
 //! Field and interpolation context shared by the two v1 protocol roles.
 
 use crate::runtime::{
-    algebra::{RangeInterpolatorFactory, ZkField},
+    algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
     v1::proto::Digest,
 };
 

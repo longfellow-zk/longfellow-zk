@@ -25,7 +25,7 @@ use super::{
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{blas, PackingField, ZkField},
+        algebra::{blas, packing::PackingField, ZkField},
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
             proto::Digest,

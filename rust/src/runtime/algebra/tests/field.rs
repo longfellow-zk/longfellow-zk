@@ -14,8 +14,8 @@
 
 //! Generic runtime field operations, checked independently of protocol code.
 use crate::{
-    core::algebra::{SerializableField, SupportsU128Conversions},
-    runtime::algebra::{AlgebraicField, RuntimeField},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
+    runtime::algebra::RuntimeField,
 };
 
 fn check_constant_encoding<F: AlgebraicField + SerializableField>(field: &F) {

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{
-    fft::fftb,
-    field::SupportsU64Conversions,
-    fp2::{Fp2Element, Fp2Field},
-    p256::P256Field,
-    rfft::{hc2r, r2hc},
-    AlgebraicField, SupportsFFT,
+use crate::{
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    runtime::algebra::{
+        fft::fftb,
+        fp2::{Fp2Element, Fp2Field},
+        p256::P256Field,
+        rfft::{hc2r, r2hc},
+        SupportsFFT,
+    },
 };
 
 #[test]

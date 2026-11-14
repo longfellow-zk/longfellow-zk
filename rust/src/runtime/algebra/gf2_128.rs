@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::runtime::algebra::arch::{
-    gf2_128_accum_reduce as arch_accum_reduce, gf2_128_mac as arch_mac, gf2_128_mul as arch_mul,
-    Gf2_128, Gf2_128Accum,
+pub use crate::runtime::algebra::arch::{Gf2_128, Gf2_128Accum};
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{
+        arch::{
+            gf2_128_accum_reduce as arch_accum_reduce, gf2_128_mac as arch_mac,
+            gf2_128_mul as arch_mul,
+        },
+        RuntimeBinaryField, RuntimeField,
+    },
 };
-use crate::runtime::algebra::field::{AlgebraicField, RuntimeBinaryField, RuntimeField};
 
 impl Gf2_128 {
     #[inline(always)]
@@ -208,7 +214,7 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 }
 
-impl crate::runtime::algebra::field::SupportsSampling for Gf2_128Field {
+impl crate::runtime::algebra::SupportsSampling for Gf2_128Field {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let buf = rng(16);
         assert_eq!(
@@ -223,7 +229,7 @@ impl crate::runtime::algebra::field::SupportsSampling for Gf2_128Field {
 
 impl RuntimeBinaryField<2> for Gf2_128Field {}
 
-impl crate::runtime::algebra::poly::InterpolationField<2> for Gf2_128Field {
+impl crate::runtime::algebra::InterpolationField<2> for Gf2_128Field {
     #[inline(always)]
     fn poly_evaluation_point(&self, i: usize) -> Self::E {
         self.poly_evaluation_points[i]
@@ -272,7 +278,7 @@ impl crate::core::algebra::SerializableField for Gf2_128Field {
     }
 }
 
-impl crate::runtime::algebra::field::RuntimeSerializableField<2> for Gf2_128Field {
+impl crate::runtime::algebra::RuntimeSerializableField<2> for Gf2_128Field {
     #[inline(always)]
     fn to_words64(&self, e: &Self::E) -> [u64; 2] {
         let val = e.to_u128();

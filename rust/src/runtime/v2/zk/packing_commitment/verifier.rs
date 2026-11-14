@@ -1,7 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
-    algebra::{PackingExtension, PackingField, ZkField},
+    algebra::{
+        packing::{PackingExtension, PackingField},
+        ZkField,
+    },
     v2::{
         dual_packing::generic::PackingProof, polygero::LinearStatement, transcript::TranscriptRef,
     },

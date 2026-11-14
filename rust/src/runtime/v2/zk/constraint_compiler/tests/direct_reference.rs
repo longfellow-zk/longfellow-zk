@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Reference for the untransformed degree-one input equation.
 use super::super::*;
-use crate::runtime::algebra::ElementOf;
+use crate::core::algebra::ElementOf;
 /// Emit one equation per circuit layer and one final input equation, in that order.
 /// Preserve all terms, including zero coefficients; repeated terms remain additive.
 /// Equations and their constants remain even when every variable coefficient vanishes.

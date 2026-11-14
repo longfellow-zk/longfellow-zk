@@ -7,7 +7,10 @@ use super::{
     storage::{Group, Run, StorageMap},
 };
 use crate::runtime::{
-    algebra::{PackingExtension, PackingField, ZkField},
+    algebra::{
+        packing::{PackingExtension, PackingField},
+        ZkField,
+    },
     v2::transcript::TranscriptRef,
 };
 

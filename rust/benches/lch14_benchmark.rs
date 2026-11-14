@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128RuntimeField, lch14::Lch14, AlgebraicField};
+use longfellow_zk::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{gf2_128::Gf2_128RuntimeField, lch14::Lch14},
+};
 
 fn bench_lch14(c: &mut Criterion) {
     let gf2 = Gf2_128RuntimeField::new();

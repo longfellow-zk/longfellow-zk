@@ -14,12 +14,9 @@
 
 use super::*;
 use crate::{
-    core::algebra::{AlgebraicField, SupportsU128Conversions},
+    core::algebra::{AlgebraicField, SupportsU128Conversions, SupportsU64Conversions},
     runtime::{
-        algebra::{
-            field::SupportsU64Conversions, gf2_128::Gf2_128Field, p256::P256Field,
-            InterpolationField,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, InterpolationField},
         v1::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
             sumcheck::{LagrangeBasis, LayerVerifierData, Poly, RoundCoefficients, VerifierData},

@@ -23,7 +23,7 @@ use crate::runtime::random::RandomEngine;
 /// Generates a new random sumcheck proof pad for the given geometry.
 pub fn sample<
     const W: usize,
-    F: crate::runtime::algebra::poly::InterpolationField<W>
+    F: crate::runtime::algebra::InterpolationField<W>
         + crate::core::algebra::SerializableField
         + crate::runtime::algebra::SupportsSampling,
     R: RandomEngine,

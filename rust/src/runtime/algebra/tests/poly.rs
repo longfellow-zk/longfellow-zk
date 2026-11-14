@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{
-    field::{AlgebraicField, SupportsU64Conversions},
-    gf2_128::Gf2_128RuntimeField,
-    p256::P256Field,
-    poly::{InterpolationField, LagrangeBasis, Poly},
+use crate::{
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    runtime::algebra::{
+        gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
+    },
 };
 
 #[test]

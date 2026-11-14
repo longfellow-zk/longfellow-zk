@@ -21,7 +21,7 @@ use crate::{
         logic::K_FIRST_WIRE_POSITION,
     },
     core::algebra::{ec::Curve, Nat, SerializableField, SupportsNatConversions},
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
@@ -146,7 +146,7 @@ fn test_compile_ecdsa() {
     let curve_c = Secp256r1::new(&fc);
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let curve_r = crate::runtime::algebra::secp256r1::Secp256r1::new(&fr);
-    let fn_field = crate::runtime::algebra::Q256Field::new();
+    let fn_field = crate::runtime::algebra::q256::Q256Field::new();
     test_compile_ecdsa_generic::<4, _, _, _, _, _>(&curve_c, &fc, &curve_r, &fr, &fn_field);
 }
 
@@ -236,7 +236,7 @@ fn test_compile_ecdsa_signature_tampering() {
     let curve_c = Secp256r1::new(&fc);
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let curve_r = crate::runtime::algebra::secp256r1::Secp256r1::new(&fr);
-    let fn_field = crate::runtime::algebra::Q256Field::new();
+    let fn_field = crate::runtime::algebra::q256::Q256Field::new();
     test_compile_ecdsa_signature_tampering_generic::<4, _, _, _, _, _>(
         &curve_c, &fc, &curve_r, &fr, &fn_field,
     );

@@ -12,12 +12,14 @@ use crate::core::algebra::{SerializableField, SupportsU64Conversions};
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::runtime::algebra::{
-    fft::*,
-    field::RuntimeField,
-    fp2::{Fp2Element, Fp2Field},
-    p256::P256Field,
-    AlgebraicField,
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{
+        fft::*,
+        fp2::{Fp2Element, Fp2Field},
+        p256::P256Field,
+        RuntimeField,
+    },
 };
 
 fn get_test_field_and_omega(

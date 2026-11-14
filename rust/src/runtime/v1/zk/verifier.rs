@@ -22,13 +22,16 @@
 
 use core::fmt;
 
-use crate::runtime::{
-    algebra::{ElementOf, RangeInterpolatorFactory, ZkField},
-    v1::{
-        ligero::param::{LigeroConfig, LigeroParam},
-        sumcheck::TranscriptSumcheck,
-        transcript::Transcript,
-        zk::{common::ZkContext, ZkProof},
+use crate::{
+    core::algebra::ElementOf,
+    runtime::{
+        algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
+        v1::{
+            ligero::param::{LigeroConfig, LigeroParam},
+            sumcheck::TranscriptSumcheck,
+            transcript::Transcript,
+            zk::{common::ZkContext, ZkProof},
+        },
     },
 };
 

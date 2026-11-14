@@ -17,7 +17,8 @@ use super::{ZkContext, ZkProof, ZkProver, ZkVerifier};
 #[test]
 fn context_uses_its_domains_runtime_modulus() {
     use crate::runtime::algebra::{
-        fp_generic::FpGenericField, range_interpolation::ScalarInterpolatorFactory, LIMBS_PER_U64,
+        fp_generic::FpGenericField, limb::LIMBS_PER_U64,
+        range_interpolation::ScalarInterpolatorFactory,
     };
     type Prime = FpGenericField<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }>;
     let f17 = Prime::new_generic([17]);
@@ -35,7 +36,10 @@ use crate::{
         proto::v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
     },
     runtime::{
-        algebra::{EvaluationDomain, RangeInterpolatorFactory, RuntimeField, ZkField},
+        algebra::{
+            range_interpolation::{EvaluationDomain, RangeInterpolatorFactory},
+            RuntimeField, ZkField,
+        },
         random::DeterministicRng,
         v2::{polygero::PolygeroConfig, transcript::Transcript},
     },
@@ -125,7 +129,7 @@ fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
 }
 pub(crate) fn exercise<
     const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::PackingField,
+    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,
@@ -142,7 +146,7 @@ pub(crate) fn exercise<
         limit: config.k + config.n,
     };
     let context = ZkContext::new(&bounded);
-    use crate::runtime::algebra::{AlgebraicField, PackingExtension};
+    use crate::{core::algebra::AlgebraicField, runtime::algebra::packing::PackingExtension};
     let extension = f.packing_extension();
     let base = extension.base();
     let public = vec![base.one()];
@@ -370,7 +374,7 @@ fn extension_zk_comparison() {
     let f = RuntimeFp24Ext6::new();
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
-    use crate::runtime::algebra::{PackingExtension, PackingField};
+    use crate::runtime::algebra::packing::{PackingExtension, PackingField};
     let geometry = crate::runtime::v2::sumcheck::circuit_geometry(&[&c]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         c.raw.ninput - c.raw.npublic_input,

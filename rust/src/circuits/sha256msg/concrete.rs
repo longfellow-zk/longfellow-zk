@@ -133,7 +133,7 @@ pub fn derived(given: &ConcreteGiven, max_blocks: usize) -> ConcreteDerived {
 
 cfg_testonly! {
     impl ConcreteGiven {
-        pub fn push_elements<const W: usize, FR: crate::runtime::algebra::field::RuntimeField<W>>(
+        pub fn push_elements<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
             max_blocks: usize,
@@ -170,7 +170,7 @@ cfg_testonly! {
     }
 
     impl ConcreteDerived {
-        pub fn push_derived<const W: usize, FR: crate::runtime::algebra::field::RuntimeField<W>>(
+        pub fn push_derived<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
             mut push: impl FnMut(FR::E),
@@ -180,7 +180,7 @@ cfg_testonly! {
             }
         }
 
-        pub fn push_elements<const W: usize, FR: crate::runtime::algebra::field::RuntimeField<W>>(
+        pub fn push_elements<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
             push: impl FnMut(FR::E),

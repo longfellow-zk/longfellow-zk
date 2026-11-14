@@ -21,18 +21,21 @@
 //!
 //! `verify` and `verify_core` are numerical checks for callers that possess the
 //! complete inputs and pads. They evaluate those same constraints directly.
-use crate::runtime::{
-    algebra::{ElementOf, InterpolationField, SupportsSampling},
-    random::RandomEngine,
-    v1::{
-        sumcheck::{
-            hquad::HQuad,
-            proof::{SumcheckProof, SumcheckProofGeometry},
-            round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
-            transcript::TranscriptSumcheck,
-            LagrangeBasis,
+use crate::{
+    core::algebra::ElementOf,
+    runtime::{
+        algebra::{InterpolationField, SupportsSampling},
+        random::RandomEngine,
+        v1::{
+            sumcheck::{
+                hquad::HQuad,
+                proof::{SumcheckProof, SumcheckProofGeometry},
+                round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
+                transcript::TranscriptSumcheck,
+                LagrangeBasis,
+            },
+            transcript::Transcript,
         },
-        transcript::Transcript,
     },
 };
 

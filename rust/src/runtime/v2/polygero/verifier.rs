@@ -7,7 +7,8 @@ use super::{
 };
 use crate::runtime::{
     algebra::{
-        blas, range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
+        blas,
+        range_interpolation::{interpolate_range, EvaluationDomain, InterpolationPlan},
         RuntimeField,
     },
     v2::{

@@ -221,7 +221,6 @@ pub fn cmovnz<const N: usize>(
 ) {
     cmovne(a, nz, 0, b);
 }
-pub use cmovnz as cmovzn;
 
 #[inline(always)]
 pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {

@@ -125,7 +125,7 @@ fn zero_signature_is_a_witness_error() {
     let mut zero_signature =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let q = crate::runtime::algebra::Q256Field::new();
+    let q = crate::runtime::algebra::q256::Q256Field::new();
     let curve = crate::runtime::algebra::secp256r1::Secp256r1::new(&f);
     zero_signature.issuer_sig_s = RuntimeNat::<4>::from_u64(0);
     assert!(super::push_witness_sig(&f, &q, &curve, &(f.one(), f.one()), &zero_signature).is_err());

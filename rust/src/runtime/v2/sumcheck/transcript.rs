@@ -24,9 +24,12 @@
 
 use super::{circuit::CircuitSource, fragments::SplitFragment};
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
-        algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
+        algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             proto::RoundLabel,
             sumcheck::RoundPoly,

@@ -15,9 +15,12 @@
 use crate::{
     core::algebra::SupportsU64Conversions,
     runtime::algebra::{
-        fp2::Fp2Field, p256::P256Field,
-        range_interpolation::QuadraticExtensionFftInterpolatorFactory, InterpolationPlan,
-        RangeInterpolatorFactory, SupportsFFT,
+        fp2::Fp2Field,
+        p256::P256Field,
+        range_interpolation::{
+            InterpolationPlan, QuadraticExtensionFftInterpolatorFactory, RangeInterpolatorFactory,
+        },
+        SupportsFFT,
     },
 };
 

@@ -171,7 +171,7 @@ fn large_reads_extend_the_same_prf_stream() {
 fn field_rejection_keeps_one_round_and_preserves_the_prf_cursor() {
     use crate::{
         core::algebra::SupportsU64Conversions,
-        runtime::algebra::{fp_generic::FpGenericField, LIMBS_PER_U64},
+        runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64},
     };
     let f = FpGenericField::<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }, ()>::new_generic([17]);
     for seed in 0u8..64 {

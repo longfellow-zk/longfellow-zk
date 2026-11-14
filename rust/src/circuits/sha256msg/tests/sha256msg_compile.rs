@@ -25,7 +25,7 @@ use crate::{
         compiler::CompilerLogic,
     },
     core::algebra::SerializableField,
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 fn test_compile_sha256msg_for_field<

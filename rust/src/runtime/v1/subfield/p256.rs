@@ -41,6 +41,6 @@ impl SubfieldV1 for P256SubfieldV1<'_> {
     }
 
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E {
-        crate::runtime::algebra::field::SupportsSampling::sample(self.field, rng)
+        crate::runtime::algebra::SupportsSampling::sample(self.field, rng)
     }
 }

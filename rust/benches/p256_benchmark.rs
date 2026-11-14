@@ -24,10 +24,10 @@ use longfellow_zk::{
 
 #[no_mangle]
 pub extern "C" fn inspect_p256_montgomery_mul(
-    a: &mut [Limb; 4 * longfellow_zk::runtime::algebra::LIMBS_PER_U64],
-    b: &[Limb; 4 * longfellow_zk::runtime::algebra::LIMBS_PER_U64],
-    modulo: &[Limb; 4 * longfellow_zk::runtime::algebra::LIMBS_PER_U64],
-    negm: &[Limb; 4 * longfellow_zk::runtime::algebra::LIMBS_PER_U64],
+    a: &mut [Limb; 4 * longfellow_zk::runtime::algebra::limb::LIMBS_PER_U64],
+    b: &[Limb; 4 * longfellow_zk::runtime::algebra::limb::LIMBS_PER_U64],
+    modulo: &[Limb; 4 * longfellow_zk::runtime::algebra::limb::LIMBS_PER_U64],
+    negm: &[Limb; 4 * longfellow_zk::runtime::algebra::limb::LIMBS_PER_U64],
     m_prime: Limb,
 ) {
     P256Strategy::montgomery_mul(a, b, modulo, negm, m_prime);

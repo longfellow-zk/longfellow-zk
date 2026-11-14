@@ -24,7 +24,7 @@ impl crate::runtime::v2::proto::polygero::PolygeroConfig {
     pub fn can_interpolate<
         const W: usize,
         F: crate::runtime::algebra::RuntimeField<W>,
-        D: crate::runtime::algebra::RangeInterpolatorFactory<W, F>,
+        D: crate::runtime::algebra::range_interpolation::RangeInterpolatorFactory<W, F>,
     >(
         &self,
         domain: &D,

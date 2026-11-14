@@ -12,7 +12,7 @@ pub use crate::runtime::v2::proto::witness_selection::{FingerprintResponse, FING
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{Participant, PolygeroLinearTerm},
             transcript::{Reading, Writing},

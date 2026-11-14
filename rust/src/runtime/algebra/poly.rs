@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::algebra::SerializableField, runtime::algebra::field::RuntimeField};
+use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
 
 pub trait InterpolationField<const W: usize>: RuntimeField<W> + SerializableField {
     fn poly_evaluation_point(&self, i: usize) -> Self::E;

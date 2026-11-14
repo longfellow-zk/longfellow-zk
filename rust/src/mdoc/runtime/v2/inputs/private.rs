@@ -33,7 +33,7 @@ use crate::{
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
         },
     },
-    runtime::algebra::{field::RuntimeField, p256::P256Element},
+    runtime::algebra::{p256::P256Element, RuntimeField},
 };
 
 pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(

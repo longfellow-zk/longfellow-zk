@@ -16,7 +16,7 @@
 
 use crate::{
     core::algebra::{AlgebraicField, Nat, SerializableField, SupportsU128Conversions},
-    runtime::algebra::{field::RuntimeSerializableField, gf2_128::Gf2_128Field},
+    runtime::algebra::{gf2_128::Gf2_128Field, RuntimeSerializableField},
 };
 
 pub(super) fn generate_mac_ap<RNG: crate::runtime::random::RandomEngine + ?Sized>(

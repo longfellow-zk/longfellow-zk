@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use longfellow_zk::{
-    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    core::algebra::{fp24::Q, AlgebraicField, SupportsU64Conversions},
     runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, Q},
-        InterpolationPlan, RangeInterpolatorFactory,
+        fp24_ext6::RuntimeFp24Ext6,
+        range_interpolation::{InterpolationPlan, RangeInterpolatorFactory},
     },
 };
 

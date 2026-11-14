@@ -17,7 +17,7 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 use super::mso_attribute_corruptors;
 use crate::{
     compile::algebra::gf2_128::Gf2_128Field, mdoc::circuits::mso_attribute::AttributeVerifier,
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 pub(super) fn compile_attribute_circuit<const W: usize, FC>(

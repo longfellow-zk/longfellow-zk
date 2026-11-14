@@ -14,7 +14,7 @@
 
 use crate::{
     core::algebra::{ec::Curve, ElementOf},
-    runtime::algebra::field::RuntimeSerializableField,
+    runtime::algebra::RuntimeSerializableField,
 };
 
 const SECP256R1_A: [u64; 4] = [

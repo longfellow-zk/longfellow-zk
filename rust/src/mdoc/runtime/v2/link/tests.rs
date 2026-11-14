@@ -12,7 +12,7 @@ fn shared_positions_match_signature_inputs() {
             proto::layout::SHARED_BITS,
             runtime::v2::{inputs, req_attr},
         },
-        runtime::algebra::{secp256r1::Secp256r1, Q256Field, RuntimeNat},
+        runtime::algebra::{q256::Q256Field, secp256r1::Secp256r1, RuntimeNat},
     };
     let f = P256Field::new();
     let q = Q256Field::new();

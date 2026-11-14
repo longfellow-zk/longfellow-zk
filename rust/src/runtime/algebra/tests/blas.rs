@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{blas::*, field::SupportsU64Conversions, p256::P256Field};
+use crate::{
+    core::algebra::SupportsU64Conversions,
+    runtime::algebra::{blas::*, p256::P256Field},
+};
 
 #[test]
 fn test_blas_subroutines() {

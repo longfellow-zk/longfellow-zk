@@ -20,18 +20,22 @@ use core::arch::asm;
 #[cfg(feature = "arm-neon")]
 mod neon;
 #[cfg(feature = "arm-neon")]
-pub use neon::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul, Gf2_128, Gf2_128Accum};
+pub(crate) use neon::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul};
+#[cfg(feature = "arm-neon")]
+pub use neon::{Gf2_128, Gf2_128Accum};
 
 #[cfg(not(feature = "arm-neon"))]
 #[path = "generic.rs"]
 mod scalar;
 #[cfg(not(feature = "arm-neon"))]
-pub use scalar::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul, Gf2_128, Gf2_128Accum};
+pub(crate) use scalar::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul};
+#[cfg(not(feature = "arm-neon"))]
+pub use scalar::{Gf2_128, Gf2_128Accum};
 
 /// Register-only conditional selection keeps LLVM from introducing a
 /// conditional branch around the modular-reduction result.
 #[inline(always)]
-pub fn cmovne<const N: usize>(
+pub(crate) fn cmovne<const N: usize>(
     a: &mut [crate::runtime::algebra::limb::Limb; N],
     x: crate::runtime::algebra::limb::Limb,
     y: crate::runtime::algebra::limb::Limb,
@@ -60,18 +64,17 @@ pub fn cmovne<const N: usize>(
 }
 
 #[inline(always)]
-pub fn cmovnz<const N: usize>(
+pub(crate) fn cmovnz<const N: usize>(
     a: &mut [crate::runtime::algebra::limb::Limb; N],
     nz: crate::runtime::algebra::limb::Limb,
     b: &[crate::runtime::algebra::limb::Limb; N],
 ) {
     cmovne(a, nz, 0, b);
 }
-pub use cmovnz as cmovzn;
 
 /// Keep zero opaque to LLVM so carry propagation can use ADC chains.
 #[inline(always)]
-pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
+pub(crate) fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
     let mut zero = 0u32;
     // SAFETY: this empty identity operation preserves the value and flags,
     // has no memory effects, and prevents folding the input into a constant.

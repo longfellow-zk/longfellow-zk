@@ -28,10 +28,11 @@ use longfellow_zk::{
             p256::P256Field,
             q256::Q256Field,
             range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+                BinaryInterpolatorFactory, InterpolationPlan,
+                QuadraticExtensionFftInterpolatorFactory, RangeInterpolatorFactory,
                 ScalarInterpolatorFactory,
             },
-            InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsFFT,
+            RuntimeField, SupportsFFT,
         },
         v1::subfield::BinarySubfieldV1,
     },

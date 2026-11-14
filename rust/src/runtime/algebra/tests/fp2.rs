@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{
-    field::SupportsU64Conversions,
-    fp2::{Fp2Element, Fp2Field},
-    p256::P256Field,
-    AlgebraicField,
+use crate::{
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    runtime::algebra::{
+        fp2::{Fp2Element, Fp2Field},
+        p256::P256Field,
+    },
 };
 
 #[test]
@@ -30,7 +31,7 @@ fn fp2_has_no_sampling_or_packing_capability() {
         fn check() {}
     }
     impl<T: ?Sized> AmbiguousPacking<()> for T {}
-    impl<T: crate::runtime::algebra::PackingField> AmbiguousPacking<u8> for T {}
+    impl<T: crate::runtime::algebra::packing::PackingField> AmbiguousPacking<u8> for T {}
     // Either added capability would make its inferred marker ambiguous.
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousSampling<_>>::check;
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousPacking<_>>::check;

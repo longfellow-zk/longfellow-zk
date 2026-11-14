@@ -55,7 +55,7 @@ pub fn shr_1<const N: usize>(a: &[Limb; N]) -> [Limb; N] {
     let mut res = [0 as Limb; N];
     let mut carry = 0;
     for i in (0..N).rev() {
-        let new_carry = a[i] << (crate::runtime::algebra::LIMB_BITS - 1);
+        let new_carry = a[i] << (crate::runtime::algebra::limb::LIMB_BITS - 1);
         res[i] = (a[i] >> 1) | carry;
         carry = new_carry;
     }
@@ -178,7 +178,6 @@ pub fn maybe_plus_m<const N: usize>(a: &mut [Limb; N], ah: Limb, modulo: &[Limb;
     let _ = add_limb(&mut a1, modulo);
     crate::runtime::algebra::arch::cmovnz(a, ah, &a1);
 }
-pub use crate::runtime::algebra::arch::cmovnz as cmovzn;
 
 /// Abstract the pattern of adding b to a and reducing modulo (accum + `maybe_minus_m`).
 #[inline(always)]

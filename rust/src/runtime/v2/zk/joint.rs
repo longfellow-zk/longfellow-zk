@@ -9,7 +9,11 @@ pub use crate::runtime::v2::proto::zk::CircuitProof;
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
+        algebra::{
+            packing::{PackingExtension, PackingField},
+            range_interpolation::EvaluationDomain,
+            ZkField,
+        },
         v2::{
             polygero::{PolygeroConfig, PolygeroParam},
             proto::{polygero::PolygeroGeometry, Digest},

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::runtime::algebra::{
-    field::{RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension},
     fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
+    RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -23,15 +23,16 @@ pub struct P256Tag;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct P256Strategy;
 
-pub type P256Element = FpGenericElement<{ 4 * crate::runtime::algebra::LIMBS_PER_U64 }, P256Tag>;
+pub type P256Element =
+    FpGenericElement<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }, P256Tag>;
 pub type P256Field = FpGenericField<
     4,
-    { 4 * crate::runtime::algebra::LIMBS_PER_U64 },
-    { 9 * crate::runtime::algebra::LIMBS_PER_U64 },
+    { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+    { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
     P256Tag,
     P256Strategy,
 >;
-pub type P256Accum = FpGenericAccum<{ 9 * crate::runtime::algebra::LIMBS_PER_U64 }>;
+pub type P256Accum = FpGenericAccum<{ 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 }>;
 
 pub(in crate::runtime::algebra) const P256_MODULUS: [u64; 4] = [
     0xffffffffffffffff,

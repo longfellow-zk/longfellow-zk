@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::{
-    algebra::{field::SupportsU64Conversions, p256::P256Field},
-    v2::sumcheck::{bind, dense::as_scalar},
+use crate::{
+    core::algebra::SupportsU64Conversions,
+    runtime::{
+        algebra::p256::P256Field,
+        v2::sumcheck::{bind, dense::as_scalar},
+    },
 };
 
 fn check_binding<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>(

@@ -13,9 +13,15 @@ use std::cell::Cell;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::runtime::algebra::{
-    gf2_128::Gf2_128RuntimeField, range_interpolation::BinaryInterpolatorFactory, ElementOf,
-    InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsSampling,
+use crate::{
+    core::algebra::ElementOf,
+    runtime::algebra::{
+        gf2_128::Gf2_128RuntimeField,
+        range_interpolation::{
+            BinaryInterpolatorFactory, InterpolationPlan, RangeInterpolatorFactory,
+        },
+        RuntimeField, SupportsSampling,
+    },
 };
 use crate::{
     core::algebra::SerializableField,
@@ -655,8 +661,7 @@ fn test_ligero_sextic_subfield_matches_full_field_reference() {
         runtime::{
             algebra::{
                 fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
-                range_interpolation::CrtInterpolatorFactory,
-                RangeInterpolatorFactory,
+                range_interpolation::{CrtInterpolatorFactory, RangeInterpolatorFactory},
             },
             v1::subfield::RuntimeFp24SubfieldV1,
         },

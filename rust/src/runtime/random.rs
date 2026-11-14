@@ -17,11 +17,11 @@ mod engine;
 pub use engine::{PrivateRandom, RandomEngine};
 
 #[cfg(feature = "prover")]
-pub mod secure;
+mod secure;
 #[cfg(feature = "prover")]
 pub use secure::SecureRandomEngine;
 
 cfg_testonly! {
-    pub mod deterministic;
+    mod deterministic;
     pub use deterministic::DeterministicRng;
 }

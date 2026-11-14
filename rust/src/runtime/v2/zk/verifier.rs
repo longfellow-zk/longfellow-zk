@@ -5,7 +5,11 @@ use core::fmt;
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{EvaluationDomain, PackingExtension, PackingField, ZkField},
+        algebra::{
+            packing::{PackingExtension, PackingField},
+            range_interpolation::EvaluationDomain,
+            ZkField,
+        },
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             proto::Digest,

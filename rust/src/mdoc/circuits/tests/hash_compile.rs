@@ -23,7 +23,7 @@ use crate::{
         },
         parse_test_data, MdocHashCompileField,
     },
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(

@@ -151,7 +151,7 @@ impl ConcreteDerived {
 
 cfg_testonly! {
     impl ConcreteDerived {
-        pub fn push_derived<const W: usize, FR: crate::runtime::algebra::field::RuntimeField<W>>(
+        pub fn push_derived<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
             mut push: impl FnMut(FR::E),

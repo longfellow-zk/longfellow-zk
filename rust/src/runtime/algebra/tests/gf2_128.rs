@@ -16,7 +16,7 @@ use crate::{
     compile::algebra::gf2_128::Gf2_128Field as UnoptField,
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
     runtime::{
-        algebra::{gf2_128::*, poly::InterpolationField, SupportsSampling},
+        algebra::{gf2_128::*, InterpolationField, SupportsSampling},
         v1::subfield::SubfieldV1,
     },
 };

@@ -135,9 +135,12 @@
 // The merging steps are also implemented in-place.
 // ------------------------------------------------------------
 
-use crate::runtime::algebra::{
-    field::{AlgebraicField, SupportsQuadraticExtension},
-    fp2::{Fp2Element, Fp2Field},
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::{
+        fp2::{Fp2Element, Fp2Field},
+        SupportsQuadraticExtension,
+    },
 };
 
 pub struct Twiddle<const W: usize, F: SupportsQuadraticExtension<W>> {

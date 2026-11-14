@@ -15,8 +15,10 @@
 use crate::{
     core::algebra::AlgebraicField,
     runtime::algebra::{
-        fp24_ext6::RuntimeFp24Ext6, range_interpolation::CrtInterpolatorFactory, InterpolationPlan,
-        RangeInterpolatorFactory,
+        fp24_ext6::RuntimeFp24Ext6,
+        range_interpolation::{
+            CrtInterpolatorFactory, InterpolationPlan, RangeInterpolatorFactory,
+        },
     },
 };
 

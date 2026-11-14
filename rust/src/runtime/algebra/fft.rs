@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{field::RuntimeField, permutations};
+use crate::runtime::algebra::{permutations, RuntimeField};
 
 pub(in crate::runtime::algebra) fn assert_valid_orders(transform_order: u64, root_order: u64) {
     assert!(

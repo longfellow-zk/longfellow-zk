@@ -17,7 +17,7 @@ use crate::{
         algebra::ElementOf,
         proto::v2::{classify_constants, Circuit, CoefficientClass, Layer},
     },
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 #[derive(Debug, PartialEq, Eq)]

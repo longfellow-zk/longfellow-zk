@@ -139,7 +139,7 @@ impl<
     }
 }
 
-impl<const W: usize, F> crate::runtime::algebra::EvaluationDomain<W, F>
+impl<const W: usize, F> crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>
     for ScalarInterpolatorFactory<'_, W, F>
 where F: crate::runtime::algebra::RuntimeField<W>
         + crate::core::algebra::SerializableField

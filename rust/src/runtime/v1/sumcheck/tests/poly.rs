@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::{
-    algebra::{
-        field::SupportsU64Conversions, gf2_128::Gf2_128RuntimeField, p256::P256Field,
-        poly::InterpolationField,
+use crate::{
+    core::algebra::SupportsU64Conversions,
+    runtime::{
+        algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField},
+        v1::sumcheck::poly::{LagrangeBasis, Poly},
     },
-    v1::sumcheck::poly::{LagrangeBasis, Poly},
 };
 
 fn test_poly_evaluation_generic<const W: usize, F: InterpolationField<W>>(

@@ -14,9 +14,8 @@
 
 use crate::runtime::algebra::{
     fp_generic::MontgomeryStrategy,
-    limb::{accum, sub_limb},
+    limb::{accum, sub_limb, Limb},
     p256::P256Strategy,
-    Limb,
 };
 
 #[inline]
@@ -30,7 +29,7 @@ fn p256_reduction_step(a: &mut [Limb; 10]) {
     accum(a, 3, &h);
 }
 
-impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::LIMBS_PER_U64 }> for P256Strategy {
+impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }> for P256Strategy {
     // Sharing this kernel avoids excessive RFFT code size and register
     // pressure on 32-bit ARM. Keep the existing policy on other targets.
     #[cfg_attr(target_arch = "arm", inline(never))]

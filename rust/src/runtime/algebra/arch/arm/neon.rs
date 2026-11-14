@@ -180,7 +180,7 @@ macro_rules! finish_in_registers {
 // memory clobbers, letting LLVM reuse surrounding loads and XORs. The
 // arm-neon build feature makes NEON a requirement for the whole binary.
 #[inline(always)]
-pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
+pub(crate) fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
     let lo: u64;
     let hi: u64;
     unsafe {
@@ -216,7 +216,7 @@ pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
 }
 
 #[inline(always)]
-pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
+pub(crate) fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
     // SAFETY: arm-neon requires NEON. The three complete accumulator elements
     // are read and written in bounds; references cannot alias acc.
     unsafe {
@@ -264,7 +264,7 @@ pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
 }
 
 #[inline(always)]
-pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
+pub(crate) fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     let mut result = core::mem::MaybeUninit::<Gf2_128>::uninit();
     // SAFETY: arm-neon requires NEON. The accumulator has three initialized
     // elements, and asm completely initializes the output element.

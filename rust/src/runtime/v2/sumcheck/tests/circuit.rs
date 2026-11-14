@@ -442,7 +442,8 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
             compiler::{compile_v2, segment_circuit_v2},
             logic::{Logic, LogicIO},
         },
-        runtime::algebra::{p256::P256Field, AlgebraicField},
+        core::algebra::AlgebraicField,
+        runtime::algebra::p256::P256Field,
     };
     let cf = crate::compile::algebra::p256::P256Field::new();
     let f = P256Field::new();

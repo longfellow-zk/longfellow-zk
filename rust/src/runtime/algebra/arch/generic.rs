@@ -92,7 +92,7 @@ fn gf2_128_reduce(a: (u64, u64), b: (u64, u64)) -> (u64, u64) {
 }
 
 #[inline(always)]
-pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
+pub(crate) fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
     let x_v0 = x.0 as u64;
     let x_v1 = (x.0 >> 64) as u64;
     let y_v0 = y.0 as u64;
@@ -110,13 +110,13 @@ pub fn gf2_128_mul(x: Gf2_128, y: Gf2_128) -> Gf2_128 {
 }
 
 #[inline(always)]
-pub fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
+pub(crate) fn gf2_128_mac(acc: &mut Gf2_128Accum, x: &Gf2_128, y: &Gf2_128) {
     let res = gf2_128_mul(*x, *y);
     acc.0 .0 ^= res.0;
 }
 
 #[inline(always)]
-pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
+pub(crate) fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     acc.0
 }
 
@@ -127,7 +127,7 @@ pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     feature = "force-generic-arch",
     not(all(target_arch = "arm", target_os = "linux", target_endian = "little"))
 ))]
-pub use integer::*;
+pub(crate) use integer::*;
 
 #[cfg(any(
     feature = "force-generic-arch",
@@ -135,7 +135,7 @@ pub use integer::*;
 ))]
 mod integer {
     #[inline(always)]
-    pub fn cmovne<const N: usize>(
+    pub(crate) fn cmovne<const N: usize>(
         a: &mut [crate::runtime::algebra::limb::Limb; N],
         x: crate::runtime::algebra::limb::Limb,
         y: crate::runtime::algebra::limb::Limb,
@@ -149,17 +149,16 @@ mod integer {
     }
 
     #[inline(always)]
-    pub fn cmovnz<const N: usize>(
+    pub(crate) fn cmovnz<const N: usize>(
         a: &mut [crate::runtime::algebra::limb::Limb; N],
         nz: crate::runtime::algebra::limb::Limb,
         b: &[crate::runtime::algebra::limb::Limb; N],
     ) {
         cmovne(a, nz, 0, b);
     }
-    pub use cmovnz as cmovzn;
 
     #[inline(always)]
-    pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
+    pub(crate) fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
         // Retain the optimizer barrier used by carry propagation on other targets.
         // This is not a guarantee of constant-time machine code.
         core::hint::black_box(0 as crate::runtime::algebra::limb::Limb)

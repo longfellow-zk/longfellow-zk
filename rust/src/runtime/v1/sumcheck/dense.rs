@@ -18,7 +18,7 @@
 //! Binding at z replaces them by even+z*(odd-even). A missing final odd entry
 //! is implicitly zero. Repeated bindings leave one scalar evaluation; the
 //! in-place form reuses the table's allocation as its length halves.
-use crate::runtime::algebra::field::RuntimeField;
+use crate::runtime::algebra::RuntimeField;
 
 #[inline(always)]
 /// Evaluate the line through f0 at zero and f1 at one.

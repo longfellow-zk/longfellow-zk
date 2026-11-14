@@ -14,11 +14,12 @@
 
 use super::*;
 use crate::{
-    core::proto::v1::{compute_id, Layer, RawCircuit, TermDelta},
+    core::{
+        algebra::AlgebraicField,
+        proto::v1::{compute_id, Layer, RawCircuit, TermDelta},
+    },
     runtime::{
-        algebra::{
-            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, AlgebraicField,
-        },
+        algebra::{gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory},
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
@@ -187,7 +188,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             reference.participant.backend.layout.witness_count,
             prover.config,
             &domain,
-            crate::runtime::algebra::PackingField::packing_id(&f),
+            crate::runtime::algebra::packing::PackingField::packing_id(&f),
         )
         .unwrap(),
         (),

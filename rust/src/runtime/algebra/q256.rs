@@ -17,11 +17,12 @@ use crate::runtime::algebra::fp_generic::{FpGenericElement, FpGenericField};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Q256Tag;
 
-pub type Q256Element = FpGenericElement<{ 4 * crate::runtime::algebra::LIMBS_PER_U64 }, Q256Tag>;
+pub type Q256Element =
+    FpGenericElement<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }, Q256Tag>;
 pub type Q256Field = FpGenericField<
     4,
-    { 4 * crate::runtime::algebra::LIMBS_PER_U64 },
-    { 9 * crate::runtime::algebra::LIMBS_PER_U64 },
+    { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+    { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
     Q256Tag,
 >;
 

@@ -9,7 +9,7 @@ pub use crate::runtime::v2::proto::polygero::{FieldProof, JointPolygeroProof};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             proto::Digest,
             transcript::{Reading, Transcript, Writing},

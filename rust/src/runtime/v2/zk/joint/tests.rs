@@ -17,7 +17,9 @@ use crate::{
 #[test]
 fn selected_joint_wrapper_supports_three_typed_fields() {
     use crate::runtime::{
-        algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, PackingField},
+        algebra::{
+            p256::P256Field, packing::PackingField, range_interpolation::ScalarInterpolatorFactory,
+        },
         v2::{
             polygero::{LinearStatement, PolygeroConfig},
             proto::Digest,

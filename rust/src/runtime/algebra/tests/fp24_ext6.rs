@@ -14,12 +14,10 @@
 
 use crate::{
     core::algebra::{
-        AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
+        fp24::Q, AlgebraicField, Nat, SerializableField, SupportsNatConversions,
+        SupportsU64Conversions,
     },
-    runtime::algebra::{
-        fp24_ext6::{RuntimeFp24Ext6, Q},
-        RuntimeField, RuntimeNat,
-    },
+    runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField, RuntimeNat},
 };
 
 #[test]

@@ -15,7 +15,7 @@
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::field::RuntimeField,
+        algebra::RuntimeField,
         v1::{
             proto::{
                 subfield::{read_subfield_elt_v1, write_subfield_elt_v1},

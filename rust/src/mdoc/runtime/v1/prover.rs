@@ -100,7 +100,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let make_interpolator_sig =
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
-    let q256 = crate::runtime::algebra::Q256Field::new();
+    let q256 = crate::runtime::algebra::q256::Q256Field::new();
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();

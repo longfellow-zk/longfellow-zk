@@ -24,7 +24,7 @@
 use std::ops::Range;
 
 use super::{batch_inverse, InterpolationPlan, RangeInterpolatorFactory, Ranges};
-use crate::runtime::algebra::{blas, field::RuntimeBinaryField, gf2_128::Gf2_128, lch14::Lch14};
+use crate::runtime::algebra::{blas, gf2_128::Gf2_128, lch14::Lch14, RuntimeBinaryField};
 
 /// Additive point-table interpolation over a fixed binary basis.
 /// The enclosing source coset determines the transform size, which can be much
@@ -558,7 +558,7 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
     }
 }
 
-impl<const W: usize, F> crate::runtime::algebra::EvaluationDomain<W, F>
+impl<const W: usize, F> crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>
     for BinaryInterpolatorFactory<'_, W, F>
 where F: RuntimeBinaryField<W, E = Gf2_128> + crate::core::algebra::SerializableField
 {

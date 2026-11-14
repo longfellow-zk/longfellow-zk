@@ -12,7 +12,7 @@ use crate::runtime::random::PrivateRandom;
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::transcript::{Reading, Writing},
     },
 };

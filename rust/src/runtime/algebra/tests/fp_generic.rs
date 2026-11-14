@@ -161,15 +161,15 @@ fn test_all_generics() {
     // N = 1
     test_generic_ops_helper::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >([0xffffffffffffffc5], 0x123456789abcdef0, 0xabcdef1234567890);
 
     // N = 2
     test_generic_ops_helper::<
         2,
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >(
         [0xffffffffffffff61, 0xffffffffffffffff],
         0x123456789abcdef0,
@@ -179,8 +179,8 @@ fn test_all_generics() {
     // N = 3
     test_generic_ops_helper::<
         3,
-        { 3 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 3 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >(
         [0xffffffffffffff13, 0xffffffffffffffff, 0xffffffffffffffff],
         0x123456789abcdef0,
@@ -190,8 +190,8 @@ fn test_all_generics() {
     // N = 4
     test_generic_ops_helper::<
         4,
-        { 4 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 4 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >(
         [
             0xffffffffffffff43,
@@ -206,8 +206,8 @@ fn test_all_generics() {
     // N = 5
     test_generic_ops_helper::<
         5,
-        { 5 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 5 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 5 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 5 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >(
         [
             0xffffffffffffff3b,
@@ -223,8 +223,8 @@ fn test_all_generics() {
     // N = 6
     test_generic_ops_helper::<
         6,
-        { 6 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 6 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 6 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 6 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >(
         [
             0xfffffffffffffec3,
@@ -253,8 +253,8 @@ fn test_accum_reduce_scaling_bug() {
     ];
     let field = FpGenericField::<
         4,
-        { 4 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 9 * crate::runtime::algebra::LIMBS_PER_U64 },
+        { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
         (),
     >::new_generic(modulo_words);
 
@@ -281,8 +281,8 @@ fn test_accum_reduce_scaling_bug() {
 fn test_rejects_mismatched_limb_count() {
     let _ = FpGenericField::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 + 1 },
-        { 2 * (crate::runtime::algebra::LIMBS_PER_U64 + 1) + 1 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
+        { 2 * (crate::runtime::algebra::limb::LIMBS_PER_U64 + 1) + 1 },
     >::new_generic([0xffff_ffff_ffff_ffc5]);
 }
 
@@ -291,8 +291,8 @@ fn test_rejects_mismatched_limb_count() {
 fn test_rejects_undersized_accumulator() {
     let _ = FpGenericField::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
     >::new_generic([0xffff_ffff_ffff_ffc5]);
 }
 
@@ -301,8 +301,8 @@ fn test_rejects_undersized_accumulator() {
 fn test_rejects_invalid_montgomery_modulus() {
     let _ = FpGenericField::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >::new_generic([16]);
 }
 
@@ -311,8 +311,8 @@ fn test_rejects_invalid_montgomery_modulus() {
 fn test_invert_zero_panics() {
     let field = FpGenericField::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
         (),
     >::new_generic([0xffff_ffff_ffff_ffc5]);
     field.invert(&field.zero());
@@ -323,8 +323,8 @@ fn test_invert_zero_panics() {
 fn test_sampling_rejects_wrong_byte_count() {
     let field = FpGenericField::<
         1,
-        { crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
         (),
     >::new_generic([0xffff_ffff_ffff_ffc5]);
     field.sample(|requested| vec![0; requested - 1]);
@@ -334,16 +334,16 @@ fn test_sampling_rejects_wrong_byte_count() {
 fn test_reduce_nat() {
     test_reduce_nat_for_field::<
         2,
-        { 2 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 2 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff]);
 
     // Use the same 128-bit prime in a three-word representation. This makes the input range
     // roughly 2^64 times larger than the modulus and exercises reductions with large quotients.
     test_reduce_nat_for_field::<
         3,
-        { 3 * crate::runtime::algebra::LIMBS_PER_U64 },
-        { 2 * 3 * crate::runtime::algebra::LIMBS_PER_U64 + 1 },
+        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 2 * 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
     >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff, 0]);
 }
 

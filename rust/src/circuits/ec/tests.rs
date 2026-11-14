@@ -23,7 +23,7 @@ use crate::{
         logic::{push_eltw, Logic, LogicIO},
     },
     core::algebra::{ec::Curve, Nat, SerializableField, SupportsNatConversions},
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 fn test_compile_ec_generic<

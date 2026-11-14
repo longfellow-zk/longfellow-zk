@@ -15,7 +15,7 @@ use crate::{
         proto::layout,
     },
     runtime::{
-        algebra::{gf2_128::Gf2_128Field, p256::P256Field, EvaluationDomain},
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, range_interpolation::EvaluationDomain},
         v2::{
             foreign::{
                 adapter::{p256::P256Mode, AdapterMode},

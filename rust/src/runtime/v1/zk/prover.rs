@@ -20,15 +20,18 @@
 //! coordinates; Ligero proves the resulting A*w+b=0 and pad-product constraints.
 //! The two public phases preserve the legacy transcript and proof layout.
 
-use crate::runtime::{
-    algebra::{ElementOf, RangeInterpolatorFactory, ZkField},
-    random::RandomEngine,
-    v1::{
-        ligero::{param::LigeroQuadraticConstraint, LigeroProver},
-        subfield::SubfieldV1,
-        sumcheck::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck},
-        transcript::Transcript,
-        zk::{common::ZkContext, ZkProof},
+use crate::{
+    core::algebra::ElementOf,
+    runtime::{
+        algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
+        random::RandomEngine,
+        v1::{
+            ligero::{param::LigeroQuadraticConstraint, LigeroProver},
+            subfield::SubfieldV1,
+            sumcheck::{prove_core as sumcheck_prove_core, SumcheckProof, TranscriptSumcheck},
+            transcript::Transcript,
+            zk::{common::ZkContext, ZkProof},
+        },
     },
 };
 

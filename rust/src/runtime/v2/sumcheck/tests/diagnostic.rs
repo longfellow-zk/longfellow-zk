@@ -39,9 +39,9 @@ use super::super::{
     RoundPoly,
 };
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
-        algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
+        algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{circuit_geometry, derive_constraints, SumcheckProof, TranscriptSumcheck},
             transcript::Transcript,

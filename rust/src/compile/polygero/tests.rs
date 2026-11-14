@@ -16,7 +16,7 @@ use super::*;
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{

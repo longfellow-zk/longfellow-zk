@@ -18,10 +18,10 @@
 //! p(1)=claim-p(0) to be reconstructed. `pt(2)` is the field's third distinct
 //! interpolation point, including in binary fields. Padding adds or subtracts
 //! the two transmitted evaluations componentwise.
-pub use crate::runtime::algebra::poly::{LagrangeBasis, Poly};
+pub use crate::runtime::algebra::{LagrangeBasis, Poly};
 use crate::{
     core::algebra::SerializableField,
-    runtime::{algebra::field::RuntimeField, v1::proto::sumcheck::RoundPoly},
+    runtime::{algebra::RuntimeField, v1::proto::sumcheck::RoundPoly},
 };
 
 /// Select the first and third evaluations for the legacy wire message.

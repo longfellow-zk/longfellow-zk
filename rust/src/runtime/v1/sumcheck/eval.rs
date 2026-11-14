@@ -18,7 +18,7 @@
 //! mark assertions W[l]*W[r]=0 instead of contributions to V. Keep each input
 //! witness in output-to-input circuit order for the subsequent sumcheck proof,
 //! and require every final circuit output to vanish.
-use crate::{core::algebra::SerializableField, runtime::algebra::field::RuntimeField};
+use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
 
 /// Return each layer's input witness after checking assertions and final outputs.
 pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(

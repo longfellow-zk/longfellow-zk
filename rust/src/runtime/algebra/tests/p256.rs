@@ -20,9 +20,7 @@ use crate::{
         ec::Curve, AlgebraicField, Nat, SerializableField, SupportsNatConversions,
         SupportsU64Conversions,
     },
-    runtime::algebra::{
-        field::RuntimeSerializableField, p256::*, poly::InterpolationField, RuntimeField,
-    },
+    runtime::algebra::{p256::*, InterpolationField, RuntimeField, RuntimeSerializableField},
 };
 
 #[test]

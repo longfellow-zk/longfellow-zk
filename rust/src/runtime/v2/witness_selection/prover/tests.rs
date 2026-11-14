@@ -6,8 +6,8 @@ use crate::{
         algebra::{
             gf2_128::Gf2_128Field,
             p256::P256Field,
+            packing::PackingField,
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
-            PackingField,
         },
         random::{DeterministicRng, RandomEngine},
         v2::{
@@ -73,7 +73,7 @@ fn response_codec_is_canonical_and_requires_both_coordinates() {
 
 #[test]
 fn generic_sampling_and_three_fields_need_no_packing_capability() {
-    use crate::runtime::algebra::{fp_generic::FpGenericField, LIMBS_PER_U64};
+    use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};
     let small =
         FpGenericField::<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }, ()>::new_generic([17]);
     let sd = ScalarInterpolatorFactory::new(&small, 16);

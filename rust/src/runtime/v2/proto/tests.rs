@@ -14,9 +14,9 @@
 
 //! Longfellow v2 codec roundtrips and malformed-proof rejection.
 
-use crate::runtime::{
-    algebra::AlgebraicField,
-    v2::proto::sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::v2::proto::sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
 };
 
 #[test]

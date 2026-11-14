@@ -1,8 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Polynomial-basis trace pairing and Boolean transpose kernels.
-use crate::runtime::algebra::{
-    gf2_128::{Gf2_128 as E, Gf2_128Field as F},
-    AlgebraicField,
+use crate::{
+    core::algebra::AlgebraicField,
+    runtime::algebra::gf2_128::{Gf2_128 as E, Gf2_128Field as F},
 };
 /// Newton's identities for P=x^128+x^7+x^2+x+1 give Tr(x^j)=1 only
 /// at j=121 and j=127 for 0<=j<128. Trace is GF2-linear, so two coordinates

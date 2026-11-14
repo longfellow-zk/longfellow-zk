@@ -20,7 +20,7 @@ use crate::{
     },
     core::algebra::SerializableField,
     mdoc::circuits::cbor_decoder::{allocate_given, CborByteDecoder, ConcreteGiven},
-    runtime::algebra::field::RuntimeField,
+    runtime::algebra::RuntimeField,
 };
 
 fn test_compile_cbor_decoder_for_field<

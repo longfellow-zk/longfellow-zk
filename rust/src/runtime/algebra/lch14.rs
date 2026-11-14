@@ -21,7 +21,7 @@
 // [DP24] Benjamin E. Diamond and Jim Posen, Polylogarithmic Proofs
 // for Multilinears over Binary Towers, https://eprint.iacr.org/2024/504
 
-use crate::runtime::algebra::field::RuntimeBinaryField;
+use crate::runtime::algebra::RuntimeBinaryField;
 
 pub struct Lch14<
     'a,

@@ -19,7 +19,7 @@
 //! rate and query count fixed while scanning encoded row lengths. Published v1
 //! specifications depend on the existing search order and tie handling.
 use crate::runtime::{
-    algebra::{field::RuntimeField, RangeInterpolatorFactory},
+    algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField},
     v1::{
         ligero::param::{LigeroConfig, LigeroParam},
         proto::{DIGEST_LEN, NONCE_LEN},

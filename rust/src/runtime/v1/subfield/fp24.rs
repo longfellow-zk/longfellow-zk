@@ -1,10 +1,14 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::SubfieldV1;
-use crate::runtime::algebra::{
-    fp24_ext6::{
-        sample_base, RuntimeElement, RuntimeFp24Ext6, BASE_SERIALIZED_SIZE, EXTENSION_DEGREE, Q,
+use crate::{
+    core::algebra::{
+        fp24::{BASE_SERIALIZED_SIZE, Q},
+        fp24_ext6::EXTENSION_DEGREE,
     },
-    range_interpolation::{crt::CrtInterpolationPlan, InterpolationPlan},
+    runtime::algebra::{
+        fp24_ext6::{sample_base, RuntimeElement, RuntimeFp24Ext6},
+        range_interpolation::{crt::CrtInterpolationPlan, InterpolationPlan},
+    },
 };
 
 pub struct RuntimeFp24SubfieldV1;

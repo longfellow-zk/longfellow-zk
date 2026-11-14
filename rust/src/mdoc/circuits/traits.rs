@@ -15,7 +15,7 @@
 /// Bundles all runtime derived value derivation and evaluation requirements for `MdocHash`.
 pub trait MdocHashRuntimeField:
     Sized
-    + crate::runtime::algebra::field::RuntimeField<2>
+    + crate::runtime::algebra::RuntimeField<2>
     + crate::core::algebra::SerializableField
     + crate::core::algebra::HasLookupPoints
     + crate::core::algebra::SupportsU128Conversions
@@ -23,7 +23,7 @@ pub trait MdocHashRuntimeField:
 }
 
 impl<F> MdocHashRuntimeField for F where F: Sized
-        + crate::runtime::algebra::field::RuntimeField<2>
+        + crate::runtime::algebra::RuntimeField<2>
         + crate::core::algebra::SerializableField
         + crate::core::algebra::HasLookupPoints
         + crate::core::algebra::SupportsU128Conversions
@@ -34,7 +34,7 @@ impl<F> MdocHashRuntimeField for F where F: Sized
 pub trait MdocSigRuntimeField:
     Sized
     + crate::core::algebra::BareField
-    + crate::runtime::algebra::field::RuntimeField<4>
+    + crate::runtime::algebra::RuntimeField<4>
     + crate::core::algebra::SupportsNatConversions<4>
     + crate::core::algebra::SupportsU64Conversions
     + crate::core::algebra::HasLookupPoints
@@ -46,7 +46,7 @@ impl<F> MdocSigRuntimeField for F
 where
     F: Sized
         + crate::core::algebra::BareField
-        + crate::runtime::algebra::field::RuntimeField<4>
+        + crate::runtime::algebra::RuntimeField<4>
         + crate::core::algebra::SupportsNatConversions<4>
         + crate::core::algebra::SupportsU64Conversions
         + crate::core::algebra::HasLookupPoints,

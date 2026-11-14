@@ -2,8 +2,8 @@
 //! The native sextic field as an extension of its prime field.
 use super::{PackingExtension, PackingField};
 use crate::{
-    core::algebra::{AlgebraicField, BareField, SerializableField},
-    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6, Q},
+    core::algebra::{fp24::Q, AlgebraicField, BareField, SerializableField},
+    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
 };
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Prime24;
@@ -69,7 +69,7 @@ pub struct Prime24Extension;
 impl PackingField for RuntimeFp24Ext6 {
     fn packing_id(&self) -> Vec<u8> {
         let mut id = b"prime24-sextic/v1/".to_vec();
-        id.extend_from_slice(&crate::runtime::algebra::fp24_ext6::BETA.to_le_bytes());
+        id.extend_from_slice(&crate::core::algebra::fp24_ext6::BETA.to_le_bytes());
         id
     }
 

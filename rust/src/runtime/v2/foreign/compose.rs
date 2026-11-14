@@ -21,7 +21,10 @@ use super::adapter::AdapterMode;
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
-        algebra::{gf2_128::Gf2_128Field, EvaluationDomain, PackingField, ZkField},
+        algebra::{
+            gf2_128::Gf2_128Field, packing::PackingField, range_interpolation::EvaluationDomain,
+            ZkField,
+        },
         v2::{
             polygero::PolygeroConfig,
             proto::composed::ComposedGeometry,

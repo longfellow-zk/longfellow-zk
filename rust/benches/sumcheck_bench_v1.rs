@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use longfellow_zk::runtime::{
-    algebra::{
-        field::SupportsU64Conversions, gf2_128::Gf2_128RuntimeField, p256::P256Field, ElementOf,
+use longfellow_zk::{
+    core::algebra::{ElementOf, SupportsU64Conversions},
+    runtime::{
+        algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field},
+        v1::sumcheck::dense::bind,
     },
-    v1::sumcheck::dense::bind,
 };
 
 fn bench_dense_bind_p256(c: &mut Criterion) {
