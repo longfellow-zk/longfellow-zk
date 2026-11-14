@@ -563,11 +563,13 @@ must select their deployment CPU features explicitly.
 # Default build.
 cargo build --release
 
-# Application verifier without the prover or compiler.
-cargo build --release --no-default-features --features verifier,mdoc
+# Application verifier without the prover or compiler, including the v1
+# verifier_only tool. Omit v1 for a v2-only library without the tool.
+cargo build --release --no-default-features --features verifier,mdoc,v1
 
-# Application prover without the verifier or compiler.
-cargo build --release --no-default-features --features prover,mdoc
+# Application prover without the verifier or compiler, including the v1
+# prover_only tool. Omit v1 for a v2-only library without the tool.
+cargo build --release --no-default-features --features prover,mdoc,v1
 
 # Offline application compiler.
 cargo build --release --no-default-features --features compiler,mdoc
