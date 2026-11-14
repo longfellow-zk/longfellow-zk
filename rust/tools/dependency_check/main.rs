@@ -25,8 +25,7 @@
 //! - a v1 file uses a v2 file or the reverse. A file belongs to version vN when a directory on its
 //!   path, or a `_`-separated word of its name, is `vN` (`runtime/v2/...`, `core/proto/src/v1/...`,
 //!   `v2_segment.rs`);
-//! - the file graph has a cycle not listed under `known file cycles`, or a listed cycle no longer
-//!   exists;
+//! - the file graph has a cycle: no file may depend on itself through others;
 //! - a file whose name marks one proof role (`prover`, `verifier`, or a name containing exactly one
 //!   of them as a `_`-separated word) uses a file of the other role;
 //! - a reference breaks a `[symbol rules]` line, which says which files may (`only`) or may not
@@ -305,9 +304,9 @@ fn glob(pattern: &str, text: &str) -> bool {
     let Some(mut rest) = text.strip_prefix(parts.next().unwrap()) else {
         return false;
     };
-    let parts: Vec<_> = parts.collect();
-    for (i, part) in parts.iter().enumerate() {
-        if i + 1 == parts.len() {
+    let middle: Vec<_> = parts.collect();
+    for (i, part) in middle.iter().enumerate() {
+        if i + 1 == middle.len() {
             return rest.ends_with(part);
         }
         match rest.find(part) {
@@ -320,14 +319,12 @@ fn glob(pattern: &str, text: &str) -> bool {
 
 struct Rules {
     allowed: Graph,
-    known_cycles: BTreeSet<Vec<String>>,
     symbols: Vec<SymbolRule>,
 }
 
 fn rules(path: &Path) -> Rules {
     let text = std::fs::read_to_string(path).expect("read tools/dependency_check/rules.txt");
     let mut allowed = Graph::new();
-    let mut known_cycles = BTreeSet::new();
     let mut symbols = Vec::new();
     let mut section = "";
     for line in text.lines().map(str::trim) {
@@ -335,6 +332,7 @@ fn rules(path: &Path) -> Rules {
             continue;
         }
         if line.starts_with('[') {
+            assert!(line == "[symbol rules]", "unknown section {line}");
             section = line;
             continue;
         }
@@ -352,12 +350,6 @@ fn rules(path: &Path) -> Rules {
             });
             continue;
         }
-        if section == "[known file cycles]" {
-            let mut files: Vec<String> = line.split_whitespace().map(str::to_owned).collect();
-            files.sort();
-            known_cycles.insert(files);
-            continue;
-        }
         let (name, deps) = line
             .split_once(':')
             .unwrap_or_else(|| panic!("rule without ':': {line}"));
@@ -366,11 +358,7 @@ fn rules(path: &Path) -> Rules {
             entry.insert(dep.to_owned(), 0);
         }
     }
-    Rules {
-        allowed,
-        known_cycles,
-        symbols,
-    }
+    Rules { allowed, symbols }
 }
 
 fn dot(graph: &Graph, title: &str, cluster: bool, labels: bool) -> String {
@@ -444,12 +432,11 @@ fn main() {
     let components = collapse(&files);
     if current {
         for (name, deps) in &components {
-            let deps: Vec<_> = deps.keys().map(String::as_str).collect();
-            println!("{name}: {}", deps.join(" "));
+            let names: Vec<_> = deps.keys().map(String::as_str).collect();
+            println!("{name}: {}", names.join(" "));
         }
-        println!("\n[known file cycles]");
         for cycle in cycles(&files) {
-            println!("{}", cycle.join(" "));
+            println!("# file cycle: {}", cycle.join(" "));
         }
         return;
     }
@@ -513,15 +500,8 @@ fn main() {
             }
         }
     }
-    let found = cycles(&files);
-    for cycle in found.difference(&rules.known_cycles) {
+    for cycle in cycles(&files) {
         failures.push(format!("file cycle: {}", cycle.join(" ")));
-    }
-    for cycle in rules.known_cycles.difference(&found) {
-        failures.push(format!(
-            "listed file cycle no longer exists; remove it from the rules: {}",
-            cycle.join(" ")
-        ));
     }
     for (from, targets) in &files {
         if let Some(own) = role(from) {
@@ -565,12 +545,11 @@ fn main() {
         .expect("write components.dot");
     }
     println!(
-        "{} files, {} file edges; {} components, {} component edges; {} known file cycles",
+        "{} files, {} file edges; {} components, {} component edges",
         files.len(),
         files.values().map(BTreeMap::len).sum::<usize>(),
         components.len(),
         components.values().map(BTreeMap::len).sum::<usize>(),
-        rules.known_cycles.len()
     );
     // A `use ... as` alias yields two occurrences of the same reference.
     failures.dedup();

@@ -4,6 +4,7 @@
 # directory when it has none. Each line `component: dependencies...` lists
 # every component the component's files may use; an edge missing here fails
 # the check, and so does a component without a line. Keep the rules acyclic.
+# The file graph itself must be acyclic too: any file cycle fails.
 # `--current` prints the current graph in this format.
 #
 # Notes on individual edges:
@@ -96,6 +97,3 @@ runtime/v2/sumcheck/eval/* never runtime/v2/sumcheck/src/monomial.rs runtime/v2/
 runtime/v2/polygero/prover*/* never runtime/v2/polygero/src/config.rs runtime/v2/polygero/src/param.rs runtime/v2/polygero/src/polynomials.rs runtime/v2/polygero/src/constraints.rs runtime/v2/polygero/src/transcript.rs
 runtime/v2/polygero/verifier/* never runtime/v2/polygero/src/config.rs runtime/v2/polygero/src/param.rs runtime/v2/polygero/src/polynomials.rs runtime/v2/polygero/src/constraints.rs runtime/v2/polygero/src/transcript.rs
 
-# File cycles that exist today. The check fails on any other cycle, and on a
-# listed cycle that no longer exists. This list should only shrink.
-[known file cycles]
