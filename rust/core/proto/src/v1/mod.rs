@@ -21,12 +21,10 @@ pub mod reader;
 mod term;
 pub mod writer;
 
-pub use circuit::{compute_id, Circuit, RawCircuit};
+pub use circuit::{compute_id, Circuit, RawCircuit, BYTES_PER_SIZE_T};
 pub use layer::{compare_term, Layer, TermDelta};
 pub use reader::CircuitReader;
 pub use term::{canonical_term, Term};
 pub use writer::CircuitWriter;
 
 pub use crate::core::proto::CircuitGeometry;
-
-pub const BYTES_PER_SIZE_T: usize = 3;

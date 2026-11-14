@@ -15,16 +15,19 @@
 use std::collections::HashMap;
 
 use super::CircuitWriter;
-use crate::core::proto::{v1::Circuit, SerializableField};
+use crate::core::proto::{
+    v1::{Circuit, BYTES_PER_SIZE_T},
+    SerializableField,
+};
 
 fn serialize_num(bytes: &mut Vec<u8>, mut g: usize) {
-    let max_val = (1 << (crate::core::proto::v1::BYTES_PER_SIZE_T * 8)) - 1;
+    let max_val = (1 << (BYTES_PER_SIZE_T * 8)) - 1;
     assert!(
         g <= max_val,
         "Violating small wire-label assumption: label too large for {} bytes",
-        crate::core::proto::v1::BYTES_PER_SIZE_T
+        BYTES_PER_SIZE_T
     );
-    for _ in 0..crate::core::proto::v1::BYTES_PER_SIZE_T {
+    for _ in 0..BYTES_PER_SIZE_T {
         bytes.push((g & 0xff) as u8);
         g >>= 8;
     }
@@ -46,7 +49,14 @@ fn serialize_index(bytes: &mut Vec<u8>, val: u32, prev_val: u32) {
     }
 }
 
-pub(super) fn to_bytes_lfc1<F: SerializableField>(
+impl<F: SerializableField> CircuitWriter<'_, F> {
+    #[must_use]
+    pub fn to_bytes_lfc1(&self, sc_c: &Circuit<F>) -> Vec<u8> {
+        to_bytes_lfc1(self, sc_c)
+    }
+}
+
+fn to_bytes_lfc1<F: SerializableField>(
     writer: &CircuitWriter<'_, F>,
     sc_c: &Circuit<F>,
 ) -> Vec<u8> {

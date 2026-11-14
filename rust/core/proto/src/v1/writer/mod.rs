@@ -16,7 +16,6 @@
 
 mod lfc1;
 mod lfc2;
-use super::Circuit;
 use crate::core::proto::{FieldID, SerializableField};
 
 pub struct CircuitWriter<'a, F> {
@@ -27,21 +26,6 @@ pub struct CircuitWriter<'a, F> {
 impl<'a, F: SerializableField> CircuitWriter<'a, F> {
     pub fn new(f: &'a F, field_id: FieldID) -> Self {
         Self { f, field_id }
-    }
-
-    #[must_use]
-    pub fn to_bytes(&self, sc_c: &Circuit<F>) -> Vec<u8> {
-        self.to_bytes_lfc2(sc_c)
-    }
-
-    #[must_use]
-    pub fn to_bytes_lfc1(&self, sc_c: &Circuit<F>) -> Vec<u8> {
-        lfc1::to_bytes_lfc1(self, sc_c)
-    }
-
-    #[must_use]
-    pub fn to_bytes_lfc2(&self, sc_c: &Circuit<F>) -> Vec<u8> {
-        lfc2::to_bytes_lfc2(self, sc_c)
     }
 
     pub(super) fn serialize_elt(&self, bytes: &mut Vec<u8>, v: &F::E) {

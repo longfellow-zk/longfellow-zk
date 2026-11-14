@@ -20,6 +20,8 @@ use super::Layer;
 pub(super) use crate::core::algebra::SerializableField;
 use crate::core::proto::DigestBytes;
 
+pub const BYTES_PER_SIZE_T: usize = 3;
+
 pub struct RawCircuit<F: SerializableField> {
     pub ninput: usize,
     pub npublic_input: usize,

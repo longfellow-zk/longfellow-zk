@@ -24,7 +24,19 @@ fn zigzag_encode_delta(delta: u32) -> u32 {
     (delta << 1) ^ ((delta as i32 >> 31) as u32)
 }
 
-pub(super) fn to_bytes_lfc2<F: SerializableField>(
+impl<F: SerializableField> CircuitWriter<'_, F> {
+    #[must_use]
+    pub fn to_bytes(&self, sc_c: &Circuit<F>) -> Vec<u8> {
+        self.to_bytes_lfc2(sc_c)
+    }
+
+    #[must_use]
+    pub fn to_bytes_lfc2(&self, sc_c: &Circuit<F>) -> Vec<u8> {
+        to_bytes_lfc2(self, sc_c)
+    }
+}
+
+fn to_bytes_lfc2<F: SerializableField>(
     writer: &CircuitWriter<'_, F>,
     sc_c: &Circuit<F>,
 ) -> Vec<u8> {
