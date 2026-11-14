@@ -4,7 +4,7 @@
 // artifacts exactly as `inspect_v7_circuit_profile.rs` loads them (registry combined hash, entry
 // IDs recomputed from the parsed circuits, the runtime's own `decompress_circuits`). Build with
 // the adjacent Cargo manifest; each structural condition is checked before returning success.
-use core_algebra::field::AlgebraicField;
+use core_algebra::AlgebraicField;
 use core_proto::{
     archive::compute_combined_id,
     v1::{compute_id, CircuitReader},
@@ -49,11 +49,11 @@ fn main() {
 
         let sig_entry = archive.get("sig").expect("sig entry");
         let hash_entry = archive.get("hash").expect("hash entry");
-        let (c_sig, rest) = CircuitReader::new(&p256, core_proto::FieldID::P256)
+        let (c_sig, rest) = CircuitReader::new(&p256, core_algebra::FieldID::P256)
             .from_bytes(&sig_entry.payload, true)
             .expect("sig circuit parses with its ID enforced");
         assert!(rest.is_empty());
-        let (c_hash, rest) = CircuitReader::new(&gf2, core_proto::FieldID::Gf2_128)
+        let (c_hash, rest) = CircuitReader::new(&gf2, core_algebra::FieldID::Gf2_128)
             .from_bytes(&hash_entry.payload, true)
             .expect("hash circuit parses with its ID enforced");
         assert!(rest.is_empty());

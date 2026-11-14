@@ -76,11 +76,11 @@ fn main() {
 
         let sig_entry = archive.get("sig").expect("sig entry");
         let hash_entry = archive.get("hash").expect("hash entry");
-        let (c_sig, rest) = CircuitReader::new(&p256, core_proto::FieldID::P256)
+        let (c_sig, rest) = CircuitReader::new(&p256, core_algebra::FieldID::P256)
             .from_bytes(&sig_entry.payload, true)
             .expect("sig circuit parses with its ID enforced");
         assert!(rest.is_empty());
-        let (c_hash, rest) = CircuitReader::new(&gf2, core_proto::FieldID::Gf2_128)
+        let (c_hash, rest) = CircuitReader::new(&gf2, core_algebra::FieldID::Gf2_128)
             .from_bytes(&hash_entry.payload, true)
             .expect("hash circuit parses with its ID enforced");
         assert!(rest.is_empty());
@@ -158,7 +158,7 @@ fn main() {
     println!("All five recorded v7 profiles match the registered circuits.");
 }
 
-fn report<F: core_proto::SerializableField>(
+fn report<F: core_algebra::SerializableField>(
     component: &str,
     attributes: usize,
     raw: &core_proto::v1::RawCircuit<F>,
