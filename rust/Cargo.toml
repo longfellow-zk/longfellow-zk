@@ -6,10 +6,10 @@ description = "Longfellow v1/v2 Zero-Knowledge proof system and ISO 18013-5 mdoc
 license = "Apache-2.0"
 repository = "https://github.com/google/longfellow-zk"
 exclude = [
-    "applications/mdoc_zk/artifacts/circuits/*",
-    "applications/mdoc_zk/artifacts/proofs/*",
-    "applications/mdoc_zk/prover_only/*",
-    "applications/mdoc_zk/verifier_only/*",
+    "src/mdoc/artifacts/circuits/*",
+    "src/mdoc/artifacts/proofs/*",
+    "src/bin/prover_only.rs",
+    "src/bin/verifier_only.rs",
     "*.vir",
     "*.rlib",
 ]
@@ -66,84 +66,84 @@ serde_json = "1.0"
 
 [[bin]]
 name = "prover_only"
-path = "applications/mdoc_zk/prover_only/src/main.rs"
+path = "src/bin/prover_only.rs"
 required-features = ["prover", "mdoc", "v1"]
 
 [[bin]]
 name = "verifier_only"
-path = "applications/mdoc_zk/verifier_only/src/main.rs"
+path = "src/bin/verifier_only.rs"
 required-features = ["verifier", "mdoc", "v1"]
 
 [[bench]]
 name = "p256_benchmark"
-path = "runtime/algebra/benches/p256_benchmark.rs"
+path = "benches/p256_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "q256_benchmark"
-path = "runtime/algebra/benches/q256_benchmark.rs"
+path = "benches/q256_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "fft_benchmark"
-path = "runtime/algebra/benches/fft_benchmark.rs"
+path = "benches/fft_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "rfft_benchmark"
-path = "runtime/algebra/benches/rfft_benchmark.rs"
+path = "benches/rfft_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "lch14_benchmark"
-path = "runtime/algebra/benches/lch14_benchmark.rs"
+path = "benches/lch14_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "sumcheck_bench_v1"
-path = "runtime/v1/sumcheck/benches/sumcheck_bench.rs"
+path = "benches/sumcheck_bench_v1.rs"
 harness = false
 required-features = ["v1"]
 
 [[bench]]
 name = "circuit_id"
-path = "core/proto/benches/circuit_id.rs"
+path = "benches/circuit_id.rs"
 harness = false
 required-features = ["compiler", "mdoc"]
 
 [[bench]]
 name = "sumcheck_bench_v2"
-path = "runtime/v2/sumcheck/benches/sumcheck_bench.rs"
+path = "benches/sumcheck_bench_v2.rs"
 harness = false
 required-features = ["prover"]
 
 [[bench]]
 name = "mdoc_zk_bench_v1"
-path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v1.rs"
+path = "benches/mdoc_zk_bench_v1.rs"
 harness = false
 required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 
 [[bench]]
 name = "mdoc_zk_bench_next"
-path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_next.rs"
+path = "benches/mdoc_zk_bench_next.rs"
 harness = false
 required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 
 [[bench]]
 name = "fp24_benchmark"
-path = "runtime/algebra/benches/fp24_benchmark.rs"
+path = "benches/fp24_benchmark.rs"
 harness = false
 required-features = ["tooling"]
 
 [[bench]]
 name = "polygero_bench"
-path = "runtime/v2/polygero/benches/polygero_bench.rs"
+path = "benches/polygero_bench.rs"
 harness = false
 required-features = ["testonly"]
 
 [[bench]]
 name = "range_interpolation_benchmark"
-path = "runtime/algebra/benches/range_interpolation_benchmark.rs"
+path = "benches/range_interpolation_benchmark.rs"
 harness = false
 
 [lints.clippy]
@@ -164,10 +164,10 @@ lto = false
 
 [[bin]]
 name = "zk_tool"
-path = "tools/zk_tool/main.rs"
+path = "src/bin/zk_tool/main.rs"
 required-features = ["tooling"]
 
 [[bin]]
 name = "dependency_check"
-path = "tools/dependency_check/main.rs"
+path = "src/bin/dependency_check/main.rs"
 required-features = ["tooling"]

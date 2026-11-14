@@ -1,7 +1,7 @@
 # Sumcheck V2
 
 Lean component proofs for the projective, single-hand protocol in
-[`rust/runtime/v2/sumcheck`](../../rust/runtime/v2/sumcheck/README.md).
+[`rust/src/runtime/v2/sumcheck`](../../rust/src/runtime/v2/sumcheck/README.md).
 The library and namespace are `SumcheckV2`. From `formal/`, run:
 
 ```sh
@@ -133,12 +133,12 @@ the Rust operations modeled; it is not a source-level refinement certificate.
 
 | Rust source | Lean model |
 |---|---|
-| `runtime/v2/sumcheck/src/prover.rs`, `dense.rs` | `roundMessage`, `fold`, `honestMessages` |
-| `runtime/v2/sumcheck/src/monomial.rs` | `monomialWeights`, `evaluate_eq_dot` |
-| `runtime/v2/sumcheck/src/quad.rs` | `bindRightAffine`, `bindLeft`, `affine_rebinding`, `affine_nextWeights_correct` |
-| `runtime/v2/sumcheck/src/symbolic.rs` | `LinearTerminal` affine rows; `LfzkV2.Current.FrontendReplay` and `FrontendVerifier` reconstruct the current constraints |
-| `runtime/v2/zk/src/constraint_compiler.rs` | `LfzkV2.Current.FrontendBodyVerifier` and the current backend row layout |
-| `runtime/v2/sumcheck/src/transcript.rs` | `LfzkV2.Current.FrontendTranscript` and prefix-dependent challenge strategies |
+| `rust/src/runtime/v2/sumcheck/prover.rs`, `dense.rs` | `roundMessage`, `fold`, `honestMessages` |
+| `rust/src/runtime/v2/sumcheck/monomial.rs` | `monomialWeights`, `evaluate_eq_dot` |
+| `rust/src/runtime/v2/sumcheck/quad.rs` | `bindRightAffine`, `bindLeft`, `affine_rebinding`, `affine_nextWeights_correct` |
+| `rust/src/runtime/v2/sumcheck/symbolic.rs` | `LinearTerminal` affine rows; `LfzkV2.Current.FrontendReplay` and `FrontendVerifier` reconstruct the current constraints |
+| `rust/src/runtime/v2/zk/constraint_compiler.rs` | `LfzkV2.Current.FrontendBodyVerifier` and the current backend row layout |
+| `rust/src/runtime/v2/sumcheck/transcript.rs` | `LfzkV2.Current.FrontendTranscript` and prefix-dependent challenge strategies |
 
 `roundMessage` takes the incoming claim explicitly, matching
 `prover::quad_round_poly`'s `c1 = p(1) - claim`. It does not replace that claim

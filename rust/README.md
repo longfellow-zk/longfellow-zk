@@ -107,7 +107,7 @@ Commitment sessions own the transcript through authentication. Frontends borrow
 a restricted `TranscriptRef` that cannot replace or finalize that session;
 successful authentication releases it for the complete-proof seal.
 
-The [witness-selection protocol](runtime/v2/witness-selection/README.md) wraps the
+The [witness-selection protocol](src/runtime/v2/witness_selection/README.md) wraps the
 joint commitment before either mdoc sumcheck. Each field commits two dedicated
 mask cells, receives two independent full coefficient vectors, and sends two
 masked dot products. Its opaque state automatically adds both affine equations
@@ -190,7 +190,7 @@ explicit correction.
 The ordinary rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
 [checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
 gives the exact joint backend allowance `c/q`, including both fields.
-[Exact numerical checks](applications/mdoc_zk/development_provider/tests/parameters.rs)
+[Exact numerical checks](src/mdoc/development_provider/next_v2/tests.rs)
 align the implementation geometry and local budgets. The committed
 binary/prime candidate caps are respectively
 `21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`.
@@ -392,7 +392,7 @@ Frontend `reduce` methods return equations awaiting authentication; complete
 sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
-implementation. `tools/dependency_check` enforces these boundaries from
+implementation. `src/bin/dependency_check` enforces these boundaries from
 rust-analyzer's index of every feature-gated file.
 
 V2 runtime circuits are read-only at the type level, including generated
@@ -406,21 +406,25 @@ consistent metadata; proving and verification add no validation work.
 
 ### Source layout
 
-This is one Cargo crate, `longfellow-zk`. The directories organize modules;
-they are not separate crates.
+This is one Cargo crate, `longfellow-zk`. The source tree mirrors the
+module tree: module `foo` lives in `foo.rs`, its submodules in `foo/`, and
+its unit tests in `foo/tests.rs` or `foo/tests/`.
 
-| Directory | Contents |
+| Path under `src/` | Contents |
 |---|---|
+| `lib.rs` | Module assembly and feature gates |
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
 | `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
 | `runtime/algebra/`, `runtime/random/` | Shared arithmetic, interpolation and private randomness |
 | `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, Merkle tree and proof codecs |
 | `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, Merkle tree and proof codecs |
 | `circuits/` | Reusable circuits and native witness generation |
-| `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
-| `tools/` | Rust commands for parameter auditing and specification generation |
-| `src/lib.rs` | Module assembly and feature gates |
-| `tools/dependency_check` | Module dependency rules over rust-analyzer's index |
+| `mdoc/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
+| `bin/zk_tool/` | Rust commands for parameter auditing and specification generation |
+| `bin/prover_only.rs`, `bin/verifier_only.rs` | Single-role mdoc binaries |
+| `bin/dependency_check/` | Module dependency rules over rust-analyzer's index |
+
+Benchmarks live in `benches/`.
 
 Compile-time and runtime code occupy separate directories. Prover and
 verifier implementations also remain separate within each protocol.
@@ -435,7 +439,7 @@ dictionary compression, and scheduling helpers across v1 and v2 backends.
 V2 represents quadratic, linear, and constant terms explicitly throughout
 lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
 historical Morton ordering and circuit IDs. V2 compiles directly to
-[LFC3](core/proto/LFC3.md), storing quadratic, linear, and constant terms
+[LFC3](src/core/proto/LFC3.md), storing quadratic, linear, and constant terms
 separately with an explicit coefficient table. Its `DIR3` directory declares
 all array sizes before the payload; segment contents use contiguous storage.
 Global limits bound layers, total wires, term data, and segment/token metadata.
@@ -630,7 +634,7 @@ the summary above records the measured code configuration.
 
 `dependency_check` builds the crate's exact file dependency graph from
 rust-analyzer's index and checks it against
-[`tools/dependency_check/rules.txt`](tools/dependency_check/rules.txt): allowed
+[`src/bin/dependency_check/rules.txt`](src/bin/dependency_check/rules.txt): allowed
 component edges, acyclic rules, disjoint v1 and v2 files, no file cycles, and no prover file using a verifier file or the reverse.
 
 ```sh

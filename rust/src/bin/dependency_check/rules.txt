@@ -1,0 +1,97 @@
+# Allowed dependencies between components, checked by
+#   cargo run --release --features tooling --bin dependency_check
+# A component is a file's directory up to its `src` directory, or its own
+# directory when it has none. Each line `component: dependencies...` lists
+# every component the component's files may use; an edge missing here fails
+# the check, and so does a component without a line. Keep the rules acyclic.
+# The file graph itself must be acyclic too: any file cycle fails.
+# `--current` prints the current graph in this format.
+#
+# Notes on individual edges:
+# - mdoc/circuits -> mdoc/testcases: test
+#   fixtures in src/mdoc/circuits/cbor/test_utils.rs, compiled only with `testonly`.
+
+mdoc/artifacts:
+mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
+mdoc/compile: mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
+mdoc/development_provider: mdoc/circuits mdoc/compile mdoc/proto mdoc/runtime compile/polygero core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto
+mdoc/proto:
+bin/prover_only: mdoc/runtime
+mdoc/runtime: mdoc/circuits mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/proto runtime/v2/transcript runtime/v2/zk
+mdoc/testcases:
+bin/verifier_only: mdoc/runtime
+circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
+circuits/analog_decoder: circuits/boolean circuits/lookup compile/logic core/algebra
+circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
+circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra runtime/algebra
+circuits/bignum: circuits/boolean compile/algebra compile/logic core/algebra util
+circuits/bitvec: circuits/arithmetic circuits/boolean compile/algebra compile/logic core/algebra runtime/algebra util
+circuits/boolean: compile/algebra compile/logic core/algebra runtime/algebra util
+circuits/ec: compile/algebra compile/logic core/algebra
+circuits/ecdsa2: circuits/arithmetic circuits/big_bitvec circuits/bitvec circuits/boolean circuits/ec circuits/lookup compile/algebra compile/logic core/algebra
+circuits/gf2_128: circuits/bitvec circuits/boolean compile/logic
+circuits/lookup: circuits/polynomial compile/algebra compile/logic core/algebra
+circuits/memcmp: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
+circuits/polynomial: compile/logic
+circuits/routing: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
+circuits/sha256: circuits/analog_adder circuits/bitvec compile/logic core/algebra runtime/algebra
+circuits/sha256msg: circuits/analog_adder circuits/bitvec circuits/boolean circuits/sha256 compile/logic core/algebra runtime/algebra
+compile/algebra: core/algebra
+compile/compiler: compile/algebra compile/logic compile/proto core/algebra core/proto util
+compile/eval: compile/algebra compile/logic compile/proto core/algebra core/proto runtime/algebra
+compile/logic: compile/algebra core/algebra util
+compile/polygero: runtime/v2/proto
+compile/proto: compile/logic
+core/algebra:
+core/bits:
+core/proto: core/algebra util
+runtime:
+runtime/algebra: core/algebra core/bits
+runtime/random: core/algebra runtime/algebra
+runtime/v1: runtime/random runtime/v1/subfield
+runtime/v1/ligero: core/algebra runtime/algebra runtime/random runtime/v1 runtime/v1/merkle runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
+runtime/v1/merkle: runtime/random runtime/v1/proto
+runtime/v1/proto: core/algebra core/proto runtime/algebra runtime/v1/subfield
+runtime/v1/subfield: core/algebra runtime/algebra
+runtime/v1/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v1/proto runtime/v1/transcript
+runtime/v1/transcript: core/algebra runtime/random
+runtime/v1/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/sumcheck runtime/v1/transcript
+runtime/v2:
+runtime/v2/dual_packing: core/algebra runtime/algebra runtime/v2/proto runtime/v2/transcript
+runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/proto runtime/v2/transcript runtime/v2/zk util
+runtime/v2/merkle: runtime/v2/proto
+runtime/v2/polygero: core/algebra runtime/algebra runtime/random runtime/v2/merkle runtime/v2/proto runtime/v2/transcript
+runtime/v2/proto: core/algebra runtime/algebra runtime/v2/transcript
+runtime/v2/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v2/proto runtime/v2/transcript util
+runtime/v2/transcript: core/algebra runtime/algebra
+runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/proto runtime/v2/transcript
+runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/proto runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection
+bin/dependency_check:
+bin/zk_tool: mdoc/development_provider mdoc/runtime compile/polygero
+util:
+
+# Which files may (`only`) or may not (`never`) reference a symbol. Symbols are
+# rust-analyzer paths without package and version (`module/path/Type#`,
+# `module/impl#[Type]method().`); `*` matches any run of characters in symbol
+# and file patterns. A pattern that names no symbol fails the check.
+[symbol rules]
+# Transcript rounds are framed only in each protocol's transcript.rs.
+runtime/v2/transcript/session/impl#[*]begin_squeeze(). only */transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
+runtime/v2/transcript/session/impl#[*]write_*(). only */transcript.rs src/runtime/v2/transcript.rs src/runtime/v2/transcript/*
+# Only the complete-proof codecs seal, and only the transcript verifier
+# checks the seal; only the complete verifiers accept.
+runtime/v2/transcript/prover/impl#[Transcript]append_final_seal(). only src/mdoc/runtime/v2/proto.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/proto/zk.rs
+runtime/v2/transcript/verifier/impl#[Transcript]verify_final_seal(). only src/runtime/v2/transcript/verifier.rs
+runtime/v2/transcript/verifier/impl#[*]checked(). only src/mdoc/runtime/v2/verifier.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/zk/verifier.rs
+# Frontends see only TranscriptRef; the owning session belongs to the role
+# drivers and codecs.
+runtime/v2/transcript/session/Transcript# only src/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mdoc/runtime/v2/proto.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/foreign/compose/prover.rs src/runtime/v2/foreign/compose/verifier.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/polygero/prover.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/proto/zk.rs src/runtime/v2/witness_selection/prover.rs src/runtime/v2/witness_selection/verifier.rs src/runtime/v2/zk/joint_prover.rs src/runtime/v2/zk/joint_verifier.rs src/runtime/v2/zk/prover.rs src/runtime/v2/zk/verifier.rs
+# v2 private coins are PrivateRandom, which no transcript implements.
+runtime/random/engine/RandomEngine# never src/runtime/v2.rs src/runtime/v2/* src/mdoc/runtime/v2.rs src/mdoc/runtime/v2/*
+# Shared sumcheck and Polygero modules use neither role.
+runtime/v2/sumcheck/prover/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/sumcheck/verifier/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/sumcheck/eval/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/polygero/prover*/* never src/runtime/v2/polygero/config.rs src/runtime/v2/polygero/param.rs src/runtime/v2/polygero/polynomials.rs src/runtime/v2/polygero/constraints.rs src/runtime/v2/polygero/transcript.rs
+runtime/v2/polygero/verifier/* never src/runtime/v2/polygero/config.rs src/runtime/v2/polygero/param.rs src/runtime/v2/polygero/polynomials.rs src/runtime/v2/polygero/constraints.rs src/runtime/v2/polygero/transcript.rs
+

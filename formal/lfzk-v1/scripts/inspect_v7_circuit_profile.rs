@@ -5,7 +5,7 @@
 //
 // For each attribute count `1..=4`:
 //   * `mdoc_zk_runtime::materialize(version, attributes)` finds the `ZK_SPECS` record and reads
-//     `rust/applications/mdoc_zk/artifacts/circuits/<combined_hash>.lfa2` (zstd, LFA2 archive);
+//     `rust/src/mdoc/artifacts/circuits/<combined_hash>.lfa2` (zstd, LFA2 archive);
 //   * the archive's `combined_id`, and `compute_combined_id` of its entries, must equal the
 //     registry's `combined_hash`;
 //   * both entries are parsed with `enforce_circuit_id = true` (the reader recomputes the circuit
