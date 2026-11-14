@@ -73,7 +73,7 @@ pub(in super::super) fn bind_r<const W: usize, F: RuntimeField<W> + Serializable
     q
 }
 #[cfg(any(test, feature = "prover"))]
-pub(in super::super) fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],

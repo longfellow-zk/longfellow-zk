@@ -32,11 +32,11 @@ where
         }
     }
 
-    pub(crate) fn get(&self, k: &K) -> Option<V> {
+    fn get(&self, k: &K) -> Option<V> {
         self.cache.borrow().get(k).cloned()
     }
 
-    pub(crate) fn insert(&self, k: K, v: V) {
+    fn insert(&self, k: K, v: V) {
         self.cache.borrow_mut().insert(k, v);
     }
 

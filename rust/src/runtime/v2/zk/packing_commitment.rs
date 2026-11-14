@@ -22,13 +22,13 @@ use crate::runtime::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PackingLayout {
     pub(crate) private_inputs: usize,
-    pub(crate) packed_words: usize,
-    pub(crate) masks: usize,
+    packed_words: usize,
+    masks: usize,
     /// First pad cell: right after the packed words.
     pub(crate) suffix_start: usize,
     pub(crate) pad_cells: usize,
     /// First packing mask: right after the pads.
-    pub(crate) masks_start: usize,
+    masks_start: usize,
     pub(crate) witness_count: usize,
     pub(crate) degree: usize,
 }

@@ -96,11 +96,7 @@ pub(in crate::runtime::v2) fn mask_cell_count(degree: usize) -> usize {
 
 /// Substitute t_0 = sum_(k>0) beta_k*t_k. This leaves coefficients only on
 /// committed cells, as in the Lean `Instance.contract_mask` identity.
-pub(super) fn eliminate_dependent<F: AlgebraicField>(
-    f: &F,
-    basis: &[F::E],
-    weights: &[F::E],
-) -> Vec<F::E> {
+fn eliminate_dependent<F: AlgebraicField>(f: &F, basis: &[F::E], weights: &[F::E]) -> Vec<F::E> {
     weights
         .iter()
         .skip(1)

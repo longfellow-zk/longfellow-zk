@@ -17,13 +17,13 @@ use crate::circuits::sha256msg::concrete::{ConcreteDerived, ConcreteGiven};
 #[allow(dead_code)]
 pub(super) struct Sha256MsgCorruptor {
     pub name: String,
-    pub expected_path: String,
+    expected_path: String,
     pub corrupt: Box<dyn Fn(&mut ConcreteGiven, &mut ConcreteDerived)>,
 }
 
 impl Sha256MsgCorruptor {
     #[allow(dead_code)]
-    pub(super) fn expected_compiled_path(&self) -> String {
+    fn expected_compiled_path(&self) -> String {
         self.expected_path
             .replace("assert_wrapping_sum_gf2", "assert_wrapping_sum_prime")
     }

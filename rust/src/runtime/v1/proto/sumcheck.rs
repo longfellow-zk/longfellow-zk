@@ -231,7 +231,7 @@ pub struct CircuitPadLayout {
 }
 
 /// Four pads per round, two endpoint pads, and their committed product.
-pub const fn pad_count(logw: usize) -> usize {
+const fn pad_count(logw: usize) -> usize {
     4 * logw + 3
 }
 fn invalid(message: &str) -> std::io::Error {

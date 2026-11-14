@@ -34,7 +34,7 @@ pub type P256Field =
     FpGenericField<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }, P256Tag, P256Strategy>;
 pub type P256Accum = FpGenericAccum<{ 9 * LIMBS_PER_U64 }>;
 
-pub(in crate::runtime::algebra) const P256_MODULUS: [u64; 4] = [
+const P256_MODULUS: [u64; 4] = [
     0xffffffffffffffff,
     0x00000000ffffffff,
     0x0000000000000000,

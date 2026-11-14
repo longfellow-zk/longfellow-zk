@@ -21,7 +21,7 @@ pub fn dot<const W: usize, F: RuntimeField<W>>(x: &[F::E], y: &[F::E], f: &F) ->
 }
 
 /// Dot product over borrowed pairs, allowing indexed operands without a gather buffer.
-pub(crate) fn dot_pairs<'a, const W: usize, F: RuntimeField<W>>(
+fn dot_pairs<'a, const W: usize, F: RuntimeField<W>>(
     pairs: impl IntoIterator<Item = (&'a F::E, &'a F::E)>,
     f: &F,
 ) -> F::E

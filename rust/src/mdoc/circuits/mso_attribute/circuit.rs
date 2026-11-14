@@ -61,9 +61,9 @@ impl<L: Logic> Clone for DisclosedAttribute<L> {
 pub struct Slice<L: Logic> {
     /// Offset of the field (in bytes) relative to the start of the outer
     /// tagged CBOR byte array.
-    pub offset: AttrIndex<L>,
+    offset: AttrIndex<L>,
     /// Length of the field (in bytes).
-    pub len: AttrIndex<L>,
+    len: AttrIndex<L>,
 }
 
 impl<L: Logic> Clone for Slice<L> {
@@ -118,10 +118,10 @@ where L::F: FieldWrappingSum
 {
     logic: &'a L,
     boolean: Boolean<'a, L>,
-    pub(in crate::mdoc::circuits) bv: BitvecLogic<'a, L>,
+    bv: BitvecLogic<'a, L>,
     cbor_decoder: CborByteDecoder<'a, L>,
     routing: Routing<'a, L>,
-    pub(in crate::mdoc::circuits) shamsg: Sha256Msg<'a, L, 2>,
+    shamsg: Sha256Msg<'a, L, 2>,
 }
 
 impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
@@ -391,7 +391,7 @@ where L::F: FieldWrappingSum
     /// If `atom` is true, parses an atomic CBOR element (e.g. tag, integer, or
     /// tiny text). If false, handles structured values that could span
     /// multiple bytes for their length field.
-    pub fn assert_cbor_length(
+    fn assert_cbor_length(
         &self,
         attribute_preimage: &[V8<L>],
         expected_len: &AttrIndex<L>,
@@ -447,7 +447,7 @@ where L::F: FieldWrappingSum
             .collect()
     }
 
-    pub fn slot_offset_and_len(&self, slot: usize, field_locator: &FieldLocator<L>) -> Slice<L> {
+    fn slot_offset_and_len(&self, slot: usize, field_locator: &FieldLocator<L>) -> Slice<L> {
         let zero = self.bv.of_u64::<K_ATTR_INDEX_BITS>(0);
         let offset = self.routing.shift_bitvec(
             1,
@@ -485,7 +485,7 @@ where L::F: FieldWrappingSum
         })
     }
 
-    pub fn assert_len_eq(&self, cbor_len: &AttrIndex<L>, pub_len: &AttrIndex<L>) -> L::Assertions {
+    fn assert_len_eq(&self, cbor_len: &AttrIndex<L>, pub_len: &AttrIndex<L>) -> L::Assertions {
         self.bv.assert_eq("cbor_len_eq", cbor_len, pub_len)
     }
 }

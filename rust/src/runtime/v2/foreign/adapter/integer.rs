@@ -3,7 +3,7 @@
 /// A 256-bit unsigned integer, little-endian limbs.
 pub(crate) type Int256 = [u64; 4];
 /// P-256 coordinate modulus, little-endian limbs. The scalar order differs.
-pub(crate) const MODULUS: [u64; 4] = [
+const MODULUS: [u64; 4] = [
     0xffffffffffffffff,
     0x00000000ffffffff,
     0,

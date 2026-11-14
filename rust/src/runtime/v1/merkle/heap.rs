@@ -84,8 +84,8 @@ fn mark_paths_to_root(num_leaves: usize, leaf_indices: &[usize]) -> Result<Vec<b
 
 /// Representation of a built, immutable Merkle heap.
 pub struct MerkleHeap {
-    pub num_leaves: usize,
-    pub layers: Vec<Digest>,
+    num_leaves: usize,
+    layers: Vec<Digest>,
 }
 
 impl MerkleHeap {
@@ -97,7 +97,7 @@ impl MerkleHeap {
     }
 
     /// Build the same fixed heap with a caller-selected internal-node codec.
-    pub fn new_with_hash(leaves: &[Digest], hash: impl Fn(&Digest, &Digest) -> Digest) -> Self {
+    fn new_with_hash(leaves: &[Digest], hash: impl Fn(&Digest, &Digest) -> Digest) -> Self {
         let num_leaves = leaves.len();
         assert!(num_leaves > 0, "Cannot construct an empty Merkle heap");
         let mut layers = vec![Digest::default(); 2 * num_leaves];
@@ -160,7 +160,7 @@ pub fn verify_proof(
 }
 
 /// Verify a frontier using the same internal-node codec used at construction.
-pub(super) fn verify_proof_with_hash(
+fn verify_proof_with_hash(
     num_leaves: usize,
     root: &Digest,
     proof: &[Digest],

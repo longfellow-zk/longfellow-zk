@@ -23,7 +23,7 @@ impl<'a, L: Logic> Polynomial<'a, L> {
         Self { logic }
     }
 
-    pub fn powers_of_x(&self, n: usize, x: &Eltw<L>) -> Vec<Eltw<L>> {
+    fn powers_of_x(&self, n: usize, x: &Eltw<L>) -> Vec<Eltw<L>> {
         let mut xi = vec![self.logic.zero(); n];
         if n > 0 {
             xi[0] = self.logic.one();

@@ -36,7 +36,7 @@ pub struct PolygeroParameters {
 impl PolygeroParameters {
     /// Longfellow v2 uses exactly one private prefix sample per opened column.
     #[must_use]
-    pub const fn config(self) -> PolygeroConfig {
+    const fn config(self) -> PolygeroConfig {
         PolygeroConfig {
             k: self.k,
             n: self.n,

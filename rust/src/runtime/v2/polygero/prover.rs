@@ -81,7 +81,7 @@ impl<S> JointPolygeroProver<S> {
 /// Form the masked arithmetic response directly on the first 2k oracle
 /// points. C_i is specified by its k logical samples; interpolate each row
 /// with one plan and accumulate C_i*W_i using dense BLAS, then add V*u and z_R*m.
-pub(super) fn arithmetic_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn arithmetic_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     w: &[Vec<F::E>],
     rows: &[Vec<F::E>],
@@ -118,7 +118,7 @@ pub(super) fn arithmetic_response<const W: usize, F: RuntimeField<W>, D: Evaluat
 /// on its k+s response points.
 /// Each B_i has degree at most s and is given by s+1 oracle-prefix samples.
 /// One local interpolation plan serves every batched row.
-pub(super) fn primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     w: &[Vec<F::E>],
     batching_samples: &[Vec<F::E>],

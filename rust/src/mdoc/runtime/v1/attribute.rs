@@ -16,7 +16,7 @@
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedAttribute {
-    pub namespace_id: Vec<u8>,
+    namespace_id: Vec<u8>,
     pub id: Vec<u8>,
     pub cbor_value: Vec<u8>,
 }

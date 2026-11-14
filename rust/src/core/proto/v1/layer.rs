@@ -21,9 +21,9 @@ pub struct Layer<F: SerializableField> {
     pub(in crate::core::proto) nw: usize,
     pub(in crate::core::proto) logw: usize,
     pub(in crate::core::proto) deltas: Vec<TermDelta>,
-    pub(in crate::core::proto) delta_segments: Vec<Vec<u32>>,
-    pub(in crate::core::proto) delta_tokens: Vec<u32>,
-    pub(in crate::core::proto) _marker: std::marker::PhantomData<F>,
+    delta_segments: Vec<Vec<u32>>,
+    delta_tokens: Vec<u32>,
+    _marker: std::marker::PhantomData<F>,
 }
 
 impl<F: SerializableField> Layer<F> {
@@ -137,10 +137,7 @@ impl<F: SerializableField> Layer<F> {
 
     #[allow(dead_code)]
     #[inline(always)]
-    pub(in crate::core::proto) fn try_for_each_delta_index<
-        E,
-        MutCb: FnMut(u32) -> Result<(), E>,
-    >(
+    fn try_for_each_delta_index<E, MutCb: FnMut(u32) -> Result<(), E>>(
         &self,
         mut cb: MutCb,
     ) -> Result<(), E> {

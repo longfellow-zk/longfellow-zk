@@ -36,7 +36,7 @@ pub struct Derived<L: Logic> {
 
 pub struct Sha256<'a, L: Logic> {
     logic: &'a L,
-    pub(in crate::circuits::sha256) bv: BitvecLogic<'a, L>,
+    bv: BitvecLogic<'a, L>,
 }
 
 impl<'a, L: Logic> Sha256<'a, L>

@@ -20,7 +20,7 @@ pub(super) struct AssignmentBuilder<
     'a,
     F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField,
 > {
-    pub(super) field: &'a F,
+    field: &'a F,
     buffer: Vec<F::E>,
 }
 
@@ -51,7 +51,7 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
         });
     }
 
-    pub(super) fn push_bits_len(&mut self, val: u64, nbits: usize) {
+    fn push_bits_len(&mut self, val: u64, nbits: usize) {
         let mut cur_val = val;
         for _ in 0..nbits {
             self.push_bit((cur_val & 1) != 0);
@@ -98,7 +98,7 @@ cfg_prover! {
 
 
     impl BinaryAssignmentBuilder {
-        pub(super) fn push_v32(&mut self, val: u32) {
+        fn push_v32(&mut self, val: u32) {
             self.push_bits_len(u64::from(val),32);
         }
 
@@ -107,7 +107,7 @@ cfg_prover! {
             for byte in bytes { self.push_v8(byte); }
         }
 
-        pub(super) fn push_sha256_derived(
+        fn push_sha256_derived(
             &mut self,
             derived: &crate::circuits::sha256::ConcreteDerived,
         ) {

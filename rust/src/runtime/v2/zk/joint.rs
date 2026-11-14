@@ -53,7 +53,7 @@ impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField
     ) -> Result<Self, String> {
         Self::from_parameter(prepare_parameter(cells, config, domain)?, domain, field_id)
     }
-    pub(crate) fn from_parameter(
+    fn from_parameter(
         param: PolygeroParam,
         domain: &'a D,
         field_id: Vec<u8>,
@@ -68,7 +68,7 @@ impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField
 }
 
 impl<'a, const W: usize, F: ZkField<W>, D, L> SelectedField<'a, W, F, D, L> {
-    pub(crate) fn with_layout<A>(self, layout: A) -> SelectedField<'a, W, F, D, A> {
+    fn with_layout<A>(self, layout: A) -> SelectedField<'a, W, F, D, A> {
         SelectedField {
             selection: self.selection,
             geometry: self.geometry,
@@ -184,7 +184,7 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) geometry: CircuitGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
-    pub(super) param: PolygeroParam,
+    param: PolygeroParam,
     pub(super) backend: PackingCommitment<F>,
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,

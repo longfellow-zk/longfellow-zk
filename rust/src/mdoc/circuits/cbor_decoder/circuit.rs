@@ -48,7 +48,7 @@ pub struct CborDecodeResult<L: Logic, const N: usize> {
 
 pub struct CborByteDecoder<'a, L: Logic> {
     boolean: Boolean<'a, L>,
-    pub(in crate::mdoc::circuits) bv: BitvecLogic<'a, L>,
+    bv: BitvecLogic<'a, L>,
 }
 
 impl<'a, L: Logic> CborByteDecoder<'a, L> {

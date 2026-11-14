@@ -62,7 +62,7 @@ impl<const N: usize> MaskedWord<N> {
         assert!(j < N);
         (self.0 >> j) & 1 != 0
     }
-    pub fn write(&self, out: &mut Vec<u8>) {
+    fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(&self.0.to_le_bytes()[..Self::BYTES]);
     }
     /// Reject truncated input and any nonzero padding bit.

@@ -61,7 +61,7 @@ pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 }
 
 /// Evaluate one layer, traversing sparse terms in the circuit's stored order.
-pub fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
     nv: usize,
     w: &[F::E],
     layer: &Layer<F>,

@@ -23,7 +23,7 @@ pub struct PackedBits {
 }
 
 impl PackedBits {
-    pub fn with_capacity(bits: usize) -> Self {
+    fn with_capacity(bits: usize) -> Self {
         Self {
             words: Vec::with_capacity(bits.div_ceil(64)),
             len: 0,
@@ -60,7 +60,7 @@ impl PackedBits {
         (self.words[index / 64] >> (index % 64)) & 1 != 0
     }
 
-    pub fn push(&mut self, bit: bool) {
+    fn push(&mut self, bit: bool) {
         if self.len.is_multiple_of(64) {
             self.words.push(0);
         }

@@ -159,7 +159,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         }
     }
 
-    pub fn scan<FUNC>(&self, reduce: FUNC, oarr: &[(Bitw<L>, Bitw<L>)]) -> Vec<(Bitw<L>, Bitw<L>)>
+    fn scan<FUNC>(&self, reduce: FUNC, oarr: &[(Bitw<L>, Bitw<L>)]) -> Vec<(Bitw<L>, Bitw<L>)>
     where FUNC: Fn(&(Bitw<L>, Bitw<L>), &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) {
         let mut arr: Vec<(Bitw<L>, Bitw<L>)> = oarr
             .iter()
@@ -173,7 +173,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         arr
     }
 
-    pub fn lt_reduce(&self, a: &(Bitw<L>, Bitw<L>), b: &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) {
+    fn lt_reduce(&self, a: &(Bitw<L>, Bitw<L>), b: &(Bitw<L>, Bitw<L>)) -> (Bitw<L>, Bitw<L>) {
         let (eq0, lt0) = a;
         let (eq1, lt1) = b;
         (
@@ -188,7 +188,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         )
     }
 
-    pub fn lt_base(&self, a: &Bitw<L>, b: &Bitw<L>) -> (Bitw<L>, Bitw<L>) {
+    fn lt_base(&self, a: &Bitw<L>, b: &Bitw<L>) -> (Bitw<L>, Bitw<L>) {
         (self.boolean.eqb(a, b), self.boolean.ltb(a, b))
     }
 

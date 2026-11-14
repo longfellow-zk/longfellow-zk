@@ -27,7 +27,7 @@ pub use limb_32::*;
 /// a += b, propagating carry. Returns carry bit.
 /// Both arrays must have the same size N.
 #[inline(always)]
-pub fn add_limb<const N: usize>(a: &mut [Limb; N], b: &[Limb; N]) -> Limb {
+fn add_limb<const N: usize>(a: &mut [Limb; N], b: &[Limb; N]) -> Limb {
     let mut carry = false;
     for i in 0..N {
         let (sum, c) = a[i].carrying_add(b[i], carry);
@@ -100,7 +100,7 @@ pub fn is_one_slice<const N: usize>(a: &[Limb; N]) -> bool {
 
 #[inline(always)]
 #[must_use]
-pub fn mulhl<const N: usize>(x: Limb, y: &[Limb; N]) -> ([Limb; N], [Limb; N]) {
+fn mulhl<const N: usize>(x: Limb, y: &[Limb; N]) -> ([Limb; N], [Limb; N]) {
     let mut l = [0 as Limb; N];
     let mut h = [0 as Limb; N];
     for i in 0..N {

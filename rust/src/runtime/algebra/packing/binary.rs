@@ -209,7 +209,7 @@ impl Gf256 {
         }
         Gf256Element(Gf2_128::from(word))
     }
-    pub fn byte(&self, x: &Gf256Element) -> u8 {
+    fn byte(&self, x: &Gf256Element) -> u8 {
         self.digits.iter().enumerate().fold(0, |n, (i, mask)| {
             n | ((((x.0.to_u128() & mask).count_ones() & 1) as u8) << i)
         })

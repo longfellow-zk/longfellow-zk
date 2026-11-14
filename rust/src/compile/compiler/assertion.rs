@@ -103,7 +103,7 @@ impl<'re, 'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
 
 /// Recursively walks the expression DAG and strips all `WithAssertions` nodes
 /// using a `Cse` rewriter, returning a single flattened assertion set in target arena ('dst).
-pub fn strip_all<'src, 'dst, F: CompileField>(
+fn strip_all<'src, 'dst, F: CompileField>(
     arena: &'dst CompilerArena<'dst, F>,
     assertions: Assertions<'src, F>,
     tracker: &AssertionScope,

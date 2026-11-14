@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub(in crate::circuits::boolean) struct F65537Tag;
-pub(in crate::circuits::boolean) type F65537Field = FpField<F65537Tag>;
+type F65537Field = FpField<F65537Tag>;
 
 pub(in crate::circuits::boolean) type LPrime<'a> = EvalLogic<'a, F65537Field>;
 
@@ -37,13 +37,8 @@ pub(in crate::circuits::boolean) fn new_f65537_field() -> F65537Field {
     })
 }
 
-pub(in crate::circuits::boolean) fn compare_bitw<L: Logic>(
-    boolean: &Boolean<L>,
-    want: &Bitw<L>,
-    got: &Bitw<L>,
-) where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+fn compare_bitw<L: Logic>(boolean: &Boolean<L>, want: &Bitw<L>, got: &Bitw<L>)
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(want);
     assert_eq!(got_val, want_val);

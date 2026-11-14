@@ -161,9 +161,9 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
 
 #[derive(Debug, Clone)]
 pub struct EvalAssertions<'a> {
-    pub scoped: AssertionMap,
-    pub unscoped: AssertionMap,
-    pub tracker: &'a AssertionScope,
+    scoped: AssertionMap,
+    unscoped: AssertionMap,
+    tracker: &'a AssertionScope,
 }
 
 impl<'a> EvalAssertions<'a> {

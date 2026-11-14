@@ -178,7 +178,7 @@ impl Stream<Constant> {
         }
     }
     #[inline(always)]
-    pub fn try_for_each<E>(&self, mut cb: impl FnMut(Constant) -> Result<(), E>) -> Result<(), E> {
+    fn try_for_each<E>(&self, mut cb: impl FnMut(Constant) -> Result<(), E>) -> Result<(), E> {
         let mut previous = Constant::default();
         for &token in &self.tokens {
             for &index in &self.segments[token as usize] {

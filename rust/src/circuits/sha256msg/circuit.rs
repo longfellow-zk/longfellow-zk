@@ -35,8 +35,8 @@ pub struct Sha256Msg<'a, L: Logic, const MAX_BLOCKS: usize>
 where L::F: FieldWrappingSum
 {
     logic: &'a L,
-    pub(in crate::circuits::sha256msg) sha: Sha256<'a, L>,
-    pub(in crate::circuits::sha256msg) bv: BitvecLogic<'a, L>,
+    sha: Sha256<'a, L>,
+    bv: BitvecLogic<'a, L>,
     boolean: Boolean<'a, L>,
 }
 
@@ -69,7 +69,7 @@ where L::F: FieldWrappingSum
     /// Asserts that the SHA-256 compression is correctly executed for
     /// all blocks, and that any idle blocks beyond `nblocks` are
     /// properly padded with zero bytes.
-    pub fn assert_intermediate_hashes(
+    fn assert_intermediate_hashes(
         &self,
         input_bytes: &[V8<L>],
         derived: &[Sha256Derived<L>],
@@ -100,7 +100,7 @@ where L::F: FieldWrappingSum
     /// Asserts that the SHA-256 hash output of the active message
     /// (located at the end of block `nblocks - 1`) matches the expected
     /// hash `expected_hash`.
-    pub fn assert_final_hash<const S: usize>(
+    fn assert_final_hash<const S: usize>(
         &self,
         expected_hash: &V256<L>,
         nblocks: &Bitvec<L, S>,

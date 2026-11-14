@@ -136,7 +136,7 @@ fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
 ) -> crate::core::proto::v2::Circuit<F> {
     quadratic_fixture(legacy_circuit(f), f)
 }
-pub(crate) fn exercise<
+fn exercise<
     const W: usize,
     F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
     D: EvaluationDomain<W, F>,

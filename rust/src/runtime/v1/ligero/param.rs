@@ -214,7 +214,7 @@ impl LigeroParam {
         })
     }
 
-    pub fn sanity(&self) {
+    fn sanity(&self) {
         assert!(self.geom.block >= self.geom.nreq);
         assert_eq!(self.w, self.geom.block - self.geom.nreq);
         assert_eq!(self.geom.dblock, 2 * self.geom.block - 1);

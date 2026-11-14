@@ -45,7 +45,7 @@ use crate::{
 /// A trusted legacy circuit and the configuration used to decode its commitment.
 pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
     pub circuit: Circuit<F>,
-    pub config: LigeroConfig,
+    config: LigeroConfig,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {

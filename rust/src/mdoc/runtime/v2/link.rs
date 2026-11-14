@@ -29,9 +29,9 @@ use crate::{
     },
 };
 
-pub(super) type Mode = P256Mode<QUOTIENT_BITS>;
+type Mode = P256Mode<QUOTIENT_BITS>;
 const _: () = assert!(<Mode as AdapterMode<P256Field>>::MASK_BITS == MASK_BITS);
-pub(super) type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
+type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
 
 /// The shared values as (signature value, hash input) pairs, from the shared
 /// layout table that the compilers and witness encoders also check against.

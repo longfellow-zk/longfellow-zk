@@ -55,11 +55,11 @@ pub struct Derived<L: Logic> {
 }
 
 pub struct EcdsaCircuit<'a, const W: usize, C: Curve<W>, L: Logic<F = C::F>> {
-    pub(in crate::circuits::ecdsa2) ec: EcCircuit<'a, W, C, L>,
-    pub(in crate::circuits::ecdsa2) boolean: Boolean<'a, L>,
-    pub(in crate::circuits::ecdsa2) bv: BitvecLogic<'a, L>,
-    pub(in crate::circuits::ecdsa2) logic: &'a L,
-    pub(in crate::circuits::ecdsa2) curve: &'a C,
+    ec: EcCircuit<'a, W, C, L>,
+    boolean: Boolean<'a, L>,
+    bv: BitvecLogic<'a, L>,
+    logic: &'a L,
+    curve: &'a C,
 }
 
 impl<'a, const W: usize, C, L, F> EcdsaCircuit<'a, W, C, L>

@@ -37,7 +37,7 @@ impl StreamDirectory {
             bytes,
         }
     }
-    pub(super) fn validate(self, arity: usize) -> Result<(), String> {
+    fn validate(self, arity: usize) -> Result<(), String> {
         let entries = self
             .deltas
             .checked_mul(arity)

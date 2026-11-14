@@ -29,8 +29,8 @@ pub const K_ELEMENT_VALUE_PREFIX: [u8; 13] = [
     0x6c, b'e', b'l', b'e', b'm', b'e', b'n', b't', b'V', b'a', b'l', b'u', b'e',
 ];
 
-pub const K_SHA256_BLOCK_SIZE: usize = 64;
-pub const K_SHA256_PADDING_LEN: usize = 9;
+const K_SHA256_BLOCK_SIZE: usize = 64;
+const K_SHA256_PADDING_LEN: usize = 9;
 /// The maximum number of SHA-256 blocks for an attribute.
 pub const K_MAX_ATTR_SHA_BLOCKS: usize = 2;
 /// The maximum size of the `IssuerSignedItem` CBOR structure that fits in the

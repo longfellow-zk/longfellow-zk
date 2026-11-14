@@ -171,7 +171,7 @@ impl<F: CompileField> fmt::Display for Expr<'_, F> {
 /// `node.depth`. For post-termification passes (like copy
 /// propagation), a stricter version is used in `copy.rs` to assert
 /// compiler invariants.
-pub fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
+fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
     match &node.v {
         Expr::Input(_) | Expr::One | Expr::Constant(_) => 1,
         _ => node.depth,
@@ -191,7 +191,7 @@ pub fn depth_expr<F: CompileField>(expr: &Expr<'_, F>) -> usize {
     }
 }
 
-pub fn extract_assertions<'a, F: CompileField>(
+fn extract_assertions<'a, F: CompileField>(
     x: &ExprNode<'a, F>,
 ) -> (Vec<Assertions<'a, F>>, ExprNode<'a, F>) {
     let mut current = *x;
@@ -337,7 +337,7 @@ impl std::error::Error for IrError {}
 ///    comparing the precomputed hash values before comparing elements.
 pub struct HashedExpr<'a, F: CompileField> {
     pub(in crate::compile::compiler) expr: Expr<'a, F>,
-    pub(in crate::compile::compiler) hash: u64,
+    hash: u64,
 }
 
 impl<'a, F: CompileField> HashedExpr<'a, F> {

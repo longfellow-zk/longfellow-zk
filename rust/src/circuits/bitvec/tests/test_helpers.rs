@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub(in crate::circuits::bitvec) struct F65537Tag;
-pub(in crate::circuits::bitvec) type F65537Field = FpField<F65537Tag>;
+type F65537Field = FpField<F65537Tag>;
 
 pub(in crate::circuits::bitvec) type LPrime<'a> = EvalLogic<'a, F65537Field>;
 

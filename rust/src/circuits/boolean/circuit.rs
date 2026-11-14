@@ -23,7 +23,7 @@ use crate::{
 mod imp {
     use super::{CompileField, ElementOf, Eltw, Logic};
 
-    pub(in crate::circuits::boolean) enum Inner<L: Logic> {
+    enum Inner<L: Logic> {
         True,
         False,
         P(Eltw<L>),
@@ -241,7 +241,7 @@ mod imp {
                 }
             }
         }
-        pub fn sum_assuming_at_most_one_true(&self, a: &[Bitw<L>]) -> Bitw<L> {
+        fn sum_assuming_at_most_one_true(&self, a: &[Bitw<L>]) -> Bitw<L> {
             let elts: Vec<Eltw<L>> = a.iter().map(|x| self.as_eltw(x)).collect();
             Bitw(Inner::P(self.logic.sum(&elts)))
         }
@@ -359,7 +359,7 @@ mod imp {
             }
         }
 
-        pub fn mulbe(&self, b: &Bitw<L>, e: &Eltw<L>) -> Eltw<L> {
+        fn mulbe(&self, b: &Bitw<L>, e: &Eltw<L>) -> Eltw<L> {
             self.logic.mul(&self.as_eltw(b), e)
         }
 

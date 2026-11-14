@@ -30,12 +30,12 @@ pub(in crate::runtime::algebra) fn assert_valid_orders(transform_order: u64, roo
 }
 
 pub struct Twiddle<const W: usize, F: RuntimeField<W>> {
-    pub order: usize,
-    pub w: Vec<F::E>,
+    order: usize,
+    w: Vec<F::E>,
 }
 
 impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
-    pub fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
+    fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
         assert!(
             order.is_power_of_two(),
             "twiddle order must be a nonzero power of two"
@@ -61,14 +61,14 @@ impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
     }
 }
 
-pub fn butterfly<const W: usize, F: RuntimeField<W>>(s: usize, a: &mut [F::E], f: &F) {
+fn butterfly<const W: usize, F: RuntimeField<W>>(s: usize, a: &mut [F::E], f: &F) {
     let t = a[s].clone();
     a[s] = a[0].clone();
     f.sub(&mut a[s], &t);
     f.add(&mut a[0], &t);
 }
 
-pub fn butterflytw<const W: usize, F: RuntimeField<W>>(
+fn butterflytw<const W: usize, F: RuntimeField<W>>(
     s: usize,
     a: &mut [F::E],
     twiddle: &F::E,

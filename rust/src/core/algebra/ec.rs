@@ -25,7 +25,7 @@ pub trait Curve<const W: usize> {
     fn g(&self) -> &(ElementOf<Self::F>, ElementOf<Self::F>);
 }
 
-pub type Pt2<F> = (ElementOf<F>, ElementOf<F>);
+type Pt2<F> = (ElementOf<F>, ElementOf<F>);
 pub type Pt3<F> = (ElementOf<F>, ElementOf<F>, ElementOf<F>);
 
 pub fn zero<F: AlgebraicField>(f: &F) -> Pt3<F> {

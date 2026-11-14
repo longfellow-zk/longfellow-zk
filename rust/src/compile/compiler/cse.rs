@@ -64,7 +64,7 @@ impl<'a, F: CompileField> Cse<'a, F> {
         }
     }
 
-    pub fn alloc_elt(&self, elt: &F::E) -> &'a F::E {
+    fn alloc_elt(&self, elt: &F::E) -> &'a F::E {
         if let Some(&cached) = self.elt_memo.borrow().get(elt) {
             return cached;
         }

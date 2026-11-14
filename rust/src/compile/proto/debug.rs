@@ -83,7 +83,7 @@ impl CircuitDebugSymbols {
     }
 
     /// Looks up the assertion symbol for a given wire reference.
-    pub fn get_symbol(&self, wire: &WireRef) -> Option<&AssertionSymbol> {
+    fn get_symbol(&self, wire: &WireRef) -> Option<&AssertionSymbol> {
         self.symbols.iter().find(|s| &s.wire == wire)
     }
 
@@ -117,11 +117,11 @@ pub enum CompiledAssertionStatus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvaluatedCompiledAssertion {
     /// Evaluated wire reference.
-    pub wire: WireRef,
+    wire: WireRef,
     /// Formatted scope path for the assertion.
-    pub path: String,
+    path: String,
     /// Evaluation status (Passed or Failed).
-    pub status: CompiledAssertionStatus,
+    status: CompiledAssertionStatus,
 }
 
 use std::collections::HashMap;

@@ -69,9 +69,9 @@ cfg_prover! {
     /// - `mh`: The fully built `MerkleHeap` containing leaf and internal node digests.
     /// - `nonce`: The generated `MerkleNonce` salts for all columns/leaves.
     pub struct MerkleCommitment {
-        pub num_leaves: usize,
-        pub mh: MerkleHeap,
-        pub nonce: Vec<MerkleNonce>,
+        num_leaves: usize,
+        mh: MerkleHeap,
+        nonce: Vec<MerkleNonce>,
     }
 
     /// Commits to a set of `num_leaves` leaves/columns.

@@ -15,7 +15,7 @@
 use super::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul, Gf2_128, Gf2_128Accum};
 
 // Independent bit-serial oracle for X^128 + X^7 + X^2 + X + 1.
-pub(super) fn reference_mul(mut x: u128, mut y: u128) -> u128 {
+fn reference_mul(mut x: u128, mut y: u128) -> u128 {
     let mut result = 0;
     for _ in 0..128 {
         if y & 1 != 0 {
@@ -31,7 +31,7 @@ pub(super) fn reference_mul(mut x: u128, mut y: u128) -> u128 {
     result
 }
 
-pub(super) fn next(state: &mut u128) -> u128 {
+fn next(state: &mut u128) -> u128 {
     *state ^= *state << 13;
     *state ^= *state >> 17;
     *state ^= *state << 43;

@@ -63,7 +63,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> AbsorbLayout for CircuitParti
 /// Bind a split participant's storage layout before the shared root: its
 /// circuit, its storage map as runs, and the bits of the split's mask R.
 /// These are setup constants fixed by the trusted circuits.
-pub(super) fn absorb_storage(
+fn absorb_storage(
     t: &mut TranscriptRef<'_>,
     circuit_id: &[u8; 32],
     storage: &StorageMap,

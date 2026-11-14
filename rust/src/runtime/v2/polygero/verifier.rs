@@ -95,11 +95,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     }
 }
 #[cfg(any(test, feature = "verifier"))]
-pub(super) fn verify_primary_response<
-    const W: usize,
-    F: RuntimeField<W>,
-    D: EvaluationDomain<W, F>,
->(
+fn verify_primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     response: &[F::E],
     indices: &[usize],
@@ -125,7 +121,7 @@ pub(super) fn verify_primary_response<
 }
 
 #[cfg(any(test, feature = "verifier"))]
-pub(super) fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     response: &[F::E],
     indices: &[usize],
@@ -155,7 +151,7 @@ pub(super) fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: Evaluatio
 }
 
 #[cfg(any(test, feature = "verifier"))]
-pub(super) fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     rows: &[Vec<F::E>],
     indices: &[usize],
@@ -176,7 +172,7 @@ pub(super) fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDo
 }
 
 #[cfg(any(test, feature = "verifier"))]
-pub(super) fn opened_row<'a, E>(param: &PolygeroParam, rows: &'a [E], row: usize) -> &'a [E] {
+fn opened_row<'a, E>(param: &PolygeroParam, rows: &'a [E], row: usize) -> &'a [E] {
     let t = param.geom.t;
     &rows[row * t..(row + 1) * t]
 }
