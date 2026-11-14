@@ -16,7 +16,7 @@ use crate::{
             zk::{
                 context::private_input_count,
                 joint::{CircuitParticipant, CircuitProof, JointParam, JointProver},
-                packing_commitment::PackingState,
+                packing_commitment::prover::PackingState,
                 split::PendingSplit,
                 storage::Storage,
                 CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
