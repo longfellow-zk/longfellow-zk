@@ -32,7 +32,9 @@ pub fn from_stream_lfa2_body<R: BufRead>(stream: &mut R) -> Result<CircuitArchiv
         ));
     }
 
-    let circuit_version = read_uleb128(stream)? as u32;
+    let circuit_version = read_uleb128(stream)?;
+    let circuit_version = u32::try_from(circuit_version)
+        .map_err(|_| format!("circuit_version {circuit_version} does not fit in u32"))?;
 
     let mut combined_id = [0u8; 32];
     stream

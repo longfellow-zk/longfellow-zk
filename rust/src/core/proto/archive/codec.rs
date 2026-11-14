@@ -14,7 +14,7 @@
 
 //! LFA1/LFA2 format selection for [`CircuitArchive`].
 
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 
 use super::{lfa1, lfa2, CircuitArchive, LFA2_MAGIC};
 
@@ -43,20 +43,28 @@ impl CircuitArchive {
         Self::from_stream(&mut cursor)
     }
 
+    /// Reads an LFA2 or LFA1 archive. The format is identified from up to
+    /// four leading bytes, however the stream buffers them; an LFA1 archive
+    /// is then read with those bytes put back in front.
     pub fn from_stream<R: BufRead>(stream: &mut R) -> Result<Self, String> {
-        let buf = stream
-            .fill_buf()
-            .map_err(|e| format!("Incomplete header: missing bytes: {e}"))?;
-
-        if buf.starts_with(LFA2_MAGIC) {
-            stream.consume(4);
+        let mut head = [0u8; 4];
+        let mut len = 0;
+        while len < head.len() {
+            match stream.read(&mut head[len..]) {
+                Ok(0) => break,
+                Ok(n) => len += n,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(format!("Incomplete header: missing bytes: {e}")),
+            }
+        }
+        let head = &head[..len];
+        if head == LFA2_MAGIC {
             lfa2::from_stream_lfa2_body(stream)
-        } else if !buf.is_empty() && buf[0] == 1 {
-            lfa1::from_stream_lfa1(stream)
+        } else if head.first() == Some(&1) {
+            lfa1::from_stream_lfa1(&mut head.chain(stream))
         } else {
             Err(format!(
-                "Unsupported archive header: expected b\"LFA2\" magic or 0x01 (LFA1), got {:?}",
-                buf.get(..4)
+                "Unsupported archive header: expected b\"LFA2\" magic or 0x01 (LFA1), got {head:?}"
             ))
         }
     }

@@ -61,6 +61,85 @@ fn test_circuit_archive_lfa2_roundtrip() {
     assert_eq!(hash_entry.payload, payload2);
 }
 
+/// An LFA2 archive with one entry and the given circuit version.
+fn small_lfa2(circuit_version: u32) -> Vec<u8> {
+    let mut builder = CircuitArchiveBuilder::new();
+    builder.set_circuit_version(circuit_version);
+    builder.add_entry("sig", [1u8; 32], vec![0x10, 0x20, 0x30]);
+    builder.build().to_bytes_lfa2()
+}
+
+#[test]
+fn archives_decode_through_a_one_byte_buffer() {
+    use std::io::{BufReader, Cursor};
+
+    let lfa2 = small_lfa2(7);
+    let expected = CircuitArchive::from_bytes(&lfa2).unwrap();
+    let mut reader = BufReader::with_capacity(1, Cursor::new(&lfa2));
+    let streamed = CircuitArchive::from_stream(&mut reader).unwrap();
+    assert_eq!(streamed.circuit_version, 7);
+    assert_eq!(streamed.combined_id, expected.combined_id);
+
+    let (archive, lfa1) = lfa1_archive();
+    let mut reader = BufReader::with_capacity(1, Cursor::new(&lfa1));
+    let streamed = CircuitArchive::from_stream(&mut reader).unwrap();
+    assert_eq!(streamed.combined_id, archive.combined_id);
+    assert_eq!(streamed.entries.len(), 2);
+}
+
+#[test]
+fn lfa2_rejects_a_circuit_version_beyond_u32() {
+    // Magic, then the archive version byte, then the ULEB circuit version.
+    let mut bytes = small_lfa2(1);
+    assert_eq!(bytes[5], 1);
+    // ULEB128 of 2^32 + 1 = 4294967297.
+    bytes.splice(5..6, [0x81, 0x80, 0x80, 0x80, 0x10]);
+    let error = CircuitArchive::from_bytes(&bytes).unwrap_err();
+    assert!(
+        error.contains("circuit_version") || error.contains("usize"),
+        "{error}"
+    );
+}
+
+/// A two-entry LFA1 archive and its encoding.
+fn lfa1_archive() -> (CircuitArchive, Vec<u8>) {
+    use crate::{
+        circuits::boolean::Boolean,
+        compile::{
+            algebra::{gf2_128::Gf2_128Field, p256::P256Field},
+            logic::LogicIO,
+        },
+        core::proto::v1::CircuitWriter,
+    };
+
+    let f256 = P256Field::new();
+    let fgf2 = Gf2_128Field::new();
+    let (c_sig, _, _) = compile_v1(&f256, |iologic256| {
+        let boolean256 = Boolean::new(&iologic256);
+        let a = iologic256.input(1);
+        let ab = boolean256.of_eltw(a);
+        (boolean256.assert_true("assert_a", &ab), 1, 0)
+    });
+    let (c_hash, _, _) = compile_v1(&fgf2, |iologic_gf2| {
+        let boolean_gf2 = Boolean::new(&iologic_gf2);
+        let b = iologic_gf2.input(1);
+        let bb = boolean_gf2.of_eltw(b);
+        (boolean_gf2.assert_true("assert_b", &bb), 1, 0)
+    });
+    let sig_bytes = CircuitWriter::new(&f256, FieldID::P256).to_bytes_lfc1(&c_sig);
+    let hash_bytes = CircuitWriter::new(&fgf2, FieldID::Gf2_128).to_bytes_lfc1(&c_hash);
+    let mut builder = CircuitArchiveBuilder::new();
+    builder.set_created_at("");
+    builder.set_author("");
+    builder.set_generator_tool("");
+    builder.set_description("");
+    builder.add_entry("sig", c_sig.id, sig_bytes);
+    builder.add_entry("hash", c_hash.id, hash_bytes);
+    let archive = builder.build();
+    let bytes = archive.to_bytes_lfa1();
+    (archive, bytes)
+}
+
 #[test]
 fn test_circuit_archive_lfa1_roundtrip() {
     use crate::{
