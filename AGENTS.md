@@ -105,7 +105,10 @@ profiles an application chose (for example in `mdoc::proto`).
 
 - Lean proofs use only the standard axioms (`propext`, `Classical.choice`,
   `Quot.sound`): no `sorry`, no `native_decide` or other `ofReduceBool`
-  routes. Kernel evaluation (`decide +kernel`) is fine.
+  routes. Kernel evaluation (`decide +kernel`) is fine. The one exception is
+  the legacy v1 numerical rows, which keep the documented native-evaluation
+  allowance that `formal/scripts/Audit.lean` checks and reports separately;
+  nothing new may join it, and v2 and shared modules never use it.
 - Lean must agree with Rust. After changes to circuits, parameters, or files
   the formal sources cite, run from `formal/` `lake build` and
   `lake build SecurityAudit`; from `rust/`
