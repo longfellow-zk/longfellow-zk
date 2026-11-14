@@ -307,7 +307,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         runtime::{
             random::DeterministicRng,
             v2::{
-                sumcheck::{self, prover::sample_pads, SumcheckProofGeometry, TranscriptSumcheck},
+                sumcheck::{self, circuit_geometry, prover::sample_pads, TranscriptSumcheck},
                 transcript::Transcript,
             },
         },
@@ -391,7 +391,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         witnesses
     );
     let mut rng = DeterministicRng::new(44);
-    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&circuit), &mut rng, f);
+    let (pads, _) = sample_pads(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
     let mut actual = Transcript::new(b"private-layer-split");
     actual
         .borrow()
@@ -404,7 +404,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         .borrow()
         .write_sumcheck_statement(&circuit, &inputs[..1], f);
     let reference = super::reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);
-    let geometry = SumcheckProofGeometry::from_circuit(&circuit);
+    let geometry = circuit_geometry(&[&circuit]).unwrap();
     assert_eq!(
         got.0.write(&geometry, f).unwrap(),
         reference.0.write(&geometry, f).unwrap()

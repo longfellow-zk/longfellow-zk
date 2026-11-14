@@ -10,12 +10,12 @@ use crate::{
         random::DeterministicRng,
         v2::{
             sumcheck::{
+                circuit_geometry,
                 diagnostic::verify,
                 eval::eval_layer,
                 eval_circuit, prove,
                 prover::sample_pads,
                 quad::{bind_l, bind_r, weights_next_affine},
-                SumcheckProofGeometry,
             },
             transcript::Transcript,
         },
@@ -163,7 +163,7 @@ fn three_streams<
         .build(),
     );
     let mut rng = DeterministicRng::new(1234);
-    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
+    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
     let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
     let (proof, constraints) = prove(
         witnesses,
@@ -437,7 +437,7 @@ where
     let inputs = vec![x, y, target];
     let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
     let mut rng = DeterministicRng::new(334);
-    let (pads, _) = sample_pads(&SumcheckProofGeometry::from_circuit(&c), &mut rng, f);
+    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
     let (proof, _) = prove(
         witnesses,
         &pads,

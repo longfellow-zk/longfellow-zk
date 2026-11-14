@@ -100,18 +100,6 @@ impl SumcheckProofGeometry {
             .ok_or_else(|| "sumcheck pad overflow".into())
     }
 
-    pub fn from_circuit<F: SerializableField>(
-        circuit: &crate::core::proto::v2::Circuit<F>,
-    ) -> Self {
-        Self {
-            logw_layers: circuit
-                .raw
-                .layers
-                .iter()
-                .map(crate::core::proto::v2::Layer::logw)
-                .collect(),
-        }
-    }
     /// Two coefficients per round, one cross coefficient, and two final claims per layer.
     pub fn serialized_elements(&self) -> std::io::Result<usize> {
         self.logw_layers.iter().try_fold(0usize, |total, &logw| {

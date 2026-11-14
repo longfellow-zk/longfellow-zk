@@ -153,7 +153,7 @@ pub(crate) fn exercise<
     let (committed, prover_geometry) = p.commit(witness.to_vec(), &context, tp, &mut rng).unwrap();
     let source_circuit = circuit(f);
     let source_geometry =
-        crate::runtime::v2::proto::sumcheck::SumcheckProofGeometry::from_circuit(&source_circuit);
+        crate::runtime::v2::sumcheck::circuit_geometry(&[&source_circuit]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         source_circuit.raw.ninput - source_circuit.raw.npublic_input,
         source_geometry.pad_count().unwrap(),
@@ -371,7 +371,7 @@ fn extension_zk_comparison() {
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
     use crate::runtime::algebra::{PackingExtension, PackingField};
-    let geometry = crate::runtime::v2::proto::sumcheck::SumcheckProofGeometry::from_circuit(&c);
+    let geometry = crate::runtime::v2::sumcheck::circuit_geometry(&[&c]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         c.raw.ninput - c.raw.npublic_input,
         geometry.pad_count().unwrap(),

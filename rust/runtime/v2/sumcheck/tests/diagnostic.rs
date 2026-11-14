@@ -43,9 +43,7 @@ use crate::{
     runtime::{
         algebra::{blas, ElementOf, RuntimeField, SupportsSampling},
         v2::{
-            sumcheck::{
-                derive_constraints, SumcheckProof, SumcheckProofGeometry, TranscriptSumcheck,
-            },
+            sumcheck::{circuit_geometry, derive_constraints, SumcheckProof, TranscriptSumcheck},
             transcript::Transcript,
         },
     },
@@ -85,7 +83,7 @@ pub(super) fn verify_core<
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
-    pads.validate(&SumcheckProofGeometry::from_circuit(circuit))
+    pads.validate(&circuit_geometry(&[circuit]).unwrap())
         .map_err(|e| e.to_string())?;
     if inputs.len() != circuit.raw.ninput {
         return Err("single-hand input width mismatch".into());
