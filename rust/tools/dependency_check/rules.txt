@@ -116,4 +116,3 @@ runtime/v2/polygero/src/constraints.rs runtime/v2/polygero/src/joint.rs runtime/
 runtime/v2/witness-selection/src/lib.rs runtime/v2/witness-selection/src/prover.rs runtime/v2/witness-selection/src/transcript.rs runtime/v2/witness-selection/src/verifier.rs
 runtime/v2/zk/src/joint.rs runtime/v2/zk/src/joint_prover.rs runtime/v2/zk/src/joint_verifier.rs
 runtime/v2/zk/src/packing_commitment.rs runtime/v2/zk/src/packing_commitment_prover.rs
-tools/zk_tool/cache.rs tools/zk_tool/generate.rs tools/zk_tool/lean.rs tools/zk_tool/main.rs tools/zk_tool/profiles.rs
