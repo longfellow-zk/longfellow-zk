@@ -2,7 +2,7 @@
 //! Identity and format selection for compiler-native v2 circuits.
 use sha2::{Digest, Sha256};
 
-use super::{RawCircuit, SerializableField, Stream};
+use super::{Circuit, RawCircuit, SerializableField, Stream};
 use crate::core::proto::DigestBytes;
 
 pub(crate) const MAGIC: &[u8; 4] = b"LFC3";
@@ -91,6 +91,15 @@ pub fn compute_id<F: SerializableField>(f: &F, raw: &RawCircuit<F>) -> DigestByt
     let mut h = Sha256::new();
     encode(f, raw, |bytes| h.update(bytes));
     h.finalize().into()
+}
+
+impl<F: SerializableField> Circuit<F> {
+    /// Finalize the stored representation by computing its identity. The
+    /// compiler keeps a `RawCircuit` until segmentation is complete. Generated
+    /// circuits may use the single-run streams produced by `Stream::from_terms`.
+    pub fn from_raw(f: &F, raw: RawCircuit<F>) -> Self {
+        Self::new(compute_id(f, &raw), raw)
+    }
 }
 
 /// Capture the actual hasher input for Rust/Lean correspondence vectors.

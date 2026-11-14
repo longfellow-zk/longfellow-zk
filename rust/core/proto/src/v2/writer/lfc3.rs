@@ -38,10 +38,13 @@ fn stream<T>(
         bytes: bytes.len() - start,
     }
 }
-pub(super) fn to_bytes<F: SerializableField>(
-    writer: &CircuitWriter<'_, F>,
-    c: &Circuit<F>,
-) -> Vec<u8> {
+impl<F: SerializableField> CircuitWriter<'_, F> {
+    #[must_use]
+    pub fn to_bytes(&self, circuit: &Circuit<F>) -> Vec<u8> {
+        to_bytes(self, circuit)
+    }
+}
+fn to_bytes<F: SerializableField>(writer: &CircuitWriter<'_, F>, c: &Circuit<F>) -> Vec<u8> {
     assert_eq!(
         c.id,
         v2::compute_id(writer.f, &c.raw),

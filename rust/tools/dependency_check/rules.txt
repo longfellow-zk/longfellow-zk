@@ -102,7 +102,6 @@ runtime/v2/polygero/verifier/* never runtime/v2/polygero/src/config.rs runtime/v
 circuits/ec/src/circuit.rs circuits/ec/src/lib.rs
 compile/compiler/src/arena.rs compile/compiler/src/ir.rs
 core/proto/src/v1/cache.rs core/proto/src/v1/layer.rs
-core/proto/src/v2.rs core/proto/src/v2/circuit.rs core/proto/src/v2/directory.rs core/proto/src/v2/encoding.rs core/proto/src/v2/reader/lfc3.rs core/proto/src/v2/reader/mod.rs core/proto/src/v2/writer/lfc3.rs core/proto/src/v2/writer/mod.rs
 runtime/random/src/deterministic.rs runtime/random/src/lib.rs runtime/random/src/secure.rs
 runtime/v1/ligero/src/lib.rs runtime/v1/ligero/src/verifier.rs
 runtime/v1/merkle/src/commitment.rs runtime/v1/merkle/src/heap.rs runtime/v1/merkle/src/lib.rs

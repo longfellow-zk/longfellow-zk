@@ -38,13 +38,6 @@ pub struct CircuitParts<F: SerializableField> {
 }
 
 impl<F: SerializableField> Circuit<F> {
-    /// Finalize the stored representation by computing its identity. The
-    /// compiler keeps a `RawCircuit` until segmentation is complete. Generated
-    /// circuits may use the single-run streams produced by `Stream::from_terms`.
-    pub fn from_raw(f: &F, raw: RawCircuit<F>) -> Self {
-        Self::new(super::compute_id(f, &raw), raw)
-    }
-
     /// The reader has already checked this identity against the stored data.
     pub(super) fn new(id: DigestBytes, raw: RawCircuit<F>) -> Self {
         Self(CircuitParts { raw, id })

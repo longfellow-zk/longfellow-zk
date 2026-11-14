@@ -15,7 +15,6 @@
 //! Native v2 LFC3 parsing.
 
 mod lfc3;
-use super::Circuit;
 use crate::core::proto::{FieldID, SerializableField};
 
 pub struct CircuitReader<'a, F> {
@@ -40,36 +39,6 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
     pub fn with_total_term_limit(mut self, max_total_terms: usize) -> Self {
         self.max_total_terms = max_total_terms.min(super::limits::MAX_TOTAL_TERMS);
         self
-    }
-
-    pub fn from_bytes<'b>(&self, bytes: &'b [u8]) -> Result<(Circuit<F>, &'b [u8]), String> {
-        let mut cursor = bytes;
-        let circuit = lfc3::from_stream(self, &mut cursor, |remaining, required| {
-            if remaining.len() < required {
-                Err("Incomplete LFC3 payload".into())
-            } else {
-                Ok(())
-            }
-        })?;
-        Ok((circuit, cursor))
-    }
-    pub fn from_stream<R: std::io::BufRead>(&self, stream: &mut R) -> Result<Circuit<F>, String> {
-        lfc3::from_stream(self, stream, |_, _| Ok(()))
-    }
-    /// Test-only: apply every structural check to a payload whose stored ID
-    /// may be stale, and return the circuit under its recomputed ID. Mutation
-    /// tests use this to reach the checks that precede ID verification.
-    #[cfg(test)]
-    pub(crate) fn from_bytes_recomputing_id(&self, bytes: &[u8]) -> Result<Circuit<F>, String> {
-        let mut cursor = bytes;
-        let (raw, _) = lfc3::read_unverified(self, &mut cursor, |remaining, required| {
-            if remaining.len() < required {
-                Err("Incomplete LFC3 payload".into())
-            } else {
-                Ok(())
-            }
-        })?;
-        Ok(Circuit::from_raw(self.f, raw))
     }
 }
 #[cfg(test)]

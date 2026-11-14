@@ -149,7 +149,39 @@ fn read_stream<R: BufRead, T, const N: usize>(
     })
 }
 
-pub(super) fn from_stream<R: BufRead, F: SerializableField>(
+impl<F: SerializableField> CircuitReader<'_, F> {
+    pub fn from_bytes<'b>(&self, bytes: &'b [u8]) -> Result<(Circuit<F>, &'b [u8]), String> {
+        let mut cursor = bytes;
+        let circuit = from_stream(self, &mut cursor, |remaining, required| {
+            if remaining.len() < required {
+                Err("Incomplete LFC3 payload".into())
+            } else {
+                Ok(())
+            }
+        })?;
+        Ok((circuit, cursor))
+    }
+    pub fn from_stream<R: std::io::BufRead>(&self, stream: &mut R) -> Result<Circuit<F>, String> {
+        from_stream(self, stream, |_, _| Ok(()))
+    }
+    /// Test-only: apply every structural check to a payload whose stored ID
+    /// may be stale, and return the circuit under its recomputed ID. Mutation
+    /// tests use this to reach the checks that precede ID verification.
+    #[cfg(test)]
+    pub(crate) fn from_bytes_recomputing_id(&self, bytes: &[u8]) -> Result<Circuit<F>, String> {
+        let mut cursor = bytes;
+        let (raw, _) = read_unverified(self, &mut cursor, |remaining, required| {
+            if remaining.len() < required {
+                Err("Incomplete LFC3 payload".into())
+            } else {
+                Ok(())
+            }
+        })?;
+        Ok(Circuit::from_raw(self.f, raw))
+    }
+}
+
+fn from_stream<R: BufRead, F: SerializableField>(
     reader: &CircuitReader<'_, F>,
     input: &mut R,
     check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
@@ -162,7 +194,7 @@ pub(super) fn from_stream<R: BufRead, F: SerializableField>(
 }
 
 /// Apply every structural check, but return the stored circuit ID unverified.
-pub(super) fn read_unverified<R: BufRead, F: SerializableField>(
+fn read_unverified<R: BufRead, F: SerializableField>(
     reader: &CircuitReader<'_, F>,
     input: &mut R,
     check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,

@@ -15,7 +15,6 @@
 //! Native v2 LFC3 serialization.
 
 mod lfc3;
-use super::Circuit;
 use crate::core::proto::{FieldID, SerializableField};
 
 /// Writes LFC3 circuits. The header's field identifier comes from the field
@@ -30,9 +29,5 @@ impl<'a, F: SerializableField> CircuitWriter<'a, F> {
             f,
             field_id: f.field_id(),
         }
-    }
-    #[must_use]
-    pub fn to_bytes(&self, circuit: &Circuit<F>) -> Vec<u8> {
-        lfc3::to_bytes(self, circuit)
     }
 }
