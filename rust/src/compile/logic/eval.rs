@@ -14,7 +14,7 @@
 
 //! Direct evaluation of circuit logic with exact assertion provenance.
 
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{collections::HashMap, ops::Deref, rc::Rc, sync::Arc};
 
 use crate::{
     compile::{
@@ -24,14 +24,20 @@ use crate::{
     core::algebra::ElementOf,
 };
 
+/// Assertion statuses of one evaluator scope. Assertion IDs are local to the
+/// scope that issued them, so a nonempty map records its owner, and maps from
+/// different scopes are never combined.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct AssertionMap(Arc<HashMap<AssertionId, AssertionStatus>>);
+pub(crate) struct AssertionMap {
+    owner: Option<Rc<()>>,
+    statuses: Arc<HashMap<AssertionId, AssertionStatus>>,
+}
 
 impl Deref for AssertionMap {
     type Target = HashMap<AssertionId, AssertionStatus>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.statuses
     }
 }
 
@@ -40,8 +46,20 @@ impl AssertionMap {
         Self::default()
     }
 
-    fn insert(&mut self, id: AssertionId, status: AssertionStatus) {
-        Arc::make_mut(&mut self.0).insert(id, status);
+    fn insert(&mut self, scope: &AssertionScope, id: AssertionId, status: AssertionStatus) {
+        self.check_owner(scope);
+        self.owner = Some(scope.identity().clone());
+        Arc::make_mut(&mut self.statuses).insert(id, status);
+    }
+
+    /// Panic unless this map is empty or was issued by `scope`.
+    fn check_owner(&self, scope: &AssertionScope) {
+        if let Some(owner) = &self.owner {
+            assert!(
+                Rc::ptr_eq(owner, scope.identity()),
+                "assertions from different evaluator scopes cannot be combined"
+            );
+        }
     }
 }
 
@@ -50,16 +68,10 @@ impl IntoIterator for AssertionMap {
     type IntoIter = std::collections::hash_map::IntoIter<AssertionId, AssertionStatus>;
 
     fn into_iter(self) -> Self::IntoIter {
-        match Arc::try_unwrap(self.0) {
+        match Arc::try_unwrap(self.statuses) {
             Ok(map) => map.into_iter(),
             Err(shared) => (*shared).clone().into_iter(),
         }
-    }
-}
-
-impl Extend<(AssertionId, AssertionStatus)> for AssertionMap {
-    fn extend<T: IntoIterator<Item = (AssertionId, AssertionStatus)>>(&mut self, iter: T) {
-        Arc::make_mut(&mut self.0).extend(iter);
     }
 }
 
@@ -137,7 +149,10 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
         Self::new(f, tracker)
     }
 
+    // Every wire and assertion set this logic produces passes through `wire` or
+    // `result`, which reject assertions issued by another scope.
     fn wire(&self, value: ElementOf<F>, assertions: AssertionMap) -> EvalWire<F> {
+        assertions.check_owner(self.tracker);
         EvalWire::new(value, assertions)
     }
 
@@ -147,6 +162,8 @@ impl<'a, F: CompileField> EvalLogic<'a, F> {
     }
 
     fn result(&self, scoped: AssertionMap, unscoped: AssertionMap) -> EvalAssertions<'a> {
+        scoped.check_owner(self.tracker);
+        unscoped.check_owner(self.tracker);
         EvalAssertions {
             scoped,
             unscoped,
@@ -265,7 +282,7 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
         };
         let id = self.tracker.new_leaf(name);
         let mut scoped = AssertionMap::new();
-        scoped.insert(id, status);
+        scoped.insert(self.tracker, id, status);
         self.result(scoped, x.assertions.clone())
     }
 
@@ -302,8 +319,14 @@ fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
         return left.clone();
     }
 
+    // Both maps are nonempty, so both have owners.
+    assert!(
+        matches!((&left.owner, &right.owner), (Some(a), Some(b)) if Rc::ptr_eq(a, b)),
+        "assertions from different evaluator scopes cannot be combined"
+    );
     let mut merged = left.clone();
-    Arc::make_mut(&mut merged.0).extend(right.iter().map(|(&id, status)| (id, status.clone())));
+    Arc::make_mut(&mut merged.statuses)
+        .extend(right.iter().map(|(&id, status)| (id, status.clone())));
     merged
 }
 

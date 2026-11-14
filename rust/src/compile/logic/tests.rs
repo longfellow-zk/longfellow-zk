@@ -268,7 +268,7 @@ fn test_eval_union_reports_failure_from_any_alias() {
     let failed_id = *failed.all_items().keys().next().unwrap();
     tracker.union(passed_id, failed_id);
 
-    let mut fates = passed.all_items().clone();
+    let mut fates = (*passed.all_items()).clone();
     fates.extend(failed.all_items());
 
     assert!(tracker
@@ -284,6 +284,33 @@ fn test_eval_context_owns_tracker() {
     let context = EvalContext::new(&field);
     let result = context.run(|logic| logic.assert0("zero", &logic.zero()));
     result.assert_all_passed();
+}
+
+#[test]
+#[should_panic(expected = "assertions from different evaluator scopes cannot be combined")]
+fn test_eval_rejects_assertions_from_another_scope() {
+    // Assertion IDs are local to a scope: before ownership was checked, the
+    // pass in `b` overwrote the failure in `a` and the combination passed.
+    let field = Gf2_128Field::new();
+    let (scope_a, scope_b) = (AssertionScope::new(), AssertionScope::new());
+    let a = EvalLogic::new(&field, &scope_a);
+    let b = EvalLogic::new(&field, &scope_b);
+    let failed = a.assert0("failed_in_a", &a.one());
+    let passed = b.assert0("passed_in_b", &b.zero());
+    assert!(failed.is_err() && passed.is_ok());
+    a.assert_all("combined", &[failed, passed]);
+}
+
+#[test]
+#[should_panic(expected = "assertions from different evaluator scopes cannot be combined")]
+fn test_eval_rejects_wires_from_another_scope() {
+    let field = Gf2_128Field::new();
+    let (scope_a, scope_b) = (AssertionScope::new(), AssertionScope::new());
+    let a = EvalLogic::new(&field, &scope_a);
+    let b = EvalLogic::new(&field, &scope_b);
+    let checked = a.assert0("checked_in_a", &a.zero());
+    let wire = a.with_assertions(checked, &a.one());
+    b.add(&wire, &b.one());
 }
 
 #[test]

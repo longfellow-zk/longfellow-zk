@@ -95,6 +95,11 @@ struct AssertionRecord {
 
 pub struct AssertionScope {
     state: RefCell<AssertionState>,
+    /// Owned identity of this scope. Assertion IDs are local to a scope, so the
+    /// reference evaluator tags its assertion maps with this token and refuses
+    /// to combine maps from different scopes.
+    #[cfg(test)]
+    identity: std::rc::Rc<()>,
 }
 
 struct AssertionState {
@@ -120,7 +125,15 @@ impl AssertionScope {
                 members: HashMap::new(),
                 tree: ScopeTree::new(),
             }),
+            #[cfg(test)]
+            identity: std::rc::Rc::new(()),
         }
+    }
+
+    /// The token identifying this scope (see `identity`).
+    #[cfg(test)]
+    pub(crate) fn identity(&self) -> &std::rc::Rc<()> {
+        &self.identity
     }
 
     pub fn new_leaf(&self, name: &str) -> AssertionId {
