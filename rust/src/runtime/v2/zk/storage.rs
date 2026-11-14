@@ -9,12 +9,41 @@
 //! format circuit cannot address them.
 
 /// An untyped bit group: `width` consecutive binary inputs from `start`.
+///
+/// Constructors check that `start + width` fits, so `end` never overflows and
+/// writers need no per-write range arithmetic. A group cannot be written as a
+/// literal:
+///
+/// ```compile_fail,E0451
+/// use longfellow_zk::runtime::v2::zk::storage::Group;
+/// let _ = Group { start: usize::MAX - 2, width: 4 };
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Group {
-    pub start: usize,
-    pub width: usize,
+    start: usize,
+    width: usize,
 }
 impl Group {
+    /// The empty group at position 0.
+    pub const EMPTY: Self = Self { start: 0, width: 0 };
+    /// `width` bits from `start`; rejects a group whose end overflows.
+    pub fn new(start: usize, width: usize) -> Result<Self, String> {
+        start.checked_add(width).ok_or("bit group end overflows")?;
+        Ok(Self { start, width })
+    }
+    /// The bits `start..end`; rejects `end < start`.
+    pub fn from_bounds(start: usize, end: usize) -> Result<Self, String> {
+        let width = end
+            .checked_sub(start)
+            .ok_or("bit group ends before it starts")?;
+        Ok(Self { start, width })
+    }
+    pub fn start(&self) -> usize {
+        self.start
+    }
+    pub fn width(&self) -> usize {
+        self.width
+    }
     pub fn end(&self) -> usize {
         self.start + self.width
     }
@@ -53,15 +82,24 @@ impl ReservedSuffix {
             end: format_width,
         }
     }
-    pub fn word<const N: usize>(&mut self) -> BitGroup<N> {
-        let start = self.end;
-        self.end += N;
-        BitGroup { start }
+    /// The next N-bit word; rejects a suffix whose end would overflow.
+    pub fn word<const N: usize>(&mut self) -> Result<BitGroup<N>, String> {
+        let start = self.advance(N)?;
+        Ok(BitGroup { start })
     }
-    pub fn group(&mut self, width: usize) -> Group {
+    /// The next `width` bits; rejects a suffix whose end would overflow.
+    pub fn group(&mut self, width: usize) -> Result<Group, String> {
+        let start = self.advance(width)?;
+        Ok(Group { start, width })
+    }
+    /// Reserve `width` bits and return where they start. The end is checked
+    /// before it is stored, so every group handed out has a valid end.
+    fn advance(&mut self, width: usize) -> Result<usize, String> {
         let start = self.end;
-        self.end += width;
-        Group { start, width }
+        self.end = start
+            .checked_add(width)
+            .ok_or("reserved suffix end overflows")?;
+        Ok(start)
     }
     pub fn start(&self) -> usize {
         self.start

@@ -60,8 +60,8 @@ where
 {
     let foreign: Vec<_> = shared_positions(hash.raw.npublic_input, hash.raw.ninput)?
         .into_iter()
-        .map(|(value, start)| (value, Group { start, width: 1 }))
-        .collect();
+        .map(|(value, start)| Ok((value, Group::new(start, 1)?)))
+        .collect::<Result<_, String>>()?;
     let storage = StorageMap::new(split::value_count(signature)?, &foreign)?;
     Composition::new(hash, signature, storage, spec.configs(), domains)
 }

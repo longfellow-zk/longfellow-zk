@@ -38,7 +38,7 @@ where
         let bytes = fs.to_bytes(&mask);
         reserved.set(
             self.mask,
-            (0..self.mask.width).map(|r| (bytes[r / 8] >> (r % 8)) & 1 != 0),
+            (0..self.mask.width()).map(|r| (bytes[r / 8] >> (r % 8)) & 1 != 0),
         )?;
         self.mode.write_pads(&pads, &mut reserved)?;
         host_private.extend(reserved.into_bits());

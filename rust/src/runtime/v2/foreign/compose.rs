@@ -97,15 +97,15 @@ where
         let mut widths = Vec::new();
         for s in storage.entries() {
             if let Storage::Foreign(g) = s {
-                if g.start < npublic || g.end() > ninput {
+                if g.start() < npublic || g.end() > ninput {
                     return Err("foreign values must be private host inputs".into());
                 }
-                widths.push(g.width);
+                widths.push(g.width());
             }
         }
         let mut suffix = ReservedSuffix::new(ninput);
-        let mask = suffix.group(M::MASK_BITS);
-        widths.push(mask.width);
+        let mask = suffix.group(M::MASK_BITS)?;
+        widths.push(mask.width());
         let mode = M::new(widths, npublic, &mut suffix)?;
         let (host_ctx, split_ctx) = (ZkContext::new(domains.0), ZkContext::new(domains.1));
         let host = CircuitParticipant::new(

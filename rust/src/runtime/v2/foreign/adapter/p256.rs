@@ -114,7 +114,7 @@ impl<const Q: usize> P256Plan<Q> {
                 .terms
                 .iter()
                 .zip(&self.widths)
-                .any(|((g, _), &w)| g.width != w)
+                .any(|((g, _), &w)| g.width() != w)
             || alpha.iter().any(|a| p.is_zero(a))
             || values.is_some_and(|v| v.len() != claim.terms.len())
         {
@@ -165,10 +165,10 @@ impl<const Q: usize> P256Plan<Q> {
                 #[cfg(any(test, feature = "prover"))]
                 let value = values.map(|v| to_int(p, &v[j]));
                 #[cfg(any(test, feature = "prover"))]
-                if value.is_some_and(|v| (group.width..256).any(|r| integer::bit(&v, r))) {
+                if value.is_some_and(|v| (group.width()..256).any(|r| integer::bit(&v, r))) {
                     return Err("P256 adapter value exceeds its group".into());
                 }
-                for r in 0..group.width {
+                for r in 0..group.width() {
                     coefficients[tree].push(f.subf(&power, &f.one()));
                     #[cfg(any(test, feature = "prover"))]
                     if let Some(v) = value {
@@ -235,7 +235,7 @@ impl<const Q: usize> P256Encoded<Q> {
                 let sources = claim
                     .terms
                     .iter()
-                    .flat_map(|(g, _)| (0..g.width).map(|r| g.bit(r)));
+                    .flat_map(|(g, _)| (0..g.width()).map(|r| g.bit(r)));
                 let mut leaves: Vec<_> = sources
                     .zip(&self.coefficients[tree])
                     .map(|(source, c)| Leaf::data(source, *c, f))
@@ -278,7 +278,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         npublic: usize,
         suffix: &mut ReservedSuffix,
     ) -> Result<Self, String> {
-        let otp = [suffix.word::<Q>(), suffix.word::<Q>()];
+        let otp = [suffix.word::<Q>()?, suffix.word::<Q>()?];
         let plan = P256Plan::new(widths)?;
         let shape = plan.shape();
         let fragment = super::fragment(npublic, suffix.end(), shape)?;

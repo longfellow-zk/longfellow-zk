@@ -5,8 +5,8 @@ use super::{ReservedSuffix, StorageMap};
 #[test]
 fn reserved_suffix_allocates_typed_groups_in_order() {
     let mut suffix = ReservedSuffix::new(100);
-    let r = suffix.group(256);
-    let o = [suffix.word::<10>(), suffix.word::<10>()];
+    let r = suffix.group(256).unwrap();
+    let o = [suffix.word::<10>().unwrap(), suffix.word::<10>().unwrap()];
     assert_eq!((r.start, r.width), (100, 256));
     assert_eq!(o[0].group().start, 356);
     assert_eq!(o[1].group().start, 366);
@@ -98,4 +98,31 @@ fn storage_runs_are_maximal_and_canonical() {
             },
         ]
     );
+}
+
+#[test]
+fn groups_reject_ends_that_overflow_or_precede_the_start() {
+    use super::Group;
+    // A group whose end wraps would pass a naive `end <= suffix.end` check.
+    assert!(Group::new(usize::MAX - 2, 4).is_err());
+    assert!(Group::from_bounds(5, 4).is_err());
+    assert_eq!(Group::new(usize::MAX - 4, 4).unwrap().end(), usize::MAX);
+    assert_eq!(Group::from_bounds(3, 7).unwrap(), Group::new(3, 4).unwrap());
+    // A valid group outside the suffix is still rejected by the witness.
+    let mut suffix = ReservedSuffix::new(100);
+    suffix.group(8).unwrap();
+    let mut w = suffix.witness();
+    let far = Group::new(usize::MAX - 4, 4).unwrap();
+    assert!(w.set(far, [true; 4]).is_err());
+}
+
+#[test]
+fn reserved_suffix_rejects_advancing_past_the_end_of_memory() {
+    let mut suffix = ReservedSuffix::new(usize::MAX - 1);
+    assert!(suffix.group(4).is_err());
+    assert!(suffix.word::<4>().is_err());
+    // A rejected allocation leaves the suffix unchanged.
+    assert_eq!(suffix.end(), usize::MAX - 1);
+    assert!(suffix.is_empty());
+    assert_eq!(suffix.group(1).unwrap().end(), usize::MAX);
 }

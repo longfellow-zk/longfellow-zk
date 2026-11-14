@@ -118,11 +118,20 @@ pub(crate) fn prepare_circuit_layout<
 /// nor committed: each proof defines them as affine functions of committed
 /// inputs, and constraint compilation substitutes those definitions. The
 /// primary circuit must end before the virtual suffix, so it cannot read it.
+///
+/// Layouts come only from validated construction; an inconsistent one cannot
+/// be written as a literal:
+///
+/// ```compile_fail,E0451
+/// use longfellow_zk::runtime::v2::zk::InputLayout;
+/// let _ = InputLayout { npublic: 2, committed_end: 1, ninput: 0 };
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InputLayout {
-    pub npublic: usize,
-    pub committed_end: usize,
-    pub ninput: usize,
+    // Invariant, established by `new`: npublic <= committed_end <= ninput.
+    npublic: usize,
+    committed_end: usize,
+    ninput: usize,
 }
 impl InputLayout {
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -150,6 +159,18 @@ impl InputLayout {
             committed_end,
             ninput,
         })
+    }
+    /// Inputs before the committed private range.
+    pub fn npublic(&self) -> usize {
+        self.npublic
+    }
+    /// End of the committed private range; the virtual suffix starts here.
+    pub fn committed_end(&self) -> usize {
+        self.committed_end
+    }
+    /// Width of the shared input array.
+    pub fn ninput(&self) -> usize {
+        self.ninput
     }
     pub fn committed(&self) -> usize {
         self.committed_end - self.npublic

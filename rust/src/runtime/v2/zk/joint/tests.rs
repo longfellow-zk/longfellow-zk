@@ -432,7 +432,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let p = CircuitParticipant::new(&[&main, &fragment], 1, config, &ctx).unwrap();
     assert_eq!(p.backend.layout.private_inputs, 3);
     let layout = p.input_layout();
-    assert_eq!((layout.committed_end, layout.ninput), (4, 5));
+    assert_eq!((layout.committed_end(), layout.ninput()), (4, 5));
     // x[1] = 1, so c0 + c1 = 1 makes the virtual entry one.
     let c0 = f.u128_to_element(7);
     let definition = |c0| VirtualInputs {

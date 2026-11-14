@@ -55,7 +55,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> AbsorbLayout for CircuitParti
             t.absorb(|w| w.write_bytes(&(width as u64).to_le_bytes()));
         }
         if let Some(split) = &self.storage {
-            let mask = split.mask.unwrap_or(Group { start: 0, width: 0 });
+            let mask = split.mask.unwrap_or(Group::EMPTY);
             absorb_storage(t, &self.id, &split.map, mask);
         }
     }
@@ -97,6 +97,6 @@ fn absorb_storage(
             }
         }
     }
-    word(t, mask.start);
-    word(t, mask.width);
+    word(t, mask.start());
+    word(t, mask.width());
 }

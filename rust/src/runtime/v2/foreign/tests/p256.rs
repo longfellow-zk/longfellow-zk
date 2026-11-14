@@ -87,15 +87,9 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
     let f = Gf2_128Field::new();
     const Q: usize = 9;
     let plan = P256Plan::<Q>::new(vec![1, 256]).unwrap();
-    let groups = [
-        Group { start: 0, width: 1 },
-        Group {
-            start: 1,
-            width: 256,
-        },
-    ];
+    let groups = [Group::new(0, 1).unwrap(), Group::new(1, 256).unwrap()];
     let mut suffix = ReservedSuffix::new(257);
-    let otp = [suffix.word::<Q>(), suffix.word::<Q>()];
+    let otp = [suffix.word::<Q>().unwrap(), suffix.word::<Q>().unwrap()];
     let values = [p.one(), p.u64_to_element(12345)];
     let mut rng = DeterministicRng::new(91);
     let pads = [Otp::<Q>::sample(&mut rng), Otp::<Q>::sample(&mut rng)];
@@ -123,7 +117,7 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
         for (value, g) in values.iter().zip(&groups) {
             let b = p.to_bytes(value);
             committed.extend(
-                (0..g.width).map(|r| f.u128_to_element(u128::from((b[r / 8] >> (r % 8)) & 1))),
+                (0..g.width()).map(|r| f.u128_to_element(u128::from((b[r / 8] >> (r % 8)) & 1))),
             );
         }
         let mut reserved = suffix.witness();

@@ -83,10 +83,7 @@ fn composition_round_trip_rejects_tampering() {
     let host = circuit(&gf2, 1 + WIDTH, vec![gf2.one()], &[(0, 0), (1, 0)]);
     // Split: input[1] - input[2] = 0, so x0 = x1.
     let split = circuit(&p, 3, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
-    let shared = Group {
-        start: 1,
-        width: WIDTH,
-    };
+    let shared = Group::new(1, WIDTH).unwrap();
     let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
     let c = Composition::<4, P256Field, _, _, Mode>::new(
         &host,

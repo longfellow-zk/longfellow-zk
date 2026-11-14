@@ -56,11 +56,8 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     // Value 0 (the first private input) lives in the binary commitment.
-    let shared = Group { start: 7, width: 1 };
-    let mask_group = Group {
-        start: 20,
-        width: 256,
-    };
+    let shared = Group::new(7, 1).unwrap();
+    let mask_group = Group::new(20, 256).unwrap();
     let values = value_count(&c).unwrap();
     let storage = StorageMap::new(values, &[(0, shared)]).unwrap();
     let part =
@@ -148,10 +145,7 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     let values = value_count(&c).unwrap();
-    let group = |i: usize| Group {
-        start: 256 * i,
-        width: 256,
-    };
+    let group = |i: usize| Group::new(256 * i, 256).unwrap();
     let foreign: Vec<_> = (0..values).map(|i| (i, group(i))).collect();
     let storage = StorageMap::new(values, &foreign).unwrap();
     // A mask is required exactly when some values are native.
