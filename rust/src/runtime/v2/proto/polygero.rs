@@ -54,10 +54,16 @@ pub struct PolygeroGeometry {
     pub(crate) t: usize,
 }
 impl PolygeroGeometry {
+    /// The geometry of `config` over `nw` witnesses.
+    pub fn new(nw: usize, config: PolygeroConfig) -> Self {
+        let PolygeroConfig { k, s, n, t } = config;
+        Self { nw, k, s, n, t }
+    }
     pub(crate) fn sizes(&self) -> [usize; 5] {
         [self.nw, self.k, self.s, self.n, self.t]
     }
-    pub(crate) fn validate(&self) -> Result<()> {
+    /// Check the dimensions; the other counts assume a valid geometry.
+    pub fn validate(&self) -> Result<()> {
         let invalid = || Error::new(ErrorKind::InvalidInput, "invalid Polygero geometry");
         if self.sizes().iter().any(|&x| x > MAX_SIZE)
             || self.k == 0
@@ -78,10 +84,12 @@ impl PolygeroGeometry {
     pub(crate) fn data_rows(&self) -> usize {
         self.nw.div_ceil(self.row_width())
     }
-    pub(crate) fn nrow(&self) -> usize {
+    /// Committed rows: the data rows and three further rows.
+    pub fn nrow(&self) -> usize {
         self.data_rows() + 3
     }
-    pub(crate) fn response_lengths(&self) -> [usize; 2] {
+    /// Lengths of the two response polynomials.
+    pub fn response_lengths(&self) -> [usize; 2] {
         [self.k + self.s, 2 * self.k]
     }
 

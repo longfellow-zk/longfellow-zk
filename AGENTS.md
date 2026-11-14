@@ -25,9 +25,8 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
     serialization of every field, and constants both sides must match (the
     Cantor basis, evaluation points, curve parameters). The generic EC point
     arithmetic is the one agreed exception.
-  - `core::proto`: the compile/run-time contract: circuit formats, archives,
-    and the parameter types a specification carries (for example the Polygero
-    dimensions).
+  - `core::proto`: the compile/run-time contract: circuit formats and
+    archives.
 
 ### Prover and verifier
 

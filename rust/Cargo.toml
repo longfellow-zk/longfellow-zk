@@ -159,7 +159,7 @@ lto = false
 [[bin]]
 name = "zk_tool"
 path = "src/bin/zk_tool/main.rs"
-required-features = ["tooling"]
+required-features = ["tooling", "mdoc"]
 
 [[bin]]
 name = "dependency_check"

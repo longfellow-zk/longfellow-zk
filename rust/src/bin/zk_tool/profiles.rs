@@ -19,12 +19,12 @@ use std::{
     str::FromStr,
 };
 
-use longfellow_zk::compile::polygero::profiles as gero;
 use num_bigint::BigInt;
 use num_traits::{One, Zero};
 use serde_json::Value;
 
 use crate::{
+    catalog as gero,
     exact::{choose, evaluate, pow2, Q},
     require, root, Result,
 };
@@ -268,7 +268,7 @@ pub(crate) fn joint_manifest() -> Result<Value> {
 }
 
 pub(crate) fn joint_profile() -> Profile {
-    let (k, s, n, t) = gero::MDOC_JOINT_PROFILE;
+    let (k, s, n, t) = longfellow_zk::mdoc::proto::MDOC_JOINT_PROFILE;
     Profile { k, s, n, t }
 }
 

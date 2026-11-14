@@ -15,12 +15,11 @@
 //! Compile NEXT with the shared, checked Polygero profile.
 
 use crate::{
-    compile::polygero::profiles::MDOC_JOINT_PROFILE,
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         circuits::NEXT_VERSION,
         compile,
-        proto::K_ZSTD_LEVEL,
+        proto::{K_ZSTD_LEVEL, MDOC_JOINT_PROFILE},
         v2::{
             provider::{self, ProvidedCircuit},
             PolygeroParameters, ZkSpecStruct,

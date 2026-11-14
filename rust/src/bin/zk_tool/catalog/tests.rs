@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
-use crate::{
-    compile::polygero::{
-        profiles::{RATE4_PROFILES, RATE7_PROFILES, TUNING_PROFILES},
-        tune_large_field, tune_large_field_at_rate,
-    },
+use longfellow_zk::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{
@@ -32,11 +27,12 @@ use crate::{
                 JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
                 Participant, PolygeroParam,
             },
-            proto::Digest,
             transcript::Transcript,
         },
     },
 };
+
+use super::*;
 
 #[test]
 fn tuning_uses_public_layout_and_respects_capacity() {
@@ -44,13 +40,7 @@ fn tuning_uses_public_layout_and_respects_capacity() {
         let selected = tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap();
         assert!(selected.n <= 16384);
         assert_eq!(selected.t, 80);
-        let geom = PolygeroGeometry {
-            nw,
-            k: selected.k,
-            s: selected.s,
-            n: selected.n,
-            t: selected.t,
-        };
+        let geom = PolygeroGeometry::new(nw, selected);
         assert!(geom.validate().is_ok());
         assert_eq!(
             selected,
@@ -119,7 +109,7 @@ fn rate_four_tuning_respects_capacity() {
 
 #[test]
 fn admitted_profiles_encode_and_verify() {
-    use crate::runtime::algebra::{
+    use longfellow_zk::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
     };
     let f = Gf2_128Field::new();
@@ -127,7 +117,7 @@ fn admitted_profiles_encode_and_verify() {
     admitted_profiles_roundtrip(&f, &d);
     let prime = P256Field::new();
     let extension = Fp2Field::new(&prime);
-    use crate::runtime::algebra::SupportsFFT;
+    use longfellow_zk::runtime::algebra::SupportsFFT;
     let prime_domain = QuadraticExtensionFftInterpolatorFactory::new(
         &prime,
         &extension,
@@ -173,21 +163,13 @@ fn roundtrip_profiles<
     let mut rng = DeterministicRng::new(81409);
     let witness = rng.elt_field_slice(1000, f);
     for config in profiles {
-        let statement = Digest::default();
         let param = PolygeroParam::try_new(witness.len(), config, d).unwrap();
         let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
 
         let ts = Transcript::new(b"polygero/admitted");
         let (prover, com) =
             JointPolygeroProver::commit(&param, (witness.clone(), ()), ts, &mut rng).unwrap();
-        let statements = (
-            LinearStatement {
-                a: vec![],
-                b: vec![],
-                digest: statement,
-            },
-            (),
-        );
+        let statements = (LinearStatement::new(vec![], vec![], f), ());
         let (proof, ts) = prover.prove(&param, &statements).unwrap();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         let mut remaining = bytes.as_slice();

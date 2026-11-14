@@ -14,3 +14,8 @@
 
 pub const K_SIG_MAC_BIT_PLUCKER_V1: usize = 2;
 pub const K_ZSTD_LEVEL: i32 = 16;
+
+/// The Polygero dimensions `(k, s, n, t)` of the mdoc v2 joint commitment.
+/// `zk_tool check-profiles` certifies its shared two-field budget separately
+/// from the universal tuning catalog.
+pub const MDOC_JOINT_PROFILE: (usize, usize, usize, usize) = (349, 12, 2443, 84);

@@ -16,7 +16,7 @@
 mdoc/artifacts:
 mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
 mdoc/compile: mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
-mdoc/development_provider: mdoc/circuits mdoc/compile mdoc/proto mdoc/runtime compile/polygero core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto
+mdoc/development_provider: mdoc/circuits mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto
 mdoc/proto:
 bin/prover_only: mdoc/runtime
 mdoc/runtime: mdoc/circuits mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/proto runtime/v2/transcript runtime/v2/zk
@@ -42,7 +42,6 @@ compile/algebra: core/algebra
 compile/compiler: compile/algebra compile/logic compile/debug core/algebra core/proto util
 
 compile/logic: compile/algebra core/algebra util
-compile/polygero: runtime/v2/proto
 compile/debug: compile/logic core/algebra core/proto
 core/algebra:
 core/bits:
@@ -70,7 +69,7 @@ runtime/v2/transcript: core/algebra runtime/algebra
 runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/proto runtime/v2/transcript
 runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/proto runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection
 bin/dependency_check:
-bin/zk_tool: mdoc/development_provider mdoc/runtime compile/polygero
+bin/zk_tool: mdoc/development_provider mdoc/proto mdoc/runtime runtime/v2/proto
 util:
 
 # Which files may (`only`) or may not (`never`) reference a symbol. Symbols are

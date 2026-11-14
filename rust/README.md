@@ -490,10 +490,11 @@ For v2, the hash and signature circuits share the same
 | `s` | Batching-polynomial degree bound |
 | `T` | Number of opened columns and random prefix samples per row |
 
-Generic offline parameter selection lives in `compile::polygero`. The mdoc
-development provider uses one profile checked against both fields' backend
-budgets. Specifications save these choices. Provers and verifiers derive the
-remaining geometry deterministically; they do not tune parameters.
+The audited Polygero catalog and its tuning live in `zk_tool`. The mdoc
+development provider uses one profile, `mdoc::proto::MDOC_JOINT_PROFILE`,
+checked against both fields' backend budgets. Specifications save these
+choices. Provers and verifiers derive the remaining geometry
+deterministically; they do not tune parameters.
 
 ### Frozen circuits and NEXT
 
@@ -640,13 +641,14 @@ cargo run --release --features tooling --bin dependency_check -- --dot /tmp/deps
 cargo run --release --features tooling --bin dependency_check -- --current      # current graph as rules
 ```
 
-Parameter selection belongs to the compiler. The standalone `zk_tool`
+Parameter catalogs and selection belong to the standalone `zk_tool`, which
 provides:
 
 | Command | Purpose |
 |---|---|
 | `check-profiles` | Check parameter budgets with exact arithmetic, optionally using Lean |
 | `certify-hahn` | Check Hahn packing certificates with Lean |
+| `tune-polygero` | Pick the catalog profile with the smallest estimated proof for a witness count and field width |
 | `generate-v2-specs` | Compile NEXT and print candidate specifications for review |
 
 Formal checking reads proof sources from the selected formal project,
@@ -654,8 +656,8 @@ normally `../formal`. Normal Rust builds, parameter selection, proving,
 and verification do not require the Lean toolchain.
 
 The catalog includes the production joint mdoc profile `(349, 12, 2443, 84)`.
-Its geometry is shared with the development provider through
-`MDOC_JOINT_PROFILE`. The exact checker checks its shared two-field parent,
+The development provider takes it from `mdoc::proto::MDOC_JOINT_PROFILE`.
+The exact checker checks its shared two-field parent,
 opening and fingerprint charges separately from the universal tuning profiles.
 `certify-hahn` checks the three mdoc Hahn bounds and binds the manifest's
 cutoffs and list caps to `MdocJointProfile.profile`. It checks every staged
