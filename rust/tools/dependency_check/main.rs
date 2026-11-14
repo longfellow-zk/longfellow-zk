@@ -28,7 +28,12 @@
 //! - the file graph has a cycle not listed under `known file cycles`, or a listed cycle no longer
 //!   exists;
 //! - a file whose name marks one proof role (`prover`, `verifier`, or a name containing exactly one
-//!   of them as a `_`-separated word) uses a file of the other role.
+//!   of them as a `_`-separated word) uses a file of the other role;
+//! - a reference breaks a `[symbol rules]` line, which says which files may (`only`) or may not
+//!   (`never`) reference a symbol, or a symbol pattern names no symbol of the crate. Symbol rules
+//!   see references within a file too; they keep transcript framing, sealing and private coins
+//!   where the protocol design puts them.
+//!
 //! `--dot <directory>` also writes `files.dot` and `components.dot` there;
 //! `--current` prints the current graph in the rules format instead of checking.
 use std::{
@@ -78,8 +83,21 @@ fn role(path: &str) -> Option<&'static str> {
     }
 }
 
-/// Runs rust-analyzer and returns the file graph.
-fn file_graph(root: &Path, work: &Path) -> Graph {
+/// One resolved reference between two indexed files.
+struct Reference {
+    from: String,
+    line: i32,
+    /// The symbol without package and version, e.g. `runtime/v2/zk/joint/X#`.
+    symbol: String,
+    /// The file that defines the symbol.
+    to: String,
+}
+
+const PACKAGE: &str = "rust-analyzer cargo longfellow-zk ";
+
+/// Runs rust-analyzer; returns the file graph, every reference between
+/// indexed files, and every symbol the crate defines.
+fn file_graph(root: &Path, work: &Path) -> (Graph, Vec<Reference>, BTreeSet<String>) {
     std::fs::create_dir_all(work).expect("create the index directory");
     let config = work.join("rust-analyzer.json");
     std::fs::write(
@@ -120,6 +138,7 @@ fn file_graph(root: &Path, work: &Path) -> Graph {
         }
     }
     let mut graph = Graph::new();
+    let mut references = Vec::new();
     for doc in &index.documents {
         let from = doc.relative_path.as_str();
         if excluded(from) {
@@ -146,7 +165,17 @@ fn file_graph(root: &Path, work: &Path) -> Graph {
                     .find(|c| component(c) == component(from))
                     .unwrap_or(&candidates[0])
             };
-            if to != from && !excluded(to) {
+            if excluded(to) {
+                continue;
+            }
+            // Symbol rules see same-file references too; the graph does not.
+            references.push(Reference {
+                from: from.to_owned(),
+                line: occurrence.range[0] + 1,
+                symbol: descriptor(symbol).to_owned(),
+                to: to.to_owned(),
+            });
+            if to != from {
                 *graph
                     .entry(from.to_owned())
                     .or_default()
@@ -155,7 +184,19 @@ fn file_graph(root: &Path, work: &Path) -> Graph {
             }
         }
     }
-    graph
+    let symbols = defined_in
+        .keys()
+        .map(|symbol| descriptor(symbol).to_owned())
+        .collect();
+    (graph, references, symbols)
+}
+
+/// A crate symbol without package and version: `runtime/v2/zk/joint/X#`.
+fn descriptor(symbol: &str) -> &str {
+    symbol
+        .strip_prefix(PACKAGE)
+        .and_then(|rest| rest.split_once(' '))
+        .map_or(symbol, |(_, descriptor)| descriptor)
 }
 
 fn collapse(files: &Graph) -> Graph {
@@ -249,25 +290,69 @@ fn cycles(graph: &Graph) -> BTreeSet<Vec<String>> {
     found
 }
 
+/// `symbol only files...` or `symbol never files...`: which files may (only)
+/// or may not (never) reference a symbol. `*` matches any run of characters
+/// in both the symbol and the file patterns.
+struct SymbolRule {
+    text: String,
+    symbol: String,
+    only: bool,
+    files: Vec<String>,
+}
+
+fn glob(pattern: &str, text: &str) -> bool {
+    let mut parts = pattern.split('*');
+    let Some(mut rest) = text.strip_prefix(parts.next().unwrap()) else {
+        return false;
+    };
+    let parts: Vec<_> = parts.collect();
+    for (i, part) in parts.iter().enumerate() {
+        if i + 1 == parts.len() {
+            return rest.ends_with(part);
+        }
+        match rest.find(part) {
+            Some(at) => rest = &rest[at + part.len()..],
+            None => return false,
+        }
+    }
+    rest.is_empty()
+}
+
 struct Rules {
     allowed: Graph,
     known_cycles: BTreeSet<Vec<String>>,
+    symbols: Vec<SymbolRule>,
 }
 
 fn rules(path: &Path) -> Rules {
     let text = std::fs::read_to_string(path).expect("read tools/dependency_check/rules.txt");
     let mut allowed = Graph::new();
     let mut known_cycles = BTreeSet::new();
-    let mut in_cycles = false;
+    let mut symbols = Vec::new();
+    let mut section = "";
     for line in text.lines().map(str::trim) {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if line == "[known file cycles]" {
-            in_cycles = true;
+        if line.starts_with('[') {
+            section = line;
             continue;
         }
-        if in_cycles {
+        if section == "[symbol rules]" {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            assert!(
+                words.len() > 2 && matches!(words[1], "only" | "never"),
+                "a symbol rule reads `<symbol> only|never <files>...`: {line}"
+            );
+            symbols.push(SymbolRule {
+                text: line.to_owned(),
+                symbol: words[0].to_owned(),
+                only: words[1] == "only",
+                files: words[2..].iter().map(|word| (*word).to_owned()).collect(),
+            });
+            continue;
+        }
+        if section == "[known file cycles]" {
             let mut files: Vec<String> = line.split_whitespace().map(str::to_owned).collect();
             files.sort();
             known_cycles.insert(files);
@@ -284,6 +369,7 @@ fn rules(path: &Path) -> Rules {
     Rules {
         allowed,
         known_cycles,
+        symbols,
     }
 }
 
@@ -354,7 +440,7 @@ fn main() {
         [flag, dir] if flag == "--dot" => (Some(PathBuf::from(dir)), false),
         _ => panic!("usage: dependency_check [--current | --dot <directory>]"),
     };
-    let files = file_graph(&root, &root.join("target/dependency_check"));
+    let (files, references, symbols) = file_graph(&root, &root.join("target/dependency_check"));
     let components = collapse(&files);
     if current {
         for (name, deps) in &components {
@@ -449,6 +535,21 @@ fn main() {
             }
         }
     }
+    for rule in &rules.symbols {
+        // A pattern that names no crate symbol is a typo, not a passing rule.
+        if !symbols.iter().any(|symbol| glob(&rule.symbol, symbol)) {
+            failures.push(format!("symbol rule names no symbol: `{}`", rule.text));
+        }
+        for r in references.iter().filter(|r| glob(&rule.symbol, &r.symbol)) {
+            let listed = rule.files.iter().any(|pattern| glob(pattern, &r.from));
+            if listed != rule.only {
+                failures.push(format!(
+                    "{}:{} references {} (defined in {}), against `{}`",
+                    r.from, r.line, r.symbol, r.to, rule.text
+                ));
+            }
+        }
+    }
 
     if let Some(dir) = dot_dir {
         std::fs::create_dir_all(&dir).expect("create the dot directory");
@@ -471,6 +572,8 @@ fn main() {
         components.values().map(BTreeMap::len).sum::<usize>(),
         rules.known_cycles.len()
     );
+    // A `use ... as` alias yields two occurrences of the same reference.
+    failures.dedup();
     for failure in &failures {
         eprintln!("{failure}");
     }
