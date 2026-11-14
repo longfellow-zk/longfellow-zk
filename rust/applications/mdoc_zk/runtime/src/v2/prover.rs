@@ -13,6 +13,8 @@
 // limitations under the License.
 
 //! Shared-root mdoc prover with a packed binary circuit and a prime P256 circuit.
+// Evaluation failures can expose private inputs; never write them to logs.
+#![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
 
 use super::{
     inputs::{
