@@ -5,7 +5,7 @@
 //! whose values are bit groups in the binary commitment. Each claim becomes
 //! product trees over GF(2^128)^*: one leaf `1 + b*(g^A - 1)` per committed bit
 //! and one leaf per quotient bit, selected by a masked word. The tree root must
-//! equal the target power, which is folded into leaf 0 so that the archived
+//! equal the target power, which is folded into leaf 0 so that the fixed
 //! fragment only checks `product = 1`.
 //!
 //! The fragment is fixed: a pure product tree over virtual inputs. Every
@@ -37,7 +37,7 @@ use crate::{
     },
 };
 
-/// Number of trees and leaves per tree; it fixes the archived fragment.
+/// Number of trees and leaves per tree; it fixes the fragment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TreeShape {
     pub trees: usize,
@@ -117,8 +117,10 @@ pub fn virtual_inputs(
     Ok(VirtualInputs { entries })
 }
 
-/// The archived adapter fragment: for each tree, the product of its `leaves`
-/// virtual inputs must equal one. All coefficients are the constant 1.
+/// The adapter fragment: for each tree, the product of its `leaves` virtual
+/// inputs must equal one. All coefficients are the constant 1. It is protocol
+/// setup, generated at run time from the tree shape; it is not stored in the
+/// mdoc archive, which holds only the signature and hash circuits.
 ///
 /// The fragment shares the binary participant's public prefix and input array;
 /// its virtual inputs start at `virtual_start`, after the reserved suffix.

@@ -125,7 +125,10 @@ impl<const Q: usize> P256Plan<Q> {
             .iter()
             .all(|q| pow(f, x, u128::MAX / q) != f.one()));
         let g = pow(f, x, u128::MAX - (1u128 << 64));
-        // Owned 16-byte-position fixed-base table, about 64 KiB.
+        // Owned 16-byte-position fixed-base table, about 64 KiB. Build one
+        // invocation-owned table for the adapter conversion in this proof
+        // operation; both conversion challenges reuse it. One construction
+        // per prove/verify operation is intentional.
         let mut base = g;
         let tables: Vec<Vec<Gf2_128>> = (0..16)
             .map(|_| {
