@@ -82,6 +82,38 @@ profiles an application chose (for example in `mdoc::proto`).
 
 - Do not develop tools in Python. Use Rust.
 - Never use `OnceLock`. Pass explicitly owned initialization state instead.
+- Tests live in their own files (see the layout above); library sources
+  contain no inline `#[cfg(test)] mod tests { ... }`.
+- Do not add clippy warnings; `cargo clippy --all-targets` must not report
+  more than before the change.
+
+## Formal development
+
+- Lean proofs use only the standard axioms (`propext`, `Classical.choice`,
+  `Quot.sound`): no `sorry`, no `native_decide` or other `ofReduceBool`
+  routes. Kernel evaluation (`decide +kernel`) is fine.
+- Lean must agree with Rust. After changes to circuits, parameters, or files
+  the formal sources cite, run from `formal/` `lake build` and
+  `lake build SecurityAudit`; from `rust/`
+  `cargo run --release --features tooling --bin zk_tool -- certify-hahn --formal ../formal`
+  and `... -- check-profiles --protocol polygero --check-lean ../formal`; and
+  `formal/scripts/check_mdoc_round_shapes.rs` and the formal source audit
+  `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`). Lean
+  comments that name Rust files must follow file moves.
+
+## Workflow
+
+- Triage audit findings with the maintainer (fix, defer, or won't fix)
+  before fixing them, stating each fix's prover cost.
+- One logical change per commit, with a message that says what changed and
+  why. Keep mechanical rewrites, formatting-only changes, and semantic edits
+  in separate commits.
+- Every commit passes all checks on its own; never rely on a later commit to
+  fix the build, the tests, or the tooling, so history stays bisectable.
+- Code outside `rust/` that builds against the crate must keep working:
+  `formal/lfzk-v1/scripts` (`cargo build --release`, then run
+  `inspect-v7-profile` and `inspect-v7-assertions`) and
+  `formal/scripts/mdoc_round_shapes.rs` (through `check_mdoc_round_shapes`).
 
 ## Before every commit
 
@@ -93,7 +125,12 @@ From `rust/`:
 2. `cargo run --release --features tooling --bin dependency_check`
    (needs `rustup component add rust-analyzer`).
 3. The role and feature builds from `.github/workflows/production_ci.yml`,
-   warning-free.
+   warning-free. When architecture-specific code changes (`runtime/algebra/arch`,
+   limbs, `cfg(target_arch)`), also build for every backend, since x86-64 does
+   not compile the others: `--target aarch64-unknown-linux-gnu`,
+   `--target armv7-unknown-linux-gnueabihf` with and without
+   `--features arm-neon`, `--target i686-unknown-linux-gnu`, and the
+   `force-generic-arch` and `limb32` features.
 4. `cargo test --release --features testonly,tooling`, and the doctests on
    nightly, which also check `compile_fail` error codes:
    `cargo +nightly test --release --features testonly,tooling --doc`.
