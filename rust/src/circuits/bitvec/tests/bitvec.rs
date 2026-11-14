@@ -20,9 +20,10 @@ use crate::{
     compile::{
         algebra::p256::P256Field,
         compiler::dump_stats,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::evaluate::eval_circuit_fc,
         logic::{AssertionScope, K_FIRST_WIRE_POSITION},
     },
+    core::proto::v2::evaluate::initial_inputs,
 };
 
 #[test]

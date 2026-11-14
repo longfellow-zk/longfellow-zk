@@ -18,12 +18,15 @@ use crate::{
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField},
         compiler::dump_stats,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::evaluate::eval_circuit_fc,
         logic::{push_eltw, AssertionScope, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
-    core::algebra::{
-        ec::{add, affine, double, projective, scalar_mul, Curve},
-        Nat, SerializableField, SupportsNatConversions,
+    core::{
+        algebra::{
+            ec::{add, affine, double, projective, scalar_mul, Curve},
+            Nat, SerializableField, SupportsNatConversions,
+        },
+        proto::v2::evaluate::initial_inputs,
     },
     runtime::algebra::RuntimeField,
 };

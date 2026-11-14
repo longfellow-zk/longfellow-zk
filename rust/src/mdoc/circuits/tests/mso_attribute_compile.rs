@@ -23,11 +23,13 @@ use crate::{
     compile::{
         algebra::gf2_128::Gf2_128Field,
         compiler::dump_stats,
-        debug::CircuitDebugSymbols,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::{evaluate::eval_circuit_fc, CircuitDebugSymbols},
         logic::K_FIRST_WIRE_POSITION,
     },
-    core::proto::{v2::Circuit, CircuitGeometry},
+    core::proto::{
+        v2::{evaluate::initial_inputs, Circuit},
+        CircuitGeometry,
+    },
     mdoc::circuits::{
         mso_attribute::{allocate_derived, allocate_given, AttributeVerifier},
         MdocHashCompileField,

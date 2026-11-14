@@ -7,7 +7,7 @@ use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
         compiler::{compile_v2, segment_circuit_v2},
-        eval::eval_circuit_fc,
+        debug::evaluate::eval_circuit_fc,
         logic::{AssertionScope, EvalLogic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::Nat,

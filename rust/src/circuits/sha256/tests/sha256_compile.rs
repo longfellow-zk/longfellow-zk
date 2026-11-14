@@ -24,10 +24,13 @@ use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
         compiler::dump_stats,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::evaluate::eval_circuit_fc,
         logic::K_FIRST_WIRE_POSITION,
     },
-    core::{algebra::SerializableField, proto::CircuitGeometry},
+    core::{
+        algebra::SerializableField,
+        proto::{v2::evaluate::initial_inputs, CircuitGeometry},
+    },
     runtime::algebra::RuntimeField,
 };
 

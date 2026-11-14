@@ -4,7 +4,7 @@ use super::super::*;
 use crate::compile::{
     algebra::gf2_128::Gf2_128Field,
     compiler::{compile_v2, segment_circuit_v2},
-    eval::eval_circuit_fc,
+    debug::evaluate::eval_circuit_fc,
     logic::K_FIRST_WIRE_POSITION,
 };
 

@@ -17,10 +17,10 @@ use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
         compiler::dump_stats,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::evaluate::eval_circuit_fc,
         logic::{Logic, K_FIRST_WIRE_POSITION},
     },
-    core::algebra::SerializableField,
+    core::{algebra::SerializableField, proto::v2::evaluate::initial_inputs},
     mdoc::circuits::cbor_decoder::{allocate_given, CborByteDecoder, ConcreteGiven},
     runtime::algebra::RuntimeField,
 };

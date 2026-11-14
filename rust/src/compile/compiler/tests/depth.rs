@@ -15,7 +15,7 @@
 use crate::{
     compile::{
         algebra::p256::P256Field,
-        eval::eval_circuit_fc,
+        debug::evaluate::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
     core::algebra::AlgebraicField,

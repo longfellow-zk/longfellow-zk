@@ -17,13 +17,15 @@ use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
         compiler::dump_stats,
-        debug::CircuitDebugSymbols,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::{evaluate::eval_circuit_fc, CircuitDebugSymbols},
         logic::K_FIRST_WIRE_POSITION,
     },
     core::{
         algebra::{Nat, SerializableField, SupportsU128Conversions},
-        proto::{v2::Circuit, CircuitGeometry},
+        proto::{
+            v2::{evaluate::initial_inputs, Circuit},
+            CircuitGeometry,
+        },
     },
     mdoc::{
         circuits::{

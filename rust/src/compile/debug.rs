@@ -195,3 +195,6 @@ impl<'a, E: std::fmt::Debug> CompiledEvalAssertions<'a, E> {
             .assert_any_failed_at(expected_path, &self.fates);
     }
 }
+
+#[cfg(test)]
+pub(crate) mod evaluate;

@@ -22,12 +22,15 @@ use crate::{
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompilePrimeField},
         compiler::dump_stats,
-        eval::{eval_circuit_fc, initial_inputs},
+        debug::evaluate::eval_circuit_fc,
         logic::K_FIRST_WIRE_POSITION,
     },
-    core::algebra::{
-        ec::Curve, AlgebraicField, HasLookupPoints, Nat, SerializableField, SupportsNatConversions,
-        SupportsU64Conversions,
+    core::{
+        algebra::{
+            ec::Curve, AlgebraicField, HasLookupPoints, Nat, SerializableField,
+            SupportsNatConversions, SupportsU64Conversions,
+        },
+        proto::v2::evaluate::initial_inputs,
     },
     runtime::algebra::{q256::Q256Field, RuntimeField},
 };

@@ -19,6 +19,9 @@ pub use reader::CircuitReader;
 pub(crate) use tests::fixtures::{quadratic_fixture, quadratic_layer_fixture};
 pub use writer::CircuitWriter;
 
+#[cfg(test)]
+pub(crate) mod evaluate;
+
 mod circuit;
 pub use circuit::{Circuit, CircuitParts, RawCircuit, RawCircuitBuilder};
 

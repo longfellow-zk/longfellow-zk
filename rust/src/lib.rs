@@ -83,9 +83,6 @@ cfg_compiler! {
         pub mod debug;
         pub mod logic;
         pub mod polygero;
-        cfg_testonly! {
-            pub mod eval;
-        }
     }
 }
 
