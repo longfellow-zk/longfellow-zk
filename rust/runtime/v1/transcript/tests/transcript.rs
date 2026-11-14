@@ -14,9 +14,9 @@
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{p256::P256Field, SubfieldV1},
-        random::{v1::RandomEngineV1, RandomEngine},
-        v1::transcript::Transcript,
+        algebra::p256::P256Field,
+        random::RandomEngine,
+        v1::{random::RandomEngineV1, subfield::SubfieldV1, transcript::Transcript},
     },
 };
 

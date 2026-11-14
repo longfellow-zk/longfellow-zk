@@ -128,7 +128,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let witness_sig =
         super::inputs::push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap);
 
-    let sf_sig = crate::runtime::algebra::p256::P256SubfieldV1::new(&p256);
+    let sf_sig = crate::runtime::v1::subfield::P256SubfieldV1::new(&p256);
 
     let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash.commit(

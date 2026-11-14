@@ -120,7 +120,7 @@ pub fn run_mdoc_verifier_inner(
         geom_sig,
     };
 
-    let sf_sig = crate::runtime::algebra::p256::P256SubfieldV1::new(&p256);
+    let sf_sig = crate::runtime::v1::subfield::P256SubfieldV1::new(&p256);
     let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &sf_hash, &p256, &sf_sig)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
 

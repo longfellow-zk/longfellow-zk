@@ -187,7 +187,3 @@ pub mod mdoc {
         pub mod testcases;
     }
 }
-
-#[cfg(test)]
-#[path = "../tests/all/runtime_compatibility.rs"]
-mod runtime_compatibility;

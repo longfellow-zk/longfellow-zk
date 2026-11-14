@@ -15,8 +15,8 @@
 use crate::{
     core::algebra::{AlgebraicField, SupportsU128Conversions},
     runtime::{
-        algebra::{gf2_128::Gf2_128RuntimeField, SubfieldV1},
-        v1::subfield::BinarySubfieldV1,
+        algebra::gf2_128::Gf2_128RuntimeField,
+        v1::subfield::{BinarySubfieldV1, SubfieldV1},
     },
 };
 

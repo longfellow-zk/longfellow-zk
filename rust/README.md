@@ -322,9 +322,8 @@ arithmetic, interpolation and private randomness. Each version owns its Merkle
 tree, hashing, nonce/proof types and wire codecs. Shared implementations live
 directly under `runtime/`; protocol
 implementations live under `runtime/v1/` and `runtime/v2/`. The versions have
-no implementation dependency on each other. Compatibility reexports retain
-the existing public v1 paths and refer to the same types and functions.
-In particular, `runtime::merkle` and `runtime::proto` are aliases to v1.
+no implementation dependency on each other, and each item has one path:
+`runtime::v1::merkle`, `runtime::v1::proto` and so on, with no aliases.
 V2 uses distinct digest types, internal Merkle operations and canonical field
 decoding; its nonce types and authentication envelope remain internal.
 

@@ -15,7 +15,7 @@ use std::cell::Cell;
 // limitations under the License.
 use crate::runtime::algebra::{
     gf2_128::Gf2_128RuntimeField, range_interpolation::BinaryInterpolatorFactory, ElementOf,
-    InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SubfieldV1, SupportsSampling,
+    InterpolationPlan, RangeInterpolatorFactory, RuntimeField, SupportsSampling,
 };
 use crate::{
     core::algebra::SerializableField,
@@ -27,7 +27,7 @@ use crate::{
                 LigeroProof, LigeroProver, LigeroQuadraticConstraint, LigeroVerifier,
             },
             merkle::{Digest, MerkleError},
-            subfield::BinarySubfieldV1,
+            subfield::{BinarySubfieldV1, SubfieldV1},
             transcript::Transcript,
         },
     },

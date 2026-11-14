@@ -17,10 +17,9 @@ use crate::{
     core::algebra::{
         fp24::Q, fp24_ext6::BETA, AlgebraicField, SerializableField, SupportsU64Conversions,
     },
-    runtime::algebra::{
-        field::RuntimeSerializableField,
-        fp24_ext6::{RuntimeFp24Ext6, RuntimeFp24SubfieldV1},
-        SubfieldV1,
+    runtime::{
+        algebra::{field::RuntimeSerializableField, fp24_ext6::RuntimeFp24Ext6},
+        v1::subfield::{RuntimeFp24SubfieldV1, SubfieldV1},
     },
 };
 

@@ -16,7 +16,7 @@
 //! ```
 //! V1 and v2 digests are distinct protocol types.
 //! ```compile_fail
-//! let old = longfellow_zk::runtime::proto::Digest::default();
+//! let old = longfellow_zk::runtime::v1::proto::Digest::default();
 //! let _: longfellow_zk::runtime::v2::proto::Digest = old;
 //! ```
 

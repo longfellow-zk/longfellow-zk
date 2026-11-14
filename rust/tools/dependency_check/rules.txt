@@ -10,8 +10,6 @@
 # Notes on individual edges:
 # - applications/mdoc_zk/circuits -> applications/mdoc_zk/testcases: test
 #   fixtures in cbor/test_utils.rs, compiled only with `testonly`.
-# - runtime -> runtime/v1/*: the v1 compatibility re-exports in
-#   runtime/mod.rs (runtime::merkle, runtime::proto, random::Transcript, ...).
 
 applications/mdoc_zk/artifacts: 
 applications/mdoc_zk/circuits: applications/mdoc_zk/proto applications/mdoc_zk/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
@@ -47,7 +45,7 @@ compile/proto: compile/logic
 core/algebra: 
 core/bits: 
 core/proto: core/algebra util
-runtime: runtime/v1/proto runtime/v1/subfield runtime/v1/transcript
+runtime:
 runtime/algebra: core/algebra core/bits
 runtime/random: core/algebra runtime/algebra
 runtime/v1: runtime/random runtime/v1/subfield
@@ -89,7 +87,7 @@ runtime/v2/transcript/verifier/impl#[*]checked(). only applications/mdoc_zk/runt
 # drivers and codecs.
 runtime/v2/transcript/session/Transcript# only runtime/v2/transcript/src/* applications/mdoc_zk/runtime/src/v2/proto.rs applications/mdoc_zk/runtime/src/v2/transcript.rs runtime/v2/foreign/src/compose_prover.rs runtime/v2/foreign/src/compose_verifier.rs runtime/v2/polygero/src/joint.rs runtime/v2/polygero/src/prover.rs runtime/v2/polygero/src/verifier.rs runtime/v2/proto/src/zk.rs runtime/v2/witness-selection/src/prover.rs runtime/v2/witness-selection/src/verifier.rs runtime/v2/zk/src/joint_prover.rs runtime/v2/zk/src/joint_verifier.rs runtime/v2/zk/src/prover.rs runtime/v2/zk/src/verifier.rs
 # v2 private coins are PrivateRandom, which no transcript implements.
-runtime/random/shared/engine/RandomEngine# never runtime/v2/* applications/mdoc_zk/runtime/src/v2/*
+runtime/random/engine/RandomEngine# never runtime/v2/* applications/mdoc_zk/runtime/src/v2/*
 # Shared sumcheck and Polygero modules use neither role.
 runtime/v2/sumcheck/prover/* never runtime/v2/sumcheck/src/monomial.rs runtime/v2/sumcheck/src/fragments.rs runtime/v2/sumcheck/src/quad.rs runtime/v2/sumcheck/src/split.rs runtime/v2/sumcheck/src/symbolic.rs runtime/v2/sumcheck/src/transcript.rs
 runtime/v2/sumcheck/verifier/* never runtime/v2/sumcheck/src/monomial.rs runtime/v2/sumcheck/src/fragments.rs runtime/v2/sumcheck/src/quad.rs runtime/v2/sumcheck/src/split.rs runtime/v2/sumcheck/src/symbolic.rs runtime/v2/sumcheck/src/transcript.rs

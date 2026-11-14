@@ -60,7 +60,7 @@ fn test_util_read_write_size_4bytes() {
 #[test]
 fn test_util_read_write_subfield_elt() {
     let f = P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
+    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
     let val = f.u64_to_element(987654321u64);
 
     let mut buf = Vec::new();
@@ -245,7 +245,7 @@ fn test_ligero_proof_read_write() {
         },
     };
 
-    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
+    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
     let serialized = proof.write(&geom, &f, &sf).unwrap();
     let mut r_slice = serialized.as_slice();
     let decoded = LigeroProof::read(&mut r_slice, &geom, &f, &sf).unwrap();
@@ -257,7 +257,7 @@ fn test_ligero_proof_read_write() {
 fn test_ligero_proof_read_allows_zero_length_merkle_path() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
+    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 2,
@@ -445,7 +445,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
 fn test_zk_proof_read_write() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::algebra::p256::P256SubfieldV1::new(&f);
+    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 4,
