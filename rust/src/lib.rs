@@ -69,86 +69,53 @@ macro_rules! cfg_testonly {
 pub(crate) mod util;
 
 pub mod core {
-
     pub mod algebra;
-
     pub mod bits;
-
     pub mod proto;
 }
 
 pub mod runtime;
 
 cfg_compiler! {
-
     pub mod compile {
-
         pub mod algebra;
-
         pub mod compiler;
-
         pub mod logic;
-
         pub mod proto;
-
         pub mod polygero;
-
         cfg_testonly! {
-
             pub mod eval;
         }
     }
 }
 
 pub mod circuits {
-
     pub mod analog_decoder;
-
     cfg_prover_or_compiler! {
-
         pub mod ec;
-
         pub mod ecdsa2;
-
         pub mod sha256;
-
         pub mod sha256msg;
     }
-
     cfg_compiler! {
-
         pub mod analog_adder;
-
         pub mod arithmetic;
-
         pub mod big_bitvec;
-
         pub mod bignum;
-
         pub mod bitvec;
-
         pub mod boolean;
-
         pub mod gf2_128;
-
         pub mod lookup;
-
         pub mod memcmp;
-
         pub mod polynomial;
-
         pub mod routing;
     }
 }
 
 #[cfg(feature = "mdoc")]
-
 pub mod mdoc {
-
     pub mod circuits;
-
     pub mod proto;
-
     mod runtime;
 
     #[cfg(feature = "v1")]
@@ -158,16 +125,11 @@ pub mod mdoc {
     pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v2, ZkSpecRef, LONGFELLOW_V2};
 
     cfg_compiler! {
-
         pub mod artifacts;
-
         pub mod compile;
-
         pub mod development_provider;
     }
-
     cfg_testonly! {
-
         pub mod testcases;
     }
 }

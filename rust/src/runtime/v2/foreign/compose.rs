@@ -36,8 +36,8 @@ use crate::{
     },
 };
 
-cfg_prover! {  mod prover; }
-cfg_verifier! {  mod verifier; }
+cfg_prover! { mod prover; }
+cfg_verifier! { mod verifier; }
 
 /// Width of the binary host's field.
 const H: usize = 2;

@@ -21,7 +21,8 @@ tag j = a * msg j + b j          -- `de5f949:rust/circuits/mac/src/concrete.rs`
 **one multiplier shared across the blocks, one blind per block.**  `mac_av : u128` and
 `mac_ap : [u128; 2]` in `ConcreteGiven` (`concrete.rs:16`); the circuits assert
 `tag[j] ⊕ mac_ap[j] = mac_av · msg[j]` for each `j`, bit-sliced over the prime field
-(`mac/src/circuit.rs:46`) and natively over `GF(2^128)` (`mac_gf128/src/circuit.rs:47`).
+(`de5f949:rust/circuits/mac/src/circuit.rs:46`) and natively over `GF(2^128)`
+(`de5f949:rust/circuits/mac_gf128/src/circuit.rs:47`).
 
 Sharing the multiplier is what makes the collision bound exact.  A polynomial hash
 `∑ x_j a^j + b` would pay a degree factor `nblk/|Fmac|`; here a collision in *any* block forces

@@ -148,5 +148,5 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         Ok((a, b))
     }
 }
-cfg_prover! {  pub(crate) mod prover; }
+cfg_prover! { pub(crate) mod prover; }
 cfg_verifier! { mod verifier; }

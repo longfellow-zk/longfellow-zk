@@ -13,18 +13,18 @@ Paths below are relative to `runtime/`.
 
 | Responsibility | Legacy | V2 |
 |---|---|---|
-| Shared quad-fragment schedule | — | `v2/sumcheck/src/fragments.rs` |
-| Numerical prover | `v1/sumcheck/src/prover.rs` | `v2/sumcheck/src/prover.rs` |
-| Symbolic constraint construction | `v1/sumcheck/src/symbolic.rs` | `v2/sumcheck/src/symbolic.rs` |
-| Commitment constraint compiler | `v1/zk/src/constraint_compiler.rs` | `v2/zk/src/constraint_compiler.rs` |
-| Constraints from public messages | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/src/verifier.rs` |
-| Revealed-pad verification | `v1/sumcheck/src/verifier.rs` | `v2/sumcheck/tests/diagnostic.rs` |
-| Quad binding | `v1/sumcheck/src/hquad.rs` | `v2/sumcheck/src/quad.rs` |
-| Multilinear weights | `v1/sumcheck/src/eq.rs` | `v2/sumcheck/src/monomial.rs` |
-| Circuit evaluation | `v1/sumcheck/src/eval.rs` | `v2/sumcheck/src/eval.rs` |
-| Transcript operations | `v1/sumcheck/src/transcript.rs` | `v2/sumcheck/src/transcript.rs` |
-| Proof codec | `v1/proto/src/sumcheck.rs` | `v2/proto/src/sumcheck.rs` |
-| ZK proof codec and witness counts | `v1/proto/src/zk.rs` | `v2/proto/src/zk.rs` |
+| Shared quad-fragment schedule | — | `v2/sumcheck/fragments.rs` |
+| Numerical prover | `v1/sumcheck/prover.rs` | `v2/sumcheck/prover.rs` |
+| Symbolic constraint construction | `v1/sumcheck/symbolic.rs` | `v2/sumcheck/symbolic.rs` |
+| Commitment constraint compiler | `v1/zk/constraint_compiler.rs` | `v2/zk/constraint_compiler.rs` |
+| Constraints from public messages | `v1/sumcheck/verifier.rs` | `v2/sumcheck/verifier.rs` |
+| Revealed-pad verification | `v1/sumcheck/verifier.rs` | `v2/sumcheck/tests/diagnostic.rs` |
+| Quad binding | `v1/sumcheck/hquad.rs` | `v2/sumcheck/quad.rs` |
+| Multilinear weights | `v1/sumcheck/eq.rs` | `v2/sumcheck/monomial.rs` |
+| Circuit evaluation | `v1/sumcheck/eval.rs` | `v2/sumcheck/eval.rs` |
+| Transcript operations | `v1/sumcheck/transcript.rs` | `v2/sumcheck/transcript.rs` |
+| Proof codec | `v1/proto/sumcheck.rs` | `v2/proto/sumcheck.rs` |
+| ZK proof codec and witness counts | `v1/proto/zk.rs` | `v2/proto/zk.rs` |
 
 Protocol rounds, pad sampling, and construction of
 the two transmitted round coefficients live together in `prover.rs`; no polynomial

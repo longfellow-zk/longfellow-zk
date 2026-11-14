@@ -10,7 +10,7 @@ inductive Side where
   | binary | prime
   deriving DecidableEq, Repr
 
-/-- The tags in `runtime/v2/proto/src/rounds.rs`. Finalization has a separate domain. -/
+/-- The tags in `rust/src/runtime/v2/proto/rounds.rs`. Finalization has a separate domain. -/
 inductive Domain where
   | output | assertions | sumcheck | terminal | combine | packing | statement
   | batching | opening | rescaling | conversion | rowBatching | fingerprint
@@ -58,7 +58,7 @@ inductive Role where
   | sumcheck (side : Side) (stage round : ℕ)
   | terminal (side : Side) (stage : ℕ)
   | combine (side : Side) (stage : ℕ) (inputEntries : List Entry)
-  /-- Pure-foreign storage only (`zk/src/batching.rs`). The mdoc schedule has
+  /-- Pure-foreign storage only (`rust/src/runtime/v2/zk/batching.rs`). The mdoc schedule has
   mixed storage, whose layer rows go to Polygero unbatched. -/
   | rowBatching
   | rescaling

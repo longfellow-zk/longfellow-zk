@@ -9,7 +9,7 @@ archived adapter fragment uses the same sparse rows as its algebraic model.
 
 The LFC3 hash input authenticates the stored coefficient table, delta
 dictionaries, segment indices and tokens. Compression changes the identity.
-This is `core/proto/src/v2/encoding.rs`; expansion supplies the algebraic
+This is `rust/src/core/proto/v2/encoding.rs`; expansion supplies the algebraic
 circuit, while the fixed fragment (`foreign::adapter::fragment`) has
 single-run streams and the one coefficient `1`. -/
 noncomputable section

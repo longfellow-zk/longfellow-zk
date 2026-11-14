@@ -2,7 +2,7 @@ import LfzkV2.Linear.TerminalSampling
 import LfzkV2.Layered.Soundness
 import LigeroFamily.Protocol.Finite
 
-/-! The current prime frontend has mixed storage (`zk/src/split.rs`): it
+/-! The current prime frontend has mixed storage (`rust/src/runtime/v2/zk/split.rs`): it
 commits its native private inputs, the hiding scalar R and its pads, and every
 pad is native. The layer rows read only pads, so they enter the prime
 statement unbatched. Only the final input equation reads the shared bits; it

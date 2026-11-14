@@ -6,7 +6,7 @@ import LfzkV2.Compiler
 The two corrections are reconstructed from the trusted circuit and earlier
 challenges, not supplied by the prover. All round, pad, product-slot, and sparse
 compiler operations are shared with the quadratic frontend. This builder adds
-exactly the two constant updates in `sumcheck-v2/src/symbolic.rs`.
+exactly the two constant updates in `rust/src/runtime/v2/sumcheck/symbolic.rs`.
 -/
 
 namespace LfzkV2.Native

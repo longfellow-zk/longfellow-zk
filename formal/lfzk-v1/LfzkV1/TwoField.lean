@@ -303,8 +303,9 @@ an accepted, extracted run satisfies the public system; `hrow` says satisfying t
 MAC equation.  Composing them is `MacBound.mac_row`.
 
 `hrow` is the two-field step's share of README gap 2: it is the refinement statement for
-`assert_mac`, which over `F_p256` is `Gf2_128Mul`'s bit-sliced multiplier (`mac/src/circuit.rs:46`)
-and over `GF(2^128)` is a native `mul` (`mac_gf128/src/circuit.rs:47`).  Proving it means
+`assert_mac`, which over `F_p256` is `Gf2_128Mul`'s bit-sliced multiplier
+(`de5f949:rust/circuits/mac/src/circuit.rs:46`) and over `GF(2^128)` is a native `mul`
+(`de5f949:rust/circuits/mac_gf128/src/circuit.rs:47`).  Proving it means
 constructing the arithmetization, which this development does not do for any circuit. -/
 
 /-- Build a `MacBound` for one side out of that side's Ligero soundness and its MAC row. -/

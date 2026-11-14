@@ -17,14 +17,12 @@
 mod builder;
 mod public;
 #[cfg(any(test, feature = "prover"))]
-pub(super) use crate::mdoc::v2::inputs::public::timestamp_digits;
-pub(super) use crate::mdoc::v2::inputs::public::{
-    public_inputs_fit, push_input_hash, push_input_sig,
-};
+pub(super) use public::timestamp_digits;
+pub(super) use public::{public_inputs_fit, push_input_hash, push_input_sig};
 
 cfg_prover! {
     mod private;
-    pub(super) use crate::mdoc::v2::inputs::private::{push_witness_hash, push_witness_sig};
+    pub(super) use private::{push_witness_hash, push_witness_sig};
 }
 
 #[cfg(test)]

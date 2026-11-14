@@ -16,7 +16,7 @@ Verification independently derives data in sumcheck v1, constructs the same
 relations, and checks their compiled constraints with Ligero. Data and relations
 remain local; neither is serialized or accepted from a proof. There is no
 transcript fork or symbolic replay during proving. Codecs and geometry stay in
-`runtime::proto`, and stored legacy proofs remain compatible.
+`runtime::v1::proto`, and stored legacy proofs remain compatible.
 
 See [legacy sumcheck](../sumcheck/README.md) for API changes and validation.
 
@@ -24,7 +24,8 @@ Applications use `mdoc::v1::{ZkSpecStruct, run_mdoc_prover, run_mdoc_verifier}`.
 The original spec fields, error codes, and historical proof bytes are preserved.
 This system supports circuit versions 5–7 independently of NEXT.
 
-Tests live in `tests/`, including the constraint compiler and deterministic proof
+Tests live in `tests.rs`, `constraint_compiler/tests.rs` and `prover/tests.rs`,
+including the constraint compiler and deterministic proof
 fingerprints. The application's `test_all_circuits_prior_compatibility` verifies
 saved proofs and requires freshly generated proofs to match them byte for byte
 for every v5, v6, and v7 fixture with one through four attributes.

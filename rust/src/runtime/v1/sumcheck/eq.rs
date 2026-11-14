@@ -16,7 +16,7 @@
 //!
 //! For a Boolean index i, eq(g,i) is the product over bits of g[j] when i_j=1
 //! and 1-g[j] otherwise. `eq2` expands eq(g0,i)+alpha*eq(g1,i) for every live
-//! wire. `eval` computes the bounded contraction sum_{i<n} eq(a,i)*eq(b,i)
+//! wire. `eq` computes the bounded contraction sum_{i<n} eq(a,i)*eq(b,i)
 //! using two scalars rather than constructing either dense weight vector.
 use crate::runtime::algebra::RuntimeField;
 
