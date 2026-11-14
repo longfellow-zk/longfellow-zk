@@ -96,8 +96,14 @@ fn assert_secp256r1<F: SerializableField, C: Curve<4, F = F>>(f: &F, curve: &C) 
 
 #[test]
 fn curves_follow_the_core_constants() {
-    let f = compile::p256::P256Field::new();
-    assert_secp256r1(&f, &compile::secp256r1::Secp256r1::new(&f));
-    let f = runtime::p256::P256Field::new();
-    assert_secp256r1(&f, &runtime::secp256r1::Secp256r1::new(&f));
+    let compile_field = compile::p256::P256Field::new();
+    assert_secp256r1(
+        &compile_field,
+        &compile::secp256r1::Secp256r1::new(&compile_field),
+    );
+    let runtime_field = runtime::p256::P256Field::new();
+    assert_secp256r1(
+        &runtime_field,
+        &runtime::secp256r1::Secp256r1::new(&runtime_field),
+    );
 }

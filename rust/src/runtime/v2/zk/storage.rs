@@ -281,12 +281,6 @@ pub struct ModularClaim<E> {
     pub terms: Vec<(Group, E)>,
     pub target: E,
 }
-impl<E> ModularClaim<E> {
-    /// Total committed bits read by the claim.
-    pub fn bits(&self) -> usize {
-        self.terms.iter().map(|(g, _)| g.width).sum()
-    }
-}
 
 /// Storage of a participant whose values are not all native.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

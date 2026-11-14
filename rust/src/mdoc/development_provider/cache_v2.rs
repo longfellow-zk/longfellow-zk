@@ -115,15 +115,7 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
     }
     let (hash, signature) = spec.configs();
     for config in [hash, signature] {
-        PolygeroGeometry {
-            nw: 0,
-            k: config.k,
-            s: config.s,
-            n: config.n,
-            t: config.t,
-        }
-        .validate()
-        .map_err(|e| e.to_string())?;
+        PolygeroGeometry::new(0, config).map_err(|e| e.to_string())?;
     }
     Ok(())
 }

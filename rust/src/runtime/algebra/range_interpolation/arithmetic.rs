@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Public weights for shifted reciprocal convolution, shared by FFT and CRT.
+//! Public weights for shifted reciprocal convolution, used by the FFT backend.
 //! Barycentric interpolation at consecutive arithmetic points is a convolution
 //! against reciprocal differences, followed by a falling-factorial scale.
 use std::ops::Range;

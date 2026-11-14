@@ -108,6 +108,18 @@ fn binary_ambient_masks_and_privacy() {
 }
 
 #[test]
+fn prime_ambient_masks_and_privacy() {
+    use crate::runtime::algebra::{
+        fp2::Fp2Field, p256::P256Field,
+        range_interpolation::QuadraticExtensionFftInterpolatorFactory, SupportsFFT,
+    };
+    let f = P256Field::new();
+    let f2 = Fp2Field::new(&f);
+    let d = QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
+    ambient_rows(&f, &d);
+}
+
+#[test]
 fn ordinary_only_rows_allow_large_mask_prefixes() {
     use crate::runtime::algebra::{
         gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,

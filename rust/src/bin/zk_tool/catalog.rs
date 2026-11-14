@@ -187,8 +187,7 @@ pub fn estimated_proof_bytes(
     nw: usize,
     field_bytes: usize,
 ) -> Option<u128> {
-    let geom = PolygeroGeometry::new(nw, config);
-    geom.validate().ok()?;
+    let geom = PolygeroGeometry::new(nw, config).ok()?;
     let column_bytes = geom.nrow() as u128 * field_bytes as u128;
     let responses = geom.response_lengths().iter().sum::<usize>() as u128;
     // Maximum shared frontier for distinct queries in a binary tree.

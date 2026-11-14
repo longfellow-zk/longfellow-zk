@@ -40,8 +40,7 @@ fn tuning_uses_public_layout_and_respects_capacity() {
         let selected = tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap();
         assert!(selected.n <= 16384);
         assert_eq!(selected.t, 80);
-        let geom = PolygeroGeometry::new(nw, selected);
-        assert!(geom.validate().is_ok());
+        assert!(PolygeroGeometry::new(nw, selected).is_ok());
         assert_eq!(
             selected,
             tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap()

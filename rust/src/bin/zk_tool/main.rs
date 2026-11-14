@@ -58,12 +58,18 @@ fn run() -> Result<()> {
             };
             let nw = number("--witnesses")?.ok_or("missing --witnesses")?;
             let field_bytes = number("--field-bytes")?.ok_or("missing --field-bytes")?;
+            require(field_bytes > 0, "--field-bytes must be positive")?;
+            let rate = number("--rate")?;
+            require(
+                rate.is_none_or(|r| r == 4 || r == 7),
+                "--rate must be 4 or 7 (the audited fixed-rate families)",
+            )?;
             // The interpolation backend's capacity bounds n; the caller supplies it.
             let max_n = number("--max-n")?.unwrap_or(usize::MAX);
             let accept = |config: longfellow_zk::runtime::v2::proto::polygero::PolygeroConfig| {
                 config.n <= max_n
             };
-            let config = match number("--rate")? {
+            let config = match rate {
                 None => catalog::tune_large_field(nw, field_bytes, accept),
                 Some(rate) => catalog::tune_large_field_at_rate(rate, nw, field_bytes, accept),
             }

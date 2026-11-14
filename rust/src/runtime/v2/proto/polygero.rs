@@ -54,10 +54,12 @@ pub struct PolygeroGeometry {
     pub(crate) t: usize,
 }
 impl PolygeroGeometry {
-    /// The geometry of `config` over `nw` witnesses.
-    pub fn new(nw: usize, config: PolygeroConfig) -> Self {
+    /// The geometry of `config` over `nw` witnesses, if it is valid.
+    pub fn new(nw: usize, config: PolygeroConfig) -> Result<Self> {
         let PolygeroConfig { k, s, n, t } = config;
-        Self { nw, k, s, n, t }
+        let geom = Self { nw, k, s, n, t };
+        geom.validate()?;
+        Ok(geom)
     }
     pub(crate) fn sizes(&self) -> [usize; 5] {
         [self.nw, self.k, self.s, self.n, self.t]
@@ -84,11 +86,11 @@ impl PolygeroGeometry {
     pub(crate) fn data_rows(&self) -> usize {
         self.nw.div_ceil(self.row_width())
     }
-    /// Committed rows: the data rows and three further rows.
+    /// Committed rows of a valid geometry: the data rows and three further rows.
     pub fn nrow(&self) -> usize {
         self.data_rows() + 3
     }
-    /// Lengths of the two response polynomials.
+    /// Lengths of the two response polynomials of a valid geometry.
     pub fn response_lengths(&self) -> [usize; 2] {
         [self.k + self.s, 2 * self.k]
     }

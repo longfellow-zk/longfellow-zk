@@ -74,9 +74,7 @@ impl PolygeroParam {
         config: PolygeroConfig,
         domain: &D,
     ) -> Result<Self, PolygeroError> {
-        let PolygeroConfig { k, s, n, t } = config;
-        let geom = PolygeroGeometry { nw, k, s, n, t };
-        geom.validate()?;
+        let geom = PolygeroGeometry::new(nw, config)?;
         ensure(
             config.can_interpolate(domain),
             "interpolation capacity exceeded",

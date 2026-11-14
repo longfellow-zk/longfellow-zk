@@ -33,12 +33,12 @@ const fn le_from_be_hex<const N: usize>(hex: &str) -> [u8; N] {
             _ => panic!("not a lowercase hexadecimal digit"),
         }
     }
-    let hex = hex.as_bytes();
-    assert!(hex.len() == 2 * N, "wrong constant length");
+    let digits = hex.as_bytes();
+    assert!(digits.len() == 2 * N, "wrong constant length");
     let mut out = [0u8; N];
     let mut i = 0;
     while i < N {
-        out[N - 1 - i] = digit(hex[2 * i]) << 4 | digit(hex[2 * i + 1]);
+        out[N - 1 - i] = digit(digits[2 * i]) << 4 | digit(digits[2 * i + 1]);
         i += 1;
     }
     out
