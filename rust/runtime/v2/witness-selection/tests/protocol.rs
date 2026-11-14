@@ -11,7 +11,11 @@ use crate::{
         },
         random::{DeterministicRng, RandomEngine},
         v2::{
-            polygero::LinearStatement, proto::polygero::PolygeroCommitment, proto::RoundLabel,
+            polygero::{LinearStatement, PolygeroParam},
+            proto::{
+                polygero::{PolygeroCommitment, PolygeroConfig},
+                RoundLabel,
+            },
             transcript::Transcript,
         },
     },

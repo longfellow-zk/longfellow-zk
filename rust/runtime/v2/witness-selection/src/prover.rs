@@ -3,8 +3,11 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::JointPolygeroProver,
-        proto::polygero::{JointPolygeroProof, PolygeroCommitment},
+        polygero::{joint::Participants as BackendParticipants, JointPolygeroProver},
+        proto::{
+            polygero::{JointPolygeroProof, PolygeroCommitment},
+            Digest,
+        },
         transcript::{Transcript, TranscriptRef},
     },
 };
