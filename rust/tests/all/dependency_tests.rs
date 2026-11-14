@@ -1310,6 +1310,7 @@ fn test_tooling_and_system_source_boundaries() {
         "v1_provider.rs",
         "v2_provider.rs",
         "v2_transcript.rs",
+        "v2_key.rs",
     ]
     .map(|file| tests.join(file))
     .into_iter()
@@ -1399,10 +1400,7 @@ fn test_v2_input_security_boundaries() {
             "applications/mdoc_zk/runtime/tests/v2_attributes.rs",
         ),
     ] {
-        let source = fs::read_to_string(root.join(source)).unwrap();
-        assert!(root.join(tests).is_file());
-        assert!(!source.lines().any(|line| line.trim() == "#[test]"));
-        assert!(!source.contains("pub mod tests") && !source.contains("pub(crate) mod tests"));
+        assert!(root.join(source).is_file() && root.join(tests).is_file());
     }
     for role in ["prover", "verifier"] {
         let source =
@@ -1432,8 +1430,6 @@ fn test_polygero_compiler_boundaries() {
     for name in ["lib.rs", "profiles.rs"] {
         let file = directory.join("src").join(name);
         let source = fs::read_to_string(&file).unwrap();
-        assert!(!source.lines().any(|line| line.trim() == "#[test]"));
-        assert!(!source.contains("pub mod tests") && !source.contains("pub(crate) mod tests"));
         let production = production_code(&source);
         for dependency in extract_crate_deps(&production) {
             assert!(
@@ -1575,17 +1571,6 @@ fn test_sumcheck_v2_source_layout_and_test_privacy() {
             .map(|file| directory.join(file))
             .collect();
         assert_eq!(files.iter().cloned().collect::<BTreeSet<_>>(), expected);
-        for file in files {
-            let source = fs::read_to_string(&file).unwrap();
-            assert!(!source.contains("pub mod tests") && !source.contains("pub(crate) mod tests"));
-            if subdirectory == "src" {
-                assert!(
-                    !source.lines().any(|line| line.trim() == "#[test]"),
-                    "inline test in {}",
-                    file.display()
-                );
-            }
-        }
     }
 }
 
@@ -1613,16 +1598,6 @@ fn test_polygero_source_layout_and_test_privacy() {
     assert_eq!(files.iter().cloned().collect::<BTreeSet<_>>(), expected);
     for file in files {
         let source = fs::read_to_string(&file).unwrap();
-        assert!(
-            !source.lines().any(|line| line.trim() == "#[test]"),
-            "inline test in {}",
-            file.display()
-        );
-        assert!(
-            !source.contains("pub(crate) mod tests") && !source.contains("pub mod tests"),
-            "exported test module in {}",
-            file.display()
-        );
         let production = production_code(&source);
         for word in ["TUNING_PROFILES", "MLDSA_PROFILES", "tune_large_field"] {
             assert!(
@@ -1665,15 +1640,6 @@ fn test_zk_v2_source_layout_and_test_privacy() {
     .into_iter()
     .collect();
     assert_eq!(files.iter().cloned().collect::<BTreeSet<_>>(), expected);
-    for file in files {
-        let source = fs::read_to_string(&file).unwrap();
-        assert!(
-            !source.lines().any(|line| line.trim() == "#[test]"),
-            "inline test in {}",
-            file.display()
-        );
-        assert!(!source.contains("pub(crate) mod tests") && !source.contains("pub mod tests"));
-    }
     let context = fs::read_to_string(directory.join("context.rs")).unwrap();
     assert!(!production_code(&context).contains("prepare_inputs"));
 }
@@ -1703,11 +1669,6 @@ fn test_packing_dependencies_and_role_separation() {
         assert!(!files.is_empty());
         for file in files {
             let source = fs::read_to_string(&file).unwrap();
-            assert!(
-                !source.lines().any(|line| line.trim() == "#[test]"),
-                "inline test in {}",
-                file.display()
-            );
             let production = production_code(&source);
             for dependency in extract_crate_deps(&production) {
                 assert!(
@@ -1729,23 +1690,6 @@ fn test_packing_dependencies_and_role_separation() {
 #[test]
 fn test_v1_test_layout_and_privacy() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    for module in ["sumcheck", "ligero", "zk"] {
-        let mut files = Vec::new();
-        collect_rs_files(&root.join(format!("runtime/v1/{module}/src")), &mut files);
-        for file in files {
-            let source = fs::read_to_string(&file).unwrap();
-            assert!(
-                !source.lines().any(|line| line.trim() == "#[test]"),
-                "inline test in {}",
-                file.display()
-            );
-            assert!(
-                !source.contains("pub mod tests") && !source.contains("pub(crate) mod tests"),
-                "exported test module in {}",
-                file.display()
-            );
-        }
-    }
     let directory = root.join("runtime/v1/zk/tests");
     let mut files = Vec::new();
     collect_rs_files(&directory, &mut files);
@@ -2069,7 +2013,6 @@ fn test_witness_selection_protocol_boundaries() {
     );
     for file in files {
         let source = fs::read_to_string(&file).unwrap();
-        assert!(!source.lines().any(|line| line.trim() == "#[test]"));
         for dependency in extract_crate_deps(&production_code(&source)) {
             assert!(
                 matches!(
@@ -2157,6 +2100,36 @@ fn v2_private_coins_use_private_random() {
                 .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
                 .any(|word| word == "RandomEngine"),
             "v2 private coins must be PrivateRandom: {relative}"
+        );
+    }
+}
+
+/// Test bodies live outside production sources, and no production module
+/// exports its test module. Covers every registered `src` directory.
+#[test]
+fn production_sources_contain_no_tests() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for source in production_sources(root) {
+        let relative = source.strip_prefix(root).unwrap();
+        if !relative.components().any(|part| part.as_os_str() == "src") {
+            continue;
+        }
+        // Raw source: production_code would blank the test modules themselves.
+        let code = fs::read_to_string(&source).unwrap();
+        assert!(
+            !code
+                .lines()
+                .any(|line| line.trim_start().starts_with("#[test]")),
+            "inline test in {}",
+            relative.display()
+        );
+        let words: Vec<_> = code.split_whitespace().collect();
+        assert!(
+            !words
+                .windows(3)
+                .any(|w| w[0].starts_with("pub") && w[1] == "mod" && w[2].starts_with("tests")),
+            "exported test module in {}",
+            relative.display()
         );
     }
 }
