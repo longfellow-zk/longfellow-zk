@@ -397,6 +397,11 @@ fn main() {
     }
     for name in paths {
         let path = Path::new(name);
+        // Lean sources, including the offline Hahn certificates, live here.
+        if name.ends_with(".lean") && !name.starts_with("formal/") {
+            eprintln!("{name}: Lean sources belong under formal/");
+            failures += 1;
+        }
         if name.starts_with("formal/") && name.ends_with(".lean") {
             lean_count += 1;
             let source = code(&fs::read_to_string(path).unwrap());
