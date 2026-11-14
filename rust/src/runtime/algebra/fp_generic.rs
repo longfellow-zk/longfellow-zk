@@ -20,11 +20,15 @@ use std::{
 
 use crate::{
     core::algebra::{
-        AlgebraicField, BareField, HasLookupPoints, SerializableField, SupportsNatConversions,
-        SupportsU64Conversions,
+        AlgebraicField, BareField, FieldID, HasLookupPoints, SerializableField,
+        SupportsNatConversions, SupportsU64Conversions,
     },
     runtime::algebra::{
-        limb::{accum, accum_modular, lt, maybe_minus_m, maybe_plus_m, mul_accum, sub_limb, Limb},
+        limb::{
+            accum, accum_modular, is_one_slice, limbs_to_words64, lt, maybe_minus_m, maybe_plus_m,
+            mul_accum, mul_accum_zero, propagate_carry, shr_1, sub_limb, u64_to_limbs,
+            words64_to_limbs, Limb, LIMBS_PER_U64,
+        },
         InterpolationField, RuntimeField, RuntimeNat, RuntimeSerializableField, SupportsSampling,
     },
 };
@@ -152,7 +156,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         assert!(W > 0, "field width must contain at least one word");
         assert_eq!(
             L,
-            W.checked_mul(crate::runtime::algebra::limb::LIMBS_PER_U64)
+            W.checked_mul(LIMBS_PER_U64)
                 .expect("field limb count overflow"),
             "field limb count must match its serialized word width"
         );
@@ -168,9 +172,9 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             "field and accumulator exceed the reduction scratch space"
         );
 
-        let modulo = crate::runtime::algebra::limb::words64_to_limbs(&modulo_words);
+        let modulo = words64_to_limbs(&modulo_words);
         assert!(
-            modulo[0] & 1 == 1 && !crate::runtime::algebra::limb::is_one_slice(&modulo),
+            modulo[0] & 1 == 1 && !is_one_slice(&modulo),
             "Montgomery modulus must be odd and greater than one"
         );
         let mut neg_modulo = [0 as Limb; L];
@@ -185,8 +189,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             accum_scale.0 = res;
         }
 
-        let mut raw_half_limbs = crate::runtime::algebra::limb::shr_1(&modulo);
-        crate::runtime::algebra::limb::propagate_carry(&mut raw_half_limbs, 0, true);
+        let mut raw_half_limbs = shr_1(&modulo);
+        propagate_carry(&mut raw_half_limbs, 0, true);
         let raw_half = FpGenericElement(raw_half_limbs, PhantomData);
 
         let last = modulo_words.iter().rposition(|&word| word != 0).unwrap();
@@ -236,8 +240,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 
     fn of_scalar(&self, n: u64) -> FpGenericElement<L, Tag> {
         let mut standard = [0 as Limb; L];
-        let n_limbs = crate::runtime::algebra::limb::u64_to_limbs(n);
-        for i in 0..crate::runtime::algebra::limb::LIMBS_PER_U64 {
+        let n_limbs = u64_to_limbs(n);
+        for i in 0..LIMBS_PER_U64 {
             if i < L {
                 standard[i] = n_limbs[i];
             }
@@ -313,7 +317,7 @@ fn montgomery_mul<const L: usize>(
     let mut t = [0 as Limb; 33];
     if L > 0 {
         let window0 = &mut t[0..L + 2];
-        crate::runtime::algebra::limb::mul_accum_zero(window0, 0, a[0], b);
+        mul_accum_zero(window0, 0, a[0], b);
         reduction_step(window0, 0, modulo, m_prime);
         for i in 1..L {
             t[i + L + 1] = 0;
@@ -421,8 +425,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     SerializableField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+    fn field_id(&self) -> FieldID {
+        FieldID::of_prime_field(&self.serialized_mone())
     }
     fn is_binary(&self) -> bool {
         false
@@ -492,11 +496,11 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 {
     fn to_words64(&self, e: &Self::E) -> [u64; W] {
         let limbs = self.to_standard(e);
-        crate::runtime::algebra::limb::limbs_to_words64(&limbs)
+        limbs_to_words64(&limbs)
     }
 
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String> {
-        let limbs = crate::runtime::algebra::limb::words64_to_limbs(words);
+        let limbs = words64_to_limbs(words);
         if !lt(&limbs, &self.modulo) {
             return Err("Out of bounds".to_string());
         }
@@ -510,7 +514,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     type N = RuntimeNat<W>;
 
     fn reduce_nat(&self, n: &Self::N) -> Self::E {
-        let limbs = crate::runtime::algebra::limb::words64_to_limbs(n.limbs());
+        let limbs = words64_to_limbs(n.limbs());
         if lt(&limbs, &self.modulo) {
             return self.to_montgomery(&limbs);
         }

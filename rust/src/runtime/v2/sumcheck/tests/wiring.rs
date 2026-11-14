@@ -15,13 +15,17 @@
 use crate::{
     core::{
         algebra::{SerializableField, SupportsU128Conversions, SupportsU64Conversions},
-        proto::v1::{Layer, TermDelta},
+        proto::{
+            v1::{Layer, TermDelta},
+            v2::quadratic_layer_fixture,
+        },
     },
     runtime::{
-        algebra::{blas, RuntimeField, SupportsSampling},
+        algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         v2::{
+            proto::RoundLabel,
             sumcheck::{
-                fragments::{QuadFragment, SplitFragment},
+                fragments::{QuadFragment, Schedule, SplitFragment},
                 monomial,
                 quad::{bind_l, bind_r},
                 split::SplitLayer,
@@ -49,15 +53,12 @@ fn sample_assertions<
         output_range: 0..0,
     };
     let mut active = [SplitFragment::new(&fragment, layer)];
-    transcript.round(
-        crate::runtime::v2::proto::RoundLabel::Assertions,
-        |mut w| {
-            w.write_bytes(&(stage as u64).to_le_bytes());
-            let mut r = w.begin_squeeze();
-            assertion_weights(&mut active, &mut r, f);
-            r.end_round(())
-        },
-    );
+    transcript.round(RoundLabel::Assertions, |mut w| {
+        w.write_bytes(&(stage as u64).to_le_bytes());
+        let mut r = w.begin_squeeze();
+        assertion_weights(&mut active, &mut r, f);
+        r.end_round(())
+    });
     let [sampled] = active;
     (sampled.layer, sampled.assertions)
 }
@@ -86,7 +87,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         vec![0],
     );
     let constants = [f.zero(), f.one(), f.mone(), element(3)];
-    let raw_layer = crate::core::proto::v2::quadratic_layer_fixture(layer, &constants, f);
+    let raw_layer = quadratic_layer_fixture(layer, &constants, f);
     let layer = crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_layer);
     let a = [element(7), f.zero()];
     let mut transcript = Transcript::new(b"assertion-independence");
@@ -138,21 +139,17 @@ fn check_repeated_output<
         ]],
         vec![0],
     );
-    let raw_repeated_output =
-        crate::core::proto::v2::quadratic_layer_fixture(repeated_output, &constants, f);
+    let raw_repeated_output = quadratic_layer_fixture(repeated_output, &constants, f);
     let repeated_output =
         crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_repeated_output);
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.fork_for_test();
-    let expected_rho = expected.round(
-        crate::runtime::v2::proto::RoundLabel::Assertions,
-        |mut w| {
-            w.write_bytes(&1u64.to_le_bytes());
-            let mut r = w.begin_squeeze();
-            let rho = r.elt_field_slice(2, f);
-            r.end_round(rho)
-        },
-    );
+    let expected_rho = expected.round(RoundLabel::Assertions, |mut w| {
+        w.write_bytes(&1u64.to_le_bytes());
+        let mut r = w.begin_squeeze();
+        let rho = r.elt_field_slice(2, f);
+        r.end_round(rho)
+    });
     let (repeated_output, rho) = sample_assertions(repeated_output, 1, &mut transcript, f);
     assert_eq!(rho, expected_rho);
     assert_eq!(transcript.bytes(32), expected.bytes(32));
@@ -202,7 +199,7 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + Sup
         ]],
         vec![0],
     );
-    let raw_reordered = crate::core::proto::v2::quadratic_layer_fixture(reordered, &constants, f);
+    let raw_reordered = quadratic_layer_fixture(reordered, &constants, f);
     let reordered = crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_reordered);
     let (reordered, rho) = sample_assertions(reordered, 2, &mut transcript, f);
     assert_eq!(rho.len(), 2);
@@ -222,12 +219,12 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + Sup
 
 #[test]
 fn functional_transition_and_independent_assertions_prime() {
-    let f = crate::runtime::algebra::p256::P256Field::new();
+    let f = P256Field::new();
     check(&f, |x| f.u64_to_element(x));
 }
 #[test]
 fn functional_transition_and_independent_assertions_binary() {
-    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let f = Gf2_128Field::new();
     check(&f, |x| f.u128_to_element(x as u128));
 }
 
@@ -255,7 +252,7 @@ fn check_output_sampling<
             .build(),
         );
         let mut actual = Transcript::new(b"v2-output-challenges");
-        let schedule = crate::runtime::v2::sumcheck::fragments::Schedule::new(&[&circuit]).unwrap();
+        let schedule = Schedule::new(&[&circuit]).unwrap();
         let mut weights = Vec::new();
         schedule.finish_inputs(
             &[&circuit],
@@ -265,15 +262,12 @@ fn check_output_sampling<
             f,
         );
         let mut expected = Transcript::new(b"v2-output-challenges");
-        let expected_weights = expected.round(
-            crate::runtime::v2::proto::RoundLabel::Assertions,
-            |mut w| {
-                w.write_bytes(&0u64.to_le_bytes());
-                let mut r = w.begin_squeeze();
-                let weights = r.elt_field_slice(noutput, f);
-                r.end_round(weights)
-            },
-        );
+        let expected_weights = expected.round(RoundLabel::Assertions, |mut w| {
+            w.write_bytes(&0u64.to_le_bytes());
+            let mut r = w.begin_squeeze();
+            let weights = r.elt_field_slice(noutput, f);
+            r.end_round(weights)
+        });
         assert_eq!(weights, expected_weights);
         assert_eq!(actual.bytes(32), expected.bytes(32), "logv={logv}");
     }
@@ -281,10 +275,10 @@ fn check_output_sampling<
 
 #[test]
 fn output_sampling_uses_independent_weights_prime() {
-    check_output_sampling(&crate::runtime::algebra::p256::P256Field::new());
+    check_output_sampling(&P256Field::new());
 }
 
 #[test]
 fn output_sampling_uses_independent_weights_binary() {
-    check_output_sampling(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+    check_output_sampling(&Gf2_128Field::new());
 }

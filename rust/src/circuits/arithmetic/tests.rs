@@ -20,9 +20,11 @@ use crate::{
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-        logic::{Eltw, EvalLogic, Logic},
+        compiler::dump_stats,
+        logic::{AssertionScope, Eltw, EvalLogic, Logic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::SerializableField,
+    util::array::init,
 };
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -31,7 +33,7 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mut a = Vec::with_capacity(64);
         for _ in 0..64 {
             a.push(boolean_io.next(&mut pos));
@@ -46,7 +48,7 @@ fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) 
         let a2 = boolean.assert_false("no_carry", &carry);
         (iologic.assert_all("test_add", &[a1, a2]), 1, 0)
     });
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -55,7 +57,7 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mut a = Vec::with_capacity(64);
         for _ in 0..64 {
             a.push(boolean_io.next(&mut pos));
@@ -70,7 +72,7 @@ fn compile_and_dump_sub<F: CompileField + SerializableField>(f: &F, name: &str) 
         let a2 = boolean.assert_false("no_carry", &carry);
         (iologic.assert_all("test_sub", &[a1, a2]), 1, 0)
     });
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -79,7 +81,7 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mut a = Vec::with_capacity(256);
         for _ in 0..256 {
             a.push(boolean_io.next(&mut pos));
@@ -92,7 +94,7 @@ fn compile_and_dump_lt<F: CompileField + SerializableField>(f: &F, name: &str) {
         let res = arith.lt(&a, &b);
         (boolean.assert_false("lt_false", &res), 1, 0)
     });
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -101,7 +103,7 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mut a = Vec::with_capacity(256);
         for _ in 0..256 {
             a.push(boolean_io.next(&mut pos));
@@ -114,7 +116,7 @@ fn compile_and_dump_leq<F: CompileField + SerializableField>(f: &F, name: &str) 
         let res = arith.leq(&a, &b);
         (boolean.assert_false("leq_false", &res), 1, 0)
     });
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -123,7 +125,7 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
         let boolean_io = BooleanIO::new(&iologic);
         let arith = Arithmetic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mut a = Vec::with_capacity(256);
         for _ in 0..256 {
             a.push(boolean_io.next(&mut pos));
@@ -136,7 +138,7 @@ fn compile_and_dump_eq<F: CompileField + SerializableField>(f: &F, name: &str) {
         let res = arith.eqb(&a, &b);
         (boolean.assert_false("eq_false", &res), 1, 0)
     });
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 #[test]
@@ -272,8 +274,7 @@ fn test_exactly_one_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     for len in 1..=6 {
         let n_combinations = 1 << len;
         for mask in 0..n_combinations {
-            let inputs: Vec<_> =
-                crate::util::array::init(len, |i| boolean.konst(((mask >> i) & 1) == 1));
+            let inputs: Vec<_> = init(len, |i| boolean.konst(((mask >> i) & 1) == 1));
             let popcount = (0..len).filter(|i| ((mask >> i) & 1) == 1).count();
 
             let assertion = arithmetic.assert_exactly_one(&inputs);
@@ -310,7 +311,7 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 #[test]
 fn test_arithmetic_evaluation() {
     let f_prime = P256Field::new();
-    let tracker_prime = crate::compile::logic::AssertionScope::new();
+    let tracker_prime = AssertionScope::new();
     type LPrime<'a> = EvalLogic<'a, P256Field>;
     let l_prime = LPrime::new(&f_prime, &tracker_prime);
     test_add_eval_for_logic(&l_prime);
@@ -322,7 +323,7 @@ fn test_arithmetic_evaluation() {
     test_empty_vectors_relations_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::AssertionScope::new();
+    let tracker_bin = AssertionScope::new();
     type LBin<'a> = EvalLogic<'a, Gf2_128Field>;
     let l_binary = LBin::new(&f_bin, &tracker_bin);
     test_add_eval_for_logic(&l_binary);
@@ -337,7 +338,7 @@ fn test_arithmetic_evaluation() {
 #[test]
 fn test_as_eltw_no_overflow_prime() {
     let f = P256Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -349,7 +350,7 @@ fn test_as_eltw_no_overflow_prime() {
 #[should_panic(expected = "Bitvector length 256 exceeds field capacity 255")]
 fn test_as_eltw_overflow_prime() {
     let f = P256Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -360,7 +361,7 @@ fn test_as_eltw_overflow_prime() {
 #[test]
 fn test_as_eltw_no_overflow_binary() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -372,7 +373,7 @@ fn test_as_eltw_no_overflow_binary() {
 #[should_panic(expected = "Bitvector length 129 exceeds field capacity 128")]
 fn test_as_eltw_overflow_binary() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -384,7 +385,7 @@ fn test_as_eltw_overflow_binary() {
 #[should_panic(expected = "unchecked_add: slice lengths must match")]
 fn test_unchecked_add_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -397,7 +398,7 @@ fn test_unchecked_add_length_mismatch() {
 #[should_panic(expected = "fold2: slice lengths must match")]
 fn test_fold2_empty_a_nonempty_b_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -416,7 +417,7 @@ fn test_fold2_empty_a_nonempty_b_length_mismatch() {
 #[should_panic(expected = "eqb: slice lengths must match")]
 fn test_eqb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -429,7 +430,7 @@ fn test_eqb_length_mismatch() {
 #[should_panic(expected = "muxb: condition and iftrue lengths must match")]
 fn test_muxb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::proto::uleb::read_uleb128;
+
 mod codec;
 pub mod lfa1;
 pub mod lfa2;
@@ -148,7 +150,7 @@ pub(in crate::core::proto) fn read_utf8_string<R: BufRead>(
     max_len: usize,
     field_name: &str,
 ) -> Result<String, String> {
-    let len = crate::core::proto::uleb::read_uleb128(stream)?;
+    let len = read_uleb128(stream)?;
     if len > max_len {
         return Err(format!(
             "Excessive {field_name} string length: {len} > {max_len}"

@@ -14,6 +14,7 @@
 
 use crate::compile::{
     algebra::p256::P256Field,
+    compiler::compile_v1,
     logic::{Logic, LogicIO},
 };
 
@@ -33,7 +34,7 @@ fn test_rejects_too_many_public_inputs() {
 #[should_panic(expected = "subfield_boundary (3) exceeds ninput (2)")]
 fn test_rejects_subfield_boundary_past_inputs() {
     let f = P256Field::new();
-    crate::compile::compiler::compile_v1(&f, |logic| {
+    compile_v1(&f, |logic| {
         let x = logic.input(1);
         (logic.assert0("input", &x), 1, 3)
     });

@@ -14,7 +14,10 @@
 
 use crate::{
     circuits::ec::{Pt2, Pt3},
-    core::algebra::{ec as ec_concrete, ec::Curve, BareField, Nat, NatOf, SupportsNatConversions},
+    core::algebra::{
+        ec as ec_concrete, ec::Curve, AlgebraicField, BareField, HasLookupPoints, Nat, NatOf,
+        SupportsNatConversions,
+    },
 };
 
 #[cfg(test)]
@@ -48,10 +51,8 @@ pub struct ConcreteDerived<F: BareField> {
 
 pub fn given<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -70,10 +71,8 @@ pub fn given<
 /// unwind while the application is preparing a witness.
 pub(super) fn try_given<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -127,10 +126,8 @@ pub(super) fn try_given<
 
 pub fn derived<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -148,10 +145,8 @@ pub fn derived<
 /// explicitly. In particular G+PK may be infinity even for a valid signature.
 pub(super) fn try_derived<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -170,10 +165,8 @@ pub(super) fn try_derived<
 /// Separate legacy constructors retain their APIs and serialized values.
 pub fn try_witness<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -191,10 +184,8 @@ pub fn try_witness<
 
 fn derived_from_given<
     const W: usize,
-    F: crate::core::algebra::AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints,
-    Fn: crate::core::algebra::AlgebraicField + SupportsNatConversions<W, N = F::N>,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
@@ -271,10 +262,7 @@ fn derived_from_given<
     })
 }
 
-fn checked_inverse<F: crate::core::algebra::AlgebraicField>(
-    f: &F,
-    value: &F::E,
-) -> Result<F::E, &'static str> {
+fn checked_inverse<F: AlgebraicField>(f: &F, value: &F::E) -> Result<F::E, &'static str> {
     if f.is_zero(value) {
         Err("Signature requires an unsupported zero inversion")
     } else {
@@ -282,10 +270,7 @@ fn checked_inverse<F: crate::core::algebra::AlgebraicField>(
     }
 }
 
-fn checked_affine<F: crate::core::algebra::AlgebraicField>(
-    f: &F,
-    point: &Pt3<F::E>,
-) -> Result<Pt2<F::E>, &'static str> {
+fn checked_affine<F: AlgebraicField>(f: &F, point: &Pt3<F::E>) -> Result<Pt2<F::E>, &'static str> {
     let inverse = checked_inverse(f, &point.2)?;
     Ok((f.mulf(&point.0, &inverse), f.mulf(&point.1, &inverse)))
 }

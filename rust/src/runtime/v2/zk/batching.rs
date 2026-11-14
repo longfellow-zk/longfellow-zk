@@ -7,7 +7,7 @@
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
-        algebra::{blas, RuntimeField, SupportsSampling},
+        algebra::{blas, blas::dot, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{self, symbolic::Constraints},
             transcript::TranscriptRef,
@@ -57,7 +57,7 @@ pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     let last = &rho[b.len()];
     let input_constant = f.subf(
         &constraints.input_claim.constant,
-        &crate::runtime::algebra::blas::dot(&constraints.input_weights[..public.len()], public, f),
+        &dot(&constraints.input_weights[..public.len()], public, f),
     );
     f.add(&mut constant, &f.mulf(last, &input_constant));
     blas::axpy(

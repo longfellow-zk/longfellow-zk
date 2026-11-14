@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::fp_generic::{FpGenericElement, FpGenericField};
+use crate::{
+    core::algebra::SerializableField,
+    runtime::algebra::{
+        fp_generic::{FpGenericElement, FpGenericField},
+        limb::LIMBS_PER_U64,
+        packing::{IdentityExtension, PackingField},
+    },
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Q256Tag;
 
-pub type Q256Element =
-    FpGenericElement<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }, Q256Tag>;
-pub type Q256Field = FpGenericField<
-    4,
-    { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-    { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-    Q256Tag,
->;
+pub type Q256Element = FpGenericElement<{ 4 * LIMBS_PER_U64 }, Q256Tag>;
+pub type Q256Field = FpGenericField<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }, Q256Tag>;
 
 const Q256_MODULUS: [u64; 4] = [
     0xf3b9cac2fc632551,
@@ -46,16 +47,14 @@ impl Q256Field {
     }
 }
 
-impl crate::runtime::algebra::packing::PackingField for Q256Field {
-    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+impl PackingField for Q256Field {
+    type Packing = IdentityExtension<Self>;
     fn packing_extension(&self) -> Self::Packing {
-        crate::runtime::algebra::packing::IdentityExtension::new(self.clone())
+        IdentityExtension::new(self.clone())
     }
     fn packing_id(&self) -> Vec<u8> {
         let mut id = b"prime/canonical-integer/v1/".to_vec();
-        id.extend_from_slice(&crate::core::algebra::SerializableField::serialized_mone(
-            self,
-        ));
+        id.extend_from_slice(&SerializableField::serialized_mone(self));
         id
     }
 }

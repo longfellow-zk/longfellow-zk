@@ -13,7 +13,15 @@
 // limitations under the License.
 
 use super::{ZkContext, ZkProver, ZkVerifier};
-use crate::runtime::v2::proto::zk::ZkProof;
+use crate::{
+    compile::polygero::tune_large_field_at_rate,
+    core::proto::v2::quadratic_fixture,
+    runtime::v2::{
+        proto::{dual_packing::PackingProof, witness_selection::FINGERPRINTS, zk::ZkProof},
+        sumcheck::circuit_geometry,
+        zk::CircuitInput,
+    },
+};
 
 #[test]
 fn context_uses_its_domains_runtime_modulus() {
@@ -126,7 +134,7 @@ fn legacy_circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
 fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
     f: &F,
 ) -> crate::core::proto::v2::Circuit<F> {
-    crate::core::proto::v2::quadratic_fixture(legacy_circuit(f), f)
+    quadratic_fixture(legacy_circuit(f), f)
 }
 pub(crate) fn exercise<
     const W: usize,
@@ -157,8 +165,7 @@ pub(crate) fn exercise<
     let mut rng = DeterministicRng::new(42);
     let (committed, prover_geometry) = p.commit(witness.to_vec(), &context, tp, &mut rng).unwrap();
     let source_circuit = circuit(f);
-    let source_geometry =
-        crate::runtime::v2::sumcheck::circuit_geometry(&[&source_circuit]).unwrap();
+    let source_geometry = circuit_geometry(&[&source_circuit]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         source_circuit.raw.ninput - source_circuit.raw.npublic_input,
         source_geometry.pad_count().unwrap(),
@@ -210,8 +217,7 @@ pub(crate) fn exercise<
     let mut trailing = bytes.clone();
     trailing.push(0);
     assert!(complete(&trailing).is_err());
-    let verify = |inputs: Vec<crate::runtime::v2::zk::CircuitInput<F>>,
-                  candidate: &ZkProof<W, F>| {
+    let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<W, F>| {
         let tv = Transcript::new(b"longfellow/v2/test");
         v.reduce(&inputs, candidate, tv, &context)
     };
@@ -278,16 +284,12 @@ pub(crate) fn exercise<
         f.add(&mut bad.sumcheck_proof.layers[0].cross, &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
-    if let crate::runtime::v2::proto::dual_packing::PackingProof::TraceZero { .. } =
-        &decoded.packing
-    {
+    if let PackingProof::TraceZero { .. } = &decoded.packing {
         for change_first_response in [true, false] {
             let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
                 .unwrap()
                 .clone();
-            let crate::runtime::v2::proto::dual_packing::PackingProof::TraceZero { u, a } =
-                &mut bad.packing
-            else {
+            let PackingProof::TraceZero { u, a } = &mut bad.packing else {
                 unreachable!()
             };
             if change_first_response {
@@ -322,9 +324,7 @@ pub(crate) fn exercise<
         let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
             .unwrap()
             .clone();
-        let crate::runtime::v2::proto::dual_packing::PackingProof::TraceZero { u, .. } =
-            &mut bad.packing
-        else {
+        let PackingProof::TraceZero { u, .. } = &mut bad.packing else {
             unreachable!()
         };
         f.add(&mut u[0], &off_hyperplane);
@@ -376,21 +376,18 @@ fn extension_zk_comparison() {
     exercise(&f, &CrtInterpolatorFactory);
     let c = circuit(&f);
     use crate::runtime::algebra::packing::{PackingExtension, PackingField};
-    let geometry = crate::runtime::v2::sumcheck::circuit_geometry(&[&c]).unwrap();
+    let geometry = circuit_geometry(&[&c]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         c.raw.ninput - c.raw.npublic_input,
         geometry.pad_count().unwrap(),
         f.packing_extension().degree(),
     )
     .unwrap();
-    let nw = source.witness_count + crate::runtime::v2::proto::witness_selection::FINGERPRINTS;
+    let nw = source.witness_count + FINGERPRINTS;
     let select = |filter: fn(PolygeroConfig) -> bool| {
-        crate::compile::polygero::tune_large_field_at_rate(
-            4,
-            nw,
-            f.serialized_size_bytes(),
-            |config| filter(config) && config.can_interpolate(&CrtInterpolatorFactory),
-        )
+        tune_large_field_at_rate(4, nw, f.serialized_size_bytes(), |config| {
+            filter(config) && config.can_interpolate(&CrtInterpolatorFactory)
+        })
     };
     let config = select(|p| p.k == 992).unwrap();
     assert_eq!(

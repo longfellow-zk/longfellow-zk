@@ -2,8 +2,15 @@
 //! The native sextic field as an extension of its prime field.
 use super::{PackingExtension, PackingField};
 use crate::{
-    core::algebra::{fp24::Q, AlgebraicField, BareField, SerializableField},
-    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
+    core::algebra::{
+        fp24::{invert_base, Q},
+        fp24_ext6::BETA,
+        AlgebraicField, BareField, FieldID, SerializableField,
+    },
+    runtime::algebra::{
+        fp24_ext6::{sample_base, RuntimeElement, RuntimeFp24Ext6},
+        SupportsSampling,
+    },
 };
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Prime24;
@@ -28,17 +35,17 @@ impl AlgebraicField for Prime24 {
     }
     fn invert(&self, a: &u32) -> u32 {
         assert_ne!(*a, 0);
-        crate::core::algebra::fp24::invert_base(*a)
+        invert_base(*a)
     }
 }
-impl crate::runtime::algebra::SupportsSampling for Prime24 {
+impl SupportsSampling for Prime24 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> u32 {
-        crate::runtime::algebra::fp24_ext6::sample_base(rng)
+        sample_base(rng)
     }
 }
 impl SerializableField for Prime24 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         false
@@ -69,7 +76,7 @@ pub struct Prime24Extension;
 impl PackingField for RuntimeFp24Ext6 {
     fn packing_id(&self) -> Vec<u8> {
         let mut id = b"prime24-sextic/v1/".to_vec();
-        id.extend_from_slice(&crate::core::algebra::fp24_ext6::BETA.to_le_bytes());
+        id.extend_from_slice(&BETA.to_le_bytes());
         id
     }
 

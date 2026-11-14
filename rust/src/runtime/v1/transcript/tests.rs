@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{SerializableField, GF2_16_BASIS_V1},
     runtime::{
         algebra::p256::P256Field,
         random::RandomEngine,
-        v1::{random::RandomEngineV1, subfield::SubfieldV1, transcript::Transcript},
+        v1::{
+            random::RandomEngineV1,
+            subfield::{BinarySubfieldV1, SubfieldV1},
+            transcript::Transcript,
+        },
     },
 };
 
@@ -103,8 +107,7 @@ fn test_transcript_cpp_compatibility() {
 
 #[test]
 fn test_transcript_gf2_128_subfield_sampling() {
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let init = [1u8, 2, 3, 4];
     let mut ts = Transcript::new(&init);
 

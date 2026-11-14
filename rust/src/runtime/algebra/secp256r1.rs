@@ -14,7 +14,7 @@
 
 use crate::{
     core::algebra::{ec::Curve, ElementOf},
-    runtime::algebra::RuntimeSerializableField,
+    runtime::algebra::{RuntimeNat, RuntimeSerializableField},
 };
 
 const SECP256R1_A: [u64; 4] = [
@@ -101,7 +101,7 @@ impl<F: RuntimeSerializableField<4>> Secp256r1<F> {
 
 impl<F: RuntimeSerializableField<4>> Curve<4> for Secp256r1<F> {
     type F = F;
-    type N = crate::runtime::algebra::RuntimeNat<4>;
+    type N = RuntimeNat<4>;
 
     fn order(&self) -> Self::N {
         Self::N::from_limbs(self.order)

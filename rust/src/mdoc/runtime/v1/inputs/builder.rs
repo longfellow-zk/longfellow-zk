@@ -15,21 +15,16 @@
 //! Longfellow v1 assignment builder; preserves its own field encodings.
 
 use crate::{
-    core::algebra::Nat,
+    core::algebra::{AlgebraicField, BareField, Nat},
     mdoc::circuits::{MdocHashRuntimeField, MdocSigRuntimeField},
 };
 
-pub(super) struct AssignmentBuilder<
-    'a,
-    F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField,
-> {
+pub(super) struct AssignmentBuilder<'a, F: BareField + AlgebraicField> {
     pub(super) field: &'a F,
     buffer: Vec<F::E>,
 }
 
-impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>
-    AssignmentBuilder<'a, F>
-{
+impl<'a, F: BareField + AlgebraicField> AssignmentBuilder<'a, F> {
     pub(super) fn new(field: &'a F) -> Self {
         Self {
             field,
@@ -93,8 +88,8 @@ cfg_prover! {
 
 
     impl<
-            F: crate::core::algebra::BareField
-                + crate::core::algebra::AlgebraicField
+            F: BareField
+                + AlgebraicField
                 + crate::core::algebra::HasLookupPoints,
         > AssignmentBuilder<'_, F>
     {

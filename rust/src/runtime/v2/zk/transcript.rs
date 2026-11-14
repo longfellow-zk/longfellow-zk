@@ -6,17 +6,20 @@ use super::{
     packing_commitment::PackingCommitment,
     storage::{Group, Run, StorageMap},
 };
-use crate::runtime::{
-    algebra::{
-        packing::{PackingExtension, PackingField},
-        ZkField,
+use crate::{
+    core::algebra::SerializableField,
+    runtime::{
+        algebra::{
+            packing::{PackingExtension, PackingField},
+            ZkField,
+        },
+        v2::transcript::TranscriptRef,
     },
-    v2::transcript::TranscriptRef,
 };
 
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub(crate) fn absorb(&self, t: &mut TranscriptRef<'_>, id: &[u8; 32])
-    where F: crate::core::algebra::SerializableField {
+    where F: SerializableField {
         if self.layout.degree == 1 {
             return;
         }

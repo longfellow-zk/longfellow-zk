@@ -1,7 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::*;
 use crate::{
-    core::algebra::{AlgebraicField, BareField, SupportsNatConversions, SupportsU64Conversions},
+    core::algebra::{
+        AlgebraicField, BareField, FieldID, SupportsNatConversions, SupportsU64Conversions,
+    },
     runtime::algebra::{
         fp_generic::FpGenericField, limb::LIMBS_PER_U64, p256::P256Field,
         range_interpolation::ScalarInterpolatorFactory,
@@ -105,8 +107,8 @@ impl SupportsSampling for EncodingWidth {
     }
 }
 impl SerializableField for EncodingWidth {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         false

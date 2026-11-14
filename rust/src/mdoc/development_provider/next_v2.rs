@@ -15,6 +15,7 @@
 //! Compile NEXT with the shared, checked Polygero profile.
 
 use crate::{
+    compile::polygero::profiles::MDOC_JOINT_PROFILE,
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         circuits::NEXT_VERSION,
@@ -43,7 +44,7 @@ use crate::{
 // ordinary code rate of 1/7. The checked Hahn bounds keep the shared opening
 // and parent charges within the same query budget as the frontend.
 const NEXT_PARAMETERS: PolygeroConfig = {
-    let (k, s, n, t) = crate::compile::polygero::profiles::MDOC_JOINT_PROFILE;
+    let (k, s, n, t) = MDOC_JOINT_PROFILE;
     PolygeroConfig { k, s, n, t }
 };
 

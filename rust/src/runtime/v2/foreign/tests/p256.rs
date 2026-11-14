@@ -15,6 +15,7 @@ use crate::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field},
         random::DeterministicRng,
         v2::{
+            foreign::word::Word,
             proto::RoundLabel,
             sumcheck,
             transcript::Transcript,
@@ -64,12 +65,7 @@ fn mu_is_bound_and_derived_claims_are_not_absorbed() {
 fn masked_quotients_are_bound() {
     let mut rng = DeterministicRng::new(3);
     let pad = Otp::<10>::sample(&mut rng);
-    let word = |k| {
-        MaskedWord::mask(
-            crate::runtime::v2::foreign::word::Word::<10>::new(k).unwrap(),
-            &pad,
-        )
-    };
+    let word = |k| MaskedWord::mask(Word::<10>::new(k).unwrap(), &pad);
     let state = |m: [MaskedWord<10>; 2]| {
         let mut t = Transcript::new(b"advice-binding");
         absorb_masked(&mut t.borrow(), &m);

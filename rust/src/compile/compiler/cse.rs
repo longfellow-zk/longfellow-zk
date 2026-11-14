@@ -20,7 +20,7 @@ use crate::compile::{
     algebra::CompileField,
     compiler::{
         arena::CompilerArena,
-        ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},
+        ir::{depth_expr, Assertions, Expr, ExprNode, HashedExpr, RewriteT},
         node::Node,
     },
 };
@@ -139,7 +139,7 @@ impl<'a, F: CompileField> RewriteT<'a, F> for Cse<'a, F> {
 
     fn with_assertions(
         &self,
-        assertions: &crate::compile::compiler::ir::Assertions<'a, F>,
+        assertions: &Assertions<'a, F>,
         x: &ExprNode<'a, F>,
     ) -> ExprNode<'a, F> {
         self.memo_expr(Expr::WithAssertions(assertions, *x))

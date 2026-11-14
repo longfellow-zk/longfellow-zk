@@ -21,25 +21,35 @@
 //! The two public phases preserve the legacy transcript and proof layout.
 
 use crate::{
-    core::algebra::ElementOf,
+    core::{algebra::ElementOf, proto::v1::Circuit},
     runtime::{
         algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
         random::RandomEngine,
         v1::{
-            ligero::{LigeroProver, LigeroQuadraticConstraint},
-            proto::{sumcheck::SumcheckProof, zk::ZkProof},
-            subfield::SubfieldV1,
-            sumcheck::{prove_core as sumcheck_prove_core, TranscriptSumcheck},
+            ligero::{LigeroConfig, LigeroParam, LigeroProver, LigeroQuadraticConstraint},
+            proto::{
+                ligero::LigeroCommitment,
+                sumcheck::{SumcheckProof, SumcheckProofGeometry},
+                zk::{ZkProof, ZkProofGeometry},
+            },
+            subfield::{InterpolationPlanV1, SubfieldV1},
+            sumcheck::{
+                eval::eval_circuit, pad::sample, prove_core as sumcheck_prove_core,
+                symbolic::verify, TranscriptSumcheck,
+            },
             transcript::Transcript,
-            zk::common::ZkContext,
+            zk::{
+                common::{ZkContext, DEFAULT_STATEMENT_HASH},
+                constraint_compiler::{compile, product_constraints},
+            },
         },
     },
 };
 
 /// A trusted legacy circuit and the configuration for its Ligero commitment.
 pub struct ZkProver<const W: usize, F: ZkField<W>> {
-    pub circuit: crate::core::proto::v1::Circuit<F>,
-    pub config: crate::runtime::v1::ligero::LigeroConfig,
+    pub circuit: Circuit<F>,
+    pub config: LigeroConfig,
 }
 
 /// Private state retained between commitment and proof generation.
@@ -48,14 +58,11 @@ pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
     pad: SumcheckProof<W, F>,
     lqc: Vec<LigeroQuadraticConstraint>,
     lp: LigeroProver<W, F>,
-    pub com: crate::runtime::v1::proto::ligero::LigeroCommitment,
+    pub com: LigeroCommitment,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
-    pub fn new(
-        circuit: crate::core::proto::v1::Circuit<F>,
-        config: crate::runtime::v1::ligero::LigeroConfig,
-    ) -> Self {
+    pub fn new(circuit: Circuit<F>, config: LigeroConfig) -> Self {
         Self { circuit, config }
     }
     /// Computes ZK commitment of the witness and ZK pads.
@@ -71,12 +78,9 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         ts: &mut Transcript,
         rng: &mut R,
         sf: &SF,
-    ) -> (
-        ZkCommitResult<W, F>,
-        crate::runtime::v1::proto::zk::ZkProofGeometry,
-    )
+    ) -> (ZkCommitResult<W, F>, ZkProofGeometry)
     where
-        IF::Plan: crate::runtime::v1::subfield::InterpolationPlanV1<W, F>,
+        IF::Plan: InterpolationPlanV1<W, F>,
     {
         assert!(
             self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
@@ -95,18 +99,16 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             .subfield_boundary
             .saturating_sub(self.circuit.raw.npublic_input);
 
-        let sc_geom =
-            crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(&self.circuit);
-        let (pad, pad_witness) = crate::runtime::v1::sumcheck::pad::sample(&sc_geom, rng, ctx.f);
+        let sc_geom = SumcheckProofGeometry::from_circuit(&self.circuit);
+        let (pad, pad_witness) = sample(&sc_geom, rng, ctx.f);
 
         let mut witness = Vec::with_capacity(witness_only.len() + pad_witness.len());
         witness.extend_from_slice(witness_only);
         witness.extend(pad_witness);
 
-        let lqc =
-            crate::runtime::v1::zk::constraint_compiler::product_constraints(n_witness, &sc_geom);
+        let lqc = product_constraints(n_witness, &sc_geom);
 
-        let ligero_param = crate::runtime::v1::ligero::LigeroParam::new(
+        let ligero_param = LigeroParam::new(
             witness.len(),
             self.circuit.raw.layers.len(),
             self.config,
@@ -124,7 +126,7 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
             ctx.f,
             sf,
         );
-        let geom = crate::runtime::v1::proto::zk::ZkProofGeometry {
+        let geom = ZkProofGeometry {
             com_geom: ligero_param.geom,
             sc_geom,
         };
@@ -159,12 +161,8 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         inputs_and_witnesses.extend(witness_only);
 
         tsp.write_sumcheck_statement(&self.circuit, &public_inputs, ctx.f);
-        let in_layers = crate::runtime::v1::sumcheck::eval::eval_circuit(
-            inputs_and_witnesses,
-            &self.circuit,
-            ctx.f,
-        )
-        .map_err(|e| format!("eval_circuit failed: {e}"))?;
+        let in_layers = eval_circuit(inputs_and_witnesses, &self.circuit, ctx.f)
+            .map_err(|e| format!("eval_circuit failed: {e}"))?;
 
         let (proof, data) =
             sumcheck_prove_core(in_layers, &commit_info.pad, &self.circuit, tsp, ctx.f);
@@ -172,20 +170,13 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
         // Resolve logical pads while the symbolic constraints are live. Only the
         // compiled coefficients and constants are needed during the Ligero proof.
         let (a, b) = {
-            let relations = crate::runtime::v1::sumcheck::symbolic::verify(&proof, data, ctx.f)?;
-            let geometry = crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(
-                &self.circuit,
-            );
+            let relations = verify(&proof, data, ctx.f)?;
+            let geometry = SumcheckProofGeometry::from_circuit(&self.circuit);
             let pads = geometry.pad_layout(n_witness);
-            crate::runtime::v1::zk::constraint_compiler::compile(
-                &relations,
-                &pads,
-                &public_inputs,
-                ctx.f,
-            )?
+            compile(&relations, &pads, &public_inputs, ctx.f)?
         };
 
-        let statement_hash = crate::runtime::v1::zk::common::DEFAULT_STATEMENT_HASH;
+        let statement_hash = DEFAULT_STATEMENT_HASH;
 
         let com_proof = commit_info.lp.prove(
             &b,

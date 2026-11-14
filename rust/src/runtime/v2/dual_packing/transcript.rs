@@ -6,7 +6,7 @@ use crate::{
             packing::{AmbientElement as E, PackingExtension, PackingParameters},
             SupportsSampling,
         },
-        v2::transcript::TranscriptRef,
+        v2::{proto::RoundLabel, transcript::TranscriptRef},
     },
 };
 pub(super) fn begin<X: PackingExtension>(
@@ -49,7 +49,7 @@ pub(super) fn challenges<X: PackingExtension>(
 where
     X::Ambient: SerializableField,
 {
-    ts.round(crate::runtime::v2::proto::RoundLabel::Packing, |mut w| {
+    ts.round(RoundLabel::Packing, |mut w| {
         w.write_elt_field_slice(u, p.field());
         let mut r = w.begin_squeeze();
         let value = (0..p.degree())

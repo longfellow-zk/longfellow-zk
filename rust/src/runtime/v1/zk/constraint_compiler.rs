@@ -22,7 +22,7 @@
 use crate::{
     core::algebra::ElementOf,
     runtime::{
-        algebra::RuntimeField,
+        algebra::{blas::dot, RuntimeField},
         v1::{
             ligero::{LigeroLinearConstraint, LigeroQuadraticConstraint},
             proto::sumcheck::{CircuitPadLayout, SumcheckProofGeometry},
@@ -63,11 +63,7 @@ pub fn compile<const W: usize, F: RuntimeField<W>>(
     let mut constant = input.linear.constant.clone();
     f.add(
         &mut constant,
-        &crate::runtime::algebra::blas::dot(
-            &input.weights[..public_inputs.len()],
-            public_inputs,
-            f,
-        ),
+        &dot(&input.weights[..public_inputs.len()], public_inputs, f),
     );
     b.push(constant);
     for (w, weight) in input.weights[public_inputs.len()..].iter().enumerate() {

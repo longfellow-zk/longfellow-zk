@@ -21,23 +21,27 @@ use super::{
     concrete::{ConcreteDerived, ConcreteGiven},
 };
 use crate::{
-    circuits::bitvec::BitvecLogic,
+    circuits::{bitvec::BitvecLogic, boolean::Boolean},
+    compile::{algebra::CompileNat, logic::LogicIO},
     core::algebra::Nat,
     mdoc::{
         circuits::mso_attribute::{
             AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
             FieldLocator as WireFieldLocator,
         },
-        proto::{hash::constants::K_HASH_INDEX_BITS, mso_attribute::constants::K_ATTR_INDEX_BITS},
+        proto::{
+            hash::constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_DIGITS},
+            mso_attribute::constants::K_ATTR_INDEX_BITS,
+        },
     },
 };
 
-pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
+pub fn evaluate_given<L: LogicIO>(
     logic: &L,
     bv: &BitvecLogic<L>,
-    given: &ConcreteGiven<crate::compile::algebra::CompileNat<4>>,
+    given: &ConcreteGiven<CompileNat<4>>,
 ) -> WireGiven<L> {
-    let boolean = crate::circuits::boolean::Boolean::new(logic);
+    let boolean = Boolean::new(logic);
 
     let get_byte = |bytes: &[u8], idx: usize| {
         if idx < bytes.len() {
@@ -70,10 +74,7 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
         .collect();
 
     let now = std::array::from_fn(|i| {
-        let bit_val = get_byte(
-            &given.hash_input.now,
-            crate::mdoc::proto::hash::constants::K_TIMESTAMP_DIGITS[i],
-        );
+        let bit_val = get_byte(&given.hash_input.now, K_TIMESTAMP_DIGITS[i]);
         bv.of_u64::<8>(u64::from(bit_val))
     });
 
@@ -192,7 +193,7 @@ pub fn evaluate_given<L: crate::compile::logic::LogicIO>(
     }
 }
 
-pub fn evaluate_derived<L: crate::compile::logic::LogicIO>(
+pub fn evaluate_derived<L: LogicIO>(
     _logic: &L,
     bv: &BitvecLogic<L>,
     derived: &ConcreteDerived,

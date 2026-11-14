@@ -18,7 +18,7 @@
 //! Binding at z replaces them by even+z*(odd-even). A missing final odd entry
 //! is implicitly zero. Repeated bindings leave one scalar evaluation; the
 //! in-place form reuses the table's allocation as its length halves.
-use crate::runtime::algebra::RuntimeField;
+use crate::{core::proto::sane_logw, runtime::algebra::RuntimeField};
 
 #[inline(always)]
 /// Evaluate the line through f0 at zero and f1 at one.
@@ -114,7 +114,7 @@ pub fn bind_all<const W: usize, F: RuntimeField<W>>(
     f: &F,
 ) {
     assert!(!v.is_empty(), "vector length must be >= 1 in bind_all");
-    assert!(crate::core::proto::sane_logw(logv), "logv must be sane");
+    assert!(sane_logw(logv), "logv must be sane");
     assert!(
         v.len() as u64 <= (1u64 << logv),
         "size of wires {} exceeds 2^logw {}",

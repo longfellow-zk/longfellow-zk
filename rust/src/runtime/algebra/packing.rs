@@ -2,7 +2,7 @@
 //! Finite extensions and explicitly owned packing parameters. These interfaces
 //! describe an extension F/K, independently of legacy V1 serialization hints.
 
-use crate::core::algebra::{AlgebraicField, SerializableField};
+use crate::core::algebra::{AlgebraicField, BareField, SerializableField};
 
 pub mod binary;
 pub mod binary128;
@@ -83,23 +83,20 @@ pub trait PackingExtension {
     fn embed(
         &self,
         f: &Self::Ambient,
-        x: &<Self::Base as crate::core::algebra::BareField>::E,
-    ) -> <Self::Ambient as crate::core::algebra::BareField>::E;
-    fn native_basis(
-        &self,
-        f: &Self::Ambient,
-    ) -> Vec<<Self::Ambient as crate::core::algebra::BareField>::E>;
+        x: &<Self::Base as BareField>::E,
+    ) -> <Self::Ambient as BareField>::E;
+    fn native_basis(&self, f: &Self::Ambient) -> Vec<<Self::Ambient as BareField>::E>;
     fn coordinates_into(
         &self,
         f: &Self::Ambient,
-        x: &<Self::Ambient as crate::core::algebra::BareField>::E,
-        out: &mut [<Self::Base as crate::core::algebra::BareField>::E],
+        x: &<Self::Ambient as BareField>::E,
+        out: &mut [<Self::Base as BareField>::E],
     );
     fn relative_frobenius(
         &self,
         f: &Self::Ambient,
-        x: &<Self::Ambient as crate::core::algebra::BareField>::E,
-    ) -> <Self::Ambient as crate::core::algebra::BareField>::E;
+        x: &<Self::Ambient as BareField>::E,
+    ) -> <Self::Ambient as BareField>::E;
     /// Trace lies in the embedded base field. A fixed representation may
     /// override this orbit sum with its simpler coordinate formula.
     fn relative_trace(&self, f: &Self::Ambient, x: &AmbientElement<Self>) -> AmbientElement<Self>
@@ -114,9 +111,8 @@ pub trait PackingExtension {
     }
 }
 
-pub type AmbientElement<X> =
-    <<X as PackingExtension>::Ambient as crate::core::algebra::BareField>::E;
-pub type BaseElement<X> = <<X as PackingExtension>::Base as crate::core::algebra::BareField>::E;
+pub type AmbientElement<X> = <<X as PackingExtension>::Ambient as BareField>::E;
+pub type BaseElement<X> = <<X as PackingExtension>::Base as BareField>::E;
 
 /// Degree-one adapter. It owns its base arithmetic, and has no protocol state.
 pub struct IdentityExtension<F> {

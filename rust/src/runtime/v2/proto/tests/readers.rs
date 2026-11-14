@@ -3,7 +3,7 @@ use super::super::{
     sumcheck::{SumcheckProof, SumcheckProofGeometry},
     MerkleProof,
 };
-use crate::core::algebra::{BareField, SerializableField};
+use crate::core::algebra::{BareField, FieldID, SerializableField};
 
 #[test]
 fn merkle_frontier_checks_available_bytes_and_checked_path_bound() {
@@ -18,8 +18,8 @@ impl BareField for ZeroWidth {
     type E = u64;
 }
 impl SerializableField for ZeroWidth {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         false

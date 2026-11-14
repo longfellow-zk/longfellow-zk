@@ -17,11 +17,12 @@ use crate::{
     core::algebra::{AlgebraicField, SupportsU128Conversions, SupportsU64Conversions},
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
+            blas::dot, gf2_128::Gf2_128Field, p256::P256Field, InterpolationField, LagrangeBasis,
+            Poly,
         },
         v1::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
-            sumcheck::{LayerVerifierData, RoundCoefficients, VerifierData},
+            sumcheck::{symbolic::verify, LayerVerifierData, RoundCoefficients, VerifierData},
         },
     },
 };
@@ -61,10 +62,7 @@ fn reference<const W: usize, F: InterpolationField<W>>(
         residuals.push(f.subf(&claim, &f.mulf(&wiring[layer], &product)));
     }
     let input_claim = f.addf(&endpoints[0], &f.mulf(input_alpha, &endpoints[1]));
-    residuals.push(f.subf(
-        &crate::runtime::algebra::blas::dot(weights, inputs, f),
-        &input_claim,
-    ));
+    residuals.push(f.subf(&dot(weights, inputs, f), &input_claim));
     residuals
 }
 
@@ -177,7 +175,7 @@ fn check_compilation<const W: usize, F: InterpolationField<W>>(
             &inputs,
             f,
         );
-        let relations = crate::runtime::v1::sumcheck::symbolic::verify(&proof, data, f).unwrap();
+        let relations = verify(&proof, data, f).unwrap();
         assert_eq!(relations.evaluate(&inputs, &pads, f).unwrap(), expected);
         for npublic in [0, 1, inputs.len()] {
             let nprivate = inputs.len() - npublic;
@@ -266,7 +264,7 @@ fn rejects_mismatched_verifier_data_and_pad_layout() {
         input_alpha: f.one(),
         input_weights: vec![],
     };
-    assert!(crate::runtime::v1::sumcheck::symbolic::verify(&proof, missing_layers, &f).is_err());
+    assert!(verify(&proof, missing_layers, &f).is_err());
     let extra_round = VerifierData {
         layers: vec![LayerVerifierData {
             rounds: [
@@ -283,7 +281,7 @@ fn rejects_mismatched_verifier_data_and_pad_layout() {
         input_alpha: f.one(),
         input_weights: vec![],
     };
-    assert!(crate::runtime::v1::sumcheck::symbolic::verify(&proof, extra_round, &f).is_err());
+    assert!(verify(&proof, extra_round, &f).is_err());
     let valid_data = VerifierData {
         layers: vec![LayerVerifierData {
             rounds: [vec![], vec![]],
@@ -293,7 +291,7 @@ fn rejects_mismatched_verifier_data_and_pad_layout() {
         input_alpha: f.one(),
         input_weights: vec![],
     };
-    let relations = crate::runtime::v1::sumcheck::symbolic::verify(&proof, valid_data, &f).unwrap();
+    let relations = verify(&proof, valid_data, &f).unwrap();
     let missing_pads = SumcheckProofGeometry {
         logw_layers: vec![],
     }

@@ -16,9 +16,9 @@ use crate::{
     compile::{
         algebra::CompileField,
         compiler::{
-            arena::CompilerArena,
+            arena::{walk, CompilerArena},
             cse::Cse,
-            ir::{Assertions, Expr, ExprNode, RewriteT},
+            ir::{Assertions, Expr, ExprNode, RawAssertions, RewriteT},
         },
     },
     util::memoize::Memoizer,
@@ -139,16 +139,13 @@ where NEXT: RewriteT<'a, F>
 impl<'a, F: CompileField, NEXT> RewriteT<'a, F> for CopyRewriter<'a, F, NEXT>
 where NEXT: RewriteT<'a, F>
 {
-    fn ok(&self) -> crate::compile::compiler::ir::RawAssertions<'a, F> {
+    fn ok(&self) -> RawAssertions<'a, F> {
         self.next.ok()
     }
-    fn assert0(&self, x: &ExprNode<'a, F>) -> crate::compile::compiler::ir::RawAssertions<'a, F> {
+    fn assert0(&self, x: &ExprNode<'a, F>) -> RawAssertions<'a, F> {
         self.next.assert0(x)
     }
-    fn assertions(
-        &self,
-        assertions: &[crate::compile::compiler::ir::RawAssertions<'a, F>],
-    ) -> crate::compile::compiler::ir::RawAssertions<'a, F> {
+    fn assertions(&self, assertions: &[RawAssertions<'a, F>]) -> RawAssertions<'a, F> {
         self.next.assertions(assertions)
     }
     fn input(&self, position_in_input_array: usize) -> ExprNode<'a, F> {
@@ -207,5 +204,5 @@ pub fn rewrite<'a, 'b, F: CompileField>(
 ) -> Assertions<'b, F> {
     let cse = Cse::new(arena);
     let copy_rewriter = CopyRewriter::new(f, cse);
-    crate::compile::compiler::arena::walk(arena, x, &copy_rewriter)
+    walk(arena, x, &copy_rewriter)
 }

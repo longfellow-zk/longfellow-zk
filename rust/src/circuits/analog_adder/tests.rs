@@ -20,7 +20,8 @@ use crate::{
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-        logic::{EvalLogic, Logic},
+        compiler::dump_stats,
+        logic::{AssertionScope, EvalLogic, Logic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::SerializableField,
 };
@@ -33,7 +34,7 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
         let bv = BitvecLogic::new(&iologic);
         let bitvec_io = BitvecIO::new(&bv);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let addends: Vec<Bitvec<_, 32>> = (0..7).map(|_| bitvec_io.next(&mut pos)).collect();
         let expected: Bitvec<_, 32> = bitvec_io.next(&mut pos);
 
@@ -41,7 +42,7 @@ fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField
         (f.assert_wrapping_sum(&adder, &expected, &[&addends]), 1, 0)
     });
 
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 }
 
 #[test]
@@ -139,7 +140,7 @@ fn test_assert_sum_7_addends_fail_for_logic<F: CompileField + FieldWrappingSum>(
 #[test]
 fn test_analog_adder_evaluation() {
     let f_prime = P256Field::new();
-    let tracker_prime = crate::compile::logic::AssertionScope::new();
+    let tracker_prime = AssertionScope::new();
     type LPrime<'a> = EvalLogic<'a, P256Field>;
     let l_prime = LPrime::new(&f_prime, &tracker_prime);
     test_assert_sum_correct_for_logic(&l_prime);
@@ -148,7 +149,7 @@ fn test_analog_adder_evaluation() {
     test_assert_sum_7_addends_fail_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::AssertionScope::new();
+    let tracker_bin = AssertionScope::new();
     type LBin<'a> = EvalLogic<'a, Gf2_128Field>;
     let l_binary = LBin::new(&f_bin, &tracker_bin);
     test_assert_sum_correct_for_logic(&l_binary);

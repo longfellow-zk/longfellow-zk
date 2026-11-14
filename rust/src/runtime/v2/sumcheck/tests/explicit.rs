@@ -1,20 +1,27 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Exercise all three streams, including independent quadratic and linear assertions.
 use crate::{
+    compile::algebra::{fp24_ext6::CompileFp24Ext6, CompileField},
     core::{
         algebra::SerializableField,
-        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+        proto::{
+            read_uleb128_max4,
+            v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+        },
     },
     runtime::{
-        algebra::{blas, RuntimeField, SupportsSampling},
+        algebra::{blas, fp24_ext6::RuntimeFp24Ext6, RuntimeField, SupportsSampling},
         random::DeterministicRng,
         v2::{
             sumcheck::{
                 circuit_geometry,
                 eval::eval_layer,
-                eval_circuit, prove,
+                eval_circuit,
+                monomial::weights,
+                prove,
                 prover::sample_pads,
-                quad::{bind_l, bind_r, weights_next_affine},
+                quad::{affine_constant, bind_l, bind_r, weights_next_affine},
+                split::SplitLayer,
                 tests::diagnostic::verify,
             },
             transcript::Transcript,
@@ -96,7 +103,7 @@ fn three_streams<
     let w = [x.clone(), y.clone(), scalar(11)];
     let a = [scalar(13), f.zero()];
     let rho = [scalar(17), scalar(19)];
-    let split = crate::runtime::v2::sumcheck::split::SplitLayer::new(&layer);
+    let split = SplitLayer::new(&layer);
     let ql = bind_r(&split, &constants, &a, &rho, &w, f);
     let expected0 = f.addf(
         &f.addf(&f.mulf(&f.mulf(&a[0], &constants[3]), &w[1]), &a[0]),
@@ -108,9 +115,9 @@ fn three_streams<
     assert_eq!(ql, [expected0, expected1, rho[1].clone()]);
     let point = [scalar(23), scalar(29)];
     let alpha = scalar(31);
-    let m = crate::runtime::v2::sumcheck::monomial::weights(2, 3, &point, f);
+    let m = weights(2, 3, &point, f);
     let qr = bind_l(&split, &constants, &a, &rho, &m, f);
-    let constant = crate::runtime::v2::sumcheck::quad::affine_constant(&split, &constants, &a, f);
+    let constant = affine_constant(&split, &constants, &a, f);
     let (next, linear) = weights_next_affine(&split, &constants, &a, &rho, &point, &alpha, f);
     assert_eq!(
         blas::dot(&m, &ql, f),
@@ -146,7 +153,7 @@ fn three_streams<
         layer.linear.clone(),
         layer.constant.clone(),
     );
-    let linear_split = crate::runtime::v2::sumcheck::split::SplitLayer::new(&linear_only);
+    let linear_split = SplitLayer::new(&linear_only);
     assert!(eval_layer(&bad, &linear_split, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));
@@ -225,7 +232,7 @@ fn three_streams_binary() {
 }
 #[test]
 fn three_streams_extension() {
-    three_streams(&crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new());
+    three_streams(&RuntimeFp24Ext6::new());
 }
 #[test]
 fn records_have_their_exact_arities_and_runs_retain_deltas() {
@@ -367,7 +374,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
     let mut tail = &corrupt[8..];
     let mut count = 0;
     for _ in 0..7 {
-        count = crate::core::proto::read_uleb128_max4(&mut tail).unwrap();
+        count = read_uleb128_max4(&mut tail).unwrap();
     }
     assert_eq!(count, c.raw.constants.len());
     let index = c
@@ -384,7 +391,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
 
 fn explicit_units<const W: usize, CF, RF>(cf: &CF, f: &RF)
 where
-    CF: crate::compile::algebra::CompileField + SerializableField,
+    CF: CompileField + SerializableField,
     RF: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::{
@@ -412,10 +419,10 @@ where
     let bytes = crate::core::proto::v2::CircuitWriter::new(cf).to_bytes(&c);
     let mut header = &bytes[8..];
     for _ in 0..6 {
-        crate::core::proto::read_uleb128_max4(&mut header).unwrap();
+        read_uleb128_max4(&mut header).unwrap();
     }
     assert_eq!(
-        crate::core::proto::read_uleb128_max4(&mut header).unwrap(),
+        read_uleb128_max4(&mut header).unwrap(),
         c.raw.constants.len(),
         "every constant must be serialized"
     );
@@ -482,10 +489,7 @@ fn explicit_units_binary() {
 }
 #[test]
 fn explicit_units_extension() {
-    explicit_units(
-        &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
-        &crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new(),
-    );
+    explicit_units(&CompileFp24Ext6::new(), &RuntimeFp24Ext6::new());
 }
 
 // Locate the coefficient payload after all layer descriptors and segment ends.
@@ -493,21 +497,21 @@ fn lfc3_constants_offset(bytes: &[u8]) -> usize {
     let mut remaining = &bytes[8..];
     let mut header = [0; 7];
     for n in &mut header {
-        *n = crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+        *n = read_uleb128_max4(&mut remaining).unwrap();
     }
     let mut segments = 0;
     for _ in 0..header[5] {
-        crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+        read_uleb128_max4(&mut remaining).unwrap();
         for _ in 0..3 {
             let mut counts = [0; 6];
             for n in &mut counts {
-                *n = crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+                *n = read_uleb128_max4(&mut remaining).unwrap();
             }
             segments += counts[1];
         }
     }
     for _ in 0..segments {
-        crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+        read_uleb128_max4(&mut remaining).unwrap();
     }
     bytes.len() - remaining.len()
 }

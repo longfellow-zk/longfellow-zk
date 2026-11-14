@@ -13,10 +13,14 @@
 // limitations under the License.
 
 use crate::{
+    circuits::{sha256::constants::INITIAL, sha256msg::sha256_msg_derived},
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::mdoc::FieldLocator as MsoFieldLocator,
-        proto::hash::constants::K_MSO_PREIMAGE_LEN,
+        circuits::cbor::{
+            encode_cbor_string,
+            mdoc::{FieldLocator as MsoFieldLocator, ParsedMdoc},
+        },
+        proto::hash::constants::{K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN},
     },
 };
 
@@ -91,18 +95,15 @@ pub struct ConcreteDerived {
 }
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
-    let cose_sha_wit = crate::circuits::sha256msg::given(
-        &hash_input.cbor_mso,
-        &crate::circuits::sha256::constants::INITIAL,
-        crate::mdoc::proto::hash::constants::K_MAX_SHA_BLOCKS,
-    )
-    .unwrap();
+    let cose_sha_wit =
+        crate::circuits::sha256msg::given(&hash_input.cbor_mso, &INITIAL, K_MAX_SHA_BLOCKS)
+            .unwrap();
     let signed_bytes = cose_sha_wit.padded_preimage;
     let nblocks = cose_sha_wit.nblocks;
 
     // These raw compiler/test helpers retain their existing panic contract for
     // invalid inputs, but must never silently narrow or wrap an input offset.
-    let preimage_base_offset = crate::mdoc::proto::hash::constants::K_MSO_OFFSET;
+    let preimage_base_offset = K_MSO_OFFSET;
     let offset = |relative: usize| {
         u16::try_from(
             relative
@@ -114,12 +115,8 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
     for a in &hash_input.attrs {
-        let attr_sha_wit = crate::circuits::sha256msg::given(
-            &a.cbor_issuer_signed_item,
-            &crate::circuits::sha256::constants::INITIAL,
-            2,
-        )
-        .unwrap();
+        let attr_sha_wit =
+            crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
         attribute_given.push(AttrGiven {
             expected_name: a.expected_name.clone(),
             expected_cbor_value: a.expected_cbor_value.clone(),
@@ -160,21 +157,13 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 
 pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteDerived {
     let cose_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
-        sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
-            &given.preimage.value,
-            &crate::circuits::sha256::constants::INITIAL,
-            crate::mdoc::proto::hash::constants::K_MAX_SHA_BLOCKS,
-        ),
+        sha_derived: sha256_msg_derived(&given.preimage.value, &INITIAL, K_MAX_SHA_BLOCKS),
     };
 
     let mut attribute_witnesses = Vec::with_capacity(given.attribute_given.len());
     for ag in &given.attribute_given {
         let attr_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
-            sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
-                &ag.padded_preimage,
-                &crate::circuits::sha256::constants::INITIAL,
-                2,
-            ),
+            sha_derived: sha256_msg_derived(&ag.padded_preimage, &INITIAL, 2),
         };
         attribute_witnesses.push(AttrDerived {
             sha_derived: attr_sha_derived,
@@ -188,7 +177,7 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteD
 }
 
 pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
-    parsed: &crate::mdoc::circuits::cbor::mdoc::ParsedMdoc<N>,
+    parsed: &ParsedMdoc<N>,
     req_attr_ids: &[&[u8]],
     now: &str,
 ) -> HashInput<N> {
@@ -227,7 +216,7 @@ pub fn hash_input_of_parsed_mdoc<const W: usize, N: Nat<W>>(
                     )
                 });
             AttrInput {
-                expected_name: crate::mdoc::circuits::cbor::encode_cbor_string(&a.name),
+                expected_name: encode_cbor_string(&a.name),
                 expected_cbor_value: a.cbor_value.clone(),
                 cbor_issuer_signed_item: a.cbor_issuer_signed_item.clone(),
                 mso_digest_offset_in_preimage: a.mso_digest_offset_in_preimage,

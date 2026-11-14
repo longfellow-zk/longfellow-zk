@@ -13,9 +13,13 @@
 // limitations under the License.
 
 //! Frozen registry discovery and explicit v2 execution specifications.
-use crate::mdoc::{
-    runtime::{v1, v2},
-    *,
+use crate::{
+    mdoc::{
+        circuits::NEXT_VERSION,
+        runtime::{v1, v2},
+        *,
+    },
+    runtime::random::DeterministicRng,
 };
 #[test]
 fn systems_own_disjoint_specifications() {
@@ -90,7 +94,7 @@ fn each_entry_point_rejects_unsupported_circuit_versions() {
             &[],
             "",
             "",
-            &mut crate::runtime::random::DeterministicRng::new(42)
+            &mut DeterministicRng::new(42)
         ),
         Err(v1::MdocProverErrorCode::InvalidZkSpecVersion)
     );
@@ -105,7 +109,7 @@ fn each_entry_point_rejects_unsupported_circuit_versions() {
             &[],
             "",
             "",
-            &mut crate::runtime::random::DeterministicRng::new(42)
+            &mut DeterministicRng::new(42)
         ),
         Err(v2::MdocProverErrorCode::InvalidZkSpecVersion)
     );
@@ -124,7 +128,7 @@ pub(in super::super) fn v2_spec() -> v2::ZkSpecStruct {
     v2::ZkSpecStruct {
         combined_hash: [0; 32],
         num_attributes: 1,
-        version: crate::mdoc::circuits::NEXT_VERSION,
+        version: NEXT_VERSION,
         polygero_hash: v2::PolygeroParameters {
             k: 512,
             n: 3584,

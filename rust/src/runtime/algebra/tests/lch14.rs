@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::AlgebraicField,
+    core::algebra::{AlgebraicField, CANTOR_BASIS_U128, GF2_16_BASIS_V1},
     runtime::{
         algebra::{
             gf2_128::{Gf2_128, Gf2_128RuntimeField},
@@ -50,7 +50,7 @@ fn w_hat_ref(
 #[test]
 fn test_w_additivity() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let r = 6;
     for i in 0..r {
         for x in 0..(1 << r) {
@@ -78,7 +78,7 @@ fn test_w_additivity() {
 #[test]
 fn test_w_recursion() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let r = 6;
     for i in 0..r {
         let wibi = w_ref(&f, &subfield, i, &subfield.embed(1 << i));
@@ -94,7 +94,7 @@ fn test_w_recursion() {
 #[test]
 fn test_w_hat() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
     let dimension_subfield = subfield.dimension();
     // Limit i for fast test run
@@ -111,7 +111,7 @@ fn test_w_hat() {
 #[test]
 fn test_twiddle() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
     let l = 8;
     let mut tw = vec![f.zero(); 1 << (l - 1)];
@@ -127,7 +127,7 @@ fn test_twiddle() {
 #[test]
 fn test_fft_ifft_roundtrip() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
     let l = 6;
     let n = 1 << l;
@@ -147,7 +147,7 @@ fn test_fft_ifft_roundtrip() {
 #[test]
 fn test_bidirectional_fft() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
     let l = 6;
     let n = 1 << l;
@@ -179,7 +179,7 @@ fn test_bidirectional_fft() {
 #[test]
 fn test_bidirectional_fft_rejects_invalid_bounds() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
 
     let mut full = vec![f.zero(); 8];
@@ -233,7 +233,7 @@ fn eval_newton<const W: usize, F: RuntimeField<W>>(
 #[test]
 fn test_lch14_interpolation() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
 
     const L: usize = 5;
@@ -270,7 +270,7 @@ fn test_lch14_interpolation() {
 #[test]
 fn test_binary_range_rejects_invalid_dimensions() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let factory = BinaryInterpolatorFactory::new(&f, subfield.basis());
     let capacity = 1 << subfield.dimension();
     for (source, destination) in [(0..0, 0..1), (0..2, 0..capacity + 1)] {
@@ -285,7 +285,7 @@ fn test_binary_range_rejects_invalid_dimensions() {
 #[test]
 fn test_binary_range_rejects_wrong_source_length() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let plan = BinaryInterpolatorFactory::new(&f, subfield.basis()).make_range(0..2, 2..4);
     for input in [1, 3] {
         assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -298,7 +298,7 @@ fn test_binary_range_rejects_wrong_source_length() {
 #[test]
 fn test_bidirectional_suffix_fft_buffer_contract() {
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let fft = Lch14::new(&f, subfield.basis());
     for log in 0..=6 {
         let size = 1 << log;
@@ -338,7 +338,7 @@ fn test_bidirectional_suffix_fft_buffer_contract() {
 #[test]
 fn full_basis_fft_rejects_unaddressable_sizes_before_mutating() {
     let f = Gf2_128RuntimeField::new();
-    let basis = crate::core::algebra::CANTOR_BASIS_U128.map(Gf2_128::from);
+    let basis = CANTOR_BASIS_U128.map(Gf2_128::from);
     let fft = Lch14::new(&f, &basis);
     for operation in 0..3 {
         let mut buffer = vec![f.one()];

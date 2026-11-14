@@ -13,7 +13,7 @@ pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableFiel
 
 pub(crate) fn eval_split_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     layers: &[SplitLayer<'_>],
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {

@@ -1,29 +1,24 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use crate::{
+    compile::{
+        algebra::CompileField,
+        compiler::{compile_v2, segment_circuit_v2, CompilerAssertions, CompilerLogic},
+        proto::CircuitDebugSymbols,
+    },
+    core::proto::{v2::Circuit, CircuitGeometry},
+};
+
 pub(crate) fn compile<F, Build>(
     f: &F,
     build: Build,
-) -> (
-    crate::core::proto::v2::Circuit<F>,
-    crate::core::proto::CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-)
+) -> (Circuit<F>, CircuitGeometry, CircuitDebugSymbols)
 where
-    F: crate::compile::algebra::CompileField,
-    Build: for<'src> FnOnce(
-        crate::compile::compiler::CompilerLogic<'src, F>,
-    ) -> (
-        crate::compile::compiler::CompilerAssertions<'src, F>,
-        usize,
-        usize,
-    ),
+    F: CompileField,
+    Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
-    let (raw, geometry, symbols) = crate::compile::compiler::compile_v2(f, |logic| {
+    let (raw, geometry, symbols) = compile_v2(f, |logic| {
         let (assertions, npublic, _) = build(logic);
         (assertions, npublic)
     });
-    (
-        crate::compile::compiler::segment_circuit_v2(f, raw),
-        geometry,
-        symbols,
-    )
+    (segment_circuit_v2(f, raw), geometry, symbols)
 }

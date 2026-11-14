@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{core::algebra::Nat, runtime::algebra::RuntimeField};
+use crate::{
+    core::algebra::{Nat, SupportsNatConversions},
+    runtime::algebra::RuntimeField,
+};
 
-pub fn push_bitvec_nat<
-    const W: usize,
-    FR: RuntimeField<W> + crate::core::algebra::SupportsNatConversions<W>,
->(
+pub fn push_bitvec_nat<const W: usize, FR: RuntimeField<W> + SupportsNatConversions<W>>(
     fr: &FR,
     val: &FR::N,
     bits: usize,

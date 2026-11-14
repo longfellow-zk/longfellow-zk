@@ -17,7 +17,11 @@ use super::{
     concrete::{ConcreteDerived, ConcreteGiven},
 };
 use crate::{
-    circuits::{bitvec::BitvecLogic, sha256::evaluate_derived as sha256_evaluate_derived},
+    circuits::{
+        bitvec::BitvecLogic,
+        boolean::Boolean,
+        sha256::{evaluate_derived as sha256_evaluate_derived, Derived},
+    },
     compile::logic::Logic,
 };
 
@@ -29,7 +33,7 @@ pub fn evaluate_given<L: Logic, const S: usize>(
     let nblocks = bv.of_u64::<S>(given.nblocks as u64);
     let length_bytes = bv.of_u64_val(given.length_bytes);
 
-    let boolean = crate::circuits::boolean::Boolean::new(bv.logic());
+    let boolean = Boolean::new(bv.logic());
     let expected_hash = bv.from_fn::<256, _>(|idx| {
         let word_idx = 7 - (idx / 32);
         let bit_idx = idx % 32;
@@ -49,7 +53,7 @@ pub fn evaluate_given<L: Logic, const S: usize>(
 pub fn evaluate_derived<L: Logic>(
     derived: &ConcreteDerived,
     bv: &BitvecLogic<L>,
-) -> Vec<crate::circuits::sha256::Derived<L>> {
+) -> Vec<Derived<L>> {
     derived
         .sha_derived
         .iter()

@@ -2,8 +2,13 @@
 //! Shared scheduling data, input validation and assertion-symbol extraction.
 
 use crate::{
-    compile::{algebra::CompileField, compiler::graph::Node, logic::AssertionId},
-    core::algebra::ElementOf,
+    compile::{
+        algebra::CompileField,
+        compiler::graph::Node,
+        logic::{AssertionId, AssertionScope},
+        proto::{AssertionSymbol, CircuitDebugSymbols, WireRef},
+    },
+    core::algebra::{ElementOf, SerializableField},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -15,13 +20,13 @@ pub(super) const INVALID_WIRE_ID: WireId = WireId {
     id_within_layer: usize::MAX,
 };
 
-pub(super) struct RenamedTerm<F: CompileField + crate::core::algebra::SerializableField> {
+pub(super) struct RenamedTerm<F: CompileField + SerializableField> {
     pub(super) k: ElementOf<F>,
     pub(super) rlop0: usize,
     pub(super) rlop1: usize,
 }
 
-impl<F: CompileField + crate::core::algebra::SerializableField> RenamedTerm<F> {
+impl<F: CompileField + SerializableField> RenamedTerm<F> {
     pub(super) fn compare(&self, other: &Self, f: &F) -> std::cmp::Ordering {
         self.rlop1
             .cmp(&other.rlop1)
@@ -30,12 +35,12 @@ impl<F: CompileField + crate::core::algebra::SerializableField> RenamedTerm<F> {
     }
 }
 
-pub(super) struct RenamedNode<F: CompileField + crate::core::algebra::SerializableField> {
+pub(super) struct RenamedNode<F: CompileField + SerializableField> {
     pub(super) original_node_index: usize,
     pub(super) rlterms: Vec<RenamedTerm<F>>,
 }
 
-impl<F: CompileField + crate::core::algebra::SerializableField> RenamedNode<F> {
+impl<F: CompileField + SerializableField> RenamedNode<F> {
     pub(super) fn compare(&self, other: &Self, f: &F) -> std::cmp::Ordering {
         let mut ia = self.rlterms.len();
         let mut ib = other.rlterms.len();
@@ -87,8 +92,8 @@ pub(super) fn extract_debug_symbols<T>(
     wire_ids: &[WireId],
     depth: &[usize],
     max_depth: usize,
-    tracker: crate::compile::logic::AssertionScope,
-) -> crate::compile::proto::CircuitDebugSymbols {
+    tracker: AssertionScope,
+) -> CircuitDebugSymbols {
     let mut sym_list = Vec::new();
     for &(quad_idx, id) in quad_asserts {
         if quad_idx < nodes.len() {
@@ -102,12 +107,12 @@ pub(super) fn extract_debug_symbols<T>(
                     let layer = max_depth
                         .checked_sub(depth[target_idx])
                         .expect("assertion target is deeper than the circuit");
-                    let wire = crate::compile::proto::WireRef::new(layer, wid);
-                    sym_list.push(crate::compile::proto::AssertionSymbol::new(wire, id));
+                    let wire = WireRef::new(layer, wid);
+                    sym_list.push(AssertionSymbol::new(wire, id));
                 }
             }
         }
     }
     sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    crate::compile::proto::CircuitDebugSymbols::new(sym_list, tracker)
+    CircuitDebugSymbols::new(sym_list, tracker)
 }

@@ -22,13 +22,14 @@
 //! `verify` and `verify_core` are numerical checks for callers that possess the
 //! complete inputs and pads. They evaluate those same constraints directly.
 use crate::{
-    core::algebra::ElementOf,
+    core::{algebra::ElementOf, proto::v1::Circuit},
     runtime::{
         algebra::{InterpolationField, LagrangeBasis, SupportsSampling},
         random::RandomEngine,
         v1::{
             proto::sumcheck::{SumcheckProof, SumcheckProofGeometry},
             sumcheck::{
+                eq::eq2,
                 hquad::HQuad,
                 round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
                 transcript::TranscriptSumcheck,
@@ -42,7 +43,7 @@ use crate::{
 /// Success validates proof shape and derives coefficients; it does not establish
 /// acceptance. Only scalar data and the final dense input weights are retained.
 pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsSampling>(
-    circuit: &crate::core::proto::v1::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -102,7 +103,7 @@ pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsS
         });
     }
     let input_alpha = transcript.elt_field(f);
-    let input_weights = crate::runtime::v1::sumcheck::eq::eq2(
+    let input_weights = eq2(
         logv,
         circuit.raw.ninput,
         &points[0],
@@ -122,7 +123,7 @@ pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsS
 pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v1::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -148,7 +149,7 @@ pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v1::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,

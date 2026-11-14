@@ -19,7 +19,10 @@
 //! a positive weight at the copy and its negative at the original. The row helper
 //! surrounds those coefficients with zero mask slots before interpolation.
 use crate::runtime::{
-    algebra::RuntimeField,
+    algebra::{
+        blas::{clear, copy},
+        RuntimeField,
+    },
     v1::ligero::{LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint},
 };
 
@@ -107,8 +110,8 @@ pub fn layout_aext_into<const W: usize, F: RuntimeField<W>>(
     a_ext: &mut [F::E],
     f: &F,
 ) {
-    crate::runtime::algebra::blas::clear(a_ext, f);
-    crate::runtime::algebra::blas::copy(
+    clear(a_ext, f);
+    copy(
         &mut a_ext[param.r..param.r + param.w],
         &a[i * param.w..(i + 1) * param.w],
     );

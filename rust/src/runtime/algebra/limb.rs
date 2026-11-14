@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::runtime::algebra::arch::{cmovne, cmovnz, zero_but_you_dont_know_it};
+
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 mod limb_64;
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
@@ -66,7 +68,7 @@ pub fn shr_1<const N: usize>(a: &[Limb; N]) -> [Limb; N] {
 /// Unconditional (no branch/break) to allow loop unrolling and avoid pipeline stalls.
 #[inline(always)]
 pub fn propagate_carry(a: &mut [Limb], start: usize, mut carry: bool) {
-    let zero = crate::runtime::algebra::arch::zero_but_you_dont_know_it();
+    let zero = zero_but_you_dont_know_it();
     for limb in &mut a[start..] {
         let (sum, c) = limb.carrying_add(zero, carry);
         *limb = sum;
@@ -168,7 +170,7 @@ pub fn lt<const N: usize>(a: &[Limb; N], b: &[Limb; N]) -> bool {
 pub fn maybe_minus_m<const N: usize>(a: &mut [Limb; N], ah: Limb, negm: &[Limb; N]) {
     let mut a1 = *negm;
     let ah1 = add_limb(&mut a1, a);
-    crate::runtime::algebra::arch::cmovne(a, ah, ah1, &a1);
+    cmovne(a, ah, ah1, &a1);
 }
 
 /// Add modulo to a if borrow occurred in subtraction.
@@ -176,7 +178,7 @@ pub fn maybe_minus_m<const N: usize>(a: &mut [Limb; N], ah: Limb, negm: &[Limb; 
 pub fn maybe_plus_m<const N: usize>(a: &mut [Limb; N], ah: Limb, modulo: &[Limb; N]) {
     let mut a1 = *a;
     let _ = add_limb(&mut a1, modulo);
-    crate::runtime::algebra::arch::cmovnz(a, ah, &a1);
+    cmovnz(a, ah, &a1);
 }
 
 /// Abstract the pattern of adding b to a and reducing modulo (accum + `maybe_minus_m`).

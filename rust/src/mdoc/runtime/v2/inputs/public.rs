@@ -17,6 +17,7 @@
 use crate::{
     core::algebra::Nat,
     mdoc::{
+        circuits::cbor::encode_cbor_string,
         proto::{
             hash::constants::{
                 K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
@@ -67,15 +68,14 @@ pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
         })
         && attrs.iter().all(|attribute| {
             attribute.id.len() <= K_ATTR_ID_BYTES
-                && crate::mdoc::circuits::cbor::encode_cbor_string(&attribute.id).len()
-                    <= K_ATTR_ID_BYTES
+                && encode_cbor_string(&attribute.id).len() <= K_ATTR_ID_BYTES
                 && attribute.cbor_value.len() <= K_ATTR_VALUE_BYTES
         })
 }
 
 fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAttribute]) {
     for la in attrs {
-        let cbor_id = crate::mdoc::circuits::cbor::encode_cbor_string(&la.id);
+        let cbor_id = encode_cbor_string(&la.id);
         for i in 0..K_ATTR_ID_BYTES {
             builder.push_v8(*cbor_id.get(i).unwrap_or(&0));
         }

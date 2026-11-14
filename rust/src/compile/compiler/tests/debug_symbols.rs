@@ -15,6 +15,7 @@
 use crate::{
     compile::{
         algebra::p256::P256Field,
+        compiler::compile_v1,
         eval::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
@@ -141,7 +142,7 @@ fn test_root_assertion_simplifying_to_zero_after_stripping_does_not_panic() {
         (logic.assert_eq("eq", &sliced, &witness), 1, 0)
     }
     let f = P256Field::new();
-    let (_, legacy_stats, _) = crate::compile::compiler::compile_v1(&f, |logic| roots(&logic));
+    let (_, legacy_stats, _) = compile_v1(&f, |logic| roots(&logic));
     assert_eq!(legacy_stats.nassertions, 1);
     let (circuit, stats, symbols) = super::compile(&f, |logic| roots(&logic));
     assert_eq!(stats.nassertions, 1);

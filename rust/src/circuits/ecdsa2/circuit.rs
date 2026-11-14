@@ -15,15 +15,17 @@
 use crate::{
     circuits::{
         arithmetic::Arithmetic,
+        big_bitvec::BigBitvec,
         bitvec::{BitvecLogic, V256},
         boolean::Boolean,
         ec::{EcCircuit, Pt2, Pt3},
+        lookup::Lookup,
     },
     compile::{
         algebra::CompileField,
         logic::{Eltw, Logic, LogicIO},
     },
-    core::algebra::{ec::Curve, SupportsNatConversions},
+    core::algebra::{ec::Curve, SupportsNatConversions, SupportsU64Conversions},
 };
 
 #[derive(Clone)]
@@ -64,7 +66,7 @@ impl<'a, const W: usize, C, L, F> EcdsaCircuit<'a, W, C, L>
 where
     C: Curve<W, F = F, N = F::N>,
     L: Logic<F = F>,
-    F: CompileField + SupportsNatConversions<W> + crate::core::algebra::SupportsU64Conversions,
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
 {
     pub fn new(logic: &'a L, curve: &'a C) -> Self {
         let ec = EcCircuit::new(logic, curve);
@@ -115,7 +117,7 @@ where
         digest: &V256<L>,
     ) -> L::Assertions {
         let signature = self.assert_signature(given, derived);
-        let lookup = crate::circuits::lookup::Lookup::new(self.logic);
+        let lookup = Lookup::new(self.logic);
         let table = lookup.table(9, |idx| self.delta8(idx, (idx & 4) != 0));
         let exact = self.logic.assert_mapi("exact_digest", 0..256, |r| {
             self.logic.assert_eq(
@@ -130,8 +132,7 @@ where
     pub fn assert_signature(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
         assert_eq!(given.ers.len(), 256);
 
-        let order_bits = crate::circuits::big_bitvec::BigBitvec::new(self.logic)
-            .of_nat::<W, 256, F>(&self.curve.order());
+        let order_bits = BigBitvec::new(self.logic).of_nat::<W, 256, F>(&self.curve.order());
         let (pkx, _pky) = &given.pkxy;
 
         let pk = self.ec.projective(&given.pkxy);
@@ -155,7 +156,7 @@ where
 
         let opts = [self.ec.zero(), r, pk, pk_r, g, g_r, g_pk, g_pk_r];
 
-        let lookup = crate::circuits::lookup::Lookup::new(self.logic);
+        let lookup = Lookup::new(self.logic);
 
         let table_x = lookup.table(9, |idx| self.opt8(idx, || opts[idx].0.clone()));
         let table_y = lookup.table(9, |idx| self.opt8(idx, || opts[idx].1.clone()));
@@ -255,6 +256,6 @@ impl<const W: usize, C, L, F> EcdsaCircuit<'_, W, C, L>
 where
     C: Curve<W, F = F, N = F::N>,
     L: LogicIO<F = F>,
-    F: CompileField + SupportsNatConversions<W> + crate::core::algebra::SupportsU64Conversions,
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
 {
 }

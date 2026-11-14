@@ -15,24 +15,32 @@
 //! Longfellow v1 application verifier.
 
 use crate::{
-    core::algebra::Nat,
-    mdoc::v1::{
-        attribute::same_namespace,
-        inputs::{push_input_hash, push_input_sig},
-        key::parse_pk_coordinate,
-        MdocProof, MdocProofGeometry, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
+    core::algebra::{Nat, GF2_16_BASIS_V1},
+    mdoc::{
+        circuits::cbor::mdoc::compute_transcript_hash,
+        v1::{
+            attribute::same_namespace,
+            inputs::{push_input_hash, push_input_sig},
+            key::parse_pk_coordinate,
+            MdocProof, MdocProofGeometry, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
+        },
     },
     runtime::{
         algebra::{
+            fp2::Fp2Field,
             gf2_128::Gf2_128Field,
             p256::P256Field,
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            SupportsFFT,
+            RuntimeNat, SupportsFFT,
         },
         random::RandomEngine,
-        v1::{transcript::Transcript, zk::ZkVerifier},
+        v1::{
+            subfield::{BinarySubfieldV1, P256SubfieldV1},
+            transcript::Transcript,
+            zk::{common::ZkContext, ZkVerifier},
+        },
     },
 };
 
@@ -60,28 +68,27 @@ pub fn run_mdoc_verifier(
     // COSE_Sign1 transcript hash (e2_val); v8 checks it directly in the circuit.
 
     let p256 = P256Field::new();
-    let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
+    let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
     let make_interpolator_sig =
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf_hash = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
     let verifier_hash = ZkVerifier::<2, _>::new(c_hash, config_hash);
-    let geom_hash = verifier_hash.geometry(&crate::runtime::v1::zk::common::ZkContext {
+    let geom_hash = verifier_hash.geometry(&ZkContext {
         f: &gf2,
         make_interpolator: &make_interpolator_hash,
     });
 
     let verifier_sig = ZkVerifier::<4, _>::new(c_sig, config_sig);
-    let geom_sig = verifier_sig.geometry(&crate::runtime::v1::zk::common::ZkContext {
+    let geom_sig = verifier_sig.geometry(&ZkContext {
         f: &p256,
         make_interpolator: &make_interpolator_sig,
     });
@@ -91,7 +98,7 @@ pub fn run_mdoc_verifier(
         geom_sig,
     };
 
-    let sf_sig = crate::runtime::v1::subfield::P256SubfieldV1::new(&p256);
+    let sf_sig = P256SubfieldV1::new(&p256);
     let (remaining, proof) = MdocProof::read(proof_bytes, &geom, &gf2, &sf_hash, &p256, &sf_sig)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
 
@@ -104,7 +111,7 @@ pub fn run_mdoc_verifier(
     verifier_hash.recv_commitment(
         &proof.proof_hash,
         &mut tp,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,
         },
@@ -112,7 +119,7 @@ pub fn run_mdoc_verifier(
     verifier_sig.recv_commitment(
         &proof.proof_sig,
         &mut tp,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &p256,
             make_interpolator: &make_interpolator_sig,
         },
@@ -133,7 +140,7 @@ pub fn run_mdoc_verifier(
             pub_inputs_hash,
             &proof.proof_hash,
             &mut tp,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &gf2,
                 make_interpolator: &make_interpolator_hash,
             },
@@ -145,8 +152,8 @@ pub fn run_mdoc_verifier(
     let pk_y_elt =
         parse_pk_coordinate(pky, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?;
 
-    let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
-    let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
+    let digest = compute_transcript_hash(transcript, doc_type);
+    let e2_val = RuntimeNat::<4>::from_bytes_be(&digest);
 
     let pub_inputs_sig = push_input_sig(&p256, &(pk_x_elt, pk_y_elt), &e2_val, &proof.macs, av_val);
 
@@ -159,7 +166,7 @@ pub fn run_mdoc_verifier(
             pub_inputs_sig,
             &proof.proof_sig,
             &mut tp,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
             },

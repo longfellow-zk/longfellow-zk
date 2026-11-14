@@ -2,8 +2,14 @@
 //! The existing polynomial GF(2^128) representation over GF(2).
 use super::{PackingExtension, PackingField};
 use crate::{
-    core::algebra::{AlgebraicField, BareField, SerializableField},
-    runtime::algebra::gf2_128::{Gf2_128, Gf2_128Field},
+    core::{
+        algebra::{AlgebraicField, BareField, FieldID, SerializableField},
+        bits::PackedBits,
+    },
+    runtime::algebra::{
+        gf2_128::{Gf2_128, Gf2_128Field},
+        SupportsSampling,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -32,7 +38,7 @@ impl AlgebraicField for Gf2 {
         true
     }
 }
-impl crate::runtime::algebra::SupportsSampling for Gf2 {
+impl SupportsSampling for Gf2 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> bool {
         let bytes = rng(1);
         assert_eq!(
@@ -44,8 +50,8 @@ impl crate::runtime::algebra::SupportsSampling for Gf2 {
     }
 }
 impl SerializableField for Gf2 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         true
@@ -85,7 +91,7 @@ impl PackingExtension for Binary128Extension {
         _: &Gf2_128Field,
         inputs: &[bool],
     ) -> Option<Result<Vec<Gf2_128>, String>> {
-        let bits: crate::core::bits::PackedBits = inputs.iter().copied().collect();
+        let bits: PackedBits = inputs.iter().copied().collect();
         Some(Ok((0..inputs.len().div_ceil(128))
             .map(|i| Gf2_128::from(bits.word128(i)))
             .collect()))
@@ -237,7 +243,7 @@ impl AlgebraicField for Gf256 {
         Gf256Element(self.field.invert(&a.0))
     }
 }
-impl crate::runtime::algebra::SupportsSampling for Gf256 {
+impl SupportsSampling for Gf256 {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let bytes = rng(1);
         assert_eq!(
@@ -249,8 +255,8 @@ impl crate::runtime::algebra::SupportsSampling for Gf256 {
     }
 }
 impl SerializableField for Gf256 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         true

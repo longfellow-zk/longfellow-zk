@@ -19,11 +19,12 @@ use super::{
     InterpolationPlan, RangeInterpolatorFactory, Ranges,
 };
 use crate::{
-    core::algebra::{Nat, SupportsNatConversions, SupportsU64Conversions},
+    core::algebra::{Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions},
     runtime::algebra::{
         blas,
         fp2::{Fp2Element, Fp2Field},
-        rfft, SupportsQuadraticExtension,
+        range_interpolation::EvaluationDomain,
+        rfft, RuntimeField, SupportsQuadraticExtension,
     },
 };
 
@@ -229,10 +230,10 @@ where F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatCon
     }
 }
 
-impl<const W: usize, F> crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>
+impl<const W: usize, F> EvaluationDomain<W, F>
     for QuadraticExtensionFftInterpolatorFactory<'_, W, F>
-where F: crate::runtime::algebra::RuntimeField<W>
-        + crate::core::algebra::SerializableField
+where F: RuntimeField<W>
+        + SerializableField
         + SupportsU64Conversions
         + SupportsNatConversions<W>
         + SupportsQuadraticExtension<W>

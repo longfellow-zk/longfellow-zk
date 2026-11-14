@@ -14,15 +14,19 @@
 
 use crate::{
     circuits::{
+        analog_adder::AnalogAdder,
         bitvec::{Bitvec, BitvecLogic, V256, V8},
-        boolean::Boolean,
+        boolean::{Bitw, Boolean},
         memcmp::Memcmp,
         routing::Routing,
         sha256msg::Sha256Msg,
     },
     compile::logic::{Logic, LogicIO},
     mdoc::{
-        circuits::{mso_attribute::AttributeVerifier, MdocHashCompileField},
+        circuits::{
+            mso_attribute::{AttrSlice, AttributeVerifier, FieldLocator},
+            MdocHashCompileField,
+        },
         proto::{
             hash::constants::{
                 K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR,
@@ -47,14 +51,13 @@ pub struct HashBytes<L: Logic, const N: usize> {
 #[cfg(test)]
 mod tests;
 
-pub(super) type AttrPreimageBytes<L> =
-    crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
+pub(super) type AttrPreimageBytes<L> = AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
 pub(super) type MsoPreimageBytes<L> = HashBytes<L, K_MSO_PREIMAGE_LEN>;
 
 pub struct AttrGiven<L: Logic> {
     pub preimage: AttrPreimageBytes<L>,
     pub mso_digest_offset_in_preimage: HashIndex<L>,
-    pub field_locator: crate::mdoc::circuits::mso_attribute::FieldLocator<L>,
+    pub field_locator: FieldLocator<L>,
 }
 
 use crate::mdoc::{
@@ -69,9 +72,9 @@ pub struct AttrDerived<L: Logic> {
 pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
     pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
-    pub suppress_doc_type_check: crate::circuits::boolean::Bitw<L>,
-    pub expected_doc_type: crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_DOC_TYPE_BYTES>,
-    pub expected_namespace: crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_NAMESPACE_BYTES>,
+    pub suppress_doc_type_check: Bitw<L>,
+    pub expected_doc_type: AttrSlice<L, K_DOC_TYPE_BYTES>,
+    pub expected_namespace: AttrSlice<L, K_NAMESPACE_BYTES>,
     pub preimage: MsoPreimageBytes<L>,
     pub nblocks: V8<L>,
     pub issuer_sig_e: V256<L>,
@@ -221,8 +224,8 @@ where L::F: MdocHashCompileField
         &self,
         offset: &HashIndex<L>,
         preimage_len: &HashIndex<L>,
-        expected: &crate::mdoc::circuits::mso_attribute::AttrSlice<L, N>,
-        enabled: &crate::circuits::boolean::Bitw<L>,
+        expected: &AttrSlice<L, N>,
+        enabled: &Bitw<L>,
         prefix: &[u8],
         preimage: &[V8<L>],
     ) -> [L::Assertions; 5] {
@@ -346,7 +349,7 @@ where L::F: MdocHashCompileField
         // Seventeen bits hold every u16 length plus either fixed prefix, so the
         // wrapping-sum equations here are exact integer equalities.
         let length = self.bv.zext::<16, 17>(&given.preimage.len);
-        let adder = crate::circuits::analog_adder::AnalogAdder::new(self.logic);
+        let adder = AnalogAdder::new(self.logic);
         let outer_check = adder.assert_wrapping_sum(
             &length,
             &[&[
@@ -633,7 +636,7 @@ where L::F: MdocHashCompileField
         &self,
         offset: &HashIndex<L>,
         preimage_length_bytes: &HashIndex<L>,
-        end_fits: &crate::circuits::boolean::Bitw<L>,
+        end_fits: &Bitw<L>,
         arithmetic: L::Assertions,
     ) -> L::Assertions {
         self.logic.assert_all(

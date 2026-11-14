@@ -16,10 +16,18 @@ use super::test_support;
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
-        sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256},
+        bitvec::BitvecLogic,
+        sha256::{
+            allocate_derived, allocate_given, derived, ConcreteDerived, ConcreteGiven, Sha256,
+        },
     },
-    compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-    core::algebra::SerializableField,
+    compile::{
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::K_FIRST_WIRE_POSITION,
+    },
+    core::{algebra::SerializableField, proto::CircuitGeometry},
     runtime::algebra::RuntimeField,
 };
 
@@ -35,7 +43,7 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
     derived: &ConcreteDerived,
     fr: &FR,
 ) -> Vec<FR::E> {
-    let mut inputs = crate::compile::eval::initial_inputs(fr);
+    let mut inputs = initial_inputs(fr);
     for &val in &given.input_block {
         push_u32_bits(&mut inputs, val, fr);
     }
@@ -66,7 +74,7 @@ fn test_compile_sha256_for_field<
     fc: &'a FC,
     fr: &'a FR,
     name: &str,
-    expected_stats: crate::core::proto::CircuitGeometry,
+    expected_stats: CircuitGeometry,
 ) {
     let input = [
         0, 0xdeadbeef, 0xbd5b7dde, 0x9c093ccd, 0x7ab6fbbc, 0x5964baab, 0x3812799a, 0x16c03889,
@@ -83,11 +91,11 @@ fn test_compile_sha256_for_field<
     let derived_val = derived(&given);
 
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
-        let given_wires = crate::circuits::sha256::allocate_given(&bv, &mut pos);
-        let derived_wires = crate::circuits::sha256::allocate_derived(&bv, &mut pos);
+        let bv = BitvecLogic::new(&iologic);
+        let given_wires = allocate_given(&bv, &mut pos);
+        let derived_wires = allocate_derived(&bv, &mut pos);
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
@@ -96,13 +104,13 @@ fn test_compile_sha256_for_field<
         )
     });
 
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 
     assert_eq!(stats, expected_stats);
 
     // Verify valid compile-time circuit evaluation
     let inputs = make_inputs(&given, &derived_val, fr);
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
+    eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -115,7 +123,7 @@ fn test_compile_sha256() {
         &p256_c,
         &p256_r,
         "sha256_p256",
-        crate::core::proto::CircuitGeometry {
+        CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,
@@ -131,7 +139,7 @@ fn test_compile_sha256() {
         &gf2_c,
         &gf2_r,
         "sha256_gf2_128",
-        crate::core::proto::CircuitGeometry {
+        CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,
@@ -162,11 +170,11 @@ fn test_compile_sha256_tampering() {
     let derived_val = derived(&given);
 
     let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
-        let given_wires = crate::circuits::sha256::allocate_given(&bv, &mut pos);
-        let derived_wires = crate::circuits::sha256::allocate_derived(&bv, &mut pos);
+        let bv = BitvecLogic::new(&iologic);
+        let given_wires = allocate_given(&bv, &mut pos);
+        let derived_wires = allocate_derived(&bv, &mut pos);
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
@@ -183,8 +191,7 @@ fn test_compile_sha256_tampering() {
         (c.corrupt)(&mut g, &mut d);
 
         let inputs = make_inputs(&g, &d, &fr);
-        let eval_res =
-            crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
+        let eval_res = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
         assert!(
             eval_res.is_err(),
             "Corruptor '{}' failed to cause circuit evaluation error",

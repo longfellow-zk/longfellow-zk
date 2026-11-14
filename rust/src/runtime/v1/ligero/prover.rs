@@ -26,7 +26,7 @@
 use sha2::digest::Update;
 
 use crate::{
-    core::algebra::ElementOf,
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::{
             blas,
@@ -42,7 +42,10 @@ use crate::{
                 LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint,
             },
             merkle::{commit, open, MerkleCommitment},
-            proto::ligero::{LigeroCommitment, LigeroProof},
+            proto::{
+                ligero::{LigeroCommitment, LigeroProof},
+                Digest,
+            },
             random::RandomEngineV1,
             subfield::{InterpolationPlanV1, SubfieldV1},
             transcript::Transcript,
@@ -57,11 +60,7 @@ pub struct LigeroProver<const W: usize, F: RuntimeField<W>> {
     tableau: Tableau<ElementOf<F>>,
 }
 
-impl<
-        const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling,
-    > LigeroProver<W, F>
-{
+impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling> LigeroProver<W, F> {
     /// Encode the witness and product copies, commit their columns, and bind the root.
     /// The caller declares witness[0..subfield_boundary] to be in the subfield.
     /// Only complete witness rows inside that prefix use subfield masks; other
@@ -134,7 +133,7 @@ impl<
         linear_evals: &[ElementOf<F>],
         ts: &mut Transcript,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::v1::proto::Digest,
+        hash_of_ligero_statement: &Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,

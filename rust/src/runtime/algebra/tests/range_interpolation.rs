@@ -15,7 +15,7 @@
 use std::ops::Range;
 
 use crate::{
-    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    core::algebra::{fp24::Q, AlgebraicField, SupportsU64Conversions, GF2_16_BASIS_V1},
     runtime::{
         algebra::{
             fp2::Fp2Field,
@@ -265,7 +265,7 @@ fn quadratic_extension_fft_range_interpolation() {
 #[test]
 fn binary_range_interpolation() {
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
     let coefficient = |i| {
         Gf2_128::from(u128::from(random_word(2 * i)) | (u128::from(random_word(2 * i + 1)) << 64))
@@ -341,7 +341,7 @@ fn crt_range_interpolation() {
         ))
         .is_err());
     }
-    let q = u128::from(crate::core::algebra::fp24::Q - 1);
+    let q = u128::from(Q - 1);
     let bound = ((18_446_744_072_195_407_873u128 - 1) / (q * q)) as usize;
     assert!(factory.can_interpolate(0..bound, bound..bound + 1));
     assert!(!factory.can_interpolate(0..bound + 1, bound + 1..bound + 2));
@@ -416,7 +416,7 @@ fn interpolation_backend_points_are_distinct() {
     assert_distinct_points(&scalar_field, &scalar, std::iter::once(0..2048));
 
     let binary_field = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let binary = BinaryInterpolatorFactory::new(&binary_field, subfield.basis());
     assert_distinct_points(&binary_field, &binary, std::iter::once(0..1 << 16));
     let basis: Vec<_> = (0..8).map(|i| 1u128 << i).collect();

@@ -19,6 +19,8 @@ use std::arch::x86_64::{
     __m128i, _mm_clmulepi64_si128, _mm_set_epi64x, _mm_slli_si128, _mm_xor_si128,
 };
 
+use crate::runtime::algebra::limb::Limb;
+
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Gf2_128(pub __m128i);
@@ -152,12 +154,7 @@ pub(crate) fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
     )
 ))]
 #[inline(always)]
-pub(crate) fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub(crate) fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     #[cfg(target_arch = "x86")]
     {
         for i in 0..N {
@@ -274,12 +271,7 @@ pub(crate) fn cmovne<const N: usize>(
     any(target_pointer_width = "32", feature = "force-32bit-limbs")
 ))]
 #[inline(always)]
-pub(crate) fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub(crate) fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     if N == 1 {
         unsafe {
             core::arch::asm!(
@@ -370,16 +362,12 @@ pub(crate) fn cmovne<const N: usize>(
 }
 
 #[inline(always)]
-pub(crate) fn cmovnz<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    nz: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub(crate) fn cmovnz<const N: usize>(a: &mut [Limb; N], nz: Limb, b: &[Limb; N]) {
     cmovne(a, nz, 0, b);
 }
 
 #[inline(always)]
 #[must_use]
-pub(crate) fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
-    core::hint::black_box(0 as crate::runtime::algebra::limb::Limb)
+pub(crate) fn zero_but_you_dont_know_it() -> Limb {
+    core::hint::black_box(0 as Limb)
 }

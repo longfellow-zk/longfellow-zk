@@ -14,9 +14,15 @@
 
 use crate::{
     core::algebra::{AlgebraicField, SupportsU64Conversions},
-    runtime::algebra::{
-        fp2::{Fp2Element, Fp2Field},
-        p256::P256Field,
+    runtime::{
+        algebra::{
+            fp2::{Fp2Element, Fp2Field},
+            gf2_128::Gf2_128Field,
+            p256::P256Field,
+            packing::PackingField,
+            SupportsSampling,
+        },
+        v2::zk::CircuitInput,
     },
 };
 
@@ -26,18 +32,17 @@ fn fp2_has_no_sampling_or_packing_capability() {
         fn check() {}
     }
     impl<T: ?Sized> AmbiguousSampling<()> for T {}
-    impl<T: ?Sized + crate::runtime::algebra::SupportsSampling> AmbiguousSampling<u8> for T {}
+    impl<T: ?Sized + SupportsSampling> AmbiguousSampling<u8> for T {}
     trait AmbiguousPacking<A> {
         fn check() {}
     }
     impl<T: ?Sized> AmbiguousPacking<()> for T {}
-    impl<T: crate::runtime::algebra::packing::PackingField> AmbiguousPacking<u8> for T {}
+    impl<T: PackingField> AmbiguousPacking<u8> for T {}
     // Either added capability would make its inferred marker ambiguous.
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousSampling<_>>::check;
     let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousPacking<_>>::check;
-    let _: crate::runtime::v2::zk::CircuitInput<crate::runtime::algebra::gf2_128::Gf2_128Field> =
-        false;
-    let _: crate::runtime::v2::zk::CircuitInput<P256Field> = P256Field::new().one();
+    let _: CircuitInput<Gf2_128Field> = false;
+    let _: CircuitInput<P256Field> = P256Field::new().one();
 }
 
 #[test]

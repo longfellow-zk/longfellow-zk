@@ -18,7 +18,7 @@ use crate::{
         AlgebraicField, SerializableField, SupportsU128Conversions, SupportsU64Conversions,
     },
     runtime::{
-        algebra::{gf2_128::Gf2_128Field, p256::P256Field},
+        algebra::{blas::dot, gf2_128::Gf2_128Field, p256::P256Field},
         v2::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
             sumcheck::{symbolic::build_constraints, LayerChallenges},
@@ -66,10 +66,7 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
 
         claim = f.addf(&claims[0], &f.mulf(&alphas[layer], &claims[1]));
     }
-    residuals.push(f.subf(
-        &claim,
-        &crate::runtime::algebra::blas::dot(weights, inputs, f),
-    ));
+    residuals.push(f.subf(&claim, &dot(weights, inputs, f)));
     residuals
 }
 

@@ -13,12 +13,14 @@ use crate::{
         v2::{
             polygero::LinearStatement,
             proto::{
-                polygero::PolygeroConfig,
+                dual_packing::PackingProof,
+                polygero::{validate_opening, PolygeroConfig},
+                sumcheck::SumcheckProof,
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
                 Digest,
             },
             sumcheck::{self, TranscriptSumcheck},
-            transcript::{Transcript, TranscriptRef},
+            transcript::{Transcript, TranscriptRef, Unverified, VerifiedProof},
             zk::{
                 joint::{CircuitParticipant, JointParam},
                 split::SplitClaim,
@@ -60,8 +62,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         circuits: &[&Circuit<F>],
         public: &[CircuitInput<F>],
-        sumcheck: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
-        packing: &crate::runtime::v2::proto::dual_packing::PackingProof<F::E>,
+        sumcheck: &SumcheckProof<W, F>,
+        packing: &PackingProof<F::E>,
         virtual_inputs: &VirtualInputs<F::E>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
@@ -135,10 +137,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub fn verify<D: EvaluationDomain<W, F>>(
         &self,
         public: &[CircuitInput<F>],
-        proof: crate::runtime::v2::transcript::Unverified<'_, ZkProof<W, F>>,
+        proof: Unverified<'_, ZkProof<W, F>>,
         transcript: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<crate::runtime::v2::transcript::VerifiedProof, ZkVerificationError> {
+    ) -> Result<VerifiedProof, ZkVerificationError> {
         let transcript = self.reduce(public, &proof, transcript, ctx)?;
         proof
             .checked(transcript)
@@ -169,7 +171,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             .0
             .validate(&self.participant.geometry.com_geom)
             .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        crate::runtime::v2::proto::polygero::validate_opening(
+        validate_opening(
             &proof.com_proof.opening,
             self.participant.geometry.com_geom.t,
             self.participant.geometry.com_geom.n,
@@ -237,7 +239,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &self,
         circuit: &Circuit<F>,
         public: &[CircuitInput<F>],
-        proof: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
+        proof: &SumcheckProof<W, F>,
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<SplitClaim<F::E>, String> {

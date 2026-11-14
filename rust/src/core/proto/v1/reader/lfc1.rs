@@ -16,7 +16,11 @@ use super::CircuitReader;
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v1::{Circuit, Layer, RawCircuit},
+        proto::{
+            sane_logw,
+            v1::{cache::ApproximateDeltaTableBuilder, compute_id, Circuit, Layer, RawCircuit},
+            MAX_LOGW,
+        },
     },
     util::ceil_log2,
 };
@@ -44,11 +48,10 @@ pub(super) fn from_stream_lfc1_inner<R: std::io::BufRead, F: SerializableField>(
         ));
     }
     let logv = ceil_log2(nv);
-    if !crate::core::proto::sane_logw(logv) {
+    if !sane_logw(logv) {
         return Err(format!(
             "Circuit logv {} exceeds MAX_LOGW {} or usize bit width",
-            logv,
-            crate::core::proto::MAX_LOGW
+            logv, MAX_LOGW
         ));
     }
     let nc = read_num_stream(stream)?; // ncopies
@@ -123,13 +126,12 @@ pub(super) fn from_stream_lfc1_inner<R: std::io::BufRead, F: SerializableField>(
     let mut total_terms = 0usize;
 
     for _ in 0..nl {
-        let mut db = crate::core::proto::v1::cache::ApproximateDeltaTableBuilder::new(65521);
+        let mut db = ApproximateDeltaTableBuilder::new(65521);
         let logw = read_num_stream(stream)?;
-        if !crate::core::proto::sane_logw(logw) {
+        if !sane_logw(logw) {
             return Err(format!(
                 "Layer logw {} exceeds MAX_LOGW {} or usize bit width",
-                logw,
-                crate::core::proto::MAX_LOGW
+                logw, MAX_LOGW
             ));
         }
         let nw = read_num_stream(stream)?;
@@ -206,7 +208,7 @@ pub(super) fn from_stream_lfc1_inner<R: std::io::BufRead, F: SerializableField>(
     super::validate_raw_circuit(&raw)?;
 
     if enforce_circuit_id {
-        let computed_id = crate::core::proto::v1::compute_id(reader.f, &raw);
+        let computed_id = compute_id(reader.f, &raw);
         if computed_id != id {
             return Err("Circuit ID verification failed".to_string());
         }

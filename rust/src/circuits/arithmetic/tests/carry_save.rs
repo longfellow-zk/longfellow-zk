@@ -1,14 +1,17 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use crate::{
-    circuits::{bitvec::BitvecLogic, boolean::Boolean},
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::Boolean,
+    },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-        logic::EvalLogic,
+        logic::{AssertionScope, EvalLogic},
     },
 };
 
 fn check<F: CompileField, const N: usize>(f: &F, values: impl IntoIterator<Item = [u64; 3]>) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -18,7 +21,7 @@ fn check<F: CompileField, const N: usize>(f: &F, values: impl IntoIterator<Item 
             &bits.of_u64::<N>(b),
             &bits.of_u64::<N>(c),
         );
-        let decode = |word: &crate::circuits::bitvec::Bitvec<_, N>| {
+        let decode = |word: &Bitvec<_, N>| {
             word.iter().enumerate().fold(0u64, |value, (i, bit)| {
                 value | (u64::from(boolean.as_eltw(bit).value == f.one()) << i)
             })

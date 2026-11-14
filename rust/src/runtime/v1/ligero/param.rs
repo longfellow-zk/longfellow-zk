@@ -89,7 +89,10 @@ use std::fmt;
 
 use crate::runtime::{
     algebra::{range_interpolation::RangeInterpolatorFactory, RuntimeField},
-    v1::proto::ligero::LigeroGeometry,
+    v1::{
+        merkle::{merkle_heap_len, MerkleError},
+        proto::ligero::LigeroGeometry,
+    },
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -192,7 +195,7 @@ impl LigeroParam {
             block_enc: config.block_enc,
             nrow,
             nreq: config.nreq,
-            mc_pathlen: crate::runtime::v1::merkle::merkle_heap_len(config.block_enc - dblock),
+            mc_pathlen: merkle_heap_len(config.block_enc - dblock),
         };
 
         Some(Self {
@@ -222,7 +225,7 @@ impl LigeroParam {
         assert_eq!(self.geom.nrow, self.iw + self.nwqrow);
         assert_eq!(
             self.geom.mc_pathlen,
-            crate::runtime::v1::merkle::merkle_heap_len(self.geom.block_enc - self.geom.dblock)
+            merkle_heap_len(self.geom.block_enc - self.geom.dblock)
         );
     }
 }
@@ -271,7 +274,7 @@ pub struct LigeroQuadraticConstraint {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LigeroError {
     InvalidProof(String),
-    MerkleCheckFailed(crate::runtime::v1::merkle::MerkleError),
+    MerkleCheckFailed(MerkleError),
     LowDegreeCheckFailed,
     DotCheckFailed,
     LinearInnerProductMismatch,

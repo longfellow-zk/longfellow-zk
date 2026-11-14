@@ -14,13 +14,17 @@
 
 pub use crate::runtime::algebra::arch::{Gf2_128, Gf2_128Accum};
 use crate::{
-    core::algebra::AlgebraicField,
+    core::algebra::{
+        AlgebraicField, BareField, FieldID, HasLookupPoints, SerializableField,
+        SupportsNatConversions, SupportsU128Conversions, CANTOR_BASIS_U128, POLY_EVALUATION_POINTS,
+    },
     runtime::algebra::{
         arch::{
             gf2_128_accum_reduce as arch_accum_reduce, gf2_128_mac as arch_mac,
             gf2_128_mul as arch_mul,
         },
-        RuntimeBinaryField, RuntimeField,
+        InterpolationField, RuntimeBinaryField, RuntimeField, RuntimeNat, RuntimeSerializableField,
+        SupportsSampling,
     },
 };
 
@@ -100,12 +104,12 @@ pub struct Gf2_128Field {
 
 impl Gf2_128Field {
     pub fn new() -> Self {
-        let cantor_basis = crate::core::algebra::CANTOR_BASIS_U128.map(Gf2_128::from);
+        let cantor_basis = CANTOR_BASIS_U128.map(Gf2_128::from);
 
         let mut poly_evaluation_points = [Gf2_128::default(); 6];
         for (pt, raw) in poly_evaluation_points
             .iter_mut()
-            .zip(crate::core::algebra::POLY_EVALUATION_POINTS)
+            .zip(POLY_EVALUATION_POINTS)
         {
             *pt = Gf2_128::from(raw);
         }
@@ -132,7 +136,7 @@ impl Default for Gf2_128Field {
     }
 }
 
-impl crate::core::algebra::BareField for Gf2_128Field {
+impl BareField for Gf2_128Field {
     type E = Gf2_128;
 }
 
@@ -214,7 +218,7 @@ impl RuntimeField<2> for Gf2_128Field {
     }
 }
 
-impl crate::runtime::algebra::SupportsSampling for Gf2_128Field {
+impl SupportsSampling for Gf2_128Field {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
         let buf = rng(16);
         assert_eq!(
@@ -229,7 +233,7 @@ impl crate::runtime::algebra::SupportsSampling for Gf2_128Field {
 
 impl RuntimeBinaryField<2> for Gf2_128Field {}
 
-impl crate::runtime::algebra::InterpolationField<2> for Gf2_128Field {
+impl InterpolationField<2> for Gf2_128Field {
     #[inline(always)]
     fn poly_evaluation_point(&self, i: usize) -> Self::E {
         self.poly_evaluation_points[i]
@@ -241,9 +245,9 @@ impl crate::runtime::algebra::InterpolationField<2> for Gf2_128Field {
     }
 }
 
-impl crate::core::algebra::SerializableField for Gf2_128Field {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::Gf2_128
+impl SerializableField for Gf2_128Field {
+    fn field_id(&self) -> FieldID {
+        FieldID::Gf2_128
     }
     fn is_binary(&self) -> bool {
         true
@@ -278,7 +282,7 @@ impl crate::core::algebra::SerializableField for Gf2_128Field {
     }
 }
 
-impl crate::runtime::algebra::RuntimeSerializableField<2> for Gf2_128Field {
+impl RuntimeSerializableField<2> for Gf2_128Field {
     #[inline(always)]
     fn to_words64(&self, e: &Self::E) -> [u64; 2] {
         let val = e.to_u128();
@@ -293,8 +297,8 @@ impl crate::runtime::algebra::RuntimeSerializableField<2> for Gf2_128Field {
     }
 }
 
-impl crate::core::algebra::SupportsNatConversions<2> for Gf2_128Field {
-    type N = crate::runtime::algebra::RuntimeNat<2>;
+impl SupportsNatConversions<2> for Gf2_128Field {
+    type N = RuntimeNat<2>;
 
     #[inline(always)]
     fn reduce_nat(&self, n: &Self::N) -> Self::E {
@@ -305,11 +309,11 @@ impl crate::core::algebra::SupportsNatConversions<2> for Gf2_128Field {
     #[inline(always)]
     fn to_nat(&self, e: &Self::E) -> Self::N {
         let val = e.to_u128();
-        crate::runtime::algebra::RuntimeNat::from_limbs([val as u64, (val >> 64) as u64])
+        RuntimeNat::from_limbs([val as u64, (val >> 64) as u64])
     }
 }
 
-impl crate::core::algebra::HasLookupPoints for Gf2_128Field {
+impl HasLookupPoints for Gf2_128Field {
     fn lookup_point(&self, _n: usize, i: usize) -> Self::E {
         let mut pt = Gf2_128::default();
         for j in 0..(usize::BITS as usize) {
@@ -321,7 +325,7 @@ impl crate::core::algebra::HasLookupPoints for Gf2_128Field {
     }
 }
 
-impl crate::core::algebra::SupportsU128Conversions for Gf2_128Field {
+impl SupportsU128Conversions for Gf2_128Field {
     #[inline(always)]
     fn u128_to_element(&self, n: u128) -> Self::E {
         Gf2_128::from(n)

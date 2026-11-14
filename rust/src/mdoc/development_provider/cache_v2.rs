@@ -19,12 +19,16 @@
 
 use std::io::{Read, Write};
 
-use crate::mdoc::{
-    circuits::NEXT_VERSION,
-    v2::{
-        provider::{self, ProvidedCircuit},
-        PolygeroParameters, ZkSpecStruct,
+use crate::{
+    mdoc::{
+        circuits::NEXT_VERSION,
+        v2::{
+            archive::read_compressed,
+            provider::{self, ProvidedCircuit},
+            PolygeroParameters, ZkSpecStruct,
+        },
     },
+    runtime::v2::proto::polygero::PolygeroGeometry,
 };
 
 const MAGIC: &[u8; 9] = b"MDOCNEXT1";
@@ -100,7 +104,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
         },
     };
     validate(&spec)?;
-    let compressed = crate::mdoc::v2::archive::read_compressed(reader)?;
+    let compressed = read_compressed(reader)?;
     provider::from_compressed(spec, compressed)
         .map_err(|error| format!("Invalid NEXT circuit bundle: {error:?}"))
 }
@@ -111,7 +115,7 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
     }
     let (hash, signature) = spec.configs();
     for config in [hash, signature] {
-        crate::runtime::v2::proto::polygero::PolygeroGeometry {
+        PolygeroGeometry {
             nw: 0,
             k: config.k,
             s: config.s,

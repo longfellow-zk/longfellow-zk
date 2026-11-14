@@ -1,14 +1,15 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{generic::*, prover::prove_packed, verifier::reduce};
 use crate::{
-    core::algebra::{AlgebraicField, BareField, SerializableField},
+    core::algebra::{AlgebraicField, BareField, FieldID, SerializableField},
     runtime::{
         algebra::{
             packing::{
                 AmbientElement, BaseElement, IdentityExtension, PackingExtension, PackingField,
                 PackingParameters,
             },
-            SupportsSampling,
+            range_interpolation::EvaluationDomain,
+            RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
         v2::transcript::{Transcript, TranscriptRef},
@@ -152,8 +153,8 @@ impl<const P: u8> PackingField for Prime<P> {
     }
 }
 impl<const P: u8> SerializableField for Prime<P> {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         P == 2
@@ -233,8 +234,8 @@ impl<const P: u8, const A: u8, const B: u8> PackingField for Quad<P, A, B> {
     }
 }
 impl<const P: u8, const A: u8, const B: u8> SerializableField for Quad<P, A, B> {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         P == 2
@@ -597,18 +598,12 @@ fn sextic_prime_extension() {
     });
 }
 
-fn authenticate<
-    const W: usize,
-    X: PackingExtension,
-    D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, X::Ambient>,
->(
+fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::Ambient>>(
     p: &PackingParameters<X>,
     domain: &D,
     values: &[BaseElement<X>],
 ) where
-    X::Ambient: crate::runtime::algebra::RuntimeField<W>
-        + crate::runtime::algebra::SupportsSampling
-        + SerializableField,
+    X::Ambient: RuntimeField<W> + crate::runtime::algebra::SupportsSampling + SerializableField,
 {
     use crate::runtime::v2::{
         polygero::{

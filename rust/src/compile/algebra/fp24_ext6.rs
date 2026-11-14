@@ -15,13 +15,17 @@
 //! Compiler field for the sextic extension `F_q[x] / (x^6 - 7)`.
 //! Its elements remain distinct from runtime elements.
 
-use crate::core::algebra::{
-    fp24::Q,
-    fp24_ext6::{
-        add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
-        EXTENSION_DEGREE, SERIALIZED_SIZE,
+use crate::{
+    compile::algebra::CompileField,
+    core::algebra::{
+        fp24::Q,
+        fp24_ext6::{
+            add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
+            EXTENSION_DEGREE, SERIALIZED_SIZE,
+        },
+        AlgebraicField, BareField, Comparable, FieldID, HasLookupPoints, SerializableField,
+        SupportsU128Conversions, SupportsU64Conversions,
     },
-    AlgebraicField, BareField, SerializableField, SupportsU64Conversions,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -88,15 +92,15 @@ impl AlgebraicField for CompileFp24Ext6 {
     }
 }
 
-impl crate::core::algebra::Comparable for CompileFp24Ext6 {
+impl Comparable for CompileFp24Ext6 {
     fn compare(&self, a: &Self::E, b: &Self::E) -> std::cmp::Ordering {
         a.coefficients.cmp(&b.coefficients)
     }
 }
 
 impl SerializableField for CompileFp24Ext6 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         false
@@ -119,7 +123,7 @@ impl SerializableField for CompileFp24Ext6 {
     }
 }
 
-impl crate::core::algebra::HasLookupPoints for CompileFp24Ext6 {
+impl HasLookupPoints for CompileFp24Ext6 {
     fn lookup_point(&self, n: usize, i: usize) -> Self::E {
         let value =
             ((2 * i) as u64 + u64::from(Q) - ((n - 1) as u64 % u64::from(Q))) % u64::from(Q);
@@ -136,14 +140,14 @@ impl SupportsU64Conversions for CompileFp24Ext6 {
     }
 }
 
-impl crate::core::algebra::SupportsU128Conversions for CompileFp24Ext6 {
+impl SupportsU128Conversions for CompileFp24Ext6 {
     fn u128_to_element(&self, n: u128) -> Self::E {
         assert!(n < u128::from(Q), "integer is not a canonical F_q element");
         self.u64_to_element(n as u64)
     }
 }
 
-impl crate::compile::algebra::CompileField for CompileFp24Ext6 {
+impl CompileField for CompileFp24Ext6 {
     fn characteristic(&self) -> num_bigint::BigUint {
         Q.into()
     }

@@ -18,6 +18,7 @@ use crate::{
         bitvec::{Bitvec, BitvecLogic, V256, V8},
         boolean::Boolean,
         routing::Routing,
+        sha256msg::Sha256Msg,
     },
     compile::logic::{Logic, LogicIO},
     mdoc::{
@@ -120,7 +121,7 @@ where L::F: FieldWrappingSum
     pub(in crate::mdoc::circuits) bv: BitvecLogic<'a, L>,
     cbor_decoder: CborByteDecoder<'a, L>,
     routing: Routing<'a, L>,
-    pub(in crate::mdoc::circuits) shamsg: crate::circuits::sha256msg::Sha256Msg<'a, L, 2>,
+    pub(in crate::mdoc::circuits) shamsg: Sha256Msg<'a, L, 2>,
 }
 
 impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
@@ -135,7 +136,7 @@ where L::F: FieldWrappingSum
             bv: BitvecLogic::new(logic),
             cbor_decoder: CborByteDecoder::new(logic),
             routing: Routing::new(logic),
-            shamsg: crate::circuits::sha256msg::Sha256Msg::new(logic),
+            shamsg: Sha256Msg::new(logic),
         }
     }
 

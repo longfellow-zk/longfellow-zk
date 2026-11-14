@@ -14,7 +14,7 @@
 
 use crate::{
     core::{
-        algebra::{AlgebraicField, SerializableField},
+        algebra::{AlgebraicField, FieldID, SerializableField, GF2_16_BASIS_V1},
         proto::v1::{Circuit, CircuitReader, Layer, RawCircuit, Term, TermDelta},
     },
     runtime::{
@@ -26,8 +26,9 @@ use crate::{
             ligero::LigeroConfig,
             proto::{sumcheck::SumcheckProofGeometry, zk::ZkProof},
             subfield::BinarySubfieldV1,
+            sumcheck::eval::eval_circuit,
             transcript::Transcript,
-            zk::{ZkProver, ZkVerifier},
+            zk::{common::ZkContext, ZkProver, ZkVerifier},
         },
     },
 };
@@ -142,7 +143,7 @@ fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 #[test]
 fn test_zk_prover_verifier_end_to_end() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // 1. Manually build a simple 1-layer circuit
     let term = Term {
@@ -171,12 +172,11 @@ fn test_zk_prover_verifier_end_to_end() {
         block_enc: 256,
     };
 
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let prover_inst = ZkProver::new(circ, config);
     let (prover, geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -192,7 +192,7 @@ fn test_zk_prover_verifier_end_to_end() {
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &prover,
             &mut ts_prover,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -203,7 +203,7 @@ fn test_zk_prover_verifier_end_to_end() {
         .write(&geom, &f, &sf)
         .expect("Failed to serialize ZkProof");
     let verifier = ZkVerifier::new(prover_inst.circuit, config);
-    let v_geom = verifier.geometry(&crate::runtime::v1::zk::common::ZkContext {
+    let v_geom = verifier.geometry(&ZkContext {
         f: &f,
         make_interpolator: &make_interpolator,
     });
@@ -221,7 +221,7 @@ fn test_zk_prover_verifier_end_to_end() {
     verifier.recv_commitment(
         &deserialized,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -231,7 +231,7 @@ fn test_zk_prover_verifier_end_to_end() {
         w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &deserialized,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -243,7 +243,7 @@ fn test_zk_prover_verifier_end_to_end() {
 #[test]
 fn test_zk_rfc_testvector1() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // 1. Parse circuit from hex string
     let circuit_bytes: &[u8] = &[
@@ -257,7 +257,7 @@ fn test_zk_rfc_testvector1() {
         0x33, 0x1b, 0x0e, 0x60, 0x11, 0x46, 0x46, 0x5e, 0x20, 0x7c, 0xb6, 0xbf, 0x38, 0x73, 0xac,
         0xfe, 0x5d, 0x0b, 0xf0, 0xe3, 0x26, 0x18, 0x0d, 0xbb, 0xaf, 0xcc, 0x48, 0x8c, 0xb6,
     ];
-    let reader = CircuitReader::new(&f, crate::core::algebra::FieldID::Gf2_128);
+    let reader = CircuitReader::new(&f, FieldID::Gf2_128);
     let (circuit, _) = reader.from_bytes(circuit_bytes, false).unwrap();
     for layer in &circuit.raw.layers {
         for (j, term) in layer.terms(&circuit.raw.constants).iter().enumerate() {
@@ -275,8 +275,7 @@ fn test_zk_rfc_testvector1() {
     use crate::core::algebra::SupportsU128Conversions;
     let g_gen = f.u128_to_element(0x5c5971877501d4b8_f1871e01b64fda4c);
     let mut cur_gen = f.one();
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     for _ in 0..16 {
         cur_gen = f.mulf(&cur_gen, &g_gen);
     }
@@ -313,7 +312,7 @@ fn test_zk_rfc_testvector1() {
     let prover_inst = ZkProver::new(circuit, config);
     let (commit_res, geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -329,7 +328,7 @@ fn test_zk_rfc_testvector1() {
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -580,7 +579,7 @@ fn test_zk_rfc_testvector1() {
     verifier.recv_commitment(
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -590,7 +589,7 @@ fn test_zk_rfc_testvector1() {
         w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -602,7 +601,7 @@ fn test_zk_rfc_testvector1() {
 #[test]
 fn test_zk_triple_zero_zero_zero() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // One triple (0, 0, 0) with k = 0 representing assert 0 = 1 (when w[0] is 1).
     let term = Term {
@@ -629,12 +628,11 @@ fn test_zk_triple_zero_zero_zero() {
         block_enc: 256,
     };
 
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -649,7 +647,7 @@ fn test_zk_triple_zero_zero_zero() {
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -661,7 +659,7 @@ fn test_zk_triple_zero_zero_zero() {
     verifier.recv_commitment(
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -671,7 +669,7 @@ fn test_zk_triple_zero_zero_zero() {
         w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -688,7 +686,7 @@ fn test_zk_triple_zero_zero_zero() {
 fn test_zk_intermediate_zero_logw() {
     use crate::core::algebra::SupportsU128Conversions;
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // Layer 0 (output layer): squares the single wire from layer 1: v[0] = w[0] * w[0]
     let layer0_terms = vec![Term {
@@ -754,7 +752,7 @@ fn test_zk_intermediate_zero_logw() {
     w0[3] = f.u128_to_element(30);
 
     // Check that plain evaluation succeeds (sum is 0, squared twice is 0)
-    let eval_res = crate::runtime::v1::sumcheck::eval::eval_circuit(w0.clone(), &circ, &f);
+    let eval_res = eval_circuit(w0.clone(), &circ, &f);
     assert!(
         eval_res.is_ok(),
         "Plain circuit evaluation failed: {:?}",
@@ -772,12 +770,11 @@ fn test_zk_intermediate_zero_logw() {
         block_enc: 256,
     };
 
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let prover_inst = ZkProver::new(circ, config);
     let (commit_res, _geom) = prover_inst.commit(
         &w0[prover_inst.circuit.raw.npublic_input..],
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -792,7 +789,7 @@ fn test_zk_intermediate_zero_logw() {
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
             &commit_res,
             &mut ts_prover,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -804,7 +801,7 @@ fn test_zk_intermediate_zero_logw() {
     verifier.recv_commitment(
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -814,7 +811,7 @@ fn test_zk_intermediate_zero_logw() {
         w0[..verifier.circuit.raw.npublic_input].to_vec(),
         &zkp,
         &mut ts_verifier,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &f,
             make_interpolator: &make_interpolator,
         },
@@ -830,7 +827,7 @@ fn test_zk_intermediate_zero_logw() {
 #[test]
 fn test_zk_zero_layers() {
     let f = Gf2_128Field::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     let make_interpolator = BinaryInterpolatorFactory::new(&f, subfield.basis());
     let config = LigeroConfig {
@@ -838,8 +835,7 @@ fn test_zk_zero_layers() {
         nreq: 16,
         block_enc: 256,
     };
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // Try all 16 combinations of zero / non-zero across the 4 inputs
     for mask in 0u32..16 {
@@ -853,7 +849,7 @@ fn test_zk_zero_layers() {
             }
         }
 
-        let eval_res = crate::runtime::v1::sumcheck::eval::eval_circuit(w0.clone(), &circ, &f);
+        let eval_res = eval_circuit(w0.clone(), &circ, &f);
 
         let mut rng = SimpleRng {
             state: 9999 + mask as u64,
@@ -863,7 +859,7 @@ fn test_zk_zero_layers() {
         let prover_inst = ZkProver::new(circ, config);
         let (commit_res, _geom) = prover_inst.commit(
             &w0[2..],
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -877,7 +873,7 @@ fn test_zk_zero_layers() {
             w0[2..].to_vec(),
             &commit_res,
             &mut ts_prover,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &f,
                 make_interpolator: &make_interpolator,
             },
@@ -901,7 +897,7 @@ fn test_zk_zero_layers() {
             verifier.recv_commitment(
                 &zkp,
                 &mut ts_verifier,
-                &crate::runtime::v1::zk::common::ZkContext {
+                &ZkContext {
                     f: &f,
                     make_interpolator: &make_interpolator,
                 },
@@ -911,7 +907,7 @@ fn test_zk_zero_layers() {
                 w0[..2].to_vec(),
                 &zkp,
                 &mut ts_verifier,
-                &crate::runtime::v1::zk::common::ZkContext {
+                &ZkContext {
                     f: &f,
                     make_interpolator: &make_interpolator,
                 },

@@ -14,7 +14,7 @@
 
 use crate::runtime::algebra::{
     fp_generic::MontgomeryStrategy,
-    limb::{accum, sub_limb, Limb},
+    limb::{accum, maybe_minus_m, mul_accum, mul_accum_zero, sub_limb, Limb, LIMBS_PER_U64},
     p256::P256Strategy,
 };
 
@@ -29,7 +29,7 @@ fn p256_reduction_step(a: &mut [Limb; 6]) {
     accum(a, 1, &[r_lo, r_hi, r, r]);
 }
 
-impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }> for P256Strategy {
+impl MontgomeryStrategy<{ 4 * LIMBS_PER_U64 }> for P256Strategy {
     #[inline(always)]
     fn montgomery_mul(
         a: &mut [Limb; 4],
@@ -39,22 +39,22 @@ impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }> fo
         _m_prime: Limb,
     ) {
         let mut t = [0 as Limb; 9];
-        crate::runtime::algebra::limb::mul_accum_zero(&mut t, 0, a[0], b);
+        mul_accum_zero(&mut t, 0, a[0], b);
         p256_reduction_step((&mut t[0..6]).try_into().unwrap());
 
         t[6] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 1, a[1], b);
+        mul_accum(&mut t, 1, a[1], b);
         p256_reduction_step((&mut t[1..7]).try_into().unwrap());
 
         t[7] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 2, a[2], b);
+        mul_accum(&mut t, 2, a[2], b);
         p256_reduction_step((&mut t[2..8]).try_into().unwrap());
 
         t[8] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 3, a[3], b);
+        mul_accum(&mut t, 3, a[3], b);
         p256_reduction_step((&mut t[3..9]).try_into().unwrap());
 
         a.copy_from_slice(&t[4..8]);
-        crate::runtime::algebra::limb::maybe_minus_m(a, t[8], negm);
+        maybe_minus_m(a, t[8], negm);
     }
 }

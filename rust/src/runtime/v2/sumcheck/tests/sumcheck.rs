@@ -15,17 +15,21 @@
 use crate::{
     compile::{
         algebra::p256::P256Field as CompileP256,
+        compiler::{compile_v2, segment_circuit_v2},
         logic::{Logic, LogicIO},
     },
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
-        proto::v2::{Circuit, CircuitReader, CircuitWriter},
+        proto::v2::{
+            classify_constants, quadratic_fixture, Circuit, CircuitReader, CircuitWriter,
+            CoefficientClass,
+        },
     },
     runtime::{
         algebra::{p256::P256Field as RuntimeP256, RuntimeField},
         v2::{
             proto::sumcheck::{RoundPoly, SumcheckProof},
-            sumcheck::{eval_circuit, prove, tests::diagnostic::verify},
+            sumcheck::{derive_constraints, eval_circuit, prove, tests::diagnostic::verify},
             transcript::Transcript,
         },
     },
@@ -83,7 +87,7 @@ fn single_hand_rejects_a_false_internal_assertion() {
             )],
         },
     };
-    let circuit = crate::core::proto::v2::quadratic_fixture(circuit, &f);
+    let circuit = quadratic_fixture(circuit, &f);
     let pad = zero_proof(&circuit, &f);
     // With zero rounds the product check accepts A=1, B=0. The public
     // contraction of the assertion must still make the final input claim fail.
@@ -119,7 +123,7 @@ fn single_hand_rejects_a_false_internal_assertion() {
 #[test]
 fn test_sumcheck_prover_verifier_end_to_end() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v2(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v2(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -128,7 +132,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc);
-    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
+    let circ_comp = segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f);
     let (circ, _) = reader
@@ -173,7 +177,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 #[test]
 fn test_sumcheck_prover_verifier_with_nonzero_pad() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v2(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v2(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -182,7 +186,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc);
-    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
+    let circ_comp = segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f);
     let (circ, _) = reader
@@ -231,7 +235,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 #[test]
 fn test_sumcheck_multi_layer() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v2(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v2(&fc, |iologic| {
         let mut x = iologic.input(1);
         let y = iologic.input(2);
         for _ in 0..6 {
@@ -242,7 +246,7 @@ fn test_sumcheck_multi_layer() {
     });
     let f = RuntimeP256::new();
     let writer = CircuitWriter::new(&fc);
-    let circ_comp = crate::compile::compiler::segment_circuit_v2(&fc, circ_comp);
+    let circ_comp = segment_circuit_v2(&fc, circ_comp);
     let bytes = writer.to_bytes(&circ_comp);
     let reader = CircuitReader::new(&f);
     let (circ, _) = reader
@@ -289,7 +293,7 @@ fn test_sumcheck_core_single_hand_permutations() {
     };
 
     let fc = CompileP256::new();
-    let (compiled, _, _) = crate::compile::compiler::compile_v2(&fc, |logic| {
+    let (compiled, _, _) = compile_v2(&fc, |logic| {
         let mut x = logic.input(1);
         let y = logic.input(2);
         for _ in 0..6 {
@@ -298,7 +302,7 @@ fn test_sumcheck_core_single_hand_permutations() {
         }
         (logic.assert0("x", &x), 1)
     });
-    let compiled = crate::compile::compiler::segment_circuit_v2(&fc, compiled);
+    let compiled = segment_circuit_v2(&fc, compiled);
     let bytes = CircuitWriter::new(&fc).to_bytes(&compiled);
     let f = RuntimeP256::new();
     let reader = CircuitReader::new(&f);
@@ -309,7 +313,7 @@ fn test_sumcheck_core_single_hand_permutations() {
     for layout in 0..4 {
         let (circuit, _) = reader.from_bytes(&bytes).unwrap();
         let mut raw = circuit.into_raw().into_builder();
-        let classes = crate::core::proto::v2::classify_constants(&f, &raw.constants);
+        let classes = classify_constants(&f, &raw.constants);
         for layer in &mut raw.layers {
             fn reorder<T: std::fmt::Debug>(terms: &mut [T], layout: usize) {
                 match layout {
@@ -341,11 +345,11 @@ fn test_sumcheck_core_single_hand_permutations() {
                 std::mem::take(&mut layer.quadratic),
                 std::mem::take(&mut layer.linear),
                 std::mem::take(&mut layer.constant),
-                |k| classes[k as usize] == crate::core::proto::v2::CoefficientClass::Zero,
+                |k| classes[k as usize] == CoefficientClass::Zero,
             );
         }
         let raw = raw.build();
-        let segmented = crate::compile::compiler::segment_circuit_v2(&f, raw);
+        let segmented = segment_circuit_v2(&f, raw);
         ids.push(segmented.id);
         let encoded = writer.to_bytes(&segmented);
         let (decoded, tail) = reader.from_bytes(&encoded).unwrap();
@@ -361,13 +365,8 @@ fn test_sumcheck_core_single_hand_permutations() {
         let mut pt = Transcript::new(b"fixed-layout-comparison");
         let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt.borrow(), &f);
         let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");
-        let derived = crate::runtime::v2::sumcheck::derive_constraints(
-            &circuit,
-            &proof,
-            &mut verifier_transcript.borrow(),
-            &f,
-        )
-        .unwrap();
+        let derived =
+            derive_constraints(&circuit, &proof, &mut verifier_transcript.borrow(), &f).unwrap();
         assert_eq!(constraints, derived);
         let mut vt = Transcript::new(b"fixed-layout-comparison");
         verify_core(inputs, &pad, &circuit, &proof, &mut vt, &f).unwrap();

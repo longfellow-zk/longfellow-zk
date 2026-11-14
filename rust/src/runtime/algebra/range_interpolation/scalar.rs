@@ -17,7 +17,10 @@ use std::ops::Range;
 use super::{
     batch_inverse, difference, InterpolationPlan, RangeInterpolatorFactory, Ranges, RuntimeField,
 };
-use crate::core::algebra::{Nat, SupportsNatConversions, SupportsU64Conversions};
+use crate::{
+    core::algebra::{Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions},
+    runtime::algebra::range_interpolation::EvaluationDomain,
+};
 
 /// Scalar arithmetic interpolation for fields without a suitable FFT root.
 /// `limit` is the exclusive point-table bound and cannot exceed the characteristic.
@@ -139,10 +142,9 @@ impl<
     }
 }
 
-impl<const W: usize, F> crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>
-    for ScalarInterpolatorFactory<'_, W, F>
+impl<const W: usize, F> EvaluationDomain<W, F> for ScalarInterpolatorFactory<'_, W, F>
 where F: crate::runtime::algebra::RuntimeField<W>
-        + crate::core::algebra::SerializableField
+        + SerializableField
         + SupportsU64Conversions
         + SupportsNatConversions<W>
 {

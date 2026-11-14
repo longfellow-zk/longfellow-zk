@@ -10,7 +10,12 @@ use crate::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
         random::DeterministicRng,
-        v2::{proto::zk::CircuitProof, transcript::Transcript, zk::VirtualInputs},
+        v2::{
+            proto::{dual_packing::PackingProof, zk::CircuitProof},
+            sumcheck::eval_circuit,
+            transcript::Transcript,
+            zk::VirtualInputs,
+        },
     },
 };
 
@@ -276,7 +281,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     private[0] = f.zero();
     let mut substituted = public.to_vec();
     substituted.extend(private);
-    assert!(crate::runtime::v2::sumcheck::eval_circuit(substituted, &main, &f).is_err());
+    assert!(eval_circuit(substituted, &main, &f).is_err());
     let param =
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let t = Transcript::new(b"prime-fragmented-pcs-test");
@@ -291,10 +296,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
             &ctx,
         )
         .unwrap();
-    assert!(matches!(
-        proof.packing,
-        crate::runtime::v2::proto::dual_packing::PackingProof::Direct
-    ));
+    assert!(matches!(proof.packing, PackingProof::Direct));
     let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
     let t = Transcript::new(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);

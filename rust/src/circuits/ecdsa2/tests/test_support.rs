@@ -18,13 +18,13 @@ use crate::{
     circuits::ecdsa2::concrete::{derived, given, ConcreteDerived, ConcreteGiven},
     core::algebra::{
         ec::{affine, projective, scalar_mul, Curve},
-        AlgebraicField, BareField, SupportsNatConversions,
+        AlgebraicField, BareField, HasLookupPoints, SupportsNatConversions,
     },
 };
 
 pub(in crate::circuits::ecdsa2) fn sign_and_generate_given_derived<
     const W: usize,
-    F: AlgebraicField + SupportsNatConversions<W> + crate::core::algebra::HasLookupPoints,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints,
     S: AlgebraicField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
@@ -76,11 +76,7 @@ pub(super) struct EcdsaCorruptor<F: BareField> {
 
 pub(super) fn all_ecdsa_corruptors<
     const W: usize,
-    F: AlgebraicField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints
-        + Clone
-        + 'static,
+    F: AlgebraicField + SupportsNatConversions<W> + HasLookupPoints + Clone + 'static,
 >(
     field: &F,
 ) -> Vec<EcdsaCorruptor<F>> {

@@ -15,6 +15,7 @@
 use crate::compile::{
     algebra::CompileField,
     compiler::{
+        arena::CompilerArena,
         graph::{push_node, Node as GraphNode, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
         v1::quad::{QuadCircuit, Term, WExpr, Wire},
@@ -82,7 +83,7 @@ use crate::compile::logic::{AssertionId, AssertionScope};
 /// Rewrite into a stylized Quad circuit with debug info mapping quad node index
 /// to assertion ID.
 pub(crate) fn rewrite<'src, 'dst, F: CompileField>(
-    _arena: &'dst crate::compile::compiler::arena::CompilerArena<'dst, F>,
+    _arena: &'dst CompilerArena<'dst, F>,
     f: &'dst F,
     x: Assertions<'src, F>,
     tracker: &AssertionScope,

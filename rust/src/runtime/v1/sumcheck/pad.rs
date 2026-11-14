@@ -18,24 +18,26 @@
 //! evaluations. Finally sample the two witness-claim pads and append their
 //! product to the committed vector. Return both the structured pad messages and
 //! the flattened witness suffix consumed by the ZK commitment.
-use crate::runtime::random::RandomEngine;
+use crate::{
+    core::algebra::SerializableField,
+    runtime::{
+        algebra::{InterpolationField, SupportsSampling},
+        random::RandomEngine,
+        v1::proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
+    },
+};
 
 /// Generates a new random sumcheck proof pad for the given geometry.
 pub fn sample<
     const W: usize,
-    F: crate::runtime::algebra::InterpolationField<W>
-        + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling,
+    F: InterpolationField<W> + SerializableField + SupportsSampling,
     R: RandomEngine,
 >(
-    geometry: &crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry,
+    geometry: &SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
-) -> (
-    crate::runtime::v1::proto::sumcheck::SumcheckProof<W, F>,
-    Vec<F::E>,
-) {
-    let mut pad = crate::runtime::v1::proto::sumcheck::SumcheckProof { layers: Vec::new() };
+) -> (SumcheckProof<W, F>, Vec<F::E>) {
+    let mut pad = SumcheckProof { layers: Vec::new() };
     let mut witness = Vec::new();
 
     for &logw in &geometry.logw_layers {
@@ -47,7 +49,7 @@ pub fn sample<
                 let r2 = rng.elt_field(f);
                 witness.push(r0.clone());
                 witness.push(r2.clone());
-                hp_slot.push(crate::runtime::v1::proto::sumcheck::RoundPoly {
+                hp_slot.push(RoundPoly {
                     evaluations: [r0, r2],
                 });
             }
@@ -63,11 +65,10 @@ pub fn sample<
         let rr = f.mulf(&r0, &r1);
         witness.push(rr);
 
-        pad.layers
-            .push(crate::runtime::v1::proto::sumcheck::LayerProof {
-                hp,
-                claims: [r0, r1],
-            });
+        pad.layers.push(LayerProof {
+            hp,
+            claims: [r0, r1],
+        });
     }
 
     (pad, witness)

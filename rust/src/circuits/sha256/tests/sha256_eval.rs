@@ -18,13 +18,16 @@ use crate::{
         bitvec::BitvecLogic,
         sha256::{derived, evaluate_derived, evaluate_given, ConcreteGiven, Sha256},
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        logic::{AssertionScope, EvalLogic},
+    },
 };
 
 #[test]
 fn test_eval_sha256() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
@@ -63,7 +66,7 @@ fn test_eval_sha256() {
 #[test]
 fn test_eval_sha256_tampering() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);

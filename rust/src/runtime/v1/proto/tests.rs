@@ -17,19 +17,22 @@
 use std::io::ErrorKind;
 
 use crate::{
-    core::algebra::{AlgebraicField, SupportsU64Conversions},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions, GF2_16_BASIS_V1},
     runtime::{
         algebra::p256::P256Field,
-        v1::proto::{
-            ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
-            subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
-            sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            util::{
-                read_elt_field, read_size_4bytes, write_elt_field, write_size_4bytes,
-                zero_field_element,
+        v1::{
+            proto::{
+                ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
+                subfield::{read_subfield_elt_v1, write_subfield_elt_v1},
+                sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
+                util::{
+                    read_elt_field, read_size_4bytes, write_elt_field, write_size_4bytes,
+                    zero_field_element,
+                },
+                zk::{ZkProof, ZkProofGeometry},
+                Digest, MerkleNonce, MerkleProof,
             },
-            zk::{ZkProof, ZkProofGeometry},
-            Digest, MerkleNonce, MerkleProof,
+            subfield::P256SubfieldV1,
         },
     },
 };
@@ -60,7 +63,7 @@ fn test_util_read_write_size_4bytes() {
 #[test]
 fn test_util_read_write_subfield_elt() {
     let f = P256Field::new();
-    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
+    let sf = P256SubfieldV1::new(&f);
     let val = f.u64_to_element(987654321u64);
 
     let mut buf = Vec::new();
@@ -245,7 +248,7 @@ fn test_ligero_proof_read_write() {
         },
     };
 
-    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
+    let sf = P256SubfieldV1::new(&f);
     let serialized = proof.write(&geom, &f, &sf).unwrap();
     let mut r_slice = serialized.as_slice();
     let decoded = LigeroProof::read(&mut r_slice, &geom, &f, &sf).unwrap();
@@ -257,7 +260,7 @@ fn test_ligero_proof_read_write() {
 fn test_ligero_proof_read_allows_zero_length_merkle_path() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
+    let sf = P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 2,
@@ -353,7 +356,7 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
         },
     };
 
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let sub_val = sf.embed(10);
     let field_val = f.u128_to_element(11);
     assert!(sf.contains(&sub_val), "sub_val should be in subfield");
@@ -383,7 +386,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     };
 
     let f = Gf2_128Field::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let geom = LigeroGeometry {
         block: 0,
         dblock: 0,
@@ -425,9 +428,8 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     // The same subfield element must not be accepted in the full-field run.
     let mut full_field_encoding = vec![0; 32]; // nonce
     full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
-    let mut full_bytes =
-        vec![0; crate::core::algebra::SerializableField::serialized_size_bytes(&f)];
-    crate::core::algebra::SerializableField::to_bytes_into(&f, &subfield_elt, &mut full_bytes);
+    let mut full_bytes = vec![0; SerializableField::serialized_size_bytes(&f)];
+    SerializableField::to_bytes_into(&f, &subfield_elt, &mut full_bytes);
     full_field_encoding.extend_from_slice(&full_bytes);
     full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
     full_field_encoding.extend_from_slice(&[0; 32]);
@@ -445,7 +447,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
 fn test_zk_proof_read_write() {
     use crate::core::algebra::SupportsU64Conversions;
     let f = crate::runtime::algebra::p256::P256Field::new();
-    let sf = crate::runtime::v1::subfield::P256SubfieldV1::new(&f);
+    let sf = P256SubfieldV1::new(&f);
 
     let geom = LigeroGeometry {
         block: 4,

@@ -19,7 +19,7 @@ use crate::{
     },
     compile::{
         algebra::CompileField,
-        logic::{Eltw, Logic},
+        logic::{Eltw, Logic, LogicIO},
     },
     util::array::{init, map, map2, map3},
 };
@@ -603,11 +603,11 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     }
 }
 
-pub struct BitvecIO<'a, L: crate::compile::logic::LogicIO> {
+pub struct BitvecIO<'a, L: LogicIO> {
     bools_io: BooleanIO<'a, L>,
 }
 
-impl<'a, L: crate::compile::logic::LogicIO> BitvecIO<'a, L> {
+impl<'a, L: LogicIO> BitvecIO<'a, L> {
     pub fn new(bv: &'a BitvecLogic<'a, L>) -> Self {
         Self {
             bools_io: BooleanIO::new(bv.logic),

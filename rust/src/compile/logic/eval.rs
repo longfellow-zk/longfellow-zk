@@ -19,7 +19,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 use crate::{
     compile::{
         algebra::CompileField,
-        logic::{AssertionId, AssertionScope, AssertionStatus, Logic},
+        logic::{AssertionId, AssertionScope, AssertionStatus, Logic, LogicIO},
     },
     core::algebra::ElementOf,
 };
@@ -319,7 +319,7 @@ fn merge_assertions(left: &AssertionMap, right: &AssertionMap) -> AssertionMap {
     merged
 }
 
-impl<F: CompileField> crate::compile::logic::LogicIO for EvalLogic<'_, F> {
+impl<F: CompileField> LogicIO for EvalLogic<'_, F> {
     fn input(&self, _position_in_input_array: usize) -> Self::Wire {
         panic!("input is not supported in EvalLogic");
     }

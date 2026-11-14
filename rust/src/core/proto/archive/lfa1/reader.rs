@@ -14,17 +14,23 @@
 
 use std::io::BufRead;
 
-use crate::core::proto::archive::{compute_combined_id, ArchiveEntry, CircuitArchive, LFA_VERSION};
+use crate::core::{
+    algebra::{BareField, FieldID, Gf2_128Field, SerializableField},
+    proto::{
+        archive::{compute_combined_id, ArchiveEntry, CircuitArchive, LFA_VERSION},
+        v1::CircuitReader,
+    },
+};
 
 struct Lfa1P256Field;
 
-impl crate::core::algebra::BareField for Lfa1P256Field {
+impl BareField for Lfa1P256Field {
     type E = [u8; 32];
 }
 
-impl crate::core::algebra::SerializableField for Lfa1P256Field {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+impl SerializableField for Lfa1P256Field {
+    fn field_id(&self) -> FieldID {
+        FieldID::of_prime_field(&self.serialized_mone())
     }
     fn is_binary(&self) -> bool {
         false
@@ -76,7 +82,7 @@ impl crate::core::algebra::SerializableField for Lfa1P256Field {
 /// version/field byte 1).
 pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, String> {
     let p256 = Lfa1P256Field;
-    let gf2 = crate::core::algebra::Gf2_128Field::new();
+    let gf2 = Gf2_128Field::new();
 
     let mut raw_bytes = Vec::new();
     stream
@@ -91,16 +97,14 @@ pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, St
     }
 
     let cursor1 = &raw_bytes[..];
-    let reader_sig =
-        crate::core::proto::v1::CircuitReader::new(&p256, crate::core::algebra::FieldID::P256);
+    let reader_sig = CircuitReader::new(&p256, FieldID::P256);
     let (c_sig, remaining1) = reader_sig.from_bytes(cursor1, false)?;
 
     let sig_len = raw_bytes.len() - remaining1.len();
     let payload_sig = raw_bytes[..sig_len].to_vec();
 
     let cursor2 = remaining1;
-    let reader_hash =
-        crate::core::proto::v1::CircuitReader::new(&gf2, crate::core::algebra::FieldID::Gf2_128);
+    let reader_hash = CircuitReader::new(&gf2, FieldID::Gf2_128);
     let (c_hash, remaining2) = reader_hash.from_bytes(cursor2, false)?;
 
     let hash_len = cursor2.len() - remaining2.len();

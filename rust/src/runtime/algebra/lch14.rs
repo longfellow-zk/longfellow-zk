@@ -21,24 +21,15 @@
 // [DP24] Benjamin E. Diamond and Jim Posen, Polylogarithmic Proofs
 // for Multilinears over Binary Towers, https://eprint.iacr.org/2024/504
 
-use crate::runtime::algebra::RuntimeBinaryField;
+use crate::runtime::algebra::{gf2_128::Gf2_128, RuntimeBinaryField};
 
-pub struct Lch14<
-    'a,
-    const W: usize,
-    F: RuntimeBinaryField<W, E = crate::runtime::algebra::gf2_128::Gf2_128>,
-> {
+pub struct Lch14<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> {
     f: &'a F,
     dimension: usize,
     w_hat: Vec<F::E>,
 }
 
-impl<
-        'a,
-        const W: usize,
-        F: RuntimeBinaryField<W, E = crate::runtime::algebra::gf2_128::Gf2_128>,
-    > Lch14<'a, W, F>
-{
+impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> Lch14<'a, W, F> {
     pub fn new(f: &'a F, basis: &[F::E]) -> Self {
         // Compute W_i(\beta_j) for all i, j.
         //

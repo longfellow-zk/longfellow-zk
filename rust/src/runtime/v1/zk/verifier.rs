@@ -23,28 +23,34 @@
 use core::fmt;
 
 use crate::{
-    core::algebra::ElementOf,
+    core::{algebra::ElementOf, proto::v1::Circuit},
     runtime::{
         algebra::{range_interpolation::RangeInterpolatorFactory, ZkField},
         v1::{
-            ligero::{LigeroConfig, LigeroParam},
-            proto::zk::ZkProof,
-            sumcheck::TranscriptSumcheck,
+            ligero::{LigeroConfig, LigeroParam, LigeroVerifier},
+            proto::{
+                sumcheck::SumcheckProofGeometry,
+                zk::{witness_and_constraint_count, ZkProof, ZkProofGeometry},
+            },
+            sumcheck::{derive_verifier_data, TranscriptSumcheck},
             transcript::Transcript,
-            zk::common::ZkContext,
+            zk::{
+                common::{ZkContext, DEFAULT_STATEMENT_HASH},
+                constraint_compiler::{compile, product_constraints},
+            },
         },
     },
 };
 
 /// A trusted legacy circuit and the configuration used to decode its commitment.
 pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
-    pub circuit: crate::core::proto::v1::Circuit<F>,
+    pub circuit: Circuit<F>,
     pub config: LigeroConfig,
 }
 
 impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     /// Constructs a new `ZkVerifier` with the given Ligero configuration.
-    pub fn new(circuit: crate::core::proto::v1::Circuit<F>, config: LigeroConfig) -> Self {
+    pub fn new(circuit: Circuit<F>, config: LigeroConfig) -> Self {
         Self { circuit, config }
     }
 
@@ -52,11 +58,9 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     pub fn geometry<IF: RangeInterpolatorFactory<W, F>>(
         &self,
         ctx: &ZkContext<'_, W, F, IF>,
-    ) -> crate::runtime::v1::proto::zk::ZkProofGeometry {
-        crate::runtime::v1::proto::zk::ZkProofGeometry {
-            sc_geom: crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(
-                &self.circuit,
-            ),
+    ) -> ZkProofGeometry {
+        ZkProofGeometry {
+            sc_geom: SumcheckProofGeometry::from_circuit(&self.circuit),
             com_geom: self.ligero_param(ctx).geom,
         }
     }
@@ -69,7 +73,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         ctx: &ZkContext<'_, W, F, IF>,
     ) {
         let ligero_param = self.ligero_param(ctx);
-        let mut lv = crate::runtime::v1::ligero::LigeroVerifier::new(tv, &ligero_param);
+        let mut lv = LigeroVerifier::new(tv, &ligero_param);
         lv.receive_commitment(&zkp.com);
     }
 
@@ -88,37 +92,24 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         // Only compiled coefficients and the pad geometry survive this phase.
         // The transcript data and symbolic terms can be released before Ligero.
         let (geometry, a, b) = {
-            let data = crate::runtime::v1::sumcheck::derive_verifier_data(
-                &self.circuit,
-                &zkp.sumcheck_proof,
-                tv,
-                ctx.f,
-            )
-            .map_err(ZkVerificationError::InvalidSumcheck)?;
+            let data = derive_verifier_data(&self.circuit, &zkp.sumcheck_proof, tv, ctx.f)
+                .map_err(ZkVerificationError::InvalidSumcheck)?;
             let relations =
                 crate::runtime::v1::sumcheck::symbolic::verify(&zkp.sumcheck_proof, data, ctx.f)
                     .map_err(ZkVerificationError::InvalidSumcheck)?;
-            let geometry = crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(
-                &self.circuit,
-            );
+            let geometry = SumcheckProofGeometry::from_circuit(&self.circuit);
             let pads = geometry.pad_layout(n_witness);
-            let (a, b) = crate::runtime::v1::zk::constraint_compiler::compile(
-                &relations,
-                &pads,
-                &pub_inputs,
-                ctx.f,
-            )
-            .map_err(ZkVerificationError::InvalidSumcheck)?;
+            let (a, b) = compile(&relations, &pads, &pub_inputs, ctx.f)
+                .map_err(ZkVerificationError::InvalidSumcheck)?;
             (geometry, a, b)
         };
 
-        let statement_hash = crate::runtime::v1::zk::common::DEFAULT_STATEMENT_HASH;
+        let statement_hash = DEFAULT_STATEMENT_HASH;
 
         let ligero_param = self.ligero_param(ctx);
-        let lqc =
-            crate::runtime::v1::zk::constraint_compiler::product_constraints(n_witness, &geometry);
+        let lqc = product_constraints(n_witness, &geometry);
 
-        let mut lv = crate::runtime::v1::ligero::LigeroVerifier::new(tv, &ligero_param);
+        let mut lv = LigeroVerifier::new(tv, &ligero_param);
         lv.verify(
             &b,
             &zkp.com,
@@ -171,7 +162,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
         &self,
         ctx: &ZkContext<'_, W, F, IF>,
     ) -> LigeroParam {
-        let (nw, nq) = crate::runtime::v1::proto::zk::witness_and_constraint_count(&self.circuit);
+        let (nw, nq) = witness_and_constraint_count(&self.circuit);
         LigeroParam::new(nw, nq, self.config, ctx.make_interpolator)
     }
 }

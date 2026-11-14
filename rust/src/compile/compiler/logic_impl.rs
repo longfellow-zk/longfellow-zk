@@ -18,7 +18,7 @@ use crate::compile::{
         algsimp::AlgebraicRewriter,
         arena::CompilerArena,
         cse::Cse,
-        ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
+        ir::{position_in_input_array, promote_sum_to_precious, AssertionItem, ExprNode, RewriteT},
     },
     logic::{AssertionScope, Logic, LogicIO},
 };
@@ -96,7 +96,7 @@ where NEXT: RewriteT<'a, F>
     }
 
     fn precious(&self, x: &Self::Wire) -> Self::Wire {
-        crate::compile::compiler::ir::promote_sum_to_precious(x, &self.next)
+        promote_sum_to_precious(x, &self.next)
     }
 
     fn sum(&self, xs: &[Self::Wire]) -> Self::Wire {

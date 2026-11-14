@@ -1,6 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::runtime::random::RandomEngine;
+use crate::{
+    core::{algebra::SerializableField, proto::v2::CircuitReader},
+    runtime::{
+        algebra::{
+            fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
+            SupportsSampling,
+        },
+        random::RandomEngine,
+        v2::sumcheck::eval::eval_layer,
+    },
+};
 
 #[test]
 fn private_split_preserves_shared_segment_tokens_and_deltas() {
@@ -167,9 +177,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
 }
 
 fn check_bindings<const W: usize, F>(f: &F)
-where F: crate::runtime::algebra::RuntimeField<W>
-        + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling {
+where F: RuntimeField<W> + SerializableField + SupportsSampling {
     use crate::runtime::{random::DeterministicRng, v2::sumcheck::quad};
     let mut rng = DeterministicRng::new(318);
     let scalar = |n: u8| {
@@ -257,7 +265,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
         );
         let ordinary_split = SplitLayer::new(&ordinary);
         assert_eq!(
-            crate::runtime::v2::sumcheck::eval::eval_layer(&w, &ordinary_split, &constants, 5, f),
+            eval_layer(&w, &ordinary_split, &constants, 5, f),
             reference::eval_layer(&w, &ordinary, &constants, 5, f)
         );
         assert_eq!(
@@ -287,21 +295,19 @@ where F: crate::runtime::algebra::RuntimeField<W>
 }
 #[test]
 fn split_bindings_match_three_stream_prime() {
-    check_bindings(&crate::runtime::algebra::p256::P256Field::new());
+    check_bindings(&P256Field::new());
 }
 #[test]
 fn split_bindings_match_three_stream_binary() {
-    check_bindings(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+    check_bindings(&Gf2_128Field::new());
 }
 #[test]
 fn split_bindings_match_three_stream_sextic() {
-    check_bindings(&crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new());
+    check_bindings(&RuntimeFp24Ext6::new());
 }
 
 fn check_proof<const W: usize, F>(f: &F)
-where F: crate::runtime::algebra::RuntimeField<W>
-        + crate::core::algebra::SerializableField
-        + crate::runtime::algebra::SupportsSampling {
+where F: RuntimeField<W> + SerializableField + SupportsSampling {
     use crate::{
         core::proto::v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
         runtime::{
@@ -454,9 +460,7 @@ where F: crate::runtime::algebra::RuntimeField<W>
     let reindexed = Circuit::from_raw(f, raw);
     let encoded = writer.to_bytes(&reindexed);
     assert_eq!(&encoded[..4], b"LFC3");
-    let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(f)
-        .from_bytes(&encoded)
-        .unwrap();
+    let (decoded, tail) = CircuitReader::new(f).from_bytes(&encoded).unwrap();
     assert!(tail.is_empty());
     assert_eq!(decoded.raw.layers[0].assertion_counts(), [1, 1]);
     assert_eq!(
@@ -499,15 +503,15 @@ where F: crate::runtime::algebra::RuntimeField<W>
 }
 #[test]
 fn split_preserves_proof_transcript_and_circuit_prime() {
-    check_proof(&crate::runtime::algebra::p256::P256Field::new());
+    check_proof(&P256Field::new());
 }
 #[test]
 fn split_preserves_proof_transcript_and_circuit_binary() {
-    check_proof(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
+    check_proof(&Gf2_128Field::new());
 }
 #[test]
 fn split_preserves_proof_transcript_and_circuit_sextic() {
-    check_proof(&crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new());
+    check_proof(&RuntimeFp24Ext6::new());
 }
 
 pub(super) mod fixtures;

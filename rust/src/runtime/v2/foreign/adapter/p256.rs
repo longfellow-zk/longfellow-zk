@@ -13,7 +13,10 @@ use super::{
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::{random::PrivateRandom, v2::foreign::word::Word};
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
+    core::{
+        algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{
             gf2_128::{Gf2_128, Gf2_128Field},
@@ -21,7 +24,11 @@ use crate::{
         },
         v2::{
             foreign::word::MaskedWord,
-            zk::storage::{BitGroup, ModularClaim},
+            transcript::TranscriptRef,
+            zk::{
+                storage::{BitGroup, ModularClaim, ReservedSuffix},
+                VirtualInputs,
+            },
         },
     },
 };
@@ -254,7 +261,7 @@ pub struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
     otp: [BitGroup<Q>; 2],
     shape: TreeShape,
-    fragment: crate::core::proto::v2::Circuit<Gf2_128Field>,
+    fragment: Circuit<Gf2_128Field>,
 }
 impl<const Q: usize> P256Mode<Q> {
     /// The pads' bit groups in the binary witness.
@@ -269,7 +276,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     fn new(
         widths: Vec<usize>,
         npublic: usize,
-        suffix: &mut crate::runtime::v2::zk::storage::ReservedSuffix,
+        suffix: &mut ReservedSuffix,
     ) -> Result<Self, String> {
         let otp = [suffix.word::<Q>(), suffix.word::<Q>()];
         let plan = P256Plan::new(widths)?;
@@ -282,7 +289,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
             fragment,
         })
     }
-    fn fragment(&self) -> &crate::core::proto::v2::Circuit<Gf2_128Field> {
+    fn fragment(&self) -> &Circuit<Gf2_128Field> {
         &self.fragment
     }
     fn virtual_inputs(&self) -> usize {
@@ -310,16 +317,10 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         claim: &ModularClaim<P256Element>,
         values: &[P256Element],
         pads: &Self::Pads,
-        t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>,
+        t: &mut TranscriptRef<'_>,
         p: &P256Field,
         f: &Gf2_128Field,
-    ) -> Result<
-        (
-            Self::Message,
-            crate::runtime::v2::zk::VirtualInputs<Gf2_128>,
-        ),
-        String,
-    > {
+    ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String> {
         let alpha = conversion(t, p);
         let encoded = self.plan.encode(claim, &alpha, Some(values), p, f)?;
         let k = encoded.quotients.ok_or("P256 adapter quotients")?;
@@ -337,10 +338,10 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         &self,
         claim: &ModularClaim<P256Element>,
         masked: &Self::Message,
-        t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>,
+        t: &mut TranscriptRef<'_>,
         p: &P256Field,
         f: &Gf2_128Field,
-    ) -> Result<crate::runtime::v2::zk::VirtualInputs<Gf2_128>, String> {
+    ) -> Result<VirtualInputs<Gf2_128>, String> {
         let alpha = conversion(t, p);
         let encoded = self.plan.encode(claim, &alpha, None, p, f)?;
         absorb_masked(t, masked);

@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use crate::{
     compile::algebra::{
         fp::{FpField, FpParameters},
-        CompileField,
+        CompileField, CompileNat,
     },
     core::algebra::{
         AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU128Conversions,
@@ -48,7 +48,7 @@ fn get_test_fields() -> Vec<TestFieldCase> {
         .map(|(len_bytes, modulo)| TestFieldCase {
             field: FpField::new_field(FpParameters {
                 length_bytes: len_bytes,
-                modulo: crate::compile::algebra::CompileNat::<6>::from_biguint(&modulo),
+                modulo: CompileNat::<6>::from_biguint(&modulo),
             }),
             modulo,
             length_bytes: len_bytes,
@@ -82,12 +82,7 @@ fn test_arithmetic() {
         // Addition: (10 + 12) mod p
         let sum = f.addf(&a, &b);
         let expected_sum = (BigUint::from(10u32) + BigUint::from(12u32)) % modulo;
-        assert_eq!(
-            sum,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
-                expected_sum
-            ))
-        );
+        assert_eq!(sum, f.reduce_nat(&CompileNat::<6>::from(expected_sum)));
 
         // Subtraction: (10 - 12) mod p
         let diff = f.subf(&a, &b);
@@ -96,22 +91,12 @@ fn test_arithmetic() {
         } else {
             (BigUint::from(10u32) + modulo - BigUint::from(12u32)) % modulo
         };
-        assert_eq!(
-            diff,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
-                expected_diff
-            ))
-        );
+        assert_eq!(diff, f.reduce_nat(&CompileNat::<6>::from(expected_diff)));
 
         // Multiplication: (10 * 12) mod p
         let prod = f.mulf(&a, &b);
         let expected_prod = (BigUint::from(10u32) * BigUint::from(12u32)) % modulo;
-        assert_eq!(
-            prod,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
-                expected_prod
-            ))
-        );
+        assert_eq!(prod, f.reduce_nat(&CompileNat::<6>::from(expected_prod)));
 
         // Inversion
         let inv = f.invert(&a);
@@ -129,12 +114,7 @@ fn test_negation() {
         let a = f.u64_to_element(5);
         let neg_a = f.neg(&a);
         let expected_neg = modulo - BigUint::from(5u32);
-        assert_eq!(
-            neg_a,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
-                expected_neg
-            ))
-        );
+        assert_eq!(neg_a, f.reduce_nat(&CompileNat::<6>::from(expected_neg)));
         assert!(f.is_zero(&f.addf(&a, &neg_a)));
     }
 }
@@ -163,13 +143,11 @@ fn test_large_number_reduction() {
         let f = &case.field;
         let modulo = &case.modulo;
 
-        let a = f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
-            modulo.clone(),
-        ));
+        let a = f.reduce_nat(&CompileNat::<6>::from(modulo.clone()));
         assert!(f.is_zero(&a));
 
         let b_val = modulo + BigUint::from(2u32);
-        let b = f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(b_val));
+        let b = f.reduce_nat(&CompileNat::<6>::from(b_val));
         assert_eq!(b, f.u64_to_element(2));
     }
 }
@@ -178,12 +156,12 @@ fn test_large_number_reduction() {
 fn test_integer_conversions_reject_noncanonical_values() {
     let f = FpField::<TestFpTag>::new_field(FpParameters {
         length_bytes: 2,
-        modulo: crate::compile::algebra::CompileNat::<6>::from(1009u64),
+        modulo: CompileNat::<6>::from(1009u64),
     });
 
     assert_eq!(
         f.u64_to_element(1008),
-        f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(1008u64))
+        f.reduce_nat(&CompileNat::<6>::from(1008u64))
     );
     assert!(std::panic::catch_unwind(|| f.u64_to_element(1009)).is_err());
     assert!(std::panic::catch_unwind(|| f.u64_to_element(1010)).is_err());
@@ -194,18 +172,12 @@ fn test_integer_conversions_reject_noncanonical_values() {
 #[test]
 fn test_compile_nat_enforces_word_width() {
     let max_value = (BigUint::from(1u32) << 384) - 1u32;
-    let max_nat = crate::compile::algebra::CompileNat::<6>::from_biguint(&max_value);
+    let max_nat = CompileNat::<6>::from_biguint(&max_value);
     assert_eq!(max_nat.to_bytes_le().len(), 6 * 8);
 
     let oversized = BigUint::from(1u32) << 384;
-    assert!(std::panic::catch_unwind(|| {
-        crate::compile::algebra::CompileNat::<6>::from_biguint(&oversized)
-    })
-    .is_err());
-    assert!(
-        std::panic::catch_unwind(|| crate::compile::algebra::CompileNat::<6>::from(oversized))
-            .is_err()
-    );
+    assert!(std::panic::catch_unwind(|| { CompileNat::<6>::from_biguint(&oversized) }).is_err());
+    assert!(std::panic::catch_unwind(|| CompileNat::<6>::from(oversized)).is_err());
 }
 
 #[test]
@@ -214,7 +186,7 @@ fn test_field_constructor_rejects_invalid_representation() {
         assert!(std::panic::catch_unwind(|| {
             FpField::<TestFpTag>::new_field(FpParameters {
                 length_bytes: 1,
-                modulo: crate::compile::algebra::CompileNat::<6>::from(modulo),
+                modulo: CompileNat::<6>::from(modulo),
             })
         })
         .is_err());
@@ -223,7 +195,7 @@ fn test_field_constructor_rejects_invalid_representation() {
     assert!(std::panic::catch_unwind(|| {
         FpField::<TestFpTag>::new_field(FpParameters {
             length_bytes: 2,
-            modulo: crate::compile::algebra::CompileNat::<6>::from(65537u64),
+            modulo: CompileNat::<6>::from(65537u64),
         })
     })
     .is_err());
@@ -236,12 +208,12 @@ fn test_fp_basis() {
     // 1. Field of size 65537 (prime)
     let f_65537 = FpField::<TestFpTag>::new_field(FpParameters {
         length_bytes: 3,
-        modulo: crate::compile::algebra::CompileNat::<6>::from(65537u64),
+        modulo: CompileNat::<6>::from(65537u64),
     });
 
     assert_eq!(f_65537.pseudo_dimension(), 16);
 
-    let mut seen: HashSet<crate::compile::algebra::CompileNat<6>> = HashSet::new();
+    let mut seen: HashSet<CompileNat<6>> = HashSet::new();
     for mask in 0..(1 << 16) {
         let mut val = f_65537.zero();
         for i in 0..16 {
@@ -259,12 +231,12 @@ fn test_fp_basis() {
     // 2. Largest prime smaller than 65536 is 65521
     let f_65521 = FpField::<TestFpTag>::new_field(FpParameters {
         length_bytes: 2,
-        modulo: crate::compile::algebra::CompileNat::<6>::from(65521u64),
+        modulo: CompileNat::<6>::from(65521u64),
     });
 
     assert_eq!(f_65521.pseudo_dimension(), 15);
 
-    let mut seen_large_prime: HashSet<crate::compile::algebra::CompileNat<6>> = HashSet::new();
+    let mut seen_large_prime: HashSet<CompileNat<6>> = HashSet::new();
     for mask in 0..(1 << 15) {
         let mut val = f_65521.zero();
         for i in 0..15 {

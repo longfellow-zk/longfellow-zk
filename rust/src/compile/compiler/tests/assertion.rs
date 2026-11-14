@@ -18,9 +18,11 @@ use crate::{
         compiler::{
             algsimp::AlgebraicRewriter,
             arena::CompilerArena,
+            assertion::rewrite,
             cse::Cse,
             ir::{AssertionItem, Expr, RewriteT},
         },
+        logic::AssertionScope,
     },
     core::algebra::{Nat, SupportsNatConversions, SupportsU64Conversions},
 };
@@ -57,7 +59,7 @@ fn test_rewrite_algebraic_simplification() {
 #[test]
 fn test_rewrite_coalesces_algebraically_equal_assertions() {
     let f = P256Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let aid1 = tracker.new_leaf("first");
     let aid2 = tracker.new_leaf("second");
     let source_arena = CompilerArena::new();
@@ -73,8 +75,7 @@ fn test_rewrite_coalesces_algebraically_equal_assertions() {
     ]);
 
     let target_arena = CompilerArena::new();
-    let rewritten =
-        crate::compile::compiler::assertion::rewrite(&target_arena, &f, assertions, &tracker);
+    let rewritten = rewrite(&target_arena, &f, assertions, &tracker);
     assert_eq!(rewritten.len(), 1);
     assert_eq!(rewritten[0].id, aid1);
 }

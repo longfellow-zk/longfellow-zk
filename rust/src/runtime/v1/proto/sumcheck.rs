@@ -20,7 +20,10 @@
 //! for compatibility with the C++ verifier.
 
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::v1::{Circuit, Layer},
+    },
     runtime::v1::proto::util::{read_elt_field, write_elt_field},
 };
 
@@ -235,16 +238,9 @@ fn invalid(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 impl SumcheckProofGeometry {
-    pub fn from_circuit<F: SerializableField>(
-        circuit: &crate::core::proto::v1::Circuit<F>,
-    ) -> Self {
+    pub fn from_circuit<F: SerializableField>(circuit: &Circuit<F>) -> Self {
         Self {
-            logw_layers: circuit
-                .raw
-                .layers
-                .iter()
-                .map(crate::core::proto::v1::Layer::logw)
-                .collect(),
+            logw_layers: circuit.raw.layers.iter().map(Layer::logw).collect(),
         }
     }
     /// Four evaluations per round and two endpoint claims are transmitted.

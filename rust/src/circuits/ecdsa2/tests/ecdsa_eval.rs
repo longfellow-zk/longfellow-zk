@@ -19,9 +19,11 @@ use crate::{
         algebra::{
             p256::P256Field, q256::Q256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField,
         },
-        logic::EvalLogic,
+        logic::{AssertionScope, EvalLogic},
     },
-    core::algebra::{ec::Curve, Nat, SupportsNatConversions},
+    core::algebra::{
+        ec::Curve, HasLookupPoints, Nat, SupportsNatConversions, SupportsU64Conversions,
+    },
 };
 
 fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
@@ -48,10 +50,7 @@ fn char_to_digit(c: u8) -> u8 {
 
 fn test_ecdsa_secp256r1_generic<
     const W: usize,
-    F: CompilePrimeField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints
-        + crate::core::algebra::SupportsU64Conversions,
+    F: CompilePrimeField + SupportsNatConversions<W> + HasLookupPoints + SupportsU64Conversions,
     FnR: CompileField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
@@ -76,7 +75,7 @@ fn test_ecdsa_secp256r1_generic<
     let concrete_derived = derived(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
 
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = L::new(f, &tracker);
 
     let circuit_given = evaluate_given(&concrete_given, &logic);
@@ -100,8 +99,8 @@ fn test_ecdsa_signature_tampering_generic<
     const W: usize,
     F: CompilePrimeField
         + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints
-        + crate::core::algebra::SupportsU64Conversions
+        + HasLookupPoints
+        + SupportsU64Conversions
         + Clone
         + 'static,
     FnR: CompileField + SupportsNatConversions<W, N = F::N>,
@@ -122,7 +121,7 @@ fn test_ecdsa_signature_tampering_generic<
 
     for c in corruptors {
         type L<'a, F> = EvalLogic<'a, F>;
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = L::new(f, &tracker);
         let ecdsa = EcdsaCircuit::new(&logic, curve);
         let mut g = concrete_given.clone();
@@ -151,10 +150,7 @@ fn test_ecdsa_signature_tampering() {
 
 fn test_sign_and_verify_ecdsa_generic<
     const W: usize,
-    F: CompilePrimeField
-        + SupportsNatConversions<W>
-        + crate::core::algebra::HasLookupPoints
-        + crate::core::algebra::SupportsU64Conversions,
+    F: CompilePrimeField + SupportsNatConversions<W> + HasLookupPoints + SupportsU64Conversions,
     FnR: CompileField + SupportsNatConversions<W, N = F::N>,
     C: Curve<W, F = F, N = F::N>,
 >(
@@ -163,7 +159,7 @@ fn test_sign_and_verify_ecdsa_generic<
     fn_field: &FnR,
 ) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = L::new(f, &tracker);
 
     // Private key and nonce
@@ -209,7 +205,7 @@ fn exact_digest_rejects_a_coordinate_field_alias() {
         &CompileNat::from_u64(987654321),
         &digest,
     );
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let given = evaluate_given::<4, _, _>(&given, &logic);
     let derived = evaluate_derived::<4, _, _>(&derived, &logic);

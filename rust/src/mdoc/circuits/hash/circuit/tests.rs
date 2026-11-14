@@ -3,19 +3,25 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::{
+    circuits::sha256::constants::INITIAL,
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
-        logic::EvalLogic,
+        compiler::{compile_v2, segment_circuit_v2},
+        eval::eval_circuit_fc,
+        logic::{AssertionScope, EvalLogic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::Nat,
-    mdoc::circuits::{
-        cbor::test_utils::parse_test_data,
-        hash::{concrete, evaluate_derived, evaluate_given},
+    mdoc::{
+        circuits::{
+            cbor::test_utils::parse_test_data,
+            hash::{concrete, evaluate_derived, evaluate_given},
+        },
+        testcases::TEST_DATA,
     },
 };
 
 fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
-    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     concrete::given::<4, _>(concrete::hash_input_of_parsed_mdoc(
         &parsed,
         &parsed.all_attr_ids(),
@@ -26,7 +32,7 @@ fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
 #[test]
 fn doc_type_requires_the_complete_signed_length() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let hash = MdocHash::new(&logic, 0);
@@ -50,7 +56,7 @@ fn valid_until_must_end_before_sha_padding() {
     assert_eq!(witness.preimage.value[timestamp], 0x80);
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -68,7 +74,7 @@ fn valid_until_must_end_before_sha_padding() {
 #[test]
 fn fixed_field_reads_fit_the_entire_unpadded_range() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let hash = MdocHash::new(&logic, 0);
@@ -109,7 +115,7 @@ fn every_selected_field_reports_an_out_of_message_read() {
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
     for field in 0..6 {
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let mut wires = evaluate_given(&logic, &bits, &witness);
@@ -165,10 +171,10 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
     };
     let fc = Gf2_128Field::new();
     let f = RuntimeGf128::new();
-    let (circuit, _, symbols) = crate::compile::compiler::compile_v2(&fc, |logic| {
+    let (circuit, _, symbols) = compile_v2(&fc, |logic| {
         let bits = BitvecLogic::new(&logic);
         let io = BitvecIO::new(&bits);
-        let mut position = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut position = K_FIRST_WIRE_POSITION;
         let offset = io.next::<16>(&mut position);
         let length = io.next::<16>(&mut position);
         let consumed = io.next::<16>(&mut position);
@@ -177,7 +183,7 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
             1,
         )
     });
-    let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
+    let circuit = segment_circuit_v2(&fc, circuit);
     for (offset, length, consumed, valid) in [
         (26u16, 101u16, 75u16, true),
         (26, 100, 75, false),
@@ -196,8 +202,7 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
                 })
             })
             .collect();
-        let result =
-            crate::compile::eval::eval_circuit_fc(&fc, &f, &circuit, &symbols, &inputs).unwrap();
+        let result = eval_circuit_fc(&fc, &f, &circuit, &symbols, &inputs).unwrap();
         if valid {
             result.assert_all_passed();
         } else {
@@ -225,7 +230,7 @@ fn signed_envelope_constraints_reject_rehashed_documents() {
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);
         let derived = concrete::derived::<4, _>(&witness);
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -266,7 +271,7 @@ fn doc_type_checks_types_lengths_and_actual_read_end() {
         witness.preimage.value.fill(0);
         witness.preimage.value[start..start + bytes.len()].copy_from_slice(&bytes);
         witness.preimage.len = (start + bytes.len()) as u16;
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -314,7 +319,7 @@ fn doc_type_header_type_is_checked_after_rehashing() {
     let witness = concrete::given::<4, _>(input);
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -333,7 +338,7 @@ fn public_attribute_lengths_must_fit_the_allocated_arrays() {
     let derived = concrete::derived::<4, _>(&original);
     let f = Gf2_128Field::new();
     for name in [true, false] {
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let mut wires = evaluate_given(&logic, &bits, &original);
@@ -372,7 +377,7 @@ fn attribute_type_checks_reject_documents_with_fresh_hashes() {
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);
         let derived = concrete::derived::<4, _>(&witness);
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -396,19 +401,14 @@ fn sha256_matches_independent_reference_at_padding_boundaries() {
     for length in [0, 1, 55, 56, 63, 64, 119, 120, K_MSO_PREIMAGE_LEN - 9] {
         let message: Vec<_> = (0..length).map(|i| (i % 251) as u8).collect();
         let reference = Sha256::digest(&message);
-        let mut given = sha256msg::given(
-            &message,
-            &crate::circuits::sha256::constants::INITIAL,
-            K_MAX_SHA_BLOCKS,
-        )
-        .unwrap();
+        let mut given = sha256msg::given(&message, &INITIAL, K_MAX_SHA_BLOCKS).unwrap();
         let expected = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())
         });
         assert_eq!(given.expected_hash, expected, "length={length}");
         given.expected_hash = expected;
         let derived = sha256msg::derived(&given, K_MAX_SHA_BLOCKS);
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         Sha256Msg::<_, K_MAX_SHA_BLOCKS>::new(&logic)
@@ -439,7 +439,7 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
     let witness = fixture();
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let mut wires = evaluate_given(&logic, &bits, &witness);
@@ -452,7 +452,7 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
 fn namespace_text_must_precede_each_selected_digest_without_wrapping() {
     let mut witness = fixture();
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     for offset in [witness.namespace_offset_in_preimage, u16::MAX] {

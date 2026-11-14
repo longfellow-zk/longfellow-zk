@@ -14,49 +14,48 @@
 
 use super::mdoc_hash_corruptors;
 use crate::{
-    compile::algebra::{gf2_128::Gf2_128Field, CompileNat},
-    core::algebra::{Nat, SerializableField, SupportsU128Conversions},
+    compile::{
+        algebra::{gf2_128::Gf2_128Field, CompileNat},
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::K_FIRST_WIRE_POSITION,
+        proto::CircuitDebugSymbols,
+    },
+    core::{
+        algebra::{Nat, SerializableField, SupportsU128Conversions},
+        proto::{v2::Circuit, CircuitGeometry},
+    },
     mdoc::{
         circuits::{
-            cbor::test_utils::parse_test_data,
+            cbor::{encode_cbor_string, test_utils::parse_test_data},
             hash::{
-                derived, given, hash_input_of_parsed_mdoc, ConcreteDerived, ConcreteGiven, MdocHash,
+                allocate, derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
+                ConcreteGiven, MdocHash,
             },
             MdocHashCompileField,
         },
-        proto::K_ZSTD_LEVEL,
+        proto::{hash::constants::K_NAMESPACE_BYTES, K_ZSTD_LEVEL},
+        testcases::{BIRTHDATE_1971_09_01_MDOC_3, TEST_DATA},
     },
     runtime::algebra::RuntimeField,
 };
 
-pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(
-    fc: &FC,
-) -> (
-    crate::core::proto::v2::Circuit<FC>,
-    crate::core::proto::CircuitGeometry,
-)
+pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(fc: &FC) -> (Circuit<FC>, CircuitGeometry)
 where FC: MdocHashCompileField {
     let (circuit, stats, _) = compile_hash_circuit(fc);
     (circuit, stats)
 }
 
-fn compile_hash_circuit<FC>(
-    fc: &FC,
-) -> (
-    crate::core::proto::v2::Circuit<FC>,
-    crate::core::proto::CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-)
+fn compile_hash_circuit<FC>(fc: &FC) -> (Circuit<FC>, CircuitGeometry, CircuitDebugSymbols)
 where FC: MdocHashCompileField {
-    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
-    let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+    let mut pos = K_FIRST_WIRE_POSITION;
     let num_attrs = hash_input.attrs.len();
 
     super::compile(fc, |iologic| {
         let mdoc = MdocHash::new(&iologic, num_attrs);
-        let (given_wires, derived_wires, _) =
-            crate::mdoc::circuits::hash::allocate(&iologic, num_attrs, &mut pos);
+        let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
 
         (
             mdoc.assert_valid_presentation(&given_wires, &derived_wires),
@@ -125,7 +124,7 @@ where
     const EXPECTED_NAME_LEN: usize = 32;
     const EXPECTED_VALUE_LEN: usize = 64;
 
-    let mut inputs = crate::compile::eval::initial_inputs(fr);
+    let mut inputs = initial_inputs(fr);
 
     for i in K_TIMESTAMP_DIGITS {
         push_bits(&mut inputs, u128::from(given.hash_input.now[i]), 8, fr);
@@ -164,7 +163,7 @@ where
     push_bytes(
         &mut inputs,
         &given.hash_input.expected_namespace,
-        crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES,
+        K_NAMESPACE_BYTES,
         fr,
     );
     push_bits(
@@ -234,15 +233,14 @@ fn test_mdoc_zk_circuits_hash_for_field<
     fc: &FC,
     _fr: &FR,
 ) {
-    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
     let num_attrs = hash_input.attrs.len();
 
     let (_circuit, stats, _symbols) = super::compile(fc, |iologic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let mdoc = MdocHash::new(&iologic, num_attrs);
-        let (given_wires, derived_wires, _) =
-            crate::mdoc::circuits::hash::allocate(&iologic, num_attrs, &mut pos);
+        let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
 
         (
             mdoc.assert_valid_presentation(&given_wires, &derived_wires),
@@ -251,7 +249,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
         )
     });
 
-    crate::compile::compiler::dump_stats("mdoc_hash", &_circuit, &stats);
+    dump_stats("mdoc_hash", &_circuit, &stats);
 }
 
 #[test]
@@ -267,13 +265,13 @@ fn test_compile_mdoc_hash_corruptors() {
     let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
     let (circuit, _, symbols) = compile_hash_circuit(&fc);
 
-    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
     let base_given = given::<4, _>(hash_input);
     let base_derived = derived::<4, _>(&base_given);
 
-    crate::compile::eval::eval_circuit_fc(
+    eval_circuit_fc(
         &fc,
         &fr,
         &circuit,
@@ -286,7 +284,7 @@ fn test_compile_mdoc_hash_corruptors() {
     for corruptor in mdoc_hash_corruptors::all_mdoc_hash_corruptors() {
         let mut corrupted = base_given.clone();
         (corruptor.corrupt)(&mut corrupted);
-        let result = crate::compile::eval::eval_circuit_fc(
+        let result = eval_circuit_fc(
             &fc,
             &fr,
             &circuit,
@@ -311,7 +309,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     let gf2_c = Gf2_128Field::new();
     let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
 
-    crate::compile::compiler::dump_stats("mdoc_hash_serialized", &circuit, &stats);
+    dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
         251, 174, 88, 50, 81, 103, 182, 247, 37, 69, 200, 135, 186, 204, 45, 32, 45, 6, 105, 49,
@@ -338,8 +336,7 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
 
 #[test]
 fn test_paranoid_hash_input_subsets_and_permutations() {
-    let (_, parsed, now) =
-        parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&BIRTHDATE_1971_09_01_MDOC_3);
     let all_ids = parsed.all_attr_ids();
     assert!(
         all_ids.len() >= 4,
@@ -383,7 +380,7 @@ fn test_paranoid_hash_input_subsets_and_permutations() {
                 let attr_name_bytes = &input.attrs[i].expected_name;
                 assert_eq!(
                     attr_name_bytes,
-                    &crate::mdoc::circuits::cbor::encode_cbor_string(req_id),
+                    &encode_cbor_string(req_id),
                     "Mismatch at permutation {p:?}, index {i}"
                 );
             }

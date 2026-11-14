@@ -20,6 +20,7 @@ use crate::{
             cse::Cse,
             ir::{AssertionItem, RewriteT},
         },
+        logic::AssertionScope,
     },
     core::algebra::SupportsNatConversions,
 };
@@ -59,7 +60,7 @@ fn test_cse() {
 }
 
 fn run_test_cse_assertions<const W: usize, F: CompileField + SupportsNatConversions<W>>(f: &F) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let aid1 = tracker.new_leaf("assert_input");
     let _aid2 = tracker.new_leaf("assert_one");
     let arena = CompilerArena::<F>::new();

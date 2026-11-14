@@ -28,7 +28,7 @@
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::RuntimeField,
+        algebra::{blas::dot, RuntimeField},
         v1::{
             proto::sumcheck::{RoundPoly, SumcheckProof},
             sumcheck::VerifierData,
@@ -234,10 +234,7 @@ impl<E: Clone> VerificationRelations<E> {
             residuals.push(value);
         }
         let mut value = self.input.linear.evaluate(pads, f)?;
-        f.add(
-            &mut value,
-            &crate::runtime::algebra::blas::dot(&self.input.weights, inputs, f),
-        );
+        f.add(&mut value, &dot(&self.input.weights, inputs, f));
         residuals.push(value);
         Ok(residuals)
     }

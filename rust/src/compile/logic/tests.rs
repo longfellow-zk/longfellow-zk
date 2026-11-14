@@ -15,14 +15,14 @@
 use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileField},
-        logic::{EvalContext, EvalLogic, EvalWire, Logic},
+        logic::{AssertionScope, EvalContext, EvalLogic, EvalWire, Logic},
     },
     core::algebra::SupportsU64Conversions,
 };
 
 fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(field, &tracker);
     let z = l.zero();
     let o = l.one();
@@ -54,7 +54,7 @@ fn test_eval_logic() {
 
 fn run_test_eval_assert0_panic<F: CompileField>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(field, &tracker);
     let o = l.one();
     let assert_o = l.assert0("assert_o", &o);
@@ -69,7 +69,7 @@ fn test_eval_assert0_panic() {
 
 fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(field, &tracker);
 
     let one = l.one();
@@ -130,7 +130,7 @@ fn test_eval_with_assertions_propagation() {
 fn test_eval_assertion_dag_paths() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(&field, &tracker);
 
     let z = l.zero();
@@ -158,7 +158,7 @@ fn test_eval_assertion_dag_paths() {
 fn test_eval_assert_mapi() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(&field, &tracker);
     let z = l.zero();
 
@@ -178,7 +178,7 @@ fn test_eval_assert_mapi() {
 fn test_eval_assertion_status_tracking() {
     let field = Gf2_128Field::new();
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = L::new(&field, &tracker);
     let z = l.zero();
     let o = l.one();
@@ -205,7 +205,7 @@ fn test_eval_assertion_status_tracking() {
 #[test]
 fn test_eval_attached_assertion_keeps_exact_scoped_path() {
     let field = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new(&field, &tracker);
     let computed = l.one();
     let witness = l.zero();
@@ -228,7 +228,7 @@ fn test_eval_attached_assertion_keeps_exact_scoped_path() {
 #[test]
 fn test_eval_shared_attached_assertion_is_reported_once() {
     let field = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new(&field, &tracker);
     let bad = l.assert0("attached", &l.one());
     let wire = l.with_assertions(bad, &l.zero());
@@ -243,7 +243,7 @@ fn test_eval_shared_attached_assertion_is_reported_once() {
 #[test]
 fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
     let field = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new(&field, &tracker);
     let left = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
     let right = l.with_assertions(l.assert0("same", &l.one()), &l.zero());
@@ -260,7 +260,7 @@ fn test_eval_distinct_assertions_with_the_same_path_remain_distinct() {
 #[test]
 fn test_eval_union_reports_failure_from_any_alias() {
     let field = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new(&field, &tracker);
     let passed = l.assert0("passed", &l.zero());
     let failed = l.assert0("failed", &l.one());

@@ -15,19 +15,17 @@
 use crate::{
     circuits::{
         bitvec::{Bitvec, BitvecLogic},
-        boolean::Boolean,
+        boolean::{Bitw, Boolean},
         memcmp::Memcmp,
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        logic::{AssertionScope, Eltw, EvalLogic, Logic},
+    },
 };
 
-fn compare_bool<L: crate::compile::logic::Logic>(
-    boolean: &Boolean<L>,
-    want: bool,
-    got: &crate::circuits::boolean::Bitw<L>,
-) where
-    crate::compile::logic::Eltw<L>: PartialEq + std::fmt::Debug,
-{
+fn compare_bool<L: Logic>(boolean: &Boolean<L>, want: bool, got: &Bitw<L>)
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(&boolean.konst(want));
     assert_eq!(got_val, want_val);
@@ -36,7 +34,7 @@ fn compare_bool<L: crate::compile::logic::Logic>(
 #[test]
 fn test_memcmp_leq() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);

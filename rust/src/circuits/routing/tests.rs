@@ -21,7 +21,8 @@ use crate::{
     },
     compile::{
         algebra::p256::P256Field,
-        logic::{Logic, LogicIO},
+        compiler::dump_stats,
+        logic::{AssertionScope, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::algebra::SupportsU64Conversions,
 };
@@ -36,7 +37,7 @@ fn test_compile_routing() {
         let n = 16;
         let unroll = 2;
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let amount_bv: Bitvec<_, 4> = bitvec_io.next(&mut pos);
 
         let a_wires: Vec<_> = (0..n).map(|_| iologic.next(&mut pos)).collect();
@@ -52,7 +53,7 @@ fn test_compile_routing() {
         (iologic.assert_all("shifte_routing", &asserts), 1, 0)
     });
 
-    crate::compile::compiler::dump_stats("shifte_16_16_2", &circuit, &stats);
+    dump_stats("shifte_16_16_2", &circuit, &stats);
 
     assert_eq!(stats.ninput, 21);
     assert_eq!(stats.npublic_input, 0);
@@ -83,7 +84,7 @@ fn run_eval_test_e_generic<
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
@@ -139,7 +140,7 @@ fn run_eval_test_b_generic<const W: usize, F: CompileField + SupportsNatConversi
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
@@ -206,7 +207,7 @@ fn run_eval_test_bitvec_generic<const W: usize, F: CompileField + SupportsNatCon
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);

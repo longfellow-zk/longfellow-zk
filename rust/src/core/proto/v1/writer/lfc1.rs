@@ -16,8 +16,11 @@ use std::collections::HashMap;
 
 use super::CircuitWriter;
 use crate::core::{
-    algebra::SerializableField,
-    proto::v1::{Circuit, BYTES_PER_SIZE_T},
+    algebra::{FieldID, SerializableField},
+    proto::{
+        sane_logw,
+        v1::{Circuit, BYTES_PER_SIZE_T},
+    },
 };
 
 fn serialize_num(bytes: &mut Vec<u8>, mut g: usize) {
@@ -33,7 +36,7 @@ fn serialize_num(bytes: &mut Vec<u8>, mut g: usize) {
     }
 }
 
-fn serialize_field_id(bytes: &mut Vec<u8>, id: crate::core::algebra::FieldID) {
+fn serialize_field_id(bytes: &mut Vec<u8>, id: FieldID) {
     serialize_num(bytes, id as usize);
 }
 
@@ -94,10 +97,7 @@ fn to_bytes_lfc1<F: SerializableField>(
 
     // Serialize layers and quads
     for layer in &sc_c.raw.layers {
-        assert!(
-            crate::core::proto::sane_logw(layer.logw),
-            "layer logw must be sane"
-        );
+        assert!(sane_logw(layer.logw), "layer logw must be sane");
         serialize_size(&mut bytes, layer.logw);
         serialize_size(&mut bytes, layer.nw);
         serialize_size(&mut bytes, layer.num_terms());

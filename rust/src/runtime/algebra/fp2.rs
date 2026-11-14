@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::AlgebraicField,
+    core::algebra::{AlgebraicField, BareField, SupportsU64Conversions},
     runtime::algebra::{RuntimeField, SupportsQuadraticExtension},
 };
 
@@ -90,9 +90,7 @@ impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> crate::core::algebra::BareField
-    for Fp2Field<'_, W, F>
-{
+impl<const W: usize, F: SupportsQuadraticExtension<W>> BareField for Fp2Field<'_, W, F> {
     type E = Fp2Element<W, F>;
 }
 
@@ -192,10 +190,8 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Fi
     }
 }
 
-impl<
-        const W: usize,
-        F: SupportsQuadraticExtension<W> + crate::core::algebra::SupportsU64Conversions,
-    > crate::core::algebra::SupportsU64Conversions for Fp2Field<'_, W, F>
+impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
+    SupportsU64Conversions for Fp2Field<'_, W, F>
 {
     fn u64_to_element(&self, n: u64) -> Self::E {
         Fp2Element {

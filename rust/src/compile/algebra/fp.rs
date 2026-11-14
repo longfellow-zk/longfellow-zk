@@ -18,15 +18,18 @@ use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
 use crate::{
-    compile::algebra::CompileField,
-    core::algebra::{AlgebraicField, SupportsNatConversions},
+    compile::algebra::{CompileField, CompileNat, CompilePrimeField},
+    core::algebra::{
+        AlgebraicField, BareField, Comparable, FieldID, HasLookupPoints, SerializableField,
+        SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
+    },
 };
 
 /// Represents parameter constraints for a prime field
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FpParameters<const W: usize> {
     pub length_bytes: usize,
-    pub modulo: crate::compile::algebra::CompileNat<W>,
+    pub modulo: CompileNat<W>,
 }
 
 /// Represents the mathematical field
@@ -74,11 +77,11 @@ impl<T> FpField<T> {
     }
 }
 
-impl<T> crate::core::algebra::BareField for FpField<T> {
+impl<T> BareField for FpField<T> {
     type E = Elt<T>;
 }
 
-impl<T> crate::core::algebra::Comparable for FpField<T> {
+impl<T> Comparable for FpField<T> {
     fn compare(&self, a: &Self::E, b: &Self::E) -> std::cmp::Ordering {
         a.n.cmp(&b.n)
     }
@@ -152,7 +155,7 @@ impl<T> CompileField for FpField<T> {
 }
 
 impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
-    type N = crate::compile::algebra::CompileNat<W>;
+    type N = CompileNat<W>;
 
     fn reduce_nat(&self, n: &Self::N) -> Self::E {
         let value = &n.0 % &self.modulo;
@@ -163,7 +166,7 @@ impl<const W: usize, T> SupportsNatConversions<W> for FpField<T> {
     }
 
     fn to_nat(&self, e: &Self::E) -> Self::N {
-        crate::compile::algebra::CompileNat::from_biguint(&e.n)
+        CompileNat::from_biguint(&e.n)
     }
 }
 
@@ -202,11 +205,11 @@ impl<T> std::fmt::Debug for Elt<T> {
     }
 }
 
-impl<T> crate::compile::algebra::CompilePrimeField for FpField<T> {}
+impl<T> CompilePrimeField for FpField<T> {}
 
-impl<T> crate::core::algebra::SerializableField for FpField<T> {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::of_prime_field(&self.serialized_mone())
+impl<T> SerializableField for FpField<T> {
+    fn field_id(&self) -> FieldID {
+        FieldID::of_prime_field(&self.serialized_mone())
     }
     fn is_binary(&self) -> bool {
         false
@@ -253,7 +256,7 @@ impl<T> crate::core::algebra::SerializableField for FpField<T> {
     }
 }
 
-impl<T> crate::core::algebra::HasLookupPoints for FpField<T> {
+impl<T> HasLookupPoints for FpField<T> {
     fn lookup_point(&self, n: usize, i: usize) -> Self::E {
         let two_i = Elt {
             n: BigUint::from((2 * i) as u64),
@@ -267,7 +270,7 @@ impl<T> crate::core::algebra::HasLookupPoints for FpField<T> {
     }
 }
 
-impl<T> crate::core::algebra::SupportsU64Conversions for FpField<T> {
+impl<T> SupportsU64Conversions for FpField<T> {
     fn u64_to_element(&self, n: u64) -> Self::E {
         let value = BigUint::from(n);
         assert!(
@@ -281,7 +284,7 @@ impl<T> crate::core::algebra::SupportsU64Conversions for FpField<T> {
     }
 }
 
-impl<T> crate::core::algebra::SupportsU128Conversions for FpField<T> {
+impl<T> SupportsU128Conversions for FpField<T> {
     fn u128_to_element(&self, n: u128) -> Self::E {
         let value = BigUint::from(n);
         assert!(

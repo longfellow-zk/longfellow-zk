@@ -15,6 +15,7 @@
 use crate::{
     compile::{
         algebra::p256::P256Field as CompileP256,
+        compiler::compile_v1,
         logic::{Logic, LogicIO},
     },
     core::{
@@ -27,8 +28,8 @@ use crate::{
         v1::{
             proto::sumcheck::{LayerProof, SumcheckProof},
             sumcheck::{
-                eval::eval_circuit, prover::prove, verifier::verify, QuadRoundPoly,
-                TranscriptSumcheck,
+                derive_verifier_data, eval::eval_circuit, prover::prove, verifier::verify,
+                QuadRoundPoly, TranscriptSumcheck,
             },
             transcript::Transcript,
         },
@@ -55,7 +56,7 @@ fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
 #[test]
 fn test_sumcheck_prover_verifier_end_to_end() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v1(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v1(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -109,7 +110,7 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 #[test]
 fn test_sumcheck_prover_verifier_with_nonzero_pad() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v1(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v1(&fc, |iologic| {
         let x = iologic.input(1);
         let y = iologic.input(2);
         let z = iologic.mul(&x, &y);
@@ -168,7 +169,7 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 #[test]
 fn test_sumcheck_multi_layer() {
     let fc = CompileP256::new();
-    let (circ_comp, _, _) = crate::compile::compiler::compile_v1(&fc, |iologic| {
+    let (circ_comp, _, _) = compile_v1(&fc, |iologic| {
         let mut x = iologic.input(1);
         let y = iologic.input(2);
         for _ in 0..6 {
@@ -200,9 +201,7 @@ fn test_sumcheck_multi_layer() {
     let (proof, data) = prove(in_layers, &pad, &circ, &mut transcript_prover, &f);
     let mut independent = Transcript::new(b"test_multi_layer");
     independent.write_sumcheck_statement(&circ, &w0[..circ.raw.npublic_input], &f);
-    let derived =
-        crate::runtime::v1::sumcheck::derive_verifier_data(&circ, &proof, &mut independent, &f)
-            .unwrap();
+    let derived = derive_verifier_data(&circ, &proof, &mut independent, &f).unwrap();
     assert_eq!(data, derived);
 
     let mut transcript_verifier = Transcript::new(b"test_multi_layer");

@@ -17,10 +17,19 @@ use crate::{
         AlgebraicField, SerializableField, SupportsU128Conversions, SupportsU64Conversions,
     },
     runtime::{
-        algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
+        algebra::{
+            blas, fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
+        },
         v2::{
-            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
-            sumcheck::{prover::quad_round_poly, symbolic::build_constraints, LayerChallenges},
+            proto::{
+                sumcheck::{LayerProof, RoundPoly, SumcheckProof},
+                RoundLabel,
+            },
+            sumcheck::{
+                prover::quad_round_poly,
+                symbolic::{build_constraints, PadExpression},
+                LayerChallenges,
+            },
         },
     },
 };
@@ -140,7 +149,7 @@ fn round_constraints_match_polynomial_binary() {
 
 #[test]
 fn round_polynomial_and_constraints_extension() {
-    let f = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
+    let f = RuntimeFp24Ext6::new();
     let element = |x: u64| f.from_coefficients([x as u32, 1, 2, 3, 4, 5]);
     check_round_polynomial(&f, element);
     check_round_constraints(&f, element);
@@ -197,21 +206,20 @@ fn check_terminal<const W: usize, F: RuntimeField<W> + SerializableField>(
                 vec![],
                 f,
             );
-            let evaluate =
-                |expression: &crate::runtime::v2::sumcheck::symbolic::PadExpression<F::E>| {
-                    let mut value = expression.constant.clone();
-                    for (pad, coefficient) in &expression.terms {
-                        let cell = match pad {
-                            Pad::Claim { slot: 0, .. } => &pa,
-                            Pad::Claim { slot: 1, .. } => &pb,
-                            Pad::Product { .. } => &product,
-                            Pad::Cross { .. } => &pd,
-                            _ => panic!("unexpected pad in a zero-round terminal"),
-                        };
-                        f.fma(&mut value, coefficient, cell);
-                    }
-                    value
-                };
+            let evaluate = |expression: &PadExpression<F::E>| {
+                let mut value = expression.constant.clone();
+                for (pad, coefficient) in &expression.terms {
+                    let cell = match pad {
+                        Pad::Claim { slot: 0, .. } => &pa,
+                        Pad::Claim { slot: 1, .. } => &pb,
+                        Pad::Product { .. } => &product,
+                        Pad::Cross { .. } => &pd,
+                        _ => panic!("unexpected pad in a zero-round terminal"),
+                    };
+                    f.fma(&mut value, coefficient, cell);
+                }
+                value
+            };
             let residual = evaluate(&constraints.layers[0]);
             let expected = if dishonest {
                 f.mulf(&c2, &f.mulf(&f.subf(&r, &r1), &f.subf(&r, &r2)))
@@ -244,7 +252,7 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
     let cross = f.u64_to_element(13);
     let mut prover = Transcript::new(b"terminal-order");
     let mut reference = prover.fork_for_test();
-    let expected = reference.round(crate::runtime::v2::proto::RoundLabel::Terminal, |mut w| {
+    let expected = reference.round(RoundLabel::Terminal, |mut w| {
         w.write_elt_field(&cross, &f);
         let mut r = w.begin_squeeze();
         let x = r.elt_field(&f);
@@ -260,13 +268,12 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
 
     let claims = [f.u64_to_element(17), f.u64_to_element(19)];
     let mut changed = prover.fork_for_test();
-    let expected_alpha =
-        reference.round(crate::runtime::v2::proto::RoundLabel::Combine, |mut w| {
-            w.write_elt_field_slice(&claims, &f);
-            let mut r = w.begin_squeeze();
-            let x = r.elt_field(&f);
-            r.end_round(x)
-        });
+    let expected_alpha = reference.round(RoundLabel::Combine, |mut w| {
+        w.write_elt_field_slice(&claims, &f);
+        let mut r = w.begin_squeeze();
+        let x = r.elt_field(&f);
+        r.end_round(x)
+    });
     let alpha = transcript::end_layer::<4, _>(&claims, &mut prover.borrow(), &f, |_| {});
     assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));

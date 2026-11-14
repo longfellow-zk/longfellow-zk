@@ -31,15 +31,18 @@ use crate::{
     },
     runtime::{
         algebra::{
+            fp2::Fp2Field,
             gf2_128::Gf2_128Field,
             p256::P256Field,
+            q256::Q256Field,
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
             secp256r1::Secp256r1,
-            SupportsFFT,
+            RuntimeNat, SupportsFFT,
         },
-        random::PrivateRandom,
+        random::{PrivateRandom, SecureRandomEngine},
+        v2::transcript::EncodedProof,
     },
 };
 
@@ -55,7 +58,7 @@ pub fn run_mdoc_prover(
     now: &str,
     doc_type: &str,
 ) -> Result<Vec<u8>, MdocProverErrorCode> {
-    let mut rng = crate::runtime::random::SecureRandomEngine::new();
+    let mut rng = SecureRandomEngine::new();
     run_mdoc_prover_inner(
         zk_spec,
         circuits_compressed,
@@ -110,7 +113,7 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     now: &str,
     doc_type: &str,
     rng: &mut RNG,
-) -> Result<crate::runtime::v2::transcript::EncodedProof, MdocProverErrorCode> {
+) -> Result<EncodedProof, MdocProverErrorCode> {
     if !zk_spec.supports_version() {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
@@ -135,13 +138,13 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
         parse_pk_coordinate(pky, &p256).map_err(|_| MdocProverErrorCode::InvalidInput)?,
     );
 
-    let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
+    let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
     let make_interpolator_sig =
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
-    let q256 = crate::runtime::algebra::q256::Q256Field::new();
+    let q256 = Q256Field::new();
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
@@ -150,7 +153,7 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     let (c_sig, c_hash) = super::circuits::for_spec(zk_spec, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
-    let parsed: ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>> =
+    let parsed: ParsedMdoc<RuntimeNat<4>> =
         super::document::parse(mdoc_bytes, transcript, doc_type, now, &p256).map_err(|err| {
             match err {
                 super::document::Error::Encoding(MdocParseError::TooBig) => {

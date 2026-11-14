@@ -14,6 +14,8 @@
 
 //! V1 Merkle proof messages and their wire encoding.
 
+use crate::runtime::v1::proto::util::{read_bytes_32, read_size_4bytes};
+
 pub const DIGEST_LEN: usize = 32;
 pub const NONCE_LEN: usize = 32;
 
@@ -57,7 +59,7 @@ impl MerkleProof {
     ) -> Result<Vec<MerkleNonce>, std::io::Error> {
         let mut nonce = Vec::with_capacity(num_queries);
         for _ in 0..num_queries {
-            let n_bytes = crate::runtime::v1::proto::util::read_bytes_32(bytes)?;
+            let n_bytes = read_bytes_32(bytes)?;
             nonce.push(MerkleNonce { bytes: n_bytes });
         }
         Ok(nonce)
@@ -79,7 +81,7 @@ impl MerkleProof {
         num_queries: usize,
         mc_pathlen: usize,
     ) -> Result<Vec<Digest>, std::io::Error> {
-        let path_len = crate::runtime::v1::proto::util::read_size_4bytes(bytes)?;
+        let path_len = read_size_4bytes(bytes)?;
         let max_sz = num_queries.checked_mul(mc_pathlen).ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -95,7 +97,7 @@ impl MerkleProof {
 
         let mut path = Vec::with_capacity(path_len);
         for _ in 0..path_len {
-            let p_bytes = crate::runtime::v1::proto::util::read_bytes_32(bytes)?;
+            let p_bytes = read_bytes_32(bytes)?;
             path.push(Digest { data: p_bytes });
         }
         Ok(path)

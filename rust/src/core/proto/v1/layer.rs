@@ -15,7 +15,7 @@
 use std::fmt;
 
 use super::{Term, TermDelta};
-use crate::core::algebra::SerializableField;
+use crate::core::{algebra::SerializableField, proto::v1::cache::ExactDeltaTableBuilder};
 
 pub struct Layer<F: SerializableField> {
     pub(in crate::core::proto) nw: usize,
@@ -85,7 +85,7 @@ impl<F: SerializableField> Layer<F> {
         runs: Vec<Vec<TermDelta>>,
         tokens: Vec<u32>,
     ) -> Self {
-        let mut db = crate::core::proto::v1::cache::ExactDeltaTableBuilder::new();
+        let mut db = ExactDeltaTableBuilder::new();
         let mut delta_segments = Vec::with_capacity(runs.len());
         for run in runs {
             let mut seg = Vec::with_capacity(run.len());

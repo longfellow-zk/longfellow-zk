@@ -17,7 +17,11 @@
 //! The caller supplies an interpolation domain with a stable ordered point set.
 //! The prover and verifier use that same domain and field. Circuit metadata
 //! determines the witness and pad layout passed to Polygero.
-use crate::runtime::algebra::{range_interpolation::EvaluationDomain, ZkField};
+use crate::runtime::algebra::{
+    packing::{BaseElement, PackingField},
+    range_interpolation::EvaluationDomain,
+    ZkField,
+};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
     core::proto::v2::Circuit,
@@ -78,7 +82,7 @@ pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDoma
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) fn prepare_circuit_layout<
     const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
+    F: ZkField<W> + PackingField,
     D: EvaluationDomain<W, F>,
     X: crate::runtime::algebra::packing::PackingExtension<Ambient = F>,
 >(
@@ -191,6 +195,4 @@ impl<E> VirtualInputs<E> {
 }
 
 /// Binary circuit inputs are bool; degree-one prime inputs are field elements.
-pub type CircuitInput<F> = crate::runtime::algebra::packing::BaseElement<
-    <F as crate::runtime::algebra::packing::PackingField>::Packing,
->;
+pub type CircuitInput<F> = BaseElement<<F as PackingField>::Packing>;

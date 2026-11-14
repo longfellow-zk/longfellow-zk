@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::AlgebraicField,
+    core::algebra::{fp24::Q, AlgebraicField},
     runtime::algebra::{
         fp24_ext6::RuntimeFp24Ext6,
         range_interpolation::{
@@ -58,7 +58,7 @@ fn interpolation_matches_direct_evaluation_at_domain_boundaries() {
             let coefficients: Vec<_> = (0..n)
                 .map(|i| {
                     f.from_coefficients(std::array::from_fn(|j| {
-                        ((i * 131 + j * 17 + 1) % (crate::core::algebra::fp24::Q as usize)) as u32
+                        ((i * 131 + j * 17 + 1) % (Q as usize)) as u32
                     }))
                 })
                 .collect();
@@ -84,7 +84,7 @@ fn interpolation_matches_direct_evaluation_at_domain_boundaries() {
 #[test]
 fn interpolation_rejects_unsupported_geometries() {
     let factory = CrtInterpolatorFactory;
-    let q = crate::core::algebra::fp24::Q as usize;
+    let q = Q as usize;
     for (source, destination) in [
         (0..0, 0..1),
         (0..1, 1..usize::MAX),
@@ -93,7 +93,7 @@ fn interpolation_rejects_unsupported_geometries() {
     ] {
         assert!(!factory.can_interpolate(source, destination));
     }
-    let maximal = u128::from(crate::core::algebra::fp24::Q - 1);
+    let maximal = u128::from(Q - 1);
     let limit = ((18_446_744_072_195_407_873u128 - 1) / (maximal * maximal)) as usize;
     assert!(factory.can_interpolate(0..limit, limit..limit + 1));
     assert!(!factory.can_interpolate(0..limit + 1, limit + 1..limit + 2));

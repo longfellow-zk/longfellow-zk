@@ -16,7 +16,7 @@ use crate::{
     circuits::ec::{Pt2, Pt3},
     compile::{
         algebra::CompileField,
-        logic::{Eltw, Logic},
+        logic::{Eltw, Logic, LogicIO},
     },
     core::algebra::{ec::Curve, ElementOf},
 };
@@ -222,13 +222,13 @@ where
     }
 }
 
-pub fn pt2_wires<L: crate::compile::logic::LogicIO>(iologic: &L, pos: &mut usize) -> Pt2<Eltw<L>> {
+pub fn pt2_wires<L: LogicIO>(iologic: &L, pos: &mut usize) -> Pt2<Eltw<L>> {
     let x = iologic.next(pos);
     let y = iologic.next(pos);
     (x, y)
 }
 
-pub fn pt3_wires<L: crate::compile::logic::LogicIO>(iologic: &L, pos: &mut usize) -> Pt3<Eltw<L>> {
+pub fn pt3_wires<L: LogicIO>(iologic: &L, pos: &mut usize) -> Pt3<Eltw<L>> {
     let x = iologic.next(pos);
     let y = iologic.next(pos);
     let z = iologic.next(pos);

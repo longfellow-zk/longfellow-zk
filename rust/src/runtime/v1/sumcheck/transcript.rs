@@ -23,7 +23,10 @@
 use crate::{
     core::{
         algebra::{ElementOf, SerializableField},
-        proto::{v1::Circuit, MAX_LOGW},
+        proto::{
+            v1::{Circuit, Layer},
+            MAX_LOGW,
+        },
     },
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
@@ -101,7 +104,7 @@ impl TranscriptSumcheck for Transcript {
             .raw
             .layers
             .iter()
-            .map(crate::core::proto::v1::Layer::num_terms)
+            .map(Layer::num_terms)
             .sum::<usize>();
         self.write0(nterms);
     }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::algebra::Nat;
+
 pub trait FieldElement: Sized + Clone + std::fmt::Debug + Eq + std::hash::Hash {}
 
 impl<T> FieldElement for T where T: Sized + Clone + std::fmt::Debug + Eq + std::hash::Hash {}
@@ -141,7 +143,7 @@ pub trait HasLookupPoints: BareField {
 }
 
 pub trait SupportsNatConversions<const W: usize>: SerializableField {
-    type N: crate::core::algebra::Nat<W>;
+    type N: Nat<W>;
 
     /// Maps a fixed-width natural number into the field using the field's native reduction.
     ///

@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::{
-    fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
-    RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension,
+use crate::{
+    core::algebra::SerializableField,
+    runtime::algebra::{
+        fp2::{Fp2Element, Fp2Field},
+        fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
+        limb::LIMBS_PER_U64,
+        packing::{IdentityExtension, PackingField},
+        RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension,
+    },
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -23,16 +29,10 @@ pub struct P256Tag;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct P256Strategy;
 
-pub type P256Element =
-    FpGenericElement<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }, P256Tag>;
-pub type P256Field = FpGenericField<
-    4,
-    { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-    { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-    P256Tag,
-    P256Strategy,
->;
-pub type P256Accum = FpGenericAccum<{ 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 }>;
+pub type P256Element = FpGenericElement<{ 4 * LIMBS_PER_U64 }, P256Tag>;
+pub type P256Field =
+    FpGenericField<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }, P256Tag, P256Strategy>;
+pub type P256Accum = FpGenericAccum<{ 9 * LIMBS_PER_U64 }>;
 
 pub(in crate::runtime::algebra) const P256_MODULUS: [u64; 4] = [
     0xffffffffffffffff,
@@ -82,9 +82,9 @@ const P256_ROOT_OF_UNITY_IM: [u64; 4] = [
     0xb9e81e42bc97cc4d,
 ];
 
-impl SupportsFFT<4> for crate::runtime::algebra::fp2::Fp2Field<'_, 4, P256Field> {
+impl SupportsFFT<4> for Fp2Field<'_, 4, P256Field> {
     fn omega(&self) -> Self::E {
-        crate::runtime::algebra::fp2::Fp2Element {
+        Fp2Element {
             re: self
                 .base_field()
                 .words64_to_element(&P256_ROOT_OF_UNITY_RE)
@@ -101,16 +101,14 @@ impl SupportsFFT<4> for crate::runtime::algebra::fp2::Fp2Field<'_, 4, P256Field>
     }
 }
 
-impl crate::runtime::algebra::packing::PackingField for P256Field {
-    type Packing = crate::runtime::algebra::packing::IdentityExtension<Self>;
+impl PackingField for P256Field {
+    type Packing = IdentityExtension<Self>;
     fn packing_extension(&self) -> Self::Packing {
-        crate::runtime::algebra::packing::IdentityExtension::new(self.clone())
+        IdentityExtension::new(self.clone())
     }
     fn packing_id(&self) -> Vec<u8> {
         let mut id = b"prime/canonical-integer/v1/".to_vec();
-        id.extend_from_slice(&crate::core::algebra::SerializableField::serialized_mone(
-            self,
-        ));
+        id.extend_from_slice(&SerializableField::serialized_mone(self));
         id
     }
 }

@@ -17,7 +17,7 @@ use crate::{
         fp24::Q, AlgebraicField, Nat, SerializableField, SupportsNatConversions,
         SupportsU64Conversions,
     },
-    runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField, RuntimeNat},
+    runtime::algebra::{blas::dot, fp24_ext6::RuntimeFp24Ext6, RuntimeField, RuntimeNat},
 };
 
 #[test]
@@ -94,7 +94,7 @@ fn lazy_accumulator_matches_eager_products_and_can_be_read_repeatedly() {
         assert_eq!(f.accum_reduce(&accum), expected);
         assert_eq!(f.accum_reduce(&accum), expected);
         assert_eq!(accum, saved);
-        assert_eq!(crate::runtime::algebra::blas::dot(&x, &y, &f), expected);
+        assert_eq!(dot(&x, &y, &f), expected);
     }
 }
 

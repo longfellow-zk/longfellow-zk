@@ -12,7 +12,9 @@ use crate::{
         },
         random::{DeterministicRng, RandomEngine},
         v2::{
-            polygero::{JointPolygeroProver, JointPolygeroVerifier},
+            polygero::{
+                prover_commitment::ColumnOracle, JointPolygeroProver, JointPolygeroVerifier,
+            },
             proto::polygero::PolygeroCommitment,
         },
     },
@@ -263,7 +265,7 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     for x in &mut prover.states.0[z] {
         f.add(x, &f.one());
     }
-    prover.oracle = crate::runtime::v2::polygero::prover_commitment::ColumnOracle::new(
+    prover.oracle = ColumnOracle::new(
         g.n,
         &param.context,
         &mut DeterministicRng::new(12),

@@ -17,7 +17,9 @@ use crate::{
     circuits::ec::{concrete::push_pt2, pt2_wires, EcCircuit},
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField},
-        logic::{push_eltw, Logic, LogicIO},
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::{push_eltw, AssertionScope, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::algebra::{
         ec::{add, affine, double, projective, scalar_mul, Curve},
@@ -41,7 +43,7 @@ fn test_compile_ec_generic<
     let (circuit, stats, symbols) = compile(fc, |iologic| {
         let ec_circuit = EcCircuit::new(&iologic, curve_c);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let p1 = pt2_wires(&iologic, &mut pos);
         let p2 = pt2_wires(&iologic, &mut pos);
         let p1_double_target = pt2_wires(&iologic, &mut pos);
@@ -63,7 +65,7 @@ fn test_compile_ec_generic<
         (iologic.assert_all("ec_add_double", &[a1, a2, a3, a4]), 1, 0)
     });
 
-    crate::compile::compiler::dump_stats("ec_add_double", &circuit, &stats);
+    dump_stats("ec_add_double", &circuit, &stats);
 
     // Fill concrete values into environment using RuntimeField
     let g_2d_run = curve_r.g();
@@ -80,7 +82,7 @@ fn test_compile_ec_generic<
     let g3_normalized = affine(fr, &g3);
     let g3_zinv_val = fr.invert(&g3.2);
 
-    let mut inputs = crate::compile::eval::initial_inputs(fr);
+    let mut inputs = initial_inputs(fr);
     push_pt2(g_2d_run, &mut inputs);
     push_pt2(&g2_normalized, &mut inputs);
     push_pt2(&g2_normalized, &mut inputs);
@@ -88,7 +90,7 @@ fn test_compile_ec_generic<
     push_pt2(&g3_normalized, &mut inputs);
     push_eltw(g3_zinv_val, &mut inputs);
 
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
+    eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -188,7 +190,7 @@ fn test_ec_circuit_evaluation_generic<
     curve: &C,
     f: &F,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let ec_circuit = EcCircuit::new(&l, curve);

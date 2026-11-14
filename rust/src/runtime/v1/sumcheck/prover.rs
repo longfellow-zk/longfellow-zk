@@ -27,13 +27,18 @@
 //! Witness bindings reuse owned buffers; the initial two hands share one buffer
 //! until the first binding separates them.
 use crate::{
-    core::{algebra::ElementOf, proto::MAX_LOGW},
+    core::{
+        algebra::ElementOf,
+        proto::{sane_logw, v1::Circuit, MAX_LOGW},
+    },
     runtime::{
-        algebra::{InterpolationField, LagrangeBasis, Poly, SupportsSampling},
+        algebra::{blas::clear, InterpolationField, LagrangeBasis, Poly, SupportsSampling},
         random::RandomEngine,
         v1::{
-            proto::sumcheck::{LayerProof, SumcheckProof},
+            proto::sumcheck::{LayerProof, SumcheckProof, SumcheckProofGeometry},
             sumcheck::{
+                dense::{as_scalar, bind, bind_out_of_place, normalize},
+                eq::eq2,
                 hquad::HQuad,
                 poly::{QuadRoundPoly, QuadWirePoly},
                 round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
@@ -55,7 +60,7 @@ struct Bindings<const W: usize, F: InterpolationField<W>> {
 pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v1::Circuit<F>,
+    circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
@@ -83,19 +88,17 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     mut in_layers: Vec<Vec<ElementOf<F>>>,
     pad: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v1::Circuit<F>,
+    circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
-    pad.validate(
-        &crate::runtime::v1::proto::sumcheck::SumcheckProofGeometry::from_circuit(circuit),
-    )
-    .expect("pad shape mismatch");
+    pad.validate(&SumcheckProofGeometry::from_circuit(circuit))
+        .expect("pad shape mismatch");
     // The wire array is conceptually infinite (padded with zeros), but we normalize
     // each layer's wire vector to contain at least one 0 to simplify the implementation
     // and avoid handling the empty vec case in downstream binding functions.
     for wires in &mut in_layers {
-        *wires = crate::runtime::v1::sumcheck::dense::normalize(std::mem::take(wires), f);
+        *wires = normalize(std::mem::take(wires), f);
     }
     let mut bindings = {
         // Consume both legacy challenge vectors even though only gate points
@@ -156,7 +159,7 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 
     // This is the legacy ZK verifier's final input-combination challenge.
     let input_alpha = transcript.elt_field(f);
-    let input_weights = crate::runtime::v1::sumcheck::eq::eq2(
+    let input_weights = eq2(
         bindings.logv,
         circuit.raw.ninput,
         &bindings.challenges[0],
@@ -193,7 +196,7 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
     [ElementOf<F>; 2],
     LayerVerifierData<ElementOf<F>>,
 ) {
-    assert!(crate::core::proto::sane_logw(logw), "logw must be sane");
+    assert!(sane_logw(logw), "logw must be sane");
     assert!(
         wires.len() as u64 <= (1u64 << logw),
         "size of wires {} exceeds 2^logw {}",
@@ -238,23 +241,16 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
             // the left hand retains the original witness. Each hand then owns
             // its buffer exclusively, so subsequent bindings reuse it in place.
             if let Some(v) = std::rc::Rc::get_mut(&mut w[hand]) {
-                crate::runtime::v1::sumcheck::dense::bind(v, &round_challenge, f);
+                bind(v, &round_challenge, f);
             } else {
-                let bound_v = crate::runtime::v1::sumcheck::dense::bind_out_of_place(
-                    &w[hand],
-                    &round_challenge,
-                    f,
-                );
+                let bound_v = bind_out_of_place(&w[hand], &round_challenge, f);
                 w[hand] = std::rc::Rc::new(bound_v);
             }
             hquad.bind_h(&round_challenge, hand, f);
         }
     }
 
-    let claims_next = [
-        crate::runtime::v1::sumcheck::dense::as_scalar::<W, F>(&w[0]),
-        crate::runtime::v1::sumcheck::dense::as_scalar::<W, F>(&w[1]),
-    ];
+    let claims_next = [as_scalar::<W, F>(&w[0]), as_scalar::<W, F>(&w[1])];
 
     let hquad_scalar = hquad.scalar();
     let mut expected_sum = claims_next[0].clone();
@@ -301,7 +297,7 @@ fn fill_round_weights<const W: usize, F: InterpolationField<W>>(
     hand: usize,
     f: &F,
 ) {
-    crate::runtime::algebra::blas::clear(qw, f);
+    clear(qw, f);
     for i in 0..quad.hc.len() {
         let h = quad.hc[i].h[hand] as usize;
         let other = quad.hc[i].h[1 - hand] as usize;

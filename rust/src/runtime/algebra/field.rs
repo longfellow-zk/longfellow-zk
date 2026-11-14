@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::AlgebraicField;
+use crate::core::algebra::{AlgebraicField, SerializableField};
 
-pub trait RuntimeSerializableField<const W: usize>:
-    RuntimeField<W> + crate::core::algebra::SerializableField
-{
+pub trait RuntimeSerializableField<const W: usize>: RuntimeField<W> + SerializableField {
     fn to_words64(&self, e: &Self::E) -> [u64; W];
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String>;
 }
 
-pub trait RuntimeField<const W: usize>: crate::core::algebra::AlgebraicField {
+pub trait RuntimeField<const W: usize>: AlgebraicField {
     type Accum: Clone + std::fmt::Debug;
 
     // Arithmetic operations
@@ -59,7 +57,7 @@ pub trait RuntimeField<const W: usize>: crate::core::algebra::AlgebraicField {
     fn accum_reduce(&self, acc: &Self::Accum) -> Self::E;
 }
 
-pub trait SupportsSampling: crate::core::algebra::AlgebraicField {
+pub trait SupportsSampling: AlgebraicField {
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
 }
 

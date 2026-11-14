@@ -15,7 +15,7 @@
 use crate::{
     compile::{
         algebra::{p256::P256Field, CompileField},
-        compiler::{arena::CompilerArena, ir::Expr, CompilerLogic},
+        compiler::{arena::CompilerArena, assertion::rewrite, ir::Expr, CompilerLogic},
         logic::{AssertionScope, Logic, LogicIO},
     },
     core::algebra::{Nat, SupportsNatConversions},
@@ -62,8 +62,7 @@ fn test_precious_sum_behavior() {
         let expr = l.add(&precious_sum, &w3);
         let assert_expr = l.assert0("test_case_1", &expr);
         let items_ref = arena.alloc_slice(assert_expr.items);
-        let rewritten =
-            crate::compile::compiler::assertion::rewrite(&arena, &f, items_ref, &tracker);
+        let rewritten = rewrite(&arena, &f, items_ref, &tracker);
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
 
@@ -109,8 +108,7 @@ fn test_precious_sum_behavior() {
         let expr = l.mul(&w3, &precious_sum);
         let assert_expr = l.assert0("test_case_2", &expr);
         let items_ref = arena.alloc_slice(assert_expr.items);
-        let rewritten =
-            crate::compile::compiler::assertion::rewrite(&arena, &f, items_ref, &tracker);
+        let rewritten = rewrite(&arena, &f, items_ref, &tracker);
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
 
@@ -151,8 +149,7 @@ fn test_precious_sum_behavior() {
         let precious_val = l.precious(&w1);
         let assert_expr = l.assert0("test_case_3", &precious_val);
         let items_ref = arena.alloc_slice(assert_expr.items);
-        let rewritten =
-            crate::compile::compiler::assertion::rewrite(&arena, &f, items_ref, &tracker);
+        let rewritten = rewrite(&arena, &f, items_ref, &tracker);
         assert_eq!(rewritten.len(), 1);
         let rewritten_node = rewritten[0].expr;
         match &rewritten_node.v {
@@ -181,7 +178,7 @@ fn test_compiler_assertion_path_and_simplification() {
     assert_eq!(root.items.len(), 2);
 
     let items_ref = arena.alloc_slice(root.items);
-    let simplified = crate::compile::compiler::assertion::rewrite(&arena, &f, items_ref, &tracker);
+    let simplified = rewrite(&arena, &f, items_ref, &tracker);
     assert_eq!(simplified.len(), 2);
 }
 

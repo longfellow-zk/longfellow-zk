@@ -18,7 +18,7 @@
 use std::ops::Range;
 
 use super::{batch_inverse, difference, Ranges};
-use crate::core::algebra::{AlgebraicField, SupportsU64Conversions};
+use crate::core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions};
 
 /// One output block's reciprocal kernel and final barycentric scale factors.
 pub(super) struct ArithmeticBlock<E> {
@@ -173,9 +173,7 @@ fn destination_factors<F: AlgebraicField + SupportsU64Conversions>(
 }
 
 /// Arithmetic backends have the same identity regardless of their FFT machinery.
-pub(super) fn evaluation_domain_id<F: crate::core::algebra::SerializableField>(
-    field: &F,
-) -> Vec<u8> {
+pub(super) fn evaluation_domain_id<F: SerializableField>(field: &F) -> Vec<u8> {
     let mut id = b"prime/arithmetic-prefix/v1".to_vec();
     id.extend(field.serialized_mone());
     id

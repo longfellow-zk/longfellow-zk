@@ -17,7 +17,8 @@ use crate::{
     circuits::polynomial::Polynomial,
     compile::{
         algebra::p256::P256Field,
-        logic::{Logic, LogicIO},
+        compiler::dump_stats,
+        logic::{AssertionScope, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
@@ -28,7 +29,7 @@ fn test_compile_polynomial() {
     let (circuit, stats, _symbols) = compile(&f, |iologic| {
         let p = Polynomial::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let cc: Vec<_> = (0..5).map(|_| iologic.next(&mut pos)).collect();
         let x = iologic.next(&mut pos);
 
@@ -36,7 +37,7 @@ fn test_compile_polynomial() {
         (iologic.assert0("poly_res", &res), 1, 0)
     });
 
-    crate::compile::compiler::dump_stats("polynomial_eval_compile", &circuit, &stats);
+    dump_stats("polynomial_eval_compile", &circuit, &stats);
 }
 
 use crate::compile::{
@@ -50,7 +51,7 @@ fn test_polynomial_evaluation_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let p = Polynomial::new(&iologic);
 

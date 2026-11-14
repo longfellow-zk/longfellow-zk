@@ -19,6 +19,7 @@ use crate::{
     circuits::{
         bitvec::{BitvecIO, BitvecLogic},
         boolean::BooleanIO,
+        sha256msg::allocate_derived,
     },
     compile::logic::LogicIO,
     mdoc::{
@@ -108,7 +109,7 @@ pub fn allocate<L: LogicIO>(
     let (attribute_given, attribute_derived) = (0..num_attrs)
         .map(|_| allocate_attribute(&bv, &io, pos))
         .unzip();
-    let sha_derived = crate::circuits::sha256msg::allocate_derived::<_, K_MAX_SHA_BLOCKS>(&bv, pos);
+    let sha_derived = allocate_derived::<_, K_MAX_SHA_BLOCKS>(&bv, pos);
     (
         Given {
             disclosed_attributes,
@@ -151,7 +152,7 @@ fn allocate_attribute<L: LogicIO>(
         length: std::array::from_fn(|_| io.next::<K_ATTR_INDEX_BITS>(pos)),
         permutation: std::array::from_fn(|_| io.next::<2>(pos)),
     };
-    let sha_derived = crate::circuits::sha256msg::allocate_derived::<_, 2>(bv, pos);
+    let sha_derived = allocate_derived::<_, 2>(bv, pos);
     (
         AttrGiven {
             preimage,

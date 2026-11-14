@@ -36,6 +36,7 @@ use crate::runtime::{
         polygero::PolygeroLinearTerm,
         proto::sumcheck::CircuitPadLayout,
         sumcheck::symbolic::{Constraints, Pad, PadExpression},
+        zk::packing_commitment::PackingLayout,
     },
 };
 
@@ -113,7 +114,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
     constraints: Constraints<F::E>,
     pads: &CircuitPadLayout,
     public: &[F::E],
-    layout: &crate::runtime::v2::zk::packing_commitment::PackingLayout,
+    layout: &PackingLayout,
     virtual_inputs: &super::VirtualInputs<F::E>,
     f: &F,
 ) -> Result<super::packing_commitment::CommitmentStatement<F::E>, String> {

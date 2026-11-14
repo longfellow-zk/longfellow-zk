@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField},
+    core::algebra::{AlgebraicField, SerializableField, GF2_16_BASIS_V1},
     runtime::{
         algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64, SupportsSampling},
         v1::subfield::SubfieldV1,
@@ -118,7 +118,7 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
     );
     draws.exhausted();
     for count in [8, 16] {
-        let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1[..count]);
+        let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1[..count]);
         let mut subfield_draws = Draws::new([vec![0xff; count / 8]]);
         assert_eq!(
             sf.sample(|n| subfield_draws.bytes(n)),

@@ -15,19 +15,26 @@
 use super::*;
 use crate::{
     core::{
-        algebra::AlgebraicField,
+        algebra::{AlgebraicField, GF2_16_BASIS_V1},
         proto::v1::{Circuit, Layer, RawCircuit, TermDelta},
     },
     runtime::{
         algebra::{gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory},
-        v1::subfield::BinarySubfieldV1,
+        random::DeterministicRng,
+        v1::{
+            ligero::{LigeroConfig, LigeroParam, LigeroVerifier},
+            proto::zk::witness_and_constraint_count,
+            subfield::BinarySubfieldV1,
+            sumcheck::{derive_verifier_data, eval::eval_circuit, prove_core},
+            zk::{common::DEFAULT_STATEMENT_HASH, constraint_compiler::compile},
+        },
     },
 };
 
 #[test]
 fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let f = Gf2_128Field::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let interpolation = BinaryInterpolatorFactory::new(&f, sf.basis());
     let context = ZkContext {
         f: &f,
@@ -63,7 +70,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     };
     let prover = ZkProver::new(
         circuit,
-        crate::runtime::v1::ligero::LigeroConfig {
+        LigeroConfig {
             rateinv: 4,
             nreq: 16,
             block_enc: 256,
@@ -76,16 +83,16 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &witness,
         &context,
         &mut transcript,
-        &mut crate::runtime::random::DeterministicRng::new(42),
+        &mut DeterministicRng::new(42),
         &sf,
     );
-    let (nw, nq) = crate::runtime::v1::proto::zk::witness_and_constraint_count(&prover.circuit);
-    let param = crate::runtime::v1::ligero::LigeroParam::new(nw, nq, prover.config, &interpolation);
+    let (nw, nq) = witness_and_constraint_count(&prover.circuit);
+    let param = LigeroParam::new(nw, nq, prover.config, &interpolation);
     let mut numerical = Transcript::new(b"legacy-symbolic-equivalence");
     let mut independent = Transcript::new(b"legacy-symbolic-equivalence");
     for stream in [&mut numerical, &mut independent] {
         {
-            let mut receiver = crate::runtime::v1::ligero::LigeroVerifier::new(stream, &param);
+            let mut receiver = LigeroVerifier::new(stream, &param);
             receiver.receive_commitment(&committed.com);
         }
         stream.write_sumcheck_statement(&prover.circuit, &public, &f);
@@ -120,37 +127,16 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 
     let mut inputs = public.clone();
     inputs.extend(witness);
-    let layers =
-        crate::runtime::v1::sumcheck::eval::eval_circuit(inputs, &prover.circuit, &f).unwrap();
-    let (proof, data) = crate::runtime::v1::sumcheck::prove_core(
-        layers,
-        &committed.pad,
-        &prover.circuit,
-        &mut numerical,
-        &f,
-    );
-    let derived = crate::runtime::v1::sumcheck::derive_verifier_data(
-        &prover.circuit,
-        &proof,
-        &mut independent,
-        &f,
-    )
-    .unwrap();
+    let layers = eval_circuit(inputs, &prover.circuit, &f).unwrap();
+    let (proof, data) = prove_core(layers, &committed.pad, &prover.circuit, &mut numerical, &f);
+    let derived = derive_verifier_data(&prover.circuit, &proof, &mut independent, &f).unwrap();
     assert_eq!(data, derived);
     let pads = geometry.sc_geom.pad_layout(3);
     let relations = crate::runtime::v1::sumcheck::symbolic::verify(&proof, data, &f).unwrap();
     let independent_relations =
         crate::runtime::v1::sumcheck::symbolic::verify(&proof, derived, &f).unwrap();
-    let (prover_a, prover_b) =
-        crate::runtime::v1::zk::constraint_compiler::compile(&relations, &pads, &public, &f)
-            .unwrap();
-    let (a, b) = crate::runtime::v1::zk::constraint_compiler::compile(
-        &independent_relations,
-        &pads,
-        &public,
-        &f,
-    )
-    .unwrap();
+    let (prover_a, prover_b) = compile(&relations, &pads, &public, &f).unwrap();
+    let (a, b) = compile(&independent_relations, &pads, &public, &f).unwrap();
     assert_eq!(prover_b, b);
     assert_eq!(prover_a.len(), a.len());
     for (left, right) in prover_a.iter().zip(&a) {
@@ -160,7 +146,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &b,
         &mut numerical,
         &a,
-        &crate::runtime::v1::zk::common::DEFAULT_STATEMENT_HASH,
+        &DEFAULT_STATEMENT_HASH,
         &committed.lqc,
         &interpolation,
         &f,
@@ -175,15 +161,14 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         expected.write(&geometry, &f, &sf).unwrap()
     );
     {
-        let mut verifier =
-            crate::runtime::v1::ligero::LigeroVerifier::new(&mut independent, &param);
+        let mut verifier = LigeroVerifier::new(&mut independent, &param);
         verifier
             .verify(
                 &b,
                 &actual.com,
                 &actual.com_proof,
                 &a,
-                &crate::runtime::v1::zk::common::DEFAULT_STATEMENT_HASH,
+                &DEFAULT_STATEMENT_HASH,
                 &committed.lqc,
                 &interpolation,
                 &f,

@@ -16,25 +16,36 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 
 use super::mso_attribute_corruptors;
 use crate::{
-    compile::algebra::gf2_128::Gf2_128Field, mdoc::circuits::mso_attribute::AttributeVerifier,
+    circuits::{
+        bitvec::BitvecLogic,
+        sha256msg::{derived, pad_sha256_message, ConcreteGiven},
+    },
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::K_FIRST_WIRE_POSITION,
+        proto::CircuitDebugSymbols,
+    },
+    core::proto::{v2::Circuit, CircuitGeometry},
+    mdoc::circuits::{
+        mso_attribute::{allocate_derived, allocate_given, AttributeVerifier},
+        MdocHashCompileField,
+    },
     runtime::algebra::RuntimeField,
 };
 
 pub(super) fn compile_attribute_circuit<const W: usize, FC>(
     fc: &FC,
-) -> (
-    crate::core::proto::v2::Circuit<FC>,
-    crate::core::proto::CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-)
-where FC: crate::mdoc::circuits::MdocHashCompileField {
+) -> (Circuit<FC>, CircuitGeometry, CircuitDebugSymbols)
+where FC: MdocHashCompileField {
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
 
         let verifier = AttributeVerifier::new(&iologic);
-        let bv = crate::circuits::bitvec::BitvecLogic::new(&iologic);
-        let given_wires = crate::mdoc::circuits::mso_attribute::allocate_given(&bv, &mut pos);
-        let derived_wires = crate::mdoc::circuits::mso_attribute::allocate_derived(&bv, &mut pos);
+        let bv = BitvecLogic::new(&iologic);
+        let given_wires = allocate_given(&bv, &mut pos);
+        let derived_wires = allocate_derived(&bv, &mut pos);
         (
             verifier.assert_attribute(&given_wires, &derived_wires),
             1,
@@ -61,10 +72,9 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
     mock: &MsoAttributeMockGiven,
     fr: &FR,
 ) -> Vec<FR::E> {
-    let mut inputs = crate::compile::eval::initial_inputs(fr);
+    let mut inputs = initial_inputs(fr);
 
-    let (_, _, padded_preimage) =
-        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
+    let (_, _, padded_preimage) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
 
     // attribute_preimage.data (128 bytes)
     for i in 0..128 {
@@ -130,15 +140,14 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
     }
 
     // allocate_derived: SHA-256 derived for 2 blocks
-    let (nblocks, length_bytes, _) =
-        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
-    let concrete_given = crate::circuits::sha256msg::ConcreteGiven {
+    let (nblocks, length_bytes, _) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
+    let concrete_given = ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = crate::circuits::sha256msg::derived(&concrete_given, 2);
+    let concrete_derived = derived(&concrete_given, 2);
 
     for b in 0..2 {
         let d = &concrete_derived.sha_derived[b];
@@ -164,7 +173,7 @@ fn test_serialize_attribute_size() {
     let gf2_c = Gf2_128Field::new();
 
     let (circuit, stats, _) = compile_attribute_circuit::<2, _>(&gf2_c);
-    crate::compile::compiler::dump_stats("mso_attribute", &circuit, &stats);
+    dump_stats("mso_attribute", &circuit, &stats);
 }
 
 #[test]
@@ -206,7 +215,7 @@ fn test_compile_mso_attribute_tampering() {
 
     // Verify untampered passes
     let inputs = make_inputs(&base_mock, &gf2_r);
-    crate::compile::eval::eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &inputs)
+    eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 
@@ -217,14 +226,8 @@ fn test_compile_mso_attribute_tampering() {
         (c.corrupt)(&mut mock);
 
         let inputs_tampered = make_inputs(&mock, &gf2_r);
-        let eval_res = crate::compile::eval::eval_circuit_fc(
-            &gf2_c,
-            &gf2_r,
-            &circuit,
-            &symbols,
-            &inputs_tampered,
-        )
-        .unwrap();
+        let eval_res =
+            eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &inputs_tampered).unwrap();
         assert!(
             eval_res.is_err(),
             "Corruptor '{}' failed to cause compiled circuit evaluation error",

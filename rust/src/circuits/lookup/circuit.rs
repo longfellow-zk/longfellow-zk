@@ -15,7 +15,7 @@
 use crate::{
     circuits::polynomial::Polynomial,
     compile::{
-        algebra::CompileField,
+        algebra::{interpolation::monomial_of_lagrange, CompileField},
         logic::{Eltw, Logic},
     },
     core::algebra::ElementOf,
@@ -79,7 +79,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Lookup<'a, L> {
         for k in 0..m {
             let mut y = vec![f.zero(); m];
             y[k] = f.one();
-            basis.push(crate::compile::algebra::interpolation::monomial_of_lagrange(f, &y, &x));
+            basis.push(monomial_of_lagrange(f, &y, &x));
         }
 
         let mut plucker = Vec::with_capacity(m);

@@ -16,8 +16,13 @@ use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
     circuits::{analog_decoder::AnalogDecoder, boolean::Boolean},
     compile::{
-        algebra::{p256::P256Field, CompileField},
-        logic::{EvalLogic, Logic, LogicIO},
+        algebra::{
+            fp::{FpField, FpParameters},
+            p256::P256Field,
+            CompileField, CompileNat,
+        },
+        compiler::dump_stats,
+        logic::{AssertionScope, EvalLogic, Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
@@ -29,14 +34,14 @@ fn test_compile_analog_decoder() {
         let ad = AnalogDecoder::new(&iologic);
 
         let n = 5;
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let x = iologic.next(&mut pos);
 
         let decoder = ad.unary(n);
         let (exactly_one, _decoded) = decoder.decode(&x);
         (exactly_one, 1, 0)
     });
-    crate::compile::compiler::dump_stats("analog_decoder_compile", &circuit, &stats);
+    dump_stats("analog_decoder_compile", &circuit, &stats);
 }
 
 #[test]
@@ -47,7 +52,7 @@ fn test_compile_analog_decoder_binary() {
         let boolean = Boolean::new(&iologic);
 
         let width = 3;
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
         let x = iologic.next(&mut pos);
 
         let decoder = ad.binary(width);
@@ -56,7 +61,7 @@ fn test_compile_analog_decoder_binary() {
         (boolean.assert_true("assert_decoded0", &decoded[0]), 1, 0)
     });
 
-    crate::compile::compiler::dump_stats("analog_decoder_binary_compile", &circuit, &stats);
+    dump_stats("analog_decoder_binary_compile", &circuit, &stats);
 }
 
 fn test_analog_decoder_unary_generic<
@@ -65,7 +70,7 @@ fn test_analog_decoder_unary_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -107,7 +112,7 @@ fn test_analog_decoder_binary_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -135,12 +140,12 @@ fn test_analog_decoder_binary_generic<
 }
 
 struct F1009Tag;
-type F1009Field = crate::compile::algebra::fp::FpField<F1009Tag>;
+type F1009Field = FpField<F1009Tag>;
 
 fn new_f1009_field() -> F1009Field {
-    crate::compile::algebra::fp::FpField::new_field(crate::compile::algebra::fp::FpParameters {
+    FpField::new_field(FpParameters {
         length_bytes: 2,
-        modulo: crate::compile::algebra::CompileNat::<4>::from(1009),
+        modulo: CompileNat::<4>::from(1009),
     })
 }
 
@@ -150,7 +155,7 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -271,7 +276,7 @@ fn binary_field_decoders_retain_range_assertions_on_derived_values() {
         core::algebra::{AlgebraicField, SupportsU128Conversions},
     };
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let decoder = AnalogDecoder::new(&logic);
     let boolean = Boolean::new(&logic);

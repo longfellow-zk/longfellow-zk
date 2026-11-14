@@ -18,19 +18,26 @@
 
 use crate::{
     core::algebra::Nat,
-    mdoc::v2::{
-        attribute::{circuit_supports, same_namespace},
-        inputs::{public_inputs_fit, push_input_hash, push_input_sig},
-        key::parse_pk_coordinate,
-        MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
-    },
-    runtime::algebra::{
-        gf2_128::Gf2_128Field,
-        p256::P256Field,
-        range_interpolation::{
-            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+    mdoc::{
+        circuits::cbor::mdoc::compute_transcript_hash,
+        v2::{
+            attribute::{circuit_supports, same_namespace},
+            inputs::{public_inputs_fit, push_input_hash, push_input_sig},
+            key::parse_pk_coordinate,
+            MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
         },
-        SupportsFFT,
+    },
+    runtime::{
+        algebra::{
+            fp2::Fp2Field,
+            gf2_128::Gf2_128Field,
+            p256::P256Field,
+            range_interpolation::{
+                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+            },
+            RuntimeNat, SupportsFFT,
+        },
+        v2::transcript::VerifiedProof,
     },
 };
 
@@ -45,7 +52,7 @@ pub fn run_mdoc_verifier(
     now: &str,
     doc_type: &str,
     proof_bytes: &[u8],
-) -> Result<crate::runtime::v2::transcript::VerifiedProof, MdocVerifierErrorCode> {
+) -> Result<VerifiedProof, MdocVerifierErrorCode> {
     if !zk_spec.supports_version() {
         return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
     }
@@ -74,7 +81,7 @@ pub fn run_mdoc_verifier(
         parse_pk_coordinate(pkx, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?,
         parse_pk_coordinate(pky, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?,
     );
-    let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
+    let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
     let make_interpolator_sig =
@@ -101,8 +108,8 @@ pub fn run_mdoc_verifier(
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
 
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    let digest = crate::mdoc::circuits::cbor::mdoc::compute_transcript_hash(transcript, doc_type);
-    let e2_val = crate::runtime::algebra::RuntimeNat::<4>::from_bytes_be(&digest);
+    let digest = compute_transcript_hash(transcript, doc_type);
+    let e2_val = RuntimeNat::<4>::from_bytes_be(&digest);
     let sig_public = push_input_sig(&p256, &issuer_pk, &e2_val);
     let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
     super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);

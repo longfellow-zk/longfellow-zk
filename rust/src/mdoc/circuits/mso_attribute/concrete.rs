@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mdoc::circuits::cbor::mdoc::FieldLocator;
+use crate::{
+    circuits::{sha256::constants::INITIAL, sha256msg::sha256_msg_derived},
+    mdoc::circuits::cbor::mdoc::FieldLocator,
+};
 
 #[derive(Clone, Debug)]
 pub struct ConcreteGiven {
@@ -32,11 +35,7 @@ pub struct ConcreteDerived {
 pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
     ConcreteDerived {
         sha_derived: crate::circuits::sha256msg::ConcreteDerived {
-            sha_derived: crate::circuits::sha256msg::sha256_msg_derived(
-                &given.preimage,
-                &crate::circuits::sha256::constants::INITIAL,
-                2,
-            ),
+            sha_derived: sha256_msg_derived(&given.preimage, &INITIAL, 2),
         },
     }
 }

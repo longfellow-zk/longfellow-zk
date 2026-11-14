@@ -13,13 +13,16 @@
 // limitations under the License.
 
 use super::circuit::{Derived, Given};
-use crate::{circuits::bitvec::BitvecLogic, compile::logic::LogicIO};
+use crate::{
+    circuits::bitvec::{BitvecIO, BitvecLogic},
+    compile::logic::LogicIO,
+};
 
 pub fn allocate_given<L: LogicIO, const MAX_BLOCKS: usize>(
     bv: &BitvecLogic<L>,
     pos: &mut usize,
 ) -> Given<L, MAX_BLOCKS> {
-    let bitvec_io = crate::circuits::bitvec::BitvecIO::new(bv);
+    let bitvec_io = BitvecIO::new(bv);
 
     let nblocks = bitvec_io.next(pos);
     let length_bytes = bitvec_io.next(pos);

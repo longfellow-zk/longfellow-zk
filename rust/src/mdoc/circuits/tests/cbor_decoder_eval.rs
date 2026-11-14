@@ -13,29 +13,25 @@
 // limitations under the License.
 
 use crate::{
-    circuits::{bitvec::BitvecLogic, boolean::Boolean},
-    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::{Bitw, Boolean},
+    },
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        logic::{AssertionScope, Eltw, EvalLogic, Logic},
+    },
 };
 
-fn compare_bool<L: crate::compile::logic::Logic>(
-    boolean: &Boolean<L>,
-    want: bool,
-    got: &crate::circuits::boolean::Bitw<L>,
-) where
-    crate::compile::logic::Eltw<L>: PartialEq + std::fmt::Debug,
-{
+fn compare_bool<L: Logic>(boolean: &Boolean<L>, want: bool, got: &Bitw<L>)
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(&boolean.konst(want));
     assert_eq!(got_val, want_val);
 }
 
-fn compare_bitvec<L: crate::compile::logic::Logic, const N: usize>(
-    boolean: &Boolean<L>,
-    want: u64,
-    got: &crate::circuits::bitvec::Bitvec<L, N>,
-) where
-    crate::compile::logic::Eltw<L>: PartialEq + std::fmt::Debug,
-{
+fn compare_bitvec<L: Logic, const N: usize>(boolean: &Boolean<L>, want: u64, got: &Bitvec<L, N>)
+where Eltw<L>: PartialEq + std::fmt::Debug {
     for i in 0..N {
         let want_bit = ((want >> i) & 1) == 1;
         compare_bool(boolean, want_bit, got.bit(i));
@@ -49,7 +45,7 @@ use crate::mdoc::circuits::cbor_decoder::{
 #[test]
 fn test_cbor_decoder_exhaustive() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);

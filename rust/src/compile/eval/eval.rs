@@ -13,9 +13,15 @@
 // limitations under the License.
 
 use crate::{
+    compile::{
+        logic::AssertionStatus,
+        proto::{CircuitDebugSymbols, CompiledEvalAssertions, WireRef},
+    },
     core::{
-        algebra::ElementOf,
-        proto::v2::{classify_constants, Circuit, CoefficientClass, Layer},
+        algebra::{ElementOf, SerializableField},
+        proto::v2::{
+            classify_constants, Circuit, CircuitReader, CircuitWriter, CoefficientClass, Layer,
+        },
     },
     runtime::algebra::RuntimeField,
 };
@@ -47,23 +53,19 @@ pub fn process_inputs<const W: usize, F: RuntimeField<W>>(
     }
 }
 
-pub fn eval_circuit<
-    'a,
-    const W: usize,
-    FR: RuntimeField<W> + crate::core::algebra::SerializableField,
->(
+pub fn eval_circuit<'a, const W: usize, FR: RuntimeField<W> + SerializableField>(
     fr: &FR,
     circuit: &Circuit<FR>,
-    symbols: &'a crate::compile::proto::CircuitDebugSymbols,
+    symbols: &'a CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-) -> crate::compile::proto::CompiledEvalAssertions<'a, EvalError> {
+) -> CompiledEvalAssertions<'a, EvalError> {
     let raw = &circuit.raw;
     let tracker = symbols.tracker();
 
     let vin = match process_inputs(fr, raw.ninput, inputs) {
         Ok(v) => v,
         Err(err) => {
-            return crate::compile::proto::CompiledEvalAssertions {
+            return CompiledEvalAssertions {
                 result: Err(err),
                 fates: std::collections::HashMap::new(),
                 tracker,
@@ -96,37 +98,33 @@ pub fn eval_circuit<
             overall_failed = true;
         }
         for index in failed_wires {
-            let wire = crate::compile::proto::WireRef::new(l, index);
+            let wire = WireRef::new(l, index);
             if let Some(id) = symbols.get_id(&wire) {
                 fates.insert(
                     id,
-                    crate::compile::logic::AssertionStatus::Failed(
-                        "layer assertion failed".to_string(),
-                    ),
+                    AssertionStatus::Failed("layer assertion failed".to_string()),
                 );
             }
         }
     }
 
     for (i, y) in current_v.iter().enumerate() {
-        let wire = crate::compile::proto::WireRef::new(0, i);
+        let wire = WireRef::new(0, i);
         let is_ok = fr.is_zero(y);
         if !is_ok {
             overall_failed = true;
         }
         if let Some(id) = symbols.get_id(&wire) {
             let status = if is_ok {
-                crate::compile::logic::AssertionStatus::Passed
+                AssertionStatus::Passed
             } else {
-                crate::compile::logic::AssertionStatus::Failed(
-                    "circuit output non-zero".to_string(),
-                )
+                AssertionStatus::Failed("circuit output non-zero".to_string())
             };
             fates.entry(id).or_insert(status);
         }
     }
 
-    crate::compile::proto::CompiledEvalAssertions {
+    CompiledEvalAssertions {
         result: if overall_failed {
             Err(EvalError::AssertionFailure)
         } else {
@@ -137,7 +135,7 @@ pub fn eval_circuit<
     }
 }
 
-fn eval_layer<FR: RuntimeField<W> + crate::core::algebra::SerializableField, const W: usize>(
+fn eval_layer<FR: RuntimeField<W> + SerializableField, const W: usize>(
     fr: &FR,
     noutput: usize,
     layer: &Layer,
@@ -179,17 +177,14 @@ fn eval_layer<FR: RuntimeField<W> + crate::core::algebra::SerializableField, con
     (vout, failed_wires)
 }
 
-fn convert_circuit<
-    FC: crate::core::algebra::SerializableField,
-    FR: crate::core::algebra::SerializableField,
->(
+fn convert_circuit<FC: SerializableField, FR: SerializableField>(
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
 ) -> Result<Circuit<FR>, String> {
-    let writer = crate::core::proto::v2::CircuitWriter::new(fc);
+    let writer = CircuitWriter::new(fc);
     let bytes = writer.to_bytes(circuit);
-    let reader = crate::core::proto::v2::CircuitReader::new(fr);
+    let reader = CircuitReader::new(fr);
     let (converted_circuit, remaining) = reader.from_bytes(&bytes)?;
     if !remaining.is_empty() {
         return Err("Remaining bytes after deserialization".to_string());
@@ -201,15 +196,15 @@ fn convert_circuit<
 pub fn eval_circuit_fc<
     'a,
     const WR: usize,
-    FC: crate::core::algebra::SerializableField,
-    FR: RuntimeField<WR> + crate::core::algebra::SerializableField,
+    FC: SerializableField,
+    FR: RuntimeField<WR> + SerializableField,
 >(
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
-    symbols: &'a crate::compile::proto::CircuitDebugSymbols,
+    symbols: &'a CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-) -> Result<crate::compile::proto::CompiledEvalAssertions<'a, EvalError>, String> {
+) -> Result<CompiledEvalAssertions<'a, EvalError>, String> {
     let converted = convert_circuit(fc, fr, circuit)?;
     Ok(eval_circuit(fr, &converted, symbols, inputs))
 }

@@ -25,13 +25,18 @@ use crate::{
             },
             v1::quad::{QuadCircuit, WExpr},
         },
-        logic::AssertionId,
+        logic::{AssertionId, AssertionScope},
+        proto::CircuitDebugSymbols,
     },
-    core::proto::{
-        v1::{
-            canonical_term, compare_term, compute_id, Circuit, Layer, RawCircuit, Term, TermDelta,
+    core::{
+        algebra::SerializableField,
+        proto::{
+            v1::{
+                canonical_term, compare_term, compute_id, Circuit, Layer, RawCircuit, Term,
+                TermDelta,
+            },
+            CircuitGeometry,
         },
-        CircuitGeometry,
     },
     util::ceil_log2,
 };
@@ -112,7 +117,7 @@ fn materialize_assertions<F: CompileField>(
     }
 }
 
-fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
+fn assign_wire_ids<F: CompileField + SerializableField>(
     f: &F,
     nodes: &[WExpr<F>],
     nodes_by_depth: &[Vec<usize>],
@@ -186,7 +191,7 @@ fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
     ids
 }
 
-fn collect_quads<F: CompileField + crate::core::algebra::SerializableField>(
+fn collect_quads<F: CompileField + SerializableField>(
     nodes: &[WExpr<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
@@ -228,7 +233,7 @@ fn collect_quads<F: CompileField + crate::core::algebra::SerializableField>(
     (terms_in_layer, nwires_in_layer)
 }
 
-fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>(
+fn check_connectivity<F: CompileField + SerializableField>(
     f: &F,
     ninput: usize,
     noutput: usize,
@@ -290,18 +295,14 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [WExpr<F>]) -> (Vec<u
 }
 
 /// Transform the Quad circuit into a structured multi-layered Circuit with debug symbol extraction.
-pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField>(
+pub(super) fn schedule<F: CompileField + SerializableField>(
     f: &F,
     c: QuadCircuit<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
-    tracker: crate::compile::logic::AssertionScope,
-) -> (
-    Circuit<F>,
-    CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-) {
+    tracker: AssertionScope,
+) -> (Circuit<F>, CircuitGeometry, CircuitDebugSymbols) {
     let mut nodes = c.nodes;
     let nassertions = nodes
         .iter()
@@ -402,7 +403,7 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
 }
 
 /// Preserve the v1 Morton ordering and its historical circuit identifiers.
-fn ordered_layers<F: CompileField + crate::core::algebra::SerializableField>(
+fn ordered_layers<F: CompileField + SerializableField>(
     f: &F,
     terms_in_layer: Vec<Vec<Term<F>>>,
     ninput: usize,

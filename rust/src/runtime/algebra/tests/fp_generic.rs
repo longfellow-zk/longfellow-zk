@@ -21,7 +21,8 @@ use crate::{
     },
     runtime::algebra::{
         fp_generic::{FpGenericElement, FpGenericField, MontgomeryStrategy},
-        RuntimeField, SupportsSampling,
+        limb::LIMBS_PER_U64,
+        RuntimeField, RuntimeNat, SupportsSampling,
     },
 };
 
@@ -159,40 +160,28 @@ fn vec_of_limbs(limbs: &[u64]) -> Vec<u8> {
 #[test]
 fn test_all_generics() {
     // N = 1
-    test_generic_ops_helper::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >([0xffffffffffffffc5], 0x123456789abcdef0, 0xabcdef1234567890);
+    test_generic_ops_helper::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }>(
+        [0xffffffffffffffc5],
+        0x123456789abcdef0,
+        0xabcdef1234567890,
+    );
 
     // N = 2
-    test_generic_ops_helper::<
-        2,
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >(
+    test_generic_ops_helper::<2, { 2 * LIMBS_PER_U64 }, { 2 * 2 * LIMBS_PER_U64 + 1 }>(
         [0xffffffffffffff61, 0xffffffffffffffff],
         0x123456789abcdef0,
         0xabcdef1234567890,
     );
 
     // N = 3
-    test_generic_ops_helper::<
-        3,
-        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >(
+    test_generic_ops_helper::<3, { 3 * LIMBS_PER_U64 }, { 2 * 3 * LIMBS_PER_U64 + 1 }>(
         [0xffffffffffffff13, 0xffffffffffffffff, 0xffffffffffffffff],
         0x123456789abcdef0,
         0xabcdef1234567890,
     );
 
     // N = 4
-    test_generic_ops_helper::<
-        4,
-        { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >(
+    test_generic_ops_helper::<4, { 4 * LIMBS_PER_U64 }, { 2 * 4 * LIMBS_PER_U64 + 1 }>(
         [
             0xffffffffffffff43,
             0xffffffffffffffff,
@@ -204,11 +193,7 @@ fn test_all_generics() {
     );
 
     // N = 5
-    test_generic_ops_helper::<
-        5,
-        { 5 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 5 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >(
+    test_generic_ops_helper::<5, { 5 * LIMBS_PER_U64 }, { 2 * 5 * LIMBS_PER_U64 + 1 }>(
         [
             0xffffffffffffff3b,
             0xffffffffffffffff,
@@ -221,11 +206,7 @@ fn test_all_generics() {
     );
 
     // N = 6
-    test_generic_ops_helper::<
-        6,
-        { 6 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 6 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >(
+    test_generic_ops_helper::<6, { 6 * LIMBS_PER_U64 }, { 2 * 6 * LIMBS_PER_U64 + 1 }>(
         [
             0xfffffffffffffec3,
             0xffffffffffffffff,
@@ -251,12 +232,9 @@ fn test_accum_reduce_scaling_bug() {
         0x0000000000000000,
         0xffffffff00000001,
     ];
-    let field = FpGenericField::<
-        4,
-        { 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 9 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        (),
-    >::new_generic(modulo_words);
+    let field = FpGenericField::<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }, ()>::new_generic(
+        modulo_words,
+    );
 
     let a = field.u64_to_element(123456789);
     let b = field.u64_to_element(987654321);
@@ -279,72 +257,60 @@ fn test_accum_reduce_scaling_bug() {
 #[test]
 #[should_panic(expected = "field limb count must match its serialized word width")]
 fn test_rejects_mismatched_limb_count() {
-    let _ = FpGenericField::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-        { 2 * (crate::runtime::algebra::limb::LIMBS_PER_U64 + 1) + 1 },
-    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    let _ =
+        FpGenericField::<1, { LIMBS_PER_U64 + 1 }, { 2 * (LIMBS_PER_U64 + 1) + 1 }>::new_generic([
+            0xffff_ffff_ffff_ffc5,
+        ]);
 }
 
 #[test]
 #[should_panic(expected = "accumulator must contain at least twice the field limbs plus one")]
 fn test_rejects_undersized_accumulator() {
-    let _ = FpGenericField::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    let _ = FpGenericField::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 }>::new_generic([
+        0xffff_ffff_ffff_ffc5,
+    ]);
 }
 
 #[test]
 #[should_panic(expected = "Montgomery modulus must be odd and greater than one")]
 fn test_rejects_invalid_montgomery_modulus() {
-    let _ = FpGenericField::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >::new_generic([16]);
+    let _ = FpGenericField::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }>::new_generic([16]);
 }
 
 #[test]
 #[should_panic(expected = "cannot invert zero")]
 fn test_invert_zero_panics() {
-    let field = FpGenericField::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-        (),
-    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    let field =
+        FpGenericField::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }, ()>::new_generic([
+            0xffff_ffff_ffff_ffc5,
+        ]);
     field.invert(&field.zero());
 }
 
 #[test]
 #[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
 fn test_sampling_rejects_wrong_byte_count() {
-    let field = FpGenericField::<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-        (),
-    >::new_generic([0xffff_ffff_ffff_ffc5]);
+    let field =
+        FpGenericField::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }, ()>::new_generic([
+            0xffff_ffff_ffff_ffc5,
+        ]);
     field.sample(|requested| vec![0; requested - 1]);
 }
 
 #[test]
 fn test_reduce_nat() {
-    test_reduce_nat_for_field::<
-        2,
-        { 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 2 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff]);
+    test_reduce_nat_for_field::<2, { 2 * LIMBS_PER_U64 }, { 2 * 2 * LIMBS_PER_U64 + 1 }>([
+        0xffff_ffff_ffff_ff61,
+        0xffff_ffff_ffff_ffff,
+    ]);
 
     // Use the same 128-bit prime in a three-word representation. This makes the input range
     // roughly 2^64 times larger than the modulus and exercises reductions with large quotients.
-    test_reduce_nat_for_field::<
-        3,
-        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 2 * 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 + 1 },
-    >([0xffff_ffff_ffff_ff61, 0xffff_ffff_ffff_ffff, 0]);
+    test_reduce_nat_for_field::<3, { 3 * LIMBS_PER_U64 }, { 2 * 3 * LIMBS_PER_U64 + 1 }>([
+        0xffff_ffff_ffff_ff61,
+        0xffff_ffff_ffff_ffff,
+        0,
+    ]);
 }
 
 fn test_reduce_nat_for_field<const N: usize, const L: usize, const ACCUM_L: usize>(
@@ -387,7 +353,7 @@ fn test_reduce_nat_for_field<const N: usize, const L: usize, const ACCUM_L: usiz
     for value in values {
         let mut bytes = value.to_bytes_le();
         bytes.resize(N * 8, 0);
-        let nat = crate::runtime::algebra::RuntimeNat::<N>::from_bytes_le(&bytes);
+        let nat = RuntimeNat::<N>::from_bytes_le(&bytes);
         let reduced = field.reduce_nat(&nat);
         assert_eq!(
             to_biguint_field(&field, &reduced),

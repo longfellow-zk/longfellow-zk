@@ -16,10 +16,19 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 
 use super::mso_attribute_corruptors;
 use crate::{
-    circuits::bitvec::{BitvecLogic, V8},
-    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
+    circuits::{
+        bitvec::{BitvecLogic, V8},
+        boolean::Boolean,
+        sha256msg::{derived, evaluate_derived, pad_sha256_message, ConcreteGiven},
+    },
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        logic::{AssertionScope, EvalAssertions, EvalLogic},
+    },
     mdoc::{
-        circuits::mso_attribute::{AttrSlice, AttributeVerifier, DisclosedAttribute, FieldLocator},
+        circuits::mso_attribute::{
+            AttrSlice, AttributeVerifier, DisclosedAttribute, FieldLocator, Given,
+        },
         proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
     },
 };
@@ -27,7 +36,7 @@ use crate::{
 #[test]
 fn test_prefix_equal_boundary_bug() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
@@ -58,7 +67,7 @@ fn test_prefix_equal_boundary_bug() {
 #[test]
 fn test_prefix_equal_vlen_boundary_bug() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
@@ -88,9 +97,9 @@ fn test_prefix_equal_vlen_boundary_bug() {
 
 fn run_attribute_test_mock<'a, F>(
     f: &'a Gf2_128Field,
-    tracker: &'a crate::compile::logic::AssertionScope,
+    tracker: &'a AssertionScope,
     mutate_f: F,
-) -> crate::compile::logic::EvalAssertions<'a>
+) -> EvalAssertions<'a>
 where
     F: FnOnce(&mut MsoAttributeMockGiven),
 {
@@ -131,8 +140,7 @@ where
     let bv = BitvecLogic::new(&l);
 
     use crate::mdoc::proto::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
-    let (nblocks, length_bytes, padded_preimage) =
-        crate::circuits::sha256msg::pad_sha256_message(&mock.raw_buf, 2).unwrap();
+    let (nblocks, length_bytes, padded_preimage) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
     let attribute_preimage = padded_preimage
         .iter()
         .map(|&b| bv.of_u8(b))
@@ -184,21 +192,21 @@ where
         let bit_idx = idx % 8;
         let byte = digest_bytes[byte_idx];
         let bit_val = (byte.checked_shr(bit_idx as u32).unwrap_or(0) & 1) == 1;
-        crate::circuits::boolean::Boolean::new(&l).konst(bit_val)
+        Boolean::new(&l).konst(bit_val)
     });
 
-    let concrete_given = crate::circuits::sha256msg::ConcreteGiven {
+    let concrete_given = ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = crate::circuits::sha256msg::derived(&concrete_given, 2);
-    let sha_derived = crate::circuits::sha256msg::evaluate_derived(&concrete_derived, &bv);
+    let concrete_derived = derived(&concrete_given, 2);
+    let sha_derived = evaluate_derived(&concrete_derived, &bv);
 
     let verifier = AttributeVerifier::new(&l);
 
-    let verifier_args = crate::mdoc::circuits::mso_attribute::Given {
+    let verifier_args = Given {
         attribute_preimage: preimage_bytes,
         field_locator,
         disclosed_attribute: da,
@@ -211,7 +219,7 @@ where
 #[test]
 fn test_attribute_success() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     run_attribute_test_mock(&f, &tracker, |_| {}).unwrap();
 }
 
@@ -220,7 +228,7 @@ fn test_eval_mso_attribute_shared_corruptors() {
     let f = Gf2_128Field::new();
     let corruptors = mso_attribute_corruptors::all_mso_attribute_corruptors();
     for c in corruptors {
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         let res = run_attribute_test_mock(&f, &tracker, |g| {
             (c.corrupt)(g);
         });

@@ -2,12 +2,11 @@
 //! Version-neutral dictionary compression.
 
 /// Compression works on dictionary indices, independently of term degree or field.
-pub(crate) fn segment_stream<T: Copy>(
-    deltas: &[T],
-    terms: Vec<u32>,
-) -> crate::core::proto::Stream<T> {
+use crate::core::proto::Stream;
+
+pub(crate) fn segment_stream<T: Copy>(deltas: &[T], terms: Vec<u32>) -> Stream<T> {
     if terms.is_empty() {
-        return crate::core::proto::Stream::default();
+        return Stream::default();
     }
 
     const W: usize = 32;
@@ -147,7 +146,7 @@ pub(crate) fn segment_stream<T: Copy>(
         *tok = old_to_new_seg[*tok as usize];
     }
 
-    crate::core::proto::Stream {
+    Stream {
         deltas: sorted_deltas,
         segments: sorted_segments,
         tokens: final_tokens,

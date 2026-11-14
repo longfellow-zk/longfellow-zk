@@ -10,11 +10,12 @@ use crate::runtime::{
         RuntimeField,
     },
     v2::{
+        merkle::verify_proof,
         proto::{
-            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
+            polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Transcript, TranscriptRef},
+        transcript::{Transcript, TranscriptRef, Unverified, VerifiedProof},
     },
 };
 #[cfg(any(test, feature = "verifier"))]
@@ -44,9 +45,9 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     /// Complete standalone verification, including the mandatory final seal.
     pub fn verify(
         self,
-        proof: crate::runtime::v2::transcript::Unverified<'_, JointPolygeroProof<L::Bodies>>,
+        proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
-    ) -> Result<crate::runtime::v2::transcript::VerifiedProof, PolygeroError> {
+    ) -> Result<VerifiedProof, PolygeroError> {
         let transcript = self.reduce(&proof, s)?;
         proof
             .checked(transcript)
@@ -61,11 +62,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         ensure(proof.context == p.context, "joint proof context mismatch")?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
-        crate::runtime::v2::proto::polygero::validate_opening(
-            &proof.opening,
-            p.config.t,
-            p.config.n,
-        )?;
+        validate_opening(&proof.opening, p.config.t, p.config.n)?;
         let c = p.challenges(s, &mut self.transcript.borrow());
         let indices = p.queries(&proof.bodies, &mut self.transcript.borrow());
         let leaves: Vec<_> = indices
@@ -83,7 +80,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
                 )
             })
             .collect();
-        crate::runtime::v2::merkle::verify_proof(
+        verify_proof(
             &p.context,
             p.config.n,
             &self.commitment.root,

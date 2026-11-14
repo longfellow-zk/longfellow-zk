@@ -15,7 +15,10 @@
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField},
-        proto::v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
+        proto::{
+            v1::{compare_term, Circuit, Layer, RawCircuit, Term, TermDelta},
+            v2::quadratic_fixture,
+        },
     },
     runtime::{
         algebra::{
@@ -24,8 +27,9 @@ use crate::{
         random::{PrivateRandom, RandomEngine},
         v2::{
             proto::{polygero::PolygeroConfig, zk::ZkProof},
+            sumcheck::eval_circuit,
             transcript::Transcript,
-            zk::{ZkProver, ZkVerifier},
+            zk::{ZkContext, ZkProver, ZkVerifier},
         },
     },
 };
@@ -142,7 +146,7 @@ fn test_zk_prover_verifier_end_to_end() {
         h1: 1,
     };
     let raw = make_raw_circuit(&f, 2, 0, 1, 0, &[2], &[1], vec![vec![term]]);
-    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
+    let circ = quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // 2. Setup inputs
     let w0 = [true, false];
@@ -164,7 +168,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let (prover, geom) = prover_inst
         .commit(
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
         )
@@ -175,7 +179,7 @@ fn test_zk_prover_verifier_end_to_end() {
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             prover,
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove");
     // 5. Serialize / deserialize proof roundtrip
@@ -186,7 +190,7 @@ fn test_zk_prover_verifier_end_to_end() {
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     )
     .unwrap();
     let v_geom = verifier.geometry();
@@ -206,7 +210,7 @@ fn test_zk_prover_verifier_end_to_end() {
         &w0[..verifier.public_input_count()],
         &deserialized,
         ts_verifier,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     );
 
     assert!(
@@ -225,7 +229,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
 
     let f = Gf2_128Field::new();
     let interpolation = BinaryInterpolatorFactory::full_field(&f);
-    let context = crate::runtime::v2::zk::ZkContext::new(&interpolation);
+    let context = ZkContext::new(&interpolation);
     // A non-power-of-two width exercises several sumcheck rounds and input pairs
     // (0,3)/(2,2), whose Morton and lexicographic orders differ.
     let inputs: Vec<_> = (1..=7).map(|v| v % 3 != 0).collect();
@@ -330,7 +334,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 assert!(tail.is_empty());
                 assert_eq!(decoded.id, circuit.id);
                 assert_eq!(decoded.raw.layers[0].terms(&decoded.raw.constants), ordered);
-                let decoded = crate::core::proto::v2::quadratic_fixture(decoded, &f);
+                let decoded = quadratic_fixture(decoded, &f);
                 let native_id = decoded.id;
                 let native_writer = crate::core::proto::v2::CircuitWriter::new(&f);
                 let native_bytes = native_writer.to_bytes(&decoded);
@@ -414,7 +418,7 @@ fn test_zk_triple_zero_zero_zero() {
     };
     // 1 wire, 0 pubin, 1 output. logv = 0, layer_logw = 0!
     let raw = make_raw_circuit(&f, 1, 0, 1, 0, &[1], &[0], vec![vec![term]]);
-    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
+    let circ = quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // To test ZK proof generation and verification cleanly on this logv=0, logw=0 circuit,
     // we set w0[0] = 0 so the constraint 0 * 0 == 0 is satisfied.
@@ -435,7 +439,7 @@ fn test_zk_triple_zero_zero_zero() {
     let (commit_res, _geom) = prover_inst
         .commit(
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
         )
@@ -445,14 +449,14 @@ fn test_zk_triple_zero_zero_zero() {
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             commit_res,
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove ZK with logv=0, logw=0");
 
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     )
     .unwrap();
     let ts_verifier = Transcript::new(b"test_zk_zero");
@@ -461,7 +465,7 @@ fn test_zk_triple_zero_zero_zero() {
         &w0[..verifier.public_input_count()],
         &zkp,
         ts_verifier,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     );
 
     assert!(
@@ -528,13 +532,13 @@ fn test_zk_intermediate_zero_logw() {
         &[0, 0, 2],
         vec![layer0_terms, layer1_terms, layer2_terms],
     );
-    let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
+    let circ = quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
     // The three bit inputs sum to zero in characteristic two.
     let w0 = [true, true, false, true];
 
     // Check that plain evaluation succeeds (sum is 0, squared twice is 0)
-    let eval_res = crate::runtime::v2::sumcheck::eval_circuit(
+    let eval_res = eval_circuit(
         w0.iter()
             .map(|bit| if *bit { f.one() } else { f.zero() })
             .collect(),
@@ -563,7 +567,7 @@ fn test_zk_intermediate_zero_logw() {
     let (commit_res, _geom) = prover_inst
         .commit(
             w0[prover_inst.circuit.raw.npublic_input..].to_vec(),
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
             ts_prover,
             &mut rng,
         )
@@ -573,14 +577,14 @@ fn test_zk_intermediate_zero_logw() {
         .prove(
             &w0[..prover_inst.circuit.raw.npublic_input],
             commit_res,
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+            &ZkContext::new(&make_interpolator),
         )
         .expect("Failed to prove ZK with intermediate logw=0");
 
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     )
     .unwrap();
     let ts_verifier = Transcript::new(b"test_zk_interm");
@@ -589,7 +593,7 @@ fn test_zk_intermediate_zero_logw() {
         &w0[..verifier.public_input_count()],
         &zkp,
         ts_verifier,
-        &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+        &ZkContext::new(&make_interpolator),
     );
 
     assert!(
@@ -614,7 +618,7 @@ fn test_zk_zero_layers() {
     // Try all 16 combinations of zero / non-zero across the 4 inputs
     for mask in 0u32..16 {
         let raw = make_raw_circuit(&f, 4, 2, 4, 2, &[], &[], vec![]);
-        let circ = crate::core::proto::v2::quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
+        let circ = quadratic_fixture(Circuit { raw, id: [0u8; 32] }, &f);
 
         let mut w0 = [false; 4];
         for (i, elem) in w0.iter_mut().enumerate().take(4) {
@@ -623,7 +627,7 @@ fn test_zk_zero_layers() {
             }
         }
 
-        let eval_res = crate::runtime::v2::sumcheck::eval_circuit(
+        let eval_res = eval_circuit(
             w0.iter()
                 .map(|bit| if *bit { f.one() } else { f.zero() })
                 .collect(),
@@ -640,17 +644,14 @@ fn test_zk_zero_layers() {
         let (commit_res, _geom) = prover_inst
             .commit(
                 w0[2..].to_vec(),
-                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+                &ZkContext::new(&make_interpolator),
                 ts_prover,
                 &mut rng,
             )
             .unwrap();
 
-        let prove_res = prover_inst.prove(
-            &w0[..2],
-            commit_res,
-            &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
-        );
+        let prove_res =
+            prover_inst.prove(&w0[..2], commit_res, &ZkContext::new(&make_interpolator));
 
         if mask == 0 {
             assert!(
@@ -668,7 +669,7 @@ fn test_zk_zero_layers() {
             let verifier = ZkVerifier::new(
                 prover_inst.circuit,
                 config,
-                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+                &ZkContext::new(&make_interpolator),
             )
             .unwrap();
             let ts_verifier = Transcript::new(b"test_zk_zero_layers");
@@ -677,7 +678,7 @@ fn test_zk_zero_layers() {
                 &w0[..2],
                 &zkp,
                 ts_verifier,
-                &crate::runtime::v2::zk::ZkContext::new(&make_interpolator),
+                &ZkContext::new(&make_interpolator),
             );
             assert!(
                 verify_res.is_ok(),

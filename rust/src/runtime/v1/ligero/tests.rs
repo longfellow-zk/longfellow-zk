@@ -24,7 +24,7 @@ use crate::{
     },
 };
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{SerializableField, GF2_16_BASIS_V1},
     runtime::{
         random::RandomEngine,
         v1::{
@@ -35,9 +35,10 @@ use crate::{
             merkle::MerkleError,
             proto::{
                 ligero::{LigeroCommitment, LigeroProof},
+                util::read_elt_field,
                 Digest,
             },
-            subfield::{BinarySubfieldV1, SubfieldV1},
+            subfield::{BinarySubfieldV1, InterpolationPlanV1, SubfieldV1},
             transcript::Transcript,
         },
     },
@@ -135,7 +136,7 @@ fn ligero_test<
     nl: usize,
     block_enc: usize,
 ) where
-    IF::Plan: crate::runtime::v1::subfield::InterpolationPlanV1<W, F>,
+    IF::Plan: InterpolationPlanV1<W, F>,
 {
     let param = LigeroParam::new(
         nw,
@@ -295,7 +296,7 @@ fn test_ligero_verifier_failures_generic<
     f: &F,
     sf: &SF,
 ) where
-    IF::Plan: crate::runtime::v1::subfield::InterpolationPlanV1<W, F>,
+    IF::Plan: InterpolationPlanV1<W, F>,
 {
     let nw = 300;
     let nq = 30;
@@ -555,7 +556,7 @@ fn test_rejects_insufficient_blinding_capacity() {
         block_enc: 451,
     };
     let gf2_runtime = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let factory = crate::runtime::algebra::range_interpolation::BinaryInterpolatorFactory::new(
         &gf2_runtime,
         subfield.basis(),
@@ -568,8 +569,7 @@ fn test_rejects_insufficient_blinding_capacity() {
 #[test]
 fn test_ligero_gf2_128() {
     let f = Gf2_128RuntimeField::new();
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let make_interpolator = BinaryInterpolatorFactory::new(&f, sf.basis());
     ligero_test(&make_interpolator, &f, &sf, 3000, 300, 189, 7, 4096);
     test_ligero_verifier_failures_generic(&make_interpolator, &f, &sf);
@@ -636,7 +636,7 @@ fn test_range_capacity_includes_response_source() {
         }
     }
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let domain = BinaryInterpolatorFactory::new(&f, sf.basis());
     let config = LigeroConfig {
         rateinv: 4,
@@ -675,7 +675,7 @@ fn test_ligero_sextic_subfield_matches_full_field_reference() {
         products: &[LigeroQuadraticConstraint],
     ) -> (Digest, Vec<u8>)
     where
-        IF::Plan: crate::runtime::v1::subfield::InterpolationPlanV1<3, RuntimeFp24Ext6>,
+        IF::Plan: InterpolationPlanV1<3, RuntimeFp24Ext6>,
     {
         let sf = RuntimeFp24SubfieldV1;
         let param = LigeroParam::new(
@@ -778,13 +778,13 @@ fn test_cpp_roundtrip_gf2_128() {
     let subfield_boundary = read_u64(data, &mut offset);
 
     let f = Gf2_128RuntimeField::new();
-    let subfield = BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let subfield = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
 
     // Read W
     let mut w = Vec::with_capacity(nw);
     for _ in 0..nw {
         let mut slice = &data[offset..];
-        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         w.push(val);
     }
@@ -793,7 +793,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let mut a = Vec::with_capacity(nw);
     for _ in 0..nw {
         let mut slice = &data[offset..];
-        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         a.push(val);
     }
@@ -814,7 +814,7 @@ fn test_cpp_roundtrip_gf2_128() {
         let c = read_u64(data, &mut offset);
         let w_idx = read_u64(data, &mut offset);
         let mut slice = &data[offset..];
-        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         llterm.push(LigeroLinearConstraint {
             c,
@@ -827,7 +827,7 @@ fn test_cpp_roundtrip_gf2_128() {
     let mut b = Vec::with_capacity(nl);
     for _ in 0..nl {
         let mut slice = &data[offset..];
-        let val = crate::runtime::v1::proto::util::read_elt_field(&mut slice, &f).unwrap();
+        let val = read_elt_field(&mut slice, &f).unwrap();
         offset += f.serialized_size_bytes();
         b.push(val);
     }
@@ -861,8 +861,7 @@ fn test_cpp_roundtrip_gf2_128() {
         &make_interpolator,
     );
 
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = crate::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     // 1. Deserialize C++ proof using Rust's reader
     let mut r_slice = cpp_proof_bytes;
     let cpp_proof = LigeroProof::read(&mut r_slice, &param.geom, &f, &sf)

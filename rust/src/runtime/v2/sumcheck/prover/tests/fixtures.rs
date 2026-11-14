@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::*;
 use crate::{
-    core::algebra::ElementOf,
+    core::{algebra::ElementOf, proto::v2::Circuit},
     runtime::v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
 };
 
@@ -12,7 +12,7 @@ pub(crate) fn prove_core<
 >(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
@@ -35,7 +35,7 @@ pub(crate) fn prove_core<
 pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {

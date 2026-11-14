@@ -16,18 +16,24 @@
 
 use crate::{
     circuits::boolean::{Bitw, Boolean},
-    compile::logic::{Eltw, Logic},
+    compile::{
+        algebra::{
+            fp::{FpField, FpParameters},
+            CompileNat,
+        },
+        logic::{Eltw, EvalLogic, Logic},
+    },
 };
 
 pub(in crate::circuits::bitvec) struct F65537Tag;
-pub(in crate::circuits::bitvec) type F65537Field = crate::compile::algebra::fp::FpField<F65537Tag>;
+pub(in crate::circuits::bitvec) type F65537Field = FpField<F65537Tag>;
 
-pub(in crate::circuits::bitvec) type LPrime<'a> = crate::compile::logic::EvalLogic<'a, F65537Field>;
+pub(in crate::circuits::bitvec) type LPrime<'a> = EvalLogic<'a, F65537Field>;
 
 pub(in crate::circuits::bitvec) fn new_f65537_field() -> F65537Field {
-    crate::compile::algebra::fp::FpField::new_field(crate::compile::algebra::fp::FpParameters {
+    FpField::new_field(FpParameters {
         length_bytes: 3,
-        modulo: crate::compile::algebra::CompileNat::<4>::from(65537),
+        modulo: CompileNat::<4>::from(65537),
     })
 }
 

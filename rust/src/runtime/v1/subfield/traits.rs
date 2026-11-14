@@ -12,7 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::algebra::gf2_128::Gf2_128;
+use crate::{
+    core::algebra::SupportsU64Conversions,
+    runtime::algebra::{
+        gf2_128::Gf2_128,
+        range_interpolation::{
+            binary::BinaryInterpolationPlan,
+            quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan,
+            scalar::ScalarInterpolationPlan, InterpolationPlan,
+        },
+        RuntimeBinaryField, RuntimeField, SupportsQuadraticExtension,
+    },
+};
 
 pub trait SubfieldV1 {
     type E;
@@ -31,9 +42,7 @@ pub trait SubfieldV1 {
 }
 
 /// V1-only compact-row interpolation; ordinary plans do not require this capability.
-pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>:
-    crate::runtime::algebra::range_interpolation::InterpolationPlan<W, F>
-{
+pub trait InterpolationPlanV1<const W: usize, F: RuntimeField<W>>: InterpolationPlan<W, F> {
     /// A public layout hint that all source values belong to `subfield`.
     /// The default implementation works without subfield specialization.
     fn apply_subfield_v1<SF: SubfieldV1<E = F::E>>(
@@ -45,27 +54,15 @@ pub trait InterpolationPlanV1<const W: usize, F: crate::runtime::algebra::Runtim
     }
 }
 
-impl<const W: usize, F: crate::runtime::algebra::RuntimeBinaryField<W, E = Gf2_128>>
-    InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::binary::BinaryInterpolationPlan<'_, W, F>
+impl<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> InterpolationPlanV1<W, F>
+    for BinaryInterpolationPlan<'_, W, F>
 {
 }
-impl<
-        const W: usize,
-        F: crate::runtime::algebra::RuntimeField<W> + crate::core::algebra::SupportsU64Conversions,
-    > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::scalar::ScalarInterpolationPlan<'_, W, F>
+impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions> InterpolationPlanV1<W, F>
+    for ScalarInterpolationPlan<'_, W, F>
 {
 }
-impl<
-        const W: usize,
-        F: crate::runtime::algebra::SupportsQuadraticExtension<W>
-            + crate::core::algebra::SupportsU64Conversions,
-    > InterpolationPlanV1<W, F>
-    for crate::runtime::algebra::range_interpolation::quadratic_extension_fft::QuadraticExtensionFftInterpolationPlan<
-        '_,
-        W,
-        F,
-    >
+impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
+    InterpolationPlanV1<W, F> for QuadraticExtensionFftInterpolationPlan<'_, W, F>
 {
 }

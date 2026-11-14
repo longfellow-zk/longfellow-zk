@@ -14,10 +14,10 @@
 
 use crate::{
     compile::algebra::gf2_128::Gf2_128Field as UnoptField,
-    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions, GF2_16_BASIS_V1},
     runtime::{
         algebra::{gf2_128::*, InterpolationField, SupportsSampling},
-        v1::subfield::SubfieldV1,
+        v1::subfield::{BinarySubfieldV1, SubfieldV1},
     },
 };
 
@@ -154,8 +154,7 @@ fn test_serialization() {
     let bytes = field.to_bytes(&one);
     assert_eq!(bytes.len(), field.serialized_size_bytes());
 
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let sub_bytes = sf.to_bytes(&one);
     assert_eq!(sub_bytes.len(), sf.serialized_size_bytes());
 }

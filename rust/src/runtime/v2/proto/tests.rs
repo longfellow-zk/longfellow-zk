@@ -16,13 +16,16 @@
 
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::v2::proto::sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
+    runtime::{
+        algebra::p256::P256Field,
+        v2::proto::sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
+    },
 };
 
 #[test]
 fn single_hand_geometry_codec_and_malformed_shapes() {
     use crate::{core::algebra::SerializableField, runtime::v2::proto::sumcheck::LayerProof};
-    let f = crate::runtime::algebra::p256::P256Field::new();
+    let f = P256Field::new();
     let proof: SumcheckProof<4, _> = SumcheckProof {
         layers: vec![
             LayerProof {
@@ -70,7 +73,7 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
 #[test]
 fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
     use crate::runtime::v2::proto::sumcheck::{pad_count, sane_logw, LayerProof, MAX_LOGW};
-    let f = crate::runtime::algebra::p256::P256Field::new();
+    let f = P256Field::new();
     for logw in [0, MAX_LOGW - 1, MAX_LOGW] {
         assert!(sane_logw(logw));
         let proof: SumcheckProof<4, _> = SumcheckProof {

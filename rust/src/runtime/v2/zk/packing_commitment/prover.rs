@@ -2,13 +2,17 @@
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
     algebra::{
-        packing::{PackingExtension, PackingField},
+        packing::{BaseElement, PackingExtension, PackingField},
         ZkField,
     },
     random::PrivateRandom,
     v2::{
-        dual_packing::generic::{PackingMasks, PackingProof},
+        dual_packing::{
+            generic::{PackingMasks, PackingProof},
+            prover::prove_packed,
+        },
         polygero::LinearStatement,
+        proto::Digest,
         transcript::TranscriptRef,
     },
 };
@@ -23,7 +27,7 @@ pub(crate) struct PackingState<E> {
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub(crate) fn prepare_inputs(
         &self,
-        logical: &[crate::runtime::algebra::packing::BaseElement<X>],
+        logical: &[BaseElement<X>],
     ) -> Result<PreparedInputs<F::E>, String> {
         if logical.len() != self.layout.private_inputs {
             return Err("witness length mismatch".into());
@@ -70,7 +74,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
     where
         F: ZkField<W>,
     {
-        let (packing, rows) = crate::runtime::v2::dual_packing::prover::prove_packed(
+        let (packing, rows) = prove_packed(
             &self.parameters,
             &statement.claim,
             &state.words,
@@ -84,7 +88,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // The continuing transcript already binds the public inputs, sumcheck
         // and packing messages. The circuit ID identifies their source without
         // introducing a query between the frontend and joint batching.
-        let digest = crate::runtime::v2::proto::Digest { data: *id };
+        let digest = Digest { data: *id };
         let (a, b) = self.append_equations::<W>(statement, &rows)?;
         Ok((packing, LinearStatement { a, b, digest }))
     }

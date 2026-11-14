@@ -15,22 +15,29 @@
 //! Longfellow v1 application prover.
 
 use crate::{
+    core::algebra::GF2_16_BASIS_V1,
     mdoc::{
         circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
         v1::{MdocProverErrorCode, RequestedAttribute, ZkSpecStruct},
     },
     runtime::{
         algebra::{
+            fp2::Fp2Field,
             gf2_128::Gf2_128Field,
             p256::P256Field,
+            q256::Q256Field,
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
             secp256r1::Secp256r1,
-            SupportsFFT,
+            RuntimeNat, SupportsFFT,
         },
-        random::RandomEngine,
-        v1::{transcript::Transcript, zk::ZkProver},
+        random::{RandomEngine, SecureRandomEngine},
+        v1::{
+            subfield::{BinarySubfieldV1, P256SubfieldV1},
+            transcript::Transcript,
+            zk::{common::ZkContext, ZkProver},
+        },
     },
 };
 
@@ -46,7 +53,7 @@ pub fn run_mdoc_prover(
     now: &str,
     doc_type: &str,
 ) -> Result<Vec<u8>, MdocProverErrorCode> {
-    let mut rng = crate::runtime::random::SecureRandomEngine::new();
+    let mut rng = SecureRandomEngine::new();
     run_mdoc_prover_inner(
         zk_spec,
         circuits_compressed,
@@ -93,24 +100,23 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let mac_ap = super::mac::generate_mac_ap(rng);
 
     let mut tp = Transcript::new(transcript);
-    let p256_2 = crate::runtime::algebra::fp2::Fp2Field::new(&p256);
+    let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
     let make_interpolator_sig =
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
 
-    let q256 = crate::runtime::algebra::q256::Q256Field::new();
+    let q256 = Q256Field::new();
     let secp256r1 = Secp256r1::new(&p256);
 
     let gf2 = Gf2_128Field::new();
-    let sf_hash =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf_hash = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
-    let parsed: ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>> =
+    let parsed: ParsedMdoc<RuntimeNat<4>> =
         parse_mdoc(mdoc_bytes, transcript, doc_type).map_err(|err| match err {
             MdocParseError::TooBig => MdocProverErrorCode::TaggedMsoTooBig,
             _ => MdocProverErrorCode::MsoDecodingFailure,
@@ -126,12 +132,12 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let witness_sig =
         super::inputs::push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed, &mac_ap);
 
-    let sf_sig = crate::runtime::v1::subfield::P256SubfieldV1::new(&p256);
+    let sf_sig = P256SubfieldV1::new(&p256);
 
     let prover_hash = ZkProver::<2, _>::new(c_hash, config_hash);
     let (commit_hash, geom_hash) = prover_hash.commit(
         &witness_hash,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,
         },
@@ -143,7 +149,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
     let prover_sig = ZkProver::<4, _>::new(c_sig, config_sig);
     let (commit_sig, geom_sig) = prover_sig.commit(
         &witness_sig,
-        &crate::runtime::v1::zk::common::ZkContext {
+        &ZkContext {
             f: &p256,
             make_interpolator: &make_interpolator_sig,
         },
@@ -172,7 +178,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             witness_hash,
             &commit_hash,
             &mut tp,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &gf2,
                 make_interpolator: &make_interpolator_hash,
             },
@@ -188,7 +194,7 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
             witness_sig,
             &commit_sig,
             &mut tp,
-            &crate::runtime::v1::zk::common::ZkContext {
+            &ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
             },

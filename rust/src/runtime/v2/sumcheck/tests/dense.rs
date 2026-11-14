@@ -15,15 +15,14 @@
 use crate::{
     core::algebra::SupportsU64Conversions,
     runtime::{
-        algebra::p256::P256Field,
+        algebra::{
+            fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField,
+        },
         v2::sumcheck::{bind, dense::as_scalar},
     },
 };
 
-fn check_binding<const W: usize, F: crate::runtime::algebra::RuntimeField<W>>(
-    f: &F,
-    element: impl Fn(u64) -> F::E,
-) {
+fn check_binding<const W: usize, F: RuntimeField<W>>(f: &F, element: impl Fn(u64) -> F::E) {
     for n in [1usize, 2, 3, 7, 8, 13, 16] {
         // Extra variables exercise implicit zero high coefficients and repeated
         // binding of a scalar, both of which must preserve the constant term.
@@ -65,13 +64,13 @@ fn binding_matches_monomial_weights_prime() {
 #[test]
 fn binding_matches_monomial_weights_binary() {
     use crate::core::algebra::SupportsU128Conversions;
-    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let f = Gf2_128Field::new();
     check_binding(&f, |x| f.u128_to_element(x as u128));
 }
 
 #[test]
 fn binding_matches_monomial_weights_extension() {
-    let f = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
+    let f = RuntimeFp24Ext6::new();
     check_binding(&f, |x| {
         if x < 2 {
             f.u64_to_element(x)

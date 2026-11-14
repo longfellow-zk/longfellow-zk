@@ -4,10 +4,13 @@ use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::RuntimeField,
-        v2::proto::{
-            dual_packing::PackingProof,
-            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
-            sumcheck::{SumcheckProof, SumcheckProofGeometry},
+        v2::{
+            proto::{
+                dual_packing::PackingProof,
+                polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
+                sumcheck::{SumcheckProof, SumcheckProofGeometry},
+            },
+            transcript::{EncodedProof, Transcript, Unverified},
         },
     },
 };
@@ -126,8 +129,8 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         &self,
         g: &ZkProofGeometry,
         f: &F,
-        transcript: crate::runtime::v2::transcript::Transcript,
-    ) -> std::io::Result<crate::runtime::v2::transcript::EncodedProof> {
+        transcript: Transcript,
+    ) -> std::io::Result<EncodedProof> {
         let mut b = Vec::new();
         self.write_body(&mut b, g, f)?;
         Ok(transcript.append_final_seal(b))
@@ -136,7 +139,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         b: &mut &'a [u8],
         g: &ZkProofGeometry,
         f: &F,
-    ) -> std::io::Result<crate::runtime::v2::transcript::Unverified<'a, Self>> {
+    ) -> std::io::Result<Unverified<'a, Self>> {
         let input = *b;
         use std::io::{Error, ErrorKind};
         if b.get(..4) != Some(b"LFV9") {
@@ -170,6 +173,6 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
             packing,
             com_proof,
         };
-        crate::runtime::v2::transcript::Unverified::decoded(body, input, b)
+        Unverified::decoded(body, input, b)
     }
 }

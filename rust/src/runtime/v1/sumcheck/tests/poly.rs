@@ -13,9 +13,12 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::SupportsU64Conversions,
-    runtime::algebra::{
-        gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
+    core::algebra::{SupportsU64Conversions, GF2_16_BASIS_V1},
+    runtime::{
+        algebra::{
+            gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
+        },
+        v1::subfield::BinarySubfieldV1,
     },
 };
 
@@ -93,8 +96,7 @@ fn test_poly_evaluation_p256() {
 #[test]
 fn test_poly_evaluation_gf2_128() {
     let f = Gf2_128RuntimeField::new();
-    let sf =
-        crate::runtime::v1::subfield::BinarySubfieldV1::new(&crate::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     test_poly_evaluation_generic(&f, sf.embed(5), sf.embed(10), sf.embed(20), sf.embed(15));
 }
 

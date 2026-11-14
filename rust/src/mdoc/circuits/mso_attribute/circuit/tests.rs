@@ -1,11 +1,14 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
-use crate::compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic};
+use crate::compile::{
+    algebra::gf2_128::Gf2_128Field,
+    logic::{AssertionScope, EvalLogic},
+};
 
 #[test]
 fn item_slots_require_their_declared_cbor_types() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let verifier = AttributeVerifier::new(&logic);

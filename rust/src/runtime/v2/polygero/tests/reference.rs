@@ -17,7 +17,7 @@ use super::*;
 use crate::{
     core::algebra::AlgebraicField,
     runtime::v2::{
-        polygero::Participants,
+        polygero::{prover_commitment::ColumnOracle, Participants},
         proto::{polygero::PolygeroCommitment, Digest},
     },
 };
@@ -30,7 +30,7 @@ pub(super) fn snapshot<E: Clone>(
     JointPolygeroProver {
         context: prover.context,
         states: prover.states.clone(),
-        oracle: crate::runtime::v2::polygero::prover_commitment::ColumnOracle {
+        oracle: ColumnOracle {
             tree: prover.oracle.tree.clone(),
             salts: prover.oracle.salts.clone(),
         },
@@ -58,7 +58,7 @@ pub(super) fn check_recommitted_wrong_witness<
     for value in &mut forged.states.0[param.data_start()] {
         f.add(value, &f.one());
     }
-    forged.oracle = crate::runtime::v2::polygero::prover_commitment::ColumnOracle::new(
+    forged.oracle = ColumnOracle::new(
         param.geom.n,
         &joint.context,
         &mut DeterministicRng::new(97),

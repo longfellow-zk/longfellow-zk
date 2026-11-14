@@ -19,10 +19,11 @@ use crate::{
     core::algebra::{
         fp24::{invert_base, Q},
         fp24_ext6::{
-            add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
-            BETA, EXTENSION_DEGREE, SERIALIZED_SIZE,
+            add_extension, deserialize, invert_extension, mul_extension, product_unreduced,
+            serialize, sub_extension, BETA, EXTENSION_DEGREE, SERIALIZED_SIZE,
         },
-        AlgebraicField, BareField, Nat, SerializableField, SupportsU64Conversions,
+        AlgebraicField, BareField, FieldID, HasLookupPoints, Nat, SerializableField,
+        SupportsNatConversions, SupportsU64Conversions,
     },
     runtime::algebra::{
         InterpolationField, RuntimeField, RuntimeNat, RuntimeSerializableField, SupportsSampling,
@@ -94,8 +95,8 @@ impl AlgebraicField for RuntimeFp24Ext6 {
 }
 
 impl SerializableField for RuntimeFp24Ext6 {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::None
+    fn field_id(&self) -> FieldID {
+        FieldID::None
     }
     fn is_binary(&self) -> bool {
         false
@@ -127,7 +128,7 @@ impl SupportsU64Conversions for RuntimeFp24Ext6 {
     }
 }
 
-impl crate::core::algebra::HasLookupPoints for RuntimeFp24Ext6 {
+impl HasLookupPoints for RuntimeFp24Ext6 {
     fn lookup_point(&self, n: usize, i: usize) -> Self::E {
         let value =
             ((2 * i) as u64 + u64::from(Q) - ((n - 1) as u64 % u64::from(Q))) % u64::from(Q);
@@ -148,8 +149,7 @@ impl RuntimeField<3> for RuntimeFp24Ext6 {
     fn mac(&self, acc: &mut Self::Accum, x: &Self::E, y: &Self::E) {
         // One unreduced product fits in u64: at most six 23-bit products
         // contribute to a coefficient. No field or polynomial reduction occurs.
-        let product =
-            crate::core::algebra::fp24_ext6::product_unreduced(&x.coefficients, &y.coefficients);
+        let product = product_unreduced(&x.coefficients, &y.coefficients);
         for (coefficient, product) in acc.iter_mut().zip(product) {
             *coefficient += u128::from(product);
         }
@@ -185,7 +185,7 @@ impl RuntimeSerializableField<3> for RuntimeFp24Ext6 {
     }
 }
 
-impl crate::core::algebra::SupportsNatConversions<3> for RuntimeFp24Ext6 {
+impl SupportsNatConversions<3> for RuntimeFp24Ext6 {
     type N = RuntimeNat<3>;
 
     fn reduce_nat(&self, n: &Self::N) -> Self::E {

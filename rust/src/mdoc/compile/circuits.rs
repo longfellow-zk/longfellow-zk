@@ -7,7 +7,7 @@ use crate::{
         arithmetic::Arithmetic,
         bitvec::V256,
         boolean::Boolean,
-        ecdsa2::{EcdsaCircuit, Given},
+        ecdsa2::{allocate_derived_wires, EcdsaCircuit, Given},
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, secp256r1::Secp256r1},
@@ -16,7 +16,10 @@ use crate::{
     },
     core::proto::v2::Circuit,
     mdoc::{
-        circuits::{hash::MdocHash, p256_adapter::MODULUS},
+        circuits::{
+            hash::{allocate, MdocHash},
+            p256_adapter::MODULUS,
+        },
         proto::layout,
     },
 };
@@ -65,8 +68,8 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
             ),
             arithmetic.as_eltw_unsafe(device_e.as_array()),
         );
-        let issuer_derived = crate::circuits::ecdsa2::allocate_derived_wires(&logic, &mut pos);
-        let device_derived = crate::circuits::ecdsa2::allocate_derived_wires(&logic, &mut pos);
+        let issuer_derived = allocate_derived_wires(&logic, &mut pos);
+        let device_derived = allocate_derived_wires(&logic, &mut pos);
         let curve = Secp256r1::new(f);
         let ecdsa = EcdsaCircuit::new(&logic, &curve);
         (
@@ -88,8 +91,7 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
     }
     let (c, _, _) = compile_v2(f, |l| {
         let mut pos = K_FIRST_WIRE_POSITION;
-        let (given, derived, npublic) =
-            crate::mdoc::circuits::hash::allocate(&l, num_attrs, &mut pos);
+        let (given, derived, npublic) = allocate(&l, num_attrs, &mut pos);
         let b = Boolean::new(&l);
         let a = Arithmetic::new(&l);
         let modulus: Vec<_> = (0..256)

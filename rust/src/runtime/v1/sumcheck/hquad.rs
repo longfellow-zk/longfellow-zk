@@ -22,10 +22,17 @@
 //! adjacent corners with equal remaining indices, writing back into those
 //! arrays. Morton ordering makes the matching corners adjacent throughout the
 //! alternating bindings, so no intermediate sparse map is needed.
-use crate::runtime::{
-    algebra::RuntimeField,
-    v1::sumcheck::dense::{
-        affine_interpolation, affine_interpolation_nz_z, affine_interpolation_z_nz,
+use crate::{
+    core::{
+        algebra::SerializableField,
+        proto::{sane_logw, v1::Layer},
+    },
+    runtime::{
+        algebra::RuntimeField,
+        v1::sumcheck::{
+            dense::{affine_interpolation, affine_interpolation_nz_z, affine_interpolation_z_nz},
+            eq::eq2,
+        },
     },
 };
 
@@ -50,11 +57,11 @@ pub struct HQuad<const W: usize, F: RuntimeField<W>> {
     pub vc: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableField> HQuad<W, F> {
+impl<const W: usize, F: RuntimeField<W> + SerializableField> HQuad<W, F> {
     #[allow(clippy::too_many_arguments)]
     /// Bind output weights and combine adjacent equal (r,l) corners.
     pub fn bind_g(
-        layer: &crate::core::proto::v1::Layer<F>,
+        layer: &Layer<F>,
         constants: &[F::E],
         logv: usize,
         nv: usize,
@@ -67,8 +74,8 @@ impl<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableFiel
         let cap = layer.nterms_after_bind_g();
         let mut hc: Vec<HCorner> = Vec::with_capacity(cap);
         let mut vc: Vec<F::E> = Vec::with_capacity(cap);
-        assert!(crate::core::proto::sane_logw(logv), "logv must be sane");
-        let dot = crate::runtime::v1::sumcheck::eq::eq2(logv, nv, g0, g1, alpha, f);
+        assert!(sane_logw(logv), "logv must be sane");
+        let dot = eq2(logv, nv, g0, g1, alpha, f);
         let mut prev_h0 = !0u32;
         let mut prev_h1 = !0u32;
         layer.for_each_term(

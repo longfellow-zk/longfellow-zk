@@ -14,7 +14,7 @@
 
 //! Development selection and cache round trips are independent of frozen publication.
 use super::*;
-use crate::core::proto::archive::CircuitArchiveBuilder;
+use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::circuits::NEXT_VERSION};
 
 #[test]
 fn frozen_requests_delegate_and_never_compile_next() {
@@ -60,14 +60,14 @@ fn next_compilation_is_reproducible_and_unregistered() {
 fn next_cache_preserves_the_complete_spec() {
     use crate::mdoc::v2::{PolygeroParameters, ZkSpecStruct};
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();
     // Deliberately different choices from NEXT's policy: loading must not retune them.
     let spec = ZkSpecStruct {
         combined_hash: archive.combined_id,
-        version: crate::mdoc::circuits::NEXT_VERSION,
+        version: NEXT_VERSION,
         num_attributes: 3,
         polygero_hash: PolygeroParameters {
             k: 512,
@@ -108,7 +108,7 @@ fn next_cache_preserves_the_complete_spec() {
 fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
     use crate::mdoc::v2::PolygeroParameters;
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();
@@ -121,7 +121,7 @@ fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
     };
     let spec = v2::ZkSpecStruct {
         combined_hash: archive.combined_id,
-        version: crate::mdoc::circuits::NEXT_VERSION,
+        version: NEXT_VERSION,
         num_attributes: 1,
         polygero_hash: parameters,
         polygero_sig: parameters,

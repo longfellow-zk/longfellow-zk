@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::core::algebra::SerializableField;
+
 pub(crate) mod arch;
 pub mod blas;
 pub mod fft;
@@ -41,10 +43,10 @@ pub use poly::{InterpolationField, LagrangeBasis, Poly};
 
 /// Stable trait alias bundling requirements for zero-knowledge proving.
 pub trait ZkField<const W: usize>:
-    InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
+    InterpolationField<W> + SerializableField + SupportsSampling
 {
 }
-impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + crate::core::algebra::SerializableField + SupportsSampling
+impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + SerializableField + SupportsSampling
 {}
 
 #[cfg(any(test, feature = "tooling"))]

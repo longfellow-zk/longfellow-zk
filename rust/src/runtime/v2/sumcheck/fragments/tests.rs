@@ -1,9 +1,11 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+    core::proto::v2::{
+        classify_constants, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
+    },
     runtime::{
-        algebra::SupportsSampling,
+        algebra::{p256::P256Field, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
             proto::sumcheck::SumcheckProof,
@@ -309,7 +311,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 #[test]
 fn shared_inputs_unequal_depths_widths_and_circuit_counts() {
     check(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
-    check(&crate::runtime::algebra::p256::P256Field::new());
+    check(&P256Field::new());
 }
 
 #[test]
@@ -432,7 +434,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         for s in &layout.fragments {
             let split = SplitLayer::with_classes(
                 &circuits[s.circuit].raw.layers[s.layer],
-                &crate::core::proto::v2::classify_constants(f, &circuits[s.circuit].raw.constants),
+                &classify_constants(f, &circuits[s.circuit].raw.constants),
             );
             active.push(SplitFragment::new(s, split));
         }
@@ -454,7 +456,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             &merged_schedule.layers[stage].fragments[0],
             SplitLayer::with_classes(
                 &merged.raw.layers[stage],
-                &crate::core::proto::v2::classify_constants(f, &merged.raw.constants),
+                &classify_constants(f, &merged.raw.constants),
             ),
         )];
         let mut merged_entering = Vec::new();
@@ -522,7 +524,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
 #[test]
 fn quad_fragments_match_a_physically_merged_circuit() {
     compare_merged(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
-    compare_merged(&crate::runtime::algebra::p256::P256Field::new());
+    compare_merged(&P256Field::new());
 }
 
 #[test]
@@ -661,5 +663,5 @@ fn check_prefix_widths<
 #[test]
 fn components_read_prefixes_of_one_shared_input_array() {
     check_prefix_widths(&crate::runtime::algebra::gf2_128::Gf2_128Field::new());
-    check_prefix_widths(&crate::runtime::algebra::p256::P256Field::new());
+    check_prefix_widths(&P256Field::new());
 }

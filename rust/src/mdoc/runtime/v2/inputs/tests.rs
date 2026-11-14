@@ -14,17 +14,25 @@
 
 //! V2 input capacity and early rejection, without compiling a circuit.
 use crate::{
-    mdoc::v2::{
-        req_attr, run_mdoc_prover_inner, run_mdoc_verifier, MdocProverErrorCode,
-        MdocVerifierErrorCode,
+    mdoc::{
+        circuits::cbor::encode_cbor_string,
+        runtime::tests::specs::v2_spec,
+        testcases::{BIRTHDATE_1971_09_01_MDOC_3, DHS_COMPLIANCE_MDOC_10, TEST_DATA},
+        v2::{
+            req_attr, run_mdoc_prover_inner, run_mdoc_verifier, MdocProverErrorCode,
+            MdocVerifierErrorCode,
+        },
     },
-    runtime::random::DeterministicRng,
+    runtime::{
+        algebra::{p256::P256Field, q256::Q256Field, secp256r1::Secp256r1},
+        random::DeterministicRng,
+    },
 };
 
 #[test]
 fn namespace_capacity_and_encoding_are_checked_before_proving() {
     use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
-    let spec = &crate::mdoc::runtime::tests::specs::v2_spec();
+    let spec = &v2_spec();
     for namespace in [vec![], vec![b'n'; K_NAMESPACE_BYTES + 1], vec![0xff]] {
         let attrs = [req_attr(namespace, "a", [0xf5])];
         let mut rng = DeterministicRng::new(42);
@@ -69,7 +77,7 @@ fn namespace_capacity_and_encoding_are_checked_before_proving() {
 #[test]
 fn global_namespace_scopes_the_honest_attribute_lookup() {
     use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
-    let fixture = &crate::mdoc::testcases::DHS_COMPLIANCE_MDOC_10;
+    let fixture = &DHS_COMPLIANCE_MDOC_10;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let namespaces = parsed.namespaces().unwrap();
@@ -121,25 +129,25 @@ fn zero_signature_is_a_witness_error() {
         mdoc::circuits::cbor::mdoc::parse_mdoc,
         runtime::algebra::RuntimeNat,
     };
-    let fixture = &crate::mdoc::testcases::TEST_DATA;
+    let fixture = &TEST_DATA;
     let mut zero_signature =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
-    let f = crate::runtime::algebra::p256::P256Field::new();
-    let q = crate::runtime::algebra::q256::Q256Field::new();
-    let curve = crate::runtime::algebra::secp256r1::Secp256r1::new(&f);
+    let f = P256Field::new();
+    let q = Q256Field::new();
+    let curve = Secp256r1::new(&f);
     zero_signature.issuer_sig_s = RuntimeNat::<4>::from_u64(0);
     assert!(super::push_witness_sig(&f, &q, &curve, &(f.one(), f.one()), &zero_signature).is_err());
 }
 
 #[test]
 fn rejects_invalid_public_inputs_before_loading_or_sampling() {
-    let spec = &crate::mdoc::runtime::tests::specs::v2_spec();
+    let spec = &v2_spec();
     let valid = req_attr("namespace", "a", [0xf5]);
     let now = "2026-10-23T00:00:00Z";
     let mut long_id = valid.clone();
     long_id.id = vec![b'a'; 31]; // CBOR header plus text exceeds the 32-byte slot.
     let mut long_value = valid.clone();
-    long_value.cbor_value = crate::mdoc::circuits::cbor::encode_cbor_string(&[b'a'; 63]);
+    long_value.cbor_value = encode_cbor_string(&[b'a'; 63]);
     let mut nested_value = valid.clone();
     nested_value.cbor_value = vec![0xc0; 100_000];
     nested_value.cbor_value.push(0x00);
@@ -186,11 +194,7 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
             Err(expected)
         );
     }
-    let boundary = req_attr(
-        "namespace",
-        [b'a'; 30],
-        crate::mdoc::circuits::cbor::encode_cbor_string(&[b'a'; 62]),
-    );
+    let boundary = req_attr("namespace", [b'a'; 30], encode_cbor_string(&[b'a'; 62]));
     assert!(super::public_inputs_fit(
         &[boundary],
         now.as_bytes(),
@@ -206,7 +210,7 @@ fn private_hash_inputs_enforce_sha_capacity() {
             hash::constants::K_MSO_PREIMAGE_LEN, mso_attribute::constants::K_MAX_ATTR_CBOR_LEN,
         },
     };
-    let fixture = &crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3;
+    let fixture = &BIRTHDATE_1971_09_01_MDOC_3;
     let mut parsed = parse_mdoc::<crate::runtime::algebra::RuntimeNat<4>>(
         fixture.mdoc,
         fixture.transcript,
@@ -267,7 +271,7 @@ fn utc_public_input_syntax_is_checked_and_case_is_normalized() {
 #[test]
 fn requested_values_must_match_before_building_sha_witnesses() {
     use crate::{mdoc::circuits::cbor::mdoc::parse_mdoc, runtime::algebra::RuntimeNat};
-    let fixture = &crate::mdoc::testcases::TEST_DATA;
+    let fixture = &TEST_DATA;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
     let attr = &parsed.attrs[0];

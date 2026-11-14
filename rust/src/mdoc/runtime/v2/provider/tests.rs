@@ -13,14 +13,17 @@
 // limitations under the License.
 
 //! Frozen v2 lookup and loading, including a synthetic unpublished fixture.
-use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::v2::provider::*};
+use crate::{
+    core::proto::archive::CircuitArchiveBuilder,
+    mdoc::{circuits::NEXT_VERSION, runtime::tests::specs::v2_spec, v2::provider::*},
+};
 
 #[test]
 fn next_is_not_a_frozen_v2_circuit() {
     assert!(registered_versions_and_attrs().is_empty());
     for count in 1..=4 {
         assert!(matches!(
-            materialize(crate::mdoc::circuits::NEXT_VERSION, count),
+            materialize(NEXT_VERSION, count),
             Err(MdocProverErrorCode::InvalidZkSpecVersion)
         ));
     }
@@ -34,12 +37,12 @@ fn provider_rejects_wrong_archive_entries() {
         vec!["sig", "hash", "extra"],
     ] {
         let mut builder = CircuitArchiveBuilder::new();
-        builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+        builder.set_circuit_version(NEXT_VERSION as u32);
         for name in names {
             builder.add_entry(name, [1; 32], vec![1]);
         }
         let archive = builder.build();
-        let mut spec = crate::mdoc::runtime::tests::specs::v2_spec();
+        let mut spec = v2_spec();
         spec.combined_hash = archive.combined_id;
         let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
         assert!(matches!(
@@ -52,11 +55,11 @@ fn provider_rejects_wrong_archive_entries() {
 #[test]
 fn frozen_v2_loader_reads_archive_without_a_compiler() {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();
-    let mut spec = crate::mdoc::runtime::tests::specs::v2_spec();
+    let mut spec = v2_spec();
     spec.combined_hash = archive.combined_id;
     let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
     let directory =
@@ -73,7 +76,7 @@ fn frozen_v2_loader_reads_archive_without_a_compiler() {
     std::fs::remove_dir(directory).unwrap();
     spec.version = 99;
     assert!(from_compressed(spec, compressed.clone()).is_err());
-    spec.version = crate::mdoc::circuits::NEXT_VERSION;
+    spec.version = NEXT_VERSION;
     spec.combined_hash[0] ^= 1;
     assert!(from_compressed(spec, compressed).is_err());
 }

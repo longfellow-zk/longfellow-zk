@@ -14,7 +14,7 @@
 
 use crate::runtime::algebra::{
     fp_generic::MontgomeryStrategy,
-    limb::{accum, sub_limb, Limb},
+    limb::{accum, maybe_minus_m, mul_accum, mul_accum_zero, sub_limb, Limb, LIMBS_PER_U64},
     p256::P256Strategy,
 };
 
@@ -29,7 +29,7 @@ fn p256_reduction_step(a: &mut [Limb; 10]) {
     accum(a, 3, &h);
 }
 
-impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }> for P256Strategy {
+impl MontgomeryStrategy<{ 4 * LIMBS_PER_U64 }> for P256Strategy {
     // Sharing this kernel avoids excessive RFFT code size and register
     // pressure on 32-bit ARM. Keep the existing policy on other targets.
     #[cfg_attr(target_arch = "arm", inline(never))]
@@ -42,38 +42,38 @@ impl MontgomeryStrategy<{ 4 * crate::runtime::algebra::limb::LIMBS_PER_U64 }> fo
         _m_prime: Limb,
     ) {
         let mut t = [0 as Limb; 17];
-        crate::runtime::algebra::limb::mul_accum_zero(&mut t, 0, a[0], b);
+        mul_accum_zero(&mut t, 0, a[0], b);
         p256_reduction_step((&mut t[0..10]).try_into().unwrap());
 
         t[10] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 1, a[1], b);
+        mul_accum(&mut t, 1, a[1], b);
         p256_reduction_step((&mut t[1..11]).try_into().unwrap());
 
         t[11] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 2, a[2], b);
+        mul_accum(&mut t, 2, a[2], b);
         p256_reduction_step((&mut t[2..12]).try_into().unwrap());
 
         t[12] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 3, a[3], b);
+        mul_accum(&mut t, 3, a[3], b);
         p256_reduction_step((&mut t[3..13]).try_into().unwrap());
 
         t[13] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 4, a[4], b);
+        mul_accum(&mut t, 4, a[4], b);
         p256_reduction_step((&mut t[4..14]).try_into().unwrap());
 
         t[14] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 5, a[5], b);
+        mul_accum(&mut t, 5, a[5], b);
         p256_reduction_step((&mut t[5..15]).try_into().unwrap());
 
         t[15] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 6, a[6], b);
+        mul_accum(&mut t, 6, a[6], b);
         p256_reduction_step((&mut t[6..16]).try_into().unwrap());
 
         t[16] = 0;
-        crate::runtime::algebra::limb::mul_accum(&mut t, 7, a[7], b);
+        mul_accum(&mut t, 7, a[7], b);
         p256_reduction_step((&mut t[7..17]).try_into().unwrap());
 
         a.copy_from_slice(&t[8..16]);
-        crate::runtime::algebra::limb::maybe_minus_m(a, t[16], negm);
+        maybe_minus_m(a, t[16], negm);
     }
 }

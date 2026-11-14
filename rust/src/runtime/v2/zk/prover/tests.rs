@@ -16,17 +16,26 @@ use super::*;
 use crate::{
     core::{
         algebra::AlgebraicField,
-        proto::v1::{compute_id, Layer, RawCircuit, TermDelta},
+        proto::{
+            v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
+            v2::quadratic_fixture,
+        },
     },
     runtime::{
-        algebra::{gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory},
+        algebra::{
+            gf2_128::Gf2_128Field,
+            packing::{binary::Binary128Extension, PackingField},
+            range_interpolation::BinaryInterpolatorFactory,
+        },
         random::{DeterministicRng, RandomEngine},
         v2::{
+            dual_packing::verifier::reduce,
             polygero::LinearStatement,
-            proto::polygero::PolygeroConfig,
+            proto::{polygero::PolygeroConfig, Digest},
             zk::{
                 constraint_compiler,
                 joint::{JointParam, SelectedField},
+                packing_commitment::PackingCommitment,
                 ZkContext,
             },
         },
@@ -55,8 +64,8 @@ fn evaluation_failures_do_not_disclose_witness_values() {
             vec![0],
         )],
     };
-    let circuit = crate::core::proto::v2::quadratic_fixture(
-        crate::core::proto::v1::Circuit {
+    let circuit = quadratic_fixture(
+        Circuit {
             id: compute_id(&f, &raw),
             raw,
         },
@@ -103,8 +112,8 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             vec![0],
         )],
     };
-    let circuit = crate::core::proto::v2::quadratic_fixture(
-        crate::core::proto::v1::Circuit {
+    let circuit = quadratic_fixture(
+        Circuit {
             id: compute_id(&f, &raw),
             raw,
         },
@@ -189,7 +198,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             reference.participant.backend.layout.witness_count,
             prover.config,
             &domain,
-            crate::runtime::algebra::packing::PackingField::packing_id(&f),
+            PackingField::packing_id(&f),
         )
         .unwrap(),
         (),
@@ -267,12 +276,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(source.claim, verifier_source.claim);
     assert_eq!(source.a, verifier_source.a);
     assert_eq!(source.b, verifier_source.b);
-    let verifier_backend = crate::runtime::v2::zk::packing_commitment::PackingCommitment::new(
-        f.clone(),
-        layout,
-        crate::runtime::algebra::packing::binary::Binary128Extension,
-    )
-    .unwrap();
+    let verifier_backend = PackingCommitment::new(f.clone(), layout, Binary128Extension).unwrap();
     let commitment = reference.commitment.clone();
     let (packing, native) = reference
         .participant
@@ -287,7 +291,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let joint =
         JointParam::new((reference.participant.participant(&context).unwrap(), ())).unwrap();
     let (com_proof, mut numerical) = reference.joint.prove(&joint, (native, ())).unwrap();
-    let rows = crate::runtime::v2::dual_packing::verifier::reduce(
+    let rows = reduce(
         &verifier_backend.parameters,
         &verifier_source.claim,
         &packing,
@@ -295,7 +299,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         &mut independent,
     )
     .unwrap();
-    let verifier_statement = crate::runtime::v2::proto::Digest {
+    let verifier_statement = Digest {
         data: prover.circuit.id,
     };
     let (verifier_a, verifier_b) = verifier_backend

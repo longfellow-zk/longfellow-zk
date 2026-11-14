@@ -1,15 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 streams must prove the same polynomial without a One wire.
 use crate::{
+    compile::algebra::{fp24_ext6::CompileFp24Ext6, CompileField},
     core::{
         algebra::{AlgebraicField, FieldID, SerializableField, SupportsU64Conversions},
         proto::v2::{
-            Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
-            RawCircuitBuilder, Stream,
+            classify_constants, compute_id, Circuit, CircuitReader, CircuitWriter,
+            CoefficientClass, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
         },
     },
     runtime::{
-        algebra::{RuntimeField, SupportsSampling},
+        algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
             sumcheck::{
@@ -257,7 +258,7 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
             )],
         }
         .build();
-        bytes.extend(crate::core::proto::v2::compute_id(&f, &raw));
+        bytes.extend(compute_id(&f, &raw));
         let decoded = reader.from_bytes(&bytes);
         assert_eq!(decoded.is_ok(), valid, "g={g} l={l} k={k}");
         if valid {
@@ -305,20 +306,20 @@ fn binary_lfc3_classifies_both_signs_as_one() {
             )],
         }
         .build();
-        bytes.extend(crate::core::proto::v2::compute_id(&f, &raw));
+        bytes.extend(compute_id(&f, &raw));
         let result = CircuitReader::new(&f).from_bytes(&bytes);
         let (c, _) = result.unwrap();
         assert_eq!(c.raw.constants[1], c.raw.constants[2]);
         assert_eq!(
-            crate::core::proto::v2::classify_constants(&f, &c.raw.constants)[k],
-            crate::core::proto::v2::CoefficientClass::One
+            classify_constants(&f, &c.raw.constants)[k],
+            CoefficientClass::One
         );
     }
 }
 
 fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
 where
-    FC: crate::compile::algebra::CompileField + SerializableField + Clone,
+    FC: CompileField + SerializableField + Clone,
     FR: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::compile::{
@@ -429,10 +430,7 @@ fn coefficient_arrays_prime() {
 }
 #[test]
 fn coefficient_arrays_sextic() {
-    check_coefficients(
-        &crate::compile::algebra::fp24_ext6::CompileFp24Ext6::new(),
-        &crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new(),
-    );
+    check_coefficients(&CompileFp24Ext6::new(), &RuntimeFp24Ext6::new());
 }
 
 #[test]

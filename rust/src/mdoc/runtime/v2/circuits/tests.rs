@@ -24,7 +24,7 @@ use crate::{
             },
         },
     },
-    mdoc::v2::circuits::*,
+    mdoc::{circuits::NEXT_VERSION, v2::circuits::*},
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
@@ -55,7 +55,7 @@ fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
     let sig = tiny(p);
     let hash = tiny(f);
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.id, CircuitWriter::new(p).to_bytes(&sig));
     builder.add_entry("hash", hash.id, CircuitWriter::new(f).to_bytes(&hash));
     builder.build()
@@ -91,7 +91,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
     let spec = super::ZkSpecStruct {
         combined_hash: archive.combined_id,
         num_attributes: 1,
-        version: crate::mdoc::circuits::NEXT_VERSION,
+        version: NEXT_VERSION,
         polygero_hash: super::super::zk_spec::PolygeroParameters {
             k: 349,
             n: 2443,
@@ -116,7 +116,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
     let spec_for = |combined_hash| super::ZkSpecStruct {
         combined_hash,
         num_attributes: 1,
-        version: crate::mdoc::circuits::NEXT_VERSION,
+        version: NEXT_VERSION,
         polygero_hash: super::super::zk_spec::PolygeroParameters {
             k: 349,
             n: 2443,
@@ -151,7 +151,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
     let mut wrong = sig.id;
     wrong[0] ^= 1;
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(crate::mdoc::circuits::NEXT_VERSION as u32);
+    builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", wrong, CircuitWriter::new(&p).to_bytes(&sig));
     builder.add_entry("hash", hash.id, CircuitWriter::new(&f).to_bytes(&hash));
     let mismatched = builder.build();

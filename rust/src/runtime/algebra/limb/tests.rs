@@ -1,5 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
+use crate::runtime::algebra::arch::cmovne;
 
 #[test]
 fn test_maybe_minus_m_all_cases() {
@@ -54,10 +55,10 @@ fn test_conditional_move() {
     let replacement = [5 as Limb, 6, 7, 8];
 
     let mut equal = original;
-    crate::runtime::algebra::arch::cmovne(&mut equal, 9, 9, &replacement);
+    cmovne(&mut equal, 9, 9, &replacement);
     assert_eq!(equal, original);
 
     let mut not_equal = original;
-    crate::runtime::algebra::arch::cmovne(&mut not_equal, 9, 0, &replacement);
+    cmovne(&mut not_equal, 9, 0, &replacement);
     assert_eq!(not_equal, replacement);
 }

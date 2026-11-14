@@ -26,7 +26,7 @@
 use sha2::digest::Update;
 
 use crate::{
-    core::algebra::ElementOf,
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::{
             blas,
@@ -39,7 +39,11 @@ use crate::{
                 transcript::TranscriptLigero,
                 LigeroError, LigeroLinearConstraint, LigeroParam, LigeroQuadraticConstraint,
             },
-            proto::ligero::{LigeroCommitment, LigeroProof},
+            merkle::MerkleError,
+            proto::{
+                ligero::{LigeroCommitment, LigeroProof},
+                Digest,
+            },
             transcript::Transcript,
         },
     },
@@ -66,7 +70,7 @@ impl<'a> LigeroVerifier<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn verify<
         const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField + SupportsSampling,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
         IF: RangeInterpolatorFactory<W, F>,
     >(
         &mut self,
@@ -74,7 +78,7 @@ impl<'a> LigeroVerifier<'a> {
         commitment: &LigeroCommitment,
         proof: &LigeroProof<W, F>,
         linear_constraints: &[LigeroLinearConstraint<W, F>],
-        hash_of_ligero_statement: &crate::runtime::v1::proto::Digest,
+        hash_of_ligero_statement: &Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
         f: &F,
@@ -164,7 +168,7 @@ impl<'a> LigeroVerifier<'a> {
 
     /// Check the legacy shape and index conditions in their original error order.
     /// This precedes all transcript sampling and indexing into untrusted messages.
-    fn validate<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableField>(
+    fn validate<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
         proof: &LigeroProof<W, F>,
         nequations: usize,
@@ -229,16 +233,13 @@ impl<'a> LigeroVerifier<'a> {
     }
 
     /// Hash opened values in committed column order and verify the shared path.
-    fn merkle_check<
-        const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField,
-    >(
+    fn merkle_check<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
         idx: &[usize],
         commitment: &LigeroCommitment,
         proof: &LigeroProof<W, F>,
         f: &F,
-    ) -> Result<(), crate::runtime::v1::merkle::MerkleError> {
+    ) -> Result<(), MerkleError> {
         let len = f.serialized_size_bytes();
         let mut updhash = |r: usize, _col_idx: usize, sha: &mut sha2::Sha256| {
             let mut buf = [0u8; 128];
@@ -259,10 +260,7 @@ impl<'a> LigeroVerifier<'a> {
     }
 
     /// Compare the interpolated low-degree response with its opened row combination.
-    fn low_degree_check<
-        const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField,
-    >(
+    fn low_degree_check<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
         idx: &[usize],
         u_ldt: &[F::E],
@@ -292,7 +290,7 @@ impl<'a> LigeroVerifier<'a> {
     }
 
     /// At every opened column, check y_dot = mask_dot + sum_i A_i*W_i.
-    fn dot_check<const W: usize, F: RuntimeField<W> + crate::core::algebra::SerializableField>(
+    fn dot_check<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
         idx: &[usize],
         a: &[F::E],
@@ -330,10 +328,7 @@ impl<'a> LigeroVerifier<'a> {
 
     /// Reinsert the implicit zero witness interval, then check the weighted
     /// product residuals against the quadratic response at each opened column.
-    fn quadratic_check<
-        const W: usize,
-        F: RuntimeField<W> + crate::core::algebra::SerializableField,
-    >(
+    fn quadratic_check<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
         idx: &[usize],
         u_quad: &[F::E],

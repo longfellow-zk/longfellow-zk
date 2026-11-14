@@ -16,12 +16,13 @@
 
 use crate::{
     core::algebra::{AlgebraicField, Nat, SerializableField, SupportsU128Conversions},
-    runtime::algebra::{gf2_128::Gf2_128Field, RuntimeSerializableField},
+    runtime::{
+        algebra::{gf2_128::Gf2_128Field, RuntimeSerializableField},
+        random::RandomEngine,
+    },
 };
 
-pub(super) fn generate_mac_ap<RNG: crate::runtime::random::RandomEngine + ?Sized>(
-    rng: &mut RNG,
-) -> [[u128; 2]; 3] {
+pub(super) fn generate_mac_ap<RNG: RandomEngine + ?Sized>(rng: &mut RNG) -> [[u128; 2]; 3] {
     std::array::from_fn(|_| [rng.u128(), rng.u128()])
 }
 

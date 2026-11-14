@@ -15,7 +15,7 @@
 use num_bigint::BigUint;
 
 use crate::{
-    compile::algebra::CompilePrimeField,
+    compile::algebra::{CompileNat, CompilePrimeField},
     core::algebra::{ec::Curve, ElementOf, Nat, SupportsNatConversions},
 };
 
@@ -23,7 +23,7 @@ pub struct Secp256r1<F: CompilePrimeField + SupportsNatConversions<4>> {
     a: ElementOf<F>,
     b: ElementOf<F>,
     g: (ElementOf<F>, ElementOf<F>),
-    order: crate::compile::algebra::CompileNat<4>,
+    order: CompileNat<4>,
 }
 
 impl<F: CompilePrimeField + SupportsNatConversions<4>> std::fmt::Debug for Secp256r1<F> {
@@ -65,7 +65,7 @@ impl<F: CompilePrimeField + SupportsNatConversions<4>> Secp256r1<F> {
             0xffffffffffffffff,
             0xffffffff00000000,
         ];
-        let order = crate::compile::algebra::CompileNat::from_limbs(&order_limbs);
+        let order = CompileNat::from_limbs(&order_limbs);
 
         // Convert big uints to limbs
         let mut limbs_a = [0u64; 4];
@@ -127,7 +127,7 @@ impl<F: CompilePrimeField + SupportsNatConversions<4>> Secp256r1<F> {
 
 impl<F: CompilePrimeField + SupportsNatConversions<4>> Curve<4> for Secp256r1<F> {
     type F = F;
-    type N = crate::compile::algebra::CompileNat<4>;
+    type N = CompileNat<4>;
 
     fn order(&self) -> Self::N {
         self.order.clone()

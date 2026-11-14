@@ -14,9 +14,21 @@
 
 use super::*;
 use crate::{
+    compile::polygero::{
+        profiles::{RATE4_PROFILES, RATE7_PROFILES, TUNING_PROFILES},
+        tune_large_field, tune_large_field_at_rate,
+    },
     core::algebra::SerializableField,
     runtime::{
-        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
+        algebra::{
+            fp2::Fp2Field,
+            fp24_ext6::RuntimeFp24Ext6,
+            p256::P256Field,
+            range_interpolation::{
+                CrtInterpolatorFactory, EvaluationDomain, QuadraticExtensionFftInterpolatorFactory,
+            },
+            RuntimeField, SupportsSampling,
+        },
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{
@@ -32,8 +44,7 @@ use crate::{
 #[test]
 fn tuning_uses_public_layout_and_respects_capacity() {
     for (nw, bytes) in [(0, 16), (4096, 32), (77000, 16), (162000, 18), (186000, 18)] {
-        let selected =
-            crate::compile::polygero::tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap();
+        let selected = tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap();
         assert!(selected.n <= 16384);
         assert_eq!(selected.t, 80);
         let geom = PolygeroGeometry {
@@ -46,19 +57,18 @@ fn tuning_uses_public_layout_and_respects_capacity() {
         assert!(geom.validate().is_ok());
         assert_eq!(
             selected,
-            crate::compile::polygero::tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap()
+            tune_large_field(nw, bytes, |p| p.n <= 16384).unwrap()
         );
     }
-    assert!(crate::compile::polygero::tune_large_field(30, 0, |_| true).is_none());
-    assert!(crate::compile::polygero::tune_large_field(30, 16, |_| false).is_none());
+    assert!(tune_large_field(30, 0, |_| true).is_none());
+    assert!(tune_large_field(30, 16, |_| false).is_none());
 }
 
 #[test]
 fn rate_tuning_matches_ligero_and_reoptimizes_openings() {
     for (nw, bytes) in [(4096, 32), (77410, 16)] {
-        let tune = |accept: fn(PolygeroConfig) -> bool| {
-            crate::compile::polygero::tune_large_field_at_rate(7, nw, bytes, accept)
-        };
+        let tune =
+            |accept: fn(PolygeroConfig) -> bool| tune_large_field_at_rate(7, nw, bytes, accept);
         let selected = tune(|_| true).unwrap();
         assert_eq!(selected.n, 7 * selected.k);
         assert!(selected.t > 80 && selected.t < 132);
@@ -76,19 +86,14 @@ fn rate_tuning_matches_ligero_and_reoptimizes_openings() {
         );
     }
     for unsupported in [0, 1, 2, 8, usize::MAX] {
-        assert!(
-            crate::compile::polygero::tune_large_field_at_rate(unsupported, 3, 32, |_| true,)
-                .is_none()
-        );
+        assert!(tune_large_field_at_rate(unsupported, 3, 32, |_| true,).is_none());
     }
 }
 
 #[test]
 fn rate_four_tuning_respects_capacity() {
     for nw in [162463, 186358] {
-        let tune = |accept: fn(PolygeroConfig) -> bool| {
-            crate::compile::polygero::tune_large_field_at_rate(4, nw, 18, accept)
-        };
+        let tune = |accept: fn(PolygeroConfig) -> bool| tune_large_field_at_rate(4, nw, 18, accept);
         let selected = tune(|_| true).unwrap();
         assert_eq!(selected.n, 4 * selected.k);
         assert!(2 * selected.t < selected.k);
@@ -123,23 +128,19 @@ fn admitted_profiles_encode_and_verify() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
     admitted_profiles_roundtrip(&f, &d);
-    let prime = crate::runtime::algebra::p256::P256Field::new();
-    let extension = crate::runtime::algebra::fp2::Fp2Field::new(&prime);
+    let prime = P256Field::new();
+    let extension = Fp2Field::new(&prime);
     use crate::runtime::algebra::SupportsFFT;
-    let prime_domain =
-        crate::runtime::algebra::range_interpolation::QuadraticExtensionFftInterpolatorFactory::new(
-            &prime,
-            &extension,
-            extension.omega(),
-            extension.omega_order(),
-        );
+    let prime_domain = QuadraticExtensionFftInterpolatorFactory::new(
+        &prime,
+        &extension,
+        extension.omega(),
+        extension.omega_order(),
+    );
     admitted_profiles_roundtrip(&prime, &prime_domain);
     {
-        let sextic = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
-        admitted_profiles_roundtrip(
-            &sextic,
-            &crate::runtime::algebra::range_interpolation::CrtInterpolatorFactory,
-        );
+        let sextic = RuntimeFp24Ext6::new();
+        admitted_profiles_roundtrip(&sextic, &CrtInterpolatorFactory);
     }
 }
 
@@ -151,16 +152,16 @@ fn admitted_profiles_roundtrip<
     f: &F,
     d: &D,
 ) {
-    let profiles = crate::compile::polygero::profiles::TUNING_PROFILES
+    let profiles = TUNING_PROFILES
         .iter()
         .map(|&(k, s, n)| PolygeroConfig { k, s, n, t: 80 })
         .chain(
-            crate::compile::polygero::profiles::RATE7_PROFILES
+            RATE7_PROFILES
                 .iter()
                 .map(|&(k, s, t)| PolygeroConfig { k, s, n: 7 * k, t }),
         )
         .chain(
-            crate::compile::polygero::profiles::RATE4_PROFILES
+            RATE4_PROFILES
                 .iter()
                 .map(|&(k, s, t)| PolygeroConfig { k, s, n: 4 * k, t }),
         );

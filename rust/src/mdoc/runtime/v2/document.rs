@@ -10,7 +10,11 @@ use crate::{
         },
         v2::inputs::timestamp_digits,
     },
-    runtime::algebra::{p256::P256Field, secp256r1::Secp256r1, RuntimeNat},
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        secp256r1::Secp256r1,
+        RuntimeNat,
+    },
 };
 
 #[derive(Debug)]
@@ -104,7 +108,7 @@ fn coordinate(
     key: &CborElement,
     index: i128,
     field: &P256Field,
-) -> Result<crate::runtime::algebra::p256::P256Element, MdocParseError> {
+) -> Result<P256Element, MdocParseError> {
     let value = integer_entry(key, index)?;
     let CborValue::Bytes(bytes) = &value.value else {
         return Err(MdocParseError::UnexpectedType("device coordinate"));

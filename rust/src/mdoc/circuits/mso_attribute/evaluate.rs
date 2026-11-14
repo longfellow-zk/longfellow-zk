@@ -20,7 +20,8 @@ use super::{
     concrete::{ConcreteDerived, ConcreteGiven},
 };
 use crate::{
-    circuits::bitvec::BitvecLogic, compile::logic::Logic,
+    circuits::{bitvec::BitvecLogic, boolean::Boolean},
+    compile::logic::Logic,
     mdoc::proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
 };
 
@@ -62,7 +63,7 @@ pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> W
         },
     };
 
-    let boolean = crate::circuits::boolean::Boolean::new(bv.logic());
+    let boolean = Boolean::new(bv.logic());
     let expected_digest = bv.from_fn::<256, _>(|idx| {
         let word_idx = 7 - (idx / 32);
         let bit_idx = idx % 32;

@@ -23,13 +23,13 @@ use super::{
     storage::{ModularClaim, Split, Storage},
 };
 use crate::{
-    core::proto::v2::Circuit,
+    core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
         algebra::{blas, packing::PackingField, ZkField},
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
             proto::Digest,
-            sumcheck::symbolic::Constraints,
+            sumcheck::{circuit_geometry, symbolic::Constraints},
             transcript::TranscriptRef,
         },
     },
@@ -249,16 +249,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 
 /// Number of values `[private inputs | pads]` of a split participant for
 /// `circuit`; a storage map must cover exactly this many.
-pub fn value_count<F: crate::core::algebra::SerializableField>(
-    circuit: &Circuit<F>,
-) -> Result<usize, String> {
+pub fn value_count<F: SerializableField>(circuit: &Circuit<F>) -> Result<usize, String> {
     let private = circuit
         .raw
         .ninput
         .checked_sub(circuit.raw.npublic_input)
         .ok_or("public prefix")?;
     private
-        .checked_add(crate::runtime::v2::sumcheck::circuit_geometry(&[circuit])?.pad_count()?)
+        .checked_add(circuit_geometry(&[circuit])?.pad_count()?)
         .ok_or_else(|| "split value count overflow".into())
 }
 

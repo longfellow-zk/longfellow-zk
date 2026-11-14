@@ -15,9 +15,17 @@
 //! Longfellow v2 private assignment encoding.
 
 use crate::{
-    core::algebra::{ec::Curve, Nat},
+    circuits::{
+        ecdsa2::try_witness,
+        sha256::constants::INITIAL,
+        sha256msg::{derived, given},
+    },
+    core::algebra::{ec::Curve, Nat, SupportsNatConversions},
     mdoc::{
-        circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
+        circuits::{
+            cbor::mdoc::{ParsedAttr, ParsedMdoc},
+            MdocSigRuntimeField,
+        },
         proto::{
             hash::constants::{
                 K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
@@ -58,12 +66,8 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
-    let mso_sha_in = crate::circuits::sha256msg::given(
-        &parsed.cbor_mso,
-        &crate::circuits::sha256::constants::INITIAL,
-        K_MAX_SHA_BLOCKS,
-    )
-    .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
+    let mso_sha_in = given(&parsed.cbor_mso, &INITIAL, K_MAX_SHA_BLOCKS)
+        .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let requested = req_attrs.first().ok_or(MdocProverErrorCode::InvalidInput)?;
     let namespace = parsed
         .namespaces()
@@ -81,7 +85,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
                 .contains(&attribute.mso_digest_offset_in_preimage)
         })
         .collect();
-    let mso_sha_derived = crate::circuits::sha256msg::derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
+    let mso_sha_derived = derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
@@ -151,14 +155,9 @@ fn push_witness_attrs(
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
-        let attr_sha_in = crate::circuits::sha256msg::given(
-            &pa.cbor_issuer_signed_item,
-            &crate::circuits::sha256::constants::INITIAL,
-            K_MAX_ATTR_SHA_BLOCKS,
-        )
-        .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
-        let attr_sha_derived =
-            crate::circuits::sha256msg::derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
+        let attr_sha_in = given(&pa.cbor_issuer_signed_item, &INITIAL, K_MAX_ATTR_SHA_BLOCKS)
+            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let attr_sha_derived = derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
         let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] =
             attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
 
@@ -194,12 +193,12 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
     parsed: &ParsedMdoc<F::N>,
 ) -> Result<Vec<F::E>, &'static str>
 where
-    F: crate::mdoc::circuits::MdocSigRuntimeField<E = P256Element>,
-    Fn: RuntimeField<4> + crate::core::algebra::SupportsNatConversions<4, N = F::N>,
+    F: MdocSigRuntimeField<E = P256Element>,
+    Fn: RuntimeField<4> + SupportsNatConversions<4, N = F::N>,
     C: Curve<4, F = F, N = F::N>,
     F::N: Nat<4>,
 {
-    let (issuer_sig_given, issuer_sig_derived) = crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
+    let (issuer_sig_given, issuer_sig_derived) = try_witness::<4, F, Fn, C>(
         secp256r1,
         issuer_pk,
         &parsed.issuer_sig_digest,
@@ -209,7 +208,7 @@ where
         q256,
     )?;
 
-    let (device_sig_given, device_sig_derived) = crate::circuits::ecdsa2::try_witness::<4, F, Fn, C>(
+    let (device_sig_given, device_sig_derived) = try_witness::<4, F, Fn, C>(
         secp256r1,
         &(
             runtime_field.reduce_nat(&parsed.device_pk.0),

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::runtime::algebra::limb::Limb;
+
 #[cfg(not(target_feature = "aes"))]
 compile_error!("AArch64 builds require ARMv8-A Cryptographic extension (+aes / PMULL). Enable it via target-feature=+aes,+sha2.");
 
@@ -19,12 +21,7 @@ use std::arch::aarch64::*;
 
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 #[inline(always)]
-pub fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     #[cfg(target_arch = "aarch64")]
     if N == 1 {
         unsafe {
@@ -117,12 +114,7 @@ pub fn cmovne<const N: usize>(
 
 #[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
 #[inline(always)]
-pub fn cmovne<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    x: crate::runtime::algebra::limb::Limb,
-    y: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub fn cmovne<const N: usize>(a: &mut [Limb; N], x: Limb, y: Limb, b: &[Limb; N]) {
     #[cfg(target_arch = "aarch64")]
     if N == 1 {
         unsafe {
@@ -214,17 +206,13 @@ pub fn cmovne<const N: usize>(
 }
 
 #[inline(always)]
-pub fn cmovnz<const N: usize>(
-    a: &mut [crate::runtime::algebra::limb::Limb; N],
-    nz: crate::runtime::algebra::limb::Limb,
-    b: &[crate::runtime::algebra::limb::Limb; N],
-) {
+pub fn cmovnz<const N: usize>(a: &mut [Limb; N], nz: Limb, b: &[Limb; N]) {
     cmovne(a, nz, 0, b);
 }
 
 #[inline(always)]
-pub fn zero_but_you_dont_know_it() -> crate::runtime::algebra::limb::Limb {
-    std::hint::black_box(0 as crate::runtime::algebra::limb::Limb)
+pub fn zero_but_you_dont_know_it() -> Limb {
+    std::hint::black_box(0 as Limb)
 }
 
 // ============================================================================

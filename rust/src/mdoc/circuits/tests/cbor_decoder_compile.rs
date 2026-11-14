@@ -16,7 +16,9 @@ use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-        logic::Logic,
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::{Logic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::SerializableField,
     mdoc::circuits::cbor_decoder::{allocate_given, CborByteDecoder, ConcreteGiven},
@@ -34,7 +36,7 @@ fn test_compile_cbor_decoder_for_field<
     name: &str,
 ) {
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
 
         let bv = BitvecLogic::new(&iologic);
         let boolean = Boolean::new(&iologic);
@@ -51,32 +53,30 @@ fn test_compile_cbor_decoder_for_field<
         (full_assertion, 1, 0)
     });
 
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
 
     // Test valid byte values (e.g. 0..23 which are valid CBOR integers)
     for v in 0..=23 {
         let _concrete_given = ConcreteGiven { v };
-        let mut inputs = crate::compile::eval::initial_inputs(fr);
+        let mut inputs = initial_inputs(fr);
         for k in 0..8 {
             let bit = (v >> k) & 1;
             inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
         }
 
-        let eval_res =
-            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
+        let eval_res = eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_all_passed();
     }
 
     // Test invalid byte values (e.g. 0x1f / 31 which has invalid count in CBOR)
     {
         let invalid_v = 31u8; // count = 31 is invalid CBOR byte
-        let mut inputs = crate::compile::eval::initial_inputs(fr);
+        let mut inputs = initial_inputs(fr);
         for k in 0..8 {
             let bit = (invalid_v >> k) & 1;
             inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
         }
-        let eval_res =
-            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
+        let eval_res = eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_any_failed_at("cbor_decoder_assert/valid_cbor_byte");
     }
 }

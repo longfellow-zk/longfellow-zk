@@ -1,7 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Full-capacity public attribute comparisons in the compiled v2 circuit.
 use super::super::*;
-use crate::compile::algebra::gf2_128::Gf2_128Field;
+use crate::compile::{
+    algebra::gf2_128::Gf2_128Field,
+    compiler::{compile_v2, segment_circuit_v2},
+    eval::eval_circuit_fc,
+    logic::K_FIRST_WIRE_POSITION,
+};
 
 #[test]
 fn compiled_attribute_checks_every_public_byte() {
@@ -12,10 +17,10 @@ fn compiled_attribute_checks_every_public_byte() {
         };
         let fc = Gf2_128Field::new();
         let fr = RuntimeField::new();
-        let (circuit, _, symbols) = crate::compile::compiler::compile_v2(&fc, |logic| {
+        let (circuit, _, symbols) = compile_v2(&fc, |logic| {
             let bits = BitvecLogic::new(&logic);
             let io = BitvecIO::new(&bits);
-            let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+            let mut pos = K_FIRST_WIRE_POSITION;
             let preimage: Vec<_> = (0..prefix.len() + N + 1)
                 .map(|_| io.next::<8>(&mut pos))
                 .collect();
@@ -41,7 +46,7 @@ fn compiled_attribute_checks_every_public_byte() {
                 1,
             )
         });
-        let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
+        let circuit = segment_circuit_v2(&fc, circuit);
         for length in 0..=N {
             let expected: Vec<u8> = (0..N).map(|i| (i * 17 + 33) as u8).collect();
             let mut raw = prefix.to_vec();
@@ -80,9 +85,7 @@ fn compiled_attribute_checks_every_public_byte() {
                 }
                 push(length as u64, K_ATTR_INDEX_BITS);
                 push((prefix.len() + length) as u64, K_ATTR_INDEX_BITS);
-                let result =
-                    crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
-                        .unwrap();
+                let result = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
                 assert_eq!(
                     result.is_ok(),
                     changed.is_none(),

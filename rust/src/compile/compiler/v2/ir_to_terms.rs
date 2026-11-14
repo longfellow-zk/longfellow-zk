@@ -4,6 +4,7 @@ use super::terms::{CircuitGraph, Node, Term};
 use crate::compile::{
     algebra::CompileField,
     compiler::{
+        arena::CompilerArena,
         graph::{push_node, Wire, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
     },
@@ -73,7 +74,7 @@ fn compile_term<F: CompileField>(
 }
 
 pub(super) fn rewrite<'src, 'dst, F: CompileField>(
-    _arena: &'dst crate::compile::compiler::arena::CompilerArena<'dst, F>,
+    _arena: &'dst CompilerArena<'dst, F>,
     f: &'dst F,
     assertions: Assertions<'src, F>,
     tracker: &AssertionScope,

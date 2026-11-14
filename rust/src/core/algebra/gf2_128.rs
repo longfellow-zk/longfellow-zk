@@ -15,8 +15,11 @@
 //! Reference implementation of GF(2^128) using a u128 backing store
 //! and naive bitwise multiplication / reduction.
 
-use crate::core::algebra::field::{
-    AlgebraicField, BareField, HasLookupPoints, SerializableField, SupportsU128Conversions,
+use crate::core::algebra::{
+    field::{
+        AlgebraicField, BareField, HasLookupPoints, SerializableField, SupportsU128Conversions,
+    },
+    FieldID,
 };
 
 /// The irreducible polynomial P(x) = x^128 + x^7 + x^2 + x + 1.
@@ -110,8 +113,8 @@ impl AlgebraicField for Gf2_128Field {
 }
 
 impl SerializableField for Gf2_128Field {
-    fn field_id(&self) -> crate::core::algebra::FieldID {
-        crate::core::algebra::FieldID::Gf2_128
+    fn field_id(&self) -> FieldID {
+        FieldID::Gf2_128
     }
     fn is_binary(&self) -> bool {
         true

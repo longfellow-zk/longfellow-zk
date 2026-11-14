@@ -1,6 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::SubfieldV1;
-use crate::runtime::algebra::p256::{P256Element, P256Field};
+use crate::{
+    core::algebra::SerializableField,
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        SupportsSampling,
+    },
+};
 
 pub struct P256SubfieldV1<'a> {
     field: &'a P256Field,
@@ -25,7 +31,7 @@ impl SubfieldV1 for P256SubfieldV1<'_> {
             dst.len(),
             self.serialized_size_bytes()
         );
-        crate::core::algebra::SerializableField::to_bytes_into(self.field, e, dst);
+        SerializableField::to_bytes_into(self.field, e, dst);
     }
 
     fn contains(&self, _e: &Self::E) -> bool {
@@ -33,14 +39,14 @@ impl SubfieldV1 for P256SubfieldV1<'_> {
     }
 
     fn serialized_size_bytes(&self) -> usize {
-        crate::core::algebra::SerializableField::serialized_size_bytes(self.field)
+        SerializableField::serialized_size_bytes(self.field)
     }
 
     fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
-        crate::core::algebra::SerializableField::bytes_to_element(self.field, bytes)
+        SerializableField::bytes_to_element(self.field, bytes)
     }
 
     fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E {
-        crate::runtime::algebra::SupportsSampling::sample(self.field, rng)
+        SupportsSampling::sample(self.field, rng)
     }
 }

@@ -13,18 +13,18 @@
 // limitations under the License.
 
 use crate::{
-    circuits::{bitvec::V8, boolean::Bitw},
+    circuits::{arithmetic::Arithmetic, bitvec::V8, boolean::Bitw},
     compile::logic::Logic,
 };
 
 pub struct Memcmp<'a, L: Logic> {
-    arithmetic: crate::circuits::arithmetic::Arithmetic<'a, L>,
+    arithmetic: Arithmetic<'a, L>,
 }
 
 impl<'a, L: Logic> Memcmp<'a, L> {
     pub fn new(logic: &'a L) -> Self {
         Self {
-            arithmetic: crate::circuits::arithmetic::Arithmetic::new(logic),
+            arithmetic: Arithmetic::new(logic),
         }
     }
 

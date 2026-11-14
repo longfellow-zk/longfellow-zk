@@ -24,7 +24,13 @@
 use std::ops::Range;
 
 use super::{batch_inverse, InterpolationPlan, RangeInterpolatorFactory, Ranges};
-use crate::runtime::algebra::{blas, gf2_128::Gf2_128, lch14::Lch14, RuntimeBinaryField};
+use crate::{
+    core::algebra::{SerializableField, CANTOR_BASIS_U128},
+    runtime::algebra::{
+        blas, gf2_128::Gf2_128, lch14::Lch14, range_interpolation::EvaluationDomain,
+        RuntimeBinaryField,
+    },
+};
 
 /// Additive point-table interpolation over a fixed binary basis.
 /// The enclosing source coset determines the transform size, which can be much
@@ -41,9 +47,7 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>
     pub fn full_field(field: &'a F) -> Self {
         Self {
             field,
-            basis: crate::core::algebra::CANTOR_BASIS_U128
-                .map(Gf2_128::from)
-                .to_vec(),
+            basis: CANTOR_BASIS_U128.map(Gf2_128::from).to_vec(),
         }
     }
 
@@ -558,9 +562,8 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
     }
 }
 
-impl<const W: usize, F> crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>
-    for BinaryInterpolatorFactory<'_, W, F>
-where F: RuntimeBinaryField<W, E = Gf2_128> + crate::core::algebra::SerializableField
+impl<const W: usize, F> EvaluationDomain<W, F> for BinaryInterpolatorFactory<'_, W, F>
+where F: RuntimeBinaryField<W, E = Gf2_128> + SerializableField
 {
     fn field(&self) -> &F {
         self.field

@@ -16,7 +16,10 @@
 
 use crate::{
     core::algebra::{Nat, SerializableField},
-    runtime::algebra::p256::P256Field,
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        RuntimeNat,
+    },
 };
 
 fn hex_decode_to_32_bytes_be(s: &str) -> Result<[u8; 32], String> {
@@ -58,11 +61,8 @@ fn parse_hex_nat<const W: usize, N: Nat<W>>(s: &str) -> Result<N, String> {
     Ok(N::from_bytes_le(&bytes_be))
 }
 
-pub(super) fn parse_pk_coordinate(
-    s: &str,
-    field: &P256Field,
-) -> Result<crate::runtime::algebra::p256::P256Element, String> {
-    let nat = parse_hex_nat::<4, crate::runtime::algebra::RuntimeNat<4>>(s)?;
+pub(super) fn parse_pk_coordinate(s: &str, field: &P256Field) -> Result<P256Element, String> {
+    let nat = parse_hex_nat::<4, RuntimeNat<4>>(s)?;
     field.bytes_to_element(&nat.to_bytes_le())
 }
 

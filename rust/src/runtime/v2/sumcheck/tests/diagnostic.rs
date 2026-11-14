@@ -36,7 +36,10 @@
 
 use super::super::symbolic::{Constraints, Pad, PadExpression};
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
@@ -56,7 +59,7 @@ pub(in super::super) fn verify<
 >(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,
@@ -79,7 +82,7 @@ pub(in super::super) fn verify_core<
 >(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     transcript: &mut Transcript,
     f: &F,

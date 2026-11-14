@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    circuits::bitvec::BitvecLogic,
+    circuits::bitvec::{BitvecIO, BitvecLogic},
     compile::logic::LogicIO,
     mdoc::{
         circuits::mso_attribute::circuit::{
@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given<L> {
-    let bitvec_io = crate::circuits::bitvec::BitvecIO::new(bv);
+    let bitvec_io = BitvecIO::new(bv);
     let attribute_preimage = AttrSlice {
         data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
         len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),

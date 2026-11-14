@@ -18,7 +18,7 @@ use crate::{
         boolean::Boolean,
     },
     compile::{
-        algebra::{CompileBinaryField, CompileField},
+        algebra::{fp::FpField, gf2_128::Gf2_128Field, CompileBinaryField, CompileField},
         logic::Logic,
     },
     core::algebra::SupportsU64Conversions,
@@ -62,8 +62,8 @@ pub trait FieldWrappingSum: CompileField {
     ) -> L::Assertions;
 }
 
-impl<T> FieldWrappingSum for crate::compile::algebra::fp::FpField<T>
-where crate::compile::algebra::fp::FpField<T>: CompileField
+impl<T> FieldWrappingSum for FpField<T>
+where FpField<T>: CompileField
 {
     fn assert_wrapping_sum<L: Logic<F = Self>, const N: usize>(
         &self,
@@ -120,7 +120,7 @@ where crate::compile::algebra::fp::FpField<T>: CompileField
     }
 }
 
-impl FieldWrappingSum for crate::compile::algebra::gf2_128::Gf2_128Field {
+impl FieldWrappingSum for Gf2_128Field {
     fn assert_wrapping_sum<L: Logic<F = Self>, const N: usize>(
         &self,
         adder: &AnalogAdder<'_, L>,

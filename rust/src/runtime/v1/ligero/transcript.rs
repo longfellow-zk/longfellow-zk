@@ -21,7 +21,7 @@
 use crate::{
     core::algebra::ElementOf,
     runtime::{
-        algebra::SupportsSampling,
+        algebra::{RuntimeField, SupportsSampling},
         random::RandomEngine,
         v1::{
             ligero::LigeroParam,
@@ -35,22 +35,22 @@ use crate::{
 pub trait TranscriptLigero {
     fn write_commitment(&mut self, commitment: &LigeroCommitment);
     fn write_ligero_statement(&mut self, hash_of_ligero_statement: &Digest);
-    fn gen_uldt<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_uldt<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,
     ) -> Vec<ElementOf<F>>;
-    fn gen_alphal<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_alphal<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         nl: usize,
         f: &F,
     ) -> Vec<ElementOf<F>>;
-    fn gen_alphaq<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_alphaq<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,
     ) -> Vec<[ElementOf<F>; 3]>;
-    fn gen_uquad<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_uquad<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,
@@ -67,7 +67,7 @@ impl TranscriptLigero for Transcript {
         self.write_bytes(&hash_of_ligero_statement.data);
     }
 
-    fn gen_uldt<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_uldt<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,
@@ -75,10 +75,7 @@ impl TranscriptLigero for Transcript {
         self.elt_field_slice(param.nwqrow, f)
     }
 
-    fn gen_alphal<
-        const W: usize,
-        F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
-    >(
+    fn gen_alphal<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         nl: usize,
         f: &F,
@@ -86,10 +83,7 @@ impl TranscriptLigero for Transcript {
         self.elt_field_slice(nl, f)
     }
 
-    fn gen_alphaq<
-        const W: usize,
-        F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
-    >(
+    fn gen_alphaq<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,
@@ -103,7 +97,7 @@ impl TranscriptLigero for Transcript {
         alpha
     }
 
-    fn gen_uquad<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn gen_uquad<const W: usize, F: SupportsSampling + RuntimeField<W>>(
         &mut self,
         param: &LigeroParam,
         f: &F,

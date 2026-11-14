@@ -19,8 +19,16 @@ use crate::{
         boolean::Boolean,
         gf2_128::Gf2_128Mul,
     },
-    compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
-    core::algebra::{ElementOf, SerializableField},
+    compile::{
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
+        compiler::dump_stats,
+        eval::{eval_circuit_fc, initial_inputs},
+        logic::{AssertionScope, K_FIRST_WIRE_POSITION},
+    },
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::CircuitGeometry,
+    },
 };
 
 fn ref_mul(x: u128, y: u128) -> u128 {
@@ -51,12 +59,12 @@ fn test_compile_gf2_128_mul_for_field<
     fc: &FC,
     fr: &FR,
     name: &str,
-    expected_stats: crate::core::proto::CircuitGeometry,
+    expected_stats: CircuitGeometry,
 ) {
     let (circuit, stats, symbols) = compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
 
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+        let mut pos = K_FIRST_WIRE_POSITION;
 
         let bitvec_io = BitvecIO::new(&bv);
         let a = bitvec_io.next::<128>(&mut pos);
@@ -71,11 +79,11 @@ fn test_compile_gf2_128_mul_for_field<
         (assertion, 1, 0)
     });
 
-    crate::compile::compiler::dump_stats(name, &circuit, &stats);
+    dump_stats(name, &circuit, &stats);
     assert_eq!(stats, expected_stats);
 
     // Evaluate in compiled mode!
-    let mut inputs = crate::compile::eval::initial_inputs(fr);
+    let mut inputs = initial_inputs(fr);
 
     let x = 0x123456789abcdef0123456789abcdef0u128;
     let y = 0x0f0e0d0c0b0a09080706050403020100u128;
@@ -85,7 +93,7 @@ fn test_compile_gf2_128_mul_for_field<
     push_bitvec_u128(fr, y, 128, &mut inputs);
     push_bitvec_u128(fr, target_val, 128, &mut inputs);
 
-    crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
+    eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
 }
@@ -98,7 +106,7 @@ fn test_compile_gf2_128_mul() {
         &fc_bin,
         &fr_bin,
         "gf2_128_mul_bin",
-        crate::core::proto::CircuitGeometry {
+        CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -115,7 +123,7 @@ fn test_compile_gf2_128_mul() {
         &fc_prime,
         &fr_prime,
         "gf2_128_mul_prime",
-        crate::core::proto::CircuitGeometry {
+        CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -164,7 +172,7 @@ fn eval_logic_to_u128<'a, F: CompileField + SerializableField>(
 }
 
 fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
@@ -185,7 +193,7 @@ fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) 
 }
 
 fn test_gf2_128_mul_random_for_field<F: CompileField + SerializableField>(f: &F) {
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);

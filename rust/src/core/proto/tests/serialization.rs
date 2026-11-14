@@ -14,17 +14,17 @@
 
 use crate::{
     circuits::boolean::Boolean,
-    compile::{algebra::p256::P256Field, logic::LogicIO},
+    compile::{algebra::p256::P256Field, compiler::compile_v1, logic::LogicIO},
     core::{
         algebra::{FieldID, SerializableField},
-        proto::v1::{CircuitReader, CircuitWriter},
+        proto::v1::{compute_id, CircuitReader, CircuitWriter},
     },
 };
 
 #[test]
 fn explicit_total_term_budget_applies_to_both_formats() {
     let f = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |logic| {
+    let (circuit, _, _) = compile_v1(&f, |logic| {
         let boolean = Boolean::new(&logic);
         let a = boolean.of_eltw(logic.input(1));
         let b = boolean.of_eltw(logic.input(2));
@@ -57,7 +57,7 @@ fn explicit_total_term_budget_applies_to_both_formats() {
 fn test_circuit_serialization_lfc2_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |iologic| {
+    let (circuit, _, _) = compile_v1(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -81,7 +81,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
     let (deserialized, remaining) = deserialized_res.unwrap();
     assert_eq!(remaining.len(), 0);
 
-    let computed_id = crate::core::proto::v1::compute_id(&rf, &deserialized.raw);
+    let computed_id = compute_id(&rf, &deserialized.raw);
     assert_eq!(deserialized.raw.ninput, circuit.raw.ninput);
     assert_eq!(deserialized.raw.npublic_input, circuit.raw.npublic_input);
     assert_eq!(deserialized.raw.noutput, circuit.raw.noutput);
@@ -115,7 +115,7 @@ fn test_circuit_serialization_lfc2_roundtrip() {
 fn test_circuit_serialization_lfc1_roundtrip() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |iologic| {
+    let (circuit, _, _) = compile_v1(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -138,7 +138,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
     let (deserialized, remaining) = deserialized_res.unwrap();
     assert_eq!(remaining.len(), 0);
 
-    let computed_id = crate::core::proto::v1::compute_id(&rf, &deserialized.raw);
+    let computed_id = compute_id(&rf, &deserialized.raw);
     assert_eq!(deserialized.id, circuit.id);
     assert_eq!(computed_id, circuit.id);
 }
@@ -147,7 +147,7 @@ fn test_circuit_serialization_lfc1_roundtrip() {
 fn test_circuit_serialization_compatibility() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |iologic| {
+    let (circuit, _, _) = compile_v1(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -178,7 +178,7 @@ fn test_circuit_serialization_compatibility() {
 fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
     let f = P256Field::new();
     let rf = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |iologic| {
+    let (circuit, _, _) = compile_v1(&f, |iologic| {
         let boolean = Boolean::new(&iologic);
         let a = iologic.input(1);
         let b = iologic.input(2);
@@ -217,7 +217,7 @@ fn test_circuit_reader_rejects_public_input_exceeding_inputs_lfc2() {
 #[test]
 fn both_circuit_codecs_preserve_legacy_subfield_boundary() {
     let f = P256Field::new();
-    let (circuit, _, _) = crate::compile::compiler::compile_v1(&f, |logic| {
+    let (circuit, _, _) = compile_v1(&f, |logic| {
         let boolean = Boolean::new(&logic);
         let x = boolean.of_eltw(logic.input(1));
         (boolean.assert_true("bit", &x), 1, 2)

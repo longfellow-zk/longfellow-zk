@@ -17,6 +17,7 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::{
+            batch_inverse,
             range_interpolation::{
                 interpolate_range, EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory,
             },
@@ -143,11 +144,11 @@ fn exercise<
 ) {
     let mut rng = DeterministicRng::new(314159);
     let nonzero: Vec<_> = (1..9).map(|i| backend.point(i)).collect();
-    let inverses = crate::runtime::algebra::batch_inverse(&nonzero, f);
+    let inverses = batch_inverse(&nonzero, f);
     for (value, inverse) in nonzero.iter().zip(&inverses) {
         assert_eq!(f.mulf(value, inverse), f.one());
     }
-    assert!(crate::runtime::algebra::batch_inverse::<F>(&[], f).is_empty());
+    assert!(batch_inverse::<F>(&[], f).is_empty());
     // Check interpolation independently at prefix and translated physical points.
     for k in [1, 3, 7, 12] {
         let samples = rng.elt_field_slice(k, f);

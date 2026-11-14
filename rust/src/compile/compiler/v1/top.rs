@@ -19,21 +19,21 @@ use crate::{
         algebra::CompileField,
         compiler::{arena::CompilerArena, CompilerAssertions, CompilerLogic},
         logic::AssertionScope,
+        proto::CircuitDebugSymbols,
     },
-    core::proto::{v1::Circuit, CircuitGeometry},
+    core::{
+        algebra::SerializableField,
+        proto::{v1::Circuit, CircuitGeometry},
+    },
 };
 
 /// Compile with the historical Morton order.
 pub fn compile_v1<F, Build>(
     f: &F,
     build: Build,
-) -> (
-    Circuit<F>,
-    CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-)
+) -> (Circuit<F>, CircuitGeometry, CircuitDebugSymbols)
 where
-    F: CompileField + crate::core::algebra::SerializableField,
+    F: CompileField + SerializableField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
     let source_arena = crate::compile::compiler::arena::CompilerArena::new();

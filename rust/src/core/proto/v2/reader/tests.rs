@@ -1,18 +1,24 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use crate::{
+    compile::algebra::p256::P256Field,
+    core::{
+        algebra::BareField,
+        proto::{read_uleb128_max4, v2::limits::MAX_TOTAL_TERMS},
+    },
+    runtime::algebra::gf2_128::{Gf2_128, Gf2_128Field},
+};
+
 #[test]
 fn default_total_term_limit_matches_v2_limit() {
-    let field = crate::compile::algebra::p256::P256Field::new();
+    let field = P256Field::new();
     let reader = super::CircuitReader::new(&field);
-    assert_eq!(
-        reader.max_total_terms,
-        crate::core::proto::v2::limits::MAX_TOTAL_TERMS
-    );
+    assert_eq!(reader.max_total_terms, MAX_TOTAL_TERMS);
 }
 
 #[test]
 fn lfc3_rejects_zero_outputs_without_panicking() {
     use crate::core::{algebra::FieldID, proto::serialize_uleb128_max4};
-    let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let field = Gf2_128Field::new();
     let mut bytes = b"LFC3DIR3".to_vec();
     for n in [FieldID::Gf2_128 as usize, 0, 1, 0, 0, 0, 0] {
         serialize_uleb128_max4(&mut bytes, n);
@@ -23,9 +29,9 @@ fn lfc3_rejects_zero_outputs_without_panicking() {
         .is_err());
 }
 
-struct Aliased(crate::runtime::algebra::gf2_128::Gf2_128Field);
-impl crate::core::algebra::BareField for Aliased {
-    type E = crate::runtime::algebra::gf2_128::Gf2_128;
+struct Aliased(Gf2_128Field);
+impl BareField for Aliased {
+    type E = Gf2_128;
 }
 impl crate::core::algebra::SerializableField for Aliased {
     fn field_id(&self) -> crate::core::algebra::FieldID {
@@ -58,13 +64,13 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
         algebra::SerializableField,
         proto::{v2, v2::CircuitWriter},
     };
-    let field = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let field = Gf2_128Field::new();
     let raw = v2::RawCircuitBuilder {
         ninput: 1,
         npublic_input: 1,
         noutput: 1,
         logv: 0,
-        constants: vec![crate::runtime::algebra::gf2_128::Gf2_128::from(0)],
+        constants: vec![Gf2_128::from(0)],
         layers: vec![],
     }
     .build();
@@ -72,7 +78,7 @@ fn lfc3_rejects_noncanonical_coefficients_even_with_a_valid_semantic_id() {
     let mut bytes = CircuitWriter::new(&field).to_bytes(&circuit);
     let mut remaining = &bytes[8..];
     for _ in 0..7 {
-        crate::core::proto::read_uleb128_max4(&mut remaining).unwrap();
+        read_uleb128_max4(&mut remaining).unwrap();
     }
     let offset = bytes.len() - remaining.len();
     bytes[offset..offset + field.serialized_size_bytes()].fill(0xff);

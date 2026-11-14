@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::circuits::sha256::{
-    derived as sha256_generate_derived, ConcreteDerived as Sha256ConcreteDerived,
-    ConcreteGiven as Sha256ConcreteGiven,
+    constants::INITIAL, derived as sha256_generate_derived,
+    ConcreteDerived as Sha256ConcreteDerived, ConcreteGiven as Sha256ConcreteGiven,
 };
 
 #[derive(Clone, Debug)]
@@ -123,11 +123,7 @@ pub fn sha256_msg_derived(
 #[must_use]
 pub fn derived(given: &ConcreteGiven, max_blocks: usize) -> ConcreteDerived {
     ConcreteDerived {
-        sha_derived: sha256_msg_derived(
-            &given.padded_preimage,
-            &crate::circuits::sha256::constants::INITIAL,
-            max_blocks,
-        ),
+        sha_derived: sha256_msg_derived(&given.padded_preimage, &INITIAL, max_blocks),
     }
 }
 

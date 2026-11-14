@@ -2,9 +2,13 @@
 use sha2::{Digest, Sha256};
 
 use super::{compute_id, id_bytes};
-use crate::core::{
-    algebra::{AlgebraicField, SerializableField},
-    proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuit, RawCircuitBuilder, Stream},
+use crate::{
+    compile::compiler::segment_circuit_v2,
+    core::{
+        algebra::{AlgebraicField, SerializableField},
+        proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuit, RawCircuitBuilder, Stream},
+    },
+    runtime::algebra::p256::P256Field,
 };
 
 fn fixture<F: SerializableField + AlgebraicField>(f: &F) -> RawCircuit<F> {
@@ -155,7 +159,7 @@ fn check<F: SerializableField + AlgebraicField>(f: &F) {
         raw.layers[0]
             .constant
             .for_each(|t| constant.push((t.g, raw.constants[t.k as usize].clone())));
-        let circuit = crate::compile::compiler::segment_circuit_v2(f, raw);
+        let circuit = segment_circuit_v2(f, raw);
         assert_ne!(circuit.id, original);
         let mut got = Vec::new();
         circuit.raw.layers[0]
@@ -180,7 +184,7 @@ fn segmented_identity_binary() {
 }
 #[test]
 fn segmented_identity_prime() {
-    check(&crate::runtime::algebra::p256::P256Field::new());
+    check(&P256Field::new());
 }
 
 #[test]

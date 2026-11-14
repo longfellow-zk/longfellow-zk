@@ -13,8 +13,11 @@
 // limitations under the License.
 use super::*;
 use crate::{
-    core::algebra::AlgebraicField,
-    runtime::{algebra::gf2_128::Gf2_128RuntimeField, v1::subfield::BinarySubfieldV1},
+    core::algebra::{AlgebraicField, CANTOR_BASIS_U128, GF2_16_BASIS_V1},
+    runtime::{
+        algebra::gf2_128::{Gf2_128Field, Gf2_128RuntimeField},
+        v1::subfield::BinarySubfieldV1,
+    },
 };
 
 // Direct root products define the novel basis independently of either FFT.
@@ -53,7 +56,7 @@ fn evaluation_matrix(
 fn binary_mixed_transform_all_intervals_and_nonzero_tails() {
     let f = Gf2_128RuntimeField::new();
     let ordinary: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    for basis in [&crate::core::algebra::GF2_16_BASIS_V1[..8], &ordinary] {
+    for basis in [&GF2_16_BASIS_V1[..8], &ordinary] {
         let sf = BinarySubfieldV1::new(basis);
         let fft = Lch14::new(&f, sf.basis());
         for log in 0..=6 {
@@ -110,7 +113,7 @@ fn binary_mixed_transform_all_intervals_and_nonzero_tails() {
 fn binary_mixed_transform_shifted_domains() {
     let f = Gf2_128RuntimeField::new();
     let ordinary: Vec<_> = (0..8).map(|i| 1u128 << i).collect();
-    for basis in [&crate::core::algebra::GF2_16_BASIS_V1[..8], &ordinary] {
+    for basis in [&GF2_16_BASIS_V1[..8], &ordinary] {
         let sf = BinarySubfieldV1::new(basis);
         let fft = Lch14::new(&f, sf.basis());
         for log in 0..=5 {
@@ -148,7 +151,7 @@ fn binary_mixed_transform_shifted_domains() {
 
 #[test]
 fn binary_domain_rejects_invalid_bases() {
-    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let f = Gf2_128Field::new();
     assert!(std::panic::catch_unwind(|| BinaryInterpolatorFactory::new(&f, &[])).is_err());
     let one = Gf2_128::from(1);
     assert!(std::panic::catch_unwind(|| BinaryInterpolatorFactory::new(&f, &[one, one])).is_err());
@@ -163,7 +166,7 @@ fn ambient_binary_domain_uses_native_coordinates_without_a_small_domain_limit() 
         let mut value = 0u128;
         for bit in 0..usize::BITS {
             if index & (1usize << bit) != 0 {
-                value ^= crate::core::algebra::CANTOR_BASIS_U128[bit as usize];
+                value ^= CANTOR_BASIS_U128[bit as usize];
             }
         }
         Gf2_128::from(value)

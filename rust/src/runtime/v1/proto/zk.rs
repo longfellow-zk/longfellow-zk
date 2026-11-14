@@ -17,13 +17,18 @@
 use std::io::Result;
 
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::v1::Circuit,
+    },
     runtime::{
         algebra::RuntimeField,
         v1::{
             proto::{
                 ligero::{LigeroCommitment, LigeroGeometry, LigeroProof},
                 sumcheck::{SumcheckProof, SumcheckProofGeometry},
+                util::read_bytes_32,
+                Digest,
             },
             subfield::SubfieldV1,
         },
@@ -78,9 +83,9 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         f: &F,
         sf: &SF,
     ) -> Result<Self> {
-        let root_bytes = crate::runtime::v1::proto::util::read_bytes_32(bytes)?;
+        let root_bytes = read_bytes_32(bytes)?;
         let com = LigeroCommitment {
-            root: crate::runtime::v1::proto::Digest { data: root_bytes },
+            root: Digest { data: root_bytes },
         };
 
         let sumcheck_proof = SumcheckProof::read(bytes, &geom.sc_geom, f)?;
@@ -97,9 +102,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
 /// Calculates the total number of witnesses (nw) and constraints (nq) for the given circuit,
 /// taking into account the private/public witness splits and ZK padding variables.
 #[must_use]
-pub fn witness_and_constraint_count<F: SerializableField>(
-    circuit: &crate::core::proto::v1::Circuit<F>,
-) -> (usize, usize) {
+pub fn witness_and_constraint_count<F: SerializableField>(circuit: &Circuit<F>) -> (usize, usize) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "npublic_input ({}) exceeds ninput ({})",

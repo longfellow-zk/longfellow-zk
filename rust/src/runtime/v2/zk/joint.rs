@@ -20,6 +20,8 @@ use crate::{
                 zk::CircuitGeometry,
                 Digest,
             },
+            sumcheck::circuit_geometry,
+            transcript::TranscriptRef,
             witness_selection,
         },
     },
@@ -80,14 +82,14 @@ impl<'a, const W: usize, F: ZkField<W>, D, L> SelectedField<'a, W, F, D, L> {
 
 /// Frontend metadata consumed internally before the fingerprint round.
 pub(crate) trait AbsorbLayout {
-    fn absorb_layout(&self, t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>);
+    fn absorb_layout(&self, t: &mut TranscriptRef<'_>);
 }
 
 impl AbsorbLayout for () {
-    fn absorb_layout(&self, _: &mut crate::runtime::v2::transcript::TranscriptRef<'_>) {}
+    fn absorb_layout(&self, _: &mut TranscriptRef<'_>) {}
 }
 impl<L: AbsorbLayout> AbsorbLayout for &L {
-    fn absorb_layout(&self, t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>) {
+    fn absorb_layout(&self, t: &mut TranscriptRef<'_>) {
         (*self).absorb_layout(t);
     }
 }
@@ -95,7 +97,7 @@ impl<L: AbsorbLayout> AbsorbLayout for &L {
 // The private supertrait both seals the tuple traversal and keeps absorption
 // inaccessible to callers; commit/receive are its only entry points.
 pub(crate) trait AbsorbLayouts {
-    fn absorb_layouts(&self, t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>);
+    fn absorb_layouts(&self, t: &mut TranscriptRef<'_>);
 }
 /// A typed list `(SelectedField, Tail)` ending in `()`. This conversion only
 /// supplies frontend metadata; all fingerprint arithmetic stays in its sibling.
@@ -112,7 +114,7 @@ pub trait Fields: AbsorbLayouts + Clone {
     fn selection(&self) -> Self::Selection;
 }
 impl AbsorbLayouts for () {
-    fn absorb_layouts(&self, _: &mut crate::runtime::v2::transcript::TranscriptRef<'_>) {}
+    fn absorb_layouts(&self, _: &mut TranscriptRef<'_>) {}
 }
 impl Fields for () {
     type Selection = ();
@@ -141,7 +143,7 @@ impl<
         T: Fields,
     > AbsorbLayouts for (SelectedField<'a, W, F, D, L>, T)
 {
-    fn absorb_layouts(&self, t: &mut crate::runtime::v2::transcript::TranscriptRef<'_>) {
+    fn absorb_layouts(&self, t: &mut TranscriptRef<'_>) {
         self.0.layout.absorb_layout(t);
         self.1.absorb_layouts(t);
     }
@@ -246,7 +248,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         if ctx.field().is_binary() || extension.degree() != 1 {
             return Err("split storage requires a degree-one prime frontend".into());
         }
-        let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&[circuit])?;
+        let sc_geom = circuit_geometry(&[circuit])?;
         let inputs = InputLayout::new(&[circuit], 0)?;
         let private = inputs.committed();
         let values = private

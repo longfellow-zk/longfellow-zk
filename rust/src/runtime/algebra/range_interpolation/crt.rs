@@ -29,7 +29,10 @@ use crate::{
         fp24_ext6::EXTENSION_DEGREE,
         AlgebraicField, BareField, SupportsU64Conversions,
     },
-    runtime::algebra::fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
+    runtime::algebra::{
+        fp24_ext6::{RuntimeElement, RuntimeFp24Ext6},
+        range_interpolation::EvaluationDomain,
+    },
 };
 
 /// Experimental interpolation using exact componentwise CRT convolution.
@@ -214,9 +217,7 @@ impl RangeInterpolatorFactory<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {
     }
 }
 
-impl crate::runtime::algebra::range_interpolation::EvaluationDomain<3, RuntimeFp24Ext6>
-    for CrtInterpolatorFactory
-{
+impl EvaluationDomain<3, RuntimeFp24Ext6> for CrtInterpolatorFactory {
     fn field(&self) -> &RuntimeFp24Ext6 {
         &RuntimeFp24Ext6
     }

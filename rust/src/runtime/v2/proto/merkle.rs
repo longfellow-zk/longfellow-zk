@@ -14,6 +14,8 @@
 
 //! V2 Merkle proof messages and their wire encoding.
 
+use crate::runtime::v2::proto::util::{read_bytes_32, read_size_4bytes};
+
 const DIGEST_LEN: usize = 32;
 /// Salt bytes per v2 column, shared by commitment sampling and the proof codec.
 /// Independent 256-bit salts give indexed-leaf statistical hiding error at
@@ -91,7 +93,7 @@ impl MerkleProof {
         num_queries: usize,
         mc_pathlen: usize,
     ) -> Result<Vec<Digest>, std::io::Error> {
-        let path_len = crate::runtime::v2::proto::util::read_size_4bytes(bytes)?;
+        let path_len = read_size_4bytes(bytes)?;
         let max_sz = num_queries.checked_mul(mc_pathlen).ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -116,7 +118,7 @@ impl MerkleProof {
         path.try_reserve_exact(path_len)
             .map_err(std::io::Error::other)?;
         for _ in 0..path_len {
-            let p_bytes = crate::runtime::v2::proto::util::read_bytes_32(bytes)?;
+            let p_bytes = read_bytes_32(bytes)?;
             path.push(Digest { data: p_bytes });
         }
         Ok(path)

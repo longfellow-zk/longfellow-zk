@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{compile::algebra::CompileField, core::algebra::ElementOf};
+use crate::{compile::algebra::CompileField, core::algebra::ElementOf, util::array::tree_fold};
 
 pub const K_FIRST_WIRE_POSITION: usize = 1;
 
@@ -99,7 +99,7 @@ pub trait Logic {
         if elements.is_empty() {
             self.one()
         } else {
-            crate::util::array::tree_fold(elements, &|x, y| self.mul(&x, &y), &|x| x.clone())
+            tree_fold(elements, &|x, y| self.mul(&x, &y), &|x| x.clone())
         }
     }
 

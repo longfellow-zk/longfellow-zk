@@ -7,8 +7,12 @@ use crate::{
         proto::v2::{Circuit, Constant, Layer, Linear, Quadratic},
     },
     runtime::{
-        algebra::{blas, RuntimeField},
-        v2::sumcheck::monomial,
+        algebra::{blas, RuntimeField, SupportsSampling},
+        v2::{
+            proto::{sumcheck::SumcheckProof, RoundLabel},
+            sumcheck::{monomial, symbolic::Constraints},
+            transcript::Transcript,
+        },
     },
 };
 pub(in super::super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
@@ -129,17 +133,14 @@ pub(in super::super) fn affine_constant<const W: usize, F: RuntimeField<W> + Ser
 /// Frozen three-stream layer loop used only to check proof/transcript identity.
 pub(in super::super) fn prove_core<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + crate::runtime::algebra::SupportsSampling,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     witnesses: Vec<Vec<F::E>>,
-    pads: &crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
+    pads: &SumcheckProof<W, F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
-    t: &mut crate::runtime::v2::transcript::Transcript,
+    t: &mut Transcript,
     f: &F,
-) -> (
-    crate::runtime::v2::proto::sumcheck::SumcheckProof<W, F>,
-    crate::runtime::v2::sumcheck::symbolic::Constraints<F::E>,
-) {
+) -> (SumcheckProof<W, F>, Constraints<F::E>) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
     t.absorb(|w| {
         w.write_bytes(b"layered-sumcheck/circuits/v1");
@@ -156,18 +157,15 @@ pub(in super::super) fn prove_core<
     for (index, w) in witnesses.into_iter().enumerate() {
         let layer = &circuit.raw.layers[index];
         let constants = &circuit.raw.constants;
-        let rho = t.round(
-            crate::runtime::v2::proto::RoundLabel::Assertions,
-            |mut w| {
-                w.write_bytes(&(index as u64).to_le_bytes());
-                let mut r = w.begin_squeeze();
-                if index == 0 {
-                    a = r.elt_field_slice(circuit.raw.noutput, f);
-                }
-                let rho = r.elt_field_slice(layer.assertion_counts().iter().sum(), f);
-                r.end_round(rho)
-            },
-        );
+        let rho = t.round(RoundLabel::Assertions, |mut w| {
+            w.write_bytes(&(index as u64).to_le_bytes());
+            let mut r = w.begin_squeeze();
+            if index == 0 {
+                a = r.elt_field_slice(circuit.raw.noutput, f);
+            }
+            let rho = r.elt_field_slice(layer.assertion_counts().iter().sum(), f);
+            r.end_round(rho)
+        });
         let q = bind_r(layer, constants, &a, &rho, &w, f);
         let constant = affine_constant(layer, constants, &a, f);
         let claim0 = f.subf(&claim, &constant);
@@ -190,7 +188,7 @@ pub(in super::super) fn prove_core<
         layers.push(proof);
         challenges.push(c);
     }
-    let proof = crate::runtime::v2::proto::sumcheck::SumcheckProof { layers };
+    let proof = SumcheckProof { layers };
     let constraints = symbolic::build_constraints(&proof, challenges, a, f);
     (proof, constraints)
 }

@@ -17,7 +17,7 @@
 //! For coefficients v[i] and a point u, P(u) = sum_i m[i]*v[i], where
 //! m[i] = product_j u[j]^i_j and i_j is bit j of i. These weights give the same
 //! evaluation as binding the low variable repeatedly in `dense::bind`.
-use crate::runtime::algebra::RuntimeField;
+use crate::runtime::{algebra::RuntimeField, v2::sumcheck::sane_logw};
 
 /// Return m[i] = product_j point[j]^i_j, where i_j is bit j of i.
 /// point[j] corresponds to bit j, least-significant bit first. Only the first
@@ -30,7 +30,7 @@ pub(super) fn weights<const W: usize, F: RuntimeField<W>>(
     point: &[F::E],
     f: &F,
 ) -> Vec<F::E> {
-    assert!(crate::runtime::v2::sumcheck::sane_logw(logn) && point.len() >= logn);
+    assert!(sane_logw(logn) && point.len() >= logn);
     assert!(n as u64 <= (1u64 << logn));
     let mut weights = Vec::with_capacity(n);
     if n == 0 {

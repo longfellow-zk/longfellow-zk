@@ -15,7 +15,7 @@
 //! Generic runtime field operations, checked independently of protocol code.
 use crate::{
     core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
-    runtime::algebra::RuntimeField,
+    runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, RuntimeField},
 };
 
 fn check_constant_encoding<F: AlgebraicField + SerializableField>(field: &F) {
@@ -91,7 +91,7 @@ fn power_works_in_binary_prime_and_extension_fields() {
         extension.addf(&extension.one(), &extension.one()),
     );
     {
-        let sextic = crate::runtime::algebra::fp24_ext6::RuntimeFp24Ext6::new();
+        let sextic = RuntimeFp24Ext6::new();
         check(&sextic, sextic.addf(&sextic.one(), &sextic.one()));
     }
 }

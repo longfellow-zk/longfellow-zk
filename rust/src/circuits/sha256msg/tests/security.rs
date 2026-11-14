@@ -6,9 +6,18 @@ use super::sha256msg_eval::run_corruptor_test;
 use crate::{
     circuits::{
         bitvec::BitvecLogic,
-        sha256msg::{concrete::given, Sha256Msg},
+        sha256::constants::INITIAL,
+        sha256msg::{
+            allocate_derived, allocate_given, concrete::given, evaluate_given, pad_sha256_message,
+            Sha256Msg,
+        },
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
+    compile::{
+        algebra::gf2_128::Gf2_128Field,
+        compiler::{compile_v2, segment_circuit_v2},
+        eval::eval_circuit_fc,
+        logic::{AssertionScope, EvalLogic, K_FIRST_WIRE_POSITION},
+    },
 };
 
 #[test]
@@ -23,7 +32,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
         let expected = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())
         });
-        let tracker = crate::compile::logic::AssertionScope::new();
+        let tracker = AssertionScope::new();
         run_corruptor_test::<3>(&f, &tracker, &message, &|g, _| {
             g.expected_hash = expected;
         })
@@ -33,7 +42,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
     // padding. A hash mismatch must not be the reason these are rejected.
     for len in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
         let message = vec![0x53; len];
-        let original = given(&message, &crate::circuits::sha256::constants::INITIAL, 3).unwrap();
+        let original = given(&message, &INITIAL, 3).unwrap();
         let end = original.nblocks * 64;
         let mut positions = vec![len, end - 8, end - 1];
         if len + 1 < end - 8 {
@@ -48,7 +57,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
         positions.dedup();
         for position in positions {
             for bit in 0..8 {
-                let tracker = crate::compile::logic::AssertionScope::new();
+                let tracker = AssertionScope::new();
                 let result = run_corruptor_test::<3>(&f, &tracker, &message, &|g, d| {
                     g.padded_preimage[position] ^= 1 << bit;
                     *d = crate::circuits::sha256msg::concrete::derived(g, 3);
@@ -73,19 +82,14 @@ fn sha_reference_and_rehashed_padding_attacks() {
 fn every_padding_byte_and_length_bit() {
     let f = Gf2_128Field::new();
     for len in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
-        let original = given(
-            &vec![0x35; len],
-            &crate::circuits::sha256::constants::INITIAL,
-            3,
-        )
-        .unwrap();
+        let original = given(&vec![0x35; len], &INITIAL, 3).unwrap();
         for position in len..192 {
             let mut changed = original.clone();
             changed.padded_preimage[position] ^= 1;
-            let tracker = crate::compile::logic::AssertionScope::new();
+            let tracker = AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bv = BitvecLogic::new(&logic);
-            let wires = crate::circuits::sha256msg::evaluate_given::<_, 8>(&changed, &bv);
+            let wires = evaluate_given::<_, 8>(&changed, &bv);
             let sha = Sha256Msg::<_, 3>::new(&logic);
             let pad =
                 sha.assert_sha_padding(&wires.nblocks, &wires.length_bytes, &wires.padded_preimage);
@@ -97,12 +101,12 @@ fn every_padding_byte_and_length_bit() {
             );
         }
         for bit in 0..64 {
-            let tracker = crate::compile::logic::AssertionScope::new();
+            let tracker = AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bv = BitvecLogic::new(&logic);
             let mut changed = original.clone();
             changed.length_bytes ^= 1 << bit;
-            let wires = crate::circuits::sha256msg::evaluate_given::<_, 8>(&changed, &bv);
+            let wires = evaluate_given::<_, 8>(&changed, &bv);
             assert!(
                 Sha256Msg::<_, 3>::new(&logic)
                     .assert_length(&wires.nblocks, &wires.length_bytes, &wires.padded_preimage,)
@@ -117,20 +121,20 @@ fn every_padding_byte_and_length_bit() {
 fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
     let fc = Gf2_128Field::new();
     let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    let (circuit, _, symbols) = crate::compile::compiler::compile_v2(&fc, |logic| {
-        let mut pos = crate::compile::logic::K_FIRST_WIRE_POSITION;
+    let (circuit, _, symbols) = compile_v2(&fc, |logic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
         let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
-        let given = crate::circuits::sha256msg::allocate_given::<_, 3>(&bv, &mut pos);
-        let derived = crate::circuits::sha256msg::allocate_derived::<_, 3>(&bv, &mut pos);
+        let given = allocate_given::<_, 3>(&bv, &mut pos);
+        let derived = allocate_derived::<_, 3>(&bv, &mut pos);
         (
             Sha256Msg::<_, 3>::new(&logic).assert_message_hash(&given, &derived),
             1,
         )
     });
-    let circuit = crate::compile::compiler::segment_circuit_v2(&fc, circuit);
+    let circuit = segment_circuit_v2(&fc, circuit);
     for length in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
         let message: Vec<_> = (0..length).map(|i| (i * 37 + length) as u8).collect();
-        let mut good = given(&message, &crate::circuits::sha256::constants::INITIAL, 3).unwrap();
+        let mut good = given(&message, &INITIAL, 3).unwrap();
         let reference = Sha2Reference::digest(&message);
         good.expected_hash = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())
@@ -147,9 +151,7 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
             let mut inputs = Vec::new();
             g.push_elements(&fr, 3, |e| inputs.push(e));
             derived.push_elements(&fr, |e| inputs.push(e));
-            let result =
-                crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
-                    .unwrap();
+            let result = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
             assert_eq!(
                 result.is_ok(),
                 !bad,
@@ -163,8 +165,7 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
 fn length_is_a_numeric_witness_and_padding_is_big_endian() {
     for length in [0, 1, 55, 56, 63, 64, 256, 257] {
         let message = vec![0x53; length];
-        let (blocks, bytes, padded) =
-            crate::circuits::sha256msg::pad_sha256_message(&message, 6).unwrap();
+        let (blocks, bytes, padded) = pad_sha256_message(&message, 6).unwrap();
         assert_eq!(bytes, length as u64);
         assert_eq!(
             &padded[blocks * 64 - 8..blocks * 64],

@@ -22,9 +22,16 @@ use crate::{
             extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
             INVALID_WIRE_ID,
         },
-        logic::AssertionId,
+        logic::{AssertionId, AssertionScope},
+        proto::CircuitDebugSymbols,
     },
-    core::proto::CircuitGeometry,
+    core::{
+        algebra::SerializableField,
+        proto::{
+            v2::{RawCircuit, RawCircuitBuilder},
+            CircuitGeometry,
+        },
+    },
     util::ceil_log2,
 };
 
@@ -108,7 +115,7 @@ fn materialize_assertions<F: CompileField>(
     }
 }
 
-fn assign_wire_ids<F: CompileField + crate::core::algebra::SerializableField>(
+fn assign_wire_ids<F: CompileField + SerializableField>(
     f: &F,
     nodes: &[Node<F>],
     nodes_by_depth: &[Vec<usize>],
@@ -194,7 +201,7 @@ struct ScheduledTerm<F: CompileField> {
     term: NativeTerm<F>,
 }
 
-fn collect_terms<F: CompileField + crate::core::algebra::SerializableField>(
+fn collect_terms<F: CompileField + SerializableField>(
     nodes: &[Node<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
@@ -234,7 +241,7 @@ fn collect_terms<F: CompileField + crate::core::algebra::SerializableField>(
     (terms_in_layer, nwires_in_layer)
 }
 
-fn check_connectivity<F: CompileField + crate::core::algebra::SerializableField>(
+fn check_connectivity<F: CompileField + SerializableField>(
     f: &F,
     ninput: usize,
     noutput: usize,
@@ -300,15 +307,15 @@ struct Scheduled<F: CompileField> {
     constants: Vec<F::E>,
     constant_to_idx: std::collections::HashMap<Vec<u8>, u32>,
     info: CircuitGeometry,
-    symbols: crate::compile::proto::CircuitDebugSymbols,
+    symbols: CircuitDebugSymbols,
 }
 
-fn schedule_graph<F: CompileField + crate::core::algebra::SerializableField>(
+fn schedule_graph<F: CompileField + SerializableField>(
     f: &F,
     c: CircuitGraph<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
-    tracker: crate::compile::logic::AssertionScope,
+    tracker: AssertionScope,
 ) -> Scheduled<F> {
     let npublic_input = npublic_input
         .checked_sub(1)
@@ -383,12 +390,8 @@ pub(super) fn schedule<F: CompileField>(
     c: CircuitGraph<F>,
     assertions: &[(usize, AssertionId)],
     npublic_input: usize,
-    tracker: crate::compile::logic::AssertionScope,
-) -> (
-    crate::core::proto::v2::RawCircuit<F>,
-    CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-) {
+    tracker: AssertionScope,
+) -> (RawCircuit<F>, CircuitGeometry, CircuitDebugSymbols) {
     let graph = schedule_graph(f, c, assertions, npublic_input, tracker);
     let layers = v2_layers(
         f,
@@ -400,7 +403,7 @@ pub(super) fn schedule<F: CompileField>(
     .into_iter()
     .rev()
     .collect();
-    let raw = crate::core::proto::v2::RawCircuitBuilder {
+    let raw = RawCircuitBuilder {
         ninput: graph.info.ninput,
         npublic_input: graph.info.npublic_input,
         noutput: graph.info.noutput,
@@ -433,7 +436,7 @@ fn collect_constants<F: CompileField>(
     (constants, constant_to_idx)
 }
 
-fn v2_layers<F: CompileField + crate::core::algebra::SerializableField>(
+fn v2_layers<F: CompileField + SerializableField>(
     f: &F,
     terms: Vec<Vec<ScheduledTerm<F>>>,
     ninput: usize,

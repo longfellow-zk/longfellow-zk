@@ -4,16 +4,19 @@ use super::super::*;
 use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
-        logic::EvalLogic,
+        logic::{AssertionScope, EvalLogic},
     },
-    mdoc::circuits::hash::{concrete, evaluate_derived, evaluate_given},
+    mdoc::{
+        circuits::{
+            cbor::{encode_cbor_string, test_utils::parse_test_data},
+            hash::{concrete, evaluate_derived, evaluate_given},
+        },
+        testcases::TEST_DATA,
+    },
 };
 
 fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
-    let (_, parsed, now) = crate::mdoc::circuits::cbor::test_utils::parse_test_data::<
-        4,
-        CompileNat<4>,
-    >(&crate::mdoc::testcases::TEST_DATA);
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     concrete::given::<4, _>(concrete::hash_input_of_parsed_mdoc(
         &parsed,
         &parsed.all_attr_ids(),
@@ -23,7 +26,7 @@ fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
 
 fn namespace_passes(expected: &[u8], encoded: &[u8], offset: u16, message_len: u16) -> bool {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let witness = fixture();
@@ -53,7 +56,7 @@ fn namespace_passes(expected: &[u8], encoded: &[u8], offset: u16, message_len: u
 fn namespace_checks_exact_text_headers_lengths_and_read_bounds() {
     for len in [1, 17, 23, 24, 32, K_NAMESPACE_BYTES] {
         let namespace = vec![b'n'; len];
-        let encoded = crate::mdoc::circuits::cbor::encode_cbor_string(&namespace);
+        let encoded = encode_cbor_string(&namespace);
         let end = 64 + encoded.len() as u16;
         assert!(namespace_passes(&namespace, &encoded, 64, end));
         let mut different = namespace.clone();
@@ -67,7 +70,7 @@ fn namespace_checks_exact_text_headers_lengths_and_read_bounds() {
     }
     for len in [0, K_NAMESPACE_BYTES + 1] {
         let namespace = vec![b'n'; len];
-        let encoded = crate::mdoc::circuits::cbor::encode_cbor_string(&namespace);
+        let encoded = encode_cbor_string(&namespace);
         assert!(!namespace_passes(&namespace, &encoded, 64, 200));
     }
     assert!(!namespace_passes(
@@ -85,7 +88,7 @@ fn namespace_check_is_independent_of_doc_type_suppression() {
     witness.hash_input.expected_namespace[0] ^= 1;
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     MdocHash::new(&logic, witness.hash_input.attrs.len())
@@ -106,7 +109,7 @@ fn validity_passes(from: &[u8; 20], until: &[u8; 20], now: &[u8; 20]) -> bool {
     witness.preimage.value[until_start..until_start + 20].copy_from_slice(until);
     witness.hash_input.now = now.to_vec();
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::AssertionScope::new();
+    let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -183,7 +186,7 @@ fn every_disclosed_attribute_checks_its_last_public_bytes() {
                 &mut attribute.expected_cbor_value
             };
             *public.last_mut().unwrap() ^= 1;
-            let tracker = crate::compile::logic::AssertionScope::new();
+            let tracker = AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bits = BitvecLogic::new(&logic);
             let wires = evaluate_given(&logic, &bits, &changed);

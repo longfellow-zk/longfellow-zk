@@ -16,7 +16,10 @@
 
 use crate::{
     core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
-    mdoc::v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
+    mdoc::{
+        circuits::cbor::encode_cbor_string_into,
+        v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
+    },
     runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         p256::{P256Element, P256Field},
@@ -32,7 +35,7 @@ fn push_input_attrs(
     for la in attrs {
         if version >= 7 {
             let mut vbuf = Vec::with_capacity(3 + la.id.len());
-            crate::mdoc::circuits::cbor::encode_cbor_string_into(&la.id, &mut vbuf);
+            encode_cbor_string_into(&la.id, &mut vbuf);
 
             builder.push_raw_bytes(&vbuf);
             builder.push_pad(zero, (32 - vbuf.len()) * 8);
@@ -45,8 +48,8 @@ fn push_input_attrs(
             builder.push_bits_len((la.cbor_value.len() + 12 + 1) as u64, 8);
         } else {
             let mut vbuf = Vec::new();
-            crate::mdoc::circuits::cbor::encode_cbor_string_into(&la.id, &mut vbuf);
-            crate::mdoc::circuits::cbor::encode_cbor_string_into(b"elementValue", &mut vbuf);
+            encode_cbor_string_into(&la.id, &mut vbuf);
+            encode_cbor_string_into(b"elementValue", &mut vbuf);
             vbuf.extend_from_slice(&la.cbor_value);
 
             let len = vbuf.len();

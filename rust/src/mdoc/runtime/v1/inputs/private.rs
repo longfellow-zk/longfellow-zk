@@ -15,6 +15,7 @@
 //! Longfellow v1 private assignment encoding.
 
 use crate::{
+    circuits::sha256::{constants::INITIAL, ConcreteDerived},
     core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
     mdoc::{
         circuits::cbor::mdoc::ParsedMdoc,
@@ -26,8 +27,9 @@ use crate::{
     runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         p256::{P256Element, P256Field},
+        q256::Q256Field,
         secp256r1::Secp256r1,
-        RuntimeSerializableField,
+        RuntimeNat, RuntimeSerializableField,
     },
 };
 
@@ -39,10 +41,7 @@ fn max_shablocks(version: usize) -> usize {
     }
 }
 
-fn push_legacy_sha_witness(
-    builder: &mut AssignmentBuilder<Gf2_128Field>,
-    sha: &crate::circuits::sha256::ConcreteDerived,
-) {
+fn push_legacy_sha_witness(builder: &mut AssignmentBuilder<Gf2_128Field>, sha: &ConcreteDerived) {
     for val in sha.legacy_elements() {
         builder.push_v32_legacy(val);
     }
@@ -88,12 +87,8 @@ pub(in crate::mdoc::runtime::v1) fn push_witness_hash<N: Nat<4>>(
     }
 
     let max_mso_blocks = max_shablocks(version);
-    let mso_sha_in = crate::circuits::sha256msg::given(
-        &parsed.cbor_mso,
-        &crate::circuits::sha256::constants::INITIAL,
-        max_mso_blocks,
-    )
-    .unwrap();
+    let mso_sha_in =
+        crate::circuits::sha256msg::given(&parsed.cbor_mso, &INITIAL, max_mso_blocks).unwrap();
     let mso_sha_witness = crate::circuits::sha256msg::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
@@ -133,12 +128,8 @@ fn push_witness_attrs<N: Nat<4>>(
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
 
-        let attr_sha_in = crate::circuits::sha256msg::given(
-            &pa.cbor_issuer_signed_item,
-            &crate::circuits::sha256::constants::INITIAL,
-            2,
-        )
-        .unwrap();
+        let attr_sha_in =
+            crate::circuits::sha256msg::given(&pa.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
         let attr_sha_witness = crate::circuits::sha256msg::derived(&attr_sha_in, 2);
         builder.push_raw_bytes(&attr_sha_in.padded_preimage);
         push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[0]);
@@ -193,13 +184,13 @@ fn push_witness_attrs<N: Nat<4>>(
 #[allow(clippy::too_many_arguments)]
 fn push_legacy_verify_witness_3(
     builder: &mut AssignmentBuilder<P256Field>,
-    q256: &crate::runtime::algebra::q256::Q256Field,
+    q256: &Q256Field,
     secp256r1: &Secp256r1<P256Field>,
     pk_x: &P256Element,
     pk_y: &P256Element,
-    e: &crate::runtime::algebra::RuntimeNat<4>,
-    r: &crate::runtime::algebra::RuntimeNat<4>,
-    s: &crate::runtime::algebra::RuntimeNat<4>,
+    e: &RuntimeNat<4>,
+    r: &RuntimeNat<4>,
+    s: &RuntimeNat<4>,
 ) {
     let p256 = builder.field;
     let ecdsa_given =
@@ -224,7 +215,7 @@ fn push_legacy_verify_witness_3(
 
     let s_elt = q256.words64_to_element(&s.to_limbs()).unwrap();
     let tms_elt = q256.neg(&s_elt);
-    let nms = crate::runtime::algebra::RuntimeNat::<4>::from_limbs(&q256.to_words64(&tms_elt));
+    let nms = RuntimeNat::<4>::from_limbs(&q256.to_words64(&tms_elt));
 
     for i in 0..256 {
         let bit_idx = 255 - i;
@@ -252,10 +243,10 @@ fn push_legacy_verify_witness_3(
 
 pub(in crate::mdoc::runtime::v1) fn push_witness_sig(
     p256: &P256Field,
-    q256: &crate::runtime::algebra::q256::Q256Field,
+    q256: &Q256Field,
     secp256r1: &Secp256r1<P256Field>,
     issuer_pk: &(P256Element, P256Element),
-    parsed: &ParsedMdoc<crate::runtime::algebra::RuntimeNat<4>>,
+    parsed: &ParsedMdoc<RuntimeNat<4>>,
     mac_ap: &[[u128; 2]; 3],
 ) -> Vec<P256Element> {
     let mut builder = AssignmentBuilder::new(p256);

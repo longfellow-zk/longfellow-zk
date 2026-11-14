@@ -14,15 +14,12 @@
 
 use num_bigint::BigUint;
 
+use crate::core::algebra::{AlgebraicField, Comparable, HasLookupPoints, SerializableField};
+
 /// Trait for fields used at circuit compile-time. Inherits from
 /// [`crate::core::algebra::AlgebraicField`] to define its associated
 /// [`crate::core::algebra::BareField::E`] type and algebraic operations.
-pub trait CompileField:
-    crate::core::algebra::AlgebraicField
-    + crate::core::algebra::SerializableField
-    + crate::core::algebra::Comparable
-    + crate::core::algebra::HasLookupPoints
-{
+pub trait CompileField: AlgebraicField + SerializableField + Comparable + HasLookupPoints {
     /// The field characteristic: the smallest positive integer `p` such that
     /// `p` times the multiplicative identity `1` equals `0`.
     /// For prime fields Fp, this is the prime modulus `P`.

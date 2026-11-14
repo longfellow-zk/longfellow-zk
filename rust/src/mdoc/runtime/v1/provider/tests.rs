@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! Frozen v1 lookup errors and stored-archive identity.
-use crate::mdoc::v1::provider::*;
+use crate::mdoc::{artifacts::load_circuit_lfa2, v1::provider::*};
 
 #[test]
 fn provider_loads_all_frozen_v1_archives() {
@@ -22,10 +22,7 @@ fn provider_loads_all_frozen_v1_archives() {
         let provided = materialize(expected.version, expected.num_attributes).unwrap();
         assert_eq!(provided.spec, *expected);
         assert_eq!(provided.archive.combined_id, expected.combined_hash);
-        assert_eq!(
-            provided.compressed,
-            crate::mdoc::artifacts::load_circuit_lfa2(&provided.name)
-        );
+        assert_eq!(provided.compressed, load_circuit_lfa2(&provided.name));
     }
 }
 

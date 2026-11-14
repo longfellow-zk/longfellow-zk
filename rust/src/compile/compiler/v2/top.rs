@@ -18,9 +18,10 @@ use crate::{
     compile::{
         algebra::CompileField,
         compiler::{arena::CompilerArena, CompilerAssertions, CompilerLogic},
-        logic::AssertionScope,
+        logic::{AssertionId, AssertionScope},
+        proto::CircuitDebugSymbols,
     },
-    core::proto::CircuitGeometry,
+    core::proto::{v2::RawCircuit, CircuitGeometry},
 };
 
 /// Compile into identity-free v2 streams, with no One input. Call
@@ -30,11 +31,7 @@ use crate::{
 pub fn compile_v2<F, Build>(
     f: &F,
     build: Build,
-) -> (
-    crate::core::proto::v2::RawCircuit<F>,
-    CircuitGeometry,
-    crate::compile::proto::CircuitDebugSymbols,
-)
+) -> (RawCircuit<F>, CircuitGeometry, CircuitDebugSymbols)
 where
     F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize),
@@ -56,7 +53,7 @@ fn lower<F, Build>(
     build: Build,
 ) -> (
     super::terms::CircuitGraph<F>,
-    Vec<(usize, crate::compile::logic::AssertionId)>,
+    Vec<(usize, AssertionId)>,
     usize,
     usize,
     AssertionScope,
