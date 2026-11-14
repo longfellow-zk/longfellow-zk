@@ -10,19 +10,19 @@ use crate::core::proto::DigestBytes;
 /// [`RawCircuit::into_builder`], and construct a new circuit with a new identity.
 ///
 /// ```compile_fail,E0594
-/// use longfellow_zk::core::proto::{v2::Circuit, SerializableField};
+/// use longfellow_zk::core::{algebra::SerializableField, proto::v2::Circuit};
 /// fn change_id<F: SerializableField>(c: &mut Circuit<F>) {
 ///     c.id = [0; 32];
 /// }
 /// ```
 /// ```compile_fail,E0596
-/// use longfellow_zk::core::proto::{v2::Circuit, SerializableField};
+/// use longfellow_zk::core::{algebra::SerializableField, proto::v2::Circuit};
 /// fn change_constants<F: SerializableField>(c: &mut Circuit<F>) {
 ///     c.raw.constants.clear();
 /// }
 /// ```
 /// ```compile_fail,E0596
-/// use longfellow_zk::core::proto::{v2::Circuit, SerializableField};
+/// use longfellow_zk::core::{algebra::SerializableField, proto::v2::Circuit};
 /// fn change_gates<F: SerializableField>(c: &mut Circuit<F>) {
 ///     c.raw.layers[0].quadratic.tokens.clear();
 /// }
@@ -66,13 +66,13 @@ impl<F: SerializableField> Deref for Circuit<F> {
 /// instances. Freezing and field access add no allocation, scan, or checks.
 ///
 /// ```compile_fail,E0596
-/// use longfellow_zk::core::proto::{v2::RawCircuit, SerializableField};
+/// use longfellow_zk::core::{algebra::SerializableField, proto::v2::RawCircuit};
 /// fn change_layers<F: SerializableField>(c: &mut RawCircuit<F>) {
 ///     c.layers.clear();
 /// }
 /// ```
 /// ```compile_fail,E0609
-/// use longfellow_zk::core::proto::{v2::RawCircuit, SerializableField};
+/// use longfellow_zk::core::{algebra::SerializableField, proto::v2::RawCircuit};
 /// fn compiler_output_has_no_id<F: SerializableField>(c: &RawCircuit<F>) {
 ///     let _ = c.id;
 /// }

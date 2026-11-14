@@ -118,7 +118,10 @@ Late authentication cannot take a replacement transcript:
 use longfellow_zk::runtime::v2::{
     proto::polygero::JointPolygeroProof,
     transcript::Transcript,
-    zk::joint::{Bodies, Fields, JointVerifier, Statements},
+    zk::{
+        joint::{Bodies, Fields, Statements},
+        JointVerifier,
+    },
 };
 fn bad<L: Fields>(v: JointVerifier<L>, proof: &JointPolygeroProof<Bodies<L>>,
                   statements: Statements<L>, mut other: Transcript) {
@@ -131,7 +134,7 @@ struct member:
 
 ```compile_fail,E0560
 use longfellow_zk::runtime::{
-    algebra::{EvaluationDomain, ZkField},
+    algebra::{range_interpolation::EvaluationDomain, ZkField},
     v2::zk::ZkContext,
 };
 fn bad<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(f: &F, domain: &D) {
