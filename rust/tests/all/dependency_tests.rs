@@ -1102,22 +1102,34 @@ fn test_interpolation_dependencies() {
 #[test]
 fn test_v2_role_and_shared_module_boundaries() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    // Every v2 file named for a role is checked against the other role; the
+    // prover-side evaluation helpers and shared sumcheck modules are listed.
+    let mut checked: Vec<(String, &str)> = production_sources(root)
+        .into_iter()
+        .filter_map(|source| {
+            let relative = source
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            if !(relative.starts_with("runtime/v2/")
+                || relative.starts_with("applications/mdoc_zk/runtime/src/v2/"))
+            {
+                return None;
+            }
+            let stem = source.file_stem()?.to_str()?;
+            let words: Vec<_> = stem.split('_').collect();
+            match (words.contains(&"prover"), words.contains(&"verifier")) {
+                (true, false) => Some((relative, "verifier")),
+                (false, true) => Some((relative, "prover")),
+                _ => None,
+            }
+        })
+        .collect();
+    assert!(checked.len() >= 20, "role files not found: {checked:?}");
     for (relative_path, forbidden) in [
-        ("runtime/v2/sumcheck/src/prover.rs", "verifier"),
         ("runtime/v2/sumcheck/src/dense.rs", "verifier"),
         ("runtime/v2/sumcheck/src/eval.rs", "verifier"),
-        ("runtime/v2/sumcheck/src/verifier.rs", "prover"),
-        ("runtime/v2/zk/src/prover.rs", "verifier"),
-        ("runtime/v2/zk/src/joint_prover.rs", "verifier"),
-        ("runtime/v2/zk/src/joint_verifier.rs", "prover"),
-        ("runtime/v2/zk/src/verifier.rs", "prover"),
-        ("runtime/v2/foreign/src/compose_prover.rs", "verifier"),
-        ("runtime/v2/foreign/src/compose_verifier.rs", "prover"),
-        ("runtime/v2/witness-selection/src/prover.rs", "verifier"),
-        ("runtime/v2/witness-selection/src/verifier.rs", "prover"),
-        ("runtime/v2/polygero/src/prover.rs", "verifier"),
-        ("runtime/v2/polygero/src/prover_commitment.rs", "verifier"),
-        ("runtime/v2/polygero/src/verifier.rs", "prover"),
         ("runtime/v2/sumcheck/src/monomial.rs", "shared_sumcheck"),
         ("runtime/v2/sumcheck/src/fragments.rs", "shared_sumcheck"),
         ("runtime/v2/sumcheck/src/quad.rs", "shared_sumcheck"),
@@ -1125,7 +1137,10 @@ fn test_v2_role_and_shared_module_boundaries() {
         ("runtime/v2/sumcheck/src/symbolic.rs", "shared_sumcheck"),
         ("runtime/v2/sumcheck/src/transcript.rs", "shared_sumcheck"),
     ] {
-        let file = root.join(relative_path);
+        checked.push((relative_path.to_owned(), forbidden));
+    }
+    for (relative_path, forbidden) in checked {
+        let file = root.join(&relative_path);
         let source = fs::read_to_string(&file).expect("read registered V2 source");
         let production = production_code(&source);
         let code = &production;
