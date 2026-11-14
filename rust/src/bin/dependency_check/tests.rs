@@ -90,6 +90,17 @@ fn contracts_use_only_lower_layers() {
 }
 
 #[test]
+fn a_bridge_must_not_also_be_declared_ungated() {
+    assert!(!bridge_in(
+        "#[cfg(test)]\nmod evaluate;\n#[cfg(not(test))]\nmod evaluate;\n"
+    ));
+    assert!(!bridge_in(
+        "cfg_testonly! {\n    mod evaluate;\n}\nmod evaluate;\n"
+    ));
+    assert!(!bridge_in("mod circuit;\n"));
+}
+
+#[test]
 fn phases_never_cross() {
     use Phase::*;
     for (from, to) in [

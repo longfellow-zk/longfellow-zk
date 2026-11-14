@@ -281,9 +281,11 @@ fn phase_allows(from: Phase, to: Phase) -> bool {
     }
 }
 
-/// Whether the parent module declares `mod evaluate;` only for tests, inside
-/// `cfg_testonly! { ... }` or under `#[cfg(test)]`. A bridge may use both
-/// phases only because it is never built into a library user's binary.
+/// Whether the parent module declares `mod evaluate;` only for tests: every
+/// declaration lies inside `cfg_testonly! { ... }` or under `#[cfg(test)]`,
+/// and there is at least one. A bridge may use both phases only because it is
+/// never built into a library user's binary, so one ungated declaration (say
+/// under `#[cfg(not(test))]`) next to a gated one fails.
 fn bridge_is_test_only(root: &Path, path: &str) -> bool {
     let Some(parent) = Path::new(path).parent() else {
         return false;
@@ -294,14 +296,17 @@ fn bridge_is_test_only(root: &Path, path: &str) -> bool {
     let mut depth = 0usize;
     let mut testonly_at = None;
     let mut cfg_test = false;
+    let mut declared = false;
     for line in text.lines() {
         let t = line.trim();
         if t.starts_with("cfg_testonly!") && t.ends_with('{') {
             testonly_at = Some(depth);
         }
-        let declares = t.ends_with("mod evaluate;");
-        if declares && (testonly_at.is_some() || cfg_test) {
-            return true;
+        if t.ends_with("mod evaluate;") {
+            if testonly_at.is_none() && !cfg_test {
+                return false;
+            }
+            declared = true;
         }
         cfg_test = t == "#[cfg(test)]";
         depth += t.matches('{').count();
@@ -310,7 +315,7 @@ fn bridge_is_test_only(root: &Path, path: &str) -> bool {
             testonly_at = None;
         }
     }
-    false
+    declared
 }
 
 /// The prover/verifier contracts, `runtime::vN::proto`, use only the shared
