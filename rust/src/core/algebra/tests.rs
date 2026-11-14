@@ -13,4 +13,5 @@
 // limitations under the License.
 
 mod ec;
+mod encoding;
 mod gf2_128;

@@ -118,24 +118,6 @@ pub enum FieldID {
     Secp = 10,
 }
 
-/// Canonical little-endian encoding of -1 in the P-256 base field.
-const P256_MONE: [u8; 32] = [
-    0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
-];
-
-impl FieldID {
-    /// Identify a prime field from its canonical encoding of -1, which
-    /// determines the modulus. Primes without a listed identifier map to `None`.
-    pub fn of_prime_field(mone: &[u8]) -> Self {
-        if mone == P256_MONE {
-            Self::P256
-        } else {
-            Self::None
-        }
-    }
-}
-
 pub type ElementOf<F> = <F as BareField>::E;
 
 pub trait HasLookupPoints: BareField {

@@ -24,8 +24,13 @@ pub use nat::Nat;
 
 pub mod ec;
 
+pub mod encoding;
+
+// A reference GF(2^128), the test oracle for both sides' fields.
+#[cfg(test)]
 mod gf2_128;
-pub use gf2_128::{Gf2_128, Gf2_128Field};
+#[cfg(test)]
+pub(crate) use gf2_128::Gf2_128Field;
 
 mod proto;
 pub use proto::{CANTOR_BASIS_U128, GF2_16_BASIS_V1, POLY_EVALUATION_POINTS};

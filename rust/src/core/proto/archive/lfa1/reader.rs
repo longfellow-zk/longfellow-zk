@@ -15,75 +15,19 @@
 use std::io::BufRead;
 
 use crate::core::{
-    algebra::{BareField, FieldID, Gf2_128Field, SerializableField},
+    algebra::{
+        encoding::{GF2_128, P256},
+        FieldID,
+    },
     proto::{
         archive::{compute_combined_id, ArchiveEntry, CircuitArchive, LFA_VERSION},
         v1::CircuitReader,
     },
 };
 
-struct Lfa1P256Field;
-
-impl BareField for Lfa1P256Field {
-    type E = [u8; 32];
-}
-
-impl SerializableField for Lfa1P256Field {
-    fn field_id(&self) -> FieldID {
-        FieldID::of_prime_field(&self.serialized_mone())
-    }
-    fn is_binary(&self) -> bool {
-        false
-    }
-
-    fn serialized_size_bytes(&self) -> usize {
-        32
-    }
-
-    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
-        dst[..32].copy_from_slice(e);
-    }
-
-    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
-        let arr: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| "invalid P256 element length".to_string())?;
-        // P-256 prime modulus in little-endian u64 limbs
-        const MODULUS: [u64; 4] = [
-            0xffffffffffffffff,
-            0x00000000ffffffff,
-            0x0000000000000000,
-            0xffffffff00000001,
-        ];
-        let limbs = [
-            u64::from_le_bytes(arr[0..8].try_into().unwrap()),
-            u64::from_le_bytes(arr[8..16].try_into().unwrap()),
-            u64::from_le_bytes(arr[16..24].try_into().unwrap()),
-            u64::from_le_bytes(arr[24..32].try_into().unwrap()),
-        ];
-        if (limbs[3], limbs[2], limbs[1], limbs[0])
-            >= (MODULUS[3], MODULUS[2], MODULUS[1], MODULUS[0])
-        {
-            return Err("P256 element >= modulus".to_string());
-        }
-        Ok(arr)
-    }
-
-    fn serialized_mone(&self) -> Vec<u8> {
-        vec![
-            0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-            0xff, 0xff, 0xff, 0xff,
-        ]
-    }
-}
-
 /// Reads an LFA1 archive from a stream (concatenated "sig" and "hash" LFC1 circuits starting with
 /// version/field byte 1).
 pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, String> {
-    let p256 = Lfa1P256Field;
-    let gf2 = Gf2_128Field::new();
-
     let mut raw_bytes = Vec::new();
     stream
         .read_to_end(&mut raw_bytes)
@@ -97,14 +41,14 @@ pub fn from_stream_lfa1<R: BufRead>(stream: &mut R) -> Result<CircuitArchive, St
     }
 
     let cursor1 = &raw_bytes[..];
-    let reader_sig = CircuitReader::new(&p256, FieldID::P256);
+    let reader_sig = CircuitReader::new(&P256, FieldID::P256);
     let (c_sig, remaining1) = reader_sig.from_bytes(cursor1, false)?;
 
     let sig_len = raw_bytes.len() - remaining1.len();
     let payload_sig = raw_bytes[..sig_len].to_vec();
 
     let cursor2 = remaining1;
-    let reader_hash = CircuitReader::new(&gf2, FieldID::Gf2_128);
+    let reader_hash = CircuitReader::new(&GF2_128, FieldID::Gf2_128);
     let (c_hash, remaining2) = reader_hash.from_bytes(cursor2, false)?;
 
     let hash_len = cursor2.len() - remaining2.len();

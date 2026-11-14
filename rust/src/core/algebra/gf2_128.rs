@@ -27,7 +27,7 @@ use crate::core::algebra::{
 const POLY: u128 = 0x87;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Gf2_128(pub u128);
+pub(crate) struct Gf2_128(pub u128);
 
 impl std::fmt::Debug for Gf2_128 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -36,19 +36,19 @@ impl std::fmt::Debug for Gf2_128 {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Gf2_128Field {
+pub(crate) struct Gf2_128Field {
     cantor_basis: [Gf2_128; 128],
 }
 
 impl Gf2_128Field {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             cantor_basis: super::proto::CANTOR_BASIS_U128.map(Gf2_128),
         }
     }
 
     #[must_use]
-    pub fn cantor_basis(&self) -> &[Gf2_128; 128] {
+    pub(crate) fn cantor_basis(&self) -> &[Gf2_128; 128] {
         &self.cantor_basis
     }
 }
