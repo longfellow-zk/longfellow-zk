@@ -22,6 +22,8 @@
 //!
 //! Row accessors define the common ordering of W: u, m, data rows, then fstar.
 //! Polynomial samples and interpolation plans are computed by their consumers.
+use sha2::{Digest as _, Sha256};
+
 use super::{ensure, PolygeroConfig, PolygeroError, PolygeroGeometry};
 use crate::{
     core::algebra::SerializableField,
@@ -30,6 +32,21 @@ use crate::{
         v2::proto::Digest,
     },
 };
+
+/// Bind the point ordering and dimensions into every
+/// column hash and transcript. The byte encoding is independent of FFT machinery.
+fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Digest {
+    let mut hash = Sha256::new();
+    hash.update(b"polygero/root/context/linear/v1");
+    hash.update((domain_id.len() as u64).to_le_bytes());
+    hash.update(domain_id);
+    for size in geom.sizes() {
+        hash.update((size as u64).to_le_bytes());
+    }
+    Digest {
+        data: hash.finalize().into(),
+    }
+}
 
 /// Validated public dimensions and transcript identity for one invocation.
 #[derive(Clone, Debug)]
@@ -63,7 +80,7 @@ impl PolygeroParam {
         )?;
         // Distinct points within admitted ranges are guaranteed by the backend.
         let id = domain.domain_id();
-        let context = super::transcript::context_digest(&geom, &id);
+        let context = context_digest(&geom, &id);
         Ok(Self {
             geom,
             domain_id: id,

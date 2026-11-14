@@ -23,11 +23,9 @@
 //! The commitment context fixes dimensions and domain
 //! ordering. The later digest binds the source statement from which
 //! the caller derives A and b, independently of their sparse representation.
-use sha2::{Digest as _, Sha256};
-
 use super::{
     joint::{JointPolygeroParam, Participants},
-    PolygeroCommitment, PolygeroGeometry, PolygeroParam,
+    PolygeroCommitment, PolygeroParam,
 };
 use crate::{
     core::algebra::SerializableField,
@@ -69,21 +67,6 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
         batching_samples,
     }
 }
-/// Bind the point ordering and dimensions into every
-/// column hash and transcript. The byte encoding is independent of FFT machinery.
-pub(super) fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Digest {
-    let mut hash = Sha256::new();
-    hash.update(b"polygero/root/context/linear/v1");
-    hash.update((domain_id.len() as u64).to_le_bytes());
-    hash.update(domain_id);
-    for size in geom.sizes() {
-        hash.update((size as u64).to_le_bytes());
-    }
-    Digest {
-        data: hash.finalize().into(),
-    }
-}
-
 // Tuple traversal lives in joint; all transcript framing and round transitions
 // live here, shared by both roles. Binding completes before squeezing begins.
 pub(super) fn absorb_statement(
