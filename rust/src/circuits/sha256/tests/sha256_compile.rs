@@ -18,7 +18,7 @@ use crate::{
         analog_adder::FieldWrappingSum,
         sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256},
     },
-    compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+    compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
     core::algebra::SerializableField,
     runtime::algebra::field::RuntimeField,
 };
@@ -66,7 +66,7 @@ fn test_compile_sha256_for_field<
     fc: &'a FC,
     fr: &'a FR,
     name: &str,
-    expected_stats: crate::compile::eval::CircuitGeometry,
+    expected_stats: crate::core::proto::CircuitGeometry,
 ) {
     let input = [
         0, 0xdeadbeef, 0xbd5b7dde, 0x9c093ccd, 0x7ab6fbbc, 0x5964baab, 0x3812799a, 0x16c03889,
@@ -115,7 +115,7 @@ fn test_compile_sha256() {
         &p256_c,
         &p256_r,
         "sha256_p256",
-        crate::compile::eval::CircuitGeometry {
+        crate::core::proto::CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,
@@ -131,7 +131,7 @@ fn test_compile_sha256() {
         &gf2_c,
         &gf2_r,
         "sha256_gf2_128",
-        crate::compile::eval::CircuitGeometry {
+        crate::core::proto::CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,

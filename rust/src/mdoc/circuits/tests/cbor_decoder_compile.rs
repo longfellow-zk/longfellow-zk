@@ -15,7 +15,7 @@
 use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
         logic::Logic,
     },
     core::algebra::SerializableField,

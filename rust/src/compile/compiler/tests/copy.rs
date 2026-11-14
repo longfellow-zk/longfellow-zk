@@ -14,10 +14,7 @@
 
 use crate::{
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
-            p256::P256Field,
-        },
+        algebra::{p256::P256Field, CompileField},
         compiler::{
             arena::CompilerArena,
             copy::CopyRewriter,
@@ -25,7 +22,7 @@ use crate::{
             ir::{Expr, RewriteT},
         },
     },
-    core::algebra::Nat,
+    core::algebra::{Nat, SupportsNatConversions, SupportsU64Conversions},
 };
 
 fn run_test<

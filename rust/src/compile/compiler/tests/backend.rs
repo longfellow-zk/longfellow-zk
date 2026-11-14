@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         compiler::{
             compile_v1, compile_v2, segment_circuit_v1, segment_circuit_v2, CompilerAssertions,
             CompilerLogic,

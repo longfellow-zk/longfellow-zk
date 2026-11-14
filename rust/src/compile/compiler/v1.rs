@@ -16,11 +16,11 @@
 
 mod scheduler;
 mod top;
-pub use top::compile;
+pub use top::compile_v1;
 
 pub(crate) mod ir_to_quad;
 mod segment;
-pub use segment::{segment_circuit, segment_layer};
+pub use segment::{segment_circuit_v1, segment_layer_v1};
 
 #[cfg(test)]
 mod tests;

@@ -2,13 +2,13 @@
 use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
-        logic::eval::EvalLogic,
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
+        logic::EvalLogic,
     },
 };
 
 fn check<F: CompileField, const N: usize>(f: &F, values: impl IntoIterator<Item = [u64; 3]>) {
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let boolean = Boolean::new(&logic);

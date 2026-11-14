@@ -55,7 +55,7 @@ where
 }
 
 cfg_compiler! {
-    use crate::compile::algebra::field::CompileField;
+    use crate::compile::algebra::CompileField;
 
     /// Bundles all compile-time circuit generation requirements for `MdocHash`.
     pub trait MdocHashCompileField:

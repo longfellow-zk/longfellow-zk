@@ -18,11 +18,8 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
-        logic::{
-            scope::{AssertionId, AssertionScope, AssertionStatus},
-            Logic,
-        },
+        algebra::CompileField,
+        logic::{AssertionId, AssertionScope, AssertionStatus, Logic},
     },
     core::algebra::ElementOf,
 };

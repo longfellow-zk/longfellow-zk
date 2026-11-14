@@ -16,12 +16,10 @@ use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
     circuits::lookup::Lookup,
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
-            p256::P256Field,
-        },
+        algebra::{p256::P256Field, CompileField},
         logic::{Logic, LogicIO},
     },
+    core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
 
 #[test]
@@ -43,7 +41,7 @@ fn test_compile_lookup() {
     crate::compile::compiler::dump_stats("lookup_eval_compile", &circuit, &stats);
 }
 
-use crate::compile::logic::eval::EvalLogic;
+use crate::compile::logic::EvalLogic;
 
 fn test_lookup_evaluation_generic<
     const W: usize,
@@ -51,7 +49,7 @@ fn test_lookup_evaluation_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let l = Lookup::new(&iologic);
 
@@ -79,7 +77,7 @@ fn test_lookup_circuit_evaluation_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let lookup_circuit = Lookup::new(&l);

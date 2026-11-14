@@ -18,7 +18,7 @@ use crate::{
     circuits::boolean::{Bitw, Boolean},
     compile::{
         algebra::fp::{FpField, FpParameters},
-        logic::{eval::EvalLogic, Eltw, Logic},
+        logic::{Eltw, EvalLogic, Logic},
     },
 };
 

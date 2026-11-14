@@ -18,9 +18,10 @@ use crate::{
         boolean::Boolean,
     },
     compile::{
-        algebra::field::{CompileBinaryField, CompileField, SupportsU64Conversions},
+        algebra::{CompileBinaryField, CompileField},
         logic::Logic,
     },
+    core::algebra::SupportsU64Conversions,
 };
 
 pub struct AnalogAdder<'a, L: Logic> {

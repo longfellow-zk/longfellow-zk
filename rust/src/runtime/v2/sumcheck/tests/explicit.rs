@@ -384,7 +384,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
 
 fn explicit_units<const W: usize, CF, RF>(cf: &CF, f: &RF)
 where
-    CF: crate::compile::algebra::field::CompileField + SerializableField,
+    CF: crate::compile::algebra::CompileField + SerializableField,
     RF: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::{

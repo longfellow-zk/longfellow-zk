@@ -16,12 +16,10 @@ use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
     circuits::{analog_decoder::AnalogDecoder, boolean::Boolean},
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
-            p256::P256Field,
-        },
-        logic::{eval::EvalLogic, Logic, LogicIO},
+        algebra::{p256::P256Field, CompileField},
+        logic::{EvalLogic, Logic, LogicIO},
     },
+    core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
 
 #[test]
@@ -67,7 +65,7 @@ fn test_analog_decoder_unary_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -109,7 +107,7 @@ fn test_analog_decoder_binary_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -152,7 +150,7 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let ad = AnalogDecoder::new(&iologic);
     let boolean = Boolean::new(&iologic);
@@ -221,7 +219,7 @@ fn test_analog_decoder_exhaustive_field_1009_generic<
                     .as_eltw(bit)
                     .assertions
                     .values()
-                    .all(|s| matches!(s, crate::compile::logic::scope::AssertionStatus::Passed))
+                    .all(|s| matches!(s, crate::compile::logic::AssertionStatus::Passed))
             });
 
             if let Some(i) = valid_points.iter().position(|vp| vp == &pt) {
@@ -269,11 +267,11 @@ fn test_analog_decoder_evaluation() {
 #[test]
 fn binary_field_decoders_retain_range_assertions_on_derived_values() {
     use crate::{
-        compile::{algebra::gf2_128::Gf2_128Field, logic::scope::AssertionStatus},
+        compile::{algebra::gf2_128::Gf2_128Field, logic::AssertionStatus},
         core::algebra::{AlgebraicField, SupportsU128Conversions},
     };
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let decoder = AnalogDecoder::new(&logic);
     let boolean = Boolean::new(&logic);

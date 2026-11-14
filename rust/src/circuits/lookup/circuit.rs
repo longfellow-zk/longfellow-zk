@@ -15,7 +15,7 @@
 use crate::{
     circuits::polynomial::Polynomial,
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         logic::{Eltw, Logic},
     },
     core::algebra::ElementOf,

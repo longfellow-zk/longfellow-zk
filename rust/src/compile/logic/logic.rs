@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{compile::algebra::field::CompileField, core::algebra::ElementOf};
+use crate::{compile::algebra::CompileField, core::algebra::ElementOf};
 
 pub const K_FIRST_WIRE_POSITION: usize = 1;
 

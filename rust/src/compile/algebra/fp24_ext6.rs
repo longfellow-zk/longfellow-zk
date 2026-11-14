@@ -15,13 +15,11 @@
 //! Compiler field for the sextic extension `F_q[x] / (x^6 - 7)`.
 //! Its elements remain distinct from runtime elements.
 
-pub use crate::core::algebra::{
-    fp24::{BASE_SERIALIZED_SIZE, Q},
-    fp24_ext6::{BETA, EXTENSION_DEGREE, SERIALIZED_SIZE},
-};
 use crate::core::algebra::{
+    fp24::Q,
     fp24_ext6::{
         add_extension, deserialize, invert_extension, mul_extension, serialize, sub_extension,
+        EXTENSION_DEGREE, SERIALIZED_SIZE,
     },
     AlgebraicField, BareField, SerializableField, SupportsU64Conversions,
 };

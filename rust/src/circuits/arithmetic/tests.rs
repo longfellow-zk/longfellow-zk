@@ -19,8 +19,8 @@ use crate::{
         boolean::{Bitw, Boolean, BooleanIO},
     },
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
-        logic::{eval::EvalLogic, Eltw, Logic},
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
+        logic::{Eltw, EvalLogic, Logic},
     },
     core::algebra::SerializableField,
 };
@@ -310,7 +310,7 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 #[test]
 fn test_arithmetic_evaluation() {
     let f_prime = P256Field::new();
-    let tracker_prime = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_prime = crate::compile::logic::AssertionScope::new();
     type LPrime<'a> = EvalLogic<'a, P256Field>;
     let l_prime = LPrime::new(&f_prime, &tracker_prime);
     test_add_eval_for_logic(&l_prime);
@@ -322,7 +322,7 @@ fn test_arithmetic_evaluation() {
     test_empty_vectors_relations_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     type LBin<'a> = EvalLogic<'a, Gf2_128Field>;
     let l_binary = LBin::new(&f_bin, &tracker_bin);
     test_add_eval_for_logic(&l_binary);
@@ -337,7 +337,7 @@ fn test_arithmetic_evaluation() {
 #[test]
 fn test_as_eltw_no_overflow_prime() {
     let f = P256Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -349,7 +349,7 @@ fn test_as_eltw_no_overflow_prime() {
 #[should_panic(expected = "Bitvector length 256 exceeds field capacity 255")]
 fn test_as_eltw_overflow_prime() {
     let f = P256Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -360,7 +360,7 @@ fn test_as_eltw_overflow_prime() {
 #[test]
 fn test_as_eltw_no_overflow_binary() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -372,7 +372,7 @@ fn test_as_eltw_no_overflow_binary() {
 #[should_panic(expected = "Bitvector length 129 exceeds field capacity 128")]
 fn test_as_eltw_overflow_binary() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -384,7 +384,7 @@ fn test_as_eltw_overflow_binary() {
 #[should_panic(expected = "unchecked_add: slice lengths must match")]
 fn test_unchecked_add_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -397,7 +397,7 @@ fn test_unchecked_add_length_mismatch() {
 #[should_panic(expected = "fold2: slice lengths must match")]
 fn test_fold2_empty_a_nonempty_b_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -416,7 +416,7 @@ fn test_fold2_empty_a_nonempty_b_length_mismatch() {
 #[should_panic(expected = "eqb: slice lengths must match")]
 fn test_eqb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);
@@ -429,7 +429,7 @@ fn test_eqb_length_mismatch() {
 #[should_panic(expected = "muxb: condition and iftrue lengths must match")]
 fn test_muxb_length_mismatch() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let arith = Arithmetic::new(&logic);
     let boolean = Boolean::new(&logic);

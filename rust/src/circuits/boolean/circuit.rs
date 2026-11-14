@@ -14,7 +14,7 @@
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         logic::{Eltw, Logic, LogicIO},
     },
     core::algebra::ElementOf,

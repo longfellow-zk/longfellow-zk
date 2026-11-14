@@ -15,7 +15,7 @@
 use crate::{
     circuits::boolean::{Bitw, Boolean},
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         logic::{Eltw, Logic},
     },
     util::array::{init, map, map2, map3, tree_fold, tree_fold2},

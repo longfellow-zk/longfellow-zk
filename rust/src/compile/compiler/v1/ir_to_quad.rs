@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::{
         graph::{push_node, Node as GraphNode, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
@@ -77,7 +77,7 @@ fn compile_term<F: CompileField>(
     }
 }
 
-use crate::compile::logic::scope::{AssertionId, AssertionScope};
+use crate::compile::logic::{AssertionId, AssertionScope};
 
 /// Rewrite into a stylized Quad circuit with debug info mapping quad node index
 /// to assertion ID.

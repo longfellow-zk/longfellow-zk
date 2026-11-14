@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod eval;
+mod eval;
 // `compile::logic::logic` mirrors the layout of the former `compile-logic` crate.
 #[allow(clippy::module_inception)]
-pub mod logic;
-pub mod scope;
+mod logic;
+mod scope;
 
-pub mod tracker {
-    pub use crate::compile::logic::scope::AssertionScope as AssertionTracker;
-}
-
-pub use crate::compile::logic::{
-    eval::EvalContext,
-    logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION},
-    scope::AssertionScope,
-};
+pub use eval::{AssertionMap, EvalAssertions, EvalContext, EvalLogic, EvalWire};
+pub use logic::{Eltw, Logic, LogicIO, K_FIRST_WIRE_POSITION};
+pub use scope::{AssertionId, AssertionScope, AssertionStatus, NIL_ASSERTION_ID};
 
 cfg_testonly! {
-    pub mod concrete;
+    mod concrete;
     pub use concrete::*;
 }
 

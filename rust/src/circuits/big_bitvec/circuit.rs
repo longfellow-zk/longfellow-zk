@@ -14,10 +14,8 @@
 
 use crate::{
     circuits::{bignum::Bignum, bitvec::Bitvec},
-    compile::{
-        algebra::field::{CompileField, SupportsNatConversions},
-        logic::Logic,
-    },
+    compile::{algebra::CompileField, logic::Logic},
+    core::algebra::SupportsNatConversions,
 };
 
 pub struct BigBitvec<'a, L: Logic> {

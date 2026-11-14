@@ -16,12 +16,10 @@ use crate::compile::compiler::tests::source_fixture::compile;
 use crate::{
     circuits::polynomial::Polynomial,
     compile::{
-        algebra::{
-            field::{SupportsNatConversions, SupportsU64Conversions},
-            p256::P256Field,
-        },
+        algebra::p256::P256Field,
         logic::{Logic, LogicIO},
     },
+    core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
 
 #[test]
@@ -42,8 +40,8 @@ fn test_compile_polynomial() {
 }
 
 use crate::compile::{
-    algebra::{field::CompileField, interpolation::eval_monomial},
-    logic::eval::EvalLogic,
+    algebra::{interpolation::eval_monomial, CompileField},
+    logic::EvalLogic,
 };
 
 fn test_polynomial_evaluation_generic<
@@ -52,7 +50,7 @@ fn test_polynomial_evaluation_generic<
 >(
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let p = Polynomial::new(&iologic);
 

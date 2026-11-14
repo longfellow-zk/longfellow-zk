@@ -15,11 +15,8 @@
 use num_bigint::BigUint;
 
 use crate::{
-    compile::algebra::{
-        field::{CompilePrimeField, SupportsNatConversions},
-        Curve,
-    },
-    core::algebra::{ElementOf, Nat},
+    compile::algebra::CompilePrimeField,
+    core::algebra::{ec::Curve, ElementOf, Nat, SupportsNatConversions},
 };
 
 pub struct Secp256r1<F: CompilePrimeField + SupportsNatConversions<4>> {

@@ -17,7 +17,10 @@ use std::marker::PhantomData;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
-use crate::compile::algebra::field::{AlgebraicField, CompileField, SupportsNatConversions};
+use crate::{
+    compile::algebra::CompileField,
+    core::algebra::{AlgebraicField, SupportsNatConversions},
+};
 
 /// Represents parameter constraints for a prime field
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -199,7 +202,7 @@ impl<T> std::fmt::Debug for Elt<T> {
     }
 }
 
-impl<T> crate::compile::algebra::field::CompilePrimeField for FpField<T> {}
+impl<T> crate::compile::algebra::CompilePrimeField for FpField<T> {}
 
 impl<T> crate::core::algebra::SerializableField for FpField<T> {
     fn field_id(&self) -> crate::core::algebra::FieldID {

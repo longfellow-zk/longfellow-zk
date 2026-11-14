@@ -18,7 +18,7 @@ use crate::{
         boolean::Boolean,
         memcmp::Memcmp,
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
 };
 
 fn compare_bool<L: crate::compile::logic::Logic>(
@@ -36,7 +36,7 @@ fn compare_bool<L: crate::compile::logic::Logic>(
 #[test]
 fn test_memcmp_leq() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);

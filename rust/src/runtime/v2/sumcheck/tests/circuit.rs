@@ -318,7 +318,7 @@ fn binary_lfc3_classifies_both_signs_as_one() {
 
 fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
 where
-    FC: crate::compile::algebra::field::CompileField + SerializableField + Clone,
+    FC: crate::compile::algebra::CompileField + SerializableField + Clone,
     FR: RuntimeField<W> + SerializableField + SupportsSampling,
 {
     use crate::compile::{

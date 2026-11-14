@@ -14,10 +14,8 @@
 
 use crate::{
     circuits::boolean::{Bitw, Boolean},
-    compile::{
-        algebra::field::{CompileField, SupportsNatConversions},
-        logic::Logic,
-    },
+    compile::{algebra::CompileField, logic::Logic},
+    core::algebra::SupportsNatConversions,
     util::array::init,
 };
 

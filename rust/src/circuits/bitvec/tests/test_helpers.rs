@@ -22,8 +22,7 @@ use crate::{
 pub(in crate::circuits::bitvec) struct F65537Tag;
 pub(in crate::circuits::bitvec) type F65537Field = crate::compile::algebra::fp::FpField<F65537Tag>;
 
-pub(in crate::circuits::bitvec) type LPrime<'a> =
-    crate::compile::logic::eval::EvalLogic<'a, F65537Field>;
+pub(in crate::circuits::bitvec) type LPrime<'a> = crate::compile::logic::EvalLogic<'a, F65537Field>;
 
 pub(in crate::circuits::bitvec) fn new_f65537_field() -> F65537Field {
     crate::compile::algebra::fp::FpField::new_field(crate::compile::algebra::fp::FpParameters {

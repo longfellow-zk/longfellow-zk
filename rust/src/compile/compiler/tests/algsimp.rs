@@ -14,12 +14,7 @@
 
 use crate::{
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            AlgebraicField,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
         compiler::{
             algsimp::AlgebraicRewriter,
             arena::CompilerArena,
@@ -27,7 +22,7 @@ use crate::{
             ir::{Expr, RewriteT},
         },
     },
-    core::algebra::Nat,
+    core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
 };
 
 fn run_test<

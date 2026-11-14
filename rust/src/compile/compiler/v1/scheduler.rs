@@ -16,7 +16,7 @@
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         compiler::{
             graph::Node as GraphNode,
             scheduling::{
@@ -25,7 +25,7 @@ use crate::{
             },
             v1::quad::{QuadCircuit, WExpr},
         },
-        logic::scope::AssertionId,
+        logic::AssertionId,
     },
     core::proto::{
         v1::{
@@ -296,11 +296,11 @@ pub(super) fn schedule<F: CompileField + crate::core::algebra::SerializableField
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     subfield_boundary: usize,
-    tracker: crate::compile::logic::scope::AssertionScope,
+    tracker: crate::compile::logic::AssertionScope,
 ) -> (
     Circuit<F>,
     CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::proto::CircuitDebugSymbols,
 ) {
     let mut nodes = c.nodes;
     let nassertions = nodes

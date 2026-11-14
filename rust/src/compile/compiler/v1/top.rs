@@ -16,24 +16,21 @@
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
-        compiler::{
-            arena::CompilerArena,
-            logic_impl::{CompilerAssertions, CompilerLogic},
-        },
+        algebra::CompileField,
+        compiler::{arena::CompilerArena, CompilerAssertions, CompilerLogic},
         logic::AssertionScope,
     },
     core::proto::{v1::Circuit, CircuitGeometry},
 };
 
 /// Compile with the historical Morton order.
-pub fn compile<F, Build>(
+pub fn compile_v1<F, Build>(
     f: &F,
     build: Build,
 ) -> (
     Circuit<F>,
     CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::proto::CircuitDebugSymbols,
 )
 where
     F: CompileField + crate::core::algebra::SerializableField,

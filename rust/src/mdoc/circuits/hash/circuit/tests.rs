@@ -5,7 +5,7 @@ use super::*;
 use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
-        logic::eval::EvalLogic,
+        logic::EvalLogic,
     },
     core::algebra::Nat,
     mdoc::circuits::{
@@ -27,7 +27,7 @@ fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
 #[test]
 fn doc_type_requires_the_complete_signed_length() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let hash = MdocHash::new(&logic, 0);
@@ -51,7 +51,7 @@ fn valid_until_must_end_before_sha_padding() {
     assert_eq!(witness.preimage.value[timestamp], 0x80);
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -69,7 +69,7 @@ fn valid_until_must_end_before_sha_padding() {
 #[test]
 fn fixed_field_reads_fit_the_entire_unpadded_range() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let hash = MdocHash::new(&logic, 0);
@@ -110,7 +110,7 @@ fn every_selected_field_reports_an_out_of_message_read() {
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
     for field in 0..6 {
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let mut wires = evaluate_given(&logic, &bits, &witness);
@@ -226,7 +226,7 @@ fn signed_envelope_constraints_reject_rehashed_documents() {
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);
         let derived = concrete::derived::<4, _>(&witness);
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -267,7 +267,7 @@ fn doc_type_checks_types_lengths_and_actual_read_end() {
         witness.preimage.value.fill(0);
         witness.preimage.value[start..start + bytes.len()].copy_from_slice(&bytes);
         witness.preimage.len = (start + bytes.len()) as u16;
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -315,7 +315,7 @@ fn doc_type_header_type_is_checked_after_rehashing() {
     let witness = concrete::given::<4, _>(input);
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -334,7 +334,7 @@ fn public_attribute_lengths_must_fit_the_allocated_arrays() {
     let derived = concrete::derived::<4, _>(&original);
     let f = Gf2_128Field::new();
     for name in [true, false] {
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let mut wires = evaluate_given(&logic, &bits, &original);
@@ -373,7 +373,7 @@ fn attribute_type_checks_reject_documents_with_fresh_hashes() {
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);
         let derived = concrete::derived::<4, _>(&witness);
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
@@ -409,7 +409,7 @@ fn sha256_matches_independent_reference_at_padding_boundaries() {
         assert_eq!(given.expected_hash, expected, "length={length}");
         given.expected_hash = expected;
         let derived = sha256msg::derived(&given, K_MAX_SHA_BLOCKS);
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         Sha256Msg::<_, K_MAX_SHA_BLOCKS>::new(&logic)
@@ -440,7 +440,7 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
     let witness = fixture();
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let mut wires = evaluate_given(&logic, &bits, &witness);
@@ -453,7 +453,7 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
 fn namespace_text_must_precede_each_selected_digest_without_wrapping() {
     let mut witness = fixture();
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     for offset in [witness.namespace_offset_in_preimage, u16::MAX] {

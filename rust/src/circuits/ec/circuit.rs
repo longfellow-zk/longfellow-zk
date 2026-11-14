@@ -15,10 +15,10 @@
 use crate::{
     circuits::ec::{Pt2, Pt3},
     compile::{
-        algebra::{field::CompileField, Curve},
+        algebra::CompileField,
         logic::{Eltw, Logic},
     },
-    core::algebra::ElementOf,
+    core::algebra::{ec::Curve, ElementOf},
 };
 
 pub fn iter_pt2<T, E>(pt: &(T, T), f: &mut impl FnMut(&T) -> Result<(), E>) -> Result<(), E> {

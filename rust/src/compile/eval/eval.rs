@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use crate::{
-    compile::eval::{Circuit, Layer},
     core::{
         algebra::ElementOf,
-        proto::v2::{classify_constants, CoefficientClass},
+        proto::v2::{classify_constants, Circuit, CoefficientClass, Layer},
     },
     runtime::algebra::field::RuntimeField,
 };
@@ -55,16 +54,16 @@ pub fn eval_circuit<
 >(
     fr: &FR,
     circuit: &Circuit<FR>,
-    symbols: &'a crate::compile::eval::CircuitDebugSymbols,
+    symbols: &'a crate::compile::proto::CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-) -> crate::compile::eval::CompiledEvalAssertions<'a, EvalError> {
+) -> crate::compile::proto::CompiledEvalAssertions<'a, EvalError> {
     let raw = &circuit.raw;
     let tracker = symbols.tracker();
 
     let vin = match process_inputs(fr, raw.ninput, inputs) {
         Ok(v) => v,
         Err(err) => {
-            return crate::compile::eval::CompiledEvalAssertions {
+            return crate::compile::proto::CompiledEvalAssertions {
                 result: Err(err),
                 fates: std::collections::HashMap::new(),
                 tracker,
@@ -97,11 +96,11 @@ pub fn eval_circuit<
             overall_failed = true;
         }
         for index in failed_wires {
-            let wire = crate::compile::eval::WireRef::new(l, index);
+            let wire = crate::compile::proto::WireRef::new(l, index);
             if let Some(id) = symbols.get_id(&wire) {
                 fates.insert(
                     id,
-                    crate::compile::logic::scope::AssertionStatus::Failed(
+                    crate::compile::logic::AssertionStatus::Failed(
                         "layer assertion failed".to_string(),
                     ),
                 );
@@ -110,16 +109,16 @@ pub fn eval_circuit<
     }
 
     for (i, y) in current_v.iter().enumerate() {
-        let wire = crate::compile::eval::WireRef::new(0, i);
+        let wire = crate::compile::proto::WireRef::new(0, i);
         let is_ok = fr.is_zero(y);
         if !is_ok {
             overall_failed = true;
         }
         if let Some(id) = symbols.get_id(&wire) {
             let status = if is_ok {
-                crate::compile::logic::scope::AssertionStatus::Passed
+                crate::compile::logic::AssertionStatus::Passed
             } else {
-                crate::compile::logic::scope::AssertionStatus::Failed(
+                crate::compile::logic::AssertionStatus::Failed(
                     "circuit output non-zero".to_string(),
                 )
             };
@@ -127,7 +126,7 @@ pub fn eval_circuit<
         }
     }
 
-    crate::compile::eval::CompiledEvalAssertions {
+    crate::compile::proto::CompiledEvalAssertions {
         result: if overall_failed {
             Err(EvalError::AssertionFailure)
         } else {
@@ -208,9 +207,9 @@ pub fn eval_circuit_fc<
     fc: &FC,
     fr: &FR,
     circuit: &Circuit<FC>,
-    symbols: &'a crate::compile::eval::CircuitDebugSymbols,
+    symbols: &'a crate::compile::proto::CircuitDebugSymbols,
     inputs: &[ElementOf<FR>],
-) -> Result<crate::compile::eval::CompiledEvalAssertions<'a, EvalError>, String> {
+) -> Result<crate::compile::proto::CompiledEvalAssertions<'a, EvalError>, String> {
     let converted = convert_circuit(fc, fr, circuit)?;
     Ok(eval_circuit(fr, &converted, symbols, inputs))
 }

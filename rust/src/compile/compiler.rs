@@ -19,29 +19,20 @@ pub mod copy;
 pub mod cse;
 pub(crate) mod graph;
 pub mod ir;
-pub mod logic_impl;
+mod logic_impl;
 pub mod node;
 mod scheduling;
 mod segment;
 mod stats;
-pub mod v1;
-pub mod v2;
+mod v1;
+mod v2;
 mod v2_segment;
 
-pub use debug::{
-    AssertionSymbol, CircuitDebugSymbols, CompiledAssertionStatus, CompiledEvalAssertions,
-    EvaluatedCompiledAssertion, WireRef,
-};
-pub use ir::AssertionItem;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use stats::dump_stats;
-pub use v1::{
-    compile as compile_v1, segment_circuit as segment_circuit_v1, segment_layer as segment_layer_v1,
-};
-pub use v2::compile as compile_v2;
+pub use v1::{compile_v1, segment_circuit_v1, segment_layer_v1};
+pub use v2::compile_v2;
 pub use v2_segment::segment_circuit_v2;
-
-pub use crate::compile::proto::debug;
 
 #[cfg(test)]
 pub(crate) mod tests;

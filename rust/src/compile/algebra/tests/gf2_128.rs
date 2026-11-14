@@ -14,10 +14,10 @@
 
 use crate::{
     compile::algebra::{
-        field::{CompileField, SupportsU64Conversions},
         gf2_128::{Gf2_128, Gf2_128Field},
+        CompileField,
     },
-    core::algebra::{AlgebraicField, SerializableField},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
 };
 
 #[test]

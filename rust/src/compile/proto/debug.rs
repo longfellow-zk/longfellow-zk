@@ -30,7 +30,7 @@ impl WireRef {
     }
 }
 
-use crate::compile::logic::scope::{AssertionId, AssertionScope, AssertionStatus};
+use crate::compile::logic::{AssertionId, AssertionScope, AssertionStatus};
 
 /// Mapping from a specific circuit output wire to its assertion ID.
 #[derive(Debug, Clone, PartialEq, Eq)]

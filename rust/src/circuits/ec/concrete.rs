@@ -18,7 +18,7 @@ pub type Pt2<T> = (T, T);
 pub type Pt3<T> = (T, T, T);
 
 cfg_compiler! {
-    use crate::{compile::{algebra::field::{CompileField, SupportsNatConversions}, logic::Logic}, core::algebra::ElementOf};
+    use crate::{compile::{algebra::CompileField, logic::Logic}, core::algebra::{SupportsNatConversions, ElementOf}};
 
     pub fn evaluate_pt2<
         const W: usize,

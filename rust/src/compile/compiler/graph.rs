@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Owned compiler graph and source-expression memoization shared by both backends.
 use super::ir::ExprNode;
-use crate::compile::algebra::field::CompileField;
+use crate::compile::algebra::CompileField;
 pub(crate) type Wire = usize;
 
 #[derive(Clone)]

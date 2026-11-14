@@ -23,9 +23,9 @@ use crate::{
 pub(super) fn compile_attribute_circuit<const W: usize, FC>(
     fc: &FC,
 ) -> (
-    crate::compile::eval::Circuit<FC>,
-    crate::compile::eval::CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::core::proto::v2::Circuit<FC>,
+    crate::core::proto::CircuitGeometry,
+    crate::compile::proto::CircuitDebugSymbols,
 )
 where FC: crate::mdoc::circuits::MdocHashCompileField {
     let (circuit, stats, symbols) = super::compile(fc, |iologic| {

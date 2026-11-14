@@ -19,8 +19,8 @@ use crate::{
         boolean::Boolean,
     },
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field, CompileNat},
-        logic::{eval::EvalLogic, Logic},
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField, CompileNat},
+        logic::{EvalLogic, Logic},
     },
     core::algebra::Nat,
     mdoc::circuits::{
@@ -39,7 +39,7 @@ fn test_eval_mdoc_hash_independent() {
         parse_test_data::<4, CompileNat<4>>(&crate::mdoc::testcases::vectors::TEST_DATA);
     let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
 
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&fc, &tracker);
 
     let given = given::<4, _>(hash_input);
@@ -74,7 +74,7 @@ where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
 #[test]
 fn test_eval_mdoc_hash() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_eval_mdoc_hash_generic::<2, _>(&l);
 }
@@ -233,7 +233,7 @@ where FC: CompileField + crate::circuits::analog_adder::FieldWrappingSum {
 #[test]
 fn test_all_mdoc_cases() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     test_all_mdoc_cases_generic::<2, _>(&l);
 }
@@ -256,7 +256,7 @@ fn test_doc_type_key_and_offset_tampering() {
 
     hash_input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&sha_result);
 
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let given = given::<4, _>(hash_input);
@@ -290,7 +290,7 @@ fn test_eval_mdoc_hash_shared_corruptors() {
 
     let corruptors = mdoc_hash_corruptors::all_mdoc_hash_corruptors();
     for c in corruptors {
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let l = EvalLogic::new_with_tracker(&f, &tracker);
         let bv = BitvecLogic::new(&l);
         let base_given = given::<4, _>(base_hash_input.clone());
@@ -323,7 +323,7 @@ fn test_eval_mdoc_hash_shared_corruptors() {
 #[test]
 fn test_check_doc_type_suppression() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
 
@@ -348,7 +348,7 @@ fn test_check_doc_type_suppression() {
     wrong_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_wrong = given::<4, _>(wrong_hash_input);
 
-    let tracker2 = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker2 = crate::compile::logic::AssertionScope::new();
     let l2 = EvalLogic::new_with_tracker(&f, &tracker2);
     let bv2 = BitvecLogic::new(&l2);
 
@@ -370,7 +370,7 @@ fn test_check_doc_type_suppression() {
     suppressed_hash_input.suppress_doc_type_check = true;
     suppressed_hash_input.expected_doc_type = b"wrong.doc.type.foo.bar".to_vec();
     let given_suppressed = given::<4, _>(suppressed_hash_input);
-    let tracker3 = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker3 = crate::compile::logic::AssertionScope::new();
     let l3 = EvalLogic::new_with_tracker(&f, &tracker3);
     let bv3 = BitvecLogic::new(&l3);
 

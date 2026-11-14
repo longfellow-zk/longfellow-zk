@@ -14,7 +14,7 @@
 
 use std::{fmt, hash::Hash};
 
-use crate::compile::{algebra::field::CompileField, compiler::node::Node};
+use crate::compile::{algebra::CompileField, compiler::node::Node};
 
 #[derive(Debug)]
 pub enum IrError {
@@ -24,7 +24,7 @@ pub enum IrError {
 pub type ExprNode<'a, F> = &'a Node<'a, Expr<'a, F>>;
 pub type RawAssertions<'a, F> = &'a [ExprNode<'a, F>];
 
-use crate::compile::logic::scope::AssertionId;
+use crate::compile::logic::AssertionId;
 
 /// Assertion item coupling a root assertion expression with its assertion ID.
 pub struct AssertionItem<'a, F: CompileField> {

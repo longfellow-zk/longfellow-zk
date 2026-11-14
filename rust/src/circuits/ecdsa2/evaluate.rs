@@ -18,10 +18,8 @@ use super::{
 };
 use crate::{
     circuits::ec::{evaluate_pt2, evaluate_pt3},
-    compile::{
-        algebra::field::{CompileField, SupportsNatConversions},
-        logic::Logic,
-    },
+    compile::{algebra::CompileField, logic::Logic},
+    core::algebra::SupportsNatConversions,
 };
 
 pub fn evaluate_given<

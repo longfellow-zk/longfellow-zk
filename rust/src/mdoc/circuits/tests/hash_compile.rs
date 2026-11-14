@@ -29,8 +29,8 @@ use crate::{
 pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(
     fc: &FC,
 ) -> (
-    crate::compile::eval::Circuit<FC>,
-    crate::compile::eval::CircuitGeometry,
+    crate::core::proto::v2::Circuit<FC>,
+    crate::core::proto::CircuitGeometry,
 )
 where FC: MdocHashCompileField {
     let (circuit, stats, _) = compile_hash_circuit(fc);
@@ -40,9 +40,9 @@ where FC: MdocHashCompileField {
 fn compile_hash_circuit<FC>(
     fc: &FC,
 ) -> (
-    crate::compile::eval::Circuit<FC>,
-    crate::compile::eval::CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::core::proto::v2::Circuit<FC>,
+    crate::core::proto::CircuitGeometry,
+    crate::compile::proto::CircuitDebugSymbols,
 )
 where FC: MdocHashCompileField {
     let (_, parsed, now) =

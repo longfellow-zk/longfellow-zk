@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod field;
+mod field;
 pub mod fp;
 pub mod gf2_128;
 pub mod interpolation;
-pub mod nat;
+mod nat;
 pub mod p256;
 pub mod q256;
 pub mod secp256r1;
 
-pub use field::{CompileBinaryField, CompileField};
+pub use field::{CompileBinaryField, CompileField, CompilePrimeField};
 pub use nat::CompileNat;
-
-pub use crate::core::algebra::{ec::Curve, AlgebraicField, ElementOf};
 
 #[cfg(any(test, feature = "tooling"))]
 pub mod fp24_ext6;

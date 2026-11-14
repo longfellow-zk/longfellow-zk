@@ -8,7 +8,7 @@ use crate::{
         bitvec::BitvecLogic,
         sha256msg::{concrete::given, Sha256Msg},
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
 };
 
 #[test]
@@ -23,7 +23,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
         let expected = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())
         });
-        let tracker = crate::compile::logic::scope::AssertionScope::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         run_corruptor_test::<3>(&f, &tracker, &message, &|g, _| {
             g.expected_hash = expected;
         })
@@ -48,7 +48,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
         positions.dedup();
         for position in positions {
             for bit in 0..8 {
-                let tracker = crate::compile::logic::scope::AssertionScope::new();
+                let tracker = crate::compile::logic::AssertionScope::new();
                 let result = run_corruptor_test::<3>(&f, &tracker, &message, &|g, d| {
                     g.padded_preimage[position] ^= 1 << bit;
                     *d = crate::circuits::sha256msg::concrete::derived(g, 3);
@@ -82,7 +82,7 @@ fn every_padding_byte_and_length_bit() {
         for position in len..192 {
             let mut changed = original.clone();
             changed.padded_preimage[position] ^= 1;
-            let tracker = crate::compile::logic::scope::AssertionScope::new();
+            let tracker = crate::compile::logic::AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bv = BitvecLogic::new(&logic);
             let wires = crate::circuits::sha256msg::evaluate_given::<_, 8>(&changed, &bv);
@@ -97,7 +97,7 @@ fn every_padding_byte_and_length_bit() {
             );
         }
         for bit in 0..64 {
-            let tracker = crate::compile::logic::scope::AssertionScope::new();
+            let tracker = crate::compile::logic::AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bv = BitvecLogic::new(&logic);
             let mut changed = original.clone();

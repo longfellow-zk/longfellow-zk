@@ -4,7 +4,7 @@ use super::super::*;
 use crate::{
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
-        logic::eval::EvalLogic,
+        logic::EvalLogic,
     },
     mdoc::circuits::hash::{concrete, evaluate_derived, evaluate_given},
 };
@@ -22,7 +22,7 @@ fn fixture() -> concrete::ConcreteGiven<CompileNat<4>> {
 
 fn namespace_passes(expected: &[u8], encoded: &[u8], offset: u16, message_len: u16) -> bool {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let witness = fixture();
@@ -84,7 +84,7 @@ fn namespace_check_is_independent_of_doc_type_suppression() {
     witness.hash_input.expected_namespace[0] ^= 1;
     let derived = concrete::derived::<4, _>(&witness);
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     MdocHash::new(&logic, witness.hash_input.attrs.len())
@@ -105,7 +105,7 @@ fn validity_passes(from: &[u8; 20], until: &[u8; 20], now: &[u8; 20]) -> bool {
     witness.preimage.value[until_start..until_start + 20].copy_from_slice(until);
     witness.hash_input.now = now.to_vec();
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
@@ -182,7 +182,7 @@ fn every_disclosed_attribute_checks_its_last_public_bytes() {
                 &mut attribute.expected_cbor_value
             };
             *public.last_mut().unwrap() ^= 1;
-            let tracker = crate::compile::logic::scope::AssertionScope::new();
+            let tracker = crate::compile::logic::AssertionScope::new();
             let logic = EvalLogic::new(&f, &tracker);
             let bits = BitvecLogic::new(&logic);
             let wires = evaluate_given(&logic, &bits, &changed);

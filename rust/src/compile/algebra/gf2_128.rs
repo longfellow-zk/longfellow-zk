@@ -14,7 +14,7 @@
 
 use num_bigint::BigUint;
 
-use crate::compile::algebra::field::{AlgebraicField, CompileField};
+use crate::{compile::algebra::CompileField, core::algebra::AlgebraicField};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Gf2_128(u128);
@@ -328,7 +328,7 @@ impl crate::core::algebra::SupportsU128Conversions for Gf2_128Field {
     }
 }
 
-impl crate::compile::algebra::field::CompileBinaryField for Gf2_128Field {
+impl crate::compile::algebra::CompileBinaryField for Gf2_128Field {
     fn generator(&self) -> Self::E {
         Gf2_128(2)
     }

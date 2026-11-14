@@ -19,7 +19,7 @@ use crate::{
         boolean::Boolean,
         gf2_128::Gf2_128Mul,
     },
-    compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+    compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
     core::algebra::{ElementOf, SerializableField},
 };
 
@@ -51,7 +51,7 @@ fn test_compile_gf2_128_mul_for_field<
     fc: &FC,
     fr: &FR,
     name: &str,
-    expected_stats: crate::compile::eval::CircuitGeometry,
+    expected_stats: crate::core::proto::CircuitGeometry,
 ) {
     let (circuit, stats, symbols) = compile(fc, |iologic| {
         let bv = BitvecLogic::new(&iologic);
@@ -98,7 +98,7 @@ fn test_compile_gf2_128_mul() {
         &fc_bin,
         &fr_bin,
         "gf2_128_mul_bin",
-        crate::compile::eval::CircuitGeometry {
+        crate::core::proto::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -115,7 +115,7 @@ fn test_compile_gf2_128_mul() {
         &fc_prime,
         &fr_prime,
         "gf2_128_mul_prime",
-        crate::compile::eval::CircuitGeometry {
+        crate::core::proto::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -127,7 +127,7 @@ fn test_compile_gf2_128_mul() {
     );
 }
 
-use crate::compile::logic::{eval::EvalLogic, Logic};
+use crate::compile::logic::{EvalLogic, Logic};
 
 fn u128_to_bitvec<L: Logic>(logic: &L, val: u128) -> Bitvec<L, 128> {
     let boolean = Boolean::new(logic);
@@ -164,7 +164,7 @@ fn eval_logic_to_u128<'a, F: CompileField + SerializableField>(
 }
 
 fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);
@@ -185,7 +185,7 @@ fn test_gf2_128_mul_basic_for_field<F: CompileField + SerializableField>(f: &F) 
 }
 
 fn test_gf2_128_mul_random_for_field<F: CompileField + SerializableField>(f: &F) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let boolean = Boolean::new(&l);

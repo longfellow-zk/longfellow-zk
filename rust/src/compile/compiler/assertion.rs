@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::{
         algsimp::AlgebraicRewriter,
         arena::CompilerArena,
         cse::Cse,
         ir::{AssertionItem, Assertions, ExprNode, RawAssertions, RewriteT},
     },
-    logic::scope::AssertionScope,
+    logic::AssertionScope,
 };
 
 fn dedup_assertions<'a, F: CompileField>(

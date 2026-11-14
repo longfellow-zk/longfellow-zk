@@ -19,15 +19,10 @@ use crate::{
         pt2_wires, EcCircuit,
     },
     compile::{
-        algebra::{
-            field::{CompileField, CompilePrimeField, SupportsNatConversions},
-            p256::P256Field,
-            secp256r1::Secp256r1,
-            Curve,
-        },
-        logic::{concrete::push_eltw, Logic, LogicIO},
+        algebra::{p256::P256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField},
+        logic::{push_eltw, Logic, LogicIO},
     },
-    core::algebra::{Nat, SerializableField},
+    core::algebra::{ec::Curve, Nat, SerializableField, SupportsNatConversions},
     runtime::algebra::field::RuntimeField,
 };
 
@@ -107,7 +102,7 @@ fn test_compile_ec() {
     test_compile_ec_generic::<4, _, _, _, _>(&curve_c, &fc, &curve_r, &fr);
 }
 
-use crate::compile::logic::eval::EvalLogic;
+use crate::compile::logic::EvalLogic;
 
 fn test_ec_runtime_arithmetic_robust_generic<
     const W: usize,
@@ -193,7 +188,7 @@ fn test_ec_circuit_evaluation_generic<
     curve: &C,
     f: &F,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a, F> = EvalLogic<'a, F>;
     let l = L::new(f, &tracker);
     let ec_circuit = EcCircuit::new(&l, curve);

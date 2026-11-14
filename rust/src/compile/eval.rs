@@ -12,25 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::compile::proto::debug;
 // `compile::eval::eval` mirrors the layout of the former `compile-eval` crate.
 #[allow(clippy::module_inception)]
-pub mod eval;
+mod eval;
 
-pub use crate::{
-    compile::{
-        algebra::field::{CompileField, SupportsNatConversions},
-        eval::eval::{eval_circuit, eval_circuit_fc, initial_inputs},
-        proto::debug::{
-            AssertionSymbol, CircuitDebugSymbols, CompiledAssertionStatus, CompiledEvalAssertions,
-            EvaluatedCompiledAssertion, WireRef,
-        },
-    },
-    core::{
-        algebra::{FieldID, SerializableField},
-        proto::{
-            v2::{Circuit, Layer, RawCircuit},
-            CircuitGeometry, DigestBytes,
-        },
-    },
-};
+pub use eval::{eval_circuit, eval_circuit_fc, initial_inputs, process_inputs, EvalError};

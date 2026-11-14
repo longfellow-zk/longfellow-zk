@@ -14,7 +14,7 @@
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         compiler::{
             arena::CompilerArena,
             cse::Cse,

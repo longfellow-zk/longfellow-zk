@@ -143,8 +143,8 @@ use super::test_helpers;
 use crate::{
     circuits::boolean::Bitw,
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field},
-        logic::{eval::EvalLogic, Eltw, Logic},
+        algebra::{gf2_128::Gf2_128Field, CompileField},
+        logic::{Eltw, EvalLogic, Logic},
     },
 };
 
@@ -320,11 +320,11 @@ fn test_bitvec_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
 #[test]
 fn test_bitvec() {
     let field = new_f65537_field();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
     test_bitvec_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_bitvec_for_logic(&l_bin);
 }
@@ -382,12 +382,12 @@ fn test_assert_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 #[test]
 fn test_assert_add() {
     let field = new_f65537_field();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
     test_assert_wrapping_add_for_logic(&l_prime);
     test_assert_add_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_assert_wrapping_add_for_logic(&l_bin);
     test_assert_add_for_logic(&l_bin);
@@ -411,11 +411,11 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
 #[test]
 fn test_is_zero() {
     let field = new_f65537_field();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
     test_is_zero_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_is_zero_for_logic(&l_bin);
 }
@@ -438,11 +438,11 @@ fn test_assert_neq_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 #[test]
 fn test_assert_neq() {
     let field = new_f65537_field();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
     test_assert_neq_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_assert_neq_for_logic(&l_bin);
 }
@@ -478,11 +478,11 @@ fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 #[test]
 fn test_checked_add_sub() {
     let field = new_f65537_field();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
     test_checked_add_sub_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
-    let tracker_bin = crate::compile::logic::scope::AssertionScope::new();
+    let tracker_bin = crate::compile::logic::AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_checked_add_sub_for_logic(&l_bin);
 }

@@ -14,12 +14,12 @@
 
 use crate::{
     compile::algebra::{
-        field::{CompileField, SupportsU64Conversions},
         gf2_128::Gf2_128Field,
         interpolation::{eval_monomial, eval_newton, monomial_of_newton, newton_of_lagrange},
         p256::P256Field,
+        CompileField,
     },
-    core::algebra::ElementOf,
+    core::algebra::{ElementOf, SupportsU64Conversions},
 };
 
 fn test_interpolation_for_field<F: CompileField + SupportsU64Conversions>(f: &F)

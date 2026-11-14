@@ -5,10 +5,10 @@ pub(crate) fn compile<F, Build>(
 ) -> (
     crate::core::proto::v2::Circuit<F>,
     crate::core::proto::CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::proto::CircuitDebugSymbols,
 )
 where
-    F: crate::compile::algebra::field::CompileField,
+    F: crate::compile::algebra::CompileField,
     Build: for<'src> FnOnce(
         crate::compile::compiler::CompilerLogic<'src, F>,
     ) -> (

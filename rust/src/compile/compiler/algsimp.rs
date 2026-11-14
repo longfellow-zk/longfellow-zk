@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::ir::{Expr, ExprNode, RewriteT},
 };
 

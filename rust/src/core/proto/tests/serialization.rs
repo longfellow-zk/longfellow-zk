@@ -14,9 +14,9 @@
 
 use crate::{
     circuits::boolean::Boolean,
-    compile::{algebra::p256::P256Field, eval::SerializableField, logic::LogicIO},
+    compile::{algebra::p256::P256Field, logic::LogicIO},
     core::{
-        algebra::FieldID,
+        algebra::{FieldID, SerializableField},
         proto::v1::{CircuitReader, CircuitWriter},
     },
 };

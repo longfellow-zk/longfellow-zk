@@ -2,7 +2,7 @@
 //! Shared scheduling data, input validation and assertion-symbol extraction.
 
 use crate::{
-    compile::{algebra::field::CompileField, compiler::graph::Node, logic::scope::AssertionId},
+    compile::{algebra::CompileField, compiler::graph::Node, logic::AssertionId},
     core::algebra::ElementOf,
 };
 
@@ -87,8 +87,8 @@ pub(super) fn extract_debug_symbols<T>(
     wire_ids: &[WireId],
     depth: &[usize],
     max_depth: usize,
-    tracker: crate::compile::logic::scope::AssertionScope,
-) -> crate::compile::compiler::debug::CircuitDebugSymbols {
+    tracker: crate::compile::logic::AssertionScope,
+) -> crate::compile::proto::CircuitDebugSymbols {
     let mut sym_list = Vec::new();
     for &(quad_idx, id) in quad_asserts {
         if quad_idx < nodes.len() {
@@ -102,14 +102,12 @@ pub(super) fn extract_debug_symbols<T>(
                     let layer = max_depth
                         .checked_sub(depth[target_idx])
                         .expect("assertion target is deeper than the circuit");
-                    let wire = crate::compile::compiler::debug::WireRef::new(layer, wid);
-                    sym_list.push(crate::compile::compiler::debug::AssertionSymbol::new(
-                        wire, id,
-                    ));
+                    let wire = crate::compile::proto::WireRef::new(layer, wid);
+                    sym_list.push(crate::compile::proto::AssertionSymbol::new(wire, id));
                 }
             }
         }
     }
     sym_list.sort_by_key(|s| (s.wire.layer, s.wire.index));
-    crate::compile::compiler::debug::CircuitDebugSymbols::new(sym_list, tracker)
+    crate::compile::proto::CircuitDebugSymbols::new(sym_list, tracker)
 }

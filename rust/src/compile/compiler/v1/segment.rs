@@ -34,7 +34,7 @@ use crate::{
 /// 4. Groups any non-matching consecutive terms into contiguous literal runs.
 /// 5. Sorts the deduplicated deltas and segments by frequency, and renumbers everything.
 #[must_use]
-pub fn segment_layer<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
+pub fn segment_layer_v1<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F> {
     let mut terms = Vec::with_capacity(layer.num_terms());
     layer.for_each_delta_index(|idx| terms.push(idx));
     let stream = segment_stream(layer.deltas(), terms);
@@ -53,11 +53,11 @@ pub fn segment_layer<F: SerializableField + Clone>(layer: &Layer<F>) -> Layer<F>
 /// Asserts that the canonical circuit ID (`compute_id`) remains identical before and after
 /// compression, guaranteeing that evaluation order and semantic content of all terms across
 /// all layers are strictly preserved.
-pub fn segment_circuit<F: SerializableField + Clone>(f: &F, circuit: &Circuit<F>) -> Circuit<F> {
+pub fn segment_circuit_v1<F: SerializableField + Clone>(f: &F, circuit: &Circuit<F>) -> Circuit<F> {
     let mut compressed_layers = Vec::with_capacity(circuit.raw.layers.len());
 
     for layer in &circuit.raw.layers {
-        compressed_layers.push(segment_layer(layer));
+        compressed_layers.push(segment_layer_v1(layer));
     }
 
     // Sort constants by frequency across all compressed layers, and renumber.

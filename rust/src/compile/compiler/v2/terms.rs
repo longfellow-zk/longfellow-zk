@@ -2,7 +2,7 @@
 //! Native term arities: every stored operand is a real wire.
 use graph::Wire;
 
-use crate::compile::{algebra::field::CompileField, compiler::graph};
+use crate::compile::{algebra::CompileField, compiler::graph};
 
 pub(super) enum Term<F: CompileField> {
     Quadratic(F::E, [Wire; 2]),

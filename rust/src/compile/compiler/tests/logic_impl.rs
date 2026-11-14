@@ -14,14 +14,11 @@
 
 use crate::{
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions},
-            p256::P256Field,
-        },
+        algebra::{p256::P256Field, CompileField},
         compiler::{arena::CompilerArena, ir::Expr, CompilerLogic},
-        logic::{scope::AssertionScope, Logic, LogicIO},
+        logic::{AssertionScope, Logic, LogicIO},
     },
-    core::algebra::Nat,
+    core::algebra::{Nat, SupportsNatConversions},
 };
 
 fn run_test<const W: usize, F: CompileField + SupportsNatConversions<W>>(field: &F) {

@@ -16,16 +16,11 @@ use super::{compile, test_support};
 use crate::{
     circuits::ecdsa2::{derived, given, EcdsaCircuit},
     compile::{
-        algebra::{
-            field::{CompilePrimeField, SupportsNatConversions},
-            p256::P256Field,
-            secp256r1::Secp256r1,
-            Curve,
-        },
+        algebra::{p256::P256Field, secp256r1::Secp256r1, CompilePrimeField},
         compiler::dump_stats,
         logic::K_FIRST_WIRE_POSITION,
     },
-    core::algebra::{Nat, SerializableField},
+    core::algebra::{ec::Curve, Nat, SerializableField, SupportsNatConversions},
     runtime::algebra::field::RuntimeField,
 };
 

@@ -17,15 +17,11 @@ use crate::{
     circuits::ecdsa2::{derived, evaluate_derived, evaluate_given, given, EcdsaCircuit},
     compile::{
         algebra::{
-            field::{CompileField, CompilePrimeField, SupportsNatConversions},
-            p256::P256Field,
-            q256::Q256Field,
-            secp256r1::Secp256r1,
-            Curve,
+            p256::P256Field, q256::Q256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField,
         },
-        logic::eval::EvalLogic,
+        logic::EvalLogic,
     },
-    core::algebra::Nat,
+    core::algebra::{ec::Curve, Nat, SupportsNatConversions},
 };
 
 fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
@@ -80,7 +76,7 @@ fn test_ecdsa_secp256r1_generic<
     let concrete_derived = derived(curve, &pkxy_r, &e_val, &r_val, &s_val, f, fn_field);
 
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = L::new(f, &tracker);
 
     let circuit_given = evaluate_given(&concrete_given, &logic);
@@ -126,7 +122,7 @@ fn test_ecdsa_signature_tampering_generic<
 
     for c in corruptors {
         type L<'a, F> = EvalLogic<'a, F>;
-        let tracker = crate::compile::logic::scope::AssertionScope::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let logic = L::new(f, &tracker);
         let ecdsa = EcdsaCircuit::new(&logic, curve);
         let mut g = concrete_given.clone();
@@ -167,7 +163,7 @@ fn test_sign_and_verify_ecdsa_generic<
     fn_field: &FnR,
 ) {
     type L<'a, F> = EvalLogic<'a, F>;
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = L::new(f, &tracker);
 
     // Private key and nonce
@@ -213,7 +209,7 @@ fn exact_digest_rejects_a_coordinate_field_alias() {
         &CompileNat::from_u64(987654321),
         &digest,
     );
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let given = evaluate_given::<4, _, _>(&given, &logic);
     let derived = evaluate_derived::<4, _, _>(&derived, &logic);

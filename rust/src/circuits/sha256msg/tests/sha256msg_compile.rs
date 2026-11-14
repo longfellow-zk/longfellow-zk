@@ -21,7 +21,7 @@ use crate::{
         sha256msg::{concrete::given, Sha256Msg},
     },
     compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
         compiler::CompilerLogic,
     },
     core::algebra::SerializableField,

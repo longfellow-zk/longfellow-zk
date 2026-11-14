@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use rustc_hash::FxHashMap;
 
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::{
         arena::CompilerArena,
         ir::{depth_expr, Expr, ExprNode, HashedExpr, RewriteT},

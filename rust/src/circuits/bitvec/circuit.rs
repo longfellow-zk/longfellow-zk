@@ -18,7 +18,7 @@ use crate::{
         boolean::{Bitw, Boolean, BooleanIO},
     },
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         logic::{Eltw, Logic},
     },
     util::array::{init, map, map2, map3},

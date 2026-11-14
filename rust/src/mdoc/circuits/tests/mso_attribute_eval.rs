@@ -17,7 +17,7 @@ use mso_attribute_corruptors::MsoAttributeMockGiven;
 use super::mso_attribute_corruptors;
 use crate::{
     circuits::bitvec::{BitvecLogic, V8},
-    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
     mdoc::circuits::mso_attribute::{
         constants::K_ATTR_INDEX_BITS, AttrSlice, AttributeVerifier, DisclosedAttribute,
         FieldLocator,
@@ -27,7 +27,7 @@ use crate::{
 #[test]
 fn test_prefix_equal_boundary_bug() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
@@ -58,7 +58,7 @@ fn test_prefix_equal_boundary_bug() {
 #[test]
 fn test_prefix_equal_vlen_boundary_bug() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
 
     let bv = BitvecLogic::new(&l);
@@ -88,9 +88,9 @@ fn test_prefix_equal_vlen_boundary_bug() {
 
 fn run_attribute_test_mock<'a, F>(
     f: &'a Gf2_128Field,
-    tracker: &'a crate::compile::logic::tracker::AssertionTracker,
+    tracker: &'a crate::compile::logic::AssertionScope,
     mutate_f: F,
-) -> crate::compile::logic::eval::EvalAssertions<'a>
+) -> crate::compile::logic::EvalAssertions<'a>
 where
     F: FnOnce(&mut MsoAttributeMockGiven),
 {
@@ -211,7 +211,7 @@ where
 #[test]
 fn test_attribute_success() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     run_attribute_test_mock(&f, &tracker, |_| {}).unwrap();
 }
 
@@ -220,7 +220,7 @@ fn test_eval_mso_attribute_shared_corruptors() {
     let f = Gf2_128Field::new();
     let corruptors = mso_attribute_corruptors::all_mso_attribute_corruptors();
     for c in corruptors {
-        let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let res = run_attribute_test_mock(&f, &tracker, |g| {
             (c.corrupt)(g);
         });

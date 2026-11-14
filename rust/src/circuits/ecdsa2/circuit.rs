@@ -20,12 +20,10 @@ use crate::{
         ec::{EcCircuit, Pt2, Pt3},
     },
     compile::{
-        algebra::{
-            field::{CompileField, SupportsNatConversions},
-            Curve,
-        },
+        algebra::CompileField,
         logic::{Eltw, Logic, LogicIO},
     },
+    core::algebra::{ec::Curve, SupportsNatConversions},
 };
 
 #[derive(Clone)]

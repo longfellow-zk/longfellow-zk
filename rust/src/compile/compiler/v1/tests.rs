@@ -27,7 +27,7 @@ use crate::compile::{
 fn test_ir_to_quad_one() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let x: Assertions<P256Field> = &[];
     let (quad, _) = rewrite(&arena, &f, x, &tracker);
     // Assert that the quadratic circuit has the defaulted One node at index 0
@@ -46,7 +46,7 @@ fn test_ir_to_quad_one() {
 fn test_ir_to_quad_coalesces_assertions_on_the_same_wire() {
     let f = P256Field::new();
     let arena = CompilerArena::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let cse = Cse::new(&arena);
     let x = cse.input(1);
     let aid1 = tracker.new_leaf("first");

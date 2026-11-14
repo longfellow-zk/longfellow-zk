@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::{
         algsimp::AlgebraicRewriter,
         arena::CompilerArena,
         cse::Cse,
         ir::{position_in_input_array, AssertionItem, ExprNode, RewriteT},
     },
-    logic::{scope::AssertionScope, Logic, LogicIO},
+    logic::{AssertionScope, Logic, LogicIO},
 };
 
 #[derive(Debug, PartialEq, Eq)]

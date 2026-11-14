@@ -16,12 +16,13 @@ use num_bigint::BigUint;
 
 use crate::{
     compile::algebra::{
-        field::{
-            CompileField, SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
-        },
         fp::{FpField, FpParameters},
+        CompileField,
     },
-    core::algebra::{AlgebraicField, Nat, SerializableField},
+    core::algebra::{
+        AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU128Conversions,
+        SupportsU64Conversions,
+    },
 };
 
 struct TestFpTag;

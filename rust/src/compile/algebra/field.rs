@@ -14,8 +14,6 @@
 
 use num_bigint::BigUint;
 
-pub use crate::core::algebra::AlgebraicField;
-
 /// Trait for fields used at circuit compile-time. Inherits from
 /// [`crate::core::algebra::AlgebraicField`] to define its associated
 /// [`crate::core::algebra::BareField::E`] type and algebraic operations.
@@ -56,13 +54,6 @@ pub trait CompileField:
 
     fn pseudo_dimension_of_multiplicative_group(&self) -> usize;
 }
-
-/// Optional trait implemented by compile-time fields that support conversions
-/// to and from arbitrary-precision non-negative integers (`BigUint`).
-/// Typically used by prime fields and elliptic curve coordinates where elements
-/// are manipulated as standard large integers.
-pub use crate::core::algebra::SupportsNatConversions;
-pub use crate::core::algebra::{SupportsU128Conversions, SupportsU64Conversions};
 
 pub trait CompilePrimeField: CompileField {}
 

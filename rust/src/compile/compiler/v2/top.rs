@@ -16,11 +16,8 @@
 
 use crate::{
     compile::{
-        algebra::field::CompileField,
-        compiler::{
-            arena::CompilerArena,
-            logic_impl::{CompilerAssertions, CompilerLogic},
-        },
+        algebra::CompileField,
+        compiler::{arena::CompilerArena, CompilerAssertions, CompilerLogic},
         logic::AssertionScope,
     },
     core::proto::CircuitGeometry,
@@ -36,7 +33,7 @@ pub fn compile_v2<F, Build>(
 ) -> (
     crate::core::proto::v2::RawCircuit<F>,
     CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::proto::CircuitDebugSymbols,
 )
 where
     F: CompileField,
@@ -59,7 +56,7 @@ fn lower<F, Build>(
     build: Build,
 ) -> (
     super::terms::CircuitGraph<F>,
-    Vec<(usize, crate::compile::logic::scope::AssertionId)>,
+    Vec<(usize, crate::compile::logic::AssertionId)>,
     usize,
     usize,
     AssertionScope,

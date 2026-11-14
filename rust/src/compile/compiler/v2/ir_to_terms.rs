@@ -2,12 +2,12 @@
 //! Lower source expressions into explicit native term arities.
 use super::terms::{CircuitGraph, Node, Term};
 use crate::compile::{
-    algebra::field::CompileField,
+    algebra::CompileField,
     compiler::{
         graph::{push_node, Wire, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
     },
-    logic::scope::{AssertionId, AssertionScope},
+    logic::{AssertionId, AssertionScope},
 };
 
 // None denotes the source multiplicative identity, which has no native wire.

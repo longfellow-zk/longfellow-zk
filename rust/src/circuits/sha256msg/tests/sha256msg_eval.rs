@@ -19,18 +19,18 @@ use crate::{
         boolean::Boolean,
         sha256msg::{concrete::given, Given, Sha256Msg},
     },
-    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
 };
 
 pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     f: &'a Gf2_128Field,
-    tracker: &'a crate::compile::logic::scope::AssertionScope,
+    tracker: &'a crate::compile::logic::AssertionScope,
     message: &[u8],
     corrupt: &dyn Fn(
         &mut crate::circuits::sha256msg::concrete::ConcreteGiven,
         &mut crate::circuits::sha256msg::concrete::ConcreteDerived,
     ),
-) -> crate::compile::logic::eval::EvalAssertions<'a> {
+) -> crate::compile::logic::EvalAssertions<'a> {
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(f, tracker);
     let bv = BitvecLogic::new(&l);
@@ -79,7 +79,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
 #[test]
 fn test_eval_sha256_msg() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     run_corruptor_test::<1>(&f, &tracker, &[], &|_g, _d| {}).unwrap();
     run_corruptor_test::<1>(&f, &tracker, b"hello world", &|_g, _d| {}).unwrap();
     run_corruptor_test::<1>(&f, &tracker, &[0u8; 55], &|_g, _d| {}).unwrap();
@@ -98,7 +98,7 @@ fn test_eval_sha256msg_shared_corruptors() {
     let f = Gf2_128Field::new();
     let corruptors = test_support::all_sha256msg_corruptors();
     for c in corruptors {
-        let tracker = crate::compile::logic::scope::AssertionScope::new();
+        let tracker = crate::compile::logic::AssertionScope::new();
         let res = run_corruptor_test::<2>(&f, &tracker, b"hello world", &*c.corrupt);
         assert!(
             res.is_err(),
@@ -111,7 +111,7 @@ fn test_eval_sha256msg_shared_corruptors() {
 #[test]
 fn test_exploit_nblocks_too_large() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
@@ -144,7 +144,7 @@ fn test_exploit_nblocks_too_large() {
 #[test]
 fn test_exploit_nblocks_zero() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
@@ -177,7 +177,7 @@ fn test_exploit_nblocks_zero() {
 #[test]
 fn test_eval_nblocks_ok() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);
@@ -209,7 +209,7 @@ fn test_eval_nblocks_ok() {
 #[test]
 fn test_eval_nblocks_failures() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(&f, &tracker);
     let bv = BitvecLogic::new(&l);

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    compile::algebra::field::{CompileField, SupportsNatConversions},
-    core::algebra::SupportsU64Conversions,
+    compile::algebra::CompileField,
+    core::algebra::{SupportsNatConversions, SupportsU64Conversions},
 };
 
 /// Bundles all compile-time field requirements for `EcdsaCircuit`.

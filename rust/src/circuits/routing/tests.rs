@@ -20,9 +20,10 @@ use crate::{
         routing::Routing,
     },
     compile::{
-        algebra::{field::SupportsU64Conversions, p256::P256Field},
+        algebra::p256::P256Field,
         logic::{Logic, LogicIO},
     },
+    core::algebra::SupportsU64Conversions,
 };
 
 #[test]
@@ -61,9 +62,9 @@ fn test_compile_routing() {
     assert_eq!(stats.nterms, 182);
 }
 
-use crate::compile::{
-    algebra::field::{CompileField, SupportsNatConversions},
-    logic::eval::EvalLogic,
+use crate::{
+    compile::{algebra::CompileField, logic::EvalLogic},
+    core::algebra::SupportsNatConversions,
 };
 
 fn int_to_bits(val: usize, bits: usize) -> Vec<bool> {
@@ -82,7 +83,7 @@ fn run_eval_test_e_generic<
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
@@ -138,7 +139,7 @@ fn run_eval_test_b_generic<const W: usize, F: CompileField + SupportsNatConversi
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);
@@ -205,7 +206,7 @@ fn run_eval_test_bitvec_generic<const W: usize, F: CompileField + SupportsNatCon
     unroll: usize,
     unshift: bool,
 ) {
-    let tracker = crate::compile::logic::scope::AssertionScope::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let iologic = EvalLogic::new(f, &tracker);
     let boolean = Boolean::new(&iologic);
     let routing = Routing::new(&iologic);

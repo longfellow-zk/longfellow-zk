@@ -17,12 +17,12 @@
 use super::terms::{CircuitGraph, Node, Term as NativeTerm};
 use crate::{
     compile::{
-        algebra::field::CompileField,
+        algebra::CompileField,
         compiler::scheduling::{
             extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
             INVALID_WIRE_ID,
         },
-        logic::scope::AssertionId,
+        logic::AssertionId,
     },
     core::proto::CircuitGeometry,
     util::ceil_log2,
@@ -300,7 +300,7 @@ struct Scheduled<F: CompileField> {
     constants: Vec<F::E>,
     constant_to_idx: std::collections::HashMap<Vec<u8>, u32>,
     info: CircuitGeometry,
-    symbols: crate::compile::compiler::debug::CircuitDebugSymbols,
+    symbols: crate::compile::proto::CircuitDebugSymbols,
 }
 
 fn schedule_graph<F: CompileField + crate::core::algebra::SerializableField>(
@@ -308,7 +308,7 @@ fn schedule_graph<F: CompileField + crate::core::algebra::SerializableField>(
     c: CircuitGraph<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
-    tracker: crate::compile::logic::scope::AssertionScope,
+    tracker: crate::compile::logic::AssertionScope,
 ) -> Scheduled<F> {
     let npublic_input = npublic_input
         .checked_sub(1)
@@ -383,11 +383,11 @@ pub(super) fn schedule<F: CompileField>(
     c: CircuitGraph<F>,
     assertions: &[(usize, AssertionId)],
     npublic_input: usize,
-    tracker: crate::compile::logic::scope::AssertionScope,
+    tracker: crate::compile::logic::AssertionScope,
 ) -> (
     crate::core::proto::v2::RawCircuit<F>,
     CircuitGeometry,
-    crate::compile::compiler::debug::CircuitDebugSymbols,
+    crate::compile::proto::CircuitDebugSymbols,
 ) {
     let graph = schedule_graph(f, c, assertions, npublic_input, tracker);
     let layers = v2_layers(

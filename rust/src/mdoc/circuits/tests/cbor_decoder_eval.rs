@@ -14,7 +14,7 @@
 
 use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
-    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+    compile::{algebra::gf2_128::Gf2_128Field, logic::EvalLogic},
 };
 
 fn compare_bool<L: crate::compile::logic::Logic>(
@@ -49,7 +49,7 @@ use crate::mdoc::circuits::cbor_decoder::{
 #[test]
 fn test_cbor_decoder_exhaustive() {
     let f = Gf2_128Field::new();
-    let tracker = crate::compile::logic::tracker::AssertionTracker::new();
+    let tracker = crate::compile::logic::AssertionScope::new();
     let l = EvalLogic::new_with_tracker(&f, &tracker);
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);

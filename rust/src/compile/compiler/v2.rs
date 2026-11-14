@@ -17,6 +17,6 @@
 mod ir_to_terms;
 mod scheduler;
 mod top;
-pub use top::compile_v2 as compile;
+pub use top::compile_v2;
 
 mod terms;
