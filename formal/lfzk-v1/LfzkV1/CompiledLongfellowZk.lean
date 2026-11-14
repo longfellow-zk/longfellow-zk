@@ -8,7 +8,7 @@ import LfzkV1.CompiledLigeroZk
 `LfzkV1.ZkProgram` (programming the challenge oracle) and `LfzkV1.CompiledLigeroZk` (compiled Ligero
 alone, for a fixed statement) compose pairwise. This file
 is the single statement for the **compiled Longfellow argument** at Ligero V1, as `ZkProver`
-runs it (`lib/zk/zk_prover.h`, `rust/runtime/v1/zk`):
+runs it (`lib/zk/zk_prover.h`, `rust/src/runtime/v1/zk`):
 
 1. **commit** (`ZkProver::commit`): the witness and the random pad are laid out as the Ligero
    tableau and Merkle-committed column by column, each leaf salted with a fresh nonce

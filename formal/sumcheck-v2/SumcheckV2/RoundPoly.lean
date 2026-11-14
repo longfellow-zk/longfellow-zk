@@ -3,7 +3,7 @@ import Mathlib.Algebra.Polynomial.Roots
 /-!
 # V2 projective round polynomials
 
-`rust/runtime/v2/proto/src/sumcheck.rs` transmits the constant and linear
+`rust/src/runtime/v2/proto/sumcheck.rs` transmits the constant and linear
 coefficients of a quadratic. The projective sum is `c0 + c2`, so the incoming
 claim determines the omitted coefficient. These definitions work over every
 field, including characteristic two; no interpolation nodes are required.

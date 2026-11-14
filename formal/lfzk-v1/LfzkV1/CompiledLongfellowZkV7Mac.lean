@@ -9,7 +9,7 @@ full-view statistical form `CompiledLongfellowZkStat.twofield_zk_stat`) models t
 **v8** MAC, `macTag av ap msg = av · msg + ap`, with uniform blinds `ap`: the tags are a translate
 of the blinds (`tagEquiv`), so they are uniform and the simulator samples them.  The registered
 **v7** circuits and the deployed v1 prover (`push_macs` in
-`rust/applications/mdoc_zk/runtime/src/v1/mac.rs`, `assert_mac` in `lib/circuits/mac/mac_circuit.h`)
+`rust/src/mdoc/runtime/v1/mac.rs`, `assert_mac` in `lib/circuits/mac/mac_circuit.h`)
 use instead
 
 ```text

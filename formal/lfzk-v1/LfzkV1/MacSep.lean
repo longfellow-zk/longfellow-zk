@@ -18,7 +18,7 @@ v7 (push_legacy_macs):  tag j = (av + ap j) · msg j        -- `shiftTag av ap m
 ```
 
 The current v1 counterpart is `push_macs` in
-`rust/applications/mdoc_zk/runtime/src/v1/mac.rs`; it uses the v7 formula.
+`rust/src/mdoc/runtime/v1/mac.rs`; it uses the v7 formula.
 
 Both formulas operate over `GF(2^128)`, for the six 128-bit blocks `msg` of `(issuer_sig_e, device_pk.x, device_pk.y)`
 (low half first, `bytes[..16]`, `bytes[16..]` of the little-endian 32-byte encoding).  The v7

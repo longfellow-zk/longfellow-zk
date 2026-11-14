@@ -5,7 +5,7 @@ import LfzkV1.LigeroV1RowsV7
 # The certified table at the deployed v7 parameters
 
 This file certifies `CertifiedV1.Row`s for the registered v7 circuits (`ZK_SPECS` version 7 in
-`rust/applications/mdoc_zk/runtime/src/v1/zk_spec.rs`) at their Ligero configurations (`rateinv 7`,
+`rust/src/mdoc/runtime/v1/zk_spec.rs`) at their Ligero configurations (`rateinv 7`,
 `nreq 132`; Ligero rows `LfzkV1.LigeroV1Rows.v7Sig`, `v7Hash1` … `v7Hash4`).
 
 | row | field | circuit | `nl` | sumcheck slots | `ninp` | Ligero `n / k / w` | Ligero RBR | `lam` | `κ` |
@@ -25,7 +25,7 @@ work-normalized coefficient `R.fsCoefficient = cardCand · maxDensity` (`_fsCoef
 `nl`, the per-layer `logw` and `ninp` (the input layer's wire count) are read from the
 **stored, registered** v7 circuits by `lfzk-v1/scripts/inspect_v7_circuit_profile.rs`
 (`v7-circuit-profiles.json`): the archives
-`rust/applications/mdoc_zk/artifacts/circuits/<combined_hash>.lfa2` are loaded through the runtime's
+`rust/src/mdoc/artifacts/circuits/<combined_hash>.lfa2` are loaded through the runtime's
 own `mdoc::v1::provider::materialize`, their combined IDs are checked against the registry's
 `combined_hash`, each circuit's ID is recomputed from the parsed circuit, and the deployed
 verifier's `ZkVerifier::geometry` gives the Ligero geometry. Version 7 has one Ligero geometry

@@ -4,7 +4,7 @@ import Merkle.Indexed.Independence
 
 /-! Concrete preimages of the current joint SHA-256 column tree. The joint
 layout digest is a fixed public parameter. Leaf and node inputs use the raw
-concatenations in `rust/runtime/v2/merkle/src/hash.rs`; transcript-operation
+concatenations in `rust/src/runtime/v2/merkle/hash.rs`; transcript-operation
 tags are not part of these hash inputs. Executable role inverses are constructed from the
 canonical scalar representations, rather than supplied as assumptions. -/
 noncomputable section
