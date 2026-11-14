@@ -250,6 +250,64 @@ impl<E> ModularClaim<E> {
     }
 }
 
+/// Storage of a participant whose values are not all native.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Split {
+    pub(crate) map: StorageMap,
+    /// Bits of R in the binary commitment; absent for pure foreign storage.
+    pub(crate) mask: Option<Group>,
+    /// Physical cell of R: after every native value.
+    pub(crate) mask_cell: usize,
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl Split {
+    /// Validate a storage map over `values` values, the first `private` of
+    /// them private inputs and the rest pads, and derive its split layout.
+    pub(crate) fn new(
+        map: StorageMap,
+        mask: Option<Group>,
+        private: usize,
+        values: usize,
+    ) -> Result<Self, String> {
+        if map.entries().len() != values {
+            return Err("storage map does not cover the participant's values".into());
+        }
+        if !map
+            .entries()
+            .iter()
+            .any(|s| matches!(s, Storage::Foreign(_)))
+        {
+            return Err("storage map has no foreign value; use native storage".into());
+        }
+        let pure = map.is_pure_foreign();
+        if pure != mask.is_none() {
+            return Err("a mask is required exactly when some values are native".into());
+        }
+        if !pure
+            && map.entries()[private..]
+                .iter()
+                .any(|s| !matches!(s, Storage::Native(_)))
+        {
+            return Err("mixed storage keeps every pad native".into());
+        }
+        let mask_cell = map.native_cells();
+        Ok(Self {
+            map,
+            mask,
+            mask_cell,
+        })
+    }
+    /// Physical cell of the value at `index`, which must be native. Native
+    /// values are committed in value order, so this is the map's own cell.
+    pub(crate) fn native_cell(&self, index: usize) -> Result<usize, String> {
+        match self.map.entries().get(index) {
+            Some(Storage::Native(cell)) => Ok(*cell),
+            _ => Err("native row reads a foreign value".into()),
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "../tests/storage.rs"]
 mod tests;

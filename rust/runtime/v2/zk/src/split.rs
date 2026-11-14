@@ -20,7 +20,7 @@
 use super::{
     batching::LinearClaim,
     joint::CircuitParticipant,
-    storage::{Group, ModularClaim, Storage, StorageMap},
+    storage::{ModularClaim, Split, Storage},
 };
 use crate::{
     core::proto::v2::Circuit,
@@ -37,26 +37,6 @@ use crate::{
 
 #[path = "split/transcript.rs"]
 pub mod transcript;
-
-/// Storage of a participant whose values are not all native.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Split {
-    pub(crate) map: StorageMap,
-    /// Bits of R in the binary commitment; absent for pure foreign storage.
-    pub(crate) mask: Option<Group>,
-    /// Physical cell of R: after every native value.
-    pub(crate) mask_cell: usize,
-}
-impl Split {
-    /// Physical cell of the value at `index`, which must be native. Native
-    /// values are committed in value order, so this is the map's own cell.
-    fn native_cell(&self, index: usize) -> Result<usize, String> {
-        match self.map.entries().get(index) {
-            Some(Storage::Native(cell)) => Ok(*cell),
-            _ => Err("native row reads a foreign value".into()),
-        }
-    }
-}
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
 pub struct SplitClaim<E> {
@@ -266,42 +246,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         out.extend(pending.mask.clone());
         Ok(out)
     }
-}
-
-/// Validate a storage map for `circuit` and derive its split layout.
-pub(crate) fn layout(
-    map: StorageMap,
-    mask: Option<Group>,
-    private: usize,
-    values: usize,
-) -> Result<Split, String> {
-    if map.entries().len() != values {
-        return Err("storage map does not cover the participant's values".into());
-    }
-    if !map
-        .entries()
-        .iter()
-        .any(|s| matches!(s, Storage::Foreign(_)))
-    {
-        return Err("storage map has no foreign value; use native storage".into());
-    }
-    let pure = map.is_pure_foreign();
-    if pure != mask.is_none() {
-        return Err("a mask is required exactly when some values are native".into());
-    }
-    if !pure
-        && map.entries()[private..]
-            .iter()
-            .any(|s| !matches!(s, Storage::Native(_)))
-    {
-        return Err("mixed storage keeps every pad native".into());
-    }
-    let mask_cell = map.native_cells();
-    Ok(Split {
-        map,
-        mask,
-        mask_cell,
-    })
 }
 
 /// Number of values `[private inputs | pads]` of a split participant for

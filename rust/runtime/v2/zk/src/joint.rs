@@ -193,7 +193,7 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) additional_ids: Vec<[u8; 32]>,
     pub(super) inputs: InputLayout,
     /// Values not all native: the split layout. `None` is all native.
-    pub(super) storage: Option<super::split::Split>,
+    pub(super) storage: Option<super::storage::Split>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Prove `circuits` as one layered sumcheck; `circuits[0]` is the primary
@@ -254,7 +254,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let values = private
             .checked_add(sc_geom.pad_count()?)
             .ok_or("split layout overflow")?;
-        let split = super::split::layout(storage, mask, private, values)?;
+        let split = super::storage::Split::new(storage, mask, private, values)?;
         // Mixed storage commits its native values in value order (native
         // private inputs, then pads), then R; pure foreign storage commits
         // nothing.
