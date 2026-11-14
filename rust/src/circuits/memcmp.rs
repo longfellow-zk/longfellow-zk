@@ -17,5 +17,4 @@ mod circuit;
 pub use circuit::Memcmp;
 
 #[cfg(test)]
-
 mod tests;

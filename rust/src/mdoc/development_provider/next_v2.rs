@@ -105,5 +105,4 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
 }
 
 #[cfg(test)]
-
 mod tests;

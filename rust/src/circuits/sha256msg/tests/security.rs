@@ -147,12 +147,9 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
             let mut inputs = Vec::new();
             g.push_elements(&fr, 3, |e| inputs.push(e));
             derived.push_elements(&fr, |e| inputs.push(e));
-            let result = crate::compile::eval::eval_circuit_fc(&fc,
-                &fr,
-                &circuit,
-                &symbols,
-                &inputs)
-            .unwrap();
+            let result =
+                crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
+                    .unwrap();
             assert_eq!(
                 result.is_ok(),
                 !bad,

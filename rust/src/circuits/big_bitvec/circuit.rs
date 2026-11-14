@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bignum::Bignum;
-use crate::circuits::bitvec::Bitvec;
-use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{bignum::Bignum, bitvec::Bitvec},
+    compile::{
+        algebra::field::{CompileField, SupportsNatConversions},
+        logic::Logic,
+    },
+};
 
 pub struct BigBitvec<'a, L: Logic> {
     bignum: Bignum<'a, L>,

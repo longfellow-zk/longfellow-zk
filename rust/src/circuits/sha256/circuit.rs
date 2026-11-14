@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_adder::{AnalogAdder, FieldWrappingSum};
-use crate::circuits::bitvec::{BitvecLogic, V32};
-use crate::compile::logic::Logic;
-
 use super::constants::K;
+use crate::{
+    circuits::{
+        analog_adder::{AnalogAdder, FieldWrappingSum},
+        bitvec::{BitvecLogic, V32},
+    },
+    compile::logic::Logic,
+};
 
 #[derive(Clone)]
 pub struct Given<L: Logic> {

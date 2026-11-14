@@ -12,8 +12,8 @@ use crate::{
             sumcheck::{self, TranscriptSumcheck},
             transcript::{Transcript, TranscriptRef},
             zk::{
-                split::SplitClaim,
                 joint::{CircuitParticipant, CircuitProof, JointParam},
+                split::SplitClaim,
                 CircuitInput, VirtualInputs, ZkContext, ZkProof, ZkProofGeometry,
             },
         },
@@ -233,21 +233,19 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         t: &mut TranscriptRef<'_>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<SplitClaim<F::E>, String> {
-
         self.split()?;
         self.validate_circuits(&[circuit], public.len())?;
         proof
             .validate(&self.geometry.sc_geom)
             .map_err(|e| e.to_string())?;
         let f = ctx.field();
-        let public = self.backend.parameters.extension().input_elements(f, public);
+        let public = self
+            .backend
+            .parameters
+            .extension()
+            .input_elements(f, public);
         t.write_sumcheck_statement(circuit, &public, f);
-        let constraints = sumcheck::derive_constraints_for_circuits(
-            &[circuit],
-            proof,
-            t,
-            f,
-        )?;
+        let constraints = sumcheck::derive_constraints_for_circuits(&[circuit], proof, t, f)?;
         self.split_claim(circuit, &public, constraints, t, f)
     }
 }

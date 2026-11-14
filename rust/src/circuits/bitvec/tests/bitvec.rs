@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecIO, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::compile::algebra::p256::P256Field;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecIO, BitvecLogic},
+        boolean::Boolean,
+    },
+    compile::algebra::p256::P256Field,
+};
 
 #[test]
 fn test_compile_bitvec() {
@@ -88,14 +92,12 @@ fn test_compile_bitvec_is_zero() {
     // Test a = 5 (should fail)
     let mut inputs_fail = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 5, 8, &mut inputs_fail);
-    assert!(crate::compile::eval::eval_circuit_fc(&fc,
-        &fr,
-        &circuit,
-        &symbols,
-        &inputs_fail)
-    .unwrap()
-    .result
-    .is_err());
+    assert!(
+        crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs_fail)
+            .unwrap()
+            .result
+            .is_err()
+    );
 }
 
 #[test]
@@ -127,22 +129,24 @@ fn test_compile_bitvec_lt() {
     let mut inputs_fail = crate::compile::eval::initial_inputs(&fr);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs_fail);
     crate::circuits::bitvec::concrete::push_bitvec_u64(&fr, 65, 64, &mut inputs_fail);
-    assert!(crate::compile::eval::eval_circuit_fc(&fc,
-        &fr,
-        &circuit,
-        &symbols,
-        &inputs_fail)
-    .unwrap()
-    .result
-    .is_err());
+    assert!(
+        crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs_fail)
+            .unwrap()
+            .result
+            .is_err()
+    );
 }
 
-use crate::circuits::boolean::Bitw;
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field};
-use crate::compile::logic::{eval::EvalLogic, Eltw, Logic};
 use test_helpers::{compare_bitw as compare, new_f65537_field, LPrime};
 
 use super::test_helpers;
+use crate::{
+    circuits::boolean::Bitw,
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field},
+        logic::{eval::EvalLogic, Eltw, Logic},
+    },
+};
 
 type LBinary<'a> = EvalLogic<'a, Gf2_128Field>;
 
@@ -390,9 +394,7 @@ fn test_assert_add() {
 }
 
 fn test_is_zero_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 

@@ -40,4 +40,3 @@ pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
         },
     }
 }
-

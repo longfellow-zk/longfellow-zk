@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::logic::LogicIO;
-
 use super::circuit::{Derived, Given, Slicing};
+use crate::compile::logic::LogicIO;
 
 pub fn allocate_given_wires<L: LogicIO>(logic: &L, pos: &mut usize) -> Given<L> {
     let pkxy = (logic.next(pos), logic.next(pos));

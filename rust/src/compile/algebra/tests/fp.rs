@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{
-        CompileField, SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
-    },
-    fp::{FpField, FpParameters},
-};
-use crate::core::algebra::{AlgebraicField, Nat, SerializableField};
 use num_bigint::BigUint;
+
+use crate::{
+    compile::algebra::{
+        field::{
+            CompileField, SupportsNatConversions, SupportsU128Conversions, SupportsU64Conversions,
+        },
+        fp::{FpField, FpParameters},
+    },
+    core::algebra::{AlgebraicField, Nat, SerializableField},
+};
 
 struct TestFpTag;
 type TestFpField = FpField<TestFpTag>;
@@ -80,7 +83,9 @@ fn test_arithmetic() {
         let expected_sum = (BigUint::from(10u32) + BigUint::from(12u32)) % modulo;
         assert_eq!(
             sum,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(expected_sum))
+            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
+                expected_sum
+            ))
         );
 
         // Subtraction: (10 - 12) mod p
@@ -92,7 +97,9 @@ fn test_arithmetic() {
         };
         assert_eq!(
             diff,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(expected_diff))
+            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
+                expected_diff
+            ))
         );
 
         // Multiplication: (10 * 12) mod p
@@ -100,7 +107,9 @@ fn test_arithmetic() {
         let expected_prod = (BigUint::from(10u32) * BigUint::from(12u32)) % modulo;
         assert_eq!(
             prod,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(expected_prod))
+            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
+                expected_prod
+            ))
         );
 
         // Inversion
@@ -121,7 +130,9 @@ fn test_negation() {
         let expected_neg = modulo - BigUint::from(5u32);
         assert_eq!(
             neg_a,
-            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(expected_neg))
+            f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
+                expected_neg
+            ))
         );
         assert!(f.is_zero(&f.addf(&a, &neg_a)));
     }
@@ -151,7 +162,9 @@ fn test_large_number_reduction() {
         let f = &case.field;
         let modulo = &case.modulo;
 
-        let a = f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(modulo.clone()));
+        let a = f.reduce_nat(&crate::compile::algebra::CompileNat::<6>::from(
+            modulo.clone(),
+        ));
         assert!(f.is_zero(&a));
 
         let b_val = modulo + BigUint::from(2u32);
@@ -189,7 +202,8 @@ fn test_compile_nat_enforces_word_width() {
     })
     .is_err());
     assert!(
-        std::panic::catch_unwind(|| crate::compile::algebra::CompileNat::<6>::from(oversized)).is_err()
+        std::panic::catch_unwind(|| crate::compile::algebra::CompileNat::<6>::from(oversized))
+            .is_err()
     );
 }
 

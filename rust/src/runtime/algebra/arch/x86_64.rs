@@ -15,7 +15,9 @@
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::{__m128i, _mm_xor_si128, _mm_set_epi64x, _mm_slli_si128, _mm_clmulepi64_si128};
+use std::arch::x86_64::{
+    __m128i, _mm_clmulepi64_si128, _mm_set_epi64x, _mm_slli_si128, _mm_xor_si128,
+};
 
 #[derive(Clone, Copy)]
 #[repr(transparent)]

@@ -199,5 +199,4 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
 }
 
 #[cfg(test)]
-
 mod tests;

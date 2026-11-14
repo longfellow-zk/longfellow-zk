@@ -27,15 +27,13 @@ use crate::{
         key::parse_pk_coordinate,
         MdocVerifierErrorCode, RequestedAttribute,
     },
-    runtime::{
-        algebra::{
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
+    runtime::algebra::{
+        gf2_128::Gf2_128Field,
+        p256::P256Field,
+        range_interpolation::{
+            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
         },
+        SupportsFFT,
     },
 };
 

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{CompileField, SupportsU64Conversions},
-    gf2_128::Gf2_128Field,
-};
-use crate::compile::logic::{
-    eval::{EvalContext, EvalLogic, EvalWire},
-    Logic,
+use crate::compile::{
+    algebra::{
+        field::{CompileField, SupportsU64Conversions},
+        gf2_128::Gf2_128Field,
+    },
+    logic::{
+        eval::{EvalContext, EvalLogic, EvalWire},
+        Logic,
+    },
 };
 
 fn run_test_eval_logic<F: CompileField + SupportsU64Conversions>(field: &F) {

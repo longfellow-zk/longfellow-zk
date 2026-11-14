@@ -18,9 +18,7 @@ use crate::{
         analog_adder::FieldWrappingSum,
         sha256::{derived, ConcreteDerived, ConcreteGiven, Sha256},
     },
-    compile::{
-        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
-    },
+    compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
     core::algebra::SerializableField,
     runtime::algebra::field::RuntimeField,
 };
@@ -113,7 +111,11 @@ fn test_compile_sha256_for_field<
 fn test_compile_sha256() {
     let p256_c = P256Field::new();
     let p256_r = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_sha256_for_field::<4, _, _>(&p256_c, &p256_r, "sha256_p256", crate::compile::eval::CircuitGeometry {
+    test_compile_sha256_for_field::<4, _, _>(
+        &p256_c,
+        &p256_r,
+        "sha256_p256",
+        crate::compile::eval::CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,
@@ -121,10 +123,15 @@ fn test_compile_sha256() {
             nwires: 30295,
             nterms: 118055,
             nassertions: 6840,
-        });
+        },
+    );
     let gf2_c = Gf2_128Field::new();
     let gf2_r = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_sha256_for_field::<2, _, _>(&gf2_c, &gf2_r, "sha256_gf2_128", crate::compile::eval::CircuitGeometry {
+    test_compile_sha256_for_field::<2, _, _>(
+        &gf2_c,
+        &gf2_r,
+        "sha256_gf2_128",
+        crate::compile::eval::CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
             noutput: 128,
@@ -132,7 +139,8 @@ fn test_compile_sha256() {
             nwires: 38096,
             nterms: 78960,
             nassertions: 184,
-        });
+        },
+    );
 }
 
 #[test]
@@ -175,12 +183,8 @@ fn test_compile_sha256_tampering() {
         (c.corrupt)(&mut g, &mut d);
 
         let inputs = make_inputs(&g, &d, &fr);
-        let eval_res = crate::compile::eval::eval_circuit_fc(&fc,
-            &fr,
-            &circuit,
-            &symbols,
-            &inputs)
-        .unwrap();
+        let eval_res =
+            crate::compile::eval::eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
         assert!(
             eval_res.is_err(),
             "Corruptor '{}' failed to cause circuit evaluation error",

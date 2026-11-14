@@ -13,12 +13,17 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
-use crate::circuits::analog_adder::{AnalogAdder, FieldWrappingSum};
-use crate::circuits::bitvec::{Bitvec, BitvecIO, BitvecLogic};
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::compile::logic::{eval::EvalLogic, Logic};
-use crate::core::algebra::SerializableField;
+use crate::{
+    circuits::{
+        analog_adder::{AnalogAdder, FieldWrappingSum},
+        bitvec::{Bitvec, BitvecIO, BitvecLogic},
+    },
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        logic::{eval::EvalLogic, Logic},
+    },
+    core::algebra::SerializableField,
+};
 
 fn test_compile_for_field<F: CompileField + FieldWrappingSum + SerializableField>(
     f: &F,

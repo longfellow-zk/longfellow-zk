@@ -5,9 +5,7 @@ use crate::{
         compiler::segment_circuit_v2,
         logic::{Logic, LogicIO},
     },
-    core::proto::{
-        v2::{CircuitReader, CircuitWriter, Stream},
-        },
+    core::proto::v2::{CircuitReader, CircuitWriter, Stream},
 };
 fn check_stream<T>(stream: &Stream<T>) {
     let mut deltas = vec![0; stream.deltas.len()];
@@ -43,9 +41,7 @@ fn circuit_compression_and_recompression_preserve_lfc3() {
     let writer = CircuitWriter::new(&f);
     let bytes = compressed_bytes;
     assert_eq!(bytes, writer.to_bytes(&recompressed));
-    let (decoded, tail) = CircuitReader::new(&f)
-        .from_bytes(&bytes)
-        .unwrap();
+    let (decoded, tail) = CircuitReader::new(&f).from_bytes(&bytes).unwrap();
     assert!(tail.is_empty());
     assert_eq!(decoded.id, original_id);
     for l in &recompressed.raw.layers {

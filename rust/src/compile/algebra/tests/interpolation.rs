@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{CompileField, SupportsU64Conversions},
-    gf2_128::Gf2_128Field,
-    interpolation::{eval_monomial, eval_newton, monomial_of_newton, newton_of_lagrange},
-    p256::P256Field,
+use crate::{
+    compile::algebra::{
+        field::{CompileField, SupportsU64Conversions},
+        gf2_128::Gf2_128Field,
+        interpolation::{eval_monomial, eval_newton, monomial_of_newton, newton_of_lagrange},
+        p256::P256Field,
+    },
+    core::algebra::ElementOf,
 };
-use crate::core::algebra::ElementOf;
 
 fn test_interpolation_for_field<F: CompileField + SupportsU64Conversions>(f: &F)
 where ElementOf<F>: PartialEq + std::fmt::Debug {

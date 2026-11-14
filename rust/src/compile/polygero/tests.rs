@@ -17,13 +17,13 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{EvaluationDomain, RuntimeField, SupportsSampling},
-        v2::proto::Digest,
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{
                 JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
                 Participant, PolygeroParam,
             },
+            proto::Digest,
             transcript::Transcript,
         },
     },

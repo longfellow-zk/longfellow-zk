@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::polynomial::Polynomial;
-use crate::compile::algebra::field::CompileField;
-use crate::compile::logic::{Eltw, Logic};
-use crate::core::algebra::ElementOf;
+use crate::{
+    circuits::polynomial::Polynomial,
+    compile::{
+        algebra::field::CompileField,
+        logic::{Eltw, Logic},
+    },
+    core::algebra::ElementOf,
+};
 
 pub struct Lookup<'a, L: Logic> {
     logic: &'a L,
@@ -75,9 +79,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Lookup<'a, L> {
         for k in 0..m {
             let mut y = vec![f.zero(); m];
             y[k] = f.one();
-            basis.push(crate::compile::algebra::interpolation::monomial_of_lagrange(
-                f, &y, &x,
-            ));
+            basis.push(crate::compile::algebra::interpolation::monomial_of_lagrange(f, &y, &x));
         }
 
         let mut plucker = Vec::with_capacity(m);

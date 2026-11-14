@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{field::CompileField, Curve};
-use crate::compile::logic::{Eltw, Logic};
-use crate::core::algebra::ElementOf;
-
-use crate::circuits::ec::{Pt2, Pt3};
+use crate::{
+    circuits::ec::{Pt2, Pt3},
+    compile::{
+        algebra::{field::CompileField, Curve},
+        logic::{Eltw, Logic},
+    },
+    core::algebra::ElementOf,
+};
 
 pub fn iter_pt2<T, E>(pt: &(T, T), f: &mut impl FnMut(&T) -> Result<(), E>) -> Result<(), E> {
     f(&pt.0)?;

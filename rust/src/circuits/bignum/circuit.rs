@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-use crate::compile::logic::Logic;
-use crate::util::array::init;
+use crate::{
+    circuits::boolean::{Bitw, Boolean},
+    compile::{
+        algebra::field::{CompileField, SupportsNatConversions},
+        logic::Logic,
+    },
+    util::array::init,
+};
 
 pub struct Bignum<'a, L: Logic> {
     boolean: Boolean<'a, L>,

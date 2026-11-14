@@ -161,8 +161,7 @@ fn every_selected_field_reports_an_out_of_message_read() {
 #[test]
 fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
     use crate::{
-        circuits::bitvec::BitvecIO,
-        core::{algebra::AlgebraicField},
+        circuits::bitvec::BitvecIO, core::algebra::AlgebraicField,
         runtime::algebra::gf2_128::Gf2_128Field as RuntimeGf128,
     };
     let fc = Gf2_128Field::new();
@@ -198,12 +197,8 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
                 })
             })
             .collect();
-        let result = crate::compile::eval::eval_circuit_fc(&fc,
-            &f,
-            &circuit,
-            &symbols,
-            &inputs)
-        .unwrap();
+        let result =
+            crate::compile::eval::eval_circuit_fc(&fc, &f, &circuit, &symbols, &inputs).unwrap();
         if valid {
             result.assert_all_passed();
         } else {
@@ -373,8 +368,7 @@ fn attribute_type_checks_reject_documents_with_fresh_hashes() {
         let header = attribute.field_locator.slot_position[physical] + key_length;
         attribute.cbor_issuer_signed_item[header] ^= 0x20;
         let digest = Sha256::digest(&attribute.cbor_issuer_signed_item);
-        let digest_start =
-            K_MSO_OFFSET + attribute.mso_digest_offset_in_preimage + K_TAG32.len();
+        let digest_start = K_MSO_OFFSET + attribute.mso_digest_offset_in_preimage + K_TAG32.len();
         input.cbor_mso[digest_start..digest_start + 32].copy_from_slice(&digest);
         input.issuer_sig_e = CompileNat::<4>::from_bytes_be(&Sha256::digest(&input.cbor_mso));
         let witness = concrete::given::<4, _>(input);

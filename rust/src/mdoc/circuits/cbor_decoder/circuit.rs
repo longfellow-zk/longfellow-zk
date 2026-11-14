@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecLogic, V8};
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic, V8},
+        boolean::{Bitw, Boolean},
+    },
+    compile::logic::Logic,
+};
 
 pub struct Given<L: Logic> {
     pub v: V8<L>,

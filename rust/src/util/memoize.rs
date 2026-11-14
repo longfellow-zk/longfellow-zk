@@ -41,9 +41,7 @@ where
     }
 
     pub(crate) fn call<F>(&self, k: K, f: F) -> V
-    where
-        F: FnOnce(&K) -> V,
-    {
+    where F: FnOnce(&K) -> V {
         let cached = self.get(&k);
         if let Some(val) = cached {
             val

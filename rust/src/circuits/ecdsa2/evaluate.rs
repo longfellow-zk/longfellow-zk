@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::ec::{evaluate_pt2, evaluate_pt3};
-use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-use crate::compile::logic::Logic;
-
 use super::{
     circuit::{Derived, Given, Slicing},
     concrete::{ConcreteDerived, ConcreteGiven},
+};
+use crate::{
+    circuits::ec::{evaluate_pt2, evaluate_pt3},
+    compile::{
+        algebra::field::{CompileField, SupportsNatConversions},
+        logic::Logic,
+    },
 };
 
 pub fn evaluate_given<

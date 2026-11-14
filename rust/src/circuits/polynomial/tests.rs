@@ -13,13 +13,16 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
-use crate::circuits::polynomial::Polynomial;
-use crate::compile::algebra::{
-    field::{SupportsNatConversions, SupportsU64Conversions},
-    p256::P256Field,
+use crate::{
+    circuits::polynomial::Polynomial,
+    compile::{
+        algebra::{
+            field::{SupportsNatConversions, SupportsU64Conversions},
+            p256::P256Field,
+        },
+        logic::{Logic, LogicIO},
+    },
 };
-use crate::compile::logic::{Logic, LogicIO};
 
 #[test]
 fn test_compile_polynomial() {
@@ -38,8 +41,10 @@ fn test_compile_polynomial() {
     crate::compile::compiler::dump_stats("polynomial_eval_compile", &circuit, &stats);
 }
 
-use crate::compile::algebra::{field::CompileField, interpolation::eval_monomial};
-use crate::compile::logic::eval::EvalLogic;
+use crate::compile::{
+    algebra::{field::CompileField, interpolation::eval_monomial},
+    logic::eval::EvalLogic,
+};
 
 fn test_polynomial_evaluation_generic<
     const W: usize,

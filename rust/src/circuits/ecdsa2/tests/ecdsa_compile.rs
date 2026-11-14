@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::compile;
-use crate::circuits::ecdsa2::{derived, given, EcdsaCircuit};
-use crate::compile::algebra::{
-    field::{CompilePrimeField, SupportsNatConversions},
-    p256::P256Field,
-    secp256r1::Secp256r1,
-    Curve,
+use super::{compile, test_support};
+use crate::{
+    circuits::ecdsa2::{derived, given, EcdsaCircuit},
+    compile::{
+        algebra::{
+            field::{CompilePrimeField, SupportsNatConversions},
+            p256::P256Field,
+            secp256r1::Secp256r1,
+            Curve,
+        },
+        compiler::dump_stats,
+        logic::K_FIRST_WIRE_POSITION,
+    },
+    core::algebra::{Nat, SerializableField},
+    runtime::algebra::field::RuntimeField,
 };
-use crate::compile::compiler::dump_stats;
-use crate::compile::logic::K_FIRST_WIRE_POSITION;
-use crate::core::algebra::{Nat, SerializableField};
-use crate::runtime::algebra::field::RuntimeField;
-
-use super::test_support;
 
 fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
     let s_clean = s.strip_prefix("0x").unwrap_or(s);
@@ -204,12 +206,8 @@ fn test_compile_ecdsa_signature_tampering_generic<
     // Verify valid inputs pass
     {
         let inputs = make_inputs(&concrete_given, &concrete_derived, fr);
-        let eval_res = crate::compile::eval::eval_circuit_fc(fc,
-            fr,
-            &circuit,
-            &symbols,
-            &inputs)
-        .unwrap();
+        let eval_res =
+            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
         eval_res.assert_all_passed();
     }
 
@@ -220,12 +218,8 @@ fn test_compile_ecdsa_signature_tampering_generic<
         let mut cd = concrete_derived.clone();
         (c.corrupt)(&mut g, &mut cd);
         let inputs = make_inputs(&g, &cd, fr);
-        let eval_res = crate::compile::eval::eval_circuit_fc(fc,
-            fr,
-            &circuit,
-            &symbols,
-            &inputs)
-        .unwrap();
+        let eval_res =
+            crate::compile::eval::eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
         assert!(
             eval_res.is_err(),
             "Corruptor '{}' failed to cause circuit evaluation error",

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use super::constants::{
-    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR, K_DOC_TYPE_BYTES,
-    K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
-    K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN,
-    K_VALUE_DIGESTS_CHECK_CBOR,
+    K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR, K_DOCTYPE_HEADER_CHECK_CBOR,
+    K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
+    K_NAMESPACE_BYTES, K_TAG32, K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN,
+    K_VALID_UNTIL_CHECK_CBOR, K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
 };
 use crate::{
     circuits::{
@@ -29,8 +29,8 @@ use crate::{
     compile::logic::{Logic, LogicIO},
     mdoc::circuits::{
         mso_attribute::{
-            AttributeVerifier,
             constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
+            AttributeVerifier,
         },
         traits::MdocHashCompileField,
     },
@@ -45,10 +45,7 @@ pub struct HashBytes<L: Logic, const N: usize> {
 }
 
 #[cfg(test)]
-
 mod tests;
-
-
 
 pub(super) type AttrPreimageBytes<L> =
     crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_ATTR_PREIMAGE_LEN>;
@@ -74,8 +71,7 @@ pub struct Given<L: LogicIO> {
     pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
     pub suppress_doc_type_check: crate::circuits::boolean::Bitw<L>,
     pub expected_doc_type: crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_DOC_TYPE_BYTES>,
-    pub expected_namespace:
-        crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_NAMESPACE_BYTES>,
+    pub expected_namespace: crate::mdoc::circuits::mso_attribute::AttrSlice<L, K_NAMESPACE_BYTES>,
     pub preimage: MsoPreimageBytes<L>,
     pub nblocks: V8<L>,
     pub issuer_sig_e: V256<L>,
@@ -95,8 +91,7 @@ pub struct Derived<L: LogicIO> {
 }
 
 pub struct MdocHash<'a, L: LogicIO>
-where
-    L::F: MdocHashCompileField,
+where L::F: MdocHashCompileField
 {
     pub(in crate::mdoc::circuits) logic: &'a L,
     pub(in crate::mdoc::circuits) shamsg_mso: Sha256Msg<'a, L, K_MAX_SHA_BLOCKS>,
@@ -108,8 +103,7 @@ where
 }
 
 impl<'a, L: LogicIO> MdocHash<'a, L>
-where
-    L::F: MdocHashCompileField,
+where L::F: MdocHashCompileField
 {
     pub fn new(logic: &'a L, _num_attrs: usize) -> Self {
         Self {
@@ -376,9 +370,7 @@ where
                 self.logic.assert_all("inner_length", &[inner_check]),
                 self.boolean.assert_true(
                     "map_type",
-                    &self
-                        .bv
-                        .eqmask(&preimage[K_MSO_OFFSET], 0xa0, 0xe0),
+                    &self.bv.eqmask(&preimage[K_MSO_OFFSET], 0xa0, 0xe0),
                 ),
             ],
         )

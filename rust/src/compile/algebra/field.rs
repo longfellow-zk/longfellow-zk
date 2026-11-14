@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::core::algebra::AlgebraicField;
 use num_bigint::BigUint;
+
+pub use crate::core::algebra::AlgebraicField;
 
 /// Trait for fields used at circuit compile-time. Inherits from
 /// [`crate::core::algebra::AlgebraicField`] to define its associated

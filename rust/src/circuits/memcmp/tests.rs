@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::memcmp::Memcmp;
-use crate::compile::algebra::gf2_128::Gf2_128Field;
-use crate::compile::logic::eval::EvalLogic;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::Boolean,
+        memcmp::Memcmp,
+    },
+    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+};
 
 fn compare_bool<L: crate::compile::logic::Logic>(
     boolean: &Boolean<L>,

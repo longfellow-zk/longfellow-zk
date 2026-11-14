@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::V8;
-use crate::circuits::boolean::Bitw;
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{bitvec::V8, boolean::Bitw},
+    compile::logic::Logic,
+};
 
 pub struct Memcmp<'a, L: Logic> {
     arithmetic: crate::circuits::arithmetic::Arithmetic<'a, L>,

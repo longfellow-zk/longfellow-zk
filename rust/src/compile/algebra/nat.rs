@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::Nat;
 use num_bigint::BigUint;
+
+use crate::core::algebra::Nat;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CompileNat<const W: usize>(pub(in crate::compile::algebra) BigUint);

@@ -197,13 +197,11 @@ pub fn evaluate_derived<L: crate::compile::logic::LogicIO>(
 ) -> WireDerived<L> {
     let mut attribute_derived = Vec::with_capacity(derived.attribute_derived.len());
     for a in &derived.attribute_derived {
-        let sha_derived =
-            crate::circuits::sha256msg::evaluate_derived(&a.sha_derived, bv);
+        let sha_derived = crate::circuits::sha256msg::evaluate_derived(&a.sha_derived, bv);
         attribute_derived.push(WireAttrDerived { sha_derived });
     }
 
-    let sha_derived =
-        crate::circuits::sha256msg::evaluate_derived(&derived.sha_derived, bv);
+    let sha_derived = crate::circuits::sha256msg::evaluate_derived(&derived.sha_derived, bv);
 
     WireDerived {
         attribute_derived,

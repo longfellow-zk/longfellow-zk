@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::compile::logic::LogicIO;
-
-use crate::mdoc::circuits::mso_attribute::{
-    circuit::{AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given},
-    constants::K_ATTR_INDEX_BITS,
+use crate::{
+    circuits::bitvec::BitvecLogic,
+    compile::logic::LogicIO,
+    mdoc::circuits::mso_attribute::{
+        circuit::{AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given},
+        constants::K_ATTR_INDEX_BITS,
+    },
 };
 
 pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given<L> {

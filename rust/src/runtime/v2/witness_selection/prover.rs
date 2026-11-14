@@ -16,11 +16,7 @@ use crate::runtime::{
 /// expose only layout, challenge, and affine-equation operations.
 pub trait ProverFields: Fields {
     fn validate_witnesses(&self, witnesses: &Witnesses<Self>) -> Result<(), String>;
-    fn append_masks(
-        &self,
-        witnesses: &mut Witnesses<Self>,
-        rng: &mut impl PrivateRandom,
-    );
+    fn append_masks(&self, witnesses: &mut Witnesses<Self>, rng: &mut impl PrivateRandom);
     fn responses(
         &self,
         witnesses: &Witnesses<Self>,
@@ -48,11 +44,7 @@ impl<
         }
         self.1.validate_witnesses(&witnesses.1)
     }
-    fn append_masks(
-        &self,
-        witnesses: &mut Witnesses<Self>,
-        rng: &mut impl PrivateRandom,
-    ) {
+    fn append_masks(&self, witnesses: &mut Witnesses<Self>, rng: &mut impl PrivateRandom) {
         witnesses
             .0
             .extend((0..FINGERPRINTS).map(|_| rng.elt_field(self.0.f)));
@@ -151,5 +143,4 @@ impl<S, C, R> Prover<S, C, R> {
 }
 
 #[cfg(test)]
-
 mod tests;

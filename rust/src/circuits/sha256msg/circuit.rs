@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::analog_adder::FieldWrappingSum;
-use crate::circuits::bitvec::{Bitvec, BitvecLogic, V256, V32, V64, V8};
-use crate::circuits::boolean::Boolean;
-use crate::circuits::sha256::{Derived as Sha256Derived, Sha256};
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{
+        analog_adder::FieldWrappingSum,
+        bitvec::{Bitvec, BitvecLogic, V256, V32, V64, V8},
+        boolean::Boolean,
+        sha256::{Derived as Sha256Derived, Sha256},
+    },
+    compile::logic::Logic,
+};
 
 pub struct Given<L: Logic, const S: usize> {
     pub padded_preimage: Vec<V8<L>>,

@@ -14,9 +14,13 @@
 
 #![allow(dead_code)]
 
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::algebra::fp::{FpField, FpParameters};
-use crate::compile::logic::{eval::EvalLogic, Eltw, Logic};
+use crate::{
+    circuits::boolean::{Bitw, Boolean},
+    compile::{
+        algebra::fp::{FpField, FpParameters},
+        logic::{eval::EvalLogic, Eltw, Logic},
+    },
+};
 
 pub(in crate::circuits::boolean) struct F65537Tag;
 pub(in crate::circuits::boolean) type F65537Field = FpField<F65537Tag>;
@@ -30,14 +34,24 @@ pub(in crate::circuits::boolean) fn new_f65537_field() -> F65537Field {
     })
 }
 
-pub(in crate::circuits::boolean) fn compare_bitw<L: Logic>(boolean: &Boolean<L>, want: &Bitw<L>, got: &Bitw<L>)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+pub(in crate::circuits::boolean) fn compare_bitw<L: Logic>(
+    boolean: &Boolean<L>,
+    want: &Bitw<L>,
+    got: &Bitw<L>,
+) where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     let got_val = boolean.as_eltw(got);
     let want_val = boolean.as_eltw(want);
     assert_eq!(got_val, want_val);
 }
 
-pub(in crate::circuits::boolean) fn compare_bool<L: Logic>(boolean: &Boolean<L>, want: bool, got: &Bitw<L>)
-where Eltw<L>: PartialEq + std::fmt::Debug {
+pub(in crate::circuits::boolean) fn compare_bool<L: Logic>(
+    boolean: &Boolean<L>,
+    want: bool,
+    got: &Bitw<L>,
+) where
+    Eltw<L>: PartialEq + std::fmt::Debug,
+{
     compare_bitw(boolean, &boolean.konst(want), got);
 }

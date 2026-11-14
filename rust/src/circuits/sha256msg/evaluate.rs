@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::circuits::sha256::evaluate_derived as sha256_evaluate_derived;
-use crate::compile::logic::Logic;
-
 use super::{
     circuit::Given as WireGiven,
     concrete::{ConcreteDerived, ConcreteGiven},
+};
+use crate::{
+    circuits::{bitvec::BitvecLogic, sha256::evaluate_derived as sha256_evaluate_derived},
+    compile::logic::Logic,
 };
 
 pub fn evaluate_given<L: Logic, const S: usize>(

@@ -13,7 +13,6 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
 use crate::{
     circuits::{
         bitvec::{push_bitvec_u128, Bitvec, BitvecIO, BitvecLogic},
@@ -95,7 +94,11 @@ fn test_compile_gf2_128_mul_for_field<
 fn test_compile_gf2_128_mul() {
     let fc_bin = Gf2_128Field::new();
     let fr_bin = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_gf2_128_mul_for_field(&fc_bin, &fr_bin, "gf2_128_mul_bin", crate::compile::eval::CircuitGeometry {
+    test_compile_gf2_128_mul_for_field(
+        &fc_bin,
+        &fr_bin,
+        "gf2_128_mul_bin",
+        crate::compile::eval::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -103,11 +106,16 @@ fn test_compile_gf2_128_mul() {
             nterms: 9153,
             nlayers: 2,
             nassertions: 1,
-        });
+        },
+    );
 
     let fc_prime = P256Field::new();
     let fr_prime = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_gf2_128_mul_for_field(&fc_prime, &fr_prime, "gf2_128_mul_prime", crate::compile::eval::CircuitGeometry {
+    test_compile_gf2_128_mul_for_field(
+        &fc_prime,
+        &fr_prime,
+        "gf2_128_mul_prime",
+        crate::compile::eval::CircuitGeometry {
             ninput: 384,
             npublic_input: 0,
             noutput: 1,
@@ -115,7 +123,8 @@ fn test_compile_gf2_128_mul() {
             nterms: 27851,
             nlayers: 19,
             nassertions: 385,
-        });
+        },
+    );
 }
 
 use crate::compile::logic::{eval::EvalLogic, Logic};

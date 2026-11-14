@@ -23,7 +23,6 @@ mod segment;
 pub use segment::{segment_circuit, segment_layer};
 
 #[cfg(test)]
-
 mod tests;
 
 pub(crate) mod quad;

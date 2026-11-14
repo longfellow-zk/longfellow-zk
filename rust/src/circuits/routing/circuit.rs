@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::arithmetic::Arithmetic;
-use crate::circuits::bitvec::{Bitvec, BitvecLogic};
-use crate::circuits::boolean::{Bitw, Boolean};
-use crate::compile::logic::{Eltw, Logic};
+use crate::{
+    circuits::{
+        arithmetic::Arithmetic,
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::{Bitw, Boolean},
+    },
+    compile::logic::{Eltw, Logic},
+};
 
 fn extend<T: Clone>(a: &[T], default: &T, i: isize) -> T {
     let n = a.len() as isize;

@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use super::constants::K_MSO_PREIMAGE_LEN;
-use crate::{
-    core::algebra::Nat, mdoc::circuits::cbor::mdoc::FieldLocator as MsoFieldLocator,
-};
+use crate::{core::algebra::Nat, mdoc::circuits::cbor::mdoc::FieldLocator as MsoFieldLocator};
 
 #[derive(Clone, Debug)]
 pub struct AttrInput {

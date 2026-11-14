@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::compile::logic::Logic;
-
 use super::{
     circuit::{
         AttrSlice, Derived as WireDerived, DisclosedAttribute as WireDisclosedAttribute,
@@ -23,6 +20,7 @@ use super::{
     concrete::{ConcreteDerived, ConcreteGiven},
     constants::K_ATTR_INDEX_BITS,
 };
+use crate::{circuits::bitvec::BitvecLogic, compile::logic::Logic};
 
 pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> WireGiven<L> {
     let get_padded = |vec: &[u8], i: usize| -> u8 {

@@ -18,7 +18,7 @@ use crate::{
         eval::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
-    core::{algebra::AlgebraicField},
+    core::algebra::AlgebraicField,
     runtime::algebra::{gf2_128::Gf2_128RuntimeField, p256::P256Field as RuntimeP256Field},
 };
 
@@ -37,20 +37,11 @@ fn test_precious_alias_in_prime_field() {
 
     let runtime_f = RuntimeP256Field::new();
 
-    eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.zero()])
-    .unwrap()
-    .assert_all_passed();
+    eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.zero()])
+        .unwrap()
+        .assert_all_passed();
 
-    let failed = eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.one()])
-    .unwrap();
+    let failed = eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.one()]).unwrap();
     assert!(failed.is_err());
 }
 
@@ -73,19 +64,10 @@ fn test_precious_alias_cancels_in_binary_field() {
     });
     let runtime_f = Gf2_128RuntimeField::new();
 
-    eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.zero()])
-    .unwrap()
-    .assert_all_passed();
+    eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.zero()])
+        .unwrap()
+        .assert_all_passed();
 
-    let failed = eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.one()])
-    .unwrap();
+    let failed = eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.one()]).unwrap();
     assert!(failed.is_err());
 }

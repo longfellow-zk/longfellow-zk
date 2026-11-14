@@ -18,7 +18,7 @@ use crate::{
         eval::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
-    core::{algebra::AlgebraicField},
+    core::algebra::AlgebraicField,
     runtime::algebra::p256::P256Field as RuntimeP256Field,
 };
 
@@ -33,19 +33,10 @@ fn test_direct_input_assertion_has_one_layer() {
     assert_eq!(geometry.nlayers, 1);
 
     let runtime_f = RuntimeP256Field::new();
-    eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.zero()])
-    .unwrap()
-    .assert_all_passed();
+    eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.zero()])
+        .unwrap()
+        .assert_all_passed();
 
-    let failed = eval_circuit_fc(&f,
-        &runtime_f,
-        &circuit,
-        &symbols,
-        &[runtime_f.one()])
-    .unwrap();
+    let failed = eval_circuit_fc(&f, &runtime_f, &circuit, &symbols, &[runtime_f.one()]).unwrap();
     assert!(failed.is_err());
 }

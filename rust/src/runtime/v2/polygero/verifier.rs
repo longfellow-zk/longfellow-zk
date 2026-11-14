@@ -10,8 +10,10 @@ use crate::runtime::{
         blas, range_interpolation::interpolate_range, EvaluationDomain, InterpolationPlan,
         RuntimeField,
     },
-    v2::proto::Digest,
-    v2::transcript::{Transcript, TranscriptRef},
+    v2::{
+        proto::Digest,
+        transcript::{Transcript, TranscriptRef},
+    },
 };
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {

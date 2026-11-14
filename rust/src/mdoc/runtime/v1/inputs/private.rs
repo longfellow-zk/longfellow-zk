@@ -94,8 +94,7 @@ pub(in crate::mdoc::runtime::v1) fn push_witness_hash<N: Nat<4>>(
         max_mso_blocks,
     )
     .unwrap();
-    let mso_sha_witness =
-        crate::circuits::sha256msg::derived(&mso_sha_in, max_mso_blocks);
+    let mso_sha_witness = crate::circuits::sha256msg::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
 

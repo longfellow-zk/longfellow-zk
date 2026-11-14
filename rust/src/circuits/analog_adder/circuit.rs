@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::{Bitvec, BitvecLogic};
-use crate::circuits::boolean::Boolean;
-use crate::compile::algebra::field::{CompileBinaryField, CompileField, SupportsU64Conversions};
-use crate::compile::logic::Logic;
+use crate::{
+    circuits::{
+        bitvec::{Bitvec, BitvecLogic},
+        boolean::Boolean,
+    },
+    compile::{
+        algebra::field::{CompileBinaryField, CompileField, SupportsU64Conversions},
+        logic::Logic,
+    },
+};
 
 pub struct AnalogAdder<'a, L: Logic> {
     logic: &'a L,

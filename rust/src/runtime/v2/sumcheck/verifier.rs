@@ -29,10 +29,7 @@ use super::{
     SumcheckProof,
 };
 use crate::{
-    core::{
-        algebra::SerializableField,
-        proto::v2::classify_constants,
-    },
+    core::{algebra::SerializableField, proto::v2::classify_constants},
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::transcript::TranscriptRef,

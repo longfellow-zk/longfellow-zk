@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::constants::{
-    K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX,
-    K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
+    K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_DIGEST_ID,
+    K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN, K_RANDOM_ID,
 };
 use crate::{
     circuits::{
@@ -30,10 +30,7 @@ use crate::{
 pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;
 
 #[cfg(test)]
-
 mod tests;
-
-
 
 pub type AttrSlice<L, const N: usize> =
     crate::circuits::bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;

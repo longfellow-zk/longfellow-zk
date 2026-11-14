@@ -130,9 +130,9 @@ fn encode_arithmetic_masks<
 use sha2::{Digest as _, Sha256};
 
 use super::hash::leaf;
-use crate::runtime::{
-    v2::merkle::MerkleHeap,
-    v2::proto::{Digest, MerkleNonce, MerkleProof, NONCE_LEN},
+use crate::runtime::v2::{
+    merkle::MerkleHeap,
+    proto::{Digest, MerkleNonce, MerkleProof, NONCE_LEN},
 };
 pub(super) struct ColumnOracle {
     pub(super) tree: MerkleHeap,

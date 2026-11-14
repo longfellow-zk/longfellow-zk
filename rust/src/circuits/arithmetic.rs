@@ -17,5 +17,3 @@ pub use circuit::Arithmetic;
 
 #[cfg(test)]
 mod tests;
-
-

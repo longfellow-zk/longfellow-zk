@@ -46,7 +46,11 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
         let device_x = bits256(&mut pos);
         at(pos, &layout::sig::DEVICE_Y, "device y");
         let device_pk = (device_x, bits256(&mut pos));
-        at(pos, &(layout::SHARED_BITS..layout::SHARED_BITS), "end of shared inputs");
+        at(
+            pos,
+            &(layout::SHARED_BITS..layout::SHARED_BITS),
+            "end of shared inputs",
+        );
         let arithmetic = Arithmetic::new(&logic);
         let mut given = |pkxy, e| {
             let rxy = (logic.next(&mut pos), logic.next(&mut pos));

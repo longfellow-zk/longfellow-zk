@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::{ElementOf, Nat};
 use num_bigint::BigUint;
 
-use crate::compile::algebra::{
-    field::{CompilePrimeField, SupportsNatConversions},
-    Curve,
+use crate::{
+    compile::algebra::{
+        field::{CompilePrimeField, SupportsNatConversions},
+        Curve,
+    },
+    core::algebra::{ElementOf, Nat},
 };
 
 pub struct Secp256r1<F: CompilePrimeField + SupportsNatConversions<4>> {

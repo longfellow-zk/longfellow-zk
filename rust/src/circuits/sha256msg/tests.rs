@@ -14,7 +14,6 @@
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
 
-
 mod security;
 mod sha256msg_compile;
 mod sha256msg_eval;

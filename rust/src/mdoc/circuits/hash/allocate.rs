@@ -21,20 +21,21 @@ use crate::{
         boolean::BooleanIO,
     },
     compile::logic::LogicIO,
-    mdoc::circuits::{
-        hash::{
-            circuit::{
-                AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
+    mdoc::{
+        circuits::{
+            hash::{
+                circuit::{
+                    AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
+                },
+                constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
             },
-            constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
+            mso_attribute::{
+                constants::K_ATTR_INDEX_BITS, AttrSlice, DisclosedAttribute, FieldLocator,
+            },
         },
-        mso_attribute::{
-            constants::K_ATTR_INDEX_BITS, AttrSlice, DisclosedAttribute, FieldLocator,
-        },
+        proto::layout,
     },
 };
-
-use crate::mdoc::proto::layout;
 
 /// Allocate the complete presentation and return the end of its public prefix.
 pub fn allocate<L: LogicIO>(
@@ -93,7 +94,11 @@ pub fn allocate<L: LogicIO>(
     };
     at(*pos, &layout::hash::NBLOCKS, "block count");
     let nblocks = io.next::<8>(pos);
-    at(*pos, &(layout::hash::NBLOCKS.end..layout::hash::NBLOCKS.end), "end of block count");
+    at(
+        *pos,
+        &(layout::hash::NBLOCKS.end..layout::hash::NBLOCKS.end),
+        "end of block count",
+    );
     let doc_type_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_from_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let valid_until_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);

@@ -16,12 +16,15 @@
 
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
-use crate::compile::algebra::field::CompileField;
-use crate::core::algebra::ElementOf;
-
-use crate::compile::logic::{
-    scope::{AssertionId, AssertionScope, AssertionStatus},
-    Logic,
+use crate::{
+    compile::{
+        algebra::field::CompileField,
+        logic::{
+            scope::{AssertionId, AssertionScope, AssertionStatus},
+            Logic,
+        },
+    },
+    core::algebra::ElementOf,
 };
 
 #[derive(Clone, Debug, Default)]

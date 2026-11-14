@@ -17,10 +17,7 @@ compile_error!("AArch64 builds require ARMv8-A Cryptographic extension (+aes / P
 
 use std::arch::aarch64::*;
 
-#[cfg(all(
-    target_pointer_width = "64",
-    not(feature = "force-32bit-limbs")
-))]
+#[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 #[inline(always)]
 pub fn cmovne<const N: usize>(
     a: &mut [crate::runtime::algebra::limb::Limb; N],
@@ -265,7 +262,9 @@ impl Gf2_128 {
 
     #[inline(always)]
     pub fn xor_in_place(&mut self, other: &Self) {
-        unsafe { self.0 = xor_poly(self.0, other.0); }
+        unsafe {
+            self.0 = xor_poly(self.0, other.0);
+        }
     }
 
     #[inline(always)]

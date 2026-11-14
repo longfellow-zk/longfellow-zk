@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::algebra::ElementOf;
-
-use crate::compile::algebra::field::CompileField;
+use crate::{compile::algebra::field::CompileField, core::algebra::ElementOf};
 
 pub fn newton_of_lagrange<F: CompileField>(
     f: &F,

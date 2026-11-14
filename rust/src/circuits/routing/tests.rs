@@ -13,7 +13,6 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
 use crate::{
     circuits::{
         bitvec::{Bitvec, BitvecIO, BitvecLogic},

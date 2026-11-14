@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::field::{CompileField, SupportsNatConversions};
-use crate::core::algebra::SupportsU64Conversions;
+use crate::{
+    compile::algebra::field::{CompileField, SupportsNatConversions},
+    core::algebra::SupportsU64Conversions,
+};
 
 /// Bundles all compile-time field requirements for `EcdsaCircuit`.
 pub trait EcdsaCompileField<const W: usize>:

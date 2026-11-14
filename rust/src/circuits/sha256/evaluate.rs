@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::compile::logic::Logic;
-
 use super::{
     circuit::{Derived, Given},
     concrete::{ConcreteDerived, ConcreteGiven},
 };
+use crate::{circuits::bitvec::BitvecLogic, compile::logic::Logic};
 
 pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> Given<L> {
     let input_block = std::array::from_fn(|i| bv.of_u32(given.input_block[i]));

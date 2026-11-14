@@ -28,8 +28,8 @@ use crate::runtime::{
         sumcheck::{
             hquad::HQuad,
             proof::{SumcheckProof, SumcheckProofGeometry},
-            transcript::TranscriptSumcheck,
             round_data::{LayerVerifierData, RoundCoefficients, VerifierData},
+            transcript::TranscriptSumcheck,
             LagrangeBasis,
         },
         transcript::Transcript,

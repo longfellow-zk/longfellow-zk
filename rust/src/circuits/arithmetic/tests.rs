@@ -13,12 +13,17 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
-use crate::circuits::arithmetic::Arithmetic;
-use crate::circuits::boolean::{Bitw, Boolean, BooleanIO};
-use crate::compile::algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field};
-use crate::compile::logic::{eval::EvalLogic, Eltw, Logic};
-use crate::core::algebra::SerializableField;
+use crate::{
+    circuits::{
+        arithmetic::Arithmetic,
+        boolean::{Bitw, Boolean, BooleanIO},
+    },
+    compile::{
+        algebra::{field::CompileField, gf2_128::Gf2_128Field, p256::P256Field},
+        logic::{eval::EvalLogic, Eltw, Logic},
+    },
+    core::algebra::SerializableField,
+};
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
     let (circuit, stats, _symbols) = compile(f, |iologic| {
@@ -165,9 +170,7 @@ fn of_u64<L: Logic>(boolean: &Boolean<L>, n: usize, z: u64) -> Vec<Bitw<L>> {
 }
 
 fn assert_eq_bits<L: Logic>(boolean: &Boolean<L>, want: &[Bitw<L>], got: &[Bitw<L>])
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     assert_eq!(want.len(), got.len());
     for i in 0..want.len() {
         let w = boolean.as_eltw(&want[i]);
@@ -177,9 +180,7 @@ where
 }
 
 fn test_add_eval_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -195,9 +196,7 @@ where
 }
 
 fn test_sub_eval_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -213,9 +212,7 @@ where
 }
 
 fn test_lt_eval_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -232,9 +229,7 @@ where
 }
 
 fn test_leq_eval_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -255,9 +250,7 @@ where
 }
 
 fn test_eq_eval_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 
@@ -295,9 +288,7 @@ fn test_exactly_one_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 }
 
 fn test_empty_vectors_relations_for_logic<L: Logic>(logic: &L)
-where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
+where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
     let arith = Arithmetic::new(logic);
 

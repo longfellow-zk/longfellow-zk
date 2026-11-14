@@ -62,8 +62,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
 
     let mut sha_derived = Vec::with_capacity(MAX_BLOCKS);
     for b in 0..MAX_BLOCKS {
-        let wit_wires =
-            crate::circuits::sha256::evaluate_derived(&derived.sha_derived[b], &bv);
+        let wit_wires = crate::circuits::sha256::evaluate_derived(&derived.sha_derived[b], &bv);
         sha_derived.push(wit_wires);
     }
 
@@ -125,8 +124,7 @@ fn test_exploit_nblocks_too_large() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires =
-        crate::circuits::sha256::evaluate_derived(&derived.sha_derived[0], &bv);
+    let wit_wires = crate::circuits::sha256::evaluate_derived(&derived.sha_derived[0], &bv);
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();
@@ -159,8 +157,7 @@ fn test_exploit_nblocks_zero() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires =
-        crate::circuits::sha256::evaluate_derived(&derived.sha_derived[0], &bv);
+    let wit_wires = crate::circuits::sha256::evaluate_derived(&derived.sha_derived[0], &bv);
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();

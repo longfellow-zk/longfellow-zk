@@ -18,7 +18,6 @@
 use core::arch::asm;
 
 #[cfg(feature = "arm-neon")]
-
 mod neon;
 #[cfg(feature = "arm-neon")]
 pub use neon::{gf2_128_accum_reduce, gf2_128_mac, gf2_128_mul, Gf2_128, Gf2_128Accum};

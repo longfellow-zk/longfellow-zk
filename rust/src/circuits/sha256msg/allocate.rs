@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::compile::logic::LogicIO;
-
 use super::circuit::{Derived, Given};
+use crate::{circuits::bitvec::BitvecLogic, compile::logic::LogicIO};
 
 pub fn allocate_given<L: LogicIO, const MAX_BLOCKS: usize>(
     bv: &BitvecLogic<L>,

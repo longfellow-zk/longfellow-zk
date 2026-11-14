@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::circuits::sha256::{derived, evaluate_derived, evaluate_given, ConcreteGiven, Sha256};
-use crate::compile::algebra::gf2_128::Gf2_128Field;
-use crate::compile::logic::eval::EvalLogic;
-
 use super::test_support;
+use crate::{
+    circuits::{
+        bitvec::BitvecLogic,
+        sha256::{derived, evaluate_derived, evaluate_given, ConcreteGiven, Sha256},
+    },
+    compile::{algebra::gf2_128::Gf2_128Field, logic::eval::EvalLogic},
+};
 
 #[test]
 fn test_eval_sha256() {

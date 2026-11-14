@@ -14,11 +14,12 @@
 
 mod circuit;
 
-pub use crate::mdoc::proto::mso_attribute::constants;
 pub use circuit::{
     AttrIndex, AttrSlice, AttributeVerifier, Derived, DisclosedAttribute, FieldLocator, Given,
     Slice,
 };
+
+pub use crate::mdoc::proto::mso_attribute::constants;
 
 cfg_testonly! {
     mod allocate;
@@ -31,4 +32,3 @@ cfg_testonly! {
         evaluate::{evaluate_derived, evaluate_given},
     };
 }
-

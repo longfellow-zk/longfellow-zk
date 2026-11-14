@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::bitvec::BitvecLogic;
-use crate::compile::logic::Logic;
-
 use super::{circuit::Given as WireGiven, concrete::ConcreteGiven};
+use crate::{circuits::bitvec::BitvecLogic, compile::logic::Logic};
 
 pub fn evaluate_given<L: Logic>(given: &ConcreteGiven, bv: &BitvecLogic<L>) -> WireGiven<L> {
     let v = bv.of_u8(given.v);

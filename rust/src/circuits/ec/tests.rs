@@ -13,20 +13,23 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
-use crate::circuits::ec::{
-    concrete::{add, affine, double, projective, push_pt2, scalar_mul},
-    pt2_wires, EcCircuit,
+use crate::{
+    circuits::ec::{
+        concrete::{add, affine, double, projective, push_pt2, scalar_mul},
+        pt2_wires, EcCircuit,
+    },
+    compile::{
+        algebra::{
+            field::{CompileField, CompilePrimeField, SupportsNatConversions},
+            p256::P256Field,
+            secp256r1::Secp256r1,
+            Curve,
+        },
+        logic::{concrete::push_eltw, Logic, LogicIO},
+    },
+    core::algebra::{Nat, SerializableField},
+    runtime::algebra::field::RuntimeField,
 };
-use crate::compile::algebra::{
-    field::{CompileField, CompilePrimeField, SupportsNatConversions},
-    p256::P256Field,
-    secp256r1::Secp256r1,
-    Curve,
-};
-use crate::compile::logic::{concrete::push_eltw, Logic, LogicIO};
-use crate::core::algebra::{Nat, SerializableField};
-use crate::runtime::algebra::field::RuntimeField;
 
 fn test_compile_ec_generic<
     const W: usize,

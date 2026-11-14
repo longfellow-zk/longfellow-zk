@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::compile::algebra::{
-    field::{CompileField, SupportsU64Conversions},
-    gf2_128::{Gf2_128, Gf2_128Field},
+use crate::{
+    compile::algebra::{
+        field::{CompileField, SupportsU64Conversions},
+        gf2_128::{Gf2_128, Gf2_128Field},
+    },
+    core::algebra::{AlgebraicField, SerializableField},
 };
-use crate::core::algebra::{AlgebraicField, SerializableField};
 
 #[test]
 fn test_constants_and_equality() {

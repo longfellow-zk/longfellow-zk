@@ -13,13 +13,16 @@
 // limitations under the License.
 #[allow(unused_imports)]
 use crate::compile::compiler::tests::source_fixture::compile;
-
-use crate::circuits::lookup::Lookup;
-use crate::compile::algebra::{
-    field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
-    p256::P256Field,
+use crate::{
+    circuits::lookup::Lookup,
+    compile::{
+        algebra::{
+            field::{CompileField, SupportsNatConversions, SupportsU64Conversions},
+            p256::P256Field,
+        },
+        logic::{Logic, LogicIO},
+    },
 };
-use crate::compile::logic::{Logic, LogicIO};
 
 #[test]
 fn test_compile_lookup() {

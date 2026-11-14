@@ -297,5 +297,4 @@ pub fn gf2_128_accum_reduce(acc: &Gf2_128Accum) -> Gf2_128 {
 }
 
 #[cfg(test)]
-
 mod tests;
