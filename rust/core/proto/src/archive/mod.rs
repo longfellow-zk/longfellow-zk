@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod codec;
 pub mod lfa1;
 pub mod lfa2;
 
 use std::io::BufRead;
 
-pub use lfa2::LFA2_MAGIC;
 use sha2::{Digest, Sha256};
 
 pub const LFA_VERSION: u8 = 1;
+pub const LFA2_MAGIC: &[u8; 4] = b"LFA2";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArchiveEntry {
@@ -139,48 +140,6 @@ impl CircuitArchive {
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&ArchiveEntry> {
         self.entries.iter().find(|e| e.name == name)
-    }
-
-    /// Default serialization to LFA2 format.
-    #[must_use]
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes_lfa2()
-    }
-
-    /// Serializes to LFA2 format (with metadata fields).
-    #[must_use]
-    pub fn to_bytes_lfa2(&self) -> Vec<u8> {
-        lfa2::writer::to_bytes_lfa2(self)
-    }
-
-    /// Serializes to LFA1 format (legacy minimal format without header metadata).
-    /// Asserts that no metadata information is lost.
-    #[must_use]
-    pub fn to_bytes_lfa1(&self) -> Vec<u8> {
-        lfa1::writer::to_bytes_lfa1(self)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        let mut cursor = bytes;
-        Self::from_stream(&mut cursor)
-    }
-
-    pub fn from_stream<R: BufRead>(stream: &mut R) -> Result<Self, String> {
-        let buf = stream
-            .fill_buf()
-            .map_err(|e| format!("Incomplete header: missing bytes: {e}"))?;
-
-        if buf.starts_with(LFA2_MAGIC) {
-            stream.consume(4);
-            lfa2::reader::from_stream_lfa2_body(stream)
-        } else if !buf.is_empty() && buf[0] == 1 {
-            lfa1::reader::from_stream_lfa1(stream)
-        } else {
-            Err(format!(
-                "Unsupported archive header: expected b\"LFA2\" magic or 0x01 (LFA1), got {:?}",
-                buf.get(..4)
-            ))
-        }
     }
 }
 

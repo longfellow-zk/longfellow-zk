@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use crate::core::proto::archive::LFA2_MAGIC;
 use crate::core::proto::{archive::CircuitArchive, uleb::serialize_uleb128};
-
-pub const LFA2_MAGIC: &[u8; 4] = b"LFA2";
 
 /// Serializes a `CircuitArchive` to LFA2 format (with metadata header and circuit_version).
 pub fn to_bytes_lfa2(archive: &CircuitArchive) -> Vec<u8> {

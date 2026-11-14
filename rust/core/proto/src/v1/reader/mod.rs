@@ -14,37 +14,17 @@
 
 //! V1-only LFC1/LFC2 parsing.
 
+mod circuit_reader;
 mod lfc1;
 mod lfc2;
 
-use super::{Circuit, RawCircuit};
-use crate::core::proto::{reader::*, FieldID, SerializableField};
+use circuit_reader::validate_raw_circuit;
+pub use circuit_reader::CircuitReader;
 
-pub struct CircuitReader<'a, F> {
-    pub(super) f: &'a F,
-    pub(super) field_id: FieldID,
-    pub(super) max_total_terms: usize,
-}
+use super::Circuit;
+use crate::core::proto::{reader::*, SerializableField};
 
-impl<'a, F: SerializableField> CircuitReader<'a, F> {
-    pub fn new(f: &'a F, field_id: FieldID) -> Self {
-        Self {
-            f,
-            field_id,
-            max_total_terms: MAX_TOTAL_TERMS,
-        }
-    }
-
-    /// Override the total expanded term budget for this reader. The default is
-    /// 20 million. Raising this limit increases the work allowed for a circuit;
-    /// use a larger budget only for trusted inputs or with an appropriate
-    /// external resource limit. All other reader limits remain in effect.
-    #[must_use]
-    pub fn with_total_term_limit(mut self, max_total_terms: usize) -> Self {
-        self.max_total_terms = max_total_terms;
-        self
-    }
-
+impl<F: SerializableField> CircuitReader<'_, F> {
     pub fn from_bytes<'b>(
         &self,
         bytes: &'b [u8],
@@ -129,31 +109,4 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         }
         lfc2::from_stream_lfc2_inner(self, stream, enforce_circuit_id)
     }
-}
-
-pub(super) fn validate_raw_circuit<F: SerializableField>(
-    raw: &RawCircuit<F>,
-) -> Result<(), String> {
-    if raw.noutput > MAX_WIRES {
-        return Err(format!("Excessive noutput: {}", raw.noutput));
-    }
-    if raw.npublic_input > MAX_WIRES {
-        return Err(format!("Excessive npublic_input: {}", raw.npublic_input));
-    }
-    if raw.ninput > MAX_WIRES {
-        return Err(format!("Excessive ninput: {}", raw.ninput));
-    }
-    if raw.npublic_input > raw.ninput {
-        return Err(format!(
-            "Invalid public input count: npublic_input ({}) exceeds ninput ({})",
-            raw.npublic_input, raw.ninput
-        ));
-    }
-    if raw.constants.len() > MAX_CONSTANTS {
-        return Err(format!("Excessive constants: {}", raw.constants.len()));
-    }
-    if raw.layers.len() > MAX_LAYERS {
-        return Err(format!("Excessive layers: {}", raw.layers.len()));
-    }
-    Ok(())
 }
