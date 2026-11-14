@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 
 const PRF: u32 = 0;
 const STRAND: u32 = 1;
-const BLOCK_BYTES: usize = 32;
+pub(super) const BLOCK_BYTES: usize = 32;
 
 /// An absorbing strand. Finalization consumes it; it cannot be cloned or reset.
 #[doc = include_str!("../tests/strand_compile_fail.md")]

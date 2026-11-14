@@ -18,6 +18,9 @@ use crate::{
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 const MAX_FIELD_BYTES: usize = 128;
 
+/// A complete proof ends in one final seal: the next block of the ended strand.
+pub(super) const SEAL_BYTES: usize = super::strand::BLOCK_BYTES;
+
 // Schedule instrumentation has no storage or behavior in production builds.
 #[cfg(test)]
 #[derive(Default)]
@@ -86,7 +89,7 @@ impl Transcript {
     ) -> T {
         self.borrow().round(label, f)
     }
-    pub(super) fn compute_final_seal(mut self, body: &[u8]) -> [u8; 32] {
+    pub(super) fn compute_final_seal(mut self, body: &[u8]) -> [u8; SEAL_BYTES] {
         self.absorb(|w| {
             w.write_bytes(b"longfellow/transcript/v2/final");
             w.write_bytes(body);

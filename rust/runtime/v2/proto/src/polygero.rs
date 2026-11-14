@@ -23,6 +23,14 @@ use std::io::{Error, ErrorKind, Result};
 use super::{read_field, Digest, MerkleProof, NONCE_LEN};
 use crate::core::algebra::SerializableField;
 
+/// Upper bound on every Polygero dimension and on the committed cell count.
+const MAX_SIZE: usize = 1 << 28;
+
+/// The most frontier digests one opened column contributes: one per tree level.
+fn frontier_per_query(n: usize) -> usize {
+    n.next_power_of_two().trailing_zeros() as usize + 1
+}
+
 /// Public dimensions of a nonrecursive invocation, selected by the caller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PolygeroConfig {
@@ -51,7 +59,7 @@ impl PolygeroGeometry {
     }
     pub(crate) fn validate(&self) -> Result<()> {
         let invalid = || Error::new(ErrorKind::InvalidInput, "invalid Polygero geometry");
-        if self.sizes().iter().any(|&x| x > (1 << 28))
+        if self.sizes().iter().any(|&x| x > MAX_SIZE)
             || self.k == 0
             || self.t >= self.k
             || self.t == 0
@@ -63,7 +71,7 @@ impl PolygeroGeometry {
         }
         self.nrow()
             .checked_mul(self.n)
-            .filter(|&x| x <= (1 << 28))
+            .filter(|&x| x <= MAX_SIZE)
             .ok_or_else(invalid)?;
         Ok(())
     }
@@ -174,9 +182,9 @@ fn invalid(message: &str) -> Error {
 pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
     if t == 0
         || t > n
-        || n > (1 << 28)
+        || n > MAX_SIZE
         || p.nonce.len() != t
-        || t.checked_mul(n.next_power_of_two().trailing_zeros() as usize + 1)
+        || t.checked_mul(frontier_per_query(n))
             .is_none_or(|max| p.path.len() > max)
     {
         return Err(invalid("joint opening shape"));
@@ -212,7 +220,7 @@ impl<B> JointPolygeroProof<B> {
         n: usize,
         read_bodies: impl FnOnce(&mut &[u8]) -> std::result::Result<B, E>,
     ) -> std::result::Result<Self, E> {
-        if t == 0 || t > n || n > (1 << 28) {
+        if t == 0 || t > n || n > MAX_SIZE {
             return Err(invalid("joint opening geometry").into());
         }
         if bytes.get(..4) != Some(b"JPG2") || bytes.get(4..36) != Some(context.data.as_slice()) {
@@ -229,11 +237,7 @@ impl<B> JointPolygeroProof<B> {
             return Err(invalid("truncated joint opening").into());
         }
         let nonce = MerkleProof::read_nonces(bytes, t)?;
-        let path = MerkleProof::read_path(
-            bytes,
-            t,
-            n.next_power_of_two().trailing_zeros() as usize + 1,
-        )?;
+        let path = MerkleProof::read_path(bytes, t, frontier_per_query(n))?;
         Ok(Self {
             context: *context,
             bodies,
