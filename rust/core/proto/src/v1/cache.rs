@@ -14,7 +14,12 @@
 
 use std::ops::BitXor;
 
-use crate::core::proto::v1::TermDelta;
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
+pub struct TermDelta {
+    pub g: u32,
+    pub h: [u32; 2],
+    pub k_index: u32,
+}
 
 /// A single entry slot in our two-way set-associative LRU cache.
 #[derive(Clone, Copy, Default)]

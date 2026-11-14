@@ -14,15 +14,8 @@
 
 use std::fmt;
 
-use super::Term;
+use super::{Term, TermDelta};
 use crate::core::algebra::SerializableField;
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
-pub struct TermDelta {
-    pub g: u32,
-    pub h: [u32; 2],
-    pub k_index: u32,
-}
 
 pub struct Layer<F: SerializableField> {
     pub(in crate::core::proto) nw: usize,

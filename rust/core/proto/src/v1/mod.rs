@@ -21,8 +21,9 @@ pub mod reader;
 mod term;
 pub mod writer;
 
+pub use cache::TermDelta;
 pub use circuit::{compute_id, Circuit, RawCircuit, BYTES_PER_SIZE_T};
-pub use layer::{compare_term, Layer, TermDelta};
+pub use layer::{compare_term, Layer};
 pub use reader::CircuitReader;
 pub use term::{canonical_term, Term};
 pub use writer::CircuitWriter;
