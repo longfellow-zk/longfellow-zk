@@ -23,7 +23,7 @@ use crate::{
             attribute::{circuit_supports, same_namespace},
             inputs::{
                 public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash,
-                push_witness_sig,
+                push_witness_sig, session_transcript_is_one_item,
             },
             key::parse_pk_coordinate,
             MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
@@ -122,6 +122,9 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     }
     if !same_namespace(attrs) {
         return Err(MdocProverErrorCode::NamespacesMissing);
+    }
+    if !session_transcript_is_one_item(transcript) {
+        return Err(MdocProverErrorCode::InvalidInput);
     }
     if !public_inputs_fit(attrs, now.as_bytes(), doc_type.as_bytes()) {
         return Err(MdocProverErrorCode::InvalidInput);

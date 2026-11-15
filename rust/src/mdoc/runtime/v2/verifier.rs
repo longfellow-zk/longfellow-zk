@@ -22,7 +22,9 @@ use crate::{
         circuits::cbor::mdoc::compute_transcript_hash,
         v2::{
             attribute::{circuit_supports, same_namespace},
-            inputs::{public_inputs_fit, push_input_hash, push_input_sig},
+            inputs::{
+                public_inputs_fit, push_input_hash, push_input_sig, session_transcript_is_one_item,
+            },
             key::parse_pk_coordinate,
             MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
         },
@@ -61,6 +63,9 @@ pub fn run_mdoc_verifier(
     }
     if !same_namespace(attrs) {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
+    }
+    if !session_transcript_is_one_item(transcript) {
+        return Err(MdocVerifierErrorCode::InvalidInput);
     }
     // Keep the established predicate-failure code, but reject before loading
     // circuits or parsing an otherwise irrelevant proof.

@@ -29,6 +29,94 @@ use crate::{
     },
 };
 
+/// A session transcript that is one CBOR item, the text string "inputs", so
+/// that the early-rejection tests fail for the input they vary.
+const SESSION: &[u8] = b"\x66inputs";
+
+#[test]
+fn session_transcript_must_be_one_cbor_item() {
+    let spec = &v2_spec();
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let now = "2026-10-23T00:00:00Z";
+    let valid = TEST_DATA.transcript;
+    let mut two_items = valid.to_vec();
+    two_items.extend_from_slice(valid);
+    let mut trailing = valid.to_vec();
+    trailing.push(0xff);
+    let invalid: [&[u8]; 6] = [
+        &[],
+        &valid[..valid.len() - 1],
+        &valid[..1],
+        &two_items,
+        &[0xf6, 0xf6],
+        &trailing,
+    ];
+    for transcript in invalid {
+        assert!(!super::session_transcript_is_one_item(transcript));
+        let mut rng = DeterministicRng::new(42);
+        // Deliberately invalid circuit and document bytes: validation must run first.
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                &[],
+                &[],
+                "0",
+                "0",
+                transcript,
+                &attrs,
+                now,
+                "doc",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::InvalidInput),
+            "prover accepted session transcript {transcript:02x?}"
+        );
+        assert_eq!(rng.state, 42);
+        assert_eq!(
+            run_mdoc_verifier(spec, &[], "0", "0", transcript, &attrs, now, "doc", &[]),
+            Err(MdocVerifierErrorCode::InvalidInput),
+            "verifier accepted session transcript {transcript:02x?}"
+        );
+    }
+    // A valid transcript passes the request check and reaches circuit loading.
+    for transcript in [valid, SESSION, &[0xf6]] {
+        assert!(super::session_transcript_is_one_item(transcript));
+        let mut rng = DeterministicRng::new(42);
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                &[],
+                &[],
+                "0",
+                "0",
+                transcript,
+                &attrs,
+                now,
+                "doc",
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::CircuitParsingFailure)
+        );
+        assert_eq!(
+            run_mdoc_verifier(spec, &[], "0", "0", transcript, &attrs, now, "doc", &[]),
+            Err(MdocVerifierErrorCode::CircuitParsingFailure)
+        );
+    }
+}
+
+#[test]
+fn fixture_session_transcripts_are_single_cbor_items() {
+    use crate::mdoc::testcases::ALL_TEST_CASES;
+    assert!(super::session_transcript_is_one_item(TEST_DATA.transcript));
+    for case in ALL_TEST_CASES {
+        assert!(
+            super::session_transcript_is_one_item(case.data.transcript),
+            "{}",
+            case.name
+        );
+    }
+}
+
 #[test]
 fn namespace_capacity_and_encoding_are_checked_before_proving() {
     use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
@@ -43,7 +131,7 @@ fn namespace_capacity_and_encoding_are_checked_before_proving() {
                 &[],
                 "0",
                 "0",
-                b"inputs",
+                SESSION,
                 &attrs,
                 "2026-10-23T00:00:00Z",
                 "doc",
@@ -58,7 +146,7 @@ fn namespace_capacity_and_encoding_are_checked_before_proving() {
                 &[],
                 "0",
                 "0",
-                b"inputs",
+                SESSION,
                 &attrs,
                 "2026-10-23T00:00:00Z",
                 "doc",
@@ -172,7 +260,7 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
                 &[],
                 "0",
                 "0",
-                b"inputs",
+                SESSION,
                 &attrs,
                 time,
                 doc_type,
@@ -190,7 +278,7 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
             MdocVerifierErrorCode::AttributeNumberMismatch
         };
         assert_eq!(
-            run_mdoc_verifier(spec, &[], "0", "0", b"inputs", &attrs, time, doc_type, &[],),
+            run_mdoc_verifier(spec, &[], "0", "0", SESSION, &attrs, time, doc_type, &[],),
             Err(expected)
         );
     }

@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::encode_cbor_string,
+        circuits::cbor::{encode_cbor_string, parse::CborParser},
         proto::{
             hash::constants::{
                 K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
@@ -48,6 +48,16 @@ pub(in crate::mdoc::runtime::v2) fn timestamp_digits(value: &[u8]) -> Option<[u8
         return None;
     }
     Some(K_TIMESTAMP_DIGITS.map(|i| value[i]))
+}
+
+/// Whether the session transcript is exactly one CBOR item. `e2` signs
+/// `DeviceAuthentication`, where the transcript is followed directly by
+/// `tstr(doc_type)`. A single item is self-delimiting, so the preimage
+/// determines the (session transcript, document type) pair; empty, truncated,
+/// concatenated or trailing bytes could shift that boundary. Both roles
+/// reject such a transcript before loading circuits.
+pub(in crate::mdoc::runtime::v2) fn session_transcript_is_one_item(transcript: &[u8]) -> bool {
+    CborParser::new(transcript).parse_exact().is_ok()
 }
 
 /// Reject caller data that would be truncated by the fixed public-input slots.

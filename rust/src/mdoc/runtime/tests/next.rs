@@ -479,13 +479,12 @@ fn run_next_verifier_negative_cases(test_circuits: &TestCircuits) {
         "Verifier should reject wrong PKY"
     );
 
-    // 3. Wrong Transcript
+    // 3. Wrong Transcript: still one CBOR item, so it passes the request
+    // check, but byte 5 changes the case of the first letter of the handover
+    // type text, "BrowserHandover".
     let mut bad_transcript = transcript.to_vec();
-    if bad_transcript.is_empty() {
-        bad_transcript.push(0xff);
-    } else {
-        bad_transcript[0] ^= 0xff;
-    }
+    assert_eq!(&bad_transcript[3..6], &[0x84, 0x71, b'B']);
+    bad_transcript[5] ^= 0x20;
     assert_eq!(
         run_mdoc_verifier(
             provided.spec(),
