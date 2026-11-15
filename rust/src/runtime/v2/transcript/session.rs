@@ -183,6 +183,11 @@ impl Transcript {
     pub(super) fn session(&self) -> SessionStamp {
         self.session.clone()
     }
+    /// Whether `stamp` is this session's identity.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(super) fn is_session(&self, stamp: &SessionStamp) -> bool {
+        self.session == *stamp
+    }
     /// Write one message: its tag, then its values. A message ends the
     /// current stream: the next draw ends the node.
     pub(super) fn send_message<M: Message + ?Sized>(&mut self, m: &M) {

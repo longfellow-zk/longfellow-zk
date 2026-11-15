@@ -70,6 +70,31 @@ fn a_challenge_from_another_transcript_is_rejected() {
 }
 
 #[test]
+fn a_challenge_from_a_session_with_an_equal_history_is_rejected() {
+    // Equal statements and messages give equal positions and equal values;
+    // only the session identity tells the sessions apart.
+    let part = [0u8; 3];
+    let mut a = Transcript::for_test(b"bound/equal");
+    let mut b = Transcript::for_test(b"bound/equal");
+    let from_a = draw(&mut a.bound(&part));
+    let own = draw(&mut b.bound(&part));
+    assert!(a.position() == b.position());
+    let bb = b.bound(&part);
+    assert_eq!(bb.accept(from_a).unwrap_err(), StaleChallenge);
+    let value = bb.accept(own).unwrap();
+    // A fork has the same history and a fresh identity.
+    let mut fork = a.fork_for_test();
+    let from_fork = draw(&mut fork.bound(&part));
+    let at_a = draw(&mut a.bound(&part));
+    let ab = a.bound(&part);
+    assert_eq!(ab.accept(from_fork).unwrap_err(), StaleChallenge);
+    assert!(ab.accept(at_a).is_ok());
+    let mut plain = Transcript::for_test(b"bound/equal");
+    plain.send_for_test(b"message");
+    assert_eq!(value, plain.bytes(16));
+}
+
+#[test]
 fn every_session_has_its_own_stamp() {
     let part = ();
     let mut a = Transcript::for_test(b"bound/session");

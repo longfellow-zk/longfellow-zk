@@ -305,6 +305,6 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
     let (stale, _, _, _) = run(true);
     assert_eq!(
         stale.err().unwrap(),
-        "challenge drawn at another transcript position"
+        "challenge drawn on another session or at another position"
     );
 }
