@@ -427,12 +427,11 @@ fn exercise<
             assert!(verify(&proof, &b, &a, &bad).is_err());
         }
         {
-            // The frontier is the rest of the body, so only a cut of whole
-            // digests can parse; verification then rejects it.
-            for length in (0..32).chain([bytes.len() / 2, bytes.len() - 1, bytes.len() - 32]) {
+            // The frontier carries its count, so every cut fails to parse.
+            for length in 0..bytes.len() {
                 assert!(
-                    joint.read(&mut &bytes[..length]).is_err()
-                        || (bytes.len() - length).is_multiple_of(32)
+                    joint.read(&mut &bytes[..length]).is_err(),
+                    "length {length}"
                 );
             }
         }

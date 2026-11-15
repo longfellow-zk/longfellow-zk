@@ -136,7 +136,7 @@ impl CircuitGeometry {
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl ZkProofGeometry {
-    /// Bytes of every body field but the frontier: root, fingerprints,
+    /// Bytes of every body field before the frontier and its count: root, fingerprints,
     /// circuit proof, response, rows and nonces (proto I3).
     fn fixed_len(&self, width: usize) -> Option<usize> {
         let g = &self.circuit.com_geom;
@@ -156,7 +156,8 @@ impl ZkProofGeometry {
 impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     pub const MAGIC: [u8; 4] = *b"LFV9";
     /// `LFV9`, then the body in send order: root, fingerprints, sumcheck,
-    /// packing, response; then the terminal rows, nonces and frontier.
+    /// packing, response; then the terminal rows, nonces and frontier (its
+    /// count, then its digests).
     fn write_body(&self, buf: &mut Vec<u8>, g: &ZkProofGeometry, f: &F) -> std::io::Result<()> {
         buf.extend_from_slice(&Self::MAGIC);
         buf.extend_from_slice(&self.com.root.data);

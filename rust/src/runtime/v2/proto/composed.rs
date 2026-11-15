@@ -7,7 +7,7 @@
 //! fields' fingerprint responses, the split sumcheck, the split message
 //! `mu`, the adapter's message, the host sumcheck and packing, both
 //! Polygero responses; then the terminal section: both fields' opened rows,
-//! the nonces and the frontier, which is the rest of the body.
+//! the nonces and the frontier, its u64 count first.
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
@@ -69,8 +69,8 @@ impl<
         M: AdapterMessage,
     > ComposedProof<WH, H, WS, S, M>
 {
-    /// Bytes of every body field but the frontier (proto I3); None if they
-    /// overflow.
+    /// Bytes of every body field before the frontier and its count (proto
+    /// I3); None if they overflow.
     pub fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize> {
         let (wh, ws) = (h.serialized_size_bytes(), s.serialized_size_bytes());
         let [host_response, host_rows] = FieldProof::<()>::wire_lengths(&g.host.com_geom, wh)?;

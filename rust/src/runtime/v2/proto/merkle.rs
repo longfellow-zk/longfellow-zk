@@ -77,16 +77,17 @@ impl MerkleProof {
         Ok(nonce)
     }
 
-    /// Writes the frontier: its raw digests, with no count. It is the last
-    /// field of a proof body, so its length is the rest of the body.
+    /// Writes the frontier: a u64 little-endian count of digests, then the
+    /// raw digests.
     pub(in crate::runtime::v2) fn write_path(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(&(self.path.len() as u64).to_le_bytes());
         for d in &self.path {
             buf.extend_from_slice(&d.data);
         }
     }
 
-    /// Reads the frontier: every remaining byte, as at most
-    /// `num_queries * mc_pathlen` digests.
+    /// Reads the frontier: its u64 count, at most `num_queries * mc_pathlen`,
+    /// then that many digests. Bytes after them are left to the caller.
     pub(in crate::runtime::v2) fn read_path(
         bytes: &mut &[u8],
         num_queries: usize,
@@ -98,17 +99,24 @@ impl MerkleProof {
                 "Overflow computing max Merkle path size",
             )
         })?;
-        if !bytes.len().is_multiple_of(DIGEST_LEN) || bytes.len() / DIGEST_LEN > max_sz {
-            return Err(std::io::Error::new(
+        let invalid = || {
+            std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!(
-                    "Invalid Merkle frontier size: {} bytes (max {max_sz} digests)",
-                    bytes.len()
-                ),
-            ));
+                format!("Invalid Merkle frontier count (max {max_sz} digests)"),
+            )
+        };
+        let (word, rest) = bytes.split_first_chunk::<8>().ok_or_else(invalid)?;
+        let count = usize::try_from(u64::from_le_bytes(*word)).map_err(|_| invalid())?;
+        if count > max_sz
+            || count
+                .checked_mul(DIGEST_LEN)
+                .is_none_or(|len| len > rest.len())
+        {
+            return Err(invalid());
         }
-        let mut path = Vec::with_capacity(bytes.len() / DIGEST_LEN);
-        while !bytes.is_empty() {
+        *bytes = rest;
+        let mut path = Vec::with_capacity(count);
+        for _ in 0..count {
             path.push(Digest {
                 data: read_bytes_32(bytes)?,
             });

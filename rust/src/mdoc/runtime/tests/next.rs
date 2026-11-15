@@ -1204,6 +1204,19 @@ fn check_mdoc_trace(
     let mut session = Transcript::for_test(b"layout");
     let decoded =
         crate::mdoc::v2::MdocProof::read(bytes, &session.bound(&geometry), &gf2, &p256).unwrap();
+    // Every truncation and every extension fails at parse (proto I3).
+    for len in 0..bytes.len() {
+        let cut =
+            crate::mdoc::v2::MdocProof::read(&bytes[..len], &session.bound(&geometry), &gf2, &p256);
+        assert!(cut.is_err(), "length {len}");
+    }
+    for extra in 1..=64 {
+        let mut longer = bytes.to_vec();
+        longer.resize(bytes.len() + extra, 0);
+        let read =
+            crate::mdoc::v2::MdocProof::read(&longer, &session.bound(&geometry), &gf2, &p256);
+        assert!(read.is_err(), "{extra} extra bytes");
+    }
     let polygero = &decoded.body.polygero;
     let (nonces, frontier) = polygero.authentication_bytes();
     let rows = 16 * polygero.bodies().0.rows.len() + 32 * polygero.bodies().1 .0.rows.len();

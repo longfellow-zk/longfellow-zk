@@ -59,8 +59,8 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
     ] {
         let p = proof(&g, &f);
         let bytes = write(&p, &g, &f).unwrap();
-        // The response, then the rows, then the nonces; no magic, no context
-        // and no frontier count.
+        // The response, then the rows, then the nonces, then the frontier's
+        // count (here zero); no magic.
         let offset = (p.bodies.0.h.len() + p.bodies.0.z.len()) * 16;
         let expected = p
             .bodies
@@ -69,11 +69,13 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
             .iter()
             .flat_map(|x| f.to_bytes(x))
             .collect::<Vec<_>>();
-        assert_eq!(&bytes[offset..bytes.len() - NONCE_LEN * g.t], expected);
+        assert_eq!(&bytes[offset..bytes.len() - NONCE_LEN * g.t - 8], expected);
+        assert_eq!(bytes[bytes.len() - 8..], [0; 8]);
         assert_eq!(
             bytes.len(),
             (p.bodies.0.h.len() + p.bodies.0.z.len() + p.bodies.0.rows.len()) * 16
                 + NONCE_LEN * g.t
+                + 8
         );
         assert_eq!(read(&mut bytes.as_slice(), &g, &f).unwrap(), p);
         let mut bad = p.clone();
@@ -90,13 +92,26 @@ fn malformed_frontiers_and_every_truncation_are_rejected() {
     for n in 0..bytes.len() {
         assert!(read(&mut &bytes[..n], &g, &f).is_err(), "length {n}");
     }
-    // The frontier is the rest of the body: a partial digest is rejected.
-    let mut partial = bytes.clone();
-    partial.push(0);
-    assert!(read(&mut partial.as_slice(), &g, &f).is_err());
-    let mut whole = bytes.clone();
-    whole.extend_from_slice(&[0; 32]);
-    assert!(read(&mut whole.as_slice(), &g, &f).is_ok());
+    // The frontier carries its count, so no extension parses either: not a
+    // partial digest, not a whole one, and not a count above the cap.
+    for extra in [1, 31, 32, 33, 64] {
+        let mut longer = bytes.clone();
+        longer.extend(std::iter::repeat_n(0, extra));
+        assert!(
+            read(&mut longer.as_slice(), &g, &f).is_err(),
+            "{extra} extra bytes"
+        );
+    }
+    let mut counted = bytes.clone();
+    let n = counted.len();
+    counted[n - 8] = 1;
+    counted.extend_from_slice(&[0; 32]);
+    assert!(read(&mut counted.as_slice(), &g, &f).is_ok());
+    let cap = g.t * (g.n.next_power_of_two().trailing_zeros() as usize + 1);
+    let mut over = bytes.clone();
+    over[n - 8..].copy_from_slice(&(cap as u64 + 1).to_le_bytes());
+    over.extend(std::iter::repeat_n(0, 32 * (cap + 1)));
+    assert!(read(&mut over.as_slice(), &g, &f).is_err());
 }
 #[test]
 fn noncanonical_ambient_elements_are_rejected() {
@@ -154,19 +169,32 @@ fn oversized_opening_counts_reject_without_allocation() {
 #[test]
 fn the_length_check_bounds_the_frontier_before_decoding() {
     use super::super::polygero::checked_body;
-    // t = 2 columns of n = 16 leaves: at most 2 * 5 frontier digests.
-    let frame = 4 + 10 + 32;
+    // t = 2 columns of n = 16 leaves: at most 2 * 5 frontier digests. The
+    // count follows the 4 + 10 bytes before the frontier.
+    let frame = 4 + 10 + 8 + 32;
+    let proof = |count: u64, digests: usize| {
+        let mut bytes = vec![0u8; 14];
+        bytes.extend(count.to_le_bytes());
+        bytes.resize(frame + 32 * digests, 0);
+        bytes
+    };
     for digests in 0..=10 {
-        let bytes = vec![0u8; frame + 32 * digests];
+        let bytes = proof(digests as u64, digests);
         let body = checked_body(&bytes, 4, 10, 2, 16).unwrap();
-        assert_eq!(body.len(), 10 + 32 * digests);
+        assert_eq!(body.len(), 10 + 8 + 32 * digests);
+        // Every other length fails, whole digests included.
+        for len in 0..bytes.len() + 64 {
+            if len != bytes.len() {
+                let mut other = bytes.clone();
+                other.resize(len, 0);
+                assert!(checked_body(&other, 4, 10, 2, 16).is_err(), "length {len}");
+            }
+        }
     }
-    for len in (0..frame).chain([frame + 1, frame + 31, frame + 33, frame + 32 * 11]) {
-        assert!(
-            checked_body(&vec![0; len], 4, 10, 2, 16).is_err(),
-            "length {len}"
-        );
-    }
+    // A count above the cap, or one too large for usize, fails.
+    assert!(checked_body(&proof(11, 11), 4, 10, 2, 16).is_err());
+    assert!(checked_body(&proof(u64::MAX, 0), 4, 10, 2, 16).is_err());
+    assert!(checked_body(&[0; 64], usize::MAX, 1, 2, 16).is_err());
 }
 
 #[test]
@@ -188,7 +216,7 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
     p.write_nonces(&mut bytes);
     assert_eq!(bytes.len(), NONCE_LEN * nonces.len());
     p.write_path(&mut bytes);
-    assert_eq!(bytes.len(), NONCE_LEN * nonces.len() + 32);
+    assert_eq!(bytes.len(), NONCE_LEN * nonces.len() + 8 + 32);
     let mut input = bytes.as_slice();
     assert_eq!(
         MerkleProof::read_nonces(&mut input, nonces.len()).unwrap(),
@@ -203,7 +231,7 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
         bodies: (),
         opening: p,
     };
-    assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 32));
+    assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 8 + 32));
     // The mdoc profile opens 84 shared columns with one 32-byte salt each.
     assert_eq!(84 * NONCE_LEN, 2688);
 }

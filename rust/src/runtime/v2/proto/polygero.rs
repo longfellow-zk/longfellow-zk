@@ -136,11 +136,11 @@ impl<B> JointPolygeroProof<B> {
     pub fn bodies(&self) -> &B {
         &self.bodies
     }
-    /// Nonce bytes and frontier bytes. The frontier has no length prefix.
+    /// Nonce bytes and frontier bytes, the frontier's u64 count included.
     pub fn authentication_bytes(&self) -> (usize, usize) {
         (
             NONCE_LEN * self.opening.nonce.len(),
-            32 * self.opening.path.len(),
+            8 + 32 * self.opening.path.len(),
         )
     }
 }
@@ -244,9 +244,10 @@ pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usi
     Ok(())
 }
 /// Check a complete proof's length before decoding anything (proto I3):
-/// `len = prefix + fixed + 32 f + 32` with `f <= t (ceil(log2 n) + 1)`
-/// frontier digests, where `fixed` covers every field but the frontier.
-/// Returns the body without the prefix and the seal block.
+/// `len = prefix + fixed + 8 + 32 f + 32`, where `fixed` covers every field
+/// before the frontier and `f`, the u64 frontier count that follows them, is
+/// at most `t (ceil(log2 n) + 1)`. Every truncation and every extension of a
+/// proof fails here. Returns the body without the prefix and the seal block.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) fn checked_body(
     bytes: &[u8],
@@ -258,29 +259,36 @@ pub(crate) fn checked_body(
     if t == 0 || t > n || n > MAX_SIZE {
         return Err(invalid("joint opening geometry"));
     }
-    let frame = prefix
+    let start = prefix
         .checked_add(fixed)
-        .and_then(|x| x.checked_add(SEAL_BYTES))
         .ok_or_else(|| invalid("proof length overflow"))?;
-    let frontier = bytes
-        .len()
-        .checked_sub(frame)
+    let count = bytes
+        .get(start..)
+        .and_then(|rest| rest.first_chunk::<8>())
         .ok_or_else(|| invalid("proof length"))?;
     let cap = t
         .checked_mul(frontier_per_query(n))
         .ok_or_else(|| invalid("frontier capacity overflow"))?;
-    if !frontier.is_multiple_of(32) || frontier / 32 > cap {
+    let expected = usize::try_from(u64::from_le_bytes(*count))
+        .ok()
+        .filter(|&f| f <= cap)
+        .and_then(|f| f.checked_mul(32))
+        .and_then(|x| x.checked_add(8 + SEAL_BYTES))
+        .and_then(|x| x.checked_add(start))
+        .ok_or_else(|| invalid("Merkle frontier count"))?;
+    if bytes.len() != expected {
         return Err(invalid("proof length"));
     }
     Ok(&bytes[prefix..bytes.len() - SEAL_BYTES])
 }
 impl<B> JointPolygeroProof<B> {
-    /// Bytes of the opening without its frontier: one nonce per column.
+    /// Bytes of the opening before its frontier: one nonce per column.
     pub(crate) fn fixed_opening_len(t: usize) -> Option<usize> {
         t.checked_mul(NONCE_LEN)
     }
     /// Write each field's response, then each field's rows, then the nonces,
-    /// then the frontier with no count: the last field of every body.
+    /// then the frontier (its count, then its digests): the last field of
+    /// every body.
     pub(crate) fn write_to_buf<E: From<Error>>(
         &self,
         out: &mut Vec<u8>,
@@ -297,7 +305,7 @@ impl<B> JointPolygeroProof<B> {
         Ok(())
     }
     /// Read the counterpart of `write_to_buf` from the rest of a body whose
-    /// total length the caller checked; the frontier is all that remains.
+    /// total length the caller checked; nothing may follow the frontier.
     pub(crate) fn read<E: From<Error>>(
         bytes: &mut &[u8],
         t: usize,
@@ -312,6 +320,9 @@ impl<B> JointPolygeroProof<B> {
         read_rows(&mut bodies, bytes)?;
         let nonce = MerkleProof::read_nonces(bytes, t)?;
         let path = MerkleProof::read_path(bytes, t, frontier_per_query(n))?;
+        if !bytes.is_empty() {
+            return Err(invalid("bytes after the Merkle frontier").into());
+        }
         Ok(Self {
             bodies,
             opening: MerkleProof { nonce, path },

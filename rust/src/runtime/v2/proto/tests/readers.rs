@@ -6,17 +6,18 @@ use super::super::{
 use crate::core::algebra::{BareField, FieldID, SerializableField};
 
 #[test]
-fn merkle_frontier_is_whole_digests_within_the_checked_path_bound() {
-    let digests = [7u8; 96];
-    assert_eq!(
-        MerkleProof::read_path(&mut &digests[..], 3, 1)
-            .unwrap()
-            .len(),
-        3
-    );
-    assert!(MerkleProof::read_path(&mut &digests[..], 2, 1).is_err());
-    assert!(MerkleProof::read_path(&mut &digests[..95], 3, 1).is_err());
-    assert!(MerkleProof::read_path(&mut &digests[..], usize::MAX, 2).is_err());
+fn merkle_frontier_is_its_count_of_digests_within_the_checked_path_bound() {
+    let mut frontier = 3u64.to_le_bytes().to_vec();
+    frontier.extend([7u8; 96]);
+    frontier.push(9);
+    let mut rest = &frontier[..];
+    assert_eq!(MerkleProof::read_path(&mut rest, 3, 1).unwrap().len(), 3);
+    // The count says where the frontier ends; the caller checks what follows.
+    assert_eq!(rest, [9]);
+    assert!(MerkleProof::read_path(&mut &frontier[..], 2, 1).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..103], 3, 1).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..7], 3, 1).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..], usize::MAX, 2).is_err());
 }
 
 struct ZeroWidth;

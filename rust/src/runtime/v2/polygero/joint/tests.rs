@@ -316,11 +316,11 @@ fn tuple_codec_rejects_noncanonical_field_bytes_and_bad_lengths() {
     let mut bad = bytes.clone();
     let n = bad.len();
     bad[n - 4..].fill(255);
-    assert!(param.read(&mut bad.as_slice()).is_ok()); // a digest may have arbitrary bytes
-                                                      // The frontier is the rest of the body: any
-                                                      // whole number of digests up to the cap
-                                                      // parses, and nothing else does.
-    for extra in [1, 31, 33] {
+    // The seal block may hold any bytes at parse time.
+    assert!(param.read(&mut bad.as_slice()).is_ok());
+    // The frontier carries its count: no extension parses, not even whole
+    // digests.
+    for extra in [1, 31, 32, 33] {
         let mut bad = bytes.clone();
         bad.splice(n - 32..n - 32, vec![0; extra]);
         assert!(
@@ -328,11 +328,22 @@ fn tuple_codec_rejects_noncanonical_field_bytes_and_bad_lengths() {
             "{extra} extra bytes"
         );
     }
+    // With the count adjusted, one more or one fewer digest parses.
+    let count = proof.opening.path.len();
+    assert!(count > 0);
+    let at = n - 32 - 32 * count - 8;
+    let recount = |edited: &mut Vec<u8>, digests: usize| {
+        edited[at..at + 8].copy_from_slice(&(digests as u64).to_le_bytes())
+    };
     let mut longer = bytes.clone();
     longer.splice(n - 32..n - 32, vec![0; 32]);
+    assert!(param.read(&mut longer.as_slice()).is_err());
+    recount(&mut longer, count + 1);
     assert!(param.read(&mut longer.as_slice()).is_ok());
     let mut shorter = bytes;
     shorter.drain(n - 64..n - 32);
+    assert!(param.read(&mut shorter.as_slice()).is_err());
+    recount(&mut shorter, count - 1);
     assert!(param.read(&mut shorter.as_slice()).is_ok());
 }
 #[test]

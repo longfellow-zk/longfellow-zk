@@ -206,7 +206,9 @@ envelope is `mdoc::v2::MdocProof`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
 proofs use `MDA7`: an envelope around the generic composed body
 (`proto::composed`). The magic is the only one, outermost; the body holds only
-prover data in send order, then the terminal rows, nonces and frontier.
+prover data in send order, then the terminal rows, nonces and frontier (a u64
+digest count, then the digests), so the proof length follows from the geometry
+and that count.
 Serialization writes backend data directly into the containing proof buffer.
 V2 uses tagged messages over SHA-256 strands and a mandatory final seal owned by
 the complete-proof encoder; nested circuit and backend bodies have no extra seals.

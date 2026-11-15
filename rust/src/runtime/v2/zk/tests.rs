@@ -202,6 +202,18 @@ fn exercise<
     }
     let mut session = Transcript::new(&vs);
     let decoded = ZkProof::read(&bytes, &session.bound(vs.geometry()), f).unwrap();
+    // Every truncation and every extension fails at parse, before anything
+    // is decoded (proto I3).
+    for len in 0..bytes.len() {
+        let cut = ZkProof::read(&bytes[..len], &session.bound(vs.geometry()), f);
+        assert!(cut.is_err(), "length {len}");
+    }
+    for extra in 1..=64 {
+        let mut longer = bytes.clone();
+        longer.resize(bytes.len() + extra, 0);
+        let read = ZkProof::read(&longer, &session.bound(vs.geometry()), f);
+        assert!(read.is_err(), "{extra} extra bytes");
+    }
     // The proof is exactly the length its geometry and frontier determine.
     let opening = decoded.com_proof.authentication_bytes();
     assert_eq!(
@@ -403,7 +415,7 @@ fn binary_zk_comparison() {
     let all: Vec<u8> = trace.nodes.concat();
     assert_eq!(
         hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&all)),
-        "c8a2fa38b2a4386f4f4488294f058dfc604875a57b04198858461dafbb7bb66b"
+        "603d0edcc9cc520d552079535b92cbdad04970ab07a5b0c290b571c3a55d02df"
     );
 }
 #[test]
