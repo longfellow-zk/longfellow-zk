@@ -268,12 +268,9 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     for x in &mut prover.states.0[z] {
         f.add(x, &f.one());
     }
-    prover.oracle = ColumnOracle::new(
-        g.n,
-        &param.context,
-        &mut DeterministicRng::new(12),
-        |j, h| param.participants.append_encoded(&prover.states, j, h),
-    );
+    prover.oracle = ColumnOracle::new(g.n, &mut DeterministicRng::new(12), |j, h| {
+        param.participants.append_encoded(&prover.states, j, h)
+    });
     let root = PolygeroCommitment {
         root: prover.oracle.root(),
     };
@@ -310,8 +307,8 @@ fn tuple_codec_rejects_noncanonical_field_bytes_and_bad_lengths() {
     .unwrap();
     let proof = prover.prove(&mut t.bound(&param), &(sa, (sb, ()))).unwrap();
     let bytes = param.write(&proof, t.fork_for_test()).unwrap().into_bytes();
-    // The body is the binary response, then the prime response: no magic
-    // and no context.
+    // The body is the binary response, then the prime response, with no
+    // magic.
     let mut bad = bytes.clone();
     let first_prime = (proof.bodies.0.h.len() + proof.bodies.0.z.len()) * 16;
     bad[first_prime..first_prime + 32].fill(255);
@@ -390,7 +387,6 @@ fn participant_order_and_late_errors_are_bound_before_sampling() {
     let (b, wb, sb) = field(&f, &d, 5, config());
     let forward = JointPolygeroParam::new((a.clone(), (b.clone(), ()))).unwrap();
     let reverse = JointPolygeroParam::new((b, (a, ()))).unwrap();
-    assert_ne!(forward.context, reverse.context);
     let mut tp = Transcript::for_test(b"joint/late-error");
     let mut rng = DeterministicRng::new(99);
     let mut before_rng = rng.clone();

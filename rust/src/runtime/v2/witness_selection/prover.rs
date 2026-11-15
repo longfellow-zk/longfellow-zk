@@ -7,7 +7,6 @@ use crate::runtime::{
         proto::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
             witness_selection::{FingerprintResponse, FINGERPRINTS},
-            Digest,
         },
         transcript::{Bound, SessionStamp},
     },
@@ -79,7 +78,6 @@ impl<
 pub struct Prover<S, C, R> {
     backend: JointPolygeroProver<S>,
     session: SessionStamp,
-    context: Digest,
     coefficients: C,
     responses: R,
 }
@@ -115,7 +113,6 @@ where
         Prover {
             backend,
             session: t.session(),
-            context: param.context(),
             coefficients,
             responses: responses.clone(),
         },
@@ -135,9 +132,6 @@ impl<S, C, R> Prover<S, C, R> {
         let param = t.part();
         if self.session != t.session() {
             return Err("witness selection session mismatch".into());
-        }
-        if self.context != param.context() {
-            return Err("witness selection parameter mismatch".into());
         }
         let statements =
             param

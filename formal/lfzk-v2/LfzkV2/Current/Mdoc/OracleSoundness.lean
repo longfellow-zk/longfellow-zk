@@ -38,8 +38,7 @@ theorem setup_merge (outside inside : Bytes → Digest) :
     MdocIdentifiers.setup binary prime cantor scalars
         (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) bounds =
       MdocIdentifiers.setup binary prime cantor scalars (identifiers ids outside) bounds := by
-  unfold MdocIdentifiers.setup MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [StrandDomains.context_merge,StrandDomains.joint_context_merge]
+  rfl
 
 variable {fuel blocks Q : ℕ}
 variable (body : Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)

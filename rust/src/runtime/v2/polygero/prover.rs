@@ -11,10 +11,7 @@ use crate::runtime::{
     },
     random::PrivateRandom,
     v2::{
-        proto::{
-            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
-            Digest,
-        },
+        proto::polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
         transcript::{Bound, SessionStamp},
     },
 };
@@ -22,7 +19,6 @@ use crate::runtime::{
 /// session that received its commitment and opens only on that session.
 pub struct JointPolygeroProver<S> {
     pub(super) session: SessionStamp,
-    pub(super) context: Digest,
     pub(super) states: S,
     pub(super) oracle: ColumnOracle,
 }
@@ -36,7 +32,7 @@ impl<S> JointPolygeroProver<S> {
         let param = t.part();
         param.participants.validate_witnesses(&witnesses)?;
         let states = param.participants.encode(witnesses, rng);
-        let oracle = ColumnOracle::new(param.config.n, &param.context, rng, |j, h| {
+        let oracle = ColumnOracle::new(param.config.n, rng, |j, h| {
             param.participants.append_encoded(&states, j, h)
         });
         let com = PolygeroCommitment {
@@ -46,7 +42,6 @@ impl<S> JointPolygeroProver<S> {
         Ok((
             Self {
                 session: t.session(),
-                context: param.context,
                 states,
                 oracle,
             },
@@ -61,7 +56,8 @@ impl<S> JointPolygeroProver<S> {
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
         ensure(self.session == t.session(), "joint prover session mismatch")?;
         let p = t.part();
-        ensure(self.context == p.context, "joint prover parameter mismatch")?;
+        // The rows must have been encoded for this parameter's geometry.
+        p.participants.validate_states(&self.states)?;
         p.participants.validate_statements(s)?;
         let c = p.challenges(s, &mut t.transcript());
         let mut bodies = p.participants.respond(&self.states, s, &c);

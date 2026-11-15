@@ -12,54 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Validate the public layout and bind the context used for commitment.
+//! Validate the public layout of one Polygero invocation.
 //!
 //! `PolygeroConfig` supplies k, s, n, t; the witness count completes
 //! the proof geometry. Construction checks dimensions and all
-//! required interpolation shapes. It binds these values and the ordered domain
-//! into the context used by transcript and Merkle hashing. The source-statement
-//! digest is supplied later, directly to proving and verification.
+//! required interpolation shapes. Nothing here is hashed: the transcript
+//! statement binds the profile and the cell counts, and the evaluation
+//! domain's ID is bound nowhere, since the verifier fixes the domain.
 //!
 //! Row accessors define the common ordering of W: u, m, data rows, then fstar.
 //! Polynomial samples and interpolation plans are computed by their consumers.
-use sha2::{Digest as _, Sha256};
-
 use super::{ensure, PolygeroError};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField},
-        v2::proto::{
-            polygero::{PolygeroConfig, PolygeroGeometry},
-            Digest,
-        },
+        v2::proto::polygero::{PolygeroConfig, PolygeroGeometry},
     },
 };
 
-/// Bind the point ordering and dimensions into every
-/// column hash and transcript. The byte encoding is independent of FFT machinery.
-fn context_digest(geom: &PolygeroGeometry, domain_id: &[u8]) -> Digest {
-    let mut hash = Sha256::new();
-    hash.update(b"polygero/root/context/linear/v1");
-    hash.update((domain_id.len() as u64).to_le_bytes());
-    hash.update(domain_id);
-    for size in geom.sizes() {
-        hash.update((size as u64).to_le_bytes());
-    }
-    Digest {
-        data: hash.finalize().into(),
-    }
-}
-
-/// Validated public dimensions and transcript identity for one invocation.
+/// Validated public dimensions for one invocation, and the ID of the
+/// evaluation domain they were validated against.
 #[derive(Clone, Debug)]
 pub struct PolygeroParam {
     pub(super) geom: PolygeroGeometry,
     pub(super) domain_id: Vec<u8>,
-    pub(super) context: Digest,
 }
 impl PolygeroParam {
-    /// Validate dimensions and backend capacity; bind the public context.
+    /// Validate dimensions and backend capacity.
     /// The statement derived later is supplied separately to prove/verify.
     /// This validates operational geometry, not a security target. Applications
     /// select certified parameters separately; small test configurations are valid here.
@@ -80,12 +60,9 @@ impl PolygeroParam {
             "interpolation capacity exceeded",
         )?;
         // Distinct points within admitted ranges are guaranteed by the backend.
-        let id = domain.domain_id();
-        let context = context_digest(&geom, &id);
         Ok(Self {
             geom,
-            domain_id: id,
-            context,
+            domain_id: domain.domain_id(),
         })
     }
     /// The committed oracle is disjoint from the logical witness prefix.

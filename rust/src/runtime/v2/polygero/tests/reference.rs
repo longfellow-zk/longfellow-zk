@@ -33,7 +33,6 @@ pub(super) fn snapshot<E: Clone>(
     let session = fork.bound(&()).session();
     let copy = JointPolygeroProver {
         session,
-        context: prover.context,
         states: prover.states.clone(),
         oracle: ColumnOracle {
             tree: prover.oracle.tree.clone(),
@@ -62,12 +61,9 @@ pub(super) fn check_recommitted_wrong_witness<
     for value in &mut forged.states.0[param.data_start()] {
         f.add(value, &f.one());
     }
-    forged.oracle = ColumnOracle::new(
-        param.geom.n,
-        &joint.context,
-        &mut DeterministicRng::new(97),
-        |j, h| joint.participants.append_encoded(&forged.states, j, h),
-    );
+    forged.oracle = ColumnOracle::new(param.geom.n, &mut DeterministicRng::new(97), |j, h| {
+        joint.participants.append_encoded(&forged.states, j, h)
+    });
     let commitment = PolygeroCommitment {
         root: forged.oracle.root(),
     };

@@ -25,7 +25,6 @@ use crate::runtime::{
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {
     session: SessionStamp,
-    context: Digest,
     commitment: PolygeroCommitment,
     _participants: PhantomData<fn() -> L>,
 }
@@ -37,7 +36,6 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         param.receive(root, &mut t.transcript());
         Self {
             session: t.session(),
-            context: param.context,
             commitment: root.clone(),
             _participants: PhantomData,
         }
@@ -69,7 +67,6 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             "joint verifier session mismatch",
         )?;
         let p = t.part();
-        ensure(self.context == p.context, "joint proof context mismatch")?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;
@@ -79,7 +76,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             .iter()
             .enumerate()
             .map(|(q, &j)| {
-                let mut h = hash::leaf(&p.context, j, &proof.opening.nonce[q]);
+                let mut h = hash::leaf(j, &proof.opening.nonce[q]);
                 p.participants
                     .append_opened(&proof.bodies, q, p.config.t, &mut h);
                 (
@@ -91,7 +88,6 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             })
             .collect();
         verify_proof(
-            &p.context,
             p.config.n,
             &self.commitment.root,
             &proof.opening.path,

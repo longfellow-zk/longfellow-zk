@@ -85,7 +85,6 @@ import LfzkV2.Current.Tests.ZeroKnowledgeFrontendSetup
 import LfzkV2.Current.Tests.ZeroKnowledgeProbabilityInstances
 import LfzkV2.Current.Tests.ZeroKnowledgeHonestRunRows
 import LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
-import LfzkV2.Current.Tests.ZeroKnowledgeSHASetup
 import LfzkV2.Current.Tests.ZeroKnowledgeSHAGlobalWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserver
 import LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle

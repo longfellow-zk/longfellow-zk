@@ -20,7 +20,6 @@ use crate::{
             proto::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
                 zk::CircuitGeometry,
-                Digest,
             },
             sumcheck::{self, circuit_geometry, TopWeights},
             transcript::{Bound, Challenge},
@@ -109,9 +108,6 @@ impl<L: Fields> JointParam<L> {
         Ok(Self {
             selection: witness_selection::Param::new(fields.selection())?,
         })
-    }
-    pub fn context(&self) -> Digest {
-        self.selection.context()
     }
     pub fn config(&self) -> PolygeroConfig {
         self.selection.config()

@@ -437,7 +437,7 @@ fn exercise<
             }
         }
         for position in [0, 4, bytes.len() - 1] {
-            // No magic and no context: the body starts with field elements.
+            // No magic: the body starts with field elements.
             let mut bad = bytes.clone();
             bad[position] ^= 1;
             let result = joint.read(&mut bad.as_slice());

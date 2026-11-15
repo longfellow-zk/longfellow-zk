@@ -80,7 +80,7 @@ def frontierCapacity (g : Geometry) : ℕ :=
 /-- Authentication has one common nonce vector and one common frontier.
 The length is the actual serialized count; the vector has exactly that
 length, with no padding. Its public parser bound makes the proof space finite.
-The joint commitment context is public setup, not part of the body. -/
+The Merkle hash domain is a protocol constant, not part of the body. -/
 structure Authentication (g : Geometry) where
   nonce : Fin g.openings → MerkleNonce
   frontierLength : Fin (frontierCapacity g+1)

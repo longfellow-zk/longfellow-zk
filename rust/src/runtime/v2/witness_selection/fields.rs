@@ -11,7 +11,7 @@ use crate::{
             polygero::{
                 JointPolygeroParam, Participant, Participants as BackendParticipants, PolygeroParam,
             },
-            proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS, Digest},
+            proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS},
             transcript::{Reading, TranscriptRef},
         },
     },
@@ -123,9 +123,6 @@ impl<L: Fields> Param<L> {
     pub fn new(fields: L) -> Result<Self, String> {
         let backend = JointPolygeroParam::new(fields.backend()).map_err(|e| e.to_string())?;
         Ok(Self { fields, backend })
-    }
-    pub fn context(&self) -> Digest {
-        self.backend.context()
     }
     pub fn config(&self) -> PolygeroConfig {
         self.backend.config()

@@ -2,10 +2,7 @@
 use super::*;
 use crate::runtime::v2::{
     polygero::JointPolygeroVerifier,
-    proto::{
-        polygero::{JointPolygeroProof, PolygeroCommitment},
-        Digest,
-    },
+    proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Bound, SessionStamp},
 };
 
@@ -21,7 +18,6 @@ pub struct Authenticated {
 pub struct Verifier<L: Fields> {
     backend: JointPolygeroVerifier<L::Backend>,
     session: SessionStamp,
-    context: Digest,
     coefficients: L::Coefficients,
     responses: L::Responses,
 }
@@ -40,7 +36,6 @@ impl<L: Fields> Verifier<L> {
         Self {
             backend,
             session: t.session(),
-            context: param.context(),
             coefficients,
             responses,
         }
@@ -56,9 +51,6 @@ impl<L: Fields> Verifier<L> {
         let param = t.part();
         if self.session != t.session() {
             return Err("witness selection session mismatch".into());
-        }
-        if self.context != param.context() {
-            return Err("witness selection parameter mismatch".into());
         }
         let statements =
             param

@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Typed recursive participants sharing a column oracle and query set.
-use sha2::{Digest as _, Sha256};
+use sha2::Sha256;
 
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
@@ -10,10 +10,7 @@ use crate::{
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
-            proto::{
-                polygero::{checked_body, JointPolygeroProof, PolygeroConfig},
-                Digest,
-            },
+            proto::polygero::{checked_body, JointPolygeroProof, PolygeroConfig},
             transcript::{Reading, Transcript, TranscriptRef, SEAL_BYTES},
         },
     },
@@ -133,11 +130,9 @@ pub trait Participants: sealed::Sealed {
     type States;
     type Bodies;
     type Challenges;
-    fn describe(
-        &self,
-        config: &mut Option<PolygeroConfig>,
-        h: &mut Sha256,
-    ) -> Result<usize, PolygeroError>;
+    /// Check that every participant has one profile, written to `config`;
+    /// return the participant count.
+    fn describe(&self, config: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
@@ -150,6 +145,9 @@ pub trait Participants: sealed::Sealed {
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
+    /// Check that encoded rows have this list's row counts and widths.
+    #[cfg(any(test, feature = "prover"))]
+    fn validate_states(&self, w: &Self::States) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
     fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States;
     #[cfg(any(test, feature = "prover"))]
@@ -176,11 +174,7 @@ impl Participants for () {
     type States = ();
     type Bodies = ();
     type Challenges = ();
-    fn describe(
-        &self,
-        _: &mut Option<PolygeroConfig>,
-        _: &mut Sha256,
-    ) -> Result<usize, PolygeroError> {
+    fn describe(&self, _: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError> {
         Ok(0)
     }
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
@@ -211,6 +205,10 @@ impl Participants for () {
         Ok(())
     }
     #[cfg(any(test, feature = "prover"))]
+    fn validate_states(&self, _: &()) -> Result<(), PolygeroError> {
+        Ok(())
+    }
+    #[cfg(any(test, feature = "prover"))]
     fn encode(&self, _: (), _: &mut impl PrivateRandom) {}
     #[cfg(any(test, feature = "prover"))]
     fn append_encoded(&self, _: &(), _: usize, _: &mut Sha256) {}
@@ -225,31 +223,23 @@ impl Participants for () {
         Ok(())
     }
 }
-/// Immutable validated geometry, ordered participants and joint hash identity.
+/// Immutable validated geometry and ordered participants. Their profile and
+/// cell counts are bound by the transcript statement; the column tree hashes
+/// under the fixed Merkle hash domain.
 #[derive(Clone)]
 pub struct JointPolygeroParam<L: Participants> {
     pub(super) participants: L,
     pub(super) config: PolygeroConfig,
-    pub(super) context: Digest,
 }
 impl<L: Participants> JointPolygeroParam<L> {
     pub fn new(participants: L) -> Result<Self, PolygeroError> {
-        let mut h = Sha256::new();
-        h.update(b"polygero/joint/context/v1");
         let mut config = None;
-        let count = participants.describe(&mut config, &mut h)?;
+        let count = participants.describe(&mut config)?;
         ensure(count > 0, "empty joint participant list")?;
-        h.update((count as u64).to_le_bytes());
         Ok(Self {
             participants,
             config: config.unwrap(),
-            context: Digest {
-                data: h.finalize().into(),
-            },
         })
-    }
-    pub fn context(&self) -> Digest {
-        self.context
     }
     pub fn config(&self) -> PolygeroConfig {
         self.config

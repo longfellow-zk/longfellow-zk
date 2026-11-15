@@ -61,7 +61,7 @@ pub(in crate::runtime::v2) struct MerkleHeap {
 #[cfg(any(test, feature = "prover"))]
 impl MerkleHeap {
     /// Build the fixed heap, binding every internal node to its position.
-    pub(in crate::runtime::v2) fn new(context: &Digest, leaves: &[Digest]) -> Self {
+    pub(in crate::runtime::v2) fn new(leaves: &[Digest]) -> Self {
         let num_leaves = leaves.len();
         assert!(num_leaves > 0, "Cannot construct an empty Merkle heap");
         let mut layers = vec![Digest::default(); 2 * num_leaves];
@@ -71,7 +71,7 @@ impl MerkleHeap {
 
         // Build parent nodes bottom-up
         for i in (1..num_leaves).rev() {
-            layers[i] = hash::node(context, i, &layers[2 * i], &layers[2 * i + 1]);
+            layers[i] = hash::node(i, &layers[2 * i], &layers[2 * i + 1]);
         }
 
         Self { num_leaves, layers }
@@ -114,7 +114,6 @@ impl MerkleHeap {
 /// node is hashed once, with its position supplied by this traversal.
 #[cfg(any(test, feature = "verifier"))]
 pub(in crate::runtime::v2) fn verify_proof(
-    context: &Digest,
     num_leaves: usize,
     root: &Digest,
     proof: &[Digest],
@@ -173,7 +172,7 @@ pub(in crate::runtime::v2) fn verify_proof(
     // 3. Reconstruct internal nodes bottom-up
     for i in (1..num_leaves).rev() {
         if let (Some(left), Some(right)) = (computed_nodes[2 * i], computed_nodes[2 * i + 1]) {
-            computed_nodes[i] = Some(hash::node(context, i, &left, &right));
+            computed_nodes[i] = Some(hash::node(i, &left, &right));
         }
     }
 

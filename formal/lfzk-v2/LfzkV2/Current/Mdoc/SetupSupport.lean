@@ -1,8 +1,8 @@
 import LfzkV2.Current.Mdoc.OracleWindow
 
-/-! The four actual public-setup hash evaluations form a finite oracle
-program. Its all-branch support includes the joint-context input selected
-by the two component-context answers; no setup input is supplied as advice. -/
+/-! The one actual public-setup hash evaluation, the adapter fragment
+identifier, forms a finite oracle program; no setup input is supplied as
+advice. -/
 noncomputable section
 namespace LfzkV2.Current.Mdoc.SetupSupport
 open LfzkV2.Current.ZeroKnowledge
@@ -18,13 +18,10 @@ private def fragmentBytes : Bytes :=
   MetadataIdentifiers.fragmentBytes scalars.binary.encode binary.description.shape
     (binary.nPublic+binary.nPrivate+2*(768+256+10)) binary.nPublic (binary.nPublic+binary.nPrivate)
 
-def program : Tree Bytes Digest Mdoc.SetupFamily.Values 4 :=
+def program (_prime : PrimeCircuit) (_cantor : Module.Basis (Fin 128) (ZMod 2) B)
+    (scalars : MdocRuntime.Scalars B) : Tree Bytes Digest Mdoc.SetupFamily.Values 1 :=
   .query (fragmentBytes binary scalars) fun fragment =>
-  .query (MdocIdentifiers.contextBytes (MdocIdentifiers.binaryDomain cantor scalars) (binary.description.cells+2)) fun bc =>
-  .query (MdocIdentifiers.contextBytes (MdocIdentifiers.primeDomain scalars)
-    (CellLayout.Prime.cells prime.description.remaining prime.description.pads+2)) fun pc =>
-  .query (MdocIdentifiers.jointContextBytes bc pc) fun joint =>
-  .done ⟨fragment,bc,pc,joint⟩
+  .done ⟨fragment⟩
 
 omit [Fintype B] [DecidableEq B] in
 theorem program_result (SHA : Strand.Oracle) :

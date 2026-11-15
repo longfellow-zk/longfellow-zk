@@ -44,27 +44,13 @@ impl<
     type States = (Vec<Vec<F::E>>, T::States);
     type Bodies = (FieldProof<F::E>, T::Bodies);
     type Challenges = (FieldChallenges<F::E>, T::Challenges);
-    fn describe(
-        &self,
-        config: &mut Option<PolygeroConfig>,
-        h: &mut Sha256,
-    ) -> Result<usize, PolygeroError> {
-        let p = &self.0;
-        let g = p.param.geom;
-        let c = PolygeroConfig {
-            k: g.k,
-            s: g.s,
-            n: g.n,
-            t: g.t,
-        };
+    fn describe(&self, config: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError> {
+        let c = self.0.param.geom.config();
         // One query index addresses a column in every field. The common profile
         // fixes that index range and response sizes; witness row counts may differ.
         ensure(config.is_none_or(|old| old == c), "joint geometry mismatch")?;
         *config = Some(c);
-        // The domain identity includes the field representation and point ordering.
-        h.update((p.f.serialized_size_bytes() as u64).to_le_bytes());
-        h.update(p.param.context.data);
-        Ok(1 + self.1.describe(config, h)?)
+        Ok(1 + self.1.describe(config)?)
     }
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError> {
         constraints::validate(self.0.param.geom.nw, s.0.b.len(), &s.0.a)?;
@@ -113,6 +99,15 @@ impl<
         self.1.validate_witnesses(&w.1)
     }
     #[cfg(any(test, feature = "prover"))]
+    fn validate_states(&self, w: &Self::States) -> Result<(), PolygeroError> {
+        let g = self.0.param.geom;
+        ensure(
+            w.0.len() == g.nrow() && w.0.iter().all(|row| row.len() == g.n),
+            "joint prover parameter mismatch",
+        )?;
+        self.1.validate_states(&w.1)
+    }
+    #[cfg(any(test, feature = "prover"))]
     fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States {
         (
             super::prover_commitment::encode_rows(&self.0.param, w.0, self.0.domain, rng, self.0.f),
@@ -122,7 +117,8 @@ impl<
     #[cfg(any(test, feature = "prover"))]
     fn append_encoded(&self, w: &Self::States, j: usize, h: &mut Sha256) {
         // A leaf concatenates column j from every participant in tuple order.
-        // The context fixes field widths and row counts, so no separators are needed.
+        // The statement fixes field widths and row counts, so no separators
+        // are needed.
         append_values(self.0.f, w.0.iter().map(|row| row[j].clone()), h);
         self.1.append_encoded(&w.1, j, h);
     }

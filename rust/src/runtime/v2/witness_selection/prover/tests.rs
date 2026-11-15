@@ -15,6 +15,7 @@ use crate::{
             proto::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
+                Digest,
             },
             transcript::Transcript,
         },

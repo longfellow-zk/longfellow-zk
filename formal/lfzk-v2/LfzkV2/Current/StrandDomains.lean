@@ -1,6 +1,7 @@
 import LfzkV2.Current.OracleDomain
 import LfzkV2.Current.StrandAuthentication
-import LfzkV2.Current.SHASetupDomains
+import LfzkV2.Current.SHAOracle
+import LfzkV2.Current.MdocIdentifiers
 
 /-! Transcript and authentication queries occupy a fixed byte domain.
 Public setup hashes occupy its complement, so fixing setup answers does
@@ -34,28 +35,6 @@ theorem circuit_outside {F : Type} [Field F] (fieldId : ℕ) (binary : Bool) (wi
   outside (by change some (76 : Framing.Byte) ≠ some 0; decide)
     (by change some (76 : Framing.Byte) ≠ some 1; decide)
     (SHAOracle.identifier_not_domain _ _ _ _ _ _ _ _ _ _)
-
-theorem context_outside (domain : Bytes) (cells : ℕ) :
-    ¬protocol (MdocIdentifiers.contextBytes domain cells) :=
-  outside (by change some (112 : Framing.Byte) ≠ some 0; decide)
-    (by change some (112 : Framing.Byte) ≠ some 1; decide)
-    (SHAOracle.context_not_domain domain cells)
-
-theorem joint_context_outside (binary prime : Digest) :
-    ¬protocol (MdocIdentifiers.jointContextBytes binary prime) :=
-  outside (by change some (112 : Framing.Byte) ≠ some 0; decide)
-    (by change some (112 : Framing.Byte) ≠ some 1; decide)
-    (SHAOracle.joint_context_not_domain binary prime)
-
-theorem context_merge (outside inside : Bytes → Digest) (domain : Bytes) (cells : ℕ) :
-    SHAOracle.merge protocol outside inside (MdocIdentifiers.contextBytes domain cells) =
-      outside (MdocIdentifiers.contextBytes domain cells) :=
-  SHAOracle.merge_outside protocol outside inside _ (context_outside domain cells)
-
-theorem joint_context_merge (outside inside : Bytes → Digest) (binary prime : Digest) :
-    SHAOracle.merge protocol outside inside (MdocIdentifiers.jointContextBytes binary prime) =
-      outside (MdocIdentifiers.jointContextBytes binary prime) :=
-  SHAOracle.merge_outside protocol outside inside _ (joint_context_outside binary prime)
 
 theorem fragment_merge {F : Type} [Field F] (outside inside : Bytes → Digest) {leaves : ℕ}
     (encode : F → Bytes) (shape : Adapter.ProductTree.Shape (Adapter.Circuit.half leaves))

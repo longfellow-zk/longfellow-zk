@@ -2,6 +2,7 @@ import LfzkV2.Current.Format
 import LfzkV2.Current.TaggedCodec
 import LfzkV2.Current.WireBlocks
 import LfzkV2.Current.ProofBodyBounds
+import LfzkV2.Current.MerkleWireCodec
 
 /-! The deployed transcript format, `TaggedFormat`: the tagged node grammar
 of `rust/src/runtime/v2/transcript/DESIGN.md` (transcript I5 to I7) and the
@@ -22,7 +23,8 @@ mdoc proof body of `rust/src/runtime/v2/proto/DESIGN.md`.
   proof is the body and its 32-byte seal block (`complete`).
 
 The setup's statement constants are bytes fixed by the trusted circuits
-(`Setup`); the format reads none of them back. -/
+(`Setup`); the format reads none of them back. The Merkle hash domain is the
+protocol constant `MerkleWireCodec.hashDomain`. -/
 noncomputable section
 namespace LfzkV2.Current.TaggedFormat
 open CanonicalPrefix TaggedCodec QueryRuntime
@@ -83,13 +85,13 @@ theorem wire_terminator (domain : Domain) : wire.terminator domain = word 0 := r
 /-! ## Node 0: the statement -/
 
 /-- The trusted setup constants the statement absorbs: the statement
-message's tag and leading values before the session, the values and
-messages after it up to the public inputs, and the joint commitment context
-of the Merkle hashes (which no node absorbs). -/
+message's tag and leading values before the session, and the values and
+messages after it up to the public inputs. The statement is the only place
+parameters are bound; the Merkle hashes use the protocol constant
+`MerkleWireCodec.hashDomain`. -/
 structure Setup where
   head : Bytes
   constants : Bytes
-  jointContext : Digest
 
 /-- The first node's key: the request and the commitment root. -/
 structure Key (publicCount primeCount : ℕ) (Prime : Type) where
@@ -869,7 +871,7 @@ def decodePrimePublic (base : Base repr shape setup publicCount) : Option (Fin s
   root_context _ _ := rfl
   hashPublic key := some key.publicBits
   hashPublic_context _ _ := rfl
-  jointContext := setup.jointContext
+  jointContext := MerkleWireCodec.hashDomain
   openingBase := openingBase repr shape setup publicCount
   primeIndex := primeIndex g
   primeIndex_le := Nat.zero_le _

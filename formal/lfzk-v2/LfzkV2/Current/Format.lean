@@ -65,7 +65,7 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
   /-- The hash circuit's public bits, read back from the first node. -/
   hashPublic : Key → Option (Fin publicCount → Bool)
   hashPublic_context : ∀ request digest, hashPublic (context request digest) = some request.publicBits
-  /-- The joint Polygero context of the opening authentication. -/
+  /-- The domain of the opening authentication's Merkle hashes. -/
   jointContext : Digest
   /-- The opening node's bytes for the H/Z responses. -/
   openingBase : Response g (fields .binary) × Response g (fields .prime) → BoundedBytes capacity

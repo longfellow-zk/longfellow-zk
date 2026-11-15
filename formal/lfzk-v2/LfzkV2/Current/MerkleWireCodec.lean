@@ -2,8 +2,9 @@ import LfzkV2.Current.CanonicalPrefix
 import Merkle.Indexed.Codec
 import Merkle.Indexed.Independence
 
-/-! Concrete preimages of the current joint SHA-256 column tree. The joint
-layout digest is a fixed public parameter. Leaf and node inputs use the raw
+/-! Concrete preimages of the current joint SHA-256 column tree. The 32-byte
+domain after each role label is a fixed public parameter; the deployed format
+uses the protocol constant `hashDomain`. Leaf and node inputs use the raw
 concatenations in `rust/src/runtime/v2/merkle/hash.rs`; transcript-operation
 tags are not part of these hash inputs. Executable role inverses are constructed from the
 canonical scalar representations, rather than supplied as assumptions. -/
@@ -21,6 +22,15 @@ def nodeDomain : Bytes := CanonicalPrefix.utf8 "polygero/joint/node/v1"
 theorem leafDomain_length : leafDomain.length = 22 := by decide
 theorem nodeDomain_length : nodeDomain.length = 22 := by decide
 theorem domains_ne : leafDomain ≠ nodeDomain := by decide
+
+/-- The Merkle hash domain of v2 commitments (`DOMAIN` in
+`rust/src/runtime/v2/merkle/hash.rs`): the label
+`longfellow/v2/merkle/domain`, zero-padded to 32 bytes. -/
+def hashDomain : Digest := fun i =>
+  (CanonicalPrefix.utf8 "longfellow/v2/merkle/domain" ++ List.replicate 5 0).getD i.val 0
+
+theorem hashDomain_bytes : List.ofFn hashDomain =
+    CanonicalPrefix.utf8 "longfellow/v2/merkle/domain" ++ List.replicate 5 0 := by decide +kernel
 
 variable {k s n t : ℕ}
 variable (P R : Joint.Participant k s n t)

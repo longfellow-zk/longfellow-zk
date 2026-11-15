@@ -35,9 +35,9 @@ sumcheck pads and returns the witness and owned reduction state. Binary source
 inputs are Boolean; prime-field inputs remain field elements.
 
 `CircuitGeometry` contains the circuit reduction and commitment dimensions.
-The standalone `ZkProofGeometry` adds the context of its actual joint participant
-list; application envelopes supply their own joint context. Preparing a circuit
-still validates its selected field, without constructing a singleton context.
+The standalone `ZkProofGeometry` adds the proof's one Polygero profile;
+application envelopes supply their own joint geometry. Preparing a circuit
+still validates its selected field.
 
 Each participant binds its packing interpretation and circuit-composition layout
 before the shared root. `JointParam` accepts recursive `(SelectedField, Tail)`
@@ -58,7 +58,7 @@ to authenticate the frontend and fingerprint equations together. Standalone
 verification receives the commitment and fingerprints internally before its
 circuit reduction. All statements are bound
 before backend batching challenges, and every field's responses precede the
-shared queries. The verifier checks the received root and commitment context.
+shared queries. The verifier checks the received root.
 
 Polygero retains encoded rows without copying the original witness. Proving
 consumes the commitment state, releasing the rows and tree when finished.
@@ -150,9 +150,10 @@ complete static system and exposes immutable coefficients and targets. Internal
 frontends construct their derived rows from the already absorbed transcript;
 challenge-derived coefficients are never absorbed.
 
-`context.rs` derives layouts for both roles. The commitment context contains
-only backend dimensions and the ordered field domains; it is used only in
-Merkle hashing, never absorbed. The transcript statement absorbs, once and
+`context.rs` derives layouts for both roles. Merkle hashing uses the fixed
+Merkle hash domain of v2 commitments, so the statement is the only place
+parameters are bound; the evaluation-domain ID is bound nowhere, since the
+verifier fixes the domain. The transcript statement absorbs, once and
 before any prover message, every circuit (`Circuit`: ID, layer widths and
 counts), every participant's `CommitmentLayout`, the `JointGeometry` and the
 public inputs (`transcript.rs`, `ZkProofStatement`); after it only prover

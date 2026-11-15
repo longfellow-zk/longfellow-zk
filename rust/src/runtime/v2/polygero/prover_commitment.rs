@@ -147,7 +147,6 @@ impl ColumnOracle {
     /// arithmetic stays in the participant traversal; this tree only sees bytes.
     pub(super) fn new(
         n: usize,
-        context: &Digest,
         rng: &mut impl PrivateRandom,
         mut append: impl FnMut(usize, &mut Sha256),
     ) -> Self {
@@ -158,7 +157,7 @@ impl ColumnOracle {
             .collect();
         let leaves: Vec<_> = (0..n)
             .map(|j| {
-                let mut h = leaf(context, j, &salts[j]);
+                let mut h = leaf(j, &salts[j]);
                 append(j, &mut h);
                 Digest {
                     data: h.finalize().into(),
@@ -166,7 +165,7 @@ impl ColumnOracle {
             })
             .collect();
         Self {
-            tree: MerkleHeap::new(context, &leaves),
+            tree: MerkleHeap::new(&leaves),
             salts,
         }
     }

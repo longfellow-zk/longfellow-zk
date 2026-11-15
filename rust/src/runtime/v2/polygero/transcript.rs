@@ -21,7 +21,7 @@
 //! weights alpha and challenge polynomials B_i are drawn after the last
 //! message every statement depends on, with nothing absorbed of their own:
 //! the statements are derived from absorbed messages and challenges, so
-//! their digests and the joint context are not absorbed again. Each field
+//! their digests are not absorbed again. Each field
 //! then sends its `PolygeroResponse` (H, Z) before the columns are chosen.
 //! Column order is exactly the order returned by `choose`.
 use super::{
