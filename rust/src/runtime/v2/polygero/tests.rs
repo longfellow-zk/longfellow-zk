@@ -734,7 +734,7 @@ fn static_statement_is_checked_against_the_opening() {
         }],
         vec![f.one()],
     );
-    let altered = LinearStatement::new(statement.terms().to_vec(), vec![f.zero()]);
+    let altered = LinearStatement::new(statement.a.clone(), vec![f.zero()]);
     let seed = b"static-linear-source";
     let mut tp = Transcript::for_test(seed);
     let (prover, root) = JointPolygeroProver::commit(

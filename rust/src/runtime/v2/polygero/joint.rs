@@ -102,12 +102,6 @@ impl<E> LinearStatement<E> {
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self {
         Self { a, b }
     }
-    pub fn terms(&self) -> &[PolygeroLinearTerm<E>] {
-        &self.a
-    }
-    pub fn targets(&self) -> &[E] {
-        &self.b
-    }
 }
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
 #[doc(hidden)]
