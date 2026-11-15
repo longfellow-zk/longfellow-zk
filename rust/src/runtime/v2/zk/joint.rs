@@ -3,9 +3,9 @@
 use std::borrow::Cow;
 
 use super::{
-    context::{prepare_circuit_layout, prepare_parameter, CircuitInput, InputLayout},
+    context::{prepare_circuit_layout, prepare_parameter, CircuitInput},
     packing_commitment::PackingCommitment,
-    ZkContext,
+    InputLayout, ZkContext,
 };
 use crate::{
     core::{algebra::RegisteredField, proto::v2::Circuit},
@@ -222,9 +222,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Whether this participant commits any cells to the joint opening.
     pub fn commits(&self) -> bool {
         !self.storage.as_ref().is_some_and(|s| s.mask.is_none())
-    }
-    pub fn input_layout(&self) -> InputLayout {
-        self.inputs
     }
     /// Check that `circuits` are this participant's circuits, in order, and
     /// that `public` inputs fit the primary circuit.

@@ -116,22 +116,26 @@ pub(crate) fn prepare_circuit_layout<
 /// inputs, and constraint compilation substitutes those definitions. The
 /// primary circuit must end before the virtual suffix, so it cannot read it.
 ///
-/// Layouts come only from validated construction; an inconsistent one cannot
-/// be written as a literal:
+/// Layouts come only from validated construction. The type is private to the
+/// crate, so no caller outside it can write an inconsistent one as a literal:
 ///
-/// ```compile_fail,E0451
+/// ```compile_fail,E0603
 /// use longfellow_zk::runtime::v2::zk::InputLayout;
 /// let _ = InputLayout { npublic: 2, committed_end: 1, ninput: 0 };
 /// ```
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InputLayout {
+pub(crate) struct InputLayout {
     // Invariant, established by `new`: npublic <= committed_end <= ninput.
-    npublic: usize,
-    committed_end: usize,
-    ninput: usize,
+    /// Inputs before the committed private range.
+    pub(super) npublic: usize,
+    /// End of the committed private range; the virtual suffix starts here.
+    pub(super) committed_end: usize,
+    /// Width of the shared input array.
+    pub(super) ninput: usize,
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl InputLayout {
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn new<F: crate::core::algebra::SerializableField>(
         circuits: &[&Circuit<F>],
         virtual_inputs: usize,
@@ -157,22 +161,10 @@ impl InputLayout {
             ninput,
         })
     }
-    /// Inputs before the committed private range.
-    pub fn npublic(&self) -> usize {
-        self.npublic
-    }
-    /// End of the committed private range; the virtual suffix starts here.
-    pub fn committed_end(&self) -> usize {
-        self.committed_end
-    }
-    /// Width of the shared input array.
-    pub fn ninput(&self) -> usize {
-        self.ninput
-    }
-    pub fn committed(&self) -> usize {
+    pub(super) fn committed(&self) -> usize {
         self.committed_end - self.npublic
     }
-    pub fn virtual_count(&self) -> usize {
+    pub(super) fn virtual_count(&self) -> usize {
         self.ninput - self.committed_end
     }
 }

@@ -358,7 +358,6 @@ Composed proofs place the same `circuit_proof` and `split_opening` fields in
 // runtime::v2::zk: setup, shared by both roles
 pub struct ZkContext<'a, const W: usize, F, D> { .. }   // field = domain.field()
 impl ZkContext<'a, W, F, D> { pub fn new(domain: &'a D) -> Self; pub fn field(&self) -> &'a F; }
-pub struct InputLayout { .. }                            // npublic <= committed_end <= ninput
 pub struct VirtualInput<E> { pub source: usize, pub constant: E, pub coefficient: E }
 pub struct VirtualInputs<E> { pub entries: Vec<VirtualInput<E>> }
 impl<E> VirtualInputs<E> { pub fn none() -> Self; }
@@ -372,7 +371,6 @@ impl CircuitParticipant<W, F> {
     pub fn with_storage(circuit: &Circuit<F>, storage: StorageMap, mask: Option<Group>,
                         config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>) -> Result<Self, String>;
     pub fn commits(&self) -> bool;                       // false for pure foreign storage
-    pub fn input_layout(&self) -> InputLayout;
     pub fn geometry(&self) -> CircuitGeometry;           // written as Circuit/CommitmentLayout (I1)
     pub fn participant(&self, ctx: &ZkContext<'a, W, F, D>)
         -> Result<SelectedField<'a, W, F, D>, String>;   // fails for pure foreign storage (I11)

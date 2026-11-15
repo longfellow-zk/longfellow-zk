@@ -59,7 +59,9 @@ pub mod split;
 pub mod storage;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-pub use context::{CircuitInput, InputLayout, VirtualInput, VirtualInputs, ZkContext};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) use context::InputLayout;
+pub use context::{CircuitInput, VirtualInput, VirtualInputs, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use transcript::{write_joint_geometry, ZkProofStatement};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
