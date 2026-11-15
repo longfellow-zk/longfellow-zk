@@ -188,7 +188,7 @@ theorem selected_spec (G : Raw → Digest)
       hashPublic primePublic draw ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) = some decoded)
     (known : ∀ i ≤ g.openingIndex.val, QueryTable.Known
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2))
-      (StrandRuntime.history bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
+      (StrandRuntime.history NodeWire.current bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
     (different : ∃ column, column ∈ decoded.claim.I ∧
       messages (dec)
         (cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
@@ -272,7 +272,7 @@ theorem accepted_cover (G : Raw → Digest)
       hashPublic primePublic draw ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) = some decoded)
     (known : ∀ i ≤ g.openingIndex.val, QueryTable.Known
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2))
-      (StrandRuntime.history bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
+      (StrandRuntime.history NodeWire.current bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
     (unique : Merkle.MH.CollisionFree
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2)))
     (accepted : Merkle.Indexed.Accepts ((codec).withOracle (G ∘ decodeRaw)) n

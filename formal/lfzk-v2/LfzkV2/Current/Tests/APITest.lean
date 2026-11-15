@@ -61,6 +61,7 @@ import LfzkV2.Current.Tests.ConcreteMetadata
 import LfzkV2.Current.Tests.MdocIdentifiers
 import LfzkV2.Current.Tests.MdocDefaults
 import LfzkV2.Current.Tests.QueryCodec
+import LfzkV2.Current.Tests.NodeWire
 import LfzkV2.Current.Tests.Grammar
 import LfzkV2.Current.Tests.QueryRuntime
 import LfzkV2.Current.Tests.WireBlocks

@@ -83,7 +83,7 @@ variable (fallback : Answer) (initial : Digest)
 theorem finish_congr_reads (body : Body g fs A Auth) (H G : Strand.Oracle)
     (agree : StrandReadWindow.Agree
       (Point := Replay.Point g fs A Auth Key (QueryRuntime.Block capacity (ProtocolWrites.Fresh g fs A)))
-      (StrandRuntime.history bodyCodec) H G) :
+      (StrandRuntime.history NodeWire.current bodyCodec) H G) :
     StrandCompletion.finish bodyCodec encoding sample fallback initial body H =
       StrandCompletion.finish bodyCodec encoding sample fallback initial body G := by
   have logical := StrandReadWindow.Agree.oracle _ sample fallback agree

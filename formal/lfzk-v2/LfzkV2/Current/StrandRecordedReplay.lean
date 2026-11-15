@@ -30,7 +30,7 @@ variable (fallback : C) (proof : Replay.Output g fields Advice Auth) (trace : Tr
 
 def point (index : ℕ) : Replay.Point g fields Advice Auth Key (Block capacity Fresh) :=
   (encoding.transcript proof fallback).replay
-    (fun current => recorded trace (StrandRuntime.history bodyCodec current).input.encode) index
+    (fun current => recorded trace (StrandRuntime.history NodeWire.current bodyCodec current).input.encode) index
 
 variable (sample : Replay.Point g fields Advice Auth Key (Block capacity Fresh) →
   Tree Strand.Word Digest (Option C) blocks)
@@ -39,7 +39,7 @@ variable (sample : Replay.Point g fields Advice Auth Key (Block capacity Fresh) 
 recorded table. Failure remains `none`; no successful sampling is assumed. -/
 def read (H : Strand.Oracle) (index : ℕ) : Option C :=
   let current := point bodyCodec encoding fallback proof trace index
-  let history := StrandRuntime.history bodyCodec current
+  let history := StrandRuntime.history NodeWire.current bodyCodec current
   ((sample current).run (fun counter =>
     H (Strand.Input.prf history.id (recorded trace history.input.encode) counter).encode)).1
 
@@ -66,13 +66,13 @@ theorem read_off (H H' : Strand.Oracle) (raw : Bytes)
 
 variable (initial : Digest)
 variable (independent : ∀ i first second, encoding.block proof i first = encoding.block proof i second)
-local notation "oracle" => TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample fallback
+local notation "oracle" => TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback
 
 include independent in
 theorem point_eq (H : Strand.Oracle) (index : ℕ)
     (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
     (known : ∀ i < index, ∃ digest,
-      ((StrandRuntime.history bodyCodec ((encoding.chain initial).point proof (oracle H) i)).input.encode,digest) ∈ trace) :
+      ((StrandRuntime.history NodeWire.current bodyCodec ((encoding.chain initial).point proof (oracle H) i)).input.encode,digest) ∈ trace) :
     (encoding.chain initial).point proof (oracle H) index = point bodyCodec encoding fallback proof trace index := by
   rw [encoding.replay_transcript proof fallback independent]
   apply Replay.Transcript.replay_congr_on_prefix
@@ -88,7 +88,7 @@ trace; it requires neither their chronological order nor distinct digests. -/
 theorem read_eq (H : Strand.Oracle) (index : ℕ)
     (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
     (known : ∀ i ≤ index, ∃ digest,
-      ((StrandRuntime.history bodyCodec ((encoding.chain initial).point proof (oracle H) i)).input.encode,digest) ∈ trace) :
+      ((StrandRuntime.history NodeWire.current bodyCodec ((encoding.chain initial).point proof (oracle H) i)).input.encode,digest) ∈ trace) :
     (read bodyCodec encoding fallback proof trace sample H index).getD fallback =
       (oracle H ((encoding.chain initial).point proof (oracle H) index)).2 := by
   have same := point_eq bodyCodec encoding fallback proof trace sample initial independent H index
@@ -135,7 +135,7 @@ theorem runtimeRead_eq (output : CanonicalRuntime.Output (Advice := Advice) bina
     (trace : Trace) (H : Strand.Oracle) (index : ℕ)
     (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
     (known : ∀ i ≤ index, ∃ digest,
-      ((StrandRuntime.history bodyCodec ((M).point output (oracle H) i)).input.encode,digest) ∈ trace) :
+      ((StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle H) i)).input.encode,digest) ∈ trace) :
     (runtimeRead binary prime P R repr shape setup cfg binaryCount metadata sample output trace H index).getD
         cfg.fallback = (oracle H ((M).point output (oracle H) index)).2 := by
   simp only [RuntimeAdaptiveVerifier.point_eq,CanonicalRuntime.encodings_eq] at known ⊢

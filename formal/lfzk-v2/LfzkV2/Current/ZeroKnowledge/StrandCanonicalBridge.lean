@@ -61,7 +61,7 @@ theorem respondHonest_congr_reads (configuration : RuntimeVerifier.Public (g := 
     (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R
       (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))
     (request : Request) (frontend : Body) (SHA SHA' : Strand.Oracle) (cells : Cells) (tape : Masks)
-    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     respondHonest binary prime binaryNodes primeNodes repr shape setup configuration
         binaryCount primeCount metadata roundSampler batchingSamples request frontend SHA cells tape =
       respondHonest binary prime binaryNodes primeNodes repr shape setup configuration

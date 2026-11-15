@@ -13,14 +13,14 @@ open scoped Classical
 
 section Generic
 variable {Key Fresh Body : Type} {capacity : ℕ}
-variable (bodyCodec : PrefixCodec Body) (context : Key)
+variable (wire : NodeWire) (bodyCodec : PrefixCodec Body) (context : Key)
 
 private def historyFrom (roles : List Role) : (n : ℕ) → n ≤ roles.length →
     History Key (Block capacity Fresh) Digest n → Bytes → TranscriptV2.Strand.History
   | 0, _, _, message => .root message
   | n+1, within, previous, message =>
       .child (historyFrom roles n (by omega) previous.1
-        (previous.2.1.1.bytes ++ StrandQueryCodec.roundFooter (roles.get ⟨n,by omega⟩).domain))
+        (previous.2.1.1.bytes ++ wire.terminator (roles.get ⟨n,by omega⟩).domain))
         previous.2.2 message
 
 /-- The verifier's existing history determines the digest-linked node.
@@ -28,16 +28,16 @@ Only the current payload and one parent digest enter its wire encoding;
 the full history here is proof metadata used to justify its interpretation. -/
 def history {roles : List Role} : Input roles Key (Block capacity Fresh) Digest Body →
     TranscriptV2.Strand.History
-  | .round i previous current => historyFrom roles i.val (by omega) previous
-      (current.1.bytes ++ StrandQueryCodec.roundFooter (roles.get i).domain)
-  | .finalSeal previous body => historyFrom roles roles.length le_rfl previous
-      (StrandQueryCodec.finalFooter ++ frame (bodyCodec.encode body))
+  | .round i previous current => historyFrom wire roles i.val (by omega) previous
+      (current.1.bytes ++ wire.terminator (roles.get i).domain)
+  | .finalSeal previous body => historyFrom wire roles roles.length le_rfl previous
+      (wire.sealFrame (bodyCodec.encode body))
 
 theorem history_length {roles : List Role} (point : Input roles Key (Block capacity Fresh) Digest Body) :
-    (history bodyCodec point).ancestors.length = point.rank+1 := by
+    (history wire bodyCodec point).ancestors.length = point.rank+1 := by
   have length (n : ℕ) (within : n ≤ roles.length)
       (previous : History Key (Block capacity Fresh) Digest n) (message : Bytes) :
-      (historyFrom roles n within previous message).ancestors.length = n+1 := by
+      (historyFrom wire roles n within previous message).ancestors.length = n+1 := by
     induction n generalizing message with
     | zero => rfl
     | succ n ih =>
@@ -45,13 +45,13 @@ theorem history_length {roles : List Role} (point : Input roles Key (Block capac
   cases point <;> exact length _ _ _ _
 
 theorem history_depth {roles : List Role} (point : Input roles Key (Block capacity Fresh) Digest Body) :
-    (history bodyCodec point).depth = point.rank := by
-  have length := history_length bodyCodec point
+    (history wire bodyCodec point).depth = point.rank := by
+  have length := history_length wire bodyCodec point
   rw [TranscriptV2.Strand.History.ancestors_length] at length
   exact Nat.add_right_cancel length
 
 theorem history_root {roles : List Role} (point : Input roles Key (Block capacity Fresh) Digest Body)
-    (first : point.rank = 0) : ∃ message, history bodyCodec point = .root message := by
+    (first : point.rank = 0) : ∃ message, history wire bodyCodec point = .root message := by
   cases point with
   | round i previous current =>
       rcases i with ⟨n,within⟩
@@ -68,8 +68,8 @@ digest in the strand serializer. Redundant caches add no hash input. -/
 theorem history_parent {roles : List Role} (initial : Digest)
     (point earlier : Input roles Key (Block capacity Fresh) Digest Body)
     (previous : point.parent = some earlier) :
-    ∃ message, history bodyCodec point =
-      .child (history bodyCodec earlier) (point.claimed initial) message := by
+    ∃ message, history wire bodyCodec point =
+      .child (history wire bodyCodec earlier) (point.claimed initial) message := by
   cases point with
   | round i past current =>
       rcases i with ⟨n,within⟩
@@ -87,22 +87,22 @@ theorem history_parent {roles : List Role} (initial : Digest)
 
 theorem history_prepend {roles : List Role} (role : Role) (block : Block capacity Fresh) (link : Digest)
     (point : Input roles Key (Block capacity Fresh) Digest Body) :
-    history bodyCodec (prepend role block link point) =
-      (history bodyCodec point).prepend (block.1.bytes ++ StrandQueryCodec.roundFooter role.domain) link := by
+    history wire bodyCodec (prepend role block link point) =
+      (history wire bodyCodec point).prepend (block.1.bytes ++ wire.terminator role.domain) link := by
   have round (i : Fin roles.length) (past : History Key (Block capacity Fresh) Digest i.val)
       (current : Block capacity Fresh) :
-      history bodyCodec (prepend role block link (.round i past current)) =
-        (history bodyCodec (.round i past current)).prepend
-          (block.1.bytes ++ StrandQueryCodec.roundFooter role.domain) link := by
+      history wire bodyCodec (prepend role block link (.round i past current)) =
+        (history wire bodyCodec (.round i past current)).prepend
+          (block.1.bytes ++ wire.terminator role.domain) link := by
     rcases i with ⟨n,within⟩
     induction n generalizing current with
     | zero => rfl
     | succ n ih =>
         change TranscriptV2.Strand.History.child
-          (history bodyCodec (prepend role block link (.round ⟨n,by omega⟩ past.1 past.2.1))) past.2.2 _ =
+          (history wire bodyCodec (prepend role block link (.round ⟨n,by omega⟩ past.1 past.2.1))) past.2.2 _ =
             TranscriptV2.Strand.History.child
-              ((history bodyCodec (.round ⟨n,by omega⟩ past.1 past.2.1)).prepend
-                (block.1.bytes ++ StrandQueryCodec.roundFooter role.domain) link) past.2.2 _
+              ((history wire bodyCodec (.round ⟨n,by omega⟩ past.1 past.2.1)).prepend
+                (block.1.bytes ++ wire.terminator role.domain) link) past.2.2 _
         rw [ih]
         simp only [List.get_cons_succ]
   cases point with
@@ -112,23 +112,23 @@ theorem history_prepend {roles : List Role} (role : Role) (block : Block capacit
       | nil => rfl
       | cons previous tail =>
           change TranscriptV2.Strand.History.child
-            (history bodyCodec (prepend role block link (.round ⟨tail.length,by simp⟩ past.1 past.2.1))) past.2.2 _ =
+            (history wire bodyCodec (prepend role block link (.round ⟨tail.length,by simp⟩ past.1 past.2.1))) past.2.2 _ =
               TranscriptV2.Strand.History.child
-                ((history bodyCodec (.round ⟨tail.length,by simp⟩ past.1 past.2.1)).prepend
-                  (block.1.bytes ++ StrandQueryCodec.roundFooter role.domain) link) past.2.2 _
+                ((history wire bodyCodec (.round ⟨tail.length,by simp⟩ past.1 past.2.1)).prepend
+                  (block.1.bytes ++ wire.terminator role.domain) link) past.2.2 _
           rw [round]
 
 /-- The raw verifier serializer and the online canonical parser use the
 same node bytes. This derives their correspondence from the packet codecs. -/
 theorem history_embed (packets : List (Packet Fresh capacity))
     (value : QueryCodec.Value bodyCodec (packets.map Packet.queryBlock)) :
-    history bodyCodec (embed bodyCodec context packets value) =
-      StrandQueryCodec.toHistory bodyCodec (packets.map Packet.queryBlock) value := by
+    history wire bodyCodec (embed bodyCodec context packets value) =
+      StrandQueryCodec.toHistory wire bodyCodec (packets.map Packet.queryBlock) value := by
   induction packets with
   | nil =>
-      change TranscriptV2.Strand.History.root (StrandQueryCodec.finalFooter ++ frame (bodyCodec.encode value.val)) =
-        TranscriptV2.Strand.History.root (StrandQueryCodec.finalFooter ++ bytes.encode ⟨bodyCodec.encode value.val,value.property⟩)
-      rw [bytes_encode]
+      change TranscriptV2.Strand.History.root (wire.sealFrame (bodyCodec.encode value.val)) =
+        TranscriptV2.Strand.History.root (wire.sealCodec.encode ⟨bodyCodec.encode value.val,value.property⟩)
+      rw [wire.sealCodec_encode]
   | cons packet tail ih =>
       rcases value with ⟨value,next⟩
       cases next with
@@ -136,25 +136,33 @@ theorem history_embed (packets : List (Packet Fresh capacity))
       | inr next =>
           rcases next with ⟨link,next⟩
           simp only [List.map_cons,embed]
-          rw [history_prepend,ih,StrandQueryCodec.history_continue]
+          rw [history_prepend,ih,StrandQueryCodec.history_continue wire]
           rfl
 
 theorem history_reindex {first second : List Role} (equal : first = second)
     (point : Input first Key (Block capacity Fresh) Digest Body) :
-    history bodyCodec (reindex equal point) = history bodyCodec point := by
+    history wire bodyCodec (reindex equal point) = history wire bodyCodec point := by
   cases equal
   rfl
 
-/-- The terminal message is exactly the encoder's canonical body. The
+/-- The terminal message is exactly the sealed canonical body. The
 absorbing continuation contains only the preceding node's digest. -/
-theorem history_final_input {roles : List Role}
+theorem history_seal_input {roles : List Role}
     (past : History Key (Block capacity Fresh) Digest roles.length) (body : Body) :
-    ∃ state, (history bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =
-      TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode body) := by
+    ∃ state : TranscriptV2.Strand.Absorbing,
+      (history wire bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =
+        (state.write (wire.sealFrame (bodyCodec.encode body))).input.encode := by
   cases roles with
   | nil => exact ⟨.root [],rfl⟩
   | cons role tail => exact ⟨TranscriptV2.Strand.continuation
-      (history bodyCodec (Input.finalSeal (roles := role::tail) past body)).id past.2.2,rfl⟩
+      (history wire bodyCodec (Input.finalSeal (roles := role::tail) past body)).id past.2.2,rfl⟩
+
+/-- The deployed seal is the final node of `TranscriptV2.StrandTranscript`. -/
+theorem history_final_input {roles : List Role}
+    (past : History Key (Block capacity Fresh) Digest roles.length) (body : Body) :
+    ∃ state, (history NodeWire.current bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =
+      TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode body) :=
+  history_seal_input NodeWire.current bodyCodec past body
 
 /-- Parsing a predecessor and then rebuilding its cache agrees with taking
 the predecessor of the rebuilt verifier input. -/
@@ -179,7 +187,7 @@ section Replay
 open TranscriptV2
 
 variable {Key Fresh Body C Out : Type} {capacity rounds blocks : ℕ} {roles : List Role}
-variable (bodyCodec : PrefixCodec Body)
+variable (wire : NodeWire) (bodyCodec : PrefixCodec Body)
 local notation "Point" => Input roles Key (Block capacity Fresh) Digest Body
 variable (model : Chain (Input roles Key (Block capacity Fresh) Digest Body) Digest C Out rounds) (initial : Digest)
 variable (ranks : ∀ point : Input roles Key (Block capacity Fresh) Digest Body, model.rank point = point.rank)
@@ -188,7 +196,7 @@ variable (links : ∀ point : Input roles Key (Block capacity Fresh) Digest Body
 variable (sample : Input roles Key (Block capacity Fresh) Digest Body →
   Merkle.RandomOracle.Tree Strand.Word Digest (Option C) blocks) (fallback : C)
 
-local notation "oracleOf" => StrandVerifier.oracle (history bodyCodec) sample fallback
+local notation "oracleOf" => StrandVerifier.oracle (history wire bodyCodec) sample fallback
 
 /-- The actual verifier replay, with its raw trace retained, consumes at
 most one fresh sample per boundary and one for the final node. Online
@@ -199,43 +207,43 @@ theorem named_replay_length {T : Type} (schema : Strand.History.Codec T)
     (H : StrandSearch.Name Strand.OtherPoint T → StrandCoupling.Sample Digest Strand.Word)
     (reserved : state.Reserved (StrandSearch.key Subtype.val)) :
     ((StrandSearch.searchState schema Subtype.val
-      (mapQueries Strand.rawPoint (recordTrace (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out)))
+      (mapQueries Strand.rawPoint (recordTrace (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out)))
       state past).run H).2.length ≤ rounds+1 := by
   apply StrandSearch.searchState_length schema Subtype.val _ state past H
   intro answers
   rw [StrandCoupling.eagerState_recordTrace_queries]
-  exact StrandVerifier.Coupling.beforeSeal_length (history bodyCodec) sample fallback model out state answers reserved
+  exact StrandVerifier.Coupling.beforeSeal_length (history wire bodyCodec) sample fallback model out state answers reserved
 
 include ranks parents links in
 /-- Raw replay supplies every stored parent digest. Consistency is a
 consequence of the runtime transitions and node reads, not a certificate. -/
 theorem replay_consistent (out : Out) (G : Strand.Oracle) (n : ℕ) (within : n ≤ rounds) :
-    (history bodyCodec (model.point out (oracleOf G) n)).Consistent G := by
+    (history wire bodyCodec (model.point out (oracleOf G) n)).Consistent G := by
   induction n with
   | zero =>
       have rank : (model.point out (oracleOf G) 0).rank = 0 :=
         (ranks _).symm.trans (model.point_rank out (oracleOf G) (Nat.zero_le _))
-      obtain ⟨message,equal⟩ := history_root bodyCodec _ rank
+      obtain ⟨message,equal⟩ := history_root wire bodyCodec _ rank
       rw [equal]
       trivial
   | succ n ih =>
       have parent := model.point_parent out (oracleOf G) (by omega : n < rounds)
       rw [parents] at parent
-      obtain ⟨message,equal⟩ := history_parent bodyCodec initial _ _ parent
+      obtain ⟨message,equal⟩ := history_parent wire bodyCodec initial _ _ parent
       rw [equal]
       refine ⟨ih (by omega),?_⟩
       have answer := model.point_link out (oracleOf G) (by omega : n < rounds)
       rw [links] at answer
       rw [answer]
-      exact StrandVerifier.oracle_node (history bodyCodec) sample fallback G _
+      exact StrandVerifier.oracle_node (history wire bodyCodec) sample fallback G _
 
 include parents initial in
 /-- Every earlier reached node occurs in the terminal history. This is a
 property of replay's predecessor relation, independent of hash collisions. -/
 theorem replay_node_mem (out : Out) (oracle : Point → Digest × C)
     (n j : ℕ) (within : n ≤ rounds) (earlier : j ≤ n) :
-    (history bodyCodec (model.point out oracle j)).input.encode ∈
-      (history bodyCodec (model.point out oracle n)).ancestors := by
+    (history wire bodyCodec (model.point out oracle j)).input.encode ∈
+      (history wire bodyCodec (model.point out oracle n)).ancestors := by
   induction n with
   | zero =>
       have zero : j = 0 := by omega
@@ -246,7 +254,7 @@ theorem replay_node_mem (out : Out) (oracle : Point → Digest × C)
       · subst j; exact Strand.History.mem_ancestors _
       · have parent := model.point_parent out oracle (by omega : n < rounds)
         rw [parents] at parent
-        obtain ⟨message,equal⟩ := history_parent bodyCodec initial _ _ parent
+        obtain ⟨message,equal⟩ := history_parent wire bodyCodec initial _ _ parent
         rw [equal]
         exact List.mem_cons_of_mem _ (ih (by omega) (by omega))
 
@@ -254,14 +262,14 @@ include ranks parents initial in
 /-- Ancestor recovery stays inside the reached path. Its collision scope
 never includes an unqueried or counterfactual transcript history. -/
 theorem replay_ancestors (out : Out) (oracle : Point → Digest × C) (scope : Bytes → Prop)
-    (visible : ∀ i ≤ rounds, scope (history bodyCodec (model.point out oracle i)).input.encode)
+    (visible : ∀ i ≤ rounds, scope (history wire bodyCodec (model.point out oracle i)).input.encode)
     (n : ℕ) (within : n ≤ rounds) :
-    ∀ raw ∈ (history bodyCodec (model.point out oracle n)).ancestors, scope raw := by
+    ∀ raw ∈ (history wire bodyCodec (model.point out oracle n)).ancestors, scope raw := by
   induction n with
   | zero =>
       have rank : (model.point out oracle 0).rank = 0 :=
         (ranks _).symm.trans (model.point_rank out oracle (Nat.zero_le _))
-      obtain ⟨message,equal⟩ := history_root bodyCodec _ rank
+      obtain ⟨message,equal⟩ := history_root wire bodyCodec _ rank
       intro raw member
       rw [equal] at member
       have same := List.mem_singleton.mp member
@@ -270,7 +278,7 @@ theorem replay_ancestors (out : Out) (oracle : Point → Digest × C) (scope : B
   | succ n ih =>
       have parent := model.point_parent out oracle (by omega : n < rounds)
       rw [parents] at parent
-      obtain ⟨message,equal⟩ := history_parent bodyCodec initial _ _ parent
+      obtain ⟨message,equal⟩ := history_parent wire bodyCodec initial _ _ parent
       intro raw member
       rw [equal] at member
       rcases List.mem_cons.mp member with current | earlier
@@ -283,19 +291,19 @@ include ranks parents links in
 on actual verifier queries. This discharges final-seal freshness without a
 serialized round counter or an assumption about the adversary's query order. -/
 theorem replay_digest_injective (out : Out) (G : Strand.Oracle)
-    (collisionFree : ∀ a ∈ seen (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out) G,
+    (collisionFree : ∀ a ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G,
       Strand.decodePrf a = none →
-      ∀ b ∈ seen (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out) G,
+      ∀ b ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G,
       Strand.decodePrf b = none →
       G a = G b → a = b) :
-    Function.Injective (fun i : Fin (rounds+1) => G (history bodyCodec (model.point out (oracleOf G) i.val)).input.encode) := by
-  let scope := fun raw => raw ∈ seen (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out) G ∧
+    Function.Injective (fun i : Fin (rounds+1) => G (history wire bodyCodec (model.point out (oracleOf G) i.val)).input.encode) := by
+  let scope := fun raw => raw ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G ∧
     Strand.decodePrf raw = none
-  have visible i (within : i ≤ rounds) : scope (history bodyCodec (model.point out (oracleOf G) i)).input.encode :=
-    ⟨StrandVerifier.beforeSeal_nodes_visible (history bodyCodec) sample fallback model out G ⟨i,by omega⟩,
-      (Strand.History.nodePoint (history bodyCodec (model.point out (oracleOf G) i))).property⟩
-  have ancestors := replay_ancestors bodyCodec model initial ranks parents out (oracleOf G) scope visible
-  have actual := replay_consistent bodyCodec model initial ranks parents links sample fallback out G
+  have visible i (within : i ≤ rounds) : scope (history wire bodyCodec (model.point out (oracleOf G) i)).input.encode :=
+    ⟨StrandVerifier.beforeSeal_nodes_visible (history wire bodyCodec) sample fallback model out G ⟨i,by omega⟩,
+      (Strand.History.nodePoint (history wire bodyCodec (model.point out (oracleOf G) i))).property⟩
+  have ancestors := replay_ancestors wire bodyCodec model initial ranks parents out (oracleOf G) scope visible
+  have actual := replay_consistent wire bodyCodec model initial ranks parents links sample fallback out G
   intro i j same
   have hi : i.val ≤ rounds := by have := i.isLt; omega
   have hj : j.val ≤ rounds := by have := j.isLt; omega
@@ -313,19 +321,19 @@ include ranks in
 because its strand id is the next position. Hash collisions do not affect
 this syntactic fact; the bound rules out counter wrap, as Rust does. -/
 theorem replay_seal_fresh (out : Out) (G : Strand.Oracle) (fits : rounds < 2^64) :
-    (StrandVerifier.sealModel (history bodyCodec) model).point
-        ((StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out).run G).1 G ∉
-      seen (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model out) G := by
+    (StrandVerifier.sealModel (history wire bodyCodec) model).point
+        ((StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out).run G).1 G ∉
+      seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G := by
   have position (i : ℕ) (within : i ≤ rounds) :
-      (history bodyCodec (model.point out (oracleOf G) i)).id.val = i := by
-    have depth : (history bodyCodec (model.point out (oracleOf G) i)).depth = i := by
+      (history wire bodyCodec (model.point out (oracleOf G) i)).id.val = i := by
+    have depth : (history wire bodyCodec (model.point out (oracleOf G) i)).depth = i := by
       rw [history_depth,← ranks,model.point_rank out (oracleOf G) within]
     rw [Strand.History.id_val _ (by rw [depth]; omega),depth]
-  apply StrandVerifier.seal_fresh (history bodyCodec) sample fallback model out G
+  apply StrandVerifier.seal_fresh (history wire bodyCodec) sample fallback model out G
   intro i same
   have equal := congrArg Fin.val same
-  change (history bodyCodec (model.point out (oracleOf G) i.val)).id.val =
-    (history bodyCodec (model.point out (oracleOf G) rounds)).id.val at equal
+  change (history wire bodyCodec (model.point out (oracleOf G) i.val)).id.val =
+    (history wire bodyCodec (model.point out (oracleOf G) rounds)).id.val at equal
   rw [position i.val (by omega),position rounds le_rfl] at equal
   exact (Nat.ne_of_lt i.isLt) equal
 
@@ -335,19 +343,19 @@ except for the separately bounded seal guess. Verifier replay cannot
 supply that query: its preceding queries have different node or PRF ids. -/
 theorem seal_required {fuel : ℕ} (search : Merkle.RandomOracle.Tree Bytes Digest Out fuel)
     (G : Strand.Oracle) (fits : rounds < 2^64)
-    (unguessed : ¬StrandSealCharging.Guess (StrandVerifier.sealModel (history bodyCodec) model)
-      (search.bind (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model)) G)
-    (valid : StrandVerifier.sealValid (history bodyCodec) sample fallback model (search.run G).1 G) :
-    (StrandVerifier.sealModel (history bodyCodec) model).point
-      ((search.bind (StrandVerifier.beforeSeal (history bodyCodec) sample fallback model)).run G).1 G ∈ seen search G := by
-  let finish := StrandVerifier.beforeSeal (history bodyCodec) sample fallback model
-  apply StrandSealCharging.required_before_replay (StrandVerifier.sealModel (history bodyCodec) model) search finish G unguessed
-  · change G ((StrandVerifier.sealModel (history bodyCodec) model).point ((search.bind finish).run G).1 G) = _
+    (unguessed : ¬StrandSealCharging.Guess (StrandVerifier.sealModel (history wire bodyCodec) model)
+      (search.bind (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model)) G)
+    (valid : StrandVerifier.sealValid (history wire bodyCodec) sample fallback model (search.run G).1 G) :
+    (StrandVerifier.sealModel (history wire bodyCodec) model).point
+      ((search.bind (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model)).run G).1 G ∈ seen search G := by
+  let finish := StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model
+  apply StrandSealCharging.required_before_replay (StrandVerifier.sealModel (history wire bodyCodec) model) search finish G unguessed
+  · change G ((StrandVerifier.sealModel (history wire bodyCodec) model).point ((search.bind finish).run G).1 G) = _
     rw [Merkle.RandomOracle.Tree.run_bind]
-    have result := StrandVerifier.beforeSeal_result (history bodyCodec) sample fallback model (search.run G).1 G
+    have result := StrandVerifier.beforeSeal_result (history wire bodyCodec) sample fallback model (search.run G).1 G
     simpa only [finish,StrandVerifier.sealValid,StrandVerifier.sealModel,result] using valid
   · simpa only [Merkle.RandomOracle.Tree.run_bind] using
-      replay_seal_fresh bodyCodec model ranks sample fallback (search.run G).1 G fits
+      replay_seal_fresh wire bodyCodec model ranks sample fallback (search.run G).1 G fits
 
 end Replay
 
@@ -360,7 +368,7 @@ variable (encoding : Replay.Encoding g fields Advice Authentication Key (Block c
 seal. A caller cannot replace it with a separately chosen final message. -/
 theorem complete_body_node (initial : Digest) (proof : Replay.Output g fields Advice Authentication)
     (H : Replay.Point g fields Advice Authentication Key (Block capacity Fresh) → Digest × C) :
-    ∃ state, (history bodyCodec ((encoding.chain initial).finalSealPoint proof H)).input.encode =
+    ∃ state, (history NodeWire.current bodyCodec ((encoding.chain initial).finalSealPoint proof H)).input.encode =
       TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode proof.body) := by
   obtain ⟨past,equal⟩ := encoding.finalSealPoint_body initial proof H
   rw [equal]
@@ -381,12 +389,12 @@ local notation "toPoint" => QueryRuntime.Runtime.toPoint repr shape setup public
 
 /-- This is instantiated with the existing first-fingerprint packet and
 every role-local runtime packet, including the complete canonical proof body. -/
-def schema : TranscriptV2.Strand.History.Codec Value := StrandQueryCodec.schema bodyCodec blocks
+def schema : TranscriptV2.Strand.History.Codec Value := StrandQueryCodec.schema NodeWire.current bodyCodec blocks
 
 /-- The actual runtime serializer is the same encoding recognized by the
 online decoder. No assumption about arbitrary cache serialization is needed. -/
 theorem toPoint_history (value : Value) :
-    StrandRuntime.history bodyCodec (toPoint value) = (schema repr shape setup publicCount).encode value := by
+    StrandRuntime.history NodeWire.current bodyCodec (toPoint value) = (schema repr shape setup publicCount).encode value := by
   unfold QueryRuntime.Runtime.toPoint
   rw [history_reindex,history_embed]
   rfl
@@ -411,7 +419,7 @@ theorem history_parent (value earlier : Value)
     (previous : StrandQueryCodec.parent bodyCodec blocks value = some earlier) :
     ∃ digest message, (schema repr shape setup publicCount).encode value =
       .child ((schema repr shape setup publicCount).encode earlier) digest message :=
-  StrandQueryCodec.history_parent bodyCodec blocks value earlier previous
+  StrandQueryCodec.history_parent NodeWire.current bodyCodec blocks value earlier previous
 
 /-- Parsed packet values and canonical runtime points are the same finite
 objects. The verifier's redundant caches add no independent coordinates. -/

@@ -58,7 +58,7 @@ local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPu
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
 local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "beforeSeal" => TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M)
 local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
 local notation "O" => Soundness.OracleTransport.other binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
@@ -75,7 +75,7 @@ local notation "resumeTree" => StrandReplay.resume (schema) bytes compiledReplay
 local notation "completed" => Soundness.OracleTransport.completion binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "SHAof" => Soundness.OracleTransport.rawSHA binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
 local notation "messages" => fun output : Output =>
-  StrandLinearReplay.packets bodyCodec (Earlier (RuntimeAdaptive.Output.request output)) cfg.fallback (RuntimeAdaptive.Output.proof output)
+  StrandLinearReplay.packets NodeWire.current bodyCodec (Earlier (RuntimeAdaptive.Output.request output)) cfg.fallback (RuntimeAdaptive.Output.proof output)
 local notation "ordinaryOracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
 local notation "rawException" => Soundness.OracleTransport.rawException binary prime P R repr shape setup cfg
   binaryCount metadata fits sample codec merkleInput program

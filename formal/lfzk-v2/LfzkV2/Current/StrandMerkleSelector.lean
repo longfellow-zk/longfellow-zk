@@ -124,14 +124,14 @@ theorem recordedSelect_spec (initial : Digest) (H : Strand.Oracle)
     (independent : ∀ i first second, encoding.block proof i first = encoding.block proof i second)
     (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
     (known : ∀ i ≤ index, ∃ digest,
-      ((StrandRuntime.history bodyCodec ((encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample fallback H) i)).input.encode,
+      ((StrandRuntime.history NodeWire.current bodyCodec ((encoding.chain initial).point proof
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H) i)).input.encode,
         digest) ∈ trace)
     (claim : MH.OpeningClaim n (MerkleWireCodec.Salt n) (Joint.Pair.family P R).Leaf Digest)
     (decoded : OrderedOpening.decode (fun column nonce => (column,nonce))
-      (indices ((TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample fallback H)
+      (indices ((TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H)
         ((encoding.chain initial).point proof
-          (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample fallback H) index)).2)
+          (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H) index)).2)
       raw = some claim)
     (different : ∃ column, column ∈ claim.I ∧ messages (dec) cut root n column ≠ claim.a column) :
     let path := recordedSelect bodyCodec encoding fallback proof trace sample index

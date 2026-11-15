@@ -158,7 +158,7 @@ theorem finish_accepts
     refine ⟨?_,?_,?_,?_,?_,?_⟩
     · intro i
       rw [RuntimeAdaptiveVerifier.point_eq,outputRequest,encoded]
-      change TranscriptV2.StrandVerifier.sampled (StrandRuntime.history (ProofBodyCodec.codec repr g))
+      change TranscriptV2.StrandVerifier.sampled (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g))
         roundSampler SHA ((e.encoding.chain configuration.initialLink).point output.proof H i.val)
       rw [finish_point_responses binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
         roundSampler request frontend response indices (fun j => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns j.val)) opening SHA H

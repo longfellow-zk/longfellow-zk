@@ -270,7 +270,7 @@ theorem accepted_decoded (residual : Tagged → Residual) (H : Tagged → Digest
     (by
       intro i
       have link := (rows i.val i.isLt.le).1
-      change SHA (StrandRuntime.history E.bodyCodec
+      change SHA (StrandRuntime.history NodeWire.current E.bodyCodec
         ((E.chain).point (sourceView original).original.1 (ordinary SHA) i.val)).input.encode =
         (H ((names).tag (sourcePath ((search).run original).1 original i.val))).1 at link
       rw [outputEq,tags i.val i.isLt.le] at link
@@ -279,8 +279,8 @@ theorem accepted_decoded (residual : Tagged → Residual) (H : Tagged → Digest
       intro i
       have row := (rows i.val i.isLt.le).2
       let point := (E.chain).point (sourceView original).original.1 (ordinary SHA) i.val
-      change (fun counter => SHA (Strand.Input.prf (StrandRuntime.history E.bodyCodec point).id
-        (SHA (StrandRuntime.history E.bodyCodec point).input.encode) counter).encode) =
+      change (fun counter => SHA (Strand.Input.prf (StrandRuntime.history NodeWire.current E.bodyCodec point).id
+        (SHA (StrandRuntime.history NodeWire.current E.bodyCodec point).input.encode) counter).encode) =
         ((split ((names).tag (sourcePath ((search).run original).1 original i.val))).symm
           ((H ((names).tag (sourcePath ((search).run original).1 original i.val))).2,
             residual ((names).tag (sourcePath ((search).run original).1 original i.val)))).1 at row

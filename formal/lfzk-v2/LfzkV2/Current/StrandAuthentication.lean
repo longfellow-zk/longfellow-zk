@@ -318,7 +318,7 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Annotated" => RuntimeAdaptiveMerkle.Annotated (g := g) (fields := fields)
   (Advice := Advice) (Base := BoundedBytes capacity) (Key := Key) (C := C) (Request := Request)
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "oracle" => StrandVerifier.oracle binary prime P R cfg bodyCodec sample
 local notation "ordinary" => TranscriptV2.StrandVerifier.replay history sample cfg.fallback (M)
 local notation "claims" => RuntimeAdaptiveMerkle.claimOf binary prime P R cfg

@@ -70,7 +70,7 @@ variable (after : Context → Option (CanonicalRuntime.Output (Advice := MdocAdv
   Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
 
 local notation "RuntimePoint" => QueryRuntime.Runtime.Point Repr Sh setup binary.nPublic
-local notation "History" => (StrandRuntime.history
+local notation "History" => (StrandRuntime.history NodeWire.current
   (ProofBodyCodec.codec Repr (MdocRuntime.geometry binary.description prime binary.plan primePlan)) :
   RuntimePoint → Strand.History)
 local notation "Output" => CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh

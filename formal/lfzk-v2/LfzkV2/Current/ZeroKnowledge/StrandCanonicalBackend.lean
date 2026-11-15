@@ -43,12 +43,12 @@ variable {blocks : ℕ}
 
 def logicalOracle (sampler : Point → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
     (fallback : C) (SHA : Strand.Oracle) : Point → Digest × C :=
-  StrandVerifier.oracle (StrandRuntime.history (ProofBodyCodec.codec repr g)) sampler fallback SHA
+  StrandVerifier.oracle (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) sampler fallback SHA
 
 omit [Fintype B] [DecidableEq B] in
 theorem logicalOracle_congr_reads (sampler : Point → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
     (fallback : C) (SHA SHA' : Strand.Oracle)
-    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     logicalOracle binary repr shape setup sampler fallback SHA =
       logicalOracle binary repr shape setup sampler fallback SHA' :=
   StrandReadWindow.Agree.oracle _ sampler fallback agree
@@ -90,7 +90,7 @@ def select (configuration : RuntimeVerifier.Public (g := g) binary prime P R
   let body := responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response
   let H := logicalOracle binary repr shape setup roundSampler configuration.fallback SHA
   let replay := (encoding.encoding.chain configuration.initialLink).point ⟨body,fun _ => 0⟩ H
-  let history : Point → Strand.History := StrandRuntime.history (ProofBodyCodec.codec repr g)
+  let history : Point → Strand.History := StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
   let point := replay g.openingIndex
   let node := history point
   if ∀ i : Fin g.openingIndex.val,
@@ -107,7 +107,7 @@ theorem select_congr_reads (configuration : RuntimeVerifier.Public (g := g) bina
     (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
     (roundSampler : Point → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
     (request : Request) (frontend : Body) (SHA SHA' : Strand.Oracle)
-    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     select binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler request frontend SHA =
       select binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler request frontend SHA' := by
   funext response
@@ -212,7 +212,7 @@ theorem respond_congr_reads (configuration : RuntimeVerifier.Public (g := g) bin
     (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R
       (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))
     (request : Request) (frontend : Body) (SHA SHA' : Strand.Oracle) (tape : Masks)
-    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     respond binary prime binaryNodes primeNodes repr shape setup configuration
         binaryCount primeCount metadata roundSampler batchingSamples request frontend SHA tape =
       respond binary prime binaryNodes primeNodes repr shape setup configuration
@@ -335,7 +335,7 @@ theorem finish_oracle_congr_reads (configuration : RuntimeVerifier.Public (g := 
     (request : Request) (frontend : Body) (response : Responses) (indices : Fin 84 ↪ Fin 2443)
     (columns : (OrderedOpening.query indices).coordinates → Physical)
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
-    (SHA SHA' : Strand.Oracle) (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (SHA SHA' : Strand.Oracle) (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler
         request frontend response indices columns opening SHA =
       finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler

@@ -56,7 +56,7 @@ local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary sha
 local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
 local notation "E" => RuntimeAdaptiveVerifier.encodings binary prime P R (W) (Earlier)
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "ordinary" => StrandVerifier.oracle binary prime P R (W) bodyCodec sample
 local notation "hashPublic" => CanonicalRequest.hashPublic binary.nPublic
 local notation "primePublic" => CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount

@@ -123,7 +123,7 @@ theorem prepare_oracle_congr_reads (configuration : RuntimeVerifier.Public (g :=
     (SHA SHA' : Strand.Oracle)
     (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
       Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history (ProofBodyCodec.codec repr g)) SHA SHA') :
+    (agree : @StrandReadWindow.Agree Point (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)) SHA SHA') :
     prepare binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
         roundSampler request frontend backend SHA after =
       prepare binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata

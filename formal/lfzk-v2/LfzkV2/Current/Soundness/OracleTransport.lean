@@ -49,7 +49,7 @@ local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPu
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
 local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "ordinaryOracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
 local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
 
@@ -367,10 +367,10 @@ theorem rawException_observed (G : Raw → Digest) :
   apply not_congr
   constructor
   · intro known
-    exact StrandRuntime.replay_ancestors bodyCodec (M) cfg.initialLink
+    exact StrandRuntime.replay_ancestors NodeWire.current bodyCodec (M) cfg.initialLink
       (fun _ => rfl) (fun _ => rfl) _ _ _ known g.roles.length le_rfl
   · intro known i within
-    exact known _ (StrandRuntime.replay_node_mem bodyCodec (M) cfg.initialLink
+    exact known _ (StrandRuntime.replay_node_mem NodeWire.current bodyCodec (M) cfg.initialLink
       (fun _ => rfl) _ _ g.roles.length i le_rfl within)
 
 /-- Exact transport of the original-query exception. The only observed

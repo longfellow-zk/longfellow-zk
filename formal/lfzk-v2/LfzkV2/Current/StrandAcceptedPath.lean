@@ -38,7 +38,7 @@ local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPu
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
 local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "oracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
 local notation "beforeSeal" => TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M)
 

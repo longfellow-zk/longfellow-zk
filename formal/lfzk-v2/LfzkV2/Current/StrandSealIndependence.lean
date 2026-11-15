@@ -28,15 +28,15 @@ theorem point_nodes_congr (default : C) (proof : Replay.Output g fields Advice A
     (nodes : ∀ history : Strand.History, G history.input.encode = G' history.input.encode)
     (index : ℕ) :
     (encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample default G) index =
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G) index =
       (encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample default G') index := by
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G') index := by
   rw [encoding.replay_transcript proof default independent,
     encoding.replay_transcript proof default independent]
   have same : (fun point =>
-      (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample default G point).1) =
+      (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G point).1) =
       (fun point =>
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history bodyCodec) sample default G' point).1) := by
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G' point).1) := by
     funext point
     rw [TranscriptV2.StrandVerifier.oracle_node,TranscriptV2.StrandVerifier.oracle_node]
     exact nodes _
@@ -89,12 +89,12 @@ linear chain. Neither field challenges nor reconstructed adapter coefficients
 occur in this packet function. -/
 theorem runtime_history_replay (output : CanonicalRuntime.Output (Advice := Advice) binary shape)
     (G : Strand.Oracle) (index : ℕ) (within : index ≤ g.roles.length) :
-    StrandRuntime.history bodyCodec ((M).point output (oracle G) index) =
+    StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) index) =
       StrandLinear.replay
-        (StrandLinearReplay.packets bodyCodec (Earlier output.request) cfg.fallback output.proof)
+        (StrandLinearReplay.packets NodeWire.current bodyCodec (Earlier output.request) cfg.fallback output.proof)
         G index := by
   rw [RuntimeAdaptiveVerifier.point_eq,CanonicalRuntime.encodings_eq]
-  apply StrandLinearReplay.history_replay bodyCodec (Earlier output.request) cfg.fallback output.proof
+  apply StrandLinearReplay.history_replay NodeWire.current bodyCodec (Earlier output.request) cfg.fallback output.proof
     _ cfg.initialLink sample G index within
   exact CanonicalRequest.block_challengeIndependent repr shape setup binary.nPublic
     (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
@@ -111,8 +111,8 @@ theorem finalSealAddress_congr (output : CanonicalRuntime.Output (Advice := Advi
     independent sample output G G' nodes g.roles.length
   unfold StrandVerifier.finalSealAddress
   change (Strand.Input.prf
-      (StrandRuntime.history bodyCodec ((M).point output (oracle G) g.roles.length)).id
-      (G (StrandRuntime.history bodyCodec ((M).point output (oracle G) g.roles.length)).input.encode) 0).encode = _
+      (StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) g.roles.length)).id
+      (G (StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) g.roles.length)).input.encode) 0).encode = _
   rw [point,nodes]
   rfl
 

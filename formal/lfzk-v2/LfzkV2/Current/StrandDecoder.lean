@@ -78,7 +78,7 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : BoundedBytes capacity → Option (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
 local notation "read" => fun point => StrandSampling.read (factor point) cfg.fallback (sample point)
 local notation "physical" => StrandVerifier.oracle binary prime P R cfg bodyCodec read

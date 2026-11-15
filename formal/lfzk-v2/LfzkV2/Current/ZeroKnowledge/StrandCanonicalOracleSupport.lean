@@ -34,7 +34,7 @@ local notation "Codec" => indexedCodec binary prime binaryNodes primeNodes repr 
 local notation "Dec" => indexedDecoders binary prime binaryNodes primeNodes repr shape setup configuration
 local notation "ToLeaf" => leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration
 local notation "RuntimePoint" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
-local notation "History" => StrandRuntime.history (ProofBodyCodec.codec repr g)
+local notation "History" => StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
 
 variable {blocks : ℕ} {Observed Context : Type} {postQueries : ℕ}
 variable (binaryCount : shape.binaryPublic = binary.nPublic)

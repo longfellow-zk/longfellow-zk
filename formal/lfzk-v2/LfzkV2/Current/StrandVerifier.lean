@@ -36,7 +36,7 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 
 /-- Replaying the physical sampler determines the original typed runtime
 answers. Unused failure values are harmless because `samplersSucceeded`
@@ -175,7 +175,7 @@ theorem accepted_seal_query {fuel : ℕ} (search : Tree Bytes Digest Output fuel
     (TranscriptV2.StrandVerifier.sealModel history (M)).point
       ((search.bind (TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M))).run SHA).1 SHA ∈
         TranscriptV2.seen search SHA := by
-  apply StrandRuntime.seal_required bodyCodec (M) (fun _ => rfl)
+  apply StrandRuntime.seal_required NodeWire.current bodyCodec (M) (fun _ => rfl)
     sample cfg.fallback search SHA fits unguessed
   exact accepted_seal binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
     SHA merkleInput (search.run SHA).1 accepted

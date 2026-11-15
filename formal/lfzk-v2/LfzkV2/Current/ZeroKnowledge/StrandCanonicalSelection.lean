@@ -40,7 +40,7 @@ theorem select_spec
       ⟨responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response,fun _ => 0⟩
     let points := (e.encoding.chain configuration.initialLink).point pending H
     (∀ i : Fin g.roles.length,
-      TranscriptV2.StrandVerifier.sampled (StrandRuntime.history (ProofBodyCodec.codec repr g))
+      TranscriptV2.StrandVerifier.sampled (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g))
         roundSampler SHA (points i.val)) ∧
       configuration.sample (H (points g.openingIndex.val)).2 = indices := by
   let H := logicalOracle binary repr shape setup roundSampler configuration.fallback SHA
@@ -48,7 +48,7 @@ theorem select_spec
     ⟨responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response,fun _ => 0⟩
   let points := (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).point pending H
   let history : QueryRuntime.Runtime.Point repr shape setup binary.nPublic → Strand.History :=
-    StrandRuntime.history (ProofBodyCodec.codec repr g)
+    StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
   let node := history (points g.openingIndex.val)
   let result := (roundSampler (points g.openingIndex.val)).run
     (fun counter => SHA (Strand.Input.prf node.id (SHA node.input.encode) counter).encode)

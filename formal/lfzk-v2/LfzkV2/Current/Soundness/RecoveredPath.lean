@@ -45,7 +45,7 @@ local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPu
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
 local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
-local notation "history" => StrandRuntime.history bodyCodec
+local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "ordinaryOracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
 local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
 
@@ -152,7 +152,7 @@ theorem original_path_or_charge (H : Name → Answer)
     (fun a b equal => Subtype.ext (Subtype.ext equal)) values nodeOf (fun _ => rfl) ?_ ?_ ?_ ?_ visible
   · intro i within
     rw [pathHistory i within]
-    exact StrandRuntime.replay_consistent bodyCodec (M) cfg.initialLink (fun _ => rfl) (fun _ => rfl)
+    exact StrandRuntime.replay_consistent NodeWire.current bodyCodec (M) cfg.initialLink (fun _ => rfl) (fun _ => rfl)
       (fun _ => rfl) sample cfg.fallback output SHA i within
   · intro i within
     rw [pathHistory i within,StrandRuntime.history_depth]
@@ -161,10 +161,10 @@ theorem original_path_or_charge (H : Name → Answer)
     rw [rank]
     exact lt_of_le_of_lt within fits
   · rw [pathHistory 0 (Nat.zero_le _)]
-    exact StrandRuntime.history_root bodyCodec _ ((M).point_rank output (ordinaryOracle SHA) (Nat.zero_le _))
+    exact StrandRuntime.history_root NodeWire.current bodyCodec _ ((M).point_rank output (ordinaryOracle SHA) (Nat.zero_le _))
   · intro i within
     rw [pathHistory (i+1) (by omega),pathHistory i within.le]
-    obtain ⟨message,equal⟩ := StrandRuntime.history_parent bodyCodec cfg.initialLink _ _ ((M).point_parent output (ordinaryOracle SHA) within)
+    obtain ⟨message,equal⟩ := StrandRuntime.history_parent NodeWire.current bodyCodec cfg.initialLink _ _ ((M).point_parent output (ordinaryOracle SHA) within)
     exact ⟨_,message,equal⟩
 
 /-- Original-path recovery supplies the exact physical node and PRF row
