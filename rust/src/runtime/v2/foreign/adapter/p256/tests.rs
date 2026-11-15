@@ -1,12 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The P-256 mode's statement values (transcript I3).
-use super::{P256Mode, P256Plan};
+use super::{transcript::write_layout, P256Mode, P256Plan};
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
         algebra::gf2_128::Gf2_128Field,
         v2::{
-            foreign::adapter::{fragment, transcript::write_layout, TreeShape},
+            foreign::adapter::{fragment, TreeShape},
             proto::tests::statement::Statement as Decoded,
             transcript::{Header, Opened, Statement, ZkStatement},
             zk::storage::{BitGroup, Group},

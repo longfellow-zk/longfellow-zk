@@ -384,7 +384,7 @@ for mixed storage:
 
 | Value | Mixed storage | Pure-foreign storage | mdoc |
 |---|---|---|---|
-| `mode_id` | `b"longfellow/v2/foreign/p256/two-full-field-trees/v1"` (`P256_MODE_ID` in `runtime/v2/foreign/adapter/transcript.rs`) | same | same |
+| `mode_id` | `b"longfellow/v2/foreign/p256/two-full-field-trees/v1"` (`P256_MODE_ID` in `runtime/v2/foreign/adapter/p256/transcript.rs`) | same | same |
 | `Q` | the type parameter | same | 10 |
 | `trees` | `P256Plan::TREES` | same | 2 |
 | `leaves` (per tree) | `bits + Q`, `bits` the claim's total bit width including R's 256 (`P256Plan::shape`); `virtual_inputs()` is `trees` times this | `bits + Q`, no R | 1034 = 768 + 256 + 10 |
@@ -503,9 +503,11 @@ pub fn virtual_inputs(shape: TreeShape, trees: Vec<TreeInstance>, f: &Gf2_128Fie
 pub fn fragment(npublic: usize, virtual_start: usize, shape: TreeShape)
     -> Result<Circuit<Gf2_128Field>, String>;            // no challenge parameter (I7)
 
-// runtime::v2::foreign::adapter::p256
+// runtime::v2::foreign::adapter::p256::transcript
 pub struct Conversion(/* [P256Element; 2], crate-private */);  // only the nonzero draw builds it (I4)
 impl Conversion { pub fn values(&self) -> &[P256Element; 2]; }
+
+// runtime::v2::foreign::adapter::p256
 pub struct P256Plan<const Q: usize> { .. }              // TREES = 2; new rejects bits > 2^Q (I5)
 impl<const Q: usize> P256Plan<Q> {
     pub fn new(widths: Vec<usize>) -> Result<Self, String>;
@@ -517,7 +519,7 @@ impl<const Q: usize> P256Plan<Q> {
 }
 pub(crate) struct P256Encoded<const Q: usize> { .. }    // leaf coefficients, targets, prover quotients
 pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field>, MASK_BITS = 256;
-                                                        // mode ID P256_MODE_ID in adapter/transcript.rs
+                                                        // mode ID P256_MODE_ID in adapter/p256/transcript.rs
 
 // runtime::v2::foreign::word (I5)
 pub(crate) struct Word<const N: usize>(u64);            // prover builds only; no encoder

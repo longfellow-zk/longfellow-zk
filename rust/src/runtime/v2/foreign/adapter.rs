@@ -13,9 +13,7 @@
 //! The modulus-specific encoder (`p256`, wrapping mode) only computes leaf
 //! coefficients, targets and honest quotients. `AdapterMode` packages an
 //! encoder with its rounds, pads and message for the composition driver.
-pub(crate) mod integer;
 pub mod p256;
-mod transcript;
 
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::{random::PrivateRandom, v2::zk::storage::ReservedWitness};

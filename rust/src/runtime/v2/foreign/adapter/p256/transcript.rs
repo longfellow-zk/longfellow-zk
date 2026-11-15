@@ -5,7 +5,7 @@
 use crate::runtime::{
     algebra::p256::{P256Element, P256Field},
     v2::{
-        foreign::word::MaskedWord,
+        foreign::{adapter::TreeShape, word::MaskedWord},
         proto::tags::Tag,
         transcript::{
             Bound, Challenge, Encoder, Header, Message, ProverMessage, Reading, SetupMessage,
@@ -91,11 +91,7 @@ impl SetupMessage for LayoutMessage<'_> {}
 
 /// Write the P-256 mode's `AdapterLayout`: its quotient width `Q`, its tree
 /// shape, and its two quotient pads' bit groups.
-pub(super) fn write_layout<const Q: usize>(
-    h: &mut Header<'_>,
-    shape: super::TreeShape,
-    pads: [Group; 2],
-) {
+pub(super) fn write_layout<const Q: usize>(h: &mut Header<'_>, shape: TreeShape, pads: [Group; 2]) {
     let positions: Vec<u64> = pads
         .iter()
         .flat_map(|g| [g.start() as u64, g.width() as u64])

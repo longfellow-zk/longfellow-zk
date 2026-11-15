@@ -7,10 +7,13 @@
 //! give two trees. Each tree checks `g^(S - C) * X^k = 1`, that is
 //! `g^(S - C) = X^(-k)`, where `g^(-p) = X` and the honest quotient
 //! `k = (S - C) / p` is below `2^Q`.
-use super::{
-    integer::{self, Int256},
-    Leaf, TreeInstance, TreeShape,
-};
+mod integer;
+pub mod transcript;
+
+use integer::Int256;
+use transcript::Conversion;
+
+use super::{Leaf, TreeInstance, TreeShape};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::{random::PrivateRandom, v2::foreign::word::Word};
 use crate::{
@@ -270,11 +273,6 @@ impl<const Q: usize> P256Encoded<Q> {
     }
 }
 
-#[cfg(test)]
-pub(in crate::runtime::v2::foreign) use super::transcript::conversion;
-pub(in crate::runtime::v2::foreign) use super::transcript::send_quotients;
-pub use super::transcript::Conversion;
-
 /// The P-256 wrapping mode as an adapter mode: two trees, each with a
 /// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
 ///
@@ -284,11 +282,11 @@ pub use super::transcript::Conversion;
 /// steps are not public:
 ///
 /// ```compile_fail,E0432
-/// use longfellow_zk::runtime::v2::foreign::adapter::p256::conversion;
+/// use longfellow_zk::runtime::v2::foreign::adapter::p256::transcript::conversion;
 /// ```
 ///
 /// ```compile_fail,E0603
-/// use longfellow_zk::runtime::v2::foreign::adapter::p256::send_quotients;
+/// use longfellow_zk::runtime::v2::foreign::adapter::p256::transcript::send_quotients;
 /// ```
 pub struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
@@ -328,7 +326,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         self.virtual_inputs
     }
     fn write_layout(&self, h: &mut Header<'_>) {
-        super::transcript::write_layout::<Q>(h, self.shape, self.otp.map(|g| g.group()));
+        transcript::write_layout::<Q>(h, self.shape, self.otp.map(|g| g.group()));
     }
     #[cfg(any(test, feature = "prover"))]
     fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads {
@@ -347,7 +345,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         Ok(())
     }
     fn draw_conversion(t: &mut Bound<'_, Self>, p: &P256Field) -> Challenge<Conversion> {
-        super::transcript::draw_conversion(t, p)
+        transcript::draw_conversion(t, p)
     }
     #[cfg(any(test, feature = "prover"))]
     fn prove(
@@ -365,7 +363,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         let k = encoded.quotients.ok_or("P256 adapter quotients")?;
         let [o0, o1] = pads;
         let masked = [MaskedWord::mask(k[0], o0), MaskedWord::mask(k[1], o1)];
-        send_quotients(&mut t.transcript(), &masked);
+        transcript::send_quotients(&mut t.transcript(), &masked);
         let leaves =
             super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, &masked, f), f)?;
         Ok((masked, leaves))
@@ -382,7 +380,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         let mode = t.part();
         let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
         let encoded = mode.plan.encode(claim, &alpha, None, p, f)?;
-        send_quotients(&mut t.transcript(), masked);
+        transcript::send_quotients(&mut t.transcript(), masked);
         super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, masked, f), f)
     }
 }

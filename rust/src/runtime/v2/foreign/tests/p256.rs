@@ -4,7 +4,10 @@
 use super::super::{
     adapter::{
         fragment,
-        p256::{conversion, send_quotients, P256Plan},
+        p256::{
+            transcript::{conversion, send_quotients},
+            P256Plan,
+        },
         virtual_inputs,
     },
     word::{MaskedWord, Otp},
