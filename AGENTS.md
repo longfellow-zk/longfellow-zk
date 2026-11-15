@@ -65,6 +65,13 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   `cargo tree -e normal --no-default-features --features prover,mdoc,v1`
   (and the verifier and v2 equivalents).
 - v1 and v2 are disjoint: no v1 file uses a v2 file or the reverse.
+- v1 is the deployed system and is frozen. Do not break compatibility: its
+  proof format, transcript, circuits and circuit IDs, parameters, public API
+  and error codes stay as they are, and proofs must keep verifying across old
+  and new builds in both directions. Change v1 only where the maintainer asks,
+  and then only in ways that leave every byte it produces or accepts unchanged
+  (for example a build fix); the v1 tests, test vectors and the
+  `formal/lfzk-v1` inspectors must pass unchanged.
 
 ### Parameters
 
