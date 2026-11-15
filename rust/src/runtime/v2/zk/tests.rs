@@ -245,8 +245,12 @@ fn exercise<
             .statement(CONTEXT, public)
             .map_err(|e| e.to_string())?;
         let mut session = Opened::new(&statement);
-        let parsed = ZkProof::read(encoded, &session.bound(|s| s.geometry()), f)
-            .map_err(|e| e.to_string())?;
+        let parsed = {
+            // The session binds the geometry its own statement wrote (I2).
+            let bound = session.geometry();
+            assert!(std::ptr::eq(bound.part(), statement.geometry()));
+            ZkProof::read(encoded, &bound, f).map_err(|e| e.to_string())?
+        };
         let verified = verifier
             .verify(session, parsed, &context)
             .map_err(|e| e.to_string())?;

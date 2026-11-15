@@ -5,8 +5,8 @@ use longfellow_zk::runtime::v2::transcript::{Reading, ZkStatement};
 fn bad(mut r: Reading<'_>) { r.send(&ZkStatement { context: b"late" }); }
 ```
 
-Only a statement writes setup messages: the header exists only while
-`Transcript::new` runs, and it accepts no prover message.
+Only a statement writes setup messages: the header exists only while a
+session opens, and it accepts no prover message.
 
 ```compile_fail,E0451
 use longfellow_zk::runtime::v2::transcript::{Header, Transcript};
@@ -59,6 +59,15 @@ fn bad(mut proof: Unverified<'_, u8>) { *proof = 42; }
 Positive control: a statement opens a session.
 
 ```
+use longfellow_zk::runtime::v2::transcript::{Opened, ZkStatement};
+let statement = ZkStatement { context: b"context" };
+let session = Opened::new(&statement);
+```
+
+Outside the crate a session opens only with the statement it keeps
+(`Opened::new`):
+
+```compile_fail,E0624
 use longfellow_zk::runtime::v2::transcript::{Transcript, ZkStatement};
 let t = Transcript::new(&ZkStatement { context: b"context" });
 ```
@@ -67,8 +76,8 @@ Borrowed frontend operations cannot replace, clone or finalize their owner's
 session:
 
 ```compile_fail,E0614
-use longfellow_zk::runtime::v2::transcript::{Transcript, TranscriptRef, ZkStatement};
-fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::new(&ZkStatement { context: b"r" }); }
+use longfellow_zk::runtime::v2::transcript::{Transcript, TranscriptRef};
+fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::for_test(b"r"); }
 ```
 
 ```compile_fail,E0599

@@ -27,7 +27,7 @@ use crate::{
         },
         v2::{
             proto::{composed::ComposedGeometry, polygero::PolygeroConfig},
-            transcript::Header,
+            transcript::{Bound, Header, Opened, SetupMessage, Statement},
             zk::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
                 storage::{Group, ReservedSuffix, Storage, StorageMap},
@@ -146,14 +146,17 @@ where
             config: param.config(),
         })
     }
-    /// The composition's statement part on these public inputs: both
-    /// frontends and the geometry the proof is parsed against.
-    pub fn statement<'s>(
+    /// The composition's statement on these public inputs: the application's
+    /// `identity` message, both frontends and the geometry the proof is
+    /// parsed against.
+    pub fn statement<'s, I: SetupMessage>(
         &'s self,
+        identity: I,
         host_public: &'s [CircuitInput<Host>],
         split_public: &'s [CircuitInput<F>],
-    ) -> Result<ComposedStatement<'s, W, F, DH, DS, M>, String> {
+    ) -> Result<ComposedStatement<'s, W, F, DH, DS, M, I>, String> {
         Ok(ComposedStatement {
+            identity,
             composition: self,
             host: FrontendPart::new(
                 &self.host,
@@ -173,31 +176,48 @@ where
     }
 }
 
-/// A composition's statement part: its two frontends on their public inputs
-/// and its geometry. `write` emits the composition's statement messages:
-/// a `Circuit` per circuit in participant order (the host circuit, the
-/// adapter fragment, the split circuit), a `CommitmentLayout` per field
-/// (host, then split), the mode's `AdapterLayout`, the `JointGeometry`, and
-/// the `PublicInputs` of each field (host, then split). Proving and
-/// verifying read the frontends from here (transcript I2).
-pub struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
+/// A composition's statement: the application's identity message, then
+/// the composition's statement messages: a `Circuit` per circuit in
+/// participant order (the host circuit, the adapter fragment, the split
+/// circuit), a `CommitmentLayout` per field (host, then split), the mode's
+/// `AdapterLayout`, the `JointGeometry`, and the `PublicInputs` of each
+/// field (host, then split). Proving and verifying take a session opened
+/// with it and read the frontends from it (transcript I2).
+pub struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M, I>
 where
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
 {
+    identity: I,
     composition: &'s Composition<'s, W, F, DH, DS, M>,
     host: FrontendPart<'s, H, Host>,
     split: FrontendPart<'s, W, F>,
     geometry: ComposedGeometry,
 }
-impl<const W: usize, F, DH, DS, M> ComposedStatement<'_, W, F, DH, DS, M>
+impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
+where
+    F: ZkField<W> + PackingField,
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+{
+    /// The geometry the statement writes, which the proof is parsed against.
+    pub fn geometry(&self) -> &ComposedGeometry {
+        &self.geometry
+    }
+}
+impl<const W: usize, F, DH, DS, M, I> Statement for ComposedStatement<'_, W, F, DH, DS, M, I>
 where
     F: ZkField<W> + PackingField,
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
     M: AdapterMode<F>,
+    I: SetupMessage,
 {
-    pub fn write(&self, h: &mut Header<'_>) {
+    type Identity = I;
+    fn identity(&self) -> &I {
+        &self.identity
+    }
+    fn write(&self, h: &mut Header<'_>) {
         self.host.write_circuits(h);
         self.split.write_circuits(h);
         self.host.write_layout(h);
@@ -207,9 +227,18 @@ where
         self.host.write_public(h);
         self.split.write_public(h);
     }
-    /// The geometry the statement writes, which the proof is parsed against.
-    pub fn geometry(&self) -> &ComposedGeometry {
-        &self.geometry
+}
+impl<'s, 'a: 's, const W: usize, F, DH, DS, M, I>
+    Opened<'s, ComposedStatement<'a, W, F, DH, DS, M, I>>
+where
+    F: ZkField<W> + PackingField,
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+{
+    /// The session, bound to the geometry its statement wrote, which the
+    /// proof is parsed against (transcript I2).
+    pub fn geometry(&mut self) -> Bound<'_, ComposedGeometry> {
+        self.bound(|s| &s.geometry)
     }
 }
 

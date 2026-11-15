@@ -36,14 +36,14 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     pub const MAGIC: [u8; 4] = *b"MDA7";
     pub fn write(
         &self,
-        g: &MdocProofGeometry,
+        g: &ComposedGeometry,
         f1: &F1,
         f2: &F2,
         transcript: Transcript,
     ) -> Result<EncodedProof, String> {
         let mut out = Vec::new();
         out.extend_from_slice(&Self::MAGIC);
-        self.body.write_to_buf(&mut out, &g.body, f1, f2)?;
+        self.body.write_to_buf(&mut out, g, f1, f2)?;
         Ok(transcript.append_final_seal(out))
     }
     /// Parse one complete MDA7 proof against the absorbed geometry (proto
@@ -52,11 +52,11 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub fn read<'a>(
         bytes: &'a [u8],
-        g: &Bound<'_, MdocProofGeometry>,
+        g: &Bound<'_, ComposedGeometry>,
         f1: &F1,
         f2: &F2,
     ) -> Result<Unverified<'a, Self>, String> {
-        let geometry = &g.part().body;
+        let geometry = g.part();
         let fixed = ComposedProof::<2, F1, 4, F2, [MaskedQuotient; 2]>::fixed_len(geometry, f1, f2)
             .ok_or("mdoc proof geometry")?;
         let (t, n) = (geometry.config.t, geometry.config.n);

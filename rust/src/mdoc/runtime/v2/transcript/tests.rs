@@ -4,11 +4,14 @@ use crate::{
     runtime::v2::transcript::{Header, Statement, Transcript},
 };
 
+/// A statement that is the mdoc identity alone.
 struct IdentityOnly<'a>(Identity<'a>);
-impl Statement for IdentityOnly<'_> {
-    fn write(&self, h: &mut Header<'_>) {
-        h.send(&self.0);
+impl<'a> Statement for IdentityOnly<'a> {
+    type Identity = Identity<'a>;
+    fn identity(&self) -> &Identity<'a> {
+        &self.0
     }
+    fn write(&self, _: &mut Header<'_>) {}
 }
 
 fn spec(hash: [u8; 32]) -> ZkSpecStruct {

@@ -160,18 +160,18 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
 
     // The statement fixes the spec, the circuits, the geometry and every
     // public input before the shared commitment (transcript I1).
-    let statement = super::transcript::MdocStatement::new(
-        request.transcript(),
-        request.spec(),
-        composition
-            .statement(public.hash(), public.signature())
-            .map_err(gen_err)?,
-    );
+    let identity = super::transcript::Identity {
+        session: request.transcript(),
+        spec: request.spec(),
+    };
+    let statement: super::transcript::MdocStatement<'_, _, _> = composition
+        .statement(identity, public.hash(), public.signature())
+        .map_err(gen_err)?;
     let (body, tp) =
         super::link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, rng)
             .map_err(gen_err)?;
     super::proto::MdocProof { body }
-        .write(&statement.geometry, &gf2, &p256, tp)
+        .write(statement.geometry(), &gf2, &p256, tp)
         .map_err(gen_err)
 }
 

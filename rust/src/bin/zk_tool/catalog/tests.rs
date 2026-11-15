@@ -166,21 +166,24 @@ fn roundtrip_profiles<
         let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
 
         let mut ts = Transcript::for_test(b"polygero/admitted");
-        let (prover, com) =
-            JointPolygeroProver::commit(&mut ts.bound(&param), (witness.clone(), ()), &mut rng)
-                .unwrap();
+        let (prover, com) = JointPolygeroProver::commit(
+            &mut ts.bound_for_test(&param),
+            (witness.clone(), ()),
+            &mut rng,
+        )
+        .unwrap();
         let statements = (LinearStatement::new(vec![], vec![]), ());
-        let batch = JointPolygeroParam::weights(&mut ts.bound(&param), &statements);
+        let batch = JointPolygeroParam::weights(&mut ts.bound_for_test(&param), &statements);
         let proof = prover
-            .prove(&mut ts.bound(&param), batch, &statements)
+            .prove(&mut ts.bound_for_test(&param), batch, &statements)
             .unwrap();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         let mut remaining = bytes.as_slice();
         let decoded = param.read(&mut remaining).unwrap();
         assert!(remaining.is_empty());
         let mut tv = Transcript::for_test(b"polygero/admitted");
-        let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &com);
-        let batch = JointPolygeroParam::weights(&mut tv.bound(&param), &statements);
+        let verifier = JointPolygeroVerifier::receive(&mut tv.bound_for_test(&param), &com);
+        let batch = JointPolygeroParam::weights(&mut tv.bound_for_test(&param), &statements);
         verifier
             .verify(tv, &param, batch, decoded, &statements)
             .unwrap();

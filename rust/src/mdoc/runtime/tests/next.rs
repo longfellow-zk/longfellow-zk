@@ -1325,18 +1325,23 @@ fn check_mdoc_trace(
     let bytes = proof.as_bytes();
     let mut session = Transcript::for_test(b"layout");
     let decoded =
-        crate::mdoc::v2::MdocProof::read(bytes, &session.bound(&geometry), &gf2, &p256).unwrap();
+        crate::mdoc::v2::MdocProof::read(bytes, &session.bound(&geometry.body), &gf2, &p256)
+            .unwrap();
     // Every truncation and every extension fails at parse (proto I3).
     for len in 0..bytes.len() {
-        let cut =
-            crate::mdoc::v2::MdocProof::read(&bytes[..len], &session.bound(&geometry), &gf2, &p256);
+        let cut = crate::mdoc::v2::MdocProof::read(
+            &bytes[..len],
+            &session.bound(&geometry.body),
+            &gf2,
+            &p256,
+        );
         assert!(cut.is_err(), "length {len}");
     }
     for extra in 1..=64 {
         let mut longer = bytes.to_vec();
         longer.resize(bytes.len() + extra, 0);
         let read =
-            crate::mdoc::v2::MdocProof::read(&longer, &session.bound(&geometry), &gf2, &p256);
+            crate::mdoc::v2::MdocProof::read(&longer, &session.bound(&geometry.body), &gf2, &p256);
         assert!(read.is_err(), "{extra} extra bytes");
     }
     let polygero = &decoded.body.polygero;

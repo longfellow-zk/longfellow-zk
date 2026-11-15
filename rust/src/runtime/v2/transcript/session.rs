@@ -19,10 +19,12 @@
 //! then the node's first PRF block; complete verification must check it.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::message::ProverMessage;
+#[cfg(any(test, feature = "testonly"))]
+use super::message::ZkStatement;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::strand::Reader;
 use super::{
-    message::{Encoder, Message, Seal, SetupMessage, ZkStatement},
+    message::{Encoder, Message, Seal, SetupMessage},
     Strand,
 };
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -37,9 +39,14 @@ const ROUND: u64 = 0;
 const SEAL: u64 = 1;
 
 /// The statement a transcript opens with: everything the verifier fixes
-/// before it reads a proof byte (transcript I1).
+/// before it reads a proof byte (transcript I1). The transcript writes its
+/// identity message first, then the messages `write` emits, so every
+/// statement starts with its identity and the root node is never empty.
 pub trait Statement {
-    /// Write the statement messages, in their fixed order.
+    /// The identity message: the protocol ID and what names the instance.
+    type Identity: SetupMessage + ?Sized;
+    fn identity(&self) -> &Self::Identity;
+    /// Write the statement messages after the identity, in their fixed order.
     fn write(&self, h: &mut Header<'_>);
 }
 /// The writer of a statement. It exists only while `Transcript::new` runs.
@@ -52,11 +59,14 @@ impl Header<'_> {
     }
 }
 /// Alone, `ZkStatement` is the whole statement of a bare transcript (tests,
-/// tools).
-impl Statement for ZkStatement<'_> {
-    fn write(&self, h: &mut Header<'_>) {
-        h.send(self);
+/// tools), which binds no part a component reads.
+#[cfg(any(test, feature = "testonly"))]
+impl<'a> Statement for ZkStatement<'a> {
+    type Identity = Self;
+    fn identity(&self) -> &Self {
+        self
     }
+    fn write(&self, _: &mut Header<'_>) {}
 }
 
 /// A ready session. It never implements RandomEngine, PrivateRandom or Clone.
@@ -132,8 +142,10 @@ pub struct Reading<'a> {
 }
 impl Transcript {
     /// Open a session with `statement`, the only setup it ever absorbs
-    /// (transcript I1).
-    pub fn new<S: Statement + ?Sized>(statement: &S) -> Self {
+    /// (transcript I1): its identity, then its other messages. Outside the
+    /// crate a session opens only as an `Opened`, which keeps the statement.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn new<S: Statement + ?Sized>(statement: &S) -> Self {
         let mut t = Self {
             strand: Strand::new(),
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -149,6 +161,7 @@ impl Transcript {
             #[cfg(test)]
             trace: Default::default(),
         };
+        t.send_message(statement.identity());
         statement.write(&mut Header { session: &mut t });
         t
     }

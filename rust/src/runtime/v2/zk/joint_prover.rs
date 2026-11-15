@@ -58,7 +58,7 @@ impl<S, C, R> JointProver<S, C, R> {
         self.transcript.borrow()
     }
     /// The owned session, bound to the statement part a frontend reads.
-    pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
+    pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
     /// Draw the Polygero batching weights of `statements` after the last

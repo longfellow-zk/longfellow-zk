@@ -5,30 +5,30 @@ use crate::runtime::{
     random::PrivateRandom,
     v2::{
         proto::composed::ComposedProof,
-        transcript::{Opened, Statement, Transcript},
+        transcript::{Opened, SetupMessage, Transcript},
         zk::{self, joint, split},
     },
 };
 
-impl<const W: usize, F, DH, DS, M> ComposedStatement<'_, W, F, DH, DS, M>
+impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
 where
     F: ZkField<W> + PackingField,
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
     M: AdapterMode<F>,
+    I: SetupMessage,
 {
-    /// Prove both circuits of the composition part of the statement `session`
-    /// opened with. `host_private` is the host circuit's own private input;
+    /// Prove both circuits of the composition statement `session` opened
+    /// with. `host_private` is the host circuit's own private input;
     /// this appends R and the mode's pads.
     #[allow(clippy::type_complexity)]
-    pub fn prove<S: Statement + AsRef<Self> + ?Sized>(
-        session: Opened<'_, S>,
+    pub fn prove(
+        session: Opened<'_, Self>,
         mut host_private: Vec<CircuitInput<Host>>,
         split_private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
     ) -> Result<(ComposedProof<H, Host, W, F, M::Message>, Transcript), String> {
-        let (statement, transcript) = session.into_parts();
-        let this: &Self = statement.as_ref();
+        let (this, transcript) = session.into_parts();
         let c = this.composition;
         let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
         // The split mask R and the mode's pads fill the reserved suffix.

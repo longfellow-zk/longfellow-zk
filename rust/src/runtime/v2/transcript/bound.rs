@@ -3,15 +3,27 @@
 //!
 //! A `Bound` pairs a session with the statement part a component reads, so
 //! the component uses the values its caller holds next to the transcript
-//! (transcript I2). A `Challenge` is a value drawn at one boundary for the
-//! next component. Its consumer accepts it only while the session still
-//! stands at that boundary, with no message sent since (transcript I8).
+//! (transcript I2). Outside the crate a `Bound` comes only from a named
+//! accessor of an `Opened` session, which binds a part of the statement the
+//! session opened with; binding an arbitrary value is crate-private. A
+//! `Challenge` is a value drawn at one boundary for the next component. Its
+//! consumer accepts it only while the session still stands at that
+//! boundary, with no message sent since (transcript I8).
 use super::session::{Position, Reading, SessionStamp, Statement, Transcript, TranscriptRef};
 
 impl Transcript {
     /// Bind `part`, the statement part a component reads, to this session.
-    pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
+    /// The caller is responsible for `part` being a part of the statement
+    /// this session opened with.
+    pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         Bound { part, owner: self }
+    }
+    /// Bind any `part` to this session, for tests and benchmarks outside the
+    /// crate that run a component on a bare session (`for_test`). Nothing
+    /// ties `part` to the statement.
+    #[cfg(feature = "testonly")]
+    pub fn bound_for_test<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
+        self.bound(part)
     }
 }
 
@@ -38,8 +50,9 @@ impl<'s, S: ?Sized> Opened<'s, S> {
         self.statement
     }
     /// The session, bound to a part of its own statement; for example the
-    /// geometry a proof reader parses against.
-    pub fn bound<P: ?Sized + 's>(&mut self, f: impl FnOnce(&'s S) -> &'s P) -> Bound<'_, P> {
+    /// geometry a proof reader parses against. Statement types expose this
+    /// through named accessors; `f` must return a part of its argument.
+    pub(crate) fn bound<P: ?Sized + 's>(&mut self, f: impl FnOnce(&'s S) -> &'s P) -> Bound<'_, P> {
         let part = f(self.statement);
         self.transcript.bound(part)
     }
@@ -61,8 +74,12 @@ impl<'a, P: ?Sized> Bound<'a, P> {
     pub fn part(&self) -> &'a P {
         self.part
     }
-    /// The same session, bound to a part of this part.
-    pub fn project<Q: ?Sized + 'a>(&mut self, f: impl FnOnce(&'a P) -> &'a Q) -> Bound<'_, Q> {
+    /// The same session, bound to a part of this part; `f` must return a
+    /// part of its argument.
+    pub(crate) fn project<Q: ?Sized + 'a>(
+        &mut self,
+        f: impl FnOnce(&'a P) -> &'a Q,
+    ) -> Bound<'_, Q> {
         Bound {
             part: f(self.part),
             owner: self.owner,

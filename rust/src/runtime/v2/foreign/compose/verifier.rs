@@ -3,26 +3,26 @@
 use super::*;
 use crate::runtime::v2::{
     proto::composed::ComposedProof,
-    transcript::{Opened, Statement, Transcript},
+    transcript::{Opened, SetupMessage, Transcript},
     zk::{self, joint, split},
 };
 
-impl<const W: usize, F, DH, DS, M> ComposedStatement<'_, W, F, DH, DS, M>
+impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
 where
     F: ZkField<W> + PackingField,
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
     M: AdapterMode<F>,
+    I: SetupMessage,
 {
-    /// Reduce both circuits of the composition part of the statement
-    /// `session` opened with and authenticate the joint opening. The returned
+    /// Reduce both circuits of the composition statement `session` opened
+    /// with and authenticate the joint opening. The returned
     /// transcript must still check the complete proof's final seal.
-    pub fn verify<S: Statement + AsRef<Self> + ?Sized>(
-        session: Opened<'_, S>,
+    pub fn verify(
+        session: Opened<'_, Self>,
         proof: &ComposedProof<H, Host, W, F, M::Message>,
     ) -> Result<Transcript, String> {
-        let (statement, transcript) = session.into_parts();
-        let this: &Self = statement.as_ref();
+        let (this, transcript) = session.into_parts();
         let c = this.composition;
         let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
         let param = c.param()?;

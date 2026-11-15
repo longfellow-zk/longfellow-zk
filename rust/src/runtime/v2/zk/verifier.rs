@@ -15,7 +15,9 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, TopWeights},
-            transcript::{Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof},
+            transcript::{
+                Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof, ZkStatement,
+            },
             zk::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::PackingCommitment,
@@ -120,7 +122,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     }
     /// The statement of a proof of this circuit on `public` under `context`.
     /// Open a session with it (`Opened::new`), parse the proof against its
-    /// geometry (`ZkProof::read`), then verify on that session.
+    /// geometry (`ZkProof::read` with `Opened::geometry`), then verify on that
+    /// session.
     pub fn statement<'a>(
         &'a self,
         context: &'a [u8],
@@ -133,7 +136,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             });
         }
         Ok(ZkProofStatement {
-            context,
+            identity: ZkStatement { context },
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)
                 .map_err(ZkVerificationError::InvalidSumcheck)?,
             geometry: self.geometry(),

@@ -18,7 +18,7 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, TopWeights},
-            transcript::{Bound, Challenge, Transcript},
+            transcript::{Bound, Challenge, Transcript, ZkStatement},
             zk::{
                 context::private_input_count,
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
@@ -175,7 +175,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         public: &'a [CircuitInput<F>],
     ) -> Result<ZkProofStatement<'a, W, F>, String> {
         Ok(ZkProofStatement {
-            context,
+            identity: ZkStatement { context },
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
             geometry: {
                 let circuit = self.participant.geometry();

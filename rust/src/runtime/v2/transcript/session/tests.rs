@@ -97,6 +97,50 @@ fn independent_node_and_seal_vectors() {
     );
 }
 
+/// A statement: the identity, then `geometry` messages.
+struct Opening<'a> {
+    identity: ZkStatement<'a>,
+    geometry: usize,
+}
+struct Geometry;
+impl Message for Geometry {
+    const TAG: Tag = Tag::JointGeometry;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.nats(&[8, 2, 64, 2]);
+    }
+}
+impl SetupMessage for Geometry {}
+impl<'a> Statement for Opening<'a> {
+    type Identity = ZkStatement<'a>;
+    fn identity(&self) -> &ZkStatement<'a> {
+        &self.identity
+    }
+    fn write(&self, h: &mut Header<'_>) {
+        for _ in 0..self.geometry {
+            h.send(&Geometry);
+        }
+    }
+}
+
+/// The transcript writes a statement's identity before its other
+/// messages, so the root node starts with it even when the statement
+/// writes nothing else (transcript I1).
+#[test]
+fn a_statement_opens_with_its_identity() {
+    for geometry in [0, 2] {
+        let t = Transcript::new(&Opening {
+            identity: ZkStatement {
+                context: b"opening",
+            },
+            geometry,
+        });
+        let tags: Vec<u64> = t.trace.messages().map(|m| m.tag).collect();
+        let mut expected = vec![17];
+        expected.resize(1 + geometry, 20);
+        assert_eq!(tags, expected);
+    }
+}
+
 #[test]
 fn draws_without_messages_are_distinct_and_reproducible() {
     let mut a = Transcript::for_test(b"rounds");

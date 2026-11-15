@@ -17,7 +17,9 @@ use crate::{
                 polygero::PolygeroConfig, tags::Tag, witness_selection::FINGERPRINTS,
                 zk::ZkProofGeometry,
             },
-            transcript::{Encoder, Header, Message, SetupMessage, Statement, ZkStatement},
+            transcript::{
+                Bound, Encoder, Header, Message, Opened, SetupMessage, Statement, ZkStatement,
+            },
         },
     },
 };
@@ -165,7 +167,7 @@ pub fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig) {
 /// `CommitmentLayout`, the `JointGeometry` and its `PublicInputs`. The proof
 /// is parsed against `geometry`, the geometry it writes (transcript I2).
 pub struct ZkProofStatement<'a, const W: usize, F: ZkField<W> + PackingField> {
-    pub(super) context: &'a [u8],
+    pub(super) identity: ZkStatement<'a>,
     pub(super) part: FrontendPart<'a, W, F>,
     pub(super) geometry: ZkProofGeometry,
 }
@@ -177,11 +179,21 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F
         &self.geometry
     }
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Statement for ZkProofStatement<'_, W, F> {
+impl<'s, 'a: 's, const W: usize, F: ZkField<W> + PackingField>
+    Opened<'s, ZkProofStatement<'a, W, F>>
+{
+    /// The session, bound to the geometry its statement wrote, which the
+    /// proof is parsed against (`ZkProof::read`, transcript I2).
+    pub fn geometry(&mut self) -> Bound<'_, ZkProofGeometry> {
+        self.bound(|s| &s.geometry)
+    }
+}
+impl<'a, const W: usize, F: ZkField<W> + PackingField> Statement for ZkProofStatement<'a, W, F> {
+    type Identity = ZkStatement<'a>;
+    fn identity(&self) -> &ZkStatement<'a> {
+        &self.identity
+    }
     fn write(&self, h: &mut Header<'_>) {
-        h.send(&ZkStatement {
-            context: self.context,
-        });
         self.part.write_circuits(h);
         self.part.write_layout(h);
         write_joint_geometry(h, self.geometry.config);

@@ -228,8 +228,13 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
     let prime = P256Field::new();
     // Size reporting only: any session can carry the geometry.
     let mut session = longfellow_zk::runtime::v2::transcript::Transcript::for_test(b"sizes");
-    let decoded =
-        runtime::MdocProof::read(bytes, &session.bound(geometry), &binary, &prime).unwrap();
+    let decoded = runtime::MdocProof::read(
+        bytes,
+        &session.bound_for_test(&geometry.body),
+        &binary,
+        &prime,
+    )
+    .unwrap();
     let (proof, geometry) = (&decoded.body, &geometry.body);
     let hash = proof.host.write(&geometry.host, &binary).unwrap();
     let signature = proof.split.write(&geometry.split.sc_geom, &prime).unwrap();

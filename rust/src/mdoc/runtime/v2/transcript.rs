@@ -7,13 +7,10 @@
 //! commitment layouts, the adapter layout, the joint geometry, and the
 //! public inputs of the hash circuit (as GF(2^128) elements) and of the
 //! signature circuit (as P-256 elements).
-use super::{link::Statement as Composed, proto::MdocProofGeometry, ZkSpecStruct};
-use crate::runtime::{
-    algebra::{gf2_128::Gf2_128Field, p256::P256Field, range_interpolation::EvaluationDomain},
-    v2::{
-        proto::tags::Tag,
-        transcript::{Encoder, Header, Message, SetupMessage, Statement},
-    },
+use super::{link::Statement as Composed, ZkSpecStruct};
+use crate::runtime::v2::{
+    proto::tags::Tag,
+    transcript::{Encoder, Message, SetupMessage},
 };
 
 /// The protocol ID of `MdocStatement`.
@@ -22,9 +19,9 @@ pub(super) const PROTOCOL_ID: &[u8] = b"longfellow/v2/mdoc/transcript/v2";
 /// `MdocStatement` (16): Bytes protocol ID (`PROTOCOL_ID`); Bytes session
 /// transcript; Bytes(32) the spec's combined archive hash; Nats(circuit
 /// version, attribute count). The Polygero profile is in `JointGeometry`.
-struct Identity<'a> {
-    session: &'a [u8],
-    spec: &'a ZkSpecStruct,
+pub(super) struct Identity<'a> {
+    pub(super) session: &'a [u8],
+    pub(super) spec: &'a ZkSpecStruct,
 }
 impl Message for Identity<'_> {
     const TAG: Tag = Tag::MdocStatement;
@@ -37,62 +34,10 @@ impl Message for Identity<'_> {
 }
 impl SetupMessage for Identity<'_> {}
 
-/// Everything an mdoc verifier fixes before it reads a proof byte.
-pub(super) struct MdocStatement<'s, DH, DS>
-where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
-{
-    session: &'s [u8],
-    spec: &'s ZkSpecStruct,
-    composed: Composed<'s, DH, DS>,
-    /// The geometry the statement writes; the proof is parsed against it.
-    pub(super) geometry: MdocProofGeometry,
-}
-impl<'s, DH, DS> MdocStatement<'s, DH, DS>
-where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
-{
-    pub(super) fn new(
-        session: &'s [u8],
-        spec: &'s ZkSpecStruct,
-        composed: Composed<'s, DH, DS>,
-    ) -> Self {
-        let geometry = MdocProofGeometry {
-            body: composed.geometry().clone(),
-        };
-        Self {
-            session,
-            spec,
-            composed,
-            geometry,
-        }
-    }
-}
-/// The composition part proving and verifying read.
-impl<'s, DH, DS> AsRef<Composed<'s, DH, DS>> for MdocStatement<'s, DH, DS>
-where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
-{
-    fn as_ref(&self) -> &Composed<'s, DH, DS> {
-        &self.composed
-    }
-}
-impl<DH, DS> Statement for MdocStatement<'_, DH, DS>
-where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
-{
-    fn write(&self, h: &mut Header<'_>) {
-        h.send(&Identity {
-            session: self.session,
-            spec: self.spec,
-        });
-        self.composed.write(h);
-    }
-}
+/// Everything an mdoc verifier fixes before it reads a proof byte: the
+/// composition's statement under the mdoc identity. The proof is parsed
+/// against the geometry it writes (`Opened::geometry`).
+pub(super) type MdocStatement<'s, DH, DS> = Composed<'s, DH, DS, Identity<'s>>;
 
 #[cfg(test)]
 mod tests;

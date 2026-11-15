@@ -4,9 +4,7 @@
 //! The P-256 split circuit asserts `x0 = x1` over private inputs `[x0, x1]`;
 //! `x0` is stored as 8 bits of the binary host's private input and `x1` is
 //! native. The host circuit asserts that bit 0 equals its public input.
-use super::{
-    AdapterMode, ComposedStatement, Composition, EvaluationDomain, PackingField, ZkField, H,
-};
+use super::{ComposedStatement, Composition};
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
@@ -26,7 +24,7 @@ use crate::{
         v2::{
             foreign::{adapter::p256::P256Mode, word::MaskedWord},
             proto::polygero::PolygeroConfig,
-            transcript::{Header, Opened, Statement, ZkStatement},
+            transcript::{Opened, ZkStatement},
             zk::{
                 split::value_count,
                 storage::{Group, StorageMap},
@@ -46,27 +44,6 @@ const CONFIG: PolygeroConfig = PolygeroConfig {
     t: 8,
 };
 const LABEL: &[u8] = b"foreign/compose-test";
-
-/// The test statement: a `ZkStatement` of `LABEL`, then the composition's
-/// messages; its composition part is the one proving and verifying read.
-struct Whole<'a, T>(&'a T);
-impl<const W: usize, F, DH, DS, M> Statement for Whole<'_, ComposedStatement<'_, W, F, DH, DS, M>>
-where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Gf2_128Field>,
-    DS: EvaluationDomain<W, F>,
-    M: AdapterMode<F>,
-{
-    fn write(&self, h: &mut Header<'_>) {
-        h.send(&ZkStatement { context: LABEL });
-        self.0.write(h);
-    }
-}
-impl<T> AsRef<T> for Whole<'_, T> {
-    fn as_ref(&self) -> &T {
-        self.0
-    }
-}
 
 /// One layer whose single output, asserted zero, is the sum of
 /// `k[c] * input[l]` over `terms` `(l, c)`. Input 0 is public.
@@ -120,18 +97,24 @@ fn composition_round_trip_rejects_tampering() {
     let x = 0xa5u64;
     let bits: Vec<bool> = (0..WIDTH).map(|j| (x >> j) & 1 != 0).collect();
     let (host_public, split_public) = ([true], [p.one()]);
-    let statement = c.statement(&host_public, &split_public).unwrap();
-    let whole = Whole(&statement);
+    let statement = c
+        .statement(ZkStatement { context: LABEL }, &host_public, &split_public)
+        .unwrap();
+    // A session opened with the statement binds the geometry it wrote.
+    assert!(std::ptr::eq(
+        Opened::new(&statement).geometry().part(),
+        statement.geometry()
+    ));
     let prove = |host_private: Vec<bool>| {
         let value = p.u64_to_element(x);
         ComposedStatement::prove(
-            Opened::new(&whole),
+            Opened::new(&statement),
             host_private,
             vec![value, value],
             &mut DeterministicRng::new(5),
         )
     };
-    let verify = |proof: &_| ComposedStatement::verify(Opened::new(&whole), proof);
+    let verify = |proof: &_| ComposedStatement::verify(Opened::new(&statement), proof);
 
     let (proof, mut tp) = prove(bits.clone()).unwrap();
     let mut tv = verify(&proof).unwrap();
