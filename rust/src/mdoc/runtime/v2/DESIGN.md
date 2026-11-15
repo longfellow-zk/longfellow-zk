@@ -576,9 +576,10 @@ the C library's codes. The v2 entry points return:
 A request failure gets the same named error in both roles; the numeric
 codes differ. The only exception is the attribute count, which only the
 verifier's enum names. Document and witness failures are listed under
-Prover steps. The provider returns `InvalidZkSpecVersion` for an unknown spec, `GeneralFailure` for a
-missing file, `CircuitParsingFailure` for a malformed archive and
-`HashParsingFailure` for an archive whose metadata does not match the spec.
+Prover steps. The provider returns `InvalidZkSpecVersion` for an unknown
+spec, `GeneralFailure` for a missing file, and `CircuitParsingFailure` for a
+malformed archive or one whose metadata does not match the spec, as
+`Instance::load` does.
 
 ## Mistakes the design prevents
 

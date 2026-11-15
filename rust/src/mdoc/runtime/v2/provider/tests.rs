@@ -75,8 +75,27 @@ fn frozen_v2_loader_reads_archive_without_a_compiler() {
     assert!(load(&directory, &spec).is_err());
     std::fs::remove_dir(directory).unwrap();
     spec.version = 99;
-    assert!(from_compressed(spec, compressed.clone()).is_err());
+    assert_eq!(
+        from_compressed(spec, compressed.clone()).err(),
+        Some(MdocProverErrorCode::InvalidZkSpecVersion)
+    );
     spec.version = NEXT_VERSION;
-    spec.combined_hash[0] ^= 1;
-    assert!(from_compressed(spec, compressed).is_err());
+    // Metadata that does not match the spec: the code `Instance::load` gives.
+    let mut other_hash = spec;
+    other_hash.combined_hash[0] ^= 1;
+    assert_eq!(
+        from_compressed(other_hash, compressed).err(),
+        Some(MdocProverErrorCode::CircuitParsingFailure)
+    );
+    let mut old_builder = CircuitArchiveBuilder::new();
+    old_builder.circuit_version = Some(NEXT_VERSION as u32 - 1);
+    old_builder.add_entry("sig", [1; 32], vec![1]);
+    old_builder.add_entry("hash", [2; 32], vec![2]);
+    let other_version = old_builder.build();
+    spec.combined_hash = other_version.combined_id;
+    let old_compressed = zstd::encode_all(other_version.to_bytes().as_slice(), 1).unwrap();
+    assert_eq!(
+        from_compressed(spec, old_compressed).err(),
+        Some(MdocProverErrorCode::CircuitParsingFailure)
+    );
 }
