@@ -14,18 +14,23 @@
 
 //! Longfellow v2 private assignment encoding.
 
+use sha2::{Digest, Sha256};
+
 use crate::{
     circuits::{
-        ecdsa2::try_witness,
+        ecdsa2::{try_witness, ConcreteDerived, ConcreteGiven},
         sha256::constants::INITIAL,
         sha256msg::{derived, given},
     },
-    core::algebra::{ec::Curve, Nat, SupportsNatConversions},
+    core::algebra::{
+        ec::{Curve, Pt2},
+        Nat, SupportsNatConversions,
+    },
     mdoc::{
         circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
             hash::constants::{
-                K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN,
+                K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_TAG32,
             },
             layout,
             mso_attribute::constants::{
@@ -141,7 +146,12 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     );
 
     // 5. attribute_witnesses
-    push_witness_attrs(request.attributes(), &attributes, &mut builder)?;
+    push_witness_attrs(
+        request.attributes(),
+        &attributes,
+        &parsed.cbor_mso,
+        &mut builder,
+    )?;
 
     // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
@@ -152,6 +162,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
 fn push_witness_attrs(
     req_attrs: &[RequestedAttribute],
     attributes: &[&ParsedAttr],
+    signed: &[u8],
     builder: &mut BinaryAssignmentBuilder,
 ) -> Result<(), MdocProverErrorCode> {
     for la in req_attrs {
@@ -167,6 +178,17 @@ fn push_witness_attrs(
         }
         let attr_sha_in = given(&pa.cbor_issuer_signed_item, &INITIAL, K_MAX_ATTR_SHA_BLOCKS)
             .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        // The signed MSO holds `bstr(SHA-256(item))` at the digest offset, as
+        // the hash circuit checks; an item the issuer did not sign fails here.
+        let digest = signed
+            .get(K_MSO_OFFSET + pa.mso_digest_offset_in_preimage..)
+            .and_then(|tail| {
+                tail.strip_prefix(&K_TAG32)
+                    .and_then(|digest| digest.get(..32))
+            });
+        if digest != Some(Sha256::digest(&pa.cbor_issuer_signed_item).as_slice()) {
+            return Err(MdocProverErrorCode::GeneralFailure);
+        }
         let attr_sha_derived = derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
         let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] =
             attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
@@ -201,25 +223,33 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
     secp256r1: &C,
     request: &Request<'_>,
     parsed: &ParsedMdoc<F::N>,
-) -> Result<Vec<F::E>, &'static str>
+) -> Result<Vec<F::E>, MdocProverErrorCode>
 where
     F: MdocSigRuntimeField<E = P256Element>,
     Fn: RuntimeField<4> + SupportsNatConversions<4, N = F::N>,
     C: Curve<4, F = F, N = F::N>,
     F::N: Nat<4>,
 {
-    let (issuer_sig_given, issuer_sig_derived) = try_witness::<4, F, Fn, C>(
-        secp256r1,
+    // A signature without a witness (an exceptional point of the affine
+    // layout) is a witness failure; one the circuit would reject is the
+    // circuit's own `GeneralFailure`, found here before any randomness.
+    let witness = |pk: &(F::E, F::E), e: &F::N, r: &F::N, s: &F::N| {
+        let (given, derived) =
+            try_witness::<4, F, Fn, C>(secp256r1, pk, e, r, s, runtime_field, q256)
+                .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
+        if signature_accepted(runtime_field, secp256r1, &given, &derived, r) {
+            Ok((given, derived))
+        } else {
+            Err(MdocProverErrorCode::GeneralFailure)
+        }
+    };
+    let (issuer_sig_given, issuer_sig_derived) = witness(
         request.issuer_pk(),
         &parsed.issuer_sig_digest,
         &parsed.issuer_sig_r,
         &parsed.issuer_sig_s,
-        runtime_field,
-        q256,
     )?;
-
-    let (device_sig_given, device_sig_derived) = try_witness::<4, F, Fn, C>(
-        secp256r1,
+    let (device_sig_given, device_sig_derived) = witness(
         &(
             runtime_field.reduce_nat(&parsed.device_pk.0),
             runtime_field.reduce_nat(&parsed.device_pk.1),
@@ -227,15 +257,14 @@ where
         &parsed.device_sig_digest,
         &parsed.device_sig_r,
         &parsed.device_sig_s,
-        runtime_field,
-        q256,
     )?;
 
     let mut builder = AssignmentBuilder::new(runtime_field);
     // The leading private inputs are the shared values of the layout table,
     // which the runtime link reads; refuse to drift from it.
     let at = |position: usize, range: &core::ops::Range<usize>| {
-        layout::check_at(position, range, "signature input").map_err(|_| "signature input layout")
+        layout::check_at(position, range, "signature input")
+            .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)
     };
 
     // 1. issuer_sig_digest
@@ -265,4 +294,32 @@ where
     builder.push_ecdsa_derived(&device_sig_derived);
 
     Ok(builder.buffer)
+}
+
+/// Whether the signature circuit accepts this honestly encoded signature
+/// witness: the key and `R = (r, y)` lie on the curve, `r < n`, and the final
+/// accumulated point `e G + r PK - s R` is the point at infinity. That point is
+/// zero exactly when `R` is the recovered point `(e/s) G + (r/s) PK`. The
+/// circuit's other assertions hold by construction of the witness or were
+/// checked by [`try_witness`] (the nonzero inverses).
+fn signature_accepted<F, C>(
+    f: &F,
+    curve: &C,
+    given: &ConcreteGiven<F>,
+    derived: &ConcreteDerived<F>,
+    r: &F::N,
+) -> bool
+where
+    F: MdocSigRuntimeField,
+    C: Curve<4, F = F, N = F::N>,
+{
+    let on_curve = |(x, y): &Pt2<F>| {
+        f.mulf(y, y) == f.addf(&f.mulf(&f.addf(&f.mulf(x, x), curve.a()), x), curve.b())
+    };
+    let (ax, _, az) = &derived.slicing.round[0];
+    on_curve(&given.pkxy)
+        && on_curve(&given.rxy)
+        && *r < curve.order()
+        && f.is_zero(ax)
+        && f.is_zero(az)
 }

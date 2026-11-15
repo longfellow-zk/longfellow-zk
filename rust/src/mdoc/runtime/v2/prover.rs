@@ -151,6 +151,12 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
             }
         })?;
 
+    // Both witness encoders run before the composition and before any
+    // randomness: a false statement (a value, a digest or a signature the circuits would
+    // reject) fails here (DESIGN.md I10).
+    let witness_hash = push_witness_hash(&request, &parsed)?;
+    let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)?;
+
     let gen_err = |_| MdocProverErrorCode::GeneralFailure;
     let composition = super::link::composition(
         request.spec(),
@@ -159,9 +165,6 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
         (&make_interpolator_hash, &make_interpolator_sig),
     )
     .map_err(gen_err)?;
-    let witness_hash = push_witness_hash(&request, &parsed)?;
-    let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)
-        .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
     let public = PublicInputs::derive(&request, &p256);
 
     // The statement fixes the spec, the circuits, the geometry and every

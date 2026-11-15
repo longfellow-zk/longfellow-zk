@@ -393,6 +393,7 @@ fn run_next_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
             "wrong prover failure for negative case: {}",
             case.name
         );
+        assert_eq!(rng.state, 42, "{} must fail before sampling", case.name);
         executed += 1;
     }
 
@@ -1442,6 +1443,43 @@ fn test_all_next_zk() {
     run_circuit_supports_cbor();
     run_namespace_mixup(&test_circuits);
     run_next_error_table(&test_circuits);
+    run_false_statements_fail_before_sampling(&test_circuits);
+}
+
+/// A false statement fails before the prover draws a coin, with the circuit's
+/// `GeneralFailure`: another issuer key, another session transcript (whose
+/// device signature fails), and the negative vectors (mdoc DESIGN.md I10).
+fn run_false_statements_fail_before_sampling(test_circuits: &TestCircuits) {
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
+    let provided = test_circuits.get(req_attrs.len()).unwrap();
+    let (gx, gy) = (
+        "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+        "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+    );
+    let other_session = b"\x66inputs";
+    for (pkx, pky, transcript) in [
+        (gx, gy, TEST_DATA.transcript),
+        (TEST_DATA.pkx, TEST_DATA.pky, &other_session[..]),
+    ] {
+        let mut rng = DeterministicRng::new(42);
+        assert_eq!(
+            run_mdoc_prover_inner(
+                provided.spec(),
+                provided.compressed(),
+                TEST_DATA.mdoc,
+                pkx,
+                pky,
+                transcript,
+                &req_attrs,
+                now,
+                TEST_DATA.doc_type,
+                &mut rng,
+            ),
+            Err(MdocProverErrorCode::GeneralFailure)
+        );
+        assert_eq!(rng.state, 42, "a false statement must fail before sampling");
+    }
 }
 
 /// Check the shared development profile and its compiled circuit geometry.

@@ -248,6 +248,31 @@ never in the registry, and runs through the same entry points.
 (tests); distinct v1 and v2 `ZkSpecStruct` types (the `compile_fail`
 doctest in `zk_spec.rs`).
 
+**I10. A false statement fails before any randomness.** The prover runs
+`document::parse` and both witness encoders right after `Instance::load`,
+before `link::composition` and before it draws a coin. `document::parse`
+checks the document's layout, type, validity and device key; the encoders
+repeat natively the remaining circuit conditions that a parsed document can
+fail, those that depend on the request or on the issuer's signatures.
+`push_witness_hash` compares each requested value with the document's and
+each `IssuerSignedItem`'s SHA-256 with its digest in the MSO.
+`push_witness_sig` accepts a signature only if the key and `R = (r, y)` lie
+on the curve, `r < n`, and the final accumulated point `eG + rPK - sR` of the
+witness is the point at infinity, which holds exactly when `R` is the
+recovered point `(e/s)G + (r/s)PK` (`signature_accepted`: six field
+multiplications per signature). So another issuer key, another session
+transcript (the device signature fails), an item the issuer did not sign,
+and a value mismatch all end in `GeneralFailure` before sampling. The
+circuits stay the acceptance rule; these checks only make the failure early.
+A signature that verifies but has no witness in the affine layout (an
+exceptional point) is `WitnessCreationFailure`.
+*Enforced by:* the step order in `run_mdoc_prover_encoded`;
+`signatures_the_circuit_rejects_fail_while_encoding`,
+`attribute_items_the_issuer_did_not_sign_fail_while_encoding`,
+`run_false_statements_fail_before_sampling` and
+`run_next_mdoc_all_negative_cases`, which check that the generator's state
+is unchanged (tests).
+
 ## Protocol
 
 ### Verifier steps
@@ -263,14 +288,14 @@ doctest in `zk_spec.rs`).
 | 7. Reduce and open | `ComposedStatement::reduce_and_authenticate(session, &proof.body)` | `GeneralFailure` |
 | 8. Seal | `Unverified::checked` | `GeneralFailure` |
 
-The prover runs steps 1 to 5 identically, with `document::parse` right after
-step 2 and the witness encoders after step 3, then proves and writes.
+The prover runs steps 1 to 5 identically, with `document::parse` and both
+witness encoders right after step 2 (I10), then proves and writes.
 
 | Prover step | Function | Rejects with |
 |---|---|---|
 | Document | `document::parse`: CBOR structure, MSO layout, signed `docType` equals the request's, `validFrom <= now <= validUntil`, device key type 2 (EC2) and curve 1 (P-256), canonical 32-byte coordinates on the curve | `TaggedMsoTooBig`, `MsoDecodingFailure`; a failed predicate is `GeneralFailure` |
-| Hash witness | `push_witness_hash` | `NamespacesMissing`, `AttributeNotFound`, `AttributeTooLong`, `TaggedMsoTooBig`, `MsoDecodingFailure`, `WitnessCreationFailure`; a requested value that differs from the document's is `GeneralFailure` |
-| Signature witness | `push_witness_sig` | `WitnessCreationFailure` |
+| Hash witness | `push_witness_hash` | `NamespacesMissing`, `AttributeNotFound`, `AttributeTooLong`, `TaggedMsoTooBig`, `MsoDecodingFailure`, `WitnessCreationFailure`; a requested value that differs from the document's, or an item that differs from its MSO digest, is `GeneralFailure` |
+| Signature witness | `push_witness_sig` | a signature the circuit rejects (`signature_accepted`) is `GeneralFailure`; an exceptional point or a layout drift is `WitnessCreationFailure` |
 | Prove and write | `ComposedStatement::prove`, `MdocProof::write` | `GeneralFailure` |
 
 ### Messages and challenges
@@ -475,7 +500,7 @@ let composition = link::composition(request.spec(), instance.signature(), instan
 let public = PublicInputs::derive(&request, &p256);
 let statement = transcript::statement(&composition, &request, &public)?;
 
-// prover (document::parse runs right after Instance::load)
+// prover (document::parse and the encoders run right after Instance::load, I10)
 let parsed = document::parse(mdoc, &request, &p256)?;
 let (wh, ws) = (push_witness_hash(&request, &parsed)?, push_witness_sig(&p256, .., &request, &parsed)?);
 let (body, t) = ComposedStatement::prove(Opened::new(&statement), wh, ws, rng)?;
@@ -540,6 +565,7 @@ missing file, `CircuitParsingFailure` for a malformed archive and
 | A NEXT archive presented as a frozen spec | I9 |
 | A v2 spec passed to the v1 entry points | distinct types; `compile_fail` doctest |
 | Public-input order drifting between the compiler and `push_input_hash` | honest proofs fail; the end-to-end tests in `mdoc/runtime/tests/next.rs` |
+| Drawing coins for a statement the circuits reject | I10: native checks before sampling |
 | Logging a private witness on failure | `deny(clippy::print_stdout, print_stderr, dbg_macro)` |
 
 ## Soundness and zero knowledge
@@ -598,6 +624,21 @@ uniform: `run_mdoc_prover` draws them from the operating system, and
 uniform; each quotient pad is two fresh bytes, of which the high six bits are
 discarded (`FrontendAdapterBits.rawOtpEquiv`). `Mdoc.Completeness` covers
 honest acceptance.
+
+### What the prover leaves to its host
+
+The zero-knowledge statement covers the proof the prover returns, not what
+a failed run reveals.
+
+- **Error codes and time to failure.** When the prover fails, its error
+  code and its time to failure describe the document: whether it is
+  well-formed, whether it has the requested namespace and attributes,
+  whether their values match, whether the issuer key and the session
+  transcript match its signatures. I10 makes every such failure happen
+  before sampling, but parsing and the two encoders, which run in turn, still
+  take different times. A wallet must expose neither the code nor the
+  timing to the relying party: it reports every failure as one refusal, at
+  a time that does not depend on which check failed.
 
 ### Trust boundary
 

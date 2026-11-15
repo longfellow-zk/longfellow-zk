@@ -15,14 +15,19 @@
 //! V2 private witness encoding.
 use crate::{
     mdoc::{
-        circuits::cbor::mdoc::ParsedMdoc,
+        circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc},
         runtime::tests::specs::v2_spec,
         testcases::{
             TestDataStatic, BIRTHDATE_1971_09_01_MDOC_3, DHS_COMPLIANCE_MDOC_10, TEST_DATA,
         },
         v2::{req_attr, request::Request, MdocProverErrorCode, RequestedAttribute},
     },
-    runtime::algebra::{p256::P256Field, q256::Q256Field, secp256r1::Secp256r1, RuntimeNat},
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        q256::Q256Field,
+        secp256r1::Secp256r1,
+        RuntimeNat,
+    },
 };
 
 /// The hash witness for `attrs`, checked as a request with the fixture's
@@ -50,7 +55,6 @@ fn witness_hash(
 
 #[test]
 fn global_namespace_scopes_the_honest_attribute_lookup() {
-    use crate::mdoc::circuits::cbor::mdoc::parse_mdoc;
     let fixture = &DHS_COMPLIANCE_MDOC_10;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
@@ -98,10 +102,7 @@ fn global_namespace_scopes_the_honest_attribute_lookup() {
 
 #[test]
 fn zero_signature_is_a_witness_error() {
-    use crate::{
-        core::algebra::{AlgebraicField, Nat},
-        mdoc::circuits::cbor::mdoc::parse_mdoc,
-    };
+    use crate::core::algebra::{AlgebraicField, Nat};
     let fixture = &TEST_DATA;
     let mut zero_signature =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
@@ -123,16 +124,19 @@ fn zero_signature_is_a_witness_error() {
     )
     .unwrap();
     assert_eq!(request.issuer_pk(), &(f.one(), f.one()));
-    assert!(super::push_witness_sig(&f, &q, &curve, &request, &zero_signature).is_err());
+    assert_eq!(
+        super::push_witness_sig(&f, &q, &curve, &request, &zero_signature),
+        Err(MdocProverErrorCode::WitnessCreationFailure)
+    );
 }
 
 #[test]
 fn private_hash_inputs_enforce_sha_capacity() {
-    use crate::mdoc::{
-        circuits::cbor::mdoc::parse_mdoc,
-        proto::{
-            hash::constants::K_MSO_PREIMAGE_LEN, mso_attribute::constants::K_MAX_ATTR_CBOR_LEN,
-        },
+    use sha2::Digest;
+
+    use crate::mdoc::proto::{
+        hash::constants::{K_MSO_OFFSET, K_MSO_PREIMAGE_LEN},
+        mso_attribute::constants::K_MAX_ATTR_CBOR_LEN,
     };
     let fixture = &BIRTHDATE_1971_09_01_MDOC_3;
     let mut parsed =
@@ -146,6 +150,10 @@ fn private_hash_inputs_enforce_sha_capacity() {
     )];
     for length in [K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_CBOR_LEN + 1, 255, 256] {
         parsed.attrs[0].cbor_issuer_signed_item = vec![0; length];
+        // Sign the replaced item into the MSO, so that only its length can fail.
+        let digest = sha2::Sha256::digest(&parsed.attrs[0].cbor_issuer_signed_item);
+        let at = K_MSO_OFFSET + parsed.attrs[0].mso_digest_offset_in_preimage + 2;
+        parsed.cbor_mso[at..at + 32].copy_from_slice(&digest);
         let result = witness_hash(fixture, &request, &parsed);
         if length == K_MAX_ATTR_CBOR_LEN {
             assert!(result.is_ok());
@@ -162,7 +170,6 @@ fn private_hash_inputs_enforce_sha_capacity() {
 
 #[test]
 fn requested_values_must_match_before_building_sha_witnesses() {
-    use crate::mdoc::circuits::cbor::mdoc::parse_mdoc;
     let fixture = &TEST_DATA;
     let parsed =
         parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
@@ -170,6 +177,82 @@ fn requested_values_must_match_before_building_sha_witnesses() {
     let mut value = attr.cbor_value.clone();
     value[0] ^= 1;
     let request = [req_attr("org.iso.18013.5.1", &attr.name, value)];
+    assert_eq!(
+        witness_hash(fixture, &request, &parsed),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+}
+
+/// The signature witness for the fixture's document, checked as a request
+/// with the issuer key `(pkx, pky)` and the session transcript `transcript`.
+fn witness_sig(
+    fixture: &TestDataStatic,
+    pkx: &str,
+    pky: &str,
+    transcript: &[u8],
+) -> Result<Vec<P256Element>, MdocProverErrorCode> {
+    let f = P256Field::new();
+    let q = Q256Field::new();
+    let curve = Secp256r1::new(&f);
+    let parsed = parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, transcript, fixture.doc_type).unwrap();
+    let spec = v2_spec();
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let request = Request::check(
+        &spec,
+        pkx,
+        pky,
+        transcript,
+        &attrs,
+        fixture.now,
+        fixture.doc_type,
+        &f,
+    )
+    .unwrap();
+    super::push_witness_sig(&f, &q, &curve, &request, &parsed)
+}
+
+#[test]
+fn signatures_the_circuit_rejects_fail_while_encoding() {
+    let fixture = &TEST_DATA;
+    assert!(witness_sig(fixture, fixture.pkx, fixture.pky, fixture.transcript).is_ok());
+    // Another key on the curve: the generator. The issuer signature fails.
+    let (gx, gy) = (
+        "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+        "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+    );
+    assert_eq!(
+        witness_sig(fixture, gx, gy, fixture.transcript),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+    // A key off the curve.
+    assert_eq!(
+        witness_sig(fixture, fixture.pkx, "1", fixture.transcript),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+    // Another session: the device signature fails.
+    assert_eq!(
+        witness_sig(fixture, fixture.pkx, fixture.pky, b"\x66inputs"),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+}
+
+#[test]
+fn attribute_items_the_issuer_did_not_sign_fail_while_encoding() {
+    let fixture = &TEST_DATA;
+    let mut parsed =
+        parse_mdoc::<RuntimeNat<4>>(fixture.mdoc, fixture.transcript, fixture.doc_type).unwrap();
+    let attribute = &parsed.attrs[0];
+    let request = [req_attr(
+        "org.iso.18013.5.1",
+        &attribute.name,
+        &attribute.cbor_value,
+    )];
+    assert!(witness_hash(fixture, &request, &parsed).is_ok());
+    // A byte of the item's `random` field: the item no longer matches its
+    // digest in the MSO.
+    let item = &mut parsed.attrs[0].cbor_issuer_signed_item;
+    let last = item.len() - 1;
+    item[last] ^= 1;
     assert_eq!(
         witness_hash(fixture, &request, &parsed),
         Err(MdocProverErrorCode::GeneralFailure)
