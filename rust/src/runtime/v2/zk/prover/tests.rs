@@ -23,8 +23,7 @@ use crate::{
     },
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field,
-            packing::{binary::Binary128Extension, PackingField},
+            gf2_128::Gf2_128Field, packing::binary::Binary128Extension,
             range_interpolation::BinaryInterpolatorFactory,
         },
         random::{DeterministicRng, RandomEngine},
@@ -175,7 +174,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             prover.participant.backend.layout.witness_count,
             geometry.config,
             &domain,
-            PackingField::packing_id(&f),
         )
         .unwrap(),
         (),

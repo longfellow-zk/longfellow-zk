@@ -52,9 +52,7 @@ fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F
 #[test]
 fn selected_joint_wrapper_supports_three_typed_fields() {
     use crate::runtime::{
-        algebra::{
-            p256::P256Field, packing::PackingField, range_interpolation::ScalarInterpolatorFactory,
-        },
+        algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory},
         v2::{
             polygero::LinearStatement,
             proto::polygero::PolygeroConfig,
@@ -72,16 +70,13 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         n: 64,
         t: 2,
     };
-    let a = SelectedField::new(2, config, &d, f.packing_id()).unwrap();
+    let a = SelectedField::new(2, config, &d).unwrap();
     assert_eq!(a.geometry().nw, 4);
     let param = JointParam::new((
         a,
         (
-            SelectedField::new(1, config, &pd, p.packing_id()).unwrap(),
-            (
-                SelectedField::new(0, config, &d, f.packing_id()).unwrap(),
-                (),
-            ),
+            SelectedField::new(1, config, &pd).unwrap(),
+            (SelectedField::new(0, config, &d).unwrap(), ()),
         ),
     ))
     .unwrap();

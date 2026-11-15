@@ -32,10 +32,22 @@ pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, Strin
         .ok_or_else(|| "fingerprint witness layout overflow".into())
 }
 
+/// One field of the fingerprinted witness: its Polygero participant, its
+/// field and its frontend cell count. It takes no separate field identity:
+/// the statement's `CommitmentLayout` names the field (transcript I3).
+///
+/// ```compile_fail,E0061
+/// use longfellow_zk::runtime::{
+///     algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory},
+///     v2::{polygero::PolygeroParam, witness_selection::Field},
+/// };
+/// fn bad(p: PolygeroParam, d: &ScalarInterpolatorFactory<'_, 4, P256Field>) {
+///     let _ = Field::new(p, d, b"identity".to_vec());
+/// }
+/// ```
 pub struct Field<'a, const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> {
     pub(super) backend: Participant<'a, W, F, D>,
     pub(super) f: &'a F,
-    pub(super) field_id: Vec<u8>,
     pub(super) cells: usize,
 }
 impl<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> Clone
@@ -45,7 +57,6 @@ impl<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D>
         Self {
             backend: self.backend.clone(),
             f: self.f,
-            field_id: self.field_id.clone(),
             cells: self.cells,
         }
     }
@@ -59,12 +70,8 @@ impl<
 {
     /// `param` describes the augmented commitment, including this protocol's
     /// two cells. Frontends obtain its count with witness_count(original_count).
-    /// The trusted caller supplies the canonical field representation identity,
-    /// including its modulus; arithmetic fields need no packing capability.
-    pub fn new(param: PolygeroParam, domain: &'a D, field_id: Vec<u8>) -> Result<Self, String> {
-        if field_id.is_empty() {
-            return Err("empty fingerprint field identity".into());
-        }
+    /// Arithmetic fields need no packing capability.
+    pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
         let cells = param
             .geometry()
             .nw
@@ -73,7 +80,6 @@ impl<
         Ok(Self {
             backend: Participant::new(param, domain).map_err(|e| e.to_string())?,
             f: domain.field(),
-            field_id,
             cells,
         })
     }
@@ -92,7 +98,6 @@ pub trait Fields: sealed::Sealed + Clone {
     type Coefficients;
     type Responses: Clone;
     fn backend(&self) -> Self::Backend;
-    fn count(&self) -> usize;
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;
     fn send_responses(&self, responses: &Self::Responses, t: &mut TranscriptRef<'_>);
     fn authenticate(
@@ -107,9 +112,6 @@ impl Fields for () {
     type Coefficients = ();
     type Responses = ();
     fn backend(&self) {}
-    fn count(&self) -> usize {
-        0
-    }
     fn coefficients(&self, _: &mut Reading<'_>) {}
     fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
     fn authenticate(&self, _: (), _: (), _: &()) -> Result<(), String> {

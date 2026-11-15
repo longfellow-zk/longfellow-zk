@@ -32,13 +32,11 @@ fn config() -> PolygeroConfig {
 }
 fn field<'a, const W: usize, F: RuntimeField<W> + PackingField, D: EvaluationDomain<W, F>>(
     n: usize,
-    f: &'a F,
     d: &'a D,
 ) -> Field<'a, W, F, D> {
     Field::new(
         PolygeroParam::try_new(witness_count(n).unwrap(), config(), d).unwrap(),
         d,
-        f.packing_id(),
     )
     .unwrap()
 }
@@ -101,7 +99,7 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
         &sd,
     )
     .unwrap();
-    let generic = Field::new(small_param, &sd, b"test/prime17/canonical".to_vec()).unwrap();
+    let generic = Field::new(small_param, &sd).unwrap();
     let generic = Param::new((generic, ())).unwrap();
     let a = generic.challenges(&mut Transcript::for_test(b"generic-sampling").borrow());
     assert_eq!(a.0[0].len(), 3);
@@ -110,11 +108,7 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
     let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
     let pd = ScalarInterpolatorFactory::new(&p, 128);
-    let param = Param::new((
-        field(3, &f, &d),
-        (field(2, &p, &pd), (field(0, &f, &d), ())),
-    ))
-    .unwrap();
+    let param = Param::new((field(3, &d), (field(2, &pd), (field(0, &d), ())))).unwrap();
     let mut rng = DeterministicRng::new(20);
     let witnesses = (
         rng.elt_field_slice(3, &f),
@@ -144,7 +138,7 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
 fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_masks() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let param = Param::new((field(3, &f, &d), ())).unwrap();
+    let param = Param::new((field(3, &d), ())).unwrap();
     let mut t = Transcript::for_test(b"shape");
     let mut rng = DeterministicRng::new(1);
     assert!(commit(&mut t.bound(&param), (vec![f.one(); 5], ()), &mut rng).is_err());
@@ -191,7 +185,7 @@ fn both_characteristics_cover_every_cell_and_have_dedicated_masks() {
     let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
     let pd = ScalarInterpolatorFactory::new(&p, 128);
-    let fields = (field(17, &f, &d), (field(13, &p, &pd), ()));
+    let fields = (field(17, &d), (field(13, &pd), ()));
     let param = Param::new(fields.clone()).unwrap();
     let mut rng = DeterministicRng::new(17);
     let mut witnesses = (
@@ -245,7 +239,7 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
     let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
     let pd = ScalarInterpolatorFactory::new(&p, 128);
-    let param = Param::new((field(17, &f, &d), (field(13, &p, &pd), ()))).unwrap();
+    let param = Param::new((field(17, &d), (field(13, &pd), ()))).unwrap();
     for forged in 0..5 {
         let mut rng = DeterministicRng::new(19);
         let witnesses = (
@@ -300,7 +294,7 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
 fn coefficients_follow_the_commitment_and_read_one_stream() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let param = Param::new((field(17, &f, &d), ())).unwrap();
+    let param = Param::new((field(17, &d), ())).unwrap();
     let root = PolygeroCommitment {
         root: Digest { data: [7; 32] },
     };
@@ -346,7 +340,7 @@ fn coefficients_follow_the_commitment_and_read_one_stream() {
 fn fingerprint_responses_are_bound_before_later_challenges() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let param = Param::new((field(17, &f, &d), ())).unwrap();
+    let param = Param::new((field(17, &d), ())).unwrap();
     let root = PolygeroCommitment {
         root: Digest { data: [7; 32] },
     };
@@ -364,7 +358,7 @@ fn fingerprint_responses_are_bound_before_later_challenges() {
 fn prover_and_verifier_states_complete_only_on_their_own_session() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let param = Param::new((field(3, &f, &d), ())).unwrap();
+    let param = Param::new((field(3, &d), ())).unwrap();
     let commit_on = |t: &mut Transcript| {
         let mut rng = DeterministicRng::new(5);
         let witnesses = (rng.elt_field_slice(3, &f), ());

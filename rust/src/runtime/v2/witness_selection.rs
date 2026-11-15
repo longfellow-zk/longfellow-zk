@@ -39,9 +39,6 @@ impl<
     fn backend(&self) -> Self::Backend {
         (self.0.backend.clone(), self.1.backend())
     }
-    fn count(&self) -> usize {
-        1 + self.1.count()
-    }
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients {
         (
             transcript::field_coefficients(&self.0, r),

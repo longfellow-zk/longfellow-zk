@@ -51,8 +51,14 @@ fn draw_pair(r: &mut Reading<'_>, p: &P256Field) -> [P256Element; 2] {
 
 /// Two independent nonzero full-field conversion challenges. Wrapping mode
 /// needs both: one rescaling leaves a false claim about 2^-117 to survive.
-/// They are drawn from the boundary after the split message.
-pub fn conversion(t: &mut TranscriptRef<'_>, p: &P256Field) -> [P256Element; 2] {
+/// They are drawn from the boundary after the split message. Protocol code
+/// draws them as the adapter's input challenge (`draw_conversion`); this
+/// raw draw is for the tests that check that both are the same.
+#[cfg(test)]
+pub(in crate::runtime::v2::foreign) fn conversion(
+    t: &mut TranscriptRef<'_>,
+    p: &P256Field,
+) -> [P256Element; 2] {
     t.draw(|r| draw_pair(r, p))
 }
 
@@ -65,8 +71,12 @@ pub(super) fn draw_conversion<P: ?Sized>(
 }
 
 /// Send both masked quotients before the binary sumcheck. Their width is
-/// fixed by the instance type.
-pub fn send_quotients<const Q: usize>(t: &mut TranscriptRef<'_>, masked: &[MaskedWord<Q>; 2]) {
+/// fixed by the instance type. Only the mode's `prove` and `verify` send
+/// them.
+pub(in crate::runtime::v2::foreign) fn send_quotients<const Q: usize>(
+    t: &mut TranscriptRef<'_>,
+    masked: &[MaskedWord<Q>; 2],
+) {
     t.send(&QuotientsMessage(masked));
 }
 

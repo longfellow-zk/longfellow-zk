@@ -46,22 +46,13 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
     SelectedField<'a, W, F, D>
 {
     /// Derive the augmented backend geometry from the original frontend cells.
-    pub fn new(
-        cells: usize,
-        config: PolygeroConfig,
-        domain: &'a D,
-        field_id: Vec<u8>,
-    ) -> Result<Self, String> {
-        Self::from_parameter(prepare_parameter(cells, config, domain)?, domain, field_id)
+    pub fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
+        Self::from_parameter(prepare_parameter(cells, config, domain)?, domain)
     }
-    fn from_parameter(
-        param: PolygeroParam,
-        domain: &'a D,
-        field_id: Vec<u8>,
-    ) -> Result<Self, String> {
+    fn from_parameter(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
         let geometry = param.geometry();
         Ok(Self {
-            selection: witness_selection::Field::new(param, domain, field_id)?,
+            selection: witness_selection::Field::new(param, domain)?,
             geometry,
         })
     }
@@ -160,9 +151,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             ctx.field().packing_extension(),
             ctx,
         )?;
-        // Keep the selected field's identity, mask-cell and backend/domain checks
-        // even when this circuit will join a larger participant list.
-        SelectedField::from_parameter(param.clone(), ctx.domain, ctx.field().packing_id())?;
+        // Keep the selected field's mask-cell and backend/domain checks even
+        // when this circuit will join a larger participant list.
+        SelectedField::from_parameter(param.clone(), ctx.domain)?;
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]
@@ -209,8 +200,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         };
         let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
         let param = prepare_parameter(layout.witness_count + mask_cells, config, ctx.domain)?;
-        let selected =
-            SelectedField::from_parameter(param.clone(), ctx.domain, ctx.field().packing_id())?;
+        let selected = SelectedField::from_parameter(param.clone(), ctx.domain)?;
         Ok(Self {
             geometry: CircuitGeometry {
                 sc_geom,
@@ -267,7 +257,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         &'a self,
         ctx: &ZkContext<'a, W, F, D>,
     ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), ctx.domain, ctx.field().packing_id())
+        SelectedField::from_parameter(self.param.clone(), ctx.domain)
     }
 }
 

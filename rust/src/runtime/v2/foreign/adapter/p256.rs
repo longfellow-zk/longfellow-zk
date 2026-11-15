@@ -256,10 +256,26 @@ impl<const Q: usize> P256Encoded<Q> {
     }
 }
 
-pub use super::transcript::{conversion, send_quotients, Conversion};
+#[cfg(test)]
+pub(in crate::runtime::v2::foreign) use super::transcript::conversion;
+pub(in crate::runtime::v2::foreign) use super::transcript::send_quotients;
+pub use super::transcript::Conversion;
 
 /// The P-256 wrapping mode as an adapter mode: two trees, each with a
 /// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
+///
+/// The adapter's conversion pair and masked quotients enter the transcript
+/// only through the mode: `draw_conversion` stamps the pair as the mode's
+/// input challenge and `prove` and `verify` send the quotients. The raw
+/// steps are not public:
+///
+/// ```compile_fail,E0432
+/// use longfellow_zk::runtime::v2::foreign::adapter::p256::conversion;
+/// ```
+///
+/// ```compile_fail,E0603
+/// use longfellow_zk::runtime::v2::foreign::adapter::p256::send_quotients;
+/// ```
 pub struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
     otp: [BitGroup<Q>; 2],
