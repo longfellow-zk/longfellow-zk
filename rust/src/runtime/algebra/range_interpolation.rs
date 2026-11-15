@@ -49,12 +49,14 @@ pub(in crate::runtime) mod binary;
 mod domain;
 pub(in crate::runtime) mod quadratic_extension_fft;
 pub(in crate::runtime) mod scalar;
-pub use binary::BinaryInterpolatorFactory;
+pub use binary::{BinaryInterpolationPlan, BinaryInterpolatorFactory};
 use domain::{difference, Ranges};
 pub use domain::{
     interpolate_range, EvaluationDomain, InterpolationPlan, RangeInterpolatorFactory,
 };
-pub use quadratic_extension_fft::QuadraticExtensionFftInterpolatorFactory;
-pub use scalar::ScalarInterpolatorFactory;
+pub use quadratic_extension_fft::{
+    QuadraticExtensionFftInterpolationPlan, QuadraticExtensionFftInterpolatorFactory,
+};
+pub use scalar::{ScalarInterpolationPlan, ScalarInterpolatorFactory};
 
 pub(super) use super::field::batch_inverse;

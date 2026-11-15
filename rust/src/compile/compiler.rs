@@ -28,6 +28,7 @@ mod v1;
 mod v2;
 mod v2_segment;
 
+pub use arena::CompilerArena;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use stats::dump_stats;
 pub use v1::{compile_v1, segment_circuit_v1, segment_layer_v1};
