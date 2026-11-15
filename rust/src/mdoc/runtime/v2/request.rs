@@ -25,6 +25,7 @@ use crate::{
                 K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
             },
             mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_VALUE_BYTES},
+            NEXT_MAX_ATTRIBUTES,
         },
         v2::{
             attribute::{circuit_supports, same_namespace},
@@ -64,9 +65,10 @@ pub(super) struct Request<'a> {
 
 impl<'a> Request<'a> {
     /// Check a request, in the order of the error table: the spec version, the
-    /// attribute count, a shared namespace, the session transcript, the
-    /// public-input bounds and syntax, the attribute values, and the issuer
-    /// key. Both roles run this before loading circuits or drawing randomness.
+    /// spec's attribute count against the supported range, the attribute
+    /// count, a shared namespace, the session transcript, the public-input
+    /// bounds and syntax, the attribute values, and the issuer key. Both
+    /// roles run this before loading circuits or drawing randomness.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn check(
         spec: &'a ZkSpecStruct,
@@ -80,6 +82,11 @@ impl<'a> Request<'a> {
     ) -> Result<Self, RequestError> {
         if !spec.supports_version() {
             return Err(RequestError::Version);
+        }
+        // The NEXT circuits exist for 1 to NEXT_MAX_ATTRIBUTES attributes; a
+        // spec outside that range is a request-shape failure.
+        if !(1..=NEXT_MAX_ATTRIBUTES).contains(&spec.num_attributes) {
+            return Err(RequestError::Shape);
         }
         if attributes.len() != spec.num_attributes {
             return Err(RequestError::AttributeCount);

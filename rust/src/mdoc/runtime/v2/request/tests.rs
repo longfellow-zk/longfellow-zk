@@ -177,7 +177,7 @@ fn request_errors_follow_the_error_table() {
     use MdocVerifierErrorCode as V;
     use RequestError as E;
 
-    use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
+    use crate::mdoc::proto::{hash::constants::K_NAMESPACE_BYTES, NEXT_MAX_ATTRIBUTES};
     let mut two = v2_spec();
     two.num_attributes = 2;
     let valid = Fields {
@@ -296,6 +296,30 @@ fn request_errors_follow_the_error_table() {
         );
     }
     assert_eq!((P::InvalidInput as u32, V::InvalidInput as u32), (2, 7));
+    // A spec attribute count outside 1..=NEXT_MAX_ATTRIBUTES is a
+    // request-shape failure even with as many attributes; the largest
+    // supported count reaches circuit loading.
+    let attributes = |count: usize| {
+        (0..count)
+            .map(|i| req_attr("namespace", [b'a' + i as u8], [0xf5]))
+            .collect()
+    };
+    for (count, want) in [
+        (
+            NEXT_MAX_ATTRIBUTES,
+            (None, P::CircuitParsingFailure, V::CircuitParsingFailure),
+        ),
+        (
+            NEXT_MAX_ATTRIBUTES + 1,
+            (Some(E::Shape), P::InvalidInput, V::InvalidInput),
+        ),
+    ] {
+        let changed = with(&|r| {
+            r.spec.num_attributes = count;
+            r.attrs = attributes(count);
+        });
+        assert_eq!(changed, want, "spec with {count} attributes");
+    }
     // Unsupported attribute value.
     for value in [&[0x82, 0x01, 0x02][..], &[0x65, 0x61][..], &[0xf6][..]] {
         assert_eq!(

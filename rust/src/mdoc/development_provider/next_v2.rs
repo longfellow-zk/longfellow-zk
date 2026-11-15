@@ -18,7 +18,7 @@ use crate::{
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         compile,
-        proto::{K_ZSTD_LEVEL, MDOC_JOINT_PROFILE, NEXT_VERSION},
+        proto::{K_ZSTD_LEVEL, MDOC_JOINT_PROFILE, NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
         v2::{
             provider::{self, ProvidedCircuit},
             PolygeroParameters, ZkSpecStruct,
@@ -49,8 +49,10 @@ const NEXT_PARAMETERS: PolygeroConfig = {
 /// Compile the development circuit and return its matching specification.
 /// The saved specification retains the shared proof parameter profile.
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
-    if !(1..=4).contains(&num_attributes) {
-        return Err("NEXT supports one to four attributes".into());
+    if !(1..=NEXT_MAX_ATTRIBUTES).contains(&num_attributes) {
+        return Err(format!(
+            "NEXT supports one to {NEXT_MAX_ATTRIBUTES} attributes"
+        ));
     }
     let bytes = compile::compile_circuits(num_attributes)?;
     let archive = crate::core::proto::v2::archive::from_bytes(&bytes)?;

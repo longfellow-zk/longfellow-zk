@@ -17,7 +17,7 @@ use crate::{
     core::{algebra::encoding::P256_MODULUS, proto::v2::Circuit},
     mdoc::{
         circuits::hash::{allocate, MdocHash},
-        proto::layout,
+        proto::{layout, NEXT_MAX_ATTRIBUTES},
     },
 };
 pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
@@ -83,7 +83,7 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
     segment_circuit_v2(f, c)
 }
 pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_128Field>, String> {
-    if !(1..=4).contains(&num_attrs) {
+    if !(1..=NEXT_MAX_ATTRIBUTES).contains(&num_attrs) {
         return Err("hash circuit attribute count".into());
     }
     let (c, _, _) = compile_v2(f, |l| {

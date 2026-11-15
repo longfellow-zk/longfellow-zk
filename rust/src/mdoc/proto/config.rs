@@ -23,3 +23,6 @@ pub const MDOC_JOINT_PROFILE: (usize, usize, usize, usize) = (349, 12, 2443, 84)
 /// The circuit version of the NEXT (v2) mdoc circuits: the compiler writes it
 /// into the archive and the v2 runtime accepts it.
 pub const NEXT_VERSION: usize = 12;
+
+/// The largest attribute count of the NEXT circuits, which support 1 to it.
+pub const NEXT_MAX_ATTRIBUTES: usize = 4;
