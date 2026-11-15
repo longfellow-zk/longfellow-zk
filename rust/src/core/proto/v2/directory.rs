@@ -59,6 +59,17 @@ pub(super) struct LayerDirectory {
     pub streams: [StreamDirectory; 3],
 }
 
+/// Metadata charges against `MAX_METADATA_BYTES`. They are fixed, so a
+/// circuit is accepted or rejected alike on every target; each is the
+/// in-memory size on 64-bit targets, which no target exceeds (`directory`
+/// tests). A segment is charged the worst (quadratic) summary, even though
+/// only one stream's summaries are live at a time: directory and final
+/// segment ends (2 x u32), nine i64 summary words and an assertion count
+/// (a usize). A token is one u32. A layer is its directory and `Layer` records.
+pub(super) const SEGMENT_METADATA_BYTES: usize = 88;
+pub(super) const TOKEN_METADATA_BYTES: usize = 4;
+pub(super) const LAYER_METADATA_BYTES: usize = 456;
+
 /// Check the complete allocation plan before reading segment ends or payloads.
 /// These are declared sizes, not counters maintained during circuit execution.
 pub(super) fn validate(
@@ -101,25 +112,17 @@ pub(super) fn validate(
     if stored > MAX_TOTAL_TERMS || total[4] > term_limit.min(MAX_TOTAL_TERMS) {
         return Err("LFC3 excessive total terms".into());
     }
-    // Charge the worst (quadratic) summary for every segment, even though only
-    // one stream's summaries are live at a time. Include both directory and
-    // final segment ends, assertion counts, tokens and layer descriptors.
-    let segment_bytes = 2 * std::mem::size_of::<u32>()
-        + 9 * std::mem::size_of::<i64>()
-        + std::mem::size_of::<usize>();
     let metadata = total[1]
-        .checked_mul(segment_bytes)
+        .checked_mul(SEGMENT_METADATA_BYTES)
         .and_then(|n| {
             total[3]
-                .checked_mul(std::mem::size_of::<u32>())
+                .checked_mul(TOKEN_METADATA_BYTES)
                 .and_then(|m| n.checked_add(m))
         })
         .and_then(|n| {
             layers
                 .len()
-                .checked_mul(
-                    std::mem::size_of::<LayerDirectory>() + std::mem::size_of::<super::Layer>(),
-                )
+                .checked_mul(LAYER_METADATA_BYTES)
                 .and_then(|m| n.checked_add(m))
         })
         .ok_or("LFC3 metadata size overflow")?;
@@ -131,3 +134,6 @@ pub(super) fn validate(
     }
     Ok(total)
 }
+
+#[cfg(test)]
+mod tests;

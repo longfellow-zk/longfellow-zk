@@ -72,10 +72,14 @@ coordinate bounds without expanding repeated segments.
 
 Named global limits live in `v2/limits.rs`: 128 layers, 8,388,608 total wires
 including inputs and outputs, and 10 MiB of segment/token metadata including
-directory offsets and decoder summaries. There are no separate per-layer,
-per-stream, input or output caps. The global term ceiling is 16,777,216 for
-expanded terms and for stored coefficients/deltas/indices combined, so unused
-dictionary data remains bounded. A caller may lower the expanded-term ceiling.
+directory offsets and decoder summaries. The metadata charge is fixed, so a
+circuit loads or fails alike on every target: 88 bytes per declared segment
+(the quadratic summary, whichever stream holds it), 4 bytes per token and
+456 bytes per layer, the in-memory sizes on 64-bit targets. There are no
+separate per-layer, per-stream, input or output caps. The global term ceiling
+is 16,777,216 for expanded terms and for stored coefficients/deltas/indices
+combined, so unused dictionary data remains bounded. A caller may lower the
+expanded-term ceiling.
 Container/file I/O also has a coarse 64 MiB ceiling; v2 archives contain at
 most three entries. The zstd window is bounded by the metadata limit.
 
