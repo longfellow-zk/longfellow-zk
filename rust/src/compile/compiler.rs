@@ -29,7 +29,7 @@ mod v2_segment;
 pub use arena::CompilerArena;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use stats::dump_stats;
-pub use v2::compile_v2;
+pub use v2::{compile_v2, compile_v2_shared_inputs};
 pub use v2_segment::segment_circuit_v2;
 
 cfg_testonly! {

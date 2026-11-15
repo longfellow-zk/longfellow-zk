@@ -22,7 +22,10 @@
 //! curve constants are canonical encodings of the secp256r1 parameters (SEC 2,
 //! FIPS 186-5).
 
-use super::{BareField, FieldID, SerializableField};
+use super::{
+    fp24::{BASE_SERIALIZED_SIZE, Q, SERIALIZED_SIZE},
+    BareField, FieldID, SerializableField,
+};
 
 /// Little-endian bytes of a big-endian hexadecimal constant of `2 * N` digits.
 const fn le_from_be_hex<const N: usize>(hex: &str) -> [u8; N] {
@@ -158,5 +161,49 @@ impl FieldID {
         } else {
             Self::None
         }
+    }
+}
+
+/// The sextic field's agreed wire representation: six little-endian prime
+/// coordinates of three bytes each, all strictly below the ML-DSA prime.
+/// This type supplies no arithmetic and cannot be used as a runtime field.
+#[derive(Clone, Copy, Debug)]
+pub struct Fp24Ext6Encoding;
+
+pub const FP24_EXT6: Fp24Ext6Encoding = Fp24Ext6Encoding;
+
+impl BareField for Fp24Ext6Encoding {
+    type E = [u8; SERIALIZED_SIZE];
+}
+impl SerializableField for Fp24Ext6Encoding {
+    fn field_id(&self) -> FieldID {
+        FieldID::Fp24Ext6
+    }
+    fn is_binary(&self) -> bool {
+        false
+    }
+    fn serialized_size_bytes(&self) -> usize {
+        SERIALIZED_SIZE
+    }
+    fn to_bytes_into(&self, value: &Self::E, out: &mut [u8]) {
+        out.copy_from_slice(value);
+    }
+    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String> {
+        let value: Self::E = bytes
+            .try_into()
+            .map_err(|_| "Fp24 sextic encoding must contain 18 bytes")?;
+        for coordinate in value.as_chunks::<BASE_SERIALIZED_SIZE>().0 {
+            let integer = u32::from_le_bytes([coordinate[0], coordinate[1], coordinate[2], 0]);
+            if integer >= Q {
+                return Err("Fp24 sextic coordinate is not below the modulus".into());
+            }
+        }
+        Ok(value)
+    }
+    fn serialized_mone(&self) -> Vec<u8> {
+        let mut bytes = vec![0; SERIALIZED_SIZE];
+        bytes[..BASE_SERIALIZED_SIZE]
+            .copy_from_slice(&(Q - 1).to_le_bytes()[..BASE_SERIALIZED_SIZE]);
+        bytes
     }
 }

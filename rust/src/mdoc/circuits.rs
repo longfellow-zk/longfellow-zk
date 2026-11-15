@@ -14,6 +14,9 @@
 
 mod fields;
 pub use fields::MdocHashCompileField;
+pub mod cbor_lexer;
+pub mod cbor_parser;
+pub mod mdoc_structure;
 
 pub mod cbor_decoder;
 pub mod hash;

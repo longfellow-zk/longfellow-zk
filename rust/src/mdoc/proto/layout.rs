@@ -69,6 +69,21 @@ pub mod sig {
     pub const ISSUER_DIGEST: Range<usize> = 0..256;
     pub const DEVICE_X: Range<usize> = after(ISSUER_DIGEST, 256);
     pub const DEVICE_Y: Range<usize> = after(DEVICE_X, 256);
+    pub const ISSUER_R: Range<usize> = after(DEVICE_Y, 2);
+    pub const ISSUER_ERS: Range<usize> = after(ISSUER_R, 256);
+    pub const DEVICE_R: Range<usize> = after(ISSUER_ERS, 2);
+    pub const DEVICE_ERS: Range<usize> = after(DEVICE_R, 256);
+    /// ECDSA's nine-point lookup excludes index eight. The remaining entries
+    /// are exactly `2*b-8` for a three-bit unsigned index b.
+    pub const ERS_TABLE_SIZE: usize = 9;
+    pub const ERS_BITS: usize = 3;
+    pub const ERS_SCALE: i64 = 2;
+    pub const ERS_OFFSET: i64 = -8;
+    const _: () = {
+        assert!(ERS_SCALE > 0 && ERS_OFFSET < 0);
+        assert!(ISSUER_ERS.start == 770 && ISSUER_ERS.end == 1026);
+        assert!(DEVICE_ERS.start == 1028 && DEVICE_ERS.end == 1284);
+    };
 }
 
 /// Each value the signature circuit stores in the hash witness: its signature

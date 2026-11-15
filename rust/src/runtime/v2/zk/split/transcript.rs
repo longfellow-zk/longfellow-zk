@@ -45,7 +45,7 @@ pub(super) fn eta<F: SupportsSampling>(t: &mut TranscriptRef<'_>, f: &F) -> Eta<
 /// them at once: they read further from the frontend's last answer (its last
 /// combine, after alpha and the input assertions; transcript I7), with no
 /// message or boundary of their own.
-#[cfg(test)]
+#[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
 pub(super) fn row_weights<F: SupportsSampling>(
     t: &mut TranscriptRef<'_>,
     count: usize,

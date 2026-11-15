@@ -6,7 +6,7 @@
 //! ```
 //!
 //! The tool runs `rust-analyzer scip` on the workspace in `rust/` (with the
-//! library's `testonly` feature) and builds the file graph of the library
+//! library's `testonly,mldsa` features) and builds the file graph of the library
 //! (`rust/src`; the tools in `rust/tools` are not part of it): an edge A -> B means a
 //! reference written in file A resolves to an item defined in file B. Every
 //! reference counts, in signatures, bodies, imports and macro output, and it
@@ -137,7 +137,7 @@ enum Phase {
 /// The applications, each with its native parsers. An application module
 /// (`mdoc`) mirrors the library's layering below it: see
 /// [`application_phase`].
-const APPLICATIONS: [(&str, &[&str]); 1] = [("mdoc", &["cbor"])];
+const APPLICATIONS: [(&str, &[&str]); 2] = [("mdoc", &["cbor"]), ("mldsa", &[])];
 
 /// The application a module path belongs to: its module path below the
 /// application, and the application's native parsers.
@@ -145,7 +145,13 @@ fn application(module: &str) -> Option<(&str, &'static [&'static str])> {
     APPLICATIONS.iter().find_map(|&(name, parsers)| {
         module
             .strip_prefix(name)
-            .and_then(|rest| rest.strip_prefix('/'))
+            .and_then(|rest| {
+                if rest.is_empty() {
+                    Some(rest)
+                } else {
+                    rest.strip_prefix('/')
+                }
+            })
             .map(|rest| (rest, parsers))
     })
 }
@@ -186,7 +192,7 @@ fn phase(path: &str) -> Phase {
 fn application_phase(path: &str, rest: &str, parsers: &[&str]) -> Phase {
     use Phase::*;
     let under = |root: &str| rest == root || rest.starts_with(&format!("{root}/"));
-    if under("development_provider") || rest == "artifacts" {
+    if rest.is_empty() || under("development_provider") || rest == "artifacts" {
         // The development provider compiles and runs; the artifacts are
         // the stored circuits and proofs.
         Neutral
@@ -217,6 +223,14 @@ fn circuit_phase(path: &str, rest: &str) -> Phase {
     let mut segments = rest.split('/');
     let name = segments.next().unwrap_or(rest);
     let half = segments.next();
+    if name == "cbor_lexer" && half == Some("counter") {
+        // The lexer shares its compiler-only counter gadget with the parser.
+        return circuit_phase(path, rest.strip_prefix("cbor_lexer/").unwrap());
+    }
+    if name == "simd_sha256" && matches!(half, Some("flat" | "logic")) {
+        // Experimental packed SHA's lowering and scheduling logic build circuits.
+        return Compile;
+    }
     match half.unwrap_or(name) {
         "circuit" | "allocate" | "fields" => Compile,
         // Native witness halves.
@@ -238,10 +252,8 @@ fn is_facade(path: &str) -> bool {
     let m = module_path(path);
     // The module path within its application, if it has one.
     let local = application(m).map_or(m, |(rest, _)| rest);
-    let circuit_root = local
-        .strip_prefix("circuits/")
-        .is_some_and(|rest| !rest.contains('/'));
-    let facade = m == "runtime" || (local != m && local == "circuits");
+    let circuit_root = local.starts_with("circuits/");
+    let facade = m == "runtime" || (local != m && matches!(local, "" | "circuits"));
     phase(path) == Phase::Neutral && (circuit_root || facade)
 }
 
@@ -586,7 +598,7 @@ fn file_graph(root: &Path, work: &Path) -> (Graph, Vec<Reference>, BTreeSet<Stri
     let config = work.join("rust-analyzer.json");
     std::fs::write(
         &config,
-        r#"{"cargo": {"features": ["longfellow-zk/testonly"]}}"#,
+        r#"{"cargo": {"features": ["longfellow-zk/testonly", "longfellow-zk/mldsa"]}}"#,
     )
     .expect("write the rust-analyzer configuration");
     let index_path = work.join("index.scip");

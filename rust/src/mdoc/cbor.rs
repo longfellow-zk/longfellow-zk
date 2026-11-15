@@ -24,3 +24,9 @@ pub use cbor_encode::{
 cfg_testonly! {
     pub mod test_utils;
 }
+
+cfg_prover! {
+    pub mod lexer_prover;
+    pub mod parser_prover;
+    pub mod structure_prover;
+}

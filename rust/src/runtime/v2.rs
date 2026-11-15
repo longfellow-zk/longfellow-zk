@@ -37,3 +37,6 @@ pub mod sumcheck;
 pub mod transcript;
 
 pub mod zk;
+
+#[cfg(all(feature = "simd", any(test, feature = "prover", feature = "verifier")))]
+pub mod simd_sumcheck;

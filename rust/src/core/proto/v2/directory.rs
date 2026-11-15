@@ -78,12 +78,12 @@ pub(super) fn validate(
     noutput: usize,
     nconstants: usize,
     constants_bytes: usize,
-    term_limit: usize,
+    limits: SizeLimits,
 ) -> Result<[usize; 6], String> {
     let mut total = [0usize; 6];
     let mut wires = noutput;
     for layer in layers {
-        if layer.nw == 0 || layer.nw > MAX_TOTAL_WIRES {
+        if layer.nw == 0 || layer.nw > limits.total_wires {
             return Err("LFC3 invalid layer width".into());
         }
         wires = wires
@@ -102,14 +102,14 @@ pub(super) fn validate(
     total[5] = total[5]
         .checked_add(constants_bytes)
         .ok_or("LFC3 payload size overflow")?;
-    if wires > MAX_TOTAL_WIRES {
+    if wires > limits.total_wires {
         return Err("LFC3 excessive total wires".into());
     }
     let stored = total[0]
         .checked_add(total[2])
         .and_then(|n| n.checked_add(nconstants))
         .ok_or("LFC3 stored term count overflow")?;
-    if stored > MAX_TOTAL_TERMS || total[4] > term_limit.min(MAX_TOTAL_TERMS) {
+    if stored > limits.stored_terms || total[4] > limits.expanded_terms {
         return Err("LFC3 excessive total terms".into());
     }
     let metadata = total[1]
@@ -126,7 +126,7 @@ pub(super) fn validate(
                 .and_then(|m| n.checked_add(m))
         })
         .ok_or("LFC3 metadata size overflow")?;
-    if metadata > MAX_METADATA_BYTES {
+    if metadata > limits.metadata_bytes {
         return Err("LFC3 excessive segment/token metadata".into());
     }
     if total[5] > MAX_ARCHIVE_BYTES {

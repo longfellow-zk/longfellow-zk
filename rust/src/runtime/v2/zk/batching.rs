@@ -70,12 +70,12 @@ pub(crate) fn rows<F: RuntimeField + SerializableField>(
     Ok((layers, LinearClaim { weights, target }))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
 use crate::runtime::algebra::blas::{axpy, dot};
 /// Batch `rows` with `rho`, one weight per layer row and a last one for the
 /// input equation: `sum_c rho_c (A_c v + b_c) - rho_L (<w, v> - t) = 0`,
 /// written as the claim `<weights, v> = target`.
-#[cfg(test)]
+#[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
 pub(crate) fn batch<F: RuntimeField + SerializableField>(
     rows: Rows<F::E>,
     rho: &[F::E],

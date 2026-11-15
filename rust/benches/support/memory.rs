@@ -20,16 +20,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 static PEAK: AtomicUsize = AtomicUsize::new(0);
 
-pub(super) fn reset_peak() {
+pub(crate) fn reset_peak() {
     let current = ALLOCATED.load(Ordering::SeqCst);
     PEAK.store(current, Ordering::SeqCst);
 }
 
-pub(super) fn get_peak_allocated() -> usize {
+pub(crate) fn get_peak_allocated() -> usize {
     PEAK.load(Ordering::SeqCst)
 }
 
-pub(super) fn get_current_allocated() -> usize {
+pub(crate) fn get_current_allocated() -> usize {
     ALLOCATED.load(Ordering::SeqCst)
 }
 

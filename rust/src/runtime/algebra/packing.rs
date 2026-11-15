@@ -401,3 +401,6 @@ fn invert_matrix<F: AlgebraicField>(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+pub mod prime24;

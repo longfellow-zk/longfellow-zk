@@ -370,14 +370,19 @@ fn each_value_kind_has_its_documented_encoding() {
 /// all a reader needs to parse its Elements (transcript I5).
 #[test]
 fn registered_fields_have_the_registry_id_and_width() {
-    use crate::runtime::algebra::gf2_128::Gf2_128Field;
+    use crate::runtime::algebra::{fp24_ext6::RuntimeFp24Ext6, gf2_128::Gf2_128Field};
     fn entry<F: RegisteredField>(f: &F) -> (FieldID, usize) {
         assert_eq!(f.field_id(), F::ID);
         assert_eq!(f.serialized_size_bytes(), F::BYTES);
         assert_eq!(f.serialized_mone().len(), F::BYTES);
         (F::ID, F::BYTES)
     }
-    let fields = [entry(&P256Field::new()), entry(&Gf2_128Field::new())];
+    let fields = [
+        entry(&P256Field::new()),
+        entry(&Gf2_128Field::new()),
+        entry(&RuntimeFp24Ext6::new()),
+    ];
+    assert_eq!(fields[2], (FieldID::Fp24Ext6, 18));
     let registry: Vec<_> = REGISTERED_FIELDS
         .iter()
         .map(|&(id, w, _)| (id, w))

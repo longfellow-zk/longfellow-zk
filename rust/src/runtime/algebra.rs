@@ -47,3 +47,6 @@ impl<F> ZkField for F where F: InterpolationField + SerializableField + Supports
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+pub mod fp24_ext6;

@@ -12,7 +12,7 @@ use crate::{
 fn default_total_term_limit_matches_v2_limit() {
     let field = P256Field::new();
     let reader = super::CircuitReader::new(&field);
-    assert_eq!(reader.max_total_terms, MAX_TOTAL_TERMS);
+    assert_eq!(reader.limits.expanded_terms, MAX_TOTAL_TERMS);
 }
 
 #[test]

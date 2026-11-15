@@ -13,6 +13,7 @@ type_complexity = "allow"
 name = "longfellow-zk"
 version = "0.1.0"
 edition = "2021"
+autobenches = false
 description = "Longfellow v1/v2 Zero-Knowledge proof system and ISO 18013-5 mdoc circuits"
 license = "Apache-2.0"
 repository = "https://github.com/google/longfellow-zk"
@@ -36,6 +37,8 @@ prover = ["dep:getrandom", "_role"]
 _role = []
 compiler = ["dep:bumpalo", "dep:num-bigint", "dep:num-traits", "dep:rustc-hash"]
 mdoc = ["dep:zstd"]
+mldsa = ["simd"]
+simd = []
 testonly = ["verifier", "prover", "compiler", "v1"]
 force-32bit-limbs = []
 limb32 = ["force-32bit-limbs"]
@@ -64,6 +67,7 @@ zstd = { version = "0.13", default-features = false, optional = true }
 [dev-dependencies]
 criterion = "0.5"
 hex = "0.4.3"
+sha3 = "0.10.8"
 num-bigint = "0.4"
 num-traits = "0.2"
 
@@ -155,3 +159,43 @@ panic = "abort"
 [profile.dev]
 opt-level = 2
 lto = false
+
+[[bench]]
+name = "mldsa"
+path = "benches/mldsa.rs"
+harness = false
+required-features = ["mldsa", "testonly"]
+
+[[bench]]
+name = "hidden_mldsa"
+path = "benches/hidden_mldsa.rs"
+harness = false
+required-features = ["mldsa", "testonly", "mdoc"]
+
+[[bench]]
+name = "sha256_simd"
+path = "benches/sha256_simd.rs"
+harness = false
+required-features = ["simd", "testonly"]
+
+[[bench]]
+name = "cbor_structural"
+path = "benches/cbor_structural.rs"
+harness = false
+required-features = ["compiler", "mdoc"]
+
+[[test]]
+name = "mldsa"
+path = "tests/mldsa.rs"
+required-features = ["mldsa", "testonly"]
+
+[[test]]
+name = "hidden_mldsa"
+path = "tests/hidden_mldsa.rs"
+required-features = ["mldsa", "testonly"]
+
+[[bench]]
+name = "mdoc_single_commitment"
+path = "benches/mdoc_single_commitment.rs"
+harness = false
+required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]

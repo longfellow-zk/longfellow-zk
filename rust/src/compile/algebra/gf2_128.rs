@@ -333,3 +333,10 @@ impl CompileBinaryField for Gf2_128Field {
         Gf2_128(2)
     }
 }
+
+impl Gf2_128 {
+    /// Polynomial coordinates for compiler-side Boolean circuit lowering.
+    pub fn word(self) -> u128 {
+        self.0
+    }
+}

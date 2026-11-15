@@ -62,48 +62,7 @@ impl<'a> AssignmentBuilder<'a> {
     }
 }
 
-cfg_prover! {
-    impl AssignmentBuilder<'_>
-    {
-        pub(super) fn push_ecdsa_signature(
-            &mut self,
-            given: &crate::circuits::ecdsa2::Given<P256Element>,
-        ) {
-            // Key coordinates and digest bits already occupy the shared prefix.
-            given.for_each_signature(|elt| self.push_elt(elt));
-        }
-
-        pub(super) fn push_ecdsa_derived(
-            &mut self,
-            derived: &crate::circuits::ecdsa2::Derived<P256Element>,
-        ) {
-            derived.for_each(|elt| self.push_elt(elt));
-        }
-    }
-
-
-
-    impl BinaryAssignmentBuilder {
-        fn push_v32(&mut self, val: u32) {
-            self.push_bits_len(u64::from(val),32);
-        }
-
-        /// The 256 bits of `nat`, least significant first.
-        pub(super) fn push_nat256<N: Nat<4>>(&mut self, nat: &N) {
-            for limb in nat.to_limbs() {
-                self.push_bits_len(limb, 64);
-            }
-        }
-
-        pub(super) fn push_sha256msg_derived(
-            &mut self,
-            derived: &crate::circuits::sha256msg::Derived<u32>,
-        ) {
-            derived.for_each(|&val| self.push_v32(val));
-        }
-    }
-
-}
+cfg_prover! { mod prover; }
 
 /// Binary assignment input methods accept bits and bit strings, never field elements.
 #[derive(Default)]

@@ -184,7 +184,11 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The supported one-/two-/three-/four-attribute circuits have 442/446/450/452 rounds.
+The upstream parser-free one-/two-/three-/four-attribute circuits have
+442/446/450/452 ordinary rounds. Glorious's structural extensions have
+463/469/473/476 ordinary rounds. The `formal/` tree is kept at upstream v2;
+its concrete supported-shape metadata describes the upstream circuits
+rather than these structural extensions.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
@@ -709,19 +713,155 @@ assumptions; they do not certify the complete Rust implementation.
 
 The tools are written in Rust. Python is not required.
 
+## Structural mdoc application
+
+`mdoc_structural` compiles a NEXT bundle, proves a credential, and verifies a
+proof from files. Proving uses system randomness and verifies its result before
+saving it. Verification does not read the credential. Run from `rust/`:
+
+```sh
+cargo run --release -p longfellow-zk-tools --bin mdoc_structural -- compile 2 /tmp/mdoc.bundle
+cargo run --release -p longfellow-zk-tools --bin mdoc_structural -- prove /tmp/mdoc.bundle request.json /tmp/mdoc.proof
+cargo run --release -p longfellow-zk-tools --bin mdoc_structural -- verify /tmp/mdoc.bundle request.json /tmp/mdoc.proof
+```
+
+The request is the public statement, including the expected issuer key. File
+paths are relative to the manifest. `value_cbor` is the exact encoded public
+attribute value in hexadecimal; one to four attributes are supported:
+
+```json
+{
+  "issuer_x": "0x<expected issuer x coordinate>",
+  "issuer_y": "0x<expected issuer y coordinate>",
+  "doc_type": "org.iso.18013.5.1.mDL",
+  "now": "2025-04-30T00:00:00Z",
+  "transcript": "transcript.cbor",
+  "mdoc": "credential.cbor",
+  "attributes": [
+    {"namespace": "org.iso.18013.5.1", "id": "age_over_18", "value_cbor": "f5"},
+    {"namespace": "org.iso.18013.5.1", "id": "nym", "value_cbor": "6731323331323434"}
+  ]
+}
+```
+
+The benchmark can export a complete fixture and its request manifest:
+
+```sh
+MDOC_BENCH_MSO_BYTES=2526 MDOC_BENCH_SAMPLES=2 \
+  MDOC_BENCH_SAVE_FIXTURE=/tmp/mdoc-demo \
+  MDOC_BENCH_SAVE_ARCHIVE=/tmp/mdoc.bundle \
+  cargo bench --bench mdoc_zk_bench_next --features testonly
+```
+
+Use `/tmp/mdoc-demo/request.json` with the application commands above. The
+sized fixture re-signs a padded MSO with a public test issuer key and nonce;
+it is exclusively test data. Its original device transcript and device
+signature remain unchanged.
+
+### Single-commitment mdoc experiment
+
+`mdoc::v2::single_commitment` proves the original v2 hash predicate and the
+signature circuit with one binary-field commitment. It allocates no structural
+CBOR parser or parser witnesses. Its trusted constructor is
+`mdoc::development_provider::compile_parser_free_next`; ordinary NEXT bundles
+retain their scalar structural parser. The 768 shared signature bits
+reuse the hash witness. By default, the 512 ECDSA ERS values use the explicit
+affine encoding `x = 2*b - 8`, where `b` occupies three bits. The native circuit
+constrains these signed lookup values; the adapter pulls its equation back
+through the affine map and binds the encoding in the transcript. Every other
+P-256 private input and every signature sumcheck pad occupies a 256-bit group
+in its reserved suffix. The signature
+frontend commits no cells: its batched equation is checked by two P-256
+exponent trees in the binary frontend, followed by one binary Polygero opening.
+The proof has its own transcript domain and wire format; ordinary mdoc entry
+points retain their two-field commitment layout.
+
+The current signature circuit needs 477,952 source bits with affine ERS
+encoding, compared with 607,488 in canonical mode. The compact encoding reduces
+the binary input cube from 2^22 to 2^21 cells for the two-attribute archive.
+Both masked adapter quotients retain their 20-bit width. Explicit
+`SignatureEncoding::Canonical` APIs remain available; the benchmark selects
+them with `MDOC_BENCH_SIGNATURE_ENCODING=canonical` and otherwise uses the
+compact default. It uses the original parser-free NEXT
+archive and the same parameter profile. Existing parser-free bundles can be
+loaded with `MDOC_BENCH_ARCHIVE`. To compile and save a fresh bundle, run:
+
+```sh
+MDOC_BENCH_SAVE_ARCHIVE=/tmp/mdoc-parser-free.bundle MDOC_BENCH_SAMPLES=8 \
+  cargo bench --bench mdoc_single_commitment --features testonly
+```
+
+This experimental composition is separate from the current formal mdoc
+endpoint; its protocol pieces retain their existing assumptions and bounds.
+
+## Experimental ML-DSA circuits
+
+Current measurements, circuit sizes, proof sizes and reproduction commands are
+in the [2026-11-14 optimization report](benches/results/2026-11-14/README.md).
+
+The public-key and hidden-key ML-DSA relations support scalar Keccak and two
+packed circuit backends. Scalar remains the default. Select `rounds` to pack
+individual Keccak rounds into 128 Boolean lanes, or `permutations` to pack
+complete permutations. The round backend uses fewer inactive lanes when a
+relation contains fewer than 128 permutations. Its public bit permutations
+authenticate the state passed between consecutive rounds, including crossings
+between batches, and its public constant words encode each lane's round number.
+
+Here SIMD describes parallel lanes in the ZK circuit: Boolean operations on
+128 lanes share one packed-word sumcheck. It does not require AVX or AVX-512
+instructions. The scalar CBOR parser and mdoc circuits keep their own layouts.
+
+From this Rust workspace, run the public-key benchmarks with:
+
+```sh
+MLDSA_SHAKE_BACKEND=rounds cargo bench --bench mldsa --features mldsa,testonly -- 44
+MLDSA_SHAKE_BACKEND=rounds cargo bench --bench mldsa --features mldsa,testonly -- 65
+```
+
+The hidden-key benchmark takes the backend as its second positional argument:
+
+```sh
+cargo bench --bench hidden_mldsa --features mldsa,testonly -- 44 rounds
+cargo bench --bench hidden_mldsa --features mldsa,testonly -- 65 rounds
+```
+
+For an explicit API selection, pass `KeccakBackend::Rounds` to
+`mldsa::development_provider::prepare_public_with_backend` or
+`compile_hidden_with_backend`, and set `BinaryKeccak::external_permutations`
+to `true`. Backend selection is trusted setup: it changes the compiled relation
+and is bound into the circuit/source identifiers. Existing scalar constructors
+retain their default behavior.
+
 ## Known limitations
 
 NEXT mdoc takes one global namespace from the requested attributes. The
 namespace must be nonempty UTF-8 text of at most 64 bytes, and all requests
 must agree. Its bytes and length are public circuit inputs. The circuit checks
-the exact CBOR text at a private offset in the signed MSO, including the complete
-read range. Honest witness construction selects that namespace once and then
-looks up attributes by name within it. Namespace checking cannot be suppressed.
+the exact CBOR text and proves that its map is an immediate value of
+`MSO.valueDigests`. Each selected digest must be an immediate entry of that
+namespace map, with its unsigned digest ID equal to the ID in the hashed
+IssuerSignedItem. Namespace checking cannot be suppressed.
 
-Private field offsets are checked for matching bytes and complete read bounds,
-but the circuit does not establish their CBOR ancestry. It does not prove that
-selected digests belong to the requested namespace map. Namespace occurrence
-alone is not a proof of that membership.
+The encoded MSO map can contain at most 2,526 bytes; its actual length is a
+private circuit input. The forty SHA blocks provide 2,560 bytes: the signing
+envelope uses 25 and SHA padding needs at least nine, leaving 2,526 for the map.
+The separate CBOR lexer and parser check complete item boundaries,
+map arities, and selected key/value adjacency. MSO docType and deviceKeyInfo
+must be root entries; validity dates must belong to the root validityInfo map.
+Each IssuerSignedItem is also checked as a complete four-entry map.
+All four MSO map checks share one global pending-slot rank trace; each map
+adds one threshold trace. Together with the lexer, this uses six 12-bit
+counter columns, independent of nesting depth. Attribute buffers use three
+8-bit columns each. The structural witness layout differs from parser-free NEXT
+bundles; recompile existing bundles to use the structural parser.
+
+The structural profile supports definite-length strings and containers with
+length arguments through 16 bits, integer/tag arguments through 64 bits, and
+false/true/null/undefined. It rejects indefinite-length CBOR and floats. It
+proves entry existence; it does not prove map-key uniqueness, UTF-8 validity,
+or arbitrary tag semantics. Honest host parsing rejects duplicate selected
+fields. Existing field-specific byte and type checks remain part of the
+predicate.
 
 Validity comparisons select the fourteen `YYYYMMDDhhmmss` digits from the
 supported 20-byte UTC representation. V2 entry points check ASCII digits and

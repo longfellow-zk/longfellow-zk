@@ -14,13 +14,29 @@ use crate::{
         compiler::{compile_v2, segment_circuit_v2},
         logic::{Logic, LogicIO, K_FIRST_WIRE_POSITION},
     },
-    core::{algebra::encoding::P256_MODULUS, proto::v2::Circuit},
+    core::{
+        algebra::{
+            encoding::P256_MODULUS, AlgebraicField, HasLookupPoints, SupportsU64Conversions,
+        },
+        proto::v2::Circuit,
+    },
     mdoc::{
-        circuits::hash::{allocate, MdocHash},
+        circuits::hash::{allocate, allocate_without_structure, MdocHash},
         proto::{layout, NEXT_MAX_ATTRIBUTES},
     },
 };
 pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
+    for index in 0..1usize << layout::sig::ERS_BITS {
+        let expected = f.subf(
+            &f.u64_to_element(layout::sig::ERS_SCALE.unsigned_abs() * index as u64),
+            &f.u64_to_element(layout::sig::ERS_OFFSET.unsigned_abs()),
+        );
+        assert_eq!(
+            f.lookup_point(layout::sig::ERS_TABLE_SIZE, index),
+            expected,
+            "signature ERS affine lookup contract"
+        );
+    }
     let (c, _, _) = compile_v2(f, |logic| {
         let mut pos = K_FIRST_WIRE_POSITION;
         let issuer_pk = (logic.next(&mut pos), logic.next(&mut pos));
@@ -52,14 +68,27 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
             "end of shared inputs",
         );
         let arithmetic = Arithmetic::new(&logic);
-        let mut given = |pkxy, e| Given::from_fn_with_key(pkxy, e, || logic.next(&mut pos));
-        let issuer = given(issuer_pk, arithmetic.as_eltw_unsafe(issuer_e.as_array()));
+        let mut given =
+            |pkxy, e, r_range: &core::ops::Range<usize>, ers_range: &core::ops::Range<usize>| {
+                at(pos, r_range, "signature R");
+                let given = Given::from_fn_with_key(pkxy, e, || logic.next(&mut pos));
+                at(pos, &(ers_range.end..ers_range.end), "end of signature ERS");
+                given
+            };
+        let issuer = given(
+            issuer_pk,
+            arithmetic.as_eltw_unsafe(issuer_e.as_array()),
+            &layout::sig::ISSUER_R,
+            &layout::sig::ISSUER_ERS,
+        );
         let device = given(
             (
                 arithmetic.as_eltw_unsafe(device_pk.0.as_array()),
                 arithmetic.as_eltw_unsafe(device_pk.1.as_array()),
             ),
             arithmetic.as_eltw_unsafe(device_e.as_array()),
+            &layout::sig::DEVICE_R,
+            &layout::sig::DEVICE_ERS,
         );
         let issuer_derived = Derived::from_fn(|| logic.next(&mut pos));
         let device_derived = Derived::from_fn(|| logic.next(&mut pos));
@@ -79,12 +108,32 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
     segment_circuit_v2(f, c)
 }
 pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_128Field>, String> {
+    binary_circuit_impl(f, num_attrs, true)
+}
+
+/// The original v2 byte-offset predicate, with no structural parser.
+pub fn parser_free_binary_circuit(
+    f: &Gf2_128Field,
+    num_attrs: usize,
+) -> Result<Circuit<Gf2_128Field>, String> {
+    binary_circuit_impl(f, num_attrs, false)
+}
+
+fn binary_circuit_impl(
+    f: &Gf2_128Field,
+    num_attrs: usize,
+    structural: bool,
+) -> Result<Circuit<Gf2_128Field>, String> {
     if !(1..=NEXT_MAX_ATTRIBUTES).contains(&num_attrs) {
         return Err("hash circuit attribute count".into());
     }
     let (c, _, _) = compile_v2(f, |l| {
         let mut pos = K_FIRST_WIRE_POSITION;
-        let (given, derived, npublic) = allocate(&l, num_attrs, &mut pos);
+        let (given, derived, npublic) = if structural {
+            allocate(&l, num_attrs, &mut pos)
+        } else {
+            allocate_without_structure(&l, num_attrs, &mut pos)
+        };
         let b = Boolean::new(&l);
         let a = Arithmetic::new(&l);
         let modulus: Vec<_> = (0..256)

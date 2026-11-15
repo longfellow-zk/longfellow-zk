@@ -16,9 +16,9 @@ use crate::{
     circuits::{
         arithmetic::Arithmetic,
         bitvec::{Bitvec, BitvecLogic},
-        boolean::Bitw,
+        boolean::{Bitw, Boolean},
     },
-    compile::logic::Logic,
+    compile::logic::{Eltw, Logic},
 };
 
 fn extend<T: Clone>(a: &[T], default: &T, i: isize) -> T {
@@ -53,6 +53,7 @@ fn really_shift<L: Logic, T: Clone, FMux>(
 pub struct Routing<'a, L: Logic> {
     logic: &'a L,
     arith: Arithmetic<'a, L>,
+    boolean: Boolean<'a, L>,
 }
 
 impl<'a, L: Logic> Routing<'a, L> {
@@ -60,6 +61,7 @@ impl<'a, L: Logic> Routing<'a, L> {
         Self {
             logic,
             arith: Arithmetic::new(logic),
+            boolean: Boolean::new(logic),
         }
     }
 
@@ -110,6 +112,32 @@ impl<'a, L: Logic> Routing<'a, L> {
                 }
             })
             .collect()
+    }
+
+    pub fn shiftb<const M: usize>(
+        &self,
+        unroll: usize,
+        amount: &Bitvec<L, M>,
+        k: usize,
+        a: &[Bitw<L>],
+        default: &Bitw<L>,
+    ) -> Vec<Bitw<L>> {
+        let mux =
+            |sel: &[Bitw<L>], data: &dyn Fn(usize) -> Bitw<L>| self.boolean.one_hot_muxb(sel, data);
+        self.generic_shift(&mux, unroll, amount.as_array(), k, a, default)
+    }
+
+    pub fn shifte<const M: usize>(
+        &self,
+        unroll: usize,
+        amount: &Bitvec<L, M>,
+        k: usize,
+        a: &[Eltw<L>],
+        default: &Eltw<L>,
+    ) -> Vec<Eltw<L>> {
+        let mux =
+            |sel: &[Bitw<L>], data: &dyn Fn(usize) -> Eltw<L>| self.boolean.one_hot_muxe(sel, data);
+        self.generic_shift(&mux, unroll, amount.as_array(), k, a, default)
     }
 
     pub fn shift_bitvec<const N: usize, const M: usize>(

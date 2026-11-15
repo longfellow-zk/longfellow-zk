@@ -23,13 +23,17 @@ use crate::{
     },
     core::algebra::{
         ec::{Curve, Pt2},
-        AlgebraicField, Nat, SupportsNatConversions,
+        AlgebraicField, HasLookupPoints, Nat, SupportsNatConversions, SupportsU64Conversions,
     },
     mdoc::{
-        cbor::mdoc::{ParsedAttr, ParsedMdoc},
+        cbor::{
+            mdoc::{ParsedAttr, ParsedMdoc},
+            structure_prover::ConcreteWitness as StructuralWitness,
+        },
         proto::{
             hash::constants::{
-                K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_TAG32,
+                K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_MAX_BYTES, K_MSO_OFFSET,
+                K_MSO_PREIMAGE_LEN, K_TAG32,
             },
             layout,
             mso_attribute::constants::{
@@ -55,6 +59,24 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     request: &Request<'_>,
     parsed: &ParsedMdoc<N>,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
+    push_witness_hash_impl(request, parsed, true)
+}
+
+pub(in crate::mdoc::runtime::v2) fn push_witness_hash_without_structure<N: Nat<4>>(
+    request: &Request<'_>,
+    parsed: &ParsedMdoc<N>,
+) -> Result<Vec<bool>, MdocProverErrorCode> {
+    push_witness_hash_impl(request, parsed, false)
+}
+
+fn push_witness_hash_impl<N: Nat<4>>(
+    request: &Request<'_>,
+    parsed: &ParsedMdoc<N>,
+    structural: bool,
+) -> Result<Vec<bool>, MdocProverErrorCode> {
+    if parsed.cbor_mso.len().saturating_sub(K_MSO_OFFSET) > K_MSO_MAX_BYTES {
+        return Err(MdocProverErrorCode::TaggedMsoTooBig);
+    }
     let mut builder = BinaryAssignmentBuilder::new();
     // The leading private inputs follow the shared layout table, which the
     // runtime link reads; refuse to produce a witness that drifts from it.
@@ -158,6 +180,26 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
 
+    if !structural {
+        return Ok(builder.buffer);
+    }
+    let selected = request
+        .attributes()
+        .iter()
+        .map(|request| {
+            let attr = attributes
+                .iter()
+                .find(|a| a.name == request.id)
+                .ok_or(MdocProverErrorCode::AttributeNotFound)?;
+            Ok((
+                attr.mso_digest_offset_in_preimage,
+                attr.cbor_issuer_signed_item.as_slice(),
+            ))
+        })
+        .collect::<Result<Vec<_>, MdocProverErrorCode>>()?;
+    let structure = StructuralWitness::derive(&parsed.cbor_mso, namespace.key_offset, &selected)
+        .map_err(|_| MdocProverErrorCode::MsoDecodingFailure)?;
+    structure.push(|value, bits| builder.push_bits_len(value, bits));
     Ok(builder.buffer)
 }
 
@@ -257,7 +299,17 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig(
         &parsed.device_sig_s,
     )?;
 
+    for index in 0..1usize << layout::sig::ERS_BITS {
+        let expected = runtime_field.subf(
+            &runtime_field.u64_to_element(layout::sig::ERS_SCALE.unsigned_abs() * index as u64),
+            &runtime_field.u64_to_element(layout::sig::ERS_OFFSET.unsigned_abs()),
+        );
+        if runtime_field.lookup_point(layout::sig::ERS_TABLE_SIZE, index) != expected {
+            return Err(MdocProverErrorCode::WitnessCreationFailure);
+        }
+    }
     let mut builder = AssignmentBuilder::new(runtime_field);
+
     // The leading private inputs are the shared values of the layout table,
     // which the runtime link reads; refuse to drift from it.
     let at = |position: usize, range: &core::ops::Range<usize>| {
@@ -280,10 +332,18 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig(
     )?;
 
     // 3. issuer_sig_given
-    builder.push_ecdsa_signature(&issuer_sig_given);
+    builder.push_ecdsa_signature(
+        &issuer_sig_given,
+        &layout::sig::ISSUER_R,
+        &layout::sig::ISSUER_ERS,
+    )?;
 
     // 4. device_sig_given
-    builder.push_ecdsa_signature(&device_sig_given);
+    builder.push_ecdsa_signature(
+        &device_sig_given,
+        &layout::sig::DEVICE_R,
+        &layout::sig::DEVICE_ERS,
+    )?;
 
     // 5. issuer_sig_derived
     builder.push_ecdsa_derived(&issuer_sig_derived);

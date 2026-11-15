@@ -67,10 +67,22 @@ jobs:
         # standalone role dependency trees, clippy against the parent commit,
         # the release tests, and the formal inspectors and round shapes. The
         # nightly doctests have their own job. The cross builds are skipped:
-        # they need cross C toolchains that this runner does not have.
+        # they need cross C toolchains that this runner does not have. The
+        # experimental Rust mdoc shapes differ from the upstream Lean shapes;
+        # formal/ remains the upstream v2 tree on this branch.
         run: >-
           cargo run --release -p longfellow-zk-tools --bin precommit --
-          --keep-going --fmt-check --base HEAD^ --no-cross --skip doctests
+          --keep-going --fmt-check --base HEAD^ --no-cross --skip doctests,round-shapes
+        working-directory: rust
+
+      - name: Experimental ML-DSA and SIMD checks
+        run: |
+          cargo check --all-targets --features testonly,mldsa
+          for features in prover,mldsa verifier,mldsa compiler,mldsa; do
+            cargo check --lib --bins --no-default-features --features "$features"
+          done
+          cargo clippy --all-targets --features testonly,mldsa
+          cargo test --release --lib --tests --features testonly,mldsa
         working-directory: rust
 
   doctests:
@@ -93,4 +105,8 @@ jobs:
       - name: Doctests on nightly
         # Nightly also checks the error codes of the compile_fail doctests.
         run: cargo run -p longfellow-zk-tools --bin precommit -- --only doctests
+        working-directory: rust
+
+      - name: Experimental ML-DSA doctests
+        run: cargo +nightly test --release --doc --features testonly,mldsa
         working-directory: rust

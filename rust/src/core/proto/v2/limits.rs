@@ -13,3 +13,22 @@ pub const MAX_TOTAL_TERMS: usize = 1 << 24;
 // uncompressed artifacts. No individual field, layer or stream has its own cap.
 pub const MAX_ARCHIVE_BYTES: usize = 4 * MAX_TOTAL_TERMS;
 pub const MAX_ARCHIVE_ENTRIES: usize = 3;
+
+/// Independent allocation and evaluation limits for one circuit reader.
+#[derive(Clone, Copy)]
+pub(super) struct SizeLimits {
+    pub total_wires: usize,
+    pub stored_terms: usize,
+    pub expanded_terms: usize,
+    pub metadata_bytes: usize,
+}
+impl Default for SizeLimits {
+    fn default() -> Self {
+        Self {
+            total_wires: MAX_TOTAL_WIRES,
+            stored_terms: MAX_TOTAL_TERMS,
+            expanded_terms: MAX_TOTAL_TERMS,
+            metadata_bytes: MAX_METADATA_BYTES,
+        }
+    }
+}

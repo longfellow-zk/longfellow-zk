@@ -161,6 +161,36 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         (Bitvec { bits: sum }, Bitvec { bits: carry }, overflow)
     }
 
+    #[must_use = "unchecked_add returns a carry bit that must be checked or accounted for"]
+    pub fn unchecked_add<const N: usize>(
+        &self,
+        a: &Bitvec<L, N>,
+        b: &Bitvec<L, N>,
+    ) -> (Bitvec<L, N>, Bitw<L>) {
+        let (c, carry) = self.arith.unchecked_add(&a.bits, &b.bits);
+        (Bitvec { bits: c }, carry)
+    }
+
+    #[must_use = "checked_sub returns assertions that must be constraint-asserted to prevent silent underflow"]
+    pub fn checked_sub<const N: usize>(
+        &self,
+        a: &Bitvec<L, N>,
+        b: &Bitvec<L, N>,
+    ) -> (Bitvec<L, N>, L::Assertions) {
+        let (diff, assert) = self.arith.checked_sub(&a.bits, &b.bits);
+        (Bitvec { bits: diff }, assert)
+    }
+
+    #[must_use]
+    pub fn assert_wrapping_add<const N: usize>(
+        &self,
+        c: &Bitvec<L, N>,
+        a: &Bitvec<L, N>,
+        b: &Bitvec<L, N>,
+    ) -> L::Assertions {
+        self.arith.assert_wrapping_add(&c.bits, &a.bits, &b.bits)
+    }
+
     #[must_use = "checked_add returns assertions that must be constraint-asserted to prevent silent overflow"]
     pub fn checked_add<const N: usize>(
         &self,

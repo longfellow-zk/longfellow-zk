@@ -1244,14 +1244,40 @@ fn next_error_table() {
     );
 }
 
-/// The combined circuit IDs of NEXT for one to four attributes. Any change
-/// to a NEXT circuit changes them; update them in the same, reviewed commit.
+/// The combined circuit IDs of structural NEXT for one to four attributes.
+/// Any change to a NEXT circuit changes them; update them in the same, reviewed commit.
 const NEXT_COMBINED_IDS: [&str; 4] = [
+    "a0b5037f4d26bd0bdd308717be1439c0e4f12464f292d07e6df76e7072384ec3",
+    "d17c4374e58c916e7b1e2c306777cd20dab00d51a17c45abd2b95bf044f03266",
+    "e4bc8fa265d0b3960fb41993b219049562b9c4bba20b8add9a22050215173de5",
+    "49adeea53c3389975e91004f4ad2bc00de1e4d71350f77b8d65d1cee063526c2",
+];
+
+/// Upstream's byte-offset predicate remains the single-commitment experiment's
+/// parser-free archive, with its own compiler identity for each attribute count.
+const PARSER_FREE_NEXT_COMBINED_IDS: [&str; 4] = [
     "47d48dd6103afefab90cf17a8baa9db903343bcbcd9b2320ff085e6091c1d72f",
     "53d317f8f69877d63a38474a07cc5ed5782599876a7ee4dcdd6c4f12790b3e78",
     "ba43ba60f812f2daa71e7e560f763240a81ff9e21b8e34b0d301cdb40c802e48",
     "7ec6849d3d9e146935161e982f069951698c85d28231c077375bd82940753c93",
 ];
+
+#[test]
+fn parser_free_next_circuit_hashes() {
+    use crate::mdoc::development_provider::{
+        compile_parser_free_next, tests::fixtures::one_compilation,
+    };
+    for (index, expected) in PARSER_FREE_NEXT_COMBINED_IDS.iter().enumerate() {
+        let count = index + 1;
+        let _one = one_compilation();
+        let provided = compile_parser_free_next(count).unwrap();
+        assert_eq!(
+            hex::encode(provided.spec().combined_hash),
+            *expected,
+            "{count}-attribute parser-free NEXT combined circuit ID"
+        );
+    }
+}
 
 #[test]
 fn next_circuit_hashes() {
@@ -1303,7 +1329,7 @@ fn next_measured_round_counts() {
     };
     let pkx = coordinate(&issuer_pk.0);
     let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 442), (2, 446), (3, 450), (4, 452)] {
+    for (count, expected) in [(1, 463), (2, 469), (3, 473), (4, 476)] {
         let attrs: Vec<_> = parsed
             .attrs
             .iter()
@@ -1403,17 +1429,47 @@ fn check_mdoc_trace(
     // joint geometry and two public input vectors; then the commitment.
     let tags: Vec<u64> = trace.messages().take(11).map(|m| m.tag).collect();
     assert_eq!(tags, [16, 18, 18, 18, 19, 19, 22, 20, 21, 21, 32]);
-    // Every registered tag but the standalone identity occurs in an mdoc
-    // proof, so the trace check above holds every schema but ZkStatement's
-    // to its messages; the standalone proof tests check that one.
+    // Check the setup payload against the actual compiler output. Glorious
+    // includes the structural parser in this hash circuit, so its IDs and
+    // committed witness differ from upstream's parser-free mdoc vector.
+    let identity = trace.messages().next().unwrap();
+    let mut identity_spec = provided.spec().combined_hash.to_vec();
+    identity_spec.extend((provided.spec().version as u64).to_le_bytes());
+    identity_spec.extend((count as u64).to_le_bytes());
+    assert_eq!(
+        &identity.payload[identity.payload.len() - 48..],
+        &identity_spec
+    );
+    assert_eq!(trace.messages().nth(1).unwrap().payload, hash.id);
+    assert_eq!(trace.messages().nth(3).unwrap().payload, sig.id);
+
+    // These are exactly the message schemas of the two-field mdoc protocol.
+    // Other protocols have their own identities, layouts and responses.
     use crate::runtime::v2::proto::tags::Tag;
     let seen: std::collections::BTreeSet<u64> = trace.messages().map(|m| m.tag).collect();
-    let registered: std::collections::BTreeSet<u64> = Tag::ALL
-        .into_iter()
-        .filter(|&t| t != Tag::ZkStatement)
-        .map(Tag::value)
-        .collect();
-    assert_eq!(seen, registered);
+    let expected: std::collections::BTreeSet<u64> = [
+        Tag::MdocStatement,
+        Tag::Circuit,
+        Tag::CommitmentLayout,
+        Tag::JointGeometry,
+        Tag::PublicInputs,
+        Tag::AdapterLayout,
+        Tag::Commitment,
+        Tag::FingerprintResponse,
+        Tag::SumcheckRound,
+        Tag::SumcheckCross,
+        Tag::SumcheckClaims,
+        Tag::SplitOpening,
+        Tag::P256AdapterQuotients,
+        Tag::PackingU,
+        Tag::PackingA,
+        Tag::PolygeroResponse,
+        Tag::Seal,
+    ]
+    .into_iter()
+    .map(Tag::value)
+    .collect();
+    assert_eq!(seen, expected);
     let public: Vec<_> = trace
         .messages()
         .skip(8)
@@ -1447,7 +1503,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "f0042acb22735069530a87c7b61b21d1518a7985f3c796a7826ef01961dd7c1d"
+            "e3643b27919564f53e0983663d7c3f8b9bfd632aa0f20b5c786434ab31ef6ea5"
         );
     }
 }
@@ -1554,10 +1610,23 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
     // hash-plus-adapter geometry, including entries for both quad fragments.
     let binary = geometry.body.host().sumcheck();
     let native = geometry.body.split().sumcheck();
-    assert!(2 * binary.layers().iter().sum::<usize>() + 2 * binary.layers().len() + 2 <= 593);
-    assert!(binary.layers().len() <= 20);
-    assert!(2 * native.layers().iter().sum::<usize>() + 2 * native.layers().len() < 593);
-    assert!(native.layers().len() <= 20);
+    // Pin the structural frontend's compiled schedules and protocol charges;
+    // the parser-free frontend has fewer binary witnesses and rounds.
+    let variant = spec.num_attributes.checked_sub(1).unwrap();
+    let binary_rounds = binary.layers().iter().sum::<usize>();
+    let native_rounds = native.layers().iter().sum::<usize>();
+    assert_eq!(binary_rounds, [278, 284, 288, 291][variant]);
+    assert_eq!(binary.layers().len(), 19);
+    assert_eq!(native_rounds, 118);
+    assert_eq!(native.layers().len(), 11);
+    let binary_charge = 2 * binary_rounds + 2 * binary.layers().len() + 2;
+    let native_charge = 2 * native_rounds + 2 * native.layers().len();
+    assert_eq!(binary_charge, [596, 608, 616, 622][variant]);
+    assert_eq!(native_charge, 258);
+    let rounds =
+        binary_rounds + native_rounds + 2 * (binary.layers().len() + native.layers().len()) + 7;
+    assert_eq!(rounds, [463, 469, 473, 476][variant]);
+    assert!(rounds <= 476);
     assert!(
         binary.layers().iter().sum::<usize>()
             + native.layers().iter().sum::<usize>()

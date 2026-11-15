@@ -23,6 +23,7 @@ use crate::{
         cbor::{
             encode_cbor_string,
             mdoc::{FieldLocator as MsoFieldLocator, ParsedMdoc},
+            structure_prover::ConcreteWitness as StructuralWitness,
         },
         proto::hash::constants::{K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN},
     },
@@ -83,6 +84,7 @@ pub struct ConcreteGiven<N> {
     pub value_digests_offset_in_preimage: u16,
     pub namespace_offset_in_preimage: u16,
     pub attribute_given: Vec<ConcreteAttrGiven>,
+    pub structure: StructuralWitness,
 }
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
@@ -129,6 +131,21 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     let value_digests_offset_in_preimage = offset(hash_input.value_digests_offset);
     let namespace_offset_in_preimage = offset(hash_input.namespace_offset);
 
+    let structure = StructuralWitness::derive(
+        &hash_input.cbor_mso,
+        hash_input.namespace_offset,
+        &hash_input
+            .attrs
+            .iter()
+            .map(|a| {
+                (
+                    a.mso_digest_offset_in_preimage,
+                    a.cbor_issuer_signed_item.as_slice(),
+                )
+            })
+            .collect::<Vec<_>>(),
+    )
+    .unwrap_or_else(|_| StructuralWitness::zero(hash_input.attrs.len()));
     ConcreteGiven {
         hash_input,
         preimage,
@@ -140,6 +157,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
         value_digests_offset_in_preimage,
         namespace_offset_in_preimage,
         attribute_given,
+        structure,
     }
 }
 

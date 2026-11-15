@@ -60,3 +60,10 @@ pub use quadratic_extension_fft::{
 pub use scalar::{ScalarInterpolationPlan, ScalarInterpolatorFactory};
 
 pub(super) use super::field::batch_inverse;
+
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+mod crt;
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+mod crt_fft;
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+pub use crt::{CrtInterpolationPlan, CrtInterpolatorFactory};

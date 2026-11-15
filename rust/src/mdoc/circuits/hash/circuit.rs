@@ -25,6 +25,7 @@ use crate::{
     compile::logic::{Logic, LogicIO},
     mdoc::{
         circuits::{
+            mdoc_structure::Witness as StructuralWitness,
             mso_attribute::{AttrSlice, AttributeVerifier, FieldLocator},
             MdocHashCompileField,
         },
@@ -83,6 +84,7 @@ pub struct Given<L: LogicIO> {
     pub value_digests_offset_in_preimage: HashIndex<L>,
     pub namespace_offset_in_preimage: HashIndex<L>,
     pub attribute_given: Vec<AttrGiven<L>>,
+    pub structure: Option<StructuralWitness<L>>,
 }
 
 pub struct MdocHash<'a, L: LogicIO>
@@ -129,19 +131,20 @@ where L::F: MdocHashCompileField
         );
         let preimage = given.preimage.value.to_vec();
 
-        self.logic.assert_all(
-            "assert_valid_presentation",
-            &[
-                self.assert_mso_sha256_hash(given, derived, &preimage),
-                self.assert_mso_envelope(given, &preimage),
-                self.assert_mso_doc_type(given, &preimage),
-                self.assert_mso_namespace(given, &preimage),
-                self.assert_mso_validity(given, &preimage),
-                self.assert_mso_device_key(given, &preimage),
-                self.assert_mso_value_digests(given, &preimage),
-                self.assert_attributes(given, derived, &preimage),
-            ],
-        )
+        let mut checks = vec![
+            self.assert_mso_sha256_hash(given, derived, &preimage),
+            self.assert_mso_envelope(given, &preimage),
+            self.assert_mso_doc_type(given, &preimage),
+            self.assert_mso_namespace(given, &preimage),
+            self.assert_mso_validity(given, &preimage),
+            self.assert_mso_device_key(given, &preimage),
+            self.assert_mso_value_digests(given, &preimage),
+            self.assert_attributes(given, derived, &preimage),
+        ];
+        if given.structure.is_some() {
+            checks.push(self.assert_structure(given));
+        }
+        self.logic.assert_all("assert_valid_presentation", &checks)
     }
 
     fn assert_mso_sha256_hash(
@@ -664,5 +667,41 @@ where L::F: MdocHashCompileField
         });
 
         self.bv.assert_eq("key_eq", &m_bits, key)
+    }
+}
+
+impl<'a, L: LogicIO> MdocHash<'a, L>
+where L::F: MdocHashCompileField
+{
+    pub(in crate::mdoc::circuits) fn assert_structure(&self, given: &Given<L>) -> L::Assertions {
+        use crate::mdoc::circuits::mdoc_structure::{assert_structure, AttributeInput, Input};
+        assert_structure(
+            self.logic,
+            &Input {
+                preimage: &given.preimage.value,
+                len: &given.preimage.len,
+                keys: [
+                    &given.doc_type_offset_in_preimage,
+                    &given.dev_key_info_offset_in_preimage,
+                    &given.value_digests_offset_in_preimage,
+                    &given.namespace_offset_in_preimage,
+                    &given.valid_from_offset_in_preimage,
+                    &given.valid_until_offset_in_preimage,
+                ],
+                attributes: given
+                    .attribute_given
+                    .iter()
+                    .map(|a| AttributeInput {
+                        digest_offset: &a.mso_digest_offset_in_preimage,
+                        preimage: &a.preimage,
+                        locator: &a.field_locator,
+                    })
+                    .collect(),
+                witness: given
+                    .structure
+                    .as_ref()
+                    .expect("structural witness allocated"),
+            },
+        )
     }
 }

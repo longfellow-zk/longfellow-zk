@@ -2,7 +2,7 @@
 //! Selected joint commitments and circuit metadata for v2 composition.
 use std::borrow::Cow;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
 use super::storage::StorageMap;
 use super::{
     context::{prepare_circuit_layout, CircuitInput},
@@ -188,7 +188,7 @@ pub(crate) enum StorageLayout<'a> {
     Mixed(&'a MixedStorage),
     /// Every value as a bit group of the binary commitment; the participant
     /// commits nothing (`split::PureSplit`, tests only until a driver uses it).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
     Pure(&'a StorageMap),
 }
 

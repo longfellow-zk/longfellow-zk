@@ -37,9 +37,10 @@ const BITS: u64 = Kind::Bits.value();
 /// `RegisteredField` is implemented exactly for these fields, with this `ID`
 /// and `BYTES`; test-only fields may implement it with `FieldID::None`.
 #[cfg(test)]
-pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 2] = [
+pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 3] = [
     (FieldID::P256, 32, "P256"),
     (FieldID::Gf2_128, 16, "GF2_128"),
+    (FieldID::Fp24Ext6, 18, "FP24_EXT6"),
 ];
 
 /// Serialized values are staged through a stack buffer of this many bytes,

@@ -52,6 +52,8 @@ pub use zk_spec::{
 };
 
 pub mod provider;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub mod single_commitment;
 cfg_prover! { mod prover; pub use prover::{run_mdoc_prover,run_mdoc_prover_inner}; #[cfg(test)] pub(in crate::mdoc::runtime) use prover::run_mdoc_prover_encoded; }
 cfg_verifier! { mod verifier; pub use verifier::run_mdoc_verifier; }
 

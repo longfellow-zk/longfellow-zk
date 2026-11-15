@@ -26,3 +26,6 @@ pub use nat::CompileNat;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, feature = "compiler", feature = "mldsa"))]
+pub mod fp24_ext6;

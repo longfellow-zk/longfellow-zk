@@ -18,6 +18,6 @@ pub(super) mod copy;
 mod ir_to_terms;
 mod scheduler;
 mod top;
-pub use top::compile_v2;
+pub use top::{compile_v2, compile_v2_shared_inputs};
 
 mod terms;

@@ -21,7 +21,7 @@
 #   participants return; it calls no witness-selection operation.
 
 mdoc/artifacts:
-mdoc/cbor: core/algebra mdoc/proto mdoc/testcases
+mdoc/cbor: core/algebra mdoc/proto mdoc/testcases runtime/algebra
 mdoc/circuits: mdoc/cbor mdoc/proto circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
 mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
 mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime/v1 mdoc/runtime/v2 core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
@@ -30,7 +30,7 @@ bin/prover_only: mdoc/runtime/v1
 mdoc/runtime: mdoc/runtime/zk_spec
 mdoc/runtime/fields: core/algebra runtime/algebra
 mdoc/runtime/v1: mdoc/cbor mdoc/proto mdoc/runtime/fields circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk
-mdoc/runtime/v2: mdoc/cbor mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+mdoc/runtime/v2: mdoc/cbor mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/field runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/merkle runtime/v2/proto/sumcheck runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/proto/zk runtime/v2/witness_selection
 mdoc/runtime/zk_spec: mdoc/runtime/v1 mdoc/runtime/v2
 mdoc/testcases:
 bin/verifier_only: mdoc/runtime/v1
@@ -78,6 +78,7 @@ runtime/v2/proto/dual_packing:
 runtime/v2/proto/field: core/algebra
 runtime/v2/proto/merkle: runtime/v2/proto/field
 runtime/v2/proto/polygero: core/algebra runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/util runtime/v2/transcript
+runtime/v2/proto/simd: core/algebra runtime/algebra runtime/v2/proto/polygero runtime/v2/proto/sumcheck
 runtime/v2/proto/sumcheck: core/algebra core/proto runtime/v2/proto/field runtime/v2/proto/util
 runtime/v2/proto/tags:
 runtime/v2/proto/util: core/algebra
@@ -89,6 +90,17 @@ runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtim
 runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection runtime/v2/proto/dual_packing runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/witness_selection runtime/v2/proto/zk
 util:
 
+# Experimental ML-DSA application and packed Boolean frontends.
+mldsa:
+mldsa/compile: circuits/arithmetic circuits/bitvec circuits/boolean circuits/keccak compile/algebra compile/compiler compile/logic core/algebra core/proto mldsa/proto
+mldsa/proto: core/algebra
+mldsa/runtime: circuits/keccak core/algebra core/proto mldsa/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/polygero runtime/v2/simd_sumcheck runtime/v2/sumcheck runtime/v2/transcript runtime/v2/zk runtime/v2/proto/dual_packing runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/proto/zk runtime/v2/witness_selection
+mldsa/development_provider: compile/algebra core/proto mldsa/compile mldsa/proto mldsa/runtime runtime/algebra runtime/v2/proto/polygero
+mldsa/testcases:
+circuits/keccak:
+circuits/simd_sha256: circuits/arithmetic circuits/bitvec circuits/boolean circuits/sha256 compile/algebra compile/compiler compile/logic core/algebra core/proto runtime/algebra
+runtime/v2/simd_sumcheck: circuits/keccak core/algebra core/proto runtime/algebra runtime/random runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript util runtime/v2/proto/dual_packing runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/simd runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/util runtime/v2/zk
+
 # Which files may (`only`) or may not (`never`) reference a symbol. Symbols are
 # rust-analyzer paths without package and version (`module/path/Type#`,
 # `module/impl#[Type]method().`); `*` matches any run of characters in symbol
@@ -99,19 +111,21 @@ util:
 # Messages are sent, challenges drawn and values encoded only in each
 # protocol's transcript.rs; statement messages are written only there and in
 # the mdoc statement.
-runtime/v2/transcript/session/impl#[*]send(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript/*
-runtime/v2/transcript/session/impl#[*]draw(). only src/runtime/v2/*/transcript.rs src/runtime/v2/transcript/*
-runtime/v2/transcript/message/impl#[*]*(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript/*
+runtime/v2/transcript/session/impl#[*]send(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mldsa/runtime/transcript.rs src/mldsa/runtime/*/transcript.rs src/mdoc/runtime/v2/single_commitment/transcript.rs
+runtime/v2/transcript/session/impl#[*]draw(). only src/runtime/v2/*/transcript.rs src/runtime/v2/transcript/* src/mldsa/runtime/transcript.rs src/mldsa/runtime/*/transcript.rs
+runtime/v2/transcript/message/impl#[*]*(). only src/runtime/v2/*/transcript.rs src/mdoc/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mldsa/runtime/transcript.rs src/mldsa/runtime/*/transcript.rs src/mdoc/runtime/v2/single_commitment/transcript.rs
 # Only the complete-proof codecs seal, and only the transcript verifier
 # checks the seal; only the complete verifiers accept.
-runtime/v2/transcript/prover/impl#[Transcript]append_final_seal(). only src/mdoc/runtime/v2/proto.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/proto/zk/prover.rs
+runtime/v2/transcript/prover/impl#[Transcript]append_final_seal(). only src/mdoc/runtime/v2/proto.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/proto/zk/prover.rs src/mdoc/runtime/v2/single_commitment/proof/prover.rs src/mldsa/runtime/proto/prover.rs src/mldsa/runtime/hidden/proto/prover.rs src/runtime/v2/simd_sumcheck/prover.rs
 runtime/v2/transcript/verifier/impl#[Transcript]verify_final_seal(). only src/runtime/v2/transcript/verifier.rs
-runtime/v2/transcript/verifier/impl#[Transcript]check_seal(). only src/runtime/v2/polygero/verifier.rs src/runtime/v2/zk/joint_verifier.rs
+# Standalone SIMD authenticates its complete frontend with a bare Polygero
+# opening on the same owned session; its final verifier then checks its seal.
+runtime/v2/transcript/verifier/impl#[Transcript]check_seal(). only src/runtime/v2/polygero/verifier.rs src/runtime/v2/zk/joint_verifier.rs src/runtime/v2/simd_sumcheck/verifier.rs
 # Frontends see only TranscriptRef; the owning session belongs to the role
 # drivers and codecs.
-runtime/v2/transcript/session/Transcript# only src/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mdoc/runtime/v2/proto.rs src/mdoc/runtime/v2/prover.rs src/mdoc/runtime/v2/verifier.rs src/runtime/v2/foreign/compose/prover.rs src/runtime/v2/foreign/compose/verifier.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/polygero/prover.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/proto/zk/prover.rs src/runtime/v2/witness_selection/prover.rs src/runtime/v2/witness_selection/verifier.rs src/runtime/v2/zk/joint_prover.rs src/runtime/v2/zk/joint_verifier.rs src/runtime/v2/zk/prover.rs src/runtime/v2/zk/verifier.rs
+runtime/v2/transcript/session/Transcript# only src/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mdoc/runtime/v2/proto.rs src/mdoc/runtime/v2/prover.rs src/mdoc/runtime/v2/verifier.rs src/runtime/v2/foreign/compose/prover.rs src/runtime/v2/foreign/compose/verifier.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/polygero/prover.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/proto/zk/prover.rs src/runtime/v2/witness_selection/prover.rs src/runtime/v2/witness_selection/verifier.rs src/runtime/v2/zk/joint_prover.rs src/runtime/v2/zk/joint_verifier.rs src/runtime/v2/zk/prover.rs src/runtime/v2/zk/verifier.rs src/mdoc/runtime/v2/single_commitment/proof/prover.rs src/mdoc/runtime/v2/single_commitment/link/prover.rs src/mldsa/runtime/proto/prover.rs src/mldsa/runtime/hidden/proto/prover.rs src/mldsa/runtime/transcript.rs src/mldsa/runtime/hidden/transcript.rs src/runtime/v2/simd_sumcheck/prover.rs src/runtime/v2/simd_sumcheck/verifier.rs src/runtime/v2/simd_sumcheck/transcript.rs
 # v2 private coins are PrivateRandom, which no transcript implements.
-runtime/random/engine/RandomEngine# never src/runtime/v2.rs src/runtime/v2/* src/mdoc/runtime/v2.rs src/mdoc/runtime/v2/*
+runtime/random/engine/RandomEngine# never src/runtime/v2.rs src/runtime/v2/* src/mdoc/runtime/v2.rs src/mdoc/runtime/v2/* src/mldsa/runtime.rs src/mldsa/runtime/*
 # Shared sumcheck and Polygero modules use neither role.
 runtime/v2/sumcheck/prover/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/classes.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
 runtime/v2/sumcheck/verifier/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/classes.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs

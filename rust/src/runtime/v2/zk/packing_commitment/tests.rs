@@ -106,3 +106,18 @@ fn packing_commitment_rejects_a_layout_of_another_degree() {
     let matching = PackingLayout::new(128, 0, extension.degree()).unwrap();
     assert!(PackingCommitment::new(f, matching, extension).is_ok());
 }
+
+#[test]
+fn simd_source_preserves_private_inputs_and_rejects_aliasing_layouts() {
+    let layout = PackingLayout::for_simd_source(129, 3, 7).unwrap();
+    assert_eq!(layout.private_inputs, 129);
+    assert_eq!(layout.packed_words, 3);
+    assert_eq!(layout.suffix_start, 3);
+    assert_eq!(layout.masks_start, 10);
+    assert_eq!(layout.witness_count, 10);
+    assert_eq!(layout.degree, 1);
+    assert_eq!(layout.masks, 0);
+    assert!(PackingLayout::for_simd_source(129, 1, 7).is_err());
+    assert!(PackingLayout::for_simd_source(0, usize::MAX, 1).is_err());
+    assert!(PackingLayout::for_simd_source(1, 1, usize::MAX).is_err());
+}

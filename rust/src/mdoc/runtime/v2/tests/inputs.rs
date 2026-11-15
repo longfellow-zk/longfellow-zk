@@ -156,7 +156,7 @@ fn private_hash_inputs_enforce_sha_capacity() {
         parsed.cbor_mso[at..at + 32].copy_from_slice(&digest);
         let result = witness_hash(fixture, &request, &parsed);
         if length == K_MAX_ATTR_CBOR_LEN {
-            assert!(result.is_ok());
+            assert_eq!(result, Err(MdocProverErrorCode::MsoDecodingFailure));
         } else {
             assert_eq!(result, Err(MdocProverErrorCode::AttributeTooLong));
         }
@@ -257,4 +257,38 @@ fn attribute_items_the_issuer_did_not_sign_fail_while_encoding() {
         witness_hash(fixture, &request, &parsed),
         Err(MdocProverErrorCode::GeneralFailure)
     );
+}
+
+#[test]
+fn structural_mso_capacity_is_checked_before_proving() {
+    use crate::{
+        mdoc::{
+            cbor::{
+                mdoc::{parse_mdoc, MdocParseError},
+                test_utils::with_mso_size,
+            },
+            proto::hash::constants::K_MSO_MAX_BYTES,
+            testcases::TEST_DATA,
+        },
+        runtime::algebra::RuntimeNat,
+    };
+    let (bytes, _) = with_mso_size(TEST_DATA.mdoc, K_MSO_MAX_BYTES).unwrap();
+    let mut parsed =
+        parse_mdoc::<RuntimeNat<4>>(&bytes, TEST_DATA.transcript, TEST_DATA.doc_type).unwrap();
+    let attrs = [req_attr(
+        "org.iso.18013.5.1",
+        &parsed.attrs[0].name,
+        &parsed.attrs[0].cbor_value,
+    )];
+    assert!(witness_hash(&TEST_DATA, &attrs, &parsed).is_ok());
+    parsed.cbor_mso.push(0);
+    assert_eq!(
+        witness_hash(&TEST_DATA, &attrs, &parsed),
+        Err(MdocProverErrorCode::TaggedMsoTooBig)
+    );
+    let (oversized, _) = with_mso_size(TEST_DATA.mdoc, K_MSO_MAX_BYTES + 1).unwrap();
+    assert!(matches!(
+        parse_mdoc::<RuntimeNat<4>>(&oversized, TEST_DATA.transcript, TEST_DATA.doc_type),
+        Err(MdocParseError::TooBig)
+    ));
 }

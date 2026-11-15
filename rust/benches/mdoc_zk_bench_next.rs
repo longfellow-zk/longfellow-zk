@@ -25,7 +25,11 @@ use longfellow_zk::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        cbor::test_utils::parse_test_data,
+        cbor::{
+            mdoc::parse_mdoc,
+            test_utils::{parse_test_data, with_mso_size},
+        },
+        testcases::TEST_DATA,
         v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
     runtime::{random::DeterministicRng, v2::proto::composed::BodySizes},
@@ -44,8 +48,17 @@ fn main() {
         samples >= 2,
         "one warmup and at least one measured sample required"
     );
-    let data = &longfellow_zk::mdoc::testcases::TEST_DATA;
-    let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
+    let data = &TEST_DATA;
+    let (issuer_pk, mut parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
+    let resized = std::env::var("MDOC_BENCH_MSO_BYTES")
+        .ok()
+        .map(|size| with_mso_size(data.mdoc, size.parse().unwrap()).unwrap());
+    let mdoc = resized
+        .as_ref()
+        .map_or(data.mdoc, |(bytes, _)| bytes.as_slice());
+    if resized.is_some() {
+        parsed = parse_mdoc::<CompileNat<4>>(mdoc, data.transcript, data.doc_type).unwrap();
+    }
     let attrs: Vec<_> = parsed
         .attrs
         .iter()
@@ -54,14 +67,18 @@ fn main() {
         .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
         .collect();
     assert_eq!(attrs.len(), attributes);
-    let pkx = format!(
+    let mut pkx = format!(
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
     );
-    let pky = format!(
+    let mut pky = format!(
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
+    if let Some((_, (x, y))) = &resized {
+        pkx = x.clone();
+        pky = y.clone();
+    }
     let offline = Instant::now();
     let (spec, circuits) = prepare_circuits(attrs.len());
     eprintln!(
@@ -83,7 +100,7 @@ fn main() {
         let proof = run_mdoc_prover_inner(
             &spec,
             &circuits,
-            data.mdoc,
+            mdoc,
             &pkx,
             &pky,
             data.transcript,

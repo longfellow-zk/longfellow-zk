@@ -26,5 +26,9 @@ cfg_prover! {
     pub(in crate::mdoc) use prover::{map_entry_unique, parse_mdoc_with_mso_check};
 }
 
+cfg_testonly! {
+    pub(crate) use prover::format_cose_sign1_message;
+}
+
 #[cfg(test)]
 mod tests;

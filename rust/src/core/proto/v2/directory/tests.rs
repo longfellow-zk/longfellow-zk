@@ -21,7 +21,17 @@ fn metadata_limit_does_not_depend_on_the_target() {
     let check = |segments| {
         let mut streams = [StreamDirectory::default(); 3];
         streams[0].segments = segments;
-        validate(&[LayerDirectory { nw: 1, streams }], 1, 1, 0, 0, 0)
+        validate(
+            &[LayerDirectory { nw: 1, streams }],
+            1,
+            1,
+            0,
+            0,
+            SizeLimits {
+                expanded_terms: 0,
+                ..SizeLimits::default()
+            },
+        )
     };
     assert!(check(max).is_ok());
     assert!(check(max + 1)

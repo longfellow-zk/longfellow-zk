@@ -26,6 +26,7 @@ pub use nat::Nat;
 pub mod ec;
 
 pub mod encoding;
+pub mod fp24;
 
 // A reference GF(2^128), the test oracle for both sides' fields.
 #[cfg(test)]

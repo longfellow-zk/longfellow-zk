@@ -3,6 +3,52 @@
 
 use super::*;
 
+#[test]
+fn proto_children_do_not_fall_back_into_the_parent_component() {
+    let components = Components(BTreeSet::from([
+        "runtime/v2/proto".to_owned(),
+        "runtime/v2/proto/tags".to_owned(),
+        "runtime/v2/proto/simd".to_owned(),
+    ]));
+    assert_eq!(components.of("src/runtime/v2/proto.rs"), "runtime/v2/proto");
+    assert_eq!(
+        components.of("src/runtime/v2/proto/simd.rs"),
+        "runtime/v2/proto/simd"
+    );
+    assert_eq!(
+        components.of("src/runtime/v2/proto/unlisted.rs"),
+        "runtime/v2/proto/unlisted"
+    );
+}
+
+#[test]
+fn application_transcript_permissions_do_not_reach_protocol_models() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let rules = rules(&root.join("src/bin/dependency_check/rules.txt"));
+    for symbol in [
+        "runtime/v2/transcript/session/impl#[`Header<'_>`]send().",
+        "runtime/v2/transcript/message/impl#[`Encoder<'a>`]nats().",
+    ] {
+        let matching: Vec<_> = rules
+            .symbols
+            .iter()
+            .filter(|rule| glob(&rule.symbol, symbol))
+            .collect();
+        assert!(!matching.is_empty(), "unrestricted primitive: {symbol}");
+        for rule in matching {
+            assert!(rule.only);
+            assert!(rule.lists("src/mldsa/runtime/binary/transcript.rs"));
+            for forbidden in [
+                "src/mldsa/runtime/binary.rs",
+                "src/mldsa/runtime/prover.rs",
+                "src/mdoc/runtime/v2/single_commitment/link.rs",
+            ] {
+                assert!(!rule.lists(forbidden), "{symbol}: {forbidden}");
+            }
+        }
+    }
+}
+
 fn bridge_in(parent: &str) -> bool {
     // A directory per call: tests run in parallel.
     static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -50,6 +96,14 @@ fn phases_follow_the_layout() {
         ("src/circuits/sha256.rs", Neutral),
         ("src/bin/prover_only.rs", Neutral),
         ("src/mdoc/development_provider/next_v2.rs", Neutral),
+        ("src/mldsa.rs", Neutral),
+        ("src/mldsa/compile/circuits/binary.rs", Compile),
+        ("src/mldsa/proto/shake_layout.rs", Shared),
+        ("src/mldsa/runtime/hidden/prover.rs", Runtime),
+        ("src/circuits/keccak/shape.rs", Shared),
+        ("src/circuits/simd_sha256/flat.rs", Compile),
+        ("src/mdoc/circuits/cbor_lexer/counter.rs", Neutral),
+        ("src/mdoc/circuits/cbor_lexer/counter/circuit.rs", Compile),
     ] {
         assert_eq!(phase(path), expected, "{path}");
     }

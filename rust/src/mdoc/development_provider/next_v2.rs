@@ -31,12 +31,26 @@ use crate::{
 /// Compile the development circuit and return its matching specification.
 /// The saved specification retains the shared proof parameter profile.
 pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
+    compile_next_impl(num_attributes, true)
+}
+
+/// Compile the original v2 predicate without structural CBOR parsing.
+/// This is the trusted bundle constructor for the single-commitment experiment.
+pub fn compile_parser_free_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
+    compile_next_impl(num_attributes, false)
+}
+
+fn compile_next_impl(num_attributes: usize, structural: bool) -> Result<ProvidedCircuit, String> {
     if !(1..=NEXT_MAX_ATTRIBUTES).contains(&num_attributes) {
         return Err(format!(
             "NEXT supports one to {NEXT_MAX_ATTRIBUTES} attributes"
         ));
     }
-    let bytes = compile::compile_circuits(num_attributes)?;
+    let bytes = if structural {
+        compile::compile_circuits(num_attributes)?
+    } else {
+        compile::compile_parser_free_circuits(num_attributes)?
+    };
     let archive = crate::core::proto::v2::archive::from_bytes(&bytes)?;
     let spec = specification(&archive, num_attributes)?;
     let compressed =

@@ -99,7 +99,7 @@ impl<const N: usize> MaskedWord<N> {
         (self.0 >> j) & 1 != 0
     }
     #[cfg(any(test, feature = "prover"))]
-    fn write(&self, out: &mut Vec<u8>) {
+    pub(crate) fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(&self.0.to_le_bytes()[..Self::BYTES]);
     }
     /// Reject truncated input and any nonzero padding bit. A component

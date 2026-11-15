@@ -196,7 +196,7 @@ impl StorageMap {
     }
     /// Check that this map stores every one of a pure-foreign participant's
     /// `values` values as bits of the binary commitment.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
     pub(crate) fn check_pure(&self, values: usize) -> Result<(), String> {
         self.check_split(values)?;
         if !self.is_pure_foreign() {

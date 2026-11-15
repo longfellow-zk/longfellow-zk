@@ -50,7 +50,7 @@ use crate::{
     },
 };
 
-#[cfg(test)]
+#[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
 pub(crate) mod pure;
 pub(crate) mod transcript;
 use transcript::Eta;

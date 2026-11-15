@@ -20,3 +20,6 @@ cfg_role! {
 
 #[cfg(test)]
 pub(crate) mod tests;
+
+#[cfg(all(feature = "simd", any(test, feature = "prover", feature = "verifier")))]
+pub(crate) mod simd;

@@ -110,7 +110,8 @@ pub trait Sealed {}
 /// reader which field an element belongs to and how to parse it. Only such
 /// a field's elements may be absorbed into a v2 transcript, whose Elements
 /// value names its field by `ID` (transcript I5). The registered fields are
-/// P-256 (`FieldID::P256`, 32 bytes) and GF(2^128) (`FieldID::Gf2_128`, 16
+/// P-256 (`FieldID::P256`, 32 bytes), GF(2^128) (`FieldID::Gf2_128`, 16
+/// bytes), and the experimental sextic ML-DSA field (`FieldID::Fp24Ext6`, 18
 /// bytes). The trait is sealed; test-only fields of this crate may implement
 /// it with `FieldID::None`, which is never registered and which v2
 /// participants reject. A value whose `field_id()` differs from `ID`, such
@@ -172,6 +173,7 @@ pub enum FieldID {
     Goldi = 8,
     Fp64_2 = 9,
     Secp = 10,
+    Fp24Ext6 = 11,
 }
 
 pub type ElementOf<F> = <F as BareField>::E;

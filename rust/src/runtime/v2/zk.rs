@@ -86,3 +86,12 @@ cfg_verifier! {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(
+    test,
+    all(
+        any(feature = "mldsa", feature = "mdoc"),
+        any(feature = "prover", feature = "verifier")
+    )
+))]
+pub(crate) mod coordinates;

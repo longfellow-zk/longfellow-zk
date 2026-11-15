@@ -177,5 +177,13 @@ impl<F: SerializableField> SumcheckProof<F> {
     }
 }
 
+/// Packed nonlinear reduction authenticated by a shared native-cell opening.
+#[cfg(feature = "simd")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackedReduction<F: SerializableField> {
+    pub nonlinear: ElementOf<F>,
+    pub dot: LayerProof<F>,
+}
+
 #[cfg(test)]
 mod tests;

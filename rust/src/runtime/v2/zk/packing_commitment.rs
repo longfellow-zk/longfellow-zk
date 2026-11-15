@@ -157,5 +157,68 @@ impl<X: PackingExtension> PackingCommitment<X> {
 cfg_prover! { pub(crate) mod prover; }
 cfg_verifier! { mod verifier; }
 
+#[cfg(feature = "mldsa")]
+impl<E> CommitmentStatement<E> {
+    /// Transfer the source claim and layer rows to a composed host. Auxiliary
+    /// positions become host witness positions starting at `base`.
+    pub(crate) fn into_parts(
+        self,
+        base: usize,
+    ) -> (
+        Vec<E>,
+        E,
+        Vec<(usize, E)>,
+        Vec<PolygeroLinearTerm<E>>,
+        Vec<E>,
+    ) {
+        (
+            self.claim.weights,
+            self.claim.rhs.constant,
+            self.claim
+                .rhs
+                .terms
+                .into_iter()
+                .map(|(i, k)| {
+                    (
+                        base.checked_add(i)
+                            .expect("auxiliary witness position overflow"),
+                        k,
+                    )
+                })
+                .collect(),
+            self.a,
+            self.b,
+        )
+    }
+}
+
+#[cfg(any(test, feature = "mldsa"))]
+impl PackingLayout {
+    /// An already packed SIMD source, including its own authenticated masks,
+    /// followed by scalar sumcheck pads. No additional packing reduction applies.
+    pub(crate) fn for_simd_source(
+        private_inputs: usize,
+        source_words: usize,
+        pad_cells: usize,
+    ) -> Result<Self, String> {
+        if source_words < private_inputs.div_ceil(128) {
+            return Err("SIMD source does not cover the private Boolean inputs".into());
+        }
+        let witness_count = source_words
+            .checked_add(pad_cells)
+            .ok_or("SIMD packing layout overflow")?;
+        Ok(Self {
+            private_inputs,
+            packed_words: source_words,
+            masks: 0,
+            suffix_start: source_words,
+            pad_cells,
+            masks_start: witness_count,
+            witness_count,
+            degree: 1,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests;

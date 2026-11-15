@@ -20,5 +20,5 @@ pub(super) use public::PublicInputs;
 
 cfg_prover! {
     mod private;
-    pub(super) use private::{push_witness_hash, push_witness_sig};
+    pub(super) use private::{push_witness_hash, push_witness_hash_without_structure, push_witness_sig};
 }

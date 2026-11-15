@@ -45,7 +45,19 @@ fn all_holds_every_tag_at_its_index() {
         | Tag::PackingU
         | Tag::PackingA
         | Tag::PolygeroResponse
-        | Tag::Seal => t,
+        | Tag::Seal
+        | Tag::SimdStatement
+        | Tag::SimdLayout
+        | Tag::MldsaPublicStatement
+        | Tag::MldsaHiddenStatement
+        | Tag::MldsaBinaryLayout
+        | Tag::CoordinateLayout
+        | Tag::CoordinateAffine
+        | Tag::SingleCommitmentStatement
+        | Tag::SimdNonlinear
+        | Tag::SimdTraceU
+        | Tag::SimdTraceA
+        | Tag::ExactAdapterQuotients => t,
     };
     let every = [
         Tag::MdocStatement,
@@ -66,6 +78,18 @@ fn all_holds_every_tag_at_its_index() {
         Tag::PackingA,
         Tag::PolygeroResponse,
         Tag::Seal,
+        Tag::SimdStatement,
+        Tag::SimdLayout,
+        Tag::MldsaPublicStatement,
+        Tag::MldsaHiddenStatement,
+        Tag::MldsaBinaryLayout,
+        Tag::CoordinateLayout,
+        Tag::CoordinateAffine,
+        Tag::SingleCommitmentStatement,
+        Tag::SimdNonlinear,
+        Tag::SimdTraceU,
+        Tag::SimdTraceA,
+        Tag::ExactAdapterQuotients,
     ]
     .map(named);
     assert_eq!(every.len(), Tag::ALL.len());

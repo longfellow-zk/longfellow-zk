@@ -115,11 +115,11 @@ pub(crate) fn prepare_circuit_layout<
 pub(crate) struct InputLayout {
     // Invariant, established by `new`: npublic <= committed_end <= ninput.
     /// Inputs before the committed private range.
-    pub(super) npublic: usize,
+    pub(crate) npublic: usize,
     /// End of the committed private range; the virtual suffix starts here.
     pub(super) committed_end: usize,
     /// Width of the shared input array.
-    pub(super) ninput: usize,
+    pub(crate) ninput: usize,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl InputLayout {
@@ -151,7 +151,7 @@ impl InputLayout {
     pub(super) fn committed(&self) -> usize {
         self.committed_end - self.npublic
     }
-    pub(super) fn virtual_count(&self) -> usize {
+    pub(crate) fn virtual_count(&self) -> usize {
         self.ninput - self.committed_end
     }
 }

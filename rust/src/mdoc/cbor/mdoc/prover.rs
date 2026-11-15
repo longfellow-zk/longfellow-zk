@@ -654,7 +654,7 @@ pub(super) fn compute_witness(
     })
 }
 
-fn format_cose_sign1_message(cbor_mso: &[u8]) -> Vec<u8> {
+pub(crate) fn format_cose_sign1_message(cbor_mso: &[u8]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(K_COSE_SIGN1_SIGNING_HEADER.len() + 3 + cbor_mso.len());
     buf.extend_from_slice(&K_COSE_SIGN1_SIGNING_HEADER);
     append_bytes_len(&mut buf, cbor_mso.len());

@@ -6,6 +6,7 @@ use crate::{
         proto::{serialize_uleb128_max4, v2, v2::limits::*},
     },
     runtime::algebra::gf2_128::Gf2_128Field,
+    util::ceil_log2,
 };
 
 fn bytes(
@@ -156,4 +157,186 @@ fn truncated_large_payload_is_rejected_before_reserving_circuit_arrays() {
     reject(&data, "Incomplete LFC3 payload");
     let mut input = std::io::BufReader::with_capacity(1, data.as_slice());
     assert!(CircuitReader::new(&f).from_stream(&mut input).is_err());
+}
+
+#[test]
+fn trusted_wire_opt_in_is_local_and_accepts_its_exact_bound() {
+    let f = Gf2_128Field::new();
+    let wires = MAX_TOTAL_WIRES + 1;
+    let raw = v2::RawCircuitBuilder {
+        ninput: wires,
+        npublic_input: 0,
+        noutput: wires,
+        logv: ceil_log2(wires),
+        constants: vec![],
+        layers: vec![],
+    }
+    .build();
+    let circuit = v2::Circuit::from_raw(&f, raw);
+    let encoded = v2::CircuitWriter::new(&f).to_bytes(&circuit);
+    let ordinary = CircuitReader::new(&f);
+    assert!(ordinary.from_bytes(&encoded).is_err());
+    let trusted = CircuitReader::new(&f).with_trusted_size_limits(wires, 0);
+    let (decoded, tail) = trusted.from_bytes(&encoded).unwrap();
+    assert!(tail.is_empty());
+    assert_eq!(decoded.id, circuit.id);
+    assert!(CircuitReader::new(&f)
+        .with_trusted_size_limits(wires - 1, 0)
+        .from_bytes(&encoded)
+        .is_err());
+    assert!(ordinary.from_bytes(&encoded).is_err());
+}
+
+#[test]
+fn trusted_directory_limits_bound_wires_and_terms_independently() {
+    use v2::directory::{validate, LayerDirectory, StreamDirectory};
+    let large_terms = MAX_TOTAL_TERMS + 1;
+    let layers = [LayerDirectory {
+        nw: 2,
+        streams: [
+            StreamDirectory {
+                terms: large_terms,
+                ..Default::default()
+            },
+            StreamDirectory::default(),
+            StreamDirectory::default(),
+        ],
+    }];
+    let limits = SizeLimits {
+        total_wires: 3,
+        stored_terms: large_terms,
+        expanded_terms: large_terms,
+        ..SizeLimits::default()
+    };
+    // The directory accepts each exact bound, before decoding stream payloads.
+    assert!(validate(&layers, 2, 1, 0, 0, limits).is_ok());
+    assert!(validate(
+        &layers,
+        2,
+        1,
+        0,
+        0,
+        SizeLimits {
+            total_wires: 2,
+            ..limits
+        }
+    )
+    .unwrap_err()
+    .contains("total wires"));
+    assert!(validate(
+        &layers,
+        2,
+        1,
+        0,
+        0,
+        SizeLimits {
+            expanded_terms: large_terms - 1,
+            ..limits
+        }
+    )
+    .unwrap_err()
+    .contains("total terms"));
+    assert!(validate(
+        &layers,
+        2,
+        1,
+        3,
+        3,
+        SizeLimits {
+            stored_terms: 2,
+            ..limits
+        }
+    )
+    .unwrap_err()
+    .contains("total terms"));
+}
+
+#[test]
+fn trusted_size_opt_in_preserves_metadata_and_payload_limits() {
+    use v2::directory::{validate, LayerDirectory, StreamDirectory};
+    let limits = SizeLimits {
+        total_wires: usize::MAX,
+        stored_terms: usize::MAX,
+        expanded_terms: usize::MAX,
+        ..SizeLimits::default()
+    };
+    for (stream, error) in [
+        (
+            StreamDirectory {
+                tokens: MAX_METADATA_BYTES / 4 + 1,
+                bytes: MAX_METADATA_BYTES / 4 + 1,
+                ..Default::default()
+            },
+            "metadata",
+        ),
+        (
+            StreamDirectory {
+                indices: MAX_ARCHIVE_BYTES + 1,
+                bytes: MAX_ARCHIVE_BYTES + 1,
+                ..Default::default()
+            },
+            "payload",
+        ),
+    ] {
+        let layers = [LayerDirectory {
+            nw: 1,
+            streams: [
+                stream,
+                StreamDirectory::default(),
+                StreamDirectory::default(),
+            ],
+        }];
+        assert!(validate(&layers, 1, 1, 0, 0, limits)
+            .unwrap_err()
+            .contains(error));
+    }
+}
+
+#[test]
+fn trusted_metadata_limit_accepts_the_exact_declared_size() {
+    use v2::directory::{validate, LayerDirectory, StreamDirectory};
+    let layers = [LayerDirectory {
+        nw: 1,
+        streams: [
+            StreamDirectory {
+                tokens: 1,
+                bytes: 1,
+                ..Default::default()
+            },
+            StreamDirectory::default(),
+            StreamDirectory::default(),
+        ],
+    }];
+    let metadata = std::mem::size_of::<LayerDirectory>()
+        + std::mem::size_of::<v2::Layer>()
+        + std::mem::size_of::<u32>();
+    let limits = SizeLimits {
+        metadata_bytes: metadata,
+        ..SizeLimits::default()
+    };
+    assert!(validate(&layers, 1, 1, 0, 0, limits).is_ok());
+    assert!(validate(
+        &layers,
+        1,
+        1,
+        0,
+        0,
+        SizeLimits {
+            metadata_bytes: metadata - 1,
+            ..limits
+        }
+    )
+    .unwrap_err()
+    .contains("metadata"));
+    let f = Gf2_128Field::new();
+    let reader = CircuitReader::new(&f)
+        .with_trusted_metadata_limit(metadata)
+        .with_trusted_size_limits(3, 7);
+    assert_eq!(reader.limits.metadata_bytes, metadata);
+    assert_eq!(reader.limits.total_wires, 3);
+    assert_eq!(reader.limits.stored_terms, 7);
+    assert_eq!(
+        CircuitReader::new(&f).limits.metadata_bytes,
+        MAX_METADATA_BYTES
+    );
 }

@@ -76,11 +76,38 @@ pub enum Tag {
     PolygeroResponse = 96,
     /// Bytes: every proof byte before the seal block, magic included.
     Seal = 112,
+    /// Bytes protocol ID, Bytes context of a standalone packed source.
+    SimdStatement = 23,
+    /// Bytes(32) source ID, Nats(real source words, committed cells).
+    SimdLayout = 24,
+    /// Elements(GF128, 1): masked nonlinear residual.
+    SimdNonlinear = 130,
+    /// Elements(GF128, 128): trace-pairing responses.
+    SimdTraceU = 131,
+    /// Elements(GF128, 1): trace-pairing mask response.
+    SimdTraceA = 132,
+    /// Bytes protocol ID, Bytes context, Nats(K,L), Bytes(32) binary ID,
+    /// Bytes backend label, Bytes encoded public-key projection matrix.
+    MldsaPublicStatement = 25,
+    /// Bytes protocol ID, Bytes context, Nats(K,L), Bytes(32) binary ID,
+    /// Bytes(32) arithmetic ID, Bytes backend label.
+    MldsaHiddenStatement = 26,
+    /// Bytes(32) fragment ID, Nats(layer widths).
+    MldsaBinaryLayout = 27,
+    /// Six Bits(Q) values: exact-mode masked quotient words.
+    ExactAdapterQuotients = 192,
+    /// Nats(coordinate-map dimensions and storage runs).
+    CoordinateLayout = 28,
+    /// Nats(affine-coordinate count, signed scales and offsets).
+    CoordinateAffine = 29,
+    /// Bytes protocol ID, Bytes session, Bytes(32) combined hash,
+    /// Nats(version, attribute count).
+    SingleCommitmentStatement = 30,
 }
 
 impl Tag {
-    /// Every tag, in value order, each at its `index`.
-    pub const ALL: [Tag; 18] = [
+    /// Every tag, in value order, each at its index.
+    pub const ALL: [Tag; 30] = [
         Tag::MdocStatement,
         Tag::ZkStatement,
         Tag::Circuit,
@@ -88,6 +115,14 @@ impl Tag {
         Tag::JointGeometry,
         Tag::PublicInputs,
         Tag::AdapterLayout,
+        Tag::SimdStatement,
+        Tag::SimdLayout,
+        Tag::MldsaPublicStatement,
+        Tag::MldsaHiddenStatement,
+        Tag::MldsaBinaryLayout,
+        Tag::CoordinateLayout,
+        Tag::CoordinateAffine,
+        Tag::SingleCommitmentStatement,
         Tag::Commitment,
         Tag::FingerprintResponse,
         Tag::SumcheckRound,
@@ -99,6 +134,10 @@ impl Tag {
         Tag::PackingA,
         Tag::PolygeroResponse,
         Tag::Seal,
+        Tag::SimdNonlinear,
+        Tag::SimdTraceU,
+        Tag::SimdTraceA,
+        Tag::ExactAdapterQuotients,
     ];
     /// The tag's u64 value on the transcript.
     pub const fn value(self) -> u64 {
@@ -116,17 +155,29 @@ impl Tag {
             Tag::JointGeometry => 4,
             Tag::PublicInputs => 5,
             Tag::AdapterLayout => 6,
-            Tag::Commitment => 7,
-            Tag::FingerprintResponse => 8,
-            Tag::SumcheckRound => 9,
-            Tag::SumcheckCross => 10,
-            Tag::SumcheckClaims => 11,
-            Tag::SplitOpening => 12,
-            Tag::P256AdapterQuotients => 13,
-            Tag::PackingU => 14,
-            Tag::PackingA => 15,
-            Tag::PolygeroResponse => 16,
-            Tag::Seal => 17,
+            Tag::SimdStatement => 7,
+            Tag::SimdLayout => 8,
+            Tag::MldsaPublicStatement => 9,
+            Tag::MldsaHiddenStatement => 10,
+            Tag::MldsaBinaryLayout => 11,
+            Tag::CoordinateLayout => 12,
+            Tag::CoordinateAffine => 13,
+            Tag::SingleCommitmentStatement => 14,
+            Tag::Commitment => 15,
+            Tag::FingerprintResponse => 16,
+            Tag::SumcheckRound => 17,
+            Tag::SumcheckCross => 18,
+            Tag::SumcheckClaims => 19,
+            Tag::SplitOpening => 20,
+            Tag::P256AdapterQuotients => 21,
+            Tag::PackingU => 22,
+            Tag::PackingA => 23,
+            Tag::PolygeroResponse => 24,
+            Tag::Seal => 25,
+            Tag::SimdNonlinear => 26,
+            Tag::SimdTraceU => 27,
+            Tag::SimdTraceA => 28,
+            Tag::ExactAdapterQuotients => 29,
         }
     }
     /// Whether the tag is a setup message's, which only the statement
@@ -140,7 +191,15 @@ impl Tag {
             | Tag::CommitmentLayout
             | Tag::JointGeometry
             | Tag::PublicInputs
-            | Tag::AdapterLayout => true,
+            | Tag::AdapterLayout
+            | Tag::SimdStatement
+            | Tag::SimdLayout
+            | Tag::MldsaPublicStatement
+            | Tag::MldsaHiddenStatement
+            | Tag::MldsaBinaryLayout
+            | Tag::CoordinateLayout
+            | Tag::CoordinateAffine
+            | Tag::SingleCommitmentStatement => true,
             Tag::Commitment
             | Tag::FingerprintResponse
             | Tag::SumcheckRound
@@ -151,7 +210,11 @@ impl Tag {
             | Tag::PackingU
             | Tag::PackingA
             | Tag::PolygeroResponse
-            | Tag::Seal => false,
+            | Tag::Seal
+            | Tag::SimdNonlinear
+            | Tag::SimdTraceU
+            | Tag::SimdTraceA
+            | Tag::ExactAdapterQuotients => false,
         }
     }
     /// The tag with value `value`, if any.
@@ -193,6 +256,41 @@ impl Tag {
             Tag::PackingA => &[(Elements, Some(1))],
             Tag::PolygeroResponse => &[(Elements, None), (Elements, None)],
             Tag::Seal => &[(Bytes, None)],
+            Tag::SimdStatement => &[(Bytes, None), (Bytes, None)],
+            Tag::SimdLayout | Tag::MldsaBinaryLayout => &[(Bytes, Some(32)), (Nats, None)],
+            Tag::SimdNonlinear | Tag::SimdTraceA => &[(Elements, Some(1))],
+            Tag::SimdTraceU => &[(Elements, Some(128))],
+            Tag::MldsaPublicStatement => &[
+                (Bytes, None),
+                (Bytes, None),
+                (Nats, Some(2)),
+                (Bytes, Some(32)),
+                (Bytes, None),
+                (Bytes, None),
+            ],
+            Tag::MldsaHiddenStatement => &[
+                (Bytes, None),
+                (Bytes, None),
+                (Nats, Some(2)),
+                (Bytes, Some(32)),
+                (Bytes, Some(32)),
+                (Bytes, None),
+            ],
+            Tag::ExactAdapterQuotients => &[
+                (Bits, None),
+                (Bits, None),
+                (Bits, None),
+                (Bits, None),
+                (Bits, None),
+                (Bits, None),
+            ],
+            Tag::CoordinateLayout | Tag::CoordinateAffine => &[(Nats, None)],
+            Tag::SingleCommitmentStatement => &[
+                (Bytes, None),
+                (Bytes, None),
+                (Bytes, Some(32)),
+                (Nats, Some(2)),
+            ],
         }
     }
     /// Whether one message's values, as (kind code, count) pairs in order,

@@ -10,84 +10,98 @@ const MODULUS: [u64; 4] = [
     0xffffffff00000001,
 ];
 
+/// `floor(2^512 / p)`, little-endian limbs.
+pub(crate) const RECIPROCAL: [u64; 5] = [
+    0x0000000000000003,
+    0xfffffffeffffffff,
+    0xfffffffefffffffe,
+    0x00000000ffffffff,
+    0x0000000000000001,
+];
+
 #[cfg(any(test, feature = "prover"))]
 pub(crate) fn bit(a: &Int256, r: usize) -> bool {
     (a[r / 64] >> (r % 64)) & 1 != 0
 }
 
+/// Whether a canonical unsigned integer fits in the group's bit width.
 #[cfg(any(test, feature = "prover"))]
-pub(crate) fn add_word(a: &mut [u64; 5], b: &Int256) {
-    let mut carry = 0u128;
-    for i in 0..4 {
-        carry += u128::from(a[i]) + u128::from(b[i]);
-        a[i] = carry as u64;
-        carry >>= 64;
+pub(crate) fn fits_width(value: &Int256, width: usize) -> bool {
+    assert!(width <= 256);
+    let (whole, remaining) = (width / 64, width % 64);
+    if remaining == 0 {
+        value[whole..].iter().all(|&limb| limb == 0)
+    } else {
+        value[whole] >> remaining == 0 && value[whole + 1..].iter().all(|&limb| limb == 0)
     }
-    a[4] = a[4]
-        .checked_add(carry as u64)
-        .expect("adapter sum overflow");
 }
-pub(crate) fn subtract_word(a: &mut [u64; 5], b: &Int256) -> bool {
-    let mut borrow = false;
-    for i in 0..5 {
-        let (x, b0) = a[i].overflowing_sub(if i < 4 { b[i] } else { 0 });
-        let (x, b1) = x.overflowing_sub(u64::from(borrow));
-        a[i] = x;
-        borrow = b0 || b1;
-    }
-    !borrow
-}
-fn at_least_p(a: &[u64; 5]) -> bool {
+
+pub(crate) fn at_least_p(a: &[u64; 5]) -> bool {
     a[4] != 0
         || (0..4)
             .rev()
             .find_map(|i| (a[i] != MODULUS[i]).then_some(a[i] > MODULUS[i]))
             .unwrap_or(true)
 }
-pub(crate) fn double(a: &mut Int256) -> bool {
-    let mut wide = [0; 5];
-    for i in 0..4 {
-        wide[i] |= a[i] << 1;
-        wide[i + 1] = a[i] >> 63;
+
+/// The 4x5-limb product.
+fn mul_wide(a: &Int256, b: &[u64; 5]) -> [u64; 9] {
+    let mut out = [0u64; 9];
+    for (i, &x) in a.iter().enumerate() {
+        let mut carry = 0u128;
+        for (j, &y) in b.iter().enumerate() {
+            let t = u128::from(x) * u128::from(y) + u128::from(out[i + j]) + carry;
+            out[i + j] = t as u64;
+            carry = t >> 64;
+        }
+        out[i + b.len()] = carry as u64;
     }
-    let correction = at_least_p(&wide);
-    if correction {
-        assert!(subtract_word(&mut wide, &MODULUS));
-    }
-    *a = wide[..4].try_into().unwrap();
-    correction
+    out
 }
 
-/// Long division by the P256 prime. Quotient width follows the numerator.
-#[cfg(any(test, feature = "prover"))]
-pub(crate) fn divide<const N: usize>(value: &[u64; N]) -> ([u64; N], Int256) {
-    let mut quotient = [0; N];
-    let mut remainder = [0u64; 5];
-    for r in (0..64 * N).rev() {
-        for i in (0..5).rev() {
-            remainder[i] = (remainder[i] << 1)
-                | if i == 0 {
-                    (value[r / 64] >> (r % 64)) & 1
-                } else {
-                    remainder[i - 1] >> 63
-                };
-        }
-        if at_least_p(&remainder) {
-            assert!(subtract_word(&mut remainder, &MODULUS));
-            quotient[r / 64] |= 1u64 << (r % 64);
+/// The first 256 binary digits of `a / p` for `a < p`: the integer
+/// `floor(a * 2^256 / p)`.
+///
+/// Doubling `a_r` modulo p subtracts p exactly when `2 a_r >= p`, where
+/// `a_r = a * 2^r mod p`: these corrections are the digits of `a / p` by
+/// long division, so correction `r` is bit `255 - r` of the result.
+///
+/// Barrett's estimate `floor(a * floor(2^512 / p) / 2^256)` is the result or
+/// one less: one comparison of the remainder with p decides.
+pub(crate) fn fraction_digits(a: &Int256) -> Int256 {
+    let t = mul_wide(a, &RECIPROCAL);
+    let mut q = [t[4], t[5], t[6], t[7]];
+    // r = a * 2^256 - q * p lies in [0, 2p), so its low five limbs suffice.
+    let qp = mul_wide(&q, &[MODULUS[0], MODULUS[1], MODULUS[2], MODULUS[3], 0]);
+    let mut r = [0u64; 5];
+    let mut borrow = 0u64;
+    for (i, ri) in r.iter_mut().enumerate() {
+        let x = if i < 4 { 0 } else { a[0] };
+        let (difference, b0) = x.overflowing_sub(qp[i]);
+        let (reduced_difference, b1) = difference.overflowing_sub(borrow);
+        *ri = reduced_difference;
+        borrow = u64::from(b0 | b1);
+    }
+    if at_least_p(&r) {
+        let mut carry = 1u64;
+        for limb in &mut q {
+            let (s, c) = limb.overflowing_add(carry);
+            *limb = s;
+            carry = u64::from(c);
         }
     }
-    (quotient, remainder[..4].try_into().unwrap())
+    q
 }
+
 pub(crate) fn reduce_exponent(word: Int256) -> u128 {
     let low = u128::from(word[0]) | (u128::from(word[1]) << 64);
     let high = u128::from(word[2]) | (u128::from(word[3]) << 64);
     let (sum, carry) = low.overflowing_add(high);
-    let (sum, carry2) = sum.overflowing_add(u128::from(carry));
-    let sum = sum + u128::from(carry2);
-    if sum == u128::MAX {
+    let (folded, carry2) = sum.overflowing_add(u128::from(carry));
+    let reduced = folded + u128::from(carry2);
+    if reduced == u128::MAX {
         0
     } else {
-        sum
+        reduced
     }
 }

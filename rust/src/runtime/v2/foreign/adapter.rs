@@ -13,6 +13,8 @@
 //! The modulus-specific encoder (`p256`, wrapping mode) only computes leaf
 //! coefficients, targets and honest quotients. `AdapterMode` packages an
 //! encoder with its rounds, pads and message for the composition driver.
+#[cfg(any(test, feature = "mldsa"))]
+pub(crate) mod exact;
 pub(crate) mod p256;
 
 use super::reserved::ReservedSuffix;
@@ -30,7 +32,7 @@ use crate::{
         v2::{
             proto::composed::AdapterMessage,
             transcript::{Bound, Header},
-            zk::{storage::ModularClaim, VirtualInput, VirtualInputs},
+            zk::{storage::ModularClaim, VirtualInputs},
         },
     },
 };
@@ -57,6 +59,7 @@ pub(crate) struct Leaf {
 }
 impl Leaf {
     /// A data leaf `1 + b * (power - 1)`, given `power - 1`.
+    #[cfg(any(test, feature = "mldsa"))]
     pub(crate) fn data(source: usize, power_minus_one: Gf2_128, f: &Gf2_128Field) -> Self {
         Self {
             source,
@@ -76,6 +79,7 @@ impl Leaf {
 }
 
 /// One tree's leaves and the value their product must equal.
+#[cfg(any(test, feature = "mldsa"))]
 pub(crate) struct TreeInstance {
     pub(crate) leaves: Vec<Leaf>,
     pub(crate) target: Gf2_128,
@@ -83,11 +87,13 @@ pub(crate) struct TreeInstance {
 
 /// Fold each target into its tree's first leaf and emit the virtual inputs in
 /// fragment order: tree-major, leaves in order.
+#[cfg(any(test, feature = "mldsa"))]
 pub(crate) fn virtual_inputs(
     shape: TreeShape,
     trees: Vec<TreeInstance>,
     f: &Gf2_128Field,
 ) -> Result<VirtualInputs<Gf2_128>, String> {
+    use crate::runtime::v2::zk::VirtualInput;
     if trees.len() != shape.trees || trees.iter().any(|t| t.leaves.len() != shape.leaves) {
         return Err("adapter tree shape".into());
     }

@@ -86,7 +86,7 @@ impl<F: ZkField + PackingField> Message for LayoutMessage<'_, F> {
                 Some(&split.map),
                 split.mask,
             ),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "mldsa", feature = "mdoc"))]
             StorageLayout::Pure(map) => (0, 0, 0, Some(*map), Group::EMPTY),
         };
         e.nats(&[

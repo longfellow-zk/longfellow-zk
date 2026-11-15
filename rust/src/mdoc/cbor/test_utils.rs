@@ -39,3 +39,6 @@ pub fn parse_test_data<const W: usize, N: Nat<W> + Nat<4>>(
         .expect("test fixture must contain a valid mdoc");
     (issuer_pk, parsed, data.now)
 }
+
+mod sized_mso;
+pub use sized_mso::with_mso_size;

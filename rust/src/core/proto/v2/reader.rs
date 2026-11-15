@@ -15,12 +15,13 @@
 //! Native v2 LFC3 parsing.
 
 mod lfc3;
+use super::limits::{SizeLimits, MAX_TOTAL_TERMS};
 use crate::core::algebra::{FieldID, SerializableField};
 
 pub struct CircuitReader<'a, F> {
     pub(super) f: &'a F,
     pub(super) field_id: FieldID,
-    pub(super) max_total_terms: usize,
+    pub(super) limits: SizeLimits,
 }
 
 impl<'a, F: SerializableField> CircuitReader<'a, F> {
@@ -29,7 +30,7 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
         Self {
             f,
             field_id: f.field_id(),
-            max_total_terms: super::limits::MAX_TOTAL_TERMS,
+            limits: SizeLimits::default(),
         }
     }
 
@@ -37,7 +38,33 @@ impl<'a, F: SerializableField> CircuitReader<'a, F> {
     /// enforces every fixed v2 array limit before reading circuit payloads.
     #[must_use]
     pub fn with_total_term_limit(mut self, max_total_terms: usize) -> Self {
-        self.max_total_terms = max_total_terms.min(super::limits::MAX_TOTAL_TERMS);
+        self.limits.expanded_terms = max_total_terms.min(MAX_TOTAL_TERMS);
+        self
+    }
+    /// Opt into explicit size limits for a trusted compiler-produced circuit.
+    ///
+    /// Wire counts, stored dictionary entries, and expanded evaluation terms
+    /// remain bounded independently. The ordinary reader's ceilings remain
+    /// unchanged; this opt-in retains every metadata, payload, and format check.
+    #[must_use]
+    pub fn with_trusted_size_limits(
+        mut self,
+        max_total_wires: usize,
+        max_total_terms: usize,
+    ) -> Self {
+        self.limits = SizeLimits {
+            total_wires: max_total_wires,
+            stored_terms: max_total_terms,
+            expanded_terms: max_total_terms,
+            metadata_bytes: self.limits.metadata_bytes,
+        };
+        self
+    }
+    /// Override only the decoded metadata ceiling for a trusted compiler archive.
+    /// Payload bytes, circuit size limits, and every format check still apply.
+    #[must_use]
+    pub fn with_trusted_metadata_limit(mut self, max_metadata_bytes: usize) -> Self {
+        self.limits.metadata_bytes = max_metadata_bytes;
         self
     }
 }

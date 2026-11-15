@@ -212,20 +212,20 @@ fn read_unverified<R: BufRead, F: SerializableField>(
     if read_size(input)? != reader.field_id as usize {
         return Err("LFC3 field ID mismatch".into());
     }
-    let noutput = bounded(input, MAX_TOTAL_WIRES, "outputs")?;
+    let noutput = bounded(input, reader.limits.total_wires, "outputs")?;
     if noutput == 0 {
         return Err("LFC3 requires at least one output".into());
     }
     if read_size(input)? != 1 {
         return Err("LFC3 requires one circuit copy".into());
     }
-    let npublic_input = bounded(input, MAX_TOTAL_WIRES, "public inputs")?;
-    let ninput = bounded(input, MAX_TOTAL_WIRES, "inputs")?;
+    let npublic_input = bounded(input, reader.limits.total_wires, "public inputs")?;
+    let ninput = bounded(input, reader.limits.total_wires, "inputs")?;
     if npublic_input > ninput {
         return Err("LFC3 public inputs exceed total inputs".into());
     }
     let nlayers = bounded(input, MAX_LAYERS, "layers")?;
-    let nconstants = bounded(input, MAX_TOTAL_TERMS, "constants")?;
+    let nconstants = bounded(input, reader.limits.stored_terms, "constants")?;
     let width = reader.f.serialized_size_bytes();
     if width == 0 || width > MAX_ARCHIVE_BYTES {
         return Err("LFC3 invalid field width".into());
@@ -235,7 +235,7 @@ fn read_unverified<R: BufRead, F: SerializableField>(
         .ok_or("LFC3 constant size overflow")?;
     let mut directory = array(nlayers)?;
     for _ in 0..nlayers {
-        let nw = bounded(input, MAX_TOTAL_WIRES, "layer inputs")?;
+        let nw = bounded(input, reader.limits.total_wires, "layer inputs")?;
         let mut streams = [StreamDirectory::default(); 3];
         for stream in &mut streams {
             let mut counts = [0; 6];
@@ -252,7 +252,7 @@ fn read_unverified<R: BufRead, F: SerializableField>(
         noutput,
         nconstants,
         constants_bytes,
-        reader.max_total_terms,
+        reader.limits,
     )?;
     let mut ends = Vec::new();
     for layer in &directory {

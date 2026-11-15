@@ -199,9 +199,9 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         let mut tp = Transcript::for_test(b"pure");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = pure::prove(&mut prover, state).unwrap();
+        let (proof, pending) = pure::prover::prove(&mut prover, state).unwrap();
         let mut verifier = tv.bound(&frontend);
-        let claim = pure::reduce(&mut verifier, &proof).unwrap();
+        let claim = pure::verifier::reduce(&mut verifier, &proof).unwrap();
         assert_eq!(pending.claim.claim.weights, claim.claim.weights);
         assert_eq!(pending.claim.claim.target, claim.claim.target);
         // `batch` reads its row weights from the frontend's last stream, as

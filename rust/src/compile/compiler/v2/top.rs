@@ -14,6 +14,12 @@
 
 //! Longfellow v2 algebraic compilation pipeline and scheduling entry point.
 
+use std::ops::Range;
+
+use super::{
+    scheduler,
+    terms::{CircuitGraph, Node},
+};
 #[cfg(all(test, target_pointer_width = "32"))]
 use crate::compile::compiler::arena::one_compilation;
 use crate::{
@@ -38,11 +44,68 @@ where
     F: CompileField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize),
 {
+    compile_v2_shared_inputs(f, |logic| {
+        let (assertions, npublic) = build(logic);
+        (assertions, npublic, Vec::new())
+    })
+}
+
+/// Retain private inputs whose constraints are checked by another frontend.
+///
+/// Ranges use one-based source positions and may cover only private inputs.
+/// The composed protocol must authenticate the other frontend against these
+/// same inputs. Ordinary `compile_v2` continues to reject unused inputs.
+pub fn compile_v2_shared_inputs<F, Build>(
+    f: &F,
+    build: Build,
+) -> (RawCircuit<F>, CircuitGeometry, CircuitDebugSymbols)
+where
+    F: CompileField,
+    Build: for<'src> FnOnce(
+        CompilerLogic<'src, F>,
+    ) -> (CompilerAssertions<'src, F>, usize, Vec<Range<usize>>),
+{
     #[cfg(all(test, target_pointer_width = "32"))]
     let _one = one_compilation();
-    let (nodes, assertions, npublic, declared_inputs, tracker) = lower(f, build);
+    let mut shared_ranges = Vec::new();
+    let (mut nodes, assertions, npublic, declared_inputs, tracker) = lower(f, |logic| {
+        let (assertions, npublic, ranges) = build(logic);
+        shared_ranges = ranges;
+        (assertions, npublic)
+    });
+    let mut external = vec![false; declared_inputs];
+    let input_end = declared_inputs
+        .checked_add(1)
+        .expect("input position overflow");
+    for range in shared_ranges {
+        assert!(
+            range.start >= npublic.max(1) && range.end <= input_end && range.start <= range.end,
+            "invalid shared input range"
+        );
+        external[range.start - 1..range.end - 1].fill(true);
+    }
+    let mut present = vec![false; declared_inputs];
+    for node in &nodes.nodes {
+        if let Node::Input {
+            position_in_input_array,
+        } = node
+        {
+            present[*position_in_input_array] = true;
+        }
+    }
+    for (position, is_present) in present.into_iter().enumerate() {
+        if !is_present {
+            assert!(
+                external[position],
+                "some inputs are unused, cannot schedule"
+            );
+            nodes.nodes.push(Node::Input {
+                position_in_input_array: position,
+            });
+        }
+    }
     let (circuit, info, symbols) =
-        super::scheduler::schedule(f, nodes, &assertions, npublic, tracker);
+        scheduler::schedule(f, nodes, &assertions, npublic, &external, tracker);
     assert_eq!(
         info.ninput, declared_inputs,
         "some inputs are unused, cannot schedule"
@@ -56,7 +119,7 @@ fn lower<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    super::terms::CircuitGraph<F>,
+    CircuitGraph<F>,
     Vec<(usize, AssertionId)>,
     usize,
     usize,
@@ -105,3 +168,6 @@ where
         source_tracker,
     )
 }
+
+#[cfg(test)]
+mod tests;

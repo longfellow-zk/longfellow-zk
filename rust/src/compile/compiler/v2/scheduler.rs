@@ -36,12 +36,17 @@ use crate::{
 };
 
 // Assert that all nodes in the circuit are needed
-fn assert_all_needed<F: CompileField>(f: &F, nodes: &[Node<F>]) {
+fn assert_all_needed<F: CompileField>(f: &F, nodes: &[Node<F>], external: &[bool]) {
     let mut needed = vec![false; nodes.len()];
     for i in (0..nodes.len()).rev() {
         match &nodes[i] {
-            Node::Input { .. } => {
-                assert!(needed[i], "found input that is not needed");
+            Node::Input {
+                position_in_input_array,
+            } => {
+                assert!(
+                    needed[i] || external[*position_in_input_array],
+                    "found input that is not needed"
+                );
             }
             Node::Assert0(w) => {
                 needed[i] = true;
@@ -247,9 +252,11 @@ fn check_connectivity<F: CompileField + SerializableField>(
     noutput: usize,
     terms_in_layer: &[Vec<ScheduledTerm<F>>],
     nwires_in_layer: &[usize],
+    external: &[bool],
 ) {
     assert!(ninput > 0);
-    let mut v = vec![false; ninput];
+    assert_eq!(external.len(), ninput);
+    let mut v = external.to_vec();
     for l in 0..terms_in_layer.len() {
         let layer_noutput = if l == terms_in_layer.len() - 1 {
             noutput
@@ -315,6 +322,7 @@ fn schedule_graph<F: CompileField + SerializableField>(
     c: CircuitGraph<F>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
+    external: &[bool],
     tracker: AssertionScope,
 ) -> Scheduled<F> {
     let npublic_input = npublic_input
@@ -333,7 +341,7 @@ fn schedule_graph<F: CompileField + SerializableField>(
         nassertions,
         "debug assertion records do not cover all circuit assertions"
     );
-    assert_all_needed(f, &nodes);
+    assert_all_needed(f, &nodes, external);
 
     let (depth, max_depth) = compute_node_depths(f, &mut nodes);
 
@@ -362,7 +370,14 @@ fn schedule_graph<F: CompileField + SerializableField>(
     );
     let noutput = nwires_in_layer[max_depth - 1];
 
-    check_connectivity(f, ninput, noutput, &terms_in_layer, &nwires_in_layer);
+    check_connectivity(
+        f,
+        ninput,
+        noutput,
+        &terms_in_layer,
+        &nwires_in_layer,
+        external,
+    );
 
     let (constants, constant_to_idx) = collect_constants(f, &terms_in_layer);
 
@@ -390,9 +405,10 @@ pub(super) fn schedule<F: CompileField>(
     c: CircuitGraph<F>,
     assertions: &[(usize, AssertionId)],
     npublic_input: usize,
+    external: &[bool],
     tracker: AssertionScope,
 ) -> (RawCircuit<F>, CircuitGeometry, CircuitDebugSymbols) {
-    let graph = schedule_graph(f, c, assertions, npublic_input, tracker);
+    let graph = schedule_graph(f, c, assertions, npublic_input, external, tracker);
     let layers = v2_layers(
         f,
         graph.terms,

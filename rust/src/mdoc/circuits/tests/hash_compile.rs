@@ -214,6 +214,9 @@ where
     derived
         .sha_derived
         .push_derived(fr, |value| inputs.push(value));
+    given.structure.push(|value, bits| {
+        push_bits(&mut inputs, u128::from(value), bits, fr);
+    });
     inputs
 }
 
@@ -303,8 +306,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        142, 105, 92, 221, 15, 188, 108, 95, 247, 11, 255, 121, 226, 190, 251, 245, 102, 240, 226,
-        115, 120, 97, 221, 108, 234, 167, 83, 88, 13, 135, 88, 9,
+        43, 116, 45, 195, 50, 69, 196, 168, 164, 203, 240, 181, 25, 154, 137, 107, 125, 223, 165,
+        212, 78, 179, 210, 189, 76, 237, 151, 149, 4, 165, 212, 194,
     ];
     assert_eq!(
         circuit.id, expected_id,

@@ -28,9 +28,12 @@ use crate::{
     compile::{algebra::CompileNat, logic::LogicIO},
     core::algebra::Nat,
     mdoc::{
-        circuits::mso_attribute::{
-            AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
-            FieldLocator as WireFieldLocator,
+        circuits::{
+            mdoc_structure::Witness as StructuralWitness,
+            mso_attribute::{
+                AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
+                FieldLocator as WireFieldLocator,
+            },
         },
         proto::{
             hash::constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_DIGITS},
@@ -193,6 +196,7 @@ pub fn evaluate_given<L: LogicIO>(
         value_digests_offset_in_preimage,
         namespace_offset_in_preimage,
         attribute_given,
+        structure: Some(StructuralWitness::constant(logic, &given.structure)),
     }
 }
 

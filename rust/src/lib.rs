@@ -96,6 +96,10 @@ cfg_compiler! {
 }
 
 pub mod circuits {
+    #[cfg(feature = "simd")]
+    pub mod keccak;
+    #[cfg(feature = "simd")]
+    pub mod simd_sha256;
     cfg_prover_or_compiler! {
         pub mod ec;
         pub mod ecdsa2;
@@ -138,3 +142,6 @@ pub mod mdoc {
         pub mod testcases;
     }
 }
+
+#[cfg(feature = "mldsa")]
+pub mod mldsa;

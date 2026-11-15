@@ -28,6 +28,7 @@ use crate::{
                 circuit::{AttrGiven, AttrPreimageBytes, Given, MsoPreimageBytes},
                 shape::{AttrDerived, Derived},
             },
+            mdoc_structure::Witness as StructuralWitness,
             mso_attribute::{AttrSlice, DisclosedAttribute, FieldLocator},
         },
         proto::{
@@ -43,6 +44,24 @@ pub fn allocate<L: LogicIO>(
     logic: &L,
     num_attrs: usize,
     pos: &mut usize,
+) -> (Given<L>, Derived<V32<L>>, usize) {
+    allocate_impl(logic, num_attrs, pos, true)
+}
+
+/// Allocate the original byte-offset predicate without structural CBOR witnesses.
+pub fn allocate_without_structure<L: LogicIO>(
+    logic: &L,
+    num_attrs: usize,
+    pos: &mut usize,
+) -> (Given<L>, Derived<V32<L>>, usize) {
+    allocate_impl(logic, num_attrs, pos, false)
+}
+
+fn allocate_impl<L: LogicIO>(
+    logic: &L,
+    num_attrs: usize,
+    pos: &mut usize,
+    structural: bool,
 ) -> (Given<L>, Derived<V32<L>>, usize) {
     let bv = BitvecLogic::new(logic);
     let io = BitvecIO::new(&bv);
@@ -110,6 +129,7 @@ pub fn allocate<L: LogicIO>(
     let (attribute_given, attribute_derived) =
         (0..num_attrs).map(|_| allocate_attribute(&io, pos)).unzip();
     let sha_derived = sha256msg::Derived::from_fn(K_MAX_SHA_BLOCKS, || io.next(pos));
+    let structure = structural.then(|| StructuralWitness::allocate(logic, num_attrs, pos));
     (
         Given {
             disclosed_attributes,
@@ -128,6 +148,7 @@ pub fn allocate<L: LogicIO>(
             value_digests_offset_in_preimage,
             namespace_offset_in_preimage,
             attribute_given,
+            structure,
         },
         Derived {
             attribute_derived,
