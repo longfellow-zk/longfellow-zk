@@ -9,6 +9,7 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
+    ops::Range,
 };
 
 use crate::{
@@ -21,13 +22,13 @@ use crate::{
         v2::{
             decompress_circuits,
             inputs::PublicInputs,
-            link,
+            link, proof_geometry,
             provider::ProvidedCircuit,
             req_attr,
             request::Request,
             run_mdoc_verifier,
             transcript::{Identity, MdocStatement, PROTOCOL_ID},
-            MdocVerifierErrorCode, PolygeroParameters, RequestedAttribute, ZkSpecStruct,
+            MdocProof, MdocVerifierErrorCode, PolygeroParameters, RequestedAttribute, ZkSpecStruct,
         },
     },
     runtime::{
@@ -50,7 +51,9 @@ use crate::{
                     statement::{self, Statement as Decoded},
                 },
             },
-            transcript::{EncodedProof, Opened, Statement, Trace, VerifiedProof},
+            transcript::{
+                EncodedProof, Opened, Statement, Trace, Transcript, VerifiedProof, SEAL_BYTES,
+            },
         },
     },
 };
@@ -413,4 +416,115 @@ fn mdoc_prover_messages_are_absorbed() {
     for &i in &chosen {
         check_absorbed(honest, proof.as_bytes(), &messages[i], &verify);
     }
+}
+
+/// The field regions of a complete 1-attribute proof, in proof order: the
+/// magic; each interactive field of the body, from `trace` (a field's
+/// consecutive sumcheck messages form one region, as do its packing
+/// messages); each field's opened rows; the nonces; the frontier's count
+/// and its digests; the seal block. They tile the proof.
+fn regions(fixture: &Fixture, bytes: &[u8], trace: &Trace) -> Vec<(String, Range<usize>)> {
+    let mut out = vec![("magic".to_string(), 0..4)];
+    for m in sent(trace, 4) {
+        let tag = Tag::from_value(m.tag).unwrap();
+        let name = match tag {
+            Tag::SumcheckRound | Tag::SumcheckCross | Tag::SumcheckClaims => "sumcheck".into(),
+            Tag::PackingU | Tag::PackingA => "packing".into(),
+            _ => format!("{tag:?}"),
+        };
+        let grouped = matches!(name.as_str(), "sumcheck" | "packing");
+        match out.last_mut() {
+            Some((last, range)) if grouped && *last == name && range.end == m.offset => {
+                range.end += m.len;
+            }
+            _ => out.push((name, m.offset..m.offset + m.len)),
+        }
+    }
+    let (gf2, p256) = (Gf2_128Field::new(), P256Field::new());
+    let (signature, hash) =
+        decompress_circuits(fixture.provided.compressed(), &p256, &gf2).unwrap();
+    let geometry = proof_geometry(fixture.provided.spec(), &signature, &hash).unwrap();
+    let mut session = Transcript::for_test(b"regions");
+    let decoded = MdocProof::read(bytes, &session.bound(&geometry.body), &gf2, &p256).unwrap();
+    let polygero = &decoded.body.polygero;
+    let (nonces, frontier) = polygero.authentication_bytes();
+    let terminal = [
+        ("host rows", 16 * polygero.bodies().0.rows.len()),
+        ("split rows", 32 * polygero.bodies().1 .0.rows.len()),
+        ("nonces", nonces),
+        ("frontier count", 8),
+        ("frontier", frontier - 8),
+        ("seal", SEAL_BYTES),
+    ];
+    for (name, len) in terminal {
+        let start = out.last().unwrap().1.end;
+        out.push((name.into(), start..start + len));
+    }
+    for pair in out.windows(2) {
+        assert_eq!(
+            pair[0].1.end, pair[1].1.start,
+            "{} then {}",
+            pair[0].0, pair[1].0
+        );
+    }
+    assert_eq!(
+        out.last().unwrap().1.end,
+        bytes.len(),
+        "the regions tile the proof"
+    );
+    out
+}
+
+/// Flip one byte of the complete 1-attribute proof at the start, middle and
+/// end of every field region of the body and the seal, and at 200
+/// pseudo-random positions with pseudo-random masks: the complete verifier
+/// rejects every flip.
+#[test]
+fn mdoc_byte_flips_are_rejected() {
+    let fixture = Fixture::new(1);
+    let proof = fixture.prove();
+    let bytes = proof.as_bytes();
+    let verified = fixture.verify(bytes).unwrap();
+    let mut flips: Vec<(usize, u8)> = Vec::new();
+    for (_, range) in regions(&fixture, bytes, &verified.trace) {
+        for i in [range.start, range.start + range.len() / 2, range.end - 1] {
+            if !flips.contains(&(i, 1)) {
+                flips.push((i, 1));
+            }
+        }
+    }
+    // SplitMix64 from a fixed seed: positions and nonzero masks.
+    let mut state = 0x6c66_7a6b_7632_7478_u64;
+    for _ in 0..200 {
+        state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut z = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^= z >> 31;
+        let position = (z % bytes.len() as u64) as usize;
+        flips.push((position, ((z >> 56) as u8).max(1)));
+    }
+    let threads = std::thread::available_parallelism().map_or(1, |n| n.get().min(8));
+    let accepted: Vec<(usize, u8)> = std::thread::scope(|scope| {
+        let tasks: Vec<_> = flips
+            .chunks(flips.len().div_ceil(threads))
+            .map(|chunk| {
+                let shared = &fixture;
+                scope.spawn(move || {
+                    chunk
+                        .iter()
+                        .filter(|&&(i, mask)| {
+                            let mut flipped = bytes.to_vec();
+                            flipped[i] ^= mask;
+                            shared.verify(&flipped).is_ok()
+                        })
+                        .copied()
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        tasks.into_iter().flat_map(|t| t.join().unwrap()).collect()
+    });
+    assert_eq!(flips.len(), 251);
+    assert!(accepted.is_empty(), "accepted flips: {accepted:?}");
 }

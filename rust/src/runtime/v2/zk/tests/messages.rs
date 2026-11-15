@@ -174,3 +174,48 @@ fn first_block_is_the_strands_first_prf_block() {
     next.write(&trace.nodes[1][16 + 32..]);
     assert_eq!(next.end_strand().next_block(), trace.first_block(1));
 }
+
+/// Flip each byte of the complete standalone proof, once in its lowest bit
+/// and once in its highest: the complete verifier rejects every flip.
+fn every_byte_flip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    f: &F,
+    domain: &D,
+) {
+    let ctx = ZkContext::new(domain);
+    let proof = Standalone::new(f, &ctx);
+    proof.verify(&proof.bytes, f, &ctx).unwrap();
+    let mut flipped = proof.bytes.clone();
+    for i in 0..flipped.len() {
+        for mask in [0x01, 0x80] {
+            flipped[i] ^= mask;
+            assert!(
+                proof.verify(&flipped, f, &ctx).is_err(),
+                "byte {i} flipped by {mask:#04x}"
+            );
+            flipped[i] ^= mask;
+        }
+    }
+}
+
+#[test]
+fn binary_byte_flips_are_rejected() {
+    use crate::runtime::algebra::{
+        gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory,
+    };
+    let f = Gf2_128Field::new();
+    every_byte_flip(&f, &BinaryInterpolatorFactory::full_field(&f));
+}
+
+#[test]
+fn prime_byte_flips_are_rejected() {
+    use crate::runtime::algebra::{
+        fp2::Fp2Field, p256::P256Field,
+        range_interpolation::QuadraticExtensionFftInterpolatorFactory, SupportsFFT,
+    };
+    let f = P256Field::new();
+    let f2 = Fp2Field::new(&f);
+    every_byte_flip(
+        &f,
+        &QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order()),
+    );
+}
