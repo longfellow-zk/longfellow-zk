@@ -16,9 +16,11 @@ where
     I: SetupMessage,
 {
     /// Reduce both circuits of the composition statement `session` opened
-    /// with and authenticate the joint opening. The returned
-    /// transcript must still check the complete proof's final seal.
-    pub fn verify(
+    /// with and authenticate the joint opening. This is not complete
+    /// verification: the caller must check the complete proof's final seal
+    /// on the returned transcript, as `run_mdoc_verifier` does.
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn reduce_and_authenticate(
         session: Opened<'_, Self>,
         proof: &ComposedProof<H, Host, W, F, M::Message>,
     ) -> Result<Transcript, String> {

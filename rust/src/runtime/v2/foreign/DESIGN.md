@@ -103,9 +103,9 @@ role-trace test of I2.
 
 **I2. Both roles run one hand-off schedule, for mixed storage.**
 `ComposedStatement::prove` (`compose/prover.rs`) and
-`ComposedStatement::verify` (`compose/verifier.rs`) make the same draw calls
-in the same order: `joint::top_weights` for the prime frontend,
-`split::transcript::eta`, `AdapterMode::draw_conversion`,
+`ComposedStatement::reduce_and_authenticate` (`compose/verifier.rs`) make the
+same draw calls in the same order: `joint::top_weights` for the prime
+frontend, `split::transcript::eta`, `AdapterMode::draw_conversion`,
 `joint::top_weights` for the host, then `JointProver::weights` or
 `JointVerifier::weights`. Each draw call only draws; the sub-protocols send.
 The driver always supplies the split mask R, so it composes mixed storage
@@ -444,8 +444,10 @@ impl ComposedStatement<'_, W, F, DH, DS, M, I> {
                  host_private: Vec<CircuitInput<Gf2_128Field>>,
                  split_private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(ComposedProof<2, Gf2_128Field, W, F, M::Message>, Transcript), String>;
-    pub fn verify(session: Opened<'_, Self>,
-                  proof: &ComposedProof<2, Gf2_128Field, W, F, M::Message>)
+    // Not complete verification: the caller checks the complete proof's seal
+    // on the returned transcript (mdoc's run_mdoc_verifier).
+    pub(crate) fn reduce_and_authenticate(session: Opened<'_, Self>,
+        proof: &ComposedProof<2, Gf2_128Field, W, F, M::Message>)
         -> Result<Transcript, String>;
 }
 impl Opened<'_, ComposedStatement<'_, ..>> {

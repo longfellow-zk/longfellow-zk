@@ -114,7 +114,8 @@ fn composition_round_trip_rejects_tampering() {
             &mut DeterministicRng::new(5),
         )
     };
-    let verify = |proof: &_| ComposedStatement::verify(Opened::new(&statement), proof);
+    let verify =
+        |proof: &_| ComposedStatement::reduce_and_authenticate(Opened::new(&statement), proof);
 
     let (proof, mut tp) = prove(bits.clone()).unwrap();
     let mut tv = verify(&proof).unwrap();
