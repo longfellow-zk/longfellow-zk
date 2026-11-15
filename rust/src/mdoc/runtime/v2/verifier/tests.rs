@@ -114,6 +114,11 @@ fn observed<T>(f: impl FnOnce() -> T) -> (T, Vec<Vec<u8>>) {
     (out, OBSERVED.take().unwrap())
 }
 
+/// Compiling a NEXT circuit takes about 1.5 GB at its peak. The tests here
+/// compile one circuit at a time, so that together they add at most one
+/// compilation to the peak memory of the test run.
+static COMPILING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// One NEXT circuit and the test request for its attribute count: the
 /// first attributes of `TEST_DATA`, repeated as needed.
 pub(super) struct Fixture {
@@ -140,8 +145,14 @@ impl Fixture {
             .take(count)
             .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
             .collect();
+        let provided = {
+            let _one = COMPILING
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            compile_next(count).unwrap()
+        };
         Self {
-            provided: compile_next(count).unwrap(),
+            provided,
             attrs,
             pkx: coordinate(&issuer_pk.0),
             pky: coordinate(&issuer_pk.1),
