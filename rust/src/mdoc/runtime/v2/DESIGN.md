@@ -105,7 +105,7 @@ of the first node:
 |---|---|---|
 | `MdocStatement` | as in the transcript design: protocol ID `longfellow/v2/mdoc/transcript/v2`; session transcript; combined hash; (version, attribute count) | the request and `ZkSpecStruct` |
 | `Circuit` x 3 | circuit ID, which binds the circuit's layer widths and its output, input and public input counts | hash circuit, adapter fragment, signature circuit |
-| `CommitmentLayout` x 2 | per field: (FieldID, committed private cells, pad cells, fingerprint mask cells); packing descriptor; native runs; bit-stored runs; (mask start, mask width) | binary participant (packing degree 128), then prime participant (degree one) |
+| `CommitmentLayout` x 2 | per field: (FieldID, committed private inputs before packing, pad cells, fingerprint mask cells); packing descriptor; native runs; bit-stored runs; (mask start, mask width) | binary participant (packing degree 128), then prime participant (degree one) |
 | `AdapterLayout` x 1 | adapter mode ID `longfellow/v2/foreign/p256/two-full-field-trees/v1`; (Q = `QUOTIENT_BITS` = 10, 2 trees, virtual leaf count: 768 + 256 + 10 = 1034 per tree); start and width of the two 10-bit quotient pads among the binary private inputs (R's 256 bits are in the split `CommitmentLayout`) | the `P256Mode<QUOTIENT_BITS>` of `link::composition` |
 | `JointGeometry` | (k, s, n, t): the spec's one profile (`ZkSpecStruct::config`); each field's cell count follows from its `CommitmentLayout` | `ComposedGeometry::config` |
 | `PublicInputs` | Elements(GF2_128, 901 + 788A) | `PublicInputs::derive` (`push_input_hash`) |

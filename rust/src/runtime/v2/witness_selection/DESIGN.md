@@ -35,7 +35,7 @@ transcript (transcript I1, I3).
 
 The frontend cells `w_i` are every cell the frontend's statement may read, in
 the frontend's order. `n_i` is a function of the `CommitmentLayout` values:
-the committed private cells `p` (private values before packing; for mixed
+the committed private inputs `p` (private values before packing; for mixed
 storage only the native ones), the pad cells, and the packing degree `d`
 carried by the packing descriptor:
 
@@ -63,9 +63,9 @@ Polygero statement: for every field, the frontend's equations `A_i w_i + b_i
 ```
 
 hold for the committed rows. Joint Polygero proves or checks exactly this
-system, with batching weights the caller draws after the last frontend
-message: one weight per equation of the augmented system, `e_i + 2` for a
-field whose frontend statement has `e_i` equations.
+system, with batching weights that the joint opening draws itself after the
+last frontend message: one weight per equation of the augmented system,
+`e_i + 2` for a field whose frontend statement has `e_i` equations.
 
 ## Invariants
 

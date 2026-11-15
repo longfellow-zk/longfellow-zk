@@ -202,8 +202,8 @@ bytes, rows 8 and 9 are 2,064 bytes, row 6 is 4 bytes, and `f <= 84 * 13 =
 
 A pure-foreign split participant stores every value as bits in the binary
 commitment and commits no cells of its own. Its statement part is a
-`CommitmentLayout` with zero committed private cells, zero pad cells and zero
-fingerprint mask cells, and it is not a joint field: it has no Polygero
+`CommitmentLayout` with zero committed private inputs, zero pad cells and
+zero fingerprint mask cells, and it is not a joint field: it has no Polygero
 geometry, no fingerprint masks and no rows. It needs no mask `R`, so there is
 no split opening; its row weights are drawn and used by the pure split step
 at the frontend's last boundary (transcript I8).
@@ -245,9 +245,10 @@ failure as an `std::io::Error` (`InvalidData` or `UnexpectedEof`),
 | the frontier has exactly `f` digests and ends the body | `MerkleProof::read_path`, `JointPolygeroProof::read` |
 | exactly the seal block remains | `Unverified::decoded` |
 
-Verification adds two byte-level checks: the frontier holds exactly
-`frontier_len(n, I)` digests for the drawn column set `I` (`verify_proof`),
-and the seal equals the transcript's seal block.
+Verification adds two byte-level checks: the frontier holds exactly the
+`f(n, I)` digests that `verify_proof`'s traversal consumes for the drawn
+column set `I` (see the frontier below), and the seal equals the
+transcript's seal block.
 
 ## Formats
 
@@ -284,10 +285,10 @@ elem(F)    := canonical serialization of F (GF(2^128): 16 bytes; P-256: 32 bytes
 
 The frontier lists, for heap nodes `i = n-1` down to `1` that lie on a path
 from a drawn leaf, the sibling of the one child on the path, when exactly one
-child is on it. Its length `f = frontier_len(n, I)` is a function of `n` and
-the drawn columns, which the verifier knows only after replaying the
-transcript; this is why the frontier is last and why the body states its
-count.
+child is on it. Its length `f(n, I)`, the number of such nodes (the walk in
+`generate_proof` and `verify_proof`), is a function of `n` and the drawn
+columns, which the verifier knows only after replaying the transcript;
+this is why the frontier is last and why the body states its count.
 
 ### Commitment preimages
 

@@ -4,7 +4,8 @@
 //! The statement fixes every field's layout (transcript I3). The coefficient
 //! draw ends the node of the joint `Commitment`; every vector reads the same
 //! stream. Each field then sends its `FingerprintResponse` before the
-//! enclosing frontend starts. The typed field traversal stays in `lib`.
+//! enclosing frontend starts. The typed field traversal is in the parent
+//! module, `witness_selection`.
 use super::{Field, Fields, Param};
 use crate::{
     core::algebra::RegisteredField,

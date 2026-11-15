@@ -42,8 +42,8 @@ pub enum Tag {
     ZkStatement = 17,
     /// Bytes(32) circuit ID.
     Circuit = 18,
-    /// Nats(FieldID, committed private cells, pad cells, fingerprint mask
-    /// cells), Bytes packing descriptor, Nats(native runs as (first, count,
+    /// Nats(FieldID, committed private inputs before packing, pad cells,
+    /// fingerprint mask cells), Bytes packing descriptor, Nats(native runs as (first, count,
     /// cell) triples), Nats(bit-stored runs as (first, count, start, width)
     /// quadruples), Nats(mask start, mask width).
     CommitmentLayout = 19,

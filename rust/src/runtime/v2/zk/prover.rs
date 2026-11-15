@@ -32,8 +32,9 @@ use crate::{
 };
 
 /// The participant a prover state was prepared by: its circuits, profile,
-/// geometry, input layout and storage. Two participants over one context
-/// have equal identities exactly when they are the same participant.
+/// geometry, input layout and storage. Identities compare these values, not
+/// the participant objects: two participants that agree on all of them have
+/// equal identities and may finish each other's states.
 struct Identity {
     id: [u8; 32],
     additional_ids: Vec<[u8; 32]>,
@@ -53,7 +54,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             storage: self.storage.clone(),
         }
     }
-    /// Whether this participant prepared the state that recorded `identity`.
+    /// Whether this participant matches the one that prepared the state that
+    /// recorded `identity`.
     fn prepared(&self, identity: &Identity) -> bool {
         let Identity {
             id,

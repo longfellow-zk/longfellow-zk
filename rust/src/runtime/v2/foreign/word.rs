@@ -126,7 +126,9 @@ impl<const N: usize> MaskedWord<N> {
         *bytes = tail;
         Ok(Self(value))
     }
-    /// The bytes absorbed into the transcript: the canonical encoding.
+    /// The word's canonical proof-body encoding, as the body writer emits it.
+    /// The transcript absorbs the word's bits through the
+    /// `P256AdapterQuotients` message instead.
     pub fn encoded(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::BYTES);
         self.write(&mut out);

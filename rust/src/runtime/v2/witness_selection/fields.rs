@@ -1,8 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The fingerprinted field, the typed field lists, and the protocol parameters.
 //!
-//! The `(Field, Tail)` traversal stays in `lib`, beside the transcript framing
-//! it calls.
+//! The `(Field, Tail)` traversal is in the parent module, `witness_selection`,
+//! beside the transcript framing it calls.
 use crate::{
     core::algebra::RegisteredField,
     runtime::{

@@ -24,7 +24,7 @@ I2):
 |---|---|---|
 | Circuits | `circuits[0]` (primary), then the others, in order | one `Circuit` each: its ID, which binds its layer widths, output count, `ninput` and `npublic_input` |
 | Input layout | public, committed private, virtual (in that order), width `max ninput` | derived from `Circuit` and `CommitmentLayout` |
-| Commitment layout | field, committed private cells, pad cells, fingerprint cells, packing descriptor (which carries the packing degree `d`), native and bit-stored storage runs, mask group | one `CommitmentLayout` |
+| Commitment layout | field, committed private inputs (before packing), pad cells, fingerprint cells, packing descriptor (which carries the packing degree `d`), native and bit-stored storage runs, mask group | one `CommitmentLayout` |
 | Public inputs | `x_pub` in `F^npublic`, as the circuit sees them | `PublicInputs` |
 
 The prover knows private inputs `x_priv` (bits for binary circuits, field
@@ -311,7 +311,7 @@ The zk participant supplies the `CommitmentLayout` message values:
 | Value | Native | Mixed | Pure foreign |
 |---|---|---|---|
 | FieldID | `F::field_id()` | prime `F` | prime `F` |
-| committed private cells | `InputLayout::committed()` | native private inputs | 0 |
+| committed private inputs, before packing | `InputLayout::committed()` | native private inputs | 0 |
 | pad cells | `pad_count()` | `pad_count()` | 0 |
 | fingerprint cells | 2 | 2 | 0 |
 | packing descriptor | `PackingParameters::descriptor()`, carrying `d` | same, `d = 1` | same, `d = 1` |

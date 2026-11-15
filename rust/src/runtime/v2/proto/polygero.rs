@@ -37,8 +37,9 @@ fn frontier_per_query(n: usize) -> usize {
 
 /// Upper bound on a proof's Merkle frontier count, the formal model's cap
 /// (Lean `OpeningBody.frontierCapacity`). Every valid geometry stays far below
-/// it (at least four rows of `n` columns fit in `MAX_SIZE` cells, so
-/// `t < k <= n / 2 <= 2^25`); the opening checks enforce it too.
+/// it: it has at least three rows of `n` columns within `MAX_SIZE` cells, so
+/// `t < k <= n / 2 < 2^26`, and a column contributes at most 28 digests.
+/// `validate` and the opening checks enforce the cap all the same.
 const MAX_FRONTIER: usize = u32::MAX as usize;
 
 /// The frontier capacity `t (ceil(log2 n) + 1)` of an opening, if it is at

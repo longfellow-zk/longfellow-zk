@@ -45,8 +45,8 @@ impl<E: Clone> Affine<E> {
 }
 /// sum weights[j]*embed(x[j]) = rhs(aux), where x[j] is in K.
 /// ZK constructs this from the preceding sumcheck on the same transcript.
-/// The statement identifier names that source; it does not bind arbitrary
-/// caller-chosen coefficients independently of the earlier protocol.
+/// It carries no identifier of that source: only the earlier protocol binds
+/// its coefficients, so a caller-chosen claim is not bound at all.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::runtime::v2) struct SourceClaim<E> {
     pub(in crate::runtime::v2) weights: Vec<E>,

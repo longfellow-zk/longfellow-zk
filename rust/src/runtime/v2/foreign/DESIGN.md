@@ -176,7 +176,7 @@ The host circuit is archived at its natural width. R and the pads lie in a
 start at the suffix's end. Every foreign group lies in the host private
 range. Each sumcheck component reads only its own input prefix, so `C_H`
 cannot address R, the pads or the leaves. The mode writes `Q`, the tree
-count, the virtual leaf count and the positions of the quotient pads into
+count, the virtual leaves per tree and the positions of the quotient pads into
 the statement as its `AdapterLayout` (transcript I3), from the same
 geometry it then uses. R's position is in the split participant's
 `CommitmentLayout`.
@@ -387,7 +387,7 @@ for mixed storage:
 | `mode_id` | `b"longfellow/v2/foreign/p256/two-full-field-trees/v1"` (`P256_MODE_ID` in `runtime/v2/foreign/adapter/transcript.rs`) | same | same |
 | `Q` | the type parameter | same | 10 |
 | `trees` | `P256Plan::TREES` | same | 2 |
-| `leaves_per_tree` | `bits + Q`, `bits` the claim's total bit width including R's 256 (`P256Plan::shape`); `virtual_inputs()` is `trees` times this | `bits + Q`, no R | 1034 = 768 + 256 + 10 |
+| `leaves` (per tree) | `bits + Q`, `bits` the claim's total bit width including R's 256 (`P256Plan::shape`); `virtual_inputs()` is `trees` times this | `bits + Q`, no R | 1034 = 768 + 256 + 10 |
 | `o0_start` | `r_start + 256`, `r_start = C_H.ninput` | `C_H.ninput` | 271747 for one attribute (`r_start` = 271491) |
 | `o1_start` | `o0_start + Q` | `o0_start + Q` | `o0_start + 10` |
 

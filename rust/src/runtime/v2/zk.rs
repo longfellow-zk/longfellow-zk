@@ -20,15 +20,16 @@
 //! on the same transcript with the public inputs bound. Its
 //! symbolic constraints describe the checks on those hidden values. Reduce the
 //! input claim to two packing equations (one direct equation for degree one),
-//! then pass all constraints and the circuit ID to Polygero on the same
-//! transcript, whose prefix already binds every source message. The runtime
+//! then pass all constraints, stamped with the session they were derived on,
+//! to Polygero on the same transcript, whose prefix already binds every source
+//! message and the circuit IDs. The runtime
 //! constraint compiler substitutes public inputs and maps pads to committed
 //! positions, producing sparse A and b for Polygero's A*w+b=0 check.
 //!
 //! The prover runs numerical sumcheck; the verifier reconstructs its constraints
 //! from the messages. Both use the same constraint compiler and codec layout.
-//! `context` supplies borrowed field/domain references and trusted circuit
-//! metadata. Prover and verifier orchestration remain in separate role modules.
+//! `context` borrows the interpolation domain and derives the layout from the
+//! circuit. Prover and verifier orchestration remain in separate role modules.
 //!
 //! Every type the role APIs return has one public path here:
 //!
