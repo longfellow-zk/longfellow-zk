@@ -51,7 +51,14 @@ arch_select! {
     ))] {
         mod x86_64;
     }
-    if #[cfg(all(target_arch = "aarch64", target_feature = "aes"))] {
+    // The aarch64 backend converts between u128 and vector registers by
+    // transmute, which puts the low 64 bits in lane 0 only on little-endian
+    // targets; big-endian aarch64 uses the generic backend.
+    if #[cfg(all(
+        target_arch = "aarch64",
+        target_feature = "aes",
+        target_endian = "little"
+    ))] {
         mod aarch64;
     }
     if #[cfg(all(
