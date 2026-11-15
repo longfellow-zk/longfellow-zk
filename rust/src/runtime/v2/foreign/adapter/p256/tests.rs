@@ -1,8 +1,11 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! The P-256 mode's statement values (transcript I3).
-use super::{transcript::write_layout, P256Mode, P256Plan};
+//! The P-256 mode's statement values (transcript I3) and its fixed generator.
+use super::{pow, transcript::write_layout, P256Mode, P256Plan, GENERATOR_EXPONENT};
 use crate::{
-    core::proto::v2::Circuit,
+    core::{
+        algebra::{AlgebraicField, SupportsU128Conversions},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::gf2_128::Gf2_128Field,
         v2::{
@@ -152,4 +155,32 @@ fn adapter_layout_writes_every_value() {
             assert_ne!(bytes::<9>(shape, other), base, "pad {pad} value {value}");
         }
     }
+}
+
+/// The adapter's fixed base X, the polynomial-basis element encoded as 2, is
+/// primitive in GF(2^128) (the premise `Adapter.Mdoc.generatorCheck`): for
+/// each prime factor q of M = 2^128 - 1, X^(M/q) != 1. The factors are prime
+/// and multiply to M. The derived generator g = X^(M - 2^64) satisfies
+/// g^(-p) = X: p = 2^64 mod M, so g^p * X = X^(2^64 (M - 2^64) + 1) = 1.
+/// The products run on the arithmetic backend the build selects, so this
+/// runs once per backend instead of once per proof.
+#[test]
+fn adapter_base_is_primitive() {
+    const ORDER_FACTORS: [u128; 9] = [3, 5, 17, 257, 641, 65537, 274177, 6700417, 67280421310721];
+    let mut product = 1u128;
+    for q in ORDER_FACTORS {
+        assert!(
+            (2..).take_while(|d| d * d <= q).all(|d| q % d != 0),
+            "{q} is not prime"
+        );
+        product = product.checked_mul(q).unwrap();
+    }
+    assert_eq!(product, u128::MAX);
+    let f = Gf2_128Field::new();
+    let x = f.u128_to_element(2);
+    for q in ORDER_FACTORS {
+        assert!(pow(&f, x, u128::MAX / q) != f.one(), "X^(M/{q}) = 1");
+    }
+    let g = pow(&f, x, GENERATOR_EXPONENT);
+    assert!(f.mulf(&pow(&f, g, 1 << 64), &x) == f.one());
 }

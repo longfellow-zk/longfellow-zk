@@ -1,9 +1,11 @@
 import LfzkV2.Current.AdapterParameters
 
-/-! The public generator validation executed by the mdoc adapter.  The nine
-runtime factors are a complete prime factorization of `2^128-1`; checking the
-nine reduced powers therefore establishes primitive order.  No discrete-log or
-generator-order assumption is needed after this check succeeds. -/
+/-! The public generator validation of the mdoc adapter's fixed base.  The nine
+factors are a complete prime factorization of `2^128-1`; checking the nine
+reduced powers therefore establishes primitive order.  No discrete-log or
+generator-order assumption is needed after this check succeeds.  The base is
+fixed, so Rust checks it once per arithmetic backend, in the unit test
+`adapter_base_is_primitive`, not per proof. -/
 namespace LfzkV2.Current.Adapter.Mdoc
 
 def orderFactors : List ℕ := [3, 5, 17, 257, 641, 65537, 274177, 6700417, 67280421310721]

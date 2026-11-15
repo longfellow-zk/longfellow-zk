@@ -37,7 +37,8 @@ use crate::{
     },
 };
 
-const ORDER_FACTORS: [u128; 9] = [3, 5, 17, 257, 641, 65537, 274177, 6700417, 67280421310721];
+/// g = X^(M - 2^64), so that g^(-p) = X, with M = 2^128 - 1 and p = 2^64 mod M.
+const GENERATOR_EXPONENT: u128 = u128::MAX - (1u128 << 64);
 
 fn pow<F: AlgebraicField>(f: &F, mut b: F::E, mut n: u128) -> F::E {
     let mut x = f.one();
@@ -149,11 +150,10 @@ impl<const Q: usize> P256Plan<Q> {
         {
             return Err("P256 adapter claim shape or zero challenge".into());
         }
+        // X is primitive (the unit test `adapter_base_is_primitive` checks it
+        // on every arithmetic backend), so g, a power of X coprime to M, is.
         let x = f.u128_to_element(2);
-        assert!(ORDER_FACTORS
-            .iter()
-            .all(|q| pow(f, x, u128::MAX / q) != f.one()));
-        let g = pow(f, x, u128::MAX - (1u128 << 64));
+        let g = pow(f, x, GENERATOR_EXPONENT);
         // Fixed-base table of g^(2^i) for each bit i of a reduced exponent:
         // 127 squarings and 2 KiB on the stack, shared by every exponent of
         // both conversion challenges in this proof operation.

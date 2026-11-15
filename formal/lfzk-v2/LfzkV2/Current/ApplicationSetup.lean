@@ -339,7 +339,8 @@ end BinaryData
 /-- Trace is checked, while packing/compilation/replay, the cell layouts,
 quotient range and the fixed fragment's semantics are all derived. Generator
 order is a public algebraic invariant; `decodeChecked` obtains it from the
-runtime's primitive-generator check below. -/
+primitive-generator check below, which Rust runs as a unit test of its fixed
+base on every arithmetic backend. -/
 def decode {p shared maskBits adviceBits M K : ℕ} [Fact p.Prime]
     (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic (ZMod p) shared)
     (prime : PrimeData n C) (generator : Bˣ) (order : orderOf generator = M)

@@ -303,8 +303,12 @@ establish that a cryptographic implementation satisfies their premises.
 - **Fields and representations.** The modeled fields satisfy their field
   laws; bases and scalar representations have their declared cardinality,
   canonical encoding and injectivity properties. The ZK specialization
-  explicitly requires binary basis coordinate zero equal to one and a
-  successful primitive-generator check.
+  explicitly requires binary basis coordinate zero equal to one and that
+  the adapter's fixed base X, the polynomial-basis element encoded as 2,
+  pass the primitive-generator check (`Adapter.Mdoc.generatorCheck`). X is
+  fixed, so the runtime does not repeat the check per proof: the Rust unit
+  test `adapter_base_is_primitive` checks it, and runs on every arithmetic
+  backend.
   Rust limb arithmetic, finite-machine operations and compiler correctness
   are source-correspondence obligations, not additional Lean theorems.
 - **Trusted application circuits and archives.** Extraction returns a
