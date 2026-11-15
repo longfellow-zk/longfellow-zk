@@ -125,7 +125,10 @@ pub struct Param<L: Fields> {
     pub(super) backend: JointPolygeroParam<L::Backend>,
 }
 impl<L: Fields> Param<L> {
-    pub fn new(fields: L) -> Result<Self, String> {
+    /// The parameter of a joint statement's fields. Only the joint ZK
+    /// parameter builds one, from the participants that write the statement's
+    /// `CommitmentLayout`s (witness_selection I2).
+    pub(crate) fn new(fields: L) -> Result<Self, String> {
         let backend = JointPolygeroParam::new(fields.backend()).map_err(|e| e.to_string())?;
         Ok(Self { fields, backend })
     }

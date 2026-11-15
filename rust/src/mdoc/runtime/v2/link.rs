@@ -33,7 +33,7 @@ use crate::{
 
 type Mode = P256Mode<QUOTIENT_BITS>;
 const _: () = assert!(<Mode as AdapterMode<P256Field>>::MASK_BITS == MASK_BITS);
-type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
+pub(super) type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
 /// mdoc's composition statement under the identity message `I`.
 pub(super) type Statement<'s, DH, DS, I> =
     compose::ComposedStatement<'s, 4, P256Field, DH, DS, Mode, I>;

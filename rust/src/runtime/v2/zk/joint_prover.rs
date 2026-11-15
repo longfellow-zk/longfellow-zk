@@ -8,7 +8,7 @@ use crate::runtime::{
     v2::{
         polygero::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::{Bound, Challenge, Transcript, TranscriptRef},
+        transcript::{Bound, Challenge, Transcript},
         witness_selection,
     },
 };
@@ -54,7 +54,9 @@ impl<L: Fields> JointParam<L> {
     }
 }
 impl<S, C, R> JointProver<S, C, R> {
-    pub fn transcript(&mut self) -> TranscriptRef<'_> {
+    /// The owned session, for tests that read it directly.
+    #[cfg(test)]
+    pub(crate) fn transcript(&mut self) -> crate::runtime::v2::transcript::TranscriptRef<'_> {
         self.transcript.borrow()
     }
     /// The owned session, bound to the statement part a frontend reads.

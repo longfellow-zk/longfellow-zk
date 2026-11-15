@@ -123,7 +123,8 @@ pub struct FieldChallenges<E> {
 /// draws them after the last message any statement depends on, as a
 /// `Challenge` input (transcript I8), and the joint prover and verifier
 /// accept them before the first `PolygeroResponse`. Only
-/// `JointPolygeroParam::batch_weights` builds them.
+/// `JointPolygeroParam::weights_for` builds them (and, for tests and tools,
+/// `JointPolygeroParam::weights`).
 pub struct BatchWeights<C>(pub(super) C);
 mod sealed {
     pub trait Sealed {}

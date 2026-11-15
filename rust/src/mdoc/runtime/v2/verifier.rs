@@ -75,13 +75,8 @@ pub fn run_mdoc_verifier(
     )
     .map_err(gen_err)?;
     let public = PublicInputs::derive(&request, &p256);
-    let identity = super::transcript::Identity {
-        session: request.transcript(),
-        spec: request.spec(),
-    };
-    let statement: super::transcript::MdocStatement<'_, _, _> = composition
-        .statement(identity, public.hash(), public.signature())
-        .map_err(gen_err)?;
+    let statement =
+        super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
     let mut session = Opened::new(&statement);
     // The proof is parsed against the geometry the statement absorbed.
     let decoded = super::proto::MdocProof::read(proof_bytes, &session.geometry(), &gf2, &p256)
