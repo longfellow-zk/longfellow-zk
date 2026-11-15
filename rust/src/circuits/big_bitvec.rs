@@ -14,8 +14,3 @@
 
 mod circuit;
 pub use circuit::BigBitvec;
-
-cfg_testonly! {
-    mod concrete;
-    pub use concrete::*;
-}

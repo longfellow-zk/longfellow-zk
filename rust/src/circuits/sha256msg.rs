@@ -13,7 +13,6 @@
 // limitations under the License.
 
 mod concrete;
-pub mod constants;
 
 pub use concrete::{
     derived, given, pad_sha256_message, sha256_msg_derived, ConcreteDerived, ConcreteGiven,

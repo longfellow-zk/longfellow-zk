@@ -21,19 +21,6 @@ use crate::{
     core::algebra::{ec::Curve, ElementOf},
 };
 
-pub fn iter_pt2<T, E>(pt: &(T, T), f: &mut impl FnMut(&T) -> Result<(), E>) -> Result<(), E> {
-    f(&pt.0)?;
-    f(&pt.1)?;
-    Ok(())
-}
-
-pub fn iter_pt3<T, E>(pt: &(T, T, T), f: &mut impl FnMut(&T) -> Result<(), E>) -> Result<(), E> {
-    f(&pt.0)?;
-    f(&pt.1)?;
-    f(&pt.2)?;
-    Ok(())
-}
-
 pub struct EcCircuit<'a, const W: usize, C: Curve<W>, L: Logic<F = C::F>> {
     logic: &'a L,
     k3b_val: ElementOf<C::F>,
@@ -226,11 +213,4 @@ pub fn pt2_wires<L: LogicIO>(iologic: &L, pos: &mut usize) -> Pt2<Eltw<L>> {
     let x = iologic.next(pos);
     let y = iologic.next(pos);
     (x, y)
-}
-
-pub fn pt3_wires<L: LogicIO>(iologic: &L, pos: &mut usize) -> Pt3<Eltw<L>> {
-    let x = iologic.next(pos);
-    let y = iologic.next(pos);
-    let z = iologic.next(pos);
-    (x, y, z)
 }

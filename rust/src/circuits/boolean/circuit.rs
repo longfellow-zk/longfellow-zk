@@ -343,10 +343,6 @@ mod imp {
             self.notb(&self.xorb(a, b))
         }
 
-        pub fn neqb(&self, a: &Bitw<L>, b: &Bitw<L>) -> Bitw<L> {
-            self.xorb(a, b)
-        }
-
         pub fn parity(&self, a: &[Bitw<L>]) -> Bitw<L> {
             if a.is_empty() {
                 self.falseb()
@@ -419,27 +415,6 @@ mod imp {
             self.andb(b, &self.notb(a))
         }
 
-        pub fn chi_laneb(&self, x: &Bitw<L>, y: &Bitw<L>, z: &Bitw<L>) -> Bitw<L> {
-            let logic = &self.logic;
-            let f = logic.field();
-            if f.is_zero(&self.two) {
-                let not_y = self.notb(y);
-                let and_not_y_z = self.andb(&not_y, z);
-                self.xorb(x, &and_not_y_z)
-            } else {
-                let xx = self.as_x(x);
-                let xy = self.as_x(y);
-                let xz = self.as_x(z);
-                let w = logic.mul(&xx, &xy);
-                let num = logic.sum(&[
-                    xx.clone(),
-                    logic.neg(&w),
-                    logic.mul(&logic.sum(&[xx, w]), &xz),
-                ]);
-                Bitw(Inner::X(logic.mulk(&self.half, &num)))
-            }
-        }
-
         pub fn assert_false(&self, name: &str, x: &Bitw<L>) -> L::Assertions {
             self.logic.assert0(name, &self.as_eltw(x))
         }
@@ -460,10 +435,6 @@ mod imp {
                 | (Inner::X(xv), Inner::X(yv)) => logic.assert0(name, &logic.sub(xv, yv)),
                 _ => logic.assert0(name, &logic.sub(&self.as_eltw(x), &self.as_eltw(y))),
             }
-        }
-
-        pub fn to_stringw_debug(&self, x: &Bitw<L>) -> String {
-            self.logic.to_stringw_debug(&self.as_eltw(x))
         }
     }
 
@@ -520,9 +491,5 @@ impl<'a, L: LogicIO> BooleanIO<'a, L> {
         let wire = self.input(*pos);
         *pos += 1;
         wire
-    }
-
-    pub fn position_in_input_array(&self, x: &Bitw<L>) -> usize {
-        self.logic.position_in_input_array(&self.boolean.as_eltw(x))
     }
 }

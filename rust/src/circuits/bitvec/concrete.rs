@@ -51,20 +51,3 @@ pub fn push_bitvec_u128<const W: usize, FR: RuntimeField<W>>(
         cur_val >>= 1;
     }
 }
-
-pub fn push_bitvec_bytes<const W: usize, FR: RuntimeField<W>>(
-    fr: &FR,
-    bytes: &[u8],
-    n: usize,
-    dest: &mut Vec<FR::E>,
-) {
-    assert_eq!(bytes.len() * 8, n);
-    for &cur_byte in bytes {
-        let mut cur = cur_byte;
-        for _ in 0..8 {
-            let val_f = if (cur & 1) != 0 { fr.one() } else { fr.zero() };
-            dest.push(val_f);
-            cur >>= 1;
-        }
-    }
-}

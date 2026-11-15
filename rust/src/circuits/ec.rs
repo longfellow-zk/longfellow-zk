@@ -17,12 +17,12 @@ pub use points::{Pt2, Pt3};
 
 cfg_compiler! {
     mod circuit;
-    pub use circuit::{iter_pt2, iter_pt3, pt2_wires, pt3_wires, EcCircuit};
+    pub use circuit::{pt2_wires, EcCircuit};
 }
 
 cfg_testonly! {
     mod evaluate;
-    pub use evaluate::{evaluate_pt2, evaluate_pt3, push_pt2, push_pt3};
+    pub use evaluate::{evaluate_pt2, evaluate_pt3, push_pt2};
 }
 
 #[cfg(test)]

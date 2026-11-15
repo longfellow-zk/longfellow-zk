@@ -48,9 +48,3 @@ pub fn push_pt2<E: Clone>(value: &(E, E), dest: &mut Vec<E>) {
     dest.push(value.0.clone());
     dest.push(value.1.clone());
 }
-
-pub fn push_pt3<E: Clone>(value: &(E, E, E), dest: &mut Vec<E>) {
-    dest.push(value.0.clone());
-    dest.push(value.1.clone());
-    dest.push(value.2.clone());
-}

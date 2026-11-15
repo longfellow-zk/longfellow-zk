@@ -15,10 +15,5 @@
 mod circuit;
 pub use circuit::{Bitw, Boolean, BooleanIO};
 
-cfg_testonly! {
-    mod concrete;
-    pub use concrete::*;
-}
-
 #[cfg(test)]
 mod tests;

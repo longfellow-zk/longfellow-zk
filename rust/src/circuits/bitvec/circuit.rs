@@ -21,7 +21,7 @@ use crate::{
         algebra::CompileField,
         logic::{Eltw, Logic, LogicIO},
     },
-    util::array::{init, map, map2, map3},
+    util::array::init,
 };
 
 pub struct Bitvec<L: Logic, const N: usize> {
@@ -112,10 +112,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         self.logic
     }
 
-    pub fn b(&self, bit: &Bitw<L>) -> Bitw<L> {
-        self.boolean.b(bit)
-    }
-
     pub fn from_fn<const N: usize, F>(&self, f: F) -> Bitvec<L, N>
     where F: Fn(usize) -> Bitw<L> {
         Bitvec { bits: init(N, f) }
@@ -130,83 +126,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         } else {
             Err("Out of bounds: vector length mismatch")
         }
-    }
-
-    pub fn zext_bit<const N: usize>(
-        &self,
-        bv: &Bitvec<L, N>,
-        i: usize,
-    ) -> Result<Bitw<L>, &'static str> {
-        if i < N {
-            Ok(self.b(&bv.bits[i]))
-        } else {
-            Ok(self.boolean.falseb())
-        }
-    }
-
-    pub fn map<const N: usize, F>(&self, bv: &Bitvec<L, N>, f: F) -> Bitvec<L, N>
-    where F: Fn(&Bitw<L>) -> Bitw<L> {
-        Bitvec {
-            bits: map(&bv.bits, f),
-        }
-    }
-
-    pub fn map2<const N: usize, F>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-        f: F,
-    ) -> Bitvec<L, N>
-    where
-        F: Fn(&Bitw<L>, &Bitw<L>) -> Bitw<L>,
-    {
-        Bitvec {
-            bits: map2(&a.bits, &b.bits, f),
-        }
-    }
-
-    pub fn map3<const N: usize, F>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-        c: &Bitvec<L, N>,
-        f: F,
-    ) -> Bitvec<L, N>
-    where
-        F: Fn(&Bitw<L>, &Bitw<L>, &Bitw<L>) -> Bitw<L>,
-    {
-        Bitvec {
-            bits: map3(&a.bits, &b.bits, &c.bits, f),
-        }
-    }
-
-    pub fn fold<const N: usize, R, F, Bidx>(
-        &self,
-        bv: &Bitvec<L, N>,
-        f: &F,
-        base: &Bidx,
-        default: R,
-    ) -> R
-    where
-        F: Fn(R, R) -> R,
-        Bidx: Fn(&Bitw<L>) -> R,
-    {
-        self.arith.fold(&bv.bits, f, base, default)
-    }
-
-    pub fn fold2<const N: usize, R, F, Bidx>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-        f: &F,
-        base: &Bidx,
-        default: R,
-    ) -> R
-    where
-        F: Fn(R, R) -> R,
-        Bidx: Fn(&Bitw<L>, &Bitw<L>) -> R,
-    {
-        self.arith.fold2(&a.bits, &b.bits, f, base, default)
     }
 
     pub fn all<const N: usize>(
@@ -251,15 +170,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
 
     pub fn geq<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitw<L> {
         self.arith.geq(&a.bits, &b.bits)
-    }
-
-    pub fn relint<const N: usize>(
-        &self,
-        bv: &Bitvec<L, N>,
-        f: &dyn Fn(&[Bitw<L>], &[Bitw<L>]) -> Bitw<L>,
-        i: u64,
-    ) -> Bitw<L> {
-        self.arith.relint(f, &bv.bits, i)
     }
 
     #[must_use = "unchecked_add returns a carry bit that must be checked or propagated to prevent silent overflow"]
@@ -313,18 +223,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     ) -> (Bitvec<L, N>, L::Assertions) {
         let (diff, assert) = self.arith.checked_sub(&a.bits, &b.bits);
         (Bitvec { bits: diff }, assert)
-    }
-
-    pub fn wrapping_add<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.wrapping_add(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn wrapping_sub<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.wrapping_sub(&a.bits, &b.bits),
-        }
     }
 
     pub fn assert_wrapping_add<const N: usize>(
@@ -398,28 +296,9 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn chi_laneb<const N: usize>(
-        &self,
-        x: &Bitvec<L, N>,
-        y: &Bitvec<L, N>,
-        z: &Bitvec<L, N>,
-    ) -> Bitvec<L, N> {
-        self.map3(x, y, z, |a, b, c| self.boolean.chi_laneb(a, b, c))
-    }
-
     pub fn orb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
         Bitvec {
             bits: self.arith.orb(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn or_assuming_at_most_one_true<const N: usize>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-    ) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.or_assuming_at_most_one_true(&a.bits, &b.bits),
         }
     }
 
@@ -429,21 +308,9 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn tree_xorb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.tree_xorb(&a.bits, &b.bits),
-        }
-    }
-
     pub fn eq<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
         Bitvec {
             bits: self.arith.eq(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn ltb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.ltb(&a.bits, &b.bits),
         }
     }
 
@@ -459,12 +326,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn precious<const N: usize>(&self, a: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.precious(&a.bits),
-        }
-    }
-
     pub fn shl<const N: usize>(&self, s: usize, a: &Bitvec<L, N>) -> Bitvec<L, N> {
         Bitvec {
             bits: self.arith.shl(s, &a.bits),
@@ -477,12 +338,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn rotl<const N: usize>(&self, s: usize, a: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.rotl(s, &a.bits),
-        }
-    }
-
     pub fn rotr<const N: usize>(&self, s: usize, a: &Bitvec<L, N>) -> Bitvec<L, N> {
         Bitvec {
             bits: self.arith.rotr(s, &a.bits),
@@ -491,10 +346,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
 
     pub fn as_eltw_field<const N: usize>(&self, bv: &Bitvec<L, N>) -> Eltw<L> {
         self.arith.as_eltw_field(&bv.bits)
-    }
-
-    pub fn as_eltw_unsafe<const N: usize>(&self, bv: &Bitvec<L, N>) -> Eltw<L> {
-        self.arith.as_eltw_unsafe(&bv.bits)
     }
 
     pub fn zero<const N: usize>(&self) -> Bitvec<L, N> {
@@ -629,10 +480,6 @@ impl<'a, L: LogicIO> BitvecIO<'a, L> {
         let bv = self.input(*pos);
         *pos += N;
         bv
-    }
-
-    pub fn position_in_input_array<const N: usize>(&self, bitvec: &Bitvec<L, N>) -> usize {
-        self.bools_io.position_in_input_array(bitvec.bit(0))
     }
 }
 

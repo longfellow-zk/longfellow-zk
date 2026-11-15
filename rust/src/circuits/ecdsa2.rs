@@ -18,12 +18,10 @@ pub use concrete::{derived, given, try_witness, ConcreteDerived, ConcreteGiven, 
 cfg_compiler! {
     mod allocate;
     mod circuit;
-    mod traits;
 
     pub use self::{
         allocate::{allocate_derived_wires, allocate_given_wires},
         circuit::{Derived, EcdsaCircuit, Given, Slicing},
-        traits::EcdsaCompileField,
     };
 }
 

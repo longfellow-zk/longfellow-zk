@@ -117,12 +117,6 @@ impl<L: Logic> BitDecoder<'_, L> {
         let precious_val = self.boolean.logic().precious(&val);
         self.boolean.of_eltw(precious_val)
     }
-
-    pub fn decode_with_assertion(&self, encoded: &Eltw<L>, assertion: L::Assertions) -> Bitw<L> {
-        let val = self.plucker.eval(encoded);
-        let precious_val = self.boolean.logic().precious(&val);
-        self.boolean.of_eltw_with_assertion(precious_val, assertion)
-    }
 }
 
 pub struct BinaryDecoder<'a, L: Logic> {

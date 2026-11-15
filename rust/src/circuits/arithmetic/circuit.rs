@@ -233,16 +233,6 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         (diff, self.boolean.assert_false("no_borrow", &borrow))
     }
 
-    pub fn wrapping_add(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        assert_eq!(a.len(), b.len(), "wrapping_add: slice lengths must match");
-        self.unchecked_add(a, b).0
-    }
-
-    pub fn wrapping_sub(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        assert_eq!(a.len(), b.len(), "wrapping_sub: slice lengths must match");
-        self.unchecked_sub(a, b).0
-    }
-
     pub fn assert_wrapping_add(
         &self,
         c: &[Bitw<L>],
@@ -449,33 +439,14 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         map2(a, b, |x, y| self.boolean.orb(x, y))
     }
 
-    pub fn or_assuming_at_most_one_true(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        assert_eq!(
-            a.len(),
-            b.len(),
-            "or_assuming_at_most_one_true: slice lengths must match"
-        );
-        map2(a, b, |x, y| self.boolean.or_assuming_at_most_one_true(x, y))
-    }
-
     pub fn xorb(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
         assert_eq!(a.len(), b.len(), "xorb: slice lengths must match");
         map2(a, b, |x, y| self.boolean.xorb(x, y))
     }
 
-    pub fn tree_xorb(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        assert_eq!(a.len(), b.len(), "tree_xorb: slice lengths must match");
-        map2(a, b, |x, y| self.boolean.tree_xorb(x, y))
-    }
-
     pub fn eq(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
         assert_eq!(a.len(), b.len(), "eq: slice lengths must match");
         map2(a, b, |x, y| self.boolean.eqb(x, y))
-    }
-
-    pub fn ltb(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        assert_eq!(a.len(), b.len(), "ltb: slice lengths must match");
-        map2(a, b, |x, y| self.boolean.ltb(x, y))
     }
 
     pub fn notb(&self, a: &[Bitw<L>]) -> Vec<Bitw<L>> {
@@ -485,10 +456,6 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
     pub fn impliesb(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Vec<Bitw<L>> {
         assert_eq!(a.len(), b.len(), "impliesb: slice lengths must match");
         map2(a, b, |x, y| self.boolean.impliesb(x, y))
-    }
-
-    pub fn precious(&self, a: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        map(a, |x| self.boolean.precious(x))
     }
 
     // Shifts
@@ -522,17 +489,6 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         init(n, |i| self.boolean.b(&a[(i + s) % n]))
     }
 
-    pub fn rotl(&self, s: usize, a: &[Bitw<L>]) -> Vec<Bitw<L>> {
-        let n = a.len();
-        if n == 0 {
-            return Vec::new();
-        }
-        init(n, |i| {
-            let idx = ((i as isize - s as isize) % n as isize + n as isize) as usize % n;
-            self.boolean.b(&a[idx])
-        })
-    }
-
     pub fn as_eltw_field(&self, a: &[Bitw<L>]) -> Eltw<L> {
         let f = self.logic.field();
         assert!(
@@ -563,10 +519,6 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
             })
             .collect();
         self.logic.sum(&terms)
-    }
-
-    pub fn konst(&self, bools: &[bool]) -> Vec<Bitw<L>> {
-        bools.iter().map(|&b| self.boolean.konst(b)).collect()
     }
 
     pub fn zero(&self, n: usize) -> Vec<Bitw<L>> {
