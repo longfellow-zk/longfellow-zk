@@ -126,33 +126,21 @@ impl<const Q: usize> P256Plan<Q> {
             .iter()
             .all(|q| pow(f, x, u128::MAX / q) != f.one()));
         let g = pow(f, x, u128::MAX - (1u128 << 64));
-        // Owned 16-byte-position fixed-base table, about 64 KiB. Build one
-        // invocation-owned table for the adapter conversion in this proof
-        // operation; both conversion challenges reuse it. One construction
-        // per prove/verify operation is intentional.
-        let mut base = g;
-        let tables: Vec<Vec<Gf2_128>> = (0..16)
-            .map(|_| {
-                let mut value = f.one();
-                let table = (0..256)
-                    .map(|_| {
-                        let out = value;
-                        f.mul(&mut value, &base);
-                        out
-                    })
-                    .collect();
-                for _ in 0..8 {
-                    base = f.mulf(&base, &base);
-                }
-                table
-            })
-            .collect();
+        // Fixed-base table of g^(2^i) for each bit i of a reduced exponent:
+        // 127 squarings and 2 KiB on the stack, shared by every exponent of
+        // both conversion challenges in this proof operation.
+        let mut powers = [g; 128];
+        for i in 1..128 {
+            powers[i] = f.mulf(&powers[i - 1], &powers[i - 1]);
+        }
         let exponent = |word: Int256| {
-            let e = integer::reduce_exponent(word);
-            (0..16).fold(f.one(), |mut out, i| {
-                f.mul(&mut out, &tables[i][((e >> (8 * i)) & 255) as usize]);
-                out
-            })
+            let mut e = integer::reduce_exponent(word);
+            let mut out = f.one();
+            while e != 0 {
+                f.mul(&mut out, &powers[e.trailing_zeros() as usize]);
+                e &= e - 1;
+            }
+            out
         };
         let targets = alpha
             .each_ref()
