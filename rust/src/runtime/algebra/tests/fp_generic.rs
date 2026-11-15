@@ -271,6 +271,20 @@ fn test_rejects_undersized_accumulator() {
     ]);
 }
 
+/// The smallest word width that needs more than 16 limbs on this target:
+/// 17 words with 64-bit limbs, 9 with 32-bit limbs.
+const TOO_WIDE: usize = 16 / LIMBS_PER_U64 + 1;
+
+#[test]
+#[should_panic(expected = "field limb count exceeds the multiplication buffers")]
+fn test_rejects_more_than_sixteen_limbs() {
+    let _ = FpGenericField::<
+        TOO_WIDE,
+        { TOO_WIDE * LIMBS_PER_U64 },
+        { 2 * TOO_WIDE * LIMBS_PER_U64 + 1 },
+    >::new_generic([u64::MAX; TOO_WIDE]);
+}
+
 #[test]
 #[should_panic(expected = "Montgomery modulus must be odd and greater than one")]
 fn test_rejects_invalid_montgomery_modulus() {

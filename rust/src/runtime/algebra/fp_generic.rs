@@ -150,7 +150,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     /// # Panics
     ///
     /// Panics if the word, limb, accumulator, or modulus representation is
-    /// incompatible with this implementation.
+    /// incompatible with this implementation, or if the field needs more than
+    /// 16 limbs.
     #[must_use]
     pub fn new_generic(modulo_words: [u64; W]) -> Self {
         assert!(W > 0, "field width must contain at least one word");
@@ -159,6 +160,14 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
             W.checked_mul(LIMBS_PER_U64)
                 .expect("field limb count overflow"),
             "field limb count must match its serialized word width"
+        );
+        // Montgomery multiplication uses a fixed buffer for at most 16 limbs:
+        // 16 words (1024 bits) with 64-bit limbs, but 8 words (512 bits) with
+        // 32-bit limbs. Checking here makes a field too wide for the target
+        // fail when it is built, not at its first product.
+        assert!(
+            L <= 16,
+            "field limb count exceeds the multiplication buffers"
         );
         assert!(
             ACCUM_L
@@ -570,7 +579,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         // Ideally this array would be sized as [0 as Limb; ACCUM_L + L + 1], which is the exact
         // maximum number of limbs needed during Montgomery reduction steps. However, stable Rust
         // forbids const arithmetic involving generic parameters in array type definitions.
-        // We hardcode 64 as an upper bound covering all 32-bit and 64-bit targets up to W = 8.
+        // We hardcode 64, which `new_generic` checks covers ACCUM_L + L + 1 for every
+        // field it accepts (L <= 16 limbs).
         assert!(
             ACCUM_L + L < 64,
             "Scratch array size 64 is too small for ACCUM_L + L + 1 = {}",
@@ -613,7 +623,8 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     SupportsSampling for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
     fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
-        // Large enough for every supported modulus (W <= 16 words).
+        // Large enough for every modulus `new_generic` accepts: L <= 16 limbs is
+        // at most 16 words with 64-bit limbs and 8 with 32-bit limbs.
         let mut buf = [0u8; 128];
         let raw = &mut buf[..W * 8];
         loop {
