@@ -117,7 +117,7 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
         fn write(&self, _: &mut Vec<u8>) {}
     }
     impl super::super::composed::sealed::Read for Empty {
-        fn read(_: &mut &[u8]) -> Result<Self, String> {
+        fn read(_: &mut &[u8], _: super::super::composed::sealed::Token) -> Result<Self, String> {
             Ok(Self)
         }
     }

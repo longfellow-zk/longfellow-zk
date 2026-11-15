@@ -25,17 +25,39 @@ use crate::{
 };
 
 /// The adapter's message in a composed proof, with its canonical encoding
-/// of exactly `BYTES` bytes. Its reader is sealed: only the crate's
-/// complete readers parse it, after the whole proof's length check (proto
-/// I2), and no type outside the crate implements it.
+/// of exactly `BYTES` bytes. Its reader is sealed: no type outside the crate
+/// implements it, and only the crate's complete readers call it, after the
+/// whole proof's length check (proto I2). The reader takes a `Token` that
+/// only this module constructs, so code outside the crate cannot call it,
+/// even through an `AdapterMessage` bound:
+///
+/// ```compile_fail,E0061
+/// use longfellow_zk::runtime::v2::proto::composed::AdapterMessage;
+/// fn parse<M: AdapterMessage>(b: &mut &[u8]) -> Result<M, String> {
+///     M::read(b)
+/// }
+/// ```
+///
+/// ```compile_fail,E0603
+/// use longfellow_zk::runtime::v2::proto::composed::{sealed::Token, AdapterMessage};
+/// fn parse<M: AdapterMessage>(b: &mut &[u8], token: Token) -> Result<M, String> {
+///     M::read(b, token)
+/// }
+/// ```
 pub trait AdapterMessage: sealed::Read {
     const BYTES: usize;
     fn write(&self, out: &mut Vec<u8>);
 }
 pub(crate) mod sealed {
+    /// The proof of a call from this module: code outside it cannot
+    /// construct one, so it cannot call `Read::read`.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub struct Token(pub(super) ());
     /// The adapter message's reader: exactly `AdapterMessage::BYTES` bytes.
+    /// It exists only in role builds, which read proofs.
     pub trait Read: Sized {
-        fn read(b: &mut &[u8]) -> Result<Self, String>;
+        #[cfg(any(test, feature = "prover", feature = "verifier"))]
+        fn read(b: &mut &[u8], token: Token) -> Result<Self, String>;
     }
 }
 
@@ -243,7 +265,7 @@ impl<
         );
         let split = SumcheckProof::read(b, g.split.sumcheck(), s).map_err(|e| e.to_string())?;
         let mu = super::read_field(b, s).map_err(|e| e.to_string())?;
-        let message = M::read(b)?;
+        let message = M::read(b, sealed::Token(()))?;
         let host = CircuitProof::read(b, &g.host, h).map_err(|e| e.to_string())?;
         let [gh, gs] = &g.polygero();
         let polygero = JointPolygeroProof::read::<std::io::Error>(

@@ -75,12 +75,16 @@ adapter message) is crate-private, is compiled only in role builds and
 tests, and is called only by the complete readers, which pass it
 sub-geometries read through `g.part()`. The adapter message reader is the
 supertrait `proto::composed::sealed::Read` of `AdapterMessage`, in a
-crate-private module, so outside the crate it can be neither called nor
-implemented. `Bound::project` is never needed for parsing.
+crate-private module, so outside the crate it cannot be implemented. Generic
+code outside the crate still sees the inherited method through an
+`AdapterMessage` bound, so the reader also takes a `sealed::Token`, which
+only `proto::composed` constructs: outside the crate it cannot be called.
+`Bound::project` is never needed for parsing.
 *Enforced by:* no public read function takes a plain geometry (type);
-visibility of the component readers and the sealed adapter reader (type;
-compile_fail doctests); a test that the absorbed geometry equals the parsing
-geometry (transcript I3).
+visibility of the component readers, the sealed adapter reader and its
+token (type; compile_fail doctests, including a call through an
+`AdapterMessage` bound); a test that the absorbed geometry equals the
+parsing geometry (transcript I3).
 
 **I3. Lengths come from the geometry, checked before decoding.** Every field's
 length is a function of the geometry, except the Merkle frontier. The body
@@ -433,7 +437,10 @@ pub trait AdapterMessage: sealed::Read {
     fn write(&self, out: &mut Vec<u8>);
 }
 pub(crate) mod sealed {
-    pub trait Read: Sized { fn read(b: &mut &[u8]) -> Result<Self, String>; }
+    pub struct Token(/* constructed only in proto::composed */);  // role builds
+    pub trait Read: Sized {                          // read: role builds only
+        fn read(b: &mut &[u8], token: Token) -> Result<Self, String>;
+    }
 }
 
 // standalone complete proof
@@ -513,7 +520,7 @@ through the same views (transcript I9).
 | Mistake | What stops it |
 |---|---|
 | Parsing against a geometry other than the absorbed one | I2: public readers take `Bound` |
-| Parsing one component against an arbitrary geometry | I2: component readers are crate-private, and the adapter message reader is sealed |
+| Parsing one component against an arbitrary geometry | I2: component readers are crate-private, and the adapter message reader is sealed and needs a crate-private token |
 | A truncated or extended proof read partway, or a huge allocation from a hostile count | I3: one total-length check first; the one count on the wire, the frontier count, is capped by the geometry |
 | Wire order differing from absorb order | I4: struct order is send order; role-trace test |
 | A field absorbed but not on the wire, or on the wire but not absorbed nor terminal | I4: classification table; role-trace test |

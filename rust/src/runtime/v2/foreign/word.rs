@@ -97,6 +97,7 @@ impl<const N: usize> MaskedWord<N> {
     }
     /// Reject truncated input and any nonzero padding bit. A component
     /// reader, called only through the composed body's reader (proto I2).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String> {
         let () = Word::<N>::WIDTH_OK;
         let (head, tail) = bytes
@@ -128,7 +129,8 @@ impl<const N: usize> AdapterMessage for [MaskedWord<N>; 2] {
     }
 }
 impl<const N: usize> sealed::Read for [MaskedWord<N>; 2] {
-    fn read(b: &mut &[u8]) -> Result<Self, String> {
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    fn read(b: &mut &[u8], _: sealed::Token) -> Result<Self, String> {
         Ok([MaskedWord::read(b)?, MaskedWord::read(b)?])
     }
 }
