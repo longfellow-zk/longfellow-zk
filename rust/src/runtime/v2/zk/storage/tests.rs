@@ -101,13 +101,11 @@ fn storage_runs_are_maximal_and_canonical() {
 }
 
 #[test]
-fn groups_reject_ends_that_overflow_or_precede_the_start() {
+fn groups_reject_ends_that_overflow() {
     use super::Group;
     // A group whose end wraps would pass a naive `end <= suffix.end` check.
     assert!(Group::new(usize::MAX - 2, 4).is_err());
-    assert!(Group::from_bounds(5, 4).is_err());
     assert_eq!(Group::new(usize::MAX - 4, 4).unwrap().end(), usize::MAX);
-    assert_eq!(Group::from_bounds(3, 7).unwrap(), Group::new(3, 4).unwrap());
     // A valid group outside the suffix is still rejected by the witness.
     let mut suffix = ReservedSuffix::new(100);
     suffix.group(8).unwrap();

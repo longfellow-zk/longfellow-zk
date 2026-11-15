@@ -31,13 +31,6 @@ impl Group {
         start.checked_add(width).ok_or("bit group end overflows")?;
         Ok(Self { start, width })
     }
-    /// The bits `start..end`; rejects `end < start`.
-    pub fn from_bounds(start: usize, end: usize) -> Result<Self, String> {
-        let width = end
-            .checked_sub(start)
-            .ok_or("bit group ends before it starts")?;
-        Ok(Self { start, width })
-    }
     pub fn start(&self) -> usize {
         self.start
     }
