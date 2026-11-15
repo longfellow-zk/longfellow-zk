@@ -42,8 +42,9 @@ pub(super) struct Instance {
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl Instance {
-    /// Check the archive's metadata against the request's spec and verify
-    /// both payload identities.
+    /// Check the archive's metadata against the request's spec, verify both
+    /// payload identities, and check both circuits' public-input counts
+    /// against the request.
     pub(super) fn load(
         request: &Request<'_>,
         compressed: &[u8],
@@ -51,6 +52,13 @@ impl Instance {
         gf2: &Gf2_128Field,
     ) -> Result<Self, String> {
         let (signature, hash) = load(compressed, p256, gf2, Some(request.spec()))?;
+        // A is `spec.num_attributes`, which `Request::check` made equal to
+        // the number of requested attributes.
+        if Some(hash.raw.npublic_input) != hash_public_inputs(request.spec().num_attributes)
+            || signature.raw.npublic_input != SIGNATURE_PUBLIC_INPUTS
+        {
+            return Err("Circuit public-input counts do not match the request".into());
+        }
         Ok(Self { signature, hash })
     }
     pub(super) fn signature(&self) -> &Circuit<P256Field> {
@@ -60,6 +68,20 @@ impl Instance {
         &self.hash
     }
 }
+
+/// The hash circuit's public-input count for A attributes, `901 + 788 * A`
+/// (DESIGN.md I3): the time (112), each attribute (788), then the
+/// document-type flag, the document type and the namespace (789). None if it
+/// overflows.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+fn hash_public_inputs(attributes: usize) -> Option<usize> {
+    attributes.checked_mul(788)?.checked_add(901)
+}
+
+/// The signature circuit's public-input count (DESIGN.md I3): the issuer key
+/// and the 256 bits of `e2`.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+const SIGNATURE_PUBLIC_INPUTS: usize = 258;
 
 fn load(
     compressed: &[u8],

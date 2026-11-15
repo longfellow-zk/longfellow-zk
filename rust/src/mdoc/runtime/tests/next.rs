@@ -1160,6 +1160,31 @@ fn run_next_error_table(test_circuits: &TestCircuits) {
         verify(&other_hash, provided.compressed(), &proof),
         Err(MdocVerifierErrorCode::CircuitParsingFailure)
     );
+    // A spec naming a well-formed archive whose hash circuit is compiled for
+    // another attribute count: its public-input count is not the request's
+    // `901 + 788 * A` (DESIGN.md I3).
+    let entries = |p: &provider::ProvidedCircuit| {
+        CircuitArchive::from_bytes(&zstd::decode_all(p.compressed()).unwrap()).unwrap()
+    };
+    let own = entries(provided);
+    let other = entries(test_circuits.get(req_attrs.len() % 4 + 1).unwrap());
+    let (sig, hash) = (own.get("sig").unwrap(), other.get("hash").unwrap());
+    let mut builder = CircuitArchive::builder();
+    builder.set_circuit_version(NEXT_VERSION as u32);
+    builder.add_entry("sig", sig.circuit_id, sig.payload.clone());
+    builder.add_entry("hash", hash.circuit_id, hash.payload.clone());
+    let archive = builder.build();
+    let mut mismatched_spec = *provided.spec();
+    mismatched_spec.combined_hash = archive.combined_id;
+    let mismatched = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
+    assert_eq!(
+        prove(&mismatched_spec, &mismatched),
+        Err(MdocProverErrorCode::CircuitParsingFailure)
+    );
+    assert_eq!(
+        verify(&mismatched_spec, &mismatched, &proof),
+        Err(MdocVerifierErrorCode::CircuitParsingFailure)
+    );
 
     // Proof does not parse (verifier only).
     for bad in [&[][..], &proof[..proof.len() - 1], &proof[..4]] {

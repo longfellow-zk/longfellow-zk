@@ -26,20 +26,25 @@ use crate::{
     },
     mdoc::{
         proto::NEXT_VERSION,
-        v2::{circuits::*, req_attr, request::Request},
+        v2::{circuits::*, inputs::PublicInputs, req_attr, request::Request},
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
-fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
+/// The signature and hash public-input counts of DESIGN.md I3 for the
+/// one-attribute requests of these tests: 258 and 901 + 788.
+const PUBLIC_INPUTS: [usize; 2] = [258, 1689];
+
+/// A one-layer circuit whose inputs are all `npublic` public inputs.
+fn tiny<F: SerializableField + AlgebraicField>(f: &F, npublic: usize) -> Circuit<F> {
     let raw = RawCircuitBuilder {
-        ninput: 1,
-        npublic_input: 1,
+        ninput: npublic,
+        npublic_input: npublic,
         noutput: 1,
         logv: 0,
         constants: vec![f.one()],
         layers: vec![Layer::with_assertions(
-            1,
+            npublic,
             Stream::<Quadratic>::from_terms([Quadratic {
                 g: 0,
                 l: 0,
@@ -55,8 +60,12 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F) -> Circuit<F> {
     Circuit::from_raw(f, raw)
 }
 fn fixture(p: &P256Field, f: &Gf2_128Field) -> CircuitArchive {
-    let sig = tiny(p);
-    let hash = tiny(f);
+    fixture_with(p, f, PUBLIC_INPUTS)
+}
+/// An archive whose circuits have `[signature, hash]` public inputs.
+fn fixture_with(p: &P256Field, f: &Gf2_128Field, public: [usize; 2]) -> CircuitArchive {
+    let sig = tiny(p, public[0]);
+    let hash = tiny(f, public[1]);
     let mut builder = CircuitArchiveBuilder::new();
     builder.set_circuit_version(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.id, CircuitWriter::new(p).to_bytes(&sig));
@@ -159,8 +168,8 @@ fn instance_load_binds_archive_and_entry_identifiers() {
         "archive accepted under a different spec combined hash"
     );
     // Valid payloads whose directory entry names a different circuit ID.
-    let sig = tiny(&p);
-    let hash = tiny(&f);
+    let sig = tiny(&p, PUBLIC_INPUTS[0]);
+    let hash = tiny(&f, PUBLIC_INPUTS[1]);
     let mut wrong = sig.id;
     wrong[0] ^= 1;
     let mut builder = CircuitArchiveBuilder::new();
@@ -178,4 +187,71 @@ fn instance_load_binds_archive_and_entry_identifiers() {
         .is_err(),
         "payload accepted under a different archive entry ID"
     );
+}
+
+/// The loader requires DESIGN.md I3's public-input counts, `901 + 788 * A`
+/// for the hash circuit and 258 for the signature circuit, and those are the
+/// lengths both roles derive from the request.
+#[test]
+fn instance_load_checks_public_input_counts() {
+    let p = P256Field::new();
+    let f = Gf2_128Field::new();
+    let spec_for = |combined_hash| super::ZkSpecStruct {
+        combined_hash,
+        num_attributes: 1,
+        version: NEXT_VERSION,
+        polygero: super::super::zk_spec::PolygeroParameters {
+            k: 349,
+            n: 2443,
+            s: 12,
+            t: 84,
+        },
+    };
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let spec = spec_for([0; 32]);
+    let request = Request::check(
+        &spec,
+        "1",
+        "2",
+        b"\x66inputs",
+        &attrs,
+        "2026-10-23T00:00:00Z",
+        "doc",
+        &p,
+    )
+    .unwrap();
+    let public = PublicInputs::derive(&request, &p);
+    assert_eq!(
+        [public.signature().len(), public.hash().len()],
+        PUBLIC_INPUTS
+    );
+    assert_eq!(super::hash_public_inputs(1), Some(PUBLIC_INPUTS[1]));
+    assert_eq!(super::hash_public_inputs(4), Some(4053));
+    assert_eq!(super::hash_public_inputs(usize::MAX), None);
+
+    // The honest instance loads.
+    let honest = fixture(&p, &f);
+    assert!(load_for(&spec_for(honest.combined_id), &compressed(&honest), &p, &f).is_ok());
+    // Each self-consistent archive the spec names, but with a wrong count, is
+    // rejected; 2477 is the hash count for two attributes.
+    for counts in [
+        [258, 1688],
+        [258, 1690],
+        [258, 2477],
+        [257, 1689],
+        [259, 1689],
+        [1689, 258],
+    ] {
+        let archive = fixture_with(&p, &f, counts);
+        assert!(
+            load_for(
+                &spec_for(archive.combined_id),
+                &compressed(&archive),
+                &p,
+                &f
+            )
+            .is_err(),
+            "loaded circuits with {counts:?} public inputs"
+        );
+    }
 }
