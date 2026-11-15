@@ -224,7 +224,9 @@ impl<E> SplitClaim<E> {
     }
 }
 
-/// A split participant's reduction, before its split challenge.
+/// A split participant's reduction, before its split challenge. Only the
+/// prover holds one: it carries the private values and R.
+#[cfg(any(test, feature = "prover"))]
 pub struct PendingSplit<E> {
     pub claim: SplitClaim<E>,
     pub(crate) values: Vec<E>,
@@ -311,6 +313,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         Ok(f.addf(&f.mulf(eta, &sum), mask))
     }
     /// Values of the foreign claim's terms, in term order, ending with R.
+    #[cfg(any(test, feature = "prover"))]
     pub fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Result<Vec<F::E>, String> {
         let split = self.split()?;
         let mut out: Vec<_> = split
