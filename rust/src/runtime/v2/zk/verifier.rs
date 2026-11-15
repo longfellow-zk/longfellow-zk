@@ -150,6 +150,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         })
     }
     /// Verify `proof` against the statement `session` opened with.
+    #[doc = include_str!("verifier_compile_fail.md")]
     pub fn verify<D: EvaluationDomain<W, F>>(
         &self,
         session: Opened<'_, ZkProofStatement<'_, W, F>>,

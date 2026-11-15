@@ -37,6 +37,7 @@ use crate::{
     },
 };
 
+#[doc = include_str!("verifier_compile_fail.md")]
 #[allow(clippy::too_many_arguments)]
 pub fn run_mdoc_verifier(
     zk_spec: &ZkSpecStruct,

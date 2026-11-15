@@ -19,6 +19,7 @@ where
     /// with and authenticate the joint opening. This is not complete
     /// verification: the caller must check the complete proof's final seal
     /// on the returned transcript, as `run_mdoc_verifier` does.
+    #[doc = include_str!("verifier_compile_fail.md")]
     #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn reduce_and_authenticate(
         session: Opened<'_, Self>,
