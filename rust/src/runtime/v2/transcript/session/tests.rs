@@ -237,6 +237,31 @@ fn a_draw_without_a_message_continues_the_stream() {
     assert_eq!(split.round_count_for_test(), 2);
 }
 
+/// A panic in a draw's closure keeps the stream: the next draw continues
+/// after the bytes the closure read, at the same boundary, as if the
+/// closure had returned.
+#[test]
+fn a_caught_panic_in_a_draw_keeps_the_stream() {
+    for read in [0, 5] {
+        let mut panicked = Transcript::for_test(b"panic");
+        let mut control = Transcript::for_test(b"panic");
+        assert_eq!(panicked.bytes(5), control.bytes(5));
+        let before = panicked.position();
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            panicked.draw::<()>(|r| {
+                r.bytes(read);
+                panic!("draw callback")
+            })
+        }));
+        assert!(caught.is_err());
+        assert!(panicked.position() == before);
+        control.bytes(read);
+        assert_eq!(panicked.bytes(16), control.bytes(16));
+        assert!(panicked.position() == control.position());
+        assert_eq!(panicked.round_count_for_test(), 1);
+    }
+}
+
 #[test]
 fn large_reads_extend_the_same_prf_stream() {
     let mut a = Transcript::for_test(b"large");

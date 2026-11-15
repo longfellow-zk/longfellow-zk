@@ -210,20 +210,22 @@ impl Transcript {
         }
     }
     /// Read challenges from the last boundary's stream, ending the node
-    /// first if a message was sent since (transcript I7).
+    /// first if a message was sent since (transcript I7). The closure reads
+    /// the stream where the session keeps it, so a panic in it loses no
+    /// stream: a caught panic leaves the session after the bytes it read.
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(super) fn draw<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> T {
-        let mut reader = match self.stream.take() {
-            Some(reader) => reader,
-            None => self.open(),
+        if self.stream.is_none() {
+            self.stream = Some(self.open());
+        }
+        let Some(reader) = &mut self.stream else {
+            unreachable!("the stream was just opened")
         };
-        let value = f(&mut Reading {
-            reader: &mut reader,
+        f(&mut Reading {
+            reader,
             #[cfg(test)]
             trace: &mut self.trace,
-        });
-        self.stream = Some(reader);
-        value
+        })
     }
     /// End the node with the ROUND terminator and start a one-parent
     /// continuation. The parent digest stays private; PRF block zero supplies
