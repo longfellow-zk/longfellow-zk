@@ -48,41 +48,12 @@ theorem targets_card_le_sum {fuel : ℕ} (claims : P → Finset D)
   apply card_biUnion_le.trans
   exact sum_le_sum_of_subset (target_points_subset tree H p hp)
 
-def bad {fuel : ℕ} (claims : P → Finset D) (tree : Tree P D Out fuel)
-    (p : P) (H : P → D) (a : D) : Prop :=
-  p ∈ seen tree H ∧ a ∈ targets claims tree H p
-
 /-- A named parent digest equals the answer at a point queried no earlier
 than its child. Outside this event, every genuine parent relation found in
 the query table points strictly backwards. -/
 def Guess {fuel : ℕ} (claims : P → Finset D) (tree : Tree P D Out fuel)
     (H : P → D) : Prop :=
   ∃ p ∈ seen tree H, H p ∈ targets claims tree H p
-
-/-- This bound needs no recoverable full parent and no order hypothesis.
-The parameter `Q` counts distinct raw SHA inputs, including PRF blocks. -/
-theorem guess_ratio_le [Fintype P] [Fintype D] [Nonempty D]
-    {fuel Q arity : ℕ} (claims : P → Finset D) (tree : Tree P D Out fuel)
-    (hbudget : ∀ H, (seen tree H).card ≤ Q)
-    (hclaims : ∀ p, (claims p).card ≤ arity) :
-    ((univ.filter (Guess claims tree)).card : ℚ) /
-      (Fintype.card D : ℚ)^Fintype.card P ≤ (Q*(Q*arity) : ℚ) / Fintype.card D := by
-  classical
-  have hoff : ∀ p H H', AgreeOff p H H' → ∀ a, bad claims tree p H a → bad claims tree p H' a := by
-    intro p H H' h a ha
-    refine ⟨?_,?_⟩
-    · exact List.mem_toFinset.mpr ((mem_queried_iff tree p h).mp
-        (List.mem_toFinset.mp ha.1))
-    · simpa only [targets_off claims tree p H H' h] using ha.2
-  have hlocal : ∀ p H, (univ.filter (bad claims tree p H)).card ≤ Q*arity := by
-    intro p H
-    by_cases hp : p ∈ seen tree H
-    · simpa only [bad,hp,true_and,filter_mem_eq_inter,univ_inter] using
-        targets_card_le claims tree hbudget hclaims H p hp
-    · simp only [bad,hp,false_and,filter_false,card_empty,zero_le]
-  simpa only [Guess,bad,and_self_left,Nat.cast_mul] using
-    queried_bad_ratio_le (β := Q*arity) tree hbudget (bad claims tree) hoff
-      (fun p H => by simpa using hlocal p H)
 
 /-- Exact no-guess consequence, with the temporal relation stated as a
 stopped prefix rather than an assumed parent-preimage decoding operation. -/

@@ -133,23 +133,4 @@ theorem eagerState_comp {fuel extra : ℕ} (program : Tree (Point P K I) D Out f
           | some bytes => simp only [Tree.bind,eagerState,found,ih,bind_weaken]
           | none => simp only [Tree.bind,eagerState,found,ih]
 
-theorem eagerState_weaken {fuel : ℕ} (program : Tree (Point P K I) D Out fuel)
-    (state : Cache P K D I) (H : SamplePoint P K → Sample D I) :
-    (eagerState streamKey program.weaken state).run H = (eagerState streamKey program state).run H := by
-  rw [eagerState_weaken_tree,Tree.run_weaken]
-
-theorem eagerState_weakenAdd {fuel : ℕ} (program : Tree (Point P K I) D Out fuel)
-    (extra : ℕ) (state : Cache P K D I) (H : SamplePoint P K → Sample D I) :
-    (eagerState streamKey (program.weakenAdd extra) state).run H = (eagerState streamKey program state).run H := by
-  rw [eagerState_weakenAdd_tree,Tree.run_weakenAdd]
-
-/-- Composition retains both the exact cut state and the concatenated
-query trace. No replay-history or fresh-answer assumption is supplied. -/
-theorem eagerState_bind {fuel extra : ℕ} (program : Tree (Point P K I) D Out fuel)
-    (replay : Out → Tree (Point P K I) D Result extra)
-    (state : Cache P K D I) (H : SamplePoint P K → Sample D I) :
-    (eagerState streamKey (program.bind replay) state).run H =
-      ((eagerState streamKey program state).bind fun cut => eagerState streamKey (replay cut.1) cut.2).run H := by
-  rw [eagerState_comp]
-
 end TranscriptV2.StrandCoupling

@@ -173,16 +173,6 @@ theorem resolve_sound (table : List Entry) (digest : Digest) (parent : History)
   obtain ⟨entry,he,hparent⟩ := Option.map_eq_some_iff.mp h
   exact ⟨entry,List.mem_of_find?_eq_some he,hparent,of_decide_eq_true (List.find?_some (p := fun e : Entry => decide (e.digest = digest)) he)⟩
 
-/-- An already resolved parent never changes when more query answers are
-recorded. The decoder therefore needs only its current prefix table. -/
-theorem resolve_append (table later : List Entry) (digest : Digest) (parent : History)
-    (h : resolve table digest = some parent) : resolve (table ++ later) digest = some parent := by
-  obtain ⟨entry,hfind,hparent⟩ := Option.map_eq_some_iff.mp h
-  unfold resolve
-  rw [List.find?_append,hfind]
-  change some entry.history = some parent
-  exact congrArg some hparent
-
 /-- Existence of a matching entry suffices when every matching entry names
 the same history. The collision argument establishes that agreement; the
 decoder itself simply uses the first match. -/
@@ -316,14 +306,6 @@ theorem record_sound (table : List Entry) (H : Oracle)
       · exact sound entry hold
       · refine ⟨unfoldNode_consistent table H sound raw history hnode,?_⟩
         exact congrArg H (unfoldNode_erases table raw history hnode)
-
-theorem resolve_record_stable (table : List Entry) (raw : Bytes) (answer digest : Digest)
-    (parent : History) (h : resolve table digest = some parent) :
-    resolve (record table raw answer) digest = some parent := by
-  unfold record
-  split
-  next hnode => exact h
-  next history hnode => exact resolve_append table [⟨history,answer⟩] digest parent h
 
 /-- Every ancestor used by a recovered history is itself a registered node.
 Thus the later collision correction concerns queried inputs only. -/

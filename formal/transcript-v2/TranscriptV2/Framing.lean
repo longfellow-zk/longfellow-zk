@@ -217,49 +217,4 @@ theorem decodeValues_encode_append (schema : List (Kind Index)) (values : Values
       rw [ih values h.2]
       rfl
 
-/-- Fixed-schema encoding is injective on the valid values that the writer
-can emit. No injectivity claim is made across unrelated field schemas. -/
-theorem encodeValues_eq (schema : List (Kind Index)) (first second : Values Field schema)
-    (hf : ValidValues Field schema first) (hs : ValidValues Field schema second)
-    (h : encodeValues Field codecs schema first = encodeValues Field codecs schema second) :
-    first = second := by
-  have hfirst := decodeValues_encode_append Field codecs schema first [] hf
-  have hsecond := decodeValues_encode_append Field codecs schema second [] hs
-  rw [h] at hfirst
-  exact congrArg Prod.fst (Option.some.inj (hfirst.symm.trans hsecond))
-
-def appendValues : (first second : List (Kind Index)) → Values Field first → Values Field second →
-    Values Field (first ++ second)
-  | [], _, _, right => right
-  | _::rest, second, left, right => (left.1,appendValues rest second left.2 right)
-
-theorem encodeValues_append (first second : List (Kind Index))
-    (left : Values Field first) (right : Values Field second) :
-    encodeValues Field codecs (first ++ second) (appendValues Field first second left right) =
-      encodeValues Field codecs first left ++ encodeValues Field codecs second right := by
-  induction first with
-  | nil => rfl
-  | cons kind rest ih =>
-      rcases left with ⟨value,values⟩
-      simp only [List.cons_append,appendValues,encodeValues,ih,List.append_assoc]
-
-theorem validValues_append (first second : List (Kind Index))
-    (left : Values Field first) (right : Values Field second)
-    (hl : ValidValues Field first left) (hr : ValidValues Field second right) :
-    ValidValues Field (first ++ second) (appendValues Field first second left right) := by
-  induction first with
-  | nil => exact hr
-  | cons kind rest ih => exact ⟨hl.1,ih left.2 hl.2⟩
-
-def valuesByteLength : (schema : List (Kind Index)) → Values Field schema → ℕ
-  | [], _ => 0
-  | kind::rest, values => byteLength Field codecs kind values.1 + valuesByteLength rest values.2
-
-theorem encodeValues_length (schema : List (Kind Index)) (values : Values Field schema) :
-    (encodeValues Field codecs schema values).length = valuesByteLength Field codecs schema values := by
-  induction schema with
-  | nil => rfl
-  | cons kind rest ih =>
-      simp only [encodeValues,List.length_append,encode_length,valuesByteLength,ih]
-
 end TranscriptV2.Framing

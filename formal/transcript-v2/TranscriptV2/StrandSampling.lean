@@ -63,13 +63,6 @@ def answerEquiv (decode : Coins → Value) (fiber : ℕ)
     (uniform : ∀ value, Fintype.card {coins // decode coins = value} = fiber) (coins : Coins) :
     (answerEquiv decode fiber uniform coins).1 = decode coins := rfl
 
-/-- Fixing both coordinates recovers every raw byte of the oracle answer. -/
-theorem answer_reconstruct (decode : Coins → Value) (fiber : ℕ)
-    (uniform : ∀ value, Fintype.card {coins // decode coins = value} = fiber) (coins : Coins) :
-    (answerEquiv decode fiber uniform).symm
-      (decode coins,(answerEquiv decode fiber uniform coins).2) = coins :=
-  (answerEquiv decode fiber uniform).symm_apply_apply coins
-
 def oracleEquiv (decode : Coins → Value) (fiber : ℕ)
     (uniform : ∀ value, Fintype.card {coins // decode coins = value} = fiber) :
     (Parent → Coins) ≃ (Parent → Value) × (Parent → Fin fiber) where
@@ -85,18 +78,5 @@ def oracleEquiv (decode : Coins → Value) (fiber : ℕ)
       exact congrArg Prod.fst ((answerEquiv decode fiber uniform).apply_symm_apply (pair.1 p,pair.2 p))
     · funext p
       exact congrArg Prod.snd ((answerEquiv decode fiber uniform).apply_symm_apply (pair.1 p,pair.2 p))
-
-/-- Independent residual oracle coins are derived by an equivalence of
-uniform tables. They are not a strengthened sampler/oracle hypothesis. -/
-theorem oracle_ratio_eq [Fintype Parent] [Fintype Value] (decode : Coins → Value) (fiber : ℕ)
-    (uniform : ∀ value, Fintype.card {coins // decode coins = value} = fiber)
-    (event : (Parent → Value) × (Parent → Fin fiber) → Prop) :
-    ((univ.filter fun H => event (oracleEquiv decode fiber uniform H)).card : ℚ) /
-        Fintype.card (Parent → Coins) =
-      ((univ.filter event).card : ℚ) /
-        Fintype.card ((Parent → Value) × (Parent → Fin fiber)) := by
-  have hc : (univ.filter fun H => event (oracleEquiv decode fiber uniform H)).card =
-      (univ.filter event).card := Finset.card_equiv (oracleEquiv decode fiber uniform) (fun _ => by simp)
-  rw [hc,Fintype.card_congr (oracleEquiv decode fiber uniform)]
 
 end TranscriptV2.StrandSampling

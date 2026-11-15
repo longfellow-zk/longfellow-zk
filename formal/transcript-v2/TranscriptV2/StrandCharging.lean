@@ -109,36 +109,4 @@ theorem disjoint_hash_sum_le {fuel Q : ℕ}
     · simp only [if_neg planted,if_neg receiving,zero_add]
       split_ifs <;> positivity
 
-/-- In the nonvacuous quadratic range, a speculative query's chance of
-being connected by a later node fits within one ordinary query allowance.
-The digest space `M` and field size `q` are separate parameters. -/
-theorem digest_guess_fits {q M Q : ℕ} (positive : 0 < q)
-    (space : q*q ≤ M) (budget : Q ≤ q) :
-    (Q : ℚ)/M ≤ 2/(q : ℚ) := by
-  have hq : (0 : ℚ) < q := by exact_mod_cast positive
-  have hM : (0 : ℚ) < M := by
-    exact_mod_cast Nat.lt_of_lt_of_le (Nat.mul_pos positive positive) space
-  have hQ : (Q : ℚ) ≤ q := by exact_mod_cast budget
-  have hspace : (q : ℚ)*q ≤ M := by exact_mod_cast space
-  apply (div_le_div_iff₀ hM hq).mpr
-  have product := mul_le_mul_of_nonneg_right hQ hq.le
-  nlinarith
-
-/-- Ordinary queries and speculative queries spend the same original
-budget. No separate whole-search guessing penalty is added. -/
-theorem quadratic_partition_bound {q M Q ordinary speculative : ℕ}
-    (positive : 0 < q) (space : q*q ≤ M) (budget : Q ≤ q)
-    (partition : ordinary+speculative ≤ Q) :
-    2*(ordinary : ℚ)/q + (speculative : ℚ)*Q/M ≤ 2*(Q : ℚ)/q := by
-  have hq : (0 : ℚ) < q := by exact_mod_cast positive
-  have hg := mul_le_mul_of_nonneg_left (digest_guess_fits positive space budget)
-    (show (0 : ℚ) ≤ speculative by positivity)
-  have htotal : (ordinary : ℚ)+speculative ≤ Q := by exact_mod_cast partition
-  calc
-    _ ≤ 2*(ordinary : ℚ)/q + (speculative : ℚ)*(2/q) := by
-      simpa only [mul_div_assoc] using
-        (add_le_add (le_rfl : 2*(ordinary : ℚ)/q ≤ 2*(ordinary : ℚ)/q) hg)
-    _ = 2*((ordinary : ℚ)+speculative)/q := by ring
-    _ ≤ _ := div_le_div_of_nonneg_right (mul_le_mul_of_nonneg_left htotal (by norm_num)) hq.le
-
 end TranscriptV2.StrandCharging

@@ -63,23 +63,6 @@ private theorem pair_mean (p c : P) (hne : p ≠ c)
   rw [hw, hm]
   simp only [sum_const, card_univ, nsmul_eq_mul, mul_sum, pow_two, mul_assoc]
 
-omit [Fintype P] [Fintype A] [Nonempty A] in
-/-- Swapping the two names swaps which distinct point was queried first.
-This statement concerns the actual adaptive trace, not protocol chronology. -/
-theorem firstOfTwo_right_iff_swapped {Out : Type} {fuel : ℕ}
-    (tree : Tree P A Out fuel) (H : P → A) (p c : P) (hne : p ≠ c) :
-    firstOfTwo tree H p c = .right ↔ firstOfTwo tree H c p = .left := by
-  induction tree with
-  | done _ => simp [firstOfTwo]
-  | query z next ih =>
-      by_cases hp : z = p
-      · subst z
-        simp [firstOfTwo,hne]
-      · by_cases hc : z = c
-        · subst z
-          simp [firstOfTwo,Ne.symm hne]
-        · simpa only [firstOfTwo,if_neg hp,if_neg hc] using ih (H z)
-
 /-- A high-response family retains its cost per queried parent, instead of
 prematurely replacing the number of parents by the entire query budget. -/
 theorem parent_first_sum_le {Parent Response Out : Type}
@@ -147,41 +130,6 @@ theorem parent_first_sum_le {Parent Response Out : Type}
   exact (mul_le_mul_iff_of_pos_left (by positivity : (0 : ℚ) <
     (Fintype.card A : ℚ)^2)).mp hsum
 
-/-- A response queried first carries a fixed-response two-answer bound.
-The response name already fixes its parent and complete payload. The same
-two-coordinate averaging argument applies with the two query names swapped. -/
-theorem child_first_sum_le {Parent Response Out : Type}
-    [Fintype Parent] [Fintype Response] {fuel : ℕ}
-    (tree : Tree P A Out fuel) (parent : Parent → P) (child : Parent → Response → P)
-    (hne : ∀ p r, parent p ≠ child p r)
-    (weight : Parent → Response → (P → A) → A → A → ℚ)
-    (hoff : ∀ p r H H', (∀ z, z ≠ parent p → z ≠ child p r → H z = H' z) →
-      ∀ a b, weight p r H a b = weight p r H' a b)
-    (hnonneg : ∀ p r H a b, 0 ≤ weight p r H a b)
-    (budget : Parent × Response → ℚ)
-    (hlocal : ∀ p r H, ∑ a, ∑ b, weight p r H a b ≤
-      (Fintype.card A : ℚ)^2 * budget (p,r)) :
-    (∑ H : P → A, ∑ p, ∑ r,
-      if firstOfTwo tree H (parent p) (child p r) = .right then
-        weight p r H (H (parent p)) (H (child p r)) else 0) ≤
-      ∑ H : P → A, ∑ i : Parent × Response,
-        if child i.1 i.2 ∈ seen tree H then budget i else 0 := by
-  have bound := parent_first_sum_le (Parent := Parent × Response) (Response := Unit)
-    tree (fun i => child i.1 i.2) (fun i _ => parent i.1)
-    (fun i _ => (hne i.1 i.2).symm)
-    (fun i _ H b a => weight i.1 i.2 H a b)
-    (fun i _ H H' h b a => hoff i.1 i.2 H H' (fun z hp hc => h z hc hp) a b)
-    (fun i _ H b a => hnonneg i.1 i.2 H a b) budget
-    (by
-      intro i H
-      simp only [Fintype.sum_unique]
-      rw [sum_comm]
-      exact hlocal i.1 i.2 H)
-  have order p r H : (firstOfTwo tree H (child p r) (parent p) = .left) =
-      (firstOfTwo tree H (parent p) (child p r) = .right) :=
-    propext (firstOfTwo_right_iff_swapped tree H _ _ (hne p r)).symm
-  simpa only [Fintype.sum_unique,Fintype.sum_prod_type,order] using bound
-
 /-- Single-answer averaging with an execution-dependent allowance. Only the
 weight must be fixed before its answer is exposed; the local upper bound may
 depend on the complete execution. This retains the number of actual targets
@@ -238,71 +186,6 @@ theorem queried_weight_sum_le {Out : Type} {fuel : ℕ} (tree : Tree P A Out fue
     (∑ H : P → A, ∑ p ∈ seen tree H, weight p H (H p)) ≤
       ∑ H : P → A, ∑ p ∈ seen tree H, budget p :=
   queried_weight_adaptive_sum_le tree weight hoff (fun p _ => budget p) hlocal
-
-/-- Single-answer and both first-pair orders share one query budget.
-The parent-first mass is summed over responses at the parent. A response
-queried first uses its fixed-response budget at the child. No accepted-path
-query-order assumption is needed by this averaging theorem. -/
-theorem shared_all_orders_sum_le {Parent Response Out : Type}
-    [Fintype Parent] [Fintype Response] {fuel Q : ℕ}
-    (tree : Tree P A Out fuel) (hqueries : ∀ H, (seen tree H).card ≤ Q)
-    (parent : Parent → P) (child : Parent → Response → P)
-    (hne : ∀ p r, parent p ≠ child p r)
-    (single : P → (P → A) → A → ℚ)
-    (hsingleOff : ∀ p H H', AgreeOff p H H' → ∀ a, single p H a = single p H' a)
-    (late early : Parent → Response → (P → A) → A → A → ℚ)
-    (hlateOff : ∀ p r H H',
-      (∀ z, z ≠ parent p → z ≠ child p r → H z = H' z) →
-      ∀ a b, late p r H a b = late p r H' a b)
-    (hearlyOff : ∀ p r H H',
-      (∀ z, z ≠ parent p → z ≠ child p r → H z = H' z) →
-      ∀ a b, early p r H a b = early p r H' a b)
-    (hlateNonneg : ∀ p r H a b, 0 ≤ late p r H a b)
-    (hearlyNonneg : ∀ p r H a b, 0 ≤ early p r H a b)
-    (singleBudget : P → ℚ) (lateBudget : Parent → ℚ)
-    (earlyBudget : Parent × Response → ℚ) (epsilon : ℚ) (he : 0 ≤ epsilon)
-    (hsingle : ∀ p H, ∑ a, single p H a ≤ Fintype.card A * singleBudget p)
-    (hlate : ∀ p H, ∑ r, ∑ a, ∑ b, late p r H a b ≤
-      (Fintype.card A : ℚ)^2 * lateBudget p)
-    (hearly : ∀ p r H, ∑ a, ∑ b, early p r H a b ≤
-      (Fintype.card A : ℚ)^2 * earlyBudget (p,r))
-    (hpoint : ∀ z, singleBudget z +
-      (∑ p, if parent p = z then lateBudget p else 0) +
-      (∑ i : Parent × Response, if child i.1 i.2 = z then earlyBudget i else 0) ≤ epsilon) :
-    (∑ H : P → A,
-      ((∑ z ∈ seen tree H, single z H (H z)) +
-        (∑ p, ∑ r, if firstOfTwo tree H (parent p) (child p r) = .left then
-          late p r H (H (parent p)) (H (child p r)) else 0) +
-        ∑ p, ∑ r, if firstOfTwo tree H (parent p) (child p r) = .right then
-          early p r H (H (parent p)) (H (child p r)) else 0)) ≤
-      (Q : ℚ) * epsilon * (Fintype.card A : ℚ)^Fintype.card P := by
-  have hs := queried_weight_sum_le tree single hsingleOff singleBudget hsingle
-  have hl := parent_first_sum_le tree parent child hne late hlateOff hlateNonneg lateBudget hlate
-  have hr := child_first_sum_le tree parent child hne early hearlyOff hearlyNonneg earlyBudget hearly
-  have total (H : P → A) :
-      (∑ z ∈ seen tree H, singleBudget z) +
-      (∑ p, if parent p ∈ seen tree H then lateBudget p else 0) +
-      (∑ i : Parent × Response, if child i.1 i.2 ∈ seen tree H then earlyBudget i else 0) ≤
-        (Q : ℚ)*epsilon := by
-    have parents : (∑ z ∈ seen tree H, ∑ p, if parent p = z then lateBudget p else 0) =
-        ∑ p, if parent p ∈ seen tree H then lateBudget p else 0 := by
-      rw [sum_comm]
-      exact sum_congr rfl (fun p _ => by simp [eq_comm])
-    have children : (∑ z ∈ seen tree H, ∑ i : Parent × Response,
-        if child i.1 i.2 = z then earlyBudget i else 0) =
-        ∑ i : Parent × Response, if child i.1 i.2 ∈ seen tree H then earlyBudget i else 0 := by
-      rw [sum_comm]
-      exact sum_congr rfl (fun i _ => by simp [eq_comm])
-    rw [← parents,← children,← sum_add_distrib,← sum_add_distrib]
-    calc
-      _ ≤ ∑ z ∈ seen tree H, epsilon := sum_le_sum (fun z _ => hpoint z)
-      _ = ((seen tree H).card : ℚ)*epsilon := by simp
-      _ ≤ _ := mul_le_mul_of_nonneg_right (by exact_mod_cast hqueries H) he
-  have bounds := add_le_add (add_le_add hs hl) hr
-  have totals := sum_le_sum (fun H (_ : H ∈ (univ : Finset (P → A))) => total H)
-  simp only [sum_add_distrib] at bounds totals ⊢
-  exact bounds.trans (by simpa only [sum_const,card_univ,Fintype.card_fun,
-    Nat.cast_pow,nsmul_eq_mul,mul_comm] using totals)
 
 /-- Retain the exact queried-role budget when combining local single-answer
 and adjacent-pair proofs. A transcript implementation can reserve other

@@ -45,28 +45,6 @@ def ofEquiv (coins : R ≃ S) (same : ∀ r, real r = simulated (coins r)) :
   bad _ := False
   agrees r _ := same r
 
-/-- Later computation may use the state actually preserved here. If that
-state omits the oracle, this lemma does not license further oracle queries;
-their full run must first be included in the coupled observer view. -/
-def map (coupling : BoundaryCoupling real simulated) (observe : State → View) :
-    BoundaryCoupling (fun r => observe (real r)) (fun s => observe (simulated s)) where
-  coins := coupling.coins
-  bad := coupling.bad
-  agrees r good := congrArg observe (coupling.agrees r good)
-
-def trans {last : U → State} (first : BoundaryCoupling real simulated)
-    (second : BoundaryCoupling simulated last) : BoundaryCoupling real last where
-  coins := first.coins.trans second.coins
-  bad r := first.bad r ∨ second.bad (first.coins r)
-  agrees r good := (first.agrees r (fun h => good (Or.inl h))).trans
-    (second.agrees _ (fun h => good (Or.inr h)))
-
-theorem trans_bad_le [Fintype R] [Fintype S]
-    {last : U → State} (first : BoundaryCoupling real simulated) (second : BoundaryCoupling simulated last) :
-    density (first.trans second).bad ≤ density first.bad + density second.bad := by
-  exact (density_or_le first.bad (fun r => second.bad (first.coins r))).trans_eq
-    (congrArg (fun x => density first.bad+x) (density_equiv first.coins second.bad))
-
 private theorem event_le [Fintype R] [Nonempty R]
     (first second bad : R → Prop) (same : ∀ r, ¬bad r → (first r ↔ second r)) :
     density first ≤ density second + density bad := by
@@ -181,23 +159,6 @@ structure ProgrammingRealization {R S Query Answer Proof Context Output : Type} 
     (implied : Proof → List (Query × Answer)) (finalSeal : Proof → (Query → Answer) → Prop) where
   coupling : BoundaryCoupling (fun r => (real r).observe after) (fun s => (simulated s).observe after)
   valid : ∀ r, ¬coupling.bad r → OracleBoundary.Valid implied finalSeal (simulated (coupling.coins r))
-
-/-- An existing coupling of complete oracle states is sufficient, but is
-stronger than required. Bounded-observer proofs may couple only executed views
-and separately prove consistency on prior and proof-implied coordinates. -/
-def ProgrammingRealization.ofBoundary {R S Query Answer Proof Context Output : Type} {fuel : ℕ}
-    {real : R → OracleBoundary Query Answer Proof Context}
-    {simulated : S → OracleBoundary Query Answer Proof Context}
-    (coupling : BoundaryCoupling real simulated)
-    (after : Context → Proof → Merkle.RandomOracle.Tree Query Answer Output fuel)
-    (implied : Proof → List (Query × Answer)) (finalSeal : Proof → (Query → Answer) → Prop)
-    (valid : ∀ r, OracleBoundary.Valid implied finalSeal (real r)) :
-    ProgrammingRealization real simulated after implied finalSeal where
-  coupling := coupling.map (OracleBoundary.observe after)
-  valid r good := by
-    change OracleBoundary.Valid implied finalSeal (simulated (coupling.coins r))
-    rw [← coupling.agrees r good]
-    exact valid r
 
 /-- Every bounded observer test is controlled by the programming conflict
 event. Its query bounds enter the concrete proof of this event's probability,

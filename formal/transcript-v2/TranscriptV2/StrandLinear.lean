@@ -20,12 +20,6 @@ def replay (messages : ℕ → Bytes) (H : Oracle) : ℕ → History
   | zero => rfl
   | succ n ih => simp only [replay,History.depth,ih]
 
-theorem replay_consistent (messages : ℕ → Bytes) (H : Oracle) (n : ℕ) :
-    (replay messages H n).Consistent H := by
-  induction n with
-  | zero => trivial
-  | succ n ih => exact ⟨ih,rfl⟩
-
 /-- Distinct positions have distinct inputs, with no hash-collision premise. -/
 theorem replay_inputs_ne (messages : ℕ → Bytes) (H : Oracle) (i j : ℕ)
     (firstFits : i < 2^64) (secondFits : j < 2^64) (different : i ≠ j) :

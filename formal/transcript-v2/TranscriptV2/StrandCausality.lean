@@ -18,22 +18,6 @@ noncomputable def linearClaims (raw : Bytes) : Finset Digest :=
   | some input => linearParents input
   | none => ∅
 
-theorem linearParents_card_le (input : Input) : (linearParents input).card ≤ 1 := by
-  cases input with
-  | prf id parent counter => simp [linearParents]
-  | root _ => simp [linearParents]
-  | node id parents message =>
-      cases parents with
-      | nil => simp [linearParents]
-      | cons parent rest =>
-          cases rest <;> simp [linearParents]
-
-theorem linearClaims_card_le (raw : Bytes) : (linearClaims raw).card ≤ 1 := by
-  unfold linearClaims
-  split
-  next input h => exact linearParents_card_le input
-  next h => simp only [card_empty,zero_le]
-
 @[simp] theorem linearClaims_prf (id : Word) (parent : Digest) (counter : Word) :
     linearClaims (Input.prf id parent counter).encode = {parent} := by
   simp only [linearClaims,Input.decode_encode (.prf id parent counter) trivial,linearParents]

@@ -25,14 +25,6 @@ def finalDomain : Bytes := utf8 "longfellow/transcript/v2/final"
 
 def new (context : Bytes) : Absorbing := .root (frame sessionDomain ++ frame context)
 
-def writeBytes (state : Absorbing) (bytes : Bytes) : Absorbing := state.write (frame bytes)
-
-def writeScalar {F : Type} (codec : FieldCodec F) (state : Absorbing) (value : F) :
-    Absorbing := state.write (1 :: codec.encode value)
-
-def writeSlice {F : Type} (codec : FieldCodec F) (state : Absorbing) (values : List F) :
-    Absorbing := state.write (2 :: (encodeLE 8 values.length ++ codec.encodeSlice values))
-
 def roundState (state : Absorbing) (label : Byte) : Absorbing :=
   state.write (frame roundDomain ++ frame [label])
 
@@ -55,25 +47,12 @@ theorem beginSqueeze_run (state : Absorbing) (label : Byte) (id : Word)
   rw [beginSqueeze,Tree.run_map,continueStrand_run _ id nextRound H]
   simp only [Option.map_some,roundState,Absorbing.write_id]
 
-def Reading.read (state : Reading) (count : ℕ) :
-    Tree Bytes Digest (Option (Bytes × Reading)) count :=
-  (Reader.read count state.reader).map fun result =>
-    result.map fun value => (value.1,⟨value.2,state.next⟩)
-
-def Reading.endRound {A : Type} (state : Reading) (value : A) : Absorbing × A := (state.next,value)
-
-theorem Reading.endRound_does_not_absorb {A : Type} (state : Reading) (a b : A) :
-    (state.endRound a).1 = (state.endRound b).1 := rfl
-
 /-! The final node writes a seal frame of the complete body. The frame is a
 parameter, so that a transcript format chooses it; `finalState` and
 `finalNodeInput` are the deployed frame `finalFrame`. -/
 
 /-- The deployed seal frame: the final domain, then the framed body. -/
 def finalFrame (body : Bytes) : Bytes := frame finalDomain ++ frame body
-
-theorem finalFrame_injective : Function.Injective finalFrame := fun _ _ h =>
-  frame_injective (List.append_cancel_left h)
 
 /-- The final node under seal frame `close`. -/
 def sealState (close : Bytes → Bytes) (state : Absorbing) (body : Bytes) : Absorbing :=
@@ -88,25 +67,10 @@ theorem sealNodeInput_id (close : Bytes → Bytes) (input : Input) (state : Abso
   have equal := Input.encode_injective valid (sealState close state body).valid encoded
   simpa only [Absorbing.input_id,sealState,Absorbing.write_id] using congrArg Input.id equal
 
-/-- An injective seal frame makes the final node injective in the body. -/
-theorem sealNodeInput_injective {close : Bytes → Bytes} (injective : Function.Injective close)
-    (state : Absorbing) : Function.Injective (sealNodeInput close state) := by
-  intro a b h
-  simp only [sealNodeInput,sealState,Absorbing.write_input] at h
-  exact injective (List.append_cancel_left h)
-
 def finalState (state : Absorbing) (body : Bytes) : Absorbing :=
   state.write (frame finalDomain ++ frame body)
 
 def finalNodeInput (state : Absorbing) (body : Bytes) : Bytes := (finalState state body).input.encode
-
-/-- The deployed final node is the seal node of `finalFrame`, definitionally. -/
-theorem sealNodeInput_finalFrame : sealNodeInput finalFrame = finalNodeInput := rfl
-
-theorem finalNodeInput_id (input : Input) (state : Absorbing) (body : Bytes)
-    (valid : input.Valid) (encoded : input.encode = finalNodeInput state body) :
-    input.id = state.id :=
-  sealNodeInput_id finalFrame input state body valid encoded
 
 def finalSealInput (state : Absorbing) (body : Bytes) (H : Oracle) : Bytes :=
   (Input.prf state.id (H (finalNodeInput state body)) 0).encode
@@ -128,13 +92,6 @@ theorem finalNodeInput_injective (state : Absorbing) :
   intro a b h
   simp only [finalNodeInput,finalState,Absorbing.write_input] at h
   exact frame_injective (List.append_cancel_left (List.append_cancel_left h))
-
-theorem finalSealInput_ne_node (state : Absorbing) (body : Bytes) (H : Oracle) :
-    finalSealInput state body H ≠ finalNodeInput state body := by
-  unfold finalSealInput finalNodeInput
-  cases hs : finalState state body with
-  | root message => exact Input.prf_ne_root _ _ _ _
-  | node id parent message => exact Input.prf_ne_node _ _ _ _ _ _
 
 /-- This is an encoder-owned operation: the bytes are derived from the
 proof's actual body, not accepted as an independent caller-selected message. -/

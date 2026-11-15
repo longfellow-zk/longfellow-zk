@@ -53,19 +53,6 @@ theorem NamedTrace.name_after {label : S → P → L} {advance : S → P → A �
     label (first.foldl (fun past qa => advance past (erase qa.1) qa.2) state) (erase point) = point :=
   named.append.2.1
 
-theorem rename_trace (label : S → P → L) (advance : S → P → A → S)
-    (erase : L → P) (erases : ∀ state point, erase (label state point) = point)
-    {fuel : ℕ} (program : Tree P A Out fuel) (known : Finset P) (cache : P → A)
-    (state : S) (H : L → A) :
-    NamedTrace label advance erase state ((rename label advance program known cache state).run H).2 := by
-  induction program generalizing known cache state with
-  | done output => trivial
-  | query point next ih =>
-      by_cases old : point ∈ known
-      · simpa only [rename,if_pos old,Tree.run_weaken] using ih (cache point) known cache state
-      · simp only [rename,if_neg old,Tree.run_query,NamedTrace,erases]
-        exact ⟨trivial,ih (H (label state point)) _ _ _⟩
-
 theorem FreshFrom.mono {fuel : ℕ} {tree : Tree L A Out fuel}
     {first second : L → Prop} (fresh : FreshFrom second tree)
     (subset : ∀ p, first p → second p) : FreshFrom first tree := by
@@ -80,14 +67,6 @@ theorem FreshFrom.mono {fuel : ℕ} {tree : Tree L A Out fuel}
 
 theorem FreshFrom.weaken {fuel : ℕ} {tree : Tree L A Out fuel}
     {known : L → Prop} (fresh : FreshFrom known tree) : FreshFrom known tree.weaken := by
-  induction tree generalizing known with
-  | done output => trivial
-  | query point next ih => exact ⟨fresh.1,fun answer => ih answer (fresh.2 answer)⟩
-
-omit [DecidableEq P] in
-theorem FreshFrom.map {Result : Type} {fuel : ℕ} {tree : Tree L A Out fuel}
-    {known : L → Prop} (fresh : FreshFrom known tree) (f : Out → Result) :
-    FreshFrom known (tree.map f) := by
   induction tree generalizing known with
   | done output => trivial
   | query point next ih => exact ⟨fresh.1,fun answer => ih answer (fresh.2 answer)⟩

@@ -84,12 +84,6 @@ def rawBytes : Sum OtherPoint PrfPoint → Bytes
         have impossible := found.symm.trans (decodePrf_encode point.1 point.2)
         contradiction
 
-def rawPointEquiv : Bytes ≃ Sum OtherPoint PrfPoint where
-  toFun := rawPoint
-  invFun := rawBytes
-  left_inv := rawBytes_point
-  right_inv := rawPoint_bytes
-
 /-- Splitting the byte-address space preserves every raw answer and the
 ordered trace, including queries unrelated to transcript nodes. -/
 theorem run_rawPoint {Out : Type} {fuel : ℕ} (program : Tree Bytes Digest Out fuel)
@@ -100,16 +94,6 @@ theorem run_rawPoint {Out : Type} {fuel : ℕ} (program : Tree Bytes Digest Out 
     funext raw
     simp only [Function.comp_apply,rawBytes_point]
   simp only [run_mapQueries,same]
-
-theorem seen_rawPoint [DecidableEq OtherPoint] {Out : Type} {fuel : ℕ} (program : Tree Bytes Digest Out fuel)
-    (SHA : Bytes → Digest) (raw : Bytes) :
-    rawPoint raw ∈ seen (mapQueries rawPoint program) (SHA ∘ rawBytes) ↔ raw ∈ seen program SHA := by
-  simp only [seen,Bcs.TotalOracle.queried,run_rawPoint,List.mem_toFinset,List.mem_map]
-  constructor
-  · rintro ⟨_,⟨qa,member,rfl⟩,equal⟩
-    exact ⟨qa,member,rawPointEquiv.injective equal⟩
-  · rintro ⟨qa,member,equal⟩
-    exact ⟨(rawPoint qa.1,qa.2),⟨qa,member,rfl⟩,congrArg rawPoint equal⟩
 
 /-- No SHA answer is discarded: the complement contains arbitrary raw
 inputs, including every strand node. Other protocol SHA domains remain
@@ -156,12 +140,6 @@ def assembleOracle (oracles : PrfOracle × OtherOracle) (raw : Bytes) : Digest :
 @[simp] theorem split_assemble (oracles : PrfOracle × OtherOracle) :
     splitOracle (assembleOracle oracles) = oracles := by
   simp only [splitOracle,assemble_prf,assemble_other]
-
-def oracleEquiv : (Bytes → Digest) ≃ (PrfOracle × OtherOracle) where
-  toFun := splitOracle
-  invFun := assembleOracle
-  left_inv := assemble_split
-  right_inv := split_assemble
 
 /-- One grouped query returns all counter blocks for that parent. Its
 second coordinate is only used at complement inputs. This answer space makes
@@ -241,20 +219,6 @@ theorem bundle_run_project {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest O
       simp only [bundle,Tree.run_query,ungroupOracle,List.map_cons]
       exact ⟨(ih _).1,congrArg (List.cons (groupPoint raw)) (ih _).2⟩
 
-/-- Grouping does not increase the distinct-query budget, even if the search
-asks counter blocks out of order or repeats a block. -/
-theorem bundle_seen_card_le {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel)
-    (H : GroupPoint → GroupAnswer) :
-    (seen (bundle tree) H).card ≤ (seen tree (ungroupOracle H)).card := by
-  classical
-  have heq : seen (bundle tree) H = (seen tree (ungroupOracle H)).image groupPoint := by
-    unfold seen Bcs.TotalOracle.queried
-    rw [(bundle_run_project tree H).2]
-    ext point
-    simp
-  rw [heq]
-  exact Finset.card_image_le
-
 theorem bundle_run {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel)
     (oracles : PrfOracle × OtherOracle) :
     ((bundle tree).run (groupedOracle oracles)).1 = (tree.run (assembleOracle oracles)).1 ∧
@@ -307,31 +271,6 @@ theorem windowEncode_injective (other : Finset OtherPoint) :
           contradiction
       | inr b =>
           exact congrArg Sum.inr (Subtype.ext (Subtype.ext h))
-
-def windowEquiv (other : Finset OtherPoint) :
-    (WindowPoint other → Digest) ≃
-      PrfOracle × ({raw : OtherPoint // raw ∈ other} → Digest) where
-  toFun H := (fun parent counter => H (.inl (parent,counter)),fun raw => H (.inr raw))
-  invFun pair raw := match raw with
-    | .inl (parent,counter) => pair.1 parent counter
-    | .inr raw => pair.2 raw
-  left_inv H := by funext raw; cases raw with
-    | inl pair => rcases pair with ⟨parent,counter⟩; rfl
-    | inr raw => rfl
-  right_inv pair := rfl
-
-/-- Uniform raw SHA tables on this marginal are exactly uniform independent
-PRF-parent streams and complement tables. No decoding or sampler premise
-is used; projecting those streams to field challenges is separate. -/
-theorem window_ratio_eq (other : Finset OtherPoint)
-    (event : PrfOracle × ({raw : OtherPoint // raw ∈ other} → Digest) → Prop) :
-    ((univ.filter fun H => event (windowEquiv other H)).card : ℚ) /
-        Fintype.card (WindowPoint other → Digest) =
-      ((univ.filter event).card : ℚ) /
-        Fintype.card (PrfOracle × ({raw : OtherPoint // raw ∈ other} → Digest)) := by
-  have hc : (univ.filter fun H => event (windowEquiv other H)).card =
-      (univ.filter event).card := Finset.card_equiv (windowEquiv other) (fun _ => by simp)
-  rw [hc,Fintype.card_congr (windowEquiv other)]
 
 end
 

@@ -52,37 +52,12 @@ theorem unqueriedSeal_density_le [Fintype P] [Fintype D] [Nonempty D] [Decidable
 def Model.point (model : Model P D Out) (out : Out) (H : P → D) : P :=
   model.prf out (H (model.node out))
 
-omit [DecidableEq P] in
-theorem Model.point_off (model : Model P D Out) (out : Out) (H H' : P → D)
-    (h : AgreeOff (model.point out H) H H') :
-    model.point out H = model.point out H' := by
-  unfold Model.point
-  rw [h (model.node out) (model.domains out (H (model.node out)))]
-
 def bad {fuel : ℕ} (model : Model P D Out) (tree : Tree P D Out fuel)
     (p : P) (H : P → D) (answer : D) : Prop :=
   model.point (tree.run H).1 H = p ∧ p ∉ seen tree H ∧ answer = model.provided (tree.run H).1
 
 def Guess {fuel : ℕ} (model : Model P D Out) (tree : Tree P D Out fuel)
     (H : P → D) : Prop := ∃ p, bad model tree p H (H p)
-
-/-- An unqueried stored final seal succeeds with probability at most 2⁻²⁵⁶
-when D is a SHA-256 digest. The selected PRF input may depend on other SHA
-answers and on an adaptively chosen complete body. -/
-theorem guess_ratio_le [Fintype P] [Fintype D] [Nonempty D] [DecidableEq D]
-    {fuel : ℕ} (model : Model P D Out) (tree : Tree P D Out fuel) :
-    ((univ.filter (Guess model tree)).card : ℚ) /
-      (Fintype.card D : ℚ)^Fintype.card P ≤ 1 / (Fintype.card D : ℚ) := by
-  have same : Guess model tree = UnqueriedSeal model.point model.provided tree := by
-    funext H
-    apply propext
-    constructor
-    · rintro ⟨point,address,missing,answer⟩
-      exact ⟨address ▸ missing,address ▸ answer⟩
-    · rintro ⟨missing,answer⟩
-      exact ⟨_,rfl,missing,answer⟩
-  rw [same]
-  exact unqueriedSeal_ratio_le model.point model.provided model.point_off tree
 
 theorem required_query {fuel : ℕ} (model : Model P D Out) (tree : Tree P D Out fuel)
     (H : P → D) (h : ¬Guess model tree H)
@@ -110,14 +85,6 @@ theorem required_before_replay {Proof : Type} {fuel extra : ℕ}
   simp only [Tree.run_bind] at fresh ⊢
   exact obtained.resolve_right fresh
 
-/-- The exact partition into non-PRF inputs and digest/counter inputs.
-The output retains the final node chosen by replay and the received seal. -/
-def splitModel {I : Type} (counter : I) : Model (Sum P (D × I)) D (P × D) where
-  node out := .inl out.1
-  prf _ digest := .inr (digest,counter)
-  provided out := out.2
-  domains _ _ := Sum.inl_ne_inr
-
 open Framing Strand
 
 abbrev Output := Absorbing × Bytes × Digest
@@ -135,29 +102,5 @@ def rawModel : Model Bytes Digest Output where
 
 @[simp] theorem raw_point (state : Absorbing) (body : Bytes) (provided : Digest) (H : Oracle) :
     rawModel.point (state,body,provided) H = StrandTranscript.finalSealInput state body H := rfl
-
-def rawReplay (out : Output) : Tree Bytes Digest Digest 2 :=
-  StrandTranscript.finalSeal out.1 out.2.1
-
-/-- The final-node query is charged back to the original search rather than
-paid for by the verifier's seal recomputation. Here the search output includes
-its final transcript state; connecting that state to full protocol replay is
-an additional end-to-end obligation. -/
-theorem final_node_in_search {fuel : ℕ} (tree : Tree Bytes Digest Output fuel)
-    (H : Oracle) (hseal : ¬Guess rawModel tree H)
-    (hchain : ¬DigestCharging.Guess linearClaims (tree.bind rawReplay) H)
-    (valid : H (rawModel.point (tree.run H).1 H) = rawModel.provided (tree.run H).1) :
-    rawModel.node (tree.run H).1 ∈ seen tree H := by
-  have hprf := required_query rawModel tree H hseal valid
-  have hnode : rawModel.node (tree.run H).1 ∈ seen (tree.bind rawReplay) H := by
-    simp only [seen,queried,Tree.run_bind,List.map_append,List.toFinset_append,
-      mem_union,rawReplay,StrandTranscript.finalSeal_run,List.map_cons,List.map_nil]
-    exact Or.inr (by simp only [List.mem_toFinset,List.mem_cons,List.not_mem_nil,or_false]; exact Or.inl rfl)
-  apply DigestCharging.parent_in_search linearClaims tree rawReplay H hchain
-    (rawModel.node (tree.run H).1) (rawModel.point (tree.run H).1 H) hnode hprf
-  change H (rawModel.node (tree.run H).1) ∈
-    linearClaims (Input.prf (tree.run H).1.1.id (H (rawModel.node (tree.run H).1)) 0).encode
-  rw [linearClaims_prf]
-  exact mem_singleton_self _
 
 end TranscriptV2.StrandSealCharging

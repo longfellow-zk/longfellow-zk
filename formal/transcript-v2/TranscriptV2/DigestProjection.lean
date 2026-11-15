@@ -175,23 +175,6 @@ theorem receiving_sum_le [Fintype P] [Fintype D] [Nonempty D]
   exact queried_weight_adaptive_sum_le tree weight off
     (fun p _ => if auxiliary p then (Q*arity : ℚ)/Fintype.card D else 0) localMean
 
-theorem guess_ratio_le [Fintype P] [Fintype D] [Nonempty D] [Fintype C] [Nonempty C]
-    [DecidableEq C] {fuel Q arity : ℕ} (claims : P → Finset D)
-    (tree : Tree P (D × C) Out fuel) (budget : ∀ H, (seen tree H).card ≤ Q)
-    (arityBound : ∀ p, (claims p).card ≤ arity) :
-    ((univ.filter (Guess claims tree)).card : ℚ) /
-        (Fintype.card (D × C) : ℚ)^Fintype.card P ≤ (Q*(Q*arity) : ℚ) / Fintype.card D := by
-  have h := queried_bad_ratio_le (β := Q*arity*Fintype.card C) tree budget
-    (bad claims tree) (bad_off claims tree)
-    (fun p H => by simpa using bad_card_le claims tree budget arityBound p H)
-  have hC : (Fintype.card C : ℚ) ≠ 0 := by positivity
-  apply (show ((univ.filter (Guess claims tree)).card : ℚ) /
-      (Fintype.card (D × C) : ℚ)^Fintype.card P ≤
-      (Q*(Q*arity*Fintype.card C) : ℚ) / Fintype.card (D × C) from by
-    simpa only [Guess,bad,and_self_left,Nat.cast_mul] using h).trans_eq
-  simp only [Fintype.card_prod,Nat.cast_mul]
-  field_simp
-
 theorem parent_before_child {fuel : ℕ} (claims : P → Finset D)
     (tree : Tree P (D × C) Out fuel) (H : P → D × C) (h : ¬Guess claims tree H)
     (parent child : P) (hp : parent ∈ seen tree H) (hc : child ∈ seen tree H)
@@ -216,16 +199,6 @@ theorem parent_in_search {B : Type} {fuel extra : ℕ} (claims : P → Finset D)
   have hb := parent_before_child claims (tree.bind replay) H h parent child hp hc' hd
   rw [DigestCharging.before_bind_of_mem tree replay H child hc] at hb
   exact List.mem_toFinset.mpr (before_subset tree H child hb)
-
-theorem path_in_search {B : Type} {fuel extra rounds : ℕ} (claims : P → Finset D)
-    (tree : Tree P (D × C) Out fuel) (replay : Out → Tree P (D × C) B extra)
-    (H : P → D × C) (h : ¬Guess claims (tree.bind replay) H) (path : Fin (rounds+1) → P)
-    (visible : ∀ i, path i ∈ seen (tree.bind replay) H)
-    (step : ∀ i : Fin rounds, (H (path ⟨i.val,by omega⟩)).1 ∈ claims (path i.succ))
-    (terminal : path ⟨rounds,by omega⟩ ∈ seen tree H) : ∀ i, path i ∈ seen tree H := by
-  apply DigestCharging.backward_path path (fun p => p ∈ seen tree H) _ terminal
-  intro i hc
-  exact parent_in_search claims tree replay H h _ _ (visible _) hc (step i)
 
 namespace Replay
 

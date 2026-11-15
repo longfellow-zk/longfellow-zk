@@ -108,12 +108,6 @@ theorem sum_before_within_card_le [Fintype P] (eligible : P → Prop) {fuel S : 
     _ ≤ ((seen tree H).filter eligible).card*(((seen tree H).filter eligible).card-1) := twice
     _ ≤ S*(S-1) := Nat.mul_le_mul budget (Nat.sub_le_sub_right budget 1)
 
-/-- Counting all query inputs is the unrestricted case. -/
-theorem sum_before_card_le [Fintype P] {fuel S : ℕ} (tree : Tree P A Out fuel)
-    (H : P → A) (budget : (seen tree H).card ≤ S) :
-    (∑ p ∈ seen tree H, (before tree H p).toFinset.card) ≤ S*(S-1)/2 := by
-  simpa using sum_before_within_card_le (fun _ => True) tree H (by simpa using budget)
-
 def Collision (project : A → D) {fuel : ℕ} (tree : Tree P A Out fuel) (H : P → A) : Prop :=
   ∃ p ∈ seen tree H, ∃ q ∈ seen tree H, p ≠ q ∧ project (H p) = project (H q)
 
