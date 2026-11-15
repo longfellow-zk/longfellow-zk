@@ -13,10 +13,9 @@ private masks `m₁,m₂`. `witness_count` gives the augmented backend count; fr
 cell indices stay unchanged. The masks are excluded from `w`, do not reuse any
 packing or sumcheck randomness, and never become circuit inputs.
 
-After the joint commitment, one typed transcript round binds the commitment,
-ordered field identities, public cell layouts, and fingerprint domain. It draws
-two independent uniform vectors per field from the same indexed SHA-256 PRF
-stream. There is no prover message between the vectors or fields. Prime-field rejection
+The transcript statement already fixes every field's layout. The draw that
+follows the joint `Commitment` message ends its node and reads two independent
+uniform vectors per field from that node's SHA-256 PRF stream. There is no prover message between the vectors or fields. Prime-field rejection
 sampling extends that reader. The responses are
 
 ```
@@ -24,7 +23,8 @@ t₁ = m₁ + dot(a₁,w)
 t₂ = m₂ + dot(a₂,w).
 ```
 
-All responses bind before control returns to the frontend. In mdoc this precedes
+Each field then sends its `FingerprintResponse` before control returns to the
+frontend. In mdoc this precedes
 the prime-field sumcheck as well as the binary sumcheck. Responses occupy
 96 bytes across those two fields; masks and coefficients are not serialized.
 

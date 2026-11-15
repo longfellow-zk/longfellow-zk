@@ -1,6 +1,5 @@
 import LfzkV2.Current.MdocRuntime
 import LfzkV2.Current.Protocol.Setup
-import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.Parameters.Rate7
 
@@ -22,15 +21,16 @@ structure Runtime (B : Type) [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMo
   inputFits : 768+prime.remaining+prime.pads < 2^64
   privateFits : binary.nPrivate < 2^64
   fingerprint : MdocRuntime.FormatSetup
-  metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-    (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
-    (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (by change 128 < 2^64; decide)) binary.nPublic
 
 namespace Runtime
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable (S : Runtime B)
 local notation "g" => MdocRuntime.geometry S.binary.description S.prime S.binary.plan S.primePlan
+
+/-- The format's per-boundary metadata, which is empty. -/
+abbrev metadata := MdocRuntime.metadata S.binary.description S.prime S.binary.plan S.primePlan S.scalars
+  S.inputFits S.privateFits (by change 128 < 2^64; decide) S.fingerprint
+  (C := MdocRuntime.Answer S.binary.description S.prime S.binary.plan S.primePlan S.binaryNodes)
 
 abbrev protocol : Protocol.Setup FixedRate.Rate7.certificate g (MdocRuntime.fields B) MdocAdvice.Value B
     (shared := 768) (maskBits := 256) (adviceBits := 10) where

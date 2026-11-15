@@ -15,7 +15,7 @@ use crate::{
         v2::{
             polygero::{Participant, PolygeroLinearTerm},
             proto::witness_selection::{FingerprintResponse, FINGERPRINTS},
-            transcript::{Reading, Writing},
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
@@ -42,19 +42,15 @@ impl<
     fn count(&self) -> usize {
         1 + self.1.count()
     }
-    fn bind_layout(&self, w: &mut Writing<'_>) {
-        transcript::absorb_field_layout(&self.0, w);
-        self.1.bind_layout(w);
-    }
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients {
         (
             transcript::field_coefficients(&self.0, r),
             self.1.coefficients(r),
         )
     }
-    fn absorb_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>) {
-        transcript::absorb_field_responses(&self.0, &responses.0, w);
-        self.1.absorb_responses(&responses.1, w);
+    fn send_responses(&self, responses: &Self::Responses, t: &mut TranscriptRef<'_>) {
+        transcript::send_field_response(&self.0, &responses.0, t);
+        self.1.send_responses(&responses.1, t);
     }
     fn authenticate(
         &self,

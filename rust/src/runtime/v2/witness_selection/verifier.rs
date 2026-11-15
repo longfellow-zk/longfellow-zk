@@ -35,8 +35,8 @@ impl<L: Fields> Verifier<L> {
     ) -> Self {
         let param = t.part();
         let backend = JointPolygeroVerifier::receive(&mut t.project(|p| &p.backend), root);
-        let coefficients = param.challenges(root, &mut t.transcript());
-        param.absorb_responses(&responses, &mut t.transcript());
+        let coefficients = param.challenges(&mut t.transcript());
+        param.send_responses(&responses, &mut t.transcript());
         Self {
             backend,
             session: t.session(),

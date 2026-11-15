@@ -54,18 +54,14 @@ import LfzkV2.Current.Tests.OpeningBody
 import LfzkV2.Current.Tests.BackendBody
 import LfzkV2.Current.Tests.BackendChallenges
 import LfzkV2.Current.Tests.ByteCodecs
-import LfzkV2.Current.Tests.ProofBodyCodec
 import LfzkV2.Current.Tests.MdocAdvice
 import LfzkV2.Current.Tests.ConcreteSetup
-import LfzkV2.Current.Tests.ConcreteMetadata
 import LfzkV2.Current.Tests.MdocIdentifiers
 import LfzkV2.Current.Tests.MdocDefaults
 import LfzkV2.Current.Tests.QueryCodec
-import LfzkV2.Current.Tests.NodeWire
 import LfzkV2.Current.Tests.Format
+import LfzkV2.Current.Tests.TaggedFormat
 import LfzkV2.Current.Tests.Grammar
-import LfzkV2.Current.Tests.QueryRuntime
-import LfzkV2.Current.Tests.WireBlocks
 import LfzkV2.Current.Tests.OpeningSampling
 import LfzkV2.Current.Tests.ReplayCongruence
 import LfzkV2.Current.Tests.Tightness
@@ -93,7 +89,6 @@ import LfzkV2.Current.Tests.ZeroKnowledgeSHAGlobalWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserver
 import LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle
 import LfzkV2.Current.Tests.ZeroKnowledgeOracleWindow
-import LfzkV2.Current.Tests.CanonicalRequestBinding
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkle
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkleOracleWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeMerklePrequery

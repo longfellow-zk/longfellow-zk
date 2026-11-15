@@ -151,17 +151,13 @@ frontends construct their derived rows from the already absorbed transcript;
 challenge-derived coefficients are never absorbed.
 
 `context.rs` derives layouts for both roles. The commitment context contains
-only backend dimensions and the ordered field domains. Joint commit/receive
-absorbs composition metadata internally before the fingerprint round, together
-with the main circuit identity when the packing degree exceeds one. A
-degree-one participant binds only its additional circuit IDs and layer widths
-there; its main circuit ID first enters with the sumcheck statement, after the
-fingerprint responses, so its fingerprint coefficients are not separated by
-circuit ID. Soundness does not rely on that separation: sumcheck binds the ID
-before its own challenges. Participant construction carries this metadata;
-there is no separate frontend absorb call. Circuits
-are trusted immutable metadata: the runtime absorbs their IDs without rehashing
-them. Symbolic pad expressions end at constraint compilation. They are not
+only backend dimensions and the ordered field domains; it is used only in
+Merkle hashing, never absorbed. The transcript statement absorbs, once and
+before any prover message, every circuit (`Circuit`: ID, layer widths and
+counts), every participant's `CommitmentLayout`, the `JointGeometry` and the
+public inputs (`transcript.rs`, `ZkProofStatement`); after it only prover
+messages are absorbed. Circuits are trusted immutable metadata: the runtime
+absorbs their IDs without rehashing them. Symbolic pad expressions end at constraint compilation. They are not
 serialized, and no intermediate dense input-weight vectors are cached.
 
 ## Storage
@@ -186,8 +182,8 @@ map.
   (`batching.rs`).
 
 The [foreign storage layer](../foreign/README.md) discharges modular claims.
-Before the shared root, a split participant binds the same layout as any
-participant, then its circuit ID, its storage map as runs, and R's bit group.
+A split participant's `CommitmentLayout` in the statement carries its storage
+map as runs and R's bit group.
 
 ## Application and encoding
 
@@ -208,9 +204,10 @@ Proof types and canonical codecs live in `runtime::v2::proto`; the application
 envelope is `mdoc::v2::MdocProof`. Standalone ZK proofs use `LFV9` and
 include the two masked fingerprint responses. Mdoc
 proofs use `MDA7`: an envelope around the generic composed body
-(`proto::composed`). The shared Polygero envelope uses `JPG2`.
+(`proto::composed`). The magic is the only one, outermost; the body holds only
+prover data in send order, then the terminal rows, nonces and frontier.
 Serialization writes backend data directly into the containing proof buffer.
-V2 uses typed rounds over SHA-256 strands and a mandatory final seal owned by
+V2 uses tagged messages over SHA-256 strands and a mandatory final seal owned by
 the complete-proof encoder; nested circuit and backend bodies have no extra seals.
 V1 encodings and transcripts are unchanged.
 

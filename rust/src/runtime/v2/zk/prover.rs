@@ -25,7 +25,7 @@ use crate::{
                 packing_commitment::{prover::PackingState, PackingCommitment},
                 split::PendingSplit,
                 storage::Storage,
-                CircuitInput, JointProver, VirtualInputs, ZkContext,
+                CircuitInput, JointProver, VirtualInputs, ZkContext, ZkProofStatement,
             },
         },
     },
@@ -128,7 +128,6 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
         &mut t.project(|q| &q.participant.backend),
         state.packing,
         statement,
-        &p.id,
     )?;
     Ok((
         CircuitProof {
@@ -139,13 +138,17 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
     ))
 }
 
+/// A standalone prover of one circuit under one Polygero profile.
 pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) circuit: Circuit<F>,
     config: PolygeroConfig,
-}
-pub struct ZkProverCommitment<const W: usize, F: ZkField<W> + PackingField> {
-    state: CircuitState<W, F>,
     participant: CircuitParticipant<W, F>,
+}
+/// A commitment on a transcript opened with `statement`; the proof is completed
+/// against that same statement.
+pub struct ZkProverCommitment<'s, const W: usize, F: ZkField<W> + PackingField> {
+    statement: &'s ZkProofStatement<'s, W, F>,
+    state: CircuitState<W, F>,
     joint: JointProver<
         (Vec<Vec<F::E>>, ()),
         ([Vec<F::E>; FINGERPRINTS], ()),
@@ -155,54 +158,75 @@ pub struct ZkProverCommitment<const W: usize, F: ZkField<W> + PackingField> {
     fingerprints: FingerprintResponse<F::E>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
-    pub fn new(circuit: Circuit<F>, config: PolygeroConfig) -> Self {
-        Self { circuit, config }
+    pub fn new<D: EvaluationDomain<W, F>>(
+        circuit: Circuit<F>,
+        config: PolygeroConfig,
+        ctx: &ZkContext<'_, W, F, D>,
+    ) -> Result<Self, String> {
+        let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)?;
+        Ok(Self {
+            circuit,
+            config,
+            participant,
+        })
     }
-    pub fn commit<D: EvaluationDomain<W, F>, R: PrivateRandom>(
+    /// The statement of a proof of this circuit on `public` under `context`.
+    pub fn statement<'a>(
+        &'a self,
+        context: &'a [u8],
+        public: &'a [CircuitInput<F>],
+    ) -> Result<ZkProofStatement<'a, W, F>, String> {
+        Ok(ZkProofStatement {
+            context,
+            part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
+            geometry: ZkProofGeometry {
+                circuit: self.participant.geometry(),
+                config: self.config,
+            },
+        })
+    }
+    /// Open a transcript with `statement` and commit to `private`. The
+    /// commitment remembers the statement, which `prove` completes.
+    pub fn commit<'s, D: EvaluationDomain<W, F>, R: PrivateRandom>(
         &self,
         private: Vec<CircuitInput<F>>,
+        statement: &'s ZkProofStatement<'s, W, F>,
         ctx: &ZkContext<'_, W, F, D>,
-        t: Transcript,
         rng: &mut R,
-    ) -> Result<(ZkProverCommitment<W, F>, ZkProofGeometry), String> {
-        let participant = CircuitParticipant::new(&[&self.circuit], 0, self.config, ctx)?;
+    ) -> Result<ZkProverCommitment<'s, W, F>, String> {
+        if !std::ptr::eq(statement.part.participant, &self.participant) {
+            return Err("statement belongs to another prover".into());
+        }
         if private.len() != private_input_count(&self.circuit) {
             return Err("witness length mismatch".into());
         }
-        let (state, witness) = participant.prepare(private, rng)?;
-        let param = JointParam::new((participant.participant(ctx)?, ()))?;
-        let (joint, commitment, (fingerprints, ())) = param.commit((witness, ()), t, rng)?;
-        let geometry = ZkProofGeometry {
-            circuit: participant.geometry(),
-            joint_context: param.context(),
-        };
-        Ok((
-            ZkProverCommitment {
-                state,
-                participant,
-                joint,
-                commitment,
-                fingerprints,
-            },
-            geometry,
-        ))
+        let (state, witness) = self.participant.prepare(private, rng)?;
+        let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
+        let (joint, commitment, (fingerprints, ())) =
+            param.commit((witness, ()), Transcript::new(statement), rng)?;
+        Ok(ZkProverCommitment {
+            statement,
+            state,
+            joint,
+            commitment,
+            fingerprints,
+        })
     }
+    /// Complete the proof of the statement `committed` was opened with.
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
-        public: &[CircuitInput<F>],
-        mut committed: ZkProverCommitment<W, F>,
+        mut committed: ZkProverCommitment<'_, W, F>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<(ZkProof<W, F>, Transcript), String> {
-        if committed.participant.config != self.config {
-            return Err("commitment belongs to another circuit or configuration".into());
+        let statement = committed.statement;
+        if !std::ptr::eq(statement.part.participant, &self.participant) {
+            return Err("statement belongs to another prover".into());
         }
-        let part = FrontendPart::new(&committed.participant, &[&self.circuit], public)?;
-        let mut t = committed.joint.bound(&part);
+        let mut t = committed.joint.bound(&statement.part);
         let top = top_weights(&mut t)?;
-        let (circuit, statement) =
-            prove(&mut t, committed.state, top, &VirtualInputs::none(), ctx)?;
-        let param = JointParam::new((committed.participant.participant(ctx)?, ()))?;
-        let (com_proof, transcript) = committed.joint.prove(&param, (statement, ()))?;
+        let (circuit, linear) = prove(&mut t, committed.state, top, &VirtualInputs::none(), ctx)?;
+        let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
+        let (com_proof, transcript) = committed.joint.prove(&param, (linear, ()))?;
         Ok((
             ZkProof {
                 com: committed.commitment,

@@ -9,7 +9,7 @@ use crate::{
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
-            proto::{sumcheck::SumcheckProof, RoundLabel},
+            proto::sumcheck::SumcheckProof,
             sumcheck::{monomial, symbolic::Constraints},
             transcript::Transcript,
         },
@@ -142,14 +142,6 @@ pub(in super::super) fn prove_core<
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<F::E>) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
-    t.absorb(|w| {
-        w.write_bytes(b"layered-sumcheck/circuits/v1");
-        w.write_bytes(&1u64.to_le_bytes());
-    });
-    t.absorb(|w| {
-        w.write_bytes(&circuit.id);
-        w.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
-    });
     let assertions = |index: usize| -> usize {
         circuit
             .raw
@@ -157,14 +149,13 @@ pub(in super::super) fn prove_core<
             .get(index)
             .map_or(0, |l| l.assertion_counts().iter().sum())
     };
-    // The top weights open their own boundary; every later layer's
-    // assertion weights extend the preceding combine answer, after alpha.
-    let (mut a, mut rho) = t.round(RoundLabel::Assertions, |mut w| {
-        w.write_bytes(&0u64.to_le_bytes());
-        let mut r = w.begin_squeeze();
+    // The top weights are drawn with no message of their own; every later
+    // layer's assertion weights extend the preceding combine answer, after
+    // alpha.
+    let (mut a, mut rho) = t.borrow().draw(|r| {
         let a = r.elt_field_slice(circuit.raw.noutput, f);
         let rho = r.elt_field_slice(assertions(0), f);
-        r.end_round((a, rho))
+        (a, rho)
     });
     let mut claim = f.zero();
     let mut layers = Vec::new();

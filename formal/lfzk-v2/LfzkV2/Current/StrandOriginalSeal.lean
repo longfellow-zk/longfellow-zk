@@ -142,10 +142,10 @@ theorem accepted_original_ratio_le :
   obtain ⟨_,_,checks⟩ := (StrandVerifier.verify_true_iff binary prime P R (W) (Earlier) fmt.wire bodyCodec
     sample hashPublic decodePublic draw codec (G ∘ encode) merkleInput (program.run (G ∘ encode)).1).mp
       accepted.1
-  exact checks.2.2.2.2.1
+  exact checks.2.2.2.1
 
 /-- Setup-only metadata discharges challenge independence; the concrete mdoc
-metadata is setup-only (`ConcreteMetadata.metadata_setupOnly`). The caller
+metadata is setup-only (`MdocRuntime.metadata_setupOnly`). The caller
 supplies no oracle-independence or replay-collision certificate. -/
 theorem setupOnly_original_ratio_le (setupOnly : fmt.SetupOnly metadata) :
     density (fun G : Raw → Digest =>

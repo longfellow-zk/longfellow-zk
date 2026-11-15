@@ -1,5 +1,5 @@
 import LfzkV2.Current.StrandOriginalSeal
-import LfzkV2.Current.ConcreteMetadata
+import LfzkV2.Current.Format
 
 namespace LfzkV2.Current.Tests.StrandOriginalSeal
 open TranscriptV2 Merkle.RandomOracle Bcs.TotalOracle
@@ -33,7 +33,7 @@ example (H : Fin 3 → Bool) :
   simp [StrandSealCharging.UnqueriedSeal,original,seen,queried,Tree.run_done]
 
 -- The protocol premise is already proved for the actual metadata encoder.
-#guard_msgs (drop info) in #check ConcreteMetadata.metadata_challengeIndependent
+#guard_msgs (drop info) in #check Format.SetupOnly.challengeIndependent
 #guard_msgs (drop info) in #check Replay.Encoding.replay_transcript
 
 /--

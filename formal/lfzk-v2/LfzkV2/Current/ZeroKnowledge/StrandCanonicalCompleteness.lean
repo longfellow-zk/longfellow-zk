@@ -42,7 +42,6 @@ theorem finish_body_as_fill
         configuration.binaryRows configuration.primeRows configuration.openings frontend
         (RuntimeVerifier.wireResponses binary prime P R (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) response)
         (CompletePublicBody.ordered indices columns ⟨fun i => (opening.nonce i).2,opening.frontierValue⟩)
-        fmt.jointContext
         (capacity binary prime binaryNodes primeNodes fmt configuration indices
           (fun i => ((leafEquiv binary prime binaryNodes primeNodes fmt configuration)).symm (columns i)) opening) := rfl
 
@@ -97,7 +96,7 @@ theorem finish_raw_honest {Enc : Type}
     configuration.openings frontend
     (RuntimeVerifier.wireResponses binary prime P R
       (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) response)
-    _ fmt.jointContext _ _
+    _ _ _
 
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend

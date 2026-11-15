@@ -10,7 +10,10 @@ inductive Side where
   | binary | prime
   deriving DecidableEq, Repr
 
-/-- The tags in `rust/src/runtime/v2/proto/rounds.rs`. Finalization has a separate domain. -/
+/-- Boundary kinds of the challenge schedule. The deployed nodes absorb no
+kind: every boundary ends with the same `ROUND` terminator
+(`TaggedFormat.wire`). The model keeps the kinds, with distinct tags, to
+classify boundaries. -/
 inductive Domain where
   | output | assertions | sumcheck | terminal | combine | packing | statement
   | batching | opening | conversion | rowBatching | fingerprint

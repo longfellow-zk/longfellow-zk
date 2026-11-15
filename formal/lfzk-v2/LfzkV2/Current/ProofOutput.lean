@@ -63,34 +63,35 @@ theorem window_map {Point : Type} {valid : Point → Prop}
 end Map
 
 variable {g : Geometry} {fields : Fields} {Advice Request : Type}
-variable (repr : ProofBodyCodec.Representations fields Advice)
+variable (complete : WholeCodec (Proof g fields Advice (OpeningBody.Authentication g)))
 
+/-- The complete-proof parser of a format: the body and its seal block. -/
 def read (bytes : Bytes) : Option (Proof g fields Advice (OpeningBody.Authentication g)) :=
-  CanonicalPrefix.readWhole (ProofBodyReplay.complete repr g) bytes
+  complete.decode bytes
 
 theorem read_encode (proof : Proof g fields Advice (OpeningBody.Authentication g)) :
-    read repr ((ProofBodyReplay.complete repr g).encode proof) = some proof :=
-  CanonicalPrefix.readWhole_encode _ proof
+    read complete (complete.encode proof) = some proof :=
+  complete.inverse proof
 
 /-- A successful output parser accounts for the complete original stream,
 including its final seal and with no ignored trailing bytes. -/
 theorem read_canonical (bytes : Bytes) (proof : Proof g fields Advice (OpeningBody.Authentication g))
-    (h : read repr bytes = some proof) : (ProofBodyReplay.complete repr g).encode proof = bytes :=
-  (CanonicalPrefix.readWhole_canonical _ bytes proof h).symm
+    (h : read complete bytes = some proof) : complete.encode proof = bytes :=
+  (complete.canonical bytes proof h).symm
 
 def decode (fallback : Proof g fields Advice (OpeningBody.Authentication g)) (raw : Request × Bytes) :
     RuntimeAdaptive.Output (g := g) (fields := fields) (Advice := Advice)
       (Auth := OpeningBody.Authentication g) (Request := Request) :=
-  ⟨raw.1,(read repr raw.2).getD fallback⟩
+  ⟨raw.1,(read complete raw.2).getD fallback⟩
 
 theorem decode_of_read (fallback : Proof g fields Advice (OpeningBody.Authentication g))
     (raw : Request × Bytes) (proof : Proof g fields Advice (OpeningBody.Authentication g))
-    (h : read repr raw.2 = some proof) : decode repr fallback raw = ⟨raw.1,proof⟩ := by
+    (h : read complete raw.2 = some proof) : decode complete fallback raw = ⟨raw.1,proof⟩ := by
   simp only [decode,h,Option.getD_some]
 
 def normalize {QL DL QR DR : Type} {left right : ℕ}
     (fallback : Proof g fields Advice (OpeningBody.Authentication g))
     (body : TwoOracleTree QL DL QR DR (Request × Bytes) left right) :=
-  map (decode repr fallback) body
+  map (decode complete fallback) body
 
 end LfzkV2.Current.ProofOutput

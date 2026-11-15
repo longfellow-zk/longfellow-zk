@@ -27,10 +27,11 @@ use crate::{
         },
         v2::{
             proto::{composed::ComposedGeometry, polygero::PolygeroConfig},
+            transcript::Header,
             zk::{
-                joint::{CircuitParticipant, JointParam, SelectedField},
+                joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
                 storage::{Group, ReservedSuffix, Storage, StorageMap},
-                ZkContext,
+                write_joint_geometry, CircuitInput, ZkContext,
             },
         },
     },
@@ -45,11 +46,8 @@ type Host = Gf2_128Field;
 
 /// The joint field list of a composition: the host, then the split participant.
 type Fields<'s, const W: usize, F, DH, DS> = (
-    SelectedField<'s, H, Host, DH, &'s CircuitParticipant<H, Host>>,
-    (
-        SelectedField<'s, W, F, DS, &'s CircuitParticipant<W, F>>,
-        (),
-    ),
+    SelectedField<'s, H, Host, DH>,
+    (SelectedField<'s, W, F, DS>, ()),
 );
 
 /// A composition's fixed layout, derived from its two circuits and the split
@@ -144,8 +142,25 @@ where
         Ok(ComposedGeometry {
             host: self.host.geometry(),
             split: self.split.geometry(),
-            joint_context: param.context(),
             config: param.config(),
+        })
+    }
+    /// The composition's statement part on these public inputs: both
+    /// frontends and the geometry the proof is parsed against.
+    pub fn statement<'s>(
+        &'s self,
+        host_public: &'s [CircuitInput<Host>],
+        split_public: &'s [CircuitInput<F>],
+    ) -> Result<ComposedStatement<'s, W, F, DH, DS, M>, String> {
+        Ok(ComposedStatement {
+            composition: self,
+            host: FrontendPart::new(
+                &self.host,
+                &[self.host_circuit, self.mode.fragment()],
+                host_public,
+            )?,
+            split: FrontendPart::new(&self.split, &[self.split_circuit], split_public)?,
+            geometry: self.geometry()?,
         })
     }
     /// The bits after the host circuit's inputs: R, then the mode's pads.
@@ -154,6 +169,51 @@ where
     }
     pub fn mode(&self) -> &M {
         &self.mode
+    }
+}
+
+/// A composition's statement part: its two frontends on their public inputs
+/// and its geometry. `write` emits the composition's statement messages:
+/// a `Circuit` per circuit in participant order (the host circuit, the
+/// adapter fragment, the split circuit), a `CommitmentLayout` per field
+/// (host, then split), the mode's `AdapterLayout`, the `JointGeometry`, and
+/// the `PublicInputs` of each field (host, then split). Proving and
+/// verifying read the frontends from here (transcript I2).
+pub struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
+where
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+{
+    composition: &'s Composition<'s, W, F, DH, DS, M>,
+    host: FrontendPart<'s, H, Host>,
+    split: FrontendPart<'s, W, F>,
+    geometry: ComposedGeometry,
+}
+impl<const W: usize, F, DH, DS, M> ComposedStatement<'_, W, F, DH, DS, M>
+where
+    F: ZkField<W> + PackingField,
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+    M: AdapterMode<F>,
+{
+    pub fn write(&self, h: &mut Header<'_>) {
+        self.host.write_circuits(h);
+        self.split.write_circuits(h);
+        self.host.write_layout(h);
+        self.split.write_layout(h);
+        self.composition.mode.write_layout(h);
+        let g = &self.geometry;
+        write_joint_geometry(
+            h,
+            g.config,
+            &[g.host.com_geom.nw as u64, g.split.com_geom.nw as u64],
+        );
+        self.host.write_public(h);
+        self.split.write_public(h);
+    }
+    /// The geometry the statement writes, which the proof is parsed against.
+    pub fn geometry(&self) -> &ComposedGeometry {
+        &self.geometry
     }
 }
 

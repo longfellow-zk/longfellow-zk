@@ -194,3 +194,241 @@ mod polygero;
 mod readers;
 
 pub(super) mod fixtures;
+
+/// Value kinds of the transcript grammar.
+const B: u64 = 0;
+const N: u64 = 1;
+const E: u64 = 2;
+const BITS: u64 = 3;
+/// The registry's schema of every tag: its value kinds, and the counts the
+/// schema fixes (`None` where the geometry sets the count).
+fn schema(tag: u64) -> &'static [(u64, Option<u64>)] {
+    match tag {
+        16 => &[
+            (B, None),
+            (B, None),
+            (B, Some(32)),
+            (N, Some(2)),
+            (N, Some(4)),
+        ],
+        17 => &[(B, None), (B, None), (N, Some(4))],
+        18 => &[(B, Some(32)), (N, None), (N, Some(3))],
+        19 => &[(N, Some(4)), (B, None), (N, None), (N, Some(2))],
+        20 => &[(N, Some(4)), (N, None)],
+        21 => &[(E, None)],
+        22 => &[(B, None), (N, Some(3)), (N, None)],
+        32 => &[(B, Some(32))],
+        33 => &[(E, Some(2))],
+        48 => &[(E, Some(2))],
+        49 => &[(E, Some(1))],
+        50 => &[(E, Some(2))],
+        64 => &[(E, Some(1))],
+        65 => &[(BITS, None), (BITS, None)],
+        80 => &[(E, None)],
+        81 => &[(E, Some(1))],
+        96 => &[(E, None), (E, None)],
+        112 => &[(B, None)],
+        _ => panic!("tag {tag} is not in the registry"),
+    }
+}
+
+/// Check a complete proof's trace against the registry and its wire bytes:
+/// every message has its tag's schema and each tag keeps one exact list of
+/// value counts where the geometry is fixed per field (transcript I6); the
+/// statement precedes every prover message (I1); the prover messages'
+/// payloads, in send order and without headers, are the interactive section
+/// `proof[start..end]` (proto I4, I5); the last message is the seal over
+/// every byte before the seal block (I10).
+pub(crate) fn check_trace_matches_wire(
+    trace: &crate::runtime::v2::transcript::Trace,
+    proof: &[u8],
+    start: usize,
+    end: usize,
+) {
+    let mut payload = Vec::new();
+    let mut prover = false;
+    let messages: Vec<_> = trace.messages().collect();
+    for m in &messages {
+        let expected = schema(m.tag);
+        assert_eq!(m.schema.len(), expected.len(), "tag {} arity", m.tag);
+        for (&(kind, count), &(want, fixed)) in m.schema.iter().zip(expected) {
+            assert_eq!(kind, want, "tag {} kind", m.tag);
+            if let Some(want_count) = fixed {
+                assert_eq!(count, want_count, "tag {} count", m.tag);
+            }
+        }
+        match m.tag {
+            16..=31 => assert!(
+                !prover,
+                "statement message {} after a prover message",
+                m.tag
+            ),
+            112 => {}
+            _ => {
+                prover = true;
+                payload.extend_from_slice(&m.payload);
+            }
+        }
+    }
+    assert_eq!(payload.len(), end - start, "interactive section length");
+    assert!(
+        payload == proof[start..end],
+        "wire bytes differ from absorbed payloads"
+    );
+    let seal = messages.last().unwrap();
+    assert_eq!(seal.tag, 112);
+    assert!(seal.payload == proof[..proof.len() - 32]);
+    assert_eq!(
+        messages.iter().filter(|m| m.tag == 112).count(),
+        1,
+        "one seal"
+    );
+}
+
+/// The registry name of a tag, for decoded vectors.
+fn tag_name(tag: u64) -> &'static str {
+    match tag {
+        16 => "MdocStatement",
+        17 => "ZkStatement",
+        18 => "Circuit",
+        19 => "CommitmentLayout",
+        20 => "JointGeometry",
+        21 => "PublicInputs",
+        22 => "AdapterLayout",
+        32 => "Commitment",
+        33 => "FingerprintResponse",
+        48 => "SumcheckRound",
+        49 => "SumcheckCross",
+        50 => "SumcheckClaims",
+        64 => "SplitOpening",
+        65 => "P256AdapterQuotients",
+        80 => "PackingU",
+        81 => "PackingA",
+        96 => "PolygeroResponse",
+        112 => "Seal",
+        _ => panic!("tag {tag} is not in the registry"),
+    }
+}
+
+/// Decode one strand node's SHA-256 preimage with the transcript grammar and
+/// the registry alone, one line per header, value and terminator, and check
+/// that the node is consumed exactly. Integers are decimal; bytes, elements
+/// and packed bits are lowercase hex (elements in their canonical
+/// encodings, `width` bytes each, from the FieldID: 16 for GF(2^128), 32 for
+/// P-256).
+pub(crate) fn describe_node(node: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut at = 0;
+    let mut take = |n: usize| {
+        let s = &node[at..at + n];
+        at += n;
+        s
+    };
+    let u32_at = |b: &[u8]| u32::from_le_bytes(b.try_into().unwrap());
+    let u64_at = |b: &[u8]| u64::from_le_bytes(b.try_into().unwrap());
+    let mut out = String::new();
+    let kind = u32_at(take(4));
+    let id = u64_at(take(8));
+    let parents = u32_at(take(4));
+    writeln!(
+        out,
+        "header: u32 STRAND={kind}, u64 id={id}, u32 parents={parents}"
+    )
+    .unwrap();
+    assert_eq!(kind, 1);
+    if parents == 1 {
+        writeln!(out, "  parent digest: {}", hex::encode(take(32))).unwrap();
+    }
+    loop {
+        let word = u64_at(take(8));
+        if word < 16 {
+            let end = match word {
+                0 => "ROUND (a draw follows)",
+                1 => "SEAL (the proof ends)",
+                _ => panic!("reserved terminator {word}"),
+            };
+            writeln!(out, "terminator: u64 {word} = {end}").unwrap();
+            break;
+        }
+        writeln!(out, "message: u64 tag={word} {}", tag_name(word)).unwrap();
+        for (i, &(want, _)) in schema(word).iter().enumerate() {
+            let k = u64_at(take(8));
+            assert_eq!(k, want, "tag {word} value {i} kind");
+            match k {
+                B => {
+                    let n = u64_at(take(8)) as usize;
+                    writeln!(
+                        out,
+                        "  value {i}: u64 kind=0 Bytes, u64 count={n}: {}",
+                        hex::encode(take(n))
+                    )
+                    .unwrap();
+                }
+                N => {
+                    let n = u64_at(take(8)) as usize;
+                    let xs: Vec<String> = (0..n).map(|_| u64_at(take(8)).to_string()).collect();
+                    writeln!(
+                        out,
+                        "  value {i}: u64 kind=1 Nats, u64 count={n}: [{}]",
+                        xs.join(", ")
+                    )
+                    .unwrap();
+                }
+                E => {
+                    let field = u64_at(take(8));
+                    let n = u64_at(take(8)) as usize;
+                    let width = match field {
+                        1 => 32,
+                        4 => 16,
+                        _ => panic!("field {field} has no known width"),
+                    };
+                    let xs: Vec<String> = (0..n).map(|_| hex::encode(take(width))).collect();
+                    writeln!(
+                        out,
+                        "  value {i}: u64 kind=2 Elements, u64 field={field} ({}), u64 count={n}: [{}]",
+                        if field == 1 { "P256" } else { "GF2_128" },
+                        xs.join(", ")
+                    )
+                    .unwrap();
+                }
+                BITS => {
+                    let n = u64_at(take(8)) as usize;
+                    writeln!(
+                        out,
+                        "  value {i}: u64 kind=3 Bits, u64 count={n}: {} (least significant bit first)",
+                        hex::encode(take(n.div_ceil(8)))
+                    )
+                    .unwrap();
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    assert_eq!(at, node.len(), "node consumed exactly");
+    out
+}
+
+/// Append `text` to the file named by `LONGFELLOW_TRANSCRIPT_VECTORS`, if
+/// set. The tests pin the vectors' digests; this only exports them.
+pub(crate) fn export_vectors(text: &str) {
+    if let Ok(path) = std::env::var("LONGFELLOW_TRANSCRIPT_VECTORS") {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        file.write_all(text.as_bytes()).unwrap();
+    }
+}
+
+/// A node's bytes and its decoding, for `export_vectors`.
+pub(crate) fn node_vector(title: &str, index: usize, node: &[u8]) -> String {
+    format!(
+        "### {title}, node {index}: {} bytes, SHA-256 {}\nhex: {}\n{}\n",
+        node.len(),
+        hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
+        hex::encode(node),
+        describe_node(node)
+    )
+}

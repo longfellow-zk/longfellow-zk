@@ -81,7 +81,6 @@ fn prove<X: PackingExtension>(
     values: &[BaseElement<X>],
     aux: &[AmbientElement<X>],
     masks: PackingMasks<AmbientElement<X>>,
-    statement: &[u8],
     ts: &mut Transcript,
 ) -> Result<
     (
@@ -97,10 +96,10 @@ where
         return Err("packing witness shape".into());
     }
     if p.degree() == 1 {
-        return prove_packed(&mut ts.bound(p), c, &[], aux, masks, statement);
+        return prove_packed(&mut ts.bound(p), c, &[], aux, masks);
     }
     let words = p.pack(values)?;
-    prove_packed(&mut ts.bound(p), c, &words, aux, masks, statement)
+    prove_packed(&mut ts.bound(p), c, &words, aux, masks)
 }
 
 #[derive(Clone, Copy)]
@@ -337,22 +336,10 @@ fn roundtrip<X: PackingExtension>(
     };
     let masks = PackingMasks::sample(p, &mut sample);
     let cells = masks.cells().to_vec();
-    let mut tp = Transcript::new(b"generic/test");
+    let mut tp = Transcript::for_test(b"generic/test");
     let mut tv = tp.fork_for_test();
-    let (proof, rows) = prove(
-        p,
-        &claim,
-        values,
-        &aux,
-        masks,
-        b"commitment context",
-        &mut tp,
-    )
-    .unwrap();
-    assert_eq!(
-        reduce(&mut tv.bound(p), &claim, &proof, b"commitment context").unwrap(),
-        rows
-    );
+    let (proof, rows) = prove(p, &claim, values, &aux, masks, &mut tp).unwrap();
+    assert_eq!(reduce(&mut tv.bound(p), &claim, &proof).unwrap(), rows);
     assert_eq!(tp.u128(), tv.u128());
     for row in &rows {
         assert!(f.is_zero(
@@ -364,20 +351,11 @@ fn roundtrip<X: PackingExtension>(
     if let PackingProof::TraceZero { u, .. } = &mut bad {
         u.pop();
         assert!(reduce(
-            &mut Transcript::new(b"generic/test").bound(p),
+            &mut Transcript::for_test(b"generic/test").bound(p),
             &claim,
             &bad,
-            b"commitment context",
         )
         .is_err());
-        let different = reduce(
-            &mut Transcript::new(b"generic/test").bound(p),
-            &claim,
-            &proof,
-            b"other context",
-        )
-        .unwrap();
-        assert_ne!(rows, different);
     }
 }
 #[test]
@@ -426,9 +404,9 @@ fn identity_has_no_masks_messages_or_challenges() {
         },
         auxiliary_count: 0,
     };
-    let mut ts = Transcript::new(b"identity");
+    let mut ts = Transcript::for_test(b"identity");
     let mut before = ts.fork_for_test();
-    let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts).unwrap();
+    let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, &mut ts).unwrap();
     assert_eq!(proof, PackingProof::Direct);
     assert_eq!(rows.len(), 1);
     assert_eq!(ts.u128(), before.u128());
@@ -446,12 +424,9 @@ fn identity_has_no_masks_messages_or_challenges() {
     ));
     let embedded = extension.into_input_elements(p.field(), values);
     assert_eq!(pointer, embedded.as_ptr());
-    let mut verifier = Transcript::new(b"identity");
+    let mut verifier = Transcript::for_test(b"identity");
     let mut unchanged = verifier.fork_for_test();
-    assert_eq!(
-        reduce(&mut verifier.bound(&p), &c, &proof, b"ignored").unwrap(),
-        rows
-    );
+    assert_eq!(reduce(&mut verifier.bound(&p), &c, &proof).unwrap(), rows);
     assert_eq!(verifier.u128(), unchanged.u128());
     assert!(
         PackingParameters::with_basis(Prime::<5>, IdentityExtension::new(Prime::<5>), vec![2])
@@ -617,7 +592,7 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
     .unwrap();
     let param =
         JointPolygeroParam::new((Participant::new(field_param, domain).unwrap(), ())).unwrap();
-    let mut tp = Transcript::new(b"generic/backend");
+    let mut tp = Transcript::for_test(b"generic/backend");
     let mut tv = tp.fork_for_test();
     let (prover, root) =
         JointPolygeroProver::commit(&mut tp.bound(&param), (witness, ()), &mut rng).unwrap();
@@ -638,12 +613,8 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         },
         auxiliary_count: 1,
     };
-    let (proof, equations) =
-        prove(p, &claim, values, &aux, masks, &root.root.data, &mut tp).unwrap();
-    assert_eq!(
-        reduce(&mut tv.bound(p), &claim, &proof, &root.root.data).unwrap(),
-        equations
-    );
+    let (proof, equations) = prove(p, &claim, values, &aux, masks, &mut tp).unwrap();
+    assert_eq!(reduce(&mut tv.bound(p), &claim, &proof).unwrap(), equations);
     let mut terms = Vec::new();
     for (c, row) in equations.iter().enumerate() {
         for (w, k) in row.words.iter().enumerate() {
@@ -676,7 +647,6 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         LinearStatement {
             a: terms,
             b: constants,
-            digest: statement,
         },
         (),
     );

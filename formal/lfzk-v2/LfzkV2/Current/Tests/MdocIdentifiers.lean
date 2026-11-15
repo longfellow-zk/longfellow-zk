@@ -19,24 +19,13 @@ example : ((jointContextBytes (fun _ => 17) (fun _ => 34)).drop
     (CanonicalPrefix.utf8 "polygero/joint/context/v1").length).take 9 =
     [16,0,0,0,0,0,0,0,17] := by decide +kernel
 
--- The common composed-circuit layout frame: label and id count, each id,
--- then the count of per-layer log widths and each width, every word framed.
-example : FingerprintPrefix.commitmentLayout [fun _ => 7] [⟨3,by decide⟩] =
-    CanonicalPrefix.frame (CanonicalPrefix.utf8 "layered-sumcheck/commitment-layout/v1") ++
-      CanonicalPrefix.frame (encodeLE 8 1) ++ [CanonicalPrefix.frame (List.ofFn fun _ : Fin 32 => (7 : TranscriptV2.Framing.Byte))].flatten ++
-      CanonicalPrefix.frame (encodeLE 8 1) ++ [CanonicalPrefix.frame (encodeLE 8 3)].flatten := rfl
-
--- The signature participant's storage runs: one run of 768 one-bit prime
--- groups at the hash's first private input, one native run in value order,
--- then R's 256 bits after the hash circuit's own inputs.
-example {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
-    (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
-    (bounds : Bounds binary prime) :
-    (storageWords binary prime bounds).map Fin.val =
-      [2, 1,0,768,binary.nPublic,1, 0,768,prime.description.remaining+prime.description.pads,0,
-        binary.nPublic+binary.hashPrivate,256] := rfl
+-- The statement message's tag and protocol value: the first 56 payload
+-- bytes of node 0 of the 1-attribute mdoc vector (Rust commit 4).
+example : statementHead =
+    [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 108, 111, 110, 103, 102, 101, 108,
+      108, 111, 119, 47, 118, 50, 47, 109, 100, 111, 99, 47, 116, 114, 97, 110, 115, 99, 114, 105, 112, 116, 47,
+      118, 50] := by decide +kernel
 
 #print axioms setup
-#print axioms parameters
 
 end LfzkV2.Current.MdocIdentifiers.Tests

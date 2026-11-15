@@ -44,7 +44,7 @@ fn circuit(f: &P256Field, cached_logw: usize) -> Circuit<P256Field> {
 
 #[test]
 fn batching_uses_widths_instead_of_cached_logw() {
-    use crate::runtime::v2::sumcheck::{self, TranscriptSumcheck};
+    use crate::runtime::v2::sumcheck;
     let f = P256Field::new();
     for cached_logw in [0, 2, 41] {
         let circuit = circuit(&f, cached_logw);
@@ -57,13 +57,11 @@ fn batching_uses_widths_instead_of_cached_logw() {
         values.extend(suffix);
         let mut inputs = public.to_vec();
         inputs.extend(private);
-        let mut tp = Transcript::new(b"prime-width-geometry");
+        let mut tp = Transcript::for_test(b"prime-width-geometry");
         let mut tv = tp.fork_for_test();
-        tp.borrow().write_sumcheck_statement(&circuit, &public, &f);
         let (proof, constraints) =
             sumcheck::top_and_prove(&[&circuit], inputs, &pads, &mut tp.borrow(), &f).unwrap();
         let claim = batch(&circuit, &public, constraints, &mut tp.borrow(), &f).unwrap();
-        tv.borrow().write_sumcheck_statement(&circuit, &public, &f);
         let derived = sumcheck::top_and_derive(&[&circuit], &proof, &mut tv.borrow(), &f).unwrap();
         let checked = batch(&circuit, &public, derived, &mut tv.borrow(), &f).unwrap();
         assert_eq!(claim.weights, checked.weights);

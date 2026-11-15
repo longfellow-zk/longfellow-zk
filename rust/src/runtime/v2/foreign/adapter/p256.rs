@@ -24,7 +24,7 @@ use crate::{
         },
         v2::{
             foreign::word::MaskedWord,
-            transcript::{Bound, Challenge},
+            transcript::{Bound, Challenge, Header},
             zk::{
                 storage::{BitGroup, ModularClaim, ReservedSuffix},
                 VirtualInputs,
@@ -256,7 +256,7 @@ impl<const Q: usize> P256Encoded<Q> {
     }
 }
 
-pub use super::transcript::{absorb_masked, conversion, Conversion};
+pub use super::transcript::{conversion, send_quotients, Conversion};
 
 /// The P-256 wrapping mode as an adapter mode: two trees, each with a
 /// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
@@ -303,6 +303,9 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     fn virtual_inputs(&self) -> usize {
         self.virtual_inputs
     }
+    fn write_layout(&self, h: &mut Header<'_>) {
+        super::transcript::write_layout::<Q>(h, self.shape, self.otp.map(|g| g.group()));
+    }
     #[cfg(any(test, feature = "prover"))]
     fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads {
         use crate::runtime::v2::foreign::word::Otp;
@@ -340,7 +343,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
             MaskedWord::mask(k[0], &pads[0]),
             MaskedWord::mask(k[1], &pads[1]),
         ];
-        absorb_masked(&mut t.transcript(), &masked);
+        send_quotients(&mut t.transcript(), &masked);
         let leaves =
             super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, &masked, f), f)?;
         Ok((masked, leaves))
@@ -357,7 +360,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         let mode = t.part();
         let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
         let encoded = mode.plan.encode(claim, &alpha, None, p, f)?;
-        absorb_masked(&mut t.transcript(), masked);
+        send_quotients(&mut t.transcript(), masked);
         super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, masked, f), f)
     }
 }

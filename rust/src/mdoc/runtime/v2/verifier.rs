@@ -37,7 +37,7 @@ use crate::{
             },
             RuntimeNat, SupportsFFT,
         },
-        v2::transcript::VerifiedProof,
+        v2::transcript::{Opened, VerifiedProof},
     },
 };
 
@@ -101,21 +101,23 @@ pub fn run_mdoc_verifier(
         (&make_interpolator_hash, &make_interpolator_sig),
     )
     .map_err(gen_err)?;
-    let geometry = super::proto::MdocProofGeometry {
-        body: composition.geometry().map_err(gen_err)?,
-    };
-    let decoded = super::proto::MdocProof::read(proof_bytes, &geometry, &gf2, &p256)
-        .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
     let digest = compute_transcript_hash(transcript, doc_type);
     let e2_val = RuntimeNat::<4>::from_bytes_be(&digest);
     let sig_public = push_input_sig(&p256, &issuer_pk, &e2_val);
-    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
-    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
-    let tp = composition
-        .verify(&app_public, &sig_public, &decoded.body, tp)
-        .map_err(gen_err)?;
+    let statement = super::transcript::MdocStatement::new(
+        transcript,
+        zk_spec,
+        composition
+            .statement(&app_public, &sig_public)
+            .map_err(gen_err)?,
+    );
+    let mut session = Opened::new(&statement);
+    // The proof is parsed against the geometry the statement absorbed.
+    let decoded =
+        super::proto::MdocProof::read(proof_bytes, &session.bound(|s| &s.geometry), &gf2, &p256)
+            .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
+    let tp = super::link::Statement::verify(session, &decoded.body).map_err(gen_err)?;
     decoded
         .checked(tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)

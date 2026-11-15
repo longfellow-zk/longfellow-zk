@@ -17,17 +17,18 @@
 //! Participants are recursive `(Participant, Tail)` tuples ending in `()`.
 //! Each field has its own encoded rows, masks and H/Z
 //! responses. All participants share k/s/n/t and one salted column Merkle tree.
-//! All source statements are bound before any batching challenges; every H/Z
-//! response is absorbed before a single ordered set of column queries is drawn.
+//! No statement is absorbed: the batching challenges follow the last message
+//! every statement is derived from, and every H/Z response is absorbed
+//! before a single ordered set of column queries is drawn.
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
 //! rows, `joint` coordinates tuples, `participant` traverses them, and `transcript`
 //! owns message framing and challenge rounds. V2 Merkle owns the column authentication codecs and
 //! tree. Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
-//! Standalone callers construct immutable static statements with `LinearStatement::new`,
-//! which hashes all coefficients and targets. Internal frontends derive A*w+b=0
-//! from their previously absorbed source messages and challenges.
+//! Frontends derive A*w+b=0 from their previously absorbed source messages and
+//! challenges. Tests and tools may build a static system with
+//! `LinearStatement::new`; the transcript does not bind it.
 //! Parameter catalogs bound each field separately. Because all fields share one
 //! query set, the certified mdoc analysis charges a single joint active-family
 //! budget (formal `Soundness.Rate7.parentBudget`, built on `ParameterBounds.parentBudget`). Summing

@@ -1,35 +1,63 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! V2 transcript sessions. begin_squeeze consumes the writer, and only closing
-//! the reader produces the completion token required by round().
-//! The session is exclusively borrowed throughout, including on error paths.
-//! A draw ends a node only after a message (transcript I7): begin_squeeze
-//! with no message since the last boundary reads further from that
-//! boundary's PRF stream, writing nothing.
-//! Complete-proof encoders append a final seal over the chained transcript and
-//! canonical proof body; complete verification must check that final seal.
+//! V2 transcript sessions.
+//!
+//! A session opens with its statement (transcript I1). After it, protocol
+//! code only sends prover messages and draws challenges, both through a
+//! borrowed `TranscriptRef`. A strand node is
+//!
+//! ```text
+//! node := message+ end
+//! end  := u64(0)   ; ROUND: a draw follows
+//!       | u64(1)   ; SEAL: the proof ends
+//! ```
+//!
+//! A draw ends a node only after a message (transcript I7): it writes the
+//! ROUND terminator, continues the strand and reads from the finalized
+//! node's PRF stream. A draw with no message since the last boundary reads
+//! further from that stream, writing nothing. Complete-proof encoders append
+//! the seal: the Seal message over every proof byte, the SEAL terminator,
+//! then the node's first PRF block; complete verification must check it.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use super::message::ProverMessage;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::strand::Reader;
-use super::Strand;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-use crate::{
-    core::algebra::{ElementOf, SerializableField},
-    runtime::algebra::SupportsSampling,
+use super::{
+    message::{Encoder, Message, Seal, SetupMessage, ZkStatement},
+    Strand,
 };
-
-/// Field encodings up to this width are serialized through a stack buffer;
-/// wider ones use a heap buffer, so absorption accepts every field.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-const MAX_FIELD_BYTES: usize = 128;
+use crate::runtime::algebra::SupportsSampling;
 
 /// A complete proof ends in one final seal: the next block of the ended strand.
-pub(super) const SEAL_BYTES: usize = super::strand::BLOCK_BYTES;
+pub const SEAL_BYTES: usize = super::strand::BLOCK_BYTES;
 
-// Schedule instrumentation has no storage or behavior in production builds.
-#[cfg(test)]
-#[derive(Default)]
-struct RoundCount(u64);
-#[cfg(not(test))]
-type RoundCount = ();
+/// Node terminators. Tags start at 16, so a terminator is never a tag.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+const ROUND: u64 = 0;
+const SEAL: u64 = 1;
+
+/// The statement a transcript opens with: everything the verifier fixes
+/// before it reads a proof byte (transcript I1).
+pub trait Statement {
+    /// Write the statement messages, in their fixed order.
+    fn write(&self, h: &mut Header<'_>);
+}
+/// The writer of a statement. It exists only while `Transcript::new` runs.
+pub struct Header<'a> {
+    session: &'a mut Transcript,
+}
+impl Header<'_> {
+    pub fn send<M: SetupMessage + ?Sized>(&mut self, m: &M) {
+        self.session.send_message(m);
+    }
+}
+/// Alone, `ZkStatement` is the whole statement of a bare transcript (tests,
+/// tools).
+impl Statement for ZkStatement<'_> {
+    fn write(&self, h: &mut Header<'_>) {
+        h.send(self);
+    }
+}
 
 /// A ready session. It never implements RandomEngine, PrivateRandom or Clone.
 pub struct Transcript {
@@ -42,7 +70,9 @@ pub struct Transcript {
     /// since; the next draw continues it (transcript I7).
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     stream: Option<Reader>,
-    _round_count: RoundCount,
+    /// Schedule instrumentation; it has no storage in production builds.
+    #[cfg(test)]
+    pub(super) trace: super::trace::Trace,
 }
 
 /// Where a session stands: the index and digest of its last finalized node
@@ -69,7 +99,7 @@ pub struct SessionStamp(std::sync::Arc<()>);
 impl SessionStamp {
     /// A fresh identity, owned by the session it is created for. It changes
     /// no transcript byte.
-    fn fresh() -> Self {
+    pub(super) fn fresh() -> Self {
         Self(std::sync::Arc::new(()))
     }
 }
@@ -84,33 +114,26 @@ impl Eq for SessionStamp {}
 /// Borrowed protocol operations on one owned session. This capability cannot
 /// expose, replace, reset or finalize its owner's transcript.
 pub struct TranscriptRef<'a> {
+    #[cfg_attr(
+        not(any(test, feature = "prover", feature = "verifier")),
+        allow(dead_code)
+    )]
     pub(super) session: &'a mut Transcript,
 }
 #[cfg_attr(any(test, feature = "prover", feature = "verifier"), doc = include_str!("compile_fail.md"))]
-/// Exclusive permission to bind messages before the round query.
-pub struct Writing<'a> {
-    session: &'a mut Transcript,
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    label: u8,
-}
-/// Exclusive permission to read the last boundary's PRF stream. The session
-/// keeps the stream when the round ends, for draws that follow with no
-/// message in between.
+/// Exclusive permission to read the last boundary's PRF stream. It cannot
+/// send a message; the session keeps the stream for draws that follow with
+/// no message in between.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub struct Reading<'a> {
-    session: &'a mut Transcript,
-    reader: Reader,
-}
-/// Only end_round constructs this token; round consumes it before releasing
-/// the session. Its borrow cannot escape through the round's return value.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-#[must_use]
-pub struct RoundEnd<'a, T> {
-    _session: &'a mut Transcript,
-    _value: T,
+    reader: &'a mut Reader,
+    #[cfg(test)]
+    trace: &'a mut super::trace::Trace,
 }
 impl Transcript {
-    pub fn new(context: &[u8]) -> Self {
+    /// Open a session with `statement`, the only setup it ever absorbs
+    /// (transcript I1).
+    pub fn new<S: Statement + ?Sized>(statement: &S) -> Self {
         let mut t = Self {
             strand: Strand::new(),
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -123,14 +146,22 @@ impl Transcript {
             session: SessionStamp::fresh(),
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
             stream: None,
-            _round_count: Default::default(),
+            #[cfg(test)]
+            trace: Default::default(),
         };
-        t.absorb(|w| {
-            w.write_bytes(b"longfellow/transcript/v2/strands/v1");
-            w.write_bytes(context);
-        });
+        statement.write(&mut Header { session: &mut t });
         t
     }
+    /// A bare session for tests and tools: its whole statement is a
+    /// `ZkStatement` with `context` and an empty profile.
+    #[cfg(any(test, feature = "testonly"))]
+    pub fn for_test(context: &[u8]) -> Self {
+        Self::new(&ZkStatement {
+            context,
+            profile: [0; 4],
+        })
+    }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn borrow(&mut self) -> TranscriptRef<'_> {
         TranscriptRef { session: self }
     }
@@ -142,154 +173,97 @@ impl Transcript {
     pub(super) fn session(&self) -> SessionStamp {
         self.session.clone()
     }
-    /// Bind setup or terminal messages without sampling. The borrowed writer
-    /// cannot be consumed to begin_squeeze; only round grants that capability.
-    pub(crate) fn absorb<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
-        self.borrow().absorb(f)
-    }
-    /// The higher-ranked closure must close the exact round it was given.
-    /// Dropping or forgetting its capability cannot manufacture a RoundEnd.
-    #[cfg(test)]
-    pub(crate) fn round<T>(
-        &mut self,
-        label: impl Into<u8>,
-        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
-    ) -> T {
-        self.borrow().round(label, f)
-    }
-    pub(super) fn compute_final_seal(mut self, body: &[u8]) -> [u8; SEAL_BYTES] {
-        self.absorb(|w| {
-            w.write_bytes(b"longfellow/transcript/v2/final");
-            w.write_bytes(body);
-        });
-        self.strand.end_strand().next_block()
-    }
-}
-impl TranscriptRef<'_> {
-    pub(crate) fn absorb<T>(&mut self, f: impl FnOnce(&mut Writing<'_>) -> T) -> T {
-        f(&mut Writing {
-            session: self.session,
-            #[cfg(any(test, feature = "prover", feature = "verifier"))]
-            // Bind-only writers cannot be consumed to start a reading phase.
-            label: 0,
-        })
-    }
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn round<T>(
-        &mut self,
-        label: impl Into<u8>,
-        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
-    ) -> T {
-        f(Writing {
-            session: self.session,
-            label: label.into(),
-        })
-        ._value
-    }
-}
-impl Writing<'_> {
-    /// Each write is one message of the session's count. A message ends the
-    /// current stream: the next draw opens a node.
-    fn count_message(&mut self) {
+    /// Write one message: its tag, then its values. A message ends the
+    /// current stream: the next draw ends the node.
+    pub(super) fn send_message<M: Message + ?Sized>(&mut self, m: &M) {
         #[cfg(any(test, feature = "prover", feature = "verifier"))]
         {
-            self.session.position.messages += 1;
-            self.session.stream = None;
+            self.position.messages += 1;
+            self.stream = None;
+        }
+        self.strand.write(&M::TAG.value().to_le_bytes());
+        #[cfg(not(test))]
+        m.encode(&mut Encoder::new(&mut self.strand));
+        #[cfg(test)]
+        {
+            let mut record = super::message::Recorded {
+                tag: M::TAG.value(),
+                ..Default::default()
+            };
+            m.encode(&mut Encoder::new(&mut self.strand, &mut record));
+            self.trace.message(record);
         }
     }
-    pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.count_message();
-        self.session.strand.write(&[0]);
-        self.session
-            .strand
-            .write(&(bytes.len() as u64).to_le_bytes());
-        self.session.strand.write(bytes);
-    }
-}
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl Writing<'_> {
-    pub fn write_elt_field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
-        self.count_message();
-        self.session.strand.write(&[1]);
-        self.field(e, f);
-    }
-    pub fn write_elt_field_slice<F: SerializableField>(&mut self, e: &[ElementOf<F>], f: &F) {
-        self.count_message();
-        self.session.strand.write(&[2]);
-        self.session.strand.write(&(e.len() as u64).to_le_bytes());
-        for x in e {
-            self.field(x, f);
-        }
-    }
-    fn field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
-        let n = f.serialized_size_bytes();
-        if n <= MAX_FIELD_BYTES {
-            let mut buf = [0u8; MAX_FIELD_BYTES];
-            f.to_bytes_into(e, &mut buf[..n]);
-            self.session.strand.write(&buf[..n]);
-        } else {
-            let mut buf = vec![0u8; n];
-            f.to_bytes_into(e, &mut buf);
-            self.session.strand.write(&buf);
-        }
-    }
-}
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl<'a> Writing<'a> {
-    /// Start reading challenges. After a message this ends the node with the
-    /// round footer, labeled by this draw, and opens the next one; with no
-    /// message since the last boundary it continues that boundary's stream
-    /// and writes nothing (transcript I7).
-    pub fn begin_squeeze(mut self) -> Reading<'a> {
-        let reader = match self.session.stream.take() {
+    /// Read challenges from the last boundary's stream, ending the node
+    /// first if a message was sent since (transcript I7).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(super) fn draw<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> T {
+        let mut reader = match self.stream.take() {
             Some(reader) => reader,
             None => self.open(),
         };
-        Reading {
-            session: self.session,
-            reader,
-        }
+        let value = f(&mut Reading {
+            reader: &mut reader,
+            #[cfg(test)]
+            trace: &mut self.trace,
+        });
+        self.stream = Some(reader);
+        value
     }
+    /// End the node with the ROUND terminator and start a one-parent
+    /// continuation. The parent digest stays private; PRF block zero supplies
+    /// challenges rather than being consumed for a separate link.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     fn open(&mut self) -> Reader {
-        self.write_bytes(b"longfellow/transcript/v2/round");
-        self.write_bytes(&[self.label]);
+        self.strand.write(&ROUND.to_le_bytes());
         #[cfg(test)]
-        {
-            self.session._round_count.0 += 1;
-        }
-        // Finalize exactly once, then start a fresh one-parent continuation. The
-        // parent digest stays private; PRF block zero supplies challenges rather
-        // than being consumed for a separate link. The owned strand advances
-        // without temporarily replacing the session with a fresh root.
-        let prf = self.session.strand.continue_in_place();
+        self.trace
+            .boundary(std::mem::take(&mut self.strand.preimage));
+        let prf = self.strand.continue_in_place();
         let (node, digest) = prf.boundary();
-        self.session.position.node = node;
-        self.session.position.digest = *digest;
+        self.position.node = node;
+        self.position.digest = *digest;
         Reader::new(prf)
+    }
+    /// The seal block over `body`: the Seal message, the SEAL terminator,
+    /// then the first PRF block of the sealed node (transcript I10).
+    pub(super) fn compute_final_seal(&mut self, body: &[u8]) -> [u8; SEAL_BYTES] {
+        self.send_message(&Seal(body));
+        self.strand.write(&SEAL.to_le_bytes());
+        #[cfg(test)]
+        self.trace.seal(std::mem::take(&mut self.strand.preimage));
+        std::mem::take(&mut self.strand).end_strand().next_block()
+    }
+}
+impl TranscriptRef<'_> {
+    /// Send one prover message, absorbed exactly once (transcript I4).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn send<M: ProverMessage + ?Sized>(&mut self, m: &M) {
+        self.session.send_message(m);
+    }
+    /// Draw challenges (transcript I7). The closure reads them in order and
+    /// cannot send a message.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn draw<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> T {
+        self.session.draw(f)
     }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl<'a> Reading<'a> {
-    /// Close the reading phase and return a value to the round caller.
-    /// The returned value is not absorbed into the transcript. The session
-    /// keeps the stream for a draw that follows with no message in between.
-    pub fn end_round<T>(self, value: T) -> RoundEnd<'a, T> {
-        self.session.stream = Some(self.reader);
-        RoundEnd {
-            _session: self.session,
-            _value: value,
-        }
-    }
+impl Reading<'_> {
     pub fn bytes(&mut self, n: usize) -> Vec<u8> {
         let mut bytes = vec![0; n];
-        self.reader.read(&mut bytes);
+        self.fill(&mut bytes);
         bytes
     }
     /// Fill `out` with the next bytes of the stream.
     pub fn fill(&mut self, out: &mut [u8]) {
+        #[cfg(test)]
+        self.trace.draw(super::trace::Draw::Bytes);
         self.reader.read(out);
     }
     pub fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
+        #[cfg(test)]
+        self.trace.draw(super::trace::Draw::Element);
         f.sample(|out| self.reader.read(out))
     }
     pub fn elt_field_slice<F: SupportsSampling>(&mut self, n: usize, f: &F) -> Vec<F::E> {
@@ -297,6 +271,8 @@ impl<'a> Reading<'a> {
     }
     pub fn choose(&mut self, out: &mut [usize], n: usize, k: usize) {
         assert!(n >= k && out.len() >= k);
+        #[cfg(test)]
+        self.trace.draw(super::trace::Draw::Indices);
         let mut a: Vec<_> = (0..n).collect();
         for i in 0..k {
             let j = i + self.nat(n - i);
@@ -315,7 +291,7 @@ impl<'a> Reading<'a> {
         let mask = usize::MAX >> (usize::BITS - bits);
         loop {
             let mut bytes = [0u8; size_of::<usize>()];
-            bytes[..len].copy_from_slice(&self.bytes(len));
+            self.reader.read(&mut bytes[..len]);
             let x = usize::from_le_bytes(bytes) & mask;
             if x < n {
                 return x;

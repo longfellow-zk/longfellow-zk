@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalAcceptance
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalCompleteness
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalPrefix
@@ -154,7 +154,7 @@ theorem finish_accepts
     exact decodedEq
   · change StrandVerifier.samplersSucceeded binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) fmt.wire (fmt.body)
       roundSampler output SHA ∧ _
-    refine ⟨?_,?_,?_,?_,?_,?_⟩
+    refine ⟨?_,?_,?_,?_,?_⟩
     · intro i
       rw [RuntimeAdaptiveVerifier.point_eq,outputRequest,encoded]
       change TranscriptV2.StrandVerifier.sampled (StrandRuntime.history fmt.wire (fmt.body))
@@ -164,7 +164,6 @@ theorem finish_accepts
         i.val i.isLt]
       exact sampleFacts.1 i
     · exact fmt.root_context _ _
-    · rfl
     · have accepted := (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).compiler configuration.openingPositive).indexed_complete_with_defaults
         scheme (fun i => (i,nonces i)) W
         ((Joint.Pair.statementEquiv ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant).symm data.2.statement)

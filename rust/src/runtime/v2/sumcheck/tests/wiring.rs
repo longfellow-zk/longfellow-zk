@@ -23,9 +23,7 @@ use crate::{
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         v2::{
-            proto::RoundLabel,
             sumcheck::{
-                fragments::Schedule,
                 monomial,
                 quad::{bind_l, bind_r},
                 split::SplitLayer,
@@ -48,12 +46,8 @@ fn sample_assertions<
 ) -> (SplitLayer<'a>, Vec<F::E>) {
     // One fragment: its quadratic markers, then its linear markers.
     let n = layer.assertion_counts().iter().sum();
-    let rho = transcript.round(RoundLabel::Assertions, |mut w| {
-        w.write_bytes(&(stage as u64).to_le_bytes());
-        let mut r = w.begin_squeeze();
-        let rho = r.elt_field_slice(n, f);
-        r.end_round(rho)
-    });
+    transcript.send_for_test(&(stage as u64).to_le_bytes());
+    let rho = transcript.borrow().draw(|r| r.elt_field_slice(n, f));
     (layer, rho)
 }
 
@@ -84,7 +78,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
     let raw_layer = quadratic_layer_fixture(layer, &constants, f);
     let layer = crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_layer);
     let a = [element(7), f.zero()];
-    let mut transcript = Transcript::new(b"assertion-independence");
+    let mut transcript = Transcript::for_test(b"assertion-independence");
     let (layer, rho) = sample_assertions(layer, 0, &mut transcript, f);
     assert_eq!(rho.len(), 1);
     assert_ne!(rho[0], f.zero());
@@ -115,7 +109,7 @@ fn check_repeated_output<
     f: &F,
 ) {
     let constants = [f.zero()];
-    let mut transcript = Transcript::new(b"repeated-assertion-output");
+    let mut transcript = Transcript::for_test(b"repeated-assertion-output");
     let repeated_output = Layer::new_compressed(
         1,
         0,
@@ -138,12 +132,8 @@ fn check_repeated_output<
         crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_repeated_output);
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.fork_for_test();
-    let expected_rho = expected.round(RoundLabel::Assertions, |mut w| {
-        w.write_bytes(&1u64.to_le_bytes());
-        let mut r = w.begin_squeeze();
-        let rho = r.elt_field_slice(2, f);
-        r.end_round(rho)
-    });
+    expected.send_for_test(&1u64.to_le_bytes());
+    let expected_rho = expected.borrow().draw(|r| r.elt_field_slice(2, f));
     let (repeated_output, rho) = sample_assertions(repeated_output, 1, &mut transcript, f);
     assert_eq!(rho, expected_rho);
     assert_eq!(transcript.bytes(32), expected.bytes(32));
@@ -167,7 +157,7 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     let a = [element(7), f.zero()];
     let w = [element(2), element(5), element(11)];
     let point = [element(13), element(17)];
-    let mut transcript = Transcript::new(b"quad-order");
+    let mut transcript = Transcript::for_test(b"quad-order");
     // Assertions at outputs 1 then 0, with an ordinary quad between them.
     // Check sum_{g,r} a[g] QUAD[g,l,r] W[r] directly so an output-index
     // permutation cannot pass merely by being repeated in both bindings.
@@ -246,19 +236,11 @@ fn check_output_sampling<
             .build(),
         );
         // A zero-layer circuit's top weights are its input assertions.
-        let mut actual = Transcript::new(b"v2-output-challenges");
+        let mut actual = Transcript::for_test(b"v2-output-challenges");
         let top = top_weights(&[&circuit], &mut actual.borrow(), f).unwrap();
         let weights = actual.borrow().accept(top).unwrap().outputs().to_vec();
-        let mut expected = Transcript::new(b"v2-output-challenges");
-        Schedule::new(&[&circuit])
-            .unwrap()
-            .absorb(&[&circuit], &mut expected.borrow());
-        let expected_weights = expected.round(RoundLabel::Assertions, |mut w| {
-            w.write_bytes(&0u64.to_le_bytes());
-            let mut r = w.begin_squeeze();
-            let weights = r.elt_field_slice(noutput, f);
-            r.end_round(weights)
-        });
+        let mut expected = Transcript::for_test(b"v2-output-challenges");
+        let expected_weights = expected.borrow().draw(|r| r.elt_field_slice(noutput, f));
         assert_eq!(weights, expected_weights);
         assert_eq!(actual.bytes(32), expected.bytes(32), "logv={logv}");
     }

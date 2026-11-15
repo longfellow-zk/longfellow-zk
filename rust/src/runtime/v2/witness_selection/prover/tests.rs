@@ -15,7 +15,6 @@ use crate::{
             proto::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
-                RoundLabel,
             },
             transcript::Transcript,
         },
@@ -91,10 +90,7 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
     .unwrap();
     let generic = Field::new(small_param, &sd, b"test/prime17/canonical".to_vec()).unwrap();
     let generic = Param::new((generic, ())).unwrap();
-    let root = PolygeroCommitment {
-        root: Digest { data: [3; 32] },
-    };
-    let a = generic.challenges(&root, &mut Transcript::new(b"generic-sampling").borrow());
+    let a = generic.challenges(&mut Transcript::for_test(b"generic-sampling").borrow());
     assert_eq!(a.0[0].len(), 3);
 
     let f = Gf2_128Field::new();
@@ -111,9 +107,9 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
         rng.elt_field_slice(3, &f),
         (rng.elt_field_slice(2, &p), (vec![], ())),
     );
-    let mut tp = Transcript::new(b"three-fields");
+    let mut tp = Transcript::for_test(b"three-fields");
     let (prover, root, responses) = commit(&mut tp.bound(&param), witnesses, &mut rng).unwrap();
-    let mut tv = Transcript::new(b"three-fields");
+    let mut tv = Transcript::for_test(b"three-fields");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
     let proof = prover
         .prove(
@@ -136,15 +132,12 @@ fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_mask
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
     let param = Param::new((field(3, &f, &d), ())).unwrap();
-    let mut t = Transcript::new(b"shape");
+    let mut t = Transcript::for_test(b"shape");
     let mut rng = DeterministicRng::new(1);
     assert!(commit(&mut t.bound(&param), (vec![f.one(); 5], ()), &mut rng).is_err());
     assert_eq!(rng.bytes(32), DeterministicRng::new(1).bytes(32));
-    let mut t = Transcript::new(b"shape");
-    let root = PolygeroCommitment {
-        root: Digest { data: [3; 32] },
-    };
-    let a = param.challenges(&root, &mut t.borrow());
+    let mut t = Transcript::for_test(b"shape");
+    let a = param.challenges(&mut t.borrow());
     let mut s = statement();
     s.b.push(f.zero());
     s.a.push(PolygeroLinearTerm {
@@ -165,7 +158,6 @@ fn statement<E>() -> LinearStatement<E> {
     LinearStatement {
         a: vec![],
         b: vec![],
-        digest: Digest { data: [0; 32] },
     }
 }
 fn residuals<const W: usize, F: RuntimeField<W>>(
@@ -194,10 +186,7 @@ fn both_characteristics_cover_every_cell_and_have_dedicated_masks() {
         (rng.elt_field_slice(13, &p), ()),
     );
     fields.append_masks(&mut witnesses, &mut rng);
-    let root = PolygeroCommitment {
-        root: Digest { data: [9; 32] },
-    };
-    let a = param.challenges(&root, &mut Transcript::new(b"cell-coverage").borrow());
+    let a = param.challenges(&mut Transcript::for_test(b"cell-coverage").borrow());
     assert_ne!(a.0[0], a.0[1]);
     assert_ne!(a.1 .0[0], a.1 .0[1]);
     let responses = fields.responses(&witnesses, &a);
@@ -250,10 +239,10 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
             rng.elt_field_slice(17, &f),
             (rng.elt_field_slice(13, &p), ()),
         );
-        let mut tp = Transcript::new(b"selection/backend");
+        let mut tp = Transcript::for_test(b"selection/backend");
         let (mut prover, root, mut responses) =
             commit(&mut tp.bound(&param), witnesses, &mut rng).unwrap();
-        let mut tv = Transcript::new(b"selection/backend");
+        let mut tv = Transcript::for_test(b"selection/backend");
         if forged > 0 {
             // Rebind the forged response on BOTH sides. Arithmetic rejection is
             // required even when the transcript prefix and final seal agree.
@@ -295,66 +284,15 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
 }
 
 #[test]
-fn layouts_roots_contexts_and_reader_segmentation_are_bound() {
-    let f = Gf2_128Field::new();
-    let d = BinaryInterpolatorFactory::full_field(&f);
-    let param = Param::new((field(17, &f, &d), ())).unwrap();
-    let root = PolygeroCommitment {
-        root: Digest { data: [1; 32] },
-    };
-    let other = PolygeroCommitment {
-        root: Digest { data: [2; 32] },
-    };
-    let a = param.challenges(&root, &mut Transcript::new(b"layout").borrow());
-    let mut changed_identity = param.clone();
-    changed_identity.fields.0.field_id.push(0);
-    assert_ne!(
-        a.0,
-        changed_identity
-            .challenges(&root, &mut Transcript::new(b"layout").borrow())
-            .0
-    );
-    assert_ne!(
-        a.0,
-        param
-            .challenges(&other, &mut Transcript::new(b"layout").borrow())
-            .0
-    );
-    let different = Param::new((field(18, &f, &d), ())).unwrap();
-    assert_ne!(
-        a.0[0],
-        different
-            .challenges(&root, &mut Transcript::new(b"layout").borrow())
-            .0[0]
-    );
-    let mut t = Transcript::new(b"layout");
-    let raw = t.round(RoundLabel::Fingerprint, |mut w| {
-        w.write_bytes(b"longfellow/witness-selection/v1");
-        w.write_bytes(&param.context().data);
-        w.write_bytes(&root.root.data);
-        w.write_bytes(&1u64.to_le_bytes());
-        param.fields.bind_layout(&mut w);
-        let mut r = w.begin_squeeze();
-        let bytes = r.bytes(2 * 17 * 16);
-        r.end_round(bytes)
-    });
-    let expected: Vec<_> = raw
-        .as_chunks::<16>()
-        .0
-        .iter()
-        .map(|x| f.bytes_to_element(x).unwrap())
-        .collect();
-    assert_eq!(a.0[0], expected[..17]);
-    assert_eq!(a.0[1], expected[17..]);
-}
-
-#[test]
-fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
+fn coefficients_follow_the_commitment_and_read_one_stream() {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
     let param = Param::new((field(17, &f, &d), ())).unwrap();
     let root = PolygeroCommitment {
         root: Digest { data: [7; 32] },
+    };
+    let other = PolygeroCommitment {
+        root: Digest { data: [8; 32] },
     };
     let responses = (
         FingerprintResponse {
@@ -362,19 +300,30 @@ fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
         },
         (),
     );
-    let mut actual = Transcript::new(b"selection/root-binding");
+    let mut actual = Transcript::for_test(b"selection/root-binding");
     let _verifier = Verifier::receive(&mut actual.bound(&param), &root, responses.clone());
-
-    // Preserve the existing root framing and order while removing the detached
-    // receipt API: the first challenge round must see exactly this prefix.
-    let mut expected = Transcript::new(b"selection/root-binding");
-    expected.absorb(|w| {
-        w.write_bytes(b"polygero/joint/root/v1");
-        w.write_bytes(&param.context().data);
-    });
-    expected.absorb(|w| w.write_bytes(&root.root.data));
-    let _coefficients = param.challenges(&root, &mut expected.borrow());
-    param.absorb_responses(&responses, &mut expected.borrow());
+    // The statement fixes every layout; the coefficients are drawn from the
+    // boundary after the `Commitment` message (Bytes(32), the encoding of a
+    // test message), both vectors from one stream.
+    let coefficients = |root: &PolygeroCommitment| {
+        let mut t = Transcript::for_test(b"selection/root-binding");
+        t.send_for_test(&root.root.data);
+        let mut fork = t.fork_for_test();
+        let drawn = param.challenges(&mut t.borrow());
+        let raw = fork.borrow().draw(|r| r.bytes(2 * 17 * 16));
+        let expected: Vec<_> = raw
+            .as_chunks::<16>()
+            .0
+            .iter()
+            .map(|x| f.bytes_to_element(x).unwrap())
+            .collect();
+        assert_eq!(drawn.0[0], expected[..17]);
+        assert_eq!(drawn.0[1], expected[17..]);
+        (drawn, t)
+    };
+    let (a, mut expected) = coefficients(&root);
+    assert_ne!(a.0, coefficients(&other).0 .0);
+    param.send_responses(&responses, &mut expected.borrow());
     assert_eq!(actual.round_count_for_test(), 1);
     assert_eq!(actual.bytes(32), expected.bytes(32));
 }
@@ -390,7 +339,7 @@ fn fingerprint_responses_are_bound_before_later_challenges() {
     };
     let state = |values| {
         let responses = (FingerprintResponse { values }, ());
-        let mut t = Transcript::new(b"selection/response-binding");
+        let mut t = Transcript::for_test(b"selection/response-binding");
         let _verifier = Verifier::receive(&mut t.bound(&param), &root, responses);
         t.bytes(32)
     };
@@ -409,7 +358,7 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
         commit(&mut t.bound(&param), witnesses, &mut rng).unwrap()
     };
     // Forks hold the same bytes but are other sessions.
-    let mut stale = Transcript::new(b"selection/session");
+    let mut stale = Transcript::for_test(b"selection/session");
     let (stale_prover, _, _) = commit_on(&mut stale);
     let mut stale_fork = stale.fork_for_test();
     assert_eq!(
@@ -418,12 +367,12 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
             .unwrap_err(),
         "witness selection session mismatch"
     );
-    let mut tp = Transcript::new(b"selection/session");
+    let mut tp = Transcript::for_test(b"selection/session");
     let (prover, root, responses) = commit_on(&mut tp);
     let proof = prover
         .prove(&mut tp.bound(&param), (statement(), ()))
         .unwrap();
-    let mut tv = Transcript::new(b"selection/session");
+    let mut tv = Transcript::for_test(b"selection/session");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
     let mut tv_fork = tv.fork_for_test();
     assert_eq!(

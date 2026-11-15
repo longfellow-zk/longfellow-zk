@@ -80,9 +80,8 @@ def frontierCapacity (g : Geometry) : ℕ :=
 /-- Authentication has one common nonce vector and one common frontier.
 The length is the actual serialized count; the vector has exactly that
 length, with no padding. Its public parser bound makes the proof space finite.
-The context is checked against the public joint commitment context. -/
+The joint commitment context is public setup, not part of the body. -/
 structure Authentication (g : Geometry) where
-  context : Digest
   nonce : Fin g.openings → MerkleNonce
   frontierLength : Fin (frontierCapacity g+1)
   frontier : Fin frontierLength.val → Digest
@@ -90,7 +89,7 @@ structure Authentication (g : Geometry) where
 noncomputable instance (g : Geometry) : Fintype (Authentication g) := by
   classical
   apply Fintype.ofInjective (fun a : Authentication g =>
-    (a.context,a.nonce,(⟨a.frontierLength,a.frontier⟩ :
+    (a.nonce,(⟨a.frontierLength,a.frontier⟩ :
       (length : Fin (frontierCapacity g+1)) × (Fin length.val → Digest))))
   intro a b h
   cases a

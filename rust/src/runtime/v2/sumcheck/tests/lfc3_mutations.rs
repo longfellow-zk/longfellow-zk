@@ -143,7 +143,7 @@ fn check_mutations<const W: usize, F: RuntimeField<W> + SerializableField + Supp
                 let _ = top_and_derive(
                     list.as_slice(),
                     &proof,
-                    &mut Transcript::new(b"lfc3-mutations").borrow(),
+                    &mut Transcript::for_test(b"lfc3-mutations").borrow(),
                     f,
                 );
             }));

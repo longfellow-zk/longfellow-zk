@@ -16,7 +16,7 @@ use crate::{
         v2::{
             polygero::Participants,
             proto::polygero::{FieldProof, PolygeroConfig},
-            transcript::{Reading, Writing},
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
@@ -70,33 +70,42 @@ impl<
         constraints::validate(self.0.param.geom.nw, s.0.b.len(), &s.0.a)?;
         self.1.validate_statements(&s.1)
     }
-    fn absorb_statements(&self, s: &Self::Statements, t: &mut Writing<'_>) {
-        transcript::absorb_statement(t, &s.0.digest, &self.0.param.context, s.0.b.len());
-        self.1.absorb_statements(&s.1, t);
-    }
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges {
         (
             transcript::challenges(t, &self.0.param, s.0.b.len(), self.0.f),
             self.1.challenges(&s.1, t),
         )
     }
-    fn absorb_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>) {
-        transcript::absorb_response(t, &b.0, self.0.f);
-        self.1.absorb_responses(&b.1, t);
+    fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>) {
+        transcript::send_response(t, &b.0, self.0.f);
+        self.1.send_responses(&b.1, t);
     }
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError> {
         b.0.validate(&self.0.param.geom)?;
         self.1.validate_bodies(&b.1)
     }
-    fn write_bodies(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError> {
-        b.0.write(out, &self.0.param.geom, self.0.f)?;
-        self.1.write_bodies(&b.1, out)
+    fn wire_len(&self) -> Option<usize> {
+        let [response, rows] =
+            FieldProof::<()>::wire_lengths(&self.0.param.geom, self.0.f.serialized_size_bytes())?;
+        response.checked_add(rows)?.checked_add(self.1.wire_len()?)
     }
-    fn read_bodies(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError> {
+    fn write_responses(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError> {
+        b.0.write_response(out, &self.0.param.geom, self.0.f)?;
+        self.1.write_responses(&b.1, out)
+    }
+    fn write_rows(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError> {
+        b.0.write_rows(out, &self.0.param.geom, self.0.f)?;
+        self.1.write_rows(&b.1, out)
+    }
+    fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError> {
         Ok((
-            FieldProof::read(bytes, &self.0.param.geom, self.0.f)?,
-            self.1.read_bodies(bytes)?,
+            FieldProof::read_response(bytes, &self.0.param.geom, self.0.f)?,
+            self.1.read_responses(bytes)?,
         ))
+    }
+    fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError> {
+        b.0.read_rows(bytes, &self.0.param.geom, self.0.f)?;
+        self.1.read_rows(&mut b.1, bytes)
     }
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError> {

@@ -92,7 +92,6 @@ def Checks (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Outp
   let key := e.context output.proof
   samplersSucceeded binary prime P R cfg earlier wire bodyCodec sample output SHA ∧
   cfg.root key = output.proof.body.commitment ∧
-  output.proof.body.authentication.context = cfg.authenticationContext key ∧
   ((RuntimeVerifier.Family binary prime P R cfg).compiler cfg.openingPositive).AcceptsIndexed
     (codec.withOracle (SHA ∘ merkleInput))
     ((Joint.Pair.statementEquiv _ _).symm decoded.statement.statement) (cfg.root key)
@@ -128,7 +127,7 @@ theorem accepted_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (ou
   obtain ⟨decoded,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier wire bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
   rw [TranscriptV2.StrandVerifier.sealValid_iff]
-  exact checks.2.2.2.2.1
+  exact checks.2.2.2.1
 
 theorem accepted_samples (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
     (accepted : verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
@@ -146,7 +145,7 @@ theorem reject_final_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes)
   intro accepted
   obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier wire bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
-  exact wrong checks.2.2.2.2.1
+  exact wrong checks.2.2.2.1
 
 /-- Exhausting a physical sampler rejects even though mathematical replay
 uses a dummy value to finish constructing its path. -/

@@ -14,7 +14,7 @@
 
 //! V2 Merkle proof messages and their wire encoding.
 
-use crate::runtime::v2::proto::util::{read_bytes_32, read_size_4bytes};
+use crate::runtime::v2::proto::util::read_bytes_32;
 
 const DIGEST_LEN: usize = 32;
 /// Salt bytes per v2 column, shared by commitment sampling and the proof codec.
@@ -77,49 +77,41 @@ impl MerkleProof {
         Ok(nonce)
     }
 
-    /// Writes the path to a byte buffer (4-byte little-endian length prefix,
-    /// followed by raw digests).
+    /// Writes the frontier: its raw digests, with no count. It is the last
+    /// field of a proof body, so its length is the rest of the body.
     pub(in crate::runtime::v2) fn write_path(&self, buf: &mut Vec<u8>) {
-        let len = self.path.len() as u32;
-        buf.extend_from_slice(&len.to_le_bytes());
         for d in &self.path {
             buf.extend_from_slice(&d.data);
         }
     }
 
-    /// Reads the path from the byte buffer.
+    /// Reads the frontier: every remaining byte, as at most
+    /// `num_queries * mc_pathlen` digests.
     pub(in crate::runtime::v2) fn read_path(
         bytes: &mut &[u8],
         num_queries: usize,
         mc_pathlen: usize,
     ) -> Result<Vec<Digest>, std::io::Error> {
-        let path_len = read_size_4bytes(bytes)?;
         let max_sz = num_queries.checked_mul(mc_pathlen).ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Overflow computing max Merkle path size",
             )
         })?;
-        if path_len > max_sz {
+        if !bytes.len().is_multiple_of(DIGEST_LEN) || bytes.len() / DIGEST_LEN > max_sz {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Invalid Merkle path size: {path_len} (max_sz={max_sz})"),
+                format!(
+                    "Invalid Merkle frontier size: {} bytes (max {max_sz} digests)",
+                    bytes.len()
+                ),
             ));
         }
-
-        if path_len > bytes.len() / DIGEST_LEN {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "Truncated Merkle frontier",
-            ));
-        }
-
-        let mut path = Vec::new();
-        path.try_reserve_exact(path_len)
-            .map_err(std::io::Error::other)?;
-        for _ in 0..path_len {
-            let p_bytes = read_bytes_32(bytes)?;
-            path.push(Digest { data: p_bytes });
+        let mut path = Vec::with_capacity(bytes.len() / DIGEST_LEN);
+        while !bytes.is_empty() {
+            path.push(Digest {
+                data: read_bytes_32(bytes)?,
+            });
         }
         Ok(path)
     }

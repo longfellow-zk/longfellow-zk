@@ -1,4 +1,4 @@
-import LfzkV2.Current.ProofBodyReplay
+import LfzkV2.Current.BodyEncoding
 import LfzkV2.Current.StrandRuntime
 
 /-! Complete-proof finalization for the strand runtime. The complete

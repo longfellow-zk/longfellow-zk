@@ -176,7 +176,7 @@ fn three_streams<
         witnesses,
         &pads,
         &c,
-        &mut Transcript::new(b"explicit-classes"),
+        &mut Transcript::for_test(b"explicit-classes"),
         f,
     );
     assert!(constraints
@@ -189,7 +189,7 @@ fn three_streams<
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"explicit-classes"),
+        &mut Transcript::for_test(b"explicit-classes"),
         f,
     )
     .unwrap();
@@ -444,7 +444,7 @@ where
         witnesses,
         &pads,
         &c,
-        &mut Transcript::new(b"reserved-coefficients"),
+        &mut Transcript::for_test(b"reserved-coefficients"),
         f,
     );
     verify(
@@ -452,7 +452,7 @@ where
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"reserved-coefficients"),
+        &mut Transcript::for_test(b"reserved-coefficients"),
         f,
     )
     .unwrap();
@@ -464,7 +464,7 @@ where
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"reserved-coefficients"),
+        &mut Transcript::for_test(b"reserved-coefficients"),
         f
     )
     .is_err());

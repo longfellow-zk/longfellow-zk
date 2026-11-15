@@ -1,6 +1,5 @@
 import LfzkV2.Current.Mdoc.Runtime
 import LfzkV2.Current.MdocIdentifiers
-import LfzkV2.Current.ConcreteMetadata
 import LfzkV2.Current.Parameters.Rate7
 
 /-! One concrete public protocol setup shared by mdoc soundness, privacy
@@ -26,14 +25,6 @@ abbrev runtime : Mdoc.Runtime B where
   inputFits := bounds.inputFits
   privateFits := bounds.privateFits
   fingerprint := MdocIdentifiers.setup binary prime cantor scalars ids bounds
-  metadata := ConcreteMetadata.metadata
-    (Advice := MdocAdvice.Value)
-    (C := MdocRuntime.Answer binary.description prime.description binary.plan prime.plan (ConcreteSetup.binaryNodes cantor))
-    binary.description prime.description
-    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
-      (by change 128 < 2^64; decide))
-    (MdocIdentifiers.parameters binary prime cantor scalars ids bounds)
-    (MdocIdentifiers.setup binary prime cantor scalars ids bounds)
 
 abbrev protocol := (runtime binary prime cantor scalars ids bounds).protocol
 

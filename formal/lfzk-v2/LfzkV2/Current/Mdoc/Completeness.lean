@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.Mdoc.Runtime
 import LfzkV2.Current.Protocol.ExecutionSampler
 import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
@@ -85,8 +85,8 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
         (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint) Public)
       (CompleteCanonicalVerifier.earlier runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint)
         Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata)
-      NodeWire.current (ProofBodyCodec.codec Repr (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan)) roundSampler
-      (CanonicalRequest.hashPublic runtime.binary.description.nPublic)
+      (Format.wire (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint)) (Format.body (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint)) roundSampler
+      (Format.hashPublic (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint))
       (CanonicalRuntime.decodePrimePublic runtime.binary.description runtime.prime
         (backend runtime.binaryNodes runtime.binary.description.cells)
         (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)) (MdocRuntime.format runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.scalars runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary) runtime.fingerprint)

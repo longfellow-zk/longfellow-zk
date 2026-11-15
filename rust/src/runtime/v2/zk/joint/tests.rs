@@ -55,7 +55,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         },
         v2::{
             polygero::LinearStatement,
-            proto::{polygero::PolygeroConfig, Digest},
+            proto::polygero::PolygeroConfig,
             transcript::Transcript,
             zk::joint::{JointParam, SelectedField},
         },
@@ -88,26 +88,23 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
             LinearStatement {
                 a: vec![],
                 b: vec![],
-                digest: Digest { data: [1; 32] },
             },
             (
                 LinearStatement {
                     a: vec![],
                     b: vec![],
-                    digest: Digest { data: [2; 32] },
                 },
                 (
                     LinearStatement {
                         a: vec![],
                         b: vec![],
-                        digest: Digest { data: [3; 32] },
                     },
                     (),
                 ),
             ),
         )
     };
-    let tp = Transcript::new(b"zk-v2/selected-three-fields");
+    let tp = Transcript::for_test(b"zk-v2/selected-three-fields");
     let (prover, root, responses) = param
         .commit(
             (vec![f.one(), f.zero()], (vec![p.one()], (vec![], ()))),
@@ -117,7 +114,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         .unwrap();
     let (proof, mut tp) = prover.prove(&param, statements()).unwrap();
     let verify = |responses| {
-        let tv = Transcript::new(b"zk-v2/selected-three-fields");
+        let tv = Transcript::for_test(b"zk-v2/selected-three-fields");
         param
             .clone()
             .receive(&root, responses, tv)
@@ -212,7 +209,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         let param =
             crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ()))
                 .unwrap();
-        let t = Transcript::new(b"fragmented-pcs-test");
+        let t = Transcript::for_test(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
         let (proof, statement) = prove(
             &mut joint.bound(&FrontendPart::new(&p, &components, &[true]).unwrap()),
@@ -223,7 +220,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         .unwrap();
         let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
-            let t = Transcript::new(b"fragmented-pcs-test");
+            let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
             let statement = reduce(
                 &mut v.bound(&FrontendPart::new(&p, &components, &[public])?),
@@ -296,7 +293,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     assert!(eval_circuit(substituted, &main, &f).is_err());
     let param =
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
-    let t = Transcript::new(b"prime-fragmented-pcs-test");
+    let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = prove(
         &mut joint.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
@@ -307,7 +304,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
     let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
-    let t = Transcript::new(b"prime-fragmented-pcs-test");
+    let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = reduce(
         &mut v.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
@@ -337,7 +334,7 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
     }
     .build();
     let circuit = v2::Circuit::with_test_id([0; 32], raw);
-    let prover = crate::runtime::v2::zk::ZkProver::new(
+    let result = crate::runtime::v2::zk::ZkProver::new(
         circuit,
         PolygeroConfig {
             k: 8,
@@ -345,22 +342,16 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
             n: 64,
             t: 2,
         },
-    );
-    let mut rng = DeterministicRng::new(42);
-    let result = prover.commit(
-        [].to_vec(),
         &ZkContext::new(&domain),
-        Transcript::new(b"invalid metadata"),
-        &mut rng,
     );
     assert!(matches!(result, Err(ref e) if e == "public prefix"));
-    assert_eq!(rng.state, 42);
 }
 
 #[test]
 fn final_seal_failure_has_its_own_verification_error() {
     use crate::runtime::v2::{
         proto::zk::ZkProof,
+        transcript::Opened,
         zk::{ZkProver, ZkVerificationError, ZkVerifier},
     };
     let f = Gf2_128Field::new();
@@ -373,29 +364,34 @@ fn final_seal_failure_has_its_own_verification_error() {
         n: 448,
         t: 24,
     };
-    let prover = ZkProver::new(circuit, config);
+    let prover = ZkProver::new(circuit, config, &context).unwrap();
     let private = vec![false; 3];
-    let (committed, geometry) = prover
+    let statement = prover.statement(b"seal error", &[false]).unwrap();
+    let committed = prover
         .commit(
             private.to_vec(),
+            &statement,
             &context,
-            Transcript::new(b"seal error"),
             &mut DeterministicRng::new(45),
         )
         .unwrap();
-    let (proof, transcript) = prover.prove(&[false], committed, &context).unwrap();
-    let mut bytes = proof.write(&geometry, &f, transcript).unwrap().into_bytes();
+    let (proof, transcript) = prover.prove(committed, &context).unwrap();
+    let mut bytes = proof
+        .write(statement.geometry(), &f, transcript)
+        .unwrap()
+        .into_bytes();
+    drop(statement);
     let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
-    let mut input = bytes.as_slice();
-    let decoded = ZkProof::read(&mut input, &geometry, &f).unwrap();
-    verifier
-        .verify(&[false], decoded, Transcript::new(b"seal error"), &context)
-        .unwrap();
+    let check = |bytes: &[u8]| {
+        let statement = verifier.statement(b"seal error", &[false]).unwrap();
+        let mut session = Opened::new(&statement);
+        let decoded = ZkProof::read(bytes, &session.bound(|s| s.geometry()), &f).unwrap();
+        verifier.verify(session, decoded, &context).map(|_| ())
+    };
+    check(&bytes).unwrap();
     *bytes.last_mut().unwrap() ^= 1;
-    let mut changed = bytes.as_slice();
-    let tampered = ZkProof::read(&mut changed, &geometry, &f).unwrap();
     assert!(matches!(
-        verifier.verify(&[false], tampered, Transcript::new(b"seal error"), &context),
+        check(&bytes),
         Err(ZkVerificationError::InvalidTranscriptSeal(_))
     ));
 }
@@ -453,7 +449,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let mut rng = DeterministicRng::new(91);
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
-    let t = Transcript::new(b"virtual-inputs-test");
+    let t = Transcript::for_test(b"virtual-inputs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = prove(
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
@@ -464,7 +460,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     .unwrap();
     let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
     let verify = |definition: &VirtualInputs<_>| {
-        let t = Transcript::new(b"virtual-inputs-test");
+        let t = Transcript::for_test(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
         let statement = reduce(
             &mut v.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true])?),
@@ -494,7 +490,11 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let mut rng = DeterministicRng::new(91);
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let (mut joint, _, _) = param
-        .commit((w, ()), Transcript::new(b"virtual-inputs-test"), &mut rng)
+        .commit(
+            (w, ()),
+            Transcript::for_test(b"virtual-inputs-test"),
+            &mut rng,
+        )
         .unwrap();
     assert!(prove(
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),

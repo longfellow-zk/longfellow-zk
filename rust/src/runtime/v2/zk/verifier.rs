@@ -13,15 +13,14 @@ use crate::{
                 polygero::{validate_opening, PolygeroConfig},
                 sumcheck::SumcheckProof,
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
-                Digest,
             },
             sumcheck::{self, TopWeights},
-            transcript::{Bound, Challenge, Transcript, Unverified, VerifiedProof},
+            transcript::{Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof},
             zk::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::PackingCommitment,
                 split::SplitClaim,
-                CircuitInput, VirtualInputs, ZkContext,
+                CircuitInput, VirtualInputs, ZkContext, ZkProofStatement,
             },
         },
     },
@@ -87,13 +86,13 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
         &mut t.project(|q| &q.participant.backend),
         statement,
         packing,
-        &p.id,
     )
 }
+/// A standalone verifier of one circuit under one Polygero profile.
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
     circuit: Circuit<F>,
+    config: PolygeroConfig,
     participant: CircuitParticipant<W, F>,
-    joint_context: Digest,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
@@ -103,53 +102,65 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)
             .map_err(ZkVerificationError::PolygeroVerification)?;
-        let param = JointParam::new((
-            participant
-                .participant(ctx)
-                .map_err(ZkVerificationError::PolygeroVerification)?,
-            (),
-        ))
-        .map_err(ZkVerificationError::PolygeroVerification)?;
-        let joint_context = param.context();
         Ok(Self {
             circuit,
+            config,
             participant,
-            joint_context,
         })
     }
     pub fn geometry(&self) -> ZkProofGeometry {
         ZkProofGeometry {
             circuit: self.participant.geometry(),
-            joint_context: self.joint_context,
+            config: self.config,
         }
     }
     pub(crate) fn public_input_count(&self) -> usize {
         self.circuit.raw.npublic_input
     }
+    /// The statement of a proof of this circuit on `public` under `context`.
+    /// Open a session with it (`Opened::new`), parse the proof against its
+    /// geometry (`ZkProof::read`), then verify on that session.
+    pub fn statement<'a>(
+        &'a self,
+        context: &'a [u8],
+        public: &'a [CircuitInput<F>],
+    ) -> Result<ZkProofStatement<'a, W, F>, ZkVerificationError> {
+        if public.len() != self.public_input_count() {
+            return Err(ZkVerificationError::PublicInputLengthMismatch {
+                expected: self.public_input_count(),
+                actual: public.len(),
+            });
+        }
+        Ok(ZkProofStatement {
+            context,
+            part: FrontendPart::new(&self.participant, &[&self.circuit], public)
+                .map_err(ZkVerificationError::InvalidSumcheck)?,
+            geometry: self.geometry(),
+        })
+    }
+    /// Verify `proof` against the statement `session` opened with.
     pub fn verify<D: EvaluationDomain<W, F>>(
         &self,
-        public: &[CircuitInput<F>],
+        session: Opened<'_, ZkProofStatement<'_, W, F>>,
         proof: Unverified<'_, ZkProof<W, F>>,
-        transcript: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<VerifiedProof, ZkVerificationError> {
-        let transcript = self.reduce(public, &proof, transcript, ctx)?;
+        let transcript = self.reduce(session, &proof, ctx)?;
         proof
             .checked(transcript)
             .map_err(|e| ZkVerificationError::InvalidTranscriptSeal(e.into()))
     }
     pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
         &self,
-        public: &[CircuitInput<F>],
+        session: Opened<'_, ZkProofStatement<'_, W, F>>,
         proof: &ZkProof<W, F>,
-        t: Transcript,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Transcript, ZkVerificationError> {
-        if public.len() != self.public_input_count() {
-            return Err(ZkVerificationError::PublicInputLengthMismatch {
-                expected: self.public_input_count(),
-                actual: public.len(),
-            });
+        let (statement, t) = session.into_parts();
+        if !std::ptr::eq(statement.part.participant, &self.participant) {
+            return Err(ZkVerificationError::InvalidSumcheck(
+                "statement belongs to another verifier".into(),
+            ));
         }
         proof
             .sumcheck_proof
@@ -177,10 +188,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         ))
         .map_err(ZkVerificationError::PolygeroVerification)?;
         let mut verifier = param.receive(&proof.com, (proof.fingerprints.clone(), ()), t);
-        let part = FrontendPart::new(&self.participant, &[&self.circuit], public)
-            .map_err(ZkVerificationError::InvalidSumcheck)?;
-        let mut frontend = verifier.bound(&part);
-        let statement = top_weights(&mut frontend)
+        let mut frontend = verifier.bound(&statement.part);
+        let linear = top_weights(&mut frontend)
             .and_then(|top| {
                 reduce_parts(
                     &mut frontend,
@@ -193,7 +202,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             })
             .map_err(ZkVerificationError::InvalidSumcheck)?;
         verifier
-            .authenticate(&proof.com_proof, (statement, ()))
+            .authenticate(&proof.com_proof, (linear, ()))
             .map(|authenticated| authenticated.into_transcript())
             .map_err(ZkVerificationError::PolygeroVerification)
     }

@@ -12,7 +12,7 @@ use crate::{
                 JointPolygeroParam, Participant, Participants as BackendParticipants, PolygeroParam,
             },
             proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS, Digest},
-            transcript::{Reading, Writing},
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
@@ -90,9 +90,8 @@ pub trait Fields: sealed::Sealed + Clone {
     type Responses: Clone;
     fn backend(&self) -> Self::Backend;
     fn count(&self) -> usize;
-    fn bind_layout(&self, w: &mut Writing<'_>);
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;
-    fn absorb_responses(&self, responses: &Self::Responses, w: &mut Writing<'_>);
+    fn send_responses(&self, responses: &Self::Responses, t: &mut TranscriptRef<'_>);
     fn authenticate(
         &self,
         statements: Statements<Self>,
@@ -108,9 +107,8 @@ impl Fields for () {
     fn count(&self) -> usize {
         0
     }
-    fn bind_layout(&self, _: &mut Writing<'_>) {}
     fn coefficients(&self, _: &mut Reading<'_>) {}
-    fn absorb_responses(&self, _: &(), _: &mut Writing<'_>) {}
+    fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
     fn authenticate(&self, _: (), _: (), _: &()) -> Result<(), String> {
         Ok(())
     }

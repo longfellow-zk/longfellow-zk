@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Fiat–Shamir ordering shared by the prover and verifier.
+//! Fiat–Shamir order shared by the prover and verifier.
 //!
-//! First bind the context and commitment root. The caller can then run sumcheck
-//! to derive A and b on this same transcript. Absorb the caller's statement
-//! digest before sampling scalar weights alpha and challenge polynomials B_i,
-//! then bind H and Z before choosing columns.
+//! The commitment's `Commitment` message (the root) is the first prover
+//! message after the statement; the statement already fixes the joint
+//! geometry and every field's source (transcript I1, I3). The caller then
+//! runs sumcheck to derive A and b on this same transcript. The batching
+//! weights alpha and challenge polynomials B_i are drawn after the last
+//! message every statement depends on, with nothing absorbed of their own:
+//! the statements are derived from absorbed messages and challenges, so
+//! their digests and the joint context are not absorbed again. Each field
+//! then sends its `PolygeroResponse` (H, Z) before the columns are chosen.
 //! Column order is exactly the order returned by `choose`.
-//!
-//! The commitment context fixes dimensions and domain
-//! ordering. The later digest binds the source statement from which
-//! the caller derives A and b, independently of their sparse representation.
 use super::{
     joint::{FieldChallenges, JointPolygeroParam},
     PolygeroParam,
@@ -35,15 +36,40 @@ use crate::{
             polygero::Participants,
             proto::{
                 polygero::{FieldProof, PolygeroCommitment},
-                Digest, RoundLabel,
+                tags::Tag,
             },
-            transcript::{Reading, TranscriptRef, Writing},
+            transcript::{Encoder, Message, ProverMessage, Reading, TranscriptRef},
         },
     },
 };
 
-/// Sample after the joint binding pass has fixed every participant statement.
-/// A reading capability cannot absorb another message or open another round.
+/// `Commitment` (32): Bytes(32), the joint Merkle root.
+struct CommitmentMessage<'a>(&'a PolygeroCommitment);
+impl Message for CommitmentMessage<'_> {
+    const TAG: Tag = Tag::Commitment;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.bytes(&self.0.root.data);
+    }
+}
+impl ProverMessage for CommitmentMessage<'_> {}
+
+/// `PolygeroResponse` (96): Elements(F, k + s), H on the first k + s oracle
+/// nodes; then Elements(F, 2k), Z on the first 2k nodes.
+struct ResponseMessage<'a, F: SerializableField> {
+    f: &'a F,
+    body: &'a FieldProof<F::E>,
+}
+impl<F: SerializableField> Message for ResponseMessage<'_, F> {
+    const TAG: Tag = Tag::PolygeroResponse;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, &self.body.h);
+        e.elements(self.f, &self.body.z);
+    }
+}
+impl<F: SerializableField> ProverMessage for ResponseMessage<'_, F> {}
+
+/// Draw one field's batching challenges after the last message every
+/// participant statement depends on.
 pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     ts: &mut Reading<'_>,
     param: &PolygeroParam,
@@ -63,55 +89,33 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
         batching_samples,
     }
 }
-// Tuple traversal lives in participant; all transcript framing and round transitions
-// live here, shared by both roles. Binding completes before squeezing begins.
-pub(super) fn absorb_statement(
-    t: &mut Writing<'_>,
-    digest: &Digest,
-    context: &Digest,
-    nconstraints: usize,
-) {
-    t.write_bytes(&digest.data);
-    t.write_bytes(&context.data);
-    t.write_bytes(&(nconstraints as u64).to_le_bytes());
-}
 
-pub(super) fn absorb_response<F: SerializableField>(
-    t: &mut Writing<'_>,
+pub(super) fn send_response<F: SerializableField>(
+    t: &mut TranscriptRef<'_>,
     body: &FieldProof<F::E>,
     f: &F,
 ) {
-    t.write_elt_field_slice(&body.h, f);
-    t.write_elt_field_slice(&body.z, f);
+    t.send(&ResponseMessage { f, body });
 }
 
 impl<L: Participants> JointPolygeroParam<L> {
+    /// Send the root: the first message after the statement.
     pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut TranscriptRef<'_>) {
-        t.absorb(|w| {
-            w.write_bytes(b"polygero/joint/root/v1");
-            w.write_bytes(&self.context.data);
-        });
-        t.absorb(|w| w.write_bytes(&root.root.data));
+        t.send(&CommitmentMessage(root));
     }
     pub(super) fn challenges(&self, s: &L::Statements, t: &mut TranscriptRef<'_>) -> L::Challenges {
-        // Complete the binding pass first: a later field's statement must not
-        // be chosen after seeing an earlier field's batching challenges.
-        t.round(RoundLabel::Batching, |mut w| {
-            self.participants.absorb_statements(s, &mut w);
-            let mut r = w.begin_squeeze();
-            let challenges = self.participants.challenges(s, &mut r);
-            r.end_round(challenges)
-        })
+        // Every participant's statement is fixed before any field's batching
+        // challenges: they all follow the last frontend message.
+        t.draw(|r| self.participants.challenges(s, r))
     }
     pub(super) fn queries(&self, b: &L::Bodies, t: &mut TranscriptRef<'_>) -> Vec<usize> {
-        // Fix all H/Z responses before sampling the single shared query set.
+        // Fix all H/Z responses before drawing the single shared query set.
         // Sharing queries correlates the field checks; it does not merge them.
-        t.round(RoundLabel::Opening, |mut w| {
-            self.participants.absorb_responses(b, &mut w);
-            let mut r = w.begin_squeeze();
+        self.participants.send_responses(b, t);
+        t.draw(|r| {
             let mut indices = vec![0; self.config.t];
             r.choose(&mut indices, self.config.n, self.config.t);
-            r.end_round(indices)
+            indices
         })
     }
 }

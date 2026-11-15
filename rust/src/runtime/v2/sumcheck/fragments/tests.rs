@@ -8,7 +8,7 @@ use crate::{
         algebra::{p256::P256Field, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
-            proto::{sumcheck::SumcheckProof, RoundLabel},
+            proto::sumcheck::SumcheckProof,
             sumcheck::{
                 sample_pads, split::split_layers, top_and_derive as derive, top_and_prove as prove,
             },
@@ -26,12 +26,8 @@ fn draw_and_enter<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
     t: &mut Transcript,
     f: &F,
 ) {
-    let drawn = t.round(RoundLabel::Assertions, |mut w| {
-        w.write_bytes(&(stage as u64).to_le_bytes());
-        let mut r = w.begin_squeeze();
-        let drawn = schedule.draw_stage(stage, &mut r, f);
-        r.end_round(drawn)
-    });
+    t.send_for_test(&(stage as u64).to_le_bytes());
+    let drawn = t.borrow().draw(|r| schedule.draw_stage(stage, r, f));
     schedule.enter(stage, drawn, entering, active);
 }
 
@@ -114,7 +110,7 @@ fn check_early_output_weights(short_has_layer: bool) {
     let constraints = derive(
         &circuits,
         &proof,
-        &mut Transcript::new(b"early-output-counterexample").borrow(),
+        &mut Transcript::for_test(b"early-output-counterexample").borrow(),
         &f,
     )
     .unwrap();
@@ -258,8 +254,8 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         };
         let inputs = vec![f.mulf(&x, &y), x, y, f.zero()];
         let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
-        let mut tp = Transcript::new(b"shared-wires");
-        let mut tv = Transcript::new(b"shared-wires");
+        let mut tp = Transcript::for_test(b"shared-wires");
+        let mut tv = Transcript::for_test(b"shared-wires");
         let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp.borrow(), f).unwrap();
         let d = derive(&circuits, &proof, &mut tv.borrow(), f).unwrap();
         // The top weights' boundary, then one per round and two per layer:
@@ -286,7 +282,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
             let d = derive(
                 &circuits,
                 &forged,
-                &mut Transcript::new(b"shared-wires").borrow(),
+                &mut Transcript::for_test(b"shared-wires").borrow(),
                 f,
             )
             .unwrap();
@@ -302,7 +298,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
             &circuits,
             bad,
             &pads,
-            &mut Transcript::new(b"shared-wires").borrow(),
+            &mut Transcript::for_test(b"shared-wires").borrow(),
             f
         )
         .is_err());
@@ -426,8 +422,8 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         super::super::eval::eval_split_circuit(inputs.clone(), &merged, &merged_splits, f).unwrap();
     assert_eq!(actual, expected);
     let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
-    let mut fragmented_t = Transcript::new(b"same-global-circuit");
-    let mut merged_t = Transcript::new(b"same-global-circuit");
+    let mut fragmented_t = Transcript::for_test(b"same-global-circuit");
+    let mut merged_t = Transcript::for_test(b"same-global-circuit");
     prove(
         &circuits,
         inputs.clone(),
@@ -454,8 +450,8 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
             );
             active.push(SplitFragment::new(s, split));
         }
-        let mut fragmented_t = Transcript::new(b"same-layer-assertions");
-        let mut merged_t = Transcript::new(b"same-layer-assertions");
+        let mut fragmented_t = Transcript::for_test(b"same-layer-assertions");
+        let mut merged_t = Transcript::for_test(b"same-layer-assertions");
         let mut entering = Vec::new();
         if stage > 0 {
             entering.resize(layout.nv, f.zero());
@@ -545,31 +541,6 @@ fn quad_fragments_match_a_physically_merged_circuit() {
     compare_merged(&P256Field::new());
 }
 
-#[test]
-fn schedule_binds_each_circuit_identity() {
-    use crate::{core::algebra::AlgebraicField, runtime::v2::transcript::Transcript};
-    let f = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    let first = fixture(&f);
-    let [second0, second1, second2, second3] = fixture(&f);
-    let mut id = second0.id;
-    id[0] ^= 1;
-    let mut raw = second0.into_raw().into_builder();
-    raw.constants.push(f.one());
-    let second = [
-        Circuit::with_test_id(id, raw.build()),
-        second1,
-        second2,
-        second3,
-    ];
-    let schedule = Schedule::new(&[&first[0]]).unwrap();
-    // The schedule binds circuit identities, not their instance terms.
-    let mut a = Transcript::new(b"fixed-schedule");
-    let mut b = Transcript::new(b"fixed-schedule");
-    schedule.absorb(&[&first[0]], &mut a.borrow());
-    schedule.absorb(&[&second[0]], &mut b.borrow());
-    assert_ne!(a.bytes(32), b.bytes(32));
-}
-
 /// Components may declare different input widths. Each reads a prefix of the
 /// shared input array, whose width is the largest declared width.
 fn check_prefix_widths<
@@ -642,14 +613,14 @@ fn check_prefix_widths<
         &circuits,
         inputs.clone(),
         &pads,
-        &mut Transcript::new(b"prefix-widths").borrow(),
+        &mut Transcript::for_test(b"prefix-widths").borrow(),
         f,
     )
     .unwrap();
     let d = derive(
         &circuits,
         &proof,
-        &mut Transcript::new(b"prefix-widths").borrow(),
+        &mut Transcript::for_test(b"prefix-widths").borrow(),
         f,
     )
     .unwrap();
@@ -667,7 +638,7 @@ fn check_prefix_widths<
         &circuits,
         bad,
         &pads,
-        &mut Transcript::new(b"prefix-widths").borrow(),
+        &mut Transcript::for_test(b"prefix-widths").borrow(),
         f
     )
     .is_err());

@@ -186,11 +186,15 @@ adds no separate query. Current sizes and timings are in the
 
 ### Checked encoding and acceptance
 
-[`ProofBodyCodec`](LfzkV2/Current/ProofBodyCodec.lean) models the canonical
-MDA7/JPG2 body, including the terminal authentication frontier. The body is the
-composed proof in protocol order: shared root, both fingerprint responses,
-`mu`, the two masked quotients, the binary and prime reductions, then the joint
-opening.
+[`TaggedFormat`](LfzkV2/Current/TaggedFormat.lean) is the deployed transcript
+format: node 0 is the statement (setup constants, both circuits' public
+inputs and the commitment), each later node is the tagged prover messages of
+its boundary (`TaggedCodec`), and the seal node is the `Seal` message of the
+whole body. Its body is the canonical MDA7 body, including the terminal
+authentication frontier, which is the rest of the body. The body is the
+composed proof in physical order: shared root, both fingerprint responses,
+the prime reduction, `mu`, the two masked quotients, the binary reduction and
+packing, then the joint opening.
 [`ProofOutput`](LfzkV2/Current/ProofOutput.lean) parses that body and its seal;
 malformed or trailing proof bytes are rejected inside the final event, without
 a parser-success premise. `H/Z` wire values are oracle-prefix evaluations and
@@ -198,7 +202,7 @@ are interpolated by the backend decoder. The shared leaf order is binary then
 prime, each with physical rows `u`, `m`, witness rows and `fstar`; nonces follow
 the sampled-column order.
 
-[`QueryRuntime`](LfzkV2/Current/QueryRuntime.lean) reconstructs contexts and
+[`Format`](LfzkV2/Current/Format.lean) reconstructs contexts and
 fresh-message caches from actual query bytes. Inconsistent logical aliases lie
 outside its canonical image.
 [`StrandAcceptedPath.point_canonical`](LfzkV2/Current/StrandAcceptedPath.lean)

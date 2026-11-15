@@ -350,7 +350,7 @@ theorem authenticated (residual : Tagged → Residual) (H : Tagged → Digest ×
     ((E.merkleCodec).withOracle (SHAof residual H)) ((Joint.Pair.statementEquiv E.First E.Second).symm decoded.statement.statement)
     (E.fmt.root key) cut ((Joint.Pair.coinEquiv E.First E.Second).symm decoded.coin)
     ((Joint.Pair.responseEquiv E.First E.Second).symm (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) output.proof))
-    decoded.query decoded.claim agrees checks.2.2.2.1
+    decoded.query decoded.claim agrees checks.2.2.1
   change JointResponse.Verify E.First E.Second decoded.statement.statement
     (tupleAt (analysis residual) H key) decoded.coin (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) output.proof) decoded.query
   rw [cutOracle_eq]

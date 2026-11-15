@@ -28,7 +28,7 @@ use crate::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
         v2::{
             proto::composed::AdapterMessage,
-            transcript::{Bound, Challenge},
+            transcript::{Bound, Challenge, Header},
             zk::{
                 storage::{ModularClaim, ReservedSuffix},
                 VirtualInput, VirtualInputs,
@@ -227,6 +227,8 @@ pub trait AdapterMode<F: SerializableField>: Sized {
         -> Result<Self, String>;
     fn fragment(&self) -> &Circuit<Gf2_128Field>;
     fn virtual_inputs(&self) -> usize;
+    /// Write the mode's `AdapterLayout` statement message.
+    fn write_layout(&self, h: &mut Header<'_>);
     #[cfg(any(test, feature = "prover"))]
     fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads;
     #[cfg(any(test, feature = "prover"))]

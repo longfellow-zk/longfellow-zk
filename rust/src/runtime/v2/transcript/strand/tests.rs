@@ -7,6 +7,7 @@ impl Strand {
         Self {
             hash: self.hash.clone(),
             id: self.id,
+            preimage: self.preimage.clone(),
         }
     }
 }

@@ -3,7 +3,7 @@ import LfzkV2.Current.MdocAdvice
 import LfzkV2.Current.IdealRuntime
 import LfzkV2.Current.MerkleWireCodec
 import LfzkV2.Current.ConcreteMetadata
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.TaggedFormat
 
 /-! Fixed public readers for the current mdoc verifier. The only scalar
 representations supplied here are the field implementation's canonical
@@ -123,15 +123,27 @@ def shape : WireBlocks.Shape (geometry binary prime binaryPlan primePlan) (field
     (Equiv.refl _) (Equiv.refl _) inputFits (by decide) privateFits degreeFits
 
 /-- The setup constants the deployed transcript format absorbs. -/
-abbrev FormatSetup := FingerprintPrefix.Setup
+abbrev FormatSetup := TaggedFormat.Setup
 
 variable (setup : FormatSetup)
 
 /-- The deployed mdoc transcript format: the one format of the soundness and
 zero-knowledge endpoints. -/
 abbrev format : Format (geometry binary prime binaryPlan primePlan) (fields B) MdocAdvice.Value binary.nPublic :=
-  LegacyFormat (representations scalars) (shape binary prime binaryPlan primePlan inputFits privateFits degreeFits)
+  TaggedFormat.format (representations scalars) (shape binary prime binaryPlan primePlan inputFits privateFits degreeFits)
     setup binary.nPublic
+
+/-- The format absorbs no per-boundary metadata: node 0 binds every setup
+constant once. -/
+def metadata {C : Type} :
+    (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).RequestMetadata C :=
+  fun _ _ _ _ => ()
+
+omit [DecidableEq B] in
+theorem metadata_setupOnly {C : Type} :
+    (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).SetupOnly
+      (metadata binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup (C := C)) :=
+  fun _ _ _ _ _ _ _ => rfl
 
 variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (polynomialX : Bˣ)
 
@@ -173,8 +185,6 @@ def configuration : RuntimeVerifier.Public
   openingBase := fun _ => ⟨[],by simp⟩
   initialLink := fun _ => 0
   root := (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).root
-  authenticationContext := fun _ =>
-    (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).jointContext
   bindSalt := fun _ column nonce => (column,nonce)
   sample := fun answer => answer .opening
 

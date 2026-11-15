@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.CanonicalRuntime
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.MerkleWireCodec

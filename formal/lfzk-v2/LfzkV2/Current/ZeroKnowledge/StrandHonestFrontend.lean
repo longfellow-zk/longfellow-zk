@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext
 import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows
 
@@ -24,10 +24,7 @@ local notation "Repr" => MdocRuntime.representations scalars
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-  (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) binary.nPublic)
+variable (metadata : Format.RequestMetadata (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup) (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes))
 variable (original : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin binary.nPrivate → Bool)
@@ -35,9 +32,7 @@ variable (remaining : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
     (RuntimeStatement.degreeFits binary)) binary.nPublic → Fin prime.remaining → Adapter.Mdoc.P)
 variable {blocks : ℕ}
-variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) setup binary.nPublic →
+variable (roundSampler : Format.Point (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup) →
   Merkle.RandomOracle.Tree Strand.Word Strand.Digest
     (Option (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)) blocks)
 

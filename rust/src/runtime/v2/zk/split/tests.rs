@@ -12,7 +12,7 @@ use crate::{
         v2::{
             polygero::LinearStatement,
             proto::{polygero::PolygeroConfig, sumcheck::SumcheckProof},
-            transcript::{Bound, Transcript},
+            transcript::{Bound, TestMessage, Transcript},
             zk::{
                 self,
                 joint::{top_weights, CircuitParticipant, FrontendPart},
@@ -110,7 +110,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         witness.len(),
         2 + part.geometry().sc_geom.pad_count().unwrap()
     );
-    let mut tp = Transcript::new(b"mixed-rows");
+    let mut tp = Transcript::for_test(b"mixed-rows");
     let mut tv = tp.fork_for_test();
     let (proof, reduction) = prove_split(
         &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
@@ -162,7 +162,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     // A forged sumcheck message changes the claim; the honest split fails.
     let mut forged = proof;
     f.add(&mut forged.layers[0].cross, &f.one());
-    let mut t = Transcript::new(b"mixed-rows");
+    let mut t = Transcript::for_test(b"mixed-rows");
     let claim = reduce_split(
         &mut t.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         &forged,
@@ -203,7 +203,7 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         .prepare_split(private, None, &mut DeterministicRng::new(7))
         .unwrap();
     assert!(witness.is_empty());
-    let mut tp = Transcript::new(b"pure");
+    let mut tp = Transcript::for_test(b"pure");
     let mut tv = tp.fork_for_test();
     let (proof, pending) = prove_split(
         &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
@@ -253,13 +253,13 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let mut tp = Transcript::new(b"split/eta");
+        let mut tp = Transcript::for_test(b"split/eta");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
         let (proof, pending) = prove_split(&mut prover, state, &ctx).unwrap();
         let prover_eta = transcript::eta(&mut prover, &f);
         if late {
-            prover.transcript().absorb(|w| w.write_bytes(b"late"));
+            prover.transcript().send(&TestMessage(b"late"));
         }
         let opened = pending.open(&mut prover, prover_eta, &f);
         let mut verifier = tv.bound(&frontend);

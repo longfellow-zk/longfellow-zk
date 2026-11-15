@@ -49,7 +49,10 @@ use crate::{
             RuntimeField, ZkField,
         },
         random::DeterministicRng,
-        v2::{proto::polygero::PolygeroConfig, transcript::Transcript},
+        v2::{
+            proto::polygero::PolygeroConfig,
+            transcript::{Opened, Transcript},
+        },
     },
 };
 
@@ -142,7 +145,7 @@ fn exercise<
 >(
     f: &F,
     domain: &D,
-) {
+) -> crate::runtime::v2::transcript::Trace {
     let config = PolygeroConfig {
         k: 8,
         s: 2,
@@ -159,10 +162,14 @@ fn exercise<
     let base = extension.base();
     let public = vec![base.one()];
     let witness = vec![base.one(), base.one()];
-    let p = ZkProver::new(circuit(f), config);
-    let tp = Transcript::new(b"longfellow/v2/test");
+    const CONTEXT: &[u8] = b"longfellow/v2/test";
+    let p = ZkProver::new(circuit(f), config, &context).unwrap();
+    let statement = p.statement(CONTEXT, &public).unwrap();
     let mut rng = DeterministicRng::new(42);
-    let (committed, prover_geometry) = p.commit(witness.to_vec(), &context, tp, &mut rng).unwrap();
+    let committed = p
+        .commit(witness.to_vec(), &statement, &context, &mut rng)
+        .unwrap();
+    let prover_geometry = statement.geometry().clone();
     let source_circuit = circuit(f);
     let source_geometry = circuit_geometry(&[&source_circuit]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
@@ -175,50 +182,85 @@ fn exercise<
         prover_geometry.circuit.com_geom.nw,
         source.witness_count + 2
     );
-    let (proof, tp) = p.prove(&public, committed, &context).unwrap();
-    let bytes = proof
+    let (proof, tp) = p.prove(committed, &context).unwrap();
+    let encoded_proof = proof
         .write(&prover_geometry, f, tp.fork_for_test())
-        .unwrap()
-        .into_bytes();
+        .unwrap();
+    let bytes = encoded_proof.as_bytes().to_vec();
     assert_eq!(&bytes[..4], b"LFV9");
-    for old_marker in [b"LFV8", b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
-        let mut obsolete = bytes.clone();
-        obsolete[..4].copy_from_slice(old_marker);
-        assert!(ZkProof::read(&mut obsolete.as_slice(), &prover_geometry, f).is_err());
-    }
 
     // Independently reconstruct the circuit, geometry, and decoded verifier proof.
     let v = ZkVerifier::new(circuit(f), config, &context).unwrap();
     let geometry = v.geometry();
     assert_eq!(geometry, prover_geometry);
-    let mut wrong_context = geometry.clone();
-    wrong_context.joint_context.data[0] ^= 1;
-    assert!(ZkProof::read(&mut bytes.as_slice(), &wrong_context, f).is_err());
-    let mut input = bytes.as_slice();
-    let decoded = ZkProof::read(&mut input, &geometry, f).unwrap();
-    assert!(input.is_empty());
-    let complete = |mut encoded: &[u8]| -> Result<(), String> {
-        let parsed = ZkProof::read(&mut encoded, &geometry, f).map_err(|e| e.to_string())?;
-        let session = Transcript::new(b"longfellow/v2/test");
+    let vs = v.statement(CONTEXT, &public).unwrap();
+    for old_marker in [b"LFV8", b"LFV4", b"LFV3", b"LFV2", b"ZNP1", b"ZNG1"] {
+        let mut obsolete = bytes.clone();
+        obsolete[..4].copy_from_slice(old_marker);
+        let mut t = Transcript::new(&vs);
+        assert!(ZkProof::read(&obsolete, &t.bound(vs.geometry()), f).is_err());
+    }
+    let mut session = Transcript::new(&vs);
+    let decoded = ZkProof::read(&bytes, &session.bound(vs.geometry()), f).unwrap();
+    // The proof is exactly the length its geometry and frontier determine.
+    let opening = decoded.com_proof.authentication_bytes();
+    assert_eq!(
+        bytes.len(),
+        4 + 32
+            + 2 * f.serialized_size_bytes()
+            + prover_geometry
+                .circuit
+                .proof_len(f.serialized_size_bytes())
+                .unwrap()
+            + decoded.com_proof.bodies.0.payload_bytes(f)
+            + opening.0
+            + opening.1
+            + 32
+    );
+    super::super::proto::tests::check_trace_matches_wire(
+        encoded_proof.trace_for_test(),
+        &bytes,
+        4,
+        bytes.len()
+            - 32
+            - decoded.com_proof.bodies.0.rows.len() * f.serialized_size_bytes()
+            - opening.0
+            - opening.1,
+    );
+    let complete = |encoded: &[u8], public: &[CircuitInput<F>]| -> Result<(), String> {
         let verifier = ZkVerifier::new(circuit(f), config, &context).map_err(|e| e.to_string())?;
-        verifier
-            .verify(&public, parsed, session, &context)
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        let statement = verifier
+            .statement(CONTEXT, public)
+            .map_err(|e| e.to_string())?;
+        let mut session = Opened::new(&statement);
+        let parsed = ZkProof::read(encoded, &session.bound(|s| s.geometry()), f)
+            .map_err(|e| e.to_string())?;
+        let verified = verifier
+            .verify(session, parsed, &context)
+            .map_err(|e| e.to_string())?;
+        // Prover and verifier run one schedule (transcript I9).
+        assert_eq!(verified.trace_for_test(), encoded_proof.trace_for_test());
+        Ok(())
     };
-    complete(&bytes).unwrap();
+    complete(&bytes, &public).unwrap();
     for offset in [4, bytes.len() / 2, bytes.len() - 1] {
         let mut changed = bytes.clone();
         changed[offset] ^= 1;
-        assert!(complete(&changed).is_err());
+        assert!(complete(&changed, &public).is_err());
     }
-    assert!(complete(&bytes[..bytes.len() - 32]).is_err());
-    let mut trailing = bytes.clone();
-    trailing.push(0);
-    assert!(complete(&trailing).is_err());
+    // Every truncation and every extension fails (proto I3).
+    for len in (0..bytes.len()).step_by(97).chain([bytes.len() - 1]) {
+        assert!(complete(&bytes[..len], &public).is_err(), "length {len}");
+    }
+    for extra in [1, 31, 32, 33] {
+        let mut extended = bytes.clone();
+        extended.extend(std::iter::repeat_n(0, extra));
+        assert!(complete(&extended, &public).is_err(), "extended by {extra}");
+    }
     let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<W, F>| {
-        let tv = Transcript::new(b"longfellow/v2/test");
-        v.reduce(&inputs, candidate, tv, &context)
+        let statement = v.statement(CONTEXT, &inputs).map_err(|e| e.to_string())?;
+        v.reduce(Opened::new(&statement), candidate, &context)
+            .map_err(|e| e.to_string())
     };
     verify(public.clone(), &decoded).unwrap();
     for coordinate in 0..2 {
@@ -228,23 +270,23 @@ fn exercise<
     }
     {
         // The same witness/layout has the same commitment under a different
-        // trusted circuit ID. Sumcheck still binds the ID and prevents replay.
+        // trusted circuit ID. The statement binds the ID and prevents replay.
         let other_circuit = circuit(f);
         let mut id = other_circuit.id;
         id[0] ^= 1;
         let other_circuit =
             crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
-        let other_prover = ZkProver::new(other_circuit, config);
-        let other_ts = Transcript::new(b"longfellow/v2/test");
-        let (committed, _) = other_prover
+        let other_prover = ZkProver::new(other_circuit, config, &context).unwrap();
+        let other_statement = other_prover.statement(CONTEXT, &public).unwrap();
+        let committed = other_prover
             .commit(
                 witness.to_vec(),
+                &other_statement,
                 &context,
-                other_ts,
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let (other_proof, _) = other_prover.prove(&public, committed, &context).unwrap();
+        let (other_proof, _) = other_prover.prove(committed, &context).unwrap();
         assert_eq!(other_proof.com, proof.com);
         assert!(verify(public.clone(), &other_proof).is_err());
 
@@ -254,30 +296,30 @@ fn exercise<
         let other_circuit =
             crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
         let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
-        let other_ts = Transcript::new(b"longfellow/v2/test");
+        let other_statement = other_verifier.statement(CONTEXT, &public).unwrap();
         other_verifier
-            .reduce(&public, &other_proof, other_ts, &context)
+            .reduce(Opened::new(&other_statement), &other_proof, &context)
             .unwrap();
     }
     let bad_public = vec![base.zero()];
     assert!(verify(bad_public, &decoded).is_err());
     assert!(verify(vec![], &decoded).is_err());
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
             .unwrap()
             .clone();
         f.add(&mut bad.com_proof.bodies.0.h[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
             .unwrap()
             .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
             .unwrap()
             .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].cross, &f.one());
@@ -285,7 +327,7 @@ fn exercise<
     }
     if let PackingProof::TraceZero { .. } = &decoded.packing {
         for change_first_response in [true, false] {
-            let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+            let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
                 .unwrap()
                 .clone();
             let PackingProof::TraceZero { u, a } = &mut bad.packing else {
@@ -320,7 +362,7 @@ fn exercise<
                 (!f.is_zero(&trace(&x))).then_some(x)
             })
             .unwrap();
-        let mut bad = ZkProof::read(&mut bytes.as_slice(), &geometry, f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
             .unwrap()
             .clone();
         let PackingProof::TraceZero { u, .. } = &mut bad.packing else {
@@ -336,6 +378,7 @@ fn exercise<
             "{error}"
         );
     }
+    encoded_proof.trace_for_test().clone()
 }
 #[test]
 fn binary_zk_comparison() {
@@ -344,7 +387,24 @@ fn binary_zk_comparison() {
     };
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    exercise(&f, &d);
+    let trace = exercise(&f, &d);
+    // The full transcript of a small standalone proof: every node decodes
+    // with the grammar and the registry alone, and its bytes are pinned.
+    use crate::runtime::v2::proto::tests::{export_vectors, node_vector};
+    let mut text = String::from(
+        "## Standalone GF(2^128) proof: ZkStatement context \"longfellow/v2/test\", \
+         profile (8, 2, 64, 2), the 3-input quadratic test circuit, public input 1, \
+         DeterministicRng(42); every node of the full transcript\n\n",
+    );
+    for (i, node) in trace.nodes.iter().enumerate() {
+        text += &node_vector("standalone", i, node);
+    }
+    export_vectors(&text);
+    let all: Vec<u8> = trace.nodes.concat();
+    assert_eq!(
+        hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&all)),
+        "c86cb97d713ab13a6ef3e0c48a219466e71a8fb1ff9a8380eedf4194223ab2e8"
+    );
 }
 #[test]
 fn prime_zk_comparison() {
@@ -368,3 +428,66 @@ fn q256_zk_comparison() {
 }
 
 mod layouts;
+
+/// Prove `private` on `public` under `context`, on a transcript opened with
+/// the proof's statement. Returns the proof, its geometry and the prover's
+/// transcript.
+#[allow(clippy::type_complexity)]
+pub(super) fn prove_standalone<
+    const W: usize,
+    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
+    D: EvaluationDomain<W, F>,
+>(
+    prover: &ZkProver<W, F>,
+    context: &[u8],
+    public: &[CircuitInput<F>],
+    private: Vec<CircuitInput<F>>,
+    ctx: &ZkContext<'_, W, F, D>,
+    rng: &mut impl crate::runtime::random::PrivateRandom,
+) -> Result<
+    (
+        ZkProof<W, F>,
+        crate::runtime::v2::proto::zk::ZkProofGeometry,
+        Transcript,
+    ),
+    String,
+> {
+    let statement = prover.statement(context, public)?;
+    let committed = prover.commit(private, &statement, ctx, rng)?;
+    let (proof, t) = prover.prove(committed, ctx)?;
+    Ok((proof, statement.geometry().clone(), t))
+}
+/// Reduce `proof` on a transcript opened with its statement.
+pub(super) fn reduce_standalone<
+    const W: usize,
+    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
+    D: EvaluationDomain<W, F>,
+>(
+    verifier: &ZkVerifier<W, F>,
+    context: &[u8],
+    public: &[CircuitInput<F>],
+    proof: &ZkProof<W, F>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<Transcript, super::ZkVerificationError> {
+    let statement = verifier.statement(context, public)?;
+    verifier.reduce(Opened::new(&statement), proof, ctx)
+}
+/// Parse a complete proof against the geometry of its statement.
+pub(super) fn read_standalone<
+    const W: usize,
+    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
+>(
+    verifier: &ZkVerifier<W, F>,
+    context: &[u8],
+    public: &[CircuitInput<F>],
+    bytes: &[u8],
+    f: &F,
+) -> Result<ZkProof<W, F>, String> {
+    let statement = verifier
+        .statement(context, public)
+        .map_err(|e| e.to_string())?;
+    let mut t = Transcript::new(&statement);
+    let proof =
+        ZkProof::read(bytes, &t.bound(statement.geometry()), f).map_err(|e| e.to_string())?;
+    Ok((*proof).clone())
+}

@@ -889,9 +889,21 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
         );
     }
 
-    // Masked quotients follow the tag, root, both fingerprints and mu. A data
-    // bit flip must fail verification; a padding bit must fail decoding.
-    let masked_at = 4 + 32 + 32 + 64 + 32;
+    // Masked quotients follow the magic, root, both fingerprints, the split
+    // sumcheck and mu (send order). A data bit flip must fail verification;
+    // a padding bit must fail decoding.
+    let split_sumcheck = {
+        use crate::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
+        let (sig, hash) = decompress_circuits(
+            provided.compressed(),
+            &P256Field::new(),
+            &Gf2_128Field::new(),
+        )
+        .unwrap();
+        let geometry = proof_geometry(provided.spec(), &sig, &hash).unwrap();
+        32 * geometry.body.split.sc_geom.serialized_elements().unwrap()
+    };
+    let masked_at = 4 + 32 + 32 + 64 + split_sumcheck + 32;
     for (byte, bit, expected) in [
         (0, 0, MdocVerifierErrorCode::GeneralFailure),
         (3, 1, MdocVerifierErrorCode::GeneralFailure),
@@ -1106,9 +1118,9 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
     }
 }
 
-// These counts come from the nodes begin_squeeze actually opens, independently of the
+// These counts come from the nodes the draws actually end, independently of the
 // geometry summation used by the Lean metadata checker. Final sealing does
-// not call begin_squeeze and is deliberately excluded.
+// not end a node with a draw and is deliberately excluded.
 fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
     let data = &TEST_DATA;
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
@@ -1163,6 +1175,84 @@ fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
             verified.round_count_for_test(),
             expected,
             "{count}-attribute verifier rounds"
+        );
+        check_mdoc_trace(count, provided, &proof);
+        // Prover and verifier run one schedule (transcript I9).
+        assert_eq!(proof.trace_for_test(), verified.trace_for_test());
+    }
+}
+
+/// Check one mdoc proof's trace against its wire bytes and the registry,
+/// and pin the 1-attribute proof's first node: the statement and the
+/// commitment.
+fn check_mdoc_trace(
+    count: usize,
+    provided: &provider::ProvidedCircuit,
+    proof: &crate::runtime::v2::transcript::EncodedProof,
+) {
+    use crate::runtime::{
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field},
+        v2::{
+            proto::tests::{check_trace_matches_wire, export_vectors, node_vector},
+            transcript::Transcript,
+        },
+    };
+    let (gf2, p256) = (Gf2_128Field::new(), P256Field::new());
+    let (sig, hash) = decompress_circuits(provided.compressed(), &p256, &gf2).unwrap();
+    let geometry = proof_geometry(provided.spec(), &sig, &hash).unwrap();
+    let bytes = proof.as_bytes();
+    let mut session = Transcript::for_test(b"layout");
+    let decoded =
+        crate::mdoc::v2::MdocProof::read(bytes, &session.bound(&geometry), &gf2, &p256).unwrap();
+    let polygero = &decoded.body.polygero;
+    let (nonces, frontier) = polygero.authentication_bytes();
+    let rows = 16 * polygero.bodies().0.rows.len() + 32 * polygero.bodies().1 .0.rows.len();
+    let interactive = bytes.len() - 32 - frontier - nonces - rows;
+    let trace = proof.trace_for_test();
+    check_trace_matches_wire(trace, bytes, 4, interactive);
+    // The statement: identity, three circuits, two layouts, the adapter, the
+    // joint geometry and two public input vectors; then the commitment.
+    let tags: Vec<u64> = trace.messages().take(11).map(|m| m.tag).collect();
+    assert_eq!(tags, [16, 18, 18, 18, 19, 19, 22, 20, 21, 21, 32]);
+    let public: Vec<_> = trace
+        .messages()
+        .skip(8)
+        .take(2)
+        .map(|m| m.schema[0].1)
+        .collect();
+    assert_eq!(public, [901 + 788 * count as u64, 258]);
+    // The absorbed geometry is the parsing geometry (transcript I2, I3).
+    let joint = trace.messages().nth(7).unwrap();
+    let nats: Vec<u64> = joint
+        .payload
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|x| u64::from_le_bytes(*x))
+        .collect();
+    let g = &geometry.body;
+    let c = g.config;
+    assert_eq!(
+        nats,
+        [
+            c.k as u64,
+            c.s as u64,
+            c.n as u64,
+            c.t as u64,
+            g.host.com_geom.nw as u64,
+            g.split.com_geom.nw as u64
+        ]
+    );
+    if count == 1 {
+        let node = &trace.nodes[0];
+        export_vectors(&format!(
+            "## 1-attribute mdoc proof (TEST_DATA, first attribute, DeterministicRng(42)): \
+             first node, the statement and the Commitment\n\n{}",
+            node_vector("mdoc 1 attribute", 0, node)
+        ));
+        assert_eq!(
+            hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
+            "71dd5456dd7fbb0594046e56fc603d278f8436a8843092892078976fb2ab1205"
         );
     }
 }

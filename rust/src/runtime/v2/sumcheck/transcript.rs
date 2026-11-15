@@ -12,76 +12,78 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Bind the public statement and masked messages, then sample sumcheck challenges.
+//! Send the masked sumcheck messages and draw the sumcheck challenges.
 //!
-//! The caller binds every trusted circuit ID and the shared public inputs,
-//! then draws the top weights (`top_weights`) and hands them to the sumcheck.
-//! The shared schedule treats zero outputs as assertions where they enter,
-//! including scalar outputs. Each layer has all its assertion coefficients
-//! before any rounds; each round absorbs both masked coefficients before
-//! sampling z. Bind the cross coefficient before sampling nonzero r, then
-//! `end_layer` absorbs the two masked virtual-circuit factors before sampling
-//! alpha, which combines them into one next-layer claim. The same answer then
-//! supplies the next stage's coefficients, or the input assertions after the
-//! last stage; no stage after the top opens a boundary of its own.
+//! The statement already holds every circuit ID, layer width and public
+//! input (transcript I1, I3), so a sumcheck absorbs only its own messages.
+//! The caller draws the top weights (`top_weights`) after the message that
+//! precedes the frontend and hands them to the sumcheck. The shared schedule
+//! treats zero outputs as assertions where they enter, including scalar
+//! outputs. Each layer has all its assertion coefficients before any rounds;
+//! each round sends both masked coefficients (`SumcheckRound`) before
+//! drawing z. The cross coefficient (`SumcheckCross`) precedes the nonzero
+//! r, then `end_layer` sends the two masked virtual-circuit factors
+//! (`SumcheckClaims`) before drawing alpha, which combines them into one
+//! next-layer claim. The same answer then supplies the next stage's
+//! coefficients, or the input assertions after the last stage; no stage
+//! after the top opens a boundary of its own.
 
 use super::{
     circuit::CircuitSource,
     fragments::{Schedule, SplitFragment},
 };
 use crate::{
-    core::{
-        algebra::{ElementOf, SerializableField},
-        proto::v2::Circuit,
-    },
+    core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
-            proto::{sumcheck::RoundPoly, RoundLabel},
-            transcript::{Challenge, Reading, TranscriptRef},
+            proto::{sumcheck::RoundPoly, tags::Tag},
+            transcript::{Challenge, Encoder, Message, ProverMessage, Reading, TranscriptRef},
         },
     },
 };
 
-/// Bind the public sumcheck statement before sampling protocol challenges.
-pub(crate) trait TranscriptSumcheck {
-    /// Absorb the trusted circuit ID, its public inputs, and the zero-output
-    /// claim. The caller supplies exactly npublic_input values.
-    fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
-        &mut self,
-        circuit: &Circuit<F>,
-        public_inputs: &[ElementOf<F>],
-        f: &F,
-    );
+/// `SumcheckRound` (48): Elements(F, 2), the masked coefficients c0 - s0 and
+/// c1 - s1 of one round.
+pub(super) struct RoundMessage<'a, F: SerializableField> {
+    pub(super) f: &'a F,
+    pub(super) coefficients: &'a [F::E; 2],
 }
-
-impl TranscriptSumcheck for TranscriptRef<'_> {
-    fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
-        &mut self,
-        circuit: &Circuit<F>,
-        public_inputs: &[ElementOf<F>],
-        f: &F,
-    ) {
-        assert_eq!(
-            public_inputs.len(),
-            circuit.raw.npublic_input,
-            "Public inputs length mismatch: expected {}, got {}",
-            circuit.raw.npublic_input,
-            public_inputs.len()
-        );
-        self.absorb(|w| {
-            w.write_bytes(&circuit.id);
-            // The circuit ID binds the number of individually encoded public inputs.
-            for input in public_inputs {
-                w.write_elt_field(input, f);
-            }
-            // The circuit statement requires all outputs to be zero.
-            w.write_elt_field(&f.zero(), f);
-        });
+impl<F: SerializableField> Message for RoundMessage<'_, F> {
+    const TAG: Tag = Tag::SumcheckRound;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, self.coefficients);
     }
 }
+impl<F: SerializableField> ProverMessage for RoundMessage<'_, F> {}
 
-/// Absorb m = [c0-s0,c1-s1] before sampling the round challenge z.
+/// `SumcheckCross` (49): Elements(F, 1), the masked cross coefficient.
+pub(super) struct CrossMessage<'a, F: SerializableField> {
+    pub(super) f: &'a F,
+    pub(super) cross: &'a F::E,
+}
+impl<F: SerializableField> Message for CrossMessage<'_, F> {
+    const TAG: Tag = Tag::SumcheckCross;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, std::slice::from_ref(self.cross));
+    }
+}
+impl<F: SerializableField> ProverMessage for CrossMessage<'_, F> {}
+
+/// `SumcheckClaims` (50): Elements(F, 2), the two masked final claims.
+pub(super) struct ClaimsMessage<'a, F: SerializableField> {
+    pub(super) f: &'a F,
+    pub(super) claims: &'a [F::E; 2],
+}
+impl<F: SerializableField> Message for ClaimsMessage<'_, F> {
+    const TAG: Tag = Tag::SumcheckClaims;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, self.claims);
+    }
+}
+impl<F: SerializableField> ProverMessage for ClaimsMessage<'_, F> {}
+
+/// Send m = [c0-s0,c1-s1] before drawing the round challenge z.
 /// With the pads already committed, fixing both messages determines the
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
 pub(super) fn round_challenge<
@@ -92,17 +94,14 @@ pub(super) fn round_challenge<
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> ElementOf<F> {
-    transcript.round(RoundLabel::Sumcheck, |mut w| {
-        for c in &m.coefficients {
-            w.write_elt_field(c, f);
-        }
-        let mut r = w.begin_squeeze();
-        let value = r.elt_field(f);
-        r.end_round(value)
-    })
+    transcript.send(&RoundMessage {
+        f,
+        coefficients: &m.coefficients,
+    });
+    transcript.draw(|r| r.elt_field(f))
 }
 
-/// Bind the masked final claims before sampling alpha for A + alpha*B.
+/// Send the masked final claims before drawing alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
 /// Input-level zero assertions extend this same answer after alpha is read.
 pub(super) fn end_layer<
@@ -114,16 +113,15 @@ pub(super) fn end_layer<
     f: &F,
     after_alpha: impl FnOnce(&mut Reading<'_>),
 ) -> F::E {
-    transcript.round(RoundLabel::Combine, |mut w| {
-        w.write_elt_field_slice(claims, f);
-        let mut r = w.begin_squeeze();
+    transcript.send(&ClaimsMessage { f, claims });
+    transcript.draw(|r| {
         let value = r.elt_field(f);
-        after_alpha(&mut r);
-        r.end_round(value)
+        after_alpha(r);
+        value
     })
 }
 
-/// Fix d before sampling the nonzero mask scale r. The resulting equation
+/// Fix d before drawing the nonzero mask scale r. The resulting equation
 /// C+r*(d+p_D)+r^2*p_AB=(A+r*p_A)*(B+r*p_B) is affine in committed
 /// cells once the masked factors are messages. Excluding zero keeps both masked.
 pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
@@ -131,16 +129,12 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> F::E {
-    transcript.round(RoundLabel::Terminal, |mut w| {
-        w.write_elt_field(cross, f);
-        let mut r = w.begin_squeeze();
-        let value = loop {
-            let x = r.elt_field(f);
-            if !f.is_zero(&x) {
-                break x;
-            }
-        };
-        r.end_round(value)
+    transcript.send(&CrossMessage { f, cross });
+    transcript.draw(|r| loop {
+        let x = r.elt_field(f);
+        if !f.is_zero(&x) {
+            break x;
+        }
     })
 }
 
@@ -179,9 +173,9 @@ impl<E> TopWeights<E> {
     }
 }
 
-/// Bind the circuit list, then draw the top weights from a fresh boundary:
-/// the round writes the stage index zero, so the boundary keeps its earlier
-/// encoding. The caller has bound every circuit statement first.
+/// Draw the top weights. The statement holds the circuit list, so this sends
+/// nothing: the draw ends the node of the message that precedes the
+/// frontend, or reads further from its stream (transcript I7).
 pub(crate) fn top_weights<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -191,39 +185,19 @@ pub(crate) fn top_weights<
     f: &F,
 ) -> Result<Challenge<TopWeights<F::E>>, String> {
     let schedule = Schedule::new(circuits)?;
-    schedule.absorb(circuits, t);
-    Ok(t.challenge(RoundLabel::Assertions, |mut w| {
-        w.write_bytes(&0u64.to_le_bytes());
-        let mut r = w.begin_squeeze();
-        let top = if schedule.layers.is_empty() {
+    Ok(t.challenge(|r| {
+        TopWeights(if schedule.layers.is_empty() {
             StageWeights {
-                outputs: schedule.input_assertions(circuits, &mut r, f),
+                outputs: schedule.input_assertions(circuits, r, f),
                 assertions: Vec::new(),
             }
         } else {
-            schedule.draw_stage(0, &mut r, f)
-        };
-        r.end_round(TopWeights(top))
+            schedule.draw_stage(0, r, f)
+        })
     }))
 }
 
 impl Schedule {
-    pub(super) fn absorb<F: SerializableField>(
-        &self,
-        circuits: &[impl CircuitSource<F>],
-        t: &mut TranscriptRef<'_>,
-    ) {
-        t.absorb(|w| {
-            w.write_bytes(b"layered-sumcheck/circuits/v1");
-            w.write_bytes(&(circuits.len() as u64).to_le_bytes());
-        });
-        for c in circuits {
-            t.absorb(|w| {
-                w.write_bytes(c.source_id());
-                w.write_bytes(&(c.raw().layers.len() as u64).to_le_bytes());
-            });
-        }
-    }
     /// Accept the caller's top weights before the first message, checking
     /// that they were drawn for this schedule.
     pub(super) fn accept_top<E>(

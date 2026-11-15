@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend
 import LfzkV2.Current.ZeroKnowledge.FrontendRuntimeStatement
 
@@ -31,14 +31,12 @@ def configuration : RuntimeVerifier.Public
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
     (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
     (Base := (Format.Base (Fmt)))
-    (Key := FingerprintPrefix.Key binary.nPublic) (C := Answer) (Salt := Fin 2443 × MerkleNonce) :=
+    (Key := Format.Key (Fmt)) (C := Answer) (Salt := Fin 2443 × MerkleNonce) :=
   Cfg
 
 local notation "Public" => configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 variable {blocks : ℕ}
-variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-    (RuntimeStatement.degreeFits binary)) setup binary.nPublic →
+variable (roundSampler : Format.Point (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup) →
     Merkle.RandomOracle.Tree Strand.Word Strand.Digest
       (Option (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)) blocks)
 variable (SHA : Strand.Oracle)

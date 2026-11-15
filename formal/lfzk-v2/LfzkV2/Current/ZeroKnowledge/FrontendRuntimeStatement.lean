@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.FrontendParserApplication
 import LfzkV2.Current.ZeroKnowledge.FrontendStatementShape
 import LfzkV2.Current.ZeroKnowledge.BackendStatement
@@ -44,15 +44,12 @@ omit [Fintype B] [DecidableEq B] in
 theorem prime_count : (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)).primePublic =
     prime.nPublic := rfl
 
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-  (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) binary.nPublic)
+variable (metadata : Format.RequestMetadata (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (degreeFits binary) setup) (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes))
 variable (request : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) binary.nPublic)
 variable (proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
-variable (H : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) setup binary.nPublic →
+variable (H : Format.Point (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (degreeFits binary) setup) →
   Digest × MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
 
 local notation "Fmt" => MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (degreeFits binary) setup

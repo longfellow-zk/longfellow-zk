@@ -15,13 +15,12 @@ def fillRows (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))
     (rows : ∀ side, Fin (g.dataRows side+3) → Fin g.openings → fields side)
     (nonce : Fin g.openings → MerkleNonce) (frontier : List Digest)
-    (context : Digest) (capacity : frontier.length ≤ OpeningBody.frontierCapacity g) :
+    (capacity : frontier.length ≤ OpeningBody.frontierCapacity g) :
     Body g fields Advice (OpeningBody.Authentication g) :=
   { body with
     binaryBackend := ⟨responses.1,rows .binary⟩
     primeBackend := ⟨responses.2,rows .prime⟩
     authentication := {
-      context := context
       nonce := nonce
       frontierLength := ⟨frontier.length,Nat.lt_succ_of_le capacity⟩
       frontier := fun i => frontier[i.val]'i.isLt } }
@@ -34,7 +33,7 @@ variable (hopenings : g.openings = t)
 def fill (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))
     (raw : OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest)
-    (context : Digest) (capacity : raw.frontier.length ≤ OpeningBody.frontierCapacity g) :
+    (capacity : raw.frontier.length ≤ OpeningBody.frontierCapacity g) :
     Body g fields Advice (OpeningBody.Authentication g) :=
   fillRows body responses (fun side => match side with
     | .binary => fun row query =>
@@ -43,7 +42,7 @@ def fill (body : Body g fields Advice (OpeningBody.Authentication g))
     | .prime => fun row query =>
       (OpeningBody.participantEquiv .prime R prime hN).symm
         ((piFinTwoEquiv _ (raw.values (Fin.cast hopenings query))).2) row)
-    (fun query => raw.nonce (Fin.cast hopenings query)) raw.frontier context capacity
+    (fun query => raw.nonce (Fin.cast hopenings query)) raw.frontier capacity
 
 def ordered {Column : Type} (indices : Fin t ↪ Fin n)
     (columns : ↥(OrderedOpening.query indices).coordinates → Column)

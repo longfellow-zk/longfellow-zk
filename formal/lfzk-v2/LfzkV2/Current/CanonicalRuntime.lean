@@ -35,8 +35,7 @@ def wirePublic : RuntimeVerifier.Public (g := g) binary prime P R (fields := fie
     (Key := fmt.Key) (C := C) (Salt := Salt) :=
   { cfg with
     openingBase := fmt.openingBase
-    root := fmt.root
-    authenticationContext := fun _ => fmt.jointContext }
+    root := fmt.root }
 
 def binaryRequest (bits : Fin binary.nPublic → Bool) (i : Fin fmt.binaryPublic) : fields .binary :=
   cfg.binaryField.symm (Adapter.Circuit.bitValue (bits (Fin.cast binaryCount i)))

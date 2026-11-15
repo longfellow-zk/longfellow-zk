@@ -129,11 +129,11 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
     fmt.wire bodyCodec sample hashPublic primePublic draw (codec) (SHAof G) id _).mp accepted
   have free : MH.CollisionFree (program.run (SHAof G)).2 := by
     by_contra collision
-    exact good ⟨checks.2.2.2.2.1,Or.inl collision⟩
+    exact good ⟨checks.2.2.2.1,Or.inl collision⟩
   have known : ∀ i ≤ g.roles.length, QueryTable.Known (program.run (SHAof G)).2
       (history ((M).point (program.run (SHAof G)).1 (ordinary (SHAof G)) i)).input.encode := by
     by_contra missing
-    exact good ⟨checks.2.2.2.2.1,Or.inr missing⟩
+    exact good ⟨checks.2.2.2.1,Or.inr missing⟩
   have viewDecoded := (Soundness.OracleTransport.decoded_actual binary prime P R fmt cfg binaryCount metadata
     fits sample primeCount draw (codec) id program G).trans decodedAt
   obtain ⟨other,otherAt,column,opened,wrong⟩ := different
@@ -142,7 +142,7 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
   have indexed : Merkle.Indexed.Accepts ((codec).withOracle (SHAof G)) n (rootOf result.1)
       decoded.claim.I decoded.claim.a decoded.claim.pf := by
     rw [outputEq]
-    exact checks.2.2.2.1.2.1
+    exact checks.2.2.1.2.1
   have decodedResult : RuntimeAdaptiveVerifier.decode binary prime P R (W) (Earlier)
       hashPublic primePublic draw result.1 (ordinary (SHAof G)) = some decoded := by
     rwa [outputEq]

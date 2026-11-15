@@ -38,16 +38,8 @@ theorem setup_merge (outside inside : Bytes → Digest) :
     MdocIdentifiers.setup binary prime cantor scalars
         (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) bounds =
       MdocIdentifiers.setup binary prime cantor scalars (identifiers ids outside) bounds := by
-  unfold MdocIdentifiers.setup MdocIdentifiers.fragmentId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [StrandDomains.fragment_merge,StrandDomains.context_merge,StrandDomains.joint_context_merge]
-
-omit [Fintype B] [DecidableEq B] in
-theorem parameters_merge (outside inside : Bytes → Digest) :
-    MdocIdentifiers.parameters binary prime cantor scalars
-        (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) bounds =
-      MdocIdentifiers.parameters binary prime cantor scalars (identifiers ids outside) bounds := by
-  unfold MdocIdentifiers.parameters MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [StrandDomains.context_merge]
+  unfold MdocIdentifiers.setup MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
+  simp only [StrandDomains.context_merge,StrandDomains.joint_context_merge]
 
 variable {fuel blocks Q : ℕ}
 variable (body : Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
@@ -111,7 +103,8 @@ def observation (G : Raw → Digest) :=
 local notation "view" => observation binary prime cantor scalars ids bounds body outside fits sample
 
 theorem submitted_output (G : Raw → Digest) :
-    (view G).original.1 = ProofOutput.decode (MdocRuntime.representations scalars)
+    (view G).original.1 = ProofOutput.decode (TaggedFormat.complete (MdocRuntime.representations scalars)
+        (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan))
       (MdocDefaults.proof (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) B)
       (body.run (SHA G)).1 := by
   have original := congrArg Prod.fst (Mdoc.RuntimeSoundness.observation_original binary prime cantor scalars
@@ -143,19 +136,19 @@ theorem verifier_actual (G : Raw → Digest) :
   exact (actual.trans translated.symm).trans same.symm
 
 def event (G : Raw → Digest) : Prop :=
-  (ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
-    (MdocRuntime.representations scalars) (body.run (SHA G)).1.2).isSome ∧
+  (ProofOutput.read (TaggedFormat.complete (MdocRuntime.representations scalars)
+    (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)) (body.run (SHA G)).1.2).isSome ∧
       Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)
 
 theorem event_eq (G : Raw → Digest) : event binary prime cantor scalars ids bounds body outside fits sample G ↔
     Mdoc.RuntimeSoundness.event binary prime cantor scalars (identifiers ids outside) bounds residual fits sample G := by
   unfold event Mdoc.RuntimeSoundness.event
   change
-    ((ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
-      (MdocRuntime.representations scalars) (body.run (SHA G)).1.2).isSome ∧
+    ((ProofOutput.read (TaggedFormat.complete (MdocRuntime.representations scalars)
+      (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)) (body.run (SHA G)).1.2).isSome ∧
         Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G)) ↔
-    ((ProofOutput.read (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
-      (MdocRuntime.representations scalars) ((residual).run (inside G)).1.2).isSome ∧
+    ((ProofOutput.read (TaggedFormat.complete (MdocRuntime.representations scalars)
+      (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)) ((residual).run (inside G)).1.2).isSome ∧
         Mdoc.RuntimeSoundness.selectedFailure binary prime cantor scalars (identifiers ids outside) bounds sample (view G))
   rw [residual_output binary prime bounds body outside (inside G)]
   rfl

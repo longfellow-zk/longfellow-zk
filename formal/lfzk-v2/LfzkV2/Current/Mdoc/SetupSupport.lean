@@ -45,21 +45,11 @@ theorem values_congr (first second : Strand.Oracle)
   exact (program_result binary prime cantor scalars ids bounds first).symm.trans
     ((congrArg Prod.fst run).trans (program_result binary prime cantor scalars ids bounds second))
 
-def metadata (visible : Mdoc.SetupFamily.Values) : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-    (C := MdocRuntime.Answer binary.description prime.description binary.plan prime.plan (ConcreteSetup.binaryNodes cantor))
-    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) binary.nPublic :=
-  let fixed := MdocIdentifiers.parameters binary prime cantor scalars
-    (Mdoc.PublicSetup.identifiers ids (fun _ => 0)) bounds
-  let params := { fixed with binaryContext := visible.binaryContext, primeContext := visible.primeContext }
-  ConcreteMetadata.metadata binary.description prime.description (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary)) params
-    (Mdoc.SetupFamily.setup binary prime cantor scalars ids bounds visible)
-
 /-- A digest-selected member of the same concrete runtime family used by
-soundness and honest execution. Only public identifiers and metadata vary. -/
+soundness and honest execution. Only the public setup values vary. -/
 abbrev runtime (visible : Mdoc.SetupFamily.Values) : Mdoc.Runtime B :=
   { Mdoc.PublicSetup.runtime binary prime cantor scalars ids bounds (fun _ => 0) with
-    fingerprint := Mdoc.SetupFamily.setup binary prime cantor scalars ids bounds visible
-    metadata := metadata binary prime cantor scalars ids bounds visible }
+    fingerprint := Mdoc.SetupFamily.setup binary prime cantor scalars ids bounds visible }
 
 abbrev protocol (visible : Mdoc.SetupFamily.Values) :=
   (runtime binary prime cantor scalars ids bounds visible).protocol
@@ -70,23 +60,5 @@ theorem runtime_actual (SHA : Strand.Oracle) :
     runtime binary prime cantor scalars ids bounds
         (Mdoc.SetupFamily.values binary prime cantor scalars ids bounds SHA) =
       Mdoc.PublicSetup.runtime binary prime cantor scalars ids bounds SHA := rfl
-
-omit [Fintype B] [DecidableEq B] in
-/-- The observer reconstructs exactly the metadata used by the prover;
-no independent identifier or verifier configuration is assumed. -/
-theorem metadata_actual (SHA : Strand.Oracle) :
-    metadata binary prime cantor scalars ids bounds
-      (Mdoc.SetupFamily.values binary prime cantor scalars ids bounds SHA) =
-    Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds SHA := rfl
-
-omit [Fintype B] [DecidableEq B] in
-theorem metadata_congr (first second : Strand.Oracle)
-    (same : Mdoc.SetupFamily.values binary prime cantor scalars ids bounds first =
-      Mdoc.SetupFamily.values binary prime cantor scalars ids bounds second) :
-    Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds first =
-      Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds second := by
-  exact (metadata_actual binary prime cantor scalars ids bounds first).symm.trans
-    ((congrArg (metadata binary prime cantor scalars ids bounds) same).trans
-      (metadata_actual binary prime cantor scalars ids bounds second))
 
 end LfzkV2.Current.Mdoc.SetupSupport

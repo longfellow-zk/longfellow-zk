@@ -1,30 +1,18 @@
-import LfzkV2.Current.ConcreteMetadata
+import LfzkV2.Current.MdocRuntime
 
 namespace LfzkV2.Current.Tests.Absorption
 
--- The invariant is proved for arbitrary answer arrays, not merely the
--- honest challenges or accepting verifier paths.
-#guard_msgs (drop info) in #check ConcreteMetadata.metadata_challengeIndependent
--- The global absorption invariant: metadata depends on the block index only,
--- so neither prover messages nor challenges can feed a derived absorbed value.
-#guard_msgs (drop info) in #check ConcreteMetadata.metadata_setupOnly
-#guard_msgs (drop info) in #check CanonicalRequest.ordinaryData_of_setupOnly
-#guard_msgs (drop info) in #check CanonicalRequest.block_challengeIndependent
+-- The global absorption invariant: the deployed format absorbs no
+-- per-boundary metadata, so neither prover messages nor challenges can feed
+-- a derived absorbed value. Every setup constant is in node 0.
+#guard_msgs (drop info) in #check MdocRuntime.metadata_setupOnly
+#guard_msgs (drop info) in #check TaggedFormat.fromBody_cache
 
 /--
-info: 'LfzkV2.Current.ConcreteMetadata.metadata_challengeIndependent' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
+info: 'LfzkV2.Current.MdocRuntime.metadata_setupOnly' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms ConcreteMetadata.metadata_challengeIndependent
-
-/--
-info: 'LfzkV2.Current.CanonicalRequest.block_challengeIndependent' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms CanonicalRequest.block_challengeIndependent
+#print axioms MdocRuntime.metadata_setupOnly
 
 end LfzkV2.Current.Tests.Absorption

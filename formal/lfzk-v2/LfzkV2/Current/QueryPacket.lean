@@ -6,7 +6,7 @@ any one transcript format. A packet is a role schema with its deterministic
 cache; `embed` assembles the verifier's logical input from parsed packet
 values, and `bytes` is the earlier chained-transcript preimage (not the
 numbered-strand runtime, which `StrandRuntime` models). A transcript
-`Format` supplies the packets; `QueryRuntime.Runtime` is the deployed one. -/
+`Format` supplies the packets; `TaggedFormat` is the deployed one. -/
 noncomputable section
 namespace LfzkV2.Current.QueryRuntime
 open CanonicalPrefix

@@ -7,8 +7,9 @@ followed by the values its schema fixes; a node is one or more messages and a
 terminator, 0 (ROUND) or 1 (SEAL). Parsing needs only the registries, and a
 concatenation of nodes is an injective encoding of its node sequence.
 
-No transcript model uses this grammar yet: the deployed strand payloads are
-described by `NodeWire.current`. -/
+The deployed format, `TaggedFormat`, writes its nodes with the typed codecs
+of `TaggedCodec`; `Tests.TaggedFormat` checks their bytes against the Rust
+vectors. -/
 namespace LfzkV2.Current.Grammar
 open TranscriptV2.Framing (Byte encodeLE take take_length_append take_sound)
 

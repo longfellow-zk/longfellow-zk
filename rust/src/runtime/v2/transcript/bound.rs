@@ -6,12 +6,47 @@
 //! (transcript I2). A `Challenge` is a value drawn at one boundary for the
 //! next component. Its consumer accepts it only while the session still
 //! stands at that boundary, with no message sent since (transcript I8).
-use super::session::{Position, RoundEnd, SessionStamp, Transcript, TranscriptRef, Writing};
+use super::session::{Position, Reading, SessionStamp, Statement, Transcript, TranscriptRef};
 
 impl Transcript {
     /// Bind `part`, the statement part a component reads, to this session.
     pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         Bound { part, owner: self }
+    }
+}
+
+/// A session together with the statement it was opened with. Proving and
+/// verifying entry points take one and read every part from its statement,
+/// so a transcript opened with one statement cannot be used to check another
+/// (transcript I1, I2).
+pub struct Opened<'s, S: ?Sized> {
+    statement: &'s S,
+    transcript: Transcript,
+}
+impl<'s, S: Statement + ?Sized> Opened<'s, S> {
+    /// Open a session with `statement` (`Transcript::new`).
+    pub fn new(statement: &'s S) -> Self {
+        Self {
+            statement,
+            transcript: Transcript::new(statement),
+        }
+    }
+}
+impl<'s, S: ?Sized> Opened<'s, S> {
+    /// The statement this session opened with.
+    pub fn statement(&self) -> &'s S {
+        self.statement
+    }
+    /// The session, bound to a part of its own statement; for example the
+    /// geometry a proof reader parses against.
+    pub fn bound<P: ?Sized + 's>(&mut self, f: impl FnOnce(&'s S) -> &'s P) -> Bound<'_, P> {
+        let part = f(self.statement);
+        self.transcript.bound(part)
+    }
+    /// The statement and the session, for the drivers that own the session
+    /// from here on.
+    pub(crate) fn into_parts(self) -> (&'s S, Transcript) {
+        (self.statement, self.transcript)
     }
 }
 
@@ -45,24 +80,16 @@ impl<'a, P: ?Sized> Bound<'a, P> {
     pub(crate) fn transcript(&mut self) -> TranscriptRef<'_> {
         self.owner.borrow()
     }
-    /// Run a round whose value a later component consumes.
-    pub(crate) fn challenge<T>(
-        &mut self,
-        label: impl Into<u8>,
-        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
-    ) -> Challenge<T> {
-        self.transcript().challenge(label, f)
+    /// Draw a value a later component consumes.
+    pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T> {
+        self.transcript().challenge(f)
     }
 }
 impl TranscriptRef<'_> {
-    /// Run a round whose value a later component consumes, stamped with the
-    /// boundary it reads from (transcript I7, I8).
-    pub(crate) fn challenge<T>(
-        &mut self,
-        label: impl Into<u8>,
-        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
-    ) -> Challenge<T> {
-        let value = self.round(label, f);
+    /// Draw a value a later component consumes, stamped with the boundary
+    /// it reads from (transcript I7, I8).
+    pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T> {
+        let value = self.draw(f);
         Challenge::stamp(value, self.session.position())
     }
     /// Consume `c` if this session still stands where it was drawn.

@@ -71,24 +71,27 @@ the original extra-bit rejection behavior at power-of-two bounds. Shared
 legacy subfield sampling.
 V2 provers take their private coins as `PrivateRandom`, which no transcript
 implements, so a public challenge stream cannot stand in for them.
-V2 uses SHA-256 strands with explicit message and challenge phases. A root
-has id zero and no parents. Each round consumes its absorbing strand and returns
-a PRF and a fresh one-parent continuation with id `parent.id + 1`.
+V2 uses SHA-256 strands. A session opens with its statement and then absorbs
+only prover messages, each a u64 tag from the registry `v2::proto::tags`
+followed by length-prefixed values (Bytes, Nats, Elements with their FieldID,
+Bits; every integer u64 little endian). A draw after a message ends the node
+with the terminator u64 0 and continues the strand; a draw with no message
+since reads further from the same stream. A root has id zero and no parents;
+each continuation has one parent and id `parent.id + 1`.
 The node hash binds `u32(STRAND) || u64(id) || u32(parent_count) || parent`
 before the message, and PRF blocks hash
 `u32(PRF) || u64(id) || digest || u64(counter)`. Integers are little endian;
 strand ids and PRF counters are checked against overflow. Distinct node and
 PRF positions therefore have distinct inputs even if digests collide. PRF
 reads do not affect the continuation. Separate executions can replay the same
-inputs. Round labels are protocol-format constants owned by
-`v2::proto`; the generic transcript binds their numeric tags. Finalized states
+inputs. Rounds carry no labels. Finalized states
 stay private, and PRF block zero supplies the first challenge bytes.
 Index sampling uses the minimum bit width for values below its bound,
 so power-of-two bounds require no rejection and a singleton consumes no bytes.
 Sampling without replacement updates that bound after each selected index.
-Complete proofs end with a 32-byte final seal: a PRF challenge computed from
-the strand binding the complete canonical proof body, including terminal
-authentication data. Both parties compute it, and verification checks the
+Complete proofs end with a 32-byte final seal: the first PRF block of the node
+that ends with the `Seal` message, every proof byte before the seal block,
+and the terminator u64 1. Both parties compute it, and verification checks the
 value stored in the proof.
 
 The v2 Merkle codec separately tags leaves and internal nodes. Leaves bind
@@ -97,8 +100,8 @@ children `2*i` and `2*i + 1`. The traversal supplies these indices, which are
 encoded as little-endian u64 values and require no proof bytes. Distinct tree
 positions have distinct hash inputs even when their child digests coincide.
 
-V2 callers receive separate writing and reading capabilities. `begin_squeeze` consumes
-the writer; closing the reader returns the round-completion token. Public
+V2 protocol code sends typed messages and draws challenges through a borrowed
+`TranscriptRef`; a draw's reader cannot send. Public
 cloning, resetting, raw-state access, and use as private prover randomness are
 unavailable. Complete-proof encoders own finalization, and decoding returns
 immutable unverified data. Only complete verification returns `VerifiedProof`
@@ -179,9 +182,9 @@ $$
 
 The supported one-/two-/three-/four-attribute circuits have 457/461/466/469 rounds.
 
-Here `r` counts ordinary transcript boundaries, one per `begin_squeeze()` that
-follows a message; a draw with no message since the last boundary reads
-further from that boundary's stream and opens no node.
+Here `r` counts ordinary transcript boundaries, one per draw that follows a
+message; a draw with no message since the last boundary reads further from
+that boundary's stream and opens no node.
 The final seal's node hash and PRF hash are accounted for separately.
 The same SHA function supplies public setup hashes,
 adversarial answers, numbered strand nodes, indexed PRF blocks and indexed

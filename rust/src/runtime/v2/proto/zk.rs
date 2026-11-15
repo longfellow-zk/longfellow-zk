@@ -1,5 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 proof messages, public geometry and complete-proof encoding.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::runtime::v2::{
+    proto::{polygero::checked_body, witness_selection::FINGERPRINTS},
+    transcript::{Bound, Unverified, SEAL_BYTES},
+};
 use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
@@ -7,10 +12,13 @@ use crate::{
         v2::{
             proto::{
                 dual_packing::PackingProof,
-                polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
+                polygero::{
+                    FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig,
+                    PolygeroGeometry,
+                },
                 sumcheck::{SumcheckProof, SumcheckProofGeometry},
             },
-            transcript::{EncodedProof, Transcript, Unverified},
+            transcript::{EncodedProof, Transcript},
         },
     },
 };
@@ -22,17 +30,19 @@ pub struct CircuitGeometry {
     pub com_geom: PolygeroGeometry,
     pub packing_degree: usize,
 }
-/// Complete standalone proof geometry, including its selected joint commitment.
+/// Complete standalone proof geometry: one circuit and the proof's one
+/// Polygero profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkProofGeometry {
     pub circuit: CircuitGeometry,
-    pub joint_context: super::Digest,
+    pub config: PolygeroConfig,
 }
+/// A standalone proof; its fields are in send order (proto I4).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkProof<const W: usize, F: SerializableField> {
-    pub sumcheck_proof: SumcheckProof<W, F>,
     pub com: PolygeroCommitment,
     pub fingerprints: super::witness_selection::FingerprintResponse<ElementOf<F>>,
+    pub sumcheck_proof: SumcheckProof<W, F>,
     pub packing: PackingProof<ElementOf<F>>,
     pub com_proof: JointPolygeroProof<(FieldProof<ElementOf<F>>, ())>,
 }
@@ -111,18 +121,54 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         })
     }
 }
+impl CircuitGeometry {
+    /// Bytes of a circuit proof: the sumcheck, then packing U and A when the
+    /// packing degree exceeds one; None if they overflow.
+    pub(crate) fn proof_len(&self, width: usize) -> Option<usize> {
+        let elements = self.sc_geom.serialized_elements().ok()?;
+        let packing = match self.packing_degree {
+            0 => return None,
+            1 => 0,
+            m => m.checked_add(1)?,
+        };
+        elements.checked_add(packing)?.checked_mul(width)
+    }
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl ZkProofGeometry {
+    /// Bytes of every body field but the frontier: root, fingerprints,
+    /// circuit proof, response, rows and nonces (proto I3).
+    fn fixed_len(&self, width: usize) -> Option<usize> {
+        let g = &self.circuit.com_geom;
+        let [response, rows] = FieldProof::<()>::wire_lengths(g, width)?;
+        [
+            Some(32),
+            FINGERPRINTS.checked_mul(width),
+            self.circuit.proof_len(width),
+            Some(response),
+            Some(rows),
+            JointPolygeroProof::<()>::fixed_opening_len(self.config.t),
+        ]
+        .into_iter()
+        .try_fold(0usize, |total, x| total.checked_add(x?))
+    }
+}
 impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+    pub const MAGIC: [u8; 4] = *b"LFV9";
+    /// `LFV9`, then the body in send order: root, fingerprints, sumcheck,
+    /// packing, response; then the terminal rows, nonces and frontier.
     fn write_body(&self, buf: &mut Vec<u8>, g: &ZkProofGeometry, f: &F) -> std::io::Result<()> {
-        buf.extend_from_slice(b"LFV9");
+        buf.extend_from_slice(&Self::MAGIC);
         buf.extend_from_slice(&self.com.root.data);
         self.fingerprints.write(buf, f);
         CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, &g.circuit, f)?;
+        let geom = &g.circuit.com_geom;
         self.com_proof.write_to_buf(
             buf,
-            &g.joint_context,
-            g.circuit.com_geom.t,
-            g.circuit.com_geom.n,
-            |b, out| b.0.write(out, &g.circuit.com_geom, f),
+            g.config.t,
+            g.config.n,
+            |b, out| b.0.write_response(out, geom, f),
+            |b, out| b.0.write_rows(out, geom, f),
         )
     }
     pub fn write(
@@ -135,44 +181,53 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         self.write_body(&mut b, g, f)?;
         Ok(transcript.append_final_seal(b))
     }
+    /// Parse one complete proof against the absorbed geometry (proto I2).
+    /// The total length is checked before anything is decoded (proto I3).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub fn read<'a>(
-        b: &mut &'a [u8],
-        g: &ZkProofGeometry,
+        bytes: &'a [u8],
+        g: &Bound<'_, ZkProofGeometry>,
         f: &F,
     ) -> std::io::Result<Unverified<'a, Self>> {
-        let input = *b;
         use std::io::{Error, ErrorKind};
-        if b.get(..4) != Some(b"LFV9") {
+        let geometry = g.part();
+        let fixed = geometry
+            .fixed_len(f.serialized_size_bytes())
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "proof geometry"))?;
+        let (t, n) = (geometry.config.t, geometry.config.n);
+        let mut b = checked_body(bytes, Self::MAGIC.len(), fixed, t, n)?;
+        if bytes[..4] != Self::MAGIC {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "Longfellow v2 version marker",
             ));
         }
-        *b = &b[4..];
         let com = PolygeroCommitment {
             root: super::Digest {
-                data: super::util::read_bytes_32(b)?,
+                data: super::util::read_bytes_32(&mut b)?,
             },
         };
-        let fingerprints = super::witness_selection::FingerprintResponse::read(b, f)?;
+        let fingerprints = super::witness_selection::FingerprintResponse::read(&mut b, f)?;
         let CircuitProof {
             sumcheck_proof,
             packing,
-        } = CircuitProof::read(b, &g.circuit, f)?;
+        } = CircuitProof::read(&mut b, &geometry.circuit, f)?;
+        let geom = &geometry.circuit.com_geom;
         let com_proof = JointPolygeroProof::read::<std::io::Error>(
-            b,
-            &g.joint_context,
-            g.circuit.com_geom.t,
-            g.circuit.com_geom.n,
-            |b| Ok((FieldProof::read(b, &g.circuit.com_geom, f)?, ())),
+            &mut b,
+            t,
+            n,
+            |r| Ok((FieldProof::read_response(r, geom, f)?, ())),
+            |bodies, r| bodies.0.read_rows(r, geom, f),
         )?;
         let body = Self {
-            sumcheck_proof,
             com,
             fingerprints,
+            sumcheck_proof,
             packing,
             com_proof,
         };
-        Unverified::decoded(body, input, b)
+        let mut seal = &bytes[bytes.len() - SEAL_BYTES..];
+        Unverified::decoded(body, bytes, &mut seal)
     }
 }

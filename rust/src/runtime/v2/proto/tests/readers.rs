@@ -6,11 +6,17 @@ use super::super::{
 use crate::core::algebra::{BareField, FieldID, SerializableField};
 
 #[test]
-fn merkle_frontier_checks_available_bytes_and_checked_path_bound() {
-    let prefix = 100_000u32.to_le_bytes();
-    let error = MerkleProof::read_path(&mut prefix.as_slice(), 100_000, 1).unwrap_err();
-    assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
-    assert!(MerkleProof::read_path(&mut prefix.as_slice(), usize::MAX, 2).is_err());
+fn merkle_frontier_is_whole_digests_within_the_checked_path_bound() {
+    let digests = [7u8; 96];
+    assert_eq!(
+        MerkleProof::read_path(&mut &digests[..], 3, 1)
+            .unwrap()
+            .len(),
+        3
+    );
+    assert!(MerkleProof::read_path(&mut &digests[..], 2, 1).is_err());
+    assert!(MerkleProof::read_path(&mut &digests[..95], 3, 1).is_err());
+    assert!(MerkleProof::read_path(&mut &digests[..], usize::MAX, 2).is_err());
 }
 
 struct ZeroWidth;

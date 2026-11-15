@@ -223,12 +223,13 @@ samples exactly `ceil(log2(nw))` round challenges. The codec independently caps
 serialized layers at 40 rounds, regardless of host index width; circuit
 execution also checks its index capacity.
 
-The transcript binds the ordered circuit list and depths under
-`layered-sumcheck/circuits/v1`: each circuit contributes its ID and depth. The
+The transcript statement holds every circuit's ID and layer widths, so a
+sumcheck absorbs only its own messages (`SumcheckRound`, `SumcheckCross`,
+`SumcheckClaims`). The
 mdoc binary participant combines its archived hash circuit with the fixed
 adapter fragment, whose leaves are per-proof virtual inputs rather than
 circuit coefficients. Entering circuit outputs and explicit assertions
-share the same assertion answer. `transcript::end_layer` binds the two final claims before the
+share the same assertion answer. `transcript::end_layer` sends the two final claims before the
 ordinary alpha challenge. Prover and verifier share the fragment layout and
 public transition arithmetic; legacy transcript operations are unchanged.
 

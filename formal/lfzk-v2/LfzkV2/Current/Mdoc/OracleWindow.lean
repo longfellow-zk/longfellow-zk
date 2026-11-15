@@ -92,15 +92,4 @@ theorem values_leafOracle {Leaf : Type} (encode : Leaf ↪ Bytes)
   rw [unchanged] at law
   exact law
 
-omit [Fintype B] [DecidableEq B] in
-theorem metadata_extend (window : Finset Bytes)
-    (domain : ∀ raw ∈ window, SHAOracle.merkleDomain raw)
-    (table : {raw // raw ∈ window} → Digest) (outside : Strand.Oracle) :
-    Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds (OracleWindow.extend window table outside) =
-      Mdoc.PublicSetup.metadata binary prime cantor scalars ids bounds outside := by
-  have law := Mdoc.PublicSetup.metadata_merge binary prime cantor scalars ids bounds outside
-    (OracleWindow.extend window table outside)
-  rw [merge_extend window domain table outside] at law
-  exact law
-
 end LfzkV2.Current.Mdoc.OracleWindow

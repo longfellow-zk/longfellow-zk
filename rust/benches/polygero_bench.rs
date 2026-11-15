@@ -50,11 +50,11 @@ fn run<
     let preprocessing_start = Instant::now();
     let param = PolygeroParam::try_new(nw, config, d).unwrap();
     let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
-    let statements = (LinearStatement::new(a, b, f), ());
+    let statements = (LinearStatement::new(a, b), ());
     let preprocessing = preprocessing_start.elapsed();
     // Release the prover's rows and Merkle tree before timing verification.
     let (com, bytes, commit, prove) = {
-        let mut ts = Transcript::new(b"polygero/kernel/bench");
+        let mut ts = Transcript::for_test(b"polygero/kernel/bench");
         let commit_start = Instant::now();
         let (prover, com) =
             JointPolygeroProver::commit(&mut ts.bound(&param), (witness, ()), &mut rng).unwrap();
@@ -67,7 +67,7 @@ fn run<
     };
     let verify_start = Instant::now();
     let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
-    let mut tv = Transcript::new(b"polygero/kernel/bench");
+    let mut tv = Transcript::for_test(b"polygero/kernel/bench");
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &com);
     verifier
         .verify(tv, &param, decoded_proof, &statements)

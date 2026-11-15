@@ -5,10 +5,7 @@ use crate::runtime::{
         packing::{PackingExtension, PackingField},
         ZkField,
     },
-    v2::{
-        dual_packing::generic::PackingProof, polygero::LinearStatement, proto::Digest,
-        transcript::Bound,
-    },
+    v2::{dual_packing::generic::PackingProof, polygero::LinearStatement, transcript::Bound},
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     /// Replay the packing reduction on the parameters bound to `t`.
@@ -16,7 +13,6 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         t: &mut Bound<'_, Self>,
         statement: CommitmentStatement<F::E>,
         packing: &PackingProof<F::E>,
-        id: &[u8; 32],
     ) -> Result<LinearStatement<F::E>, String>
     where
         F: ZkField<W>,
@@ -25,13 +21,10 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             &mut t.project(|c| &c.parameters),
             &statement.claim,
             packing,
-            id,
         )?;
-        // Dynamic source messages are already bound to this same transcript.
-        // Identify the circuit without another query; sparse rows are derived
+        // The source messages are already absorbed; sparse rows are derived
         // locally rather than accepted as proof data.
-        let digest = Digest { data: *id };
         let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
-        Ok(LinearStatement { a, b, digest })
+        Ok(LinearStatement { a, b })
     }
 }

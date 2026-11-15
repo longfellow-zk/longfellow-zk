@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.OracleWindow
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalView
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalColumns

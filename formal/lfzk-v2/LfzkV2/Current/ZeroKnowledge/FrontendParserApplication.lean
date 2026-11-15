@@ -1,3 +1,4 @@
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.FrontendParser
 import LfzkV2.Current.RuntimeAdaptive
 

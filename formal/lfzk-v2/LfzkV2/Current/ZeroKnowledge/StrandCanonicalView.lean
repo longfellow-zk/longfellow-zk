@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBridge
 import LfzkV2.Current.ZeroKnowledge.StrandGhostMerkleSchedule
 

@@ -4,9 +4,9 @@ import TranscriptV2.StrandUnfolding
 
 /-! Parse recovered strand histories using the existing canonical packet
 schemas. Packet data contains only actual writes; cached runtime fields are
-reconstructed by the existing QueryRuntime embedding. No codec for arbitrary
+reconstructed by the packet embedding (`QueryPacket`). No codec for arbitrary
 redundant runtime caches is assumed. Node terminators and the seal come from
-a `NodeWire`; the endpoints use `NodeWire.current`. -/
+a `NodeWire`; the endpoints use `TaggedFormat.wire`. -/
 noncomputable section
 namespace LfzkV2.Current.StrandQueryCodec
 open CanonicalPrefix

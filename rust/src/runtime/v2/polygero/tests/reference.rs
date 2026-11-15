@@ -18,7 +18,7 @@ use crate::{
     core::algebra::AlgebraicField,
     runtime::v2::{
         polygero::{prover_commitment::ColumnOracle, Participants},
-        proto::{polygero::PolygeroCommitment, Digest},
+        proto::polygero::PolygeroCommitment,
     },
 };
 
@@ -54,7 +54,6 @@ pub(super) fn check_recommitted_wrong_witness<
     prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
-    statement: &Digest,
     mut ts: Transcript,
     f: &F,
 ) {
@@ -76,7 +75,7 @@ pub(super) fn check_recommitted_wrong_witness<
     joint.receive(&commitment, &mut ts.borrow());
     // The forged state completes on the session that received its root.
     forged.session = ts.bound(joint).session();
-    let statements = (linear(a, b, *statement), ());
+    let statements = (linear(a, b), ());
     let proof = forged.prove(&mut ts.bound(joint), &statements).unwrap();
     let verifier = JointPolygeroVerifier::receive(&mut verifier_ts.bound(joint), &commitment);
     let error = verifier
@@ -154,14 +153,13 @@ pub(super) fn check<
     envelope: &JointPolygeroProof<(FieldProof<F::E>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
-    statement: &Digest,
     mut ts: Transcript,
     domain: &D,
     f: &F,
 ) {
     let p = &joint.participants.0.param;
     let proof = &envelope.bodies.0;
-    let statements = (linear(a, b, *statement), ());
+    let statements = (linear(a, b), ());
     let commitment = PolygeroCommitment {
         root: prover.oracle.root(),
     };
@@ -274,7 +272,6 @@ pub(super) fn check<
             .participants
             .gather(&prover.states, &mut bodies, &indices);
         let forged = JointPolygeroProof {
-            context: joint.context,
             bodies,
             opening: prover.oracle.open(&indices),
         };
@@ -316,7 +313,6 @@ pub(super) fn check<
             .participants
             .gather(&prover.states, &mut bodies, &indices);
         let forged = JointPolygeroProof {
-            context: joint.context,
             bodies,
             opening: prover.oracle.open(&indices),
         };

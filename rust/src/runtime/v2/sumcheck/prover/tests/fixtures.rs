@@ -2,10 +2,7 @@
 use super::super::*;
 use crate::{
     core::{algebra::ElementOf, proto::v2::Circuit},
-    runtime::v2::{
-        sumcheck::{top_weights, TranscriptSumcheck},
-        transcript::Transcript,
-    },
+    runtime::v2::{sumcheck::top_weights, transcript::Transcript},
 };
 
 /// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.
@@ -44,11 +41,9 @@ pub(crate) fn prove<const W: usize, F: RuntimeField<W> + SerializableField + Sup
     transcript: &mut Transcript,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
-    let inputs = w_layers
-        .last()
-        .expect("use prove_core for a zero-layer circuit");
-    transcript
-        .borrow()
-        .write_sumcheck_statement(circuit, &inputs[..circuit.raw.npublic_input], f);
+    assert!(
+        !w_layers.is_empty(),
+        "use prove_core for a zero-layer circuit"
+    );
     prove_core(w_layers, pads, circuit, &mut transcript.borrow(), f)
 }

@@ -28,7 +28,6 @@ def rawBody (commitment : Digest)
   primeBackend := ⟨⟨fun _ => (0:Adapter.Mdoc.P),fun _ => (0:Adapter.Mdoc.P)⟩,
     fun _ _ => (0:Adapter.Mdoc.P)⟩
   authentication := {
-    context := fun _ => 0
     nonce := fun _ _ => 0
     frontierLength := ⟨0,Nat.succ_pos _⟩
     frontier := Fin.elim0 }

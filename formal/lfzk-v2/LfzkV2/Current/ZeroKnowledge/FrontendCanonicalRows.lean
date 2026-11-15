@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.RequestedPublic
 import LfzkV2.Current.ZeroKnowledge.FrontendFullSatisfaction
 import LfzkV2.Current.ZeroKnowledge.FrontendRuntimeStatement
@@ -30,18 +30,14 @@ local notation "First" => backend binaryNodes binary.description.cells
 local notation "Second" => backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
 local notation "bCount" => RuntimeStatement.binary_count binary prime primePlan inputFits privateFits
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
-  (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (RuntimeStatement.degreeFits binary)) binary.nPublic)
+variable (metadata : Format.RequestMetadata (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup) (MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes))
 variable (original : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (RuntimeStatement.degreeFits binary)) binary.nPublic →
     Fin binary.nPrivate → Bool)
 variable (remaining : CanonicalRequest.Request
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (RuntimeStatement.degreeFits binary)) binary.nPublic →
     Fin prime.remaining → N)
-variable (H : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
-  (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (RuntimeStatement.degreeFits binary))
-  setup binary.nPublic → Digest × MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
+variable (H : Format.Point (MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup) → Digest × MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
 local notation "Fmt" => MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup
 local notation "Point" => (Format.Point (Fmt))
@@ -66,7 +62,7 @@ def honestBody (coins : Coins) (request : Request) (root : Digest) :=
   let selection := fun answer => ((Cfg).fingerprintBinary answer,(Cfg).fingerprintPrime answer)
   CompleteFrontendBody.rawBody b p primePlan root
     (CompleteHonest.run b p primePlan samples writer H selection
-      (FingerprintPrefix.context request root) (original request) (remaining request) source coins.2)
+      (Format.context (Fmt) request root) (original request) (remaining request) source coins.2)
 
 def couplingHash (request : Request) (root : Digest) : Prop :=
   let b := RequestedSimulator.requestedBinary binary prime primePlan Sh request
@@ -75,7 +71,7 @@ def couplingHash (request : Request) (root : Digest) : Prop :=
   let samples := CompleteSimulator.samples b p primePlan binaryNodes (Fmt) config
   let writer := CompleteSimulator.base b p primePlan binaryNodes (Fmt) config bCount metadata request root
   ∀ responses coin converted,
-    FullCoupling.hashChecks b p primePlan samples writer H (FingerprintPrefix.context request root)
+    FullCoupling.hashChecks b p primePlan samples writer H (Format.context (Fmt) request root)
       (original request) responses coin converted
 
 def hashTruth (coins : Coins) (request : Request) (root : Digest) : Prop :=
@@ -86,9 +82,9 @@ def hashTruth (coins : Coins) (request : Request) (root : Digest) : Prop :=
   let writer := CompleteSimulator.base b p primePlan binaryNodes (Fmt) config bCount metadata request root
   let source := RequestedSimulator.privateFrontendEquiv binary prime primePlan Sh pCount request coins.1
   let selection := fun answer => ((Cfg).fingerprintBinary answer,(Cfg).fingerprintPrime answer)
-  let first := CompleteTranscript.step writer H (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)
+  let first := CompleteTranscript.step writer H (CompleteTranscript.initial (Format.context (Fmt) request root) samples.fallback)
   let raw := CompleteHonest.run b p primePlan samples writer H selection
-    (FingerprintPrefix.context request root) (original request) (remaining request) source coins.2
+    (Format.context (Fmt) request root) (original request) (remaining request) source coins.2
   HonestAdapter.hashChecks b p primePlan samples writer H
     (HonestRunRows.native b p primePlan samples writer H first.2 raw) (original request) source
 
@@ -117,25 +113,25 @@ theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
   let source := RequestedSimulator.privateFrontendEquiv binary prime primePlan Sh pCount request coins.1
   let selection := fun answer => ((Cfg).fingerprintBinary answer,(Cfg).fingerprintPrime answer)
   change (∀ responses coin converted,
-    FullCoupling.hashChecks b p primePlan samples writer H (FingerprintPrefix.context request root)
+    FullCoupling.hashChecks b p primePlan samples writer H (Format.context (Fmt) request root)
       (original request) responses coin converted) at hashAll
   change HonestAdapter.hashChecks b p primePlan samples writer H
     (HonestRunRows.native b p primePlan samples writer H
-      (CompleteTranscript.step writer H (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).2
-      (CompleteHonest.run b p primePlan samples writer H selection (FingerprintPrefix.context request root)
+      (CompleteTranscript.step writer H (CompleteTranscript.initial (Format.context (Fmt) request root) samples.fallback)).2
+      (CompleteHonest.run b p primePlan samples writer H selection (Format.context (Fmt) request root)
         (original request) (remaining request) source coins.2)) (original request) source at hash
   let binaryRequest := CanonicalRuntime.binaryRequest binary.description prime First Second (Fmt)
     (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Cfg) bCount
-  let publicCoins := FullCoupling.coupling b p primePlan samples writer H (FingerprintPrefix.context request root)
+  let publicCoins := FullCoupling.coupling b p primePlan samples writer H (Format.context (Fmt) request root)
     (original request) (remaining request) pivotOne hashAll selection (source,coins.2)
-  let result := CompleteSimulation.simulate b p primePlan samples writer H (FingerprintPrefix.context request root) publicCoins
+  let result := CompleteSimulation.simulate b p primePlan samples writer H (Format.context (Fmt) request root) publicCoins
   let body := CompleteFrontendBody.body b p primePlan root result
   let proof : Replay.Output G (MdocRuntime.fields B) MdocAdvice.Value (OpeningBody.Authentication G) := ⟨body,fun _ => 0⟩
   let E := (Format.encoding (Fmt)) binaryRequest metadata request
   let point := (E.chain (Cfg).initialLink).point proof H (G).batchingIndex.val
   have view : honestBody binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining H
       coins request root = body := by
-    have coupled := FullCoupling.coupling_view b p primePlan samples writer H (FingerprintPrefix.context request root)
+    have coupled := FullCoupling.coupling_view b p primePlan samples writer H (Format.context (Fmt) request root)
       (original request) (remaining request) pivotOne hashAll selection source coins.2
     convert congrArg (CompleteFrontendBody.rawBody b p primePlan root) coupled using 1 <;> rfl
   obtain ⟨system,statement,decoded,compiled,holds⟩ := FullSatisfaction.statement_exists b p primePlan samples (Fmt)
@@ -193,7 +189,7 @@ def publicBody (coins : CompleteSimulation.Coins binary prime) (request : Reques
   let samples := CompleteSimulator.samples b p primePlan binaryNodes (Fmt) config
   let writer := CompleteSimulator.base b p primePlan binaryNodes (Fmt) config bCount metadata request root
   CompleteFrontendBody.body b p primePlan root
-    (CompleteSimulation.simulate b p primePlan samples writer H (FingerprintPrefix.context request root)
+    (CompleteSimulation.simulate b p primePlan samples writer H (Format.context (Fmt) request root)
       (RequestedSimulator.publicFrontendEquiv binary prime primePlan Sh pCount request coins))
 
 def frontendCoupling (request : Request) (root : Digest) (pivotOne : binary.basis 0 = 1)
@@ -207,7 +203,7 @@ def frontendCoupling (request : Request) (root : Digest) (pivotOne : binary.basi
   let selection := fun answer => ((Cfg).fingerprintBinary answer,(Cfg).fingerprintPrime answer)
   ((RequestedSimulator.privateFrontendEquiv binary prime primePlan Sh pCount request).prodCongr
       (Equiv.refl (CompleteHonest.Masks (B := B)))).trans
-    ((FullCoupling.coupling b p primePlan samples writer H (FingerprintPrefix.context request root)
+    ((FullCoupling.coupling b p primePlan samples writer H (Format.context (Fmt) request root)
       (original request) (remaining request) pivotOne hashAll selection).trans
         (RequestedSimulator.publicFrontendEquiv binary prime primePlan Sh pCount request).symm)
 
@@ -226,7 +222,7 @@ theorem frontend_view (request : Request) (root : Digest) (pivotOne : binary.bas
   let writer := CompleteSimulator.base b p primePlan binaryNodes (Fmt) config bCount metadata request root
   let source := RequestedSimulator.privateFrontendEquiv binary prime primePlan Sh pCount request coins.1
   let selection := fun answer => ((Cfg).fingerprintBinary answer,(Cfg).fingerprintPrime answer)
-  have coupled := FullCoupling.coupling_view b p primePlan samples writer H (FingerprintPrefix.context request root)
+  have coupled := FullCoupling.coupling_view b p primePlan samples writer H (Format.context (Fmt) request root)
     (original request) (remaining request) pivotOne hashAll selection source coins.2
   simpa only [honestBody,publicBody,frontendCoupling,Equiv.trans_apply,Equiv.prodCongr_apply,
     Equiv.refl_apply,Equiv.apply_symm_apply,Prod.map,CompleteFrontendBody.body] using

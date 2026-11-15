@@ -34,35 +34,12 @@ abbrev runtime (SHA : Bytes → Digest) :=
 abbrev protocol (SHA : Bytes → Digest) :=
   (runtime binary prime cantor scalars ids bounds SHA).protocol
 
-def metadata (SHA : Bytes → Digest) :=
-  ConcreteMetadata.metadata
-    (g := MdocRuntime.geometry binary.description prime.description binary.plan prime.plan)
-    (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
-    (C := MdocRuntime.Answer binary.description prime.description binary.plan prime.plan (ConcreteSetup.binaryNodes cantor))
-    binary.description prime.description
-    (MdocRuntime.shape binary.description prime.description binary.plan prime.plan bounds.inputFits bounds.privateFits
-      (by change 128 < 2^64; decide))
-    (MdocIdentifiers.parameters binary prime cantor scalars (identifiers ids SHA) bounds)
-    (setup binary prime cantor scalars ids bounds SHA)
-
 omit [Fintype B] [DecidableEq B] in
 theorem setup_merge (outside inside : Bytes → Digest) :
     setup binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
       setup binary prime cantor scalars ids bounds outside := by
-  unfold setup MdocIdentifiers.setup MdocIdentifiers.fragmentId MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
-  simp only [SHAOracle.fragment_identifier,SHAOracle.context_hash,SHAOracle.joint_context_hash]
-
-omit [Fintype B] [DecidableEq B] in
-theorem metadata_merge (outside inside : Bytes → Digest) :
-    metadata binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
-      metadata binary prime cantor scalars ids bounds outside := by
-  have sameSetup := setup_merge binary prime cantor scalars ids bounds outside inside
-  dsimp only [setup,identifiers] at sameSetup
-  unfold metadata setup ConcreteMetadata.metadata
-  funext request index writes past
-  simp only [MdocIdentifiers.parameters,MdocIdentifiers.binaryContext,MdocIdentifiers.primeContext,identifiers,
-    SHAOracle.context_hash,sameSetup,
-    ConcreteMetadata.start,ConcreteMetadata.role]
+  unfold setup MdocIdentifiers.setup MdocIdentifiers.binaryContext MdocIdentifiers.primeContext identifiers
+  simp only [SHAOracle.context_hash,SHAOracle.joint_context_hash]
 
 end LfzkV2.Current.Mdoc.PublicSetup
 
@@ -100,14 +77,13 @@ variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Sca
 variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
 
 def values (SHA : Bytes → Digest) : Values where
-  fragment := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).fragment
+  fragment := MdocIdentifiers.fragmentId binary scalars (Mdoc.PublicSetup.identifiers ids SHA)
   binaryContext := MdocIdentifiers.binaryContext binary cantor scalars (Mdoc.PublicSetup.identifiers ids SHA)
   primeContext := MdocIdentifiers.primeContext prime scalars (Mdoc.PublicSetup.identifiers ids SHA)
   jointContext := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).jointContext
 
 def setup (visible : Values) : MdocRuntime.FormatSetup :=
   { Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds (fun _ => fun _ => 0) with
-    fragment := visible.fragment
     jointContext := visible.jointContext }
 
 omit [Fintype B] [DecidableEq B] in
@@ -122,7 +98,7 @@ theorem values_merge (outside inside : Bytes → Digest) :
   have same := Mdoc.PublicSetup.setup_merge binary prime cantor scalars ids bounds outside inside
   unfold values
   rw [same]
-  simp only [MdocIdentifiers.binaryContext,MdocIdentifiers.primeContext,Mdoc.PublicSetup.identifiers,
-    SHAOracle.context_hash]
+  simp only [MdocIdentifiers.fragmentId,MdocIdentifiers.binaryContext,MdocIdentifiers.primeContext,
+    Mdoc.PublicSetup.identifiers,SHAOracle.context_hash,SHAOracle.fragment_identifier]
 
 end LfzkV2.Current.Mdoc.SetupFamily

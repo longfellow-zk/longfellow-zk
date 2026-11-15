@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.TaggedFormat
 import LfzkV2.Current.StrandMerkleRealization
 
 namespace LfzkV2.Current.Tests.StrandMerkleReceiving

@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{
     generic::*,
-    transcript::{begin, challenges, finish},
+    transcript::{challenges, finish},
 };
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
@@ -33,15 +33,14 @@ impl<E: Clone> PackingMasks<E> {
     }
 }
 /// Reduce the ZK input claim using the originally committed words. Identity
-/// uses no words. `statement` identifies a claim already determined by the
-/// preceding transcript; both returned rows still require authentication.
+/// uses no words. The claim is already determined by the preceding
+/// transcript; both returned rows still require authentication.
 pub(in crate::runtime::v2) fn prove_packed<X: PackingExtension>(
     ts: &mut Bound<'_, PackingParameters<X>>,
     c: &SourceClaim<E<X>>,
     words: &[E<X>],
     aux: &[E<X>],
     masks: PackingMasks<E<X>>,
-    statement: &[u8],
 ) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
 where
     X::Ambient: SerializableField,
@@ -88,13 +87,6 @@ where
         .collect::<Vec<_>>();
     validate_u(p, &u)?;
     let mut session = ts.transcript();
-    begin(
-        p,
-        statement,
-        c.weights.len(),
-        c.auxiliary_count,
-        &mut session,
-    );
     let delta = challenges(p, &u, &mut session);
     let mut a = masks.cells[m - 1].clone();
     for (d, mask) in delta.iter().zip(&t) {

@@ -89,6 +89,7 @@ impl<const N: usize> MaskedWord<N> {
 }
 
 impl<const N: usize> AdapterMessage for [MaskedWord<N>; 2] {
+    const BYTES: usize = 2 * MaskedWord::<N>::BYTES;
     fn write(&self, out: &mut Vec<u8>) {
         for m in self {
             m.write(out);

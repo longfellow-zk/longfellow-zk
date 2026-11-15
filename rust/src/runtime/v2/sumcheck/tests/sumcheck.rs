@@ -103,7 +103,7 @@ fn single_hand_rejects_a_false_internal_assertion() {
         &pad,
         &circuit,
         &forged,
-        &mut Transcript::new(b"false-assertion"),
+        &mut Transcript::for_test(b"false-assertion"),
         &f
     )
     .is_err());
@@ -114,7 +114,7 @@ fn single_hand_rejects_a_false_internal_assertion() {
         &pad,
         &circuit,
         &valid,
-        &mut Transcript::new(b"false-assertion"),
+        &mut Transcript::for_test(b"false-assertion"),
         &f,
     )
     .unwrap();
@@ -146,11 +146,11 @@ fn test_sumcheck_prover_verifier_end_to_end() {
 
     let in_layers = eval_circuit(w0.clone(), &circ, &f).unwrap();
 
-    let mut transcript = Transcript::new(b"test_sumcheck");
+    let mut transcript = Transcript::for_test(b"test_sumcheck");
     let pad = zero_proof(&circ, &f);
     let (proof, _) = prove(in_layers, &pad, &circ, &mut transcript, &f);
 
-    let mut verifier_transcript = Transcript::new(b"test_sumcheck");
+    let mut verifier_transcript = Transcript::for_test(b"test_sumcheck");
     let verify_result = verify(
         w0.clone(),
         &pad,
@@ -198,17 +198,17 @@ fn test_sumcheck_prover_verifier_with_nonzero_pad() {
 
     let in_layers_pad = eval_circuit(w_pad, &circ, &f).unwrap();
     let zero_pad = zero_proof(&circ, &f);
-    let mut transcript_pad = Transcript::new(b"test_sumcheck");
+    let mut transcript_pad = Transcript::for_test(b"test_sumcheck");
     let (pad, _) = prove(in_layers_pad, &zero_pad, &circ, &mut transcript_pad, &f);
 
     // The actual unpadded witness has x=0, y=0.
     let w0 = vec![f.zero(); circ.raw.ninput];
     let in_layers = eval_circuit(w0.clone(), &circ, &f).unwrap();
 
-    let mut transcript = Transcript::new(b"test_sumcheck");
+    let mut transcript = Transcript::for_test(b"test_sumcheck");
     let (proof, _) = prove(in_layers, &pad, &circ, &mut transcript, &f);
 
-    let mut verifier_transcript = Transcript::new(b"test_sumcheck");
+    let mut verifier_transcript = Transcript::for_test(b"test_sumcheck");
     let verify_result = verify(
         w0.clone(),
         &pad,
@@ -261,11 +261,11 @@ fn test_sumcheck_multi_layer() {
     w0[1] = f.u64_to_element(12345);
 
     let in_layers = eval_circuit(w0.clone(), &circ, &f).unwrap();
-    let mut transcript_prover = Transcript::new(b"test_multi_layer");
+    let mut transcript_prover = Transcript::for_test(b"test_multi_layer");
     let pad = zero_proof(&circ, &f);
     let (proof, _) = prove(in_layers, &pad, &circ, &mut transcript_prover, &f);
 
-    let mut transcript_verifier = Transcript::new(b"test_multi_layer");
+    let mut transcript_verifier = Transcript::for_test(b"test_multi_layer");
     let verify_result = verify(
         w0.clone(),
         &pad,
@@ -362,13 +362,13 @@ fn test_sumcheck_core_single_hand_permutations() {
         // Hold the trusted identity fixed only for this arithmetic-layout comparison.
         // Layered sumcheck binds each actual circuit ID before sampling.
         let circuit = Circuit::with_test_id([42; 32], circuit.into_raw());
-        let mut pt = Transcript::new(b"fixed-layout-comparison");
+        let mut pt = Transcript::for_test(b"fixed-layout-comparison");
         let (proof, constraints) = prove_core(w_layers, &pad, &circuit, &mut pt.borrow(), &f);
-        let mut verifier_transcript = Transcript::new(b"fixed-layout-comparison");
+        let mut verifier_transcript = Transcript::for_test(b"fixed-layout-comparison");
         let derived =
             derive_constraints(&circuit, &proof, &mut verifier_transcript.borrow(), &f).unwrap();
         assert_eq!(constraints, derived);
-        let mut vt = Transcript::new(b"fixed-layout-comparison");
+        let mut vt = Transcript::for_test(b"fixed-layout-comparison");
         verify_core(inputs, &pad, &circuit, &proof, &mut vt, &f).unwrap();
         let transcript = pt.bytes(64);
         assert_eq!(transcript, vt.bytes(64));

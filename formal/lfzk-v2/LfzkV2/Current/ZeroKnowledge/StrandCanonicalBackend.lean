@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalReaders
 import LfzkV2.Current.ZeroKnowledge.CompletePublicBody
 import LfzkV2.Current.RuntimeVerifier
@@ -301,7 +301,7 @@ def finish (configuration : RuntimeVerifier.Public (g := g) binary prime P R
       | .prime => fun row query => configuration.primeField.symm
           ((raw.values (Fin.cast configuration.openings query)).2
             (Fin.cast (congrArg (·+3) configuration.primeRows) row)))
-    (fun query => raw.nonce (Fin.cast configuration.openings query)) raw.frontier fmt.jointContext
+    (fun query => raw.nonce (Fin.cast configuration.openings query)) raw.frontier
     (capacity binary prime binaryNodes primeNodes fmt configuration indices columns opening)
   let encoding := CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes fmt configuration
     binaryCount metadata request

@@ -1,9 +1,11 @@
 import LfzkV2.Current.MdocRuntime
+import LfzkV2.Current.MetadataIdentifiers
 
-/-! Exact setup bytes for the current mdoc verifier. Trusted circuit identifiers
-and the identifier hash are inputs; layouts, field identities, packing metadata,
-backend contexts and the archived adapter fragment identifier are constructed here.
-These are ordinary auxiliary hash inputs, not additional transcript queries. -/
+/-! Exact setup values for the current mdoc verifier. The trusted statement
+constants and the identifier hash are inputs; the statement message's head,
+the backend contexts and the archived adapter fragment identifier are
+constructed here. The context and fragment hashes are ordinary auxiliary
+hash inputs, not additional transcript queries; no node absorbs a context. -/
 noncomputable section
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.MdocIdentifiers
@@ -16,6 +18,11 @@ structure Identifiers where
   combinedHash : Digest
   hashCircuit : Digest
   primeCircuit : Digest
+  /-- The statement constants after the combined hash, as node 0 absorbs
+  them: the statement message's attribute and geometry values, then the
+  `Circuit`, `CommitmentLayout`, `AdapterLayout` and `JointGeometry`
+  messages, all fixed by the trusted circuits. -/
+  statement : Bytes
   hash : Bytes → Digest
 
 def binaryField : Bytes := utf8 "GF2[x]/(x^128+x^7+x^2+x+1)/polynomial/v1"
@@ -88,84 +95,19 @@ structure Bounds where
   binaryRowsFit : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).affineRows .binary < 2^64
   primeRowsFit : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).affineRows .prime < 2^64
 
-private def boundedBinaryField : BoundedBytes CanonicalPrefix.maxLength :=
-  ⟨binaryField,by decide⟩
-
-private def boundedPrimeField : BoundedBytes CanonicalPrefix.maxLength :=
-  ⟨primeField scalars,by
-    simp only [primeField,List.length_append,scalars.prime.length,scalars.primeWidth]
-    decide⟩
-
-private def boundedPacking : BoundedBytes CanonicalPrefix.maxLength :=
-  ⟨packingDescriptor binary scalars,by
-    simp only [packingDescriptor,List.length_append,List.length_flatten,List.map_ofFn,
-      Function.comp_def,scalars.binary.length,scalars.binaryWidth]
-    decide⟩
-
 /-- Identifier of the archived adapter fragment, rebuilt from the hash
 circuit's shape: its virtual leaves start after the committed inputs. -/
 def fragmentId (ids : Identifiers) : Digest :=
   MetadataIdentifiers.fragmentId ids.hash scalars.binary.encode binary.description.shape
     (binary.nPublic+binary.nPrivate+2*(768+256+10)) binary.nPublic (binary.nPublic+binary.nPrivate)
 
-private def word (value : ℕ) (fits : value < 2^64) : FingerprintPrefix.Word := ⟨value,fits⟩
+/-- The `MdocStatement` tag and its protocol value, before the session. -/
+def statementHead : Bytes :=
+  TaggedCodec.word 16 ++ TaggedCodec.word 0 ++ TaggedCodec.word 32 ++ utf8 "longfellow/v2/mdoc/transcript/v2"
 
-/-- The signature participant's storage map as runs (`StorageMap::runs`).
-Its values are `[private inputs | pads]`. The 768 shared values (issuer
-digest, device x, device y) are hash private bits 0..767, so they form one
-run of one-bit prime groups starting at the hash's first private input; every
-other value is native, in value order. R's 256 bits follow the hash circuit's
-own inputs. Each word is its own write. -/
-def storageWords (bounds : Bounds binary prime) : List FingerprintPrefix.Word :=
-  have hc := bounds.committedFit
-  have hh : binary.nPublic+binary.hashPrivate < 2^64 := by
-    unfold ConcreteSetup.BinaryCircuit.nPrivate at hc
-    omega
-  have hr : prime.description.remaining+prime.description.pads < 2^64 := by
-    have := bounds.inputFits
-    omega
-  [word 2 (by decide),
-    word 1 (by decide),word 0 (by decide),word 768 (by decide),word binary.nPublic (by omega),word 1 (by decide),
-    word 0 (by decide),word 768 (by decide),
-      word (prime.description.remaining+prime.description.pads) hr,word 0 (by decide),
-    word (binary.nPublic+binary.hashPrivate) hh,word 256 (by decide)]
-
-def setup (ids : Identifiers) (bounds : Bounds binary prime) : MdocRuntime.FormatSetup where
-  combinedHash := ids.combinedHash
-  hashCircuit := ids.hashCircuit
-  fragment := fragmentId binary scalars ids
-  primeCircuit := ids.primeCircuit
-  packingDescriptor := boundedPacking binary scalars
-  privateInputs := ⟨binary.description.nPrivate,bounds.privateFits⟩
-  padCells := ⟨binary.description.pads,bounds.padsFit⟩
-  layerWidths := binary.plan.frontend.stages.attach.map fun stage => ⟨stage.val.rounds,bounds.layerFits _ stage.property⟩
-  primeLayerWidths := prime.plan.frontend.stages.attach.map fun stage =>
-    ⟨stage.val.rounds,bounds.primeLayerFits _ stage.property⟩
-  storage := storageWords binary prime bounds
+def setup (ids : Identifiers) (_bounds : Bounds binary prime) : MdocRuntime.FormatSetup where
+  head := statementHead
+  constants := TaggedCodec.digestValue.encode ids.combinedHash ++ ids.statement
   jointContext := ids.hash (jointContextBytes (binaryContext binary cantor scalars ids) (primeContext prime scalars ids))
-  binaryField := boundedBinaryField
-  primeField := boundedPrimeField scalars
-  binaryCells := ⟨binary.description.cells,by have := bounds.binaryCellsFit; omega⟩
-  primeCells := ⟨CellLayout.Prime.cells prime.description.remaining prime.description.pads,by
-    have := bounds.primeCellsFit; omega⟩
-
-def parameters (ids : Identifiers) (bounds : Bounds binary prime) :
-    ConcreteMetadata.Public binary.description prime.description
-      (MdocRuntime.shape binary.description prime.description binary.plan prime.plan
-        bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide)) where
-  binaryCount := rfl
-  primeCount := rfl
-  primeInputs := rfl
-  sharedBits := rfl
-  packingInputs := rfl
-  binary128 := rfl
-  binaryPadsFit := bounds.padsFit
-  primeDepthFit := bounds.primeDepthFit
-  adapterDepthFit := bounds.adapterDepthFit
-  binaryRowsFit := bounds.binaryRowsFit
-  primeRowsFit := bounds.primeRowsFit
-  hashDepth := ⟨hashDepth binary,bounds.hashDepthFit⟩
-  binaryContext := binaryContext binary cantor scalars ids
-  primeContext := primeContext prime scalars ids
 
 end LfzkV2.Current.MdocIdentifiers

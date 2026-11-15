@@ -31,11 +31,10 @@ use crate::{
         v2::{
             dual_packing::verifier::reduce,
             polygero::LinearStatement,
-            proto::{polygero::PolygeroConfig, Digest},
-            sumcheck::TranscriptSumcheck,
+            proto::polygero::PolygeroConfig,
             zk::{
                 constraint_compiler,
-                joint::{FrontendPart, JointParam, SelectedField},
+                joint::{JointParam, SelectedField},
                 packing_commitment::PackingCommitment,
                 ZkContext,
             },
@@ -128,66 +127,52 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             n: 128,
             t: 2,
         },
-    );
+        &context,
+    )
+    .unwrap();
     let public = vec![true];
     let witness = vec![false, false, true];
     let seed = b"longfellow-v2/numerical-symbolic-equivalence";
+    let statement = prover.statement(seed, &public).unwrap();
 
     // Reject a wrong witness length before sampling private masks.
-    let rejected_ts = Transcript::new(seed);
     let mut rejected_rng = DeterministicRng::new(42);
     assert!(matches!(
-        prover.commit([].to_vec(), &context, rejected_ts, &mut rejected_rng),
+        prover.commit([].to_vec(), &statement, &context, &mut rejected_rng),
         Err(error) if error == "witness length mismatch"
     ));
     assert_eq!(rejected_rng.bytes(32), DeterministicRng::new(42).bytes(32));
+    // No statement, and so no transcript, for the wrong inputs.
+    assert!(matches!(
+        prover.statement(seed, &[]),
+        Err(error) if error == "public inputs length mismatch"
+    ));
 
-    {
-        let inputs: &[bool] = &[];
-        let transcript = Transcript::new(seed);
-        let (committed, _) = prover
-            .commit(
-                witness.to_vec(),
-                &context,
-                transcript,
-                &mut DeterministicRng::new(42),
-            )
-            .unwrap();
-        // No frontend part, and so no transcript use, for the wrong inputs.
-        assert!(matches!(
-            FrontendPart::new(&committed.participant, &[&prover.circuit], inputs),
-            Err(error) if error == "public inputs length mismatch"
-        ));
-    }
-
-    let actual_ts = Transcript::new(seed);
-    let numerical = Transcript::new(seed);
-    let mut independent = Transcript::new(seed);
     // Identical, independently sampled commitments let each single-use state
     // produce exactly one response, while exposing the same pads to this test.
-    let (committed, geometry) = prover
+    let committed = prover
         .commit(
             witness.to_vec(),
+            &statement,
             &context,
-            actual_ts,
             &mut DeterministicRng::new(42),
         )
         .unwrap();
-    let (mut reference, reference_geometry) = prover
+    let mut reference = prover
         .commit(
             witness.to_vec(),
+            &statement,
             &context,
-            numerical,
             &mut DeterministicRng::new(42),
         )
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
-    assert_eq!(geometry, reference_geometry);
-    let (actual, mut actual_ts) = prover.prove(&public, committed, &context).unwrap();
+    let geometry = statement.geometry().clone();
+    let (actual, mut actual_ts) = prover.prove(committed, &context).unwrap();
 
     let independent_param = JointParam::new((
         SelectedField::new(
-            reference.participant.backend.layout.witness_count,
+            prover.participant.backend.layout.witness_count,
             prover.config,
             &domain,
             PackingField::packing_id(&f),
@@ -196,24 +181,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         (),
     ))
     .unwrap();
-    reference
-        .participant
-        .backend
-        .absorb(&mut independent.borrow(), &prover.circuit.id);
-    independent.absorb(|w| {
-        w.write_bytes(b"layered-sumcheck/commitment-layout/v1");
-        w.write_bytes(&0u64.to_le_bytes());
-    }); // No additional circuits.
-    independent.absorb(|w| {
-        w.write_bytes(&(geometry.circuit.sc_geom.logw_layers.len() as u64).to_le_bytes())
-    });
-    for &width in &geometry.circuit.sc_geom.logw_layers {
-        independent.absorb(|w| w.write_bytes(&(width as u64).to_le_bytes()));
-    }
+    // The verifier's transcript opens with the same statement.
     let mut independent_verifier = independent_param.receive(
         &reference.commitment,
         (reference.fingerprints.clone(), ()),
-        independent,
+        Transcript::new(&statement),
     );
     let mut numerical = reference.joint.transcript();
     let mut independent = independent_verifier.transcript();
@@ -221,8 +193,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .iter()
         .map(|bit| if *bit { f.one() } else { f.zero() })
         .collect();
-    numerical.write_sumcheck_statement(&prover.circuit, &public_elements, &f);
-    independent.write_sumcheck_statement(&prover.circuit, &public_elements, &f);
     let mut inputs = public_elements.clone();
     inputs.extend(
         witness
@@ -241,11 +211,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         sumcheck::derive_constraints(&prover.circuit, &proof, &mut independent, &f).unwrap();
     assert_eq!(constraints, verifier_constraints);
     let mut different_execution = numerical.fork_for_test();
-    different_execution.absorb(|w| w.write_bytes(b"different sumcheck execution"));
+    different_execution.send_for_test(b"different sumcheck execution");
     let state = numerical.fork_for_test().bytes(32);
     assert_eq!(state, independent.fork_for_test().bytes(32));
     assert_ne!(state, different_execution.bytes(32));
-    let layout = reference.participant.backend.layout.clone();
+    let layout = prover.participant.backend.layout.clone();
     let pads = geometry.circuit.sc_geom.pad_layout(layout.suffix_start);
     let source = constraint_compiler::compile_packed(
         constraints,
@@ -271,25 +241,19 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let verifier_backend = PackingCommitment::new(f.clone(), layout, Binary128Extension).unwrap();
     let commitment = reference.commitment.clone();
     let (packing, native) = PackingCommitment::prove::<2>(
-        &mut reference.joint.bound(&reference.participant.backend),
+        &mut reference.joint.bound(&prover.participant.backend),
         reference.state.packing,
         source,
-        &prover.circuit.id,
     )
     .unwrap();
-    let joint =
-        JointParam::new((reference.participant.participant(&context).unwrap(), ())).unwrap();
+    let joint = JointParam::new((prover.participant.participant(&context).unwrap(), ())).unwrap();
     let (com_proof, mut numerical) = reference.joint.prove(&joint, (native, ())).unwrap();
     let rows = reduce(
         &mut independent_verifier.bound(&verifier_backend.parameters),
         &verifier_source.claim,
         &packing,
-        &prover.circuit.id,
     )
     .unwrap();
-    let verifier_statement = Digest {
-        data: prover.circuit.id,
-    };
     let (verifier_a, verifier_b) = verifier_backend
         .append_equations::<2>(verifier_source, &rows)
         .unwrap();
@@ -317,7 +281,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
                 LinearStatement {
                     a: verifier_a,
                     b: verifier_b,
-                    digest: verifier_statement,
                 },
                 (),
             ),

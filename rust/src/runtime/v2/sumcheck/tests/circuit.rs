@@ -81,7 +81,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         witnesses,
         &pads,
         &circuit,
-        &mut Transcript::new(b"degrees"),
+        &mut Transcript::for_test(b"degrees"),
         f,
     );
     assert!(constraints
@@ -94,7 +94,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         &pads,
         &circuit,
         &proof,
-        &mut Transcript::new(b"degrees"),
+        &mut Transcript::for_test(b"degrees"),
         f,
     )
     .unwrap();
@@ -106,7 +106,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         &pads,
         &circuit,
         &proof,
-        &mut Transcript::new(b"degrees"),
+        &mut Transcript::for_test(b"degrees"),
         f
     )
     .is_err());
@@ -161,7 +161,7 @@ fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
         witnesses,
         &pads,
         &c,
-        &mut Transcript::new(b"v2-compiler"),
+        &mut Transcript::for_test(b"v2-compiler"),
         &f,
     );
     verify(
@@ -169,7 +169,7 @@ fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"v2-compiler"),
+        &mut Transcript::for_test(b"v2-compiler"),
         &f,
     )
     .unwrap();
@@ -199,14 +199,14 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(38);
     let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
-    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"v2-scalar"), &f);
+    let (proof, _) = prove(w, &pads, &c, &mut Transcript::for_test(b"v2-scalar"), &f);
     assert!(proof.layers[0].rounds.is_empty());
     verify(
         inputs,
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"v2-scalar"),
+        &mut Transcript::for_test(b"v2-scalar"),
         &f,
     )
     .unwrap();
@@ -372,7 +372,13 @@ where
     let w = eval_circuit(inputs.clone(), &c, f).unwrap();
     let mut rng = DeterministicRng::new(93);
     let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
-    let (proof, constraints) = prove(w, &pads, &c, &mut Transcript::new(b"coefficient-arrays"), f);
+    let (proof, constraints) = prove(
+        w,
+        &pads,
+        &c,
+        &mut Transcript::for_test(b"coefficient-arrays"),
+        f,
+    );
     assert!(constraints
         .residuals(&inputs, &pads, f)
         .unwrap()
@@ -383,7 +389,7 @@ where
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"coefficient-arrays"),
+        &mut Transcript::for_test(b"coefficient-arrays"),
         f,
     )
     .unwrap();
@@ -397,7 +403,7 @@ where
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"coefficient-arrays"),
+        &mut Transcript::for_test(b"coefficient-arrays"),
         f
     )
     .is_err());
@@ -472,13 +478,19 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(51);
     let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
-    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"assertion-kind"), &f);
+    let (proof, _) = prove(
+        w,
+        &pads,
+        &c,
+        &mut Transcript::for_test(b"assertion-kind"),
+        &f,
+    );
     verify(
         inputs.clone(),
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"assertion-kind"),
+        &mut Transcript::for_test(b"assertion-kind"),
         &f,
     )
     .unwrap();
@@ -490,7 +502,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"assertion-kind"),
+        &mut Transcript::for_test(b"assertion-kind"),
         &f
     )
     .is_err());
@@ -512,13 +524,19 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     let inputs = vec![f.zero(), f.zero()];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
-    let (proof, _) = prove(w, &pads, &c, &mut Transcript::new(b"linear-assertions"), &f);
+    let (proof, _) = prove(
+        w,
+        &pads,
+        &c,
+        &mut Transcript::for_test(b"linear-assertions"),
+        &f,
+    );
     verify(
         inputs,
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"linear-assertions"),
+        &mut Transcript::for_test(b"linear-assertions"),
         &f,
     )
     .unwrap();
@@ -528,7 +546,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
         &pads,
         &c,
         &proof,
-        &mut Transcript::new(b"linear-assertions"),
+        &mut Transcript::for_test(b"linear-assertions"),
         &f
     )
     .is_err());

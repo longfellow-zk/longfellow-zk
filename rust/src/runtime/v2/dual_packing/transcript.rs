@@ -1,46 +1,48 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Trace-zero messages and challenges. The statement fixes the packing
+//! parameters and cell counts (transcript I3), and ZK derives the source
+//! claim from earlier messages and challenges on this same transcript, so
+//! dual packing absorbs only its two messages: `PackingU`, then the delta
+//! challenges, then `PackingA`.
 use crate::{
     core::algebra::SerializableField,
     runtime::{
-        algebra::{
-            packing::{AmbientElement as E, PackingExtension, PackingParameters},
-            SupportsSampling,
+        algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
+        v2::{
+            proto::tags::Tag,
+            transcript::{Encoder, Message, ProverMessage, TranscriptRef},
         },
-        v2::{proto::RoundLabel, transcript::TranscriptRef},
     },
 };
-pub(super) fn begin<X: PackingExtension>(
-    p: &PackingParameters<X>,
-    statement: &[u8],
-    inputs: usize,
-    auxiliary: usize,
-    ts: &mut TranscriptRef<'_>,
-) where
-    X::Ambient: SerializableField,
-{
-    if p.binary128_profile() {
-        ts.absorb(|w| {
-            w.write_bytes(b"longfellow/dual-packing128/trace-zero/v1");
-            w.write_bytes(statement);
-        });
-        ts.absorb(|w| w.write_bytes(&super::PACKING_BASIS_ID.to_le_bytes()));
-    } else {
-        ts.absorb(|w| {
-            w.write_bytes(b"longfellow/dual-packing/generic/trace-zero/v1");
-            w.write_bytes(&p.descriptor());
-        });
-        ts.absorb(|w| w.write_bytes(statement));
-    }
-    // The caller identifies the source with arbitrary, canonically framed
-    // bytes (possibly empty). ZK derives the coefficients and affine RHS from
-    // earlier messages and challenges on this same transcript. Reabsorbing
-    // those values would repeat a linear-size deterministic computation.
-    // Keep the public cell counts, field/basis profile and statement binding.
-    ts.absorb(|w| {
-        w.write_bytes(&(inputs as u64).to_le_bytes());
-        w.write_bytes(&(auxiliary as u64).to_le_bytes());
-    });
+
+/// `PackingU` (80): Elements(F, m), the trace-zero responses, m the packing
+/// degree.
+struct UMessage<'a, F: SerializableField> {
+    f: &'a F,
+    u: &'a [F::E],
 }
+impl<F: SerializableField> Message for UMessage<'_, F> {
+    const TAG: Tag = Tag::PackingU;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, self.u);
+    }
+}
+impl<F: SerializableField> ProverMessage for UMessage<'_, F> {}
+
+/// `PackingA` (81): Elements(F, 1), the trace-zero mask response.
+struct AMessage<'a, F: SerializableField> {
+    f: &'a F,
+    a: &'a F::E,
+}
+impl<F: SerializableField> Message for AMessage<'_, F> {
+    const TAG: Tag = Tag::PackingA;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, std::slice::from_ref(self.a));
+    }
+}
+impl<F: SerializableField> ProverMessage for AMessage<'_, F> {}
+
+/// Send U, then draw the m independent delta challenges from its boundary.
 pub(super) fn challenges<X: PackingExtension>(
     p: &PackingParameters<X>,
     u: &[E<X>],
@@ -49,28 +51,17 @@ pub(super) fn challenges<X: PackingExtension>(
 where
     X::Ambient: SerializableField,
 {
-    ts.round(RoundLabel::Packing, |mut w| {
-        w.write_elt_field_slice(u, p.field());
-        let mut r = w.begin_squeeze();
-        let value = (0..p.degree())
-            .map(|_| p.field().sample(|out| r.fill(out)))
-            .collect();
-        r.end_round(value)
-    })
+    ts.send(&UMessage { f: p.field(), u });
+    ts.draw(|r| (0..p.degree()).map(|_| r.elt_field(p.field())).collect())
 }
+/// Send A. It may depend on delta, but it must be fixed before the backend
+/// draws the challenges that authenticate the two resulting linear equations.
 pub(super) fn finish<X: PackingExtension>(
     p: &PackingParameters<X>,
     a: &E<X>,
     ts: &mut TranscriptRef<'_>,
-) {
-    // A may depend on delta, but it must be fixed before the backend samples
-    // challenges to authenticate the two resulting linear equations.
-    ts.absorb(|w| {
-        w.write_bytes(if p.binary128_profile() {
-            b"trace-zero128/A"
-        } else {
-            b"trace-zero/A"
-        })
-    });
-    ts.absorb(|w| w.write_elt_field(a, p.field()));
+) where
+    X::Ambient: SerializableField,
+{
+    ts.send(&AMessage { f: p.field(), a });
 }

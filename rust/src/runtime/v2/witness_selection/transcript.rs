@@ -1,8 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! V2 fingerprint framing and sampling shared by the prover and verifier.
+//! V2 fingerprint challenges and responses shared by the prover and verifier.
 //!
-//! Bind the complete ordered field layout before drawing any coefficient. Every
-//! vector consumes the same reading phase, and all responses bind before the
+//! The statement fixes every field's layout (transcript I3). The coefficient
+//! draw ends the node of the joint `Commitment`; every vector reads the same
+//! stream. Each field then sends its `FingerprintResponse` before the
 //! enclosing frontend starts. The typed field traversal stays in `lib`.
 use super::{Field, Fields, Param};
 use crate::{
@@ -11,27 +12,27 @@ use crate::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
             proto::{
-                polygero::PolygeroCommitment,
+                tags::Tag,
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
-                RoundLabel,
             },
-            transcript::{Reading, TranscriptRef, Writing},
+            transcript::{Encoder, Message, ProverMessage, Reading, TranscriptRef},
         },
     },
 };
 
-pub(super) fn absorb_field_layout<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
-    D,
->(
-    field: &Field<'_, W, F, D>,
-    w: &mut Writing<'_>,
-) {
-    w.write_bytes(&field.field_id);
-    w.write_bytes(&(field.cells as u64).to_le_bytes());
-    w.write_bytes(&(FINGERPRINTS as u64).to_le_bytes());
+/// `FingerprintResponse` (33): Elements(F, 2), one field's masked
+/// fingerprints.
+struct ResponseMessage<'a, F: SerializableField> {
+    f: &'a F,
+    response: &'a FingerprintResponse<F::E>,
 }
+impl<F: SerializableField> Message for ResponseMessage<'_, F> {
+    const TAG: Tag = Tag::FingerprintResponse;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        e.elements(self.f, &self.response.values);
+    }
+}
+impl<F: SerializableField> ProverMessage for ResponseMessage<'_, F> {}
 
 pub(super) fn field_coefficients<
     const W: usize,
@@ -46,40 +47,28 @@ pub(super) fn field_coefficients<
     std::array::from_fn(|_| r.elt_field_slice(field.cells, field.f))
 }
 
-pub(super) fn absorb_field_responses<
+pub(super) fn send_field_response<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
     D,
 >(
     field: &Field<'_, W, F, D>,
-    responses: &FingerprintResponse<F::E>,
-    w: &mut Writing<'_>,
+    response: &FingerprintResponse<F::E>,
+    t: &mut TranscriptRef<'_>,
 ) {
-    w.write_elt_field_slice(&responses.values, field.f);
+    t.send(&ResponseMessage {
+        f: field.f,
+        response,
+    });
 }
 
 impl<L: Fields> Param<L> {
-    pub(super) fn challenges(
-        &self,
-        root: &PolygeroCommitment,
-        t: &mut TranscriptRef<'_>,
-    ) -> L::Coefficients {
-        t.round(RoundLabel::Fingerprint, |mut w| {
-            w.write_bytes(b"longfellow/witness-selection/v1");
-            w.write_bytes(&self.context().data);
-            w.write_bytes(&root.root.data);
-            w.write_bytes(&(self.fields.count() as u64).to_le_bytes());
-            self.fields.bind_layout(&mut w);
-            let mut r = w.begin_squeeze();
-            let coefficients = self.fields.coefficients(&mut r);
-            r.end_round(coefficients)
-        })
+    /// Draw every field's coefficients. The joint backend has just sent the
+    /// commitment, so this ends its node.
+    pub(super) fn challenges(&self, t: &mut TranscriptRef<'_>) -> L::Coefficients {
+        t.draw(|r| self.fields.coefficients(r))
     }
-
-    pub(super) fn absorb_responses(&self, responses: &L::Responses, t: &mut TranscriptRef<'_>) {
-        t.absorb(|w| {
-            w.write_bytes(b"longfellow/witness-selection/responses/v1");
-            self.fields.absorb_responses(responses, w);
-        });
+    pub(super) fn send_responses(&self, responses: &L::Responses, t: &mut TranscriptRef<'_>) {
+        self.fields.send_responses(responses, t);
     }
 }

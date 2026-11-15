@@ -22,6 +22,8 @@ use std::io::{Error, ErrorKind, Result};
 
 use super::{read_field, Digest, MerkleProof, NONCE_LEN};
 use crate::core::algebra::SerializableField;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::runtime::v2::transcript::SEAL_BYTES;
 
 /// Upper bound on every Polygero dimension and on the committed cell count.
 const MAX_SIZE: usize = 1 << 28;
@@ -117,7 +119,6 @@ pub struct FieldProof<E> {
 /// A recursive tuple of field bodies and a single shared column opening.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JointPolygeroProof<B> {
-    pub(crate) context: Digest,
     pub(crate) bodies: B,
     pub(in crate::runtime::v2) opening: MerkleProof,
 }
@@ -126,11 +127,11 @@ impl<B> JointPolygeroProof<B> {
     pub fn bodies(&self) -> &B {
         &self.bodies
     }
-    /// Nonce bytes and frontier bytes, including the frontier length prefix.
+    /// Nonce bytes and frontier bytes. The frontier has no length prefix.
     pub fn authentication_bytes(&self) -> (usize, usize) {
         (
             NONCE_LEN * self.opening.nonce.len(),
-            4 + 32 * self.opening.path.len(),
+            32 * self.opening.path.len(),
         )
     }
 }
@@ -147,43 +148,75 @@ impl<E> FieldProof<E> {
         }
         Ok(())
     }
-    pub(crate) fn write<F: SerializableField<E = E>>(
+    /// Bytes of the interactive response (H, then Z) and of the terminal
+    /// rows of a valid geometry; None if they overflow.
+    pub(crate) fn wire_lengths(g: &PolygeroGeometry, width: usize) -> Option<[usize; 2]> {
+        let [h, z] = g.response_lengths();
+        Some([
+            h.checked_add(z)?.checked_mul(width)?,
+            g.t.checked_mul(g.nrow())?.checked_mul(width)?,
+        ])
+    }
+    /// The interactive response: H, then Z.
+    pub(crate) fn write_response<F: SerializableField<E = E>>(
         &self,
         out: &mut Vec<u8>,
         g: &PolygeroGeometry,
         f: &F,
     ) -> Result<()> {
         self.validate(g)?;
-        for x in self.h.iter().chain(&self.z).chain(&self.rows) {
+        for x in self.h.iter().chain(&self.z) {
             super::util::write_elt_field(out, x, f);
         }
         Ok(())
     }
-    pub(crate) fn read<F: SerializableField<E = E>>(
+    /// The terminal rows u, m, witness, f*, t values each in query order.
+    pub(crate) fn write_rows<F: SerializableField<E = E>>(
+        &self,
+        out: &mut Vec<u8>,
+        g: &PolygeroGeometry,
+        f: &F,
+    ) -> Result<()> {
+        self.validate(g)?;
+        for x in &self.rows {
+            super::util::write_elt_field(out, x, f);
+        }
+        Ok(())
+    }
+    /// Read the response; the rows follow later (`read_rows`). The caller
+    /// has checked the total length.
+    pub(crate) fn read_response<F: SerializableField<E = E>>(
         bytes: &mut &[u8],
         g: &PolygeroGeometry,
         f: &F,
     ) -> Result<Self> {
         g.validate()?;
         let [h, z] = g.response_lengths();
-        let rows = g.t * g.nrow();
-        let size = (h + z + rows)
-            .checked_mul(f.serialized_size_bytes())
-            .ok_or_else(|| invalid("joint field size overflow"))?;
-        if f.serialized_size_bytes() == 0 || bytes.len() < size {
-            return Err(invalid("truncated joint field proof"));
-        }
-        let mut values = |n| {
-            (0..n)
-                .map(|_| read_field(bytes, f))
-                .collect::<Result<Vec<_>>>()
-        };
         Ok(Self {
-            h: values(h)?,
-            z: values(z)?,
-            rows: values(rows)?,
+            h: read_values(bytes, h, f)?,
+            z: read_values(bytes, z, f)?,
+            rows: Vec::new(),
         })
     }
+    pub(crate) fn read_rows<F: SerializableField<E = E>>(
+        &mut self,
+        bytes: &mut &[u8],
+        g: &PolygeroGeometry,
+        f: &F,
+    ) -> Result<()> {
+        self.rows = read_values(bytes, g.t * g.nrow(), f)?;
+        Ok(())
+    }
+}
+/// `n` canonical elements; the length is checked before allocating.
+fn read_values<F: SerializableField>(bytes: &mut &[u8], n: usize, f: &F) -> Result<Vec<F::E>> {
+    let size = n
+        .checked_mul(f.serialized_size_bytes())
+        .ok_or_else(|| invalid("joint field size overflow"))?;
+    if f.serialized_size_bytes() == 0 || bytes.len() < size {
+        return Err(invalid("truncated joint field proof"));
+    }
+    (0..n).map(|_| read_field(bytes, f)).collect()
 }
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidData, message)
@@ -201,55 +234,76 @@ pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usi
     }
     Ok(())
 }
+/// Check a complete proof's length before decoding anything (proto I3):
+/// `len = prefix + fixed + 32 f + 32` with `f <= t (ceil(log2 n) + 1)`
+/// frontier digests, where `fixed` covers every field but the frontier.
+/// Returns the body without the prefix and the seal block.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) fn checked_body(
+    bytes: &[u8],
+    prefix: usize,
+    fixed: usize,
+    t: usize,
+    n: usize,
+) -> Result<&[u8]> {
+    if t == 0 || t > n || n > MAX_SIZE {
+        return Err(invalid("joint opening geometry"));
+    }
+    let frame = prefix
+        .checked_add(fixed)
+        .and_then(|x| x.checked_add(SEAL_BYTES))
+        .ok_or_else(|| invalid("proof length overflow"))?;
+    let frontier = bytes
+        .len()
+        .checked_sub(frame)
+        .ok_or_else(|| invalid("proof length"))?;
+    let cap = t
+        .checked_mul(frontier_per_query(n))
+        .ok_or_else(|| invalid("frontier capacity overflow"))?;
+    if !frontier.is_multiple_of(32) || frontier / 32 > cap {
+        return Err(invalid("proof length"));
+    }
+    Ok(&bytes[prefix..bytes.len() - SEAL_BYTES])
+}
 impl<B> JointPolygeroProof<B> {
-    /// The field traversal supplies canonical bodies; the shared envelope owns
-    /// the version, context and single Merkle opening for any participant count.
+    /// Bytes of the opening without its frontier: one nonce per column.
+    pub(crate) fn fixed_opening_len(t: usize) -> Option<usize> {
+        t.checked_mul(NONCE_LEN)
+    }
+    /// Write each field's response, then each field's rows, then the nonces,
+    /// then the frontier with no count: the last field of every body.
     pub(crate) fn write_to_buf<E: From<Error>>(
         &self,
         out: &mut Vec<u8>,
-        context: &Digest,
         t: usize,
         n: usize,
-        write_bodies: impl FnOnce(&B, &mut Vec<u8>) -> std::result::Result<(), E>,
+        write_responses: impl FnOnce(&B, &mut Vec<u8>) -> std::result::Result<(), E>,
+        write_rows: impl FnOnce(&B, &mut Vec<u8>) -> std::result::Result<(), E>,
     ) -> std::result::Result<(), E> {
-        if self.context != *context {
-            return Err(invalid("joint proof context mismatch").into());
-        }
         validate_opening(&self.opening, t, n)?;
-        out.extend_from_slice(b"JPG2");
-        out.extend_from_slice(&context.data);
-        write_bodies(&self.bodies, out)?;
+        write_responses(&self.bodies, out)?;
+        write_rows(&self.bodies, out)?;
         self.opening.write_nonces(out);
         self.opening.write_path(out);
         Ok(())
     }
+    /// Read the counterpart of `write_to_buf` from the rest of a body whose
+    /// total length the caller checked; the frontier is all that remains.
     pub(crate) fn read<E: From<Error>>(
         bytes: &mut &[u8],
-        context: &Digest,
         t: usize,
         n: usize,
-        read_bodies: impl FnOnce(&mut &[u8]) -> std::result::Result<B, E>,
+        read_responses: impl FnOnce(&mut &[u8]) -> std::result::Result<B, E>,
+        read_rows: impl FnOnce(&mut B, &mut &[u8]) -> std::result::Result<(), E>,
     ) -> std::result::Result<Self, E> {
         if t == 0 || t > n || n > MAX_SIZE {
             return Err(invalid("joint opening geometry").into());
         }
-        if bytes.get(..4) != Some(b"JPG2") || bytes.get(4..36) != Some(context.data.as_slice()) {
-            return Err(invalid("joint proof version or context").into());
-        }
-        *bytes = &bytes[36..];
-        let bodies = read_bodies(bytes)?;
-        // Check all nonce bytes and the frontier length before allocation.
-        let nonce_bytes = t
-            .checked_mul(NONCE_LEN)
-            .and_then(|len| len.checked_add(4))
-            .ok_or_else(|| invalid("joint opening size overflow"))?;
-        if bytes.len() < nonce_bytes {
-            return Err(invalid("truncated joint opening").into());
-        }
+        let mut bodies = read_responses(bytes)?;
+        read_rows(&mut bodies, bytes)?;
         let nonce = MerkleProof::read_nonces(bytes, t)?;
         let path = MerkleProof::read_path(bytes, t, frontier_per_query(n))?;
         Ok(Self {
-            context: *context,
             bodies,
             opening: MerkleProof { nonce, path },
         })

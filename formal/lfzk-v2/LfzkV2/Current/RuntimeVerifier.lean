@@ -62,7 +62,6 @@ structure Public where
   openingBase : Response g (fields .binary) × Response g (fields .prime) → Base
   initialLink : Digest
   root : Key → Digest
-  authenticationContext : Key → Digest
   bindSalt : Key → Fin n → MerkleNonce → Salt
   sample : C → (Fin t ↪ Fin n)
 

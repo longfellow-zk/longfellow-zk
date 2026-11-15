@@ -159,7 +159,7 @@ theorem history_seal_input {roles : List Role}
       (history wire bodyCodec (Input.finalSeal (roles := role::tail) past body)).id past.2.2,rfl⟩
 
 /-- The seal is the final node of `TranscriptV2.StrandTranscript` under the
-wire's seal frame; for `NodeWire.current` that is `finalNodeInput`. -/
+wire's seal frame. -/
 theorem history_final_input {roles : List Role}
     (past : History Key (Block capacity Fresh) Digest roles.length) (body : Body) :
     ∃ state, (history wire bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =

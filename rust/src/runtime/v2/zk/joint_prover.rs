@@ -39,7 +39,6 @@ impl<L: Fields> JointParam<L> {
         L::Selection: witness_selection::ProverFields,
         Witnesses<L>: Clone,
     {
-        self.fields.absorb_layouts(&mut transcript.borrow());
         let (selection, root, responses) =
             witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
         Ok((

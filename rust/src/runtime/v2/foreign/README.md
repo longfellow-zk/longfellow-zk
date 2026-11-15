@@ -24,7 +24,7 @@ Storage maps and the split of a frontend's claim belong to the zk layer (see [St
 - `zk::storage` has the following types.
   - `StorageMap`: each value is `Native(cell)` or `Foreign(group)`, a
     prime-field value held as a bit group in the binary commitment.
-  - `Run`: the map's layout parameters as bound to the transcript.
+  - `Run`: the map's layout parameters as the statement absorbs them.
   - `BitGroup<N>` and `Group`: typed and untyped positions of bits in the
     binary input array.
   - `ReservedSuffix`: an allocator for the bits after the format circuit's
@@ -111,10 +111,12 @@ shape; its circuit ID is bound with the others.
 
 ## Transcript
 
-Before the shared root, every participant binds its layout parameters. A split
-participant adds its circuit ID, its storage map as runs, and the position of
-R's bits. After the root, only the
-statement, prover messages and fixed domain labels are absorbed: `mu`, the
-masked quotients, and the frontends' and backend's own messages. Challenge-
+The transcript opens with the statement: every circuit, including the
+adapter fragment, every participant's `CommitmentLayout` (a split
+participant's carries its storage map as runs and the position of R's bits),
+the mode's `AdapterLayout`, the joint geometry and every public input
+(`compose::ComposedStatement`). After it only prover messages are absorbed,
+each once: `mu` (`SplitOpening`), the masked quotients
+(`P256AdapterQuotients`), and the frontends' and backend's own messages. Challenge-
 and message-derived values (row and claim weights, leaf definitions, quotients) are
 never absorbed; both roles recompute them.

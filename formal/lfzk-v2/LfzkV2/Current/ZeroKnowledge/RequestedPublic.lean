@@ -39,7 +39,6 @@ variable (cfg : RuntimeVerifier.Public (g := MdocRuntime.geometry binary.descrip
   (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
 local notation "Request" => CanonicalRequest.Request shape binary.description.nPublic
 
 def requestedBinary (request : Request) : BinaryCircuit B := binaryFor binary request.publicBits
@@ -85,7 +84,6 @@ def configuration (request : Request) : RuntimeVerifier.Public
   openingBase := cfg.openingBase
   initialLink := cfg.initialLink
   root := cfg.root
-  authenticationContext := cfg.authenticationContext
   bindSalt := cfg.bindSalt
   sample := cfg.sample }
 

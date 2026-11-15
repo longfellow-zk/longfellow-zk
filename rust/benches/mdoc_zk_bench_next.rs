@@ -228,15 +228,18 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
     use sha2::{Digest, Sha256};
     let binary = Gf2_128Field::new();
     let prime = P256Field::new();
-    let decoded = runtime::MdocProof::read(bytes, geometry, &binary, &prime).unwrap();
+    // Size reporting only: any session can carry the geometry.
+    let mut session = longfellow_zk::runtime::v2::transcript::Transcript::for_test(b"sizes");
+    let decoded =
+        runtime::MdocProof::read(bytes, &session.bound(geometry), &binary, &prime).unwrap();
     let (proof, geometry) = (&decoded.body, &geometry.body);
     let hash = proof.host.write(&geometry.host, &binary).unwrap();
-    let signature = proof.split.write(&geometry.split, &prime).unwrap();
+    let signature = proof.split.write(&geometry.split.sc_geom, &prime).unwrap();
     let polygero = &proof.polygero;
     let (nonces, frontier) = polygero.authentication_bytes();
     let hash_payload = polygero.bodies().0.payload_bytes(&binary);
     let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
-    let shared_bytes = 36 + hash_payload + signature_payload + nonces + frontier;
+    let shared_bytes = hash_payload + signature_payload + nonces + frontier;
     let masked = proof.message.len() * runtime::MaskedQuotient::BYTES;
     assert_eq!(
         bytes.len(),
@@ -247,7 +250,7 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
         hash.len(),
         signature.len()
     );
-    eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier}, context+version=36)");
+    eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier})");
     eprintln!("  Witness fingerprints: 96 bytes (binary=32, signature=64)");
     eprintln!(
         "  Adapter: {} bytes; version+commitment: 36 bytes",

@@ -12,7 +12,6 @@ use crate::runtime::{
             prover::prove_packed,
         },
         polygero::LinearStatement,
-        proto::Digest,
         transcript::Bound,
     },
 };
@@ -69,7 +68,6 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         t: &mut Bound<'_, Self>,
         state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
-        id: &[u8; 32],
     ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
     where
         F: ZkField<W>,
@@ -80,15 +78,12 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             &state.words,
             &state.suffix,
             state.masks,
-            id,
         )?;
         drop(state.words);
         drop(state.suffix);
-        // The continuing transcript already binds the public inputs, sumcheck
-        // and packing messages. The circuit ID identifies their source without
-        // introducing a query between the frontend and joint batching.
-        let digest = Digest { data: *id };
+        // The transcript already holds the statement and the sumcheck and
+        // packing messages these rows derive from.
         let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
-        Ok((packing, LinearStatement { a, b, digest }))
+        Ok((packing, LinearStatement { a, b }))
     }
 }

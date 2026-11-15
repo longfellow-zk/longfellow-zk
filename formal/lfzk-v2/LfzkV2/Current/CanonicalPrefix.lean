@@ -1,4 +1,5 @@
-import LfzkV2.Current.ProofBodyReplay
+import LfzkV2.Current.ProofBodyCodec
+import LfzkV2.Current.BodyEncoding
 
 /-! Canonical codecs for typed request and proof packets. Only data already
 bound at the boundary occur here. Physical digest-linked nodes and PRF inputs

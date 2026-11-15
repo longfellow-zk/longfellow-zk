@@ -26,13 +26,13 @@ private theorem raw_extensionality {Nonce Leaf D : Type} {queries : ℕ}
 theorem raw_fill (body : Body g fields Advice (OpeningBody.Authentication g))
     (responses : Response g (fields .binary) × Response g (fields .prime))
     (raw : OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest)
-    (context : Digest) (capacity : raw.frontier.length ≤ OpeningBody.frontierCapacity g)
+    (capacity : raw.frontier.length ≤ OpeningBody.frontierCapacity g)
     (finalSeal : Digest) :
     OpeningBody.raw P R binary prime hB hN hopenings
-      ⟨fill P R binary prime hB hN hopenings body responses raw context capacity,finalSeal⟩ = raw := by
+      ⟨fill P R binary prime hB hN hopenings body responses raw capacity,finalSeal⟩ = raw := by
   have values : ∀ query,
       (OpeningBody.raw P R binary prime hB hN hopenings
-        ⟨fill P R binary prime hB hN hopenings body responses raw context capacity,finalSeal⟩).values query =
+        ⟨fill P R binary prime hB hN hopenings body responses raw capacity,finalSeal⟩).values query =
       raw.values query := by
     intro query
     change (piFinTwoEquiv (fun i : Fin 2 => ((Joint.Pair.family P R).participant i).Leaf)).symm
@@ -47,14 +47,14 @@ theorem raw_fill (body : Body g fields Advice (OpeningBody.Authentication g))
     simp only [Fin.cast_cast,Fin.cast_refl,id_eq,Prod.eta,Equiv.symm_apply_apply]
   have nonce : ∀ query,
       (OpeningBody.raw P R binary prime hB hN hopenings
-        ⟨fill P R binary prime hB hN hopenings body responses raw context capacity,finalSeal⟩).nonce query =
+        ⟨fill P R binary prime hB hN hopenings body responses raw capacity,finalSeal⟩).nonce query =
       raw.nonce query := by
     intro query
     change raw.nonce (Fin.cast hopenings (Fin.cast hopenings.symm query)) = raw.nonce query
     simp only [Fin.cast_cast,Fin.cast_refl,id_eq]
   have frontier :
       (OpeningBody.raw P R binary prime hB hN hopenings
-        ⟨fill P R binary prime hB hN hopenings body responses raw context capacity,finalSeal⟩).frontier =
+        ⟨fill P R binary prime hB hN hopenings body responses raw capacity,finalSeal⟩).frontier =
       raw.frontier := by
     exact List.ofFn_getElem
   exact raw_extensionality _ _ (funext values) (funext nonce) frontier

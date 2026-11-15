@@ -24,7 +24,6 @@ fn proof(
     field: &Gf2_128Field,
 ) -> JointPolygeroProof<(FieldProof<Gf2_128>, ())> {
     JointPolygeroProof {
-        context: Digest::default(),
         bodies: (
             FieldProof {
                 h: vec![field.zero(); g.k + g.s],
@@ -60,8 +59,9 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
     ] {
         let p = proof(&g, &f);
         let bytes = write(&p, &g, &f).unwrap();
-        assert_eq!(&bytes[..4], b"JPG2");
-        let offset = 36 + (p.bodies.0.h.len() + p.bodies.0.z.len()) * 16;
+        // The response, then the rows, then the nonces; no magic, no context
+        // and no frontier count.
+        let offset = (p.bodies.0.h.len() + p.bodies.0.z.len()) * 16;
         let expected = p
             .bodies
             .0
@@ -69,27 +69,20 @@ fn ambient_rows_have_fixed_width_and_preserve_order() {
             .iter()
             .flat_map(|x| f.to_bytes(x))
             .collect::<Vec<_>>();
-        assert_eq!(&bytes[offset..bytes.len() - NONCE_LEN * g.t - 4], expected);
+        assert_eq!(&bytes[offset..bytes.len() - NONCE_LEN * g.t], expected);
         assert_eq!(
             bytes.len(),
-            36 + (p.bodies.0.h.len() + p.bodies.0.z.len() + p.bodies.0.rows.len()) * 16
+            (p.bodies.0.h.len() + p.bodies.0.z.len() + p.bodies.0.rows.len()) * 16
                 + NONCE_LEN * g.t
-                + 4
         );
-        let mut concat = bytes.clone();
-        concat.extend_from_slice(&bytes);
-        let mut input = concat.as_slice();
-        assert_eq!(read(&mut input, &g, &f).unwrap(), p);
-        assert_eq!(input, bytes);
-        assert_eq!(read(&mut input, &g, &f).unwrap(), p);
-        assert!(input.is_empty());
+        assert_eq!(read(&mut bytes.as_slice(), &g, &f).unwrap(), p);
         let mut bad = p.clone();
         bad.bodies.0.rows.push(f.zero());
         assert!(write(&bad, &g, &f).is_err());
     }
 }
 #[test]
-fn malformed_geometry_frontier_versions_and_every_truncation_are_rejected() {
+fn malformed_frontiers_and_every_truncation_are_rejected() {
     let f = Gf2_128Field::new();
     let g = geometry();
     let p = proof(&g, &f);
@@ -97,24 +90,19 @@ fn malformed_geometry_frontier_versions_and_every_truncation_are_rejected() {
     for n in 0..bytes.len() {
         assert!(read(&mut &bytes[..n], &g, &f).is_err(), "length {n}");
     }
-    for marker in [b"PLG9", b"PLG8", b"PLG7", b"PLG6", b"PYG2"] {
-        let mut bad = bytes.clone();
-        bad[..4].copy_from_slice(marker);
-        assert!(read(&mut bad.as_slice(), &g, &f).is_err());
-    }
-    let mut bad = bytes.clone();
-    bad[4..8].copy_from_slice(&7u32.to_le_bytes());
-    assert!(read(&mut bad.as_slice(), &g, &f).is_err());
-    let mut invalid_frontier = bytes.clone();
-    let n = invalid_frontier.len();
-    invalid_frontier[n - 4..].copy_from_slice(&u32::MAX.to_le_bytes());
-    assert!(read(&mut invalid_frontier.as_slice(), &g, &f).is_err());
+    // The frontier is the rest of the body: a partial digest is rejected.
+    let mut partial = bytes.clone();
+    partial.push(0);
+    assert!(read(&mut partial.as_slice(), &g, &f).is_err());
+    let mut whole = bytes.clone();
+    whole.extend_from_slice(&[0; 32]);
+    assert!(read(&mut whole.as_slice(), &g, &f).is_ok());
 }
 #[test]
 fn noncanonical_ambient_elements_are_rejected() {
     let f = Gf2_128Field::new();
     let mut b = write(&proof(&geometry(), &f), &geometry(), &f).unwrap();
-    b[36..52].fill(0xff);
+    b[0..16].fill(0xff);
     assert!(read(&mut b.as_slice(), &geometry(), &Aliased(f)).is_err());
 }
 
@@ -124,34 +112,60 @@ fn write<F: SerializableField>(
     f: &F,
 ) -> std::io::Result<Vec<u8>> {
     let mut out = Vec::new();
-    p.write_to_buf(&mut out, &Digest::default(), g.t, g.n, |b, out| {
-        b.0.write(out, g, f)
-    })?;
+    p.write_to_buf(
+        &mut out,
+        g.t,
+        g.n,
+        |b, out| b.0.write_response(out, g, f),
+        |b, out| b.0.write_rows(out, g, f),
+    )?;
     Ok(out)
 }
+/// Read a whole body, as a complete reader does after its length check.
 fn read<F: SerializableField>(
     bytes: &mut &[u8],
     g: &PolygeroGeometry,
     f: &F,
 ) -> std::io::Result<JointPolygeroProof<(FieldProof<F::E>, ())>> {
-    JointPolygeroProof::read(bytes, &Digest::default(), g.t, g.n, |bytes| {
-        Ok((FieldProof::read(bytes, g, f)?, ()))
-    })
+    JointPolygeroProof::read(
+        bytes,
+        g.t,
+        g.n,
+        |bytes| Ok((FieldProof::read_response(bytes, g, f)?, ())),
+        |b, bytes| b.0.read_rows(bytes, g, f),
+    )
 }
 
 #[test]
 fn oversized_opening_counts_reject_without_allocation() {
-    let mut bytes = b"JPG2".to_vec();
-    bytes.extend_from_slice(&[0; 32]);
+    let bytes = [0u8; 64];
     for (t, n) in [(1 << 28, 1 << 28), (usize::MAX, usize::MAX), (0, 0)] {
         let result = JointPolygeroProof::<()>::read::<std::io::Error>(
             &mut bytes.as_slice(),
-            &Digest::default(),
             t,
             n,
             |_| Ok(()),
+            |_, _| Ok(()),
         );
         assert!(result.is_err());
+    }
+}
+
+#[test]
+fn the_length_check_bounds_the_frontier_before_decoding() {
+    use super::super::polygero::checked_body;
+    // t = 2 columns of n = 16 leaves: at most 2 * 5 frontier digests.
+    let frame = 4 + 10 + 32;
+    for digests in 0..=10 {
+        let bytes = vec![0u8; frame + 32 * digests];
+        let body = checked_body(&bytes, 4, 10, 2, 16).unwrap();
+        assert_eq!(body.len(), 10 + 32 * digests);
+    }
+    for len in (0..frame).chain([frame + 1, frame + 31, frame + 33, frame + 32 * 11]) {
+        assert!(
+            checked_body(&vec![0; len], 4, 10, 2, 16).is_err(),
+            "length {len}"
+        );
     }
 }
 
@@ -174,6 +188,7 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
     p.write_nonces(&mut bytes);
     assert_eq!(bytes.len(), NONCE_LEN * nonces.len());
     p.write_path(&mut bytes);
+    assert_eq!(bytes.len(), NONCE_LEN * nonces.len() + 32);
     let mut input = bytes.as_slice();
     assert_eq!(
         MerkleProof::read_nonces(&mut input, nonces.len()).unwrap(),
@@ -185,11 +200,10 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
         assert!(MerkleProof::read_nonces(&mut &bytes[..NONCE_LEN * 2 - 1], count).is_err());
     }
     let proof = JointPolygeroProof {
-        context: Digest::default(),
         bodies: (),
         opening: p,
     };
-    assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 4 + 32));
+    assert_eq!(proof.authentication_bytes(), (2 * NONCE_LEN, 32));
     // The mdoc profile opens 84 shared columns with one 32-byte salt each.
     assert_eq!(84 * NONCE_LEN, 2688);
 }

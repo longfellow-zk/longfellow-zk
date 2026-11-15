@@ -44,7 +44,7 @@ use crate::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             proto::sumcheck::{RoundPoly, SumcheckProof},
-            sumcheck::{circuit_geometry, derive_constraints, TranscriptSumcheck},
+            sumcheck::{circuit_geometry, derive_constraints},
             transcript::Transcript,
         },
     },
@@ -67,9 +67,6 @@ pub(in super::super) fn verify<
     if inputs.len() < circuit.raw.npublic_input {
         return Err("public input length mismatch".into());
     }
-    transcript
-        .borrow()
-        .write_sumcheck_statement(circuit, &inputs[..circuit.raw.npublic_input], f);
     verify_core(inputs, pads, circuit, proof, transcript, f)
 }
 

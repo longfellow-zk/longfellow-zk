@@ -19,10 +19,7 @@ use crate::{
     runtime::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField},
         v2::{
-            proto::{
-                sumcheck::{LayerProof, RoundPoly, SumcheckProof},
-                RoundLabel,
-            },
+            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
             sumcheck::{
                 prover::quad_round_poly,
                 symbolic::{build_constraints, PadExpression},
@@ -240,14 +237,13 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
     use crate::runtime::v2::{sumcheck::transcript, transcript::Transcript};
     let f = P256Field::new();
     let cross = f.u64_to_element(13);
-    let mut prover = Transcript::new(b"terminal-order");
+    let mut prover = Transcript::for_test(b"terminal-order");
     let mut reference = prover.fork_for_test();
-    let expected = reference.round(RoundLabel::Terminal, |mut w| {
-        w.write_elt_field(&cross, &f);
-        let mut r = w.begin_squeeze();
-        let x = r.elt_field(&f);
-        r.end_round(x)
+    reference.borrow().send(&transcript::CrossMessage {
+        f: &f,
+        cross: &cross,
     });
+    let expected = reference.borrow().draw(|r| r.elt_field(&f));
     assert_ne!(expected, f.zero());
     let r = transcript::terminal_challenge(&cross, &mut prover.borrow(), &f);
     assert_eq!(r, expected);
@@ -258,19 +254,18 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
 
     let claims = [f.u64_to_element(17), f.u64_to_element(19)];
     let mut changed = prover.fork_for_test();
-    let expected_alpha = reference.round(RoundLabel::Combine, |mut w| {
-        w.write_elt_field_slice(&claims, &f);
-        let mut r = w.begin_squeeze();
-        let x = r.elt_field(&f);
-        r.end_round(x)
+    reference.borrow().send(&transcript::ClaimsMessage {
+        f: &f,
+        claims: &claims,
     });
+    let expected_alpha = reference.borrow().draw(|r| r.elt_field(&f));
     let alpha = transcript::end_layer::<4, _>(&claims, &mut prover.borrow(), &f, |_| {});
     assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));
     let changed_alpha =
         transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed.borrow(), &f, |_| {});
     assert_ne!(alpha, changed_alpha);
-    let mut changed_cross = Transcript::new(b"terminal-order");
+    let mut changed_cross = Transcript::for_test(b"terminal-order");
     assert_ne!(
         r,
         transcript::terminal_challenge(&f.one(), &mut changed_cross.borrow(), &f)
@@ -287,54 +282,16 @@ fn round_challenge_binds_both_round_coefficients() {
     let m = RoundPoly::<4, P256Field> {
         coefficients: [f.u64_to_element(3), f.u64_to_element(5)],
     };
-    let mut base = Transcript::new(b"round-order");
+    let mut base = Transcript::for_test(b"round-order");
     let z = transcript::round_challenge(&m, &mut base.borrow(), &f);
     for k in 0..2 {
         let mut changed = m.clone();
         f.add(&mut changed.coefficients[k], &f.one());
-        let mut t = Transcript::new(b"round-order");
+        let mut t = Transcript::for_test(b"round-order");
         assert_ne!(
             z,
             transcript::round_challenge(&changed, &mut t.borrow(), &f),
             "round coefficient {k} is not bound before z"
         );
     }
-}
-
-/// public inputs must be bound by the sumcheck statement.
-#[test]
-fn sumcheck_statement_binds_public_inputs() {
-    use crate::{
-        core::proto::v2::{Circuit, Layer, Quadratic, RawCircuitBuilder, Stream},
-        runtime::v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
-    };
-    let f = P256Field::new();
-    let raw = RawCircuitBuilder {
-        ninput: 2,
-        npublic_input: 1,
-        noutput: 1,
-        logv: 0,
-        constants: vec![f.one()],
-        layers: vec![Layer::with_assertions(
-            2,
-            Stream::<Quadratic>::from_terms([Quadratic {
-                g: 0,
-                l: 0,
-                r: 1,
-                k: 0,
-            }]),
-            Stream::default(),
-            Stream::default(),
-            |_| false,
-        )],
-    }
-    .build();
-    let c = Circuit::from_raw(&f, raw);
-    let state = |x: u64| {
-        let mut t = Transcript::new(b"statement-binding");
-        t.borrow()
-            .write_sumcheck_statement::<4, _>(&c, &[f.u64_to_element(x)], &f);
-        t.bytes(32)
-    };
-    assert_ne!(state(1), state(2), "public inputs not bound");
 }

@@ -31,7 +31,6 @@ use crate::{
         algebra::{blas, packing::PackingField, ZkField},
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
-            proto::Digest,
             sumcheck::{circuit_geometry, symbolic::Constraints},
             transcript::{Bound, Challenge},
         },
@@ -144,13 +143,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             k: f.mone(),
         });
         b.push(f.subf(mu, &f.mulf(eta, &claim.target)));
-        Ok(LinearStatement {
-            a,
-            b,
-            // The frontend and split messages already precede joint batching
-            // on the shared transcript. This identifier names the source only.
-            digest: Digest { data: self.id },
-        })
+        Ok(LinearStatement { a, b })
     }
     /// Foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
     fn foreign_claim(
@@ -231,7 +224,7 @@ impl<E> PendingSplit<E> {
         let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
         let p = t.part().participant;
         let mu = p.split_message(&self, &scale, f)?;
-        transcript::absorb_mu(&mut t.transcript(), &mu, f);
+        transcript::send_mu(&mut t.transcript(), &mu, f);
         let foreign = p.foreign_claim(&self.claim, &scale, &mu, f)?;
         let statement = p.split_statement(self.claim, &scale, &mu, f)?;
         Ok((mu, SplitOutput { statement, foreign }))
@@ -253,7 +246,7 @@ impl<E> SplitClaim<E> {
     {
         let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
         let p = t.part().participant;
-        transcript::absorb_mu(&mut t.transcript(), mu, f);
+        transcript::send_mu(&mut t.transcript(), mu, f);
         let foreign = p.foreign_claim(&self, &scale, mu, f)?;
         let statement = p.split_statement(self, &scale, mu, f)?;
         Ok(SplitOutput { statement, foreign })

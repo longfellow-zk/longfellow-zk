@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.TaggedFormat
 import LfzkV2.Current.StrandRuntime
 import LfzkV2.Current.StrandSampling
 import LfzkV2.Current.Soundness.FailureCover

@@ -21,7 +21,7 @@ strand nodes absorb, and nothing else. A format fixes
 The laws are local: each is a property of one codec or one node. The
 history codec (`Format.schema`, `Format.history_codec`) and the replay
 identities below are derived from them once, for every format. The deployed
-format is `LegacyFormat`. -/
+format is `TaggedFormat`. -/
 noncomputable section
 namespace LfzkV2.Current
 open CanonicalPrefix QueryRuntime

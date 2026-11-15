@@ -5,7 +5,6 @@
 pub(in crate::runtime::v2) mod generic;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
-pub(in crate::runtime::v2) const PACKING_BASIS_ID: u32 = 2;
 cfg_prover! { pub(in crate::runtime::v2) mod prover; }
 cfg_verifier! { pub(in crate::runtime::v2) mod verifier; }
 

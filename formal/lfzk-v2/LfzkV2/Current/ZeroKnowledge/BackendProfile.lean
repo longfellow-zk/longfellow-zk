@@ -1,5 +1,6 @@
 import LfzkV2.Current.ZeroKnowledge.BackendJoint
 import LfzkV2.Current.ConcreteSetup
+import LfzkV2.Current.OpeningBody
 
 /-! Concrete rate-1/7 specialization and the runtime's transmitted arrays.
 The row map is the existing `u,m,witness,fstar` map. H and Z are evaluated

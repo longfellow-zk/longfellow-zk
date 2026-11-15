@@ -48,21 +48,22 @@ theorem read_encode (value : Value) (suffix : Bytes) :
     codec.decode (codec.encode value ++ suffix) = some (value,suffix) :=
   codec.inverse value suffix
 
-/-- Transcript writes: each masked word is its own `write_bytes`, framed by
-the transcript's tag and eight-byte length. The domain label precedes them. -/
+/-- Transcript writes: the `P256AdapterQuotients` values, `Bits(10)` per
+word: kind 3, the bit count, then the bits least significant first, which is
+the word's two little-endian bytes. -/
 def writes : PrefixCodec Value :=
-  PrefixCodec.vector (word.prefixed ([0] ++ encodeLE 8 2)) 2
+  PrefixCodec.vector (word.prefixed (encodeLE 8 3 ++ encodeLE 8 10)) 2
 
-theorem writes_length (value : Value) : (writes.encode value).length = 22 := by
-  rw [writes,PrefixCodec.vector_length _ 11]
+theorem writes_length (value : Value) : (writes.encode value).length = 36 := by
+  rw [writes,PrefixCodec.vector_length _ 18]
   intro v
-  change (([0] ++ encodeLE 8 2) ++ word.encode v).length = 11
+  change ((encodeLE 8 3 ++ encodeLE 8 10) ++ word.encode v).length = 18
   rw [List.length_append,word_length]
   rfl
 
 theorem writes_encode (value : Value) :
-    writes.encode value = [0] ++ encodeLE 8 2 ++ encodeLE 2 (value 0).val ++
-      ([0] ++ encodeLE 8 2 ++ encodeLE 2 (value 1).val) := by
+    writes.encode value = encodeLE 8 3 ++ encodeLE 8 10 ++ encodeLE 2 (value 0).val ++
+      (encodeLE 8 3 ++ encodeLE 8 10 ++ encodeLE 2 (value 1).val) := by
   simp only [writes,PrefixCodec.vector_encode,List.ofFn_succ,List.ofFn_zero,
     List.flatMap_cons,List.flatMap_nil,List.append_nil]
   rfl
@@ -101,7 +102,7 @@ def representations {fields : Fields}
   adviceWidth := 4
   adviceLength := encode_length
   adviceWrites := writes
-  adviceWritesWidth := 22
+  adviceWritesWidth := 36
   adviceWritesLength := writes_length
 
 end LfzkV2.Current.MdocAdvice

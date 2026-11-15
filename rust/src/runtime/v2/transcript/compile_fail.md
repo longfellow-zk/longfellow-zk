@@ -1,32 +1,21 @@
-A writer must be consumed before challenges can be sampled:
+A reader cannot send a message:
 
 ```compile_fail,E0599
-use longfellow_zk::runtime::v2::transcript::Writing;
-fn bad(mut w: Writing<'_>) { w.bytes(32); }
+use longfellow_zk::runtime::v2::transcript::{Reading, ZkStatement};
+fn bad(mut r: Reading<'_>) { r.send(&ZkStatement { context: b"late", profile: [0; 4] }); }
 ```
 
-The reader cannot bind messages or start another squeezing phase:
+Only a statement writes setup messages: the header exists only while
+`Transcript::new` runs, and it accepts no prover message.
 
-```compile_fail,E0599
-use longfellow_zk::runtime::v2::transcript::Reading;
-fn bad(mut r: Reading<'_>) { r.write_bytes(b"late"); }
+```compile_fail,E0451
+use longfellow_zk::runtime::v2::transcript::{Header, Transcript};
+fn bad(t: &mut Transcript) -> Header<'_> { Header { session: t } }
 ```
 
-```compile_fail,E0599
-use longfellow_zk::runtime::v2::transcript::Reading;
-fn bad(r: Reading<'_>) { r.begin_squeeze(); }
-```
-
-Neither phase can be reused after its transition:
-
-```compile_fail,E0382
-use longfellow_zk::runtime::v2::transcript::Writing;
-fn bad(w: Writing<'_>) { let r = w.begin_squeeze(); let other = w.begin_squeeze(); }
-```
-
-```compile_fail,E0382
-use longfellow_zk::runtime::v2::transcript::Reading;
-fn bad(r: Reading<'_>) { let end = r.end_round(()); let other = r.end_round(()); }
+```compile_fail,E0277
+use longfellow_zk::runtime::v2::transcript::{Header, ProverMessage};
+fn bad<M: ProverMessage>(h: &mut Header<'_>, m: &M) { h.send(m); }
 ```
 
 Sessions cannot be cloned, sampled as private randomness, or finalized with
@@ -67,24 +56,19 @@ use longfellow_zk::runtime::v2::transcript::Unverified;
 fn bad(mut proof: Unverified<'_, u8>) { *proof = 42; }
 ```
 
-Positive control: the permitted transitions compose and carry the original
-round lifetime through its completion token.
+Positive control: a statement opens a session.
 
 ```
-use longfellow_zk::runtime::v2::transcript::{Writing, RoundEnd};
-fn round(w: Writing<'_>) -> RoundEnd<'_, Vec<u8>> {
-    let mut r = w.begin_squeeze();
-    let challenge = r.bytes(32);
-    r.end_round(challenge)
-}
+use longfellow_zk::runtime::v2::transcript::{Transcript, ZkStatement};
+let t = Transcript::new(&ZkStatement { context: b"context", profile: [8, 2, 64, 2] });
 ```
 
 Borrowed frontend operations cannot replace, clone or finalize their owner's
 session:
 
 ```compile_fail,E0614
-use longfellow_zk::runtime::v2::transcript::{Transcript, TranscriptRef};
-fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::new(b"replacement"); }
+use longfellow_zk::runtime::v2::transcript::{Transcript, TranscriptRef, ZkStatement};
+fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::new(&ZkStatement { context: b"r", profile: [0; 4] }); }
 ```
 
 ```compile_fail,E0599

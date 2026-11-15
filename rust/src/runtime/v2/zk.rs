@@ -43,6 +43,8 @@ pub mod storage;
 mod transcript;
 pub use context::{CircuitInput, InputLayout, VirtualInput, VirtualInputs, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub use transcript::{statement_profile, write_joint_geometry, ZkProofStatement};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
 cfg_prover! { mod joint_prover; pub use joint_prover::JointProver; }
 cfg_verifier! { mod joint_verifier; pub use joint_verifier::{Authenticated, JointVerifier}; }

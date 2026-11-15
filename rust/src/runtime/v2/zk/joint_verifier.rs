@@ -32,7 +32,6 @@ impl<L: Fields> JointParam<L> {
         responses: Responses<L>,
         mut transcript: Transcript,
     ) -> JointVerifier<L> {
-        self.fields.absorb_layouts(&mut transcript.borrow());
         let selection = witness_selection::Verifier::receive(
             &mut transcript.bound(&self.selection),
             root,

@@ -76,7 +76,7 @@ where
             inner: DeterministicRng::new(42),
             samples: 0,
         };
-        let mut ts = Transcript::new(b"rejected-mask-test");
+        let mut ts = Transcript::for_test(b"rejected-mask-test");
         let joint =
             JointPolygeroParam::new((Participant::new(param, domain).unwrap(), ())).unwrap();
         assert!(JointPolygeroProver::commit(
@@ -127,7 +127,6 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
     };
     let field = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&field);
-    let statement = Digest::default();
     let witness = vec![field.one(); 3];
     for t in [4, 5, 7] {
         let config = PolygeroConfig {
@@ -140,7 +139,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let geometry = param.geometry();
         let joint =
             JointPolygeroParam::new((Participant::new(param, &domain).unwrap(), ())).unwrap();
-        let mut prover_ts = Transcript::new(b"polygero/ordinary-only");
+        let mut prover_ts = Transcript::for_test(b"polygero/ordinary-only");
         let (prover, commitment) = JointPolygeroProver::commit(
             &mut prover_ts.bound(&joint),
             (witness.clone(), ()),
@@ -148,10 +147,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         )
         .unwrap();
         let proof = prover
-            .prove(
-                &mut prover_ts.bound(&joint),
-                &(linear(&[], &[], statement), ()),
-            )
+            .prove(&mut prover_ts.bound(&joint), &(linear(&[], &[]), ()))
             .unwrap();
         assert!(
             proof.bodies.0.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
@@ -165,14 +161,10 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let mut input = bytes.as_slice();
         let decoded = joint.read(&mut input).unwrap();
         assert!(input.is_empty());
-        let mut tv = Transcript::new(b"polygero/ordinary-only");
+        let mut tv = Transcript::for_test(b"polygero/ordinary-only");
         let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &commitment);
         verifier
-            .reduce(
-                &mut tv.bound(&joint),
-                &decoded,
-                &(linear(&[], &[], statement), ()),
-            )
+            .reduce(&mut tv.bound(&joint), &decoded, &(linear(&[], &[]), ()))
             .unwrap();
     }
 }

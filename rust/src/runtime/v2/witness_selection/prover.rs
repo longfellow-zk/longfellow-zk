@@ -108,9 +108,9 @@ where
     let (backend, root) =
         JointPolygeroProver::commit(&mut t.project(|p| &p.backend), witnesses.clone(), rng)
             .map_err(|e| e.to_string())?;
-    let coefficients = param.challenges(&root, &mut t.transcript());
+    let coefficients = param.challenges(&mut t.transcript());
     let responses = param.fields.responses(&witnesses, &coefficients);
-    param.absorb_responses(&responses, &mut t.transcript());
+    param.send_responses(&responses, &mut t.transcript());
     Ok((
         Prover {
             backend,

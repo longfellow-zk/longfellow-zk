@@ -6,6 +6,5 @@ namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
 
 #check Mdoc.PublicSetup.protocol
 #print axioms Mdoc.PublicSetup.setup_merge
-#print axioms Mdoc.PublicSetup.metadata_merge
 
 end LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup

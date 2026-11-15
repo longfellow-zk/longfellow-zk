@@ -70,7 +70,6 @@ impl<S> JointPolygeroProver<S> {
         let indices = p.queries(&bodies, &mut t.transcript());
         p.participants.gather(&self.states, &mut bodies, &indices);
         Ok(JointPolygeroProof {
-            context: p.context,
             bodies,
             opening: self.oracle.open(&indices),
         })

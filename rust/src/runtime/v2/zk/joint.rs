@@ -22,8 +22,8 @@ use crate::{
                 zk::CircuitGeometry,
                 Digest,
             },
-            sumcheck::{self, circuit_geometry, TopWeights, TranscriptSumcheck},
-            transcript::{Bound, Challenge, TranscriptRef},
+            sumcheck::{self, circuit_geometry, TopWeights},
+            transcript::{Bound, Challenge},
             witness_selection,
         },
     },
@@ -31,17 +31,15 @@ use crate::{
 
 /// One frontend's full committed cell vector. The sibling selection protocol
 /// owns the two extra masks; they are never logical circuit inputs.
-pub struct SelectedField<'a, const W: usize, F: ZkField<W>, D, L = ()> {
+pub struct SelectedField<'a, const W: usize, F: ZkField<W>, D> {
     selection: witness_selection::Field<'a, W, F, D>,
     geometry: PolygeroGeometry,
-    layout: L,
 }
-impl<const W: usize, F: ZkField<W>, D, L: Clone> Clone for SelectedField<'_, W, F, D, L> {
+impl<const W: usize, F: ZkField<W>, D> Clone for SelectedField<'_, W, F, D> {
     fn clone(&self) -> Self {
         Self {
             selection: self.selection.clone(),
             geometry: self.geometry,
-            layout: self.layout.clone(),
         }
     }
 }
@@ -64,90 +62,34 @@ impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField
         Ok(Self {
             selection: witness_selection::Field::new(param, domain, field_id)?,
             geometry,
-            layout: (),
         })
     }
 }
 
-impl<'a, const W: usize, F: ZkField<W>, D, L> SelectedField<'a, W, F, D, L> {
-    fn with_layout<A>(self, layout: A) -> SelectedField<'a, W, F, D, A> {
-        SelectedField {
-            selection: self.selection,
-            geometry: self.geometry,
-            layout,
-        }
-    }
+impl<const W: usize, F: ZkField<W>, D> SelectedField<'_, W, F, D> {
     pub fn geometry(&self) -> PolygeroGeometry {
         self.geometry
     }
 }
 
-/// Frontend metadata consumed internally before the fingerprint round.
-pub(crate) trait AbsorbLayout {
-    fn absorb_layout(&self, t: &mut TranscriptRef<'_>);
-}
-
-impl AbsorbLayout for () {
-    fn absorb_layout(&self, _: &mut TranscriptRef<'_>) {}
-}
-impl<L: AbsorbLayout> AbsorbLayout for &L {
-    fn absorb_layout(&self, t: &mut TranscriptRef<'_>) {
-        (*self).absorb_layout(t);
-    }
-}
-
-// The private supertrait both seals the tuple traversal and keeps absorption
-// inaccessible to callers; commit/receive are its only entry points.
-pub(crate) trait AbsorbLayouts {
-    fn absorb_layouts(&self, t: &mut TranscriptRef<'_>);
-}
 /// A typed list `(SelectedField, Tail)` ending in `()`. This conversion only
 /// supplies frontend metadata; all fingerprint arithmetic stays in its sibling.
-///
-/// ```compile_fail,E0624
-/// use longfellow_zk::runtime::v2::{zk::joint::Fields, transcript::TranscriptRef};
-/// fn cannot_absorb_twice<L: Fields>(fields: &L, t: &mut TranscriptRef<'_>) {
-///     fields.absorb_layouts(t);
-/// }
-/// ```
-#[allow(private_bounds)]
-pub trait Fields: AbsorbLayouts + Clone {
+/// The statement holds every layout (transcript I3), so the list absorbs
+/// nothing.
+pub trait Fields: Clone {
     type Selection: witness_selection::Fields;
     fn selection(&self) -> Self::Selection;
-}
-impl AbsorbLayouts for () {
-    fn absorb_layouts(&self, _: &mut TranscriptRef<'_>) {}
 }
 impl Fields for () {
     type Selection = ();
     fn selection(&self) {}
 }
-impl<
-        'a,
-        const W: usize,
-        F: ZkField<W>,
-        D: EvaluationDomain<W, F>,
-        L: AbsorbLayout + Clone,
-        T: Fields,
-    > Fields for (SelectedField<'a, W, F, D, L>, T)
+impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>, T: Fields> Fields
+    for (SelectedField<'a, W, F, D>, T)
 {
     type Selection = (witness_selection::Field<'a, W, F, D>, T::Selection);
     fn selection(&self) -> Self::Selection {
         (self.0.selection.clone(), self.1.selection())
-    }
-}
-impl<
-        'a,
-        const W: usize,
-        F: ZkField<W>,
-        D: EvaluationDomain<W, F>,
-        L: AbsorbLayout + Clone,
-        T: Fields,
-    > AbsorbLayouts for (SelectedField<'a, W, F, D, L>, T)
-{
-    fn absorb_layouts(&self, t: &mut TranscriptRef<'_>) {
-        self.0.layout.absorb_layout(t);
-        self.1.absorb_layouts(t);
     }
 }
 pub type Witnesses<L> = witness_selection::Witnesses<<L as Fields>::Selection>;
@@ -161,13 +103,11 @@ pub type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>:
 #[derive(Clone)]
 pub struct JointParam<L: Fields> {
     pub(super) selection: witness_selection::Param<L::Selection>,
-    pub(super) fields: L,
 }
 impl<L: Fields> JointParam<L> {
     pub fn new(fields: L) -> Result<Self, String> {
         Ok(Self {
             selection: witness_selection::Param::new(fields.selection())?,
-            fields,
         })
     }
     pub fn context(&self) -> Digest {
@@ -179,7 +119,7 @@ impl<L: Fields> JointParam<L> {
 }
 
 /// A circuit's packing and commitment layout, independent of the participant list.
-/// Joint commit/receive absorbs each participant's layout before the fingerprint round.
+/// The statement absorbs it (`CommitmentLayout`) before any prover message.
 /// Input packing stays here; the lower-level Polygero participant only knows
 /// full-field witness cells and affine constraints over them.
 pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
@@ -325,15 +265,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
         ctx: &ZkContext<'a, W, F, D>,
-    ) -> Result<SelectedField<'a, W, F, D, &'a Self>, String> {
-        Ok(
-            SelectedField::from_parameter(
-                self.param.clone(),
-                ctx.domain,
-                ctx.field().packing_id(),
-            )?
-            .with_layout(self),
-        )
+    ) -> Result<SelectedField<'a, W, F, D>, String> {
+        SelectedField::from_parameter(self.param.clone(), ctx.domain, ctx.field().packing_id())
     }
 }
 
@@ -374,9 +307,9 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
     }
 }
 
-/// Bind each circuit statement of `t`'s frontend, then draw the frontend's
-/// sumcheck top weights. The driver draws them where the frontend starts, after
-/// the last message the frontend depends on (its virtual-input definitions
+/// Draw the sumcheck top weights of `t`'s frontend; the statement already
+/// holds its circuits and public inputs (transcript I1). The driver draws them where the frontend
+/// starts, after the last message the frontend depends on (its virtual-input definitions
 /// included), and hands them to `prove`, `prove_split`, `reduce` or
 /// `reduce_split` before any other message (transcript I8).
 pub fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
@@ -384,9 +317,6 @@ pub fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
 ) -> Result<Challenge<TopWeights<F::E>>, String> {
     let part = t.part();
     let f = part.participant.backend.parameters.field();
-    for c in &part.circuits {
-        t.transcript().write_sumcheck_statement(c, &part.public, f);
-    }
     sumcheck::top_weights(&part.circuits, &mut t.transcript(), f)
 }
 

@@ -25,6 +25,9 @@ pub(super) const BLOCK_BYTES: usize = 32;
 pub struct Strand {
     hash: Sha256,
     id: u64,
+    /// Test-only copy of every byte this node hashed, its header included.
+    #[cfg(test)]
+    pub(super) preimage: Vec<u8>,
 }
 
 /// Expands a finalized strand into independently indexed 32-byte blocks.
@@ -41,19 +44,26 @@ impl Strand {
     }
 
     fn with_parent(id: u64, parent: Option<&[u8; BLOCK_BYTES]>) -> Self {
-        let mut hash = Sha256::new();
-        hash.update(STRAND.to_le_bytes());
-        hash.update(id.to_le_bytes());
-        hash.update(u32::from(parent.is_some()).to_le_bytes());
+        let mut strand = Self {
+            hash: Sha256::new(),
+            id,
+            #[cfg(test)]
+            preimage: Vec::new(),
+        };
+        strand.write(&STRAND.to_le_bytes());
+        strand.write(&id.to_le_bytes());
+        strand.write(&u32::from(parent.is_some()).to_le_bytes());
         if let Some(digest) = parent {
-            hash.update(digest);
+            strand.write(digest);
         }
-        Self { hash, id }
+        strand
     }
 
     /// Append raw bytes. Splitting a write does not change the hashed message.
     pub fn write(&mut self, bytes: &[u8]) {
         self.hash.update(bytes);
+        #[cfg(test)]
+        self.preimage.extend_from_slice(bytes);
     }
 
     /// Finish with ordinary SHA-256 padding, keeping the resulting digest private.

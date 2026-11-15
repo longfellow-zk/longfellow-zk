@@ -4,95 +4,82 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        proto::{composed::ComposedProof, dual_packing::PackingProof, zk::CircuitProof},
-        transcript::Transcript,
-        zk::{
-            self,
-            joint::{self, FrontendPart},
-            split, CircuitInput,
-        },
+        proto::composed::ComposedProof,
+        transcript::{Opened, Statement, Transcript},
+        zk::{self, joint, split},
     },
 };
 
-impl<const W: usize, F, DH, DS, M> Composition<'_, W, F, DH, DS, M>
+impl<const W: usize, F, DH, DS, M> ComposedStatement<'_, W, F, DH, DS, M>
 where
     F: ZkField<W> + PackingField,
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
     M: AdapterMode<F>,
 {
-    /// Prove both circuits. `host_private` is the host circuit's own private
-    /// input; this appends R and the mode's pads. `transcript` already binds
-    /// the application statement.
+    /// Prove both circuits of the composition part of the statement `session`
+    /// opened with. `host_private` is the host circuit's own private input;
+    /// this appends R and the mode's pads.
     #[allow(clippy::type_complexity)]
-    pub fn prove(
-        &self,
-        host_public: &[CircuitInput<Host>],
+    pub fn prove<S: Statement + AsRef<Self> + ?Sized>(
+        session: Opened<'_, S>,
         mut host_private: Vec<CircuitInput<Host>>,
-        split_public: &[CircuitInput<F>],
         split_private: Vec<CircuitInput<F>>,
-        transcript: Transcript,
         rng: &mut impl PrivateRandom,
     ) -> Result<(ComposedProof<H, Host, W, F, M::Message>, Transcript), String> {
-        let (fh, fs) = (self.host_ctx.field(), self.split_ctx.field());
+        let (statement, transcript) = session.into_parts();
+        let this: &Self = statement.as_ref();
+        let c = this.composition;
+        let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
         // The split mask R and the mode's pads fill the reserved suffix.
         let mask = rng.elt_field(fs);
-        let pads = self.mode.sample_pads(rng);
-        let mut reserved = self.suffix.witness();
+        let pads = c.mode.sample_pads(rng);
+        let mut reserved = c.suffix.witness();
         let bytes = fs.to_bytes(&mask);
         reserved.set(
-            self.mask,
-            (0..self.mask.width()).map(|r| (bytes[r / 8] >> (r % 8)) & 1 != 0),
+            c.mask,
+            (0..c.mask.width()).map(|r| (bytes[r / 8] >> (r % 8)) & 1 != 0),
         )?;
-        self.mode.write_pads(&pads, &mut reserved)?;
+        c.mode.write_pads(&pads, &mut reserved)?;
         host_private.extend(reserved.into_bits());
 
-        let param = self.param()?;
-        let (state_host, w_host) = self.host.prepare(host_private, rng)?;
-        let (state_split, w_split) = self.split.prepare_split(split_private, Some(mask), rng)?;
-        let split_part = FrontendPart::new(&self.split, &[self.split_circuit], split_public)?;
-        let host_part = FrontendPart::new(
-            &self.host,
-            &[self.host_circuit, self.mode.fragment()],
-            host_public,
-        )?;
+        let param = c.param()?;
+        let (state_host, w_host) = c.host.prepare(host_private, rng)?;
+        let (state_split, w_split) = c.split.prepare_split(split_private, Some(mask), rng)?;
         let (mut joint, commitment, fingerprints) =
             param.commit((w_host, (w_split, ())), transcript, rng)?;
 
         // Split frontend from the top weights after the fingerprint
         // responses, then the split of its input equation. eta extends the
         // frontend's last combine answer.
-        let mut ts = joint.bound(&split_part);
+        let mut ts = joint.bound(&this.split);
         let top_split = joint::top_weights(&mut ts)?;
-        let (sumcheck, pending) =
-            zk::prove_split(&mut ts, state_split, top_split, &self.split_ctx)?;
-        let values = self.split.foreign_values(&pending)?;
+        let (split_sumcheck, pending) =
+            zk::prove_split(&mut ts, state_split, top_split, &c.split_ctx)?;
+        let values = c.split.foreign_values(&pending)?;
         let eta = split::transcript::eta(&mut ts, fs);
         let (mu, split) = pending.open(&mut ts, eta, fs)?;
 
         // Adapter rounds, then the host frontend with the mode's fragment,
         // from the top weights after the adapter's masked quotients.
-        let mut ta = joint.bound(&self.mode);
+        let mut ta = joint.bound(&c.mode);
         let conversion = M::draw_conversion(&mut ta, fs);
         let (message, leaves) =
             M::prove(&mut ta, &split.foreign, &values, &pads, conversion, fs, fh)?;
-        let mut th = joint.bound(&host_part);
+        let mut th = joint.bound(&this.host);
         let top_host = joint::top_weights(&mut th)?;
         let (host, statement_host) =
-            zk::prove(&mut th, state_host, top_host, &leaves, &self.host_ctx)?;
+            zk::prove(&mut th, state_host, top_host, &leaves, &c.host_ctx)?;
         let (polygero, transcript) =
             joint.prove(&param, (statement_host, (split.statement, ())))?;
         Ok((
             ComposedProof {
                 commitment,
                 fingerprints,
+                split: split_sumcheck,
                 mu,
                 message,
                 host,
-                split: CircuitProof {
-                    sumcheck_proof: sumcheck,
-                    packing: PackingProof::Direct,
-                },
                 polygero,
             },
             transcript,

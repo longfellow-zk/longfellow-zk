@@ -11,10 +11,10 @@ use crate::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             proto::{
-                polygero::{JointPolygeroProof, PolygeroConfig},
+                polygero::{checked_body, JointPolygeroProof, PolygeroConfig},
                 Digest,
             },
-            transcript::{Reading, Transcript, Writing},
+            transcript::{Reading, Transcript, TranscriptRef, SEAL_BYTES},
         },
     },
 };
@@ -72,14 +72,16 @@ impl<
         Ok(Self { param, f, domain })
     }
 }
-/// An immutable affine statement. Standalone callers use [`Self::new`], which
-/// hashes the complete static statement. Internal frontends instead derive
-/// equations from their already absorbed source messages and challenges.
+/// An immutable affine statement `A*w+b=0`. Frontends derive theirs from
+/// messages and challenges already absorbed, which fixes the statement before
+/// the batching challenges; the statement itself is never absorbed
+/// (transcript I3). Tests and tools may build a static system with
+/// [`Self::new`], which the transcript does not bind.
 ///
 /// ```compile_fail
-/// use longfellow_zk::runtime::v2::{polygero::LinearStatement, proto::Digest};
+/// use longfellow_zk::runtime::v2::polygero::LinearStatement;
 /// let statement: LinearStatement<u64> = LinearStatement {
-///     a: vec![], b: vec![], digest: Digest { data: [0; 32] },
+///     a: vec![], b: vec![],
 /// };
 /// ```
 #[derive(Clone)]
@@ -87,51 +89,22 @@ impl<
 pub struct LinearStatement<E> {
     pub(crate) a: Vec<PolygeroLinearTerm<E>>,
     pub(crate) b: Vec<E>,
-    pub(crate) digest: Digest,
 }
 impl<E> LinearStatement<E> {
-    /// Fix a standalone static system `A*w+b=0`, including every coefficient
-    /// and target. Term order is part of this source encoding. Use before any
-    /// proof challenges; frontend-derived systems are constructed internally.
-    pub fn new<F: SerializableField<E = E>>(
-        a: Vec<PolygeroLinearTerm<E>>,
-        b: Vec<E>,
-        f: &F,
-    ) -> Self {
-        let mut hash = Sha256::new();
-        hash.update(b"polygero/static-linear-statement/v1");
-        hash.update([u8::from(f.is_binary())]);
-        hash.update((f.serialized_size_bytes() as u64).to_le_bytes());
-        hash.update(f.serialized_mone());
-        hash.update((b.len() as u64).to_le_bytes());
-        hash.update((a.len() as u64).to_le_bytes());
-        let mut bytes = vec![0; f.serialized_size_bytes()];
-        for term in &a {
-            hash.update((term.c as u64).to_le_bytes());
-            hash.update((term.w as u64).to_le_bytes());
-            f.to_bytes_into(&term.k, &mut bytes);
-            hash.update(&bytes);
-        }
-        for target in &b {
-            f.to_bytes_into(target, &mut bytes);
-            hash.update(&bytes);
-        }
-        Self {
-            a,
-            b,
-            digest: Digest {
-                data: hash.finalize().into(),
-            },
-        }
+    /// A static system `A*w+b=0`, for tests and tools only. The transcript
+    /// does not bind it: nothing absorbs a statement, so a static system is
+    /// sound only if the caller fixes it in the transcript statement (for
+    /// example in the context) before the commitment. Frontend-derived systems
+    /// are constructed internally.
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self {
+        Self { a, b }
     }
     pub fn terms(&self) -> &[PolygeroLinearTerm<E>] {
         &self.a
     }
     pub fn targets(&self) -> &[E] {
         &self.b
-    }
-    pub fn digest(&self) -> Digest {
-        self.digest
     }
 }
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
@@ -150,8 +123,8 @@ mod sealed {
 }
 
 /// Implemented only for () and typed (Participant, Tail) pairs.
-/// Separate passes bind every statement before challenges, and every response
-/// before queries. Tuple positions preserve field types and participant order.
+/// Separate passes draw every field's challenges, then send every response
+/// before the queries. Tuple positions preserve field types and participant order.
 /// For example, `(hash, (signature, ()))` has matching witness and proof tuples;
 /// the fields need not have the same element type or number of witness rows.
 pub trait Participants: sealed::Sealed {
@@ -166,13 +139,15 @@ pub trait Participants: sealed::Sealed {
         h: &mut Sha256,
     ) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
-    // Statement digests bind the caller's source; sparse arrays are compiled locally.
-    fn absorb_statements(&self, s: &Self::Statements, t: &mut Writing<'_>);
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
-    fn absorb_responses(&self, b: &Self::Bodies, t: &mut Writing<'_>);
+    fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
-    fn write_bodies(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
-    fn read_bodies(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
+    /// Bytes of every field's response and rows; None if they overflow.
+    fn wire_len(&self) -> Option<usize>;
+    fn write_responses(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
+    fn write_rows(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
+    fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
+    fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
@@ -211,16 +186,24 @@ impl Participants for () {
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn absorb_statements(&self, _: &(), _: &mut Writing<'_>) {}
     fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
-    fn absorb_responses(&self, _: &(), _: &mut Writing<'_>) {}
+    fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn write_bodies(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
+    fn wire_len(&self) -> Option<usize> {
+        Some(0)
+    }
+    fn write_responses(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn read_bodies(&self, _: &mut &[u8]) -> Result<(), PolygeroError> {
+    fn write_rows(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
+        Ok(())
+    }
+    fn read_responses(&self, _: &mut &[u8]) -> Result<(), PolygeroError> {
+        Ok(())
+    }
+    fn read_rows(&self, _: &mut (), _: &mut &[u8]) -> Result<(), PolygeroError> {
         Ok(())
     }
     #[cfg(any(test, feature = "prover"))]
@@ -271,6 +254,9 @@ impl<L: Participants> JointPolygeroParam<L> {
     pub fn config(&self) -> PolygeroConfig {
         self.config
     }
+    /// A sealed bare body, for tests and tools: each field's response, each
+    /// field's rows, the nonces and the frontier, then the seal block. It
+    /// has no magic.
     pub fn write(
         &self,
         p: &JointPolygeroProof<L::Bodies>,
@@ -279,13 +265,14 @@ impl<L: Participants> JointPolygeroParam<L> {
         let mut out = Vec::new();
         p.write_to_buf(
             &mut out,
-            &self.context,
             self.config.t,
             self.config.n,
-            |b, out| self.participants.write_bodies(b, out),
+            |b, buf| self.participants.write_responses(b, buf),
+            |b, buf| self.participants.write_rows(b, buf),
         )?;
         Ok(transcript.append_final_seal(out))
     }
+    /// Read a sealed bare body; its length is checked first (proto I3).
     pub fn read<'a>(
         &self,
         bytes: &mut &'a [u8],
@@ -294,14 +281,25 @@ impl<L: Participants> JointPolygeroParam<L> {
         PolygeroError,
     > {
         let input = *bytes;
-        let body = JointPolygeroProof::read(
-            bytes,
-            &self.context,
-            self.config.t,
-            self.config.n,
-            |bytes| self.participants.read_bodies(bytes),
+        let (t, n) = (self.config.t, self.config.n);
+        let fixed = self
+            .participants
+            .wire_len()
+            .zip(JointPolygeroProof::<()>::fixed_opening_len(t))
+            .and_then(|(a, b)| a.checked_add(b))
+            .ok_or(PolygeroError("joint proof size overflow".into()))?;
+        let mut body = checked_body(input, 0, fixed, t, n)?;
+        let proof = JointPolygeroProof::read(
+            &mut body,
+            t,
+            n,
+            |rest| self.participants.read_responses(rest),
+            |bodies, rest| self.participants.read_rows(bodies, rest),
         )?;
-        crate::runtime::v2::transcript::Unverified::decoded(body, input, bytes).map_err(Into::into)
+        let mut seal = &input[input.len() - SEAL_BYTES..];
+        *bytes = &[];
+        crate::runtime::v2::transcript::Unverified::decoded(proof, input, &mut seal)
+            .map_err(Into::into)
     }
 }
 

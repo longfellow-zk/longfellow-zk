@@ -69,10 +69,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             "joint verifier session mismatch",
         )?;
         let p = t.part();
-        ensure(
-            self.context == p.context && proof.context == p.context,
-            "joint proof context mismatch",
-        )?;
+        ensure(self.context == p.context, "joint proof context mismatch")?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;

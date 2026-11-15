@@ -1,9 +1,10 @@
 import LfzkV2.Current.CanonicalPrefix
 
-/-! Static sizes of the canonical complete body. Every body has the same
+/-! Static sizes of the proof body's components. Every body has the same
 scalar counts; only the actual Merkle frontier length varies. The public
-bound below proves the final bytes operation fits without a per-proof
-capacity certificate or padding. -/
+bound `bodyBound` covers every body (`TaggedFormat.body_length_le`), so the
+final bytes operation fits without a per-proof capacity certificate or
+padding. -/
 namespace LfzkV2.Current.ProofBodyBounds
 open Finset
 
@@ -82,17 +83,6 @@ theorem response_length {F : Type} (field : PrefixCodec F) (width : ℕ)
   rw [List.length_append,vector_length field width hlen,vector_length field width hlen]
   ring
 
-theorem fieldBody_length {g : Geometry} {fields : Fields} (side : Side)
-    (field : PrefixCodec (fields side)) (width : ℕ)
-    (hlen : ∀ value, (field.encode value).length = width) (value : FieldBody g fields side) :
-    ((ProofBodyCodec.fieldBody side field g).encode value).length =
-      (3*g.rowDimension+g.maskingDegree+(g.dataRows side+3)*g.openings)*width := by
-  change ((ProofBodyCodec.response field g).encode value.response ++
-    (PrefixCodec.vector (PrefixCodec.vector field g.openings) (g.dataRows side+3)).encode value.rows).length = _
-  rw [List.length_append,response_length field width hlen,
-    vector_length _ (g.openings*width) (vector_length field width hlen g.openings)]
-  ring
-
 theorem digest_length (value : Digest) : (ProofBodyCodec.digest.encode value).length = 32 :=
   by simpa only [ProofBodyCodec.digest,Nat.mul_one] using vector_length PrefixCodec.byte 1
       (fun value => by simp only [PrefixCodec.byte_encode,List.length_singleton]) 32 value
@@ -102,49 +92,15 @@ theorem nonce_length (value : MerkleNonce) :
   by simpa only [ProofBodyCodec.nonce,Nat.mul_one] using vector_length PrefixCodec.byte 1
       (fun value => by simp only [PrefixCodec.byte_encode,List.length_singleton]) merkleNonceBytes value
 
-theorem frontier_length (g : Geometry) (value : ProofBodyCodec.Frontier g) :
-    ((ProofBodyCodec.frontier g).encode value).length = 4+32*value.1.val := by
-  change (TranscriptV2.Framing.encodeLE 4 value.1.val ++
-    (PrefixCodec.vector ProofBodyCodec.digest value.1.val).encode value.2).length = _
-  rw [List.length_append,TranscriptV2.Framing.encodeLE_length,vector_length _ 32 digest_length]
-  omega
-
 /-- Maximum over the public frontier capacity, with all fixed scalar and
 advice sizes included. No part of this bound is serialized. -/
 def bodyBound {fields : Fields} {Advice : Type} (repr : ProofBodyCodec.Representations fields Advice)
     (g : Geometry) : ℕ :=
-  204+repr.adviceWidth + frontendCells g.binary*16 +
+  164+repr.adviceWidth + frontendCells g.binary*16 +
     (if g.packingDegree = 1 then 0 else (g.packingDegree+1)*16) +
     frontendCells g.prime*32 +
     (3*g.rowDimension+g.maskingDegree+(g.dataRows .binary+3)*g.openings)*16 +
     (3*g.rowDimension+g.maskingDegree+(g.dataRows .prime+3)*g.openings)*32 +
     merkleNonceBytes*g.openings+32*OpeningBody.frontierCapacity g
-
-theorem encode_length_le {fields : Fields} {Advice : Type}
-    (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry)
-    (value : Body g fields Advice (OpeningBody.Authentication g)) :
-    ((ProofBodyCodec.codec repr g).encode value).length ≤ bodyBound repr g := by
-  rw [ProofBodyCodec.codec_encode]
-  simp only [List.length_append,digest_length,repr.binary.length,repr.prime.length,
-    repr.binaryWidth,repr.primeWidth,repr.adviceLength,
-    frontend_length (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
-    frontend_length (PrefixCodec.field repr.prime) 32 (by intro v; exact (repr.prime.length v).trans repr.primeWidth),
-    packing_length (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
-    fieldBody_length .binary (PrefixCodec.field repr.binary) 16 (by intro v; exact (repr.binary.length v).trans repr.binaryWidth),
-    fieldBody_length .prime (PrefixCodec.field repr.prime) 32 (by intro v; exact (repr.prime.length v).trans repr.primeWidth),
-    vector_length _ merkleNonceBytes nonce_length,frontier_length,ProofBodyCodec.mda7,ProofBodyCodec.jpg2,
-    List.length_cons,List.length_nil,merkleNonceBytes]
-  have hfrontier := value.authentication.frontierLength.isLt
-  unfold bodyBound merkleNonceBytes
-  omega
-
-/-- A public numerical check discharges the final bytes-operation bound
-uniformly for every body, including its actual terminal authentication. -/
-theorem final_fits {fields : Fields} {Advice : Type}
-    (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry)
-    (fits : bodyBound repr g ≤ CanonicalPrefix.maxLength)
-    (value : Body g fields Advice (OpeningBody.Authentication g)) :
-    ((ProofBodyCodec.codec repr g).encode value).length ≤ CanonicalPrefix.maxLength :=
-  (encode_length_le repr g value).trans fits
 
 end LfzkV2.Current.ProofBodyBounds

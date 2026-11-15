@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteSimulation
 

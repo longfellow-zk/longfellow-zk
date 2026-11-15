@@ -3,22 +3,10 @@ import TranscriptV2.StrandTranscript
 
 /-! The bytes that close a strand node, as a parameter of the strand
 codecs. A node at a challenge boundary ends with its terminator; the final
-node is the seal applied to the complete proof body. `NodeWire.current` is
-the deployed encoding, and every model and endpoint uses it, so the
-parameter changes no byte. -/
+node is the seal applied to the complete proof body. The deployed wire is
+`TaggedFormat.wire`. -/
 namespace LfzkV2.Current
 open CanonicalPrefix
-
-namespace StrandQueryCodec
-
-/-- The deployed round terminator: the round domain and the role label. -/
-def roundFooter (domain : Domain) : Bytes :=
-  frame roundDomain ++ frame [label domain]
-
-/-- The deployed seal prefix, before the framed complete body. -/
-def finalFooter : Bytes := frame finalDomain
-
-end StrandQueryCodec
 
 /-- Node closing bytes. A terminator is a fixed marker for its boundary
 domain; the codecs read it back by comparison, so they need no law about
@@ -75,37 +63,6 @@ theorem sealed_encode (codec : WholeCodec A)
     (value : {value // (codec.encode value).length ≤ maxLength}) :
     (wire.sealed codec).encode value = wire.sealFrame (codec.encode value.val) :=
   wire.sealCodec_encode _
-
-/-- The deployed strand encoding. -/
-def current : NodeWire where
-  terminator domain := StrandQueryCodec.roundFooter domain
-  sealFrame body := StrandQueryCodec.finalFooter ++ frame body
-  sealCodec := bytes.prefixed StrandQueryCodec.finalFooter
-  sealCodec_encode body := by
-    change StrandQueryCodec.finalFooter ++ bytes.encode body = _
-    rw [bytes_encode]
-
-/-! The deployed instance is the earlier fixed encoding, definitionally. -/
-
-theorem current_terminator (domain : Domain) :
-    current.terminator domain = frame roundDomain ++ frame [label domain] := rfl
-
-theorem current_sealFrame (body : Bytes) :
-    current.sealFrame body = frame finalDomain ++ frame body := rfl
-
-theorem current_sealCodec : current.sealCodec = bytes.prefixed (frame finalDomain) := rfl
-
-/-- The deployed seal frame is the final frame of `TranscriptV2.StrandTranscript`,
-so its seal node is `finalNodeInput`. -/
-theorem current_sealFrame_eq : current.sealFrame = TranscriptV2.StrandTranscript.finalFrame := rfl
-
-theorem current_sealNodeInput :
-    TranscriptV2.StrandTranscript.sealNodeInput current.sealFrame = TranscriptV2.StrandTranscript.finalNodeInput := rfl
-
-/-- The sealed body codec is the earlier framed body behind the final
-footer, so its encoder is unchanged as a function. -/
-theorem current_sealed_encode (codec : PrefixCodec A) :
-    (current.sealed codec.whole).encode = ((framed codec).prefixed StrandQueryCodec.finalFooter).encode := rfl
 
 end NodeWire
 end LfzkV2.Current

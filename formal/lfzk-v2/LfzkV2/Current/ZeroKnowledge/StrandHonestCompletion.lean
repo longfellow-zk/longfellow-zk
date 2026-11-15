@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.BackendPrefix
 import LfzkV2.Current.ZeroKnowledge.StrandHonestBackend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestAcceptance

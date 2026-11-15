@@ -4,7 +4,7 @@
 use super::super::{
     adapter::{
         fragment,
-        p256::{absorb_masked, conversion, P256Plan},
+        p256::{conversion, send_quotients, P256Plan},
         virtual_inputs,
     },
     word::{MaskedWord, Otp},
@@ -16,11 +16,10 @@ use crate::{
         random::DeterministicRng,
         v2::{
             foreign::word::Word,
-            proto::RoundLabel,
             sumcheck,
             transcript::Transcript,
             zk::{
-                split::transcript::absorb_mu,
+                split::transcript::send_mu,
                 storage::{Group, ModularClaim, ReservedSuffix},
             },
         },
@@ -30,18 +29,16 @@ use crate::{
 #[test]
 fn conversion_draws_two_independent_nonzero_full_field_challenges() {
     let p = P256Field::new();
-    let mut t = Transcript::new(b"alphas");
+    let mut t = Transcript::for_test(b"alphas");
+    t.send_for_test(b"mu");
     let mut literal = t.fork_for_test();
-    let expected = literal.round(RoundLabel::Conversion, |mut w| {
-        w.write_bytes(b"p256-adapter/two-independent-full-field-rescalings/v3");
-        let mut r = w.begin_squeeze();
-        let a = std::array::from_fn(|_| loop {
+    let expected: [_; 2] = literal.borrow().draw(|r| {
+        std::array::from_fn(|_| loop {
             let a = r.elt_field(&p);
             if !p.is_zero(&a) {
                 break a;
             }
-        });
-        r.end_round(a)
+        })
     });
     assert_eq!(conversion(&mut t.borrow(), &p), expected);
     assert_eq!(literal.u128(), t.u128());
@@ -53,8 +50,8 @@ fn mu_is_bound_and_derived_claims_are_not_absorbed() {
     let p = P256Field::new();
     let mu = p.u64_to_element(19);
     let state = |mu: &_| {
-        let mut t = Transcript::new(b"mu-binding");
-        absorb_mu(&mut t.borrow(), mu, &p);
+        let mut t = Transcript::for_test(b"mu-binding");
+        send_mu(&mut t.borrow(), mu, &p);
         t.bytes(32)
     };
     assert_eq!(state(&mu), state(&mu));
@@ -67,8 +64,8 @@ fn masked_quotients_are_bound() {
     let pad = Otp::<10>::sample(&mut rng);
     let word = |k| MaskedWord::mask(Word::<10>::new(k).unwrap(), &pad);
     let state = |m: [MaskedWord<10>; 2]| {
-        let mut t = Transcript::new(b"advice-binding");
-        absorb_masked(&mut t.borrow(), &m);
+        let mut t = Transcript::for_test(b"advice-binding");
+        send_quotients(&mut t.borrow(), &m);
         t.bytes(32)
     };
     // Either word changes the state; so does their order.
@@ -144,14 +141,14 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
             &[&c],
             inputs.clone(),
             &pads_sc,
-            &mut Transcript::new(b"tree-proof").borrow(),
+            &mut Transcript::for_test(b"tree-proof").borrow(),
             &f,
         )
         .unwrap();
         let check = sumcheck::top_and_derive(
             &[&c],
             &proof,
-            &mut Transcript::new(b"tree-proof").borrow(),
+            &mut Transcript::for_test(b"tree-proof").borrow(),
             &f,
         )
         .unwrap();
@@ -173,7 +170,7 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
                 &[&c],
                 with_leaves(&bad),
                 &pads_sc,
-                &mut Transcript::new(b"tree-proof").borrow(),
+                &mut Transcript::for_test(b"tree-proof").borrow(),
                 &f
             )
             .is_err());

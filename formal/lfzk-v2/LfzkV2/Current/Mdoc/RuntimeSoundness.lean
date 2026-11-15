@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.Soundness.Composition
 import LfzkV2.Current.MdocDefaults
@@ -39,14 +39,14 @@ local notation "cb" => Geometry.affineRows g Side.binary
 local notation "cp" => Geometry.affineRows g Side.prime
 local notation "bc" => MdocRuntime.binaryCapacity bp binary.plan
 local notation "pc" => MdocRuntime.primeCapacity pp prime.plan
-local notation "params" => MdocIdentifiers.parameters binary prime cantor scalars ids bounds
-local notation "metadata" => ConcreteMetadata.metadata (Advice := MdocAdvice.Value) (C := Answer)
-  bp pp shape params setup
+local notation "Fmt" => MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup
+local notation "metadata" => MdocRuntime.metadata bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits
+  (by change 128 < 2^64; decide) setup (C := Answer)
 local notation "bf" => Nat.le_max_right (BinaryPublic.degree bp) binary.plan.capacity
 local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
-local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
+local notation "Point" => Format.Point (Fmt)
 local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
@@ -81,7 +81,7 @@ variable (sample : (point : RoundPoint binary prime cantor scalars ids bounds) �
 local notation "E" => Mdoc.Setup.protocol binary prime cantor scalars ids bounds
 local notation "D" => (Protocol.SamplerData.mk (S := E) sample : Protocol.SamplerData (E) blocks)
 
-def program := body.map (ProofOutput.decode repr (MdocDefaults.proof g B))
+def program := body.map (ProofOutput.decode (TaggedFormat.complete repr g) (MdocDefaults.proof g B))
 
 local notation "program" => program binary prime scalars bounds body
 local notation "prog" => (Protocol.Execution.Program.mk program : Protocol.Execution.Program (Protocol.Setup.Output (E)) fuel)
@@ -125,7 +125,7 @@ theorem replay_domain (output : CanonicalRuntime.Output (Advice := MdocAdvice.Va
 def oracle (G : Raw → Digest) : Bytes → Digest := rawSHA G
 
 def event (G : Raw → Digest) : Prop :=
-  (ProofOutput.read («g» := g) repr (body.run (rawSHA G)).1.2).isSome ∧ failure G
+  (ProofOutput.read (TaggedFormat.complete repr g) (body.run (rawSHA G)).1.2).isSome ∧ failure G
 
 variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scalars)
   (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) ≤ CanonicalPrefix.maxLength)
@@ -136,7 +136,7 @@ local notation "inputs" => (Soundness.Inputs.mk (protocol := E)
   (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes)
   (by decide) (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) bodyFits : Soundness.Inputs (E))
 local notation "S" => (Soundness.Setup.mk (E) inputs fits
-  (fallbackPath binary prime cantor) (ConcreteMetadata.metadata_setupOnly bp pp shape params setup)
+  (fallbackPath binary prime cantor) (MdocRuntime.metadata_setupOnly bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits _ setup)
   (by intros; rfl) : Soundness.Setup c g (MdocRuntime.fields B) MdocAdvice.Value B)
 variable (queries : ∀ SHA : Bytes → Digest, (seen body SHA).card ≤ Q)
 

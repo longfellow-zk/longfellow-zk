@@ -306,7 +306,7 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         runtime::{
             random::DeterministicRng,
             v2::{
-                sumcheck::{self, circuit_geometry, prover::sample_pads, TranscriptSumcheck},
+                sumcheck::{self, circuit_geometry, prover::sample_pads},
                 transcript::Transcript,
             },
         },
@@ -391,17 +391,11 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
     );
     let mut rng = DeterministicRng::new(44);
     let (pads, _) = sample_pads(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
-    let mut actual = Transcript::new(b"private-layer-split");
-    actual
-        .borrow()
-        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let mut actual = Transcript::for_test(b"private-layer-split");
     let got =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
             .unwrap();
-    let mut expected = Transcript::new(b"private-layer-split");
-    expected
-        .borrow()
-        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let mut expected = Transcript::for_test(b"private-layer-split");
     let reference = reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);
     let geometry = circuit_geometry(&[&circuit]).unwrap();
     assert_eq!(
@@ -417,7 +411,7 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         &pads,
         &circuit,
         &got.0,
-        &mut Transcript::new(b"private-layer-split"),
+        &mut Transcript::for_test(b"private-layer-split"),
         f,
     )
     .unwrap();
@@ -460,19 +454,13 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         classify_constants(f, &decoded.raw.constants)[0],
         CoefficientClass::General
     );
-    let mut transcript = Transcript::new(b"private-layer-split");
-    transcript
-        .borrow()
-        .write_sumcheck_statement(&decoded, &inputs[..1], f);
+    let mut transcript = Transcript::for_test(b"private-layer-split");
     let reindexed_proof =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &decoded, &mut transcript.borrow(), f)
             .unwrap();
     // Table order changes the ID and hence the challenges. Compare against
     // the reference implementation under this circuit's new statement.
-    let mut expected = Transcript::new(b"private-layer-split");
-    expected
-        .borrow()
-        .write_sumcheck_statement(&decoded, &inputs[..1], f);
+    let mut expected = Transcript::for_test(b"private-layer-split");
     let witnesses = reference::eval_circuit(inputs.clone(), &decoded, f).unwrap();
     let reference = reference::prove_core(witnesses, &pads, &decoded, &mut expected, f);
     assert_eq!(
@@ -486,7 +474,7 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         &pads,
         &decoded,
         &reindexed_proof.0,
-        &mut Transcript::new(b"private-layer-split"),
+        &mut Transcript::for_test(b"private-layer-split"),
         f,
     )
     .unwrap();
@@ -513,7 +501,7 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         runtime::{
             random::DeterministicRng,
             v2::{
-                sumcheck::{self, circuit_geometry, prover::sample_pads, TranscriptSumcheck},
+                sumcheck::{self, circuit_geometry, prover::sample_pads},
                 transcript::Transcript,
             },
         },
@@ -562,17 +550,11 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
     assert_eq!(circuit.raw.layers[1].assertion_counts(), [1, 1]);
     let geometry = circuit_geometry(&[&circuit]).unwrap();
     let (pads, _) = sample_pads(&geometry, &mut rng, f);
-    let mut actual = Transcript::new(b"two-layer-schedule");
-    actual
-        .borrow()
-        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let mut actual = Transcript::for_test(b"two-layer-schedule");
     let got =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
             .unwrap();
-    let mut expected = Transcript::new(b"two-layer-schedule");
-    expected
-        .borrow()
-        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let mut expected = Transcript::for_test(b"two-layer-schedule");
     let witnesses = reference::eval_circuit(inputs.clone(), &circuit, f).unwrap();
     let reference = reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);
     assert_eq!(
@@ -589,7 +571,7 @@ where F: RuntimeField<W> + SerializableField + SupportsSampling {
         &pads,
         &circuit,
         &got.0,
-        &mut Transcript::new(b"two-layer-schedule"),
+        &mut Transcript::for_test(b"two-layer-schedule"),
         f,
     )
     .unwrap();

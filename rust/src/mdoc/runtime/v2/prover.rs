@@ -42,7 +42,7 @@ use crate::{
             RuntimeNat, SupportsFFT,
         },
         random::{PrivateRandom, SecureRandomEngine},
-        v2::transcript::EncodedProof,
+        v2::transcript::{EncodedProof, Opened},
     },
 };
 
@@ -180,16 +180,19 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
     let sig_public = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
 
-    // Public presentation bits are fixed before the shared commitment.
-    let mut tp = super::transcript::new(transcript, &zk_spec.combined_hash);
-    super::transcript::absorb_public_inputs(&mut tp.borrow(), &app_public);
-    let (body, tp) = composition
-        .prove(&app_public, witness_hash, &sig_public, witness_sig, tp, rng)
-        .map_err(gen_err)?;
-    let geometry = super::MdocProofGeometry {
-        body: composition.geometry().map_err(gen_err)?,
-    };
+    // The statement fixes the spec, the circuits, the geometry and every
+    // public input before the shared commitment (transcript I1).
+    let statement = super::transcript::MdocStatement::new(
+        transcript,
+        zk_spec,
+        composition
+            .statement(&app_public, &sig_public)
+            .map_err(gen_err)?,
+    );
+    let (body, tp) =
+        super::link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, rng)
+            .map_err(gen_err)?;
     super::proto::MdocProof { body }
-        .write(&geometry, &gf2, &p256, tp)
+        .write(&statement.geometry, &gf2, &p256, tp)
         .map_err(gen_err)
 }

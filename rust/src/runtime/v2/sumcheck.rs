@@ -48,9 +48,9 @@ mod transcript;
 #[cfg(test)]
 pub(crate) use symbolic::LayerChallenges;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use transcript::TopWeights;
+pub(crate) use transcript::top_weights;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) use transcript::{top_weights, TranscriptSumcheck};
+pub use transcript::TopWeights;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::core::proto::sane_logw;
