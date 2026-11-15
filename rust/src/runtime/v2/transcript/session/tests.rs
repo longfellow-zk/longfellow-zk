@@ -201,7 +201,7 @@ fn the_seal_node_holds_the_seal_message_and_terminator() {
     let mut t = Transcript::for_test(b"seal node");
     t.bytes(1);
     let proof = t.append_final_seal(vec![5, 6]);
-    let trace = proof.trace_for_test();
+    let trace = &proof.trace;
     let node = trace.nodes.last().unwrap();
     let mut tail = le(112).to_vec();
     tail.extend(le(0));
@@ -436,7 +436,7 @@ fn sealed_and_verified_proofs_record_their_round_count() {
     run(&mut verifier);
     let verified = verifier.verify_final_seal(encoded.as_bytes()).unwrap();
     assert_eq!(verified.round_count_for_test(), 2);
-    assert_eq!(encoded.trace_for_test(), verified.trace_for_test());
+    assert_eq!(encoded.trace, verified.trace);
 }
 
 #[test]

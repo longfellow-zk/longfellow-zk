@@ -4,7 +4,7 @@ use super::Transcript;
 pub struct EncodedProof {
     bytes: Vec<u8>,
     #[cfg(test)]
-    trace: super::trace::Trace,
+    pub(crate) trace: super::trace::Trace,
 }
 impl EncodedProof {
     pub fn as_bytes(&self) -> &[u8] {
@@ -16,10 +16,6 @@ impl EncodedProof {
     #[cfg(test)]
     pub(crate) fn round_count_for_test(&self) -> u64 {
         self.trace.boundaries()
-    }
-    #[cfg(test)]
-    pub(crate) fn trace_for_test(&self) -> &super::trace::Trace {
-        &self.trace
     }
 }
 

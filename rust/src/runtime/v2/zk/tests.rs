@@ -227,7 +227,7 @@ fn exercise<
             + 32
     );
     super::super::proto::tests::check_trace_matches_wire(
-        encoded_proof.trace_for_test(),
+        &encoded_proof.trace,
         &bytes,
         4,
         bytes.len()
@@ -252,7 +252,7 @@ fn exercise<
             .verify(session, parsed, &context)
             .map_err(|e| e.to_string())?;
         // Prover and verifier run one schedule (transcript I9).
-        assert_eq!(verified.trace_for_test(), encoded_proof.trace_for_test());
+        assert_eq!(verified.trace, encoded_proof.trace);
         Ok(())
     };
     complete(&bytes, &public).unwrap();
@@ -391,7 +391,7 @@ fn exercise<
             "{error}"
         );
     }
-    encoded_proof.trace_for_test().clone()
+    encoded_proof.trace.clone()
 }
 #[test]
 fn binary_zk_comparison() {

@@ -5,15 +5,12 @@ use super::Transcript;
 pub struct VerifiedProof {
     _private: (),
     #[cfg(test)]
-    trace: super::trace::Trace,
+    pub(crate) trace: super::trace::Trace,
 }
 #[cfg(test)]
 impl VerifiedProof {
     pub(crate) fn round_count_for_test(&self) -> u64 {
         self.trace.boundaries()
-    }
-    pub(crate) fn trace_for_test(&self) -> &super::trace::Trace {
-        &self.trace
     }
 }
 

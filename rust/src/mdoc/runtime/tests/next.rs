@@ -1325,7 +1325,7 @@ fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
         );
         check_mdoc_trace(count, provided, &proof);
         // Prover and verifier run one schedule (transcript I9).
-        assert_eq!(proof.trace_for_test(), verified.trace_for_test());
+        assert_eq!(proof.trace, verified.trace);
     }
 }
 
@@ -1373,7 +1373,7 @@ fn check_mdoc_trace(
     let (nonces, frontier) = polygero.authentication_bytes();
     let rows = 16 * polygero.bodies().0.rows.len() + 32 * polygero.bodies().1 .0.rows.len();
     let interactive = bytes.len() - 32 - frontier - nonces - rows;
-    let trace = proof.trace_for_test();
+    let trace = &proof.trace;
     check_trace_matches_wire(trace, bytes, 4, interactive);
     // The statement: identity, three circuits, two layouts, the adapter, the
     // joint geometry and two public input vectors; then the commitment.
