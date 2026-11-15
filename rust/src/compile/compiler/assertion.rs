@@ -28,16 +28,19 @@ fn dedup_assertions<'a, F: CompileField>(
     assertions: &[AssertionItem<'a, F>],
     tracker: &AssertionScope,
 ) -> Assertions<'a, F> {
-    let mut map: rustc_hash::FxHashMap<usize, AssertionItem<'a, F>> =
-        rustc_hash::FxHashMap::default();
+    // Keep the first occurrence of each expression, in input order. The map
+    // is only searched: iterating it would make the circuit depend on hash
+    // order, which differs between hosts.
+    let mut first = rustc_hash::FxHashMap::default();
+    let mut unique = Vec::new();
     for item in assertions {
-        if let Some(existing) = map.get(&item.expr.id) {
-            tracker.union(existing.id, item.id);
+        if let Some(&existing) = first.get(&item.expr.id) {
+            tracker.union(existing, item.id);
         } else {
-            map.insert(item.expr.id, *item);
+            first.insert(item.expr.id, item.id);
+            unique.push(*item);
         }
     }
-    let unique: Vec<_> = map.into_values().collect();
     arena.alloc_slice(&unique)
 }
 
