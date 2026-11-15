@@ -46,13 +46,6 @@ example : ¬DigestCollision.CollisionWithin (fun p => p = 0) id repeated (fun _ 
   exact distinct (hp.trans hq.symm)
 
 /--
-info: 'TranscriptV2.DigestCollision.first_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms DigestCollision.first_ratio_le
-
-/--
 info: 'TranscriptV2.DigestCollision.within_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in

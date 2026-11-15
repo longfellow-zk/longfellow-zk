@@ -17,13 +17,6 @@ variable {Query Answer R S View : Type}
 variable [Fintype Query] [Fintype Answer] [Fintype R] [Fintype S] [DecidableEq View]
 variable (domain : Query → Prop)
 
-theorem split_sameDistribution (observe : (Query → Answer) → View) :
-    SameDistribution (fun H : Query → Answer => observe H)
-      (fun slices => observe ((SHAOracle.split domain).symm slices)) := by
-  apply sameDistribution_of_equiv (SHAOracle.split domain)
-  intro H
-  rw [Equiv.symm_apply_apply]
-
 omit [DecidableEq View] in
 theorem conditional_statClose {epsilon : ℚ} (nonnegative : 0 ≤ epsilon)
     (real : R → (Query → Answer) → View) (simulate : S → (Query → Answer) → View)

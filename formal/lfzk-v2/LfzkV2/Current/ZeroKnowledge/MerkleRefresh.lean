@@ -76,14 +76,6 @@ theorem history_next (count : ℕ) (H : Query → Answer) :
           H (input count ((history before input update count).run H).1))]) := by
   exact append_run _ _ _ _
 
-theorem prior_trace (count : ℕ) (H : Query → Answer) :
-    (before.run H).2 <+: ((history before input update count).run H).2 := by
-  induction count with
-  | zero => exact List.prefix_refl _
-  | succ count ih =>
-      rw [history_next]
-      exact ih.trans (List.prefix_append _ _)
-
 def refresh (before : Tree Query Answer State fuel)
     (input : ℕ → State → Query) (update : ℕ → State → Answer → State) :
     (count : ℕ) → count ≤ total →
@@ -93,29 +85,6 @@ def refresh (before : Tree Query Answer State fuel)
   | count+1, fits =>
       (refresh before input update count (by omega)).trans
         (stepEquiv (history before input update count) (input count) ⟨count,by omega⟩)
-
-theorem prior_step (count : ℕ) (i : Fin total)
-    (coins : (Query → Answer) × (Fin total → Answer)) :
-    before.run (stepEquiv (history before input update count) (input count) i coins).1 =
-      before.run coins.1 := by
-  apply Tree.run_congr_on_trace
-  intro qa member
-  have prefixMember := (prior_trace before input update count coins.1).subset member
-  have preserved := prior_swap (history before input update count) (input count)
-    (coins.1,coins.2 i)
-  rw [← preserved] at prefixMember
-  exact (Tree.trace_sound _ _ qa prefixMember).symm
-
-theorem prior_refresh (count : ℕ) (fits : count ≤ total)
-    (coins : (Query → Answer) × (Fin total → Answer)) :
-    before.run (refresh before input update count fits coins).1 = before.run coins.1 := by
-  induction count with
-  | zero => rfl
-  | succ count ih =>
-      change before.run
-        (stepEquiv (history before input update count) (input count) _
-          (refresh before input update count _ coins)).1 = _
-      rw [prior_step,ih]
 
 theorem future_coin (count : ℕ) (fits : count ≤ total) (j : Fin total)
     (unused : count ≤ j.val) (coins : (Query → Answer) × (Fin total → Answer)) :
@@ -267,17 +236,5 @@ theorem refresh_outside (coins : (Query → Answer) × (Fin total → Answer))
       simp only [swap,if_pos unusedNow]
       rw [Function.update_of_ne different]
       exact ih bound
-
-/-- All subsequent computation may inspect the entire resulting oracle.
-No new statistical error is introduced by the causal refresh operation. -/
-theorem refresh_sameDistribution [DecidableEq Query] [Fintype Query] [Fintype Answer]
-    {View : Type} [DecidableEq View]
-    (count : ℕ) (fits : count ≤ total)
-    (observe : ((Query → Answer) × (Fin total → Answer)) → View) :
-    LigeroFamily.SameDistribution
-      (fun coins => observe (refresh before input update count fits coins)) observe := by
-  apply LigeroFamily.sameDistribution_of_equiv (refresh before input update count fits)
-  intro coins
-  rfl
 
 end LfzkV2.Current.ZeroKnowledge.MerkleRefresh

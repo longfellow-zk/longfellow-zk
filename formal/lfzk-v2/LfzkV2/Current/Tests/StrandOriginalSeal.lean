@@ -37,35 +37,10 @@ example (H : Fin 3 → Bool) :
 #guard_msgs (drop info) in #check Replay.Encoding.replay_transcript
 
 /--
-info: 'LfzkV2.Current.StrandSealIndependence.finalSealAddress_off' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandSealIndependence.finalSealAddress_off
-
-/--
 info: 'LfzkV2.Current.StrandOriginalSeal.original_ratio_le' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
 #print axioms StrandOriginalSeal.original_ratio_le
-
-/--
-info: 'LfzkV2.Current.StrandOriginalSeal.accepted_original_ratio_le' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandOriginalSeal.accepted_original_ratio_le
-
-/--
-info: 'LfzkV2.Current.StrandOriginalSeal.setupOnly_original_ratio_le' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandOriginalSeal.setupOnly_original_ratio_le
 
 end LfzkV2.Current.Tests.StrandOriginalSeal

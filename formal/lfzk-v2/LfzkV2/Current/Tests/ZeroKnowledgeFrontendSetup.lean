@@ -12,6 +12,5 @@ open ZeroKnowledge
 #print axioms CompleteSimulator.samples
 #print axioms CompleteSimulator.base
 #print axioms Frontend.CompleteCoupling.binaryMessageEquiv
-#print axioms Frontend.CompleteCoupling.binaryMessageEquiv_actual
 
 end LfzkV2.Current.Tests.ZeroKnowledgeFrontendSetup

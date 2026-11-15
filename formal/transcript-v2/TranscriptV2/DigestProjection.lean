@@ -210,20 +210,6 @@ def bad {B : Type} {fuel extra : ℕ} (claims : P → Finset D)
   p ∈ seen (tree.bind replay) H \ seen tree H ∧
     a.1 ∈ DigestCharging.targets claims (tree.bind replay) H p
 
-theorem bad_off {B : Type} {fuel extra : ℕ} (claims : P → Finset D)
-    (tree : Tree P (D × C) Out fuel) (replay : Out → Tree P (D × C) B extra)
-    (p : P) (H H' : P → D × C) (same : AgreeOff p H H') (a : D × C) :
-    bad claims tree replay p H a → bad claims tree replay p H' a := by
-  rintro ⟨member,hit⟩
-  have missing := (mem_sdiff.mp member).2
-  have unchanged := run_eq_of_not_mem tree p same (by simpa only [seen,List.mem_toFinset] using missing)
-  have searchSame : seen tree H = seen tree H' := by simp only [seen,queried,unchanged]
-  have present : p ∈ seen (tree.bind replay) H' := by
-    exact List.mem_toFinset.mpr ((mem_queried_iff (tree.bind replay) p same).mp
-      (List.mem_toFinset.mp (mem_sdiff.mp member).1))
-  refine ⟨mem_sdiff.mpr ⟨present,searchSame ▸ missing⟩,?_⟩
-  simpa only [DigestCharging.targets_off claims (tree.bind replay) p H H' same] using hit
-
 /-- A hit at an adversarial query keeps exactly its original stopped
 prefix. Every other hit is charged to a new verifier query, so replay cannot
 manufacture an adversarial algebraic-query allowance. -/
@@ -237,74 +223,6 @@ theorem guess_split {B : Type} {fuel extra : ℕ} (claims : P → Finset D)
     refine ⟨p,old,?_⟩
     simpa only [DigestCharging.targets,DigestCharging.before_bind_of_mem tree replay H p old] using target
   · exact Or.inr ⟨p,mem_sdiff.mpr ⟨member,old⟩,target⟩
-
-omit [DecidableEq D] in
-private theorem new_card_le {B : Type} {fuel extra : ℕ}
-    (tree : Tree P (D × C) Out fuel) (replay : Out → Tree P (D × C) B extra)
-    (H : P → D × C) : (seen (tree.bind replay) H \ seen tree H).card ≤ extra := by
-  have subset : seen (tree.bind replay) H \ seen tree H ⊆ seen (replay (tree.run H).1) H := by
-    intro p member
-    have both := mem_sdiff.mp member
-    simp only [seen,queried,Tree.run_bind,List.map_append,List.toFinset_append,mem_union] at both
-    exact both.1.resolve_left both.2
-  exact (card_le_card subset).trans (seen_card_le _ _)
-
-/-- Charge only newly sampled verifier coordinates. For grouped streams,
-`replayQueries` counts new rows or nodes, not rejected draws or repeated reads.
-Singleton targets cost `replayQueries * (Q + replayQueries) / |Digest|`. -/
-theorem guess_ratio_le_support [Fintype P] [Fintype D] [Nonempty D]
-    [Fintype C] [Nonempty C] [DecidableEq C] {B : Type} {fuel extra Q replayQueries arity : ℕ}
-    (claims : P → Finset D) (tree : Tree P (D × C) Out fuel)
-    (replay : Out → Tree P (D × C) B extra) (queries : ∀ H, (seen tree H).card ≤ Q)
-    (fresh : ∀ H, (seen (tree.bind replay) H \ seen tree H).card ≤ replayQueries)
-    (claimBound : ∀ p, (claims p).card ≤ arity) :
-    ((univ.filter fun H => ∃ p, bad claims tree replay p H (H p)).card : ℚ) /
-      (Fintype.card (D × C) : ℚ)^Fintype.card P ≤
-        (replayQueries*(Q+replayQueries)*arity : ℚ)/Fintype.card D := by
-  have combined H : (seen (tree.bind replay) H).card ≤ Q+replayQueries := by
-    have subset : seen tree H ⊆ seen (tree.bind replay) H := by
-      simp only [seen,queried,Tree.run_bind,List.map_append,List.toFinset_append]
-      exact subset_union_left
-    have count := card_sdiff_add_card_eq_card subset
-    have searchBound := queries H
-    have replayBound := fresh H
-    omega
-  let beta := (Q+replayQueries)*arity*Fintype.card C
-  let weight := fun p H => if p ∈ seen (tree.bind replay) H \ seen tree H then beta else 0
-  have hlocal p H : (univ.filter (bad claims tree replay p H)).card ≤ weight p H := by
-    by_cases member : p ∈ seen (tree.bind replay) H \ seen tree H
-    · have sets : univ.filter (bad claims tree replay p H) =
-          DigestCharging.targets claims (tree.bind replay) H p ×ˢ (univ : Finset C) := by
-        ext a
-        simp [bad,member]
-      have targets := DigestCharging.targets_card_le claims (tree.bind replay) combined claimBound H p
-        (mem_sdiff.mp member).1
-      simp only [sets,card_product,card_univ,weight,if_pos member]
-      exact Nat.mul_le_mul_right _ targets
-    · simp only [bad,member,false_and,filter_false,card_empty,zero_le]
-  have htotal H : (∑ p, weight p H) ≤ replayQueries*beta := by
-    have total : (∑ p, weight p H) = (seen (tree.bind replay) H \ seen tree H).card*beta := by
-      simp only [weight,← sum_filter,filter_mem_eq_inter,univ_inter,sum_const,nsmul_eq_mul,Nat.cast_id]
-    rw [total]
-    exact Nat.mul_le_mul_right beta (fresh H)
-  have bound := ratio_exists_coord_le
-    (fun H => ∃ p, bad claims tree replay p H (H p)) (bad claims tree replay)
-    (fun _ h => h) (bad_off claims tree replay) weight hlocal (replayQueries*beta) htotal
-  apply bound.trans_eq
-  simp only [beta,Fintype.card_prod,Nat.cast_mul,Nat.cast_add]
-  have nonzero : (Fintype.card C : ℚ) ≠ 0 := by positivity
-  field_simp
-
-/-- The syntactic replay-fuel bound is a special case of support accounting. -/
-theorem guess_ratio_le [Fintype P] [Fintype D] [Nonempty D]
-    [Fintype C] [Nonempty C] [DecidableEq C] {B : Type} {fuel extra Q arity : ℕ}
-    (claims : P → Finset D) (tree : Tree P (D × C) Out fuel)
-    (replay : Out → Tree P (D × C) B extra) (queries : ∀ H, (seen tree H).card ≤ Q)
-    (claimBound : ∀ p, (claims p).card ≤ arity) :
-    ((univ.filter fun H => ∃ p, bad claims tree replay p H (H p)).card : ℚ) /
-      (Fintype.card (D × C) : ℚ)^Fintype.card P ≤
-        (extra*(Q+extra)*arity : ℚ)/Fintype.card D :=
-  guess_ratio_le_support claims tree replay queries (new_card_le tree replay) claimBound
 
 end Replay
 

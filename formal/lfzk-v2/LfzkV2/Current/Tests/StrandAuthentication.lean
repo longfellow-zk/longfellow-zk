@@ -9,7 +9,6 @@ namespace LfzkV2.Current.Tests.StrandAuthentication
 #print axioms Merkle.Indexed.check_run
 #print axioms Merkle.Indexed.check_visible
 #print axioms StrandAuthentication.verify_congr
-#print axioms StrandAuthentication.verify_cache_completion
 #print axioms Protocol.Observation.decision_actual
 #print axioms Joint.Family.verify_of_indexedAgreement
 

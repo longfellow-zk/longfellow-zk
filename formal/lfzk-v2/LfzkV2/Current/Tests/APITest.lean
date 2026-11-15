@@ -37,7 +37,6 @@ import LfzkV2.Current.Tests.StrandComposition
 import LfzkV2.Current.Tests.StrandDecoder
 import LfzkV2.Current.Tests.StrandRealization
 import LfzkV2.Current.Tests.StrandProtocol
-import LfzkV2.Current.Tests.StrandDomains
 import LfzkV2.Current.Tests.MdocStrandSoundness
 import LfzkV2.Current.Tests.MdocStrandOracle
 import LfzkV2.Current.Tests.StrandRealizationBounds
@@ -85,7 +84,6 @@ import LfzkV2.Current.Tests.ZeroKnowledgeFrontendSetup
 import LfzkV2.Current.Tests.ZeroKnowledgeProbabilityInstances
 import LfzkV2.Current.Tests.ZeroKnowledgeHonestRunRows
 import LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
-import LfzkV2.Current.Tests.ZeroKnowledgeSHAGlobalWindow
 import LfzkV2.Current.Tests.ZeroKnowledgeTranscriptObserver
 import LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle
 import LfzkV2.Current.Tests.ZeroKnowledgeOracleWindow
@@ -96,7 +94,6 @@ import LfzkV2.Current.Tests.ZeroKnowledgeMerkleRefresh
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitRefresh
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitLabels
 import LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitPrepared
-import LfzkV2.Current.Tests.ZeroKnowledgeMerklePreparation
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandCanonicalBridge
 import LfzkV2.Current.Tests.ZeroKnowledgeStrandGhostMerkle
 import TranscriptV2.Tests.Framing

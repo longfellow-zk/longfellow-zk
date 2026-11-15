@@ -130,33 +130,4 @@ theorem normalize_payload (reference selected : QuerySet n r) (pivot : Fin w)
       PolynomialDirect.responsePolynomial G.domain G.k_le_n row.1 row.2)
       (normalize_arithmetic G statement coin reference selected pivot tape)
 
-/-- Restricting normalization gives an explicit bijection of the two
-complete-response fibers. Uniform reference-fiber coins therefore yield
-uniform selected-fiber coins, without a conditional sampler or extra draws. -/
-def normalizeFiber (reference selected : QuerySet n r) (pivot : Fin w)
-    (response : LigeroPayload F (r+w) s) :
-    {tape : Tape G nw s //
-      PolygeroZk.simPayload G G.positive reference pivot statement coin tape = response} ≃
-    {tape : Tape G nw s //
-      PolygeroZk.simPayload G G.positive selected pivot statement coin tape = response} where
-  toFun tape := ⟨normalize G statement coin reference selected pivot tape.val,
-    (normalize_payload G statement coin reference selected pivot tape.val).trans tape.property⟩
-  invFun tape := ⟨(normalize G statement coin reference selected pivot).symm tape.val,by
-    have preserved := normalize_payload G statement coin reference selected pivot
-      ((normalize G statement coin reference selected pivot).symm tape.val)
-    rw [Equiv.apply_symm_apply] at preserved
-    exact preserved.symm.trans tape.property⟩
-  left_inv tape := Subtype.ext ((normalize G statement coin reference selected pivot).symm_apply_apply tape.val)
-  right_inv tape := Subtype.ext ((normalize G statement coin reference selected pivot).apply_symm_apply tape.val)
-
-/-- The public m adjustment is explicitly the difference of two degree-k
-Lagrange interpolants. This identifies the finite interpolation algorithm
-used by normalization without choosing or searching for a private witness. -/
-theorem baseDelta_eq_polynomial (reference selected : QuerySet n r) (pivot : Fin w)
-    (target : F) (i : Position r w n) :
-    baseDelta G reference selected pivot target i =
-      (correctionPolynomial G reference pivot target).eval (G.domain.point i) -
-        (correctionPolynomial G selected pivot target).eval (G.domain.point i) := by
-  simp only [baseDelta,Pi.sub_apply,correctionBase_eq_polynomial]
-
 end LfzkV2.Current.ZeroKnowledge.Backend.Adaptive

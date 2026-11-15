@@ -224,20 +224,6 @@ theorem toPoint_injective : Function.Injective fmt.toPoint := by
 /-- A point is canonical when its packets parse. -/
 def Canonical (point : fmt.Point) : Prop := ∃ value, fmt.toPoint value = point
 
-theorem parent_key (value earlier : fmt.Value)
-    (previous : StrandQueryCodec.parent fmt.body fmt.blocks value = some earlier) :
-    fmt.key value = fmt.key earlier :=
-  StrandQueryCodec.parent_first fmt.body _ _ value earlier previous
-
-/-- The verifier's predecessor is the history's parent. -/
-theorem toPoint_parent (value earlier : fmt.Value)
-    (previous : StrandQueryCodec.parent fmt.body fmt.blocks value = some earlier) :
-    (fmt.toPoint value).parent = some (fmt.toPoint earlier) := by
-  dsimp only [Value,blocks] at value earlier previous
-  unfold toPoint
-  rw [reindex_parent,StrandRuntime.embed_parent,previous,Option.map_some,Option.map_some,
-    parent_key fmt value earlier previous]
-
 theorem history_parent (value earlier : fmt.Value)
     (previous : StrandQueryCodec.parent fmt.body fmt.blocks value = some earlier) :
     ∃ digest message, fmt.schema.encode value = .child (fmt.schema.encode earlier) digest message :=

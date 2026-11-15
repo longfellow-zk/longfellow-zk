@@ -96,22 +96,6 @@ theorem prime_frontend (data : PrimeData prime C)
   rw [spec.2.2.1,spec.2.2.2.1,spec.2.2.2.2,payload]
 
 omit [DecidableEq B] in
-theorem prime_frontend_rows (data : PrimeData prime C)
-    (parsed : ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point
-      ((point).priorAnswers H) = some data) :
-    data.frontend.rows = CompleteSimulation.primeRows prime (messagesFromSetup prime.circuit
-      (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero W H)
-        primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected false).1
-      (simulateCircuit prime.circuit coins.prime)) := by
-  have messages := SimulationMessages.prime_messages binary prime primePlan samples fmt binaryRequest metadata request root H initial coins
-  rw [prime_frontend binary prime primePlan samples fmt binaryRequest
-    metadata request root H initial coins data parsed]
-  symm
-  simpa only [CompleteSimulation.primeRows,CompleteSimulation.primeConstraints,Frontend.Prime.rows,
-    FrontendVerifier.PrimeSetup.prepare,FrontendVerifier.constraints,PrimePublic.setup,CellLayout.Prime.rows] using
-    congrArg (CompleteSimulation.primeRows prime) messages
-
-omit [DecidableEq B] in
 /-- The parser's split claim is the simulator's: both are computed from the
 same prime messages by the same compiler, with no challenge. -/
 theorem prime_claim (data : PrimeData prime C)

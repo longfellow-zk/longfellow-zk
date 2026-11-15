@@ -126,22 +126,6 @@ theorem refresh_eq_prepared_of_injective (positive : 0 < n)
     change query = sampledInput n codec nonce cells (before.run background).1 tape i at same
     exact (mem_commitSeen_iff_sampledInput n codec nonce cells positive _ tape injective query).mpr ⟨i,same.symm⟩
 
-theorem refresh_eq_prepared (positive : 0 < n) (codecInjective : codec.Inj)
-    (background : Enc → Digest) (tape : Fin (2*n-1) → Digest)
-    (noLeaves : ¬leafInputCollision codec n (nonce (before.run background).1) (cells (before.run background).1))
-    (noLabels : ¬PairCollision (2*n-1) (slotPairs (2*n-1) (2*n-1)) tape)
-    (noCross : ¬nodeInputHit codec n (nonce (before.run background).1) (cells (before.run background).1) tape)
-    (priorAvoids : ∀ qa ∈ (before.run background).2,
-      qa.1 ∉ commitSeen codec n (nonce (before.run background).1) (cells (before.run background).1) tape) :
-    (MerkleRefresh.refresh (initial before) (input codec n nonce cells) (update n)
-        (2*n-1) (le_refl _) (background,tape)).1 =
-      MerkleCache.prepared codec n (nonce (before.run background).1)
-        (cells (before.run background).1) tape background :=
-  refresh_eq_prepared_of_injective n codec nonce cells before positive background tape
-    (commitInputsInjective_of_no_tape_collision codec n positive
-      (nonce (before.run background).1) (cells (before.run background).1) tape
-      (le_refl _) codecInjective noLeaves noLabels noCross) priorAvoids
-
 theorem priorAvoids_of_no_hit (positive : 0 < n) (background : Enc → Digest)
     (tape : Fin (2*n-1) → Digest)
     (injective : commitInputsInjective codec n (nonce (before.run background).1)
@@ -161,28 +145,5 @@ theorem priorAvoids_of_no_hit (positive : 0 < n) (background : Enc → Digest)
   · have node : 2*n-1-i.val < n := by omega
     exact noPriorNode qa member (2*n-1-i.val) (by have := i.isLt; omega) node
       (same.symm.trans (sampledInput_node n codec nonce cells _ tape i node))
-
-/-- Every endpoint premise is an explicitly counted independent-label bad
-event: commitment collisions or a prior query guessing a nonce/child pair.
-No oracle-refresh correspondence or stage-freshness certificate is supplied. -/
-theorem refresh_eq_prepared_of_no_bad (positive : 0 < n) (codecInjective : codec.Inj)
-    (background : Enc → Digest) (tape : Fin (2*n-1) → Digest)
-    (noLeaves : ¬leafInputCollision codec n (nonce (before.run background).1) (cells (before.run background).1))
-    (noLabels : ¬PairCollision (2*n-1) (slotPairs (2*n-1) (2*n-1)) tape)
-    (noCross : ¬nodeInputHit codec n (nonce (before.run background).1) (cells (before.run background).1) tape)
-    (noPriorLeaf : ∀ qa ∈ (before.run background).2, ∀ column : Fin n,
-      qa.1 ≠ codec.leafEnc (nonce (before.run background).1 column,cells (before.run background).1 column))
-    (noPriorNode : ∀ qa ∈ (before.run background).2, ∀ vertex : ℕ,
-      0 < vertex → vertex < n → qa.1 ≠ tapeNodeInput codec n tape vertex) :
-    (MerkleRefresh.refresh (initial before) (input codec n nonce cells) (update n)
-        (2*n-1) (le_refl _) (background,tape)).1 =
-      MerkleCache.prepared codec n (nonce (before.run background).1)
-        (cells (before.run background).1) tape background := by
-  have injective := commitInputsInjective_of_no_tape_collision codec n positive
-    (nonce (before.run background).1) (cells (before.run background).1) tape
-    (le_refl _) codecInjective noLeaves noLabels noCross
-  exact refresh_eq_prepared n codec nonce cells before positive codecInjective background tape
-    noLeaves noLabels noCross
-    (priorAvoids_of_no_hit n codec nonce cells before positive background tape injective noPriorLeaf noPriorNode)
 
 end LfzkV2.Current.ZeroKnowledge.MerkleCommitRefresh

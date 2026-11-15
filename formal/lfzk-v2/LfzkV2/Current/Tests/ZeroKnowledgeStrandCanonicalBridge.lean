@@ -12,7 +12,6 @@ The exact coupled view is distinct from the real-to-ghost statistical hop. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeStrandCanonicalBridge
 open LfzkV2.Current.ZeroKnowledge
 
-#check Frontend.FullCoupling.sameDistribution
 #check Backend.Adaptive.sameDistribution
 #check StrandCanonicalBackend.respond
 #check StrandCanonicalBackend.responseCoupling
@@ -31,7 +30,6 @@ open LfzkV2.Current.ZeroKnowledge
 #check MdocWitness.honest_hash
 #check SHAOracleWindowProbability.window_statClose
 
-#print axioms Frontend.FullCoupling.sameDistribution
 #print axioms Backend.Adaptive.sameDistribution
 #print axioms StrandCanonicalBackend.respond
 #print axioms StrandCanonicalBackend.backend_view
@@ -41,15 +39,14 @@ open LfzkV2.Current.ZeroKnowledge
 #print axioms SHAOracleWindowProbability.window_statClose
 
 -- Every implication in the concrete coin-change path is checked for
--- additional axioms, including the final exact distribution statement.
+-- additional axioms.
 open Lean Elab Command in
 run_cmd do
   for endpoint in #[``StrandCanonicalBackend.backend_view,
       ``StrandCanonicalBackend.respondHonest_columns,
       ``StrandCanonicalBackend.prepare_oracle_congr,
       ``StrandCanonicalFullCoupling.statementTruth,
-      ``StrandCanonicalFullCoupling.complete_view,
-      ``StrandCanonicalFullCoupling.sameDistribution] do
+      ``StrandCanonicalFullCoupling.complete_view] do
     for ax in ← collectAxioms endpoint do
       unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do
         throwError "Unexpected axiom {ax} in {endpoint}"

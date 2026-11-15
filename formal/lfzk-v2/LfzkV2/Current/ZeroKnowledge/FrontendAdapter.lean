@@ -99,17 +99,6 @@ theorem muAdviceEquiv_bits (offset : ZMod p) (quotient : ZMod p → MdocAdvice.V
       Bool.xor (MdocAdvice.bits (quotient (offset+mask)) tree i) (MdocAdvice.bits otp tree i) :=
   AdapterBits.xorValue_bits _ _ tree i
 
-/-- Sampling this public pair directly is witness-free. Arbitrarily
-adaptive quotient functions remain confined to the proof coupling. -/
-theorem muAdvice_sameDistribution {Observed : Type} [DecidableEq Observed]
-    (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value)
-    (observe : ZMod p × MdocAdvice.Value → Observed) :
-    LigeroFamily.SameDistribution
-      (fun tape => observe (muAdviceEquiv offset quotient tape)) observe := by
-  apply LigeroFamily.sameDistribution_of_equiv (muAdviceEquiv offset quotient)
-  intro tape
-  rfl
-
 def rawMuAdviceEquiv (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value) :
     (ZMod p × (Fin 2 → AdapterBits.RawWord)) ≃ ((ZMod p × MdocAdvice.Value) × AdapterBits.Unused) :=
   (((Equiv.prodCongr (Equiv.refl _) AdapterBits.rawOtpEquiv).trans

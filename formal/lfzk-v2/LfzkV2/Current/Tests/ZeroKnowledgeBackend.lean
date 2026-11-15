@@ -35,12 +35,6 @@ example (nodes : Fin 2792 ↪ F) (Q : QuerySet 2443 84)
 #print axioms compatible
 #print axioms simulate_verifies
 #print axioms coupling_view
-#print axioms jointSimulate_verifies
 #print axioms joint_sameDistribution
-#print axioms profileSimulate_verifies
-#print axioms profile_wire_sameDistribution
-#print axioms jointProfile_wire_sameDistribution
 #print axioms correctionBase_eq_polynomial
-#print axioms simulate_primary_sample
-#print axioms real_primary_sample
 end LfzkV2.Current.Tests.ZeroKnowledgeBackend

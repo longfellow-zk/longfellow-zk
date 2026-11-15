@@ -5,8 +5,7 @@ are arbitrary byte strings.  Its answer type is finite, so there are only
 finitely many branches and finitely many possible query inputs.
 
 The transport preserves both the output and the complete query/answer trace.
-Appending a query includes a target selected from an adaptive earlier result;
-no independence, freshness or collision premise is needed. -/
+No independence, freshness or collision premise is needed. -/
 noncomputable section
 namespace LfzkV2.Current.OracleWindow
 
@@ -86,22 +85,6 @@ theorem restrict_extend_run (window : Finset Query) {fuel : ℕ}
     simp only [extend,query.property,↓reduceDIte]
   simpa only [values] using restrict_run window body contains (extend window H outside)
 
-theorem run_extend (window : Finset Query) {fuel : ℕ}
-    (body : Tree Query Answer Output fuel) (contains : queries body ⊆ window)
-    (H : Query → Answer) (outside : Query → Answer) :
-    body.run (extend window (fun query => H query.val) outside) = body.run H := by
-  apply Tree.run_congr_on_trace
-  intro qa member
-  have inside := contains (trace_mem_queries body H qa member)
-  rw [extend,dif_pos inside]
-  exact (Tree.trace_sound body H qa member).symm
-
-/-- Query a target selected by the earlier computation. In particular the
-target may depend on every answer that computation has already received. -/
-def withTarget {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) : Tree Query Answer (Output × Answer) (1+fuel) :=
-  body.bind fun out => .query (target out) fun answer => .done (out,answer)
-
 theorem queries_bind_left {Next : Type} {fuel nextFuel : ℕ}
     (body : Tree Query Answer Output fuel) (next : Output → Tree Query Answer Next nextFuel) :
     queries body ⊆ queries (body.bind next) := by
@@ -115,38 +98,5 @@ theorem queries_bind_left {Next : Type} {fuel nextFuel : ℕ}
       · exact Or.inl same
       · obtain ⟨answer,_,member⟩ := mem_biUnion.mp member
         exact Or.inr (mem_biUnion.mpr ⟨answer,mem_univ _,ih answer member⟩)
-
-theorem target_mem {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) (H : Query → Answer) :
-    target (body.run H).1 ∈ queries (withTarget body target) := by
-  apply trace_mem_queries (withTarget body target) H
-    (target (body.run H).1,H (target (body.run H).1))
-  simp only [withTarget,Tree.run_bind,Tree.run_query,Tree.run_done,List.mem_append,List.mem_cons,
-    List.not_mem_nil,or_false,or_true]
-
-/-- A harmless fixed fallback makes the typed target total even on outputs
-which the earlier program can never produce. -/
-def window {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) (fallback : Query) : Finset Query :=
-  insert fallback (queries (withTarget body target))
-
-theorem queries_subset_window {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) (fallback : Query) :
-    queries body ⊆ window body target fallback := by
-  intro point member
-  exact mem_insert_of_mem (queries_bind_left body _ member)
-
-def targetInWindow {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) (fallback : Query) (out : Output) :
-    {query // query ∈ window body target fallback} :=
-  if member : target out ∈ window body target fallback then ⟨target out,member⟩
-  else ⟨fallback,mem_insert_self _ _⟩
-
-theorem targetInWindow_run {fuel : ℕ} (body : Tree Query Answer Output fuel)
-    (target : Output → Query) (fallback : Query) (H : Query → Answer) :
-    (targetInWindow body target fallback (body.run H).1).val = target (body.run H).1 := by
-  have inside : target (body.run H).1 ∈ window body target fallback :=
-    mem_insert_of_mem (target_mem body target H)
-  simp only [targetInWindow,inside,↓reduceDIte]
 
 end LfzkV2.Current.OracleWindow

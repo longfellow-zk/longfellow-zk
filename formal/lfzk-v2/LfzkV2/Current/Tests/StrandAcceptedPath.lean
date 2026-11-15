@@ -5,7 +5,6 @@ import LfzkV2.Current.StrandAcceptedPath
 namespace LfzkV2.Current.Tests.StrandAcceptedPath
 open Merkle.RandomOracle TranscriptV2
 
-#guard_msgs (drop info) in #check StrandReplay.path_or_charge
 #guard_msgs (drop info) in #check StrandReplay.node_stream
 #guard_msgs (drop info) in #check StrandAcceptedPath.value_point
 

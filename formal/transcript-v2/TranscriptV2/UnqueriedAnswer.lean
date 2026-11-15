@@ -107,10 +107,4 @@ theorem ratio_le [Fintype P] [Fintype D] [Nonempty D] [DecidableEq D]
       exact ⟨_,_,rfl,hit⟩
   rwa [same] at bound
 
-theorem density_le [Fintype P] [Fintype D] [Nonempty D] [DecidableEq D]
-    {fuel : ℕ} (select : Out → (P → D) → P × D)
-    (independent : ∀ out H H', AgreeOff (select out H).1 H H' → select out H = select out H')
-    (program : Tree P D Out fuel) : density (Hit select program) ≤ 1 / (Fintype.card D : ℚ) := by
-  simpa only [density,Fintype.card_fun,Nat.cast_pow] using ratio_le select independent program
-
 end TranscriptV2.UnqueriedAnswer

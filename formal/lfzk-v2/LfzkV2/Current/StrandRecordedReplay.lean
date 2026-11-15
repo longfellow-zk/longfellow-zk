@@ -123,35 +123,5 @@ local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlie
 local notation "bodyCodec" => fmt.body
 local notation "oracle" => StrandVerifier.oracle binary prime P R (W) fmt.wire bodyCodec sample
 
-/-- This uses the same canonical request and complete proof encoder as
-the runtime. Only node answers are replaced by original-table lookups. -/
-def runtimeRead (output : CanonicalRuntime.FormatOutput binary fmt)
-    (trace : Trace) (H : Strand.Oracle) (index : ℕ) : Option C :=
-  read fmt.wire bodyCodec (Earlier output.request) cfg.fallback output.proof trace sample H index
-
-include independent in
-theorem runtimeRead_eq (output : CanonicalRuntime.FormatOutput binary fmt)
-    (trace : Trace) (H : Strand.Oracle) (index : ℕ)
-    (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
-    (known : ∀ i ≤ index, ∃ digest,
-      ((StrandRuntime.history fmt.wire bodyCodec ((M).point output (oracle H) i)).input.encode,digest) ∈ trace) :
-    (runtimeRead binary prime P R fmt cfg binaryCount metadata sample output trace H index).getD
-        cfg.fallback = (oracle H ((M).point output (oracle H) index)).2 := by
-  simp only [RuntimeAdaptiveVerifier.point_eq,CanonicalRuntime.encodings_eq] at known ⊢
-  apply read_eq fmt.wire bodyCodec (Earlier output.request) cfg.fallback output.proof trace sample cfg.initialLink
-    _ H index sound known
-  exact fmt.block_challengeIndependent
-    (CanonicalRuntime.binaryRequest binary prime P R fmt cfg binaryCount)
-    metadata output.request independent output.proof
-
-omit [DecidableEq B] in
-theorem runtimeRead_off (output : CanonicalRuntime.FormatOutput binary fmt)
-    (trace : Trace) (H H' : Strand.Oracle) (raw : Bytes)
-    (nonPrf : ∀ id digest counter, raw ≠ (Strand.Input.prf id digest counter).encode)
-    (agree : Bcs.TotalOracle.AgreeOff raw H H') (index : ℕ) :
-    runtimeRead binary prime P R fmt cfg binaryCount metadata sample output trace H index =
-      runtimeRead binary prime P R fmt cfg binaryCount metadata sample output trace H' index :=
-  read_off fmt.wire bodyCodec (Earlier output.request) cfg.fallback output.proof trace sample H H' raw nonPrf agree index
-
 end Runtime
 end LfzkV2.Current.StrandRecordedReplay

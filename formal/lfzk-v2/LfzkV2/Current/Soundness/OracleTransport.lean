@@ -421,46 +421,6 @@ theorem completion_matches (H : Name → Answer) :
   simpa only [completion,StrandReplay.search] using
     (StrandCutObservation.completion_matches (schema) bytes compiled compiledReplay H)
 
-/-- The completed physical execution exposes exactly its queried non-PRF
-nodes. This supplies Merkle authentication visibility from actual replay,
-while retaining the original byte inputs and their actual SHA answers. -/
-theorem full_node_observations (H : Name → Answer) :
-    (∀ raw logical answer,
-      ((.inl (raw,logical),answer) : Name × Answer) ∈ (((searchTree).bind resumeTree).run H).2 →
-      SHAof (completed H) raw.val.val = answer.1 ∧
-        raw.val.val ∈ seen (program.bind fullReplay) (SHAof (completed H))) ∧
-    (∀ address, address ∈ seen (program.bind fullReplay) (SHAof (completed H)) →
-      Strand.decodePrf address = none →
-      ∃ raw logical answer, raw.val.val = address ∧
-        ((.inl (raw,logical),answer) : Name × Answer) ∈ (((searchTree).bind resumeTree).run H).2) := by
-  let G := completed H
-  have observations := StrandReplay.node_observations (schema) bytes compiled compiledReplay H G
-    (completion_matches binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
-  constructor
-  · intro raw logical answer member
-    obtain ⟨same,present⟩ := observations.1 raw logical answer member
-    refine ⟨(rawSHA_node binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G raw).trans same,?_⟩
-    exact StrandWindow.decode_seen (O) fallbackNode (program.bind fullReplay)
-      (covers binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program) G (.inl raw)
-      (by simpa only [mapQueries_bind] using present)
-  · intro address member nonPrf
-    obtain ⟨⟨input,digest⟩,present,same⟩ := List.mem_map.mp (List.mem_toFinset.mp member)
-    change input = address at same
-    subst input
-    have supported : (⟨address,nonPrf⟩ : Strand.OtherPoint) ∈ (O) :=
-      covers binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
-        ((StrandWindow.mem_complement _ _).mpr
-          (OracleWindow.trace_mem_queries (program.bind fullReplay) (SHAof G) (address,digest) present))
-    let raw : Node := ⟨⟨address,nonPrf⟩,supported⟩
-    have named : (.inl raw : Raw) ∈ seen ((compiled).bind compiledReplay) G := by
-      rw [← mapQueries_bind]
-      simp only [seen,Bcs.TotalOracle.queried,run_mapQueries,List.map_map]
-      apply List.mem_toFinset.mpr
-      apply List.mem_map.mpr
-      exact ⟨(address,digest),present,StrandWindow.decode_encode (O) fallbackNode (.inl raw)⟩
-    obtain ⟨logical,answer,origin⟩ := observations.2 raw named
-    exact ⟨raw,logical,answer,rfl,origin⟩
-
 /-- Byte-level original node queries and their named sources agree in
 both directions. Reserving a PRF row does not count as another node query. -/
 theorem original_node_observations (H : Name → Answer) :

@@ -55,8 +55,6 @@ structure Prf where
   parent : Digest
   counter : Word
 
-def Prf.key (state : Prf) : Word × Digest := (state.id,state.parent)
-
 def endStrand (state : Absorbing) : Tree Bytes Digest Prf 1 :=
   .query state.input.encode fun digest => .done ⟨state.id,digest,0⟩
 
@@ -77,11 +75,6 @@ def continueStrand (state : Absorbing) : Tree Bytes Digest (Option (Prf × Absor
       (some (⟨state.id,H state.input.encode,0⟩,continuation id (H state.input.encode)),
         [(state.input.encode,H state.input.encode)]) := by
   simp only [continueStrand,next,Tree.run_map,endStrand_run]
-
-theorem continueStrand_exhausted (state : Absorbing)
-    (exhausted : nextCounter state.id = none) (H : Oracle) :
-    (continueStrand state).run H = (none,[]) := by
-  simp only [continueStrand,exhausted,Tree.run_done]
 
 def Prf.input (state : Prf) : Input := .prf state.id state.parent state.counter
 

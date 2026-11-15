@@ -124,34 +124,4 @@ theorem filterRatio_changeDecider {X : Type} [Fintype X]
   cases Subsingleton.elim first second
   exact law
 
-/-- Fixed-oracle, fixed-ghost-tree hiding against the actual adaptive later
-observer. No averaging over hash answers or conditioning on misses occurs.
-This bound can subsequently be averaged over those independent coins. -/
-theorem observer_disagreement_ratio_le [Fintype Salt] [Nonempty Salt]
-    (H : Raw → Digest) (I : Finset (Fin n))
-    (columns : Fin n → Message) (leaves : Fin n → Digest)
-    (after : (I → Salt) → RandomOracle.Tree Raw Digest Result fuel) (prior : List Raw) :
-    ((Finset.univ.filter fun nonces : Fin n → Salt =>
-      (after (fun index => nonces index.val)).run
-          (Tree.installAll codec dec H nonces columns leaves) ≠
-        observe codec dec H I leaves (fun index => columns index.val) after
-          (fun index => nonces index.val)).card : ℚ) /
-        (Fintype.card Salt : ℚ) ^ n ≤
-      (prior.length + fuel : ℕ) / (Fintype.card Salt : ℚ) := by
-  let later := fun revealed =>
-    (observe codec dec H I leaves (fun index => columns index.val) after revealed).2.map Prod.fst
-  have bounded : ∀ revealed, (later revealed).length ≤ fuel := by
-    intro revealed
-    simpa only [later,List.length_map] using
-      (observe_length codec dec H I leaves (fun index => columns index.val) after revealed)
-  have law := StrandGhostMerkle.Nonce.event_ratio_le (candidate codec dec) I prior later
-    (fun nonces => (after (fun index => nonces index.val)).run
-        (Tree.installAll codec dec H nonces columns leaves) ≠
-      observe codec dec H I leaves (fun index => columns index.val) after
-        (fun index => nonces index.val))
-    (fun nonces miss => not_not.mpr
-      (observer_eq_of_no_hit codec dec H I nonces columns leaves after prior miss))
-    fuel bounded
-  exact filterRatio_changeDecider (by simpa only [Fintype.card_fin] using law)
-
 end LfzkV2.Current.ZeroKnowledge.StrandGhostMerkle.Observer

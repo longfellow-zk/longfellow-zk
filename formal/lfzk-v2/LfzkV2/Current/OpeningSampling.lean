@@ -82,11 +82,6 @@ def orderedEquiv : (Fin t ↪ Fin n) ≃ QuerySet n t × Equiv.Perm (Fin t) :=
 @[simp] theorem orderedEquiv_query (indices : Fin t ↪ Fin n) :
     (orderedEquiv indices).1 = OrderedOpening.query indices := rfl
 
-theorem query_fiber_card (query : QuerySet n t) :
-    (univ.filter fun indices : Fin t ↪ Fin n => OrderedOpening.query indices = query).card = t.factorial := by
-  rw [← Fintype.card_subtype]
-  exact (Fintype.card_congr (fiberPermutation query)).trans (by rw [Fintype.card_perm,Fintype.card_fin])
-
 /-- Exact uniform unordered opening sampler, derived from the explicit
 set/permutation bijection. -/
 def orderedDecoder : BalancedDecoder (Fin t ↪ Fin n) (QuerySet n t) :=

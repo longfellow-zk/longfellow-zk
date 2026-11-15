@@ -85,45 +85,6 @@ theorem receives_auxiliary
   | some point =>
       exact False.elim (disjoint point ((names.encode_decode raw point found).symm ▸ receiving))
 
-omit [DecidableEq Raw] [Fintype Raw] [Fintype T] in
-/-- Receiving inputs occupy the auxiliary branch of the same injective
-query tag used for ordinary algebraic charges. -/
-theorem receives_tag
-    (names : ByteOracleTransport.Codec Point (StrandSearch.Name Raw T) valid)
-    (disjoint : ∀ point, ¬receives codec bytes (names.encode point))
-    (raw : StrandSearch.Name Raw T) (receiving : receives codec bytes raw) :
-    names.tag raw = .inr raw := by
-  simp only [ByteOracleTransport.Codec.tag,receives_auxiliary codec bytes names disjoint raw receiving]
-
-/-- Original-search receiving hits cost at most `2Q/M` per auxiliary slot.
-The mean is taken in the original joint digest/row experiment, with no
-conditioning on successful sampling, acceptance, or eventual opening use. -/
-theorem receiving_sum_le {fuel Q : ℕ}
-    (names : ByteOracleTransport.Codec Point (StrandSearch.Name Raw T) valid)
-    (disjoint : ∀ point, ¬receives codec bytes (names.encode point))
-    (tree : Tree (StrandSearch.Name Raw T) (Digest × Challenge) Out fuel)
-    (queries : ∀ H, (seen tree H).card ≤ Q) :
-    (∑ H : StrandSearch.Name Raw T → Digest × Challenge,
-      DigestProjection.receivingCharge (receives codec bytes)
-        (StrandCommitment.claims readChildren context root ∘ byteName bytes) tree H) ≤
-      ∑ H : StrandSearch.Name Raw T → Digest × Challenge, ∑ p ∈ seen tree H,
-        if names.decode p = none then (Q*2 : ℚ)/Fintype.card Digest else 0 := by
-  have auxiliary (p : StrandSearch.Name Raw T) (hit : receives codec bytes p) : names.decode p = none :=
-    receives_auxiliary codec bytes names disjoint p hit
-  have arity (p : StrandSearch.Name Raw T) :
-      ((StrandCommitment.claims readChildren context root ∘ byteName bytes) p).card ≤ 2 :=
-    StrandCommitment.claims_card readChildren context root (byteName bytes p)
-  have bound := DigestProjection.receiving_sum_le (P := StrandSearch.Name Raw T) (D := Digest)
-    (C := Challenge) (Q := Q) (arity := 2) (receives codec bytes)
-    (fun p => names.decode p = none) auxiliary
-    (StrandCommitment.claims readChildren context root ∘ byteName bytes) tree queries arity
-  apply bound.trans_eq
-  apply Finset.sum_congr rfl
-  intro H _
-  apply Finset.sum_congr rfl
-  intro p _
-  split_ifs <;> rfl
-
 end Receiving
 
 section WireDomains
@@ -247,89 +208,6 @@ theorem wire_receives_disjoint
     ((fmt.pointCodec locate).encode point) = none at missing
   have impossible := missing.symm.trans decoded
   cases impossible
-
-variable [DecidableEq Raw] [Fintype Raw]
-variable [Fintype (fmt.Value)]
-variable {Challenge : Type} [Fintype Challenge] [Nonempty Challenge]
-
-/-- The actual wire codecs discharge the sole disjointness premise of the
-receiving mean. The remaining `located` identity is the definition of the
-runtime's canonical finite node location, not a probabilistic assumption. -/
-theorem wire_receiving_sum_le {fuel Q : ℕ}
-    (tree : Tree (StrandSearch.Name Raw (fmt.Value))
-      (Digest × Challenge) Out fuel)
-    (queries : ∀ H, (seen tree H).card ≤ Q)
-    {Key : Type} (key : fmt.Value → Key) (root : Key → Digest) :
-    (∑ H,
-      DigestProjection.receivingCharge
-        (receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes)
-        (StrandCommitment.claims MerkleWireCodec.nodeChildren key root ∘ byteName bytes) tree H) ≤
-      ∑ H, ∑ p ∈ seen tree H,
-        if (fmt.pointCodec locate).decode p = none
-          then (Q*2 : ℚ)/(2^256 : ℚ) else 0 := by
-  have bound := receiving_sum_le (MerkleWireCodec.codec P R repr binary prime context columnsFit)
-    MerkleWireCodec.nodeChildren bytes key root
-    (fmt.pointCodec locate)
-    (wire_receives_disjoint P R repr binary prime context columnsFit fmt locate bytes located)
-    tree queries
-  simpa only [TranscriptV2.Strand.digest_card,Nat.cast_pow,Nat.cast_ofNat] using bound
-
-/-- The two hash mechanisms share disjoint auxiliary slots: parent/PRF
-speculation uses strand inputs, while Merkle receiving uses Merkle inputs.
-The combined allowance is 2Q/M per auxiliary slot, not the sum 3Q/M. -/
-theorem wire_hash_sum_le {fuel Q : ℕ}
-    (tree : Tree (StrandSearch.Name Raw (fmt.Value))
-      (Digest × Challenge) Out fuel)
-    (queries : ∀ H, (seen tree H).card ≤ Q)
-    {Key : Type} (key : fmt.Value → Key) (root : Key → Digest) :
-    (∑ H, (DigestProjection.charge (StrandSearch.claims bytes) tree H +
-      DigestProjection.receivingCharge
-        (receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes)
-        (StrandCommitment.claims MerkleWireCodec.nodeChildren key root ∘ byteName bytes) tree H)) ≤
-      ∑ H, ∑ p ∈ seen tree H,
-        if (fmt.pointCodec locate).decode p = none
-          then (2*Q : ℚ)/(2^256 : ℚ) else 0 := by
-  let names := fmt.pointCodec locate
-  let plants := fun point : StrandSearch.Name Raw (fmt.Value) =>
-    (StrandSearch.claims bytes point).Nonempty
-  have plantAuxiliary point (planted : plants point) : names.decode point = none := by
-    cases point with
-    | inr _ => rfl
-    | inl point =>
-        rcases point with ⟨raw,value⟩
-        cases value with
-        | none => rfl
-        | some value => exact False.elim (Finset.not_nonempty_empty planted)
-  have receiveAuxiliary point (receiving :
-      receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes point) :
-      names.decode point = none :=
-    receives_auxiliary (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes names
-      (wire_receives_disjoint P R repr binary prime context columnsFit fmt
-        locate bytes located) point receiving
-  have disjoint point (planted : plants point) :
-      ¬receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes point := by
-    intro receiving
-    have empty := receiving_claims_empty P R repr binary prime context columnsFit bytes point receiving
-    change (StrandSearch.claims bytes point).Nonempty at planted
-    rw [empty] at planted
-    exact Finset.not_nonempty_empty planted
-  have strandBound point : (StrandSearch.claims bytes point).card ≤ if plants point then 1 else 0 := by
-    by_cases planted : plants point
-    · rw [if_pos planted]
-      exact (StrandSearch.claims_card bytes point).trans (by split_ifs <;> decide)
-    · rw [if_neg planted,Finset.not_nonempty_iff_eq_empty.mp planted]
-      simp only [Finset.card_empty,le_refl]
-  have bound := StrandCharging.disjoint_hash_sum_le tree queries plants
-    (receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes)
-    (fun point => names.decode point = none) plantAuxiliary receiveAuxiliary disjoint
-    (StrandSearch.claims bytes)
-    (StrandCommitment.claims MerkleWireCodec.nodeChildren key root ∘ byteName bytes)
-    (fun point => by
-      by_cases planted : plants point
-      · simpa only [if_pos planted] using strandBound point
-      · simpa only [if_neg planted] using strandBound point)
-    (fun point => StrandCommitment.claims_card MerkleWireCodec.nodeChildren key root (byteName bytes point))
-  simpa only [TranscriptV2.Strand.digest_card,Nat.cast_pow,Nat.cast_ofNat] using bound
 
 end RuntimeReceiving
 

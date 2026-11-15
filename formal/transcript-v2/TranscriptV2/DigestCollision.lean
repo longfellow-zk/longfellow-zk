@@ -184,17 +184,6 @@ theorem projected_within_ratio_le [Fintype P] [Fintype A] [Nonempty A] [Fintype 
   simp only [Nat.cast_mul]
   exact mul_div_mul_right _ _ (by exact_mod_cast Nat.ne_of_gt fiberPos)
 
-/-- The unrestricted result retains its original interface. -/
-theorem projected_ratio_le [Fintype P] [Fintype A] [Nonempty A] [Fintype D] [Nonempty D]
-    {fuel S : ℕ} (project : A → D) (fiber : ℕ)
-    (fibers : ∀ d, (univ.filter fun a => project a = d).card = fiber)
-    (cardinality : Fintype.card A = Fintype.card D*fiber)
-    (tree : Tree P A Out fuel) (budget : ∀ H, (seen tree H).card ≤ S) :
-    ((univ.filter (Collision project tree)).card : ℚ) /
-        (Fintype.card A : ℚ)^Fintype.card P ≤ ((S*(S-1)/2 : ℕ) : ℚ)/Fintype.card D := by
-  simpa only [CollisionWithin,Collision,filter_true] using
-    projected_within_ratio_le (fun _ => True) project fiber fibers cardinality tree (by simpa using budget)
-
 /-- Only the fixed domain selected by `eligible` contributes collision
 pairs. Queries in every other domain remain available to the adaptive
 program, including their answers and their effect on later query choices. -/
@@ -217,18 +206,5 @@ theorem ratio_le [Fintype P] [Fintype D] [Nonempty D] {fuel S : ℕ}
         (Fintype.card D : ℚ)^Fintype.card P ≤ ((S*(S-1)/2 : ℕ) : ℚ)/Fintype.card D := by
   simpa only [CollisionWithin,Collision,filter_true] using
     within_ratio_le (fun _ => True) tree (by simpa using budget)
-
-/-- Exposing challenges alongside each digest does not alter its birthday
-bound. No conditioning on, or deletion of, those challenge observations is used. -/
-theorem first_ratio_le [Fintype P] [Fintype D] [Nonempty D] [Fintype A] [Nonempty A]
-    {fuel S : ℕ} (tree : Tree P (D × A) Out fuel) (budget : ∀ H, (seen tree H).card ≤ S) :
-    ((univ.filter (Collision Prod.fst tree)).card : ℚ) /
-        (Fintype.card (D × A) : ℚ)^Fintype.card P ≤ ((S*(S-1)/2 : ℕ) : ℚ)/Fintype.card D := by
-  apply projected_ratio_le Prod.fst (Fintype.card A) ?_ (Fintype.card_prod D A) tree budget
-  intro d
-  have pieces : (univ.filter fun a : D × A => a.1 = d) = {d} ×ˢ (univ : Finset A) := by
-    ext ⟨x,y⟩
-    simp [eq_comm]
-  rw [pieces,card_product,card_singleton,card_univ,one_mul]
 
 end TranscriptV2.DigestCollision

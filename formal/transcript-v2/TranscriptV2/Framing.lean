@@ -70,11 +70,6 @@ structure FieldCodec (F : Type) where
 namespace FieldCodec
 variable {F : Type} (codec : FieldCodec F)
 
-theorem encode_injective : Function.Injective codec.encode := by
-  intro first second h
-  have hd := congrArg codec.decode h
-  simpa only [codec.inverse,Option.some.injEq] using hd
-
 def read (bytes : Bytes) : Option (F × Bytes) := do
   let (payload,rest) ← take codec.width bytes
   let value ← codec.decode payload

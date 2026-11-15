@@ -44,8 +44,6 @@ private def inputRole : Layered.Replay.LayerRole circuit :=
 example : FrontendReplay.queryIndex circuit inputRole 0 = 2 := rfl
 private abbrev opening := plan.frontend.opening .binary
 example : plan.locatedRole .binary 0 opening inputRole = .combine .binary 0 inputs.entries [] true := rfl
-example : frontendSide (plan.locatedRole .binary 0 opening inputRole) = some .binary :=
-  plan.locatedRole_side .binary 0 opening (Plan.opening_side _ _) inputRole
 example : (plan.locatedRole .binary 0 opening inputRole).domain = .combine := rfl
 example : coordinates (plan.locatedRole .binary 0 opening inputRole) = 2 := rfl
 

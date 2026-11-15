@@ -9,18 +9,13 @@ open ZeroKnowledge.Backend ZeroKnowledge.Backend.Adaptive
 open scoped Classical
 
 #check @Adaptive.normalize
-#check @normalizeFiber
 #check @Adaptive.simulate
-#check @Profile.simulate
 #print axioms baseDelta_witness
 #print axioms maskDelta_response
 #print axioms normalize_payload
-#print axioms normalizeFiber
-#print axioms baseDelta_eq_polynomial
 #print axioms selectionEquiv
 #print axioms adaptiveCoupling_view
 #print axioms Adaptive.sameDistribution
-#print axioms Profile.sameDistribution
 
 variable {B N : Type} [Field B] [Field N] [Fintype B] [Fintype N]
 variable {r w n bw nw s : ℕ}

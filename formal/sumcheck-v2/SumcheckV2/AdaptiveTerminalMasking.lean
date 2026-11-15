@@ -65,22 +65,4 @@ Keeping it in the coupling is essential for a later joint commitment proof. -/
 def honestPadCells (pads : F × F × F) : Pads F :=
   ⟨pads.1, pads.2.1, pads.1 * pads.2.1, pads.2.2⟩
 
-theorem adaptive_simulated_terminal (A B : F)
-    (scale : F → {r : F // r ≠ 0}) (messages : F × F × F) :
-    residual (A * B) messages.1 (scale messages.1).val messages.2.1 messages.2.2
-      (honestPadCells (adaptiveRecoverPads A B scale messages)) = 0 := by
-  let pads := adaptiveRecoverPads A B scale messages
-  have h := adaptive_honest_recover A B scale messages
-  have hc := congrArg Prod.fst h
-  have ha := congrArg (fun m : F × F × F => m.2.1) h
-  have hb := congrArg (fun m : F × F × F => m.2.2) h
-  change A * pads.2.1 + B * pads.1 - pads.2.2 = messages.1 at hc
-  change A + (scale (A * pads.2.1 + B * pads.1 - pads.2.2)).val * pads.1 = messages.2.1 at ha
-  change B + (scale (A * pads.2.1 + B * pads.1 - pads.2.2)).val * pads.2.1 = messages.2.2 at hb
-  rw [hc] at ha hb
-  change residual (A * B) messages.1 (scale messages.1).val messages.2.1 messages.2.2
-    ⟨pads.1, pads.2.1, pads.1 * pads.2.1, pads.2.2⟩ = 0
-  simpa only [hc, ha, hb] using
-    (completeness A B pads.1 pads.2.1 pads.2.2 (scale messages.1).val)
-
 end SumcheckV2.LinearTerminal

@@ -724,35 +724,5 @@ theorem application_role_normalize
         cfg S laws _ fits fallback answer point H link
   | rowBatching | batching | opening => rfl
 
-/-- The physical-factor charges retain the existing role budgets. This is
-pointwise normalization followed by the original algebraic bound, so it adds
-neither a candidate-list multiplier nor a per-frontend query charge. -/
-theorem application_role_sum
-    (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
-    (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
-    (primeFits : primeShape.capacity ≤ laws.primeCapacity)
-    (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
-    (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
-    (coins : ∀ a : Answer, S.coins a = a .fingerprints)
-    (LB LN : ℕ)
-    (binaryListBound : ∀ (point : Point) H, (S.lists point.context (S.oracle H point.context)).1.card ≤ LB)
-    (primeListBound : ∀ (point : Point) H, (S.lists point.context (S.oracle H point.context)).2.card ≤ LN)
-    (role : Role) (point : Point) (current : point.role = some role)
-    (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
-      (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role))
-    (fallback : Answer) (H : Point → Digest × Answer) :
-    let actual := concreteReaders S laws hashPublic decodePublic primeShape primeFits binaryShape binaryFits
-    (∑ candidate : Digest × Answer, roleCharge S laws actual role point H
-      (candidate.1,StrandSampling.normalize
-        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) role) fits) fallback candidate.2)) ≤
-      Fintype.card (Digest × Answer)*ApplicationCharging.roundBudget B Adapter.Mdoc.primeOrder
-        Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound LB LN role := by
-  dsimp only
-  simp_rw [application_role_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
-    cfg S laws hashPublic decodePublic primeShape primeGeometry primeFits binaryShape binaryGeometry binaryFits
-    coins role point current fits fallback]
-  exact roleCharge_sum S laws _ binaryListBound primeListBound role point H
-
 end Runtime
 end LfzkV2.Current.StrandLocalCharges

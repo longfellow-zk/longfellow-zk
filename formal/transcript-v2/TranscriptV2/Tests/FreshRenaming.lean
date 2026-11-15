@@ -19,11 +19,4 @@ example :
       (memoize repeated ∅ (fun _ => false)) = 1 := by
   simp [memoize,rename,repeated,mean,mean_weaken]
 
-/--
-info: 'TranscriptV2.FreshOracle.rename_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms TranscriptV2.FreshOracle.rename_uniform
-
 end TranscriptV2.Tests.FreshRenaming

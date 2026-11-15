@@ -75,57 +75,6 @@ def simulate (Q : QuerySet n r) (pivot : Fin w)
   (Polygero.openOracle (PolygeroZk.oracle G 0 tape) Q,
     PolygeroZk.simPayload G G.positive Q pivot statement coin tape)
 
-theorem real_primary (Q : QuerySet n r) (cells : Cells F nw w)
-    (statement : ConstraintSystem F nw 0 w Equations)
-    (coin : Polygero.Coin F Equations nw 0 s) (tape : Tape G nw s) :
-    (real G Q cells statement coin tape).2.primary =
-      PolygeroPrimaryMasking.batch G.positive coin.2
-        (PolygeroZk.ordinaryRows G (messages cells) tape.1 tape.2.1) + tape.2.2 := rfl
-
-theorem real_primary_sample [DecidableEq F] (Q : QuerySet n r) (cells : Cells F nw w)
-    (statement : ConstraintSystem F nw 0 w Equations)
-    (coin : Polygero.Coin F Equations nw 0 s)
-    (core : PolygeroCoreMasking.Tape F r nw 0)
-    (masks : PolygeroMasking.Tape G.code (PolygeroZk.sumFunctional F w))
-    (nodes : Fin (r+w+s) → F) (injective : Function.Injective nodes)
-    (samples : Fin (r+w+s) → F) (i : Fin (r+w+s)) :
-    ((real G Q cells statement coin
-      (core,masks,(Response.evaluationEquiv F nodes injective).symm samples)).2.primary : F[X]).eval
-        (nodes i) =
-      (PolygeroPrimaryMasking.batch G.positive coin.2
-        (PolygeroZk.ordinaryRows G (messages cells) core masks) : F[X]).eval (nodes i) + samples i := by
-  rw [real_primary]
-  simp only [Submodule.coe_add,eval_add]
-  rw [Response.evaluationEquiv_eval]
-
-/-- H does not depend on Q, the correction pivot, or the affine statement.
-Its sole last mask is added with coefficient one, exactly as in Rust. -/
-theorem simulate_primary (Q : QuerySet n r) (pivot : Fin w)
-    (statement : ConstraintSystem F nw 0 w Equations)
-    (coin : Polygero.Coin F Equations nw 0 s) (tape : Tape G nw s) :
-    (simulate G Q pivot statement coin tape).2.primary =
-      PolygeroPrimaryMasking.batch G.positive coin.2
-        (PolygeroZk.ordinaryRows G 0 tape.1 tape.2.1) + tape.2.2 := rfl
-
-/-- Each serialized H sample is the ordinary-tape contribution plus its
-corresponding independent fstar sample. A prefix-pinning argument can fix
-the first contribution even when the commitment root depends on fstar. -/
-theorem simulate_primary_sample [DecidableEq F] (Q : QuerySet n r) (pivot : Fin w)
-    (statement : ConstraintSystem F nw 0 w Equations)
-    (coin : Polygero.Coin F Equations nw 0 s)
-    (core : PolygeroCoreMasking.Tape F r nw 0)
-    (masks : PolygeroMasking.Tape G.code (PolygeroZk.sumFunctional F w))
-    (nodes : Fin (r+w+s) → F) (injective : Function.Injective nodes)
-    (samples : Fin (r+w+s) → F) (i : Fin (r+w+s)) :
-    ((simulate G Q pivot statement coin
-      (core,masks,(Response.evaluationEquiv F nodes injective).symm samples)).2.primary : F[X]).eval
-        (nodes i) =
-      (PolygeroPrimaryMasking.batch G.positive coin.2
-        (PolygeroZk.ordinaryRows G 0 core masks) : F[X]).eval (nodes i) + samples i := by
-  rw [simulate_primary]
-  simp only [Submodule.coe_add, eval_add]
-  rw [Response.evaluationEquiv_eval]
-
 private theorem zero_arithmetic_sum (statement : ConstraintSystem F nw 0 w Equations)
     (weights : Equations → F) (tape : Tape G nw s) :
     PolygeroZk.sumFunctional F w
@@ -212,16 +161,5 @@ theorem coupling_view [Fintype F] (Q : QuerySet n r) (pivot : Fin w)
   obtain ⟨ho,hp⟩ := PolygeroZk.adaptive_translate G Q pivot (messages cells)
     (fun _ => statement) (fun _ => coin) (fun _ => compatible G cells statement hsat) tape
   exact Prod.ext ho hp
-
-theorem sameDistribution [Fintype F] {Observed : Type} [DecidableEq Observed]
-    (Q : QuerySet n r) (pivot : Fin w) (cells : Cells F nw w)
-    (statement : ConstraintSystem F nw 0 w Equations)
-    (hsat : statement.Satisfies (logical cells)) (coin : Polygero.Coin F Equations nw 0 s)
-    (observe : View (F := F) w nw s Q → Observed) :
-    SameDistribution (fun tape => observe (real G Q cells statement coin tape))
-      (fun tape => observe (simulate G Q pivot statement coin tape)) := by
-  apply sameDistribution_of_equiv (coupling G Q pivot cells statement hsat coin)
-  intro tape
-  rw [coupling_view]
 
 end LfzkV2.Current.ZeroKnowledge.Backend

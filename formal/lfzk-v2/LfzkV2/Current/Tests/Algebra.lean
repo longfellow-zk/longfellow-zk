@@ -66,10 +66,6 @@ example : Adapter.Bad (fun _ : Fin 1 => (1 : ZMod 7)) (fun _ => true) 0 5 2
   decide +kernel
 
 -- The larger prime field does not supply a separate shared-input candidate.
-example (bits : WitnessSelection.Candidate (ZMod 2) Unit → Bool → Bool)
-    (other : WitnessSelection.Candidate (ZMod 7) Unit → Unit → ZMod 7)
-    (w : Selection.Pair (ZMod 2) (ZMod 7) Unit Unit) (i : Bool) :
-    Selection.primeInputs bits other w (.inl i) = if bits w.1 i then 1 else 0 := rfl
 
 -- Masked quotient bits decode little-endian.
 example : Adapter.Tree.binaryValue [true, false, true] = 5 := by decide

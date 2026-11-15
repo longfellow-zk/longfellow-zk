@@ -8,7 +8,6 @@ namespace LfzkV2.Current.Tests.StrandMerkleMissingQueries
 #print axioms Merkle.Indexed.nodeInput_off
 #print axioms Merkle.Indexed.disagreement_hit
 #print axioms MerkleWireCodec.separated
-#print axioms TranscriptV2.UnqueriedAnswer.density_le
 #print axioms LfzkV2.Current.StrandMerkleMissingQueries.chosen_off
 #print axioms LfzkV2.Current.StrandMerkleMissingQueries.disagreement_restricted_cover
 #print axioms TranscriptV2.UnqueriedAnswer.partial_density_le

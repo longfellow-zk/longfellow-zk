@@ -253,37 +253,4 @@ theorem accepted_answers (H : Name → Answer)
   exact original_answers binary prime P R fmt cfg binaryCount metadata bodyFits fits
     sample codec merkleInput program H free known uncharged index within
 
-include bodyFits in
-/-- The accepted context is already queried during the original search.
-Consequently authentication replay cannot enlarge its extraction cut. -/
-theorem full_cut_eq (H : Name → Answer)
-    (accepted : actualDecision (namedObservation ((searchTree).run H).1 H) = true)
-    (good : ¬exception binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
-    (uncharged : speculation binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H < 1) :
-    let SHA := SHAof (completed H)
-    let output := (program.run SHA).1
-    let key := (RuntimeAdaptiveVerifier.encodings binary prime P R (W) (Earlier) output.request).context output.proof
-    StrandCut.trace context ((searchTree).bind resumeTree) H key = StrandCut.trace context searchTree H key := by
-  intro SHA output key
-  let value := StrandAcceptedPath.value binary prime P R fmt cfg binaryCount metadata bodyFits fits sample output SHA 0
-  let name : Name := .inl (nodeOf value,some value)
-  have queried : name ∈ seen searchTree H :=
-    ((accepted_path_or_charge binary prime P R fmt cfg binaryCount metadata bodyFits fits
-      sample primeCount draw codec merkleInput program H accepted good).resolve_right (not_le_of_gt uncharged)).queried 0 (Nat.zero_le _)
-  have label : StrandCut.label context name = some key := by
-    change some (context value) = some key
-    apply congrArg some
-    calc
-      context value = (fmt.toPoint value).context :=
-        (Format.toPoint_context fmt value).symm
-      _ = ((M).point output (ordinaryOracle SHA) 0).context :=
-        congrArg Input.context (StrandAcceptedPath.value_point binary prime P R fmt cfg binaryCount metadata
-          bodyFits fits sample output SHA 0 (Nat.zero_le _))
-      _ = key := by
-        rw [RuntimeAdaptiveVerifier.point_eq]
-        exact (RuntimeAdaptiveVerifier.encodings binary prime P R (W) (Earlier) output.request).point_context
-          cfg.initialLink output.proof (ordinaryOracle SHA) 0
-  unfold StrandCut.trace
-  rw [beforeLabel_bind_of_queried (StrandCut.label context) (some key) searchTree resumeTree H ⟨name,queried,label⟩]
-
 end LfzkV2.Current.Soundness.OracleTransport

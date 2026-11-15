@@ -9,8 +9,6 @@ namespace LfzkV2.Current.Tests.StrandRecordedReplay
 #print axioms Replay.Transcript.replay_congr_on_prefix
 #print axioms StrandRecordedReplay.point_eq
 #print axioms StrandRecordedReplay.read_eq
-#print axioms StrandRecordedReplay.runtimeRead_eq
-#print axioms StrandRecordedReplay.runtimeRead_off
 #print axioms StrandMerkleDomains.input_ne_leaf
 #print axioms StrandMerkleDomains.input_ne_node
 

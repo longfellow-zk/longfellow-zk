@@ -1,4 +1,6 @@
-import LfzkV2.Current.ZeroKnowledge.SHAGlobalWindow
+import LfzkV2.Current.ZeroKnowledge.SHAObserverWindow
+import LfzkV2.Current.ZeroKnowledge.SHAOracleProbability
+import LfzkV2.Current.ZeroKnowledge.TranscriptObserver
 import LfzkV2.Current.ZeroKnowledge.ProbabilityInstances
 
 /-! Average a bound for every complementary oracle over a larger finite

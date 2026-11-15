@@ -34,10 +34,6 @@ def codec : PrefixCodec Value := PrefixCodec.vector word 2
 theorem encode_length (value : Value) : (codec.encode value).length = 4 := by
   rw [codec,PrefixCodec.vector_length word 2 word_length]
 
-theorem read_encode (value : Value) (suffix : Bytes) :
-    codec.decode (codec.encode value ++ suffix) = some (value,suffix) :=
-  codec.inverse value suffix
-
 /-- Transcript writes: the `P256AdapterQuotients` values, `Bits(10)` per
 word: kind 3, the bit count, then the bits least significant first, which is
 the word's two little-endian bytes. -/

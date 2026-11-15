@@ -2,11 +2,11 @@ import Bcs.SameDistribution
 import LfzkV2.Layered.Replay
 import LfzkV2.Current.ZeroKnowledge.FrontendRounds
 
-/-! Joint privacy of every message at one current sumcheck layer.  The
-simulator samples two coefficients per round, the cross coefficient, then
-the two masked factors. Challenge sampling is replayed through the public
-reader at the same boundaries. The product pad is derived from its two
-fresh factors and remains part of the secret commitment coupling. -/
+/-! The messages of one current sumcheck layer and their coin change: two
+coefficients per round, the cross coefficient, then the two masked factors.
+Challenge sampling is replayed through the public reader at the same
+boundaries. The product pad is derived from its two fresh factors and
+remains part of the secret commitment coupling. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend
 open SumcheckV2
@@ -37,8 +37,6 @@ def layerEquiv (reader : Reader F State) (q w : Cube n → F) (state : State) :
   ((Equiv.prodCongr (roundsEquiv reader q w state) (Equiv.refl _)).trans
     (Equiv.prodCongrRight (terminalEquiv reader q w state))).trans (payloadEquiv F n)
 
-def simulateLayer (coins : LayerTape F n) : LayerPayload F n := payloadEquiv F n coins
-
 def realLayer (reader : Reader F State) (q w : Cube n → F) (state : State)
     (pads : LayerTape F n) : LayerPayload F n := layerEquiv reader q w state pads
 
@@ -56,27 +54,6 @@ def readLayer (reader : Reader F State) (state : State) (payload : LayerPayload 
   let terminal := reader.terminal rounds.2 payload.cross
   let combine := reader.combine terminal.2 (payload.claimA,payload.claimB)
   ⟨rounds.1,terminal.1,combine.1,combine.2⟩
-
-/-- Both the round masking and terminal masking are one global bijection.
-The simulator is the witness-free representation map `simulateLayer`. -/
-def layerCoupling (reader : Reader F State) (q w : Cube n → F) (state : State) :
-    LayerTape F n ≃ LayerTape F n :=
-  (layerEquiv reader q w state).trans (payloadEquiv F n).symm
-
-theorem layerCoupling_view (reader : Reader F State) (q w : Cube n → F) (state : State)
-    (pads : LayerTape F n) :
-    simulateLayer (layerCoupling reader q w state pads) = realLayer reader q w state pads := by
-  exact (payloadEquiv F n).apply_symm_apply _
-
-theorem layer_sameDistribution [Fintype F] {Observed : Type} [DecidableEq Observed]
-    (reader : Reader F State) (q w : Cube n → F) (state : State)
-    (observe : LayerPayload F n → Observed) :
-    LigeroFamily.SameDistribution
-      (fun pads => observe (realLayer reader q w state pads))
-      (fun coins => observe (simulateLayer coins)) := by
-  apply LigeroFamily.sameDistribution_of_equiv (layerCoupling reader q w state)
-  intro pads
-  rw [layerCoupling_view]
 
 abbrev LayerPad (n : ℕ) := (Fin n × Fin 2) ⊕ Fin 4
 

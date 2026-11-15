@@ -1,9 +1,9 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendAdapter
 
 /-! Current mdoc specialization: 768 shared bits, one canonical 256-bit
-copy of the prime hiding scalar, and two ten-bit quotients. All public
-adapter outputs can be sampled without a witness. The inverse uses that
-witness only to recover the already committed scalar and OTP coordinates. -/
+copy of the prime hiding scalar, and two ten-bit quotients. The coupling's
+inverse uses the witness only to recover the already committed scalar and
+OTP coordinates. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.Adapter.Mdoc
 open SumcheckV2
@@ -55,16 +55,6 @@ theorem advice_at (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (e
     advice sharedWeights shared eta alpha mu =
       advice sharedWeights shared eta (fun _ => alpha mu) mu := rfl
 
-theorem quotients_runtime (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P)
-    (alpha : Alphas) (mu : P) (tree : Fin 2) :
-    let sum := Current.Adapter.scaledSum (weights sharedWeights eta)
-      (values sharedWeights shared eta mu) (alpha mu tree).val
-    let target := ((alpha mu tree).val*mu).val
-    target ≤ sum ∧ (sum-target) % Current.Adapter.Mdoc.primeOrder = 0 ∧
-      (sum-target) / Current.Adapter.Mdoc.primeOrder =
-        (quotients sharedWeights shared eta alpha mu tree).val :=
-  honestQuotient_runtime _ _ _ _ (by decide) (by decide) (residual_zero _ _ _ _)
-
 def coupling (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P) (alpha : Alphas) :
     (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused) :=
   rawMuAdviceEquiv (offset sharedWeights shared eta) (advice sharedWeights shared eta alpha)
@@ -84,15 +74,5 @@ theorem coupling_bits (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool
     (advice sharedWeights shared eta alpha) mask (AdapterBits.rawOtpEquiv otp).1 tree i
   rw [AdapterBits.rawOtp_bits] at h
   exact h
-
-def simulate (coins : (P × MdocAdvice.Value) × AdapterBits.Unused) : P × MdocAdvice.Value := coins.1
-
-theorem sameDistribution {Observed : Type} [DecidableEq Observed]
-    (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P) (alpha : Alphas)
-    (observe : P × MdocAdvice.Value → Observed) :
-    LigeroFamily.SameDistribution
-      (fun tape => observe (coupling sharedWeights shared eta alpha tape).1)
-      (fun coins => observe (simulate coins)) :=
-  rawMuAdvice_sameDistribution _ _ observe
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.Adapter.Mdoc

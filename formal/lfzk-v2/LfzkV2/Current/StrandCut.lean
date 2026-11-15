@@ -54,29 +54,4 @@ theorem trace_source (context : T → Key) {fuel : ℕ}
       obtain ⟨rfl,rfl⟩ := Prod.mk.inj (Option.some.inj entry)
       exact ⟨logical,answer.2,prefixMember⟩
 
-/-- When applied to the coupled strand search, each cut entry is an
-actual raw hash input with its actual answer. The final-cache agreement
-is the existing coupling invariant, not an additional oracle assumption. -/
-theorem trace_raw (schema : History.Codec T) (bytes : P → Framing.Bytes) (context : T → Key)
-    {fuel : ℕ} (program : Tree (Point P PrfKey Word) Digest Out fuel)
-    (H : StrandSearch.Name P T → Sample Digest Word) (G : Point P PrfKey Word → Digest)
-    (agreement : ((StrandSearch.searchState schema bytes program Cache.empty []).run H).1.1.2.Matches G)
-    (key : Key) (raw : P) (digest : Digest)
-    (member : (raw,digest) ∈ trace context (StrandSearch.searchState schema bytes program Cache.empty []) H key) :
-    (.inl raw,digest) ∈ (program.run G).2 := by
-  obtain ⟨logical,row,source⟩ := trace_source context _ H key raw digest member
-  rw [beforeLabel_eq_takeWhile] at source
-  have source := (List.takeWhile_sublist _).subset source
-  have queried := StrandSearch.searchState_node_queried schema bytes program Cache.empty []
-    H G agreement raw logical (digest,row) source
-  have answer := (StrandSearch.searchState_source schema bytes program Cache.empty [] H G agreement).2
-    raw logical (digest,row) source
-  obtain ⟨⟨point,value⟩,member,same⟩ := List.mem_map.mp queried
-  change point = .inl raw at same
-  subst point
-  have actual := Tree.trace_sound program G (.inl raw,value) member
-  change value = G (.inl raw) at actual
-  rw [actual,answer] at member
-  exact member
-
 end LfzkV2.Current.StrandCut

@@ -30,12 +30,7 @@ example (coins : (Fin 3 → Bool) × (Fin 2 → Bool)) :
   apply sampled_run
   exact fresh_of_sampled before input update coins (sampled_fresh coins)
 
-example (coins : (Fin 3 → Bool) × (Fin 2 → Bool)) :
-    before.run (refresh before input update 2 (le_refl _) coins).1 = before.run coins.1 :=
-  prior_refresh before input update 2 (le_refl _) coins
-
 #print axioms fresh_of_sampled
-#print axioms refresh_sameDistribution
 #print axioms refresh_outside
 #print axioms ZeroKnowledge.MerklePriorHits.nodes_card_le
 

@@ -44,9 +44,7 @@ example {P T : Type} (bytes : P → TranscriptV2.Framing.Bytes) (point : P) (log
 example {P T : Type} (bytes : P → TranscriptV2.Framing.Bytes) (id : Word) (digest : Digest) :
     StrandSearch.claims bytes (.inr (id,digest) : StrandSearch.Name P T) = {digest} := rfl
 
-#guard_msgs (drop info) in #check StrandSearch.search_source
 #guard_msgs (drop info) in #check StrandSearch.search_law
-#guard_msgs (drop info) in #check StrandSearch.search_speculation_le
 #guard_msgs (drop info) in #check StrandSearch.replay_law
 #guard_msgs (drop info) in #check StrandPath.path_queries
 #guard_msgs (drop info) in #check StrandRecognition.path_recognized
@@ -57,13 +55,6 @@ info: 'LfzkV2.Current.StrandSearch.search_uniform' depends on axioms: [propext, 
 #guard_msgs in
 set_option pp.fullNames true in
 #print axioms StrandSearch.search_uniform
-
-/--
-info: 'LfzkV2.Current.StrandSearch.search_charges_le' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandSearch.search_charges_le
 
 /--
 info: 'LfzkV2.Current.StrandSearch.replay_law' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -96,6 +87,5 @@ set_option pp.fullNames true in
 #guard_msgs (drop info) in #check StrandRecognition.path_or_charge
 
 #guard_msgs (drop info) in #check DigestProjection.Replay.guess_split
-#guard_msgs (drop info) in #check DigestProjection.Replay.guess_ratio_le
 
 end LfzkV2.Current.Tests.StrandSearch

@@ -15,13 +15,11 @@ masked quotient advice, packing messages and the entire chained state. -/
 #check LfzkV2.Current.ZeroKnowledge.Frontend.CompleteSimulation.simulate
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompleteHonest.binaryCandidate_project
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompleteHonest.primeCandidate_project
-#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompletePacking.fieldBits_inputs
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompletePacking.binaryPads_assignment
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.CompletePacking.packingInstance_valid
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling.generated_valid
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling.inner_view
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling.coupling_view
-#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling.sameDistribution
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestAdapter.adapter_satisfies
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestAdapter.generated_satisfies
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows.prime_split
@@ -43,7 +41,6 @@ masked quotient advice, packing messages and the entire chained state. -/
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages.prime_messages
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages.binary_messages
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_frontend
-#print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_frontend_rows
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.prime_claim
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationScalarAnswers.prime_values
 #print axioms LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed.challenge_values

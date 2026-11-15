@@ -11,15 +11,10 @@ open ZeroKnowledge
 
 #check @SHAOracle.split
 #check @SHAOracleProbability.conditional_statClose
-#check @SHAObserverWindow.before_output
-#check @SHAObserverWindow.later_output
 #print axioms SHAOracle.observer_output
 #print axioms SHAOracle.identifier_not_domain
 #print axioms SHAOracle.fragment_identifier
 #print axioms SHAObserverWindow.window_domain
-#print axioms SHAObserverWindow.before_output
-#print axioms SHAObserverWindow.later_output
-#print axioms SHAOracleProbability.split_sameDistribution
 #print axioms SHAOracleProbability.conditional_statClose
 
 end LfzkV2.Current.Tests.ZeroKnowledgeSHAOracle

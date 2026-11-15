@@ -3,8 +3,7 @@ import TranscriptV2.Queries
 
 /-! The SHA oracle splits into PRF blocks and all other inputs by an exact
 bijection. Bundling a parent's counter blocks reveals extra information to a
-search, but does not change any of the raw SHA answers it actually uses.
-These are deterministic transport results; the distributional coupling to
+search. These are deterministic transport results; the distributional coupling to
 the complete protocol is a separate obligation. -/
 namespace TranscriptV2.Strand
 open Framing Merkle.RandomOracle
@@ -197,41 +196,12 @@ def projectAnswer (raw : Bytes) (answer : GroupAnswer) : Digest :=
       simp only [projectAnswer,point,h,groupedOracle]
 
 /-- Compile an arbitrary raw-query program, not just an honest prover.
-The grouped search may see complete PRF streams; it returns the same result
-when it uses only the particular coordinates requested by the original. -/
+The grouped search may see complete PRF streams. -/
 def bundle {Out : Type} : {fuel : ℕ} → Tree Bytes Digest Out fuel →
     Tree GroupPoint GroupAnswer Out fuel
   | _, .done out => .done out
   | _, .query raw next => .query (groupPoint raw) fun answer =>
       bundle (next (projectAnswer raw answer))
-
-def ungroupOracle (H : GroupPoint → GroupAnswer) (raw : Bytes) : Digest :=
-  projectAnswer raw (H (groupPoint raw))
-
-theorem bundle_run_project {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel)
-    (H : GroupPoint → GroupAnswer) :
-    ((bundle tree).run H).1 = (tree.run (ungroupOracle H)).1 ∧
-    ((bundle tree).run H).2.map Prod.fst =
-      (tree.run (ungroupOracle H)).2.map (fun qa => groupPoint qa.1) := by
-  induction tree with
-  | done _ => exact ⟨rfl,rfl⟩
-  | query raw next ih =>
-      simp only [bundle,Tree.run_query,ungroupOracle,List.map_cons]
-      exact ⟨(ih _).1,congrArg (List.cons (groupPoint raw)) (ih _).2⟩
-
-theorem bundle_run {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel)
-    (oracles : PrfOracle × OtherOracle) :
-    ((bundle tree).run (groupedOracle oracles)).1 = (tree.run (assembleOracle oracles)).1 ∧
-    ((bundle tree).run (groupedOracle oracles)).2.map Prod.fst =
-      (tree.run (assembleOracle oracles)).2.map (fun qa => groupPoint qa.1) := by
-  have h : ungroupOracle (groupedOracle oracles) = assembleOracle oracles :=
-    funext (project_grouped oracles)
-  simpa only [h] using bundle_run_project tree (groupedOracle oracles)
-
-theorem bundle_run_sha {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel)
-    (H : Bytes → Digest) :
-    ((bundle tree).run (groupedOracle (splitOracle H))).1 = (tree.run H).1 := by
-  simpa only [assemble_split] using (bundle_run tree (splitOracle H)).1
 
 /-! The following finite marginal includes every possible PRF counter input
 and any fixed finite set of complement inputs. Its SHA coordinates have an

@@ -32,9 +32,6 @@ def setup (SHA : Bytes → Digest) :=
 abbrev runtime (SHA : Bytes → Digest) :=
   Mdoc.Setup.runtime binary prime cantor scalars (identifiers ids SHA) bounds
 
-abbrev protocol (SHA : Bytes → Digest) :=
-  (runtime binary prime cantor scalars ids bounds SHA).protocol
-
 omit [Fintype B] [DecidableEq B] in
 theorem setup_merge (outside inside : Bytes → Digest) :
     setup binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =

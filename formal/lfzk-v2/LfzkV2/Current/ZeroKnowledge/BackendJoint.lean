@@ -30,22 +30,6 @@ def jointReal (Q : QuerySet n r)
   (real binary Q cells.1 statements.1 coins.1 tape.1,
     real prime Q cells.2 statements.2 coins.2 tape.2)
 
-omit [Fintype B] [Fintype N] in
-/-- The joint public simulator satisfies both opening-only verifiers at
-the one supplied query. It has no private-cell argument. -/
-theorem jointSimulate_verifies [DecidableEq B] [DecidableEq N]
-    (hprimary : r+w+s ≤ n) (Q : QuerySet n r) (pivot : Fin w)
-    (statements : ConstraintSystem B bw 0 w BE × ConstraintSystem N nw 0 w NE)
-    (coins : Polygero.Coin B BE bw 0 s × Polygero.Coin N NE nw 0 s)
-    (tape : Tape binary bw s × Tape prime nw s) :
-    let simulated := jointSimulate binary prime Q pivot statements coins tape
-    Polygero.verify binary.domain binary.k_le_n (ConstraintLayout.identity w)
-      statements.1 coins.1 simulated.1.2 Q simulated.1.1 = true ∧
-    Polygero.verify prime.domain prime.k_le_n (ConstraintLayout.identity w)
-      statements.2 coins.2 simulated.2.2 Q simulated.2.1 = true :=
-  ⟨simulate_verifies binary hprimary Q pivot statements.1 coins.1 tape.1,
-    simulate_verifies prime hprimary Q pivot statements.2 coins.2 tape.2⟩
-
 def jointCoupling (Q : QuerySet n r) (pivot : Fin w)
     (cells : Cells B bw w × Cells N nw w)
     (statements : ConstraintSystem B bw 0 w BE × ConstraintSystem N nw 0 w NE)

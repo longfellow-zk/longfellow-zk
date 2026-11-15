@@ -362,19 +362,4 @@ theorem coupling_view (tape : CompleteHonest.Tape binary prime) (masks : Complet
   rw [(coupling binary prime primePlan samples base H context original remaining pivotOne hash coefficients).symm_apply_apply] at h
   exact h
 
-include pivotOne hash in
-omit [DecidableEq B] in
-theorem sameDistribution {Observed : Type} [DecidableEq Observed]
-    (observe : CompleteSimulation.RawResult binary prime primePlan Key Base C → Observed) :
-    LigeroFamily.SameDistribution
-      (fun coins : CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B) =>
-        observe (CompleteHonest.run binary prime primePlan samples base H coefficients context original remaining coins.1 coins.2))
-      (fun coins : CompleteSimulation.Coins binary prime =>
-        observe (CompleteSimulation.simulate binary prime primePlan samples base H context coins).raw) := by
-  apply LigeroFamily.sameDistribution_of_equiv
-    (coupling binary prime primePlan samples base H context original remaining pivotOne hash coefficients)
-  intro coins
-  exact congrArg observe (coupling_view binary prime primePlan samples base H context original remaining
-    pivotOne hash coefficients coins.1 coins.2)
-
 end LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling

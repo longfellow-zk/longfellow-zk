@@ -212,10 +212,6 @@ def freeMaskEquiv (positive : 0 < degree) :
     (Fin (degree-1) → F) ≃ ({i : Fin degree // i ≠ ⟨0,positive⟩} → F) :=
   Equiv.arrowCongr (freeIndex positive).symm (Equiv.refl F)
 
-omit [Field F] [Fintype F] [Algebra (ZMod 2) F] in
-theorem freeMaskEquiv_apply (positive : 0 < degree) (masks : Fin (degree-1) → F) :
-    freeMaskEquiv positive masks = freeMask positive masks := rfl
-
 theorem packing_realize (nontrivial : 1 < degree)
     (basis : Module.Basis (Fin degree) (ZMod 2) F)
     (coefficients : Fin words → Fin degree → F)
@@ -311,62 +307,6 @@ theorem source_change_masks
     bits masks random sumcheck selection
   simp only [words_eq,target_eq]
   rfl
-
-/-- Public packing messages satisfy the actual source rows at the recovered
-flat cells. The simulator itself uses only the forward sampler; recovered
-words and masks belong to the distribution coupling. -/
-theorem simulated_source_rows (pivotOne : basis ⟨0,by omega⟩ = 1)
-    (holds : claim.eval sumcheck = SumcheckV2.dot publicWeights publicInputs +
-      SumcheckV2.dot privateWeights (fun i => if bits i then 1 else 0))
-    (delta : (Fin degree → Masking.TraceZero (ZMod 2) F) → Fin degree → F)
-    (coins : Packing.Tape (F := F) (⟨0,by omega⟩ : Fin degree)) :
-    let baseInstance := (statement).realize read
-    let valid := source_valid nontrivial capacity basis claim publicWeights publicInputs privateWeights
-      bits masks random sumcheck selection holds
-    let recovered := (Packing.coupling baseInstance pivotOne valid delta).symm coins
-    let recoveredRead : Fin (CellLayout.Binary.cells words degree pads+2) → F :=
-      values (by omega : 0 < degree) (packedWords basis bits)
-      ((freeMaskEquiv (by omega)).symm recovered.1) recovered.2 sumcheck selection
-    let view := Packing.simulate basis ⟨0,by omega⟩ coins
-    RowsHold ((statement).rows (fun i => (view.1 i).val) (delta view.1) view.2) recoveredRead := by
-  dsimp only
-  let baseInstance := (statement).realize read
-  have valid := source_valid nontrivial capacity basis claim publicWeights publicInputs privateWeights
-    bits masks random sumcheck selection holds
-  let recovered := (Packing.coupling baseInstance pivotOne valid delta).symm coins
-  let recoveredRead : Fin (CellLayout.Binary.cells words degree pads+2) → F :=
-    values (by omega : 0 < degree) (packedWords basis bits)
-    ((freeMaskEquiv (by omega)).symm recovered.1) recovered.2 sumcheck selection
-  let view := Packing.simulate basis ⟨0,by omega⟩ coins
-  have same : (statement).realize recoveredRead = Packing.honest baseInstance recovered := by
-    rw [source_change_masks nontrivial capacity basis claim publicWeights publicInputs privateWeights
-      bits masks random sumcheck selection]
-    apply congrArg (Packing.honest baseInstance)
-    apply Prod.ext
-    · exact (freeMaskEquiv (by omega : 0 < degree)).apply_symm_apply recovered.1
-    · rfl
-  have native : ((statement).realize recoveredRead).nativeLinearVerify
-      (fun i => (view.1 i).val) (delta view.1) view.2 := by
-    rw [same]
-    exact Packing.recovered_constraints baseInstance pivotOne valid delta coins
-  exact ((statement).rows_iff_native recoveredRead _ _ _ native.1).mpr native
-
-/-- Honest values satisfy the exact two affine rows authenticated later.
-This uses the final sumcheck input equation, not a packing-acceptance premise. -/
-theorem source_rows
-    (holds : claim.eval sumcheck = SumcheckV2.dot publicWeights publicInputs +
-      SumcheckV2.dot privateWeights (fun i => if bits i then 1 else 0)) (delta : Fin degree → F) :
-    let inst := (statement).realize read
-    (∀ i, traceF (ZMod 2) (inst.honestU i) = 0) ∧
-      RowsHold ((statement).rows inst.honestU delta (inst.honestA delta)) read := by
-  have valid := source_valid nontrivial capacity basis claim publicWeights publicInputs privateWeights
-    bits masks random sumcheck selection holds
-  have honestMask : frobenius (ZMod 2) F ((statement).realize read).r = ((statement).realize read).b := by
-    change frobenius (ZMod 2) F (read (CellLayout.Binary.random words degree pads)) =
-      read (CellLayout.Binary.frobenius words degree pads)
-    rw [random_value,frobenius_value]
-  have native := ((statement).realize read).native_linear_completeness valid honestMask delta
-  exact ⟨native.1,((statement).rows_iff_native read _ _ _ native.1).mpr native⟩
 
 end Source
 

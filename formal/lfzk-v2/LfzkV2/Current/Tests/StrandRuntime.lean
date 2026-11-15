@@ -71,13 +71,6 @@ set_option pp.fullNames true in
 #print axioms TranscriptV2.StrandSampling.complete_fiber
 
 /--
-info: 'LfzkV2.Current.Format.toPoint_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms Format.toPoint_parent
-
-/--
 info: 'LfzkV2.Current.StrandSearch.searchState_bind' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
@@ -100,21 +93,7 @@ set_option pp.fullNames true in
 
 #guard_msgs (drop info) in #check StrandRuntime.complete_body_node
 
-/--
-info: 'LfzkV2.Current.StrandRuntime.named_replay_length' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandRuntime.named_replay_length
-
 run_cmd ProofAudit.standardAxioms #[``Soundness.RuntimeCharges.decoded_charge_cover]
-
-/--
-info: 'LfzkV2.Current.StrandSampling.oracle_law' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandSampling.oracle_law
 
 #guard_msgs (drop info) in #check StrandSampling.componentEquiv_inverse_success
 #guard_msgs (drop info) in #check StrandSampling.reindex_firstOfTwo
@@ -133,13 +112,6 @@ example : ((StrandSampling.read (Equiv.refl (Bool × Bool)) (false,false) retry)
 -- Independent padding cannot make an exhausted physical sampler succeed.
 example : ((StrandSampling.read (Equiv.refl (Bool × Bool)) (true,true) retry).run
     (fun _ => none)).1 = none := rfl
-
-/--
-info: 'LfzkV2.Current.StrandSampling.read_inverse_success' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandSampling.read_inverse_success
 
 /--
 info: 'LfzkV2.Current.StrandSampling.oracle_on_success' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -111,31 +111,4 @@ theorem compile_satisfies
     rw [fields.2.1]
     exact rows_satisfied flatN (CellLayout.Prime.index remaining padsN) _ result.equationsN primeHeld
 
-/-- Successful compilation preserves the numerical list order of frontend
-rows followed by the two fingerprint equations. -/
-theorem compile_equation_values
-    (result : StatementData A ((ConcreteSetup.backend binaryNodes cellsB).indexed countB)
-      ((ConcreteSetup.backend primeNodes (CellLayout.Prime.cells remaining padsN)).indexed countN))
-    (compiled : StatementCompiler.compile (ConcreteSetup.backend binaryNodes cellsB)
-      (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells remaining padsN)) A
-      (addresses binaryNodes primeNodes) countB countN coinsB coinsN targetB targetN = some result) :
-    (∀ i : Fin countB, (result.equationsB i).val = i.val) ∧
-      (∀ i : Fin countN, (result.equationsN i).val = i.val) := by
-  unfold StatementCompiler.compile at compiled
-  cases hb : StatementCompiler.equationIndex countB
-      (A.binary.rows ++ FingerprintRows.rows (fun i => A.binaryLayout (.inl i))
-        (fun j => A.binaryLayout (.inr j)) coinsB targetB).length with
-  | none => simp only [hb] at compiled; contradiction
-  | some equationsB =>
-      simp only [hb] at compiled
-      cases hn : StatementCompiler.equationIndex countN
-          (A.primeRows ++ FingerprintRows.rows (fun i => A.primeLayout (.inl i))
-            (fun j => A.primeLayout (.inr j)) coinsN targetN).length with
-      | none => simp only [hn] at compiled; contradiction
-      | some equationsN =>
-          simp only [hn,pure] at compiled
-          cases compiled
-          exact ⟨fun i => StatementCompiler.equationIndex_value countB _ i _ hb,
-            fun i => StatementCompiler.equationIndex_value countN _ i _ hn⟩
-
 end LfzkV2.Current.ZeroKnowledge.BackendStatement

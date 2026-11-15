@@ -66,36 +66,7 @@ theorem merge_extend (leaf : ∀ value, domain (codec.leafEnc value))
   · rw [SHAOracle.merge_outside domain outside _ query member,
       extend_outside domain outside codec prior after leaf node HM query member]
 
-def before (HT : QT → AT) :=
-  (MerkleOracleWindow.finiteResidual codec _ (trees domain outside prior after) (.inl ()) HT).map Prod.fst
-
 def later (request : Request) (proof : Proof) (HT : QT → AT) :=
   (MerkleOracleWindow.finiteResidual codec _ (trees domain outside prior after) (.inr (request,proof)) HT).map Prod.fst
-
-theorem before_output (leaf : ∀ value, domain (codec.leafEnc value))
-    (node : ∀ children, domain (codec.nodeEnc children))
-    (HM : {raw // raw ∈ window domain outside codec prior after} → D) (HT : QT → AT) :
-    ((before domain outside codec prior after HT).run HM).1 =
-      Observer.run (OracleWindow.extend (window domain outside codec prior after) HM outside) HT prior := by
-  rw [before,Tree.run_map]
-  have restricted := congrArg Prod.fst (MerkleOracleWindow.finiteResidual_output codec _
-    (trees domain outside prior after) (.inl ()) HM outside HT)
-  have routed := SHAOracle.observer_output domain outside prior
-    (OracleWindow.extend (window domain outside codec prior after) HM outside) HT
-  rw [merge_extend domain outside codec prior after leaf node HM] at routed
-  exact restricted.trans routed
-
-theorem later_output (leaf : ∀ value, domain (codec.leafEnc value))
-    (node : ∀ children, domain (codec.nodeEnc children)) (request : Request) (proof : Proof)
-    (HM : {raw // raw ∈ window domain outside codec prior after} → D) (HT : QT → AT) :
-    ((later domain outside codec prior after request proof HT).run HM).1 =
-      Observer.run (OracleWindow.extend (window domain outside codec prior after) HM outside) HT (after request proof) := by
-  rw [later,Tree.run_map]
-  have restricted := congrArg Prod.fst (MerkleOracleWindow.finiteResidual_output codec _
-    (trees domain outside prior after) (.inr (request,proof)) HM outside HT)
-  have routed := SHAOracle.observer_output domain outside (after request proof)
-    (OracleWindow.extend (window domain outside codec prior after) HM outside) HT
-  rw [merge_extend domain outside codec prior after leaf node HM] at routed
-  exact restricted.trans routed
 
 end LfzkV2.Current.ZeroKnowledge.SHAObserverWindow

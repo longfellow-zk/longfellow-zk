@@ -282,26 +282,4 @@ theorem raw_exception_ratio_le : density rawException ≤ delta Q g.roles.length
       show (2 : Fin 3) ≠ 0 by decide,show (2 : Fin 3) ≠ 1 by decide,if_false] using union
   exact union'.trans (sumBound.trans_eq (by unfold delta; ring))
 
-include bodyFits independent queries in
-/-- The same explicit bound holds in the grouped experiment by the exact
-original-table observation law. No uniformity assumption about a completed
-cache, no execution certificate, and no replay query budget is required. -/
-theorem exception_ratio_le :
-    letI : Fintype Value := Fintype.ofInjective
-      (fmt.toPoint)
-      (fmt.toPoint_injective_bounded fits)
-    letI : Fintype Name := inferInstance
-    letI : Fintype Answer := inferInstance
-    density (Soundness.OracleTransport.exception binary prime P R fmt cfg binaryCount metadata
-      fits sample codec merkleInput program) ≤ delta Q g.roles.length := by
-  letI : Fintype Value := Fintype.ofInjective
-    (fmt.toPoint)
-    (fmt.toPoint_injective_bounded fits)
-  letI : Fintype Name := inferInstance
-  letI : Fintype Answer := inferInstance
-  rw [← Soundness.OracleTransport.exception_law binary prime P R fmt cfg binaryCount metadata fits
-    sample codec merkleInput program]
-  exact raw_exception_ratio_le binary prime P R fmt cfg binaryCount metadata bodyFits fits
-    independent sample codec merkleInput program queries
-
 end LfzkV2.Current.Soundness.OracleBounds

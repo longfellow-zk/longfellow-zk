@@ -4,7 +4,6 @@ import LfzkV2.Current.Mdoc.PublicSetup
 the archived adapter fragment identifier and Merkle authentication. -/
 namespace LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup
 
-#check Mdoc.PublicSetup.protocol
 #print axioms Mdoc.PublicSetup.setup_merge
 
 end LfzkV2.Current.Tests.ZeroKnowledgeMdocPublicSetup

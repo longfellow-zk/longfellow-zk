@@ -179,44 +179,6 @@ theorem authentication_trace_subset (output : Out) (SHA : Bytes → Digest) :
 
 end Physical
 
-section Completion
-variable {T Value : Type} {fuel : ℕ}
-
-/-- Completing unused raw SHA coordinates preserves the whole recorded
-execution, not just its submitted proof. The cache's source theorem derives
-this equality for arbitrary search and verifier query trees. -/
-theorem named_completion_run (schema : Strand.History.Codec T) (program : Tree Bytes Digest Value fuel)
-    (H : StrandSearch.Name Strand.OtherPoint T → StrandCoupling.Sample Digest Strand.Word)
-    (SHA SHA' : Bytes → Digest)
-    (cacheMatches : ((StrandSearch.searchState schema Subtype.val
-      (recordTrace (mapQueries Strand.rawPoint program)) StrandCoupling.Cache.empty []).run H).1.1.2.Matches
-        (SHA ∘ Strand.rawBytes))
-    (cacheMatches' : ((StrandSearch.searchState schema Subtype.val
-      (recordTrace (mapQueries Strand.rawPoint program)) StrandCoupling.Cache.empty []).run H).1.1.2.Matches
-        (SHA' ∘ Strand.rawBytes)) : program.run SHA = program.run SHA' := by
-  have first := (StrandSearch.searchState_source schema Subtype.val
-    (recordTrace (mapQueries Strand.rawPoint program)) StrandCoupling.Cache.empty [] H
-    (SHA ∘ Strand.rawBytes) cacheMatches).1
-  have second := (StrandSearch.searchState_source schema Subtype.val
-    (recordTrace (mapQueries Strand.rawPoint program)) StrandCoupling.Cache.empty [] H
-    (SHA' ∘ Strand.rawBytes) cacheMatches').1
-  simp only [run_recordTrace] at first second
-  have source := first.trans second.symm
-  rw [Strand.run_rawPoint,Strand.run_rawPoint] at source
-  have raw := congrArg (fun result => (result.1,
-    result.2.map (fun qa => (Strand.rawBytes qa.1,qa.2)))) source
-  have roundtrip (xs : List (Bytes × Digest)) :
-      (xs.map (fun qa => (Strand.rawPoint qa.1,qa.2))).map
-        (fun qa => (Strand.rawBytes qa.1,qa.2)) = xs := by
-    induction xs with
-    | nil => rfl
-    | cons qa rest ih => simp only [List.map_cons,Strand.rawBytes_point,ih,Prod.eta]
-  change ((program.run SHA).1,_) = ((program.run SHA').1,_) at raw
-  rw [roundtrip,roundtrip] at raw
-  exact raw
-
-end Completion
-
 section Runtime
 variable {g : Geometry} {fields : Fields} {Advice Key C B Salt Enc Request : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
@@ -396,56 +358,6 @@ theorem verify_congr (output : Output) (SHA SHA' : Bytes → Digest)
   · rintro ⟨decoded,hd,hc⟩
     have original := decodedEq.trans hd
     exact ⟨decoded,original,(checksEq decoded original).mpr hc⟩
-
-/-- Authentication replay contains the search output and every subsequent
-verification query. Equal raw observations therefore preserve the actual
-accepting decision for the same submitted proof. -/
-theorem verify_after_search_congr {fuel : ℕ} (program : Tree Bytes Digest Output fuel)
-    (SHA SHA' : Bytes → Digest)
-    (same : (program.bind (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA =
-      (program.bind (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA') :
-    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
-        SHA merkleInput (program.run SHA).1 =
-      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
-        SHA' merkleInput (program.run SHA').1 := by
-  have agree : ∀ qa ∈ ((program.bind
-      (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA).2,
-      SHA' qa.1 = qa.2 := by
-    intro qa member
-    exact (Tree.trace_sound _ SHA' qa (by rw [← same]; exact member)).symm
-  have searchSame := congrArg Prod.fst (Tree.run_congr_on_trace program SHA SHA' (by
-    intro qa member
-    apply agree qa
-    rw [Tree.run_bind]
-    exact List.mem_append_left _ member))
-  rw [searchSame]
-  apply verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw
-  intro qa member
-  apply agree qa
-  rw [Tree.run_bind]
-  exact List.mem_append_right _ (by simpa only [searchSame] using member)
-
-/-- The accepted decision is determined by the named execution's completed
-cache. No application-decoder or Merkle-agreement certificate is supplied. -/
-theorem verify_cache_completion {T : Type} {fuel : ℕ} (schema : Strand.History.Codec T)
-    (program : Tree Bytes Digest Output fuel)
-    (H : StrandSearch.Name Strand.OtherPoint T → StrandCoupling.Sample Digest Strand.Word)
-    (SHA SHA' : Bytes → Digest)
-    (cacheMatches : ((StrandSearch.searchState schema Subtype.val
-      (recordTrace (mapQueries Strand.rawPoint (program.bind
-        (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput))))
-          StrandCoupling.Cache.empty []).run H).1.1.2.Matches (SHA ∘ Strand.rawBytes))
-    (cacheMatches' : ((StrandSearch.searchState schema Subtype.val
-      (recordTrace (mapQueries Strand.rawPoint (program.bind
-        (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput))))
-          StrandCoupling.Cache.empty []).run H).1.1.2.Matches (SHA' ∘ Strand.rawBytes)) :
-    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
-        SHA merkleInput (program.run SHA).1 =
-      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
-        SHA' merkleInput (program.run SHA').1 := by
-  apply verify_after_search_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
-    hashPublic decodePublic draw program SHA SHA'
-  exact named_completion_run schema _ H SHA SHA' cacheMatches cacheMatches'
 
 end Runtime
 end LfzkV2.Current.StrandAuthentication

@@ -23,11 +23,4 @@ info: 'LfzkV2.Current.StrandCut.trace_off' depends on axioms: [propext, Classica
 set_option pp.fullNames true in
 #print axioms StrandCut.trace_off
 
-/--
-info: 'LfzkV2.Current.StrandCut.trace_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandCut.trace_raw
-
 end LfzkV2.Current.Tests.StrandCut

@@ -200,22 +200,6 @@ variable (sample : Input roles Key (Block capacity Fresh) Digest Body →
 
 local notation "oracleOf" => StrandVerifier.oracle (history wire bodyCodec) sample fallback
 
-/-- The actual verifier replay, with its raw trace retained, consumes at
-most one fresh sample per boundary and one for the final node. Online
-history naming does not add samples or count each rejected PRF draw again. -/
-theorem named_replay_length {T : Type} (schema : Strand.History.Codec T)
-    (out : Out) (state : StrandCoupling.Cache Strand.OtherPoint Strand.PrfKey Digest Strand.Word)
-    (past : List Strand.Entry)
-    (H : StrandSearch.Name Strand.OtherPoint T → StrandCoupling.Sample Digest Strand.Word)
-    (reserved : state.Reserved (StrandSearch.key Subtype.val)) :
-    ((StrandSearch.searchState schema Subtype.val
-      (mapQueries Strand.rawPoint (recordTrace (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out)))
-      state past).run H).2.length ≤ rounds+1 := by
-  apply StrandSearch.searchState_length schema Subtype.val _ state past H
-  intro answers
-  rw [StrandCoupling.eagerState_recordTrace_queries]
-  exact StrandVerifier.Coupling.beforeSeal_length (history wire bodyCodec) sample fallback model out state answers reserved
-
 include ranks parents links in
 /-- Raw replay supplies every stored parent digest. Consistency is a
 consequence of the runtime transitions and node reads, not a certificate. -/

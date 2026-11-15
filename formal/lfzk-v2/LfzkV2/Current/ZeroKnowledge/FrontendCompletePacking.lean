@@ -16,45 +16,6 @@ variable {B Key Base C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (Z
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
-omit [Fintype B] [DecidableEq B] in
-theorem fieldBits_inputs (privateBits : Fin binary.nPrivate → Bool) :
-    Current.Adapter.Circuit.bitValue (F := B) ∘ WitnessInputs.bits binary privateBits =
-      circuitInputs binary.description.inputIndex
-        (Current.Adapter.Circuit.bitValue ∘ binary.publicBits) id
-        (Current.Adapter.Circuit.bitValue ∘ privateBits) := by
-  change _ = circuitInputs
-    (inputIndex binary.nPublic binary.nPrivate binary.input binary.committedCapacity) _ _ _
-  funext q
-  by_cases hp : (cubeIndex binary.input q).val < binary.nPublic
-  · let i : Fin binary.nPublic := ⟨(cubeIndex binary.input q).val,hp⟩
-    have hq : inputIndex binary.nPublic binary.nPrivate binary.input binary.committedCapacity (.inl i) = q := by
-      apply (cubeIndex binary.input).injective
-      apply Fin.ext
-      exact inputIndex_public _ _ _ _ i
-    rw [← hq,circuitInputs,zeroExtend_apply]
-    simp only [Function.comp_apply,WitnessInputs.bits,inputIndex_public,dif_pos i.isLt]
-    rfl
-  · by_cases hv : (cubeIndex binary.input q).val-binary.nPublic < binary.nPrivate
-    · let i : Fin binary.nPrivate := ⟨(cubeIndex binary.input q).val-binary.nPublic,hv⟩
-      have hq : inputIndex binary.nPublic binary.nPrivate binary.input binary.committedCapacity (.inr i) = q := by
-        apply (cubeIndex binary.input).injective
-        apply Fin.ext
-        have hi := inputIndex_private binary.nPublic binary.nPrivate binary.input binary.committedCapacity i
-        change _ = (cubeIndex binary.input q).val
-        rw [hi]
-        dsimp only [i]
-        omega
-      rw [← hq,circuitInputs,zeroExtend_apply,Function.comp_apply]
-      exact congrArg (Current.Adapter.Circuit.bitValue (F := B))
-        (WitnessInputs.bits_private binary privateBits i)
-    · have outside : ∀ i, inputIndex binary.nPublic binary.nPrivate binary.input binary.committedCapacity i ≠ q := by
-        intro i eq
-        have heq := congrArg (fun q => (cubeIndex binary.input q).val) eq
-        cases i with
-        | inl i => rw [inputIndex_public] at heq; exact hp (heq ▸ i.isLt)
-        | inr i => rw [inputIndex_private] at heq; have := i.isLt; omega
-      rw [circuitInputs,zeroExtend_outside _ _ _ outside]
-      simp [Function.comp_apply,WitnessInputs.bits,hp,hv,Current.Adapter.Circuit.bitValue]
 
 omit [Fintype B] [DecidableEq B] in
 /-- The final input claim on the honest array is the substituted claim over

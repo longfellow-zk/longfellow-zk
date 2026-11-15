@@ -368,32 +368,6 @@ theorem opening_side (frontend : Frontend) (side : Side) :
   unfold Frontend.opening
   split <;> rfl
 
-theorem locatedRole_side {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first : ℕ) (head : Role)
-    (hhead : frontendSide head = some side) (role : Layered.Replay.LayerRole circuit) :
-    frontendSide (plan.locatedRole side first head role) = some side := by
-  induction plan generalizing first head with
-  | input => exact Fin.elim0 role
-  | inputEntry metadata entry =>
-      cases role with
-      | inl => exact hhead
-      | inr role => exact Fin.elim0 role
-  | layer metadata tail ih =>
-      rcases role with i | i | i | i | role
-      · exact hhead
-      · rfl
-      · rfl
-      · rfl
-      · exact ih (first+1) _ rfl role
-  | entryLayer entries entry metadata tail ih =>
-      rcases role with i | i | i | i | i | role
-      · exact hhead
-      · exact hhead
-      · rfl
-      · rfl
-      · rfl
-      · exact ih (first+1) _ rfl role
-
 theorem opening_domain (frontend : Frontend) (side : Side) :
     (frontend.opening side).domain = .assertions := by
   unfold Frontend.opening

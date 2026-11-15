@@ -11,19 +11,14 @@ open LfzkV2.Current.ZeroKnowledge.StrandGhostMerkle
 
 #check Swap.swap_involutive
 #check Swap.before_swap
-#check Swap.sameDistribution
 #check Tree.installAll_commit
 #check Tree.installAll_opening
 #check Nonce.hit_card_mul_le
 #check Nonce.hit_ratio_le
 #check Observer.observer_eq_of_no_hit
-#check Observer.observer_disagreement_ratio_le
 #check History.prior_preserved
-#check History.coupled_view_eq_of_no_hit
-#check History.coupled_view_disagreement_ratio_le
 #check Schedule.honest_coupled_eq_ghost
 #check Schedule.honest_coupled_eq_simulate
-#check Probability.statistical_hiding
 #check Swap.Slice.lift_swap
 #check Swap.Slice.swap_involutive
 #check Probability.statistical_hiding_slice
@@ -34,14 +29,10 @@ open LfzkV2.Current.ZeroKnowledge.StrandGhostMerkle
 
 #print axioms Swap.swap_involutive
 #print axioms Swap.before_swap
-#print axioms Swap.sameDistribution
 #print axioms Tree.installAll_commit
 #print axioms Tree.installAll_opening
 #print axioms Nonce.hit_ratio_le
-#print axioms Observer.observer_disagreement_ratio_le
-#print axioms History.coupled_view_disagreement_ratio_le
 #print axioms Schedule.honest_coupled_eq_ghost
-#print axioms Probability.statistical_hiding
 #print axioms Domains.finish_congr
 #print axioms LfzkV2.Current.ZeroKnowledge.StrandCompletion.finish_valid
 

@@ -24,14 +24,4 @@ def binaryMessageEquiv
   circuitEquiv (CompleteTranscript.reader .binary (Equiv.refl B) samples.binary samples.binaryNonzero base H)
     binary.plan inputs 0 (CompleteSimulation.binaryStart binary prime primePlan converted advice)
 
-theorem binaryMessageEquiv_actual
-    (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C)
-    (converted : CompleteSimulation.ConversionPrefix binary prime primePlan Key Base C)
-    (advice : MdocAdvice.Value) (inputs : Cube binary.input → B)
-    (pads : CircuitTape binary.description.circuit) :
-    binaryMessageEquiv binary prime primePlan samples base H native converted advice inputs pads =
-      realCircuit (CompleteTranscript.reader .binary (Equiv.refl B) samples.binary samples.binaryNonzero base H)
-        binary.plan inputs 0 (CompleteSimulation.binaryStart binary prime primePlan converted advice) pads :=
-  rfl
-
 end LfzkV2.Current.ZeroKnowledge.Frontend.CompleteCoupling

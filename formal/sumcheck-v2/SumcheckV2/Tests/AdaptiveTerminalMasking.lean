@@ -22,11 +22,6 @@ example (A B : ZMod 5) (messages : ZMod 5 × ZMod 5 × ZMod 5) :
     ext pads
     simp
 
-example (A B : ZMod 5) (messages : ZMod 5 × ZMod 5 × ZMod 5) :
-    residual (A * B) messages.1 (scale messages.1).val messages.2.1 messages.2.2
-      (honestPadCells (adaptiveRecoverPads A B scale messages)) = 0 :=
-  adaptive_simulated_terminal A B scale messages
-
 example (messages : ZMod 2 × ZMod 2 × ZMod 2) :
     (Finset.univ.filter fun pads =>
       adaptiveHonestMessages (1 : ZMod 2) 0 (fun _ => ⟨1,by decide⟩) pads = messages).card = 1 :=
@@ -37,5 +32,4 @@ example (messages : ZMod 2 × ZMod 2 × ZMod 2) :
     simp
 
 #print axioms adaptive_uniform_fiber
-#print axioms adaptive_simulated_terminal
 end SumcheckV2.Tests.AdaptiveTerminalMasking

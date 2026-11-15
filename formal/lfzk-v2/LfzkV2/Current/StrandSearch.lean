@@ -268,21 +268,6 @@ theorem searchState_raw_prf_origin {fuel : ℕ} (program : Tree Raw Digest Out f
   obtain ⟨point,result,member,key,_⟩ := searchState_stream_origin schema bytes (recordTrace program) H digest row cached
   exact ⟨point,result,member,key⟩
 
-/-- Every transformed execution is an execution of one raw SHA table.
-This also identifies the node answers used by the history registry; matching
-only the final output would not justify reasoning about the accepted path. -/
-theorem search_source {fuel : ℕ} (program : Tree Raw Digest Out fuel) (H : Name P T → Answer) :
-    ∃ G : Raw → Digest,
-      (program.run G).1 = ((search schema bytes program).run H).1 ∧
-      ∀ point logical answer, ((.inl (point,logical),answer) : Name P T × Answer) ∈
-        ((search schema bytes program).run H).2 → G (.inl point) = answer.1 := by
-  let G := ((searchState schema bytes program Cache.empty []).run H).1.1.2.raw 0
-  have actual := searchState_source schema bytes program Cache.empty [] H G (Cache.matches_raw _ 0)
-  refine ⟨G,?_,?_⟩
-  · simpa only [search,Tree.run_map] using actual.1
-  · intro point logical answer member
-    exact actual.2 point logical answer (by simpa only [search,Tree.run_map] using member)
-
 /-- This is a fresh renaming of the actual raw search, including arbitrary
 early PRF queries. No assumption about accepted-path query order is supplied. -/
 theorem search_uniform [Fintype P] [Fintype T]
@@ -486,37 +471,5 @@ end Streams
 
 def speculation {fuel : ℕ} (program : Tree Raw Digest Out fuel) (H : Name P T → Answer) : ℚ :=
   DigestProjection.charge (claims bytes) (search schema bytes program) H
-
-/-- The strand's speculative allowance is established independently of all
-protocol charges. This is the averaging obligation consumed by the generic
-soundness realization, with one planted target per auxiliary query. -/
-theorem search_speculation_le [Fintype P] [Fintype T]
-    {fuel : ℕ} (program : Tree Raw Digest Out fuel) (epsilon : ℚ)
-    (guessFits : (fuel : ℚ)/Fintype.card Digest ≤ epsilon) :
-    (∑ H, speculation schema bytes program H) ≤
-      ∑ H : Name P T → Answer, ∑ point ∈ seen (search schema bytes program) H,
-        if auxiliary point then epsilon else 0 :=
-  StrandCharging.targets_sum_le (search schema bytes program) (seen_card_le _)
-    auxiliary (claims bytes) (claims_card bytes) epsilon
-    (by simpa only [Nat.cast_one,mul_one] using guessFits)
-
-/-- The concrete query classification consumes only the source program's
-SHA-query budget. Local algebraic bounds are still required, but neither
-the decoder nor speculative queries create a second global budget. -/
-theorem search_charges_le [Fintype P] [Fintype T]
-    {fuel : ℕ} (program : Tree Raw Digest Out fuel)
-    (protocol : (Name P T → Answer) → ℚ) (epsilon : ℚ) (positive : 0 ≤ epsilon)
-    (protocolMean : (∑ H, protocol H) ≤ ∑ H : Name P T → Answer,
-      ∑ p ∈ seen (search schema bytes program) H,
-        if auxiliary p then 0 else epsilon)
-    (guessFits : (fuel : ℚ)/Fintype.card Digest ≤ epsilon) :
-    (∑ H : Name P T → Answer, (protocol H +
-      ∑ p ∈ seen (search schema bytes program) H,
-        if DigestProjection.bad (claims bytes)
-          (search schema bytes program) p H (H p) then 1 else 0)) ≤
-      (fuel : ℚ)*epsilon*(Fintype.card Answer : ℚ)^Fintype.card (Name P T) := by
-  exact StrandCharging.shared_targets_sum_le (search schema bytes program)
-    (seen_card_le _) auxiliary (claims bytes) (claims_card bytes) protocol epsilon positive
-    protocolMean (by simpa only [Nat.cast_one,mul_one] using guessFits)
 
 end LfzkV2.Current.StrandSearch

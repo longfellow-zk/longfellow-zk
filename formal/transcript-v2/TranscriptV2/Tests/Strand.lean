@@ -47,56 +47,18 @@ example (id : Word) (parent : Digest) (H : Oracle) :
     (Prf.nextBlock ⟨id,parent,⟨2^64-1,by decide⟩⟩).run H = (none,[]) :=
   Prf.exhausted _ (by change nextCounter ⟨2^64-1,by decide⟩ = none; decide) H
 
-example (parent : Digest) (H : Oracle) :
-    (continueStrand (.node ⟨2^64-1,by decide⟩ parent [])).run H = (none,[]) :=
-  continueStrand_exhausted _ (by change nextCounter ⟨2^64-1,by decide⟩ = none; decide) H
-
 example (reader : Reader) (H : Oracle) :
     (Reader.read 0 reader).run H = (some ([],reader),[]) := Reader.read_zero reader H
 
 -- Large and segmented reads obey the same theorem as reads within one block.
-example (reader : Reader) (H : Oracle) :
-    (Reader.read 4096 reader).run H =
-      let first := (Reader.read 17 reader).run H
-      match first.1 with
-      | none => (none,first.2)
-      | some (headBytes,next) =>
-          let second := (Reader.read 4079 next).run H
-          (second.1.map (fun value => (headBytes ++ value.1,value.2)),first.2 ++ second.2) :=
-  Reader.read_add 17 4079 reader H
-
-example (state : Absorbing) (label : Byte) (next : Word)
-    (within : nextCounter state.id = some next) (H : Oracle) :
-    ((StrandTranscript.beginSqueeze state label).run H).1.map (fun reading => reading.reader.prf.counter) = some 0 := by
-  rw [StrandTranscript.beginSqueeze_run state label next within H]
-  rfl
 
 example (state : Absorbing) (body : Bytes) (H : Oracle) :
     ((StrandTranscript.finalSeal state body).run H).2.length = 2 := by
   rw [StrandTranscript.finalSeal_run]
   rfl
 
-example (state : Absorbing) {first second : Bytes} (h : first ≠ second) :
-    StrandTranscript.finalNodeInput state first ≠ StrandTranscript.finalNodeInput state second :=
-  fun heq => h (StrandTranscript.finalNodeInput_injective state heq)
-
-example (state : Absorbing) (body : Bytes) (wrong : Digest) (H : Oracle)
-    (h : H (StrandTranscript.finalSealInput state body H) ≠ wrong) :
-    ¬StrandTranscript.verifyFinalSeal id state ⟨body,wrong⟩ H := by
-  rwa [StrandTranscript.verifyFinalSeal_iff]
-
-example (state : Absorbing) (body : Bytes) (H : Oracle) :
-    StrandTranscript.checkEncodedSeal state
-      (StrandTranscript.encodeComplete id ((StrandTranscript.complete id state body).run H).1) H := by
-  rw [StrandTranscript.checkEncodedSeal_iff]
-  exact StrandTranscript.verifyFinalSeal_complete id state body H
-
 -- Splitting the one SHA function introduces no extra oracle or consistency premise.
 example (H : Bytes → Digest) : assembleOracle (splitOracle H) = H := assemble_split H
-
-example {Out : Type} {fuel : ℕ} (tree : Tree Bytes Digest Out fuel) (H : Bytes → Digest) :
-    ((bundle tree).run (groupedOracle (splitOracle H))).1 = (tree.run H).1 :=
-  bundle_run_sha tree H
 
 example (message : Bytes) : unfoldInput [] (.root message) = some (.root message) := rfl
 

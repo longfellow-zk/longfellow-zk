@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
-import LfzkV2.Current.ZeroKnowledge.MerkleBound
 import Lean.Util.CollectAxioms
 
 /-! The fixed-configuration canonical ZK composition retains actual raw
@@ -20,7 +19,6 @@ open ZeroKnowledge
 #check StrandCanonicalHiding.statClose
 
 -- The concrete denominator is tied to the runtime's nonce-width constant.
-example : Fintype.card MerkleNonce = 2^256 := MerkleSimulation.nonce_card
 
 open Lean Elab Command in
 run_cmd do

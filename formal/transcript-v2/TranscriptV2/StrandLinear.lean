@@ -31,23 +31,6 @@ theorem replay_inputs_ne (messages : ℕ → Bytes) (H : Oracle) (i j : ℕ)
     Nat.mod_eq_of_lt firstFits,Nat.mod_eq_of_lt secondFits] at ids
   exact different ids
 
-/-- Altering a node's own answer cannot alter its input. Earlier inputs have
-smaller ids, so this also covers collisions among their digest values. -/
-theorem replay_off (messages : ℕ → Bytes) (H H' : Oracle) (n : ℕ)
-    (fits : n < 2^64)
-    (agree : AgreeOff (replay messages H n).input.encode H H') :
-    replay messages H n = replay messages H' n := by
-  have earlier (i : ℕ) (bound : i ≤ n) :
-      replay messages H i = replay messages H' i := by
-    induction i with
-    | zero => rfl
-    | succ i ih =>
-        have previous := ih (by omega)
-        have answer := agree (replay messages H i).input.encode
-          (replay_inputs_ne messages H i n (by omega) fits (by omega))
-        simp only [replay,← previous,answer]
-  exact earlier n le_rfl
-
 /-- The same independence law in a finite address window. The coverage law
 is needed only for the actual prefix: unrelated malformed inputs may use a
 fallback address, but no two reached node positions can alias through it. -/

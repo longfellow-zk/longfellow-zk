@@ -8,7 +8,7 @@ assertions share a boundary, and every later stage's weights and the
 input-only entries continue the preceding combine answer.  There are no oracle calls for fragments or pad products.
 
 The simulator draws the public payload directly.  Secret input tables occur
-only in the inverse coupling used to prove its exact distribution. -/
+only in the inverse coupling (`circuitCoupling`). -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend
 open SumcheckV2
@@ -158,17 +158,5 @@ theorem circuitCoupling_view {out input : ℕ} {circuit : Layered.Circuit F out 
     simulateCircuit circuit (circuitCoupling reader plan w weights state pads) =
       realCircuit reader plan w weights state pads :=
   (circuitPayloadEquiv circuit).apply_symm_apply _
-
-theorem circuit_sameDistribution [Fintype F] {Observed : Type} [DecidableEq Observed]
-    {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (reader : CircuitReader F State) (plan : FrontendSchedule.Plan F circuit)
-    (w : Cube input → F) (weights : Cube out → F) (state : State)
-    (observe : Layered.Replay.Payload circuit → Observed) :
-    LigeroFamily.SameDistribution
-      (fun pads => observe (realCircuit reader plan w weights state pads))
-      (fun coins => observe (simulateCircuit circuit coins)) := by
-  apply LigeroFamily.sameDistribution_of_equiv (circuitCoupling reader plan w weights state)
-  intro pads
-  rw [circuitCoupling_view]
 
 end LfzkV2.Current.ZeroKnowledge.Frontend

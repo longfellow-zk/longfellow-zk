@@ -111,25 +111,6 @@ def read (factor : Answer ≃ Value × Unused) (fallback : Answer)
     (sampler : Tree Index Block (Option Value) fuel) : Tree Index Block (Option Answer) fuel :=
   sampler.map (Option.map fun value => factor.symm (value,(factor fallback).2))
 
-/-- Reindexing retains every raw block. On success the physical reader
-equals the normalized ideal answer; its other role coordinates are never
-mistaken for physically generated randomness. -/
-theorem read_inverse_success [Fintype Index] [Fintype Block]
-    (factor : Answer ≃ Value × Unused) (fallback : Answer)
-    (sampler : Tree Index Block (Option Value) fuel) (fiber : ℕ)
-    (uniform : ∀ value, (univ.filter fun stream => (sampler.run stream).1 = some value).card = fiber)
-    (challenge : Answer) (residual : Fin (Fintype.card (Index → Block)))
-    (value : Value)
-    (success : (sampler.run
-      ((componentEquiv factor (fun stream => (sampler.run stream).1) fiber uniform).symm
-        (challenge,residual)).1).1 = some value) :
-    ((read factor fallback sampler).run
-      ((componentEquiv factor (fun stream => (sampler.run stream).1) fiber uniform).symm
-        (challenge,residual)).1).1 = some (normalize factor fallback challenge) := by
-  have same := componentEquiv_inverse_success factor (fun stream => (sampler.run stream).1)
-    fiber uniform challenge residual value success
-  simp only [read,Tree.run_map,success,Option.map_some,normalize,same]
-
 end Reads
 
 section Oracles
@@ -195,15 +176,6 @@ theorem reindex_firstOfTwo [DecidableEq Point] (split : Point → Raw ≃ Challe
   | query point next ih =>
       simp only [reindex,Bcs.TotalOracle.firstOfTwo]
       split_ifs <;> first | rfl | exact ih _
-
-/-- A bijection of full oracle tables proves the joint observation law.
-It retains correlations between the raw program, its cut and verifier
-replay; uniformity of individual field samples alone would not suffice. -/
-theorem oracle_law [Fintype Point] [Fintype Link] [Fintype Raw] [Fintype Challenge] [Fintype Residual]
-    (split : Point → Raw ≃ Challenge × Residual) (event : (Point → Link × Raw) → Prop) :
-    Bcs.FiniteProbability.density event =
-      Bcs.FiniteProbability.density (fun pair => event ((oracleEquiv split).symm pair)) :=
-  (Bcs.FiniteProbability.density_equiv (oracleEquiv split).symm event).symm
 
 end Oracles
 

@@ -70,21 +70,5 @@ def recoveredInputs (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) 
   Sum.elim (values sharedWeights shared eta mu) fun ⟨tree,i⟩ =>
     MdocAdvice.bits ((AdapterBits.xorValue (advice sharedWeights shared eta alpha mu)).symm masked) tree i
 
-/-- On the recovered bits, every tree's virtual leaves multiply to one. -/
-theorem recoveredInputs_satisfy {B : Type} [Field B] [CharP B 2] (generator : Bˣ)
-    (sharedWeights : Fin 768 → P) (shared : Fin 768 → Bool) (eta : P) (alpha : Alphas)
-    (mu : P) (masked : MdocAdvice.Value) (tree : Fin 2) :
-    ∏ i, (Current.Adapter.Leaves.tree Sum.inl
-      (fun j => generator^((alpha mu tree).val*weights sharedWeights eta j).val)
-      (fun i => Sum.inr (tree,i)) (generator^(-(Current.Adapter.Mdoc.primeOrder : ℤ)))
-      (MdocAdvice.bits masked tree) (generator^((alpha mu tree).val*mu).val) i).value
-        (Current.Adapter.Circuit.bitValue ∘ recoveredInputs sharedWeights shared eta alpha mu masked) = 1 := by
-  apply product_check_leaves (by decide)
-  change Current.Adapter.ProductCheck generator (weights sharedWeights eta)
-    (values sharedWeights shared eta mu) mu (alpha mu tree).val _
-  dsimp only [recoveredInputs,advice,Sum.elim_inr]
-  rw [recovered_advice]
-  exact honest_product_check generator _ _ _ _ (by decide) (residual_zero _ _ _ _)
-
 end Mdoc
 end LfzkV2.Current.ZeroKnowledge.Frontend.Adapter

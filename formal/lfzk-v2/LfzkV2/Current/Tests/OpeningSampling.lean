@@ -13,9 +13,4 @@ example : ordered 3 2 picks (1 : Fin 2) = (0 : Fin 3) := by
   change Equiv.swap (0 : Fin 3) (2 : Fin 3) ((1 : Fin 2).succ) = 0
   norm_num [Equiv.swap_apply_def]
 
-example (query : LigeroFamily.QuerySet 3 2) :
-    (Finset.univ.filter fun indices : Fin 2 ↪ Fin 3 => OrderedOpening.query indices = query).card = 2 := by
-  rw [LfzkV2.Current.OpeningSampling.query_fiber_card]
-  rfl
-
 end LfzkV2.Current.Tests.OpeningSampling

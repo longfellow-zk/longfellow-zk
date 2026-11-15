@@ -14,11 +14,6 @@ example (id : Word) (parent : Digest) (G : Strand.Oracle) :
         [((Input.prf id parent 0).encode,G (Input.prf id parent 0).encode),
          ((Input.prf id parent 1).encode,G (Input.prf id parent 1).encode)]) := rfl
 
-example (reader : Reader) (count : ℕ) (G : Strand.Oracle) (raw : Framing.Bytes) (answer : Digest)
-    (member : (raw,answer) ∈ ((Reader.read count reader).run G).2) :
-    ∃ counter, raw = (Input.prf reader.prf.id reader.prf.parent counter).encode :=
-  (Reader.read_key_and_queries count reader G).2 raw answer member
-
 private def model : StrandSealCharging.Model Bool Bool Bool where
   node _ := false
   prf _ _ := true
@@ -67,12 +62,5 @@ info: 'TranscriptV2.StrandVerifier.Coupling.beforeSeal_length' depends on axioms
 #guard_msgs in
 set_option pp.fullNames true in
 #print axioms TranscriptV2.StrandVerifier.Coupling.beforeSeal_length
-
-/--
-info: 'TranscriptV2.StrandVerifier.beforeSeal_nonPrf_card' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms TranscriptV2.StrandVerifier.beforeSeal_nonPrf_card
 
 end TranscriptV2.Tests.StrandVerifier

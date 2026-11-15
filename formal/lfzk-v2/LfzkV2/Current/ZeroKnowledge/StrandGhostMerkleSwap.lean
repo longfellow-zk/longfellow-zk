@@ -107,14 +107,4 @@ theorem before_swap (coins : (Raw → Digest) × (Index → Digest)) :
   · exact before_replace before addresses coins.1 coins.2 unused
   · rfl
 
-/-- This is only a uniform-oracle change of variables. Hiding follows
-separately by bounding actual leaf queries of the later observer. -/
-theorem sameDistribution [Fintype Raw] [Fintype Index] [Fintype Digest]
-    {Observed : Type} [DecidableEq Observed]
-    (observe : ((Raw → Digest) × (Index → Digest)) → Observed) :
-    SameDistribution (fun coins => observe (swap before addresses coins)) observe := by
-  apply sameDistribution_of_equiv (equiv before addresses)
-  intro coins
-  rfl
-
 end LfzkV2.Current.ZeroKnowledge.StrandGhostMerkle.Swap

@@ -44,13 +44,4 @@ theorem before_congr (H G : Raw → Digest) (same : ∀ raw ∈ window before af
   exact (same entry.1 (before_subset before after (OracleWindow.trace_mem_queries before G entry member))).trans
     (Tree.trace_sound before G entry member).symm
 
-theorem after_congr (context : Context) (reachable : context ∈ outputs before) (proof : Proof)
-    (H G : Raw → Digest) (same : ∀ raw ∈ window before after, H raw = G raw) :
-    (after context proof).run H = (after context proof).run G := by
-  apply Tree.run_congr_on_trace
-  intro entry member
-  exact (same entry.1 (after_subset before after context reachable proof
-    (OracleWindow.trace_mem_queries (after context proof) G entry member))).trans
-    (Tree.trace_sound (after context proof) G entry member).symm
-
 end LfzkV2.Current.ZeroKnowledge.StrandObserverWindow

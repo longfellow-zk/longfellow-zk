@@ -115,16 +115,5 @@ theorem finalSealAddress_congr (output : CanonicalRuntime.FormatOutput binary fm
   rw [point,nodes]
   rfl
 
-include independent in
-/-- Changing the seal's own PRF answer leaves its address unchanged. This
-remains true if a verifier sampler happens to read that same PRF block. -/
-theorem finalSealAddress_off (output : CanonicalRuntime.FormatOutput binary fmt)
-    (G G' : Strand.Oracle) (agree : Bcs.TotalOracle.AgreeOff (address output G) G G') :
-    address output G = address output G' := by
-  apply finalSealAddress_congr binary prime P R fmt cfg binaryCount metadata independent sample
-  intro history
-  apply agree
-  exact history.input_ne_prf _ _ 0
-
 end Runtime
 end LfzkV2.Current.StrandSealIndependence

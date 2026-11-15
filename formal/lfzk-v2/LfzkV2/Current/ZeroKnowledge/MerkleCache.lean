@@ -1,4 +1,6 @@
-import LfzkV2.Current.ZeroKnowledge.MerkleBound
+import LfzkV2.Current.ZeroKnowledge.MerkleSimulation
+import LfzkV2.Current.Messages
+import LfzkV1.ZkMerkle
 
 /-! A commitment programs its own fresh inputs, leaving a pre-existing
 oracle table intact everywhere else.  Unlike an empty-cache lazy execution,

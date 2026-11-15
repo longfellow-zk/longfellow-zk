@@ -94,13 +94,4 @@ theorem column_eq_opened (dec : RoleDecoders S.toCodec)
   rw [column,label_eq_checkValues S dec root I a proof trace unique accepted contains _ path]
   simp only [preimage_of_mem trace unique _ _ (contains.1 i member),dec.leaf_roundTrip]
 
-theorem messages_agree [Inhabited M] (dec : RoleDecoders S.toCodec)
-    {n : ℕ} (root : D) (I : Finset (Fin n)) (a : Fin n → M) (proof : Opening n I Salt D)
-    (trace : List (Enc × D)) (unique : MH.CollisionFree trace)
-    (accepted : Accepts S n root I a proof) (contains : ContainsOpening S n I a proof trace) :
-    ∀ i ∈ I, messages dec trace root n i = a i := by
-  intro i member
-  rw [messages,column_eq_opened S dec root I a proof trace unique accepted contains i member]
-  rfl
-
 end Merkle.Indexed

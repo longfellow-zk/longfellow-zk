@@ -29,8 +29,6 @@ example (tape : Fin 1 → Bool) :
 
 #print axioms sampledRun_trace_mem
 #print axioms refresh_fresh
-#print axioms refresh_eq_prepared
 #print axioms priorAvoids_of_no_hit
-#print axioms refresh_eq_prepared_of_no_bad
 
 end LfzkV2.Current.Tests.ZeroKnowledgeMerkleCommitPrepared

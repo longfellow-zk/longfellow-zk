@@ -133,36 +133,4 @@ theorem complete_view (request : Request) (root : Digest) (context : Context) (p
   rw [← front]
   rw [StrandCanonicalBackend.backend_view]
 
-/-- Uniform backend masks have a finite representation independently of
-how the complete application configuration is reduced. -/
-local instance backendCoinsFintype : Fintype BackendCoins := Fintype.ofFinite _
-
-/-- At a fixed oracle and ghost commitment, changing only prover coins
-removes the witness from the complete public view. The view retains the
-prior context and trace, canonical proof, and later observer result and trace.
-The statistical commitment-hiding step is separate from this exact law. -/
-theorem sameDistribution (request : Request) (root : Digest) (context : Context) (prior : List (Bytes × Digest))
-    (after : Option (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) →
-      Merkle.RandomOracle.Tree Bytes Digest Observed postQueries)
-    (leaves : Fin 2443 → Digest) (nonces : Fin 2443 → MerkleNonce)
-    (pivotOne : binary.basis 0 = 1)
-    (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-    (valid : MdocWitness.UniformHashValid (RequestedSimulator.requestedBinary binary prime primePlan Sh request) (original request))
-    (signature :
-      let b := RequestedSimulator.requestedBinary binary prime primePlan Sh request
-      let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount request
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original request) (remaining request))) :
-    LigeroFamily.SameDistribution
-      (honestView binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
-        roundSampler batchingSamples SHA request root context prior after leaves nonces)
-      (simulatedView binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata
-        roundSampler batchingSamples SHA request root context prior after leaves nonces) := by
-  apply LigeroFamily.sameDistribution_of_equiv
-    (coupling binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
-      roundSampler batchingSamples SHA request root pivotOne primitive valid signature)
-  intro coins
-  exact (complete_view binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
-    roundSampler batchingSamples SHA request root context prior after leaves nonces
-    pivotOne primitive valid signature coins).symm
-
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalFullCoupling

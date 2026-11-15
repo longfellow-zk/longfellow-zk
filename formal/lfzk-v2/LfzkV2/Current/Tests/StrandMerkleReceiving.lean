@@ -30,13 +30,6 @@ set_option pp.fullNames true in
 #print axioms Format.pointCodec_merkle_auxiliary
 
 /--
-info: 'LfzkV2.Current.StrandMerkleRealization.receiving_sum_le' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandMerkleRealization.receiving_sum_le
-
-/--
 info: 'LfzkV2.Current.StrandMerkleRealization.wire_receives_disjoint' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
@@ -45,24 +38,7 @@ info: 'LfzkV2.Current.StrandMerkleRealization.wire_receives_disjoint' depends on
 set_option pp.fullNames true in
 #print axioms StrandMerkleRealization.wire_receives_disjoint
 
-/--
-info: 'LfzkV2.Current.StrandMerkleRealization.wire_receiving_sum_le' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandMerkleRealization.wire_receiving_sum_le
-
-#guard_msgs (drop info) in #check StrandMerkleRealization.receives_tag
 #guard_msgs (drop info) in #check DigestProjection.receiving_hit_charged
-
-/--
-info: 'LfzkV2.Current.StrandMerkleRealization.wire_hash_sum_le' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandMerkleRealization.wire_hash_sum_le
 
 #guard_msgs (drop info) in #check StrandMerkleRealization.ordinary_no_children
 #guard_msgs (drop info) in #check StrandMerkleRealization.receiving_claims_empty

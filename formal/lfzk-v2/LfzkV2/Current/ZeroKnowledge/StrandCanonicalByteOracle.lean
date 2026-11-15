@@ -2,13 +2,13 @@ import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteSupport
 
-/-! Lift the checked canonical privacy game to one uniformly sampled raw
-byte-oracle table, retaining the same opened-leaf-only programming. -/
+/-! The fixed raw byte-oracle support of the canonical privacy game. Both
+experiments, including the simulator's opened-leaf-only programming, are
+independent of every coordinate outside it. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.StrandCanonicalByteOracle
 open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2 TranscriptV2 LigeroFamily
 open scoped Classical
-local instance : DecidableEq (Fin 2443) := fun a b => Classical.propDecidable (a = b)
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "N" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic N 768)
@@ -81,38 +81,6 @@ def window : Finset Bytes := Leaves ∪
   StrandCanonicalByteSupport.window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after
 
 local notation "Window" => window binary prime primePlan binaryNodes scalars inputFits privateFits setup before after
-
-/-- Sample one shared raw oracle on the complete execution support. The
-support is derived from both experiments, rather than supplied as a coverage
-certificate. Averaging the complementary coordinates adds no privacy loss. -/
-theorem statClose (fallback : Strand.Oracle) (pivotOne : binary.basis 0 = 1)
-    (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
-    (valid : ∀ SHA : Strand.Oracle, MdocWitness.UniformHashValid
-      (RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1))
-      (original ((before.run SHA).1)))
-    (signature : ∀ SHA : Strand.Oracle,
-      let b := RequestedSimulator.requestedBinary binary prime primePlan Sh (requestOf (before.run SHA).1)
-      let p := RequestedSimulator.requestedPrime binary prime primePlan Sh pCount (requestOf (before.run SHA).1)
-      p.circuit.Satisfies (CompleteHonest.primeInputs b p (original ((before.run SHA).1)) (remaining ((before.run SHA).1)))) :
-    StatClose ((preQueries + postQueries : ℕ) / (Fintype.card MerkleNonce : ℚ))
-      (fun coin : (HonestCoins × AuxiliaryCoins) × ({raw // raw ∈ Window} → Digest) =>
-        RawReal coin.1 (OracleWindow.extend Window coin.2 fallback))
-      (fun coin : (PublicCoins × AuxiliaryCoins) × ({raw // raw ∈ Window} → Digest) =>
-        RawSimulate coin.1 (OracleWindow.extend Window coin.2 fallback)) := by
-  exact Probability.changeFintype (StrandLeafWindow.statClose
-    (Leaf := LeafInput) (Raw := Bytes) (Answer := Digest) (View := PublicView)
-    (R := HonestCoins × AuxiliaryCoins) (S := PublicCoins × AuxiliaryCoins)
-    (StrandGhostMerkle.Probability.leafEmbedding Codec Dec) RawReal RawSimulate
-    Window
-    Finset.subset_union_left ((preQueries + postQueries : ℕ) / (Fintype.card MerkleNonce : ℚ))
-    (div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _))
-    (fun outside => StrandCanonicalHiding.raw_fixedComplement binary prime primePlan binaryNodes scalars inputFits privateFits setup
-      metadata original remaining roundSampler batchingSamples before requestOf after outside pivotOne primitive
-      (fun table => valid (StrandGhostMerkle.Swap.Slice.oracle
-        (StrandGhostMerkle.Probability.leafEmbedding Codec Dec) outside table))
-      (fun table => signature (StrandGhostMerkle.Swap.Slice.oracle
-        (StrandGhostMerkle.Probability.leafEmbedding Codec Dec) outside table)))
-    fallback)
 
 /-- The complete real view is independent of all coordinates outside the
 derived support, including its prior and subsequent query/answer traces. -/

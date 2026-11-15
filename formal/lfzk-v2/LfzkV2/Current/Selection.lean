@@ -46,14 +46,4 @@ theorem Context.extract_of_match (c : Context B N IB IN) (w : Pair B N IB IN)
   simp [Context.extract, hb, hn]
 
 end Fingerprints
-variable [Zero N] [One N]
-
-/-- Reconstruct the prime private inputs with the binary participant's shared
-bits. `other` supplies only the remaining prime input cells, not its pads or
-hiding scalar. The trusted layouts determine both projections. -/
-def primeInputs {Shared Other : Type}
-    (binaryBits : Candidate B IB → Shared → Bool) (other : Candidate N IN → Other → N)
-    (w : Pair B N IB IN) : Shared ⊕ Other → N :=
-  Sum.elim (fun i => if binaryBits w.1 i then 1 else 0) (other w.2)
-
 end LfzkV2.Current.Selection

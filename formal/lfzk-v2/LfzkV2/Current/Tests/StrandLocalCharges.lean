@@ -36,11 +36,4 @@ info: 'LfzkV2.Current.StrandLocalCharges.application_role_normalize' depends on 
 set_option pp.fullNames true in
 #print axioms StrandLocalCharges.application_role_normalize
 
-/--
-info: 'LfzkV2.Current.StrandLocalCharges.application_role_sum' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-set_option pp.fullNames true in
-#print axioms StrandLocalCharges.application_role_sum
-
 end LfzkV2.Current.Tests.StrandLocalCharges

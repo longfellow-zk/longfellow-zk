@@ -137,31 +137,6 @@ theorem beforeSeal_nodes_visible (out : Out) (G : Strand.Oracle) (i : Fin (round
     rw [last,replay_result]
     exact List.mem_append_right _ List.mem_cons_self
 
-/-- Only boundary nodes enter the shared node/Merkle collision allowance.
-Sampler blocks, including rejected draws, are in the disjoint PRF domain.
-The bound therefore does not depend on the sampler's raw query cutoff. -/
-theorem beforeSeal_nonPrf_card (out : Out) (G : Strand.Oracle) :
-    ((seen (beforeSeal history sample fallback model out) G).filter
-      (fun raw => decodePrf raw = none)).card ≤ rounds+1 := by
-  classical
-  let node := fun i : Fin (rounds+1) =>
-    (history (model.point out (oracle history sample fallback G) i.val)).input.encode
-  have subset : (seen (beforeSeal history sample fallback model out) G).filter
-      (fun raw => decodePrf raw = none) ⊆ Finset.univ.image node := by
-    intro raw member
-    obtain ⟨queried,nonPrf⟩ := Finset.mem_filter.mp member
-    obtain ⟨⟨point,answer⟩,member,equal⟩ := List.mem_map.mp (List.mem_toFinset.mp queried)
-    change point = raw at equal
-    subst point
-    rcases beforeSeal_queries history sample fallback model out G raw answer member with final | earlier
-    · exact Finset.mem_image.mpr ⟨Fin.last rounds,Finset.mem_univ _,final.symm⟩
-    · obtain ⟨i,current | ⟨counter,prf⟩⟩ := earlier
-      · exact Finset.mem_image.mpr ⟨i.castSucc,Finset.mem_univ _,current.symm⟩
-      · rw [prf,decodePrf_input] at nonPrf
-        contradiction
-  exact (Finset.card_le_card subset).trans
-    ((Finset.card_image_le).trans_eq (by simp only [Finset.card_univ,Fintype.card_fin]))
-
 def sealModel : StrandSealCharging.Model Bytes Digest (Out × model.State) where
   node result := (history (model.input result.2)).input.encode
   prf result digest := (Input.prf (history (model.input result.2)).id digest 0).encode

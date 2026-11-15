@@ -78,23 +78,6 @@ variable (context : Digest) (columnsFit : n ≤ 2^64)
 local notation "codec" => MerkleWireCodec.codec P R repr binary prime context columnsFit
 local notation "dec" => MerkleWireCodec.decoders P R repr binary prime context columnsFit
 
-/-- The exact independence obligation of the missing-query bound. Any
-postprocessing of this reader, including ordered decode and column selection,
-inherits the equality. No Merkle answer is consulted to choose the path. -/
-theorem read_merkle_off (H H' : Strand.Oracle) (raw : Bytes)
-    (merkle : IsMerkleInput (codec) raw) (agree : Bcs.TotalOracle.AgreeOff raw H H') :
-    StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H index =
-      StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H' index := by
-  apply StrandRecordedReplay.read_off wire bodyCodec encoding fallback proof trace sample H H' raw _ agree
-  intro id digest counter
-  rcases merkle with leaf | node
-  · obtain ⟨value,rfl⟩ := leaf
-    exact Ne.symm (StrandMerkleDomains.input_ne_leaf P R repr binary prime context columnsFit
-      (.prf id digest counter) value)
-  · obtain ⟨position,children,rfl⟩ := node
-    exact Ne.symm (StrandMerkleDomains.input_ne_node P R repr binary prime context columnsFit
-      (.prf id digest counter) position children)
-
 variable [Inhabited (Joint.Pair.family P R).Leaf]
 variable (indices : C → (Fin t ↪ Fin n))
 variable (raw : OrderedOpening.Raw t MerkleNonce (Joint.Pair.family P R).Leaf Digest)
@@ -106,16 +89,6 @@ def recordedSelect (H : Strand.Oracle) : SelectedPath (Enc := Bytes) (n := n)
     (Salt := MerkleWireCodec.Salt n) (M := (Joint.Pair.family P R).Leaf) (D := Digest) :=
   select (codec) (dec) (fun column nonce => (column,nonce)) indices fallback raw cut root fallbackPath
     (StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H index)
-
-theorem recordedSelect_off (H H' : Strand.Oracle) (input : Bytes)
-    (merkle : IsMerkleInput (codec) input) (agree : Bcs.TotalOracle.AgreeOff input H H') :
-    recordedSelect wire bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
-        indices raw cut root fallbackPath H =
-      recordedSelect wire bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
-        indices raw cut root fallbackPath H' := by
-  unfold recordedSelect
-  rw [read_merkle_off wire bodyCodec encoding fallback proof trace sample index
-    P R repr binary prime context columnsFit H H' input merkle agree]
 
 /-- Outside missing transcript nodes, the selected path belongs to the
 same ordered opening that the actual verifier decodes. The only extra

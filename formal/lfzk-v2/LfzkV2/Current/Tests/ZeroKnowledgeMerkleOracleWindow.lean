@@ -20,20 +20,9 @@ private def trees (_ : Unit) := observer
 example : 1000 ∈ window exampleCodec budgets trees :=
   queries_subset exampleCodec budgets trees () (Finset.mem_insert_self _ _)
 
-example : exampleCodec.leafEnc (false,true) ∈ window exampleCodec budgets trees :=
-  leaf_mem exampleCodec budgets trees _
-
-example : exampleCodec.nodeEnc (true,false) ∈ window exampleCodec budgets trees :=
-  node_mem exampleCodec budgets trees _
-
 #print axioms restrictMixed_run
-#print axioms finiteTree_run
-#print axioms finiteCodec_inj
 #print axioms queries_fixTranscript_subset
 #print axioms finiteResidual_output
-#print axioms commitLabels_eq
-#print axioms root_eq
 #print axioms commitPass_run
-#print axioms openCore_eq
 
 end LfzkV2.Current.Tests.ZeroKnowledgeMerkleOracleWindow

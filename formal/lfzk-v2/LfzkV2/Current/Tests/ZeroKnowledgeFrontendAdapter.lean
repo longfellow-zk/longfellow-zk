@@ -32,11 +32,7 @@ example (sharedWeights : Fin 768 → Adapter.Mdoc.P) (shared : Fin 768 → Bool)
 #print axioms AdapterBits.rawOtp_bits
 #print axioms Adapter.honestQuotient_runtime
 #print axioms Adapter.canonicalMask_value
-#print axioms Adapter.muAdvice_sameDistribution
 #print axioms Adapter.rawMuAdvice_sameDistribution
-#print axioms Adapter.Mdoc.sameDistribution
-#print axioms Adapter.Mdoc.quotients_runtime
 #print axioms Adapter.recovered_advice
 #print axioms Adapter.product_check_leaves
-#print axioms Adapter.Mdoc.recoveredInputs_satisfy
 end LfzkV2.Current.Tests.ZeroKnowledgeFrontendAdapter

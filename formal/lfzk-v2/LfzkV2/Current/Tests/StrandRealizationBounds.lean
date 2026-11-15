@@ -20,5 +20,4 @@ example (rounds : ℕ) : Current.Soundness.OracleBounds.delta 1 rounds =
 end LfzkV2.Current.Tests.StrandRealizationBounds
 
 run_cmd LfzkV2.Current.Tests.ProofAudit.standardAxioms #[
-  ``LfzkV2.Current.Soundness.OracleBounds.exception_ratio_le,
   ``LfzkV2.Current.Soundness.OracleBounds.actual_collision_ratio_le]

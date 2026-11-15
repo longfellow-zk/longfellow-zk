@@ -117,33 +117,6 @@ theorem replay (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fiel
   exact ((indexed_check codec (fun input => protocol (merkleInput input)) leaf node _ _ _ _).map _).mapQueries
     merkleInput (fun _ member => member)
 
-include leaf node in
-theorem replay_merge (outside inside : Bytes → Digest)
-    (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fields) (Advice := Advice) (Request := Request)) :
-    (StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run
-        (SHAOracle.merge protocol outside inside) =
-      (StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run inside :=
-  (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput leaf node output).run_eq _ _
-    (fun raw member => SHAOracle.merge_inside protocol outside inside raw member)
-
-variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : RuntimeAdaptive.PublicReader g (BoundedBytes capacity) (Fin prime.nPublic → N))
-variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
-
-include leaf node in
-theorem verify_merge (outside inside : Bytes → Digest)
-    (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fields) (Advice := Advice) (Request := Request)) :
-    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
-        (SHAOracle.merge protocol outside inside) merkleInput output =
-      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec inside merkleInput output := by
-  apply Eq.symm
-  apply StrandAuthentication.verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
-    hashPublic decodePublic draw output inside _
-  intro qa member
-  exact (SHAOracle.merge_inside protocol outside inside qa.1
-    ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput leaf node output).trace inside qa member)).trans
-      (Tree.trace_sound _ inside qa member).symm
-
 end Runtime
 
 end LfzkV2.Current.StrandDomains

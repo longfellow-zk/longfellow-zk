@@ -75,22 +75,6 @@ def stages
             (Equiv.prodCongr (binaryStage primeCoin converted) (Equiv.refl _)).trans
               (Equiv.prodCongrRight fun binaryCoin => packingStage primeCoin converted binaryCoin))))
 
-omit [Fintype B] [DecidableEq B] in
-theorem stages_apply
-    (native : CircuitTape prime.circuit ≃ CircuitTape prime.circuit)
-    (adapter : CircuitTape prime.circuit → (P × (Fin 2 → AdapterBits.RawWord)) ≃ ((P × MdocAdvice.Value) × AdapterBits.Unused))
-    (binaryStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
-      CircuitTape binary.description.circuit ≃ CircuitTape binary.description.circuit)
-    (packingStage : CircuitTape prime.circuit → ((P × MdocAdvice.Value) × AdapterBits.Unused) →
-      CircuitTape binary.description.circuit →
-        Packing.Tape (F := B) (0 : Fin 128) ≃ Packing.Tape (F := B) (0 : Fin 128))
-    (coins : CompleteHonest.Tape binary prime) :
-    let primeCoin := native coins.prime
-    let converted := adapter primeCoin (coins.mask,coins.otp)
-    let binaryCoin := binaryStage primeCoin converted coins.binary
-    stages binary prime native adapter binaryStage packingStage coins =
-      (primeCoin,converted,binaryCoin,packingStage primeCoin converted binaryCoin coins.packing) := rfl
-
 variable (coefficients : WitnessSelection.Coins B binary.description.Original ×
   WitnessSelection.Coins P prime.Original)
 variable (original : Fin binary.nPrivate → Bool) (remaining : Fin prime.remaining → P)

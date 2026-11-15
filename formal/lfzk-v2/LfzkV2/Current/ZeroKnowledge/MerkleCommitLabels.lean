@@ -49,19 +49,6 @@ theorem sampled_processed (request : Request) (tape : Fin (2*n-1) → Digest)
       · rw [Function.update_of_ne same]
         exact ih (by omega) (by omega)
 
-theorem sampled_unprocessed (request : Request) (tape : Fin (2*n-1) → Digest)
-    (count : ℕ) (fits : count ≤ 2*n-1) (vertex : ℕ)
-    (outside : vertex ≤ 2*n-1-count ∨ 2*n ≤ vertex) :
-    (sampledState n request tape count fits).2 vertex = default := by
-  induction count with
-  | zero => rfl
-  | succ count ih =>
-      change Function.update
-        (sampledState n request tape count (by omega)).2 (2*n-1-count)
-          (tape ⟨count,by omega⟩) vertex = _
-      rw [Function.update_of_ne (by omega)]
-      exact ih (by omega) (by omega)
-
 variable (codec : Codec Salt Message Digest Enc)
 variable (nonce : Request → Fin n → Salt) (cells : Request → Fin n → Message)
 
@@ -153,18 +140,6 @@ theorem sampledInput_injective (positive : 0 < n)
     (sampledInput_commitInput n codec nonce cells positive request tape injective first)
   rw [same]
   exact sampledInput_commitInput n codec nonce cells positive request tape injective second
-
-/-- The endpoint premises are the explicitly counted commitment collision
-events, rather than an unproved distinct-input certificate. -/
-theorem sampledInput_injective_of_no_collision (positive : 0 < n) (codecInjective : codec.Inj)
-    (request : Request) (tape : Fin (2*n-1) → Digest)
-    (noLeaves : ¬leafInputCollision codec n (nonce request) (cells request))
-    (noLabels : ¬PairCollision (2*n-1) (slotPairs (2*n-1) (2*n-1)) tape)
-    (noCross : ¬nodeInputHit codec n (nonce request) (cells request) tape) :
-    Function.Injective (sampledInput n codec nonce cells request tape) :=
-  sampledInput_injective n codec nonce cells positive request tape
-    (commitInputsInjective_of_no_tape_collision codec n positive (nonce request) (cells request)
-      tape (le_refl _) codecInjective noLeaves noLabels noCross)
 
 theorem mem_commitSeen_iff_sampledInput (positive : 0 < n)
     (request : Request) (tape : Fin (2*n-1) → Digest)

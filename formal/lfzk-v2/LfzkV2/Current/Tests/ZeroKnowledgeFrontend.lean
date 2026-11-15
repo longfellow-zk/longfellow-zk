@@ -41,13 +41,6 @@ theorem circuit_valid : (circuit (F := F)).Satisfies 0 := by
     Native.AssertionTerm.residual,LfzkV2.quadratic,dot]
   exact ⟨Or.inl rfl,rfl⟩
 
-example [Fintype F] {Observed : Type} [DecidableEq Observed]
-    (observe : Layered.Replay.Payload (circuit (F := F)) → Observed) :
-    LigeroFamily.SameDistribution
-      (fun pads => observe (realCircuit adaptiveReader plan 0 0 0 pads))
-      (fun coins => observe (simulateCircuit circuit coins)) :=
-  circuit_sameDistribution adaptiveReader plan 0 0 0 observe
-
 example (payload : Layered.Replay.Payload (circuit (F := F))) :
     let ids := CellLayout.Pads.plan circuit id
     let messages := messagesFromSetup circuit
@@ -65,15 +58,7 @@ example (q w : Cube 0 → F) (state : F) (messages : Fin 0 → RoundPoly F) :
   real_recover _ _ _ _ _
 
 #print axioms roundsEquiv
-#print axioms layer_sameDistribution
-#print axioms circuit_sameDistribution
 #print axioms circuitPadValues_assignment
 #print axioms realCircuit_honest
 #print axioms simulated_constraints
-#print axioms readSetup_answers_initial
-#print axioms simulated_current_constraints
-#print axioms selectionPayloadEquiv_recovered
-#print axioms selectedCircuit_sameDistribution
-#print axioms selectedCircuit_recovered_constraints
-#print axioms jointSelectionPayloadEquiv_recovered
 end LfzkV2.Current.Tests.ZeroKnowledgeFrontend

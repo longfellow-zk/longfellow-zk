@@ -10,7 +10,6 @@ open Merkle Merkle.Indexed Merkle.RandomOracle
 open scoped Classical
 
 variable {Salt Message Digest Raw Context Result : Type} {n preFuel postFuel : ℕ}
-local instance : DecidableEq (Fin n) := fun a b => Classical.propDecidable (a = b)
 
 variable (codec : Codec (Fin n × Salt) Message Digest Raw) (dec : RoleDecoders codec)
 variable (before : RandomOracle.Tree Raw Digest Context preFuel)
@@ -66,66 +65,5 @@ def honestView (H : Raw → Digest) (nonces : Fin n → Salt) (I : Finset (Fin n
     (commitLabels (codec.withOracle H) n (fun index => (index,nonces index)) (columns context) 1,
       openCore (codec.withOracle H) n I (fun index => (index,nonces index)) (columns context),
       (after (fun index => nonces index.val)).run H))
-
-def ghostView (H : Raw → Digest) (leaves : Fin n → Digest)
-    (I : Finset (Fin n)) (after : (I → Salt) → RandomOracle.Tree Raw Digest Result postFuel)
-    (revealed : I → Salt) :=
-  let context := (before.run H).1
-  (before.run H,
-    (Tree.labels codec H leaves 1,Tree.opening codec H leaves I revealed,
-      Observer.observe codec dec H I leaves (fun index => columns context index.val) after revealed))
-
-include separated in
-theorem coupled_view_eq_of_no_hit (H : Raw → Digest) (nonces : Fin n → Salt)
-    (leaves : Fin n → Digest) (I : Finset (Fin n))
-    (after : (I → Salt) → RandomOracle.Tree Raw Digest Result postFuel)
-    (miss : ¬ Nonce.Hit (Observer.candidate codec dec) I
-      ((before.run H).2.map Prod.fst)
-      (fun revealed => (Observer.observe codec dec H I leaves
-        (fun index => columns (before.run H).1 index.val) after revealed).2.map Prod.fst) nonces) :
-    honestView codec before columns (coupledOracle codec dec before columns H nonces leaves) nonces I after =
-      ghostView codec dec before columns H leaves I after (fun index => nonces index.val) := by
-  have installed := coupledOracle_eq_installAll codec dec before columns H nonces leaves I _ miss
-  unfold honestView ghostView
-  rw [prior_preserved,installed]
-  dsimp only
-  rw [Tree.installAll_commit codec dec separated,
-    Tree.installAll_opening codec dec separated,
-    Observer.observer_eq_of_no_hit codec dec H I nonces (columns (before.run H).1) leaves after _ miss]
-
-include separated in
-theorem coupled_view_disagreement_ratio_le [Fintype Salt] [Nonempty Salt]
-    (H : Raw → Digest) (leaves : Fin n → Digest) (I : Finset (Fin n))
-    (after : (I → Salt) → RandomOracle.Tree Raw Digest Result postFuel) :
-    ((Finset.univ.filter fun nonces : Fin n → Salt =>
-      honestView codec before columns (coupledOracle codec dec before columns H nonces leaves) nonces I after ≠
-        ghostView codec dec before columns H leaves I after (fun index => nonces index.val)).card : ℚ) /
-        (Fintype.card Salt : ℚ) ^ n ≤
-      (preFuel + postFuel : ℕ) / (Fintype.card Salt : ℚ) := by
-  let later := fun revealed => (Observer.observe codec dec H I leaves
-    (fun index => columns (before.run H).1 index.val) after revealed).2.map Prod.fst
-  have bounded : ∀ revealed, (later revealed).length ≤ postFuel := by
-    intro revealed
-    simpa only [later,List.length_map] using Observer.observe_length codec dec H I leaves
-      (fun index => columns (before.run H).1 index.val) after revealed
-  have law := Nonce.event_ratio_le (Observer.candidate codec dec) I
-    ((before.run H).2.map Prod.fst) later
-    (fun nonces => honestView codec before columns
-      (coupledOracle codec dec before columns H nonces leaves) nonces I after ≠
-        ghostView codec dec before columns H leaves I after (fun index => nonces index.val))
-    (fun nonces miss => not_not.mpr
-      (coupled_view_eq_of_no_hit codec dec before columns separated H nonces leaves I after miss))
-    postFuel bounded
-  have priorBound : (before.run H).2.length ≤ preFuel := Observer.trace_length before H
-  have small : (((before.run H).2.map Prod.fst).length + postFuel : ℕ) /
-      (Fintype.card Salt : ℚ) ≤ (preFuel + postFuel : ℕ) / (Fintype.card Salt : ℚ) := by
-    apply div_le_div_of_nonneg_right _ (Nat.cast_nonneg _)
-    simp only [List.length_map]
-    exact_mod_cast Nat.add_le_add_right priorBound postFuel
-  calc
-    _ ≤ (((before.run H).2.map Prod.fst).length + postFuel : ℕ) /
-        (Fintype.card Salt : ℚ) :=
-      Observer.filterRatio_changeDecider (by simpa only [Fintype.card_fin] using law)
-    _ ≤ _ := small
 
 end LfzkV2.Current.ZeroKnowledge.StrandGhostMerkle.History

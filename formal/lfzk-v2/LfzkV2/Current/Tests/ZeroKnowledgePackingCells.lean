@@ -24,11 +24,8 @@ example (basis : Module.Basis (Fin 2) (ZMod 2) F) (bits : Fin 3 → Bool) :
   packedWords_zero_tail basis bits 1 1 (by decide)
 
 #print axioms packing_realize
-#print axioms freeMaskEquiv_apply
 #print axioms unpack_values
 #print axioms source_realize
 #print axioms source_change_masks
-#print axioms simulated_source_rows
-#print axioms source_rows
 
 end LfzkV2.Current.Tests.ZeroKnowledgePackingCells
