@@ -63,6 +63,15 @@ impl PolygeroGeometry {
         geom.validate()?;
         Ok(geom)
     }
+    /// The profile `(k, s, n, t)` of this geometry.
+    pub fn config(&self) -> PolygeroConfig {
+        PolygeroConfig {
+            k: self.k,
+            s: self.s,
+            n: self.n,
+            t: self.t,
+        }
+    }
     pub(crate) fn sizes(&self) -> [usize; 5] {
         [self.nw, self.k, self.s, self.n, self.t]
     }

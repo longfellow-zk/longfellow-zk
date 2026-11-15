@@ -51,11 +51,6 @@ fn packing_messages_match_canonical_bytes() {
     word(17, &mut bytes); // ZkStatement
     bytes_value(b"longfellow/v2/zk/transcript/v2", &mut bytes);
     bytes_value(b"packing-vector", &mut bytes);
-    word(1, &mut bytes);
-    word(4, &mut bytes);
-    for _ in 0..4 {
-        word(0, &mut bytes);
-    }
     word(80, &mut bytes); // PackingU
     word(2, &mut bytes); // Elements
     word(4, &mut bytes); // GF(2^128)

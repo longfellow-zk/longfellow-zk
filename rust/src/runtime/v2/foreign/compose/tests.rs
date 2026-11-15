@@ -58,10 +58,7 @@ where
     M: AdapterMode<F>,
 {
     fn write(&self, h: &mut Header<'_>) {
-        h.send(&ZkStatement {
-            context: LABEL,
-            profile: [0; 4],
-        });
+        h.send(&ZkStatement { context: LABEL });
         self.0.write(h);
     }
 }

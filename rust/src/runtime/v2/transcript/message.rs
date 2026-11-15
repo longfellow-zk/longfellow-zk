@@ -148,20 +148,18 @@ impl<'a> Encoder<'a> {
 pub const ZK_PROTOCOL_ID: &[u8] = b"longfellow/v2/zk/transcript/v2";
 
 /// The identity message of a standalone statement: Bytes protocol ID
-/// (`ZK_PROTOCOL_ID`), Bytes context, Nats(k, s, n, t) Polygero profile.
-/// Alone it is the whole statement of a bare transcript (tests, tools); a
-/// standalone ZK proof follows it with its circuit, geometry and public
-/// input messages.
+/// (`ZK_PROTOCOL_ID`), Bytes context. Alone it is the whole statement of a
+/// bare transcript (tests, tools), which has no Polygero profile; a
+/// standalone ZK proof follows it with its circuit and geometry messages,
+/// whose `JointGeometry` holds the profile, and its public inputs.
 pub struct ZkStatement<'a> {
     pub context: &'a [u8],
-    pub profile: [u64; 4],
 }
 impl Message for ZkStatement<'_> {
     const TAG: Tag = Tag::ZkStatement;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.bytes(ZK_PROTOCOL_ID);
         e.bytes(self.context);
-        e.nats(&self.profile);
     }
 }
 impl SetupMessage for ZkStatement<'_> {}

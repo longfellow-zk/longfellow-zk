@@ -19,9 +19,10 @@ structure Identifiers where
   hashCircuit : Digest
   primeCircuit : Digest
   /-- The statement constants after the combined hash, as node 0 absorbs
-  them: the statement message's attribute and geometry values, then the
+  them: the statement message's (version, attribute count) value, then the
   `Circuit`, `CommitmentLayout`, `AdapterLayout` and `JointGeometry`
-  messages, all fixed by the trusted circuits. -/
+  messages, all fixed by the trusted circuits. The Polygero profile is in
+  `JointGeometry` only. -/
   statement : Bytes
   hash : Bytes → Digest
 

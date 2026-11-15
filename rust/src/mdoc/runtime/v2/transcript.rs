@@ -13,7 +13,6 @@ use crate::runtime::{
     v2::{
         proto::tags::Tag,
         transcript::{Encoder, Header, Message, SetupMessage, Statement},
-        zk::statement_profile,
     },
 };
 
@@ -22,12 +21,10 @@ pub(super) const PROTOCOL_ID: &[u8] = b"longfellow/v2/mdoc/transcript/v2";
 
 /// `MdocStatement` (16): Bytes protocol ID (`PROTOCOL_ID`); Bytes session
 /// transcript; Bytes(32) the spec's combined archive hash; Nats(circuit
-/// version, attribute count); Nats(k, s, n, t), the proof's one Polygero
-/// profile.
+/// version, attribute count). The Polygero profile is in `JointGeometry`.
 struct Identity<'a> {
     session: &'a [u8],
     spec: &'a ZkSpecStruct,
-    profile: [u64; 4],
 }
 impl Message for Identity<'_> {
     const TAG: Tag = Tag::MdocStatement;
@@ -36,7 +33,6 @@ impl Message for Identity<'_> {
         e.bytes(self.session);
         e.bytes(&self.spec.combined_hash);
         e.nats(&[self.spec.version as u64, self.spec.num_attributes as u64]);
-        e.nats(&self.profile);
     }
 }
 impl SetupMessage for Identity<'_> {}
@@ -93,7 +89,6 @@ where
         h.send(&Identity {
             session: self.session,
             spec: self.spec,
-            profile: statement_profile(self.geometry.body.config),
         });
         self.composed.write(h);
     }

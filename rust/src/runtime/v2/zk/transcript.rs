@@ -55,8 +55,8 @@ impl<F: SerializableField> SetupMessage for CircuitMessage<'_, F> {}
 /// - Nats(mask start, mask width): the bits of the split mask R among the binary inputs (its native
 ///   cell follows every native value); (0, 0) without one.
 ///
-/// The packing masks follow from the descriptor's degree, and the cell
-/// count `nw` from all of these (`JointGeometry` repeats it per field).
+/// The packing masks follow from the descriptor's degree, and the
+/// committed cell count `nw` from all of these.
 struct LayoutMessage<'a, const W: usize, F: ZkField<W> + PackingField>(
     &'a CircuitParticipant<W, F>,
 );
@@ -102,20 +102,17 @@ impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_,
 impl<const W: usize, F: ZkField<W> + PackingField> SetupMessage for LayoutMessage<'_, W, F> {}
 
 /// `JointGeometry` (20): Nats(k, s, n, t), the one Polygero profile of the
-/// proof; Nats(nw of each committing field, in participant order), its
-/// committed cells including the two fingerprint masks.
-struct JointGeometryMessage<'a> {
-    config: PolygeroConfig,
-    nw: &'a [u64],
-}
-impl Message for JointGeometryMessage<'_> {
+/// proof. It is the only place the statement holds the profile; each
+/// field's committed cell count follows from its `CommitmentLayout`.
+struct JointGeometryMessage(PolygeroConfig);
+impl Message for JointGeometryMessage {
     const TAG: Tag = Tag::JointGeometry;
     fn encode(&self, e: &mut Encoder<'_>) {
-        e.nats(&statement_profile(self.config));
-        e.nats(self.nw);
+        let c = self.0;
+        e.nats(&[c.k as u64, c.s as u64, c.n as u64, c.t as u64]);
     }
 }
-impl SetupMessage for JointGeometryMessage<'_> {}
+impl SetupMessage for JointGeometryMessage {}
 
 /// `PublicInputs` (21): Elements(F, npublic), a primary circuit's public
 /// inputs as elements of its field, the representation the circuit reads.
@@ -130,11 +127,6 @@ impl<F: SerializableField> Message for PublicInputsMessage<'_, F> {
     }
 }
 impl<F: SerializableField> SetupMessage for PublicInputsMessage<'_, F> {}
-
-/// The profile `(k, s, n, t)` as statement integers.
-pub fn statement_profile(c: PolygeroConfig) -> [u64; 4] {
-    [c.k as u64, c.s as u64, c.n as u64, c.t as u64]
-}
 
 impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
     /// One `Circuit` message per circuit of this frontend, primary first.
@@ -156,14 +148,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
     }
 }
 
-/// The `JointGeometry` of a proof: its profile and the cell count `nw` of
-/// each committing field, in participant order.
-pub fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig, nw: &[u64]) {
-    h.send(&JointGeometryMessage { config, nw });
+/// The `JointGeometry` of a proof: its one Polygero profile, the `config`
+/// of the geometry its proof is parsed and verified against.
+pub fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig) {
+    h.send(&JointGeometryMessage(config));
 }
 
 /// The statement of a standalone ZK proof: `ZkStatement` (protocol ID,
-/// context, profile), then the frontend's `Circuit` messages, its
+/// context), then the frontend's `Circuit` messages, its
 /// `CommitmentLayout`, the `JointGeometry` and its `PublicInputs`. The proof
 /// is parsed against `geometry`, the geometry it writes (transcript I2).
 pub struct ZkProofStatement<'a, const W: usize, F: ZkField<W> + PackingField> {
@@ -183,15 +175,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> Statement for ZkProofStatemen
     fn write(&self, h: &mut Header<'_>) {
         h.send(&ZkStatement {
             context: self.context,
-            profile: statement_profile(self.geometry.config),
         });
         self.part.write_circuits(h);
         self.part.write_layout(h);
-        write_joint_geometry(
-            h,
-            self.geometry.config,
-            &[self.geometry.circuit.com_geom.nw as u64],
-        );
+        write_joint_geometry(h, self.geometry.config);
         self.part.write_public(h);
     }
 }

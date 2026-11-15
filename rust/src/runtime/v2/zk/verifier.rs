@@ -91,7 +91,6 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
 /// A standalone verifier of one circuit under one Polygero profile.
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
     circuit: Circuit<F>,
-    config: PolygeroConfig,
     participant: CircuitParticipant<W, F>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
@@ -104,14 +103,16 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             .map_err(ZkVerificationError::PolygeroVerification)?;
         Ok(Self {
             circuit,
-            config,
             participant,
         })
     }
+    /// The geometry the statement writes and the proof is parsed against.
+    /// Its profile is the participant's, the one verification uses.
     pub fn geometry(&self) -> ZkProofGeometry {
+        let circuit = self.participant.geometry();
         ZkProofGeometry {
-            circuit: self.participant.geometry(),
-            config: self.config,
+            config: circuit.com_geom.config(),
+            circuit,
         }
     }
     pub(crate) fn public_input_count(&self) -> usize {

@@ -1221,7 +1221,8 @@ fn check_mdoc_trace(
         .map(|m| m.schema[0].1)
         .collect();
     assert_eq!(public, [901 + 788 * count as u64, 258]);
-    // The absorbed geometry is the parsing geometry (transcript I2, I3).
+    // The absorbed geometry is the parsing geometry (transcript I2, I3):
+    // the one profile is in `JointGeometry`, and it is the spec's.
     let joint = trace.messages().nth(7).unwrap();
     let nats: Vec<u64> = joint
         .payload
@@ -1230,19 +1231,9 @@ fn check_mdoc_trace(
         .iter()
         .map(|x| u64::from_le_bytes(*x))
         .collect();
-    let g = &geometry.body;
-    let c = g.config;
-    assert_eq!(
-        nats,
-        [
-            c.k as u64,
-            c.s as u64,
-            c.n as u64,
-            c.t as u64,
-            g.host.com_geom.nw as u64,
-            g.split.com_geom.nw as u64
-        ]
-    );
+    let c = geometry.body.config;
+    assert_eq!(nats, [c.k as u64, c.s as u64, c.n as u64, c.t as u64]);
+    assert_eq!(provided.spec().configs(), (c, c));
     if count == 1 {
         let node = &trace.nodes[0];
         export_vectors(&format!(
@@ -1252,7 +1243,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "71dd5456dd7fbb0594046e56fc603d278f8436a8843092892078976fb2ab1205"
+            "715b24058bea9839fc0746dafaa42340760d5f66c19ddb406d5358ef27be945e"
         );
     }
 }

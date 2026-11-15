@@ -50,9 +50,8 @@ fn le(x: u64) -> [u8; 8] {
     x.to_le_bytes()
 }
 
-/// The root node of `Transcript::for_test(b"vector")` with profile 1..4,
-/// one test message and the ROUND terminator, built by hand from the byte
-/// grammar.
+/// The root node of `Transcript::for_test(b"vector")` with one test message
+/// and the ROUND terminator, built by hand from the byte grammar.
 fn vector_root() -> Vec<u8> {
     let mut v = Vec::new();
     v.extend(1u32.to_le_bytes());
@@ -63,11 +62,6 @@ fn vector_root() -> Vec<u8> {
         v.extend(le(0));
         v.extend(le(b.len() as u64));
         v.extend(b);
-    }
-    v.extend(le(1));
-    v.extend(le(4));
-    for x in 1..=4 {
-        v.extend(le(x));
     }
     v.extend(le(32));
     v.extend(le(0));
@@ -81,10 +75,7 @@ fn vector_root() -> Vec<u8> {
 /// encodings, computed outside this crate.
 #[test]
 fn independent_node_and_seal_vectors() {
-    let mut t = Transcript::new(&ZkStatement {
-        context: b"vector",
-        profile: [1, 2, 3, 4],
-    });
+    let mut t = Transcript::new(&ZkStatement { context: b"vector" });
     t.send_for_test(b"message");
     let mut bytes = t.bytes(3);
     bytes.extend(t.bytes(157));
@@ -92,17 +83,17 @@ fn independent_node_and_seal_vectors() {
     assert_eq!(
         hex::encode(&bytes),
         concat!(
-            "76265e7061a1ce11f409d9f1a1beef535d096e0f6d6620253b2f95ca8ed859f0",
-            "b8c225b5d45d9e672a6c94da295d587fe21b2ce3ff0b50ac1e60dcc348c27767",
-            "dd10df42992a32686279530768dff2ff5a564a9ffb423c1185ab223da4b8b92e",
-            "982804442425be57d03dc621fef24997ac3c87a0d457ed604bbc4c7026cc37f0",
-            "8f7dcaba5a72fae79789082e2372628df2a2bd67a70f1adb60833cc5c9ebfd7d"
+            "36a420811a898f44127afeeaf36abc10030b132315e76a61100442f0ab5ae579",
+            "8bcf7193e9a64cc665ebcebc91d3df4dff8303497d2e30b3c821d803c86d7cff",
+            "7d24b0661d1f3fb1b98286d69cba7447d153f88c3da9b7758dd0925d186ad80d",
+            "5e4a81bae077e37cc107f00d88ca2ffc0717bd5a57ac7a129093697d0af4c034",
+            "08d4ca0c98f81fb0f4d76335dcefdb27735d3544bf8825f6f41798397b8a4790"
         )
     );
     let sealed = t.append_final_seal(vec![1, 2, 3]).into_bytes();
     assert_eq!(
         hex::encode(&sealed[3..]),
-        "c2506de2fade51d35c5a84653259bb5961a4c5238167e2960cf46e347aa3d83e"
+        "0a3dee3652ae0c7401b80478db87ec4a8d25256d59e4aaab0822a27e478297e2"
     );
 }
 

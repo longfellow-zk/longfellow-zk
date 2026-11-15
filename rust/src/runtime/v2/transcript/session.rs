@@ -153,13 +153,10 @@ impl Transcript {
         t
     }
     /// A bare session for tests and tools: its whole statement is a
-    /// `ZkStatement` with `context` and an empty profile.
+    /// `ZkStatement` with `context`.
     #[cfg(any(test, feature = "testonly"))]
     pub fn for_test(context: &[u8]) -> Self {
-        Self::new(&ZkStatement {
-            context,
-            profile: [0; 4],
-        })
+        Self::new(&ZkStatement { context })
     }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn borrow(&mut self) -> TranscriptRef<'_> {

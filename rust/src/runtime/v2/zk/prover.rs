@@ -141,7 +141,6 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
 /// A standalone prover of one circuit under one Polygero profile.
 pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) circuit: Circuit<F>,
-    config: PolygeroConfig,
     participant: CircuitParticipant<W, F>,
 }
 /// A commitment on a transcript opened with `statement`; the proof is completed
@@ -166,7 +165,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)?;
         Ok(Self {
             circuit,
-            config,
             participant,
         })
     }
@@ -179,9 +177,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         Ok(ZkProofStatement {
             context,
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
-            geometry: ZkProofGeometry {
-                circuit: self.participant.geometry(),
-                config: self.config,
+            geometry: {
+                let circuit = self.participant.geometry();
+                ZkProofGeometry {
+                    config: circuit.com_geom.config(),
+                    circuit,
+                }
             },
         })
     }

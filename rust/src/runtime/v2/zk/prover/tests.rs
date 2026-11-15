@@ -173,7 +173,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let independent_param = JointParam::new((
         SelectedField::new(
             prover.participant.backend.layout.witness_count,
-            prover.config,
+            geometry.config,
             &domain,
             PackingField::packing_id(&f),
         )

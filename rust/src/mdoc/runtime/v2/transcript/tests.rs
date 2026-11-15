@@ -28,14 +28,13 @@ fn spec(hash: [u8; 32]) -> ZkSpecStruct {
 }
 
 /// `MdocStatement` writes the protocol ID, the session transcript, the
-/// combined hash, (version, attribute count) and the profile, in order.
+/// combined hash and (version, attribute count), in order.
 #[test]
 fn identity_has_its_documented_encoding() {
     let spec = spec([7; 32]);
     let t = Transcript::new(&IdentityOnly(Identity {
         session: b"session",
         spec: &spec,
-        profile: [8, 2, 64, 2],
     }));
     let le = |x: u64| x.to_le_bytes();
     let mut expected = le(16).to_vec();
@@ -44,12 +43,10 @@ fn identity_has_its_documented_encoding() {
         expected.extend(le(b.len() as u64));
         expected.extend(b);
     }
-    for xs in [&[7u64, 3][..], &[8, 2, 64, 2]] {
-        expected.extend(le(1));
-        expected.extend(le(xs.len() as u64));
-        for &x in xs {
-            expected.extend(le(x));
-        }
+    expected.extend(le(1));
+    expected.extend(le(2));
+    for x in [7, 3] {
+        expected.extend(le(x));
     }
     let node = t.preimage_for_test();
     assert!(node.ends_with(&expected));
@@ -65,7 +62,6 @@ fn statement_binds_combined_hash() {
         Transcript::new(&IdentityOnly(Identity {
             session: b"session",
             spec: &spec,
-            profile: [8, 2, 64, 2],
         }))
         .bytes(32)
     };

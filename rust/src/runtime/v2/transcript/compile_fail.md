@@ -2,7 +2,7 @@ A reader cannot send a message:
 
 ```compile_fail,E0599
 use longfellow_zk::runtime::v2::transcript::{Reading, ZkStatement};
-fn bad(mut r: Reading<'_>) { r.send(&ZkStatement { context: b"late", profile: [0; 4] }); }
+fn bad(mut r: Reading<'_>) { r.send(&ZkStatement { context: b"late" }); }
 ```
 
 Only a statement writes setup messages: the header exists only while
@@ -60,7 +60,7 @@ Positive control: a statement opens a session.
 
 ```
 use longfellow_zk::runtime::v2::transcript::{Transcript, ZkStatement};
-let t = Transcript::new(&ZkStatement { context: b"context", profile: [8, 2, 64, 2] });
+let t = Transcript::new(&ZkStatement { context: b"context" });
 ```
 
 Borrowed frontend operations cannot replace, clone or finalize their owner's
@@ -68,7 +68,7 @@ session:
 
 ```compile_fail,E0614
 use longfellow_zk::runtime::v2::transcript::{Transcript, TranscriptRef, ZkStatement};
-fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::new(&ZkStatement { context: b"r", profile: [0; 4] }); }
+fn bad(mut t: TranscriptRef<'_>) { *t = Transcript::new(&ZkStatement { context: b"r" }); }
 ```
 
 ```compile_fail,E0599

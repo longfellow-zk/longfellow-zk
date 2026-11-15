@@ -393,8 +393,8 @@ fn binary_zk_comparison() {
     use crate::runtime::v2::proto::tests::{export_vectors, node_vector};
     let mut text = String::from(
         "## Standalone GF(2^128) proof: ZkStatement context \"longfellow/v2/test\", \
-         profile (8, 2, 64, 2), the 3-input quadratic test circuit, public input 1, \
-         DeterministicRng(42); every node of the full transcript\n\n",
+         profile (8, 2, 64, 2) in JointGeometry, the 3-input quadratic test circuit, \
+         public input 1, DeterministicRng(42); every node of the full transcript\n\n",
     );
     for (i, node) in trace.nodes.iter().enumerate() {
         text += &node_vector("standalone", i, node);
@@ -403,7 +403,7 @@ fn binary_zk_comparison() {
     let all: Vec<u8> = trace.nodes.concat();
     assert_eq!(
         hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&all)),
-        "c86cb97d713ab13a6ef3e0c48a219466e71a8fb1ff9a8380eedf4194223ab2e8"
+        "550454480726f9e936b0b586aefa81de29e32720a78aa42a26d48650c15a413e"
     );
 }
 #[test]

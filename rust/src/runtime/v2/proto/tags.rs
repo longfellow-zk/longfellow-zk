@@ -15,9 +15,9 @@
 #[repr(u64)]
 pub enum Tag {
     /// Bytes protocol ID, Bytes session transcript, Bytes(32) combined
-    /// hash, Nats(version, attribute count), Nats(k, s, n, t).
+    /// hash, Nats(version, attribute count).
     MdocStatement = 16,
-    /// Bytes protocol ID, Bytes context, Nats(k, s, n, t).
+    /// Bytes protocol ID, Bytes context.
     ZkStatement = 17,
     /// Bytes(32) circuit ID, Nats(nw of each layer), Nats(output count,
     /// input count, public input count).
@@ -26,7 +26,7 @@ pub enum Tag {
     /// cells), Bytes packing descriptor, Nats(storage runs), Nats(mask
     /// start, mask width).
     CommitmentLayout = 19,
-    /// Nats(k, s, n, t), Nats(nw of each committing field).
+    /// Nats(k, s, n, t): the proof's one Polygero profile.
     JointGeometry = 20,
     /// Elements(F, n): a circuit's public inputs.
     PublicInputs = 21,

@@ -202,12 +202,7 @@ where
         self.host.write_layout(h);
         self.split.write_layout(h);
         self.composition.mode.write_layout(h);
-        let g = &self.geometry;
-        write_joint_geometry(
-            h,
-            g.config,
-            &[g.host.com_geom.nw as u64, g.split.com_geom.nw as u64],
-        );
+        write_joint_geometry(h, self.geometry.config);
         self.host.write_public(h);
         self.split.write_public(h);
     }
