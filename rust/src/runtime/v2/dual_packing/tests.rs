@@ -359,7 +359,7 @@ fn roundtrip<X: PackingExtension>(
     }
 }
 #[test]
-fn odd_characteristic_nonunit_basis_and_characteristic_dividing_degree() {
+fn odd_characteristic_nonnative_basis_and_characteristic_dividing_degree() {
     let p = PackingParameters::new(Quad::<3, 0, 2>, Quad::<3, 0, 2>).unwrap();
     laws(&p, &[1, 2, 0, 2, 1]);
     let mut rng = DeterministicRng::new(17);
@@ -367,8 +367,9 @@ fn odd_characteristic_nonunit_basis_and_characteristic_dividing_degree() {
         [rng.bytes(1)[0] % 3, rng.bytes(1)[0] % 3]
     });
     let changed =
-        PackingParameters::with_basis(Quad::<5, 0, 2>, Quad::<5, 0, 2>, vec![[2, 1], [1, 1]])
+        PackingParameters::with_basis(Quad::<5, 0, 2>, Quad::<5, 0, 2>, vec![[1, 0], [2, 1]])
             .unwrap();
+    assert!(changed.basis() != Quad::<5, 0, 2>.native_basis(&Quad::<5, 0, 2>));
     laws(&changed, &[1, 3, 4]);
     roundtrip(&changed, &[1, 3, 4], || {
         [rng.bytes(1)[0] % 5, rng.bytes(1)[0] % 5]
@@ -720,6 +721,38 @@ fn distinguished_mask_coordinate_must_complement_the_base_field() {
     assert!(PackingParameters::with_basis(f, f, vec![x, f.one()]).is_err());
     let good = PackingParameters::new(f, f).unwrap();
     assert_eq!(good.basis(), &[f.one(), x]);
+}
+
+#[test]
+fn every_packing_basis_starts_with_one() {
+    use crate::runtime::algebra::{
+        gf2_128::{Gf2_128, Gf2_128Field},
+        packing::binary::Binary128Extension,
+    };
+    // These bases complement K at coordinate zero (one has a nonzero
+    // zeroth coordinate), but beta_0 != 1, so they are rejected anyway.
+    let f = Quad::<5, 0, 2>;
+    for basis in [
+        vec![[2, 1], [1, 1]],
+        vec![[2, 0], [0, 1]],
+        vec![[1, 1], [0, 1]],
+    ] {
+        assert_eq!(
+            PackingParameters::with_basis(f, f, basis).err().as_deref(),
+            Some("packing basis must start with one")
+        );
+    }
+    assert!(PackingParameters::with_basis(f, f, vec![[1, 0], [1, 1]]).is_ok());
+    let g = Gf2_128Field::new();
+    let mut basis = Binary128Extension.native_basis(&g);
+    assert!(PackingParameters::with_basis(g.clone(), Binary128Extension, basis.clone()).is_ok());
+    basis[0] = Gf2_128::from(3u128);
+    assert_eq!(
+        PackingParameters::with_basis(g, Binary128Extension, basis)
+            .err()
+            .as_deref(),
+        Some("packing basis must start with one")
+    );
 }
 
 // Independent slow exponentiation used only by the algebraic reference tests.
