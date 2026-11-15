@@ -774,3 +774,18 @@ fn power<F: AlgebraicField>(f: &F, x: &F::E, exponent: &[u8]) -> F::E {
 }
 
 mod transcript;
+
+/// Packing masks are used once (dual packing I8, audit D1): they are not
+/// `Clone`, so one sample cannot mask two source claims; `prove_packed`
+/// takes them by value.
+#[test]
+fn packing_masks_are_not_clone() {
+    // Resolves only if exactly one impl applies, that is, if `T` is not Clone.
+    trait AmbiguousIfClone<A> {
+        fn check() {}
+    }
+    impl<T> AmbiguousIfClone<()> for T {}
+    struct IsClone;
+    impl<T: Clone> AmbiguousIfClone<IsClone> for T {}
+    <PackingMasks<u64> as AmbiguousIfClone<_>>::check();
+}
