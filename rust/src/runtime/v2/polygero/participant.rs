@@ -92,25 +92,30 @@ impl<
         b.0.validate(&self.0.param.geom)?;
         self.1.validate_bodies(&b.1)
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn wire_len(&self) -> Option<usize> {
         let [response, rows] =
             FieldProof::<()>::wire_lengths(&self.0.param.geom, self.0.f.serialized_size_bytes())?;
         response.checked_add(rows)?.checked_add(self.1.wire_len()?)
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_responses(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError> {
         b.0.write_response(out, &self.0.param.geom, self.0.f)?;
         self.1.write_responses(&b.1, out)
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_rows(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError> {
         b.0.write_rows(out, &self.0.param.geom, self.0.f)?;
         self.1.write_rows(&b.1, out)
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError> {
         Ok((
             FieldProof::read_response(bytes, &self.0.param.geom, self.0.f)?,
             self.1.read_responses(bytes)?,
         ))
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError> {
         b.0.read_rows(bytes, &self.0.param.geom, self.0.f)?;
         self.1.read_rows(&mut b.1, bytes)

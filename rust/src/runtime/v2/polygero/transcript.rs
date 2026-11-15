@@ -29,6 +29,8 @@ use super::{
     joint::{BatchWeights, FieldChallenges, JointPolygeroParam},
     PolygeroParam,
 };
+#[cfg(any(test, feature = "testonly", feature = "tooling"))]
+use crate::runtime::v2::transcript::Bound;
 use crate::{
     core::algebra::{RegisteredField, SerializableField},
     runtime::{
@@ -39,9 +41,7 @@ use crate::{
                 polygero::{FieldProof, PolygeroCommitment},
                 tags::Tag,
             },
-            transcript::{
-                Bound, Challenge, Encoder, Message, ProverMessage, Reading, TranscriptRef,
-            },
+            transcript::{Challenge, Encoder, Message, ProverMessage, Reading, TranscriptRef},
         },
     },
 };
@@ -125,7 +125,10 @@ impl<L: Participants> JointPolygeroParam<L> {
         counts
     }
     /// The batching weights of the complete statements `s`, for a caller that
-    /// holds them (`weights_for`).
+    /// holds them (`weights_for`). For tests and tools only, with the bare
+    /// codec and standalone `verify`: complete proofs draw them through
+    /// `weights_for` inside their composition.
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn weights(
         t: &mut Bound<'_, Self>,
         s: &L::Statements,

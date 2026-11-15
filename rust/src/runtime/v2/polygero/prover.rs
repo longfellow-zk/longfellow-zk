@@ -50,7 +50,7 @@ impl<S> JointPolygeroProver<S> {
     }
     /// Open the commitment on the session that received it, with the
     /// batching weights `batch` drawn for `s` since the last message
-    /// (`JointPolygeroParam::weights`, transcript I8).
+    /// (`JointPolygeroParam::weights_for`, transcript I8).
     pub fn prove<L: Participants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,

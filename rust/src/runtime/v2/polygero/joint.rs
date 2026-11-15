@@ -5,13 +5,18 @@ use sha2::Sha256;
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
+#[cfg(any(test, feature = "testonly", feature = "tooling"))]
+use crate::runtime::v2::{
+    proto::polygero::{checked_body, JointPolygeroProof},
+    transcript::{EncodedProof, Transcript, Unverified, SEAL_BYTES},
+};
 use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
-            proto::polygero::{checked_body, JointPolygeroProof, PolygeroConfig},
-            transcript::{Reading, Transcript, TranscriptRef, SEAL_BYTES},
+            proto::polygero::PolygeroConfig,
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
@@ -153,11 +158,18 @@ pub trait Participants: sealed::Sealed {
     ) -> Result<(), PolygeroError>;
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
+    // The bare body codec of `JointPolygeroParam::{write, read}`, for tests
+    // and tools only. Complete proofs encode the field bodies themselves.
     /// Bytes of every field's response and rows; None if they overflow.
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn wire_len(&self) -> Option<usize>;
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_responses(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_rows(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
@@ -205,18 +217,23 @@ impl Participants for () {
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn wire_len(&self) -> Option<usize> {
         Some(0)
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_responses(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
         Ok(())
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn write_rows(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
         Ok(())
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_responses(&self, _: &mut &[u8]) -> Result<(), PolygeroError> {
         Ok(())
     }
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_rows(&self, _: &mut (), _: &mut &[u8]) -> Result<(), PolygeroError> {
         Ok(())
     }
@@ -264,14 +281,16 @@ impl<L: Participants> JointPolygeroParam<L> {
     pub fn config(&self) -> PolygeroConfig {
         self.config
     }
-    /// A sealed bare body, for tests and tools: each field's response, each
-    /// field's rows, the nonces and the frontier, then the seal block. It
-    /// has no magic.
+    /// A sealed bare body, for tests and tools only: each field's response,
+    /// each field's rows, the nonces and the frontier, then the seal block.
+    /// It has no magic. Complete proofs embed the joint body in their own
+    /// envelope (`runtime::v2::proto::zk`, `mdoc`).
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn write(
         &self,
         p: &JointPolygeroProof<L::Bodies>,
         transcript: Transcript,
-    ) -> Result<crate::runtime::v2::transcript::EncodedProof, PolygeroError> {
+    ) -> Result<EncodedProof, PolygeroError> {
         let mut out = Vec::new();
         p.write_to_buf(
             &mut out,
@@ -282,14 +301,13 @@ impl<L: Participants> JointPolygeroParam<L> {
         )?;
         Ok(transcript.append_final_seal(out))
     }
-    /// Read a sealed bare body; its length is checked first (proto I3).
+    /// Read a sealed bare body, for tests and tools only; its length is
+    /// checked first (proto I3).
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn read<'a>(
         &self,
         bytes: &mut &'a [u8],
-    ) -> Result<
-        crate::runtime::v2::transcript::Unverified<'a, JointPolygeroProof<L::Bodies>>,
-        PolygeroError,
-    > {
+    ) -> Result<Unverified<'a, JointPolygeroProof<L::Bodies>>, PolygeroError> {
         let input = *bytes;
         let (t, n) = (self.config.t, self.config.n);
         let fixed = self
@@ -308,8 +326,7 @@ impl<L: Participants> JointPolygeroParam<L> {
         )?;
         let mut seal = &input[input.len() - SEAL_BYTES..];
         *bytes = &[];
-        crate::runtime::v2::transcript::Unverified::decoded(proof, input, &mut seal)
-            .map_err(Into::into)
+        Unverified::decoded(proof, input, &mut seal).map_err(Into::into)
     }
 }
 

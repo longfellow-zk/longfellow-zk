@@ -5,6 +5,8 @@ use core::marker::PhantomData;
 use sha2::Digest as _;
 
 use super::{constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam};
+#[cfg(any(test, feature = "testonly", feature = "tooling"))]
+use crate::runtime::v2::transcript::{Transcript, Unverified, VerifiedProof};
 use crate::runtime::{
     algebra::{
         blas,
@@ -17,7 +19,7 @@ use crate::runtime::{
             polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Bound, Challenge, SessionStamp, Transcript, Unverified, VerifiedProof},
+        transcript::{Bound, Challenge, SessionStamp},
     },
 };
 /// Verifier state between the commitment and the opening. It records the
@@ -40,9 +42,12 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             _participants: PhantomData,
         }
     }
-    /// Complete standalone verification on the session that received the
-    /// commitment, including the mandatory final seal, with the batching
-    /// weights `batch` drawn for `s` since the last message.
+    /// Complete standalone verification of a bare body (`JointPolygeroParam::read`)
+    /// on the session that received the commitment, including the mandatory
+    /// final seal, with the batching weights `batch` drawn for `s` since the
+    /// last message. For tests and tools only: complete proofs run
+    /// `reduce` inside their own composition and check their own seal.
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn verify(
         self,
         mut transcript: Transcript,
