@@ -27,22 +27,16 @@ use crate::{
     },
 };
 
-/// `Circuit` (18): Bytes(32) circuit ID; Nats(nw of each layer, outputs to
-/// inputs, as stored); Nats(output count, input count, public input count).
-/// The sumcheck schedule derives each stage's logw from the layer widths.
+/// `Circuit` (18): Bytes(32) circuit ID. The ID hashes the whole circuit,
+/// its field and its shape included (output, input and public input counts,
+/// each layer's width), so the statement holds those values once, through
+/// the ID; the sumcheck schedule derives each stage's logw from the
+/// circuit the ID names.
 struct CircuitMessage<'a, F: SerializableField>(&'a Circuit<F>);
 impl<F: SerializableField> Message for CircuitMessage<'_, F> {
     const TAG: Tag = Tag::Circuit;
     fn encode(&self, e: &mut Encoder<'_>) {
-        let raw = &self.0.raw;
         e.bytes(&self.0.id);
-        let widths: Vec<u64> = raw.layers.iter().map(|l| l.nw as u64).collect();
-        e.nats(&widths);
-        e.nats(&[
-            raw.noutput as u64,
-            raw.ninput as u64,
-            raw.npublic_input as u64,
-        ]);
     }
 }
 impl<F: SerializableField> SetupMessage for CircuitMessage<'_, F> {}

@@ -1383,7 +1383,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "51512153ed7c5e05fa52803958161fbd0661c3d4a0ed990741ea84d5103810c5"
+            "983eb582c6466a62337c90e0d178e2c0fd0a5e04f026b5912ea9812851f1edd1"
         );
     }
 }

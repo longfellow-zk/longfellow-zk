@@ -19,8 +19,7 @@ pub enum Tag {
     MdocStatement = 16,
     /// Bytes protocol ID, Bytes context.
     ZkStatement = 17,
-    /// Bytes(32) circuit ID, Nats(nw of each layer), Nats(output count,
-    /// input count, public input count).
+    /// Bytes(32) circuit ID.
     Circuit = 18,
     /// Nats(FieldID, committed private cells, pad cells, fingerprint mask
     /// cells), Bytes packing descriptor, Nats(native runs as (first, count,
