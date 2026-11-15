@@ -18,35 +18,33 @@ variable (prime : PrimePublic PrimeField shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
 local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
-
+variable (fmt : Format g fields Advice binary.nPublic)
 variable {blocks : ℕ}
 
 
 variable (configuration : RuntimeVerifier.Public (g := g) binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPublic) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (roundSampler : (fmt.Point) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
 
 /-- The physical row encoder used by the actual prover is exactly the
 inverse of the verifier's tuple decoder. -/
 theorem finish_body_as_fill
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
-    (columns : (OrderedOpening.query indices).coordinates → (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes repr shape setup configuration))
+    (request : (fmt.Request)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
+    (columns : (OrderedOpening.query indices).coordinates → (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes fmt configuration))
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) :
-    ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i)) opening SHA).proof.body =
-      CompletePublicBody.fill ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant configuration.binaryField configuration.primeField
+    ((finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes fmt configuration)).symm (columns i)) opening SHA).proof.body =
+      CompletePublicBody.fill ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant configuration.binaryField configuration.primeField
         configuration.binaryRows configuration.primeRows configuration.openings frontend
-        (RuntimeVerifier.wireResponses binary prime P R (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response)
+        (RuntimeVerifier.wireResponses binary prime P R (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) response)
         (CompletePublicBody.ordered indices columns ⟨fun i => (opening.nonce i).2,opening.frontierValue⟩)
-        setup.jointContext
-        (capacity binary prime binaryNodes primeNodes repr shape setup configuration indices
-          (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i)) opening) := rfl
+        fmt.jointContext
+        (capacity binary prime binaryNodes primeNodes fmt configuration indices
+          (fun i => ((leafEquiv binary prime binaryNodes primeNodes fmt configuration)).symm (columns i)) opening) := rfl
 
 theorem ordered_indexed_openCore {Column Enc : Type} {n t : ℕ}
     (scheme : Merkle.Indexed.Scheme (Fin n × MerkleNonce) Column Digest Enc)
@@ -72,16 +70,16 @@ theorem ordered_indexed_openCore {Column Enc : Type} {n t : ℕ}
 /-- Replaying the actual physical row decoder recovers the exact honest
 indexed opening; no decoded proof is supplied by the caller. -/
 theorem finish_raw_honest {Enc : Type}
-    (scheme : Merkle.Indexed.Scheme (Fin 2443 × MerkleNonce) (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes repr shape setup configuration) Digest Enc)
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
-    (nonces : Fin 2443 → MerkleNonce) (columns : Fin 2443 → (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes repr shape setup configuration)) (SHA : Strand.Oracle) :
-    OpeningBody.raw ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).participant configuration.binaryField configuration.primeField
+    (scheme : Merkle.Indexed.Scheme (Fin 2443 × MerkleNonce) (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes fmt configuration) Digest Enc)
+    (request : (fmt.Request)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
+    (nonces : Fin 2443 → MerkleNonce) (columns : Fin 2443 → (StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes fmt configuration)) (SHA : Strand.Oracle) :
+    OpeningBody.raw ((RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant ((RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).participant configuration.binaryField configuration.primeField
       configuration.binaryRows configuration.primeRows configuration.openings
-      ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i.val))
+      ((finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes fmt configuration)).symm (columns i.val))
         (Merkle.Indexed.openCore scheme 2443 (OrderedOpening.query indices).coordinates
           (fun i => (i,nonces i)) columns) SHA).proof =
       IndexedCompleteOpening.raw scheme (fun i nonce => (i,nonce)) indices nonces columns := by
-  let output := (finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i.val))
+  let output := (finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes fmt configuration)).symm (columns i.val))
     (Merkle.Indexed.openCore scheme 2443 (OrderedOpening.query indices).coordinates
       (fun i => (i,nonces i)) columns) SHA
   change OpeningBody.raw _ _ _ _ _ _ _ ⟨output.proof.body,output.proof.finalSeal⟩ = _
@@ -91,15 +89,15 @@ theorem finish_raw_honest {Enc : Type}
   exact CompletePublicBody.raw_fill
     (RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells)
       (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
-      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)).participant
+      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)).participant
     (RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells)
       (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
-      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)).participant
+      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)).participant
     configuration.binaryField configuration.primeField configuration.binaryRows configuration.primeRows
     configuration.openings frontend
     (RuntimeVerifier.wireResponses binary prime P R
-      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) response)
-    _ setup.jointContext _ _
+      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) response)
+    _ fmt.jointContext _ _
 
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend

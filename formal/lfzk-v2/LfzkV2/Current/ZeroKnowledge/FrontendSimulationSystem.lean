@@ -16,44 +16,42 @@ local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 variable (samples : ConcreteMetadata.Samples B C)
-variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
-variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
-variable (setup : FingerprintPrefix.Setup) (defaultAdvice : MdocAdvice.Value) (publicCount : ℕ)
-variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → B)
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape publicCount)
-variable (request : CanonicalRequest.Request shape publicCount) (root : Digest)
+variable {publicCount : ℕ} (fmt : Format (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B) MdocAdvice.Value publicCount)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin fmt.binaryPublic → B)
+variable (metadata : fmt.RequestMetadata C)
+variable (request : fmt.Request) (root : Digest)
 variable (H : CompleteSimulation.Point binary prime primePlan
-  (Key := FingerprintPrefix.Key publicCount) (Base := CanonicalRequest.Base repr shape setup publicCount) → Digest × C)
+  (Key := fmt.Key) (Base := fmt.Base) → Digest × C)
 variable (initial : Digest) (coins : CompleteSimulation.Coins binary prime)
 local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
-local notation "W" => CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
+local notation "W" => fmt.node binaryRequest metadata request root
 local notation "selected" => CompleteSimulation.selectedState binary prime primePlan samples W H
-  (FingerprintPrefix.context request root) coins.fingerprints
+  (fmt.context request root) coins.fingerprints
 local notation "result" => CompleteSimulation.simulate binary prime primePlan samples W H
-  (FingerprintPrefix.context request root) coins
+  (fmt.context request root) coins
 local notation "native" => CompleteSimulation.primePrefix binary prime primePlan samples W H selected
   (simulateCircuit prime.circuit coins.prime)
 local notation "converted" => CompleteSimulation.conversionPrefix binary prime primePlan samples W H native coins.mu
 local notation "proof" => (Current.Proof.mk (CompleteFrontendBody.body binary prime primePlan root result) (fun _ => 0) :
-  CanonicalRequest.Output (g := G) (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
+  Replay.Output G (MdocRuntime.fields B) MdocAdvice.Value (OpeningBody.Authentication G))
 local notation "point" => TranscriptV2.Chain.point
-  (Replay.Encoding.chain (CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request) initial)
+  (Replay.Encoding.chain (fmt.encoding binaryRequest metadata request) initial)
   proof H (Fin.val (Geometry.batchingIndex G))
 
 omit [DecidableEq B] in
 theorem initial_answer :
-    (CompleteTranscript.step W H (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).1 =
+    (CompleteTranscript.step W H (CompleteTranscript.initial (fmt.context request root) samples.fallback)).1 =
       AnswerTape.pointLookup H samples.fallback point 0 := by
-  let first := CompleteTranscript.step W H (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)
+  let first := CompleteTranscript.step W H (CompleteTranscript.initial (fmt.context request root) samples.fallback)
   have inside : 0 < (G).roles.length := by rw [SimulationWrites.capacity binary prime primePlan]; omega
   have through : AnswerTape.Extends samples.fallback first.2 (result).state :=
     (AnswerTape.bind_extends samples.fallback first.2 _).trans
       ((AnswerTape.readSetup_extends W H .prime (Equiv.refl P) samples.prime samples.primeNonzero samples.fallback
         primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected false).trans
-        (SimulationAnswers.prime_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins))
+        (SimulationAnswers.prime_future binary prime primePlan samples W H (fmt.context request root) coins))
   have answer := AnswerTape.step_answer_into W H samples.fallback
-    (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback) (result).state inside through
-  rw [CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest
+    (CompleteTranscript.initial (fmt.context request root) samples.fallback) (result).state inside through
+  rw [CanonicalSimulation.batching_tape binary prime primePlan samples fmt binaryRequest
     metadata request root H initial coins] at answer
   exact answer
 
@@ -70,9 +68,9 @@ theorem binary_handoff_values (primeData : PrimeData prime C)
   simp only [Option.map_id] at spec
   obtain ⟨scale,hscale,eta⟩ := spec.2.1
   have scaleValue := SimulationParsed.strictAnswer_value H samples.fallback point _ scale hscale
-  have values := SimulationParsed.challenge_values binary prime primePlan samples shape repr setup defaultAdvice publicCount
+  have values := SimulationParsed.challenge_values binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins
-  have mu := Parser.read_mu repr shape setup publicCount binaryRequest metadata request initial proof H
+  have mu := Parser.read_mu fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (ParserApplication.positions binary prime primePlan).2.1.le
   constructor
   · rw [eta,scaleValue]
@@ -96,11 +94,11 @@ theorem decoded_rows (system)
     samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point ((point).priorAnswers H) system decoded
   have rowFields := StatementShape.decoded_rows binary.description prime primeData (MdocRuntime.field_card binary.basis)
     (MdocRuntime.polynomialX binary.basis) ParserApplication.quotient_bound data system checked
-  have binaryRows := SimulationParsed.binary_frontend_rows binary prime primePlan samples shape repr setup defaultAdvice publicCount
+  have binaryRows := SimulationParsed.binary_frontend_rows binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins primeData parsedPrime data parsedBinary
-  have claim := SimulationParsed.prime_claim binary prime primePlan samples shape repr setup defaultAdvice publicCount
+  have claim := SimulationParsed.prime_claim binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins primeData parsedPrime
-  have handoff := binary_handoff_values binary prime primePlan samples shape repr setup defaultAdvice publicCount
+  have handoff := binary_handoff_values binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins primeData data parsedBinary
   refine ⟨rowFields.1.trans binaryRows,?_,rowFields.2.2.1,rowFields.2.2.2⟩
   rw [rowFields.2.1,claim,handoff.1,handoff.2]
@@ -128,18 +126,18 @@ theorem compiled_satisfies (system)
         FingerprintRows.rows (fun i => CellLayout.selected binary.description.cells (.inl i))
           (fun i => CellLayout.selected binary.description.cells (.inr i))
           (selection (CompleteTranscript.step W H
-            (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).1).1 coins.fingerprints.1) flatB)
+            (CompleteTranscript.initial (fmt.context request root) samples.fallback)).1).1 coins.fingerprints.1) flatB)
     (primeRows : RowsHold ((native).claim.rows (native).eta.val coins.mu ++
       FingerprintRows.rows (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inl i))
         (fun i => CellLayout.Prime.layout prime.remaining prime.pads (.inr i))
         (selection (CompleteTranscript.step W H
-          (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).1).2 coins.fingerprints.2)
+          (CompleteTranscript.initial (fmt.context request root) samples.fallback)).1).2 coins.fingerprints.2)
       (BackendCells.primeRead flatP)) :
     statement.statement.1.Satisfies (Backend.logical (BackendCells.tableau flatB)) ∧
       statement.statement.2.Satisfies (Backend.logical (BackendCells.tableau flatP)) := by
-  have rowFields := decoded_rows binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest metadata
+  have rowFields := decoded_rows binary prime primePlan samples fmt binaryRequest metadata
     request root H initial coins system decoded
-  have first := initial_answer binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest metadata
+  have first := initial_answer binary prime primePlan samples fmt binaryRequest metadata
     request root H initial coins
   apply BackendStatement.compile_satisfies binaryNodes ConcreteSetup.primeNodes system ((G).affineRows .binary) ((G).affineRows .prime)
     (selection (AnswerTape.pointLookup H samples.fallback point 0)).1

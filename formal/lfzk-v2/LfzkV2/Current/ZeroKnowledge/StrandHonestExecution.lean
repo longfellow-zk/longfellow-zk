@@ -39,18 +39,19 @@ local notation "Public" => StrandCanonicalContext.configuration binary prime pri
 local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
   (CellLayout.Prime.cells prime.remaining prime.pads)
 local notation "HonestCoins" => (CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)) × BackendCoins
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes →
   RuntimeVerifier.RawSamples binary.description prime
     (backend binaryNodes binary.description.cells)
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
     (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-      (MdocRuntime.representations scalars)
+      (LegacyFormat (MdocRuntime.representations scalars)
       (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-        (RuntimeStatement.degreeFits binary)) setup
+        (RuntimeStatement.degreeFits binary)) setup _)
       (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
@@ -89,7 +90,7 @@ theorem rawReal_result (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
       | none | some (_,none) => none
       | some (responses,some ⟨indices,_⟩) =>
         some (StrandCanonicalBackend.finish binary.description prime binaryNodes ConcreteSetup.primeNodes
-          Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
+          (Fmt) Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
           metadata roundSampler request (Front coins.1 context request root SHA) responses indices
           (fun index => (ToLeaf).symm (Columns coins context index.val))
           (Merkle.Indexed.openCore ((Codec).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
@@ -126,7 +127,7 @@ theorem rawReal_some (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce)
     ∃ responses indices opened,
       Response coins context request root SHA = some (responses,some ⟨indices,opened⟩) ∧
       output = StrandCanonicalBackend.finish binary.description prime binaryNodes ConcreteSetup.primeNodes
-        Repr Sh setup Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
+        (Fmt) Public (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)
         metadata roundSampler request (Front coins.1 context request root SHA) responses indices
         (fun index => (ToLeaf).symm (Columns coins context index.val))
         (Merkle.Indexed.openCore ((Codec).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates

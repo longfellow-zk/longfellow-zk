@@ -14,41 +14,39 @@ variable {shared maskBits adviceBits : ℕ}
 variable (binary : BinaryPublic B shared maskBits adviceBits)
 variable (prime : PrimePublic PrimeField shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
-
+variable (fmt : Format g fields Advice binary.nPublic)
 variable {blocks : ℕ}
 
 
 variable (configuration : RuntimeVerifier.Public (g := g) binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPublic) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (roundSampler : (fmt.Point) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
 
 
 theorem select_spec
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (SHA : Strand.Oracle)
+    (request : (fmt.Request)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (SHA : Strand.Oracle)
     (indices : Fin 84 ↪ Fin 2443)
-    (selected : select binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
+    (selected : select binary prime binaryNodes primeNodes fmt configuration binaryCount metadata
       roundSampler request frontend SHA response = some indices) :
-    let H := logicalOracle binary repr shape setup roundSampler configuration.fallback SHA
-    let e := (CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request
-    let pending : CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice) :=
-      ⟨responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response,fun _ => 0⟩
+    let H := logicalOracle binary fmt roundSampler configuration.fallback SHA
+    let e := (CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) request
+    let pending : Replay.Output g fields Advice (OpeningBody.Authentication g) :=
+      ⟨responseBody binary prime binaryNodes primeNodes fmt configuration frontend response,fun _ => 0⟩
     let points := (e.encoding.chain configuration.initialLink).point pending H
     (∀ i : Fin g.roles.length,
-      TranscriptV2.StrandVerifier.sampled (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g))
+      TranscriptV2.StrandVerifier.sampled (StrandRuntime.history fmt.wire (fmt.body))
         roundSampler SHA (points i.val)) ∧
       configuration.sample (H (points g.openingIndex.val)).2 = indices := by
-  let H := logicalOracle binary repr shape setup roundSampler configuration.fallback SHA
-  let pending : CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice) :=
-    ⟨responseBody binary prime binaryNodes primeNodes repr shape setup configuration frontend response,fun _ => 0⟩
-  let points := (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).point pending H
-  let history : QueryRuntime.Runtime.Point repr shape setup binary.nPublic → Strand.History :=
-    StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
+  let H := logicalOracle binary fmt roundSampler configuration.fallback SHA
+  let pending : Replay.Output g fields Advice (OpeningBody.Authentication g) :=
+    ⟨responseBody binary prime binaryNodes primeNodes fmt configuration frontend response,fun _ => 0⟩
+  let points := (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) request).encoding.chain configuration.initialLink).point pending H
+  let history : fmt.Point → Strand.History :=
+    StrandRuntime.history fmt.wire (fmt.body)
   let node := history (points g.openingIndex.val)
   let result := (roundSampler (points g.openingIndex.val)).run
     (fun counter => SHA (Strand.Input.prf node.id (SHA node.input.encode) counter).encode)

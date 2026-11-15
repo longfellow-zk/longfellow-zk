@@ -22,38 +22,37 @@ variable (prime : PrimePublic N shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ N)
 local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 
 def basePublic := { cfg with bindSalt := MerkleWireCodec.bindSalt }
 
-def publicConfig := CanonicalRuntime.wirePublic binary prime P R (LegacyFormat repr shape setup _)
-  (basePublic binary prime binaryNodes primeNodes repr shape setup cfg)
+def publicConfig := CanonicalRuntime.wirePublic binary prime P R fmt
+  (basePublic binary prime binaryNodes primeNodes fmt cfg)
 
 instance leafInhabited : Inhabited (RuntimeVerifier.Family binary prime P R
-    (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg)).Leaf :=
+    (publicConfig binary prime binaryNodes primeNodes fmt cfg)).Leaf :=
   ⟨MerkleWireCodec.physicalLeafEquiv _ _ (fun _ => 0,fun _ => 0)⟩
 
 omit [DecidableEq B] in
 @[simp] theorem publicConfig_countBinary :
-    (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg).countBinary = cfg.countBinary := rfl
+    (publicConfig binary prime binaryNodes primeNodes fmt cfg).countBinary = cfg.countBinary := rfl
 
 omit [DecidableEq B] in
 @[simp] theorem publicConfig_countPrime :
-    (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg).countPrime = cfg.countPrime := rfl
+    (publicConfig binary prime binaryNodes primeNodes fmt cfg).countPrime = cfg.countPrime := rfl
 
 omit [DecidableEq B] in
 @[simp] theorem publicConfig_binaryField :
-    (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg).binaryField = cfg.binaryField := rfl
+    (publicConfig binary prime binaryNodes primeNodes fmt cfg).binaryField = cfg.binaryField := rfl
 
 omit [DecidableEq B] in
 @[simp] theorem publicConfig_primeField :
-    (publicConfig binary prime binaryNodes primeNodes repr shape setup cfg).primeField = cfg.primeField := rfl
+    (publicConfig binary prime binaryNodes primeNodes fmt cfg).primeField = cfg.primeField := rfl
 
 end LfzkV2.Current.ZeroKnowledge.CompleteCanonicalVerifier

@@ -19,61 +19,60 @@ variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePubl
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
 local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (configuration : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-local notation "Public" => CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration
-local notation "Column" => StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes repr shape setup configuration
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+local notation "Public" => CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration
+local notation "Column" => StrandCanonicalBackend.Leaf binary prime binaryNodes primeNodes fmt configuration
 local notation "Physical" => PhysicalColumn binary prime
 local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
-local notation "Request" => CanonicalRequest.Request shape binary.nPublic
+local notation "Request" => fmt.Request
 
 def indexedCodec : Merkle.Indexed.Codec (Fin 2443 × MerkleNonce) Column Digest Bytes :=
   let first := RuntimeVerifier.first binary prime P R Public
   let second := RuntimeVerifier.second binary prime P R Public
-  MerkleWireCodec.codec first.participant second.participant repr
-  configuration.binaryField configuration.primeField setup.jointContext (by decide : 2443 ≤ 2^64)
+  MerkleWireCodec.codec first.participant second.participant fmt.scalars
+  configuration.binaryField configuration.primeField fmt.jointContext (by decide : 2443 ≤ 2^64)
 
 def indexedDecoders : Merkle.Indexed.RoleDecoders
-    (indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration) :=
+    (indexedCodec binary prime binaryNodes primeNodes fmt configuration) :=
   let first := RuntimeVerifier.first binary prime P R Public
   let second := RuntimeVerifier.second binary prime P R Public
-  MerkleWireCodec.decoders first.participant second.participant repr
-  configuration.binaryField configuration.primeField setup.jointContext (by decide : 2443 ≤ 2^64)
+  MerkleWireCodec.decoders first.participant second.participant fmt.scalars
+  configuration.binaryField configuration.primeField fmt.jointContext (by decide : 2443 ≤ 2^64)
 
-local notation "Codec" => indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration
-local notation "Dec" => indexedDecoders binary prime binaryNodes primeNodes repr shape setup configuration
-local notation "ToLeaf" => leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration
+local notation "Codec" => indexedCodec binary prime binaryNodes primeNodes fmt configuration
+local notation "Dec" => indexedDecoders binary prime binaryNodes primeNodes fmt configuration
+local notation "ToLeaf" => leafEquiv binary prime binaryNodes primeNodes fmt configuration
 
 def nonleafOracle (read : StrandGhostMerkle.Observer.Other Codec Dec → Digest) : Strand.Oracle :=
   StrandGhostMerkle.Domains.extendOther
     (RuntimeVerifier.first binary prime P R Public).participant
-    (RuntimeVerifier.second binary prime P R Public).participant repr
-    configuration.binaryField configuration.primeField setup.jointContext (by decide) read
+    (RuntimeVerifier.second binary prime P R Public).participant fmt.scalars
+    configuration.binaryField configuration.primeField fmt.jointContext (by decide) read
 
 theorem nonleafOracle_agree (SHA : Strand.Oracle) (input : Strand.Input) :
-    nonleafOracle binary prime binaryNodes primeNodes repr shape setup configuration
+    nonleafOracle binary prime binaryNodes primeNodes fmt configuration
       (fun raw => SHA raw.val) input.encode = SHA input.encode :=
   StrandGhostMerkle.Domains.extendOther_agree _ _ _ _ _ _ _ SHA input
 
 variable {blocks : ℕ} {Observed Context : Type} {postQueries : ℕ}
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (roundSampler : QueryRuntime.Runtime.Point repr shape setup binary.nPublic →
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (roundSampler : fmt.Point →
   RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
-local notation "Prepare" => prepare binary prime binaryNodes primeNodes repr shape setup configuration
+local notation "Prepare" => prepare binary prime binaryNodes primeNodes fmt configuration
   binaryCount metadata roundSampler
 
 /-- This projection is defined only on the selected set. No unopened column
 is required by canonical completion or its public simulator. -/
 def disclosed (request : Request) (frontend : Body) (backend : Option (BackendOutput binary prime))
     (SHA : Strand.Oracle)
-    (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
+    (after : Option (CanonicalRuntime.FormatOutput binary fmt) →
       RandomOracle.Tree Bytes Digest Observed postQueries) :
     (Prepare request frontend backend SHA after).opened → Column := by
   cases backend with
@@ -86,7 +85,7 @@ def disclosed (request : Request) (frontend : Body) (backend : Option (BackendOu
           rcases selected with ⟨indices,opened⟩
           exact fun index => ToLeaf (openedColumns binary prime indices opened index)
 
-local notation "Disclosed" => disclosed binary prime binaryNodes primeNodes repr shape setup configuration
+local notation "Disclosed" => disclosed binary prime binaryNodes primeNodes fmt configuration
   binaryCount metadata roundSampler
 
 theorem finish_installOpened (request : Request) (frontend : Body) (responses : ResponsePair B)
@@ -96,30 +95,30 @@ theorem finish_installOpened (request : Request) (frontend : Body) (responses : 
       (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) (I : Finset (Fin 2443)) (nonces : I → MerkleNonce)
     (columns : I → Column) (leaves : Fin 2443 → Digest) :
-    finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler
+    finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler
         request frontend responses indices physical opening
         (StrandGhostMerkle.Tree.installOpened Codec Dec SHA I nonces columns leaves) =
-      finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler
+      finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler
         request frontend responses indices physical opening SHA := by
   apply finish_oracle_congr
   intro input
   exact StrandGhostMerkle.Observer.installOpened_other Codec Dec SHA I nonces columns leaves
     (StrandGhostMerkle.Domains.inputOther
       (RuntimeVerifier.first binary prime P R Public).participant
-      (RuntimeVerifier.second binary prime P R Public).participant repr configuration.binaryField configuration.primeField
-      setup.jointContext (by decide) input)
+      (RuntimeVerifier.second binary prime P R Public).participant fmt.scalars configuration.binaryField configuration.primeField
+      fmt.jointContext (by decide) input)
 
 /-- The generic opened-only completion is the existing canonical completed
 view, including its conflict branch, final seal, and later raw trace. -/
 theorem complete_prepared (request : Request) (frontend : Body) (backend : Option (BackendOutput binary prime))
     (SHA : Strand.Oracle) (context : Context) (prior : List (Bytes × Digest))
-    (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
+    (after : Option (CanonicalRuntime.FormatOutput binary fmt) →
       RandomOracle.Tree Bytes Digest Observed postQueries)
     (leaves : Fin 2443 → Digest) (nonces : Fin 2443 → MerkleNonce) :
     ((context,prior),StrandGhostMerkle.Schedule.complete Codec Dec
       (Prepare request frontend backend SHA after) prior (Disclosed request frontend backend SHA after)
       ((after none).map fun observed => (none,observed)) SHA leaves (fun index => nonces index.val)) =
-    fullView binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler
+    fullView binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler
       request context prior after leaves nonces frontend backend SHA := by
   cases backend with
   | none =>
@@ -135,7 +134,7 @@ theorem complete_prepared (request : Request) (frontend : Body) (backend : Optio
           simp
       | some selected =>
           rcases selected with ⟨indices,opened⟩
-          have sameFinish := finish_installOpened binary prime binaryNodes primeNodes repr shape setup configuration
+          have sameFinish := finish_installOpened binary prime binaryNodes primeNodes fmt configuration
             binaryCount metadata roundSampler request frontend responses indices (openedColumns binary prime indices opened)
             (StrandGhostMerkle.Tree.opening Codec SHA leaves (OrderedOpening.query indices).coordinates
               (fun index => nonces index.val)) SHA (OrderedOpening.query indices).coordinates
@@ -151,20 +150,20 @@ theorem complete_prepared (request : Request) (frontend : Body) (backend : Optio
 /-- Specialize the committed-column invariant to the prepared encoder's
 selected-column interface. The empty-set branches cover parser and sampler
 failure without imposing successful execution as a premise. -/
-theorem disclosed_respondHonest (primeCount : shape.primePublic = prime.nPublic)
+theorem disclosed_respondHonest (primeCount : fmt.primePublic = prime.nPublic)
     (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R Public)
     (request : Request) (frontend : Body) (SHA : Strand.Oracle)
     (cells : Backend.Cells B (ConcreteSetup.rows binary.cells) 265 ×
       Backend.Cells PrimeField (ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) 265)
     (tape : Backend.JointMasks binaryNodes primeNodes binary.cells
       (CellLayout.Prime.cells prime.remaining prime.pads))
-    (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
+    (after : Option (CanonicalRuntime.FormatOutput binary fmt) →
       RandomOracle.Tree Bytes Digest Observed postQueries) :
     Disclosed request frontend
-        (respondHonest binary prime binaryNodes primeNodes repr shape setup configuration binaryCount primeCount
+        (respondHonest binary prime binaryNodes primeNodes fmt configuration binaryCount primeCount
           metadata roundSampler batchingSamples request frontend SHA cells tape) SHA after =
       fun index => ToLeaf (committedColumns binary prime binaryNodes primeNodes cells tape index.val) := by
-  generalize returned : respondHonest binary prime binaryNodes primeNodes repr shape setup configuration
+  generalize returned : respondHonest binary prime binaryNodes primeNodes fmt configuration
     binaryCount primeCount metadata roundSampler batchingSamples request frontend SHA cells tape = result
   cases result with
   | none =>
@@ -180,7 +179,7 @@ theorem disclosed_respondHonest (primeCount : shape.primePublic = prime.nPublic)
           rcases selected with ⟨indices,opened⟩
           funext index
           exact congrArg ToLeaf (congrFun
-            (respondHonest_columns binary prime binaryNodes primeNodes repr shape setup configuration
+            (respondHonest_columns binary prime binaryNodes primeNodes fmt configuration
               binaryCount primeCount metadata roundSampler batchingSamples request frontend SHA cells tape
               responses indices opened returned) index)
 
@@ -189,7 +188,7 @@ The canonical body and seal have already been computed by its captured
 oracle, whose dependence is handled by `prepare_oracle_congr_reads`. -/
 theorem prepare_run_congr (request : Request) (frontend : Body) (backend : Option (BackendOutput binary prime))
     (captured first second : Strand.Oracle)
-    (after : Option (CanonicalRuntime.Output (Advice := Advice) binary shape) →
+    (after : Option (CanonicalRuntime.FormatOutput binary fmt) →
       RandomOracle.Tree Bytes Digest Observed postQueries)
     (same : ∀ output, ∀ raw ∈ OracleWindow.queries (after output), first raw = second raw)
     (columns : (Prepare request frontend backend captured after).opened → Column)

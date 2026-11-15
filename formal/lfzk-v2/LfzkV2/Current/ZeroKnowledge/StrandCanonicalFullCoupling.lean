@@ -21,7 +21,8 @@ local notation "Repr" => MdocRuntime.representations scalars
 local notation "bCount" => RuntimeStatement.binary_count binary prime primePlan inputFits privateFits
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
-local notation "Point" => QueryRuntime.Runtime.Point Repr Sh setup binary.nPublic
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
+local notation "Point" => (Format.Point (Fmt))
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
 local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
@@ -49,9 +50,9 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
   (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-    (MdocRuntime.representations scalars)
+    (LegacyFormat (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (RuntimeStatement.degreeFits binary)) setup
+      (RuntimeStatement.degreeFits binary)) setup _)
     (configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 variable (SHA : Strand.Oracle)
 local notation "H" => actualOracle binary prime primePlan binaryNodes scalars inputFits privateFits setup roundSampler SHA
@@ -68,7 +69,7 @@ theorem statementTruth (coins : FrontendCoins) (request : Request) (root : Diges
       p.circuit.Satisfies (CompleteHonest.primeInputs b p (original request) (remaining request))) :
     ∀ data, CompleteCanonicalVerifier.statementAt (g := G) (fields := MdocRuntime.fields B)
       (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes
-      Repr Sh setup Public bCount pCount metadata request (honestFront coins request root) H = some data →
+      (Fmt) Public bCount pCount metadata request (honestFront coins request root) H = some data →
       data.2.statement.1.Satisfies
         (Backend.logical (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits original remaining coins request).1) ∧
       data.2.statement.2.Satisfies
@@ -104,7 +105,7 @@ def coupling (request : Request) (root : Digest) (pivotOne : binary.basis 0 = 1)
       metadata original H request root valid)
   let backendEquiv := fun coins : FrontendCoins =>
     StrandCanonicalBackend.responseCoupling (g := G) (fields := MdocRuntime.fields B)
-      (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public
+      (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Public
       bCount pCount metadata roundSampler batchingSamples request (honestFront coins request root) SHA
       (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits original remaining coins request)
       (statementTruth binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining roundSampler SHA

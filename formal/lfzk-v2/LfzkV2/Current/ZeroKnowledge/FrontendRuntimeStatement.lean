@@ -55,11 +55,12 @@ variable (H : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) setup binary.nPublic →
   Digest × MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
 
-local notation "Public" => CanonicalRuntime.wirePublic binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg
-local notation "BinaryRequest" => CanonicalRuntime.binaryRequest binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg
+local notation "Fmt" => LegacyFormat Repr Shape setup (BinaryPublic.nPublic binary.description)
+local notation "Public" => CanonicalRuntime.wirePublic binary.description prime First Second (Fmt) Cfg
+local notation "BinaryRequest" => CanonicalRuntime.binaryRequest binary.description prime First Second (Fmt) Cfg
   (binary_count binary prime primePlan inputFits privateFits)
 local notation "PrimeCount" => prime_count binary prime primePlan inputFits privateFits
-local notation "E" => CanonicalRequest.encoding Repr Shape setup binary.nPublic BinaryRequest metadata request
+local notation "E" => (Format.encoding (Fmt)) BinaryRequest metadata request
 local notation "point" => TranscriptV2.Chain.point (Replay.Encoding.chain E (RuntimeVerifier.Public.initialLink Cfg))
   proof H (Fin.val (Geometry.batchingIndex G))
 local notation "past" => Input.priorAnswers
@@ -70,25 +71,25 @@ theorem success
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (trace : ∀ i, DualPacking.ArtinSchreier.traceF (F := B) (ZMod 2) (proof.body.packing.1 i) = 0) :
     ∃ result, RuntimeAdaptive.statementAt binary.description prime First Second Public
-      (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg PrimeCount)
+      ((Format.hashPublic (Fmt)))
+      (CanonicalRuntime.decodePrimePublic binary.description prime First Second (Fmt) Cfg PrimeCount)
       point past = some result := by
   let samples := MdocRuntime.samples binary.description prime binary.plan primePlan binaryNodes
-  let inputs := CanonicalRuntime.primeInputs binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg PrimeCount request
-  have decoded := ParserApplication.decode_requested binary prime primePlan Repr Shape setup binary.nPublic BinaryRequest
+  let inputs := CanonicalRuntime.primeInputs binary.description prime First Second (Fmt) Cfg PrimeCount request
+  have decoded := ParserApplication.decode_requested binary prime primePlan (Fmt) BinaryRequest
     metadata request (RuntimeVerifier.Public.initialLink Cfg) proof H samples request.publicBits inputs primitive trace
   obtain ⟨system,hdecoded⟩ := decoded
   have primeStart : (G).primeStart ≤ (G).batchingIndex.val := by
     exact le_trans (Nat.le_add_right _ _) (ParserApplication.prime_window binary prime primePlan)
-  have hbits := CanonicalRuntime.hashPublic_replay binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg
+  have hbits := CanonicalRuntime.hashPublic_replay binary.description prime First Second (Fmt) Cfg
     (binary_count binary prime primePlan inputFits privateFits) metadata request (RuntimeVerifier.Public.initialLink Cfg)
     proof H (G).batchingIndex.val
-  have hinputs := CanonicalRuntime.primePublic_replay binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg
+  have hinputs := CanonicalRuntime.primePublic_replay binary.description prime First Second (Fmt) Cfg
     (binary_count binary prime primePlan inputFits privateFits) PrimeCount metadata request (RuntimeVerifier.Public.initialLink Cfg)
     proof H (G).batchingIndex.val (G).batchingIndex.isLt.le primeStart
   have application : RuntimeAdaptive.application binary.description prime First Second Public
-      (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary.description prime First Second (LegacyFormat Repr Shape setup _) Cfg PrimeCount)
+      ((Format.hashPublic (Fmt)))
+      (CanonicalRuntime.decodePrimePublic binary.description prime First Second (Fmt) Cfg PrimeCount)
       point past = some system := by
     rw [RequestedApplication.application_eq _ _ _ _ _ _ _ point past request.publicBits inputs hbits hinputs]
     exact hdecoded
@@ -102,12 +103,12 @@ theorem success
   let layout := BackendStatement.addresses (cellsB := binary.description.cells) (remaining := prime.remaining) (padsN := prime.pads)
     binaryNodes ConcreteSetup.primeNodes
   let fingerprint := (H (((E).chain (RuntimeVerifier.Public.initialLink Cfg)).point proof H 0)).2
-  have coefficients := Parser.strictAnswer Repr Shape setup binary.nPublic BinaryRequest metadata request
+  have coefficients := Parser.strictAnswer (Fmt) BinaryRequest metadata request
     (RuntimeVerifier.Public.initialLink Cfg) proof H (G).batchingIndex.val (G).batchingIndex.isLt.le 0 (by
       have pos := (ParserApplication.positions binary prime primePlan).1
       simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at pos
       omega)
-  have targets := Parser.read_fingerprints Repr Shape setup binary.nPublic BinaryRequest metadata request
+  have targets := Parser.read_fingerprints (Fmt) BinaryRequest metadata request
     (RuntimeVerifier.Public.initialLink Cfg) proof H (G).batchingIndex.val (G).batchingIndex.isLt.le primeStart
   obtain ⟨statement,compiled⟩ := StatementShape.compile_success
     (RuntimeAdaptive.binaryWithBits binary.description request.publicBits) (RuntimeAdaptive.primeWithInputs prime inputs)

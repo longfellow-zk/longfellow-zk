@@ -15,53 +15,51 @@ variable {shared maskBits adviceBits : ℕ}
 variable (binary : BinaryPublic B shared maskBits adviceBits)
 variable (prime : PrimePublic PrimeField shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ PrimeField)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
-
+variable (fmt : Format g fields Advice binary.nPublic)
 variable {blocks : ℕ}
 
 
 variable (configuration : RuntimeVerifier.Public (g := g) binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPublic) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (roundSampler : (fmt.Point) → Merkle.RandomOracle.Tree Strand.Word Strand.Digest (Option C) blocks)
 
 
 
 /-- The canonical prover and verifier replay literally the same encoder. -/
-theorem completion_encodings (request : (CanonicalRequest.Request shape binary.nPublic)) :
-    RuntimeAdaptiveVerifier.encodings binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request = ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding :=
-  CanonicalRuntime.encodings_eq binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
-    (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration)
+theorem completion_encodings (request : (fmt.Request)) :
+    RuntimeAdaptiveVerifier.encodings binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) request = ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) request).encoding :=
+  CanonicalRuntime.encodings_eq binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) fmt
+    (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes fmt configuration)
     binaryCount metadata request
 
 theorem finish_responses
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
+    (request : (fmt.Request)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
     (columns : (OrderedOpening.query indices).coordinates → (PhysicalColumn binary prime))
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) :
-    RuntimeVerifier.responses binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)
-      ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA).proof = response := by
-  change (BackendVerifier.responsesEquiv (RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)) (RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)) configuration.binaryField configuration.primeField
+    RuntimeVerifier.responses binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)
+      ((finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA).proof = response := by
+  change (BackendVerifier.responsesEquiv (RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)) (RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)) configuration.binaryField configuration.primeField
     configuration.rowDimension configuration.maskingDegree
-    (RuntimeVerifier.productFits binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)))
-      ((BackendVerifier.responsesEquiv (RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)) (RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration)) configuration.binaryField configuration.primeField
+    (RuntimeVerifier.productFits binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)))
+      ((BackendVerifier.responsesEquiv (RuntimeVerifier.first binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)) (RuntimeVerifier.second binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration)) configuration.binaryField configuration.primeField
         configuration.rowDimension configuration.maskingDegree
-        (RuntimeVerifier.productFits binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).symm response) = response
+        (RuntimeVerifier.productFits binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))).symm response) = response
   exact Equiv.apply_symm_apply _ response
 
 theorem finish_current_seal
-    (request : (CanonicalRequest.Request shape binary.nPublic)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
+    (request : (fmt.Request)) (frontend : (Current.Body g fields Advice (OpeningBody.Authentication g))) (response : (ResponsePair B)) (indices : Fin 84 ↪ Fin 2443)
     (columns : (OrderedOpening.query indices).coordinates → (PhysicalColumn binary prime))
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) :
-    StrandVerifier.finalSeal binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g) roundSampler
-      ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA) SHA =
-      ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA).proof.finalSeal := by
-  have valid := finish_valid binary prime binaryNodes primeNodes repr shape setup configuration
+    StrandVerifier.finalSeal binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes fmt configuration binaryCount metadata) fmt.wire (fmt.body) roundSampler
+      ((finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA) SHA =
+      ((finish binary prime binaryNodes primeNodes fmt configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA).proof.finalSeal := by
+  have valid := finish_valid binary prime binaryNodes primeNodes fmt configuration
     binaryCount metadata roundSampler request frontend response indices columns opening SHA
   rw [StrandCompletion.Valid,TranscriptV2.StrandVerifier.sealValid_iff] at valid
   unfold StrandVerifier.finalSeal StrandVerifier.finalSealAddress

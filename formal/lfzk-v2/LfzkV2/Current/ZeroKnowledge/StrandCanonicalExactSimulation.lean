@@ -45,19 +45,20 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
   (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-    (MdocRuntime.representations scalars)
+    (LegacyFormat (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (RuntimeStatement.degreeFits binary)) setup
+      (RuntimeStatement.degreeFits binary)) setup _)
     (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Dec" => StrandCanonicalBackend.indexedDecoders binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 

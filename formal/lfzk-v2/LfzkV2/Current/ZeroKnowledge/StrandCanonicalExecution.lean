@@ -46,19 +46,20 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
   (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-    (MdocRuntime.representations scalars)
+    (LegacyFormat (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (RuntimeStatement.degreeFits binary)) setup
+      (RuntimeStatement.degreeFits binary)) setup _)
     (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Dec" => StrandCanonicalBackend.indexedDecoders binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
@@ -88,16 +89,16 @@ local notation "Front" => frontend binary prime primePlan binaryNodes scalars in
 
 def response (coins : HonestCoins) (context : Context) (request : Request) (root : Digest) (SHA : Strand.Oracle) :=
   StrandCanonicalBackend.respondHonest binary.description prime binaryNodes ConcreteSetup.primeNodes
-    Repr Sh setup Public bCount pCount metadata roundSampler batchingSamples request (Front coins.1 context request root SHA) SHA
+    (Fmt) Public bCount pCount metadata roundSampler batchingSamples request (Front coins.1 context request root SHA) SHA
     (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
       (fun _ => original context) (fun _ => remaining context) coins.1 request) coins.2
 
 local notation "Response" => response binary prime primePlan binaryNodes scalars inputFits privateFits setup
   metadata original remaining roundSampler batchingSamples
 local notation "OtherOracle" => StrandCanonicalBackend.nonleafOracle binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Prepare" => StrandCanonicalBackend.prepare binary.description prime binaryNodes ConcreteSetup.primeNodes
-  Repr Sh setup Public bCount metadata roundSampler
+  (Fmt) Public bCount metadata roundSampler
 
 omit [DecidableEq B] in
 theorem frontend_congr (coins : FrontendCoins) (context : Context) (request : Request) (root : Digest) (first second : Strand.Oracle)
@@ -105,7 +106,7 @@ theorem frontend_congr (coins : FrontendCoins) (context : Context) (request : Re
     Front coins context request root first = Front coins context request root second := by
   exact congrArg (fun logical => FrontendCanonicalRows.honestBody binary prime primePlan binaryNodes scalars
     inputFits privateFits setup metadata (fun _ => original context) (fun _ => remaining context) logical coins request root)
-    (StrandCanonicalBackend.logicalOracle_congr binary.description Repr Sh setup roundSampler
+    (StrandCanonicalBackend.logicalOracle_congr binary.description (Fmt) roundSampler
       (Public).fallback first second agree)
 
 theorem response_congr (coins : HonestCoins) (context : Context) (request : Request) (root : Digest) (first second : Strand.Oracle)
@@ -114,12 +115,12 @@ theorem response_congr (coins : HonestCoins) (context : Context) (request : Requ
   have front := frontend_congr binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata
     original remaining roundSampler coins.1 context request root first second agree
   exact (congrArg (fun value => StrandCanonicalBackend.respondHonest binary.description prime binaryNodes
-    ConcreteSetup.primeNodes Repr Sh setup Public bCount pCount metadata roundSampler batchingSamples request value first
+    ConcreteSetup.primeNodes (Fmt) Public bCount pCount metadata roundSampler batchingSamples request value first
       (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits
         (fun _ => original context) (fun _ => remaining context) coins.1 request) coins.2)
     front).trans
     (StrandCanonicalBackend.respondHonest_congr binary.description prime binaryNodes ConcreteSetup.primeNodes
-      Repr Sh setup Public bCount pCount metadata roundSampler batchingSamples request _ first second _ _ agree)
+      (Fmt) Public bCount pCount metadata roundSampler batchingSamples request _ first second _ _ agree)
 
 def stage (coins : HonestCoins) (context : Context)
     (read : StrandGhostMerkle.Observer.Other Codec Dec → Digest) (root : Digest) :
@@ -141,7 +142,7 @@ theorem stage_eq (coins : HonestCoins) (context : Context) (SHA : Strand.Oracle)
       Prepare (requestOf context) (Front coins.1 context (requestOf context) root SHA)
         (Response coins context (requestOf context) root SHA) SHA (after context) := by
   have agree := StrandCanonicalBackend.nonleafOracle_agree binary.description prime binaryNodes
-    ConcreteSetup.primeNodes Repr Sh setup Public SHA
+    ConcreteSetup.primeNodes (Fmt) Public SHA
   have front := frontend_congr binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
     roundSampler coins.1 context (requestOf context) root _ SHA agree
   have back := response_congr binary prime primePlan binaryNodes scalars inputFits privateFits setup metadata original remaining
@@ -149,7 +150,7 @@ theorem stage_eq (coins : HonestCoins) (context : Context) (SHA : Strand.Oracle)
   exact (congrArg₂ (fun front back => Prepare (requestOf context) front back
     (OtherOracle (fun raw => SHA raw.val)) (after context)) front back).trans
     (StrandCanonicalBackend.prepare_oracle_congr binary.description prime binaryNodes ConcreteSetup.primeNodes
-      Repr Sh setup Public bCount metadata roundSampler (requestOf context) _ _ _ SHA (after context) agree)
+      (Fmt) Public bCount metadata roundSampler (requestOf context) _ _ _ SHA (after context) agree)
 
 local notation "AuxiliaryCoins" => (Fin 2443 → MerkleNonce) × (Fin 2443 → Digest)
 local notation "PublicView" => Protocol.Execution.PublicView Context (CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh) Observed

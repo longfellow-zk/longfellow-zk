@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.Protocol.ExecutionSampler
 import Bcs.OracleReachability
@@ -192,9 +193,9 @@ theorem fixedComplement (outside : Strand.Oracle) :
   let cfg := StrandCanonicalContext.configuration binary prime.description prime.plan Nodes scalars
     bounds.inputFits bounds.privateFits (Setup visible)
   let codec := StrandCanonicalBackend.indexedCodec binary.description prime.description Nodes ConcreteSetup.primeNodes
-    Repr Sh (Setup visible) cfg
+    (LegacyFormat Repr Sh (Setup visible) _) cfg
   let dec := StrandCanonicalBackend.indexedDecoders binary.description prime.description Nodes ConcreteSetup.primeNodes
-    Repr Sh (Setup visible) cfg
+    (LegacyFormat Repr Sh (Setup visible) _) cfg
   let encode := StrandGhostMerkle.Probability.leafEmbedding codec dec
   have encodeDomain : ∀ leaf, SHAOracle.merkleDomain (encode leaf) := by
     intro leaf

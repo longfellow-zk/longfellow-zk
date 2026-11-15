@@ -46,19 +46,20 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
   (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-    (MdocRuntime.representations scalars)
+    (LegacyFormat (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (RuntimeStatement.degreeFits binary)) setup
+      (RuntimeStatement.degreeFits binary)) setup _)
     (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Dec" => StrandCanonicalBackend.indexedDecoders binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 
@@ -96,7 +97,7 @@ local notation "Ghost" => ghost binary prime primePlan binaryNodes scalars input
   metadata original remaining roundSampler batchingSamples before requestOf after
 
 local notation "Disclosed" => StrandCanonicalBackend.disclosed binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public bCount metadata roundSampler
+  ConcreteSetup.primeNodes (Fmt) Public bCount metadata roundSampler
 local notation "Abort" => fun context => Merkle.RandomOracle.Tree.map (after context none)
   (fun observed => (none,observed))
 
@@ -117,7 +118,7 @@ theorem ghost_eq (coins : HonestCoins) (SHA : Strand.Oracle)
       (Response coins context (requestOf context) root SHA) SHA (after context) =
       fun index => Columns coins context index.val := by
     exact StrandCanonicalBackend.disclosed_respondHonest binary.description prime binaryNodes ConcreteSetup.primeNodes
-      Repr Sh setup Public bCount metadata roundSampler pCount batchingSamples (requestOf context)
+      (Fmt) Public bCount metadata roundSampler pCount batchingSamples (requestOf context)
       (Front coins.1 context (requestOf context) root SHA) SHA
       (FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits (fun _ => original context) (fun _ => remaining context) coins.1
         (requestOf context)) coins.2 (after context)
@@ -127,7 +128,7 @@ theorem ghost_eq (coins : HonestCoins) (SHA : Strand.Oracle)
     (StrandGhostMerkle.Tree.labels Codec SHA leaves 1)]
   rw [← restricted]
   exact StrandCanonicalBackend.complete_prepared binary.description prime binaryNodes ConcreteSetup.primeNodes
-    Repr Sh setup Public bCount metadata roundSampler (requestOf context)
+    (Fmt) Public bCount metadata roundSampler (requestOf context)
     (Front coins.1 context (requestOf context) root SHA) (Response coins context (requestOf context) root SHA)
     SHA context (before.run SHA).2 (after context) leaves nonces
 

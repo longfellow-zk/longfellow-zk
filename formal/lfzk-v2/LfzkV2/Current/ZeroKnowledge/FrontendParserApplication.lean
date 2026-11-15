@@ -22,17 +22,15 @@ local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
-variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
-variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
-variable (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
-variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → MdocRuntime.fields B .binary)
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape publicCount)
-variable (request : CanonicalRequest.Request shape publicCount) (initial : Digest)
+variable {publicCount : ℕ} (fmt : Format (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B) MdocAdvice.Value publicCount)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin fmt.binaryPublic → MdocRuntime.fields B .binary)
+variable (metadata : fmt.RequestMetadata C)
+variable (request : fmt.Request) (initial : Digest)
 variable (proof : CanonicalRequest.Output (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
-variable (H : QueryRuntime.Runtime.Point repr shape setup publicCount → Digest × C)
+variable (H : fmt.Point → Digest × C)
 variable (samples : ConcreteMetadata.Samples B C)
-local notation "E" => CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request
+local notation "E" => fmt.encoding binaryRequest metadata request
 local notation "point" => TranscriptV2.Chain.point (Replay.Encoding.chain E initial) proof H (Fin.val (Geometry.batchingIndex G))
 local notation "past" => Input.priorAnswers
   (TranscriptV2.Chain.point (Replay.Encoding.chain E initial) proof H (Fin.val (Geometry.batchingIndex G))) H
@@ -65,7 +63,7 @@ theorem binary_window {out input : ℕ} (circuit : Layered.Circuit B out input)
 omit [DecidableEq B] in
 theorem prime_success : ∃ data,
     ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point past = some data := by
-  have messages := Parser.messages repr shape setup publicCount binaryRequest metadata request initial proof H
+  have messages := Parser.messages fmt binaryRequest metadata request initial proof H
     .prime primePlan rfl (G).batchingIndex.val (G).batchingIndex.isLt.le (prime_window binary prime primePlan)
   have rank := ((E).chain initial).point_rank proof H (G).batchingIndex.isLt.le
   change Input.rank point = (G).batchingIndex.val at rank
@@ -92,22 +90,22 @@ theorem binary_success (native : PrimeData prime C) (generator : Bˣ) : ∃ data
   let plan := binary.plan
   have shapeEq : (G).binary = plan.frontend := rfl
   have window := binary_window binary prime primePlan _ plan shapeEq
-  have messages := Parser.messages repr shape setup publicCount binaryRequest metadata request initial proof H
+  have messages := Parser.messages fmt binaryRequest metadata request initial proof H
     .binary plan shapeEq (G).batchingIndex.val (G).batchingIndex.isLt.le window
-  have rescale := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
+  have rescale := Parser.strictAnswer fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.rescalingIndex (G)) (positions binary prime primePlan).1
-  have convert := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
+  have convert := Parser.strictAnswer fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.conversionIndex (G)) (positions binary prime primePlan).2.1
-  have packed := Parser.strictAnswer repr shape setup publicCount binaryRequest metadata request initial proof H
+  have packed := Parser.strictAnswer fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (ApplicationPrefix.packingIndex (G)) (positions binary prime primePlan).2.2
-  have mu := Parser.read_mu repr shape setup publicCount binaryRequest metadata request initial proof H
+  have mu := Parser.read_mu fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (positions binary prime primePlan).2.1.le
-  have advice := Parser.read_advice repr shape setup publicCount binaryRequest metadata request initial proof H
+  have advice := Parser.read_advice fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (by
       exact le_trans (Nat.le_add_right _ _) window)
-  have U := Parser.read_packingU repr shape setup publicCount binaryRequest metadata request initial proof H
+  have U := Parser.read_packingU fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le (by change (128 : ℕ) ≠ 1; decide) (positions binary prime primePlan).2.2.le
-  have A := Parser.read_packingA repr shape setup publicCount binaryRequest metadata request initial proof H
+  have A := Parser.read_packingA fmt binaryRequest metadata request initial proof H
     (G).batchingIndex.val (G).batchingIndex.isLt.le le_rfl
   rw [packing_pair binary prime primePlan proof] at U A
   have rank := ((E).chain initial).point_rank proof H (G).batchingIndex.isLt.le
@@ -130,8 +128,8 @@ theorem decode_success
     ∃ system, ApplicationPrefix.decodeChecked binary.description prime (MdocRuntime.field_card binary.basis)
       (MdocRuntime.polynomialX binary.basis) quotient_bound (packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero
       samples.prime samples.primeNonzero samples.conversion MdocAdvice.decode samples.fallback point past = some system := by
-  obtain ⟨native,hprime⟩ := prime_success binary prime primePlan repr shape setup publicCount binaryRequest metadata request initial proof H samples
-  obtain ⟨data,hbinary,hU⟩ := binary_success binary prime primePlan repr shape setup publicCount binaryRequest metadata request initial proof H samples
+  obtain ⟨native,hprime⟩ := prime_success binary prime primePlan fmt binaryRequest metadata request initial proof H samples
+  obtain ⟨data,hbinary,hU⟩ := binary_success binary prime primePlan fmt binaryRequest metadata request initial proof H samples
     native (MdocRuntime.polynomialX binary.basis^Current.Adapter.Mdoc.generatorExponent)
   unfold ApplicationPrefix.decodeChecked
   erw [hprime]
@@ -159,6 +157,6 @@ theorem decode_requested (bits : Fin binary.nPublic → Bool) (inputs : Fin prim
       samples.binary samples.binaryNonzero samples.prime samples.primeNonzero samples.conversion MdocAdvice.decode
       samples.fallback point past = some system :=
   decode_success { binary with publicBits := bits } (RuntimeAdaptive.primeWithInputs prime inputs)
-    primePlan repr shape setup publicCount binaryRequest metadata request initial proof H samples primitive trace
+    primePlan fmt binaryRequest metadata request initial proof H samples primitive trace
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication

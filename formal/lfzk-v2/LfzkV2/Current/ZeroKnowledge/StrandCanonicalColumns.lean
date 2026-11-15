@@ -67,8 +67,7 @@ theorem openedColumns_adaptiveHonest
 
 section Canonical
 variable {g : Geometry} {fields : Fields} {Advice C : Type} {blocks : ℕ}
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
 
@@ -76,22 +75,22 @@ local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells p
 column. This is the concrete bridge to the indexed commitment-hiding game. -/
 theorem respondHonest_columns (configuration : RuntimeVerifier.Public (g := g) binary prime P R
     (fields := fields) (Advice := Advice)
-    (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-    (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-    (binaryCount : shape.binaryPublic = binary.nPublic) (primeCount : shape.primePublic = prime.nPublic)
-    (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-    (roundSampler : QueryRuntime.Runtime.Point repr shape setup binary.nPublic →
+    (Base := fmt.Base)
+    (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+    (binaryCount : fmt.binaryPublic = binary.nPublic) (primeCount : fmt.primePublic = prime.nPublic)
+    (metadata : fmt.RequestMetadata C)
+    (roundSampler : fmt.Point →
       Merkle.RandomOracle.Tree TranscriptV2.Strand.Word TranscriptV2.Strand.Digest (Option C) blocks)
     (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R
-      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))
-    (request : CanonicalRequest.Request shape binary.nPublic)
+      (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes fmt configuration))
+    (request : fmt.Request)
     (frontend : Body g fields Advice (OpeningBody.Authentication g))
     (SHA : TranscriptV2.Strand.Oracle) (cells : Cells) (tape : Masks)
     (responses : ResponsePair B) (indices : Fin 84 ↪ Fin 2443)
     (opened : Backend.Adaptive.Opened (B := B) (N := PrimeField)
       (bw := ConcreteSetup.rows binary.cells)
       (nw := ConcreteSetup.rows (CellLayout.Prime.cells prime.remaining prime.pads)) (OrderedOpening.query indices))
-    (selected : respondHonest binary prime binaryNodes primeNodes repr shape setup configuration binaryCount primeCount
+    (selected : respondHonest binary prime binaryNodes primeNodes fmt configuration binaryCount primeCount
       metadata roundSampler batchingSamples request frontend SHA cells tape = some (responses,some ⟨indices,opened⟩)) :
     openedColumns binary prime indices opened =
       fun index => committedColumns binary prime binaryNodes primeNodes cells tape index.val := by

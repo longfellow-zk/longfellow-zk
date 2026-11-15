@@ -10,16 +10,15 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.Parser
 open SumcheckV2
 open scoped Classical
 variable {g : Geometry} {fields : Fields} {Advice C : Type}
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
-variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → fields .binary)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape publicCount)
-variable (request : CanonicalRequest.Request shape publicCount) (initial : Digest)
-local notation "Encoding" => CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request
-local notation "Point" => QueryRuntime.Runtime.Point repr shape setup publicCount
-local notation "Output" => CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice)
-variable (proof : CanonicalRequest.Output (g := g) (fields := fields) (Advice := Advice))
-variable (H : QueryRuntime.Runtime.Point repr shape setup publicCount → Digest × C)
+variable  {publicCount : ℕ} (fmt : Format g fields Advice publicCount)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin fmt.binaryPublic → fields .binary)
+variable (metadata : fmt.RequestMetadata C)
+variable (request : fmt.Request) (initial : Digest)
+local notation "Encoding" => fmt.encoding binaryRequest metadata request
+local notation "Point" => fmt.Point
+local notation "Output" => Replay.Output g fields Advice (OpeningBody.Authentication g)
+variable (proof : Replay.Output g fields Advice (OpeningBody.Authentication g))
+variable (H : fmt.Point → Digest × C)
 
 theorem readAt {X : Type} (n : ℕ) (bounded : n ≤ g.roles.length)
     (i : Fin g.roles.length) (past : i.val ≤ n)
@@ -27,7 +26,7 @@ theorem readAt {X : Type} (n : ℕ) (bounded : n ≤ g.roles.length)
     (((Encoding).chain initial).point proof H n).readAt i.val (read ∘ Prod.snd) =
       read (ProtocolWrites.fresh proof.body i) := by
   rw [Replay.Encoding.readAt_replay _ _ _ _ _ bounded i past]
-  exact congrArg read (CanonicalRequest.block_fresh repr shape setup publicCount binaryRequest metadata request proof i _)
+  exact congrArg read (fmt.block_fresh binaryRequest metadata request proof.body i _)
 
 theorem strictAnswer (n : ℕ) (bounded : n ≤ g.roles.length) (q : ℕ) (past : q<n) :
     ApplicationPrefix.strictAnswer (((Encoding).chain initial).point proof H n)
@@ -47,7 +46,7 @@ theorem read_mu (n : ℕ) (bounded : n ≤ g.roles.length)
   have role : g.roles.get i = .conversion := by
     have hr := RuntimeShape.conversion_get g
     exact Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans hr)
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.mu)]
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.mu)]
   simp only [ProtocolWrites.fresh,role,↓reduceIte]
 
 theorem read_fingerprints (n : ℕ) (bounded : n ≤ g.roles.length) (past : g.primeStart ≤ n) :
@@ -57,7 +56,7 @@ theorem read_fingerprints (n : ℕ) (bounded : n ≤ g.roles.length) (past : g.p
     have length := g.roles_length
     simp only [Geometry.primeStart]
     omega
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded
     ⟨g.primeStart,bound⟩ past (fun fresh => fresh.fingerprints)]
   simp only [ProtocolWrites.fresh,↓reduceIte]
 
@@ -68,7 +67,7 @@ theorem read_advice (n : ℕ) (bounded : n ≤ g.roles.length) (past : g.binaryS
     have length := g.roles_length
     simp only [Geometry.binaryStart]
     omega
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded ⟨g.binaryStart,bound⟩ past (fun fresh => fresh.advice)]
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded ⟨g.binaryStart,bound⟩ past (fun fresh => fresh.advice)]
   simp only [ProtocolWrites.fresh,↓reduceIte]
 
 theorem read_packingU (n : ℕ) (bounded : n ≤ g.roles.length)
@@ -82,13 +81,13 @@ theorem read_packingU (n : ℕ) (bounded : n ≤ g.roles.length)
   let i : Fin g.roles.length := ⟨ApplicationPrefix.packingIndex g,bound⟩
   have role : g.roles.get i = .packing :=
     Option.some.inj ((List.getElem?_eq_getElem (l := g.roles) bound).symm.trans (RuntimeShape.packing_get g nontrivial))
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.packingU)]
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded i past (fun fresh => fresh.packingU)]
   simp only [ProtocolWrites.fresh,role,↓reduceIte]
 
 theorem read_packingA (n : ℕ) (bounded : n ≤ g.roles.length) (past : g.batchingIndex.val ≤ n) :
     (((Encoding).chain initial).point proof H n).readAt g.batchingIndex.val
       (fun block => block.2.packingA) = (ProtocolWrites.packingPair proof.body).map Prod.snd := by
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded g.batchingIndex past (fun fresh => fresh.packingA)]
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded g.batchingIndex past (fun fresh => fresh.packingA)]
   simp only [ProtocolWrites.fresh,g.get_batchingIndex,↓reduceIte]
 
 theorem mapMessage_id {E : Type} (message : Layered.Replay.Message E) :
@@ -99,7 +98,7 @@ theorem prime_wire (n : ℕ) (bounded : n ≤ g.roles.length)
     ApplicationPrefix.wire (((Encoding).chain initial).point proof H n) .prime id g.primeStart q.val =
       some ((Prefix.roleWrite proof.body.prime ((g.prime.roles .prime).get q)).getD .empty) := by
   unfold ApplicationPrefix.wire
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded
     (g.primeIndex q) past (fun fresh => some (ApplicationPrefix.mapMessage id (fresh.frontend .prime)))]
   rw [ProtocolWrites.fresh,g.prime_role_get]
   exact congrArg some ((mapMessage_id _).trans (Prefix.role_message proof.body .prime _
@@ -110,7 +109,7 @@ theorem binary_wire (n : ℕ) (bounded : n ≤ g.roles.length)
     ApplicationPrefix.wire (((Encoding).chain initial).point proof H n) .binary id g.binaryStart q.val =
       some ((Prefix.roleWrite proof.body.binary ((g.binary.roles .binary).get q)).getD .empty) := by
   unfold ApplicationPrefix.wire
-  erw [readAt repr shape setup publicCount binaryRequest metadata request initial proof H n bounded
+  erw [readAt fmt binaryRequest metadata request initial proof H n bounded
     (g.binaryIndex q) past (fun fresh => some (ApplicationPrefix.mapMessage id (fresh.frontend .binary)))]
   rw [ProtocolWrites.fresh,g.binary_role_get]
   exact congrArg some ((mapMessage_id _).trans (Prefix.role_message proof.body .binary _
@@ -132,8 +131,8 @@ theorem frontend_wire (side : Side) (n : ℕ) (bounded : n ≤ g.roles.length)
     ApplicationPrefix.wire (((Encoding).chain initial).point proof H n) side id (start g side) q.val =
       some ((Prefix.roleWrite (proof.body.frontend side) (((g.frontend side).roles side).get q)).getD .empty) := by
   cases side
-  · exact binary_wire repr shape setup publicCount binaryRequest metadata request initial proof H n bounded q past
-  · exact prime_wire repr shape setup publicCount binaryRequest metadata request initial proof H n bounded q past
+  · exact binary_wire fmt binaryRequest metadata request initial proof H n bounded q past
+  · exact prime_wire fmt binaryRequest metadata request initial proof H n bounded q past
 
 section Participant
 variable (side : Side)
@@ -161,7 +160,7 @@ theorem messages (n : ℕ) (bounded : n ≤ g.roles.length)
         rw [shapeEq,← plan.slots_eq_roles_length side]
         omega
       let index : Fin ((g.frontend side).roles side).length := ⟨q,qlt⟩
-      have actual := frontend_wire repr shape setup publicCount binaryRequest metadata request initial proof H side
+      have actual := frontend_wire fmt binaryRequest metadata request initial proof H side
         n bounded index (by change start g side+q ≤ n; omega)
       have slot := congrArg (fun items => (items[q]?).map (fun item => item.getD .empty)) stream
       simp only [List.getElem?_map,List.getElem?_eq_getElem qlt,Option.map_some] at slot

@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend
 import LfzkV2.Current.ZeroKnowledge.FrontendRuntimeStatement
 
@@ -19,7 +20,8 @@ local notation "Sh" => MdocRuntime.shape binary.description prime binary.plan pr
 local notation "Repr" => MdocRuntime.representations scalars
 local notation "Cfg" => RuntimeStatement.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
-local notation "Point" => QueryRuntime.Runtime.Point Repr Sh setup binary.nPublic
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
+local notation "Point" => (Format.Point (Fmt))
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 /-- Expose the already fixed runtime geometry once, so composition never
 needs to infer it by unfolding the complete application configuration. -/
@@ -28,7 +30,7 @@ def configuration : RuntimeVerifier.Public
     binary.description prime (backend binaryNodes binary.description.cells)
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
     (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
-    (Base := CanonicalRequest.Base Repr Sh setup binary.nPublic)
+    (Base := (Format.Base (Fmt)))
     (Key := FingerprintPrefix.Key binary.nPublic) (C := Answer) (Salt := Fin 2443 × MerkleNonce) :=
   Cfg
 
@@ -42,7 +44,7 @@ variable (roundSampler : QueryRuntime.Runtime.Point (MdocRuntime.representations
 variable (SHA : Strand.Oracle)
 def actualOracle : Point → Digest × Answer :=
   StrandCanonicalBackend.logicalOracle (g := G) (fields := MdocRuntime.fields B)
-    (Advice := MdocAdvice.Value) (C := Answer) binary.description Repr Sh setup roundSampler (Public).fallback SHA
+    (Advice := MdocAdvice.Value) (C := Answer) binary.description (Fmt) roundSampler (Public).fallback SHA
 
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext

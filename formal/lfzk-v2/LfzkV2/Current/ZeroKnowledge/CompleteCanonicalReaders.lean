@@ -21,50 +21,49 @@ variable (prime : PrimePublic N shared)
 variable (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ N)
 local notation "P" => ConcreteSetup.backend binaryNodes binary.cells
 local notation "R" => ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime
   (ConcreteSetup.backend binaryNodes binary.cells)
   (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (primeCount : shape.primePublic = prime.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (primeCount : fmt.primePublic = prime.nPublic)
+variable (metadata : fmt.RequestMetadata C)
 
-def earlier := CanonicalRuntime.earlier binary prime P R (LegacyFormat repr shape setup _)
-  (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount metadata
+def earlier := CanonicalRuntime.earlier binary prime P R fmt
+  (basePublic binary prime binaryNodes primeNodes fmt cfg) binaryCount metadata
 
-def encoding (request : CanonicalRequest.Request shape binary.nPublic) :=
-  CanonicalRequest.bodyEncoding repr shape setup binary.nPublic
-    (CanonicalRuntime.binaryRequest binary prime P R (LegacyFormat repr shape setup _)
-      (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount) metadata request
+def encoding (request : fmt.Request) :=
+  fmt.bodyEncoding
+    (CanonicalRuntime.binaryRequest binary prime P R fmt
+      (basePublic binary prime binaryNodes primeNodes fmt cfg) binaryCount) metadata request
 
-local notation "Cfg" => publicConfig binary prime binaryNodes primeNodes repr shape setup cfg
+local notation "Cfg" => publicConfig binary prime binaryNodes primeNodes fmt cfg
 local notation "First" => RuntimeVerifier.first binary prime P R Cfg
 local notation "Second" => RuntimeVerifier.second binary prime P R Cfg
 local notation "Data" => Σ A : RuntimeVerifier.System binary prime (C := C), StatementData A First Second
 local notation "Body" => Current.Body g fields Advice (OpeningBody.Authentication g)
-local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
+local notation "Point" => fmt.Point
 
-def batchingPoint (request : CanonicalRequest.Request shape binary.nPublic) (frontend : Body)
+def batchingPoint (request : fmt.Request) (frontend : Body)
     (H : Point → Digest × C) : Point :=
   (BackendPath.parent
-    (encoding binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata request).encoding
+    (encoding binary prime binaryNodes primeNodes fmt cfg binaryCount metadata request).encoding
     cfg.initialLink ⟨frontend,fun _ => 0⟩ H g.batchingIndex).point
 
-def statementAt (request : CanonicalRequest.Request shape binary.nPublic) (frontend : Body)
+def statementAt (request : fmt.Request) (frontend : Body)
     (H : Point → Digest × C) : Option Data :=
-  let point := batchingPoint binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata request frontend H
-  RuntimeAdaptive.statementAt binary prime P R Cfg (CanonicalRequest.hashPublic binary.nPublic)
-    (CanonicalRuntime.decodePrimePublic binary prime P R (LegacyFormat repr shape setup _)
-      (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) primeCount)
+  let point := batchingPoint binary prime binaryNodes primeNodes fmt cfg binaryCount metadata request frontend H
+  RuntimeAdaptive.statementAt binary prime P R Cfg (fmt.hashPublic)
+    (CanonicalRuntime.decodePrimePublic binary prime P R fmt
+      (basePublic binary prime binaryNodes primeNodes fmt cfg) primeCount)
     point (point.priorAnswers H)
 
-def batchingCoin (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R Cfg) (request : CanonicalRequest.Request shape binary.nPublic) (frontend : Body)
+def batchingCoin (batchingSamples : C → RuntimeVerifier.RawSamples binary prime P R Cfg) (request : fmt.Request) (frontend : Body)
     (H : Point → Digest × C) : JointResponse.Coin (First).participant (Second).participant := by
-  let point : Point := batchingPoint binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata request frontend H
+  let point : Point := batchingPoint binary prime binaryNodes primeNodes fmt cfg binaryCount metadata request frontend H
   let answer : C := (H point).2
   exact RuntimeVerifier.batchingDecoder binary prime P R Cfg batchingSamples answer
 

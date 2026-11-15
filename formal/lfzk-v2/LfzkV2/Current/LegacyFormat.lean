@@ -2,6 +2,7 @@ import LfzkV2.Current.Format
 import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ProofBodyBounds
 import LfzkV2.Current.CanonicalRuntime
+import LfzkV2.Current.LegacyNode
 
 /-! The deployed transcript format, `LegacyFormat`: the first-fingerprint
 prefix (`FingerprintPrefix`), the role-local wire blocks (`WireBlocks`), the
@@ -219,6 +220,16 @@ private theorem packet_block_cast {Fresh : Type} {capacity : ℕ} {first second 
         i hi past).trans (packet_block_cast _ _).symm⟩
   bodyBound := ProofBodyBounds.bodyBound repr g
   body_bound := ProofBodyBounds.encode_length_le repr g
+  node binaryRequest metadata request root i writes past :=
+    if h : Nonempty Advice then
+      LegacyNode.canonicalBase shape (Classical.choice h) repr setup publicCount binaryRequest metadata
+        request root i writes past
+    else ⟨[],by simp⟩
+  block_node binaryRequest metadata request body i past := by
+    have nonempty : Nonempty Advice := ⟨body.advice⟩
+    rw [dif_pos nonempty]
+    exact (LegacyNode.canonicalBase_body shape _ repr setup publicCount binaryRequest metadata request
+      ⟨body,fun _ => 0⟩ i past).symm
 
 /-! The deployed format is the existing encoding, definitionally. -/
 namespace LegacyFormat

@@ -27,7 +27,8 @@ local notation "Repr" => MdocRuntime.representations scalars
 local notation "bCount" => RuntimeStatement.binary_count binary prime primePlan inputFits privateFits
 local notation "pCount" => RuntimeStatement.prime_count binary prime primePlan inputFits privateFits
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
-local notation "Point" => QueryRuntime.Runtime.Point Repr Sh setup binary.nPublic
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
+local notation "Point" => (Format.Point (Fmt))
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 local notation "FrontendCoins" => CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B)
 local notation "BackendCoins" => Backend.JointMasks binaryNodes ConcreteSetup.primeNodes binary.description.cells
@@ -58,9 +59,9 @@ variable (batchingSamples : MdocRuntime.Answer binary.description prime binary.p
   (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes
-    (MdocRuntime.representations scalars)
+    (LegacyFormat (MdocRuntime.representations scalars)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
-      (RuntimeStatement.degreeFits binary)) setup
+      (RuntimeStatement.degreeFits binary)) setup _)
     (configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup)))
 
 section Views
@@ -81,10 +82,10 @@ def simulatedView (request : Request) (root : Digest) (context : Context) (prior
     (coins : CompleteSimulation.Coins binary prime × BackendCoins) :=
   let front := publicFront coins.1 request root
   let response := StrandCanonicalBackend.respond (g := G) (fields := MdocRuntime.fields B)
-    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public
+    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Public
     bCount pCount metadata roundSampler batchingSamples request front SHA coins.2
   StrandCanonicalBackend.fullView (g := G) (fields := MdocRuntime.fields B)
-    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public
+    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Public
     bCount metadata roundSampler request context prior after leaves nonces front response SHA
 
 def honestView (request : Request) (root : Digest) (context : Context) (prior : List (Bytes × Digest))
@@ -95,10 +96,10 @@ def honestView (request : Request) (root : Digest) (context : Context) (prior : 
   let front := honestFront coins.1 request root
   let cells := FrontendCanonicalRows.cells binary prime primePlan inputFits privateFits originalWitness remainingWitness coins.1 request
   let response := StrandCanonicalBackend.respondHonest (g := G) (fields := MdocRuntime.fields B)
-    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public
+    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Public
     bCount pCount metadata roundSampler batchingSamples request front SHA cells coins.2
   StrandCanonicalBackend.fullView (g := G) (fields := MdocRuntime.fields B)
-    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Public
+    (Advice := MdocAdvice.Value) (C := Answer) binary.description prime binaryNodes ConcreteSetup.primeNodes (Fmt) Public
     bCount metadata roundSampler request context prior after leaves nonces front response SHA
 
 end Views
@@ -106,11 +107,11 @@ end Views
 open StrandCanonicalExecution LigeroFamily
 local instance : DecidableEq (Fin 2443) := fun a b => Classical.propDecidable (a = b)
 local notation "Codec" => StrandCanonicalBackend.indexedCodec binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Dec" => StrandCanonicalBackend.indexedDecoders binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "Column" => StrandCanonicalBackend.Leaf binary.description prime binaryNodes
-  ConcreteSetup.primeNodes Repr Sh setup Public
+  ConcreteSetup.primeNodes (Fmt) Public
 local notation "HonestCoins" => FrontendCoins × BackendCoins
 local notation "PublicCoins" => CompleteSimulation.Coins binary prime × BackendCoins
 

@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext
 import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows
 
@@ -55,6 +56,7 @@ theorem frontend_commitment
 truth; hash truth is independent of R, the pads and the virtual leaves by the
 circuit types. No parse or backend-truth
 certificate is assumed. All reserved-mask quantification is derived inside. -/
+local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
 theorem exists_satisfied
     (coins : CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
     (request : Request) (root : Digest) (SHA : Strand.Oracle)
@@ -68,7 +70,7 @@ theorem exists_satisfied
       p.circuit.Satisfies (CompleteHonest.primeInputs b p (original request) (remaining request))) :
     ∃ data,
       CompleteCanonicalVerifier.statementAt binary.description prime binaryNodes ConcreteSetup.primeNodes
-        Repr Sh setup
+        (Fmt)
         (StrandCanonicalContext.configuration binary prime primePlan binaryNodes scalars
           inputFits privateFits setup)
         (RuntimeStatement.binary_count binary prime primePlan inputFits privateFits)

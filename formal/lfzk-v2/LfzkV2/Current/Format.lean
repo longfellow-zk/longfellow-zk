@@ -111,6 +111,18 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
   /-- An ambient bound on the body bytes; it adds no bytes. -/
   bodyBound : ℕ
   body_bound : ∀ value, (body.encode value).length ≤ bodyBound
+  /-- The node bytes at a boundary from public data alone: the request, the
+  commitment root, the fresh writes up to the boundary and the earlier
+  answers. The zero-knowledge simulator writes these. -/
+  node : {C : Type} → ((Fin publicCount → Bool) → Fin binaryPublic → fields .binary) →
+    ((request : PublicRequest publicCount primePublic (fields .prime)) → (i : Fin g.roles.length) →
+      (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) → (Fin i.val → C) → Metadata i) →
+    PublicRequest publicCount primePublic (fields .prime) → Digest → (i : Fin g.roles.length) →
+    (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) → (Fin i.val → C) → BoundedBytes capacity
+  /-- A node depends on the body only through its root and the fresh writes so far. -/
+  block_node : ∀ {C} binaryRequest metadata request body (i : Fin g.roles.length) (past : Fin i.val → C),
+    (block binaryRequest metadata request body i past).1 = node binaryRequest metadata request body.commitment i
+      (fun j => ProtocolWrites.fresh body ⟨j.val,by have := i.isLt; have := j.isLt; omega⟩) past
 
 namespace Format
 variable {g : Geometry} {fields : Fields} {Advice C : Type} {publicCount : ℕ}
@@ -326,6 +338,27 @@ def encoding : Replay.Encoding g fields Advice (OpeningBody.Authentication g) fm
 theorem encoding_block (proof : Output) (i : Fin g.roles.length) (past : Fin i.val → C) :
     (fmt.encoding binaryRequest metadata request).block proof i past =
       fmt.block binaryRequest metadata request proof.body i past := rfl
+
+/-- Every node is the public node encoder applied to the root and the
+fresh writes so far, with those writes as its typed messages. -/
+theorem encoding_block_node (proof : Output) (i : Fin g.roles.length) (past : Fin i.val → C) :
+    (fmt.encoding binaryRequest metadata request).block proof i past =
+      (fmt.node binaryRequest metadata request proof.body.commitment i (Format.writes proof.body i) past,
+        ProtocolWrites.fresh proof.body i) :=
+  Prod.ext (fmt.block_node binaryRequest metadata request proof.body i past)
+    (fmt.block_fresh binaryRequest metadata request proof.body i past)
+
+/-- Two proofs with the same root and the same fresh writes up to a
+boundary have the same node there. -/
+theorem block_writes_congr (first second : Output) (i : Fin g.roles.length) (past : Fin i.val → C)
+    (root : first.body.commitment = second.body.commitment)
+    (writes : Format.writes first.body i = Format.writes second.body i) :
+    (fmt.encoding binaryRequest metadata request).block first i past =
+      (fmt.encoding binaryRequest metadata request).block second i past := by
+  rw [encoding_block_node,encoding_block_node,root,writes]
+  congr 1
+  have last := congrFun writes (Fin.last i.val)
+  simpa only [Format.writes,Fin.val_last] using last
 
 theorem point_same_body (initial : Digest) (first second : Output)
     (same : first.body = second.body) (H : fmt.Point → Digest × C) (index : ℕ) :

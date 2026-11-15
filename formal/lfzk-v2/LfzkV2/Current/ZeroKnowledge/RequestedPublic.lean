@@ -28,15 +28,15 @@ theorem prime_inputs (inputs : Fin prime.nPublic → Adapter.Mdoc.P) :
 
 variable (primePlan : FrontendSchedule.Plan Adapter.Mdoc.P prime.circuit)
 variable (binaryNodes : Fin 2792 ↪ B)
-variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
 variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
-variable (setup : FingerprintPrefix.Setup)
+variable (fmt : Format (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B)
+  MdocAdvice.Value binary.description.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := MdocRuntime.geometry binary.description prime binary.plan primePlan)
   binary.description prime (backend binaryNodes binary.description.cells)
   (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
   (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
-  (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-  (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce))
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce))
 variable (binaryCount : shape.binaryPublic = binary.description.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape binary.description.nPublic)
@@ -56,8 +56,8 @@ def configuration (request : Request) : RuntimeVerifier.Public
     (backend binaryNodes binary.description.cells)
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
     (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value)
-    (Base := CanonicalRequest.Base repr shape setup binary.description.nPublic)
-    (Key := FingerprintPrefix.Key binary.description.nPublic) (C := C) (Salt := Fin 2443 × MerkleNonce) := {
+    (Base := fmt.Base)
+    (Key := fmt.Key) (C := C) (Salt := Fin 2443 × MerkleNonce) := {
   card := cfg.card
   polynomialX := cfg.polynomialX
   quotientBound := cfg.quotientBound

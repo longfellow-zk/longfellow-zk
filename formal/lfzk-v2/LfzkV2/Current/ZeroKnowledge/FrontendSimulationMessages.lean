@@ -18,28 +18,26 @@ local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
 variable (primePlan : FrontendSchedule.Plan P prime.circuit)
 variable (samples : ConcreteMetadata.Samples B C)
-variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))
-variable (repr : ProofBodyCodec.Representations (MdocRuntime.fields B) MdocAdvice.Value)
-variable (setup : FingerprintPrefix.Setup) (defaultAdvice : MdocAdvice.Value) (publicCount : ℕ)
-variable (binaryRequest : (Fin publicCount → Bool) → Fin shape.binaryPublic → B)
-variable (metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value) (C := C) shape publicCount)
-variable (request : CanonicalRequest.Request shape publicCount) (root : Digest)
+variable {publicCount : ℕ} (fmt : Format (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B) MdocAdvice.Value publicCount)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin fmt.binaryPublic → B)
+variable (metadata : fmt.RequestMetadata C)
+variable (request : fmt.Request) (root : Digest)
 variable (H : CompleteSimulation.Point binary prime primePlan
-  (Key := FingerprintPrefix.Key publicCount) (Base := CanonicalRequest.Base repr shape setup publicCount) → Digest × C)
+  (Key := fmt.Key) (Base := fmt.Base) → Digest × C)
 variable (initial : Digest) (coins : CompleteSimulation.Coins binary prime)
 local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
-local notation "W" => CompleteWire.canonicalBase shape defaultAdvice repr setup publicCount binaryRequest metadata request root
+local notation "W" => fmt.node binaryRequest metadata request root
 local notation "selected" => CompleteSimulation.selectedState binary prime primePlan samples W H
-  (FingerprintPrefix.context request root) coins.fingerprints
+  (fmt.context request root) coins.fingerprints
 local notation "result" => CompleteSimulation.simulate binary prime primePlan samples W H
-  (FingerprintPrefix.context request root) coins
+  (fmt.context request root) coins
 local notation "native" => CompleteSimulation.primePrefix binary prime primePlan samples W H selected
   (simulateCircuit prime.circuit coins.prime)
 local notation "converted" => CompleteSimulation.conversionPrefix binary prime primePlan samples W H native coins.mu
 local notation "proof" => (Current.Proof.mk (CompleteFrontendBody.body binary prime primePlan root result) (fun _ => 0) :
-  CanonicalRequest.Output (g := G) (fields := MdocRuntime.fields B) (Advice := MdocAdvice.Value))
+  Replay.Output G (MdocRuntime.fields B) MdocAdvice.Value (OpeningBody.Authentication G))
 local notation "point" => TranscriptV2.Chain.point
-  (Replay.Encoding.chain (CanonicalRequest.encoding repr shape setup publicCount binaryRequest metadata request) initial)
+  (Replay.Encoding.chain (fmt.encoding binaryRequest metadata request) initial)
   proof H (Fin.val (Geometry.batchingIndex G))
 
 omit [Fintype B] [DecidableEq B] in
@@ -50,7 +48,7 @@ theorem stage_ranks :
       (CompleteSimulation.binaryReplay binary prime primePlan samples W H converted coins.advice
         (simulateCircuit binary.description.circuit coins.binary)).2.rank.val = ApplicationPrefix.packingIndex (G) := by
   have first := SimulationWrites.selected_properties binary prime primePlan samples W H
-    (FingerprintPrefix.context request root) coins.fingerprints
+    (fmt.context request root) coins.fingerprints
   have cap := SimulationWrites.capacity binary prime primePlan
   have middle := SimulationWrites.prime_properties binary prime primePlan samples W H selected
     (simulateCircuit prime.circuit coins.prime) (by rw [first.1,cap]; omega)
@@ -81,7 +79,7 @@ theorem prime_messages :
         (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback (G).primeStart
           (FrontendReplay.slots prime.circuit)) := by
   have rank := (SimulationWrites.selected_properties binary prime primePlan samples W H
-    (FingerprintPrefix.context request root) coins.fingerprints).1
+    (fmt.context request root) coins.fingerprints).1
   have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤ (G).roles.length := by
     rw [rank,SimulationWrites.capacity binary prime primePlan]
     omega
@@ -89,8 +87,8 @@ theorem prime_messages :
     (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))
     .prime (Equiv.refl P) W H samples.prime samples.primeNonzero samples.fallback
     primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected (result).state fits
-    (SimulationAnswers.prime_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
-  rw [CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
+    (SimulationAnswers.prime_future binary prime primePlan samples W H (fmt.context request root) coins)
+  rw [CanonicalSimulation.batching_tape binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins,rank] at message
   exact message.trans (AnswerTape.frontend_read H samples.prime samples.primeNonzero samples.fallback prime.circuit
     prime.setup.plan (simulateCircuit prime.circuit coins.prime) point (G).primeStart).symm
@@ -107,7 +105,7 @@ theorem binary_messages :
         (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback (G).binaryStart
           (FrontendReplay.slots circuit)) := by
   have rank : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val = (G).binaryStart :=
-    (stage_ranks binary prime primePlan samples shape repr setup defaultAdvice publicCount binaryRequest metadata request root H coins).2.2.1
+    (stage_ranks binary prime primePlan samples fmt binaryRequest metadata request root H coins).2.2.1
   have fits : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val+
       Frontend.ScheduleLength.circuitFuel binary.plan false ≤
         (G).roles.length := by
@@ -120,8 +118,8 @@ theorem binary_messages :
     .binary (Equiv.refl B) W H samples.binary samples.binaryNonzero samples.fallback
     binary.plan binary.description.padPlan (simulateCircuit binary.description.circuit coins.binary)
     (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice) (result).state fits
-    (SimulationAnswers.binary_future binary prime primePlan samples W H (FingerprintPrefix.context request root) coins)
-  rw [CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount
+    (SimulationAnswers.binary_future binary prime primePlan samples W H (fmt.context request root) coins)
+  rw [CanonicalSimulation.batching_tape binary prime primePlan samples fmt
     binaryRequest metadata request root H initial coins,rank] at message
   exact message.trans (AnswerTape.frontend_read H samples.binary samples.binaryNonzero samples.fallback
     binary.description.circuit binary.description.padPlan

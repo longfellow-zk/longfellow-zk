@@ -34,17 +34,17 @@ local notation "BackendCoins" => Backend.JointMasks runtime.binaryNodes Concrete
   (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)
 local notation "HonestCoins" => (CompleteHonest.Tape runtime.binary runtime.prime × CompleteHonest.Masks (B := B)) × BackendCoins
 local notation "Codec" => StrandCanonicalBackend.indexedCodec runtime.binary.description runtime.prime runtime.binaryNodes
-  ConcreteSetup.primeNodes Repr Sh runtime.fingerprint Public
+  ConcreteSetup.primeNodes (LegacyFormat Repr Sh runtime.fingerprint _) Public
 local notation "ToLeaf" => StrandCanonicalBackend.leafEquiv runtime.binary.description runtime.prime runtime.binaryNodes
-  ConcreteSetup.primeNodes Repr Sh runtime.fingerprint Public
+  ConcreteSetup.primeNodes (LegacyFormat Repr Sh runtime.fingerprint _) Public
 variable (batchingSamples : MdocRuntime.Answer runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.binaryNodes →
   RuntimeVerifier.RawSamples runtime.binary.description runtime.prime
     (backend runtime.binaryNodes runtime.binary.description.cells)
     (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads))
     (CompleteCanonicalVerifier.publicConfig runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
-      (MdocRuntime.representations runtime.scalars)
+      (LegacyFormat (MdocRuntime.representations runtime.scalars)
       (MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan runtime.inputFits runtime.privateFits
-        (RuntimeStatement.degreeFits runtime.binary)) runtime.fingerprint
+        (RuntimeStatement.degreeFits runtime.binary)) runtime.fingerprint _)
       (StrandCanonicalContext.configuration runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits runtime.fingerprint)))
 variable (before : Merkle.RandomOracle.Tree Bytes Digest Context preQueries)
 variable (requestOf : Context → CanonicalRequest.Request
@@ -84,8 +84,8 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
       (backend runtime.binaryNodes runtime.binary.description.cells)
       (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads))
       (CompleteCanonicalVerifier.publicConfig runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
-        Repr Sh runtime.fingerprint Public)
-      (CompleteCanonicalVerifier.earlier runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
+        (LegacyFormat Repr Sh runtime.fingerprint _) Public)
+      (CompleteCanonicalVerifier.earlier runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes (LegacyFormat Repr Sh runtime.fingerprint _)
         Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata)
       NodeWire.current (ProofBodyCodec.codec Repr (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan)) roundSampler
       (CanonicalRequest.hashPublic runtime.binary.description.nPublic)
@@ -93,7 +93,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
         (backend runtime.binaryNodes runtime.binary.description.cells)
         (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)) (LegacyFormat Repr Sh runtime.fingerprint _)
         (CompleteCanonicalVerifier.basePublic runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
-          Repr Sh runtime.fingerprint Public) pCount)
+          (LegacyFormat Repr Sh runtime.fingerprint _) Public) pCount)
       batchingSamples Codec SHA id output = true := by
   let context := (before.run SHA).1
   let request := requestOf context
@@ -109,7 +109,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     runtime.inputFits runtime.privateFits runtime.fingerprint runtime.metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
     pivotOne primitive valid signature
   have truth : ∀ next,
-      CompleteCanonicalVerifier.statementAt runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
+      CompleteCanonicalVerifier.statementAt runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes (LegacyFormat Repr Sh runtime.fingerprint _)
         Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) pCount runtime.metadata request front
         (StrandCanonicalContext.actualOracle runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars
           runtime.inputFits runtime.privateFits runtime.fingerprint roundSampler SHA) = some next →
@@ -126,7 +126,7 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
     exact StrandHonestFrontend.frontend_commitment runtime.binary runtime.prime runtime.primePlan runtime.binaryNodes runtime.scalars runtime.inputFits runtime.privateFits
       runtime.fingerprint runtime.metadata (fun _ => original context) (fun _ => remaining context) roundSampler coins.1 request root SHA
   have accepted := StrandCanonicalBackend.respondHonest_accepts runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
-    Repr Sh runtime.fingerprint Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata roundSampler
+    (LegacyFormat Repr Sh runtime.fingerprint _) Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata roundSampler
     pCount batchingSamples request front SHA cells coins.2 responses indices opened nonces truth generated committed
   rw [finished]
   simpa only [context,request,root,front,cells,StrandCanonicalExecution.columns,

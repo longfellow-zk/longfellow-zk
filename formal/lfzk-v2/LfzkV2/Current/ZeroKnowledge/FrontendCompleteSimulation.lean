@@ -9,7 +9,7 @@ fingerprint responses, every masked sumcheck message, the masked prime scalar,
 canonical masked quotients and the packing response from public spaces. All
 challenges come from the actual chained state; no witness is an input.
 
-`base` is instantiated by `CompleteWire.canonicalBase`, with the runtime's
+`base` is instantiated by the format's node encoder `Format.node`, with the runtime's
 public metadata constructor. It receives only actual prefix writes and strict
 prior answers. The output leaves A pending for the next backend boundary. -/
 noncomputable section
