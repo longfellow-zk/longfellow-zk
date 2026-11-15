@@ -25,9 +25,17 @@ const fn mask(n: usize) -> u64 {
 /// ```compile_fail,E0603
 /// use longfellow_zk::runtime::v2::foreign::word::Word;
 /// ```
+///
+/// The quotient is unmasked, so its `Debug` output omits the value.
 #[cfg(any(test, feature = "prover"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Word<const N: usize>(u64);
+#[cfg(any(test, feature = "prover"))]
+impl<const N: usize> std::fmt::Debug for Word<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Word").finish_non_exhaustive()
+    }
+}
 #[cfg(any(test, feature = "prover"))]
 impl<const N: usize> Word<N> {
     pub(crate) fn new(value: u64) -> Result<Self, String> {

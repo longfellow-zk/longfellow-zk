@@ -152,3 +152,16 @@ fn verification_rejects_leaf_indices_at_or_beyond_the_leaf_count() {
         );
     }
 }
+
+/// A nonce's `Debug` output does not print its bytes.
+#[test]
+fn nonce_debug_omits_the_bytes() {
+    let a = MerkleNonce {
+        bytes: [0xab; NONCE_LEN],
+    };
+    let b = MerkleNonce {
+        bytes: [0xcd; NONCE_LEN],
+    };
+    assert_eq!(format!("{a:?}"), "MerkleNonce { .. }");
+    assert_eq!(format!("{a:#?}"), format!("{b:#?}"));
+}

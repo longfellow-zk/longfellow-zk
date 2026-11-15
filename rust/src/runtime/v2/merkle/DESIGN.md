@@ -204,7 +204,7 @@ count and exactly that many digests, and nothing may follow them;
 // runtime::v2::proto (the prover/verifier contract)
 pub struct Digest { pub data: [u8; 32] }
 pub const NONCE_LEN: usize = 32;
-pub(in crate::runtime::v2) struct MerkleNonce { pub(in crate::runtime::v2) bytes: [u8; NONCE_LEN] }
+pub(in crate::runtime::v2) struct MerkleNonce { pub(in crate::runtime::v2) bytes: [u8; NONCE_LEN] }  // Debug omits the bytes
 pub(in crate::runtime::v2) struct MerkleProof {
     pub(in crate::runtime::v2) nonce: Vec<MerkleNonce>,  // query order
     pub(in crate::runtime::v2) path: Vec<Digest>,        // the frontier, decreasing heap index

@@ -321,7 +321,7 @@ pub enum PackingProof<E> { Direct, TraceZero { u: Vec<E>, a: E } }
 pub struct Affine<E> { constant: E, terms: Vec<(usize, E)> }
 pub struct SourceClaim<E> { weights: Vec<E>, rhs: Affine<E>, auxiliary_count: usize } // no Message (I3)
 pub struct FieldEquation<E> { constant: E, words: Vec<E>, auxiliary: Vec<(usize, E)>, masks: Vec<E> }
-pub struct PackingMasks<E> { cells: Vec<E> }                 // not Clone (I8)
+pub struct PackingMasks<E> { cells: Vec<E> }                 // not Clone (I8); Debug omits the cells
 impl<E> PackingMasks<E> {
     pub fn sample<X: PackingExtension>(p: &PackingParameters<X>, sample: impl FnMut() -> E) -> Self;
     pub fn cells(&self) -> &[E];

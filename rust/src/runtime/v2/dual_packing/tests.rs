@@ -802,3 +802,16 @@ fn packing_masks_are_not_clone() {
     impl<T: Clone> AmbiguousIfClone<IsClone> for T {}
     <PackingMasks<u64> as AmbiguousIfClone<_>>::check();
 }
+
+/// The masks' `Debug` output does not print them.
+#[test]
+fn packing_masks_debug_omits_the_cells() {
+    let p = PackingParameters::new(Quad::<3, 0, 2>, Quad::<3, 0, 2>).unwrap();
+    let mut next = 0u8;
+    let masks = PackingMasks::sample(&p, || {
+        next += 1;
+        [next % 3, 2]
+    });
+    assert!(!masks.cells().is_empty());
+    assert_eq!(format!("{masks:?}"), "PackingMasks { .. }");
+}

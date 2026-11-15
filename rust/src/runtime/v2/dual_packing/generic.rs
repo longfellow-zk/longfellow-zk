@@ -79,9 +79,16 @@ pub(in crate::runtime::v2) struct FieldEquation<E> {
 /// One sample masks one source claim: the masks are not `Clone`, and
 /// `prove_packed` consumes them (dual packing I8).
 #[cfg(any(test, feature = "prover"))]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub(in crate::runtime::v2) struct PackingMasks<E> {
     pub(super) cells: Vec<E>,
+}
+/// The masks are secret: their `Debug` output omits them.
+#[cfg(any(test, feature = "prover"))]
+impl<E> std::fmt::Debug for PackingMasks<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PackingMasks").finish_non_exhaustive()
+    }
 }
 #[cfg(any(test, feature = "prover"))]
 impl<E: Clone> PackingMasks<E> {

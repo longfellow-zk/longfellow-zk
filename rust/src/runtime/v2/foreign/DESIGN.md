@@ -522,7 +522,7 @@ pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field
                                                         // mode ID P256_MODE_ID in adapter/p256/transcript.rs
 
 // runtime::v2::foreign::word (I5)
-pub(crate) struct Word<const N: usize>(u64);            // prover builds only; no encoder
+pub(crate) struct Word<const N: usize>(u64);            // prover builds only; no encoder; Debug omits the value
 pub struct Otp<const N: usize>(u64);                    // built only by Otp::sample; not Copy or Clone
 impl<const N: usize> Otp<N> {
     pub fn sample(rng: &mut impl PrivateRandom) -> Self;  // prover builds only

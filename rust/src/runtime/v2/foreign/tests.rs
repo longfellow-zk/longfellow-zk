@@ -55,6 +55,17 @@ fn pad_debug_omits_the_value() {
     assert_eq!(format!("{a:?}"), format!("{b:?}"));
 }
 
+/// An unmasked quotient's `Debug` output does not print its value.
+#[test]
+fn word_debug_omits_the_value() {
+    let (a, b) = (
+        Word::<16>::new(0x2a5).unwrap(),
+        Word::<16>::new(0x13).unwrap(),
+    );
+    assert_eq!(format!("{a:?}"), "Word(..)");
+    assert_eq!(format!("{a:#?}"), format!("{b:#?}"));
+}
+
 #[test]
 fn fragment_rejects_shapes_whose_size_overflows() {
     // trees * leaves wraps to 0 in usize; it must be rejected, not passed on

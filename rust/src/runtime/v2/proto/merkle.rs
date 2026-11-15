@@ -30,10 +30,16 @@ pub struct Digest {
 }
 
 /// A salt value generated randomly per leaf/column to make the
-/// commitment zero-knowledge (hiding).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// commitment zero-knowledge (hiding). An unopened nonce is secret, so its
+/// `Debug` output omits the bytes.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(in crate::runtime::v2) struct MerkleNonce {
     pub(in crate::runtime::v2) bytes: [u8; NONCE_LEN],
+}
+impl std::fmt::Debug for MerkleNonce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MerkleNonce").finish_non_exhaustive()
+    }
 }
 
 /// A Merkle proof of opening for a subset of leaves.
