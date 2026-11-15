@@ -262,6 +262,44 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     )
 }
 
+/// A frontend part takes only its participant's circuits: the same IDs, in
+/// the same order and number. Circuits with another ID but the same layout
+/// are rejected, as are a missing, an extra or a reordered circuit.
+#[test]
+fn frontend_part_takes_only_its_participants_circuits() {
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let ctx = ZkContext::new(&domain);
+    let (main, side) = circuits(&f);
+    let config = PolygeroConfig {
+        k: 64,
+        s: 2,
+        n: 256,
+        t: 8,
+    };
+    let p = CircuitParticipant::new(&[&main, &side], 0, config, &ctx).unwrap();
+    let renamed = |c: Circuit<Gf2_128Field>| {
+        let mut id = c.id;
+        id[0] ^= 1;
+        Circuit::with_test_id(id, c.into_raw())
+    };
+    let (main_copy, side_copy) = circuits(&f);
+    let (other_main, other_side) = (renamed(main_copy), renamed(side_copy));
+    assert!(FrontendPart::new(&p, &[&main, &side], &[true]).is_ok());
+    for list in [
+        vec![&other_main, &side],
+        vec![&main, &other_side],
+        vec![&main],
+        vec![&main, &side, &side],
+        vec![&side, &main],
+    ] {
+        assert_eq!(
+            FrontendPart::new(&p, &list, &[true]).err().unwrap(),
+            "circuit statement mismatch"
+        );
+    }
+}
+
 #[test]
 fn binary_circuits_authenticate_one_shared_input() {
     let f = Gf2_128Field::new();

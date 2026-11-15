@@ -141,3 +141,37 @@ fn composition_round_trip_rejects_tampering() {
 
 mod absorption;
 mod sensitivity;
+
+/// Foreign values must be private inputs of the host circuit: a group that
+/// starts in the host's public prefix, or that runs past its inputs into
+/// the reserved suffix (R and the mode's pads), is rejected.
+#[test]
+fn foreign_values_must_be_private_host_inputs() {
+    let gf2 = Gf2_128Field::new();
+    let p = P256Field::new();
+    let p2 = Fp2Field::new(&p);
+    let host_domain = BinaryInterpolatorFactory::full_field(&gf2);
+    let split_domain =
+        QuadraticExtensionFftInterpolatorFactory::new(&p, &p2, p2.omega(), p2.omega_order());
+    let host = circuit(&gf2, 1 + WIDTH, vec![gf2.one()], &[(0, 0), (1, 0)]);
+    let split = circuit(&p, 3, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
+    let compose = |start| {
+        let shared = Group::new(start, WIDTH).unwrap();
+        let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
+        Composition::<4, P256Field, _, _, Mode>::new(
+            &host,
+            &split,
+            storage,
+            CONFIG,
+            (&host_domain, &split_domain),
+        )
+        .err()
+    };
+    assert!(compose(1).is_none());
+    for start in [0, 2] {
+        assert_eq!(
+            compose(start).unwrap(),
+            "foreign values must be private host inputs"
+        );
+    }
+}

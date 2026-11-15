@@ -184,3 +184,14 @@ fn adapter_base_is_primitive() {
     let g = pow(&f, x, GENERATOR_EXPONENT);
     assert!(f.mulf(&pow(&f, g, 1 << 64), &x) == f.one());
 }
+
+/// The quotient width covers the claim: `P256Plan<Q>` takes at most `2^Q`
+/// bits in total (P-256 adapter I5), so 512 bits fit `Q = 9` and 513 do not.
+#[test]
+fn plan_rejects_claims_wider_than_its_quotient() {
+    assert!(P256Plan::<9>::new(vec![256, 256]).is_ok());
+    assert_eq!(
+        P256Plan::<9>::new(vec![256, 256, 1]).err().unwrap(),
+        "P256 adapter quotient width does not cover the claim"
+    );
+}

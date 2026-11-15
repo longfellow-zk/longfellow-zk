@@ -150,3 +150,23 @@ impl StorageMap {
         (entries, *native)
     }
 }
+
+/// Mixed storage keeps every pad native: over two private inputs and two
+/// pads, a foreign private input is accepted and a foreign pad is rejected.
+#[test]
+fn mixed_storage_keeps_every_pad_native() {
+    use super::{Group, Split};
+    let g = Group { start: 5, width: 1 };
+    let r = Some(Group {
+        start: 6,
+        width: 256,
+    });
+    let split = |v| Split::new(StorageMap::new(4, &[(v, g)]).unwrap(), r, 2, 4);
+    assert!(split(1).is_ok());
+    for pad in [2, 3] {
+        assert_eq!(
+            split(pad).err().unwrap(),
+            "mixed storage keeps every pad native"
+        );
+    }
+}

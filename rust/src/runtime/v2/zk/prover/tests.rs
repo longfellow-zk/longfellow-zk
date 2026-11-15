@@ -291,3 +291,71 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(state, numerical.bytes(32));
     assert_eq!(state, independent.bytes(32));
 }
+
+/// `prove` takes a commitment state only from the participant that prepared
+/// it: a state prepared for a circuit with another ID, but the same shape,
+/// is rejected before any message.
+#[test]
+fn prove_rejects_a_state_of_another_participant() {
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let context = ZkContext::new(&domain);
+    let raw = || RawCircuit {
+        ninput: 3,
+        npublic_input: 1,
+        noutput: 1,
+        logv: 0,
+        subfield_boundary: 0,
+        constants: vec![f.one()],
+        layers: vec![Layer::new_compressed(
+            3,
+            2,
+            vec![vec![TermDelta {
+                g: 0,
+                h: [1, 2],
+                k_index: 0,
+            }]],
+            vec![0],
+        )],
+    };
+    let fixture = || {
+        let r = raw();
+        quadratic_fixture(
+            Circuit {
+                id: compute_id(&f, &r),
+                raw: r,
+            },
+            &f,
+        )
+    };
+    let circuit = fixture();
+    let mut id = circuit.id;
+    id[0] ^= 1;
+    let renamed = crate::core::proto::v2::Circuit::with_test_id(id, fixture().into_raw());
+    let config = PolygeroConfig {
+        k: 8,
+        s: 2,
+        n: 64,
+        t: 2,
+    };
+    let prover = ZkProver::new(circuit, config, &context).unwrap();
+    let other = ZkProver::new(renamed, config, &context).unwrap();
+    // x1 * x2 = 0: the witness satisfies the circuit, so only the check rejects.
+    let (public, witness) = (vec![true], vec![false, true]);
+    let statement = prover.statement(b"state", &public).unwrap();
+    let other_statement = other.statement(b"state", &public).unwrap();
+    let mut rng = DeterministicRng::new(5);
+    let mut committed = prover
+        .commit(witness.clone(), &statement, &context, &mut rng)
+        .unwrap();
+    let foreign = other
+        .commit(witness, &other_statement, &context, &mut rng)
+        .unwrap();
+    let mut t = committed.joint.bound(&statement.part);
+    let top = top_weights(&mut t).unwrap();
+    let result = prove(&mut t, foreign.state, top, &VirtualInputs::none(), &context);
+    assert_eq!(
+        result.err().unwrap(),
+        "commitment belongs to another participant"
+    );
+}
