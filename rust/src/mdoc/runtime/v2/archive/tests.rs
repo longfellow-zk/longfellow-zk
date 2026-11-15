@@ -16,7 +16,7 @@ fn compressed_file_reads_stop_at_the_named_limit() {
 #[test]
 fn compressed_archive_checks_trailing_data_and_window_size() {
     let mut builder = CircuitArchive::builder();
-    builder.set_circuit_version(12);
+    builder.circuit_version = Some(12);
     let archive = builder.build().to_bytes();
     let compressed = zstd::encode_all(archive.as_slice(), 19).unwrap();
     assert!(read(&compressed).is_ok());

@@ -29,11 +29,11 @@ fn test_circuit_archive_lfa2_roundtrip() {
     let payload2 = vec![0x40, 0x50, 0x60, 0x70];
 
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(7);
-    builder.set_created_at("2026-07-15T15:13:24Z");
-    builder.set_author("Google LLC");
-    builder.set_generator_tool("rzkl-compiler v0.1.0");
-    builder.set_description("mdoc ZK Circuit Archive");
+    builder.circuit_version = Some(7);
+    builder.created_at = Some("2026-07-15T15:13:24Z".into());
+    builder.author = Some("Google LLC".into());
+    builder.generator_tool = Some("rzkl-compiler v0.1.0".into());
+    builder.description = Some("mdoc ZK Circuit Archive".into());
     builder.add_entry("sig", id1, payload1.clone());
     builder.add_entry("hash", id2, payload2.clone());
 
@@ -64,7 +64,7 @@ fn test_circuit_archive_lfa2_roundtrip() {
 /// An LFA2 archive with one entry and the given circuit version.
 fn small_lfa2(circuit_version: u32) -> Vec<u8> {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(circuit_version);
+    builder.circuit_version = Some(circuit_version);
     builder.add_entry("sig", [1u8; 32], vec![0x10, 0x20, 0x30]);
     builder.build().to_bytes_lfa2()
 }
@@ -129,10 +129,10 @@ fn lfa1_archive() -> (CircuitArchive, Vec<u8>) {
     let sig_bytes = CircuitWriter::new(&f256, FieldID::P256).to_bytes_lfc1(&c_sig);
     let hash_bytes = CircuitWriter::new(&fgf2, FieldID::Gf2_128).to_bytes_lfc1(&c_hash);
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_created_at("");
-    builder.set_author("");
-    builder.set_generator_tool("");
-    builder.set_description("");
+    builder.created_at = Some("".into());
+    builder.author = Some("".into());
+    builder.generator_tool = Some("".into());
+    builder.description = Some("".into());
     builder.add_entry("sig", c_sig.id, sig_bytes);
     builder.add_entry("hash", c_hash.id, hash_bytes);
     let archive = builder.build();
@@ -175,10 +175,10 @@ fn test_circuit_archive_lfa1_roundtrip() {
     let hash_bytes = w_hash.to_bytes_lfc1(&c_hash);
 
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_created_at("");
-    builder.set_author("");
-    builder.set_generator_tool("");
-    builder.set_description("");
+    builder.created_at = Some("".into());
+    builder.author = Some("".into());
+    builder.generator_tool = Some("".into());
+    builder.description = Some("".into());
     builder.add_entry("sig", c_sig.id, sig_bytes.clone());
     builder.add_entry("hash", c_hash.id, hash_bytes.clone());
 
@@ -208,10 +208,10 @@ fn test_circuit_archive_lfa1_information_loss_assertion() {
     let payload1 = vec![0x10, 0x20, 0x30];
 
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_created_at("2026-07-15T15:13:24Z"); // Non-empty created_at
-    builder.set_author("");
-    builder.set_generator_tool("");
-    builder.set_description("");
+    builder.created_at = Some("2026-07-15T15:13:24Z".into()); // Non-empty created_at
+    builder.author = Some("".into());
+    builder.generator_tool = Some("".into());
+    builder.description = Some("".into());
     builder.add_entry("sig", id1, payload1);
 
     let archive = builder.build();
@@ -225,7 +225,7 @@ fn test_circuit_archive_lfa1_circuit_version_assertion() {
     let payload1 = vec![0x10, 0x20, 0x30];
 
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(7);
+    builder.circuit_version = Some(7);
     builder.add_entry("sig", id1, payload1);
 
     let archive = builder.build();

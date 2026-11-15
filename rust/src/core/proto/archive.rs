@@ -44,13 +44,15 @@ pub struct CircuitArchive {
     pub entries: Vec<ArchiveEntry>,
 }
 
+/// Archive metadata and entries; `build` gives each metadata field left
+/// `None` its default.
 #[derive(Clone, Debug, Default)]
 pub struct CircuitArchiveBuilder {
-    circuit_version: Option<u32>,
-    created_at: Option<String>,
-    author: Option<String>,
-    generator_tool: Option<String>,
-    description: Option<String>,
+    pub circuit_version: Option<u32>,
+    pub created_at: Option<String>,
+    pub author: Option<String>,
+    pub generator_tool: Option<String>,
+    pub description: Option<String>,
     entries: Vec<ArchiveEntry>,
 }
 
@@ -58,31 +60,6 @@ impl CircuitArchiveBuilder {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn set_circuit_version(&mut self, circuit_version: u32) -> &mut Self {
-        self.circuit_version = Some(circuit_version);
-        self
-    }
-
-    pub fn set_created_at(&mut self, created_at: impl Into<String>) -> &mut Self {
-        self.created_at = Some(created_at.into());
-        self
-    }
-
-    pub fn set_author(&mut self, author: impl Into<String>) -> &mut Self {
-        self.author = Some(author.into());
-        self
-    }
-
-    pub fn set_generator_tool(&mut self, tool: impl Into<String>) -> &mut Self {
-        self.generator_tool = Some(tool.into());
-        self
-    }
-
-    pub fn set_description(&mut self, description: impl Into<String>) -> &mut Self {
-        self.description = Some(description.into());
-        self
     }
 
     pub fn add_entry(

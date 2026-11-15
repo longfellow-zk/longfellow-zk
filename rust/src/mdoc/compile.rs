@@ -35,7 +35,7 @@ pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
     let sig_bytes = CircuitWriter::new(&p).to_bytes(&sig);
     let hash_bytes = CircuitWriter::new(&f).to_bytes(&hash);
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(NEXT_VERSION as u32);
+    builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.id, sig_bytes);
     builder.add_entry("hash", hash.id, hash_bytes);
     Ok(builder.build().to_bytes())

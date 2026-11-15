@@ -20,7 +20,7 @@ fn entry(out: &mut Vec<u8>, name: &str, size: usize) {
 #[test]
 fn archive_roundtrip_handles_small_input_buffers() {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(12);
+    builder.circuit_version = Some(12);
     builder.add_entry("sig", [1; 32], vec![1, 2, 3]);
     builder.add_entry("hash", [2; 32], vec![4, 5]);
     let expected = builder.build();
@@ -69,13 +69,13 @@ fn archive_size_decoding_rejects_unrepresentable_values() {
 #[test]
 fn archive_metadata_has_one_aggregate_limit() {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(12);
-    builder.set_created_at("");
-    builder.set_author("");
-    builder.set_generator_tool("");
-    builder.set_description("x".repeat(MAX_METADATA_BYTES));
+    builder.circuit_version = Some(12);
+    builder.created_at = Some("".into());
+    builder.author = Some("".into());
+    builder.generator_tool = Some("".into());
+    builder.description = Some("x".repeat(MAX_METADATA_BYTES));
     assert!(from_bytes(&builder.clone().build().to_bytes()).is_ok());
-    builder.set_author("x");
+    builder.author = Some("x".into());
     assert!(from_bytes(&builder.build().to_bytes())
         .unwrap_err()
         .contains("metadata"));

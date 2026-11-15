@@ -37,7 +37,7 @@ fn provider_rejects_wrong_archive_entries() {
         vec!["sig", "hash", "extra"],
     ] {
         let mut builder = CircuitArchiveBuilder::new();
-        builder.set_circuit_version(NEXT_VERSION as u32);
+        builder.circuit_version = Some(NEXT_VERSION as u32);
         for name in names {
             builder.add_entry(name, [1; 32], vec![1]);
         }
@@ -55,7 +55,7 @@ fn provider_rejects_wrong_archive_entries() {
 #[test]
 fn frozen_v2_loader_reads_archive_without_a_compiler() {
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(NEXT_VERSION as u32);
+    builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();

@@ -67,7 +67,7 @@ fn fixture_with(p: &P256Field, f: &Gf2_128Field, public: [usize; 2]) -> CircuitA
     let sig = tiny(p, public[0]);
     let hash = tiny(f, public[1]);
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(NEXT_VERSION as u32);
+    builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.id, CircuitWriter::new(p).to_bytes(&sig));
     builder.add_entry("hash", hash.id, CircuitWriter::new(f).to_bytes(&hash));
     builder.build()
@@ -173,7 +173,7 @@ fn instance_load_binds_archive_and_entry_identifiers() {
     let mut wrong = sig.id;
     wrong[0] ^= 1;
     let mut builder = CircuitArchiveBuilder::new();
-    builder.set_circuit_version(NEXT_VERSION as u32);
+    builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", wrong, CircuitWriter::new(&p).to_bytes(&sig));
     builder.add_entry("hash", hash.id, CircuitWriter::new(&f).to_bytes(&hash));
     let mismatched = builder.build();
