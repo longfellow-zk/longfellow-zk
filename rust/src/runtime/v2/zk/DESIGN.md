@@ -189,7 +189,7 @@ row.** A pure-foreign participant commits nothing, so independent weights
 modular claim with a public target. Mixed and native storage never batch.
 A pure-foreign participant writes a `CommitmentLayout` with zero cells and
 zero fingerprint cells, and it is not a joint field: it has no Polygero
-parameter, no fingerprint masks and no rows, and its `CircuitGeometry` has
+parameter, no fingerprint masks and no rows, and its `CircuitProofGeometry` has
 `nw = 0`. Lean models row batching (`RowBatching`, `PureHandoff`,
 `PureComposition`), but no application may use pure-foreign storage until
 its application model charges those events. The composition driver
@@ -374,7 +374,7 @@ impl CircuitParticipant<W, F> {
     pub fn with_storage(circuit: &Circuit<F>, storage: StorageMap, mask: Option<Group>,
                         config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>) -> Result<Self, String>;
     pub fn commits(&self) -> bool;                       // false for pure foreign storage
-    pub fn geometry(&self) -> CircuitGeometry;           // written as Circuit/CommitmentLayout (I1)
+    pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
     pub fn participant(&self, ctx: &ZkContext<'a, W, F, D>)
         -> Result<SelectedField<'a, W, F, D>, String>;   // fails for pure foreign storage (I11)
 }

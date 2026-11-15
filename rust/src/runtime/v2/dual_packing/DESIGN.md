@@ -375,7 +375,7 @@ The glue projects `Bound<'_, PackingCommitment>` to
 `Bound<'_, PackingParameters>` for the protocol, so the parameters the
 protocol uses are the ones the statement absorbed (transcript I2). The proof
 reader builds `PackingProof` from the packing degree of the bound
-`CircuitGeometry`, so it cannot produce the wrong variant or length.
+`CircuitProofGeometry`, so it cannot produce the wrong variant or length.
 `LinearStatement` carries no source digest: the circuit ID is in the
 statement (transcript I3).
 

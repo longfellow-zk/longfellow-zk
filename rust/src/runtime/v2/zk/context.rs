@@ -27,7 +27,7 @@ use crate::{
     core::proto::v2::Circuit,
     runtime::v2::{
         polygero::PolygeroParam,
-        proto::{polygero::PolygeroConfig, zk::CircuitGeometry},
+        proto::{polygero::PolygeroConfig, zk::CircuitProofGeometry},
         zk::packing_commitment::{PackingCommitment, PackingLayout},
     },
 };
@@ -92,7 +92,7 @@ pub(crate) fn prepare_circuit_layout<
     config: PolygeroConfig,
     extension: X,
     ctx: &ZkContext<'_, W, F, D>,
-) -> Result<(CircuitGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
+) -> Result<(CircuitProofGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
     if ctx.field().is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
@@ -102,7 +102,7 @@ pub(crate) fn prepare_circuit_layout<
     let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
     let layout = PackingLayout::new(private_inputs, sc_geom.pad_count(), extension.degree())?;
     let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
-    let geometry = CircuitGeometry::new(sc_geom, layout.degree, param.geometry().nw)
+    let geometry = CircuitProofGeometry::new(sc_geom, layout.degree, param.geometry().nw)
         .map_err(|e| e.to_string())?;
     let backend = PackingCommitment::new(ctx.field().clone(), layout, extension)?;
     Ok((geometry, param, backend))

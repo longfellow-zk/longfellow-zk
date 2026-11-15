@@ -22,7 +22,7 @@ use crate::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
                 tests::statement::{Identity, Layout, Public, Statement},
                 witness_selection::FINGERPRINTS,
-                zk::{CircuitGeometry, ZkProof, ZkProofGeometry},
+                zk::{CircuitProofGeometry, ZkProof, ZkProofGeometry},
             },
             sumcheck::circuit_geometry,
             transcript::{Opened, ZkStatement, ZK_PROTOCOL_ID},
@@ -93,7 +93,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         public: &Public,
         config: PolygeroConfig,
         virtual_inputs: usize,
-    ) -> CircuitGeometry {
+    ) -> CircuitProofGeometry {
         let FrontendPart {
             participant,
             circuits,
@@ -168,7 +168,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         } else {
             0
         };
-        let rebuilt = CircuitGeometry::new(sumcheck, degree, nw).unwrap();
+        let rebuilt = CircuitProofGeometry::new(sumcheck, degree, nw).unwrap();
         assert_eq!(rebuilt, *geometry, "circuit geometry");
         assert_eq!(
             param.as_ref().map(|p| p.geometry()),

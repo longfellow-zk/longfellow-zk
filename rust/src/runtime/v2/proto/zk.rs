@@ -28,7 +28,7 @@ use crate::{
 /// participant's committed cell count `nw`. Its Polygero geometry is derived
 /// from `nw` and the enclosing proof geometry's one profile (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CircuitGeometry {
+pub struct CircuitProofGeometry {
     sumcheck: SumcheckProofGeometry,
     packing_degree: usize,
     nw: usize,
@@ -37,13 +37,13 @@ pub struct CircuitGeometry {
 /// Polygero profile, valid for the circuit's committed cells.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkProofGeometry {
-    circuit: CircuitGeometry,
+    circuit: CircuitProofGeometry,
     config: PolygeroConfig,
 }
 fn invalid_geometry(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidInput, message)
 }
-impl CircuitGeometry {
+impl CircuitProofGeometry {
     /// The geometry of a circuit reduction with packing degree
     /// `packing_degree >= 1` whose participant commits `nw` cells.
     pub fn new(
@@ -78,11 +78,11 @@ impl CircuitGeometry {
 impl ZkProofGeometry {
     /// The geometry of a standalone proof of `circuit` under `config`, if
     /// `config` is a valid Polygero profile for the circuit's cells.
-    pub fn new(circuit: CircuitGeometry, config: PolygeroConfig) -> std::io::Result<Self> {
+    pub fn new(circuit: CircuitProofGeometry, config: PolygeroConfig) -> std::io::Result<Self> {
         circuit.polygero(config)?;
         Ok(Self { circuit, config })
     }
-    pub fn circuit(&self) -> &CircuitGeometry {
+    pub fn circuit(&self) -> &CircuitProofGeometry {
         &self.circuit
     }
     /// The proof's one Polygero profile.
@@ -111,10 +111,10 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
 ///     algebra::gf2_128::Gf2_128Field,
 ///     v2::proto::{
 ///         sumcheck::SumcheckProofGeometry,
-///         zk::{CircuitGeometry, CircuitProof},
+///         zk::{CircuitProofGeometry, CircuitProof},
 ///     },
 /// };
-/// let g = CircuitGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
+/// let g = CircuitProofGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
 /// let _ = CircuitProof::<2, Gf2_128Field>::read(&mut &[][..], &g, &Gf2_128Field::new());
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -127,7 +127,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         sumcheck: &SumcheckProof<W, F>,
         packing: &PackingProof<F::E>,
         buf: &mut Vec<u8>,
-        g: &CircuitGeometry,
+        g: &CircuitProofGeometry,
         f: &F,
     ) -> std::io::Result<()> {
         use std::io::{Error, ErrorKind};
@@ -148,14 +148,14 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
     pub fn write_to_buf(
         &self,
         buf: &mut Vec<u8>,
-        g: &CircuitGeometry,
+        g: &CircuitProofGeometry,
         f: &F,
     ) -> std::io::Result<()> {
         Self::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)
     }
     /// A component reader, called only by the complete readers (proto I2).
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {
+    pub(crate) fn read(b: &mut &[u8], g: &CircuitProofGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
         let sumcheck_proof = SumcheckProof::read(b, &g.sumcheck, f)?;
         let packing = if g.packing_degree == 1 {
@@ -188,7 +188,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         })
     }
 }
-impl CircuitGeometry {
+impl CircuitProofGeometry {
     /// Bytes of a circuit proof: the sumcheck, then packing U and A when the
     /// packing degree exceeds one; None if they overflow.
     pub(crate) fn proof_len(&self, width: usize) -> Option<usize> {

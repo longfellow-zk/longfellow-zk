@@ -19,7 +19,7 @@ use crate::{
             },
             sumcheck::SumcheckProof,
             witness_selection::{FingerprintResponse, FINGERPRINTS},
-            zk::{CircuitGeometry, CircuitProof},
+            zk::{CircuitProof, CircuitProofGeometry},
         },
     },
 };
@@ -66,16 +66,16 @@ pub(crate) mod sealed {
 /// committed cells; the split circuit has packing degree one (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComposedGeometry {
-    host: CircuitGeometry,
-    split: CircuitGeometry,
+    host: CircuitProofGeometry,
+    split: CircuitProofGeometry,
     config: PolygeroConfig,
 }
 impl ComposedGeometry {
     /// The geometry of a composed proof, if the split circuit has packing
     /// degree one and `config` is a valid Polygero profile for both fields.
     pub fn new(
-        host: CircuitGeometry,
-        split: CircuitGeometry,
+        host: CircuitProofGeometry,
+        split: CircuitProofGeometry,
         config: PolygeroConfig,
     ) -> std::io::Result<Self> {
         if split.packing_degree() != 1 {
@@ -92,10 +92,10 @@ impl ComposedGeometry {
             config,
         })
     }
-    pub fn host(&self) -> &CircuitGeometry {
+    pub fn host(&self) -> &CircuitProofGeometry {
         &self.host
     }
-    pub fn split(&self) -> &CircuitGeometry {
+    pub fn split(&self) -> &CircuitProofGeometry {
         &self.split
     }
     /// The proof's one Polygero profile.
@@ -121,11 +121,11 @@ impl ComposedGeometry {
 ///             composed::{ComposedGeometry, ComposedProof},
 ///             polygero::PolygeroConfig,
 ///             sumcheck::SumcheckProofGeometry,
-///             zk::CircuitGeometry,
+///             zk::CircuitProofGeometry,
 ///         },
 ///     },
 /// };
-/// let c = || CircuitGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
+/// let c = || CircuitProofGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
 /// let config = PolygeroConfig { k: 2, s: 0, n: 4, t: 1 };
 /// let g = ComposedGeometry::new(c(), c(), config).unwrap();
 /// let f = Gf2_128Field::new();

@@ -15,7 +15,7 @@ use crate::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 sumcheck::SumcheckProof,
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
-                zk::{CircuitGeometry, CircuitProof, ZkProof},
+                zk::{CircuitProof, CircuitProofGeometry, ZkProof},
             },
             sumcheck::{self, SumcheckPads, TopWeights},
             transcript::{Bound, Challenge, Transcript},
@@ -39,7 +39,7 @@ struct Identity {
     id: [u8; 32],
     additional_ids: Vec<[u8; 32]>,
     config: PolygeroConfig,
-    geometry: CircuitGeometry,
+    geometry: CircuitProofGeometry,
     inputs: InputLayout,
     storage: Option<Split>,
 }

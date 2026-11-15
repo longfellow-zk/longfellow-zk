@@ -166,7 +166,7 @@ fn proof_geometry_fields_are_absorbed() {
     // (`polygero_profile_fields_are_absorbed`).
     let (circuit_geometry, config) = geometry.fields_for_test();
     assert_eq!(config, CONFIG);
-    // CircuitGeometry.
+    // CircuitProofGeometry.
     let (sumcheck, packing_degree, nw) = circuit_geometry.fields_for_test();
     // SumcheckProofGeometry: each layer's round count, from its width in
     // the circuit the `Circuit` ID hashes, one layer at a time; then the

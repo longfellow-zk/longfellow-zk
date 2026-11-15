@@ -624,7 +624,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub(crate) fn fields_for_test(
         &self,
     ) -> (
-        &CircuitGeometry,
+        &CircuitProofGeometry,
         &PolygeroConfig,
         &Option<PolygeroParam>,
         &PackingCommitment<F>,

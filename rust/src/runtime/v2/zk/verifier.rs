@@ -15,9 +15,7 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, symbolic::Constraints, TopWeights},
-            transcript::{
-                Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof,
-            },
+            transcript::{Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof},
             zk::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::PackingCommitment,
@@ -207,7 +205,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         let mut frontend = verifier.bound(&statement.part);
         let none = VirtualInputs::none();
         let constraints = top_weights(&mut frontend)
-            .and_then(|top| sumcheck_constraints(&mut frontend, &proof.sumcheck_proof, top, &none, ctx))
+            .and_then(|top| {
+                sumcheck_constraints(&mut frontend, &proof.sumcheck_proof, top, &none, ctx)
+            })
             .map_err(ZkVerificationError::InvalidSumcheck)?;
         let linear = pack_constraints(&mut frontend, constraints, &proof.packing, &none, ctx)
             .map_err(ZkVerificationError::InvalidPacking)?;

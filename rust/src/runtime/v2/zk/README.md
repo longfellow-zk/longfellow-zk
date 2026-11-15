@@ -35,7 +35,7 @@ Polygero parameters. `prepare` validates and packs typed private inputs, samples
 sumcheck pads and returns the witness and owned reduction state. Binary source
 inputs are Boolean; prime-field inputs remain field elements.
 
-`CircuitGeometry` contains the circuit reduction and commitment dimensions.
+`CircuitProofGeometry` contains the circuit reduction and commitment dimensions.
 The standalone `ZkProofGeometry` adds the proof's one Polygero profile;
 application envelopes supply their own joint geometry. Preparing a circuit
 still validates its selected field.

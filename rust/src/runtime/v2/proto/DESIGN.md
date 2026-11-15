@@ -38,9 +38,9 @@ draws.
 | `SumcheckProofGeometry` | `logw` of each layer, outputs to inputs | every `logw` sane (`core::proto::sane_logw`: `logw <= MAX_LOGW = 40` and `logw < usize::BITS`), and the pad count fits `usize` | `Circuit`: the circuit ID, from whose circuit the schedule derives each stage's `logw` |
 | `PolygeroConfig` | `k`, `s`, `n`, `t` | by `PolygeroGeometry::new` | `JointGeometry`: Nats(k, s, n, t) |
 | `PolygeroGeometry` | `nw`, `k`, `s`, `n`, `t` | `0 < t < k`, `t <= n`, `k + s <= n`, `2k <= n`, every size and `nrow * n` at most `2^28` | derived from the two above |
-| `CircuitGeometry` | sumcheck geometry, packing degree `m`, `nw` | `m >= 1` (`CircuitGeometry::new`) | `Circuit`, `CommitmentLayout` |
-| `ZkProofGeometry` | one `CircuitGeometry`, one `PolygeroConfig` | the Polygero geometry of `nw` under the config is valid (`ZkProofGeometry::new`) | standalone statement |
-| `ComposedGeometry` | host `CircuitGeometry`, split `CircuitGeometry`, one `PolygeroConfig` | the Polygero geometry of each field's `nw` under the config is valid, and split `m = 1` (`ComposedGeometry::new`) | mdoc statement, with `AdapterLayout` for `Q` |
+| `CircuitProofGeometry` | sumcheck geometry, packing degree `m`, `nw` | `m >= 1` (`CircuitProofGeometry::new`) | `Circuit`, `CommitmentLayout` |
+| `ZkProofGeometry` | one `CircuitProofGeometry`, one `PolygeroConfig` | the Polygero geometry of `nw` under the config is valid (`ZkProofGeometry::new`) | standalone statement |
+| `ComposedGeometry` | host `CircuitProofGeometry`, split `CircuitProofGeometry`, one `PolygeroConfig` | the Polygero geometry of each field's `nw` under the config is valid, and split `m = 1` (`ComposedGeometry::new`) | mdoc statement, with `AdapterLayout` for `Q` |
 
 A proof has one Polygero profile: the spec (`ZkSpecStruct`) names one, and
 its `(k, s, n, t)` is the single `PolygeroConfig` of the proof geometry
@@ -393,28 +393,28 @@ impl PolygeroGeometry {
     pub fn nrow(&self) -> usize;                     // ceil(nw / (k - t)) + 3
     pub fn response_lengths(&self) -> [usize; 2];    // [k + s, 2k]
 }
-pub struct CircuitGeometry { sumcheck: SumcheckProofGeometry, packing_degree: usize, nw: usize }
-impl CircuitGeometry {
+pub struct CircuitProofGeometry { sumcheck: SumcheckProofGeometry, packing_degree: usize, nw: usize }
+impl CircuitProofGeometry {
     pub fn new(sumcheck: SumcheckProofGeometry, packing_degree: usize, nw: usize)
         -> std::io::Result<Self>;                    // packing degree >= 1
     pub fn sumcheck(&self) -> &SumcheckProofGeometry;
     pub fn packing_degree(&self) -> usize;
     pub fn nw(&self) -> usize;
 }
-pub struct ZkProofGeometry { circuit: CircuitGeometry, config: PolygeroConfig }
+pub struct ZkProofGeometry { circuit: CircuitProofGeometry, config: PolygeroConfig }
 impl ZkProofGeometry {
-    pub fn new(circuit: CircuitGeometry, config: PolygeroConfig)
+    pub fn new(circuit: CircuitProofGeometry, config: PolygeroConfig)
         -> std::io::Result<Self>;                    // the Polygero geometry is valid
-    pub fn circuit(&self) -> &CircuitGeometry;
+    pub fn circuit(&self) -> &CircuitProofGeometry;
     pub fn config(&self) -> PolygeroConfig;
     pub fn polygero(&self) -> PolygeroGeometry;      // derived, never stored
 }
-pub struct ComposedGeometry { host: CircuitGeometry, split: CircuitGeometry, config: PolygeroConfig }
+pub struct ComposedGeometry { host: CircuitProofGeometry, split: CircuitProofGeometry, config: PolygeroConfig }
 impl ComposedGeometry {
-    pub fn new(host: CircuitGeometry, split: CircuitGeometry, config: PolygeroConfig)
+    pub fn new(host: CircuitProofGeometry, split: CircuitProofGeometry, config: PolygeroConfig)
         -> std::io::Result<Self>;                    // split packing degree 1; both Polygero geometries valid
-    pub fn host(&self) -> &CircuitGeometry;
-    pub fn split(&self) -> &CircuitGeometry;
+    pub fn host(&self) -> &CircuitProofGeometry;
+    pub fn split(&self) -> &CircuitProofGeometry;
     pub fn config(&self) -> PolygeroConfig;
     pub fn polygero(&self) -> [PolygeroGeometry; 2]; // host, split: derived, never stored
 }

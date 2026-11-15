@@ -55,7 +55,7 @@ fn proof_geometries_are_checked_and_derive_their_polygero_geometry() {
     use super::super::{
         composed::ComposedGeometry,
         polygero::{PolygeroConfig, PolygeroGeometry},
-        zk::{CircuitGeometry, ZkProofGeometry},
+        zk::{CircuitProofGeometry, ZkProofGeometry},
     };
     let config = PolygeroConfig {
         k: 2,
@@ -64,9 +64,9 @@ fn proof_geometries_are_checked_and_derive_their_polygero_geometry() {
         t: 1,
     };
     let sumcheck = || SumcheckProofGeometry::new(vec![1, 0]).unwrap();
-    assert!(CircuitGeometry::new(sumcheck(), 0, 3).is_err());
-    let host = CircuitGeometry::new(sumcheck(), 2, 3).unwrap();
-    let split = CircuitGeometry::new(sumcheck(), 1, 5).unwrap();
+    assert!(CircuitProofGeometry::new(sumcheck(), 0, 3).is_err());
+    let host = CircuitProofGeometry::new(sumcheck(), 2, 3).unwrap();
+    let split = CircuitProofGeometry::new(sumcheck(), 1, 5).unwrap();
     assert_eq!(
         (host.sumcheck(), host.packing_degree(), host.nw()),
         (&sumcheck(), 2, 3)
@@ -89,7 +89,7 @@ fn proof_geometries_are_checked_and_derive_their_polygero_geometry() {
     let invalid = PolygeroConfig { t: 2, ..config };
     assert!(ZkProofGeometry::new(host.clone(), invalid).is_err());
     assert!(ComposedGeometry::new(host.clone(), split.clone(), invalid).is_err());
-    let too_large = CircuitGeometry::new(sumcheck(), 1, usize::MAX).unwrap();
+    let too_large = CircuitProofGeometry::new(sumcheck(), 1, usize::MAX).unwrap();
     assert!(ZkProofGeometry::new(too_large.clone(), config).is_err());
     assert!(ComposedGeometry::new(host.clone(), too_large, config).is_err());
     // A split frontend has no packing response (audit P3).
@@ -106,7 +106,7 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
         dual_packing::PackingProof,
         polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
         witness_selection::FingerprintResponse,
-        zk::{CircuitGeometry, CircuitProof},
+        zk::{CircuitProof, CircuitProofGeometry},
         Digest, MerkleNonce,
     };
     use crate::{core::algebra::AlgebraicField, runtime::algebra::gf2_128::Gf2_128Field};
@@ -130,7 +130,7 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
         t: 1,
     };
     let sumcheck = || SumcheckProofGeometry::new(vec![]).unwrap();
-    let circuit = |degree| CircuitGeometry::new(sumcheck(), degree, 0).unwrap();
+    let circuit = |degree| CircuitProofGeometry::new(sumcheck(), degree, 0).unwrap();
     assert!(ComposedGeometry::new(circuit(1), circuit(2), config).is_err());
     let g = ComposedGeometry::new(circuit(1), circuit(1), config).unwrap();
     let body = || FieldProof {

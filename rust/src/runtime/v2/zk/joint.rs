@@ -22,7 +22,7 @@ use crate::{
             polygero::PolygeroParam,
             proto::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
-                zk::CircuitGeometry,
+                zk::CircuitProofGeometry,
             },
             sumcheck::{self, circuit_geometry, TopWeights},
             transcript::{Bound, Challenge},
@@ -125,7 +125,7 @@ fn check_registered<F: RegisteredField>(f: &F) -> Result<(), String> {
 /// Input packing stays here; the lower-level Polygero participant only knows
 /// full-field witness cells and affine constraints over them.
 pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
-    pub(super) geometry: CircuitGeometry,
+    pub(super) geometry: CircuitProofGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
     /// The Polygero parameter of the committed cells; `None` for a
@@ -223,7 +223,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         };
         let nw = param.as_ref().map_or(0, |p| p.geometry().nw);
         Ok(Self {
-            geometry: CircuitGeometry::new(sc_geom, 1, nw).map_err(|e| e.to_string())?,
+            geometry: CircuitProofGeometry::new(sc_geom, 1, nw).map_err(|e| e.to_string())?,
             #[cfg(any(test, feature = "prover"))]
             config,
             param,
@@ -264,7 +264,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         }
         Ok(())
     }
-    pub fn geometry(&self) -> CircuitGeometry {
+    pub fn geometry(&self) -> CircuitProofGeometry {
         self.geometry.clone()
     }
     fn param(&self) -> Result<&PolygeroParam, String> {
