@@ -16,7 +16,7 @@ use crate::{
     core::algebra::{RegisteredField, SerializableField},
     runtime::algebra::{
         fp2::{Fp2Element, Fp2Field},
-        fp_generic::{FpGenericAccum, FpGenericElement, FpGenericField},
+        fp_generic::{FpGenericElement, FpGenericField},
         limb::LIMBS_PER_U64,
         packing::{IdentityExtension, PackingField},
         RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension,
@@ -32,7 +32,6 @@ pub struct P256Strategy;
 pub type P256Element = FpGenericElement<{ 4 * LIMBS_PER_U64 }, P256Tag>;
 pub type P256Field =
     FpGenericField<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }, P256Tag, P256Strategy>;
-pub type P256Accum = FpGenericAccum<{ 9 * LIMBS_PER_U64 }>;
 
 const P256_MODULUS: [u64; 4] = [
     0xffffffffffffffff,
@@ -40,11 +39,6 @@ const P256_MODULUS: [u64; 4] = [
     0x0000000000000000,
     0xffffffff00000001,
 ];
-
-#[cfg(any(target_pointer_width = "32", feature = "force-32bit-limbs"))]
-#[allow(dead_code)]
-pub(in crate::runtime::algebra) const NEG_P256_MODULUS_32: [u32; 8] =
-    [1, 0, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe, 0];
 
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 mod p256_64;

@@ -25,12 +25,6 @@ pub const fn u64_to_limbs(val: u64) -> [Limb; LIMBS_PER_U64] {
 
 #[inline(always)]
 #[must_use]
-pub const fn limbs_to_u64(limbs: &[Limb]) -> u64 {
-    limbs[0]
-}
-
-#[inline(always)]
-#[must_use]
 pub fn words64_to_limbs<const W: usize, const L: usize>(words: &[u64; W]) -> [Limb; L] {
     let mut limbs = [0 as Limb; L];
     for (i, &word) in words.iter().enumerate() {

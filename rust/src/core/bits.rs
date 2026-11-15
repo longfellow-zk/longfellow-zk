@@ -68,12 +68,6 @@ impl PackedBits {
         self.len += 1;
     }
 
-    pub fn extend(&mut self, bits: &Self) {
-        for i in 0..bits.len {
-            self.push(bits.get(i));
-        }
-    }
-
     pub fn slice(&self, range: Range<usize>) -> Result<Self, String> {
         if range.start > range.end || range.end > self.len {
             return Err("logical bit range out of bounds".into());

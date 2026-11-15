@@ -88,12 +88,6 @@ pub fn accum<const NB: usize>(a: &mut [Limb], start: usize, b: &[Limb; NB]) {
 
 #[inline(always)]
 #[must_use]
-pub fn is_zero_slice<const N: usize>(a: &[Limb; N]) -> bool {
-    a.iter().all(|&x| x == 0)
-}
-
-#[inline(always)]
-#[must_use]
 pub fn is_one_slice<const N: usize>(a: &[Limb; N]) -> bool {
     a[0] == 1 && a.iter().skip(1).all(|&x| x == 0)
 }

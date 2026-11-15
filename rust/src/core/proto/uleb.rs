@@ -173,14 +173,3 @@ pub fn read_uleb128_max4_u32<R: BufRead>(stream: &mut R) -> Result<u32, String> 
 pub fn read_uleb128_max4<R: BufRead>(stream: &mut R) -> Result<usize, String> {
     read_uleb128_max4_u32(stream).map(|v| v as usize)
 }
-
-/// Calculates output byte length of a u32 ULEB128.
-#[inline(always)]
-pub fn uleb128_len_u32(mut val: u32) -> u32 {
-    let mut len = 1;
-    while val >= 0x80 {
-        val >>= 7;
-        len += 1;
-    }
-    len
-}

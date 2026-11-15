@@ -39,18 +39,6 @@ impl<const N: usize, const W: usize, F: SerializableField + RuntimeField<W>> Pol
         }
     }
 
-    pub fn sub_in_place(&mut self, y: &Self, f: &F) {
-        for i in 0..N {
-            f.sub(&mut self.evaluations[i], &y.evaluations[i]);
-        }
-    }
-
-    pub fn add(&mut self, y: &Self, f: &F) {
-        for i in 0..N {
-            f.add(&mut self.evaluations[i], &y.evaluations[i]);
-        }
-    }
-
     pub fn eval_monomial(&self, x: &F::E, f: &F) -> F::E {
         assert!(N > 0, "polynomial must contain at least one evaluation");
         let mut e = self.evaluations[N - 1].clone();

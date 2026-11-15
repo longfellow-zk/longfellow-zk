@@ -29,11 +29,3 @@ impl<T> Default for Stream<T> {
         }
     }
 }
-impl<T> Stream<T> {
-    pub fn num_terms(&self) -> usize {
-        self.tokens
-            .iter()
-            .map(|&t| self.segments[t as usize].len())
-            .sum()
-    }
-}

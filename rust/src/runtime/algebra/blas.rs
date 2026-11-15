@@ -145,29 +145,6 @@ pub fn mul<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F
     }
 }
 
-/// y[i] += c
-pub fn add_const<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], c: &F::E, f: &F) {
-    for yi in y {
-        f.add(yi, c);
-    }
-}
-
-/// y[i] = a * y[i] + b * x[i]
-pub fn axpby<const W: usize, F: RuntimeField<W>>(
-    y: &mut [F::E],
-    a: &F::E,
-    x: &[F::E],
-    b: &F::E,
-    f: &F,
-) {
-    assert_eq!(y.len(), x.len(), "axpby: slice size mismatch");
-    for (yi, xi) in y.iter_mut().zip(x) {
-        let mut t = f.mulf(b, xi);
-        f.fma(&mut t, a, yi);
-        *yi = t;
-    }
-}
-
 /// `dst.clone_from_slice(src)`
 pub fn copy<T: Clone>(dst: &mut [T], src: &[T]) {
     assert_eq!(dst.len(), src.len(), "copy: slice size mismatch");

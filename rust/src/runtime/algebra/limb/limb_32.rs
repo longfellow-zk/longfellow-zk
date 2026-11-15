@@ -23,11 +23,6 @@ pub const fn u64_to_limbs(val: u64) -> [Limb; LIMBS_PER_U64] {
 }
 
 #[inline(always)]
-pub const fn limbs_to_u64(limbs: &[Limb]) -> u64 {
-    (limbs[0] as u64) | ((limbs[1] as u64) << 32)
-}
-
-#[inline(always)]
 pub fn words64_to_limbs<const W: usize, const L: usize>(words: &[u64; W]) -> [Limb; L] {
     let mut limbs = [0 as Limb; L];
     for i in 0..W {
