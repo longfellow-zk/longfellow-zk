@@ -104,6 +104,9 @@ profiles an application chose (for example in `mdoc::proto`).
   hot-path changes (transcript, sumcheck, Polygero, packing) by interleaving
   runs of the parent and the change, pinned to one core; do not argue a
   regression away. Prefer designs that are free by construction.
+- Memory consumption counts too: do not accept regressions in the prover's or
+  the verifier's peak heap. Measure it with the benches' `bench-memory`
+  feature, which reports each role's additional peak heap.
 - Speedups must not depend on AVX2 or AVX-512. Measure AVX-free builds:
   `RUSTFLAGS="-C target-cpu=x86-64-v2 -C target-feature=+pclmulqdq"` with a
   separate `CARGO_TARGET_DIR`, run under
