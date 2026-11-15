@@ -192,6 +192,8 @@ impl Stream<Constant> {
     }
 }
 
+/// One layer's term streams. Assertion counts are not stored: the run time
+/// derives them from its own classification of the circuit's constants.
 #[derive(Clone, Default, Debug)]
 pub struct Layer {
     pub nw: usize,
@@ -199,42 +201,20 @@ pub struct Layer {
     pub quadratic: Stream<Quadratic>,
     pub linear: Stream<Linear>,
     pub constant: Stream<Constant>,
-    assertions: [usize; 2],
 }
 impl Layer {
-    /// Derive assertion metadata from compressed dictionaries using a cached
-    /// zero predicate, without expanding repeated terms.
-    pub fn with_assertions(
+    pub fn new(
         nw: usize,
         quadratic: Stream<Quadratic>,
         linear: Stream<Linear>,
         constant: Stream<Constant>,
-        is_zero: impl Fn(u32) -> bool,
     ) -> Self {
-        fn count<T>(s: &Stream<T>, k: impl Fn(&T) -> u32, is_zero: &impl Fn(u32) -> bool) -> usize {
-            let counts: Vec<usize> = s
-                .segments
-                .iter()
-                .map(|segment| {
-                    segment
-                        .iter()
-                        .filter(|&&i| is_zero(k(&s.deltas[i as usize])))
-                        .count()
-                })
-                .collect();
-            s.tokens.iter().map(|&i| counts[i as usize]).sum()
-        }
-        let assertions = [
-            count(&quadratic, |t| t.k, &is_zero),
-            count(&linear, |t| t.k, &is_zero),
-        ];
         Self {
             nw,
             logw: crate::util::ceil_log2(nw),
             quadratic,
             linear,
             constant,
-            assertions,
         }
     }
     pub fn nw(&self) -> usize {
@@ -243,8 +223,30 @@ impl Layer {
     pub fn logw(&self) -> usize {
         self.logw
     }
-    pub fn assertion_counts(&self) -> [usize; 2] {
-        self.assertions
+    /// The quadratic and linear assertion counts: terms whose coefficient
+    /// `classes` (from `classify_constants` over the circuit's constants)
+    /// marks as zero. Each distinct segment is counted once, then the
+    /// per-segment counts are summed over the tokens. Nothing is stored.
+    pub fn assertion_counts(&self, classes: &[CoefficientClass]) -> [usize; 2] {
+        fn zeros<T>(s: &Stream<T>, classes: &[CoefficientClass], k: impl Fn(&T) -> u32) -> usize {
+            let per_segment: Vec<usize> = s
+                .segments
+                .iter()
+                .map(|segment| {
+                    segment
+                        .iter()
+                        .filter(|&&i| {
+                            classes[k(&s.deltas[i as usize]) as usize] == CoefficientClass::Zero
+                        })
+                        .count()
+                })
+                .collect();
+            s.tokens.iter().map(|&t| per_segment[t as usize]).sum()
+        }
+        [
+            zeros(&self.quadratic, classes, |t| t.k),
+            zeros(&self.linear, classes, |t| t.k),
+        ]
     }
     pub fn num_terms(&self) -> usize {
         self.quadratic.num_terms() + self.linear.num_terms() + self.constant.num_terms()

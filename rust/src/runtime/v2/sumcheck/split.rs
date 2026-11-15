@@ -508,7 +508,7 @@ impl<'a> SplitLayer<'a> {
             constant,
             constant_one,
             constant_minus_one,
-            assertions: layer.assertion_counts(),
+            assertions: layer.assertion_counts(classes),
         }
     }
     pub(super) fn assertion_counts(&self) -> [usize; 2] {

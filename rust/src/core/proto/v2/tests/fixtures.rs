@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Test fixtures for tests that share hand-written quadratic tensors with v1.
-use super::super::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream};
+use super::super::{Circuit, Layer, Quadratic, RawCircuitBuilder, Stream};
 use crate::core::algebra::{AlgebraicField, SerializableField};
 
 pub(crate) fn quadratic_fixture<F: SerializableField + AlgebraicField>(
@@ -82,18 +82,6 @@ pub(crate) fn quadratic_layer_fixture<F: SerializableField + AlgebraicField>(
         Stream::default(),
         Stream::default(),
     )
-}
-
-impl Layer {
-    // Compatibility helper for test fixtures with the former table ordering.
-    pub(crate) fn new(
-        nw: usize,
-        quadratic: Stream<Quadratic>,
-        linear: Stream<Linear>,
-        constant: Stream<Constant>,
-    ) -> Self {
-        Self::with_assertions(nw, quadratic, linear, constant, |k| k == 0)
-    }
 }
 
 use super::super::{classify_constants, CoefficientClass};

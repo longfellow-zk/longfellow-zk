@@ -82,7 +82,7 @@ pub(crate) fn derive_constraints_for_circuits<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
-    let schedule = Schedule::new(circuits)?;
+    let schedule = Schedule::new(circuits, f)?;
     proof
         .validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
@@ -104,9 +104,11 @@ pub(crate) fn derive_constraints_for_circuits<
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .map(|s| {
+            .zip(&schedule.assertions[stage])
+            .map(|(s, &n)| {
                 SplitFragment::new(
                     s,
+                    n,
                     SplitLayer::with_classes(
                         &circuits[s.circuit].raw().layers[s.layer],
                         &classes[s.circuit],

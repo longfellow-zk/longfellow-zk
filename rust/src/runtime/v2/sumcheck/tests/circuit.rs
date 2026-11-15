@@ -247,7 +247,7 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
             noutput: 1,
             logv: 0,
             constants: vec![f.zero(), f.one(), f.mone()],
-            layers: vec![Layer::with_assertions(
+            layers: vec![Layer::new(
                 3,
                 Stream::default(),
                 Stream::<Linear>::from_terms([Linear {
@@ -256,7 +256,6 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
                     k: k as u32,
                 }]),
                 Stream::default(),
-                |k| k == 0,
             )],
         }
         .build();
@@ -264,8 +263,10 @@ fn v2_reader_checks_inline_zero_markers_and_invalid_indices() {
         let decoded = reader.from_bytes(&bytes);
         assert_eq!(decoded.is_ok(), valid, "g={g} l={l} k={k}");
         if valid {
+            let (decoded, _) = decoded.unwrap();
+            let raw = &decoded.raw;
             assert_eq!(
-                decoded.unwrap().0.raw.layers[0].assertion_counts(),
+                raw.layers[0].assertion_counts(&classify_constants(&f, &raw.constants)),
                 [0, usize::from(k == 0)]
             );
         }
@@ -295,7 +296,7 @@ fn binary_lfc3_classifies_both_signs_as_one() {
             noutput: 1,
             logv: 0,
             constants: vec![f.zero(), f.one(), f.mone()],
-            layers: vec![Layer::with_assertions(
+            layers: vec![Layer::new(
                 1,
                 Stream::default(),
                 Stream::<Linear>::from_terms([Linear {
@@ -304,7 +305,6 @@ fn binary_lfc3_classifies_both_signs_as_one() {
                     k: k as u32,
                 }]),
                 Stream::default(),
-                |k| k == 0,
             )],
         }
         .build();

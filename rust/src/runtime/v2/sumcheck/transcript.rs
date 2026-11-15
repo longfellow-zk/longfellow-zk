@@ -171,7 +171,7 @@ pub(crate) fn top_weights<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Challenge<TopWeights<F::E>>, String> {
-    let schedule = Schedule::new(circuits)?;
+    let schedule = Schedule::new(circuits, f)?;
     Ok(t.challenge(|r| {
         TopWeights(if schedule.layers.is_empty() {
             StageWeights {
@@ -200,8 +200,8 @@ impl Schedule {
                     && drawn
                         .assertions
                         .iter()
-                        .zip(&layout.fragments)
-                        .all(|(a, s)| a.len() == s.assertions.iter().sum::<usize>())
+                        .zip(&self.assertions[0])
+                        .all(|(a, n)| a.len() == n.iter().sum::<usize>())
             }
             None => drawn.outputs.len() == self.ninput && drawn.assertions.is_empty(),
         };
@@ -229,14 +229,14 @@ impl Schedule {
         let outputs = (0..layout.output_assertions)
             .map(|_| r.elt_field(f))
             .collect();
-        let mut assertions: Vec<Vec<_>> = layout
-            .fragments
+        let counts = &self.assertions[stage];
+        let mut assertions: Vec<Vec<_>> = counts
             .iter()
-            .map(|s| Vec::with_capacity(s.assertions.iter().sum()))
+            .map(|n| Vec::with_capacity(n.iter().sum()))
             .collect();
         for kind in 0..2 {
-            for (a, s) in assertions.iter_mut().zip(&layout.fragments) {
-                a.extend((0..s.assertions[kind]).map(|_| r.elt_field(f)));
+            for (a, n) in assertions.iter_mut().zip(counts) {
+                a.extend((0..n[kind]).map(|_| r.elt_field(f)));
             }
         }
         StageWeights {

@@ -60,12 +60,11 @@ fn small_circuit(f: &P256Field) -> Circuit<P256Field> {
         noutput: 1,
         logv: 0,
         constants: vec![f.zero()],
-        layers: vec![Layer::with_assertions(
+        layers: vec![Layer::new(
             3,
             Stream::default(),
             Stream::<Linear>::from_terms([Linear { g: 0, l: 2, k: 0 }]),
             Stream::default(),
-            |_| true,
         )],
     }
     .build();

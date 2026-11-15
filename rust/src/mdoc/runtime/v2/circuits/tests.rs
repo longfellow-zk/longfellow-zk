@@ -43,7 +43,7 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F, npublic: usize) -> Circuit
         noutput: 1,
         logv: 0,
         constants: vec![f.one()],
-        layers: vec![Layer::with_assertions(
+        layers: vec![Layer::new(
             npublic,
             Stream::<Quadratic>::from_terms([Quadratic {
                 g: 0,
@@ -53,7 +53,6 @@ fn tiny<F: SerializableField + AlgebraicField>(f: &F, npublic: usize) -> Circuit
             }]),
             Stream::default(),
             Stream::default(),
-            |_| false,
         )],
     }
     .build();

@@ -54,23 +54,21 @@ fn check_early_output_weights(short_has_layer: bool) {
         Circuit::from_raw(&f, raw)
     };
     let identity = || {
-        Layer::with_assertions(
+        Layer::new(
             1,
             Stream::<Quadratic>::from_terms([]),
             Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }]),
             Stream::<Constant>::from_terms([]),
-            |k| k == 0,
         )
     };
     // The first circuit has identically zero output. The shorter circuit
     // asserts that their shared input is zero, which is false here. Include
     // a nonzero-depth shorter circuit: the problem is not limited to inputs.
-    let mut long_layers = vec![Layer::with_assertions(
+    let mut long_layers = vec![Layer::new(
         1,
         Stream::<Quadratic>::from_terms([]),
         Stream::<Linear>::from_terms([]),
         Stream::<Constant>::from_terms([]),
-        |k| k == 0,
     )];
     if short_has_layer {
         long_layers.push(identity());
@@ -140,12 +138,11 @@ fn early_output_weights_cannot_hide_a_false_shorter_circuit_output() {
 
 fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Circuit<F>; 4] {
     let layer = |nw, q, l, k| {
-        Layer::with_assertions(
+        Layer::new(
             nw,
             Stream::<Quadratic>::from_terms(q),
             Stream::<Linear>::from_terms(l),
             Stream::<Constant>::from_terms(k),
-            |k| k == 0,
         )
     };
     let circuit = |layers, noutput| {
@@ -245,7 +242,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
         vec![3, 0, 2],
     ] {
         let circuits: Vec<_> = pattern.iter().map(|&i| &all[i]).collect();
-        let schedule = Schedule::new(&circuits).unwrap();
+        let schedule = Schedule::new(&circuits, f).unwrap();
         let x = if pattern.contains(&3) {
             f.zero()
         } else {
@@ -307,7 +304,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
         )
         .is_err());
     }
-    let schedule = Schedule::new(&[&all[0], &all[2], &all[0]]).unwrap();
+    let schedule = Schedule::new(&[&all[0], &all[2], &all[0]], f).unwrap();
     assert_eq!(schedule.layers[0].nw, 11); // 3+5+3, with no per-circuit padding.
     assert_eq!(schedule.geometry.layers(), vec![4, 2]);
     assert_eq!(
@@ -322,7 +319,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
         .fragments
         .iter()
         .all(|s| s.input_range == (0..4)));
-    assert!(Schedule::new::<F>(&[] as &[&Circuit<F>]).is_err());
+    assert!(Schedule::new::<F>(&[] as &[&Circuit<F>], f).is_err());
 }
 #[test]
 fn shared_inputs_unequal_depths_widths_and_circuit_counts() {
@@ -336,7 +333,7 @@ fn depth_order_uses_the_bound_input_index_for_ties_and_duplicates() {
     let all = fixture(&f);
     // Original positions 1, 2 and 4 have equal depth; 1 and 4 are duplicates.
     let circuits = [&all[1], &all[2], &all[0], &all[3], &all[2]];
-    let schedule = Schedule::new(&circuits).unwrap();
+    let schedule = Schedule::new(&circuits, &f).unwrap();
     let order = |stage: usize| {
         schedule.layers[stage]
             .fragments
@@ -359,7 +356,7 @@ fn depth_order_uses_the_bound_input_index_for_ties_and_duplicates() {
 fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
     let all = fixture(f);
     let circuits = [&all[0], &all[2], &all[0]];
-    let schedule = Schedule::new(&circuits).unwrap();
+    let schedule = Schedule::new(&circuits, f).unwrap();
     let mut merged_layers = Vec::new();
     for stage in 0..2 {
         let mut q = Vec::new();
@@ -393,12 +390,11 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
                 input_offset += layer.nw as u32;
             }
         }
-        merged_layers.push(Layer::with_assertions(
+        merged_layers.push(Layer::new(
             if stage == 0 { input_offset as usize } else { 4 },
             Stream::<Quadratic>::from_terms(q),
             Stream::<Linear>::from_terms(l),
             Stream::<Constant>::from_terms(k),
-            |k| k == 0,
         ));
     }
     let raw = RawCircuitBuilder {
@@ -445,12 +441,12 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
         let alpha = rng.elt_field(f);
         let mut active = Vec::new();
         let mut q = vec![f.zero(); layout.nw];
-        for s in &layout.fragments {
+        for (i, s) in layout.fragments.iter().enumerate() {
             let split = SplitLayer::with_classes(
                 &circuits[s.circuit].raw.layers[s.layer],
                 &classify_constants(f, &circuits[s.circuit].raw.constants),
             );
-            active.push(SplitFragment::new(s, split));
+            active.push(SplitFragment::new(s, schedule.assertions[stage][i], split));
         }
         let mut fragmented_t = Transcript::for_test(b"same-layer-assertions");
         let mut merged_t = Transcript::for_test(b"same-layer-assertions");
@@ -466,9 +462,10 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
             &mut fragmented_t,
             f,
         );
-        let merged_schedule = Schedule::new(&[&merged]).unwrap();
+        let merged_schedule = Schedule::new(&[&merged], f).unwrap();
         let mut merged_active = vec![SplitFragment::new(
             &merged_schedule.layers[stage].fragments[0],
+            merged_schedule.assertions[stage][0],
             SplitLayer::with_classes(
                 &merged.raw.layers[stage],
                 &classify_constants(f, &merged.raw.constants),
@@ -549,12 +546,11 @@ fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + Su
     f: &F,
 ) {
     let layer = |nw: usize, quadratic: Vec<Quadratic>, linear: Vec<Linear>| {
-        Layer::with_assertions(
+        Layer::new(
             nw,
             Stream::<Quadratic>::from_terms(quadratic),
             Stream::<Linear>::from_terms(linear),
             Stream::default(),
-            |_| false,
         )
     };
     let circuit_with = |ninput: usize, npublic_input: usize, l: Layer| {
@@ -592,7 +588,7 @@ fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + Su
         ),
     );
     let wide = circuit(5, wide_layer(5));
-    let schedule = Schedule::new(&[&narrow, &wide]).unwrap();
+    let schedule = Schedule::new(&[&narrow, &wide], f).unwrap();
     assert_eq!(schedule.ninput, 5);
     assert_eq!(
         schedule.layers[0]
@@ -644,9 +640,9 @@ fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + Su
     // The public prefix must match, and each component's input layer must
     // span exactly its own declared width.
     let public = circuit_with(5, 1, wide_layer(5));
-    assert!(Schedule::new(&[&narrow, &public]).is_err());
+    assert!(Schedule::new(&[&narrow, &public], f).is_err());
     let short = circuit(5, wide_layer(4));
-    assert!(Schedule::new(&[&narrow, &short]).is_err());
+    assert!(Schedule::new(&[&narrow, &short], f).is_err());
 }
 #[test]
 fn components_read_prefixes_of_one_shared_input_array() {

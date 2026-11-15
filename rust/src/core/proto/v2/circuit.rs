@@ -81,8 +81,8 @@ impl<F: SerializableField> Deref for Circuit<F> {
 pub struct RawCircuit<F: SerializableField>(RawCircuitBuilder<F>);
 
 /// Mutable circuit construction data. Constructors are responsible for valid
-/// geometry and assertion counts; any coefficient/stream edits must preserve
-/// those counts or rebuild the affected layers with `Layer::with_assertions`.
+/// geometry. Assertion counts are not stored; the runtime derives them from
+/// the coefficient table, so stream and coefficient edits need no rebuild.
 /// Only the finalized `RawCircuit` can be used by the runtime.
 pub struct RawCircuitBuilder<F: SerializableField> {
     pub ninput: usize,

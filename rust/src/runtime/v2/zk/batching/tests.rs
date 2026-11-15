@@ -14,7 +14,7 @@ use crate::{
 
 /// One layer asserting `x*y = public` and that the last private input is zero.
 fn circuit(f: &P256Field, cached_logw: usize) -> Circuit<P256Field> {
-    let mut layer = Layer::with_assertions(
+    let mut layer = Layer::new(
         4,
         Stream::<Quadratic>::from_terms(vec![Quadratic {
             g: 0,
@@ -27,7 +27,6 @@ fn circuit(f: &P256Field, cached_logw: usize) -> Circuit<P256Field> {
             Linear { g: 0, l: 3, k: 0 },
         ]),
         Stream::default(),
-        |k| k == 0,
     );
     layer.logw = cached_logw;
     let raw = RawCircuitBuilder {

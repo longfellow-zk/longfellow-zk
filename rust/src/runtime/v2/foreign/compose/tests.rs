@@ -59,12 +59,11 @@ fn circuit<F: SerializableField>(
         noutput: 1,
         logv: 0,
         constants: k,
-        layers: vec![Layer::with_assertions(
+        layers: vec![Layer::new(
             ninput,
             Stream::default(),
             Stream::<Linear>::from_terms(terms.iter().map(|&(l, k)| Linear { g: 0, l, k })),
             Stream::default(),
-            |_| false,
         )],
     }
     .build();

@@ -15,6 +15,22 @@ use crate::{
         },
     },
 };
+/// The oracle's own assertion counts: expanded quadratic and linear terms
+/// whose coefficient is zero.
+fn assertion_counts<const W: usize, F: RuntimeField<W> + SerializableField>(
+    layer: &Layer,
+    constants: &[F::E],
+    f: &F,
+) -> [usize; 2] {
+    let mut counts = [0; 2];
+    layer
+        .quadratic
+        .for_each(|t| counts[0] += usize::from(f.is_zero(&constants[t.k as usize])));
+    layer
+        .linear
+        .for_each(|t| counts[1] += usize::from(f.is_zero(&constants[t.k as usize])));
+    counts
+}
 pub(in super::super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
@@ -25,9 +41,9 @@ pub(in super::super) fn bind_l<const W: usize, F: RuntimeField<W> + Serializable
 ) -> Vec<F::E> {
     assert_eq!(
         assertions.len(),
-        layer.assertion_counts().iter().sum::<usize>()
+        assertion_counts(layer, constants, f).iter().sum::<usize>()
     );
-    let mut rho = assertions[..layer.assertion_counts()[0]].iter();
+    let mut rho = assertions[..assertion_counts(layer, constants, f)[0]].iter();
     let mut q = vec![f.zero(); layer.nw];
     layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
         let coefficient = if f.is_zero(&constants[k as usize]) {
@@ -50,9 +66,9 @@ pub(in super::super) fn bind_r<const W: usize, F: RuntimeField<W> + Serializable
 ) -> Vec<F::E> {
     assert_eq!(
         assertions.len(),
-        layer.assertion_counts().iter().sum::<usize>()
+        assertion_counts(layer, constants, f).iter().sum::<usize>()
     );
-    let mut rho = assertions[..layer.assertion_counts()[0]].iter();
+    let mut rho = assertions[..assertion_counts(layer, constants, f)[0]].iter();
     let mut q = vec![f.zero(); layer.nw];
     layer.quadratic.for_each(|Quadratic { g, l, r, k }| {
         let coefficient = if f.is_zero(&constants[k as usize]) {
@@ -66,7 +82,7 @@ pub(in super::super) fn bind_r<const W: usize, F: RuntimeField<W> + Serializable
         layer,
         constants,
         a,
-        &assertions[layer.assertion_counts()[0]..],
+        &assertions[assertion_counts(layer, constants, f)[0]..],
         &mut q,
         f,
     );
@@ -104,7 +120,7 @@ pub(in super::super) fn weights_next_affine<
 ) -> (Vec<F::E>, F::E) {
     let mut weights = monomial::weights(layer.logw, layer.nw, point, f);
     let mut linear = f.zero();
-    let mut rho = assertions[layer.assertion_counts()[0]..].iter();
+    let mut rho = assertions[assertion_counts(layer, constants, f)[0]..].iter();
     layer.linear.for_each(|Linear { g, l, k }| {
         let coefficient = if f.is_zero(&constants[k as usize]) {
             rho.next().unwrap().clone()
@@ -143,11 +159,9 @@ pub(in super::super) fn prove_core<
 ) -> (SumcheckProof<W, F>, Constraints<F::E>) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
     let assertions = |index: usize| -> usize {
-        circuit
-            .raw
-            .layers
-            .get(index)
-            .map_or(0, |l| l.assertion_counts().iter().sum())
+        circuit.raw.layers.get(index).map_or(0, |l| {
+            assertion_counts(l, &circuit.raw.constants, f).iter().sum()
+        })
     };
     // The top weights are drawn with no message of their own; every later
     // layer's assertion weights extend the preceding combine answer, after

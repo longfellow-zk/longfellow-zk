@@ -131,7 +131,7 @@ pub(crate) fn evaluate_and_prove_circuits<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    let schedule = Schedule::new(circuits)?;
+    let schedule = Schedule::new(circuits, f)?;
     pads.validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
     if inputs.len() != schedule.ninput {
@@ -176,7 +176,10 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .map(|s| SplitFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
+            .zip(&schedule.assertions[stage])
+            .map(|(s, &n)| {
+                SplitFragment::new(s, n, layers[s.circuit].next().expect("scheduled fragment"))
+            })
             .collect();
         schedule.enter(
             stage,

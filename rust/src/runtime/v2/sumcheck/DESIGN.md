@@ -62,7 +62,7 @@ Only these parts of `core::proto::v2` matter to the protocol.
 | `RawCircuit::constants` | coefficient table, indexed by `k` |
 | `RawCircuit::layers[j]` | `j = 0` at the outputs; `nw` is the layer's input width, `logw = ceil_log2(nw)` |
 | `Layer::{quadratic, linear, constant}` | streams of `(g,l,r,k)`, `(g,l,k)`, `(g,k)` records |
-| `Layer::assertion_counts()` | `[quadratic, linear]` records whose coefficient is zero |
+| `Layer::assertion_counts(&classes)` | `[quadratic, linear]` records whose coefficient is zero, derived from `classify_constants`; never stored |
 
 Layer `j` has `noutput` outputs if `j = 0`, else `layers[j-1].nw`. Its output
 `g` is

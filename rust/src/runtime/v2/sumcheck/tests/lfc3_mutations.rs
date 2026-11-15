@@ -42,12 +42,11 @@ fn base<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> Circui
     let two = f.addf(&f.one(), &f.one());
     let five = f.addf(&f.addf(&two, &two), &f.one());
     let layer = |nw, q: Vec<Quadratic>, l: Vec<Linear>, k: Vec<Constant>| {
-        Layer::with_assertions(
+        Layer::new(
             nw,
             Stream::<Quadratic>::from_terms(q),
             Stream::<Linear>::from_terms(l),
             Stream::<Constant>::from_terms(k),
-            |k| k == 0,
         )
     };
     let q = |g, l, r, k| Quadratic { g, l, r, k };

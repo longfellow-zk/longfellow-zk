@@ -18,7 +18,7 @@ fn fixture<F: SerializableField + AlgebraicField>(f: &F) -> RawCircuit<F> {
         noutput: 2,
         logv: 1,
         constants: vec![f.one(), f.one()],
-        layers: vec![Layer::with_assertions(
+        layers: vec![Layer::new(
             4,
             Stream {
                 deltas: vec![
@@ -40,7 +40,6 @@ fn fixture<F: SerializableField + AlgebraicField>(f: &F) -> RawCircuit<F> {
             },
             Stream::<Linear>::from_terms([Linear { g: 0, l: 3, k: 1 }]),
             Stream::<Constant>::from_terms([Constant { g: 1, k: 0 }]),
-            |_| false,
         )],
     }
     .build()

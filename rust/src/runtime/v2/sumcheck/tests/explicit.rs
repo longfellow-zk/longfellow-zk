@@ -6,7 +6,10 @@ use crate::{
         algebra::{RegisteredField, SerializableField},
         proto::{
             read_uleb128_max4,
-            v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+            v2::{
+                classify_constants, Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder,
+                Stream,
+            },
         },
     },
     runtime::{
@@ -96,7 +99,10 @@ fn three_streams<
             Constant { g: 0, k: minus },
         ]),
     );
-    assert_eq!(layer.assertion_counts(), [1, 1]);
+    assert_eq!(
+        layer.assertion_counts(&classify_constants(f, &constants)),
+        [1, 1]
+    );
     assert_eq!(layer.num_terms(), 11);
     // Check the binding on an arbitrary, unsatisfied witness and rho values so
     // assertion terms cannot disappear merely because a valid witness is zero.

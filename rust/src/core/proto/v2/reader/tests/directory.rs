@@ -121,7 +121,7 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
         noutput: 1,
         logv: 0,
         constants: vec![],
-        layers: vec![v2::Layer::with_assertions(
+        layers: vec![v2::Layer::new(
             1,
             v2::Stream {
                 deltas: vec![],
@@ -130,7 +130,6 @@ fn flat_segments_roundtrip_over_one_byte_buffers_without_changing_identity() {
             },
             v2::Stream::default(),
             v2::Stream::default(),
-            |_| false,
         )],
     }
     .build();

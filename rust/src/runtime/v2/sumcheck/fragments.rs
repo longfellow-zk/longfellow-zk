@@ -22,7 +22,7 @@ use super::{
 #[cfg(test)]
 use crate::core::proto::v2::Circuit;
 use crate::{
-    core::algebra::SerializableField,
+    core::{algebra::SerializableField, proto::v2::classify_constants},
     runtime::{
         algebra::{blas, RuntimeField},
         v2::proto::sumcheck::SumcheckProofGeometry,
@@ -32,14 +32,12 @@ use crate::{
 /// Locate one circuit layer's sparse terms in the global layer arrays.
 /// Quadratic, linear and constant streams use the same offsets. These ranges
 /// describe gate addressing; the fragment owns no wire values or dense weights.
-/// `assertions` counts the layer's quadratic and linear assertion markers.
 #[derive(Clone)]
 pub(super) struct QuadFragment {
     pub circuit: usize,
     pub layer: usize,
     pub input_range: Range<usize>,
     pub output_range: Range<usize>,
-    pub assertions: [usize; 2],
 }
 pub(super) struct LayerLayout {
     pub fragments: Vec<QuadFragment>,
@@ -47,15 +45,50 @@ pub(super) struct LayerLayout {
     pub nv: usize,
     pub output_assertions: usize,
 }
+/// `assertions[stage][i]` holds the quadratic and linear assertion counts of
+/// fragment `i` at `stage`, derived from the field's classification of its
+/// circuit's constants.
 pub(super) struct Schedule {
     pub geometry: SumcheckProofGeometry,
     pub layers: Vec<LayerLayout>,
     pub ninput: usize,
+    pub assertions: Vec<Vec<[usize; 2]>>,
 }
 impl Schedule {
     pub(super) fn new<F: SerializableField>(
         circuits: &[impl CircuitSource<F>],
+        f: &F,
     ) -> Result<Self, String> {
+        let (geometry, layers, ninput) = Self::layout(circuits)?;
+        let classes: Vec<_> = circuits
+            .iter()
+            .map(|c| classify_constants(f, &c.raw().constants))
+            .collect();
+        let assertions = layers
+            .iter()
+            .map(|s| {
+                s.fragments
+                    .iter()
+                    .map(|q| {
+                        circuits[q.circuit].raw().layers[q.layer]
+                            .assertion_counts(&classes[q.circuit])
+                    })
+                    .collect()
+            })
+            .collect();
+        Ok(Self {
+            geometry,
+            layers,
+            ninput,
+            assertions,
+        })
+    }
+    /// The proof geometry, the stage layouts and the shared input width,
+    /// which depend only on the circuits' widths and depths.
+    #[allow(clippy::type_complexity)]
+    fn layout<F: SerializableField>(
+        circuits: &[impl CircuitSource<F>],
+    ) -> Result<(SumcheckProofGeometry, Vec<LayerLayout>, usize), String> {
         let first = circuits.first().ok_or("empty circuit list")?;
         // Components share one input array whose width is the largest declared
         // width. Each component reads only its own prefix, so a component can
@@ -124,7 +157,6 @@ impl Schedule {
                         layer,
                         input_range: inputs,
                         output_range: nv..next_v,
-                        assertions: c.raw().layers[layer].assertion_counts(),
                     });
                     nv = next_v;
                 }
@@ -146,18 +178,14 @@ impl Schedule {
                 .collect(),
         )
         .map_err(|e| e.to_string())?;
-        Ok(Self {
-            geometry,
-            layers,
-            ninput,
-        })
+        Ok((geometry, layers, ninput))
     }
 }
 
 pub(crate) fn circuit_geometry<F: SerializableField>(
     circuits: &[impl CircuitSource<F>],
 ) -> Result<SumcheckProofGeometry, String> {
-    Ok(Schedule::new(circuits)?.geometry)
+    Ok(Schedule::layout(circuits)?.0)
 }
 
 /// The eleven-way split and assertion coefficients for one quad fragment.
@@ -168,9 +196,13 @@ pub(super) struct SplitFragment<'a, E> {
     pub assertions: Vec<E>,
 }
 impl<'a, E> SplitFragment<'a, E> {
-    pub(super) fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
+    pub(super) fn new(
+        fragment: &QuadFragment,
+        assertions: [usize; 2],
+        layer: SplitLayer<'a>,
+    ) -> Self {
         assert_eq!(layer.nw, fragment.input_range.len());
-        assert_eq!(layer.assertion_counts(), fragment.assertions);
+        assert_eq!(layer.assertion_counts(), assertions);
         Self {
             fragment: fragment.clone(),
             layer,

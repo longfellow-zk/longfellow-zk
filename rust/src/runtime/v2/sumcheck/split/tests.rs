@@ -162,7 +162,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
         });
         assert_eq!(actual, c[i]);
     }
-    assert_eq!(split.assertion_counts(), source.assertion_counts());
+    assert_eq!(split.assertion_counts(), [q[3].len(), l[3].len()]);
     assert_eq!(
         split.quadratic_assertions.num_terms(&split.quadratic_runs),
         q[3].len()
@@ -237,7 +237,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
         let split = SplitLayer::new(&raw);
         let mut a = (0..5).map(|_| rng.elt_field(f)).collect::<Vec<_>>();
         a[0] = f.zero();
-        let rho = (0..raw.assertion_counts().iter().sum::<usize>())
+        let rho = (0..split.assertion_counts().iter().sum::<usize>())
             .map(|_| rng.elt_field(f))
             .collect::<Vec<_>>();
         let w = (0..7).map(|_| rng.elt_field(f)).collect::<Vec<_>>();
@@ -449,11 +449,9 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     assert_eq!(&encoded[..4], b"LFC3");
     let (decoded, tail) = CircuitReader::new(f).from_bytes(&encoded).unwrap();
     assert!(tail.is_empty());
-    assert_eq!(decoded.raw.layers[0].assertion_counts(), [1, 1]);
-    assert_eq!(
-        classify_constants(f, &decoded.raw.constants)[0],
-        CoefficientClass::General
-    );
+    let classes = classify_constants(f, &decoded.raw.constants);
+    assert_eq!(decoded.raw.layers[0].assertion_counts(&classes), [1, 1]);
+    assert_eq!(classes[0], CoefficientClass::General);
     let mut transcript = Transcript::for_test(b"private-layer-split");
     let reindexed_proof =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &decoded, &mut transcript.borrow(), f)
@@ -546,8 +544,9 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     }
     .build();
     let circuit = Circuit::from_raw(f, raw);
-    assert_eq!(circuit.raw.layers[0].assertion_counts(), [0, 0]);
-    assert_eq!(circuit.raw.layers[1].assertion_counts(), [1, 1]);
+    let classes = classify_constants(f, &circuit.raw.constants);
+    assert_eq!(circuit.raw.layers[0].assertion_counts(&classes), [0, 0]);
+    assert_eq!(circuit.raw.layers[1].assertion_counts(&classes), [1, 1]);
     let geometry = circuit_geometry(&[&circuit]).unwrap();
     let (pads, _) = sample_pads_for_test(&geometry, &mut rng, f);
     let mut actual = Transcript::for_test(b"two-layer-schedule");

@@ -79,12 +79,11 @@ fn layered<F: SerializableField + AlgebraicField>(
                 l: (g % nw[i]) as u32,
                 k: 0,
             });
-            Layer::with_assertions(
+            Layer::new(
                 nw[i],
                 Stream::default(),
                 Stream::<Linear>::from_terms(terms),
                 Stream::default(),
-                |_| false,
             )
         })
         .collect();
@@ -291,12 +290,11 @@ fn prime_circuit(p: &P256Field, ninput: usize) -> Circuit<P256Field> {
         noutput: 1,
         logv: 0,
         constants: vec![p.one()],
-        layers: vec![Layer::with_assertions(
+        layers: vec![Layer::new(
             ninput,
             Stream::default(),
             Stream::<Linear>::from_terms(terms),
             Stream::default(),
-            |_| false,
         )],
     }
     .build();

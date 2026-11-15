@@ -29,10 +29,10 @@ then linear traversal order. It replaces the whole output-weighted coefficient,
 so a zero output weight cannot erase an assertion. Constant records require
 `constants[k] != 0`. Unit streams use addition and subtraction directly.
 
-The layer stores its input width, its logarithm, the three streams, and cached
-quadratic/linear assertion counts. `Layer::with_assertions` derives those counts from the
-compressed dictionaries. Counts are not serialized. Rebuild the layer after
-replacing streams so its derived metadata remains consistent.
+The layer stores its input width, its logarithm and the three streams. It
+stores no assertion counts: the runtime derives them from its own
+classification of the coefficient table whenever it schedules a proof, so
+editing streams or coefficients cannot leave a stale count behind.
 
 ## File encoding
 

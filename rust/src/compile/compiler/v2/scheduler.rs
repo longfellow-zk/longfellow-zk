@@ -528,6 +528,5 @@ fn build_v2_layer<F: CompileField>(
             k: constants[&f.to_bytes(&k)],
         }
     }));
-    let zero = constants.get(&f.to_bytes(&f.zero())).copied();
-    Layer::with_assertions(nw, quadratic, linear, constant, |k| Some(k) == zero)
+    Layer::new(nw, quadratic, linear, constant)
 }

@@ -207,12 +207,11 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     f: &F,
 ) -> (Circuit<F>, Circuit<F>) {
     let layer = |nw, q, l| {
-        Layer::with_assertions(
+        Layer::new(
             nw,
             Stream::<Quadratic>::from_terms(q),
             Stream::<Linear>::from_terms(l),
             Stream::default(),
-            |k| k == 0,
         )
     };
     let circuit = |layers| {
@@ -489,12 +488,11 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             noutput: 1,
             logv: 0,
             constants: vec![f.zero(), f.one()],
-            layers: vec![Layer::with_assertions(
+            layers: vec![Layer::new(
                 5,
                 Stream::default(),
                 Stream::<Linear>::from_terms([Linear { g: 0, l: 4, k: 1 }]),
                 Stream::<Constant>::from_terms([Constant { g: 0, k: 1 }]),
-                |k| k == 0,
             )],
         }
         .build(),

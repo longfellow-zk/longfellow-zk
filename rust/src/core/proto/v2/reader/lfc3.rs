@@ -359,13 +359,7 @@ fn read_unverified<R: BufRead, F: SerializableField>(
         {
             return Err("LFC3 constant terms cannot have zero coefficients".into());
         }
-        layers.push(Layer::with_assertions(
-            layer.nw,
-            quadratic,
-            linear,
-            constant,
-            |k| classes[k as usize] == v2::CoefficientClass::Zero,
-        ));
+        layers.push(Layer::new(layer.nw, quadratic, linear, constant));
     }
     let raw = RawCircuitBuilder {
         ninput,

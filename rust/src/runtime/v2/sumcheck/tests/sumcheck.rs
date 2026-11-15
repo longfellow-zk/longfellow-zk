@@ -20,10 +20,7 @@ use crate::{
     },
     core::{
         algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
-        proto::v2::{
-            classify_constants, quadratic_fixture, Circuit, CircuitReader, CircuitWriter,
-            CoefficientClass,
-        },
+        proto::v2::{quadratic_fixture, Circuit, CircuitReader, CircuitWriter},
     },
     runtime::{
         algebra::{p256::P256Field as RuntimeP256, RuntimeField},
@@ -313,7 +310,6 @@ fn test_sumcheck_core_single_hand_permutations() {
     for layout in 0..4 {
         let (circuit, _) = reader.from_bytes(&bytes).unwrap();
         let mut raw = circuit.into_raw().into_builder();
-        let classes = classify_constants(&f, &raw.constants);
         for layer in &mut raw.layers {
             fn reorder<T: std::fmt::Debug>(terms: &mut [T], layout: usize) {
                 match layout {
@@ -327,7 +323,7 @@ fn test_sumcheck_core_single_hand_permutations() {
                     }
                 }
             }
-            use crate::core::proto::v2::{Constant, Layer, Linear, Quadratic};
+            use crate::core::proto::v2::{Constant, Linear, Quadratic};
             let mut quadratic = Vec::new();
             layer.quadratic.for_each(|t| quadratic.push(t));
             reorder(&mut quadratic, layout);
@@ -340,13 +336,6 @@ fn test_sumcheck_core_single_hand_permutations() {
             layer.constant.for_each(|t| constant.push(t));
             reorder(&mut constant, layout);
             layer.constant = Stream::<Constant>::from_terms(constant);
-            *layer = Layer::with_assertions(
-                layer.nw,
-                std::mem::take(&mut layer.quadratic),
-                std::mem::take(&mut layer.linear),
-                std::mem::take(&mut layer.constant),
-                |k| classes[k as usize] == CoefficientClass::Zero,
-            );
         }
         let raw = raw.build();
         let segmented = segment_circuit_v2(&f, raw);

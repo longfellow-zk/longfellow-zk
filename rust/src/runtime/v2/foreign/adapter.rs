@@ -164,17 +164,16 @@ pub fn fragment(
                 }
             }
         }
-        layers.push(Layer::with_assertions(
+        layers.push(Layer::new(
             width,
             Stream::<Quadratic>::from_terms(quadratic),
             Stream::<Linear>::from_terms(linear),
             Stream::default(),
-            |_| false,
         ));
         (base, width, count) = (0, trees * next, next);
     }
     // Output t is l*r + 1, which must vanish: the tree product equals one.
-    layers.push(Layer::with_assertions(
+    layers.push(Layer::new(
         width,
         Stream::<Quadratic>::from_terms((0..trees).map(|t| {
             let l = (base + 2 * t) as u32;
@@ -187,7 +186,6 @@ pub fn fragment(
         })),
         Stream::default(),
         Stream::<Constant>::from_terms((0..trees).map(|t| Constant { g: t as u32, k: 0 })),
-        |_| false,
     ));
     layers.reverse();
     let raw = RawCircuitBuilder {

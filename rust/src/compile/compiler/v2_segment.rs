@@ -4,9 +4,7 @@ use std::{collections::HashMap, hash::Hash};
 
 use crate::core::{
     algebra::SerializableField,
-    proto::v2::{
-        classify_constants, Circuit, CoefficientClass, Layer, RawCircuit, RawCircuitBuilder, Stream,
-    },
+    proto::v2::{Circuit, Layer, RawCircuit, RawCircuitBuilder, Stream},
 };
 
 fn compress<T: Copy + Eq + Hash>(stream: &Stream<T>) -> Stream<T> {
@@ -32,21 +30,19 @@ fn compress<T: Copy + Eq + Hash>(stream: &Stream<T>) -> Stream<T> {
     }
 }
 
-fn layer(layer: &Layer, classes: &[CoefficientClass]) -> Layer {
-    Layer::with_assertions(
+fn layer(layer: &Layer) -> Layer {
+    Layer::new(
         layer.nw,
         compress(&layer.quadratic),
         compress(&layer.linear),
         compress(&layer.constant),
-        |k| classes[k as usize] == CoefficientClass::Zero,
     )
 }
 
 /// Preserve expanded stream order, compress the identity-free circuit, then
 /// compute the ID of its final representation.
 pub fn segment_circuit_v2<F: SerializableField>(f: &F, c: RawCircuit<F>) -> Circuit<F> {
-    let classes = classify_constants(f, &c.constants);
-    let mut layers: Vec<_> = c.layers.iter().map(|l| layer(l, &classes)).collect();
+    let mut layers: Vec<_> = c.layers.iter().map(layer).collect();
     let mut counts = vec![0usize; c.constants.len()];
     for layer in &layers {
         for &token in &layer.quadratic.tokens {
