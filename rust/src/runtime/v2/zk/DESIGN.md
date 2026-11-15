@@ -131,8 +131,8 @@ handle takes the `Transcript` by value at commit or receive, sends the
 from that handle.
 *Enforced by:* ownership: `JointProver` and `JointVerifier` own the
 transcript, and a frontend reaches it only through their crate-private
-`bound()`; their public `transcript()` gives a `TranscriptRef`, whose
-operations are crate-private (type); Lean `ZkJoint`, `FingerprintRows`.
+`bound()`, which binds it to the frontend's statement part; they have no
+public transcript accessor (type); Lean `ZkJoint`, `FingerprintRows`.
 
 **I7. A frontend output is not an acceptance decision.** `LinearStatement`
 and `ModularClaim` are `#[must_use]` claims. Acceptance requires
@@ -392,7 +392,6 @@ impl<L: Fields> JointParam<L> {
         -> Result<(JointProver<..>, PolygeroCommitment, Responses<L>), String>;  // I6
 }
 impl<S, C, R> JointProver<S, C, R> {
-    pub fn transcript(&mut self) -> TranscriptRef<'_>;
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     pub fn weights<L: Fields>(&mut self, param: &JointParam<L>, statements: Statements<L>)
         -> Challenge<Batched<L>>;                        // I4: carries the statements
@@ -418,7 +417,6 @@ impl<L: Fields> JointParam<L> {
                    transcript: Transcript) -> JointVerifier<L>;           // I6
 }
 impl<L: Fields> JointVerifier<L> {
-    pub fn transcript(&mut self) -> TranscriptRef<'_>;
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     pub fn weights(&mut self, statements: Statements<L>) -> Challenge<Batched<L>>;  // I4
     pub fn authenticate(self, batch: Challenge<Batched<L>>, proof: &JointPolygeroProof<Bodies<L>>)
@@ -449,7 +447,7 @@ pub struct RowWeights<E>(..);
 pub fn row_weights(t: &mut Bound<'_, P>, count: usize, f: &F) -> Challenge<RowWeights<F::E>>;
 #[must_use] pub struct SplitOutput<E> { pub statement: LinearStatement<E>, pub foreign: ModularClaim<E> }
 pub struct LinearClaim<E> { pub weights: Vec<E>, pub target: E }    // zk::LinearClaim
-pub struct ModularClaim<E> { pub terms: Vec<(Group, E)>, pub target: E }  // zk::storage
+#[must_use] pub struct ModularClaim<E> { pub terms: Vec<(Group, E)>, pub target: E }  // zk::storage
 
 // zk: standalone single-circuit proof
 impl ZkProver<W, F> {

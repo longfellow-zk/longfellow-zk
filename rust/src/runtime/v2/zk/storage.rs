@@ -277,6 +277,7 @@ impl StorageMap {
 /// A linear claim over foreign-stored values, modulo the claim field's order.
 /// Splitting a frontend's claim produces it; the cross-field adapter proves it.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[must_use = "The modular claim must be discharged by the cross-field adapter."]
 pub struct ModularClaim<E> {
     pub terms: Vec<(Group, E)>,
     pub target: E,
