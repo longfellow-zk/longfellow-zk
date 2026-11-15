@@ -139,3 +139,5 @@ fn composition_round_trip_rejects_tampering() {
     inconsistent[3] ^= true;
     assert!(prove(inconsistent).is_err());
 }
+
+mod absorption;

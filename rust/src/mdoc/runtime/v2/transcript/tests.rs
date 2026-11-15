@@ -4,6 +4,16 @@ use crate::{
     runtime::v2::transcript::{Header, Statement, Transcript},
 };
 
+impl<'a> Identity<'a> {
+    /// Every field, in declaration order: the session transcript and the
+    /// spec. The pattern is exhaustive, so a new field does not compile
+    /// until the statement tests cover it.
+    pub(in crate::mdoc::runtime::v2) fn fields_for_test(&self) -> (&'a [u8], &'a ZkSpecStruct) {
+        let Self { session, spec } = self;
+        (session, spec)
+    }
+}
+
 /// A statement that is the mdoc identity alone.
 struct IdentityOnly<'a>(Identity<'a>);
 impl<'a> Statement for IdentityOnly<'a> {

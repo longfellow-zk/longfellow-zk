@@ -78,6 +78,8 @@ pub fn run_mdoc_verifier(
     let statement =
         super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
     let mut session = Opened::new(&statement);
+    #[cfg(test)]
+    tests::observe(&mut session);
     // The proof is parsed against the geometry the statement absorbed.
     let decoded = super::proto::MdocProof::read(proof_bytes, &session.geometry(), &gf2, &p256)
         .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
@@ -97,3 +99,6 @@ fn request_error(error: RequestError) -> MdocVerifierErrorCode {
         RequestError::UnsupportedAttribute => MdocVerifierErrorCode::UnsupportedAttribute,
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -527,3 +527,58 @@ impl<L: Fields> JointVerifier<L> {
         self.authenticate(batch, proof)
     }
 }
+
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    /// Every field, in declaration order. The pattern is exhaustive, so a new
+    /// field does not compile until the statement tests cover it.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn fields_for_test(
+        &self,
+    ) -> (
+        &CircuitGeometry,
+        &PolygeroConfig,
+        &Option<PolygeroParam>,
+        &PackingCommitment<F>,
+        &[u8; 32],
+        &[[u8; 32]],
+        &InputLayout,
+        &Option<crate::runtime::v2::zk::storage::Split>,
+    ) {
+        let Self {
+            geometry,
+            config,
+            param,
+            backend,
+            id,
+            additional_ids,
+            inputs,
+            storage,
+        } = self;
+        (
+            geometry,
+            config,
+            param,
+            backend,
+            id,
+            additional_ids,
+            inputs,
+            storage,
+        )
+    }
+}
+
+impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
+    /// Every field, in declaration order: the participant, the circuits and
+    /// the public inputs. The pattern is exhaustive, so a new field does not
+    /// compile until the statement tests cover it.
+    pub(crate) fn fields_for_test(
+        &self,
+    ) -> (&'a CircuitParticipant<W, F>, &[&'a Circuit<F>], &[F::E]) {
+        let Self {
+            participant,
+            circuits,
+            public,
+        } = self;
+        (participant, circuits, public)
+    }
+}

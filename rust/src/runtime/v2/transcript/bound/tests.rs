@@ -2,6 +2,14 @@
 use super::{super::Transcript, *};
 use crate::runtime::v2::transcript::TestMessage;
 
+impl<S: ?Sized> Opened<'_, S> {
+    /// The bytes the session's current node has hashed so far: right after
+    /// `new`, exactly its statement.
+    pub(crate) fn statement_bytes_for_test(&self) -> &[u8] {
+        self.transcript.preimage_for_test()
+    }
+}
+
 fn draw(t: &mut Bound<'_, [u8; 3]>) -> Challenge<Vec<u8>> {
     t.transcript().send(&TestMessage(b"message"));
     t.challenge(|r| r.bytes(16))

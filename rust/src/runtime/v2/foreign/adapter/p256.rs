@@ -392,3 +392,6 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, masked, f), f)
     }
 }
+
+#[cfg(test)]
+mod tests;

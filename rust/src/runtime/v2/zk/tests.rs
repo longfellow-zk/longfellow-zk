@@ -443,6 +443,7 @@ fn p256_scalar_zk_comparison() {
     exercise(&f, &d);
 }
 
+mod absorption;
 mod layouts;
 
 /// Prove `private` on `public` under `context`, on a transcript opened with
