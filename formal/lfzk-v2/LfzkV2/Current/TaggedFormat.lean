@@ -80,8 +80,6 @@ theorem wire_sealFrame (body : Bytes) :
     wire.sealFrame body = word sealTag ++ word 0 ++ word body.length ++ body ++ «seal» := by
   simp only [wire,List.append_assoc]
 
-theorem wire_terminator (domain : Domain) : wire.terminator domain = word 0 := rfl
-
 /-! ## Node 0: the statement -/
 
 /-- The trusted setup constants the statement absorbs: the statement

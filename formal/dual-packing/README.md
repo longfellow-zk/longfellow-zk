@@ -11,14 +11,12 @@ From `formal/`:
 
 ```sh
 lake build DualPacking
-lake env lean dual-packing/audit.lean
 lake build SecurityAudit
 ```
 
 The library is included in the default build, with warnings treated as errors.
-The endpoint audit prints its theorem dependencies; the existing global audit
-also checks every imported `DualPacking` declaration, including private helpers,
-and permits only `propext`, `Classical.choice`, and `Quot.sound` for this library.
+The global audit checks every imported `DualPacking` declaration, including
+private helpers, and permits only `propext`, `Classical.choice`, and `Quot.sound` for this library.
 
 ## Protocol
 

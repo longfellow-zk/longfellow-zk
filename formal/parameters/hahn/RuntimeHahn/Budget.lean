@@ -23,7 +23,6 @@ def additiveBudget (b : Budget) : ℚ := b.threshold+b.rankBudget
 
 theorem field_pos (b : Budget) : 0 < b.minimumField := by cases b ; norm_num [minimumField]
 theorem threshold_nonneg (b : Budget) : 0 ≤ b.threshold := by cases b ; norm_num [threshold,minimumField]
-theorem threshold_le_one (b : Budget) : b.threshold ≤ 1 := by cases b ; norm_num [threshold,minimumField]
 theorem threshold_lt_one (b : Budget) : b.threshold < 1 := by cases b ; norm_num [threshold,minimumField]
 theorem field_error_lt_one (b : Budget) : b.rankBudget+1/(b.minimumField : ℚ) < 1 := by
   cases b ; norm_num [rankBudget,rankDivisor,minimumField]

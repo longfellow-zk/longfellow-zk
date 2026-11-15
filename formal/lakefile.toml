@@ -136,7 +136,7 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
-roots = ["PkCircuit", "PkCircuitPoly"]
+roots = ["PkCircuit"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]

@@ -175,14 +175,6 @@ def digests (bound : ℕ) (fits : bound < 2^64) : PrefixCodec (Digests bound) :=
   PrefixCodec.counted 8 (bound+1) (by rw [show (256:ℕ)^8 = 2^64 by norm_num]; omega)
     (fun length => Fin length.val → Digest) (fun length => digestVector length.val)
 
-theorem digests_encode (bound : ℕ) (fits : bound < 2^64) (value : Digests bound) :
-    (digests bound fits).encode value = word value.1.val ++ (List.ofFn value.2).flatMap List.ofFn := by
-  change encodeLE 8 value.1.val ++ (digestVector value.1.val).encode value.2 = _
-  rw [PrefixCodec.vector_encode]
-  congr 2
-  funext digest
-  exact PrefixCodec.bytes_encode (length := 32) digest
-
 theorem digests_length (bound : ℕ) (fits : bound < 2^64) (value : Digests bound) :
     ((digests bound fits).encode value).length = 8+32*value.1.val := by
   change (encodeLE 8 value.1.val ++ (digestVector value.1.val).encode value.2).length = _

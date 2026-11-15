@@ -305,8 +305,4 @@ theorem Geometry.roles_length (g : Geometry) :
   rw [g.roles_eq]
   by_cases h : g.packingDegree = 1 <;> simp [h] <;> omega
 
-theorem Geometry.last_action (g : Geometry) : g.actions.getLast? = some .finalSeal := by
-  simp only [actions, List.getLast?_append]
-  rfl
-
 end LfzkV2.Current

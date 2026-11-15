@@ -48,11 +48,6 @@ variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
 variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Scalars B)
 
-def packingDescriptor : Bytes :=
-  utf8 "longfellow/packing-extension/v1" ++ part binaryField ++
-    part (utf8 "GF2-to-GF128/polynomial/v1") ++ part (encodeLE 8 128) ++
-    (List.ofFn fun i : Fin 128 => scalars.binary.encode (binary.basis i)).flatten
-
 /-- Component zero is the trusted hash circuit. Empty sparse fragments still
 identify an active layer, so depth is determined by layer presence rather than
 the number of gates or the fragment's local layer tag. -/

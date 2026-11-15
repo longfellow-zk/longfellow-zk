@@ -18,10 +18,6 @@ def FamilyReturns (values : (Raw → Answer) → Setup)
 theorem returns_run (before : Tree Raw Answer Context fuel) (H : Raw → Answer) :
     Returns before (before.run H).1 := ⟨H,rfl⟩
 
-theorem familyReturns_run (values : (Raw → Answer) → Setup)
-    (before : Setup → Tree Raw Answer Context fuel) (H : Raw → Answer) :
-    FamilyReturns values before ((before (values H)).run H).1 := ⟨H,rfl⟩
-
 theorem familyReturns_of_setup (values : (Raw → Answer) → Setup)
     (before : Setup → Tree Raw Answer Context fuel) (H : Raw → Answer) (visible : Setup)
     (consistent : values H = visible) :

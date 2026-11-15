@@ -9,7 +9,6 @@ import Bcs
 import Merkle
 import ECDSA
 import PkCircuit
-import PkCircuitPoly
 import CodingTheory
 import ReedSolomon
 import AffineAgreement
@@ -29,9 +28,7 @@ import PolygeroRustHahn
 import TunedProfiles
 import MdocJointProfile
 import polygero.APITest
-import Bcs.FirstPairCharge
 import Bcs.FirstPairCombined
-import Bcs.FirstPairLocalContext
 import Bcs.FirstPairPath
 import Bcs.FirstPairQuery
 import Bcs.QueryRoleCompiler
@@ -54,7 +51,7 @@ private def auditedModule (name : Name) : Bool :=
     "TranscriptV2", "Bcs", "Merkle",
     "polygero", "RuntimeHahn", "PolygeroRustHahn", "TunedProfiles", "MdocJointProfile", "Survival",
     "CodingTheory", "ReedSolomon", "AffineAgreement", "SelectedMCA", "LigeroFamily",
-    "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "PkCircuitPoly", "LigeroLocalCounts", "examples"].any fun root =>
+    "Ligero", "JBAgreement", "ECDSA", "PkCircuit", "LigeroLocalCounts", "examples"].any fun root =>
       name.toString == root || name.toString.startsWith (root ++ ".")
 
 run_cmd do

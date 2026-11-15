@@ -1,10 +1,7 @@
 import Bcs.Counting
 import Bcs.FirstOccurrenceTrace
-import Bcs.TypedFiatShamir
-import Bcs.IdealCodec
 import Bcs.Compiled
 import Bcs.Transcript
-import Bcs.Reduction
 import Bcs.Extractor
 import Bcs.Soundness
 import Bcs.SchemeCompiler

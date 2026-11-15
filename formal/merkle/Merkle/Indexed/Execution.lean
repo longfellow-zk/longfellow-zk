@@ -127,35 +127,4 @@ theorem check_visible (H : Enc → D) (vertex : ℕ) (input : Enc)
     (fun v above => (checkValues_outside codec n I a proof H v (by omega)).symm)).2
       vertex input positive (Nat.le_of_lt within) queried
 
-/-- The mathematical check's hash inputs. This is also the support of the
-executable check, without its query order or repeated entries. -/
-noncomputable def checkTraceQueries (S : Scheme Salt M D Enc) (n : ℕ)
-    (I : Finset (Fin n)) (a : Fin n → M) (proof : Opening n I Salt D) : Finset Enc := by
-  classical
-  exact (Finset.Ico 1 (2*n)).biUnion fun vertex =>
-    match operation S.toCodec n I a proof (checkValues S n I a proof) vertex with
-    | .inl _ => ∅
-    | .inr input => {input}
-
-theorem mem_checkTraceQueries (S : Scheme Salt M D Enc) (n : ℕ)
-    (I : Finset (Fin n)) (a : Fin n → M) (proof : Opening n I Salt D) (input : Enc) :
-    input ∈ checkTraceQueries S n I a proof ↔
-      ∃ vertex, 0 < vertex ∧ vertex < 2*n ∧
-        operation S.toCodec n I a proof (checkValues S n I a proof) vertex = .inr input := by
-  classical
-  unfold checkTraceQueries
-  simp only [Finset.mem_biUnion,Finset.mem_Ico]
-  constructor
-  · rintro ⟨vertex,⟨positive,within⟩,member⟩
-    refine ⟨vertex,positive,within,?_⟩
-    split at member
-    · simp at member
-    · rename_i found hfound
-      have same := Finset.mem_singleton.mp member
-      exact same ▸ hfound
-  · rintro ⟨vertex,positive,within,queried⟩
-    refine ⟨vertex,⟨positive,within⟩,?_⟩
-    rw [queried]
-    exact Finset.mem_singleton_self _
-
 end Merkle.Indexed

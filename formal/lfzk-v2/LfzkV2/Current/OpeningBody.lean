@@ -51,27 +51,6 @@ def leafEquiv (F : Type) (rows : ℕ) :
         cases kind <;> simp [Equiv.symm_apply_apply]
     · simp only [Equiv.symm_apply_apply]
 
-theorem leaf_witness {F : Type} {rows : ℕ} (values : Fin (rows+3) → F) (i : Fin rows) :
-    (leafEquiv F rows values).1.core .linear i = values ⟨i.val+2, by have := i.isLt; omega⟩ := by
-  change values (rowIndex rows (.inr (.inl i))) = _
-  congr 1
-  apply Fin.ext
-  change 2+i.val = i.val+2
-  omega
-
-theorem leaf_masks {F : Type} {rows : ℕ} (values : Fin (rows+3) → F) :
-    (leafEquiv F rows values).1.checkedMask .vCoefficient = values ⟨0, by omega⟩ ∧
-      (leafEquiv F rows values).1.checkedMask .zRCoefficient = values ⟨1, by omega⟩ :=
-  ⟨rfl, rfl⟩
-
-theorem leaf_proximity {F : Type} {rows : ℕ} (values : Fin (rows+3) → F) :
-    (leafEquiv F rows values).2 = values ⟨rows+2, by omega⟩ := by
-  change values (rowIndex rows (.inr (.inr 0))) = _
-  congr 1
-  apply Fin.ext
-  change 2+(rows+0) = rows+2
-  omega
-
 /-- The parser checks queries times tree depth, and the model also caps the
 count at 2^32-1. Both bounds apply before node allocation. -/
 def frontierCapacity (g : Geometry) : ℕ :=
@@ -123,14 +102,6 @@ def raw (P R : Joint.Participant k s n t)
      participantLeaf R .prime prime hN (fun i => proof.body.primeBackend.rows i (Fin.cast hopenings.symm j)))
   nonce j := proof.body.authentication.nonce (Fin.cast hopenings.symm j)
   frontier := List.ofFn proof.body.authentication.frontier
-
-theorem raw_nonce (P R : Joint.Participant k s n t)
-    (binary : fields .binary → P.Carrier) (prime : fields .prime → R.Carrier)
-    (hB : g.dataRows .binary = P.backend.nw) (hN : g.dataRows .prime = R.backend.nw)
-    (hopenings : g.openings = t)
-    (proof : Proof g fields Advice (Authentication g)) (j : Fin t) :
-    (raw P R binary prime hB hN hopenings proof).nonce j =
-      proof.body.authentication.nonce (Fin.cast hopenings.symm j) := rfl
 
 end LfzkV2.Current.OpeningBody
 

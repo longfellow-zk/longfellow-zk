@@ -41,15 +41,6 @@ private def bytesData :
 def bytes : PrefixCodec (BoundedBytes maxLength) :=
   (PrefixCodec.schema NoFields noCodecs [.bytes]).equiv bytesData
 
-theorem bytes_encode (value : BoundedBytes maxLength) : bytes.encode value = frame value.bytes := by
-  simp only [bytes,PrefixCodec.equiv,bytesData,Equiv.coe_fn_symm_mk,PrefixCodec.schema,
-    TranscriptV2.Framing.encodeValues,TranscriptV2.Framing.encode,frame,List.append_nil,
-    List.cons_append,List.nil_append]
-
-theorem bytes_length (value : BoundedBytes maxLength) :
-    (bytes.encode value).length = 9+value.bytes.length := by
-  rw [bytes_encode,frame_length]
-
 /-- UTF-8 is used only for literal ASCII domain strings. -/
 def utf8 (text : String) : Bytes := text.toUTF8.data.toList.map fun value =>
   ⟨value.toNat,UInt8.toNat_lt _⟩

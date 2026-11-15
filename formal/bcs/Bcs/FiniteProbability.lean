@@ -28,9 +28,6 @@ theorem density_equiv {Omega Other : Type*} [Fintype Omega] [Fintype Other]
   · intro y hy; refine ⟨eqv.symm y, ?_, eqv.apply_symm_apply y⟩
     simpa only [mem_filter, mem_univ, true_and, eqv.apply_symm_apply] using hy
 
-theorem density_nonneg {Omega : Type*} [Fintype Omega] (event : Omega → Prop) :
-    0 ≤ density event := div_nonneg (Nat.cast_nonneg _) (Nat.cast_nonneg _)
-
 theorem density_mono {Omega : Type*} [Fintype Omega] {p q : Omega → Prop}
     (h : ∀ x, p x → q x) : density p ≤ density q := by
   classical
@@ -107,34 +104,6 @@ theorem density_union_le {Index Omega : Type*} [Fintype Index] [Fintype Omega]
   apply mul_le_mul_of_nonneg_right _ (inv_nonneg.mpr (Nat.cast_nonneg _))
   exact_mod_cast hc
 
-theorem density_product_gate_le {Data Pair : Type*} [Fintype Data] [Fintype Pair]
-    [Nonempty Data] [Nonempty Pair] (gate : Data → Prop) (success : Data → Pair → Prop)
-    (epsilon : ℚ) (h : ∀ data, density (success data) ≤ epsilon) :
-    density (fun x : Data × Pair => gate x.1 ∧ success x.1 x.2) ≤
-      epsilon * density gate := by
-  classical
-  have hp : (0 : ℚ) < Fintype.card Pair := by exact_mod_cast Fintype.card_pos
-  have hd : (0 : ℚ) < Fintype.card Data := by exact_mod_cast Fintype.card_pos
-  unfold density at h ⊢
-  rw [Bcs.card_filter_prod_fst, Fintype.card_prod]
-  push_cast
-  rw [div_le_iff₀ (mul_pos hd hp)]
-  have hsum : (∑ data, ((univ.filter fun pair => gate data ∧ success data pair).card : ℚ)) ≤
-      (univ.filter gate).card * (epsilon * Fintype.card Pair) := by
-    calc
-      _ ≤ ∑ data, if gate data then epsilon * Fintype.card Pair else 0 := by
-        apply sum_le_sum
-        intro data _
-        by_cases hg : gate data
-        · simp only [hg, true_and, if_pos]
-          exact (div_le_iff₀ hp).mp (h data)
-        · simp [hg]
-      _ = _ := by simp [← sum_filter]
-  calc
-    _ ≤ (univ.filter gate).card * (epsilon * Fintype.card Pair) := hsum
-    _ = (epsilon * ((univ.filter gate).card / Fintype.card Data)) *
-        (Fintype.card Data * Fintype.card Pair) := by field_simp
-
 theorem density_product_gate {Data Pair : Type*} [Fintype Data] [Fintype Pair]
     [Nonempty Pair] (gate : Data → Prop) :
     density (fun x : Data × Pair => gate x.1) = density gate := by
@@ -145,19 +114,5 @@ theorem density_product_gate {Data Pair : Type*} [Fintype Data] [Fintype Pair]
   simp only [card_product, card_univ, Fintype.card_prod, Nat.cast_mul]
   have hp : (Fintype.card Pair : ℚ) ≠ 0 := by exact_mod_cast Fintype.card_ne_zero
   field_simp
-
-theorem density_selector_sum {Omega Index : Type*} [Fintype Omega] [Fintype Index]
-    [Nonempty Omega] (select : Omega → Index) :
-    (∑ i, density (fun x => select x = i)) = 1 := by
-  classical
-  have hs (x : Omega) : (univ.filter fun i => select x = i) = {select x} := by
-    ext i; simp [eq_comm]
-  have hc : (∑ i, (univ.filter fun x => select x = i).card) = Fintype.card Omega := by
-    rw [← Bcs.card_filter_prod_snd (fun x : Omega × Index => select x.1 = x.2),
-      Bcs.card_filter_prod_fst]
-    simp [hs]
-  simp only [density, div_eq_mul_inv, ← sum_mul, ← Nat.cast_sum, hc]
-  have hd : (Fintype.card Omega : ℚ) ≠ 0 := by exact_mod_cast Fintype.card_ne_zero
-  exact mul_inv_cancel₀ hd
 
 end Bcs.FiniteProbability
