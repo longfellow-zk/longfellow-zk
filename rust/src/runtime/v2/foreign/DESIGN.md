@@ -134,8 +134,10 @@ challenge is a uniform nonzero element of `F_p`. Both are read from one
 stream, and each rescales the whole claim into its own tree. A false claim
 survives one tree with probability about `2^(Q+1-128)`, too much on its own.
 *Enforced by:* `Conversion` holds `[P256Element; 2]` and is built only by the
-nonzero draw (type); `P256Plan::TREES = 2` fixes the fragment's
-`TreeShape` (constant); `Adapter.two_bad_probability_le` (Lean).
+nonzero draw, and the raw encoder `P256Plan::encode`, which takes plain
+field elements, is crate-private, so outside tests only `P256Mode` calls it,
+with an accepted `Challenge<Conversion>` (type); `P256Plan::TREES = 2` fixes
+the fragment's `TreeShape` (constant); `Adapter.two_bad_probability_le` (Lean).
 
 **I5. Quotients are words, published only masked.** The honest quotient
 `k_t` is a `Word<Q>` and never leaves the adapter. The proof carries
@@ -495,6 +497,15 @@ pub fn fragment(npublic: usize, virtual_start: usize, shape: TreeShape)
 pub struct Conversion(/* [P256Element; 2], crate-private */);  // only the nonzero draw builds it (I4)
 impl Conversion { pub fn values(&self) -> &[P256Element; 2]; }
 pub struct P256Plan<const Q: usize> { .. }              // TREES = 2; new rejects bits > 2^Q (I5)
+impl<const Q: usize> P256Plan<Q> {
+    pub fn new(widths: Vec<usize>) -> Result<Self, String>;
+    pub fn shape(&self) -> TreeShape;
+    // crate-private: plain challenges; P256Mode passes the accepted Conversion (I4)
+    pub(crate) fn encode(&self, claim: &ModularClaim<P256Element>, alpha: &[P256Element; 2],
+        values: Option<&[P256Element]>, p: &P256Field, f: &Gf2_128Field)
+        -> Result<P256Encoded<Q>, String>;
+}
+pub(crate) struct P256Encoded<const Q: usize> { .. }    // leaf coefficients, targets, prover quotients
 pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field>, MASK_BITS = 256;
                                                         // mode ID P256_MODE_ID in adapter/transcript.rs
 
@@ -535,6 +546,7 @@ frontend's `Bound`.
 | Batching mixed-storage rows, or splitting pure-foreign storage with eta | I2: the driver composes mixed storage only; `SplitClaim::batch` rejects mixed storage, and only `open` and `receive` take `Eta` |
 | Leaves that depend on the host sumcheck's challenges | I3: leaves are computed before the host top weights are drawn, from the claim, conversion and message only |
 | A zero conversion challenge or eta | I4: `Conversion` and `Eta` exist only from `nonzero` draws |
+| Encoding with caller-chosen conversion challenges, such as one repeated | I4: `P256Plan::encode` is crate-private; `P256Mode` passes only the drawn `Conversion` |
 | One tree instead of two | I4: `P256Plan::TREES` and `[_; 2]` arrays fix the shape |
 | A quotient wider than its word, or a claim too wide for `Q` | I5: `Word::new`, `P256Plan::new`, mdoc's const assertion |
 | Publishing an unmasked quotient | I5: `Word` has no encoder or `Message` impl |

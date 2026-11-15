@@ -54,6 +54,29 @@ pub(crate) fn to_int(p: &P256Field, value: &P256Element) -> Int256 {
 }
 
 /// A P-256 adapter instance whose quotients are `Word<Q>`.
+///
+/// Its encoder takes the conversion challenges as plain field elements and
+/// is crate-private; applications reach it only through `P256Mode`, whose
+/// rounds draw the challenges from the transcript:
+///
+/// ```compile_fail,E0624
+/// use longfellow_zk::runtime::{
+///     algebra::{
+///         gf2_128::Gf2_128Field,
+///         p256::{P256Element, P256Field},
+///     },
+///     v2::{foreign::adapter::p256::P256Plan, zk::storage::ModularClaim},
+/// };
+/// fn chosen(
+///     plan: &P256Plan<10>,
+///     claim: &ModularClaim<P256Element>,
+///     alpha: &[P256Element; 2],
+///     p: &P256Field,
+///     f: &Gf2_128Field,
+/// ) {
+///     let _ = plan.encode(claim, alpha, None, p, f);
+/// }
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct P256Plan<const Q: usize> {
     widths: Vec<usize>,
@@ -98,11 +121,13 @@ impl<const Q: usize> P256Plan<Q> {
 
     /// Leaf coefficients, targets and (with `values`) the honest quotients.
     /// Both challenges must be independent, nonzero, uniform full prime-field
-    /// samples drawn after the claim is fixed.
+    /// samples drawn after the claim is fixed. This checks only that they are
+    /// nonzero, so it is crate-private: outside tests, only `P256Mode` calls
+    /// it, with the transcript's `Challenge<Conversion>`.
     // Verifier-only builds omit the prover's quotient accumulation, which is
     // the only user of `values` and of some loop indices.
     #[cfg_attr(not(any(test, feature = "prover")), allow(unused_variables))]
-    pub fn encode(
+    pub(crate) fn encode(
         &self,
         claim: &ModularClaim<P256Element>,
         alpha: &[P256Element; 2],
@@ -204,17 +229,17 @@ impl<const Q: usize> P256Plan<Q> {
 
 /// Encoded claim: per-tree data-leaf coefficients `g^A - 1`, root targets and,
 /// for the prover only, the honest quotients.
-pub struct P256Encoded<const Q: usize> {
+pub(crate) struct P256Encoded<const Q: usize> {
     coefficients: [Vec<Gf2_128>; 2],
     targets: [Gf2_128; 2],
     /// Honest quotients, computed only by provers.
     #[cfg(any(test, feature = "prover"))]
-    pub quotients: Option<[Word<Q>; 2]>,
+    pub(crate) quotients: Option<[Word<Q>; 2]>,
 }
 impl<const Q: usize> P256Encoded<Q> {
     /// Assemble both trees from the claim's bit groups, the committed pads and
     /// the published masked quotients.
-    pub fn trees(
+    pub(crate) fn trees(
         &self,
         claim: &ModularClaim<P256Element>,
         otp: &[BitGroup<Q>; 2],
