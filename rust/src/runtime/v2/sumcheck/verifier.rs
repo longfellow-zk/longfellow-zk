@@ -23,13 +23,12 @@
 //! the commitment received before sumcheck.
 use super::{
     circuit::CircuitSource,
-    fragments::{self, Schedule, SplitFragment},
-    split::SplitLayer,
+    fragments::{self, SplitFragment},
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{end_layer, round_challenge, terminal_challenge, TopWeights},
+    transcript::{accept_top, end_layer, round_challenge, terminal_challenge, TopWeights},
 };
 use crate::{
-    core::{algebra::RegisteredField, proto::v2::classify_constants},
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
@@ -82,16 +81,12 @@ pub(crate) fn derive_constraints_for_circuits<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
-    let schedule = Schedule::new(circuits, f)?;
+    // Accept the top weights before the first message (transcript I8), with
+    // the schedule they were drawn with.
+    let (schedule, mut entering) = accept_top(top, circuits, t)?;
     proof
         .validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
-    let classes: Vec<_> = circuits
-        .iter()
-        .map(|c| classify_constants(f, &c.raw().constants))
-        .collect();
-    // Accept the top weights before the first message (transcript I8).
-    let mut entering = schedule.accept_top(top, t)?;
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     if schedule.layers.is_empty() {
@@ -104,17 +99,7 @@ pub(crate) fn derive_constraints_for_circuits<
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .zip(&schedule.assertions[stage])
-            .map(|(s, &n)| {
-                SplitFragment::new(
-                    s,
-                    n,
-                    SplitLayer::with_classes(
-                        &circuits[s.circuit].raw().layers[s.layer],
-                        &classes[s.circuit],
-                    ),
-                )
-            })
+            .map(|s| SplitFragment::new(s, schedule.split(circuits, s)))
             .collect();
         schedule.enter(
             stage,

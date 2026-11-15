@@ -22,7 +22,13 @@ use super::{
 #[cfg(test)]
 use crate::core::proto::v2::Circuit;
 use crate::{
-    core::{algebra::SerializableField, proto::v2::classify_constants},
+    core::{
+        algebra::SerializableField,
+        proto::{
+            v2::{classify_constants, CoefficientClass},
+            DigestBytes,
+        },
+    },
     runtime::{
         algebra::{blas, RuntimeField},
         v2::proto::sumcheck::SumcheckProofGeometry,
@@ -45,14 +51,19 @@ pub(super) struct LayerLayout {
     pub nv: usize,
     pub output_assertions: usize,
 }
-/// `assertions[stage][i]` holds the quadratic and linear assertion counts of
-/// fragment `i` at `stage`, derived from the field's classification of its
-/// circuit's constants.
+/// The shared layout of a circuit list and what the run time derives from
+/// each circuit's coefficients: its classes (`classify_constants`) and, for
+/// each layer, its quadratic and linear assertion counts. A role builds it
+/// once, when it draws the top weights (`top_weights`), and carries it in
+/// them to the sumcheck; nothing rebuilds or recounts it. `ids` names the
+/// circuits it was built for, in list order.
 pub(super) struct Schedule {
     pub geometry: SumcheckProofGeometry,
     pub layers: Vec<LayerLayout>,
     pub ninput: usize,
-    pub assertions: Vec<Vec<[usize; 2]>>,
+    ids: Vec<DigestBytes>,
+    classes: Vec<Vec<CoefficientClass>>,
+    assertions: Vec<Vec<[usize; 2]>>,
 }
 impl Schedule {
     pub(super) fn new<F: SerializableField>(
@@ -64,15 +75,14 @@ impl Schedule {
             .iter()
             .map(|c| classify_constants(f, &c.raw().constants))
             .collect();
-        let assertions = layers
+        let assertions = circuits
             .iter()
-            .map(|s| {
-                s.fragments
+            .zip(&classes)
+            .map(|(c, k)| {
+                c.raw()
+                    .layers
                     .iter()
-                    .map(|q| {
-                        circuits[q.circuit].raw().layers[q.layer]
-                            .assertion_counts(&classes[q.circuit])
-                    })
+                    .map(|l| l.assertion_counts(k))
                     .collect()
             })
             .collect();
@@ -80,9 +90,55 @@ impl Schedule {
             geometry,
             layers,
             ninput,
+            ids: circuits.iter().map(|c| *c.id()).collect(),
+            classes,
             assertions,
         })
     }
+    /// Whether this schedule was built for `circuits`, in this order.
+    pub(super) fn is_for<F: SerializableField>(&self, circuits: &[impl CircuitSource<F>]) -> bool {
+        self.ids.len() == circuits.len()
+            && self.ids.iter().zip(circuits).all(|(id, c)| id == c.id())
+    }
+    /// A fragment's quadratic and linear assertion counts.
+    pub(super) fn assertion_counts(&self, fragment: &QuadFragment) -> [usize; 2] {
+        self.assertions[fragment.circuit][fragment.layer]
+    }
+    /// Split one fragment's layer with the schedule's classes and counts.
+    #[cfg(any(test, feature = "verifier"))]
+    pub(super) fn split<'a, F: SerializableField + 'a>(
+        &self,
+        circuits: &'a [impl CircuitSource<F>],
+        fragment: &QuadFragment,
+    ) -> SplitLayer<'a> {
+        let (c, j) = (fragment.circuit, fragment.layer);
+        SplitLayer::with_classes(
+            &circuits[c].raw().layers[j],
+            &self.classes[c],
+            self.assertions[c][j],
+        )
+    }
+    /// Split every layer of every circuit, in list order.
+    #[cfg(any(test, feature = "prover"))]
+    pub(super) fn split_layers<'a, F: SerializableField + 'a>(
+        &self,
+        circuits: &'a [impl CircuitSource<F>],
+    ) -> Vec<Vec<SplitLayer<'a>>> {
+        circuits
+            .iter()
+            .enumerate()
+            .map(|(c, circuit)| {
+                circuit
+                    .raw()
+                    .layers
+                    .iter()
+                    .zip(&self.assertions[c])
+                    .map(|(l, &n)| SplitLayer::with_classes(l, &self.classes[c], n))
+                    .collect()
+            })
+            .collect()
+    }
+
     /// The proof geometry, the stage layouts and the shared input width,
     /// which depend only on the circuits' widths and depths.
     #[allow(clippy::type_complexity)]
@@ -196,13 +252,8 @@ pub(super) struct SplitFragment<'a, E> {
     pub assertions: Vec<E>,
 }
 impl<'a, E> SplitFragment<'a, E> {
-    pub(super) fn new(
-        fragment: &QuadFragment,
-        assertions: [usize; 2],
-        layer: SplitLayer<'a>,
-    ) -> Self {
+    pub(super) fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
         assert_eq!(layer.nw, fragment.input_range.len());
-        assert_eq!(layer.assertion_counts(), assertions);
         Self {
             fragment: fragment.clone(),
             layer,

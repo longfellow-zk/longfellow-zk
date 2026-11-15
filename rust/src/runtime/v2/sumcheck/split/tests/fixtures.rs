@@ -30,6 +30,6 @@ impl<'a> SplitLayer<'a> {
         classes[0] = CoefficientClass::Zero;
         classes[1] = CoefficientClass::One;
         classes[2] = CoefficientClass::MinusOne;
-        Self::with_classes(layer, &classes)
+        Self::with_classes(layer, &classes, layer.assertion_counts(&classes))
     }
 }

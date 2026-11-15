@@ -3,9 +3,7 @@ use super::*;
 use crate::{
     core::{
         algebra::RegisteredField,
-        proto::v2::{
-            classify_constants, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
-        },
+        proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{p256::P256Field, SupportsSampling},
@@ -441,12 +439,8 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
         let alpha = rng.elt_field(f);
         let mut active = Vec::new();
         let mut q = vec![f.zero(); layout.nw];
-        for (i, s) in layout.fragments.iter().enumerate() {
-            let split = SplitLayer::with_classes(
-                &circuits[s.circuit].raw.layers[s.layer],
-                &classify_constants(f, &circuits[s.circuit].raw.constants),
-            );
-            active.push(SplitFragment::new(s, schedule.assertions[stage][i], split));
+        for s in &layout.fragments {
+            active.push(SplitFragment::new(s, schedule.split(&circuits, s)));
         }
         let mut fragmented_t = Transcript::for_test(b"same-layer-assertions");
         let mut merged_t = Transcript::for_test(b"same-layer-assertions");
@@ -462,14 +456,12 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
             &mut fragmented_t,
             f,
         );
-        let merged_schedule = Schedule::new(&[&merged], f).unwrap();
+        let merged_list = [&merged];
+        let merged_schedule = Schedule::new(&merged_list, f).unwrap();
+        let merged_fragment = &merged_schedule.layers[stage].fragments[0];
         let mut merged_active = vec![SplitFragment::new(
-            &merged_schedule.layers[stage].fragments[0],
-            merged_schedule.assertions[stage][0],
-            SplitLayer::with_classes(
-                &merged.raw.layers[stage],
-                &classify_constants(f, &merged.raw.constants),
-            ),
+            merged_fragment,
+            merged_schedule.split(&merged_list, merged_fragment),
         )];
         let mut merged_entering = Vec::new();
         if stage > 0 {

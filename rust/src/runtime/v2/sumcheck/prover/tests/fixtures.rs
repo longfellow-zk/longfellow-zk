@@ -16,15 +16,17 @@ pub(crate) fn prove_core<
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
-    let layers = super::super::super::split::split_layers(circuit, f);
-    let top = top_weights(&[circuit], transcript, f).unwrap();
+    let circuits = [circuit];
+    let top = top_weights(&circuits, transcript, f).unwrap();
+    let (schedule, entering) = accept_top(top, &circuits, transcript).unwrap();
+    let layers = schedule.split_layers(&circuits);
     prove_split(
-        &[circuit],
-        vec![layers],
+        &circuits,
+        layers,
         w_layers,
         SumcheckPads::from_proof(pads.clone()),
-        Schedule::new(&[circuit], f).unwrap(),
-        top,
+        schedule,
+        entering,
         transcript,
         f,
     )

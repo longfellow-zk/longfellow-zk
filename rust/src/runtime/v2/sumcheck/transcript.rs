@@ -150,13 +150,17 @@ impl<E> Default for StageWeights<E> {
 /// coefficients of its top stage, or the input assertions of a frontend with
 /// no layers. The caller draws them before the sumcheck's first message and
 /// hands them in as a `Challenge` (transcript I8); only `top_weights` builds
-/// them.
-pub struct TopWeights<E>(StageWeights<E>);
+/// them. They carry the schedule they were drawn with, so the sumcheck that
+/// accepts them reuses it rather than deriving it again.
+pub struct TopWeights<E> {
+    weights: StageWeights<E>,
+    schedule: Schedule,
+}
 impl<E> TopWeights<E> {
     /// The output weights of the top stage, or the input weights of a
     /// frontend with no layers.
     pub fn outputs(&self) -> &[E] {
-        &self.0.outputs
+        &self.weights.outputs
     }
 }
 
@@ -173,44 +177,34 @@ pub(crate) fn top_weights<
 ) -> Result<Challenge<TopWeights<F::E>>, String> {
     let schedule = Schedule::new(circuits, f)?;
     Ok(t.challenge(|r| {
-        TopWeights(if schedule.layers.is_empty() {
+        let weights = if schedule.layers.is_empty() {
             StageWeights {
                 outputs: schedule.input_assertions(circuits, r, f),
                 assertions: Vec::new(),
             }
         } else {
             schedule.draw_stage(0, r, f)
-        })
+        };
+        TopWeights { weights, schedule }
     }))
 }
 
-impl Schedule {
-    /// Accept the caller's top weights before the first message, checking
-    /// that they were drawn for this schedule.
-    pub(super) fn accept_top<E>(
-        &self,
-        top: Challenge<TopWeights<E>>,
-        t: &TranscriptRef<'_>,
-    ) -> Result<StageWeights<E>, String> {
-        let TopWeights(drawn) = t.accept(top).map_err(|e| e.to_string())?;
-        let shape = match self.layers.first() {
-            Some(layout) => {
-                drawn.outputs.len() == layout.output_assertions
-                    && drawn.assertions.len() == layout.fragments.len()
-                    && drawn
-                        .assertions
-                        .iter()
-                        .zip(&self.assertions[0])
-                        .all(|(a, n)| a.len() == n.iter().sum::<usize>())
-            }
-            None => drawn.outputs.len() == self.ninput && drawn.assertions.is_empty(),
-        };
-        if shape {
-            Ok(drawn)
-        } else {
-            Err("top weights drawn for another circuit list".into())
-        }
+/// Accept the caller's top weights before the first message and return the
+/// schedule they were drawn with, checking that it was built for `circuits`.
+pub(super) fn accept_top<E, F: SerializableField>(
+    top: Challenge<TopWeights<E>>,
+    circuits: &[impl CircuitSource<F>],
+    t: &TranscriptRef<'_>,
+) -> Result<(Schedule, StageWeights<E>), String> {
+    let TopWeights { weights, schedule } = t.accept(top).map_err(|e| e.to_string())?;
+    if schedule.is_for(circuits) {
+        Ok((schedule, weights))
+    } else {
+        Err("top weights drawn for another circuit list".into())
     }
+}
+
+impl Schedule {
     /// Draw a stage's entering-output coefficients, then its explicit
     /// assertion coefficients: quadratic markers across all fragments, then
     /// linear markers, matching a physically concatenated quad stream. Stage
@@ -229,13 +223,17 @@ impl Schedule {
         let outputs = (0..layout.output_assertions)
             .map(|_| r.elt_field(f))
             .collect();
-        let counts = &self.assertions[stage];
+        let counts: Vec<_> = layout
+            .fragments
+            .iter()
+            .map(|s| self.assertion_counts(s))
+            .collect();
         let mut assertions: Vec<Vec<_>> = counts
             .iter()
             .map(|n| Vec::with_capacity(n.iter().sum()))
             .collect();
         for kind in 0..2 {
-            for (a, n) in assertions.iter_mut().zip(counts) {
+            for (a, n) in assertions.iter_mut().zip(&counts) {
                 a.extend((0..n[kind]).map(|_| r.elt_field(f)));
             }
         }

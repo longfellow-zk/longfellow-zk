@@ -44,9 +44,9 @@ use super::{
     circuit::CircuitSource,
     dense::{as_scalar, bind},
     fragments::{self, Schedule, SplitFragment},
-    split::{split_layers, SplitLayer},
+    split::SplitLayer,
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{end_layer, round_challenge, TopWeights},
+    transcript::{accept_top, end_layer, round_challenge, StageWeights, TopWeights},
 };
 use crate::{
     core::algebra::{RegisteredField, SerializableField},
@@ -131,16 +131,18 @@ pub(crate) fn evaluate_and_prove_circuits<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    let schedule = Schedule::new(circuits, f)?;
+    // Accept the top weights before the first message (transcript I8), with
+    // the schedule they were drawn with.
+    let (schedule, entering) = accept_top(top, circuits, t)?;
     pads.validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
     if inputs.len() != schedule.ninput {
         return Err("shared input width mismatch".into());
     }
-    let layers: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
+    let layers = schedule.split_layers(circuits);
     let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
         .map_err(|e| format!("eval_circuit failed: {e}"))?;
-    prove_split(circuits, layers, witnesses, pads, schedule, top, t, f)
+    prove_split(circuits, layers, witnesses, pads, schedule, entering, t, f)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -150,7 +152,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
     witnesses: Vec<Vec<F::E>>,
     pads: SumcheckPads<W, F>,
     schedule: Schedule,
-    top: Challenge<TopWeights<F::E>>,
+    mut entering: StageWeights<F::E>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
@@ -159,8 +161,6 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
     assert_eq!(layers.len(), circuits.len());
     assert_eq!(witnesses.len(), schedule.layers.len());
     let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
-    // Accept the top weights before the first message (transcript I8).
-    let mut entering = schedule.accept_top(top, t)?;
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     if schedule.layers.is_empty() {
@@ -176,10 +176,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .zip(&schedule.assertions[stage])
-            .map(|(s, &n)| {
-                SplitFragment::new(s, n, layers[s.circuit].next().expect("scheduled fragment"))
-            })
+            .map(|s| SplitFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
             .collect();
         schedule.enter(
             stage,

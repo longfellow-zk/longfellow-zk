@@ -7,10 +7,10 @@
 
 use std::ops::Range;
 
-#[cfg(any(test, feature = "prover"))]
+#[cfg(test)]
 use super::circuit::CircuitSource;
 use crate::core::proto::v2::{CoefficientClass, Constant, Layer, Linear, Quadratic, Stream};
-#[cfg(any(test, feature = "prover"))]
+#[cfg(test)]
 use crate::core::{algebra::SerializableField, proto::v2::classify_constants};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,7 +49,9 @@ impl<T> SplitStream<T> {
 fn class(k: u32, classes: &[CoefficientClass]) -> usize {
     classes[k as usize] as usize
 }
-#[cfg(any(test, feature = "prover"))]
+/// Test convenience: split one circuit with its own classification. The
+/// protocol splits through its `Schedule`, which derives the counts once.
+#[cfg(test)]
 pub(super) fn split_layers<'a, F: SerializableField + 'a>(
     c: &'a impl CircuitSource<F>,
     f: &F,
@@ -58,7 +60,7 @@ pub(super) fn split_layers<'a, F: SerializableField + 'a>(
     c.raw()
         .layers
         .iter()
-        .map(|l| SplitLayer::with_classes(l, &classes))
+        .map(|l| SplitLayer::with_classes(l, &classes, l.assertion_counts(&classes)))
         .collect()
 }
 
@@ -485,7 +487,13 @@ pub(super) struct SplitLayer<'a> {
     assertions: [usize; 2],
 }
 impl<'a> SplitLayer<'a> {
-    pub(super) fn with_classes(layer: &'a Layer, classes: &[CoefficientClass]) -> Self {
+    /// `assertions` are the layer's counts under `classes`, which the
+    /// caller's schedule derived once.
+    pub(super) fn with_classes(
+        layer: &'a Layer,
+        classes: &[CoefficientClass],
+        assertions: [usize; 2],
+    ) -> Self {
         let (quadratic_runs, quadratic, quadratic_one, quadratic_minus_one, quadratic_assertions) =
             split_quadratic(&layer.quadratic, classes);
         let (linear_runs, linear, linear_one, linear_minus_one, linear_assertions) =
@@ -508,7 +516,7 @@ impl<'a> SplitLayer<'a> {
             constant,
             constant_one,
             constant_minus_one,
-            assertions: layer.assertion_counts(classes),
+            assertions,
         }
     }
     pub(super) fn assertion_counts(&self) -> [usize; 2] {
