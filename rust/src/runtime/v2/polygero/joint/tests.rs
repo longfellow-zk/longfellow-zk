@@ -62,7 +62,8 @@ fn field<
     let b = vec![f.neg(&blas::dot1(&w, f))];
     (p, w, LinearStatement { a, b })
 }
-fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses, s: L::Statements) {
+fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses, s: L::Statements)
+where L::Statements: Clone {
     let mut tp = Transcript::for_test(b"joint/test");
     let mut tv = tp.fork_for_test();
     let (prover, root) =
@@ -482,9 +483,9 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
         .unwrap();
 }
 
-/// The batching weights are a `Challenge` input (transcript I8): prove and
-/// reduce accept them only where they were drawn, and only for statements
-/// with the equation counts they were drawn for.
+/// The batching weights are a `Challenge` input (transcript I8) that carries
+/// the statements it batches: prove and reduce accept it only where it was
+/// drawn, and only if its weights fit its statements' equation counts.
 #[test]
 fn batching_weights_are_accepted_only_at_their_boundary_and_shape() {
     let f = P256Field::new();
@@ -504,36 +505,31 @@ fn batching_weights_are_accepted_only_at_their_boundary_and_shape() {
     let mut late = Transcript::for_test(b"joint/weights");
     let (stale_prover, root) = commit(&mut late);
     let mut verifier_ts = late.fork_for_test();
-    let stale = JointPolygeroParam::weights(&mut late.bound(&param), &statements);
+    let stale = JointPolygeroParam::weights(&mut late.bound(&param), statements.clone());
     late.send_for_test(b"late");
-    assert!(stale_prover
-        .prove(&mut late.bound(&param), stale, &statements)
-        .is_err());
+    assert!(stale_prover.prove(&mut late.bound(&param), stale).is_err());
     let mut tp = Transcript::for_test(b"joint/weights");
     let (honest_prover, _) = commit(&mut tp);
     let proof = honest_prover
         .prove_drawing(&mut tp.bound(&param), &statements)
         .unwrap();
     let verifier = JointPolygeroVerifier::receive(&mut verifier_ts.bound(&param), &root);
-    let stale_verifier = JointPolygeroParam::weights(&mut verifier_ts.bound(&param), &statements);
+    let stale_verifier =
+        JointPolygeroParam::weights(&mut verifier_ts.bound(&param), statements.clone());
     verifier_ts.send_for_test(b"late");
     assert!(verifier
-        .reduce(
-            &mut verifier_ts.bound(&param),
-            stale_verifier,
-            &proof,
-            &statements
-        )
+        .reduce(&mut verifier_ts.bound(&param), stale_verifier, &proof)
         .is_err());
-    // Weights drawn for another equation count do not fit the statement.
+    // Weights drawn for another equation count do not fit the statement they
+    // carry (only witness selection draws for counts other than its own).
     let mut short = Transcript::for_test(b"joint/weights");
     let (short_prover, _) = commit(&mut short);
     let mut fewer = statements.clone();
     fewer.0.b.pop();
     fewer.0.a.retain(|term| term.c < fewer.0.b.len());
-    let misfit = JointPolygeroParam::weights(&mut short.bound(&param), &fewer);
+    let misfit = param.weights_for(statements, &param.equations(&fewer), &mut short.borrow());
     let error = short_prover
-        .prove(&mut short.bound(&param), misfit, &statements)
+        .prove(&mut short.bound(&param), misfit)
         .expect_err("weights for another statement shape");
     assert_eq!(error.0, "batching weights do not fit the statement");
 }

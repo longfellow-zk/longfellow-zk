@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Verifier ownership of early selection and final joint authentication.
-use super::joint::{Bodies, Fields, JointParam, Responses, Statements, Weights};
+use super::joint::{Batched, Bodies, Fields, JointParam, Responses, Statements};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Bound, Challenge, Transcript},
@@ -55,9 +55,30 @@ impl<L: Fields> JointVerifier<L> {
         self.transcript.bound(part)
     }
     /// Draw the Polygero batching weights of `statements` after the last
-    /// frontend message of every participant (transcript I8).
-    /// `authenticate` accepts them only if no message was sent since.
-    pub fn weights(&mut self, statements: &Statements<L>) -> Challenge<Weights<L>> {
+    /// frontend message of every participant (transcript I8). The weights
+    /// take the statements with them: `authenticate` accepts them only if no
+    /// message was sent since, and checks the opening against the statements
+    /// they carry, so no other system can be substituted.
+    ///
+    /// ```compile_fail,E0061
+    /// use longfellow_zk::runtime::v2::{
+    ///     proto::polygero::JointPolygeroProof,
+    ///     zk::{
+    ///         joint::{Bodies, Fields, Statements},
+    ///         JointVerifier,
+    ///     },
+    /// };
+    /// fn substitute<L: Fields>(
+    ///     mut v: JointVerifier<L>,
+    ///     drawn: Statements<L>,
+    ///     other: Statements<L>,
+    ///     proof: &JointPolygeroProof<Bodies<L>>,
+    /// ) {
+    ///     let batch = v.weights(drawn);
+    ///     let _ = v.authenticate(batch, proof, other);
+    /// }
+    /// ```
+    pub fn weights(&mut self, statements: Statements<L>) -> Challenge<Batched<L>> {
         witness_selection::Param::weights(
             &mut self.transcript.bound(&self.param.selection),
             statements,
@@ -65,15 +86,13 @@ impl<L: Fields> JointVerifier<L> {
     }
     pub fn authenticate(
         mut self,
-        batch: Challenge<Weights<L>>,
+        batch: Challenge<Batched<L>>,
         proof: &JointPolygeroProof<Bodies<L>>,
-        statements: Statements<L>,
     ) -> Result<Authenticated, String> {
         let selection = self.selection.authenticate(
             &mut self.transcript.bound(&self.param.selection),
             batch,
             proof,
-            statements,
         )?;
         Ok(Authenticated {
             transcript: self.transcript,

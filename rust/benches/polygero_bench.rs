@@ -52,6 +52,9 @@ fn run<
     let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
     let statements = (LinearStatement::new(a, b), ());
     let preprocessing = preprocessing_start.elapsed();
+    // The batching weights carry their statements; each role gets its copy
+    // before the timers start.
+    let prover_statements = statements.clone();
     // Release the prover's rows and Merkle tree before timing verification.
     let (com, bytes, commit, prove) = {
         let mut ts = Transcript::for_test(b"polygero/kernel/bench");
@@ -61,10 +64,8 @@ fn run<
                 .unwrap();
         let commit = commit_start.elapsed();
         let prove_start = Instant::now();
-        let batch = JointPolygeroParam::weights(&mut ts.bound_for_test(&param), &statements);
-        let proof = prover
-            .prove(&mut ts.bound_for_test(&param), batch, &statements)
-            .unwrap();
+        let batch = JointPolygeroParam::weights(&mut ts.bound_for_test(&param), prover_statements);
+        let proof = prover.prove(&mut ts.bound_for_test(&param), batch).unwrap();
         let prove = prove_start.elapsed();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         (com, bytes, commit, prove)
@@ -73,10 +74,8 @@ fn run<
     let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
     let mut tv = Transcript::for_test(b"polygero/kernel/bench");
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound_for_test(&param), &com);
-    let batch = JointPolygeroParam::weights(&mut tv.bound_for_test(&param), &statements);
-    verifier
-        .verify(tv, &param, batch, decoded_proof, &statements)
-        .unwrap();
+    let batch = JointPolygeroParam::weights(&mut tv.bound_for_test(&param), statements);
+    verifier.verify(tv, &param, batch, decoded_proof).unwrap();
     let verify = verify_start.elapsed();
     eprintln!("{name}: config={config:?}, witnesses={nw}, preprocessing(two parties)={:.3} ms, commit={:.3} ms, prove={:.3} ms, decode+verify={:.3} ms, proof={} bytes",preprocessing.as_secs_f64()*1000.0,commit.as_secs_f64()*1000.0,prove.as_secs_f64()*1000.0,verify.as_secs_f64()*1000.0,bytes.len());
 }

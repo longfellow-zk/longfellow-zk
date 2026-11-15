@@ -19,14 +19,15 @@
 //! geometry and every field's source (transcript I1, I3). The caller then
 //! runs sumcheck to derive A and b on this same transcript. The batching
 //! weights alpha and challenge polynomials B_i are drawn after the last
-//! message every statement depends on, by the caller (`weights_for`), and
-//! the prover and verifier accept them; nothing is absorbed of their own:
+//! message every statement depends on, by the caller (`weights_for`), which
+//! hands the statements over with them, and the prover and verifier accept
+//! them; nothing is absorbed of their own:
 //! the statements are derived from absorbed messages and challenges, so
 //! their digests are not absorbed again. Each field
 //! then sends its `PolygeroResponse` (H, Z) before the columns are chosen.
 //! Column order is exactly the order returned by `choose`.
 use super::{
-    joint::{BatchWeights, FieldChallenges, JointPolygeroParam},
+    joint::{Batched, FieldChallenges, JointPolygeroParam},
     PolygeroParam,
 };
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
@@ -107,16 +108,24 @@ impl<L: Participants> JointPolygeroParam<L> {
         t.send(&CommitmentMessage(root));
     }
     /// Draw every field's batching weights for `counts[i]` equations in
-    /// field i (transcript I8). The caller draws them after the last message
-    /// any statement depends on; the joint prover and verifier accept them.
+    /// field i (transcript I8), carrying `statements`, the system they batch.
+    /// The caller draws them after the last message any statement depends
+    /// on; the joint prover and verifier accept them and read the statements
+    /// from them. Witness selection passes counts that include the equations
+    /// it attaches later (`Batched::try_map_statements`); the prover and
+    /// verifier reject weights that do not fit the final statements.
     pub(crate) fn weights_for(
         &self,
+        statements: L::Statements,
         counts: &[usize],
         t: &mut TranscriptRef<'_>,
-    ) -> Challenge<BatchWeights<L::Challenges>> {
+    ) -> Challenge<Batched<L>> {
         // Every participant's statement is fixed before any field's batching
         // challenges: they all follow the last frontend message.
-        t.challenge(|r| BatchWeights(self.participants.challenges(counts, r)))
+        t.challenge(|r| Batched {
+            statements,
+            weights: self.participants.challenges(counts, r),
+        })
     }
     /// The equation count of each statement of `s`, in participant order.
     pub(crate) fn equations(&self, s: &L::Statements) -> Vec<usize> {
@@ -124,17 +133,15 @@ impl<L: Participants> JointPolygeroParam<L> {
         self.participants.equations(s, &mut counts);
         counts
     }
-    /// The batching weights of the complete statements `s`, for a caller that
-    /// holds them (`weights_for`). For tests and tools only, with the bare
-    /// codec and standalone `verify`: complete proofs draw them through
+    /// The batching weights of the complete statements `s`, which they
+    /// carry (`weights_for`). For tests and tools only, with the bare codec
+    /// and standalone `verify`: complete proofs draw them through
     /// `weights_for` inside their composition.
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
-    pub fn weights(
-        t: &mut Bound<'_, Self>,
-        s: &L::Statements,
-    ) -> Challenge<BatchWeights<L::Challenges>> {
+    pub fn weights(t: &mut Bound<'_, Self>, s: L::Statements) -> Challenge<Batched<L>> {
         let param = t.part();
-        param.weights_for(&param.equations(s), &mut t.transcript())
+        let counts = param.equations(&s);
+        param.weights_for(s, &counts, &mut t.transcript())
     }
     pub(super) fn queries(&self, b: &L::Bodies, t: &mut TranscriptRef<'_>) -> Vec<usize> {
         // Fix all H/Z responses before drawing the single shared query set.

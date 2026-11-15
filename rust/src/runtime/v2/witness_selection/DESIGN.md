@@ -124,7 +124,9 @@ backend. The Polygero batching weights they forward are drawn by
 `Param::weights` (through `JointProver::weights` and
 `JointVerifier::weights`), which sizes each field's weights for
 `e_i + FINGERPRINTS` equations, so the weights cover the fingerprint rows
-too.
+too. The weights carry the frontend statements they were drawn for, and
+`prove` and `authenticate` append the rows to those statements
+(`Batched::try_map_statements`), taking no other system.
 *Enforced by:* private fields and move-only states (type); Polygero rejects
 batching weights that do not fit the augmented statements
 (`Participants::validate_challenges`, runtime, both roles); `Authenticated` is
@@ -189,9 +191,10 @@ Completion runs after every frontend message:
 | 6 | prover | `PolygeroResponse` (96), one per field, sent by joint Polygero | Elements(`F_i`, k+s), Elements(`F_i`, 2k) |
 
 Witness selection sends and draws nothing in steps 4 to 6 itself; it appends
-the rows and hands the weights to joint Polygero, which accepts them (stamp
-check, transcript I8) and begins by sending `PolygeroResponse`. Appending the
-rows writes nothing to the transcript, so the stamp stays valid.
+the rows to the statements the weights carry and hands both to joint
+Polygero, which accepts them (stamp check, transcript I8) and begins by
+sending `PolygeroResponse`. Appending the rows writes nothing to the
+transcript, so the stamp stays valid.
 
 The prover's responses are `t_ij = m_ij + <a_ij, w_i>` (`ProverFields::responses`,
 one `blas::dot` of length `n_i` per response). Its cost is `2 n_i`
@@ -290,16 +293,17 @@ pub trait Fields: Sealed + Clone {
 pub type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
 pub type Statements<L> = <<L as Fields>::Backend as Participants>::Statements;
 pub type Bodies<L>     = <<L as Fields>::Backend as Participants>::Bodies;
-pub type Weights<L>    = BatchWeights<<<L as Fields>::Backend as Participants>::Challenges>;
+pub type Batched<L>    = polygero::Batched<<L as Fields>::Backend>;   // weights and statements
 
 /// Statement part: the field list and the joint Polygero parameter.
 pub struct Param<L: Fields> { fields: L, backend: JointPolygeroParam<L::Backend> }
 impl<L: Fields> Param<L> {
     pub fn new(fields: L) -> Result<Self, String>;
     pub fn config(&self) -> PolygeroConfig;
-    /// Batching weights for the augmented system: e_i + FINGERPRINTS per field.
-    /// The caller draws them after the last frontend message.
-    pub fn weights(t: &mut Bound<'_, Self>, s: &Statements<L>) -> Challenge<Weights<L>>;
+    /// Batching weights for the augmented system: e_i + FINGERPRINTS per field,
+    /// carrying the frontend statements `s`. The caller draws them after the
+    /// last frontend message.
+    pub fn weights(t: &mut Bound<'_, Self>, s: Statements<L>) -> Challenge<Batched<L>>;
 }
 
 // prover role
@@ -311,7 +315,7 @@ pub fn commit<L: ProverFields>(
 ) -> Result<(Prover<..>, PolygeroCommitment, L::Responses), String>;  // sends Commitment, draws, sends responses
 impl<S, C, R> Prover<S, C, R> {
     pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
-        self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Weights<L>>, statements: Statements<L>,
+        self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Batched<L>>,
     ) -> Result<JointPolygeroProof<Bodies<L>>, String>;            // I5, I8
 }
 
@@ -321,8 +325,8 @@ pub struct Verifier<L: Fields> { backend: JointPolygeroVerifier<L::Backend>, ses
 impl<L: Fields> Verifier<L> {
     pub fn receive(t: &mut Bound<'_, Param<L>>, root: &PolygeroCommitment,
                    responses: L::Responses) -> Self;                 // same schedule as commit (I3, I4)
-    pub fn authenticate(self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Weights<L>>,
-                        proof: &JointPolygeroProof<Bodies<L>>, statements: Statements<L>)
+    pub fn authenticate(self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Batched<L>>,
+                        proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                                // I5, I8
 }
 pub struct Authenticated { .. }      // only from authenticate; not a VerifiedProof

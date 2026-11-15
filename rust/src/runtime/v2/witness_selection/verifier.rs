@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::v2::{
-    polygero::JointPolygeroVerifier,
+    polygero::{Batched as BackendBatched, JointPolygeroVerifier},
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Bound, Challenge, SessionStamp},
 };
@@ -42,24 +42,24 @@ impl<L: Fields> Verifier<L> {
     }
     /// Intermediate authentication only; the enclosing complete verifier must
     /// additionally check its mandatory final transcript seal. `batch` is
-    /// drawn by `Param::weights` for `statements` since the last message.
+    /// drawn by `Param::weights` since the last message and carries the
+    /// frontend statements, to which this attaches the fingerprint equations.
     pub fn authenticate(
         self,
         t: &mut Bound<'_, Param<L>>,
-        batch: Challenge<Weights<L>>,
+        batch: Challenge<Batched<L>>,
         proof: &JointPolygeroProof<Bodies<L>>,
-        statements: Statements<L>,
     ) -> Result<Authenticated, String> {
         let param = t.part();
         if self.session != t.session() {
             return Err("witness selection session mismatch".into());
         }
-        let statements =
-            param
-                .fields
-                .authenticate(statements, self.coefficients, &self.responses)?;
+        let (coefficients, responses) = (self.coefficients, &self.responses);
+        let batch = BackendBatched::try_map_statements(batch, |s| {
+            param.fields.authenticate(s, coefficients, responses)
+        })?;
         self.backend
-            .reduce(&mut t.project(|p| &p.backend), batch, proof, &statements)
+            .reduce(&mut t.project(|p| &p.backend), batch, proof)
             .map_err(|e| e.to_string())?;
         Ok(Authenticated { _private: () })
     }

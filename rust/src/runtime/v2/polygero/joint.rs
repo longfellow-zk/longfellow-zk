@@ -5,6 +5,8 @@ use sha2::Sha256;
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::runtime::v2::transcript::Challenge;
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
 use crate::runtime::v2::{
     proto::polygero::{checked_body, JointPolygeroProof},
@@ -112,14 +114,51 @@ pub struct FieldChallenges<E> {
     /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
     pub(super) batching_samples: Vec<Vec<E>>,
 }
-/// Every field's batching weights, in participant order: per field, one
-/// weight per affine equation, then s+1 samples per batched row. The caller
-/// draws them after the last message any statement depends on, as a
-/// `Challenge` input (transcript I8), and the joint prover and verifier
-/// accept them before the first `PolygeroResponse`. Only
-/// `JointPolygeroParam::weights_for` builds them (and, for tests and tools,
+/// Every field's batching weights, in participant order (per field, one
+/// weight per affine equation, then s+1 samples per batched row), together
+/// with the statements they batch. The caller draws it after the last
+/// message any statement depends on, as a `Challenge` input (transcript I8),
+/// handing over the statements; the joint prover and verifier accept it
+/// before the first `PolygeroResponse` and read the statements from it, so
+/// no other system can replace the one the weights were drawn for. Only
+/// `JointPolygeroParam::weights_for` builds one (and, for tests and tools,
 /// `JointPolygeroParam::weights`).
-pub struct BatchWeights<C>(pub(super) C);
+///
+/// ```compile_fail,E0061
+/// use longfellow_zk::runtime::v2::{
+///     polygero::{Batched, JointPolygeroParam, JointPolygeroProver, Participants},
+///     transcript::{Bound, Challenge},
+/// };
+/// fn substitute<L: Participants>(
+///     prover: JointPolygeroProver<L::States>,
+///     t: &mut Bound<'_, JointPolygeroParam<L>>,
+///     batch: Challenge<Batched<L>>,
+///     other: &L::Statements,
+/// ) {
+///     let _ = prover.prove(t, batch, other);
+/// }
+/// ```
+pub struct Batched<L: Participants> {
+    pub(super) statements: L::Statements,
+    pub(super) weights: L::Challenges,
+}
+impl<L: Participants> Batched<L> {
+    /// The same weights over `f(statements)`, for witness selection, which
+    /// attaches its fingerprint equations: they are fixed before the draw,
+    /// and the weights were drawn for their count.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn try_map_statements<E>(
+        batch: Challenge<Self>,
+        f: impl FnOnce(L::Statements) -> Result<L::Statements, E>,
+    ) -> Result<Challenge<Self>, E> {
+        batch.try_map(|b| {
+            Ok(Self {
+                statements: f(b.statements)?,
+                weights: b.weights,
+            })
+        })
+    }
+}
 mod sealed {
     pub trait Sealed {}
     impl Sealed for () {}

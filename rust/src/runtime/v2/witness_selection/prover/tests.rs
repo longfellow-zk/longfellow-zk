@@ -402,8 +402,8 @@ impl<S, C, R> Prover<S, C, R> {
     where
         L::Backend: BackendParticipants<States = S>,
     {
-        let batch = Param::weights(t, &statements);
-        self.prove(t, batch, statements)
+        let batch = Param::weights(t, statements);
+        self.prove(t, batch)
     }
 }
 impl<L: Fields> Verifier<L> {
@@ -413,7 +413,7 @@ impl<L: Fields> Verifier<L> {
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
     ) -> Result<Authenticated, String> {
-        let batch = Param::weights(t, &statements);
-        self.authenticate(t, batch, proof, statements)
+        let batch = Param::weights(t, statements);
+        self.authenticate(t, batch, proof)
     }
 }

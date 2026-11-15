@@ -89,9 +89,9 @@ pub type Statements<L> = witness_selection::Statements<<L as Fields>::Selection>
 pub type Bodies<L> = witness_selection::Bodies<<L as Fields>::Selection>;
 pub type Coefficients<L> = <<L as Fields>::Selection as witness_selection::Fields>::Coefficients;
 pub type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>::Responses;
-/// The Polygero batching weights of a field list (`JointProver::weights`,
-/// `JointVerifier::weights`).
-pub type Weights<L> = witness_selection::Weights<<L as Fields>::Selection>;
+/// The Polygero batching weights of a field list, with the statements they
+/// batch (`JointProver::weights`, `JointVerifier::weights`).
+pub type Batched<L> = witness_selection::Batched<<L as Fields>::Selection>;
 
 /// Zk-v2 owns the composition: receipt and commitment select the witness before
 /// any frontend challenge, and completion necessarily authenticates those rows.

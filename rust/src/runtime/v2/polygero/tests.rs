@@ -759,18 +759,24 @@ fn static_statement_is_checked_against_the_opening() {
 }
 
 /// Callers that hold their complete statements draw the batching weights
-/// right before the response phase; these run that sequence.
+/// right before the response phase; these run that sequence on a copy of
+/// `s`, which the weights carry.
 impl<S> JointPolygeroProver<S> {
     pub(crate) fn prove_drawing<L: Participants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         s: &L::Statements,
-    ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
-        let batch = JointPolygeroParam::weights(t, s);
-        self.prove(t, batch, s)
+    ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError>
+    where
+        L::Statements: Clone,
+    {
+        let batch = JointPolygeroParam::weights(t, s.clone());
+        self.prove(t, batch)
     }
 }
-impl<L: Participants> JointPolygeroVerifier<L> {
+impl<L: Participants> JointPolygeroVerifier<L>
+where L::Statements: Clone
+{
     pub(crate) fn verify_drawing(
         self,
         mut transcript: Transcript,
@@ -778,8 +784,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
     ) -> Result<VerifiedProof, PolygeroError> {
-        let batch = JointPolygeroParam::weights(&mut transcript.bound(param), s);
-        self.verify(transcript, param, batch, proof, s)
+        let batch = JointPolygeroParam::weights(&mut transcript.bound(param), s.clone());
+        self.verify(transcript, param, batch, proof)
     }
     pub(crate) fn reduce_drawing(
         self,
@@ -787,14 +793,16 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         proof: &JointPolygeroProof<L::Bodies>,
         s: &L::Statements,
     ) -> Result<(), PolygeroError> {
-        let batch = JointPolygeroParam::weights(t, s);
-        self.reduce(t, batch, proof, s)
+        let batch = JointPolygeroParam::weights(t, s.clone());
+        self.reduce(t, batch, proof)
     }
 }
-impl<L: Participants> JointPolygeroParam<L> {
+impl<L: Participants> JointPolygeroParam<L>
+where L::Statements: Clone
+{
     /// The batching weights of `s`, drawn on `t` and accepted at once.
     pub(crate) fn challenges(&self, s: &L::Statements, t: &mut TranscriptRef<'_>) -> L::Challenges {
-        let batch = self.weights_for(&self.equations(s), t);
-        t.accept(batch).unwrap().0
+        let batch = self.weights_for(s.clone(), &self.equations(s), t);
+        t.accept(batch).unwrap().weights
     }
 }

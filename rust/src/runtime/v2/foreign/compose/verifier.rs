@@ -49,9 +49,9 @@ where
         let statement_host = zk::reduce(&mut th, &proof.host, top_host, &leaves, &c.host_ctx)?;
         // The batching weights follow the host frontend's last message.
         let statements = (statement_host, (split.statement, ()));
-        let batch = joint.weights(&statements);
+        let batch = joint.weights(statements);
         Ok(joint
-            .authenticate(batch, &proof.polygero, statements)?
+            .authenticate(batch, &proof.polygero)?
             .into_transcript())
     }
 }

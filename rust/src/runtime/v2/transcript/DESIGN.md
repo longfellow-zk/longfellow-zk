@@ -126,7 +126,9 @@ derives from earlier messages. Those derivations are deterministic functions
 of the absorbed messages and challenges, and where a challenge batches a
 derived system (the Polygero batching weights) the system is carried with
 the challenge, so the consumer cannot substitute another one.
-*Enforced by:* the stamp check in both roles (runtime); move-only (type);
+*Enforced by:* the stamp check in both roles (runtime); move-only, and the
+batching weights' `Challenge<Batched<L>>` carries the statements, so the
+joint `prove` and `authenticate` take no statement parameter (type);
 the drivers' fixed order of derivations, checked by the role-trace test.
 
 **I9. Prover and verifier run one schedule.** The send and draw sequence
@@ -322,6 +324,12 @@ impl<'a, P: ?Sized> Bound<'a, P> {
     pub(crate) fn transcript(&mut self) -> TranscriptRef<'_>;
     pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T>;
 }
+// move-only; its value leaves only through accept
+pub struct Challenge<T> { value: T, at: Position, session: SessionStamp }
+impl<T> Challenge<T> {
+    // same stamp, derived value: witness selection attaching its fingerprint rows (I8)
+    pub(crate) fn try_map<U, E>(self, f: impl FnOnce(T) -> Result<U, E>) -> Result<Challenge<U>, E>;
+}
 impl TranscriptRef<'_> {
     pub(crate) fn send<M: ProverMessage + ?Sized>(&mut self, m: &M);           // I4
     pub(crate) fn draw<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> T; // I7
@@ -386,6 +394,7 @@ than the one its transcript absorbed.
 | Verifying against a geometry other than the one absorbed | I2: the proof reader and every component take geometry from a `Bound` that only the statement's accessors build |
 | Drawing a sub-protocol's first challenge before the message it depends on | I8: the stamp check fails in both roles, so honest proofs fail too and tests catch it; derivations follow the drivers' fixed order |
 | Reusing one challenge for two frontends | I8: `Challenge` is move-only |
+| Batching a system other than the one the weights were drawn for | I8: the weights' `Challenge<Batched<L>>` carries the system; its consumers take no other |
 | A round with no prover message | I7: cannot be expressed |
 | Interleaving one field's statement with another field's batching challenges | Statements are derived (I3); batching draws follow `PackingA`, after every frontend message |
 | An element absorbed as the wrong field | I5: Elements carry the FieldID of a `RegisteredField`, which names one field and one width |

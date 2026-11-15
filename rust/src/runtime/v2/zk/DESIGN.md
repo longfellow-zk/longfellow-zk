@@ -99,13 +99,18 @@ the row weights of pure-foreign storage and the Polygero batching weights are
 closed by the previous message; the consumer accepts it. The Polygero
 batching weights are drawn after the last frontend message of every
 participant (`PackingA`, or the last `SumcheckClaims` when every participant
-has degree one) by `JointProver::weights` and `JointVerifier::weights`, and
-passed to `JointProver::prove` and `JointVerifier::authenticate`, which also
-check that they fit the statements. Eta has type `Eta<E>`, whose only
-constructor is its `nonzero(F)` draw (`split::transcript::eta`), so a zero
-eta cannot be represented.
+has degree one) by `JointProver::weights` and `JointVerifier::weights`,
+which take the statements by value and carry them with the weights
+(`Batched<L>`), and passed to `JointProver::prove` and
+`JointVerifier::authenticate`, which take no statements of their own, so no
+other system can replace the one the weights batch, and which check that the
+weights fit it. Eta has type `Eta<E>`, whose only constructor is its
+`nonzero(F)` draw (`split::transcript::eta`), so a zero eta cannot be
+represented.
 *Enforced by:* `Bound::accept` (runtime, both roles); `Challenge` is
-move-only and `Eta` has no public constructor (type).
+move-only, `prove` and `authenticate` have no statement parameter, and `Eta`
+has no public constructor (type; `compile_fail` doctest on
+`JointVerifier::weights`).
 
 **I5. One constraint form, compiled by shared code.** Every row is
 `sum_w A[c,w]*w + b[c] = 0`. Coefficients, constants, explicit zeros and
@@ -389,10 +394,9 @@ impl<L: Fields> JointParam<L> {
 impl<S, C, R> JointProver<S, C, R> {
     pub fn transcript(&mut self) -> TranscriptRef<'_>;
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
-    pub fn weights<L: Fields>(&mut self, param: &JointParam<L>, statements: &Statements<L>)
-        -> Challenge<Weights<L>>;                        // I4
-    pub fn prove<L: Fields>(self, param: &JointParam<L>, batch: Challenge<Weights<L>>,
-                            statements: Statements<L>)
+    pub fn weights<L: Fields>(&mut self, param: &JointParam<L>, statements: Statements<L>)
+        -> Challenge<Batched<L>>;                        // I4: carries the statements
+    pub fn prove<L: Fields>(self, param: &JointParam<L>, batch: Challenge<Batched<L>>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
 pub fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
@@ -416,9 +420,9 @@ impl<L: Fields> JointParam<L> {
 impl<L: Fields> JointVerifier<L> {
     pub fn transcript(&mut self) -> TranscriptRef<'_>;
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
-    pub fn weights(&mut self, statements: &Statements<L>) -> Challenge<Weights<L>>;  // I4
-    pub fn authenticate(self, batch: Challenge<Weights<L>>, proof: &JointPolygeroProof<Bodies<L>>,
-                        statements: Statements<L>) -> Result<Authenticated, String>;  // I7
+    pub fn weights(&mut self, statements: Statements<L>) -> Challenge<Batched<L>>;  // I4
+    pub fn authenticate(self, batch: Challenge<Batched<L>>, proof: &JointPolygeroProof<Bodies<L>>)
+        -> Result<Authenticated, String>;                // I7
 }
 impl Authenticated { pub fn into_transcript(self) -> Transcript; }
 pub fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
@@ -496,6 +500,7 @@ How the API carries the invariants:
 | Drawing a frontend challenge before the witness is selected | I6: the frontend's `Bound` exists only after commit or receive |
 | Drawing eta before the frontend's last message, or reusing it | I4: stamp check and move-only `Challenge` |
 | Drawing the Polygero batching weights before some participant's last frontend message | I4: `authenticate` and `prove` accept them only if no message was sent since |
+| Authenticating a system other than the one the batching weights were drawn for | I4: the weights carry their statements; `authenticate` and `prove` take no others |
 | A zero eta, which would drop the foreign part of the input equation | I4: `Eta` comes only from `nonzero(F)` |
 | Native row and modular claim built from different `eta` or `mu` | I9: one call returns both |
 | Sending `mu` without absorbing it, or absorbing a different value | I9: `open` and `receive` send `SplitOpening` themselves |

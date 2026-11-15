@@ -513,8 +513,8 @@ impl<S, C, R> JointProver<S, C, R> {
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
         <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
     {
-        let batch = self.weights(param, &statements);
-        self.prove(param, batch, statements)
+        let batch = self.weights(param, statements);
+        self.prove(param, batch)
     }
 }
 impl<L: Fields> JointVerifier<L> {
@@ -523,7 +523,7 @@ impl<L: Fields> JointVerifier<L> {
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
     ) -> Result<Authenticated, String> {
-        let batch = self.weights(&statements);
-        self.authenticate(batch, proof, statements)
+        let batch = self.weights(statements);
+        self.authenticate(batch, proof)
     }
 }

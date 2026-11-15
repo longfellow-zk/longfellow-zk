@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Prover ownership of the selected joint commitment and its final equations.
 use super::joint::{
-    Bodies, Coefficients, Fields, JointParam, Responses, Statements, Weights, Witnesses,
+    Batched, Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses,
 };
 use crate::runtime::{
     random::PrivateRandom,
@@ -64,30 +64,28 @@ impl<S, C, R> JointProver<S, C, R> {
         self.transcript.bound(part)
     }
     /// Draw the Polygero batching weights of `statements` after the last
-    /// frontend message of every participant (transcript I8). `prove`
-    /// accepts them only if no message was sent since.
+    /// frontend message of every participant (transcript I8). The weights
+    /// take the statements with them: `prove` accepts them only if no
+    /// message was sent since, and opens the statements they carry.
     pub fn weights<L: Fields>(
         &mut self,
         param: &JointParam<L>,
-        statements: &Statements<L>,
-    ) -> Challenge<Weights<L>> {
+        statements: Statements<L>,
+    ) -> Challenge<Batched<L>> {
         witness_selection::Param::weights(&mut self.transcript.bound(&param.selection), statements)
     }
     pub fn prove<L: Fields>(
         mut self,
         param: &JointParam<L>,
-        batch: Challenge<Weights<L>>,
-        statements: Statements<L>,
+        batch: Challenge<Batched<L>>,
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
         <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
     {
-        let proof = self.selection.prove(
-            &mut self.transcript.bound(&param.selection),
-            batch,
-            statements,
-        )?;
+        let proof = self
+            .selection
+            .prove(&mut self.transcript.bound(&param.selection), batch)?;
         Ok((proof, self.transcript))
     }
 }

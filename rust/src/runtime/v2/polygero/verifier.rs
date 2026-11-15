@@ -44,42 +44,45 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     }
     /// Complete standalone verification of a bare body (`JointPolygeroParam::read`)
     /// on the session that received the commitment, including the mandatory
-    /// final seal, with the batching weights `batch` drawn for `s` since the
-    /// last message. For tests and tools only: complete proofs run
-    /// `reduce` inside their own composition and check their own seal.
+    /// final seal, with the batching weights `batch` drawn since the last
+    /// message, for the statements it carries. For tests and tools only:
+    /// complete proofs run `reduce` inside their own composition and check
+    /// their own seal.
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn verify(
         self,
         mut transcript: Transcript,
         param: &JointPolygeroParam<L>,
-        batch: Challenge<BatchWeights<L::Challenges>>,
+        batch: Challenge<Batched<L>>,
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
-        s: &L::Statements,
     ) -> Result<VerifiedProof, PolygeroError> {
-        self.reduce(&mut transcript.bound(param), batch, &proof, s)?;
+        self.reduce(&mut transcript.bound(param), batch, &proof)?;
         proof
             .checked(transcript)
             .map_err(|e| PolygeroError(e.into()))
     }
     /// Check the opening on the session that received the commitment. This
     /// is not complete verification: the caller still checks the seal.
+    /// `batch` carries the statements the opening is checked against.
     pub(crate) fn reduce(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        batch: Challenge<BatchWeights<L::Challenges>>,
+        batch: Challenge<Batched<L>>,
         proof: &JointPolygeroProof<L::Bodies>,
-        s: &L::Statements,
     ) -> Result<(), PolygeroError> {
         ensure(
             self.session == t.session(),
             "joint verifier session mismatch",
         )?;
         let p = t.part();
-        p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;
-        let BatchWeights(c) = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
-        p.participants.validate_challenges(s, &c)?;
+        let Batched {
+            statements: s,
+            weights: c,
+        } = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
+        p.participants.validate_statements(&s)?;
+        p.participants.validate_challenges(&s, &c)?;
         let indices = p.queries(&proof.bodies, &mut t.transcript());
         let leaves: Vec<_> = indices
             .iter()
@@ -105,7 +108,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         .map_err(|e| PolygeroError(e.to_string()))?;
         // The one opening authenticates every field's column values. Each field
         // still needs its own low-degree and affine-equation checks.
-        p.participants.check(&proof.bodies, s, &c, &indices)?;
+        p.participants.check(&proof.bodies, &s, &c, &indices)?;
         Ok(())
     }
 }

@@ -125,14 +125,19 @@ whole length, the frontier count included, before anything is allocated
 **I3. Every field's statement is fixed before any batching challenge.** The
 statements are derived from messages already absorbed, so nothing is absorbed
 for them (transcript I3). The batching weights of all fields are one
-`Challenge` input (transcript I8): the caller draws them at the boundary after
-the last frontend message (`JointPolygeroParam::weights_for`), and the
-prover's `prove` and the verifier's `reduce` accept them before the response
-phase sends its first message, `PolygeroResponse`. They also check that the
-weights fit the statements: one weight per equation and `s+1` samples per
-batched row, so weights drawn for another statement shape are rejected.
+`Challenge<Batched<L>>` input (transcript I8): the caller draws them at the
+boundary after the last frontend message (`JointPolygeroParam::weights_for`),
+handing over the statements, which `Batched` carries with the weights. The
+prover's `prove` and the verifier's `reduce` take no other statements: they
+accept the challenge before the response phase sends its first message,
+`PolygeroResponse`, and read the statements from it, so a system of the same
+shape cannot replace the one the weights were drawn for. They also check
+that the weights fit those statements: one weight per equation and `s+1`
+samples per batched row.
 *Enforced by:* the `Challenge` stamp check in both roles and
-`Participants::validate_challenges` (runtime); move-only `Challenge` (type);
+`Participants::validate_challenges` (runtime); move-only `Challenge`, and
+`prove` and `reduce` have no statement parameter (type, `compile_fail`
+doctest on `Batched`);
 the tests `batching_follows_the_absorbed_messages_and_precedes_the_responses`
 and `batching_weights_are_accepted_only_at_their_boundary_and_shape`.
 
@@ -323,10 +328,16 @@ pub struct JointPolygeroParam<L: Participants> { /* participants, config */ }
 impl<L: Participants> JointPolygeroParam<L> {
     pub fn new(participants: L) -> Result<Self, PolygeroError>;   // I1
     pub fn config(&self) -> PolygeroConfig;
-    pub(crate) fn weights_for(&self, counts: &[usize], t: &mut TranscriptRef<'_>)
-        -> Challenge<BatchWeights<L::Challenges>>;  // I3: counts[i] equations in field i
+    pub(crate) fn weights_for(&self, statements: L::Statements, counts: &[usize],
+        t: &mut TranscriptRef<'_>) -> Challenge<Batched<L>>;  // I3: counts[i] equations in field i
 }
-pub struct BatchWeights<C>(/* crate-private */);
+// The weights and the statements they batch (I3); fields crate-private.
+pub struct Batched<L: Participants> { statements: L::Statements, weights: L::Challenges }
+impl<L: Participants> Batched<L> {
+    // witness selection only: attaches its fingerprint equations, counted in `counts`
+    pub(crate) fn try_map_statements<E>(batch: Challenge<Self>,
+        f: impl FnOnce(L::Statements) -> Result<L::Statements, E>) -> Result<Challenge<Self>, E>;
+}
 pub struct LinearStatement<E> { /* a: Vec<PolygeroLinearTerm<E>>, b: Vec<E> */ }
 pub struct PolygeroLinearTerm<E> { pub c: usize, pub w: usize, pub k: E }
 
@@ -340,8 +351,7 @@ impl<S> JointPolygeroProver<S> {
     pub fn prove<L: Participants<States = S>>(
         self,                                       // I4: one opening per commitment
         t: &mut Bound<'_, JointPolygeroParam<L>>,   // checked against the stamp
-        batch: Challenge<BatchWeights<L::Challenges>>,  // I3
-        s: &L::Statements,
+        batch: Challenge<Batched<L>>,               // I3: carries the statements
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError>;
 }
 pub struct JointPolygeroVerifier<L: Participants> { /* session stamp, root */ }
@@ -350,9 +360,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     pub(crate) fn reduce(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,   // checked against the stamp
-        batch: Challenge<BatchWeights<L::Challenges>>,
+        batch: Challenge<Batched<L>>,               // I3: carries the statements
         proof: &JointPolygeroProof<L::Bodies>,
-        s: &L::Statements,
     ) -> Result<(), PolygeroError>;                 // the opening check; the caller checks the seal
 }
 
@@ -361,8 +370,7 @@ impl<E> LinearStatement<E> {
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self;  // static system
 }
 impl<L: Participants> JointPolygeroParam<L> {
-    pub fn weights(t: &mut Bound<'_, Self>, s: &L::Statements)
-        -> Challenge<BatchWeights<L::Challenges>>;
+    pub fn weights(t: &mut Bound<'_, Self>, s: L::Statements) -> Challenge<Batched<L>>;
     pub fn write(&self, p: &JointPolygeroProof<L::Bodies>, transcript: Transcript)
         -> Result<EncodedProof, PolygeroError>;     // sealed bare body, no magic
     pub fn read<'a>(&self, bytes: &mut &'a [u8])
@@ -370,16 +378,17 @@ impl<L: Participants> JointPolygeroParam<L> {
 }
 impl<L: Participants> JointPolygeroVerifier<L> {
     pub fn verify(self, transcript: Transcript, param: &JointPolygeroParam<L>,
-                  batch: Challenge<BatchWeights<L::Challenges>>,
-                  proof: Unverified<'_, JointPolygeroProof<L::Bodies>>, s: &L::Statements)
+                  batch: Challenge<Batched<L>>,
+                  proof: Unverified<'_, JointPolygeroProof<L::Bodies>>)
         -> Result<VerifiedProof, PolygeroError>;
 }
 ```
 
 The caller draws the batching weights with `weights_for`, from the equation
-count of each statement, at the boundary after its last message, and passes
-them to `prove` or `reduce`. In the zk layer, `JointProver::weights` and
-`JointVerifier::weights` do this for complete proofs. `commit` and `receive`
+count of each statement, at the boundary after its last message, moves the
+statements into them, and passes them to `prove` or `reduce`. In the zk
+layer, `JointProver::weights` and `JointVerifier::weights` do this for
+complete proofs. `commit` and `receive`
 record the session stamp of their `Bound`; `prove` and `reduce` reject a
 `Bound` with another stamp, so a prover or verifier state cannot be
 completed on another transcript. `prove` also checks that the encoded rows
@@ -402,6 +411,7 @@ from their `Bound` part.
 | Choosing one field's statement after another field's batching challenges | I3: all statements are derived before the one batching boundary; `Challenge` stamp |
 | Drawing batching challenges before the last frontend message | I3: the stamp rejects a challenge from an earlier boundary |
 | Batching weights drawn for another statement shape | I3: `validate_challenges` rejects them in both roles |
+| Opening a system other than the one the weights were drawn for | I3: `Batched` carries the statements; `prove` and `reduce` take no others |
 | Drawing queries before every response is fixed | I4: the shared schedule sends all responses, then draws |
 | Opening two query sets for one commitment | I4: `prove` consumes the prover; it is not `Clone` |
 | Completing a prover or verifier state on another transcript | I4: session stamp recorded at `commit`/`receive`, checked in `prove`/`reduce` |

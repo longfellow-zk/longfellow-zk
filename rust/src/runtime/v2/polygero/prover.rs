@@ -49,24 +49,28 @@ impl<S> JointPolygeroProver<S> {
         ))
     }
     /// Open the commitment on the session that received it, with the
-    /// batching weights `batch` drawn for `s` since the last message
-    /// (`JointPolygeroParam::weights_for`, transcript I8).
+    /// batching weights `batch` drawn since the last message
+    /// (`JointPolygeroParam::weights_for`, transcript I8), for the
+    /// statements it carries.
     pub fn prove<L: Participants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        batch: Challenge<BatchWeights<L::Challenges>>,
-        s: &L::Statements,
+        batch: Challenge<Batched<L>>,
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
         ensure(self.session == t.session(), "joint prover session mismatch")?;
         let p = t.part();
         // The rows must have been encoded for this parameter's geometry.
         p.participants.validate_states(&self.states)?;
-        p.participants.validate_statements(s)?;
-        let BatchWeights(c) = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
-        p.participants.validate_challenges(s, &c)?;
-        let mut bodies = p.participants.respond(&self.states, s, &c);
-        // Challenge polynomials are no longer needed while collecting openings.
-        drop(c);
+        let Batched {
+            statements: s,
+            weights: c,
+        } = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
+        p.participants.validate_statements(&s)?;
+        p.participants.validate_challenges(&s, &c)?;
+        let mut bodies = p.participants.respond(&self.states, &s, &c);
+        // The statements and challenge polynomials are no longer needed
+        // while collecting openings.
+        drop((s, c));
         let indices = p.queries(&bodies, &mut t.transcript());
         p.participants.gather(&self.states, &mut bodies, &indices);
         Ok(JointPolygeroProof {

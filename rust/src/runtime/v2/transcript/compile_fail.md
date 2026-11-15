@@ -112,14 +112,13 @@ use longfellow_zk::runtime::v2::{
     proto::polygero::JointPolygeroProof,
     transcript::{Challenge, Transcript},
     zk::{
-        joint::{Bodies, Fields, Statements, Weights},
+        joint::{Batched, Bodies, Fields},
         JointVerifier,
     },
 };
-fn bad<L: Fields>(v: JointVerifier<L>, batch: Challenge<Weights<L>>,
-                  proof: &JointPolygeroProof<Bodies<L>>, statements: Statements<L>,
-                  mut other: Transcript) {
-    v.authenticate(batch, proof, statements, &mut other);
+fn bad<L: Fields>(v: JointVerifier<L>, batch: Challenge<Batched<L>>,
+                  proof: &JointPolygeroProof<Bodies<L>>, mut other: Transcript) {
+    v.authenticate(batch, proof, &mut other);
 }
 ```
 

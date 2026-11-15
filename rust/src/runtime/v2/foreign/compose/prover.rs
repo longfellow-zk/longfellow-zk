@@ -72,8 +72,8 @@ where
             zk::prove(&mut th, state_host, top_host, &leaves, &c.host_ctx)?;
         // The batching weights follow the host frontend's last message.
         let statements = (statement_host, (split.statement, ()));
-        let batch = joint.weights(&param, &statements);
-        let (polygero, transcript) = joint.prove(&param, batch, statements)?;
+        let batch = joint.weights(&param, statements);
+        let (polygero, transcript) = joint.prove(&param, batch)?;
         Ok((
             ComposedProof {
                 commitment,
