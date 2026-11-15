@@ -391,6 +391,44 @@ fn exercise<
             "{error}"
         );
     }
+    // Each rejection names the layer that failed.
+    {
+        use super::ZkVerificationError as E;
+        let rejected = |candidate: &ZkProof<W, F>| {
+            let own = v.statement(CONTEXT, &public).unwrap();
+            v.reduce(Opened::new(&own), candidate, &context).err()
+        };
+        let other = ZkVerifier::new(circuit(f), config, &context).unwrap();
+        let other_statement = other.statement(CONTEXT, &public).unwrap();
+        let wrong = v
+            .reduce(Opened::new(&other_statement), &decoded, &context)
+            .err();
+        assert!(matches!(wrong, Some(E::InvalidStatement(_))), "{wrong:?}");
+        let mut short_sumcheck = (*decoded).clone();
+        short_sumcheck.sumcheck_proof.layers.pop();
+        let sumcheck = rejected(&short_sumcheck);
+        assert!(
+            matches!(sumcheck, Some(E::InvalidSumcheck(_))),
+            "{sumcheck:?}"
+        );
+        if let PackingProof::TraceZero { .. } = &decoded.packing {
+            let mut short_packing = (*decoded).clone();
+            let PackingProof::TraceZero { u, .. } = &mut short_packing.packing else {
+                unreachable!()
+            };
+            u.pop();
+            let packing = rejected(&short_packing);
+            assert!(matches!(packing, Some(E::InvalidPacking(_))), "{packing:?}");
+        }
+        // The opening's shape is checked by the joint backend.
+        let mut short_opening = (*decoded).clone();
+        short_opening.com_proof.opening.nonce.pop();
+        let opening_shape = rejected(&short_opening);
+        assert!(
+            matches!(&opening_shape, Some(E::PolygeroVerification(m)) if m.contains("joint opening shape")),
+            "{opening_shape:?}"
+        );
+    }
     encoded_proof.trace.clone()
 }
 #[test]

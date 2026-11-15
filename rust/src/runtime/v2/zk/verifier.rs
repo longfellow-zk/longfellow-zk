@@ -10,11 +10,11 @@ use crate::{
             polygero::LinearStatement,
             proto::{
                 dual_packing::PackingProof,
-                polygero::{validate_opening, PolygeroConfig},
+                polygero::PolygeroConfig,
                 sumcheck::SumcheckProof,
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
-            sumcheck::{self, TopWeights},
+            sumcheck::{self, symbolic::Constraints, TopWeights},
             transcript::{
                 Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof, ZkStatement,
             },
@@ -61,20 +61,44 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
     virtual_inputs: &VirtualInputs<F::E>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<LinearStatement<F::E>, String> {
+    let constraints = sumcheck_constraints(t, sumcheck, top, virtual_inputs, ctx)?;
+    pack_constraints(t, constraints, packing, virtual_inputs, ctx)
+}
+/// The sumcheck step: check the frontend's sumcheck proof from its top
+/// weights and derive its constraints on the committed cells.
+fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    sumcheck: &SumcheckProof<W, F>,
+    top: Challenge<TopWeights<F::E>>,
+    virtual_inputs: &VirtualInputs<F::E>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<Constraints<F::E>, String> {
     let part = t.part();
     let p = part.participant;
     virtual_inputs.validate(&p.inputs)?;
     sumcheck
         .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
-    let f = ctx.field();
-    let constraints = sumcheck::derive_constraints_for_circuits(
+    sumcheck::derive_constraints_for_circuits(
         &part.circuits,
         sumcheck,
         top,
         &mut t.transcript(),
-        f,
-    )?;
+        ctx.field(),
+    )
+}
+/// The packing step: compile the constraints onto the packed commitment and
+/// reduce them, with the packing proof, to equations on the committed row.
+fn pack_constraints<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    constraints: Constraints<F::E>,
+    packing: &PackingProof<F::E>,
+    virtual_inputs: &VirtualInputs<F::E>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<LinearStatement<F::E>, String> {
+    let part = t.part();
+    let p = part.participant;
+    let f = ctx.field();
     let pads = p
         .geometry
         .sumcheck()
@@ -106,13 +130,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)
-            .map_err(ZkVerificationError::PolygeroVerification)?;
+            .map_err(ZkVerificationError::InvalidStatement)?;
         let profile = participant
             .polygero()
-            .map_err(ZkVerificationError::PolygeroVerification)?
+            .map_err(ZkVerificationError::InvalidStatement)?
             .config();
         let geometry = ZkProofGeometry::new(participant.geometry(), profile)
-            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+            .map_err(|e| ZkVerificationError::InvalidStatement(e.to_string()))?;
         Ok(Self {
             circuit,
             participant,
@@ -145,7 +169,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         Ok(ZkProofStatement {
             identity: ZkStatement { context },
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)
-                .map_err(ZkVerificationError::InvalidSumcheck)?,
+                .map_err(ZkVerificationError::InvalidStatement)?,
             geometry: self.geometry(),
         })
     }
@@ -170,25 +194,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Transcript, ZkVerificationError> {
         let (statement, t) = session.into_parts();
         if !std::ptr::eq(statement.part.participant, &self.participant) {
-            return Err(ZkVerificationError::InvalidSumcheck(
+            return Err(ZkVerificationError::InvalidStatement(
                 "statement belongs to another verifier".into(),
             ));
         }
-        proof
-            .sumcheck_proof
-            .validate(self.participant.geometry.sumcheck())
-            .map_err(|e| ZkVerificationError::InvalidSumcheck(e.to_string()))?;
-        // Reject malformed opening shapes before replaying the circuit transcript.
-        // The joint backend also validates them for callers that use it directly.
-        let polygero = self.geometry.polygero();
-        proof
-            .com_proof
-            .bodies
-            .0
-            .validate(&polygero)
-            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        validate_opening(&proof.com_proof.opening, polygero.t, polygero.n)
-            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+        // The reader parsed the proof against the statement's geometry, and
+        // the joint backend checks the opening's shape before using it.
         let param = JointParam::new((
             self.participant
                 .participant(ctx)
@@ -198,36 +209,42 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         .map_err(ZkVerificationError::PolygeroVerification)?;
         let mut verifier = param.receive(&proof.com, (proof.fingerprints.clone(), ()), t);
         let mut frontend = verifier.bound(&statement.part);
-        let linear = top_weights(&mut frontend)
-            .and_then(|top| {
-                reduce_parts(
-                    &mut frontend,
-                    &proof.sumcheck_proof,
-                    &proof.packing,
-                    top,
-                    &VirtualInputs::none(),
-                    ctx,
-                )
-            })
+        let none = VirtualInputs::none();
+        let constraints = top_weights(&mut frontend)
+            .and_then(|top| sumcheck_constraints(&mut frontend, &proof.sumcheck_proof, top, &none, ctx))
             .map_err(ZkVerificationError::InvalidSumcheck)?;
+        let linear = pack_constraints(&mut frontend, constraints, &proof.packing, &none, ctx)
+            .map_err(ZkVerificationError::InvalidPacking)?;
         verifier
             .finish((linear, ()), &proof.com_proof)
             .map(|authenticated| authenticated.into_transcript())
             .map_err(ZkVerificationError::PolygeroVerification)
     }
 }
+/// Why the standalone verifier rejected, by the layer that failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkVerificationError {
-    InvalidSumcheck(String),
-    InvalidTranscriptSeal(String),
+    /// The circuit and profile do not form a verifier, its statement cannot
+    /// be built, or the session was opened with another verifier's statement.
+    InvalidStatement(String),
+    /// The statement's public inputs do not match the circuit's count.
     PublicInputLengthMismatch { expected: usize, actual: usize },
+    /// The sumcheck proof, from its top weights to the derived constraints.
+    InvalidSumcheck(String),
+    /// The constraint compiler or the dual-packing reduction.
+    InvalidPacking(String),
+    /// The joint commitment: its participant, fingerprints and opening.
     PolygeroVerification(String),
+    /// The seal over the proof bytes.
+    InvalidTranscriptSeal(String),
 }
 
 impl fmt::Display for ZkVerificationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidStatement(message) => write!(f, "Invalid statement: {message}"),
             Self::InvalidSumcheck(message) => write!(f, "Invalid sumcheck: {message}"),
+            Self::InvalidPacking(message) => write!(f, "Invalid packing: {message}"),
             Self::InvalidTranscriptSeal(message) => write!(f, "Invalid transcript seal: {message}"),
             Self::PublicInputLengthMismatch { expected, actual } => {
                 write!(
