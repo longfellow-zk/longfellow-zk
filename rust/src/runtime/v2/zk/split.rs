@@ -73,7 +73,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             return Ok(SplitClaim { rows, claim });
         }
         let private = p.inputs.committed();
-        let pads = p.geometry.sc_geom.pad_layout(private);
+        let pads = p.geometry.sumcheck().pad_layout(private);
         if public.len() != circuit.raw.npublic_input
             || constraints.input_weights.len() != circuit.raw.ninput
             || constraints.layers.len() != pads.layers.len()
@@ -332,7 +332,7 @@ pub fn value_count<F: SerializableField>(circuit: &Circuit<F>) -> Result<usize, 
         .checked_sub(circuit.raw.npublic_input)
         .ok_or("public prefix")?;
     private
-        .checked_add(circuit_geometry(&[circuit])?.pad_count()?)
+        .checked_add(circuit_geometry(&[circuit])?.pad_count())
         .ok_or_else(|| "split value count overflow".into())
 }
 

@@ -186,14 +186,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let inputs = InputLayout::new(&[circuit], 0)?;
         let private = inputs.committed();
         let values = private
-            .checked_add(sc_geom.pad_count()?)
+            .checked_add(sc_geom.pad_count())
             .ok_or("split layout overflow")?;
         let split = super::storage::Split::new(storage, mask, private, values)?;
         // Mixed storage commits its native values in value order (native
         // private inputs, then pads), then R; pure foreign storage commits
         // nothing.
         let (committed, pads, mask_cells) = if split.mask.is_some() {
-            let pads = sc_geom.pad_count()?;
+            let pads = sc_geom.pad_count();
             (split.map.native_cells() - pads, pads, 1)
         } else {
             (0, 0, 0)
@@ -202,11 +202,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let param = prepare_parameter(layout.witness_count + mask_cells, config, ctx.domain)?;
         let selected = SelectedField::from_parameter(param.clone(), ctx.domain)?;
         Ok(Self {
-            geometry: CircuitGeometry {
-                sc_geom,
-                com_geom: selected.geometry(),
-                packing_degree: 1,
-            },
+            geometry: CircuitGeometry::new(sc_geom, 1, selected.geometry().nw)
+                .map_err(|e| e.to_string())?,
             #[cfg(any(test, feature = "prover"))]
             config,
             param,
@@ -252,6 +249,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     pub fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
+    }
+    /// The Polygero geometry of this participant's committed cells.
+    pub(super) fn polygero(&self) -> PolygeroGeometry {
+        self.param.geometry()
     }
     pub fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,

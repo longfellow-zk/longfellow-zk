@@ -75,9 +75,7 @@ fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
     element: impl Fn(u64) -> F::E,
 ) {
     for widths in [vec![2, 0, 1], vec![]] {
-        let geometry = SumcheckProofGeometry {
-            logw_layers: widths.clone(),
-        };
+        let geometry = SumcheckProofGeometry::new(widths.clone()).unwrap();
         let proof = SumcheckProof {
             layers: widths
                 .iter()
@@ -223,10 +221,7 @@ fn prime_field_coefficients_preserve_zero_sum_signs() {
         linear: f.zero(),
     }];
     let constraints = build_constraints(&proof, challenges, vec![e(7), e(11)], &f);
-    let pads = SumcheckProofGeometry {
-        logw_layers: vec![0],
-    }
-    .pad_layout(1);
+    let pads = SumcheckProofGeometry::new(vec![0]).unwrap().pad_layout(1);
     let (a, b) = compile(&constraints, &pads, &[e(13)], &f).unwrap();
 
     // w = [private, p_A, p_B, p_AB, p_D]. With C=0, r=7, d=11:
@@ -256,10 +251,7 @@ fn zero_weights_preserve_constant_constraint() {
         },
         input_weights: vec![f.zero(); 3],
     };
-    let pads = SumcheckProofGeometry {
-        logw_layers: vec![],
-    }
-    .pad_layout(3);
+    let pads = SumcheckProofGeometry::new(vec![]).unwrap().pad_layout(3);
     let (a, b) = compile(&constraints, &pads, &[], &f).unwrap();
     assert_eq!(a.len(), 3);
     assert!(a.iter().all(|term| f.is_zero(&term.k)));
@@ -299,15 +291,9 @@ fn rejects_mismatched_challenges_and_pad_layout() {
         linear: f.zero(),
     }];
     let constraints = build_constraints(&proof, layer_challenges, vec![], &f);
-    let missing_pads = SumcheckProofGeometry {
-        logw_layers: vec![],
-    }
-    .pad_layout(0);
+    let missing_pads = SumcheckProofGeometry::new(vec![]).unwrap().pad_layout(0);
     assert!(compile(&constraints, &missing_pads, &[], &f).is_err());
-    let pads = SumcheckProofGeometry {
-        logw_layers: vec![0],
-    }
-    .pad_layout(0);
+    let pads = SumcheckProofGeometry::new(vec![0]).unwrap().pad_layout(0);
     assert!(compile(&constraints, &pads, &[f.one()], &f).is_err());
 }
 

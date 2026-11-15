@@ -49,8 +49,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         rng: &mut impl PrivateRandom,
     ) -> Result<(CircuitState<W, F>, Vec<F::E>), String> {
         let inputs = self.backend.prepare_inputs(&private)?;
-        let (pads, suffix) =
-            sumcheck::sample_pads(&self.geometry.sc_geom, rng, self.backend.parameters.field());
+        let (pads, suffix) = sumcheck::sample_pads(
+            self.geometry.sumcheck(),
+            rng,
+            self.backend.parameters.field(),
+        );
         let (packing, witness) = self.backend.prepare(inputs, suffix, rng);
         Ok((
             CircuitState {
@@ -94,7 +97,7 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
     }
     state
         .pads
-        .validate(&p.geometry.sc_geom)
+        .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
     let f = ctx.field();
     let private = p
@@ -115,7 +118,10 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
         &mut t.transcript(),
         f,
     )?;
-    let pad_layout = p.geometry.sc_geom.pad_layout(p.backend.layout.suffix_start);
+    let pad_layout = p
+        .geometry
+        .sumcheck()
+        .pad_layout(p.backend.layout.suffix_start);
     let statement = super::constraint_compiler::compile_packed(
         constraints,
         &pad_layout,
@@ -177,13 +183,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         Ok(ZkProofStatement {
             identity: ZkStatement { context },
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
-            geometry: {
-                let circuit = self.participant.geometry();
-                ZkProofGeometry {
-                    config: circuit.com_geom.config(),
-                    circuit,
-                }
-            },
+            geometry: ZkProofGeometry::new(
+                self.participant.geometry(),
+                self.participant.polygero().config(),
+            )
+            .map_err(|e| e.to_string())?,
         })
     }
     /// Open a transcript with `statement` and commit to `private`. The
@@ -280,7 +284,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .parameters
             .extension()
             .into_input_elements(f, private);
-        let (pads, suffix) = sumcheck::sample_pads(&self.geometry.sc_geom, rng, f);
+        let (pads, suffix) = sumcheck::sample_pads(self.geometry.sumcheck(), rng, f);
         values.extend(suffix);
         let mut witness: Vec<_> = split
             .map

@@ -59,7 +59,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         let geometry = g.part();
         let fixed = ComposedProof::<2, F1, 4, F2, [MaskedQuotient; 2]>::fixed_len(geometry, f1, f2)
             .ok_or("mdoc proof geometry")?;
-        let (t, n) = (geometry.config.t, geometry.config.n);
+        let (t, n) = (geometry.config().t, geometry.config().n);
         let encoded =
             checked_body(bytes, Self::MAGIC.len(), fixed, t, n).map_err(|e| e.to_string())?;
         if bytes[..4] != Self::MAGIC {

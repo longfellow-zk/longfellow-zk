@@ -144,8 +144,8 @@ impl Schedule {
                 .iter()
                 .map(|s| crate::util::ceil_log2(s.nw))
                 .collect(),
-        );
-        geometry.serialized_elements().map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
         Ok(Self {
             geometry,
             layers,

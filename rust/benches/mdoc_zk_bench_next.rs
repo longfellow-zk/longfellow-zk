@@ -236,8 +236,11 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
     )
     .unwrap();
     let (proof, geometry) = (&decoded.body, &geometry.body);
-    let hash = proof.host.write(&geometry.host, &binary).unwrap();
-    let signature = proof.split.write(&geometry.split.sc_geom, &prime).unwrap();
+    let hash = proof.host.write(geometry.host(), &binary).unwrap();
+    let signature = proof
+        .split
+        .write(geometry.split().sumcheck(), &prime)
+        .unwrap();
     let polygero = &proof.polygero;
     let (nonces, frontier) = polygero.authentication_bytes();
     let hash_payload = polygero.bodies().0.payload_bytes(&binary);

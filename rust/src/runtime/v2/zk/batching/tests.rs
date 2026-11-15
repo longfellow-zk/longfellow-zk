@@ -49,7 +49,7 @@ fn batching_uses_widths_instead_of_cached_logw() {
     for cached_logw in [0, 2, 41] {
         let circuit = circuit(&f, cached_logw);
         let geometry = sumcheck::circuit_geometry(&[&circuit]).unwrap();
-        assert_eq!(geometry.logw_layers, [2]);
+        assert_eq!(geometry.layers(), [2]);
         let public = [f.u64_to_element(6)];
         let private = vec![f.u64_to_element(2), f.u64_to_element(3), f.zero()];
         let (pads, suffix) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(42), &f);

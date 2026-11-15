@@ -62,9 +62,12 @@ pub struct LayerProof<const W: usize, F: SerializableField> {
 pub struct SumcheckProof<const W: usize, F: SerializableField> {
     pub layers: Vec<LayerProof<W, F>>,
 }
+/// The round count of each layer, outputs to inputs. Every value is valid:
+/// each count is at most `MAX_LOGW` and the pad and element counts fit
+/// `usize` (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SumcheckProofGeometry {
-    pub logw_layers: Vec<usize>,
+    logw_layers: Vec<usize>,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[derive(Clone, Debug)]
@@ -89,31 +92,37 @@ fn invalid(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 impl SumcheckProofGeometry {
-    pub fn new(logw_layers: Vec<usize>) -> Self {
-        Self { logw_layers }
-    }
-
-    pub fn pad_count(&self) -> Result<usize, String> {
-        self.serialized_elements()
-            .map_err(|e| e.to_string())?
-            .checked_add(self.logw_layers.len())
-            .ok_or_else(|| "sumcheck pad overflow".into())
-    }
-
-    /// Two coefficients per round, one cross coefficient, and two final claims per layer.
-    pub fn serialized_elements(&self) -> std::io::Result<usize> {
-        self.logw_layers.iter().try_fold(0usize, |total, &logw| {
+    /// The geometry of layers with these round counts, if every count is at
+    /// most `MAX_LOGW` and the pad count fits `usize`.
+    pub fn new(logw_layers: Vec<usize>) -> std::io::Result<Self> {
+        logw_layers.iter().try_fold(0usize, |total, &logw| {
             if !sane_logw(logw) {
                 return Err(invalid("sumcheck logw exceeds MAX_LOGW"));
             }
             total
-                .checked_add(2 * logw + 3)
+                .checked_add(pad_count(logw))
                 .ok_or_else(|| invalid("sumcheck size overflow"))
-        })
+        })?;
+        Ok(Self { logw_layers })
+    }
+
+    /// The round count of each layer, outputs to inputs.
+    pub fn layers(&self) -> &[usize] {
+        &self.logw_layers
+    }
+
+    /// Committed pads: `2 logw + 4` per layer (`pad_count`).
+    pub fn pad_count(&self) -> usize {
+        self.logw_layers.iter().map(|&logw| pad_count(logw)).sum()
+    }
+
+    /// Two coefficients per round, one cross coefficient, and two final claims per layer.
+    pub fn serialized_elements(&self) -> usize {
+        self.logw_layers.iter().map(|&logw| 2 * logw + 3).sum()
     }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn pad_layout(&self, base: usize) -> CircuitPadLayout {
-        base.checked_add(self.pad_count().expect("valid sumcheck geometry"))
+        base.checked_add(self.pad_count())
             .expect("sumcheck pad layout overflow");
         let layers: Vec<_> = self
             .logw_layers
@@ -138,10 +147,9 @@ impl SumcheckProofGeometry {
     }
 }
 impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
-    pub fn geometry(&self) -> SumcheckProofGeometry {
-        SumcheckProofGeometry {
-            logw_layers: self.layers.iter().map(|layer| layer.rounds.len()).collect(),
-        }
+    /// The geometry of this proof's shape, if it is a valid one.
+    pub fn geometry(&self) -> std::io::Result<SumcheckProofGeometry> {
+        SumcheckProofGeometry::new(self.layers.iter().map(|layer| layer.rounds.len()).collect())
     }
     pub fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
         if self.layers.len() != geometry.logw_layers.len()
@@ -153,7 +161,6 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
         {
             return Err(invalid("sumcheck shape mismatch"));
         }
-        geometry.serialized_elements()?;
         Ok(())
     }
     pub fn read(
@@ -165,7 +172,7 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
             return Err(invalid("zero field encoding width"));
         }
         let size = geometry
-            .serialized_elements()?
+            .serialized_elements()
             .checked_mul(f.serialized_size_bytes())
             .ok_or_else(|| invalid("sumcheck byte size overflow"))?;
         if bytes.len() < size {

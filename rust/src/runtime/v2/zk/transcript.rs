@@ -193,7 +193,7 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> Statement for ZkProofStat
     fn write(&self, h: &mut Header<'_>) {
         self.part.write_circuits(h);
         self.part.write_layout(h);
-        write_joint_geometry(h, self.geometry.config);
+        write_joint_geometry(h, self.geometry.config());
         self.part.write_public(h);
     }
 }

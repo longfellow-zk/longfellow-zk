@@ -277,11 +277,8 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     let public = [f.u64_to_element(6)];
     let mut rng = DeterministicRng::new(78);
     let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
-    assert_eq!(p.geometry().packing_degree, 1);
-    assert_eq!(
-        w.len(),
-        private.len() + p.geometry().sc_geom.pad_count().unwrap()
-    );
+    assert_eq!(p.geometry().packing_degree(), 1);
+    assert_eq!(w.len(), private.len() + p.geometry().sumcheck().pad_count());
     // The prover can no longer substitute these values for the committed ones.
     // The state owns its inputs; the original caller's buffer is unrelated.
     private[0] = f.zero();

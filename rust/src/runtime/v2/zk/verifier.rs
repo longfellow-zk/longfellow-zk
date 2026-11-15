@@ -65,7 +65,7 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
     let p = part.participant;
     virtual_inputs.validate(&p.inputs)?;
     sumcheck
-        .validate(&p.geometry.sc_geom)
+        .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
     let f = ctx.field();
     let constraints = sumcheck::derive_constraints_for_circuits(
@@ -75,7 +75,10 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
         &mut t.transcript(),
         f,
     )?;
-    let pads = p.geometry.sc_geom.pad_layout(p.backend.layout.suffix_start);
+    let pads = p
+        .geometry
+        .sumcheck()
+        .pad_layout(p.backend.layout.suffix_start);
     let statement = super::constraint_compiler::compile_packed::<W, F>(
         constraints,
         &pads,
@@ -94,6 +97,7 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
 pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
     circuit: Circuit<F>,
     participant: CircuitParticipant<W, F>,
+    geometry: ZkProofGeometry,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
@@ -103,19 +107,19 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)
             .map_err(ZkVerificationError::PolygeroVerification)?;
+        let geometry =
+            ZkProofGeometry::new(participant.geometry(), participant.polygero().config())
+                .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
         Ok(Self {
             circuit,
             participant,
+            geometry,
         })
     }
     /// The geometry the statement writes and the proof is parsed against.
     /// Its profile is the participant's, the one verification uses.
     pub fn geometry(&self) -> ZkProofGeometry {
-        let circuit = self.participant.geometry();
-        ZkProofGeometry {
-            config: circuit.com_geom.config(),
-            circuit,
-        }
+        self.geometry.clone()
     }
     pub(crate) fn public_input_count(&self) -> usize {
         self.circuit.raw.npublic_input
@@ -168,22 +172,19 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         }
         proof
             .sumcheck_proof
-            .validate(&self.participant.geometry.sc_geom)
+            .validate(self.participant.geometry.sumcheck())
             .map_err(|e| ZkVerificationError::InvalidSumcheck(e.to_string()))?;
         // Reject malformed opening shapes before replaying the circuit transcript.
         // The joint backend also validates them for callers that use it directly.
+        let polygero = self.participant.polygero();
         proof
             .com_proof
             .bodies
             .0
-            .validate(&self.participant.geometry.com_geom)
+            .validate(&polygero)
             .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
-        validate_opening(
-            &proof.com_proof.opening,
-            self.participant.geometry.com_geom.t,
-            self.participant.geometry.com_geom.n,
-        )
-        .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+        validate_opening(&proof.com_proof.opening, polygero.t, polygero.n)
+            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
         let param = JointParam::new((
             self.participant
                 .participant(ctx)
@@ -255,7 +256,7 @@ pub fn reduce_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationD
     let p = part.participant;
     p.split()?;
     proof
-        .validate(&p.geometry.sc_geom)
+        .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
     let f = ctx.field();
     let constraints = sumcheck::derive_constraints_for_circuits(

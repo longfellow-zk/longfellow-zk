@@ -174,14 +174,11 @@ fn exercise<
     let source_geometry = circuit_geometry(&[&source_circuit]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
         source_circuit.raw.ninput - source_circuit.raw.npublic_input,
-        source_geometry.pad_count().unwrap(),
+        source_geometry.pad_count(),
         extension.degree(),
     )
     .unwrap();
-    assert_eq!(
-        prover_geometry.circuit.com_geom.nw,
-        source.witness_count + 2
-    );
+    assert_eq!(prover_geometry.circuit().nw(), source.witness_count + 2);
     let (proof, tp) = p.prove(committed, &context).unwrap();
     let encoded_proof = proof
         .write(&prover_geometry, f, tp.fork_for_test())
@@ -221,7 +218,7 @@ fn exercise<
         4 + 32
             + 2 * f.serialized_size_bytes()
             + prover_geometry
-                .circuit
+                .circuit()
                 .proof_len(f.serialized_size_bytes())
                 .unwrap()
             + decoded.com_proof.bodies.0.payload_bytes(f)

@@ -374,7 +374,8 @@ fn test_sumcheck_core_single_hand_permutations() {
         assert_eq!(transcript, vt.bytes(64));
         assert_eq!(transcript, verifier_transcript.bytes(64));
         let geometry =
-            SumcheckProofGeometry::new(circuit.raw.layers.iter().map(|l| l.logw()).collect());
+            SumcheckProofGeometry::new(circuit.raw.layers.iter().map(|l| l.logw()).collect())
+                .unwrap();
         let result = (proof.write(&geometry, &f).unwrap(), constraints, transcript);
         if let Some(reference) = &expected {
             assert_eq!(&result, reference);

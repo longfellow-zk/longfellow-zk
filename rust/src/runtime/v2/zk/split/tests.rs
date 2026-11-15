@@ -106,10 +106,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     // Native cells: the native private input, then the pads, then R.
     assert_eq!(witness[0], native);
     assert_eq!(*witness.last().unwrap(), mask);
-    assert_eq!(
-        witness.len(),
-        2 + part.geometry().sc_geom.pad_count().unwrap()
-    );
+    assert_eq!(witness.len(), 2 + part.geometry().sumcheck().pad_count());
     let mut tp = Transcript::for_test(b"mixed-rows");
     let mut tv = tp.fork_for_test();
     let (proof, reduction) = prove_split(

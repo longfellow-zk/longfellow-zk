@@ -562,7 +562,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
         reference.0.write(&geometry, f).unwrap()
     );
     assert_eq!(got.1, reference.1);
-    let rounds = geometry.logw_layers.iter().sum::<usize>() as u64;
+    let rounds = geometry.layers().iter().sum::<usize>() as u64;
     assert_eq!(actual.round_count_for_test(), 1 + rounds + 2 * 2);
     assert_eq!(expected.round_count_for_test(), 1 + rounds + 2 * 2);
     assert_eq!(actual.bytes(64), expected.bytes(64));

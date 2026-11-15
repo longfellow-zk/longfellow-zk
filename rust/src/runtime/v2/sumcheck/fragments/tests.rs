@@ -264,7 +264,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
         // The top weights' boundary, then one per round and two per layer:
         // every later stage's weights extend the preceding combine answer.
         let expected_flips =
-            1 + schedule.geometry.logw_layers.iter().sum::<usize>() + 2 * schedule.layers.len();
+            1 + schedule.geometry.layers().iter().sum::<usize>() + 2 * schedule.layers.len();
         assert_eq!(tp.round_count_for_test(), expected_flips as u64);
         assert_eq!(tv.round_count_for_test(), expected_flips as u64);
         assert_eq!(c, d);
@@ -308,7 +308,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
     }
     let schedule = Schedule::new(&[&all[0], &all[2], &all[0]]).unwrap();
     assert_eq!(schedule.layers[0].nw, 11); // 3+5+3, with no per-circuit padding.
-    assert_eq!(schedule.geometry.logw_layers, vec![4, 2]);
+    assert_eq!(schedule.geometry.layers(), vec![4, 2]);
     assert_eq!(
         schedule.layers[0]
             .fragments
@@ -440,7 +440,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
     );
     for (stage, layout) in schedule.layers.iter().enumerate() {
         let a = rng.elt_field_slice(layout.nv, f);
-        let point = rng.elt_field_slice(schedule.geometry.logw_layers[stage], f);
+        let point = rng.elt_field_slice(schedule.geometry.layers()[stage], f);
         let alpha = rng.elt_field(f);
         let mut active = Vec::new();
         let mut q = vec![f.zero(); layout.nw];

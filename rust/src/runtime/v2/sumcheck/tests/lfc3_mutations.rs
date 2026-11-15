@@ -138,7 +138,7 @@ fn check_mutations<const W: usize, F: RuntimeField<W> + RegisteredField + Suppor
                 continue;
             };
             let mut rng = DeterministicRng::new(seed ^ iteration as u64);
-            let proof = random_proof(&geometry.logw_layers, &mut rng, f);
+            let proof = random_proof(geometry.layers(), &mut rng, f);
             let outcome = catch_unwind(AssertUnwindSafe(|| {
                 let _ = top_and_derive(
                     list.as_slice(),

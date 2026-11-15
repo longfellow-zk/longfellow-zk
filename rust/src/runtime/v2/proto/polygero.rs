@@ -63,6 +63,14 @@ impl PolygeroGeometry {
         geom.validate()?;
         Ok(geom)
     }
+    /// The geometry of `config` over `nw` witnesses, which an enclosing
+    /// proof geometry has already validated (proto I8).
+    pub(super) fn validated(nw: usize, config: PolygeroConfig) -> Self {
+        let PolygeroConfig { k, s, n, t } = config;
+        let geom = Self { nw, k, s, n, t };
+        debug_assert!(geom.validate().is_ok());
+        geom
+    }
     /// The profile `(k, s, n, t)` of this geometry.
     pub fn config(&self) -> PolygeroConfig {
         PolygeroConfig {

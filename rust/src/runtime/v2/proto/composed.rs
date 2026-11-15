@@ -13,7 +13,10 @@ use crate::{
     runtime::{
         algebra::RuntimeField,
         v2::proto::{
-            polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
+            polygero::{
+                FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig,
+                PolygeroGeometry,
+            },
             sumcheck::SumcheckProof,
             witness_selection::{FingerprintResponse, FINGERPRINTS},
             zk::{CircuitGeometry, CircuitProof},
@@ -31,12 +34,51 @@ pub trait AdapterMessage: Sized {
 }
 
 /// Public dimensions of a composed proof: the host and split circuit
-/// geometries and the proof's one Polygero profile.
+/// geometries and the proof's one Polygero profile, valid for both fields'
+/// committed cells; the split circuit has packing degree one (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComposedGeometry {
-    pub host: CircuitGeometry,
-    pub split: CircuitGeometry,
-    pub config: PolygeroConfig,
+    host: CircuitGeometry,
+    split: CircuitGeometry,
+    config: PolygeroConfig,
+}
+impl ComposedGeometry {
+    /// The geometry of a composed proof, if the split circuit has packing
+    /// degree one and `config` is a valid Polygero profile for both fields.
+    pub fn new(
+        host: CircuitGeometry,
+        split: CircuitGeometry,
+        config: PolygeroConfig,
+    ) -> std::io::Result<Self> {
+        if split.packing_degree() != 1 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "split packing degree must be one",
+            ));
+        }
+        host.polygero(config)?;
+        split.polygero(config)?;
+        Ok(Self {
+            host,
+            split,
+            config,
+        })
+    }
+    pub fn host(&self) -> &CircuitGeometry {
+        &self.host
+    }
+    pub fn split(&self) -> &CircuitGeometry {
+        &self.split
+    }
+    /// The proof's one Polygero profile.
+    pub fn config(&self) -> PolygeroConfig {
+        self.config
+    }
+    /// The host's and the split field's Polygero geometries, derived from
+    /// their cells and the one profile.
+    pub fn polygero(&self) -> [PolygeroGeometry; 2] {
+        [&self.host, &self.split].map(|c| PolygeroGeometry::validated(c.nw(), self.config))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,11 +115,9 @@ impl<
     /// I3); None if they overflow.
     pub fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize> {
         let (wh, ws) = (h.serialized_size_bytes(), s.serialized_size_bytes());
-        let [host_response, host_rows] = FieldProof::<()>::wire_lengths(&g.host.com_geom, wh)?;
-        let [split_response, split_rows] = FieldProof::<()>::wire_lengths(&g.split.com_geom, ws)?;
-        if g.split.packing_degree != 1 {
-            return None;
-        }
+        let [gh, gs] = g.polygero();
+        let [host_response, host_rows] = FieldProof::<()>::wire_lengths(&gh, wh)?;
+        let [split_response, split_rows] = FieldProof::<()>::wire_lengths(&gs, ws)?;
         [
             Some(32),
             FINGERPRINTS.checked_mul(wh),
@@ -102,18 +142,20 @@ impl<
         h: &H,
         s: &S,
     ) -> Result<(), String> {
+        // Emit only bodies the complete reader accepts for `g` (proto I3).
+        Self::fixed_len(g, h, s).ok_or("composed proof geometry")?;
         out.extend_from_slice(&self.commitment.root.data);
         self.fingerprints.0.write(out, h);
         self.fingerprints.1 .0.write(out, s);
         self.split
-            .write_to_buf(out, &g.split.sc_geom, s)
+            .write_to_buf(out, g.split.sumcheck(), s)
             .map_err(|e| e.to_string())?;
         out.extend_from_slice(&s.to_bytes(&self.mu));
         self.message.write(out);
         self.host
             .write_to_buf(out, &g.host, h)
             .map_err(|e| e.to_string())?;
-        let (gh, gs) = (&g.host.com_geom, &g.split.com_geom);
+        let [gh, gs] = &g.polygero();
         self.polygero
             .write_to_buf::<std::io::Error>(
                 out,
@@ -147,11 +189,11 @@ impl<
                 (),
             ),
         );
-        let split = SumcheckProof::read(b, &g.split.sc_geom, s).map_err(|e| e.to_string())?;
+        let split = SumcheckProof::read(b, g.split.sumcheck(), s).map_err(|e| e.to_string())?;
         let mu = super::read_field(b, s).map_err(|e| e.to_string())?;
         let message = M::read(b)?;
         let host = CircuitProof::read(b, &g.host, h).map_err(|e| e.to_string())?;
-        let (gh, gs) = (&g.host.com_geom, &g.split.com_geom);
+        let [gh, gs] = &g.polygero();
         let polygero = JointPolygeroProof::read::<std::io::Error>(
             b,
             g.config.t,

@@ -382,10 +382,9 @@ pub(crate) fn sample_pads<
     rng: &mut R,
     f: &F,
 ) -> (SumcheckProof<W, F>, Vec<F::E>) {
-    let npads = geometry.pad_count().expect("valid pad geometry");
-    let mut witness = Vec::with_capacity(npads);
-    let mut proof_layers = Vec::with_capacity(geometry.logw_layers.len());
-    for &logw in &geometry.logw_layers {
+    let mut witness = Vec::with_capacity(geometry.pad_count());
+    let mut proof_layers = Vec::with_capacity(geometry.layers().len());
+    for &logw in geometry.layers() {
         let mut rounds = Vec::with_capacity(logw);
         for _ in 0..logw {
             let round_pads = [rng.elt_field(f), rng.elt_field(f)];

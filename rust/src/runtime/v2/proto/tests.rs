@@ -48,8 +48,8 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
             },
         ],
     };
-    let geometry = proof.geometry();
-    assert_eq!(geometry.serialized_elements().unwrap(), 12);
+    let geometry = proof.geometry().unwrap();
+    assert_eq!(geometry.serialized_elements(), 12);
     let layout = geometry.pad_layout(7);
     assert_eq!(layout.layers[0].rounds[2], [11, 12]);
     assert_eq!(layout.layers[0].claims, [13, 14]);
@@ -63,10 +63,9 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
     for len in 0..bytes.len() {
         assert!(SumcheckProof::<4, _>::read(&mut &bytes[..len], &geometry, &f).is_err());
     }
-    let invalid = SumcheckProofGeometry {
-        logw_layers: vec![crate::runtime::v2::proto::sumcheck::MAX_LOGW + 1],
-    };
-    assert!(SumcheckProof::<4, _>::read(&mut bytes.as_slice(), &invalid, &f).is_err());
+    // A geometry with too many rounds cannot reach the reader (proto I8).
+    let too_deep = vec![crate::runtime::v2::proto::sumcheck::MAX_LOGW + 1];
+    assert!(SumcheckProofGeometry::new(too_deep).is_err());
     let mut malformed = proof.clone();
     malformed.layers[0].rounds.pop();
 
@@ -91,8 +90,8 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
                 claims: [f.one(), f.zero()],
             }],
         };
-        let geometry = proof.geometry();
-        assert_eq!(geometry.serialized_elements().unwrap(), 2 * logw + 3);
+        let geometry = proof.geometry().unwrap();
+        assert_eq!(geometry.serialized_elements(), 2 * logw + 3);
         let layout = geometry.pad_layout(7);
         assert_eq!(layout.layers[0].cross + 1, 7 + pad_count(logw));
         let bytes = proof.write(&geometry, &f).unwrap();
@@ -106,16 +105,9 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
 
     for logw in [MAX_LOGW + 1, usize::MAX] {
         assert!(!sane_logw(logw));
-        let geometry = SumcheckProofGeometry {
-            logw_layers: vec![logw],
-        };
-        assert!(geometry.serialized_elements().is_err());
-        let input = [0u8; 32];
-        let mut remaining = input.as_slice();
-        assert!(SumcheckProof::<4, _>::read(&mut remaining, &geometry, &f).is_err());
-        assert_eq!(remaining, input);
+        assert!(SumcheckProofGeometry::new(vec![logw]).is_err());
     }
-    let too_many: SumcheckProof<4, _> = SumcheckProof {
+    let too_many: SumcheckProof<4, P256Field> = SumcheckProof {
         layers: vec![LayerProof {
             rounds: vec![
                 RoundPoly {
@@ -127,7 +119,7 @@ fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
             claims: [f.one(), f.zero()],
         }],
     };
-    assert!(too_many.write(&too_many.geometry(), &f).is_err());
+    assert!(too_many.geometry().is_err());
 }
 
 #[test]
@@ -139,8 +131,8 @@ fn sumcheck_rejects_aliases_in_every_field_position() {
     let f = Aliased(Gf2_128Field::new());
     // Include round coefficients, the cross coefficient and terminal claims,
     // both in an ordinary layer and a layer with no rounds.
-    let geometry = SumcheckProofGeometry::new(vec![2, 0]);
-    let count = geometry.serialized_elements().unwrap();
+    let geometry = SumcheckProofGeometry::new(vec![2, 0]).unwrap();
+    let count = geometry.serialized_elements();
     let bytes: Vec<_> = (0..count).flat_map(|i| (i as u128).to_le_bytes()).collect();
     let mut remaining = bytes.as_slice();
     let proof = SumcheckProof::<2, _>::read(&mut remaining, &geometry, &f).unwrap();

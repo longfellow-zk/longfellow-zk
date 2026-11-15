@@ -172,7 +172,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let independent_param = JointParam::new((
         SelectedField::new(
             prover.participant.backend.layout.witness_count,
-            geometry.config,
+            geometry.config(),
             &domain,
         )
         .unwrap(),
@@ -214,7 +214,10 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(state, independent.fork_for_test().bytes(32));
     assert_ne!(state, different_execution.bytes(32));
     let layout = prover.participant.backend.layout.clone();
-    let pads = geometry.circuit.sc_geom.pad_layout(layout.suffix_start);
+    let pads = geometry
+        .circuit()
+        .sumcheck()
+        .pad_layout(layout.suffix_start);
     let source = constraint_compiler::compile_packed(
         constraints,
         &pads,

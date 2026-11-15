@@ -45,11 +45,11 @@ pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
         return Err("batched frontend input shape".into());
     }
     let geometry = sumcheck::circuit_geometry(&[circuit])?;
-    if constraints.layers.len() != geometry.logw_layers.len() {
+    if constraints.layers.len() != geometry.layers().len() {
         return Err("batched frontend layer count".into());
     }
     let count = private
-        .checked_add(geometry.pad_count()?)
+        .checked_add(geometry.pad_count())
         .ok_or("batched frontend layout overflow")?;
     let pads = geometry.pad_layout(private);
     let layers = super::constraint_compiler::compile_layers(&constraints, &pads)?;

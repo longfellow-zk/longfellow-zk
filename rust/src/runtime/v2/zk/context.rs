@@ -100,13 +100,10 @@ pub(crate) fn prepare_circuit_layout<
     circuits.extend_from_slice(others);
     let private_inputs = InputLayout::new(&circuits, virtual_inputs)?.committed();
     let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
-    let layout = PackingLayout::new(private_inputs, sc_geom.pad_count()?, extension.degree())?;
+    let layout = PackingLayout::new(private_inputs, sc_geom.pad_count(), extension.degree())?;
     let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
-    let geometry = CircuitGeometry {
-        sc_geom,
-        com_geom: param.geometry(),
-        packing_degree: layout.degree,
-    };
+    let geometry = CircuitGeometry::new(sc_geom, layout.degree, param.geometry().nw)
+        .map_err(|e| e.to_string())?;
     let backend = PackingCommitment::new(ctx.field().clone(), layout, extension)?;
     Ok((geometry, param, backend))
 }

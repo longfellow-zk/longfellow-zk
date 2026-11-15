@@ -140,11 +140,8 @@ where
     }
     pub fn geometry(&self) -> Result<ComposedGeometry, String> {
         let param = self.param()?;
-        Ok(ComposedGeometry {
-            host: self.host.geometry(),
-            split: self.split.geometry(),
-            config: param.config(),
-        })
+        ComposedGeometry::new(self.host.geometry(), self.split.geometry(), param.config())
+            .map_err(|e| e.to_string())
     }
     /// The composition's statement on these public inputs: the application's
     /// `identity` message, both frontends and the geometry the proof is
@@ -223,7 +220,7 @@ where
         self.host.write_layout(h);
         self.split.write_layout(h);
         self.composition.mode.write_layout(h);
-        write_joint_geometry(h, self.geometry.config);
+        write_joint_geometry(h, self.geometry.config());
         self.host.write_public(h);
         self.split.write_public(h);
     }

@@ -23,19 +23,76 @@ use crate::{
     },
 };
 
-/// Circuit reduction dimensions, independent of its enclosing participant list.
+/// Circuit reduction dimensions, independent of its enclosing participant
+/// list: the sumcheck geometry, the packing degree `m >= 1` and the
+/// participant's committed cell count `nw`. Its Polygero geometry is derived
+/// from `nw` and the enclosing proof geometry's one profile (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitGeometry {
-    pub sc_geom: SumcheckProofGeometry,
-    pub com_geom: PolygeroGeometry,
-    pub packing_degree: usize,
+    sumcheck: SumcheckProofGeometry,
+    packing_degree: usize,
+    nw: usize,
 }
 /// Complete standalone proof geometry: one circuit and the proof's one
-/// Polygero profile.
+/// Polygero profile, valid for the circuit's committed cells.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkProofGeometry {
-    pub circuit: CircuitGeometry,
-    pub config: PolygeroConfig,
+    circuit: CircuitGeometry,
+    config: PolygeroConfig,
+}
+fn invalid_geometry(message: &str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidInput, message)
+}
+impl CircuitGeometry {
+    /// The geometry of a circuit reduction with packing degree
+    /// `packing_degree >= 1` whose participant commits `nw` cells.
+    pub fn new(
+        sumcheck: SumcheckProofGeometry,
+        packing_degree: usize,
+        nw: usize,
+    ) -> std::io::Result<Self> {
+        if packing_degree == 0 {
+            return Err(invalid_geometry("packing degree zero"));
+        }
+        Ok(Self {
+            sumcheck,
+            packing_degree,
+            nw,
+        })
+    }
+    pub fn sumcheck(&self) -> &SumcheckProofGeometry {
+        &self.sumcheck
+    }
+    pub fn packing_degree(&self) -> usize {
+        self.packing_degree
+    }
+    /// Committed cells of the participant, its fingerprint masks included.
+    pub fn nw(&self) -> usize {
+        self.nw
+    }
+    /// The Polygero geometry of this circuit's cells under `config`, if valid.
+    pub(super) fn polygero(&self, config: PolygeroConfig) -> std::io::Result<PolygeroGeometry> {
+        PolygeroGeometry::new(self.nw, config)
+    }
+}
+impl ZkProofGeometry {
+    /// The geometry of a standalone proof of `circuit` under `config`, if
+    /// `config` is a valid Polygero profile for the circuit's cells.
+    pub fn new(circuit: CircuitGeometry, config: PolygeroConfig) -> std::io::Result<Self> {
+        circuit.polygero(config)?;
+        Ok(Self { circuit, config })
+    }
+    pub fn circuit(&self) -> &CircuitGeometry {
+        &self.circuit
+    }
+    /// The proof's one Polygero profile.
+    pub fn config(&self) -> PolygeroConfig {
+        self.config
+    }
+    /// The circuit's Polygero geometry, derived from its cells and the profile.
+    pub fn polygero(&self) -> PolygeroGeometry {
+        PolygeroGeometry::validated(self.circuit.nw, self.config)
+    }
 }
 /// A standalone proof; its fields are in send order (proto I4).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -67,7 +124,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
                 if g.packing_degree > 1 && u.len() == g.packing_degree => {}
             _ => return Err(Error::new(ErrorKind::InvalidData, "v2 packing shape")),
         }
-        sumcheck.write_to_buf(buf, &g.sc_geom, f)?;
+        sumcheck.write_to_buf(buf, &g.sumcheck, f)?;
         if let PackingProof::TraceZero { u, a } = packing {
             for x in u.iter().chain(std::iter::once(a)) {
                 super::util::write_elt_field(buf, x, f);
@@ -90,7 +147,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
     }
     pub fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
-        let sumcheck_proof = SumcheckProof::read(b, &g.sc_geom, f)?;
+        let sumcheck_proof = SumcheckProof::read(b, &g.sumcheck, f)?;
         let packing = if g.packing_degree == 1 {
             PackingProof::Direct
         } else {
@@ -102,7 +159,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
             let size = count
                 .checked_mul(width)
                 .ok_or_else(|| Error::new(ErrorKind::InvalidData, "packing geometry"))?;
-            if g.packing_degree == 0 || width == 0 {
+            if width == 0 {
                 return Err(Error::new(ErrorKind::InvalidData, "packing geometry"));
             }
             let mut raw = b
@@ -125,9 +182,8 @@ impl CircuitGeometry {
     /// Bytes of a circuit proof: the sumcheck, then packing U and A when the
     /// packing degree exceeds one; None if they overflow.
     pub(crate) fn proof_len(&self, width: usize) -> Option<usize> {
-        let elements = self.sc_geom.serialized_elements().ok()?;
+        let elements = self.sumcheck.serialized_elements();
         let packing = match self.packing_degree {
-            0 => return None,
             1 => 0,
             m => m.checked_add(1)?,
         };
@@ -139,8 +195,7 @@ impl ZkProofGeometry {
     /// Bytes of every body field before the frontier and its count: root, fingerprints,
     /// circuit proof, response, rows and nonces (proto I3).
     fn fixed_len(&self, width: usize) -> Option<usize> {
-        let g = &self.circuit.com_geom;
-        let [response, rows] = FieldProof::<()>::wire_lengths(g, width)?;
+        let [response, rows] = FieldProof::<()>::wire_lengths(&self.polygero(), width)?;
         [
             Some(32),
             FINGERPRINTS.checked_mul(width),
@@ -163,7 +218,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         buf.extend_from_slice(&self.com.root.data);
         self.fingerprints.write(buf, f);
         CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, &g.circuit, f)?;
-        let geom = &g.circuit.com_geom;
+        let geom = &g.polygero();
         self.com_proof.write_to_buf(
             buf,
             g.config.t,
@@ -213,7 +268,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
             sumcheck_proof,
             packing,
         } = CircuitProof::read(&mut b, &geometry.circuit, f)?;
-        let geom = &geometry.circuit.com_geom;
+        let geom = &geometry.polygero();
         let com_proof = JointPolygeroProof::read::<std::io::Error>(
             &mut b,
             t,

@@ -900,7 +900,7 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
         )
         .unwrap();
         let geometry = proof_geometry(provided.spec(), &sig, &hash).unwrap();
-        32 * geometry.body.split.sc_geom.serialized_elements().unwrap()
+        32 * geometry.body.split().sumcheck().serialized_elements()
     };
     let masked_at = 4 + 32 + 32 + 64 + split_sumcheck + 32;
     for (byte, bit, expected) in [
@@ -1407,7 +1407,7 @@ fn check_mdoc_trace(
         .iter()
         .map(|x| u64::from_le_bytes(*x))
         .collect();
-    let c = geometry.body.config;
+    let c = geometry.body.config();
     assert_eq!(nats, [c.k as u64, c.s as u64, c.n as u64, c.t as u64]);
     assert_eq!(provided.spec().config(), c);
     if count == 1 {
@@ -1480,16 +1480,16 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
     let geometry = proof_geometry(spec, &sig, &hash).unwrap();
     // Keep the numerical frontend and Merkle charges tied to the actual
     // hash-plus-adapter geometry, including entries for both quad fragments.
-    let binary = &geometry.body.host.sc_geom;
-    let native = &geometry.body.split.sc_geom;
-    assert!(2 * binary.logw_layers.iter().sum::<usize>() + 2 * binary.logw_layers.len() + 2 <= 593);
-    assert!(binary.logw_layers.len() <= 20);
-    assert!(2 * native.logw_layers.iter().sum::<usize>() + 2 * native.logw_layers.len() < 593);
-    assert!(native.logw_layers.len() <= 20);
+    let binary = geometry.body.host().sumcheck();
+    let native = geometry.body.split().sumcheck();
+    assert!(2 * binary.layers().iter().sum::<usize>() + 2 * binary.layers().len() + 2 <= 593);
+    assert!(binary.layers().len() <= 20);
+    assert!(2 * native.layers().iter().sum::<usize>() + 2 * native.layers().len() < 593);
+    assert!(native.layers().len() <= 20);
     assert!(
-        binary.logw_layers.iter().sum::<usize>()
-            + native.logw_layers.iter().sum::<usize>()
-            + 4 * (binary.logw_layers.len() + native.logw_layers.len())
+        binary.layers().iter().sum::<usize>()
+            + native.layers().iter().sum::<usize>()
+            + 4 * (binary.layers().len() + native.layers().len())
             + 16
             <= 1204
     );
